@@ -1,0 +1,28 @@
+{
+  "acceptance_allow": [
+    "scenarios/workspace-sandbox/**",
+    "scenarios/agent-manager/**"
+  ],
+  "created": "2026-04-28T02:31:26Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "depends_on": [
+    "execute/protected-sandbox-agent-launch"
+  ],
+  "description": "## Goal\n\nWorkspace-sandbox `/processes` does not currently record exit codes for tracked background processes. The SandboxLauncher therefore reports `exitCode=0` on natural exit and `exitCode=1` as a placeholder when the process disappeared. Add structured exit-code recording so the runner can distinguish runner-process success vs failure precisely (matching the host launcher).\n\n## Expected deliverables\n\n1. A `status=exited` row on `/processes` carries the actual exit code, signal (if any), and OOMKilled flag.\n2. SandboxLauncher.checkExited reads the recorded exit code and returns it via `remoteExitError.ExitCode`.\n3. Runner-level test that compares exit-code propagation between HostLauncher and SandboxLauncher (parity).\n4. Update `PROTECTED_MODE_RUNNERS.md` capability matrix `Exit code propagation` row from \"placeholder\" to \"verified\".\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/handlers/process.go` (GetProcesses)\n- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go` (checkExited, remoteExitError)\n- `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md`",
+  "effort": "S",
+  "initiative": "protected-agent-sandboxing",
+  "kind": "execute",
+  "name": "ws-sb-structured-exit-codes",
+  "priority": 7,
+  "status": "backlog",
+  "tags": [
+    "workspace-sandbox",
+    "agent-manager",
+    "protected-mode",
+    "follow-up"
+  ],
+  "title": "Workspace-sandbox /processes structured exit-code recording",
+  "updated": "2026-04-28T02:31:26Z"
+}

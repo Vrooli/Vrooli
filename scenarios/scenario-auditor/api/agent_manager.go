@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -208,6 +209,18 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	}
 	scenarioRoot := strings.TrimSpace(repoCtx.ScenarioAuditorRoot())
 
+	// Build a repo-relative scope path for the sandbox. agent-manager forwards
+	// scope_path as VROOLI_SANDBOX_SCOPE, and the CLI sandbox resolver
+	// (repocontract.ScenarioScopeMatch) requires a relative form like
+	// "scenarios/<name>"; absolute paths fail the prefix match silently.
+	// When cfg.Scenario is empty, fall back to the auditor's own scope so the
+	// agent's edits land somewhere coherent rather than escaping the overlay.
+	auditTarget := strings.TrimSpace(cfg.Scenario)
+	if auditTarget == "" {
+		auditTarget = "scenario-auditor"
+	}
+	sandboxScope := path.Join("scenarios", auditTarget)
+
 	cfg.Model = normalizeAgentModel(cfg.Model)
 	allowedTools := configuredAllowedTools()
 	maxTurns := configuredMaxTurns(len(cfg.IssueIDs))
@@ -249,7 +262,7 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	task, err := am.client.CreateTask(ctx, &domainpb.Task{
 		Title:       taskTitle,
 		Description: cfg.Prompt,
-		ScopePath:   scenarioRoot,
+		ScopePath:   sandboxScope,
 		ProjectRoot: scenarioRoot,
 		CreatedBy:   serviceName,
 		CreatedAt:   timestamppb.New(startedAt),
@@ -263,11 +276,14 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	}
 
 	tag := agentID
-	runMode := domainpb.RunMode_RUN_MODE_IN_PLACE
+	// RunMode is left unset so the orchestrator resolves it to RUN_MODE_SANDBOXED
+	// via the profile's RequiresSandbox=true. Sandboxed mode is required to get
+	// VROOLI_SANDBOX_* env vars injected, which keeps the auditor's CLI helpers
+	// (cliutil.ResolveScenarioPath in cli/internal/support) operating on the
+	// agent's overlay rather than the real repo.
 	run, err := am.client.CreateRun(ctx, &apipb.CreateRunRequest{
 		TaskId:         task.Id,
 		Tag:            &tag,
-		RunMode:        &runMode,
 		Force:          true,
 		IdempotencyKey: stringPtr("scenario-auditor:" + agentID),
 		ProfileRef: &apipb.ProfileRef{
@@ -280,7 +296,6 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 			Timeout:              durationpb.New(time.Duration(taskTimeoutSeconds) * time.Second),
 			AllowedTools:         append([]string(nil), allowedTools...),
 			SkipPermissionPrompt: boolPtr(true),
-			RequiresSandbox:      boolPtr(false),
 		},
 	})
 	if err != nil {
@@ -463,8 +478,12 @@ func (am *AgentManager) defaultProfile() *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(timeout) * time.Second),
 		AllowedTools:         configuredAllowedTools(),
 		SkipPermissionPrompt: true,
-		RequiresSandbox:      false,
-		CreatedBy:            serviceName,
+		// Run sandboxed so the auditor CLI's sandbox-aware path resolution
+		// (cliutil.ResolveScenarioPath) gets activated by VROOLI_SANDBOX_*.
+		// ManualReview defaults to false so audit fixes flow into the canonical
+		// repo with provenance recorded for traceability.
+		RequiresSandbox: true,
+		CreatedBy:       serviceName,
 	}
 }
 

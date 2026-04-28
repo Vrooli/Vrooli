@@ -113,11 +113,14 @@ message AgentProfile {
   // Default: true for safety.
   bool requires_sandbox = 11;
 
-  // Whether runs using this profile require human approval before applying changes.
-  // Default: true for safety.
-  bool requires_approval = 12;
+  reserved 12;
+  reserved "requires_approval";
 
   // Sandbox lifecycle + acceptance configuration.
+  // Run-end apply behavior is now controlled by SandboxConfig
+  // (manual_review / auto_apply / apply_on_failure) per the
+  // auditability contract; the legacy requires_approval field
+  // (12) was removed in agent-sandbox-audit-foundation Phase 3b.
   SandboxConfig sandbox_config = 20;
 
   // Paths the agent is allowed to access.
@@ -193,10 +196,11 @@ message RunConfig {
   // Require sandbox isolation.
   bool requires_sandbox = 8;
 
-  // Require human approval.
-  bool requires_approval = 9;
+  reserved 9;
+  reserved "requires_approval";
 
   // Sandbox lifecycle + acceptance configuration.
+  // Run-end apply behavior moved to SandboxConfig levers.
   SandboxConfig sandbox_config = 13;
 
   // Paths the agent is allowed to access.
@@ -259,8 +263,8 @@ message RunConfigOverrides {
   // Require sandbox isolation.
   optional bool requires_sandbox = 8;
 
-  // Require human approval.
-  optional bool requires_approval = 9;
+  reserved 9;
+  reserved "requires_approval";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 17;

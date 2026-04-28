@@ -1,4 +1,5 @@
 {
+  "archived_at": "2026-04-28T03:36:32Z",
   "created": "2026-04-27T19:13:33Z",
   "depends_on": [
     "execute/agent-manager-apply-at-run-end-provider-seam"
@@ -12,5 +13,5 @@
   "status": "completed",
   "tags": [],
   "title": "Cut run executor over to applyAtRunEnd and remove legacy auto-approval fields (Phase 3b)",
-  "updated": "2026-04-27T22:08:26Z"
+  "updated": "2026-04-28T03:36:32Z"
 }

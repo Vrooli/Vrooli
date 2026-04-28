@@ -265,14 +265,20 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	}
 	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
 
-	// Wire the protected-mode SandboxLauncherFactory into the claude_code
-	// runner. The provider implements runner.SandboxLauncherFactory directly.
-	// Runs whose ResolvedConfig.SandboxConfig.Mode == Protected will route
-	// the agent process through workspace-sandbox /processes; other runs
-	// continue to use the HostLauncher unchanged. See
+	// Wire the protected-mode SandboxLauncherFactory into every coding-
+	// agent runner. The provider implements runner.SandboxLauncherFactory
+	// directly. Runs whose ResolvedConfig.SandboxConfig.Mode == Protected
+	// will route the agent process through workspace-sandbox /processes;
+	// other runs continue to use the HostLauncher unchanged. See
 	// execute/protected-sandbox-agent-launch.
 	if claudeRunner != nil {
 		claudeRunner.SetSandboxLauncherFactory(sandboxProvider)
+	}
+	if codexRunner != nil {
+		codexRunner.SetSandboxLauncherFactory(sandboxProvider)
+	}
+	if openCodeRunner != nil {
+		openCodeRunner.SetSandboxLauncherFactory(sandboxProvider)
 	}
 
 	// Load orchestration settings (file-backed, git-checked-in).

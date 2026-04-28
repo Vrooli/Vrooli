@@ -1,4 +1,5 @@
 {
+  "archived_at": "2026-04-28T03:30:50Z",
   "created": "2026-04-27T19:09:48Z",
   "depends_on": [
     "execute/agent-manager-sandbox-auto-apply-defaults"
@@ -12,5 +13,5 @@
   "status": "completed",
   "tags": [],
   "title": "Add Provider.ApplyAtRunEnd seam on agent-manager + workspace_sandbox adapter (Phase 3a)",
-  "updated": "2026-04-27T22:08:26Z"
+  "updated": "2026-04-28T03:30:50Z"
 }

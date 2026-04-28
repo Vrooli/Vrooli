@@ -1500,12 +1500,36 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 // rather than passed as advisory env vars to runners. This is the
 // agent-sandbox-audit-foundation policy-to-sandbox handoff.
 func (o *Orchestrator) resolveSandboxConfig(req CreateRunRequest, profile *domain.AgentProfile) (*domain.SandboxConfig, error) {
-	cfg := &domain.SandboxConfig{}
+	// Start from the auditability-contract defaults (Mode=Protected,
+	// AutoApply=true, ApplyOnFailure=true, NetworkMode=localhost,
+	// NoLock=true). Profile and request overrides clone over the top.
+	// Without this baseline, a request with no profile and no inline
+	// config would zero-value the struct, dropping Mode to unspecified
+	// and silently downgrading to host-tracked execution.
+	defaults := domain.DefaultSandboxConfig()
+	cfg := defaults
 	if profile != nil && profile.SandboxConfig != nil {
 		cfg = cloneSandboxConfig(profile.SandboxConfig)
 	}
 	if req.SandboxConfig != nil {
 		cfg = cloneSandboxConfig(req.SandboxConfig)
+	}
+
+	// Backfill enum/string fields that the override left at the proto
+	// zero-value. Callers (notably swarm-manager) often send a partial
+	// SandboxConfig containing only Acceptance overrides; without this
+	// backfill the wholesale-replace clone above would silently strip
+	// Mode and NetworkMode to "unspecified", silently downgrading
+	// protected runs to tracking. Pointer-typed fields (AutoApply,
+	// ApplyOnFailure) and structural fields (Lifecycle, Acceptance) are
+	// left intentional-explicit; bool fields (ManualReview, NoLock) are
+	// left at the override's value because zero is operator-visible
+	// "off" rather than "not provided".
+	if cfg.Mode == domain.SandboxModeUnspecified {
+		cfg.Mode = defaults.Mode
+	}
+	if cfg.NetworkMode == "" {
+		cfg.NetworkMode = defaults.NetworkMode
 	}
 
 	// Push path policy from profile/request into the acceptance layer so
@@ -2200,15 +2224,20 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	go o.continuationHeartbeat(ctx, run, heartbeatStop)
 	defer close(heartbeatStop)
 
-	// Build continue request
+	// Build continue request — pass the run's ResolvedConfig and SandboxID
+	// so launcherSelector.PickFor routes the continuation through the same
+	// host-or-sandbox path as the original Execute call. Without these,
+	// protected runs would silently downgrade to host on continuation.
 	continueReq := runner.ContinueRequest{
-		RunID:       run.ID,
-		SessionID:   run.SessionID,
-		Prompt:      message,
-		WorkingDir:  workDir,
-		EventSink:   eventSink,
-		Attachments: attachments,
-		Transcript:  transcript,
+		RunID:          run.ID,
+		SessionID:      run.SessionID,
+		Prompt:         message,
+		WorkingDir:     workDir,
+		EventSink:      eventSink,
+		Attachments:    attachments,
+		Transcript:     transcript,
+		ResolvedConfig: run.ResolvedConfig,
+		SandboxID:      run.SandboxID,
 	}
 
 	// Execute continuation with per-turn timeout

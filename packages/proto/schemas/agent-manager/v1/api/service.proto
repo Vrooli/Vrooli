@@ -589,6 +589,16 @@ message CreateRunRequest {
   // Keys must start with "VROOLI_" prefix. Merged with sandbox env vars;
   // sandbox variables take precedence on conflict.
   map<string, string> environment = 11;
+
+  // Conversation/parent linking per Decision D7 of the auditability
+  // contract. Spawn surfaces SHOULD populate these explicitly so
+  // provenance readers can group by conversation without reverse-walking
+  // the run graph. When parent_run_id is set and conversation_id is empty,
+  // agent-manager inherits the parent's conversation_id; when both are
+  // empty, agent-manager mints a fresh UUID.
+  optional string conversation_id = 12;
+  // @format uuid
+  optional string parent_run_id = 13;
 }
 
 // DeleteRunRequest identifies a run to delete.

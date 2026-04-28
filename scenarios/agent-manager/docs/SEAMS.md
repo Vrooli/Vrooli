@@ -112,6 +112,66 @@ type FlagValidator interface {
 
 ---
 
+### 1c. Process Launcher (`adapters/runner` + `adapters/sandbox`)
+
+**Purpose:** Decouple where the agent process actually executes from how the runner builds its argv/env. The runner pipeline (transcript parsing, idle-timer reset, heartbeat) consumes a `LaunchedProcess` whose stdout/stderr/exit semantics are identical regardless of whether the process runs on the host or inside a workspace-sandbox container.
+
+**Interface:** `runner.Launcher`
+```go
+type Launcher interface {
+    Launch(ctx context.Context, req LaunchRequest) (LaunchedProcess, error)
+}
+
+type LaunchedProcess interface {
+    Stdout() io.Reader
+    Stderr() io.Reader
+    ResetIdleTimer()
+    TimedOut() bool
+    Kill()
+    Signal(grace time.Duration)
+    Wait() error
+    PID() int
+}
+```
+
+**Why it's a seam:**
+- Protected mode (`SandboxConfig.Mode == Protected`) routes the agent process tree itself through workspace-sandbox `/processes` so bwrap isolation, network mode, and the git-verb allowlist are enforced at the OS level — not just on the merged-overlay output. Tracking mode runs the agent on the host with overlay tracking only.
+- Without the Launcher seam, every runner would carry an inline `if mode == Protected { ... } else { ... }` switch around `exec.CommandContext`. The seam reduces "add a new runner" to picking a `Launcher` rather than copying a switch statement.
+- A factory pattern (`SandboxLauncherFactory`) keeps the runner package free of any sandbox import. The sandbox provider implements the factory, so the runner asks for a launcher per-call without taking on a sandbox-package dependency. This avoids a sandbox→runner→sandbox cycle that would otherwise force an interface bloat.
+
+**Implementations:**
+- `runner.HostLauncher` — wraps `os/exec.CommandContext` and the existing `managedProcess` machinery (process group, idle timeout, grandchild cleanup). Default for non-protected runs and for protected runs whose factory is missing or returns nil.
+- `sandbox.SandboxLauncher` — POSTs to workspace-sandbox `/api/v1/sandboxes/{id}/processes`, polls `/processes/{pid}/logs` for stdout (100ms interval), DELETEs `/processes/{pid}` on `Kill()`. Surfaces the workspace-sandbox structured 403 (git-allowlist denial) as a typed `*sandbox.LaunchBlocked` error the runner can recognise.
+- `sandbox.WorkspaceSandboxProvider` — implements `runner.SandboxLauncherFactory.LauncherFor(sandboxID)` so the provider can be passed to a runner constructor as the protected-mode factory.
+
+**Routing logic (currently in `claude_code.selectLauncher`, slated for shared extraction):**
+```go
+cfg := req.GetConfig()
+if cfg == nil || cfg.SandboxConfig == nil || cfg.SandboxConfig.Mode.Effective() != domain.SandboxModeProtected {
+    return r.hostLauncher  // tracking-mode runs stay on the host
+}
+if r.sandboxFactory == nil { warn-and-fallback }
+if req.SandboxID == nil    { warn-and-fallback }
+if launcher := r.sandboxFactory.LauncherFor(*req.SandboxID); launcher != nil {
+    return launcher        // protected-mode + factory wired → sandbox path
+}
+warn-and-fallback           // factory returned nil → host path with explicit log
+```
+
+Every fallback path emits a `runner.warn` log event so misconfigured environments are visible rather than silently downgraded.
+
+**Testability:**
+- `HostLauncher` contract tests live in `runner/launcher_test.go` (echo, stdin, kill, ctx-cancel, idle-timeout, stderr, empty-command). 7 tests, no mocking — each spawns a real `/bin/echo` or `/bin/cat`.
+- `SandboxLauncher` lifecycle tests live in `sandbox/sandbox_launcher_test.go` and use an `httptest.Server` workspace-sandbox simulator that records every endpoint hit (start/stream/kill/ctx-cancel/structured-403). 5 lifecycle tests + 2 helper tests, no real workspace-sandbox required.
+- `selectLauncher` routing tests live in `runner/claude_code_routing_test.go` — every fallback path (no factory, no sandbox ID, factory returned nil, no config, unspecified mode) is pinned by an explicit test. 7 routing tests.
+- The workspace-sandbox `/processes` git-allowlist enforcement (the symmetric counterpart of `/exec`) is tested in `workspace-sandbox/api/internal/handlers/process_start_git_allowlist_test.go`. 4 tests.
+
+**Status of the runner-fork rollout:** as of this writing, the Launcher seam is wired only for the `claude_code.Execute` primary path. The `executeWithDurableTranscript`, `continueWithDurableTranscript`, and `Continue` paths in claude_code, plus all of `codex_runner` and `opencode_runner`, still inline `exec.CommandContext` + `startManagedProcess`. Migrating them is the remaining work in `execute/protected-sandbox-agent-launch`. The seam itself is stable; the remaining migrations are mechanical given the `selectLauncher` + `LaunchRequest` extraction.
+
+**See also:** `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` for the per-runner capability matrix and the trade-offs (file-staged stdin, polling stdout) the SandboxLauncher accepts so workspace-sandbox doesn't need new endpoints.
+
+---
+
 ### 2. Sandbox Provider (`adapters/sandbox`)
 
 **Purpose:** Abstract sandbox creation and lifecycle management.

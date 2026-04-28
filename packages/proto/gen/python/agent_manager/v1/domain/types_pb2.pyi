@@ -46,6 +46,12 @@ class SandboxAcceptanceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: _ClassVar[SandboxAcceptanceMode]
     SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: _ClassVar[SandboxAcceptanceMode]
 
+class SandboxMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SANDBOX_MODE_UNSPECIFIED: _ClassVar[SandboxMode]
+    SANDBOX_MODE_TRACKING: _ClassVar[SandboxMode]
+    SANDBOX_MODE_PROTECTED: _ClassVar[SandboxMode]
+
 class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TASK_STATUS_UNSPECIFIED: _ClassVar[TaskStatus]
@@ -167,6 +173,9 @@ SANDBOX_LIFECYCLE_EVENT_REJECTED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_TERMINAL: SandboxLifecycleEvent
 SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: SandboxAcceptanceMode
 SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: SandboxAcceptanceMode
+SANDBOX_MODE_UNSPECIFIED: SandboxMode
+SANDBOX_MODE_TRACKING: SandboxMode
+SANDBOX_MODE_PROTECTED: SandboxMode
 TASK_STATUS_UNSPECIFIED: TaskStatus
 TASK_STATUS_QUEUED: TaskStatus
 TASK_STATUS_RUNNING: TaskStatus
@@ -248,22 +257,16 @@ class SandboxFileCriteria(_message.Message):
     def __init__(self, path_globs: _Optional[_Iterable[str]] = ..., extensions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SandboxAcceptanceConfig(_message.Message):
-    __slots__ = ("mode", "allow", "deny", "ignore_binary", "auto_approve", "auto_reject", "disable_auto_approve_if_empty")
+    __slots__ = ("mode", "allow", "deny", "ignore_binary")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ALLOW_FIELD_NUMBER: _ClassVar[int]
     DENY_FIELD_NUMBER: _ClassVar[int]
     IGNORE_BINARY_FIELD_NUMBER: _ClassVar[int]
-    AUTO_APPROVE_FIELD_NUMBER: _ClassVar[int]
-    AUTO_REJECT_FIELD_NUMBER: _ClassVar[int]
-    DISABLE_AUTO_APPROVE_IF_EMPTY_FIELD_NUMBER: _ClassVar[int]
     mode: SandboxAcceptanceMode
     allow: SandboxFileCriteria
     deny: SandboxFileCriteria
     ignore_binary: bool
-    auto_approve: bool
-    auto_reject: bool
-    disable_auto_approve_if_empty: bool
-    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ..., disable_auto_approve_if_empty: _Optional[bool] = ...) -> None: ...
+    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ...) -> None: ...
 
 class SandboxLifecycleConfig(_message.Message):
     __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout")
@@ -278,12 +281,24 @@ class SandboxLifecycleConfig(_message.Message):
     def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class SandboxConfig(_message.Message):
-    __slots__ = ("lifecycle", "acceptance")
+    __slots__ = ("lifecycle", "acceptance", "mode", "manual_review", "auto_apply", "apply_on_failure", "network_mode", "no_lock")
     LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    MANUAL_REVIEW_FIELD_NUMBER: _ClassVar[int]
+    AUTO_APPLY_FIELD_NUMBER: _ClassVar[int]
+    APPLY_ON_FAILURE_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_MODE_FIELD_NUMBER: _ClassVar[int]
+    NO_LOCK_FIELD_NUMBER: _ClassVar[int]
     lifecycle: SandboxLifecycleConfig
     acceptance: SandboxAcceptanceConfig
-    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ...) -> None: ...
+    mode: SandboxMode
+    manual_review: bool
+    auto_apply: bool
+    apply_on_failure: bool
+    network_mode: NetworkAccess
+    no_lock: bool
+    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ..., mode: _Optional[_Union[SandboxMode, str]] = ..., manual_review: _Optional[bool] = ..., auto_apply: _Optional[bool] = ..., apply_on_failure: _Optional[bool] = ..., network_mode: _Optional[_Union[NetworkAccess, str]] = ..., no_lock: _Optional[bool] = ...) -> None: ...
 
 class FeatureFlags(_message.Message):
     __slots__ = ("enable_browser",)

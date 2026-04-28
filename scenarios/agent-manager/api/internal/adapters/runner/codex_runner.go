@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -89,6 +88,13 @@ type CodexToolEvent struct {
 // =============================================================================
 
 // CodexRunner implements the Runner interface for OpenAI Codex CLI.
+//
+// All process launches flow through [launcherSelector] and the resulting
+// [LaunchedProcess] is registered in the launched map; there is no direct
+// *exec.Cmd path. Tracking-mode requests still resolve to the HostLauncher
+// under the hood, so behavior is unchanged for non-protected runs while
+// protected mode and any future Launcher implementation get uniform
+// tracking, cancellation, and stop semantics.
 type CodexRunner struct {
 	binaryPath     string // resource-codex wrapper path
 	codexCLIPath   string // direct codex CLI path (for JSON streaming)
@@ -96,11 +102,17 @@ type CodexRunner struct {
 	message        string
 	installHint    string
 	mu             sync.Mutex
-	runs           map[uuid.UUID]*exec.Cmd
+	launched       map[uuid.UUID]LaunchedProcess
 	useJSONStream  bool // whether to use direct codex CLI with --json
 	pricingService PricingService
 	runModels      map[uuid.UUID]string
 	runThreadIDs   map[uuid.UUID]string // Thread IDs for session continuation
+
+	// selector picks host vs sandbox launcher per Execute call. Routing
+	// rules and warn-event semantics live in launcherSelector.Pick. Wired
+	// at construction time; main.go can swap the sandbox factory later via
+	// SetSandboxLauncherFactory once the workspace-sandbox provider is up.
+	selector *launcherSelector
 }
 
 // PricingService defines the interface for pricing calculations.
@@ -143,8 +155,20 @@ func WithPricingService(svc PricingService) CodexRunnerOption {
 	}
 }
 
-// NewCodexRunner creates a new Codex runner.
+// NewCodexRunner creates a new Codex runner with a default HostLauncher
+// and no sandbox factory; protected-mode requests fall back to host
+// execution. Use NewCodexRunnerWithLaunchers for protected mode in
+// production (main.go wires the workspace-sandbox provider).
 func NewCodexRunner(opts ...CodexRunnerOption) (*CodexRunner, error) {
+	return NewCodexRunnerWithLaunchers(NewHostLauncher(), nil, opts...)
+}
+
+// NewCodexRunnerWithLaunchers wires the runner with an explicit
+// HostLauncher and (optionally) a SandboxLauncherFactory. The factory is
+// consulted by launcherSelector.Pick when a streaming-path Execute call
+// arrives with SandboxConfig.Mode == Protected and a non-nil SandboxID.
+func NewCodexRunnerWithLaunchers(host Launcher, sandboxFactory SandboxLauncherFactory, opts ...CodexRunnerOption) (*CodexRunner, error) {
+	selector := newLauncherSelector(host, sandboxFactory)
 	// Look for resource-codex in PATH (the Vrooli wrapper)
 	binaryPath, err := exec.LookPath(CodexResourceCommand)
 	if err != nil {
@@ -152,7 +176,8 @@ func NewCodexRunner(opts ...CodexRunnerOption) (*CodexRunner, error) {
 			available:   false,
 			message:     "resource-codex not found in PATH",
 			installHint: "Run: vrooli resource install codex",
-			runs:        make(map[uuid.UUID]*exec.Cmd),
+			launched:    make(map[uuid.UUID]LaunchedProcess),
+			selector:    selector,
 		}
 		for _, opt := range opts {
 			opt(runner)
@@ -169,10 +194,11 @@ func NewCodexRunner(opts ...CodexRunnerOption) (*CodexRunner, error) {
 		codexCLIPath:  codexCLIPath,
 		available:     true,
 		message:       "resource-codex available",
-		runs:          make(map[uuid.UUID]*exec.Cmd),
+		launched:      make(map[uuid.UUID]LaunchedProcess),
 		useJSONStream: codexCLIPath != "", // Enable JSON streaming if codex CLI is available
 		runModels:     make(map[uuid.UUID]string),
 		runThreadIDs:  make(map[uuid.UUID]string),
+		selector:      selector,
 	}
 	for _, opt := range opts {
 		opt(runner)
@@ -238,6 +264,14 @@ func NewCodexRunner(opts ...CodexRunnerOption) (*CodexRunner, error) {
 	return runner, nil
 }
 
+// SetSandboxLauncherFactory wires (or replaces) the protected-mode
+// factory used by streaming-path Execute calls. main.go invokes this
+// after constructing the workspace-sandbox provider; tests can use it to
+// inject a mock factory.
+func (r *CodexRunner) SetSandboxLauncherFactory(factory SandboxLauncherFactory) {
+	r.selector.SetSandboxLauncherFactory(factory)
+}
+
 // Type returns the runner type identifier.
 func (r *CodexRunner) Type() domain.RunnerType {
 	return domain.RunnerTypeCodex
@@ -292,60 +326,38 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		return r.executeWithJSONTranscript(ctx, req, startTime)
 	}
 
-	// Build command arguments for codex exec --json
+	// Build command arguments for codex exec --json. Codex has no native
+	// system prompt mechanism, so EffectivePrompt() prepends SystemPrompt
+	// with <system-instructions> tags if present and the result is fed
+	// over stdin by the launcher.
 	args := r.buildJSONArgs(req)
 
-	// Create command using direct codex CLI.
-	// Prefix with env to surface the tag in the process command line for reconciler detection.
-	tag := req.GetTag()
-	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	cmd.Dir = req.WorkingDir
+	// Pick host vs sandbox launcher (tracking → host; protected → sandbox
+	// when a factory is wired and a sandbox ID is present, else host with
+	// a warn event); see launcherSelector.Pick for the routing rules.
+	launcher := r.selector.Pick(ctx, req)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"CODEX_AGENT_TAG", r.codexCLIPath, args,
+		req.GetTag(), req.EffectivePrompt(), r.buildEnv(req), req.WorkingDir,
+	)
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
+	}
 
-	// Set environment
-	cmd.Env = r.buildEnv(req)
-
-	// Track the running command for cancellation
+	// Track the launched process for cancellation and Stop().
 	r.mu.Lock()
-	r.runs[req.RunID] = cmd
+	r.launched[req.RunID] = proc
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.runs, req.RunID)
+		delete(r.launched, req.RunID)
 		r.mu.Unlock()
-	}()
-
-	// Create stderr pipe before starting the managed process.
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Provide prompt via stdin
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Start command with managed process lifecycle.
-	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	defer func() {
-		_ = mp.Wait()
+		_ = proc.Wait()
 	}()
 
 	// Emit starting event
@@ -358,18 +370,6 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		))
 	}
 
-	// Write prompt and close stdin.
-	// Codex has no native system prompt mechanism, so EffectivePrompt()
-	// prepends SystemPrompt with <system-instructions> tags if present.
-	if _, err := stdin.Write([]byte(req.EffectivePrompt())); err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	stdin.Close()
-
 	// Process streaming JSON output
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
@@ -377,18 +377,19 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 
 	// Read stderr in background
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			errorOutput.WriteString(scanner.Text())
 			errorOutput.WriteString("\n")
 		}
 	}()
 
-	// Parse streaming JSON output with managed process lifecycle.
-	scanner := bufio.NewScanner(mp.Stdout())
+	// Parse streaming JSON output. The launched process owns the
+	// idle-timeout watchdog and grandchild cleanup.
+	scanner := bufio.NewScanner(proc.Stdout())
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		mp.ResetTimer()
+		proc.ResetIdleTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
@@ -414,7 +415,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		}
 	}
 
-	if mp.TimedOut() && req.EventSink != nil {
+	if proc.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
@@ -429,7 +430,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 	}
 
 	// Wait for process cleanup (grandchildren killed, exit status collected).
-	err = mp.Wait()
+	err = proc.Wait()
 	duration := time.Since(startTime)
 
 	// Capture thread ID before clearing
@@ -449,9 +450,9 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "execution cancelled"
-		} else if exitErr, ok := err.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(err); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			result.ErrorMessage = errorOutput.String()
 		} else {
 			result.Success = false
@@ -495,57 +496,42 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		return r.executeWithWrapperTranscript(ctx, req, startTime)
 	}
 
-	// Build command arguments - use "run" subcommand with stdin and tag for process tracking
+	// Build command arguments - use "run" subcommand with stdin and tag
+	// for process tracking. The wrapper itself surfaces the tag via its
+	// `--tag` flag (visible in /proc/<pid>/cmdline through resource-codex
+	// itself), so unlike the JSON-stream path we don't need the env shim.
 	args := []string{"run", "--tag", req.GetTag(), "-"}
 
-	// Create command using resource-codex
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
-	cmd.Dir = req.WorkingDir
+	// Pick host vs sandbox launcher (tracking → host; protected → sandbox
+	// when a factory is wired and a sandbox ID is present, else host with
+	// a warn event); see launcherSelector.Pick for the routing rules.
+	launcher := r.selector.Pick(ctx, req)
+	launchReq := LaunchRequest{
+		Command:     r.binaryPath,
+		Args:        args,
+		Env:         r.buildEnv(req),
+		WorkingDir:  req.WorkingDir,
+		Stdin:       strings.NewReader(req.EffectivePrompt()),
+		IdleTimeout: DefaultStreamIdleTimeout,
+	}
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
+	}
 
-	// Set environment
-	cmd.Env = r.buildEnv(req)
-
-	// Track the running command for cancellation
+	// Track the launched process for cancellation and Stop().
 	r.mu.Lock()
-	r.runs[req.RunID] = cmd
+	r.launched[req.RunID] = proc
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.runs, req.RunID)
+		delete(r.launched, req.RunID)
 		r.mu.Unlock()
-	}()
-
-	// Create stderr pipe before starting the managed process.
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Provide prompt via stdin
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Start command with managed process lifecycle.
-	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	defer func() {
-		_ = mp.Wait()
+		_ = proc.Wait()
 	}()
 
 	// Emit starting event
@@ -558,18 +544,6 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		))
 	}
 
-	// Write prompt and close stdin.
-	// Codex has no native system prompt mechanism, so EffectivePrompt()
-	// prepends SystemPrompt with <system-instructions> tags if present.
-	if _, err := stdin.Write([]byte(req.EffectivePrompt())); err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	stdin.Close()
-
 	// Process output
 	metrics := ExecutionMetrics{}
 	var outputBuilder strings.Builder
@@ -577,7 +551,7 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 
 	// Read stderr in background
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			errorOutput.WriteString(scanner.Text())
 			errorOutput.WriteString("\n")
@@ -585,9 +559,9 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 	}()
 
 	// Read stdout — strip ANSI and skip pure-formatting lines
-	scanner := bufio.NewScanner(mp.Stdout())
+	scanner := bufio.NewScanner(proc.Stdout())
 	for scanner.Scan() {
-		mp.ResetTimer()
+		proc.ResetIdleTimer()
 		line := scanner.Text()
 		if isOnlyANSI(line) {
 			continue
@@ -607,7 +581,7 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 	}
 
 	// Wait for process cleanup (grandchildren killed, exit status collected).
-	err = mp.Wait()
+	err = proc.Wait()
 	duration := time.Since(startTime)
 
 	// Determine result
@@ -622,9 +596,9 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "execution cancelled"
-		} else if exitErr, ok := err.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(err); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			result.ErrorMessage = errorOutput.String()
 		} else {
 			result.Success = false
@@ -658,36 +632,44 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 }
 
 // Stop attempts to gracefully stop a running Codex instance.
+//
+// Stop checks both the new launched-process registry (streaming Execute
+// paths, post-launcher-refactor) and the legacy *exec.Cmd registry
+// (durable-transcript and Continue paths). Either may hold the live run.
 func (r *CodexRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Lock()
-	cmd, exists := r.runs[runID]
+	proc, ok := r.launched[runID]
 	r.mu.Unlock()
-
-	if !exists {
+	if !ok {
 		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 
-	// Try graceful termination first (SIGTERM)
-	if cmd.Process != nil {
-		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
-			// If SIGTERM fails, force kill
-			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
+	// Graceful: 5s grace period before SIGKILL escalation.
+	proc.Signal(5 * time.Second)
+	// Honor parent ctx cancellation as an immediate-kill escalation.
+	if ctx != nil {
+		go func() {
+			<-ctx.Done()
+			proc.Kill()
+		}()
 	}
-
 	return nil
 }
 
 func (r *CodexRunner) executeWithJSONTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
-	args := r.buildJSONArgs(req)
-	tag := req.GetTag()
-	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	cmd.Dir = req.WorkingDir
-	cmd.Env = r.buildEnv(req)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, req.EffectivePrompt(), "Codex execution started", "Codex execution completed", r.ParseTranscriptLine, r.updateCodexMetrics)
+	launcher := r.selector.Pick(ctx, req)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"CODEX_AGENT_TAG", r.codexCLIPath, r.buildJSONArgs(req),
+		req.GetTag(), req.EffectivePrompt(), r.buildEnv(req), req.WorkingDir,
+	)
+	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, codexTranscriptSpec{
+		launcher:      launcher,
+		request:       launchReq,
+		startMessage:  "Codex execution started",
+		endMessage:    "Codex execution completed",
+		parseFn:       r.ParseTranscriptLine,
+		updateMetrics: r.updateCodexMetrics,
+	})
 }
 
 func (r *CodexRunner) continueWithJSONTranscript(ctx context.Context, req ContinueRequest, startTime time.Time) (*ExecuteResult, error) {
@@ -696,17 +678,23 @@ func (r *CodexRunner) continueWithJSONTranscript(ctx context.Context, req Contin
 		codexArgs = append(codexArgs, req.Prompt)
 	}
 	tag := fmt.Sprintf("codex-continue-%s", req.RunID.String()[:8])
-	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, codexArgs...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	if req.WorkingDir != "" {
-		cmd.Dir = req.WorkingDir
-	}
 	env := sanitizedBaseEnv()
 	env = append(env, "CODEX_NON_INTERACTIVE=true")
-	cmd.Env = appendEnvMap(env, req.Environment)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	env = appendEnvMap(env, req.Environment)
 
-	result, err := r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, "", "Codex continuation started", "Codex continuation completed", r.ParseTranscriptLine, r.updateCodexMetrics)
+	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"CODEX_AGENT_TAG", r.codexCLIPath, codexArgs,
+		tag, "", env, req.WorkingDir,
+	)
+	result, err := r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, codexTranscriptSpec{
+		launcher:      launcher,
+		request:       launchReq,
+		startMessage:  "Codex continuation started",
+		endMessage:    "Codex continuation completed",
+		parseFn:       r.ParseTranscriptLine,
+		updateMetrics: r.updateCodexMetrics,
+	})
 	if result != nil && result.SessionID == "" {
 		result.SessionID = req.SessionID
 	}
@@ -714,13 +702,37 @@ func (r *CodexRunner) continueWithJSONTranscript(ctx context.Context, req Contin
 }
 
 func (r *CodexRunner) executeWithWrapperTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
-	args := []string{"run", "--tag", req.GetTag(), "-"}
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
-	cmd.Dir = req.WorkingDir
-	cmd.Env = r.buildEnv(req)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Wrapper path uses resource-codex's own --tag flag (visible in
+	// /proc/<pid>/cmdline through the wrapper itself), so unlike the JSON
+	// path we don't need the env shim — call the binary directly.
+	launcher := r.selector.Pick(ctx, req)
+	launchReq := LaunchRequest{
+		Command:     r.binaryPath,
+		Args:        []string{"run", "--tag", req.GetTag(), "-"},
+		Env:         r.buildEnv(req),
+		WorkingDir:  req.WorkingDir,
+		Stdin:       strings.NewReader(req.EffectivePrompt()),
+		IdleTimeout: DefaultStreamIdleTimeout,
+	}
+	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, codexTranscriptSpec{
+		launcher:      launcher,
+		request:       launchReq,
+		startMessage:  "Codex execution started",
+		endMessage:    "Codex execution completed",
+		parseFn:       r.parseWrapperTranscriptLine,
+		updateMetrics: r.updateCodexMetrics,
+	})
+}
 
-	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, req.EffectivePrompt(), "Codex execution started", "Codex execution completed", r.parseWrapperTranscriptLine, r.updateCodexMetrics)
+// codexTranscriptSpec carries the per-call launcher wiring + parse hooks
+// into runTranscriptCommand. Mirror of claude_code's durableLaunch.
+type codexTranscriptSpec struct {
+	launcher      Launcher
+	request       LaunchRequest
+	startMessage  string
+	endMessage    string
+	parseFn       func(uuid.UUID, string) TranscriptParseResult
+	updateMetrics func(*domain.RunEvent, *ExecutionMetrics, *string)
 }
 
 func (r *CodexRunner) runTranscriptCommand(
@@ -729,51 +741,44 @@ func (r *CodexRunner) runTranscriptCommand(
 	sink EventSink,
 	transcript *TranscriptConfig,
 	startTime time.Time,
-	cmd *exec.Cmd,
-	prompt string,
-	startMessage string,
-	endMessage string,
-	parseFn func(uuid.UUID, string) TranscriptParseResult,
-	updateMetrics func(*domain.RunEvent, *ExecutionMetrics, *string),
+	spec codexTranscriptSpec,
 ) (*ExecuteResult, error) {
-	r.mu.Lock()
-	r.runs[runID] = cmd
-	r.mu.Unlock()
-	defer func() {
-		r.mu.Lock()
-		delete(r.runs, runID)
-		r.mu.Unlock()
-	}()
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
-	}
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
-	}
 	if transcript == nil || transcript.StdoutFile == nil {
 		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: errors.New("durable transcript stdout file is required")}
 	}
-	cmd.Stdout = transcript.StdoutFile
-	if err := cmd.Start(); err != nil {
+
+	proc, err := spec.launcher.Launch(ctx, spec.request)
+	if err != nil {
 		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
 	}
+
+	r.mu.Lock()
+	r.launched[runID] = proc
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.launched, runID)
+		r.mu.Unlock()
+	}()
+
 	if transcript.OnProcessStart != nil {
-		if err := transcript.OnProcessStart(cmd.Process.Pid, cmd.Process.Pid); err != nil {
+		if err := transcript.OnProcessStart(proc.PID(), proc.PID()); err != nil {
+			proc.Kill()
+			_ = proc.Wait()
 			return nil, err
 		}
 	}
 	if sink != nil {
-		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusStarting), string(domain.RunStatusRunning), startMessage))
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusStarting), string(domain.RunStatusRunning), spec.startMessage))
 	}
-	if prompt != "" {
-		if _, err := stdin.Write([]byte(prompt)); err != nil {
-			return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
-		}
-	}
-	_ = stdin.Close()
+
+	// Pipe stdout straight into the transcript file. The launcher's stdout
+	// reader closes on process exit, so the goroutine drains and returns.
+	stdoutDone := make(chan struct{})
+	go func() {
+		defer close(stdoutDone)
+		_, _ = io.Copy(transcript.StdoutFile, proc.Stdout())
+	}()
 
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
@@ -781,7 +786,7 @@ func (r *CodexRunner) runTranscriptCommand(
 	var terminal *TranscriptTerminal
 
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			line := scanner.Text()
 			errorOutput.WriteString(line)
@@ -801,13 +806,13 @@ func (r *CodexRunner) runTranscriptCommand(
 			RunID:       runID,
 			Transcript:  transcript.TranscriptPath,
 			Live:        true,
-			ParseFn:     parseFn,
+			ParseFn:     spec.parseFn,
 			EventSink:   sink,
 			OnAdvance:   transcript.OnAdvance,
 			OnSessionID: transcript.OnSessionID,
 			OnEvents: func(events []*domain.RunEvent) {
 				for _, evt := range events {
-					updateMetrics(evt, &metrics, &lastAssistantMessage)
+					spec.updateMetrics(evt, &metrics, &lastAssistantMessage)
 				}
 			},
 		})
@@ -817,21 +822,22 @@ func (r *CodexRunner) runTranscriptCommand(
 		}
 	}()
 
-	waitErr := cmd.Wait()
+	waitErr := proc.Wait()
 	cancelConsume()
 	<-liveDone
+	<-stdoutDone
 
 	_, finalTerminal, drainErr := Consume(context.Background(), ConsumeArgs{
 		RunID:       runID,
 		Transcript:  transcript.TranscriptPath,
 		StartAt:     liveCursor,
-		ParseFn:     parseFn,
+		ParseFn:     spec.parseFn,
 		EventSink:   sink,
 		OnAdvance:   transcript.OnAdvance,
 		OnSessionID: transcript.OnSessionID,
 		OnEvents: func(events []*domain.RunEvent) {
 			for _, evt := range events {
-				updateMetrics(evt, &metrics, &lastAssistantMessage)
+				spec.updateMetrics(evt, &metrics, &lastAssistantMessage)
 			}
 		},
 	})
@@ -851,9 +857,9 @@ func (r *CodexRunner) runTranscriptCommand(
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "execution cancelled"
-		} else if exitErr, ok := waitErr.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(waitErr); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			result.ErrorMessage = errorOutput.String()
 		} else {
 			result.Success = false
@@ -882,7 +888,7 @@ func (r *CodexRunner) runTranscriptCommand(
 		if !result.Success {
 			finalStatus = string(domain.RunStatusFailed)
 		}
-		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, endMessage))
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, spec.endMessage))
 		_ = sink.Close()
 	}
 	return result, nil
@@ -1358,56 +1364,45 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		"--full-auto",
 	}
 	// Note: "codex exec resume" does not support -C/--cd; the working
-	// directory is set via cmd.Dir below instead.
+	// directory is set via LaunchRequest.WorkingDir below instead.
 	codexArgs = append(codexArgs, req.SessionID)
 	if strings.TrimSpace(req.Prompt) != "" {
 		codexArgs = append(codexArgs, req.Prompt)
 	}
 
-	// Create command using direct codex CLI (same pattern as executeWithJSONStream).
+	// Continue uses a synthesized tag (vs req.GetTag() on Execute) so log
+	// queries can distinguish continuation runs from initial runs of the
+	// same RunID.
 	tag := fmt.Sprintf("codex-continue-%s", req.RunID.String()[:8])
-	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, codexArgs...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	if req.WorkingDir != "" {
-		cmd.Dir = req.WorkingDir
-	}
-
-	// Set environment
 	env := sanitizedBaseEnv()
 	env = append(env, "CODEX_NON_INTERACTIVE=true")
-	cmd.Env = appendEnvMap(env, req.Environment)
+	env = appendEnvMap(env, req.Environment)
 
-	// Track the running command for cancellation
+	// Pick host vs sandbox launcher (tracking → host; protected → sandbox
+	// when the run was originally sandboxed); see launcherSelector.PickFor
+	// for the routing rules.
+	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"CODEX_AGENT_TAG", r.codexCLIPath, codexArgs,
+		tag, "", env, req.WorkingDir,
+	)
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
 	r.mu.Lock()
-	r.runs[req.RunID] = cmd
+	r.launched[req.RunID] = proc
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.runs, req.RunID)
+		delete(r.launched, req.RunID)
 		r.mu.Unlock()
-	}()
-
-	// Create stderr pipe before starting the managed process.
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
-	// Start command with managed process lifecycle.
-	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-	defer func() {
-		_ = mp.Wait()
+		_ = proc.Wait()
 	}()
 
 	// Emit starting event
@@ -1427,24 +1422,23 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 
 	// Read stderr in background
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			errorOutput.WriteString(scanner.Text())
 			errorOutput.WriteString("\n")
 		}
 	}()
 
-	// Parse streaming JSONL output with managed process lifecycle.
-	scanner := bufio.NewScanner(mp.Stdout())
+	// Parse streaming JSONL output. Launcher handles process lifecycle.
+	scanner := bufio.NewScanner(proc.Stdout())
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		mp.ResetTimer()
+		proc.ResetIdleTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
 		}
 
-		// Parse the streaming event(s) and capture thread_id
 		events := r.parseCodexStreamEventsWithThreadID(req.RunID, line)
 		if len(events) == 0 {
 			continue
@@ -1454,17 +1448,14 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 			if event == nil {
 				continue
 			}
-			// Update metrics based on event
 			r.updateCodexMetrics(event, &metrics, &lastAssistantMessage)
-
-			// Emit to sink
 			if req.EventSink != nil {
 				_ = req.EventSink.Emit(event)
 			}
 		}
 	}
 
-	if mp.TimedOut() && req.EventSink != nil {
+	if proc.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
@@ -1479,7 +1470,7 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}
 
 	// Wait for process cleanup (grandchildren killed, exit status collected).
-	err = mp.Wait()
+	err = proc.Wait()
 	duration := time.Since(startTime)
 
 	// Capture thread ID (may have been updated during continuation)
@@ -1501,9 +1492,9 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "continuation cancelled"
-		} else if exitErr, ok := err.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(err); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			result.ErrorMessage = errorOutput.String()
 			// Check if session expired
 			if strings.Contains(result.ErrorMessage, "thread") && strings.Contains(result.ErrorMessage, "not found") {

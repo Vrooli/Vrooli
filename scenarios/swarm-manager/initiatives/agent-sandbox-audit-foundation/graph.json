@@ -1,6 +1,6 @@
 {
   "initiative": "agent-sandbox-audit-foundation",
-  "generated_at": "2026-04-27T23:28:58Z",
+  "generated_at": "2026-04-28T03:36:32Z",
   "nodes": [
     {
       "id": "research/agent-sandbox-auditability-contract",
@@ -60,7 +60,7 @@
       "status": "completed",
       "priority": 1,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
@@ -70,7 +70,7 @@
       "status": "completed",
       "priority": 1,
       "effort": "L",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/workspace-sandbox-manual-review-ttl-gc",

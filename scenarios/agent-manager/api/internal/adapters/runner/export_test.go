@@ -1,8 +1,6 @@
 package runner
 
 import (
-	"os/exec"
-
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -20,8 +18,9 @@ func NewTestClaudeCodeRunner() *ClaudeCodeRunner {
 		binaryPath:  "/fake/path",
 		available:   false,
 		message:     "test runner",
-		runs:        make(map[uuid.UUID]*exec.Cmd),
+		launched:    make(map[uuid.UUID]LaunchedProcess),
 		streamState: make(map[uuid.UUID]*claudeStreamState),
+		selector:    newLauncherSelector(NewHostLauncher(), nil),
 	}
 }
 
@@ -42,9 +41,10 @@ func NewTestCodexRunner() *CodexRunner {
 		codexCLIPath:  "/fake/codex",
 		available:     false,
 		message:       "test runner",
-		runs:          make(map[uuid.UUID]*exec.Cmd),
+		launched:      make(map[uuid.UUID]LaunchedProcess),
 		runModels:     make(map[uuid.UUID]string),
 		useJSONStream: true,
+		selector:      newLauncherSelector(NewHostLauncher(), nil),
 	}
 }
 
@@ -60,8 +60,9 @@ func NewTestOpenCodeRunner() *OpenCodeRunner {
 		binaryPath:    "/fake/opencode",
 		available:     false,
 		message:       "test runner",
-		runs:          make(map[uuid.UUID]*exec.Cmd),
+		launched:      make(map[uuid.UUID]LaunchedProcess),
 		runSessionIDs: make(map[uuid.UUID]string),
+		selector:      newLauncherSelector(NewHostLauncher(), nil),
 	}
 }
 

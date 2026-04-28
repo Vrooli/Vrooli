@@ -1671,7 +1671,16 @@ type CreateRunRequest struct {
 	// Custom environment variables injected into the agent process.
 	// Keys must start with "VROOLI_" prefix. Merged with sandbox env vars;
 	// sandbox variables take precedence on conflict.
-	Environment   map[string]string `protobuf:"bytes,11,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Environment map[string]string `protobuf:"bytes,11,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Conversation/parent linking per Decision D7 of the auditability
+	// contract. Spawn surfaces SHOULD populate these explicitly so
+	// provenance readers can group by conversation without reverse-walking
+	// the run graph. When parent_run_id is set and conversation_id is empty,
+	// agent-manager inherits the parent's conversation_id; when both are
+	// empty, agent-manager mints a fresh UUID.
+	ConversationId *string `protobuf:"bytes,12,opt,name=conversation_id,json=conversationId,proto3,oneof" json:"conversation_id,omitempty"`
+	// @format uuid
+	ParentRunId   *string `protobuf:"bytes,13,opt,name=parent_run_id,json=parentRunId,proto3,oneof" json:"parent_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1781,6 +1790,20 @@ func (x *CreateRunRequest) GetEnvironment() map[string]string {
 		return x.Environment
 	}
 	return nil
+}
+
+func (x *CreateRunRequest) GetConversationId() string {
+	if x != nil && x.ConversationId != nil {
+		return *x.ConversationId
+	}
+	return ""
+}
+
+func (x *CreateRunRequest) GetParentRunId() string {
+	if x != nil && x.ParentRunId != nil {
+		return *x.ParentRunId
+	}
+	return ""
 }
 
 // DeleteRunRequest identifies a run to delete.
@@ -3723,7 +3746,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
 	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\x12'\n" +
-	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\x86\x06\n" +
+	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\x83\a\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +
@@ -3738,7 +3761,9 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x06prompt\x18\t \x01(\tH\x06R\x06prompt\x88\x01\x01\x123\n" +
 	"\x13existing_sandbox_id\x18\n" +
 	" \x01(\tH\aR\x11existingSandboxId\x88\x01\x01\x12U\n" +
-	"\venvironment\x18\v \x03(\v23.agent_manager.v1.CreateRunRequest.EnvironmentEntryR\venvironment\x1a>\n" +
+	"\venvironment\x18\v \x03(\v23.agent_manager.v1.CreateRunRequest.EnvironmentEntryR\venvironment\x12,\n" +
+	"\x0fconversation_id\x18\f \x01(\tH\bR\x0econversationId\x88\x01\x01\x12'\n" +
+	"\rparent_run_id\x18\r \x01(\tH\tR\vparentRunId\x88\x01\x01\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x13\n" +
@@ -3749,7 +3774,9 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x10_idempotency_keyB\x0e\n" +
 	"\f_profile_refB\t\n" +
 	"\a_promptB\x16\n" +
-	"\x14_existing_sandbox_id\"3\n" +
+	"\x14_existing_sandbox_idB\x12\n" +
+	"\x10_conversation_idB\x10\n" +
+	"\x0e_parent_run_id\"3\n" +
 	"\x10DeleteRunRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"-\n" +
 	"\x11DeleteRunResponse\x12\x18\n" +

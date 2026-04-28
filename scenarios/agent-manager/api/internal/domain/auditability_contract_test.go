@@ -22,8 +22,13 @@ import (
 func TestDefaultSandboxConfig_LockedDefaults(t *testing.T) {
 	cfg := DefaultSandboxConfig()
 
-	if cfg.Mode != SandboxModeTracking {
-		t.Errorf("Mode = %q, want %q", cfg.Mode, SandboxModeTracking)
+	// Default flipped to protected by Slice 4 of
+	// execute/protected-sandbox-agent-launch — once all three runners
+	// (claude_code, codex, opencode) and both Execute and Continue
+	// paths route through the launcher seam, the agent process tree
+	// itself can safely run inside workspace-sandbox by default.
+	if cfg.Mode != SandboxModeProtected {
+		t.Errorf("Mode = %q, want %q", cfg.Mode, SandboxModeProtected)
 	}
 	if cfg.ManualReview {
 		t.Error("ManualReview = true, want false (operator-opt-in only)")

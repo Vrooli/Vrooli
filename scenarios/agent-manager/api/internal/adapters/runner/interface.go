@@ -227,6 +227,27 @@ type ContinueRequest struct {
 	// Transcript config enables durable stdout capture and replay across
 	// agent-manager restarts for continuation turns.
 	Transcript *TranscriptConfig
+
+	// ResolvedConfig carries the run's resolved sandbox/runner config so
+	// continuation routes through the same Launcher (host vs sandbox) as
+	// the original Execute call. Populated by the orchestrator from the
+	// stored Run.ResolvedConfig.
+	ResolvedConfig *domain.RunConfig
+
+	// SandboxID identifies the workspace-sandbox container the original
+	// Execute call ran in, when the run was sandboxed. Required for
+	// protected-mode routing on the continuation; nil otherwise.
+	SandboxID *uuid.UUID
+}
+
+// GetConfig returns the resolved configuration for the continuation,
+// falling back to the runtime default. Mirrors ExecuteRequest.GetConfig
+// so launcherSelector.PickFor can route both call shapes uniformly.
+func (r *ContinueRequest) GetConfig() *domain.RunConfig {
+	if r.ResolvedConfig != nil {
+		return r.ResolvedConfig
+	}
+	return domain.DefaultRunConfig()
 }
 
 type TranscriptConfig struct {

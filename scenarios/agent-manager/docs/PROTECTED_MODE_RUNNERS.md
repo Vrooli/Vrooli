@@ -1,96 +1,183 @@
 # Protected-Mode Runners — Capability Matrix
 
-> **Status (2026-04-28):** the runner-fork pilot has landed for the
-> `claude_code` runner's primary `Execute` path. Protected-mode requests
-> now route the agent process through workspace-sandbox `/processes` via
-> the `runner.Launcher` seam (introduced by this work) and its
-> `SandboxLauncher` implementation. The `codex` and `opencode` runners,
-> and the `claude_code` durable-transcript and continuation paths, still
-> use the host launch path; extending the seam to them is the next slice.
+> **Status (2026-04-27, Slices 1 + 4 complete):** every coding-agent
+> runner — `claude_code`, `codex`, and `opencode` — routes **every
+> launch path** (streaming Execute, durable-transcript Execute, durable-
+> transcript Continue, streaming Continue) through the
+> `runner.Launcher` seam. When `SandboxConfig.Mode == Protected` and a
+> sandbox factory is wired, the agent process tree itself runs inside
+> workspace-sandbox bwrap isolation — not just on the host with a
+> tracked overlay. Protected is now the **default** sandbox mode
+> produced by `domain.DefaultSandboxConfig()`; tracking-mode is the
+> documented operator opt-out for runs that legitimately need full host
+> capability.
 >
-> **What changed in 2026-04-28:**
+> **What changed in Slice 1 (claude_code/codex/opencode remainder):**
 >
->   - `runner.Launcher` interface introduced. `claude_code.Execute` now
->     depends on it instead of `exec.Command` directly.
->   - `runner.HostLauncher` wraps the existing `managedProcess` machinery
->     — zero behavior change for non-protected runs.
->   - `sandbox.SandboxLauncher` implements `runner.Launcher` against the
->     workspace-sandbox `/processes`, `/files/content`, and
->     `/processes/{pid}/logs` endpoints.
->   - Workspace-sandbox `StartProcess` now enforces the protected-mode
->     git allowlist (previously `Exec` only — agents could bypass via
->     `/processes`).
->   - Validation gate flipped: `SandboxConfig.Mode = protected` is no
->     longer rejected. Falls back to host launch with an explicit warn
->     event when no `SandboxLauncherFactory` is wired.
+>   - All three runners' durable-transcript paths
+>     (`runDurableCommand` / `runTranscriptCommand`) now take a
+>     `Launcher` + `LaunchRequest` instead of a raw `*exec.Cmd`. Stdout
+>     is `io.Copy`'d from the launcher's pipe into the transcript file
+>     in a goroutine; the previous `cmd.Stdout = file` direct-pipe
+>     pattern is gone. `transcript.OnProcessStart(pid, pid)` is fed by
+>     `proc.PID()`.
+>   - All three runners' streaming Continue paths
+>     (`claude_code.Continue`, `codex.Continue`, `opencode.Continue`)
+>     route through `r.selector.PickFor` using `req.GetConfig()` and
+>     `req.SandboxID`.
+>   - `ContinueRequest` gained `ResolvedConfig *domain.RunConfig` and
+>     `SandboxID *uuid.UUID` fields plus a `GetConfig()` method,
+>     mirroring `ExecuteRequest`. Orchestration's continuation call
+>     site (`orchestration/service.go:2204`) populates them from the
+>     stored `Run.ResolvedConfig` and `Run.SandboxID` so protected
+>     runs continue in the same launcher.
+>   - `launcherSelector.Pick(ctx, req ExecuteRequest)` is now a thin
+>     wrapper over the new `PickFor(ctx, runID, cfg, sandboxID, sink)`
+>     primitive — both Execute and Continue paths share one routing
+>     implementation.
+>   - The legacy `r.runs map[uuid.UUID]*exec.Cmd` field is gone from
+>     all three runners. `r.launched map[uuid.UUID]LaunchedProcess` is
+>     the single registry. `Stop()` consults only this map and uses
+>     `proc.Signal(grace) + proc.Kill()` for the SIGTERM/SIGKILL
+>     escalation.
+>   - Wait-error handling unified via `runner.extractExitCode(err)`
+>     which understands both `*exec.ExitError` (host) and
+>     `*sandbox.remoteExitError` (sandbox) by satisfying a small
+>     `ExitCode() int` interface.
+>
+> **What changed in Slice 4 (default flip):**
+>
+>   - `domain.DefaultSandboxConfig()` now returns
+>     `Mode = SandboxModeProtected`. The auditability-contract test
+>     `TestDefaultSandboxConfig_LockedDefaults` was updated to pin
+>     this.
+>   - `Orchestrator.resolveSandboxConfig` starts from
+>     `DefaultSandboxConfig()` (instead of zero-valuing) and backfills
+>     `Mode` and `NetworkMode` after the override clone, so partial
+>     `SandboxConfig` overrides (notably swarm-manager's
+>     acceptance-only inline configs) don't silently strip Mode to
+>     unspecified.
+>   - `SandboxMode` doc comments rewritten: Tracking is now described
+>     as the explicit operator opt-out, Protected as the production
+>     default.
+>
+> **What changed in earlier slices (5 + 3 + 2):**
+>
+>   - Slice 5 fixed the CLI fingerprint rebuild loop, the SandboxMode
+>     doc-drift, added the SEAMS.md `1c. Process Launcher` section,
+>     and tracked four follow-up items under
+>     `protected-agent-sandboxing`.
+>   - Slice 3 extracted `launcherSelector` and
+>     `buildEnvWrappedLaunchRequest`. Eight selector routing tests
+>     replaced the per-runner copies.
+>   - Slice 2 wired the streaming Execute paths of `codex` and
+>     `opencode` through the seam. Six routing tests for each landed.
+>   - The original pilot (Slice H) introduced `runner.Launcher`,
+>     `HostLauncher`, `SandboxLauncher`, and the `/processes`
+>     git-allowlist enforcement.
 
-## What "protected mode" means today (claude_code Execute)
+## What "protected mode" means today (every runner, every path)
 
-| Layer | Effect when `SandboxConfig.Mode == protected` |
+| Layer | Effect when `SandboxConfig.Mode == Protected` |
 |---|---|
 | Sandbox creation (`Provider.Create`) | `Behavior.Protected.GitAllowlist` is set to the locked default. Workspace-sandbox stores it on the sandbox. |
-| Coding-agent launch (claude_code Execute) | **Pilot path**: `runner.SandboxLauncher.Launch` POSTs to `/processes`. The agent process runs inside bwrap with the sandbox's network and git guardrails applied at the OS level, not just on its file output. |
+| Coding-agent launch (every runner / every path) | `runner.SandboxLauncher.Launch` POSTs to `/processes`. The agent process runs inside bwrap with the sandbox's network and git guardrails applied at the OS level, not just on its file output. Applies to streaming Execute, durable-transcript Execute, durable-transcript Continue, and streaming Continue paths uniformly. |
 | Direct `/exec` calls (any caller using `Provider.ExecProcess`) | Git verb allowlist enforced server-side — non-listed verbs return structured 403. Surfaces as `ExecProcessResult.Blocked` for callers. |
-| `/processes` background launches (the new pilot path) | Git verb allowlist enforced server-side. Surfaces as a typed `*sandbox.LaunchBlocked` on `Launcher.Launch`. |
+| `/processes` background launches (the runner-fork path) | Git verb allowlist enforced server-side. Surfaces as a typed `*sandbox.LaunchBlocked` on `Launcher.Launch`. |
 | Bwrap network isolation | `NetworkMode` translated by the adapter: `none`/empty → full isolation, `localhost` → vrooli-aware (loopback only), `full` → unrestricted. |
 | Resource limits | Forwarded via `/processes` body, clamped by workspace-sandbox `ExecutionConfig`. |
-| Apply-at-run-end | Identical to tracking mode — provenance write, acceptance filter, manual-review TTL all unchanged. |
+| Apply-at-run-end | Identical between protected and tracking modes — provenance write, acceptance filter, manual-review TTL all unchanged. |
+| Exit code propagation | Both host and sandbox launches surface the exit code through `Wait()`'s error; `runner.extractExitCode` reads either via the `ExitCode() int` interface. |
 
-## What "protected mode" does **not** yet mean
+## Per-runner / per-path matrix
 
-| Layer | Behavior in protected mode today |
-|---|---|
-| `claude_code` durable-transcript path (`executeWithDurableTranscript`) | Still uses host launch. Migrating it to `Launcher` is mechanical given the seam, but every transcript test would need re-validation; deferred to next slice. |
-| `claude_code` continuation path (`Continue`) | Still uses host launch. Same rationale. |
-| `codex` runner | Still uses host launch in all modes. Codex's `--full-auto` is its own enforcement layer; the runner-fork next slice keeps `--full-auto` as defense-in-depth. |
-| `opencode` runner | Still uses host launch in all modes. |
-| Truly interactive stdin | Workspace-sandbox `/processes` doesn't expose a stdin pipe; the pilot stages stdin as a file in the sandbox and uses a `bash -c 'exec ... < prompt.txt'` wrapper. Suitable for prompt-via-stdin (the actual claude_code pattern); not for mid-run interactive prompts. |
-| Stdout/stderr stream separation | Workspace-sandbox merges them into a single log file. The pilot tolerates this because `parseStreamEvents` skips non-JSON lines, but stderr accumulation is empty in protected mode. Future work: ws-sb could split streams. |
+Every cell is shipped via the launcher seam. Tracking-mode and Protected
+mode share the same code path; the only difference is whether `Pick`
+returns the host or sandbox launcher.
 
-## Per-runner deltas (target end state)
+| Runner / path | Mechanism today | Notes |
+|---|---|---|
+| `claude_code.Execute` (streaming) | `r.selector.Pick` + `buildEnvWrappedLaunchRequest` | the original Slice-H pilot |
+| `claude_code.executeWithDurableTranscript` | `r.selector.Pick` + `buildEnvWrappedLaunchRequest`, `runDurableCommand(launcher, request)` | Slice 1 |
+| `claude_code.continueWithDurableTranscript` | `r.selector.PickFor(req.RunID, req.GetConfig(), req.SandboxID, …)` + builder, `runDurableCommand` | Slice 1 |
+| `claude_code.Continue` (streaming) | `r.selector.PickFor` + builder; idle reset via `proc.ResetIdleTimer` | Slice 1 |
+| `codex.executeWithJSONStream` (streaming) | `r.selector.Pick` + builder; `--full-auto` retained as defense-in-depth | Slice 2 |
+| `codex.executeWithWrapper` (streaming fallback) | `r.selector.Pick` with raw `LaunchRequest` (resource-codex `--tag` flag, no env shim) | Slice 2 |
+| `codex.executeWithJSONTranscript` | `r.selector.Pick` + builder, `runTranscriptCommand(spec)` | Slice 1 |
+| `codex.executeWithWrapperTranscript` | `r.selector.Pick` with raw `LaunchRequest`, `runTranscriptCommand(spec)` | Slice 1 |
+| `codex.continueWithJSONTranscript` | `r.selector.PickFor` + builder, `runTranscriptCommand` | Slice 1 |
+| `codex.Continue` (streaming) | `r.selector.PickFor` + builder | Slice 1 |
+| `opencode.Execute` (streaming) | `r.selector.Pick` + builder; `step_finish` early-exit via `proc.Kill()` | Slice 2 |
+| `opencode.executeWithTranscript` | `r.selector.Pick` + builder, `runTranscriptCommand(spec)` | Slice 1 |
+| `opencode.continueWithTranscript` | `r.selector.PickFor` + builder, `runTranscriptCommand` | Slice 1 |
+| `opencode.Continue` (streaming) | `r.selector.PickFor` + builder | Slice 1 |
 
-| Runner | Tracking mode | Protected mode (today, 2026-04-28) | Protected mode (target) |
-|---|---|---|---|
-| `claude_code` Execute | host exec, transcript parsing, heartbeat | **✅ shipped** — routes through `SandboxLauncher` via `Launcher` seam | streaming via long-running `/processes` (works today, polling-based) |
-| `claude_code` durable transcript | host exec | same as tracking (host) | route through `Launcher` |
-| `claude_code` Continue | host exec | same as tracking (host) | route through `Launcher` |
-| `codex` | host exec, `--full-auto` for network | same as tracking (host) | route through `Launcher`; `--full-auto` retained |
-| `opencode` | host exec, watchdog | same as tracking (host) | route through `Launcher` |
+## Trade-offs the seam still leans on
 
-## How protected mode is exercised today
+| Concern | Today's compromise | Tracked under |
+|---|---|---|
+| Truly interactive stdin | Workspace-sandbox `/processes` doesn't expose a stdin pipe; the launcher stages stdin as a file in the sandbox and uses a `bash -c 'exec ... < prompt.txt'` wrapper. Suitable for prompt-via-stdin (the runners' actual pattern); not for mid-run interactive prompts. | `execute/ws-sb-native-stdin-pipe` |
+| Stdout/stderr stream separation | Workspace-sandbox merges them into a single log file. Streaming paths tolerate this because `parseStreamEvents` skips non-JSON lines, but stderr accumulation is empty in protected mode. Durable-transcript paths still scan the launcher's stderr reader (which is closed-empty for sandbox launches). | `execute/ws-sb-stdout-stderr-split` |
+| Stream transport | 100ms polling against `/processes/{pid}/logs` rather than SSE/WebSocket. Resilient and simple; visible-real-time at 100ms. | `execute/ws-sb-streaming-process-logs` |
+| Exit-code precision | Workspace-sandbox doesn't yet record per-process exit codes; the launcher reports `0` on natural exit and `1` placeholder otherwise. Host launches still surface `*exec.ExitError.ExitCode()` precisely. | `execute/ws-sb-structured-exit-codes` |
+
+## How protected mode is exercised
 
 - `runner.Launcher` interface: `internal/adapters/runner/launcher.go`
-- `runner.HostLauncher` (legacy host path): `internal/adapters/runner/host_launcher.go`
+- `runner.HostLauncher` (host path): `internal/adapters/runner/host_launcher.go`
 - `sandbox.SandboxLauncher` (protected path): `internal/adapters/sandbox/sandbox_launcher.go`
-- `claude_code.Execute` routing logic: `internal/adapters/runner/claude_code.go` → `selectLauncher`
+- `launcherSelector` (shared routing seam): `internal/adapters/runner/launcher_selector.go`
+- `buildEnvWrappedLaunchRequest` (shared LaunchRequest builder): `internal/adapters/runner/launch_request.go`
+- `extractExitCode` (host/sandbox-uniform exit-code helper): `internal/adapters/runner/exit_code.go`
+- Per-runner Execute + Continue + durable wiring:
+  - `internal/adapters/runner/claude_code.go`
+  - `internal/adapters/runner/codex_runner.go`
+  - `internal/adapters/runner/opencode_runner.go`
 - Wire-encoder that materializes `Behavior.Protected.GitAllowlist`:
   `internal/adapters/sandbox/wire_encoder.go` (covered by `wire_encoder_test.go`)
 - Workspace-sandbox `/exec` git-allowlist enforcement:
   `scenarios/workspace-sandbox/api/internal/handlers/process.go` (`Exec`),
   tests in `process_git_allowlist_test.go`
-- Workspace-sandbox `/processes` git-allowlist enforcement (NEW):
+- Workspace-sandbox `/processes` git-allowlist enforcement:
   same file (`StartProcess`), tests in `process_start_git_allowlist_test.go`
+- Default-mode flip + safe override merge:
+  `internal/orchestration/service.go::resolveSandboxConfig` plus
+  `internal/domain/types.go::DefaultSandboxConfig`
 
 ### Test coverage
 
 | Concern | Test file | Status |
 |---|---|---|
 | `Launcher` contract / `HostLauncher` behavior | `runner/launcher_test.go` | 7 tests, all pass |
-| `claude_code` routing logic | `runner/claude_code_routing_test.go` | 7 tests, all pass |
+| `launcherSelector` Pick + PickFor routing (Execute and Continue) | `runner/launcher_selector_test.go` | 11 tests, all pass |
+| `claude_code` runner ↔ selector wiring | covered by selector tests + integration tests |  |
+| `codex` runner ↔ selector wiring + protected/tracking routing + wrapper fallback | `runner/codex_runner_routing_test.go` | 6 tests, all pass |
+| `opencode` runner ↔ selector wiring + protected/tracking routing + env-shim guard | `runner/opencode_runner_routing_test.go` | 6 tests, all pass |
 | `SandboxLauncher` lifecycle (start, stream, kill, ctx-cancel, 403) | `sandbox/sandbox_launcher_test.go` | 5 tests + helpers, all pass |
 | `Exec` git allowlist | `handlers/process_git_allowlist_test.go` | unchanged, pass |
-| `StartProcess` git allowlist (NEW) | `handlers/process_start_git_allowlist_test.go` | 4 tests, all pass |
+| `StartProcess` git allowlist | `handlers/process_start_git_allowlist_test.go` | 4 tests, all pass |
+| Default-config Mode = Protected | `domain/auditability_contract_test.go::TestDefaultSandboxConfig_LockedDefaults` | passes |
 
 ## Default-mode policy
 
-Protected is **NOT yet the default** SandboxConfig.Mode. The pilot only
-covers `claude_code.Execute`; flipping the default before codex/opencode
-and the durable-transcript/continuation paths route through the seam
-would silently downgrade those runs back to host execution (with a warn
-event). Default flip is sequenced behind those follow-on slices.
+`domain.DefaultSandboxConfig()` returns `Mode = SandboxModeProtected`.
+This is the production default. Spawn surfaces should clone the
+default and apply field-wise overrides on top.
 
-To opt a single run into protected mode today, set
-`run.ResolvedConfig.SandboxConfig.Mode = "protected"` at request time.
+`SandboxModeTracking` is the explicit operator opt-out for runs that
+need full host capability (e.g. a `git push` after review, scraping a
+remote URL during a research run, or spawn surfaces that legitimately
+need to spawn the agent on the host). Set it explicitly per-spawn;
+nothing defaults to it.
+
+`RunMode.IN_PLACE` remains the full-bypass mode for the rare cases
+where even tracking-mode auditability is wrong (e.g., agent-manager
+developing itself, self-modifying scenarios).
+
+`Orchestrator.resolveSandboxConfig` field-wise backfills `Mode` and
+`NetworkMode` from the default after the override clone, so partial
+inline configs (notably swarm-manager's acceptance-only overrides)
+don't silently strip these fields back to the proto zero-value.
 
 ## How to extend the seam to a new runner
 
@@ -98,39 +185,40 @@ To opt a single run into protected mode today, set
    + cmd.StderrPipe + cmd.StdinPipe` block with:
 
    ```go
-   launcher := r.selectLauncher(ctx, req)
-   proc, err := launcher.Launch(ctx, runner.LaunchRequest{
-       Command:     "env",
-       Args:        envArgs,
-       Env:         r.buildEnv(req),
-       WorkingDir:  req.WorkingDir,
-       Stdin:       strings.NewReader(prompt),
-       IdleTimeout: DefaultStreamIdleTimeout,
-   })
+   launcher := r.selector.Pick(ctx, req)            // or PickFor for Continue
+   launchReq := buildEnvWrappedLaunchRequest(
+       "MY_RUNNER_AGENT_TAG", r.binaryPath, args,
+       req.GetTag(), prompt, r.buildEnv(req), req.WorkingDir,
+   )
+   proc, err := launcher.Launch(ctx, launchReq)
    ```
 
 2. Read from `proc.Stdout()` / `proc.Stderr()` instead of `mp.Stdout()`
    and `cmd.StderrPipe()`. Call `proc.ResetIdleTimer()` instead of
    `mp.ResetTimer()`. Call `proc.Wait()` instead of `mp.Wait()`.
 
-3. Track in `r.launched[req.RunID]` (LaunchedProcess map) instead of
-   `r.runs[req.RunID]` (`*exec.Cmd` map). Update `Stop()` to consult
-   the new map first (claude_code's pattern).
+3. Track in `r.launched[req.RunID]` (LaunchedProcess map) — there is
+   no longer an `r.runs` *exec.Cmd map. `Stop()` consults `r.launched`
+   only.
 
-4. Add a routing test paralleling `claude_code_routing_test.go` to pin
-   the protected-vs-host fork.
+4. For wait-error handling, use `extractExitCode(err)` to handle both
+   host (`*exec.ExitError`) and sandbox (`*remoteExitError`) cases
+   uniformly.
+
+5. Add a routing test paralleling `codex_runner_routing_test.go` to
+   pin the protected-vs-host fork.
 
 ## Open follow-on work
 
 Tracked under the `protected-agent-sandboxing` initiative:
 
-- Migrate `claude_code` durable-transcript and continuation paths to the
-  `Launcher` seam.
-- Wire `codex` and `opencode` runners through the seam.
-- Workspace-sandbox: split stdout/stderr in `/processes` log capture so
-  protected runs can populate the runner's `errorOutput` buffer.
-- Workspace-sandbox: native stdin pipe on `/processes` (replaces the
-  bash-wrapper file-redirect workaround).
-- Default-mode flip: once all runners route through the seam, change
-  `DefaultSandboxConfig().Mode` from `tracking` to `protected` and
-  document the per-spawn opt-out.
+- `execute/ws-sb-stdout-stderr-split` — split stdout/stderr in
+  `/processes` log capture so protected runs populate the runner's
+  `errorOutput` buffer instead of merging into stdout.
+- `execute/ws-sb-native-stdin-pipe` — native stdin pipe on `/processes`
+  (replaces the bash-wrapper file-redirect workaround).
+- `execute/ws-sb-streaming-process-logs` — replace 100ms-poll log
+  draining with a true streaming transport (SSE or WebSocket).
+- `execute/ws-sb-structured-exit-codes` — workspace-sandbox should
+  record per-process exit codes so the `SandboxLauncher.Wait` returns
+  precise exit information instead of the current 0/1 placeholder.

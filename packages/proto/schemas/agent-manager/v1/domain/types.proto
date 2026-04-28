@@ -120,16 +120,18 @@ message SandboxFileCriteria {
 }
 
 // SandboxAcceptanceConfig controls which files are eligible for approval.
+//
+// auto_approve / auto_reject / disable_auto_approve_if_empty (5,6,7) were
+// removed in agent-sandbox-audit-foundation Phase 3b. The auditability
+// contract replaces them with SandboxConfig.manual_review / auto_apply /
+// apply_on_failure (see scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md).
 message SandboxAcceptanceConfig {
   SandboxAcceptanceMode mode = 1;
   SandboxFileCriteria allow = 2;
   SandboxFileCriteria deny = 3;
   bool ignore_binary = 4;
-  bool auto_approve = 5;
-  bool auto_reject = 6;
-  // When false (default), sandboxes with no file changes are auto-approved.
-  // Set to true to require manual approval even for empty sandboxes.
-  bool disable_auto_approve_if_empty = 7;
+  reserved 5, 6, 7;
+  reserved "auto_approve", "auto_reject", "disable_auto_approve_if_empty";
 }
 
 // SandboxLifecycleConfig controls sandbox stop/delete behavior.
@@ -140,10 +142,48 @@ message SandboxLifecycleConfig {
   google.protobuf.Duration idle_timeout = 4;
 }
 
-// SandboxConfig groups lifecycle and acceptance settings.
+// SandboxMode names the per-run sandbox execution mode from the
+// auditability contract. Default is tracking; protected is reserved for
+// the protected-agent-sandboxing initiative.
+enum SandboxMode {
+  SANDBOX_MODE_UNSPECIFIED = 0;
+  SANDBOX_MODE_TRACKING = 1;
+  SANDBOX_MODE_PROTECTED = 2;
+}
+
+// SandboxConfig groups lifecycle, acceptance, and the auditability-contract
+// run-end behavior levers.
+//
+// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
 message SandboxConfig {
   SandboxLifecycleConfig lifecycle = 1;
   SandboxAcceptanceConfig acceptance = 2;
+
+  // mode selects the sandbox execution mode (tracking is the default).
+  SandboxMode mode = 3;
+
+  // manual_review defers apply at run end until an operator approves via
+  // one of the three viewing surfaces (git-control-tower, agent-manager,
+  // workspace-sandbox). When true the sandbox persists past run end.
+  bool manual_review = 4;
+
+  // auto_apply controls whether in-acceptance changes apply to the
+  // canonical repo at run end. Optional so the unset case maps to the
+  // contract default (true).
+  optional bool auto_apply = 5;
+
+  // apply_on_failure controls whether apply runs identically when the
+  // run outcome is failure / cancelled / timeout. Optional with default
+  // true.
+  optional bool apply_on_failure = 6;
+
+  // network_mode mirrors NetworkAccess for sandboxed execution. Empty
+  // defaults to NETWORK_ACCESS_LOCALHOST.
+  NetworkAccess network_mode = 7;
+
+  // no_lock disables mutual exclusion locking. Acceptance filtering
+  // remains independent.
+  bool no_lock = 8;
 }
 
 // =============================================================================

@@ -81,10 +81,11 @@ type AgentProfile struct {
 	// Whether runs using this profile require sandbox isolation.
 	// Default: true for safety.
 	RequiresSandbox bool `protobuf:"varint,11,opt,name=requires_sandbox,json=requiresSandbox,proto3" json:"requires_sandbox,omitempty"`
-	// Whether runs using this profile require human approval before applying changes.
-	// Default: true for safety.
-	RequiresApproval bool `protobuf:"varint,12,opt,name=requires_approval,json=requiresApproval,proto3" json:"requires_approval,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
+	// Run-end apply behavior is now controlled by SandboxConfig
+	// (manual_review / auto_apply / apply_on_failure) per the
+	// auditability contract; the legacy requires_approval field
+	// (12) was removed in agent-sandbox-audit-foundation Phase 3b.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,20,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	// Empty means no path restrictions.
@@ -250,13 +251,6 @@ func (x *AgentProfile) GetRequiresSandbox() bool {
 	return false
 }
 
-func (x *AgentProfile) GetRequiresApproval() bool {
-	if x != nil {
-		return x.RequiresApproval
-	}
-	return false
-}
-
 func (x *AgentProfile) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
 		return x.SandboxConfig
@@ -339,9 +333,8 @@ type RunConfig struct {
 	NetworkAccess NetworkAccess `protobuf:"varint,18,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_access,omitempty"`
 	// Require sandbox isolation.
 	RequiresSandbox bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3" json:"requires_sandbox,omitempty"`
-	// Require human approval.
-	RequiresApproval bool `protobuf:"varint,9,opt,name=requires_approval,json=requiresApproval,proto3" json:"requires_approval,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
+	// Run-end apply behavior moved to SandboxConfig levers.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,13,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	AllowedPaths []string `protobuf:"bytes,10,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
@@ -472,13 +465,6 @@ func (x *RunConfig) GetRequiresSandbox() bool {
 	return false
 }
 
-func (x *RunConfig) GetRequiresApproval() bool {
-	if x != nil {
-		return x.RequiresApproval
-	}
-	return false
-}
-
 func (x *RunConfig) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
 		return x.SandboxConfig
@@ -537,8 +523,6 @@ type RunConfigOverrides struct {
 	NetworkAccess *NetworkAccess `protobuf:"varint,24,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess,oneof" json:"network_access,omitempty"`
 	// Require sandbox isolation.
 	RequiresSandbox *bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3,oneof" json:"requires_sandbox,omitempty"`
-	// Require human approval.
-	RequiresApproval *bool `protobuf:"varint,9,opt,name=requires_approval,json=requiresApproval,proto3,oneof" json:"requires_approval,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,17,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
@@ -687,13 +671,6 @@ func (x *RunConfigOverrides) GetRequiresSandbox() bool {
 	return false
 }
 
-func (x *RunConfigOverrides) GetRequiresApproval() bool {
-	if x != nil && x.RequiresApproval != nil {
-		return *x.RequiresApproval
-	}
-	return false
-}
-
 func (x *RunConfigOverrides) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
 		return x.SandboxConfig
@@ -825,8 +802,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\n" +
-	"\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\t\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -852,8 +828,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\vextra_flags\x18\x18 \x03(\v2..agent_manager.v1.AgentProfile.ExtraFlagsEntryR\n" +
 	"extraFlags\x12F\n" +
 	"\x0enetwork_access\x18\x19 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\rnetworkAccess\x12)\n" +
-	"\x10requires_sandbox\x18\v \x01(\bR\x0frequiresSandbox\x12+\n" +
-	"\x11requires_approval\x18\f \x01(\bR\x10requiresApproval\x12F\n" +
+	"\x10requires_sandbox\x18\v \x01(\bR\x0frequiresSandbox\x12F\n" +
 	"\x0esandbox_config\x18\x14 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\r \x03(\tR\fallowedPaths\x12!\n" +
 	"\fdenied_paths\x18\x0e \x03(\tR\vdeniedPaths\x12\x1d\n" +
@@ -865,7 +840,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01\"\xde\a\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\f\x10\rR\x11requires_approval\"\xca\a\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -881,15 +856,15 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\vextra_flags\x18\x11 \x03(\v2+.agent_manager.v1.RunConfig.ExtraFlagsEntryR\n" +
 	"extraFlags\x12F\n" +
 	"\x0enetwork_access\x18\x12 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\rnetworkAccess\x12)\n" +
-	"\x10requires_sandbox\x18\b \x01(\bR\x0frequiresSandbox\x12+\n" +
-	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12F\n" +
+	"\x10requires_sandbox\x18\b \x01(\bR\x0frequiresSandbox\x12F\n" +
 	"\x0esandbox_config\x18\r \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
 	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01\"\x80\f\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\t\x10\n" +
+	"R\x11requires_approval\"\xd1\v\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
@@ -907,8 +882,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"extraFlags\x12*\n" +
 	"\x11clear_extra_flags\x18\x17 \x01(\bR\x0fclearExtraFlags\x12K\n" +
 	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\aR\rnetworkAccess\x88\x01\x01\x12.\n" +
-	"\x10requires_sandbox\x18\b \x01(\bH\bR\x0frequiresSandbox\x88\x01\x01\x120\n" +
-	"\x11requires_approval\x18\t \x01(\bH\tR\x10requiresApproval\x88\x01\x01\x12F\n" +
+	"\x10requires_sandbox\x18\b \x01(\bH\bR\x0frequiresSandbox\x88\x01\x01\x12F\n" +
 	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
@@ -931,8 +905,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x17_skip_permission_promptB\v\n" +
 	"\t_featuresB\x11\n" +
 	"\x0f_network_accessB\x13\n" +
-	"\x11_requires_sandboxB\x14\n" +
-	"\x12_requires_approval\"\xa7\x01\n" +
+	"\x11_requires_sandboxJ\x04\b\t\x10\n" +
+	"R\x11requires_approval\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +
 	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12(\n" +

@@ -352,7 +352,7 @@ func (p *sandboxLaunchedProcess) run(ctx context.Context, pollInterval time.Dura
 				return
 			}
 			if exitCode != 0 {
-				p.waitErr = &remoteExitError{ExitCode: exitCode}
+				p.waitErr = &remoteExitError{code: exitCode}
 				return
 			}
 			return
@@ -507,14 +507,21 @@ func (p *sandboxLaunchedProcess) watchIdle(ctx context.Context) {
 }
 
 // remoteExitError carries a non-zero exit code from a sandbox-launched process.
-// The runner unwraps it for the typical exec.ExitError-style check.
+//
+// Runners share an exit-code interface (ExitCode() int, satisfied by both
+// *exec.ExitError and *remoteExitError) so the wait-error type-switch is
+// uniform across host and sandbox launches. See runner.extractExitCode.
 type remoteExitError struct {
-	ExitCode int
+	code int
 }
 
 func (e *remoteExitError) Error() string {
-	return fmt.Sprintf("remote process exited with code %d", e.ExitCode)
+	return fmt.Sprintf("remote process exited with code %d", e.code)
 }
+
+// ExitCode satisfies the runner-side exitCoder interface so callers can
+// extract the exit code without depending on a concrete sandbox type.
+func (e *remoteExitError) ExitCode() int { return e.code }
 
 // =============================================================================
 // helpers

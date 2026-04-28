@@ -207,29 +207,45 @@ type SandboxAcceptanceConfig struct {
 	IgnoreBinary bool                `json:"ignoreBinary,omitempty"`
 }
 
-// SandboxMode names the per-run sandbox execution mode from the auditability
-// contract. The default is SandboxModeTracking. SandboxModeProtected is
-// reserved for the upstream protected-agent-sandboxing initiative and is
-// rejected with a "reserved" error until that work lands.
+// SandboxMode names the per-run sandbox execution mode from the
+// auditability contract. The default produced by [DefaultSandboxConfig]
+// is [SandboxModeProtected]: the agent process tree itself runs inside
+// workspace-sandbox (bwrap isolation, NetworkMode translation, git
+// allowlist enforcement on /processes and /exec). Runs that request
+// Protected without a configured SandboxLauncherFactory fall back to host
+// execution with an explicit warn event so misconfigured environments
+// are visible rather than silent. [SandboxModeTracking] is the
+// documented operator opt-out for runs that legitimately need full host
+// capability — set explicitly per-spawn; nothing defaults to it.
 type SandboxMode string
 
 const (
 	// SandboxModeUnspecified means the SandboxConfig did not pick a mode
-	// explicitly. Treated as SandboxModeTracking at runtime.
+	// explicitly. Treated as SandboxModeTracking by [SandboxMode.Effective]
+	// — the conservative routing target for code paths that construct a
+	// zero-valued SandboxConfig directly. Spawn surfaces should clone
+	// [DefaultSandboxConfig] (which sets Mode=Protected) instead of
+	// zero-initialising, so the unspecified→tracking fallback only fires
+	// for legacy or test code paths.
 	SandboxModeUnspecified SandboxMode = ""
 
-	// SandboxModeTracking is the default auditability-first mode. Locked
-	// defaults: ManualReview=false, AutoApply=true, ApplyOnFailure=true,
+	// SandboxModeTracking is the host-tracked auditability mode: the
+	// agent runs on the host and the sandbox merely tracks file changes
+	// for accountability/provenance. Used as the explicit operator
+	// opt-out for runs that need full host capability (e.g. git push
+	// after review, scraping a remote URL). Locked defaults when chosen:
+	// ManualReview=false, AutoApply=true, ApplyOnFailure=true,
 	// NoLock=true (lock=false), NetworkMode=localhost.
 	SandboxModeTracking SandboxMode = "tracking"
 
 	// SandboxModeProtected runs the agent process tree itself inside the
 	// workspace-sandbox container — bwrap isolation, network mode, and
 	// git allowlist are enforced on the agent process, not just on its
-	// merged-overlay output. Whether a protected-mode request actually
-	// launches in the sandbox or falls back to host execution depends on
-	// the runner having a SandboxLauncherFactory wired at runtime; in
-	// production main.go always wires this.
+	// merged-overlay output. This is the production default. Whether a
+	// protected-mode request actually launches in the sandbox or falls
+	// back to host execution depends on the runner having a
+	// SandboxLauncherFactory wired at runtime; in production main.go
+	// always wires this.
 	//
 	// See execute/protected-sandbox-agent-launch and
 	// scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md.
@@ -324,11 +340,26 @@ func (c *SandboxConfig) GetApplyOnFailure() bool {
 // DefaultSandboxConfig returns the auditability-contract defaults. Spawn
 // surfaces should clone this and apply overrides on top, rather than
 // zero-initialising.
+//
+// Mode defaults to SandboxModeProtected: the agent process tree itself
+// runs inside the workspace-sandbox (bwrap isolation, NetworkMode
+// translation, git allowlist enforcement on /processes and /exec). Slices
+// 1–3 of execute/protected-sandbox-agent-launch wired all three runners
+// (claude_code, codex, opencode) and both Execute and Continue paths
+// through the launcher seam, so this default is now safe.
+//
+// Tracking mode (SandboxModeTracking) remains as the documented operator
+// opt-out for runs that legitimately need full host capability — e.g.,
+// a `git push` after review, scraping a remote URL, or self-modifying
+// scenarios. Operators set it explicitly per-spawn; nothing defaults to
+// it. RunMode.IN_PLACE remains the full-bypass mode for the rare cases
+// where even tracking-mode auditability is wrong (e.g., agent-manager
+// developing itself).
 func DefaultSandboxConfig() *SandboxConfig {
 	autoApply := true
 	applyOnFailure := true
 	return &SandboxConfig{
-		Mode:           SandboxModeTracking,
+		Mode:           SandboxModeProtected,
 		ManualReview:   false,
 		AutoApply:      &autoApply,
 		ApplyOnFailure: &applyOnFailure,

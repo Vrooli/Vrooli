@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,7 +128,13 @@ func DefaultProfileConfig() *ProfileConfig {
 			"Bash",  // Execute allowed commands
 		},
 		SkipPermissions: false, // Require confirmation for safety
-		RequiresSandbox: false, // In-place execution for test-genie
+		// Run in workspace-sandbox so the test-genie CLI's sandbox-aware
+		// resolution (cliutil.ResolveScenarioPath) gets activated: agent-manager
+		// injects VROOLI_SANDBOX_{ID,MERGED,SCOPE} only for sandboxed runs, and
+		// without those env vars the CLI silently falls back to the real-repo
+		// path. ManualReview defaults to false (auto-apply), so any test/test-fix
+		// edits flow into the canonical repo with provenance recorded.
+		RequiresSandbox: true,
 	}
 }
 
@@ -246,6 +254,11 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("resolve scenario path: %w", err)
 	}
+	// scope_path must be a repo-relative scope (e.g. "scenarios/foo"), not an
+	// absolute path. agent-manager forwards it as VROOLI_SANDBOX_SCOPE; the
+	// CLI's sandbox-aware path resolution (repocontract.ScenarioScopeMatch)
+	// expects a relative form starting with the layout's scenario dir.
+	scenarioScope := path.Join("scenarios", req.Scenario)
 
 	// Semaphore for concurrency control
 	concurrency := req.Concurrency
@@ -275,7 +288,7 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 			task := &domainpb.Task{
 				Title:       fmt.Sprintf("Test Generation - %s [%d]", req.Scenario, idx),
 				Description: pc.Text,
-				ScopePath:   scenarioPath,
+				ScopePath:   scenarioScope,
 				ProjectRoot: scenarioPath,
 				CreatedBy:   "test-genie",
 				ContextAttachments: []*domainpb.ContextAttachment{
@@ -299,12 +312,14 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 				return
 			}
 
-			// Create run for this task
+			// Create run for this task. RunMode is left unset so the orchestrator
+			// resolves it to RUN_MODE_SANDBOXED via the profile's RequiresSandbox=true
+			// — required to get VROOLI_SANDBOX_* env vars injected into the agent
+			// process and inherited by the test-genie CLI subprocess.
 			runReq := &apipb.CreateRunRequest{
 				TaskId:     createdTask.Id,
 				ProfileRef: s.defaultProfileRef(),
 				Tag:        &tag,
-				RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 				Force:      true, // Bypass capacity limits
 			}
 
@@ -535,9 +550,23 @@ type SpawnSingleResult struct {
 
 // SpawnSingle creates a single Task and Run for agent execution.
 // This is simpler than SpawnBatch when you only need one agent.
+//
+// req.Task.ScopePath must be a repo-relative scope (e.g. "scenarios/foo")
+// because the test-genie profile runs sandboxed and agent-manager forwards
+// ScopePath as VROOLI_SANDBOX_SCOPE. cliutil.IsSandboxActive() requires both
+// VROOLI_SANDBOX_MERGED and VROOLI_SANDBOX_SCOPE to be non-empty — without a
+// scope, the CLI's sandbox-aware path resolution silently falls back to the
+// real repo and the agent's edits in the overlay become invisible to it.
 func (s *AgentService) SpawnSingle(ctx context.Context, req SpawnSingleRequest) (*SpawnSingleResult, error) {
 	if !s.enabled {
 		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+
+	if req.Task == nil {
+		return nil, fmt.Errorf("task is required")
+	}
+	if strings.TrimSpace(req.Task.ScopePath) == "" {
+		return nil, fmt.Errorf("task.scope_path is required: must be a repo-relative scope like \"scenarios/<name>\" so VROOLI_SANDBOX_SCOPE is set and the test-genie CLI's sandbox-aware path resolution stays active")
 	}
 
 	result := &SpawnSingleResult{
@@ -554,12 +583,12 @@ func (s *AgentService) SpawnSingle(ctx context.Context, req SpawnSingleRequest) 
 	}
 	result.TaskID = createdTask.Id
 
-	// Create run
+	// Create run. RunMode unset → orchestrator resolves to sandboxed via the
+	// profile's RequiresSandbox=true. See SpawnBatch for the full rationale.
 	runReq := &apipb.CreateRunRequest{
 		TaskId:     createdTask.Id,
 		ProfileRef: s.defaultProfileRef(),
 		Tag:        &req.Tag,
-		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 		Force:      true,
 	}
 

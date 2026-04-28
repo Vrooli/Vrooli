@@ -154,9 +154,8 @@ type Settings struct {
 	// Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
 	AutoAdvanceDelaySeconds int32 `protobuf:"varint,32,opt,name=auto_advance_delay_seconds,json=autoAdvanceDelaySeconds,proto3" json:"auto_advance_delay_seconds,omitempty"`
 	// Agent behavior settings.
-	AgentMaxTurns         int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
-	AgentTimeoutSeconds   int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
-	AgentRequiresApproval bool  `protobuf:"varint,12,opt,name=agent_requires_approval,json=agentRequiresApproval,proto3" json:"agent_requires_approval,omitempty"`
+	AgentMaxTurns       int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
 	// UI preference settings.
 	SearchDebounceMs int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3" json:"search_debounce_ms,omitempty"`
 	ToastDurationMs  int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3" json:"toast_duration_ms,omitempty"`
@@ -294,13 +293,6 @@ func (x *Settings) GetAgentTimeoutSeconds() int32 {
 	return 0
 }
 
-func (x *Settings) GetAgentRequiresApproval() bool {
-	if x != nil {
-		return x.AgentRequiresApproval
-	}
-	return false
-}
-
 func (x *Settings) GetSearchDebounceMs() int32 {
 	if x != nil {
 		return x.SearchDebounceMs
@@ -416,7 +408,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\n" +
 	"initiative\x12>\n" +
-	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xb3\x0e\n" +
+	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\x9a\x0e\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -433,8 +425,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	" \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x05R\ragentMaxTurns\x12>\n" +
 	"\x15agent_timeout_seconds\x18\v \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90\x1c(<R\x13agentTimeoutSeconds\x126\n" +
-	"\x17agent_requires_approval\x18\f \x01(\bR\x15agentRequiresApproval\x128\n" +
+	"\xbaH\a\x1a\x05\x18\x90\x1c(<R\x13agentTimeoutSeconds\x128\n" +
 	"\x12search_debounce_ms\x18\r \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x128\n" +
 	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12]\n" +
@@ -452,7 +443,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\x0f\x10\x10R\x1bconfirm_destructive_actions*u\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x17agent_requires_approvalR\x1bconfirm_destructive_actions*u\n" +
 	"\x12DeleteConfirmLevel\x12\x1f\n" +
 	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x00\x12\x1d\n" +
 	"\x19DELETE_CONFIRM_LEVEL_NONE\x10\x01\x12\x1f\n" +

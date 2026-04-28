@@ -84,9 +84,8 @@ type UpdateSettingsRequest struct {
 	AutoAdvanceWorkshop    *bool  `protobuf:"varint,17,opt,name=auto_advance_workshop,json=autoAdvanceWorkshop,proto3,oneof" json:"auto_advance_workshop,omitempty"`
 	AutoCascadeWorkshop    *bool  `protobuf:"varint,18,opt,name=auto_cascade_workshop,json=autoCascadeWorkshop,proto3,oneof" json:"auto_cascade_workshop,omitempty"`
 	// Agent behavior settings.
-	AgentMaxTurns         *int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3,oneof" json:"agent_max_turns,omitempty"`
-	AgentTimeoutSeconds   *int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3,oneof" json:"agent_timeout_seconds,omitempty"`
-	AgentRequiresApproval *bool  `protobuf:"varint,12,opt,name=agent_requires_approval,json=agentRequiresApproval,proto3,oneof" json:"agent_requires_approval,omitempty"`
+	AgentMaxTurns       *int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3,oneof" json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds *int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3,oneof" json:"agent_timeout_seconds,omitempty"`
 	// UI preference settings.
 	SearchDebounceMs *int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3,oneof" json:"search_debounce_ms,omitempty"`
 	ToastDurationMs  *int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3,oneof" json:"toast_duration_ms,omitempty"`
@@ -217,13 +216,6 @@ func (x *UpdateSettingsRequest) GetAgentTimeoutSeconds() int32 {
 	return 0
 }
 
-func (x *UpdateSettingsRequest) GetAgentRequiresApproval() bool {
-	if x != nil && x.AgentRequiresApproval != nil {
-		return *x.AgentRequiresApproval
-	}
-	return false
-}
-
 func (x *UpdateSettingsRequest) GetSearchDebounceMs() int32 {
 	if x != nil && x.SearchDebounceMs != nil {
 		return *x.SearchDebounceMs
@@ -335,7 +327,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xab\x12\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xf1\x11\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
@@ -350,23 +342,22 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x0fagent_max_turns\x18\n" +
 	" \x01(\x05H\tR\ragentMaxTurns\x88\x01\x01\x127\n" +
 	"\x15agent_timeout_seconds\x18\v \x01(\x05H\n" +
-	"R\x13agentTimeoutSeconds\x88\x01\x01\x12;\n" +
-	"\x17agent_requires_approval\x18\f \x01(\bH\vR\x15agentRequiresApproval\x88\x01\x01\x121\n" +
-	"\x12search_debounce_ms\x18\r \x01(\x05H\fR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05H\rR\x0ftoastDurationMs\x88\x01\x01\x12]\n" +
+	"R\x13agentTimeoutSeconds\x88\x01\x01\x121\n" +
+	"\x12search_debounce_ms\x18\r \x01(\x05H\vR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05H\fR\x0ftoastDurationMs\x88\x01\x01\x12]\n" +
 	"\x13delete_confirmation\x18! \x01(\v2,.swarm_manager.v1.DeleteConfirmationSettingsR\x12deleteConfirmation\x12E\n" +
-	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01H\x0eR\x19reviewCodeQualityMinScore\x88\x01\x01\x12=\n" +
-	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01H\x0fR\x15reviewTestMinPassRate\x88\x01\x01\x12H\n" +
-	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x10R\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
-	"\x13review_max_warnings\x18\x16 \x01(\x05H\x11R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
-	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x12R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bH\x13R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
-	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x14R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
-	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x15R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
-	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x16R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
-	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x17R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
-	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x18R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x19R\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
+	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01H\rR\x19reviewCodeQualityMinScore\x88\x01\x01\x12=\n" +
+	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01H\x0eR\x15reviewTestMinPassRate\x88\x01\x01\x12H\n" +
+	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x0fR\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
+	"\x13review_max_warnings\x18\x16 \x01(\x05H\x10R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
+	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x11R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bH\x12R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
+	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x13R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
+	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x14R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
+	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x15R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
+	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x16R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
+	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x17R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x18R\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
 	"\x06_themeB\x0f\n" +
 	"\r_default_modeB\r\n" +
 	"\v_auto_fixupB\x15\n" +
@@ -377,8 +368,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x16_auto_advance_workshopB\x18\n" +
 	"\x16_auto_cascade_workshopB\x12\n" +
 	"\x10_agent_max_turnsB\x18\n" +
-	"\x16_agent_timeout_secondsB\x1a\n" +
-	"\x18_agent_requires_approvalB\x15\n" +
+	"\x16_agent_timeout_secondsB\x15\n" +
 	"\x13_search_debounce_msB\x14\n" +
 	"\x12_toast_duration_msB \n" +
 	"\x1e_review_code_quality_min_scoreB\x1c\n" +
@@ -392,7 +382,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x1a_circuit_breaker_thresholdB#\n" +
 	"!_circuit_breaker_cooldown_minutesB\x1d\n" +
 	"\x1b_execution_cost_cap_per_runB\x19\n" +
-	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\x0f\x10\x10R\x1bconfirm_destructive_actionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x17agent_requires_approvalR\x1bconfirm_destructive_actionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once

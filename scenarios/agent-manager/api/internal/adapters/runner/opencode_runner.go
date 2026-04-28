@@ -17,7 +17,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -34,18 +33,43 @@ const OpenCodeResourceCommand = "resource-opencode"
 // =============================================================================
 
 // OpenCodeRunner implements the Runner interface for OpenCode CLI.
+//
+// All process launches flow through [launcherSelector] and the resulting
+// [LaunchedProcess] is registered in the launched map; there is no direct
+// *exec.Cmd path. Tracking-mode requests still resolve to the HostLauncher
+// under the hood, so behavior is unchanged for non-protected runs while
+// protected mode and any future Launcher implementation get uniform
+// tracking, cancellation, and stop semantics.
 type OpenCodeRunner struct {
 	binaryPath    string
 	available     bool
 	message       string
 	installHint   string
 	mu            sync.Mutex
-	runs          map[uuid.UUID]*exec.Cmd
+	launched      map[uuid.UUID]LaunchedProcess
 	runSessionIDs map[uuid.UUID]string // Session IDs for conversation continuation
+
+	// selector picks host vs sandbox launcher per Execute call. Routing
+	// rules and warn-event semantics live in launcherSelector.Pick. Wired
+	// at construction time; main.go can swap the sandbox factory later via
+	// SetSandboxLauncherFactory once the workspace-sandbox provider is up.
+	selector *launcherSelector
 }
 
-// NewOpenCodeRunner creates a new OpenCode runner.
+// NewOpenCodeRunner creates a new OpenCode runner with a default
+// HostLauncher and no sandbox factory; protected-mode requests fall back
+// to host execution. Use NewOpenCodeRunnerWithLaunchers for protected
+// mode in production (main.go wires the workspace-sandbox provider).
 func NewOpenCodeRunner() (*OpenCodeRunner, error) {
+	return NewOpenCodeRunnerWithLaunchers(NewHostLauncher(), nil)
+}
+
+// NewOpenCodeRunnerWithLaunchers wires the runner with an explicit
+// HostLauncher and (optionally) a SandboxLauncherFactory. The factory is
+// consulted by launcherSelector.Pick when a streaming Execute call
+// arrives with SandboxConfig.Mode == Protected and a non-nil SandboxID.
+func NewOpenCodeRunnerWithLaunchers(host Launcher, sandboxFactory SandboxLauncherFactory) (*OpenCodeRunner, error) {
+	selector := newLauncherSelector(host, sandboxFactory)
 	// Look for resource-opencode in PATH (the Vrooli wrapper)
 	binaryPath, err := exec.LookPath(OpenCodeResourceCommand)
 	if err != nil {
@@ -53,7 +77,8 @@ func NewOpenCodeRunner() (*OpenCodeRunner, error) {
 			available:   false,
 			message:     "resource-opencode not found in PATH",
 			installHint: "Run: vrooli resource install opencode",
-			runs:        make(map[uuid.UUID]*exec.Cmd),
+			launched:    make(map[uuid.UUID]LaunchedProcess),
+			selector:    selector,
 		}, nil
 	}
 
@@ -62,8 +87,9 @@ func NewOpenCodeRunner() (*OpenCodeRunner, error) {
 		binaryPath:    binaryPath,
 		available:     true,
 		message:       "resource-opencode available",
-		runs:          make(map[uuid.UUID]*exec.Cmd),
+		launched:      make(map[uuid.UUID]LaunchedProcess),
 		runSessionIDs: make(map[uuid.UUID]string),
+		selector:      selector,
 	}
 
 	// Quick health check via status command
@@ -94,6 +120,14 @@ func NewOpenCodeRunner() (*OpenCodeRunner, error) {
 	}
 
 	return runner, nil
+}
+
+// SetSandboxLauncherFactory wires (or replaces) the protected-mode
+// factory used by streaming-path Execute calls. main.go invokes this
+// after constructing the workspace-sandbox provider; tests can use it
+// to inject a mock factory.
+func (r *OpenCodeRunner) SetSandboxLauncherFactory(factory SandboxLauncherFactory) {
+	r.selector.SetSandboxLauncherFactory(factory)
 }
 
 // Type returns the runner type identifier.
@@ -141,69 +175,38 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		return r.executeWithTranscript(ctx, req, startTime)
 	}
 
-	// Build command arguments
-	// resource-opencode run passes through to opencode CLI
-	// Correct syntax: resource-opencode run run <message> --format json
+	// Build command arguments — resource-opencode run passes through to
+	// opencode CLI: `resource-opencode run run <message> --format json`.
+	// The prompt is passed as a CLI arg; stdin is closed immediately.
 	args := r.buildArgs(req)
 
-	// Create command using resource-opencode.
-	// Prefix with env to surface the tag in the process command line for reconciler detection.
-	tag := req.GetTag()
-	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	if req.WorkingDir != "" {
-		cmd.Dir = req.WorkingDir
+	// Pick host vs sandbox launcher (tracking → host; protected → sandbox
+	// when a factory is wired and a sandbox ID is present, else host with
+	// a warn event); see launcherSelector.Pick for the routing rules.
+	launcher := r.selector.Pick(ctx, req)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"OPENCODE_AGENT_TAG", r.binaryPath, args,
+		req.GetTag(), "", r.buildEnv(req), req.WorkingDir,
+	)
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
-	// Set environment
-	cmd.Env = r.buildEnv(req)
-
-	// Track the running command for cancellation
+	// Track the launched process for cancellation and Stop().
 	r.mu.Lock()
-	r.runs[req.RunID] = cmd
+	r.launched[req.RunID] = proc
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.runs, req.RunID)
+		delete(r.launched, req.RunID)
 		r.mu.Unlock()
+		_ = proc.Wait()
 	}()
-
-	// Create stderr pipe before starting the managed process.
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Create stdin pipe and close it immediately after start
-	// This signals to OpenCode that there's no additional input coming
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Start command with managed process lifecycle.
-	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	defer func() {
-		_ = mp.Wait()
-	}()
-
-	// Close stdin immediately - we pass prompt via command line args
-	stdin.Close()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -224,18 +227,19 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 
 	// Read stderr in background
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			errorOutput.WriteString(scanner.Text())
 			errorOutput.WriteString("\n")
 		}
 	}()
 
-	// Parse streaming JSON output with managed process lifecycle.
-	scanner := bufio.NewScanner(mp.Stdout())
+	// Parse streaming JSON output. The launched process owns the
+	// idle-timeout watchdog and grandchild cleanup.
+	scanner := bufio.NewScanner(proc.Stdout())
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		mp.ResetTimer()
+		proc.ResetIdleTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
@@ -290,7 +294,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
-	if mp.TimedOut() && req.EventSink != nil {
+	if proc.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
@@ -305,13 +309,14 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	}
 
 	// If step finished, kill process group immediately for early exit.
-	// The managed process background goroutine handles cleanup.
+	// The launched process owns its own cleanup (process group on host,
+	// remote DELETE on sandbox).
 	if stepFinished {
-		mp.Kill()
+		proc.Kill()
 	}
 
 	// Wait for process cleanup (grandchildren killed, exit status collected).
-	waitErr := mp.Wait()
+	waitErr := proc.Wait()
 	if stepFinished {
 		err = nil // Step finished successfully
 	} else {
@@ -333,11 +338,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "execution cancelled"
-		} else if exitErr, ok := err.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(err); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			if errorMessage == "" {
-				errorMessage = exitErr.Error()
+				errorMessage = err.Error()
 			}
 			if fallback := resolveOpenCodeLogError(); errorMessage == "" || strings.Contains(errorMessage, "exit status") {
 				if fallback != "" {
@@ -516,56 +521,69 @@ func extractErrorMessage(logs string) string {
 // Stop attempts to gracefully stop a running OpenCode instance.
 func (r *OpenCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Lock()
-	cmd, exists := r.runs[runID]
+	proc, ok := r.launched[runID]
 	r.mu.Unlock()
-
-	if !exists {
+	if !ok {
 		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 
-	// Try graceful termination first (SIGTERM)
-	if cmd.Process != nil {
-		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
-			// If SIGTERM fails, force kill
-			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
+	// Graceful: 5s grace period before SIGKILL escalation.
+	proc.Signal(5 * time.Second)
+	// Honor parent ctx cancellation as an immediate-kill escalation.
+	if ctx != nil {
+		go func() {
+			<-ctx.Done()
+			proc.Kill()
+		}()
 	}
-
 	return nil
 }
 
 func (r *OpenCodeRunner) executeWithTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
-	args := r.buildArgs(req)
-	tag := req.GetTag()
-	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	if req.WorkingDir != "" {
-		cmd.Dir = req.WorkingDir
-	}
-	cmd.Env = r.buildEnv(req)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, "OpenCode execution started", "OpenCode execution completed")
+	launcher := r.selector.Pick(ctx, req)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"OPENCODE_AGENT_TAG", r.binaryPath, r.buildArgs(req),
+		req.GetTag(), "", r.buildEnv(req), req.WorkingDir,
+	)
+	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, opencodeTranscriptSpec{
+		launcher:     launcher,
+		request:      launchReq,
+		startMessage: "OpenCode execution started",
+		endMessage:   "OpenCode execution completed",
+	})
 }
 
 func (r *OpenCodeRunner) continueWithTranscript(ctx context.Context, req ContinueRequest, startTime time.Time) (*ExecuteResult, error) {
 	args := []string{"run", "run", req.Prompt, "--session", req.SessionID, "--format", "json"}
 	tag := fmt.Sprintf("opencode-continue-%s", req.RunID.String()[:8])
-	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	if req.WorkingDir != "" {
-		cmd.Dir = req.WorkingDir
-	}
 	env := sanitizedBaseEnv()
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
-	cmd.Env = appendEnvMap(env, req.Environment)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	env = appendEnvMap(env, req.Environment)
 
-	result, err := r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, "OpenCode continuation started", "OpenCode continuation completed")
+	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
+	launchReq := buildEnvWrappedLaunchRequest(
+		"OPENCODE_AGENT_TAG", r.binaryPath, args,
+		tag, "", env, req.WorkingDir,
+	)
+	result, err := r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, opencodeTranscriptSpec{
+		launcher:     launcher,
+		request:      launchReq,
+		startMessage: "OpenCode continuation started",
+		endMessage:   "OpenCode continuation completed",
+	})
 	if result != nil && result.SessionID == "" {
 		result.SessionID = req.SessionID
 	}
 	return result, err
+}
+
+// opencodeTranscriptSpec carries the per-call launcher wiring + status
+// messaging into runTranscriptCommand. Mirror of codex's codexTranscriptSpec.
+type opencodeTranscriptSpec struct {
+	launcher     Launcher
+	request      LaunchRequest
+	startMessage string
+	endMessage   string
 }
 
 func (r *OpenCodeRunner) runTranscriptCommand(
@@ -574,44 +592,44 @@ func (r *OpenCodeRunner) runTranscriptCommand(
 	sink EventSink,
 	transcript *TranscriptConfig,
 	startTime time.Time,
-	cmd *exec.Cmd,
-	startMessage string,
-	endMessage string,
+	spec opencodeTranscriptSpec,
 ) (*ExecuteResult, error) {
-	r.mu.Lock()
-	r.runs[runID] = cmd
-	r.mu.Unlock()
-	defer func() {
-		r.mu.Lock()
-		delete(r.runs, runID)
-		r.mu.Unlock()
-	}()
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: err}
-	}
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: err}
-	}
 	if transcript == nil || transcript.StdoutFile == nil {
 		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: errors.New("durable transcript stdout file is required")}
 	}
-	cmd.Stdout = transcript.StdoutFile
-	if err := cmd.Start(); err != nil {
+
+	proc, err := spec.launcher.Launch(ctx, spec.request)
+	if err != nil {
 		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: err}
 	}
+
+	r.mu.Lock()
+	r.launched[runID] = proc
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.launched, runID)
+		r.mu.Unlock()
+	}()
+
 	if transcript.OnProcessStart != nil {
-		if err := transcript.OnProcessStart(cmd.Process.Pid, cmd.Process.Pid); err != nil {
+		if err := transcript.OnProcessStart(proc.PID(), proc.PID()); err != nil {
+			proc.Kill()
+			_ = proc.Wait()
 			return nil, err
 		}
 	}
-	_ = stdin.Close()
-
 	if sink != nil {
-		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusStarting), string(domain.RunStatusRunning), startMessage))
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusStarting), string(domain.RunStatusRunning), spec.startMessage))
 	}
+
+	// Pipe stdout straight into the transcript file. The launcher's stdout
+	// reader closes on process exit, so the goroutine drains and returns.
+	stdoutDone := make(chan struct{})
+	go func() {
+		defer close(stdoutDone)
+		_, _ = io.Copy(transcript.StdoutFile, proc.Stdout())
+	}()
 
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
@@ -619,7 +637,7 @@ func (r *OpenCodeRunner) runTranscriptCommand(
 	var terminal *TranscriptTerminal
 
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			line := scanner.Text()
 			errorOutput.WriteString(line)
@@ -655,9 +673,10 @@ func (r *OpenCodeRunner) runTranscriptCommand(
 		}
 	}()
 
-	waitErr := cmd.Wait()
+	waitErr := proc.Wait()
 	cancelConsume()
 	<-liveDone
+	<-stdoutDone
 
 	_, finalTerminal, drainErr := Consume(context.Background(), ConsumeArgs{
 		RunID:       runID,
@@ -689,9 +708,9 @@ func (r *OpenCodeRunner) runTranscriptCommand(
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "execution cancelled"
-		} else if exitErr, ok := waitErr.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(waitErr); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			result.ErrorMessage = errorOutput.String()
 		} else {
 			result.Success = false
@@ -720,7 +739,7 @@ func (r *OpenCodeRunner) runTranscriptCommand(
 		if !result.Success {
 			finalStatus = string(domain.RunStatusFailed)
 		}
-		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, endMessage))
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, spec.endMessage))
 		_ = sink.Close()
 	}
 	return result, nil
@@ -1462,64 +1481,41 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		"--format", "json",
 	}
 
-	// Create command using resource-opencode
+	// Continue uses a synthesized tag (vs req.GetTag() on Execute) so log
+	// queries can distinguish continuation runs from initial runs of the
+	// same RunID.
 	tag := fmt.Sprintf("opencode-continue-%s", req.RunID.String()[:8])
-	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	if req.WorkingDir != "" {
-		cmd.Dir = req.WorkingDir
-	}
-
-	// Set environment
 	env := sanitizedBaseEnv()
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
-	cmd.Env = appendEnvMap(env, req.Environment)
+	env = appendEnvMap(env, req.Environment)
 
-	// Track the running command for cancellation
+	// Pick host vs sandbox launcher (tracking → host; protected → sandbox
+	// when the run was originally sandboxed); see launcherSelector.PickFor
+	// for the routing rules.
+	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
+	// Prompt is on the command line for opencode continue; Stdin is unused.
+	launchReq := buildEnvWrappedLaunchRequest(
+		"OPENCODE_AGENT_TAG", r.binaryPath, args,
+		tag, "", env, req.WorkingDir,
+	)
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
 	r.mu.Lock()
-	r.runs[req.RunID] = cmd
+	r.launched[req.RunID] = proc
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.runs, req.RunID)
+		delete(r.launched, req.RunID)
 		r.mu.Unlock()
+		_ = proc.Wait()
 	}()
-
-	// Create stderr pipe before starting the managed process.
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
-	// Create stdin pipe and close it immediately
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
-	// Start command with managed process lifecycle.
-	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-	defer func() {
-		_ = mp.Wait()
-	}()
-
-	// Close stdin immediately - we pass prompt via command line args
-	stdin.Close()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -1540,18 +1536,18 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 
 	// Read stderr in background
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			errorOutput.WriteString(scanner.Text())
 			errorOutput.WriteString("\n")
 		}
 	}()
 
-	// Parse streaming JSON output with managed process lifecycle.
-	contScanner := bufio.NewScanner(mp.Stdout())
+	// Parse streaming JSON output. Launcher handles process lifecycle.
+	contScanner := bufio.NewScanner(proc.Stdout())
 	contScanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for contScanner.Scan() {
-		mp.ResetTimer()
+		proc.ResetIdleTimer()
 		line := contScanner.Text()
 		if line == "" {
 			continue
@@ -1599,7 +1595,7 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}
 
-	if mp.TimedOut() && req.EventSink != nil {
+	if proc.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
@@ -1615,11 +1611,11 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 
 	// If step finished, kill process group immediately for early exit.
 	if stepFinished {
-		mp.Kill()
+		proc.Kill()
 	}
 
 	// Wait for process cleanup.
-	waitErr := mp.Wait()
+	waitErr := proc.Wait()
 	if stepFinished {
 		err = nil
 	} else {
@@ -1640,11 +1636,11 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = "continuation cancelled"
-		} else if exitErr, ok := err.(*exec.ExitError); ok {
+		} else if code, ok := extractExitCode(err); ok {
 			result.Success = false
-			result.ExitCode = exitErr.ExitCode()
+			result.ExitCode = code
 			if errorMessage == "" {
-				errorMessage = exitErr.Error()
+				errorMessage = err.Error()
 			}
 			if fallback := resolveOpenCodeLogError(); errorMessage == "" || strings.Contains(errorMessage, "exit status") {
 				if fallback != "" {

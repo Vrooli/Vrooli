@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"encoding/json"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -723,7 +722,7 @@ func min(a, b int) int {
 // TestCodexParseStreamEvents_ANSIStrippedFromMessage verifies ANSI escape
 // sequences are stripped from agent_message text in JSON streaming mode.
 func TestCodexParseStreamEvents_ANSIStrippedFromMessage(t *testing.T) {
-	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runner := &CodexRunner{}
 	runID := uuid.New()
 
 	// agent_message with embedded ANSI color codes
@@ -744,7 +743,7 @@ func TestCodexParseStreamEvents_ANSIStrippedFromMessage(t *testing.T) {
 // TestCodexParseStreamEvents_ANSIStrippedFromToolOutput verifies ANSI escape
 // sequences are stripped from tool_result output.
 func TestCodexParseStreamEvents_ANSIStrippedFromToolOutput(t *testing.T) {
-	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runner := &CodexRunner{}
 	runID := uuid.New()
 
 	// tool_result with ANSI in output
@@ -772,7 +771,7 @@ func TestCodexParseStreamEvents_ANSIStrippedFromToolOutput(t *testing.T) {
 // TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution verifies ANSI
 // sequences are stripped from command_execution aggregated_output.
 func TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution(t *testing.T) {
-	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runner := &CodexRunner{}
 	runID := uuid.New()
 
 	exitZero := 0
@@ -799,7 +798,7 @@ func TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution(t *testing.T) {
 // TestCodexParseStreamEvents_PureANSILineSkipped verifies that a pure ANSI
 // line (no valid JSON) is silently skipped and produces no events.
 func TestCodexParseStreamEvents_PureANSILineSkipped(t *testing.T) {
-	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runner := &CodexRunner{}
 	runID := uuid.New()
 
 	// These are raw terminal formatting lines that should produce zero events
@@ -821,7 +820,7 @@ func TestCodexParseStreamEvents_PureANSILineSkipped(t *testing.T) {
 // TestCodexParseStreamEvents_HighVolumeANSINoSpam verifies that a large
 // number of pure-ANSI lines produce zero events (regression for the 30k+ spam bug).
 func TestCodexParseStreamEvents_HighVolumeANSINoSpam(t *testing.T) {
-	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runner := &CodexRunner{}
 	runID := uuid.New()
 
 	totalEvents := 0
@@ -848,9 +847,9 @@ func TestCodexRunner_ContinueArgs_UsesExecResumeJSON(t *testing.T) {
 	runner := &CodexRunner{
 		available:     true,
 		useJSONStream: false,
-		runs:          make(map[uuid.UUID]*exec.Cmd),
-		runModels:     make(map[uuid.UUID]string),
-		runThreadIDs:  make(map[uuid.UUID]string),
+
+		runModels:    make(map[uuid.UUID]string),
+		runThreadIDs: make(map[uuid.UUID]string),
 	}
 	_, err := runner.Continue(context.Background(), ContinueRequest{
 		RunID:     uuid.New(),
@@ -869,9 +868,9 @@ func TestCodexRunner_ContinueRequiresSessionID(t *testing.T) {
 		available:     true,
 		useJSONStream: true,
 		codexCLIPath:  "/usr/bin/codex",
-		runs:          make(map[uuid.UUID]*exec.Cmd),
-		runModels:     make(map[uuid.UUID]string),
-		runThreadIDs:  make(map[uuid.UUID]string),
+
+		runModels:    make(map[uuid.UUID]string),
+		runThreadIDs: make(map[uuid.UUID]string),
 	}
 	_, err := runner.Continue(context.Background(), ContinueRequest{
 		RunID:     uuid.New(),
@@ -889,7 +888,6 @@ func TestCodexRunner_ContinueRequiresSessionID(t *testing.T) {
 // This is the core regression test for the character-by-character event bug.
 func TestCodexRunner_ContinueJSONParsing_NoCharacterSpam(t *testing.T) {
 	runner := &CodexRunner{
-		runs:         make(map[uuid.UUID]*exec.Cmd),
 		runModels:    make(map[uuid.UUID]string),
 		runThreadIDs: make(map[uuid.UUID]string),
 	}
@@ -920,7 +918,6 @@ func TestCodexRunner_ContinueJSONParsing_NoCharacterSpam(t *testing.T) {
 // from stream events, enabling chained continuations.
 func TestCodexRunner_ContinueJSONParsing_CapThreadID(t *testing.T) {
 	runner := &CodexRunner{
-		runs:         make(map[uuid.UUID]*exec.Cmd),
 		runModels:    make(map[uuid.UUID]string),
 		runThreadIDs: make(map[uuid.UUID]string),
 	}

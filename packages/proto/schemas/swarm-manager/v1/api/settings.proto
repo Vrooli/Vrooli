@@ -52,7 +52,8 @@ message UpdateSettingsRequest {
   // Agent behavior settings.
   optional int32 agent_max_turns = 10;
   optional int32 agent_timeout_seconds = 11;
-  optional bool agent_requires_approval = 12;
+  reserved 12;
+  reserved "agent_requires_approval";
 
   // UI preference settings.
   optional int32 search_debounce_ms = 13;

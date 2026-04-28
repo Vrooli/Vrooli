@@ -66,7 +66,8 @@ message Settings {
   // Agent behavior settings.
   int32 agent_max_turns = 10 [(buf.validate.field).int32 = { gte: 5, lte: 1000 }];
   int32 agent_timeout_seconds = 11 [(buf.validate.field).int32 = { gte: 60, lte: 3600 }];
-  bool agent_requires_approval = 12;
+  reserved 12;
+  reserved "agent_requires_approval";
 
   // UI preference settings.
   int32 search_debounce_ms = 13 [(buf.validate.field).int32 = { gte: 100, lte: 2000 }];
