@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, fireEvent, screen } from "@testing-library/react";
-import MobileToolbar from "../components/MobileToolbar";
+import { createRef } from "react";
+import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToolbar";
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
@@ -260,5 +261,104 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
     });
     expect(onInput).toHaveBeenCalledTimes(1);
     expect(onInput).toHaveBeenCalledWith("\x1b", "toolbar-key");
+  });
+});
+
+describe("MobileToolbar — appendText (voice transcript insertion)", () => {
+  beforeEach(() => {
+    try {
+      window.localStorage.clear();
+    } catch {
+      /* no-op */
+    }
+  });
+
+  function renderWithRef() {
+    const ref = createRef<MobileToolbarHandle>();
+    const utils = render(
+      <MobileToolbar
+        ref={ref}
+        onInput={vi.fn(() => ({ status: "sent" as const, seq: 1 }))}
+        activeSessionId="sess-append"
+        onFocusTerminal={vi.fn()}
+      />,
+    );
+    const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
+    return { ref, textarea, ...utils };
+  }
+
+  // RAF used by appendText for caret restoration — flush it synchronously.
+  async function flushRaf() {
+    await act(async () => {
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    });
+  }
+
+  it("appends to end with a leading space when prior text has no trailing whitespace", async () => {
+    const { ref, textarea } = renderWithRef();
+    fireEvent.change(textarea, { target: { value: "Hello." } });
+    act(() => ref.current!.appendText("World."));
+    await flushRaf();
+    expect(textarea.value).toBe("Hello. World.");
+  });
+
+  it("does not double-space when prior text already ends in whitespace", async () => {
+    const { ref, textarea } = renderWithRef();
+    fireEvent.change(textarea, { target: { value: "Hello. " } });
+    act(() => ref.current!.appendText("World."));
+    await flushRaf();
+    expect(textarea.value).toBe("Hello. World.");
+  });
+
+  it("inserts at the caret position rather than always at the end", async () => {
+    const { ref, textarea } = renderWithRef();
+    fireEvent.change(textarea, { target: { value: "abc xyz" } });
+    // Move caret to between "abc" and " xyz" (index 3).
+    textarea.focus();
+    textarea.setSelectionRange(3, 3);
+    fireEvent.select(textarea);
+    act(() => ref.current!.appendText("MID"));
+    await flushRaf();
+    // Leading: prev char is "c" (non-ws) → add space. Trailing: next char is " " → no space.
+    expect(textarea.value).toBe("abc MID xyz");
+    // Caret lands at the end of the inserted text ("abc MID".length = 7).
+    expect(textarea.selectionStart).toBe(7);
+    expect(textarea.selectionEnd).toBe(7);
+  });
+
+  it("replaces the selected range when a selection is active", async () => {
+    const { ref, textarea } = renderWithRef();
+    fireEvent.change(textarea, { target: { value: "keep DROP keep" } });
+    textarea.focus();
+    textarea.setSelectionRange(5, 9); // selects "DROP"
+    fireEvent.select(textarea);
+    act(() => ref.current!.appendText("NEW"));
+    await flushRaf();
+    expect(textarea.value).toBe("keep NEW keep");
+  });
+
+  it("uses the last-known caret even after focus has moved away (e.g. to mic button)", async () => {
+    const { ref, textarea } = renderWithRef();
+    fireEvent.change(textarea, { target: { value: "abc xyz" } });
+    textarea.focus();
+    textarea.setSelectionRange(3, 3);
+    fireEvent.select(textarea);
+    // Simulate focus moving to the mic button — blur fires and we record selection.
+    fireEvent.blur(textarea);
+    act(() => ref.current!.appendText("MID"));
+    await flushRaf();
+    expect(textarea.value).toBe("abc MID xyz");
+  });
+
+  it("does not add a leading space when inserting at position 0", async () => {
+    const { ref, textarea } = renderWithRef();
+    fireEvent.change(textarea, { target: { value: "world" } });
+    textarea.focus();
+    textarea.setSelectionRange(0, 0);
+    fireEvent.select(textarea);
+    act(() => ref.current!.appendText("hello"));
+    await flushRaf();
+    // Trailing: next char "w" is non-ws → add trailing space.
+    expect(textarea.value).toBe("hello world");
   });
 });

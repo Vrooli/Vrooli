@@ -176,12 +176,49 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
   const deferredInputValue = useDeferredValue(inputValue);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  /**
+   * Last-known caret position in the textarea. Tracked on select/blur so that
+   * voice transcripts can be inserted at the user's caret even when focus has
+   * moved to the mic button. `null` means we don't have a reliable position
+   * (e.g. textarea has never been focused) — callers fall back to end-of-text.
+   */
+  const selectionRef = useRef<{ start: number; end: number } | null>(null);
 
   useImperativeHandle(ref, () => ({
     appendText: (text: string) => {
+      const el = textareaRef.current;
+      let insertEnd = 0;
       setInputValue(prev => {
-        const needsSpace = prev.length > 0 && !prev.endsWith(" ");
-        return prev + (needsSpace ? " " : "") + text;
+        // Prefer live selection if textarea is focused; otherwise fall back
+        // to the last-known caret position; otherwise append to end.
+        let start = prev.length;
+        let end = prev.length;
+        if (el && document.activeElement === el && el.selectionStart !== null && el.selectionEnd !== null) {
+          start = Math.min(el.selectionStart, prev.length);
+          end = Math.min(el.selectionEnd, prev.length);
+        } else if (selectionRef.current) {
+          start = Math.min(selectionRef.current.start, prev.length);
+          end = Math.min(selectionRef.current.end, prev.length);
+        }
+        const before = prev.slice(0, start);
+        const after = prev.slice(end);
+        const lead = before.length > 0 && !/\s$/.test(before) && !/^\s/.test(text) ? " " : "";
+        const trail = after.length > 0 && !/^\s/.test(after) && !/\s$/.test(text) ? " " : "";
+        const insertion = lead + text + trail;
+        insertEnd = before.length + lead.length + text.length;
+        return before + insertion + after;
+      });
+      // Restore caret to the end of the inserted text after React re-renders.
+      requestAnimationFrame(() => {
+        const node = textareaRef.current;
+        if (!node) return;
+        try {
+          node.setSelectionRange(insertEnd, insertEnd);
+        } catch {
+          // setSelectionRange can throw if the element is detached; ignore.
+        }
+        selectionRef.current = { start: insertEnd, end: insertEnd };
       });
     },
     focusInput: () => {
@@ -189,9 +226,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     },
     clearInput: () => {
       clearDraft();
+      selectionRef.current = null;
     },
   }), [setInputValue, clearDraft]);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
   /** Draft snapshot taken at submit time; restored on ack failure. */
@@ -463,6 +500,24 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
+              selectionRef.current = {
+                start: e.target.selectionStart ?? e.target.value.length,
+                end: e.target.selectionEnd ?? e.target.value.length,
+              };
+            }}
+            onSelect={(e) => {
+              const t = e.currentTarget;
+              selectionRef.current = {
+                start: t.selectionStart ?? t.value.length,
+                end: t.selectionEnd ?? t.value.length,
+              };
+            }}
+            onBlur={(e) => {
+              const t = e.currentTarget;
+              selectionRef.current = {
+                start: t.selectionStart ?? t.value.length,
+                end: t.selectionEnd ?? t.value.length,
+              };
             }}
             autoComplete="off"
             autoCorrect="on"
