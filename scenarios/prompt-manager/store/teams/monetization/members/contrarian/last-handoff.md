@@ -1,23 +1,23 @@
 ### Proposals reviewed this heartbeat
-- 0 pending decisions (queue fully drained since last heartbeat) and no fresh proposals from any member.
+- 4 fresh opportunity-scout pool entries (family-bundle, regtech-intel-addon, home-inspection-vertical, compliance-attestation-services). 0 pending decisions.
 
 ### Passed cleanly
-- N/A — nothing to score.
+- opp-...799796 (family-bundle), opp-...799797 (regtech-intel-addon), opp-...799798 (home-inspection-vertical), opp-...799799 (compliance-attestation-services). All four cleared all seven failure modes at pool stage.
 
 ### Challenge notes written
-- None. No live proposals to attach to.
+- None. No failure-mode hits.
 
 ### Rejection recommendations raised
 - No rejection recommendations.
 
 ### Framework-update candidates
-- None raised. Operator's rejection note on dec-1777060904331053267 ("market-validator should consolidate scan-shaped decisions filed within minutes") materially confirms the queue-stacking pattern from prior challenge-note knw-1777066252723218640 — but still n=1 source, not yet recurring across members. Watching for a second instance before raising a framework-update.
+- None. The queue-stacking signal from operator's rejection of dec-1777060904331053267 still has n=1 source; opportunity-scout's 4 entries today were appended in a single batch, not separate decisions, so the pattern isn't yet recurring.
 
 ### Aged decisions acted on
-- 0. Queue is empty; nothing to age.
+- 0. Empty queue.
 
 ### Knowledge entries written
-- 1: `contrarian-scan-2026-04-26` (`knw-1777239088273048752`).
+- 1: `contrarian-scan-2026-04-27` (`knw-1777325470578437026`).
 
 ### Mode
-- Normal mode (0 / 12 team ceiling). Own-context cap: 0 / 3. Quiet heartbeat — all 3 prior pending decisions resolved by operator (1 accepted, 1 rejected, 1 deferred to 2026-05-09); only fresh member output is financial-tracker's quiet ledger snapshot with no proposal attached.
+- Normal (0/12 team ceiling; 0/3 own-context cap). Quiet review — all 4 fresh proposals cleared cleanly with operator-vision-walk grounding, concrete revisit-triggers, and proper OSS-positioning framing. One forward-looking note: re-check the compliance-attestation entry's explicit sunset clause at promotion time; it's stubbed-via-convert today.

@@ -1,38 +1,35 @@
 ### Runs in window
-- Errored: 1
+- Errored: 6 (3 silent-stall cluster — picked by twin heartbeat; 1 max-turns — picked here; 1 5xx Overloaded; 1 swarm-manager workshop-decision-triage)
 - Retried: 0
-- Slow: 1 (`e15d9639` work-duration 15,865s, swarm-manager backlog execute brand-manager-rule-detail-ux — not picked; tier-1 wins)
+- Slow: 0 (with the pending tier-3 work-duration gate; raw wall-clock not re-investigated)
 - User-flagged: 0
-- Successful: 72 complete + 3 needs-review + 2 still running
+- Successful: 116 complete + 9 needs-review + 2 running
 
 ### Run picked this heartbeat
-- Run ID: `cab1c399-9a3e-4b12-99e4-6a21dcb69ddb`
-- Agent: `swarm-manager:backlog:execute:prompt-manager-decision-deferral-primitive:process` (sandboxed, opus, fallback_runner_types=[CLAUDE_CODE, CODEX])
-- Triage tier: errored (tier-1)
+- Run ID: `56398acb-2aec-4b2c-bfc4-eafc8dc28c3e`
+- Agent: `heartbeat-meta-optimization-run-introspector-2026-04-26T22-45-00Z` (run-introspector's own prior heartbeat)
+- Triage tier: **errored** (tier-1)
 
 ### What happened
-Run failed after 1 turn / 203,961ms with `API Error: 529 Overloaded. This is a server-side issue, usually temporary`. claude-code returned `is_error=true subtype=success`; declared codex fallback never engaged. Sole `RUN_STATUS_FAILED` in a 78-run window.
+The prior run-introspector heartbeat ran 51 turns / 7m36s and was killed by `subtype=error_max_turns`. It had drafted the 2026-04-26 silent-stall lesson (visible uncommitted in `git diff`) and was mid-supersession of `dec-1777157323547139809` when it hit the cap. Its sequence-127 message identified the actionable insight: the 5xx gate's `turns_used <= 1` predicate is too narrow — confirmed by run `13ac79cb` (34-turn `overloaded_error`).
 
 ### Implicated
-- **Meta (in lane):** `run-introspector/HEARTBEAT.md` tier-1 — currently-pending gate (`dec-1777069916962818847`) covers only 429-false-positives, not 5xx-transient failures with `turns_used<=1`.
-- **Scenario-qa (out of lane, noted in RUN_LESSONS.md only):** claude-code runner's terminate-on-error path does not engage `fallback_runner_types` on transient 5xx; `subtype=success` masks the upstream API failure as non-retryable.
+- **Primary (in lane):** `dec-1777157323547139809` predicate `summary.turns_used <= 1` — wrong filter; 5xx-pattern alone is the right signal.
+- **Secondary (in lane):** run-introspector `HEARTBEAT.md` Required Loop is bumping the 50-turn ceiling on dual-finding heartbeats (new lesson + supersession). Surfaced; not raised this HB (cap discipline).
+- **Out of lane:** Two run-introspector heartbeats fired simultaneously at 2026-04-27T22:45 (runs `096b1dee` + `937bcb50`, 55ms apart, same tag). Scheduler concern; flagged in lesson only.
 
 ### Proposed lesson
-- Extend the already-pending tier-1 gate to also reclassify `API Error: 5xx Overloaded/...` 1-turn runs as tier-5.
-- Handoff to: **team-agent-optimizer** (HEARTBEAT.md edit; coordinate with `dec-1777069916962818847`).
+- Drop `turns_used <= 1` from the pending 5xx environmental-failure predicate; collapse 429-FP / 5xx-pattern / silent-stall into one "tier-1 environmental-failure exclusions" bullet list when team-agent-optimizer implements.
+- Handoff to: **team-agent-optimizer** (consolidated tier-1 gate edit; coordinates with `dec-1777069916962818847` and the 2026-04-27 silent-stall lesson).
 
 ### Measurement plan
-- Baseline: 1/78 (~1.3%) of completed runs in this window are pure-transient-5xx failures.
-- 2026-05-02 (7 HBs): grep RUN_LESSONS.md → 0 tier-1 lessons opened on `API Error: 5xx`-only runs.
-- **Standing pattern.** Third tier-contamination class in three heartbeats (tier-1 detectRateLimit, tier-3 approval-lag, tier-1 5xx-transient). All same shape: triage fires per definition; signal is environmental, not agent-behavioral. Per `dec-1777070860432410408`'s standing-pattern note, contrarian should now evaluate `framework-update` for "tier-signal-contamination" as a standing failure mode. Not raised by me (out of lane).
+- 2026-05-04 (7 HBs): grep RUN_LESSONS.md → 0 tier-1 lessons opened on `5\d\d.*Overloaded|overloaded_error` runs regardless of turn count. Concrete miss this window: run `13ac79cb` (would slip the original predicate, caught by the broader one).
+- Heartbeat turn-budget watch: any further `error_max_turns` on a run-introspector heartbeat within 7 HBs escalates the loop-tightening / max-turns-raise option from secondary to primary.
 
 ### Decisions raised this heartbeat
-- `dec-1777157323547139809` · `run-lesson` · tier-1 gate extension to cover 5xx-transient-API failures → team-agent-optimizer
-- (1 of ≤2 cap used; no second decision — pure-scenario-qa observation noted in RUN_LESSONS.md without a decision since it falls outside run-introspector's owned contexts)
+- `dec-1777330324477920142` · `run-lesson` · supersedes `dec-1777157323547139809`; broader 5xx predicate (drops turn-count gate) → team-agent-optimizer
+- `dec-1777157323547139809` · marked `superseded` · notes link to `dec-1777330324477920142`
+- (1 of ≤2 cap used; secondary HEARTBEAT.md tightening + duplicate-firing observation deferred — both noted in lesson, neither in run-introspector's owned contexts as primary lever)
 
 ### Knowledge entries written
-- `knw-1777157297255514121` · topic `run-lessons-2026-04-25` (supersedes `run-lessons-2026-04-24`)
-
-### Supersession check
-- Prior `dec-1777070860432410408` (tier-3 work-duration) and `dec-1777069916962818847` (tier-1 429-FP) both pending; this decision is **additive** (different sub-class within tier-1 / different tier). No supersession.
-- Team queue: 6 → 7 pending; under 12-ceiling. Read-only mode not triggered.
+- `knw-1777330346419212523` · topic `run-lessons-2026-04-27` (supersedes `run-lessons-2026-04-25`)

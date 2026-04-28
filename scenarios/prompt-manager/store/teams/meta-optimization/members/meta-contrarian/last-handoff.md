@@ -1,12 +1,11 @@
 ### Proposals reviewed this heartbeat
-- 5 (3 carry-overs + 2 new)
+- 4 (1 carry-over + 3 new)
 
 ### Passed cleanly
-- `dec-1777155425370344769` (skill-optimizer · skill-improvement · skill-principles §3 trim) — carry-over, no new info, still clean.
 - `dec-1777156591536785033` (team-agent-optimizer · agent-improvement · run-introspector tier-3 work-duration) — carry-over, no new info, still clean.
-- `dec-1777157323547139809` (run-introspector · run-lesson · tier-1 5xx-transient gate extension) — carry-over, no new info, still clean.
-- `dec-1777241982993901596` (skill-optimizer · skill-improvement · visited-tracker-tools `status`→`coverage` drift fix) — 25-consumer fanout; verified file shape matches cited lines 18–23; concrete behavioral correctness (BROKEN→WORKING) with 3-part measurement; conversion + pruning explicitly triaged & rejected with reasoning; in-lane.
-- `dec-1777243253201299661` (team-agent-optimizer · agent-improvement · "Verify current relevance" step on own files) — operator-cited rejection feedback drives the proposal; concrete 1/3 wasted-rate baseline; 3-part measurement (14-HB grep check + rationale-line sanity + handoff-grep); proposer practiced their own proposed step in the rationale (verified line 39 of run-introspector/HEARTBEAT.md before drafting); cross-lane parallel for skill-optimizer correctly surfaced as note, not as out-of-lane decision; in-lane.
+- `dec-1777327401931026247` (toolchain-validator · toolchain-violation · reference-react-vite scan 2026-04-27) — concrete reference-state delta (Critical 1→1, High 9→0, Medium 5→2 net of 2 new, Low 20→20); ordered remediation shortlist; measurement plan for next heartbeat (verify the 2 new Mediums are the only new surface, DTV scenario uptime); supersedes prior toolchain-violation pattern; in-lane; concrete restraint demonstrated (DTV-scenario-DOWN ambient blip, ambiguous Critical Makefile recommendation, tool-runtime issues all explicitly held back from new-decision creation pending recurrence). Clears all seven.
+- `dec-1777330180871528504` (run-introspector · run-lesson · tier-1 silent-stall extension + consolidation recommendation) — concrete cluster (3/6 FAILED, 3/133 completed in 2-day window) with shared shape (status=FAILED, error_message="", no RUN_FAILED event, frozen last_heartbeat); predicate is mechanically inspectable; baseline + delta + measurement (7-HB grep verification); coordinates additively with dec-1777069916962818847, dec-1777156591536785033, dec-1777157323547139809 / dec-1777330324477920142 rather than supersedes; consolidation into single bullet list explicitly handed to team-agent-optimizer's judgment (in-lane discipline); scenario-qa lane (RUN_FAILED emission for reaped stalls) explicitly NOT touched. Clears all seven.
+- `dec-1777330324477920142` (run-introspector · run-lesson · supersedes dec-1777157323547139809, drops `turns_used <= 1` from 5xx gate) — concrete miss (run 13ac79cb, 34-turn legitimate research work killed by single transient `overloaded_error`); proper supersession discipline (`supersedes` field set, queue-shape preserved not stacked); structural reasoning sound (turn-count tells nothing about meta-actionability of an environmental failure; error-pattern alone does); baseline (1 saved misclassification this window) + measurement plan present; explicitly defers consolidation/loop-tightening/max-turns/scheduler-double-fire/CLI-help observations rather than stacking — exemplary cap discipline. Clears all seven.
 
 ### Challenge notes written
 - None. No proposal tripped any failure mode.
@@ -15,13 +14,10 @@
 - None. No proposal failed multiple modes.
 
 ### Framework-update candidates
-- None. (Tier-signal-contamination watch-item remained retired per last heartbeat's reasoning — no new evidence to revisit.)
+- **None — and explicitly addressing the run-introspector hand-off.** dec-1777330180871528504 explicitly flags this as the 4th tier-contamination class and asserts "framework-update for tier-signal-contamination as a standing failure mode is now formally overdue." I am declining to raise it. Reasoning: the seven failure modes evaluate **proposal hygiene** (polishing, sprawl, churn-without-benefit, etc.). "Tier-signal-contamination" is a pattern in run-introspector's **triage step**, not in the proposals that emerge from it — each of the four gate-extension proposals individually clears the seven modes (concrete baseline, measurement, in-lane, real evidence). The structural fix the pattern calls for — restructuring run-introspector's triage taxonomy and consolidating the three sub-classes into one bullet list — is already explicitly handed to team-agent-optimizer inside dec-1777330180871528504 itself. The system is self-correcting at the right layer (run-introspector observes, team-agent-optimizer consolidates). Adding an 8th "tier-signal-contamination" failure mode would import a domain-specific run-introspector triage concern into the cross-cutting proposal-review framework, which is itself a sprawl-shaped error in the framework. **Watch-item retained for one more heartbeat:** if a 5th tier-contamination class surfaces *and* team-agent-optimizer has not consolidated the three already-known sub-classes by then, I will revisit — that combination would be evidence the structural fix isn't landing inside the current member loops, which would warrant cross-cutting framework intervention.
 
 ### Aged decisions handled (>14 heartbeats)
-- No aged decisions in queue. All 5 pending are from 2026-04-25 or 2026-04-26.
+- No aged decisions in queue. All 4 pending are from 2026-04-25 through 2026-04-27.
 
 ### Knowledge entries written
-- 0. No challenge notes warranted; not a quiet period (2 fresh proposals reviewed).
-
-### Cross-lane note (for team-agent-optimizer's consideration, not a decision)
-- The "Verify current relevance" pattern proposed in dec-1777243253201299661 logically applies to my own loop too (the contrarian's): when I challenge a proposal on grounds that "this is already in place," the underlying file state matters. team-agent-optimizer's lane covers my AGENTS.md / HEARTBEAT.md (agent-improvement context). Surfacing here so the proposer can decide whether to mirror the same verify step into meta-contrarian's files in a future heartbeat — not raising as a separate decision (out of lane for me) and not asking them to bundle it (let them measure dec-1777243253201299661 first before generalizing).
+- 0. No challenge notes warranted; not technically a quiet period (4 proposals reviewed) but no failure-mode hits to record.

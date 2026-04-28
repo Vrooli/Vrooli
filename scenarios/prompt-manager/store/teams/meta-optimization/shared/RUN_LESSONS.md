@@ -78,3 +78,72 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 - **Secondary (out-of-lane).** When/if scenario-qa fixes the runner to engage `fallback_runner_types` on 5xx, 1-turn-5xx-failure rate drops toward 0 and the gate becomes a no-op (still correct, no removal).
 
 **Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777069916962818847`).
+
+---
+
+### 2026-04-27 · `cdd35a04-a353-499d-85aa-463f864b3c27` · `heartbeat-marketing-crew-brand-manager-2026-04-26T19-00-00Z` · errored
+
+**Lesson.** The triage ladder's tier-1 ("errored") signal is contaminated by a **fourth** class: **silent runner-stall failures**. Runs whose event stream stops abruptly mid-execution, with no terminal `RUN_FAILED`/error event, no `error_message`, and a frozen `last_heartbeat`, then get reaped to `RUN_STATUS_FAILED` minutes later by timeout. The agent did not fail — the runner subsystem (claude-code stream, codex, or the orchestrator's reaper) lost the process without an emitted error. There is no skill, agent prompt, or team-config edit that would have prevented the failure. Investigating these as tier-1 yields the same null finding every time. This is the **fourth** tier-contamination class in four heartbeats.
+
+**What happened.** In the 2026-04-25T22:48Z–2026-04-27T22:48Z window: 6 FAILED runs of 133 total. Three of the 6 cluster within a 1-hour window on 2026-04-26 (18:30 monetization-catalog-strategist, 19:00 marketing-crew-brand-manager, 19:30 marketing-crew-oss-advertiser) and share an identical shape:
+
+| Run ID | Tag | last event elapsed | last_heartbeat elapsed | wall-clock | terminal error |
+|---|---|---|---|---|---|
+| `057547bf` | monetization-catalog-strategist | 7:08 | 7:00 | 23:45 | none |
+| `cdd35a04` | brand-manager | 5:06 | 7:00 | 23:50 | none |
+| `ffcfe70b` | oss-advertiser | 0:11 | 0:00 | 17:00 | none |
+
+All three: started with log `runner fallback: codex -> claude-code` (codex unavailable, fell back); flipped to `RUN_PHASE_EXECUTING` normally; emitted ordinary tool calls; then events stopped without any `RUN_EVENT_TYPE_RUN_FAILED`, `STATUS=failed`, or error log; were reaped silently by the orchestrator timeout (~16–18 min later). `summary={}`, `error_message=""`, `progress_message=""`. `last_heartbeat << ended_at` by 16+ min in every case. (Picked `cdd35a04` as the representative for one-run-per-heartbeat discipline; other two corroborate the cluster-not-coincidence reading.)
+
+This is structurally distinct from `cab1c399`'s 5xx-Overloaded lesson (run `cab1c399` had an explicit terminal error payload "API Error: 529 Overloaded"). Today's class has **no** terminal error — the runner died silently.
+
+**Implicated.**
+- **Meta-layer (in lane):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Required Loop" step 3 / "Reasoning Framework" tier-1. The pending tier-1 gates (`dec-1777069916962818847` for 429-substantive-text, `dec-1777157323547139809` for 5xx-API-error) both rely on inspecting the terminal error message. Silent-stall runs have no terminal error message to gate on, so they slip past both gates.
+- **Scenario-qa lane (noted, not actioned by this lesson):** agent-manager's runner subsystem (likely `claude_code.go` and/or the orchestrator's run-reaper) terminates a run to `RUN_STATUS_FAILED` without emitting a `RUN_EVENT_TYPE_RUN_FAILED` event or populating `error_message`. From the introspection lane this is opaque — the only signal that the runner stalled is the gap between `last_event_timestamp` and `ended_at`. The codex-fallback log line at start in all three cases also raises an out-of-lane question whether codex unavailability correlates with downstream stalls; not investigated.
+- **Standing pattern (out of lane, contrarian's call):** This is the **fourth** tier-contamination class. Per RUN_LESSONS.md 2026-04-25 lesson's standing-pattern watch: *"If a fourth surfaces, the contrarian's `framework-update` is overdue."* Pending decision queue contains no `framework-update`. Flagging here for visibility; not raising myself.
+
+**Proposed change.**
+- **Meta-layer:** Extend the run-introspector tier-1 gate (already pending in two prior decisions) to additionally exclude **silent-stall runs**: if the run is `RUN_STATUS_FAILED` AND `error_message` is empty AND no `RUN_EVENT_TYPE_RUN_FAILED` event exists AND (`ended_at - last_heartbeat > 5 min` OR `ended_at - last_event_timestamp > 5 min`), reclassify as tier-5 (silent-stall, no-meta-signal), record the stall in RUN_LESSONS.md as a one-line note with run ID + cluster, continue walking the ladder. Implementation note for team-agent-optimizer: the existing gate paragraph is now covering three sub-classes (429-FP, 5xx-explicit, silent-stall) — at this point a single short bullet list "tier-1 environmental-failure exclusions" is cleaner than three separate prose paragraphs. Implementer's call.
+- **Scenario-qa (separate lane, separate concern):** Note that runs reaped by the orchestrator should emit a `RUN_EVENT_TYPE_RUN_FAILED` with `reason="silent_stall"` (or equivalent) and populate `error_message`, so triage downstream can see what happened. Without this, every introspection lane (mine and any future investigator) has to infer stalls from event-stream gaps, which is fragile. Not raised as a meta-optimization decision (out of lane).
+- **Standing pattern:** Fourth class observed. Contrarian's `framework-update` for "tier-signal-contamination as a standing failure mode" is now formally overdue per the prior lesson's own watch criterion. Not raising myself — that's contrarian's lane.
+
+**Handoff.** `team-agent-optimizer` — extend the tier-1 gate (already pending in `dec-1777069916962818847` and `dec-1777157323547139809`) to also cover silent-stall runs. With three sub-classes now stacked under tier-1, recommend consolidating into a single "tier-1 environmental-failure exclusions" bullet list rather than three separate prose paragraphs. Implementer's call.
+
+**Measurement plan.**
+- **Baseline.** 3/6 (~50%) of FAILED runs in this 2-day window are silent-stalls; 3/133 (~2.3%) of completed runs overall. Cluster timing (within 1 hour) suggests environmental incident — base rate likely lower across longer windows, but non-zero given runner subsystem complexity.
+- **Post-change.** Future heartbeats encountering a silent-stall tier-1 candidate should mark it "tier-1 silent-stall (skipped)" and continue walking. Grep RUN_LESSONS.md 7 heartbeats from now (2026-05-04) — count of tier-1 lessons opened on `error_message=""` + frozen-`last_heartbeat` runs should be 0.
+- **Standing-pattern watch.** Fourth class now observed. If contrarian does not raise `framework-update` within the next 3 heartbeats, consider this lesson's standing-pattern note itself stale — the prediction held; the systemic action did not follow. (Out-of-lane to escalate further; just noting.)
+- **Secondary (out-of-lane).** When/if scenario-qa adds explicit `RUN_FAILED` emission for reaped stalls, the gate's silent-stall predicate becomes inspectable on `reason=` rather than inferred from event-stream gaps, but the gate logic stays the same.
+
+**Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777069916962818847` and `dec-1777157323547139809`).
+
+---
+
+### 2026-04-27 · `56398acb-2aec-4b2c-bfc4-eafc8dc28c3e` · `heartbeat-meta-optimization-run-introspector-2026-04-26T22-45-00Z` · errored
+
+**Lesson.** Two distinct findings from the prior run-introspector heartbeat's own failure:
+
+1. **Pending 5xx-gate predicate is too narrow.** `dec-1777157323547139809` proposes reclassifying tier-1 environmental failures when terminal error matches `API Error: 5xx ...` AND `summary.turns_used <= 1`. The turn-count predicate is wrong — multi-turn legitimate work that dies on a single transient API 5xx is still environmentally-failed, not agent-failure. Run `13ac79cb` (swarm-manager research, 34 internal turns then `overloaded_error`) is a 34-turn 5xx that the gate would let through. Drop the `turns_used <= 1` predicate; the 5xx-pattern alone is sufficient.
+
+2. **Run-introspector heartbeat is bumping the 50-turn ceiling.** Run `56398acb` ran 51 turns / 7m36s before claude-code terminated with `subtype=error_max_turns`. The agent did legitimate investigation work (read prior decisions, listed runs, fetched events on 4 runs, drafted the 2026-04-26 silent-stall lesson, then began superseding the 5xx gate) and was caught mid-supersession. Last assistant message at sequence 127: *"Picking `13ac79cb` ... confirms my pending 5xx gate's `turns_used <= 1` predicate is too narrow. I'll supersede the prior decision with a broader take."* Sequence 128 was a `decision-update --help / decision-add --help` Bash call (CLI discovery friction — `prompt-manager team decision-update --help` returns generic team-help, not subcommand help). One step later: max_turns. The heartbeat as written investigates ≥1 run + writes ≥1 lesson + writes ≥1 supersession + does CLI navigation; on a heartbeat that produces two interlocking findings (a new lesson AND a supersession of a prior decision) the 50-turn cap is tight.
+
+**What happened.** Tier-1 errored. Run `56398acb` (sandboxed, opus, requires_approval=APPROVAL_STATE_NONE, runner=claude-code, max_turns=50) terminated `is_error=true subtype=error_max_turns turns=51 duration_ms=454664`. Final phase `RUN_PHASE_COLLECTING_RESULTS`, `summary={}`, `error_message=""` (the max-turns error lives in `RUN_EVENT_TYPE_ERROR` event, not on the run record itself). The agent had — within those 51 turns — already drafted the entire 2026-04-26 silent-stall lesson via Edit calls into RUN_LESSONS.md (uncommitted; visible in `git diff HEAD`); the work was preserved by sandbox file-edit semantics, not by run completion. The supersession of `dec-1777157323547139809` did not land — that work is what this heartbeat is now picking up.
+
+**Implicated.**
+- **Meta-layer (in lane, primary):** `dec-1777157323547139809` — predicate `summary.turns_used <= 1` is the bug; drop it. The 5xx error pattern alone is the right signal.
+- **Meta-layer (in lane, secondary):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — the "Required Loop" is dense (10 steps + supersession + multi-decision raises + knowledge snapshot). When a heartbeat produces a new lesson AND must supersede a prior decision, 50 turns is tight. Two tightening options for team-agent-optimizer to weigh: (a) trim the loop's CLI ceremony (e.g., let supersession be deferred to the next heartbeat when same-day work crowds it out — explicit "carry-over" rather than "must complete in this heartbeat"); (b) raise max_turns on this heartbeat's profile from 50 → 75. (a) is in-lane (heartbeat prose); (b) is the agent-manager profile config (out-of-lane).
+- **Scenario-qa lane (noted, not actioned):** `prompt-manager team decision-update --help` returns generic `team` subcommand help, not the `decision-update` subcommand's flags. Documented in earlier events of this run as a 1-turn deadweight call. This is a prompt-manager CLI ergonomics issue.
+- **Concurrent-heartbeat firing (out of lane, observed):** While drafting this lesson, two run-introspector heartbeats fired simultaneously at 2026-04-27T22:45:00Z (runs `096b1dee` and `937bcb50`, both `RUN_STATUS_RUNNING`, same tag, started 55ms apart). The earlier one wrote the 2026-04-26 silent-stall lesson uncommitted; this lesson is being written by the second. Duplicate-firing is a real coordination hazard (file races on RUN_LESSONS.md, knowledge-entry topic-collision, decision-add races). Out of lane — that's an agent-manager scheduler concern; surfacing here so contrarian / scenario-qa can pick up if pattern recurs.
+
+**Proposed change (this heartbeat is doing it).**
+- **Supersede `dec-1777157323547139809`** with a new `run-lesson` decision: drop `turns_used <= 1` from the 5xx-environmental-failure predicate. Keep the rest (terminal-error pattern match, reclassify-as-tier-5, continue walking the ladder).
+- Optional secondary handoff to **team-agent-optimizer** for HEARTBEAT.md tightening per (a) above; not raising a separate decision this heartbeat (cap; supersession is the priority).
+
+**Handoff.** This heartbeat's supersession decision **replaces** `dec-1777157323547139809`. team-agent-optimizer should pick up the broader 5xx predicate when implementing the consolidated tier-1 environmental-failure exclusions list (alongside the silent-stall extension from the 2026-04-27 silent-stall lesson above). All three exclusions (429-FP, 5xx-pattern, silent-stall) now collapse cleanly into one bullet list per the implementation note in the silent-stall lesson.
+
+**Measurement plan.**
+- **Baseline.** Run `13ac79cb` (34-turn 5xx) is a concrete miss for the original predicate; in this 2-day window the original gate would let it through and the broader gate would catch it (1 saved tier-1 misclassification this window).
+- **Post-change.** 7 heartbeats from now (2026-05-04), grep RUN_LESSONS.md for any tier-1 lesson opened on a run whose terminal error matches `5\d\d.*Overloaded|overloaded_error` regardless of turn count — expected 0.
+- **Heartbeat turn-budget watch.** Monitor whether subsequent run-introspector heartbeats hit `error_max_turns`. If another max-turns failure appears within 7 heartbeats, escalate the loop-tightening or max-turns-raise option from secondary to primary.
+
+**Status.** pending (awaits team-agent-optimizer pickup; supersedes `dec-1777157323547139809`).

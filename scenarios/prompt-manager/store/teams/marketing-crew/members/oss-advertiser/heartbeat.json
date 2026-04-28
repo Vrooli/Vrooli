@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-26T19:30:00Z",
-    "endedAt": "2026-04-26T19:30:18Z",
-    "status": "failed",
-    "runId": "ffcfe70b-cb93-4979-9c96-ac37abe364d1",
-    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-04-26T19-30-00Z.log",
-    "error": "agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running port named API_PORT for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
+    "startedAt": "2026-04-27T19:30:00Z",
+    "endedAt": "2026-04-27T19:34:00Z",
+    "status": "completed",
+    "runId": "fe2c2c94-0740-47c7-9451-118e3fdeabec",
+    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-04-27T19-30-00Z.log"
   },
-  "revision": 11,
+  "revision": 14,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-26T19:30:22Z"
+  "updatedAt": "2026-04-27T19:34:00Z"
 }

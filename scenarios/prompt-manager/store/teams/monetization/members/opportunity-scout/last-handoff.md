@@ -1,24 +1,22 @@
 ### Signal scanned this heartbeat
-Reviewed the full `docs/monetization/` canon (CATALOG, STRATEGY, business bundle, all three existing add-on docs, REVENUE_LINES, scenario-sku-map.json, lead-generation revenue-line). Queried `prompt-manager team knowledge-list director-swarm --last=30` — no vision-walk knowledge entries exist yet (only portfolio metrics through heartbeat 18 and one portfolio-manager decision-application from 2026-04-22). Enumerated the 97-scenario inventory in `scenarios/` to find capability clusters not yet represented in the catalog or opportunities pool. Read last team handoffs from financial-tracker (2026-04-23T18:01) and catalog-strategist (2026-04-23T18:32) to stay in lane. `opportunities.jsonl` was empty — this is the first scout scan.
+Reviewed full `docs/monetization/` canon (CATALOG, STRATEGY, business bundle, 3 existing add-ons, REVENUE_LINES, new `flipping.md`, scenario-sku-map.json), prior `opportunities.jsonl` (6 entries from 2026-04-23, all <1 wk old), recent monetization-team knowledge (catalog-snapshot 2026-04-27 with Agent Sandbox Audit Foundation 0→2/5; ledger still pending-operator; contrarian quiet), and director-swarm vision-walk knowledge from walk #4 (TikTok home-inspector signal, regtech-intel-substrate, homelab-app-scenario-seeding research method, marketplace-bidding bookmark, walk-#4 process-feedback). Scenarios inventory at 97. First scan with substantive operator-vision-walk signal (prior was all self-generated).
 
 ### Ideas captured this heartbeat
-6 entries appended to `opportunities.jsonl`:
-- **Creator / content-business bundle** — sku-candidate (new-base-bundle)
-- **AI quality and red-team add-on (business)** — addon-candidate
-- **Multi-platform publisher add-on (business)** — addon-candidate
-- **Smart-home / household-operations add-on (lifestyle)** — addon-candidate
-- **AI-eval engagement services line** — services-line-candidate
-- **Landing-page + funnel done-for-you services line** — services-line-candidate
+4 entries appended to `opportunities.jsonl`:
+- **Family bundle (third base bundle)** — sku-candidate (new-base-bundle)
+- **Regulatory + competitive intelligence add-on (business)** — addon-candidate
+- **Home-inspection vertical (dual-audience)** — sku-candidate (new-base-bundle)
+- **Compliance-attestation done-for-you (Vanta-clone services pilot)** — services-line-candidate
 
 ### Ideas proposed for promotion (decisions raised)
-No ideas strong enough for direct promotion. All 6 have prerequisite triggers (business-bundle traction, downstream scenario shipping, or parent-bundle activation) that have not fired. First heartbeat — the goal was pool seeding, not promotion.
+No ideas strong enough for direct promotion. All 4 have prerequisite triggers unmet (BAS hardening, regulatory-intel/competitive-intel scenarios don't yet exist, business-bundle subscriber thresholds, operator's explicit "second-similar-signal" criterion on home-inspection, operator-time-available for compliance-attestation pilot). Operator's explicit "not-initiative-ready" notes on regtech and home-inspection honored — kept pool-only.
 
 ### Pool snapshot
-- Total candidates in pool: 6
+- Total candidates in pool: 10
 - Candidates with fireable triggers (operator should review): 0
-- Candidates stale >6 months: 0 (first heartbeat)
+- Candidates stale >6 months: 0 (oldest is 2026-04-23, 4 days)
 
 ### Knowledge entry written
-- topic: `scout-scan-2026-04-23` (id: `knw-1776971053255400793`, no prior `scout-scan-*` to supersede — first entry)
+- topic: `scout-scan-2026-04-27` (id: `knw-1777316575721036096`, supersedes `knw-1776971053255400793`)
 
-Team queue: 0 pending (well under 12-decision ceiling). Own-context cap: 0 of 3 catalog-promotion decisions pending. Signal was appropriately thin for pre-launch — did not fabricate TAM counts or prospect requests.
+Team queue: 0 pending (well under 12-decision ceiling). Own-context cap: 0 of 3 catalog-promotion decisions pending. Honesty flags applied: all TAMs and capability-reuse marks are estimates; revisit-triggers are concrete and tied to measurable conditions (sub thresholds, scenario shipping status, second-signal criteria, operator-confirmation gates). Two of the four new entries have non-self-generated signal sources (operator-vision-walk knowledge entries) — first time the pool has externally-grounded candidates.

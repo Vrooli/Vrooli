@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "0 15 * * 1,4",
   "lastExecution": {
-    "startedAt": "2026-04-23T19:00:00Z",
-    "endedAt": "2026-04-23T19:04:30Z",
+    "startedAt": "2026-04-27T19:00:00Z",
+    "endedAt": "2026-04-27T19:03:10Z",
     "status": "completed",
-    "runId": "6c25ef6f-c88c-4d0e-b2f7-6946b5f21461",
-    "logPath": "../store/teams/monetization/members/opportunity-scout/logs/2026-04-23T19-00-00Z.log"
+    "runId": "d4fc2308-4d92-441a-b90a-77c17e752e05",
+    "logPath": "../store/teams/monetization/members/opportunity-scout/logs/2026-04-27T19-00-00Z.log"
   },
-  "revision": 5,
+  "revision": 8,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-23T19:04:30Z"
+  "updatedAt": "2026-04-27T19:03:10Z"
 }
