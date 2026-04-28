@@ -4,20 +4,20 @@
 
 ## TL;DR
 
-Swarm Manager has two execution modes that reflect two genuinely different working situations:
+Swarm Manager has two execution modes that reflect two genuinely different shapes of work:
 
-| Mode | Unit of execution | Operator presence assumption | When to use |
-|------|------------------|------------------------------|-------------|
-| **Backlog-item-level** (default, implemented) | One backlog item per agent run | Operator is *absent* — the framework's job is to narrow work into atomic, decidable units | Items are right-sized, loosely coupled, reviewable in isolation |
-| **Initiative-level** (documented; see Plan B for implementation) | The whole initiative, holistically | Operator is *present* — the framework's job is to support iterative deep work across many coupled items | Items are tightly coupled by the change being made; the natural unit of validation is the system as a whole |
+| Mode | Unit of execution | Work shape it fits | When to use |
+|------|------------------|--------------------|-------------|
+| **Backlog-item-level** (default, implemented) | One backlog item per agent run | Items are properly scoped, independent, and stable through execution | Items are right-sized, loosely coupled, reviewable in isolation |
+| **Initiative-level** (documented; see Plan B for implementation) | The whole initiative, holistically | Items are coupled, likely to shift mid-flight, mis-scoped, or only validatable as a system | Per-item execution would leave broken intermediate states; the right item shape is only knowable after work begins; the natural unit of validation crosses item boundaries |
 
-The two modes are not "small vs. big work." They are "operator-absent decision-narrowing" vs. "operator-present holistic execution." Choosing the right mode for an initiative is a property of *how its work is shaped*, not of how much work there is.
+The two modes are not "small vs. big work" and they are not "operator-absent vs. operator-present" — both modes use the same async cadence (operator reviews artifacts and gives minimal feedback between phases). They are **two different units of execution and validation**, chosen based on the shape of the work. Choosing the right mode for an initiative is a property of *how its work is shaped*, not of how much work there is or how much the operator is around to drive it.
 
 ## Why this distinction exists
 
-Swarm Manager's existing flow assumes the operator is absent. Every primitive — backlog items as the unit of execution, the workshop loop's 5-dimension readiness model, plan.md as the per-item execution spec, the review-decide handshake — is shaped to make work *atomic enough* that a single agent run can pick up *one* item, execute it, and hand back a discrete outcome. That assumption is load-bearing: it is what lets the operator review N initiatives in parallel by triaging discrete decisions rather than holding mental context for any one of them.
+Swarm Manager's existing flow assumes **backlog items are the right unit of execution and validation**. Every primitive — items as the unit of execution, the workshop loop's 5-dimension readiness model, plan.md as the per-item execution spec, the review-decide handshake — is shaped to make work atomic enough that a single agent run can pick up *one* item, execute it, and hand back a discrete outcome. That assumption is load-bearing: it is what lets the operator review N initiatives in parallel by triaging discrete per-item decisions, and it is what gives execution bounded blast radius.
 
-That assumption is correct most of the time. It breaks in a specific shape of work: **initiatives whose backlog items are coupled by the very thing being changed.**
+That assumption holds when items are correctly scoped, independent, and stable through execution. It breaks in several related shapes of work — most visibly when **backlog items are coupled by the very thing being changed**, but also when items are likely to shift mid-flight as new ground truth emerges, or when items are mis-scoped (too fragmented to be the efficient unit, or partitioned along wrong lines).
 
 ### The empirical cue (2026-04-27 sandboxing trap)
 
@@ -34,9 +34,11 @@ The work was completed — but the operator had to step *outside* the swarm-mana
 
 The work didn't fail because the items were big. It failed because **the items couldn't be validated in isolation** — only the system as a whole could be validated, after the *coupled* work had reached a coherent state.
 
-The plain reading of this: swarm-manager's backlog-item-level mode is the *right* mode for operator-absent triage of independent work, and the *wrong* mode for tightly-coupled architectural work where the operator is present and the natural unit of validation crosses item boundaries.
+The operator's continuous presence during the recovery was an artifact of having no in-harness support for this kind of work, not a requirement of the work itself. A structured `investigate → plan → execute → review` loop running inside swarm-manager would absorb the same work with the operator's normal async cadence — review findings between phases, accept/refine the plan, react to replan signals — the same shape of presence as today's backlog-item flow.
 
-Rather than treat operator-direct work as "an escape hatch when swarm-manager fails," we recognize it as a **second first-class operating mode** with its own primitives.
+The plain reading of this: swarm-manager's backlog-item-level mode is the *right* mode when items are properly scoped, independent, and stable, and the *wrong* mode for tightly-coupled architectural work, work whose item shape will shift during execution, or work where the natural unit of validation crosses item boundaries.
+
+Rather than treat the recovery pattern as "an escape hatch when swarm-manager fails," we recognize it as a **second first-class operating mode** with its own primitives — async-reviewable just like backlog-item mode, but operating on a different unit of work.
 
 ## The two modes in detail
 
@@ -47,9 +49,9 @@ Rather than treat operator-direct work as "an escape hatch when swarm-manager fa
 - **Refinement primitive:** the workshop loop (rounds with 5-dimension readiness scoring; converges to `plan.md`).
 - **Execution primitive:** Generator/Improver agent reads `plan.md`, executes, hands back a result.
 - **Review primitive:** review round ratifies completion.
-- **Operator interaction:** review the workshopped plan, accept or refine, queue, review the result. The operator is "absent" between steps — the framework holds context.
-- **Strengths:** parallelism (many items in flight at once); auditable per-item provenance; bounded blast radius (one item's bugs don't break others).
-- **Failure mode:** items coupled by a shared substrate produce broken intermediate states.
+- **Operator interaction:** review the workshopped plan, accept or refine, queue, review the result — async between steps. The framework holds enough per-item context to advance work between operator touches.
+- **Strengths:** parallelism (many items in flight at once); auditable per-item provenance; bounded blast radius (one item's bugs don't break others); per-item progress is legible without holding the whole initiative in memory.
+- **Failure mode:** items coupled by a shared substrate produce broken intermediate states; work whose item shape will shift mid-execution thrashes the item graph; over-fragmented items waste cycles on per-item ceremony.
 
 ### Initiative-level mode (target)
 
@@ -58,9 +60,9 @@ Rather than treat operator-direct work as "an escape hatch when swarm-manager fa
 - **Refinement primitive:** initiative-level workshop rounds (analogous to backlog-item workshop, but operating on the full member-item graph and producing an *initiative-level* plan).
 - **Execution primitive:** an agent (or sequence of agents) executes against the initiative-level plan, touching whichever items the work covers; backlog items get marked done as plan milestones land, not as independent execution events.
 - **Review primitive:** validate the initiative as a whole against its acceptance criteria.
-- **Operator interaction:** the operator is *present* — they read findings, choose direction at each round, drive replanning. The framework supports the iteration; it doesn't try to hold context on the operator's behalf.
-- **Strengths:** correct unit of validation for coupled work; lower replanning cost (one plan, not N plans); the investigation phase is a first-class step instead of being smuggled into per-item workshop.
-- **Failure mode:** loses parallelism; demands operator attention; not appropriate when items are genuinely independent.
+- **Operator interaction:** review findings, accept/refine the initiative-level plan, react to replan signals as the loop iterates, ratify the final review — async between phases, the same shape as backlog-item mode. What changes is *what the operator is reviewing* (an initiative-level plan + cross-item findings) rather than how present they are. The framework holds context across rounds.
+- **Strengths:** correct unit of validation for coupled work; lower replanning cost (one plan, not N plans); the investigation phase is a first-class step instead of being smuggled into per-item workshop; items can shift in scope as the work reveals what they actually are.
+- **Failure mode:** loses parallelism; carries higher per-run cost; not appropriate when items are genuinely independent and stable.
 
 #### The investigation phase has no analog at backlog-item scale
 
@@ -95,23 +97,25 @@ The right mode is a property of how the work is shaped, not its size. A 10-item 
 - Items are right-sized for one agent run each
 - Items are loosely coupled (one item's completion does not invalidate the others' assumptions)
 - Items are reviewable in isolation
-- The operator wants parallelism (many items in flight at once)
-- The operator is genuinely absent between decisions
+- Items are stable — their scope and definition won't need to shift as execution proceeds
+- Parallelism is valuable (many items in flight at once)
 
 ### Use initiative-level mode when
 
 - Items are coupled by a shared substrate that all of them are changing
-- The natural unit of validation is "does the system as a whole work"
 - Intermediate states (after item N but before item N+M) leave the system inconsistent
+- Items are likely to shift mid-execution as new ground truth emerges
+- Items are mis-scoped — too fragmented to be the efficient unit, or partitioned along wrong lines
+- The natural unit of validation is "does the system as a whole work"
 - The right plan can only be authored *after* investigating cross-item ground truth
-- The operator is present and willing to drive iterative replanning
+- The work requires holistic thinking that doesn't decompose cleanly into per-item plans
 - Replanning is expected: the first plan will be wrong about something material that only execution will reveal
 
 ### Switching modes mid-initiative
 
-The mode is a property of an initiative at a point in time; it is not immutable. An initiative may begin in backlog-item mode, hit the coupled-substrate failure, and be promoted to initiative-level mode. Conversely, after an initiative-level plan converges, residual independent work may be drained back to backlog-item mode for parallel finish-out.
+The mode is a property of an initiative at a point in time; it is not immutable. An initiative may begin in backlog-item mode, hit the coupled-substrate failure (or any other shape mismatch), and be promoted to initiative-level mode. Conversely, after an initiative-level plan converges, residual independent work may be drained back to backlog-item mode for parallel finish-out.
 
-The mode-switch is itself an operator decision and should be supported as a first-class operation, not a workaround.
+The mode-switch is itself an operator-chosen action and should be supported as a first-class operation, not a workaround.
 
 ## Companion: rescoping affordances inside backlog-item mode
 
@@ -140,8 +144,9 @@ A common temptation is to collapse the modes — to argue that initiative-level 
 
 - Initiative-level mode has an investigation phase that backlog-item mode lacks. Forcing investigation into a workshop round mis-shapes the workshop.
 - Backlog-item mode has parallelism and bounded blast radius that initiative-level mode lacks by design. Forcing initiative-level mode onto independent-item work loses both.
+- The two modes operate on different *units of work* (item vs. initiative) with different *validation surfaces* (per-item acceptance vs. system-level acceptance). That difference doesn't reduce to a multiplier on the same loop.
 
-The modes solve different problems for different operator-presence assumptions. Both are necessary; neither subsumes the other. Recognizing this is the conceptual move that turns "operator stepped outside the harness" from a failure mode into a mode-switch.
+The modes solve different problems for different work shapes. Both are necessary; neither subsumes the other. Recognizing this is the conceptual move that turns "operator stepped outside the harness" from a failure mode into a mode-switch.
 
 ## References
 
@@ -154,4 +159,4 @@ The modes solve different problems for different operator-presence assumptions. 
 
 ## Changelog
 
-- **2026-04-28** — Initial document. Authored during walk #5 explicit divergence after the 2026-04-27 sandboxing trap surfaced the operator-absent assumption as load-bearing.
+- **2026-04-28** — Initial document. Authored during walk #5 explicit divergence after the 2026-04-27 sandboxing trap surfaced "items are the right unit of execution and validation" as a load-bearing assumption that doesn't hold for coupled or shifting work.
