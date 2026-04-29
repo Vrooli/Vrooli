@@ -235,6 +235,20 @@ type Sandbox struct {
 	WorkDir   string `json:"workDir,omitempty" db:"work_dir"`
 	MergedDir string `json:"mergedDir,omitempty" db:"merged_dir"`
 
+	// Home overlay paths (transient — recreated on every Mount, not
+	// persisted to the DB). The home overlay is a per-sandbox
+	// fuse-overlayfs mount whose lower layer is the host $HOME and
+	// whose upper layer is a per-sandbox writable directory under
+	// BaseDir. bwrap binds HomeMergedDir at /home/<user> inside the
+	// namespace so agent CLIs (claude, codex, etc.) find their host
+	// configuration while writes go to the per-run upper layer.
+	// 2026-04-28: introduced with the home-overlay refactor that
+	// replaces the ad-hoc $HOME/.local/{bin,share} binds.
+	HomeLowerDir  string `json:"-" db:"-"`
+	HomeUpperDir  string `json:"-" db:"-"`
+	HomeWorkDir   string `json:"-" db:"-"`
+	HomeMergedDir string `json:"homeMergedDir,omitempty" db:"-"`
+
 	// Size accounting
 	SizeBytes int64 `json:"sizeBytes" db:"size_bytes"`
 	FileCount int   `json:"fileCount" db:"file_count"`

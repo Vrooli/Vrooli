@@ -15,8 +15,12 @@ func TestDefault(t *testing.T) {
 		if cfg.Server.ReadTimeout != 30*time.Second {
 			t.Errorf("expected ReadTimeout 30s, got %v", cfg.Server.ReadTimeout)
 		}
-		if cfg.Server.WriteTimeout != 30*time.Second {
-			t.Errorf("expected WriteTimeout 30s, got %v", cfg.Server.WriteTimeout)
+		// 24h effectively disables the per-response write deadline for
+		// long-lived SSE log streams. (api-core treats 0 as "unset" and
+		// substitutes its own 30s default, so we pass an explicit large
+		// value instead. See config.Default for the rationale.)
+		if cfg.Server.WriteTimeout != 24*time.Hour {
+			t.Errorf("expected WriteTimeout 24h (effectively disabled for SSE streams), got %v", cfg.Server.WriteTimeout)
 		}
 		if cfg.Server.IdleTimeout != 120*time.Second {
 			t.Errorf("expected IdleTimeout 120s, got %v", cfg.Server.IdleTimeout)
@@ -273,6 +277,15 @@ func TestValidate(t *testing.T) {
 		err := cfg.Validate()
 		if err == nil {
 			t.Error("expected error for low WriteTimeout")
+		}
+	})
+
+	t.Run("WriteTimeout=0 is allowed (treated as unset by api-core)", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Server.WriteTimeout = 0
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected WriteTimeout=0 to validate, got: %v", err)
 		}
 	})
 

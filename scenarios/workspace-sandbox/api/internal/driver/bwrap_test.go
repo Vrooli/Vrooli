@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -547,6 +548,83 @@ func TestVrooliAwareIsolation(t *testing.T) {
 	if contains(argsVrooli, "--unshare-net") {
 		t.Error("vrooli-aware isolation should NOT include --unshare-net")
 	}
+}
+
+// TestBuildBwrapArgs_BindsHomeOverlayAtHostPath guards the 2026-04-28
+// home-overlay refactor: when Sandbox.HomeMergedDir is populated by the
+// driver, buildBwrapArgs binds it at the host $HOME path inside the
+// namespace so agent CLIs find their host config via the overlay's
+// lower layer. Without this, agent CLIs that read $HOME-relative state
+// (e.g. ~/.claude, ~/.claude.json) silently fail to authenticate.
+func TestBuildBwrapArgs_BindsHomeOverlayAtHostPath(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("bwrap tests require Linux")
+	}
+
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	sandboxDir := t.TempDir()
+	homeMerged := filepath.Join(sandboxDir, "home-merged")
+	if err := os.MkdirAll(homeMerged, 0o755); err != nil {
+		t.Fatalf("mkdir home-merged: %v", err)
+	}
+
+	sandbox := &types.Sandbox{
+		ID:            uuid.New(),
+		MergedDir:     filepath.Join(sandboxDir, "merged"),
+		LowerDir:      "/tmp/lower",
+		HomeMergedDir: homeMerged,
+	}
+	cfg := DefaultBwrapConfig()
+	cfg.IsolationLevel = IsolationVrooliAware
+	args := buildBwrapArgs(sandbox, cfg)
+
+	if !hasBind(args, homeMerged, fakeHome) {
+		t.Errorf("expected --bind %s %s in vrooli-aware args (home overlay must bind at host $HOME); got: %v",
+			homeMerged, fakeHome, args)
+	}
+}
+
+// TestBuildBwrapArgs_NoHomeBindWhenHomeMergedDirEmpty guards the
+// fallback path: a sandbox without a home overlay (driver couldn't set
+// one up — no $HOME, fuse-overlayfs unavailable, etc.) still produces
+// valid bwrap args, just without the home bind.
+func TestBuildBwrapArgs_NoHomeBindWhenHomeMergedDirEmpty(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("bwrap tests require Linux")
+	}
+
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	sandbox := &types.Sandbox{
+		ID:            uuid.New(),
+		MergedDir:     "/tmp/test",
+		LowerDir:      "/tmp/lower",
+		HomeMergedDir: "", // driver chose not to set up home overlay
+	}
+	cfg := DefaultBwrapConfig()
+	cfg.IsolationLevel = IsolationVrooliAware
+	args := buildBwrapArgs(sandbox, cfg)
+
+	// No --bind should target the host $HOME when there's no overlay
+	// to bind into it.
+	for i := 0; i+2 < len(args); i++ {
+		if args[i] == "--bind" && args[i+2] == fakeHome {
+			t.Errorf("unexpected --bind <src> %s without HomeMergedDir set: src=%s", fakeHome, args[i+1])
+		}
+	}
+}
+
+// hasBind / hasRoBind scan a flag slice for "--bind|--ro-bind <wantSrc> <wantDst>" in order.
+func hasBind(args []string, wantSrc, wantDst string) bool {
+	for i := 0; i+2 < len(args); i++ {
+		if args[i] == "--bind" && args[i+1] == wantSrc && args[i+2] == wantDst {
+			return true
+		}
+	}
+	return false
 }
 
 // [REQ:OT-P2-008] Test default config includes isolation level

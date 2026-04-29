@@ -333,6 +333,23 @@ func buildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	// This is where the agent/tool will see the combined filesystem
 	args = append(args, "--bind", s.MergedDir, "/workspace")
 
+	// Bind the per-sandbox home overlay at the host $HOME path inside
+	// the namespace. This is the audit-of-change mechanism for HOME-
+	// relative writes (auth tokens, tool caches, etc.): reads pass
+	// through to the host home (lower layer), writes land in the
+	// per-sandbox upper layer that's discarded at sandbox teardown.
+	//
+	// Without this, agent CLIs that read $HOME/<tool>/<config> couldn't
+	// find their host state (the 2026-04-28 follow-on after the SSE-500
+	// chain was fully fixed). The fuse-overlayfs is created in the
+	// driver's Mount; bwrap just exposes it.
+	if s.HomeMergedDir != "" {
+		if hostHome := os.Getenv("HOME"); hostHome != "" && filepath.IsAbs(hostHome) {
+			addDirHierarchy(&args, hostHome)
+			args = append(args, "--bind", s.HomeMergedDir, filepath.Clean(hostHome))
+		}
+	}
+
 	// Optional compatibility: mirror the workspace at the project's host path so
 	// prompts/tools that use host-absolute paths (e.g., /home/user/project/...) work.
 	//
@@ -435,32 +452,17 @@ func addDirHierarchy(args *[]string, absPath string) {
 }
 
 // addVrooliAwareBinds adds bind mounts for Vrooli-aware isolation.
-// This includes access to Vrooli CLIs and configuration.
+//
+// Most agent-config visibility ($HOME/.local/{bin,share}, $HOME/.config,
+// $HOME/.claude, etc.) now flows through the per-sandbox HOME overlay
+// set up by Driver.Mount and bound at the host $HOME path inside the
+// namespace by buildBwrapArgs. This function is the legacy path, used
+// only when the ProfileStore is nil; it intentionally adds nothing
+// $HOME-related to avoid shadowing the overlay. Kept around for the
+// VROOLI_ROOT entry, which is independent of $HOME.
 func addVrooliAwareBinds(args *[]string) {
-	home := os.Getenv("HOME")
-	if home == "" {
-		return
-	}
-
-	// Bind ~/.local/bin read-only (scenario CLIs)
-	localBin := filepath.Join(home, ".local", "bin")
-	if _, err := os.Stat(localBin); err == nil {
-		*args = append(*args, "--ro-bind", localBin, "/usr/local/bin")
-	}
-
-	// Bind ~/.config/vrooli read-only (CLI configurations)
-	vrooliConfig := filepath.Join(home, ".config", "vrooli")
-	if _, err := os.Stat(vrooliConfig); err == nil {
-		// Create the target path structure inside sandbox
-		user := os.Getenv("USER")
-		if user == "" {
-			user = "user"
-		}
-		targetConfig := filepath.Join("/home", user, ".config", "vrooli")
-		*args = append(*args, "--ro-bind", vrooliConfig, targetConfig)
-	}
-
-	// Also bind VROOLI_ROOT if set (read-only for reference)
+	// Bind VROOLI_ROOT if set (read-only for reference). Independent of
+	// $HOME so it lives outside the home overlay.
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot != "" {
 		if _, err := os.Stat(vrooliRoot); err == nil {

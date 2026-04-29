@@ -694,6 +694,25 @@ func NewSandboxLaunchFailedError(message string) *SandboxError {
 	}
 }
 
+// NewSandboxNoExitInfoError marks a sandbox run whose log streams closed
+// without the workspace-sandbox server emitting `event: exit`. After the
+// 2026-04-28 WaitForExit fix server-side, the only remaining causes are
+// (a) the log-stream HTTP endpoint failed before SSE started — e.g. a
+// middleware regression that breaks http.Flusher, the original symptom —
+// or (b) the connection dropped between exit and notify. Either way the
+// run is NOT a clean success; recovery is operator inspection followed
+// by a fresh dispatch. The classifier surfaces this as
+// ErrCodeSandboxNoExitInfo. Wraps the launcher's underlying error so
+// errors.Is(err, sandbox.ErrSandboxNoExitInfo) keeps working.
+func NewSandboxNoExitInfoError(cause error) *SandboxError {
+	return &SandboxError{
+		Operation:   "no_exit_info",
+		Cause:       cause,
+		IsTransient: false,
+		CanRetry:    false,
+	}
+}
+
 func (e *SandboxError) Recovery() RecoveryAction {
 	if e.CanRetry {
 		return RecoveryRetryImmediate
@@ -716,6 +735,10 @@ func (e *SandboxError) UserMessage() string {
 		return "Unable to apply changes. Please verify the sandbox still exists and try again."
 	case "reject":
 		return "Unable to discard changes. Please try again."
+	case "launch_failed":
+		return "The agent's sandbox failed to launch and produced no output. This usually indicates a configuration error inside the sandbox (missing executable, bad working directory, or namespace setup). Check the workspace-sandbox stderr log and re-dispatch."
+	case "no_exit_info":
+		return "The sandbox process ended without reporting exit information. Check workspace-sandbox health and re-dispatch."
 	default:
 		return "A sandbox operation failed. Please try again."
 	}

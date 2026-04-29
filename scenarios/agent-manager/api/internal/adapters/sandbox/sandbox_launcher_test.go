@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -617,8 +618,71 @@ func TestSandboxLauncher_NoExitInfo_ReportsFailure(t *testing.T) {
 	if werr == nil {
 		t.Fatal("Wait returned nil; want ErrSandboxNoExitInfo")
 	}
+	// Sentinel-compatibility: callers that switch on the underlying
+	// sentinel via errors.Is must keep working after the typed wrapping.
 	if !errors.Is(werr, ErrSandboxNoExitInfo) {
-		t.Errorf("Wait err = %v; want ErrSandboxNoExitInfo", werr)
+		t.Errorf("Wait err = %v; want errors.Is(err, ErrSandboxNoExitInfo)=true", werr)
+	}
+	// Type assertion: the wrapper must be a *domain.SandboxError carrying
+	// Operation="no_exit_info" so the orchestration categorizer surfaces
+	// SANDBOX_NO_EXIT_INFO instead of falling through to ErrCodeInternal.
+	var sbxErr *domain.SandboxError
+	if !errors.As(werr, &sbxErr) {
+		t.Fatalf("Wait err = %T; want errors.As to *domain.SandboxError", werr)
+	}
+	if sbxErr.Operation != "no_exit_info" {
+		t.Errorf("SandboxError.Operation = %q; want %q", sbxErr.Operation, "no_exit_info")
+	}
+	if got := sbxErr.Code(); got != domain.ErrCodeSandboxNoExitInfo {
+		t.Errorf("SandboxError.Code() = %q; want %q", got, domain.ErrCodeSandboxNoExitInfo)
+	}
+}
+
+// TestSandboxLauncher_LogStreamSurvivesPast30s pins the 2026-04-28
+// fix for the silent SANDBOX_NO_EXIT_INFO at the 30-second mark. The
+// default httpClient.Timeout was 30s as a *total* deadline including
+// body read, so any agent run that exceeded 30 seconds had its SSE
+// log stream killed by the client (not by the server) — the launcher
+// then read EOF without seeing event:exit and surfaced
+// ErrSandboxNoExitInfo. The fix routes streams through a dedicated
+// streamClient with no total Timeout (only Transport-level connect
+// and header timeouts).
+//
+// This test establishes a stream, holds the connection for a duration
+// well past the old 30s limit, then sends an exit frame, and verifies
+// the launcher saw the exit cleanly.
+func TestSandboxLauncher_LogStreamSurvivesPast30s(t *testing.T) {
+	if testing.Short() {
+		t.Skip("long-running stream test; skip in -short mode")
+	}
+
+	mock := newMockSandbox(911)
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "sleep"})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	// Hold the stream open longer than the old 30s client timeout, then
+	// emit a real exit. Pre-fix the connection was dead by 30s and Wait
+	// returned ErrSandboxNoExitInfo regardless of what the server did
+	// after that.
+	time.Sleep(35 * time.Second)
+	mock.markExited(remoteExitInfo{ExitCode: 0})
+
+	werr := proc.Wait()
+	if werr != nil {
+		t.Fatalf("Wait err = %v; want nil (exit frame should arrive past 30s with the streamClient fix)", werr)
 	}
 }
 
@@ -791,6 +855,241 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	}
 	if got, _ := envAny["PATH"].(string); got != "/usr/bin" {
 		t.Errorf("env PATH = %q; want /usr/bin (untouched)", got)
+	}
+
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		mock.markExited(remoteExitInfo{ExitCode: 0})
+	}()
+	_ = proc.Wait()
+}
+
+// TestTranslateCommandToNamespace pins the binary-path rewrite contract.
+// The mapping must stay in lockstep with the vrooli-aware bind layout in
+// scenarios/workspace-sandbox/api/internal/driver/bwrap.go.
+func TestTranslateCommandToNamespace(t *testing.T) {
+	const home = "/home/matt"
+	cases := []struct {
+		name        string
+		command     string
+		hostHome    string
+		want        string
+		wantRewrite bool
+	}{
+		{
+			name:        "empty passes through",
+			command:     "",
+			hostHome:    home,
+			want:        "",
+			wantRewrite: false,
+		},
+		{
+			name:        "bare basename → unchanged (PATH lookup in sandbox)",
+			command:     "claude",
+			hostHome:    home,
+			want:        "claude",
+			wantRewrite: false,
+		},
+		{
+			name:        "relative path → unchanged",
+			command:     "./bin/claude",
+			hostHome:    home,
+			want:        "./bin/claude",
+			wantRewrite: false,
+		},
+		{
+			name:        "$HOME/.local/bin/claude → unchanged (profile binds at host path)",
+			command:     home + "/.local/bin/claude",
+			hostHome:    home,
+			want:        home + "/.local/bin/claude",
+			wantRewrite: false,
+		},
+		{
+			name:        "$HOME with trailing slash still matches",
+			command:     home + "/.local/bin/codex",
+			hostHome:    home + "/",
+			want:        home + "/.local/bin/codex",
+			wantRewrite: false,
+		},
+		{
+			name:        "$HOME/.local/share/X/Y → unchanged (companion bind for symlink targets)",
+			command:     home + "/.local/share/claude/versions/2.1.121",
+			hostHome:    home,
+			want:        home + "/.local/share/claude/versions/2.1.121",
+			wantRewrite: false,
+		},
+		{
+			name:        "/usr/bin/X → unchanged (sandbox mounts /usr at /usr)",
+			command:     "/usr/bin/git",
+			hostHome:    home,
+			want:        "/usr/bin/git",
+			wantRewrite: false,
+		},
+		{
+			name:        "/bin/X → unchanged (sandbox mounts /bin at /bin)",
+			command:     "/bin/sh",
+			hostHome:    home,
+			want:        "/bin/sh",
+			wantRewrite: false,
+		},
+		{
+			name:        "/usr/local/bin/X → unchanged (already namespace path)",
+			command:     "/usr/local/bin/foo",
+			hostHome:    home,
+			want:        "/usr/local/bin/foo",
+			wantRewrite: false,
+		},
+		{
+			name:        "unknown host-absolute → basename fallback",
+			command:     "/opt/homebrew/bin/claude",
+			hostHome:    home,
+			want:        "claude",
+			wantRewrite: true,
+		},
+		{
+			name:        "empty hostHome disables ~/.local/bin rule but basename fallback still applies",
+			command:     "/some/random/path/tool",
+			hostHome:    "",
+			want:        "tool",
+			wantRewrite: true,
+		},
+		{
+			name:        "different user's home directory does not match",
+			command:     "/home/other/.local/bin/claude",
+			hostHome:    home,
+			want:        "claude",
+			wantRewrite: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, rewrote := translateCommandToNamespace(c.command, c.hostHome)
+			if got != c.want {
+				t.Errorf("got command %q; want %q", got, c.want)
+			}
+			if rewrote != c.wantRewrite {
+				t.Errorf("got rewrote=%v; want %v", rewrote, c.wantRewrite)
+			}
+		})
+	}
+}
+
+// TestSandboxLauncher_LaunchPreservesEnvShimArgs verifies the realistic
+// runner shape: claude_code/codex/opencode go through
+// buildEnvWrappedLaunchRequest, which sets Command="env" and stuffs the
+// host-absolute binary path into Args[1] (after a TAG=value env-var
+// assignment in Args[0]). The runtime profile binds $HOME/.local/bin at
+// the *host path* inside the namespace (the profile's dst mapping is
+// not honored by buildBwrapArgs), so the host-absolute binary path is
+// already valid inside the sandbox — the launcher must NOT rewrite it.
+// This guards against a regression where a too-aggressive rewrite mapped
+// $HOME/.local/bin/X to /usr/local/bin/X, which doesn't exist inside the
+// sandbox under the profile-based isolation path.
+func TestSandboxLauncher_LaunchPreservesEnvShimArgs(t *testing.T) {
+	const host = "/var/lib/workspace-sandbox/sb-envshim/merged"
+
+	mock := newMockSandbox(910)
+	mock.hostMergedDir = host
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	t.Setenv("HOME", "/home/testuser")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
+		Command: "env",
+		Args: []string{
+			"CLAUDE_CODE_AGENT_TAG=run-12345",
+			"/home/testuser/.local/bin/claude",
+			"--print",
+			"--output-format=stream-json",
+		},
+		WorkingDir: host,
+	})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	mock.mu.Lock()
+	body := mock.startProcessBody
+	mock.mu.Unlock()
+
+	if got, _ := body["command"].(string); got != "env" {
+		t.Errorf("command = %q; want %q (basename passes through)", got, "env")
+	}
+
+	argsAny, _ := body["args"].([]any)
+	want := []string{
+		"CLAUDE_CODE_AGENT_TAG=run-12345",   // tag arg untouched
+		"/home/testuser/.local/bin/claude",  // binary path PRESERVED — profile binds at host path
+		"--print",                           // flag untouched
+		"--output-format=stream-json",       // flag untouched
+	}
+	if len(argsAny) != len(want) {
+		t.Fatalf("args length = %d; want %d (args=%v)", len(argsAny), len(want), argsAny)
+	}
+	for i, w := range want {
+		if got, _ := argsAny[i].(string); got != w {
+			t.Errorf("args[%d] = %q; want %q", i, got, w)
+		}
+	}
+
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		mock.markExited(remoteExitInfo{ExitCode: 0})
+	}()
+	_ = proc.Wait()
+}
+
+// TestSandboxLauncher_LaunchBasenameFallback verifies the basename
+// fallback path: a host-absolute binary path that doesn't match any
+// known sandbox mount (e.g. /opt/homebrew/bin/X on macOS) gets stripped
+// to its basename so the sandbox PATH lookup can find it.
+func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
+	const host = "/var/lib/workspace-sandbox/sb-cmd/merged"
+
+	mock := newMockSandbox(909)
+	mock.hostMergedDir = host
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	// $HOME doesn't matter here — the test path is /opt/* which has no
+	// known sandbox mapping, so it falls through to the basename rule.
+	t.Setenv("HOME", "/home/testuser")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
+		Command:    "/opt/homebrew/bin/claude",
+		Args:       []string{"--version"},
+		WorkingDir: host,
+	})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	mock.mu.Lock()
+	body := mock.startProcessBody
+	mock.mu.Unlock()
+	if got, _ := body["command"].(string); got != "claude" {
+		t.Errorf("command = %q; want %q (unknown host-absolute path must basename-fallback)", got, "claude")
+	}
+	// Args must be left untouched — they're typically data, not paths.
+	if argsAny, _ := body["args"].([]any); len(argsAny) != 1 || argsAny[0] != "--version" {
+		t.Errorf("args = %v; want [--version] (must not be rewritten)", argsAny)
 	}
 
 	go func() {

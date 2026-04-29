@@ -364,8 +364,21 @@ func DefaultBaseDir() string {
 func Default() Config {
 	return Config{
 		Server: ServerConfig{
-			ReadTimeout:        30 * time.Second,
-			WriteTimeout:       30 * time.Second,
+			ReadTimeout: 30 * time.Second,
+			// 24h effectively disables the per-response write deadline
+			// for the lifetime of an agent run. /processes/{pid}/logs/stream
+			// is a long-lived SSE connection whose duration matches the
+			// agent process lifetime; the previous 30s killed any
+			// sandboxed agent run that exceeded that budget, surfacing
+			// as SANDBOX_NO_EXIT_INFO upstream.
+			//
+			// We use 24h rather than 0 because the upstream api-core
+			// server treats WriteTimeout=0 as "unset" and substitutes
+			// its own 30s default. Per-handler context cancellation
+			// (client disconnect, shutdown) still tears requests down
+			// promptly. Long-running runs hitting 24h is not a real
+			// concern for a single-tenant local dev service.
+			WriteTimeout:       24 * time.Hour,
 			IdleTimeout:        120 * time.Second,
 			ShutdownTimeout:    10 * time.Second,
 			CORSAllowedOrigins: nil, // Allow all
@@ -573,8 +586,12 @@ func (c *Config) Validate() error {
 	if c.Server.ReadTimeout < time.Second {
 		errs = append(errs, "server.readTimeout must be at least 1s")
 	}
-	if c.Server.WriteTimeout < time.Second {
-		errs = append(errs, "server.writeTimeout must be at least 1s")
+	// server.writeTimeout=0 is allowed (and is the recommended setting
+	// for this service) because /processes/{pid}/logs/stream needs to
+	// stay open for the lifetime of long-running agent processes. Any
+	// non-zero value must still clear 1s to avoid pathological configs.
+	if c.Server.WriteTimeout != 0 && c.Server.WriteTimeout < time.Second {
+		errs = append(errs, "server.writeTimeout must be 0 (disabled) or at least 1s")
 	}
 
 	// Limits validation

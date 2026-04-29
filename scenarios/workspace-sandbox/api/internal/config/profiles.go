@@ -138,23 +138,36 @@ func DefaultProfiles() []IsolationProfile {
 			Description:   "Access to Vrooli CLIs, configs, and localhost network for API communication.",
 			Builtin:       true,
 			NetworkAccess: "localhost",
+			// $HOME-relative state (~/.local/{bin,share}, ~/.config,
+			// ~/.claude, ~/.config/vrooli, etc.) is provided by the
+			// per-sandbox HOME overlay set up in driver.Mount. The
+			// overlay's lower layer is the host $HOME and its upper
+			// layer is per-sandbox writable, so agent CLIs find their
+			// host config and any $HOME-relative writes are auditable
+			// per-run rather than escaping to the host or silently
+			// failing. We therefore do NOT add ad-hoc binds for
+			// individual subpaths here — they would shadow the overlay
+			// and reintroduce the very drift the overlay eliminates.
 			ReadOnlyBinds: map[string]string{
-				"/usr":                 "/usr",
-				"/lib":                 "/lib",
-				"/lib64":               "/lib64",
-				"/bin":                 "/bin",
-				"/etc/resolv.conf":     "/etc/resolv.conf",
-				"/etc/hosts":           "/etc/hosts",
-				"/etc/passwd":          "/etc/passwd",
-				"/etc/group":           "/etc/group",
-				"$HOME/.local/bin":     "/usr/local/bin",
-				"$HOME/.config/vrooli": "$HOME/.config/vrooli",
-				"$VROOLI_ROOT":         "/vrooli",
+				"/usr":             "/usr",
+				"/lib":             "/lib",
+				"/lib64":           "/lib64",
+				"/bin":             "/bin",
+				"/etc/resolv.conf": "/etc/resolv.conf",
+				"/etc/hosts":       "/etc/hosts",
+				"/etc/passwd":      "/etc/passwd",
+				"/etc/group":       "/etc/group",
+				"$VROOLI_ROOT":     "/vrooli",
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{
-				"PATH":        "/usr/local/bin:/usr/bin:/bin",
-				"HOME":        "/tmp",
+				// PATH includes the host $HOME/.local/bin (visible
+				// inside the sandbox via the HOME overlay at the same
+				// host path) so npm-style CLIs are reachable.
+				"PATH":        "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
+				// HOME points to the host home so $HOME-relative
+				// lookups resolve to the overlay merged dir, not /tmp.
+				"HOME":        "$HOME",
 				"SHELL":       "/bin/sh",
 				"VROOLI_ROOT": "/vrooli",
 				"VROOLI_ENV":  "$VROOLI_ENV",

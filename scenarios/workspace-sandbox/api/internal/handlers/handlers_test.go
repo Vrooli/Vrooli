@@ -43,6 +43,10 @@ func (m *mockDriver) Mount(ctx context.Context, s *types.Sandbox) (*driver.Mount
 }
 func (m *mockDriver) Unmount(ctx context.Context, s *types.Sandbox) error { return nil }
 func (m *mockDriver) Cleanup(ctx context.Context, s *types.Sandbox) error { return nil }
+func (m *mockDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return nil, nil
+}
+func (m *mockDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mockDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
 	return nil, nil
 }

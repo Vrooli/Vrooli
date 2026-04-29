@@ -23,6 +23,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/google/uuid"
+
 	"workspace-sandbox/internal/types"
 )
 
@@ -102,6 +104,15 @@ func (d *FuseOverlayfsDriver) IsAvailable(ctx context.Context) (bool, error) {
 }
 
 // Mount creates the overlay mount using fuse-overlayfs.
+//
+// In addition to the project-root overlay (lower=ScopePath, merged at
+// MergedDir), Mount also brings up a per-sandbox $HOME overlay:
+// lower=host $HOME, upper=<sandboxDir>/home-upper, merged at
+// <sandboxDir>/home-merged. The home overlay is the audit-of-change
+// mechanism for HOME-relative writes (auth tokens, tool caches, etc.):
+// reads pass through to the host home, writes land in the per-sandbox
+// upper layer that's discarded at sandbox teardown. Without this, agent
+// CLIs that read $HOME/<tool>/<config> wouldn't find their host state.
 func (d *FuseOverlayfsDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error) {
 	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
 
@@ -133,11 +144,90 @@ func (d *FuseOverlayfsDriver) Mount(ctx context.Context, s *types.Sandbox) (*Mou
 		return nil, fmt.Errorf("fuse-overlayfs mount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
 	}
 
+	// Best-effort home overlay. A failure here (no $HOME, fuse-overlayfs
+	// rejecting the home dir, etc.) leaves the project overlay in place
+	// and the home merged dir empty — the bwrap layer treats an empty
+	// HomeMergedDir as "skip the home bind", so the sandbox still works
+	// for callers that don't require host home visibility.
+	if hostHome := os.Getenv("HOME"); hostHome != "" {
+		if homePaths, hErr := mountHomeOverlay(ctx, sandboxDir, hostHome); hErr == nil {
+			paths.HomeLowerDir = homePaths.HomeLowerDir
+			paths.HomeUpperDir = homePaths.HomeUpperDir
+			paths.HomeWorkDir = homePaths.HomeWorkDir
+			paths.HomeMergedDir = homePaths.HomeMergedDir
+		} else {
+			// Don't fail the entire Mount on home-overlay failure —
+			// surface the error in the log but keep the sandbox usable.
+			fmt.Fprintf(os.Stderr, "home-overlay mount failed (continuing without it): %v\n", hErr)
+		}
+	}
+
 	return paths, nil
 }
 
-// Unmount removes the fuse-overlayfs mount.
+// mountHomeOverlay sets up the per-sandbox fuse-overlayfs over the
+// host $HOME and returns the resulting paths. Caller is responsible for
+// tearing it down via unmountHomeOverlay (typically in Driver.Unmount).
+func mountHomeOverlay(ctx context.Context, sandboxDir, hostHome string) (*MountPaths, error) {
+	paths := &MountPaths{
+		HomeLowerDir:  hostHome,
+		HomeUpperDir:  filepath.Join(sandboxDir, "home-upper"),
+		HomeWorkDir:   filepath.Join(sandboxDir, "home-work"),
+		HomeMergedDir: filepath.Join(sandboxDir, "home-merged"),
+	}
+	for _, dir := range []string{paths.HomeUpperDir, paths.HomeWorkDir, paths.HomeMergedDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("create home overlay dir %s: %w", dir, err)
+		}
+	}
+	mountOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s",
+		paths.HomeLowerDir, paths.HomeUpperDir, paths.HomeWorkDir)
+	cmd := exec.CommandContext(ctx, "fuse-overlayfs", "-o", mountOpts, paths.HomeMergedDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("fuse-overlayfs home mount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
+	}
+	return paths, nil
+}
+
+// unmountHomeOverlay tears down the home overlay if mounted. Best-
+// effort: returns nil if the dir is missing or already unmounted.
+func unmountHomeOverlay(ctx context.Context, sandboxDir string) error {
+	homeMerged := filepath.Join(sandboxDir, "home-merged")
+	if _, err := os.Stat(homeMerged); err != nil {
+		return nil // no home overlay
+	}
+	if !isMountPoint(homeMerged) {
+		return nil
+	}
+	fusermount := "fusermount"
+	if _, err := exec.LookPath(fusermount); err != nil {
+		fusermount = "fusermount3"
+	}
+	cmd := exec.CommandContext(ctx, fusermount, "-u", homeMerged)
+	if _, err := cmd.CombinedOutput(); err == nil {
+		return nil
+	}
+	cmd = exec.CommandContext(ctx, fusermount, "-u", "-z", homeMerged)
+	output, err := cmd.CombinedOutput()
+	if err != nil && isMountPoint(homeMerged) {
+		return fmt.Errorf("home overlay unmount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// Unmount removes the fuse-overlayfs mounts (project + home).
 func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) error {
+	// Tear down the home overlay first. Best-effort: a failure here
+	// must not block the project-overlay unmount or the caller's
+	// teardown, so we log it and continue.
+	if s.MergedDir != "" {
+		sandboxDir := filepath.Dir(s.MergedDir)
+		if err := unmountHomeOverlay(ctx, sandboxDir); err != nil {
+			fmt.Fprintf(os.Stderr, "home overlay unmount failed (continuing with project unmount): %v\n", err)
+		}
+	}
+
 	if s.MergedDir == "" {
 		return nil // Nothing to unmount
 	}
@@ -195,6 +285,62 @@ func (d *FuseOverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) err
 	return cleanupSandboxDir(d.config.BaseDir, s.ID, func() error {
 		return d.Unmount(ctx, s)
 	})
+}
+
+// ListSandboxDirs walks BaseDir and returns the IDs of every UUID-named
+// subdirectory. Used by the orphan reconciler to detect sandboxes the
+// repository has lost track of.
+func (d *FuseOverlayfsDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return listSandboxDirsInBase(d.config.BaseDir)
+}
+
+// CleanupOrphan releases a sandbox by ID alone. Mirrors Cleanup's
+// shape but does not require a *types.Sandbox: the caller has nothing
+// but a directory name from a filesystem walk. Both the project overlay
+// (<sandboxDir>/merged) and the home overlay (<sandboxDir>/home-merged)
+// are unmounted before the directory is removed.
+//
+// Idempotent: a missing dir, an already-unmounted overlay, or a
+// fusermount error are all treated as best-effort. Returns the first
+// hard rm-rf failure if the dir survives all attempts.
+func (d *FuseOverlayfsDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	sandboxDir := filepath.Join(d.config.BaseDir, id.String())
+	if _, err := os.Stat(sandboxDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat orphan sandbox dir %q: %w", sandboxDir, err)
+	}
+
+	mergedDir := filepath.Join(sandboxDir, "merged")
+	homeMerged := filepath.Join(sandboxDir, "home-merged")
+
+	// Unmount in the same order as Unmount(): home first, then project.
+	// Best-effort — if either is already unmounted (or never mounted)
+	// this is a no-op. We swallow errors because the rm -rf below is
+	// the actual teardown; failed fusermount just leaves the FS in a
+	// state RemoveAll cannot recover from, which we surface below.
+	fusermount := "fusermount"
+	if _, err := exec.LookPath(fusermount); err != nil {
+		fusermount = "fusermount3"
+	}
+	for _, mountPath := range []string{homeMerged, mergedDir} {
+		if !isMountPoint(mountPath) {
+			continue
+		}
+		// Try a clean unmount, then a lazy unmount. Either way, ignore
+		// the error: the subsequent RemoveAll surfaces any actual
+		// "FS is wedged" condition.
+		if out, err := exec.CommandContext(ctx, fusermount, "-u", mountPath).CombinedOutput(); err != nil {
+			_, _ = exec.CommandContext(ctx, fusermount, "-u", "-z", mountPath).CombinedOutput()
+			_ = out // discard; lazy unmount is the recovery path
+		}
+	}
+
+	if err := os.RemoveAll(sandboxDir); err != nil {
+		return fmt.Errorf("remove orphan sandbox dir %q: %w", sandboxDir, err)
+	}
+	return nil
 }
 
 // IsMounted checks if the sandbox is currently mounted.

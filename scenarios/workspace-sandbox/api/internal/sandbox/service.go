@@ -611,6 +611,13 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 	sandbox.UpperDir = paths.UpperDir
 	sandbox.WorkDir = paths.WorkDir
 	sandbox.MergedDir = paths.MergedDir
+	// Home-overlay paths are transient (not persisted). Drivers populate
+	// them when they bring up a per-sandbox $HOME overlay; bwrap reads
+	// HomeMergedDir to bind it at /home/<user> inside the namespace.
+	sandbox.HomeLowerDir = paths.HomeLowerDir
+	sandbox.HomeUpperDir = paths.HomeUpperDir
+	sandbox.HomeWorkDir = paths.HomeWorkDir
+	sandbox.HomeMergedDir = paths.HomeMergedDir
 	sandbox.Status = types.StatusActive
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {
@@ -642,6 +649,12 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 	if sandbox == nil {
 		return nil, types.NewNotFoundError(id.String())
 	}
+	// Re-derive transient mount paths (notably HomeMergedDir) on every
+	// read so process-spawn handlers see them. The home overlay isn't
+	// persisted in the DB; without this, every Service.Get would lose
+	// HomeMergedDir and bwrap would skip the home bind for the second
+	// process onward.
+	s.inferMountPaths(sandbox)
 	return sandbox, nil
 }
 
@@ -735,6 +748,11 @@ func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, erro
 	sandbox.UpperDir = paths.UpperDir
 	sandbox.WorkDir = paths.WorkDir
 	sandbox.MergedDir = paths.MergedDir
+	// Home overlay (see docstring on Sandbox.HomeMergedDir).
+	sandbox.HomeLowerDir = paths.HomeLowerDir
+	sandbox.HomeUpperDir = paths.HomeUpperDir
+	sandbox.HomeWorkDir = paths.HomeWorkDir
+	sandbox.HomeMergedDir = paths.HomeMergedDir
 	sandbox.Status = types.StatusActive
 	sandbox.StoppedAt = nil // Clear stopped timestamp
 	sandbox.LastUsedAt = time.Now()
@@ -1047,6 +1065,23 @@ func applyDerivedPaths(sandbox *types.Sandbox, root string) bool {
 		}
 		if sandbox.LowerDir == "" && sandbox.ScopePath != "" {
 			sandbox.LowerDir = sandbox.ScopePath
+			updated = true
+		}
+	}
+	// Home overlay paths are transient (not persisted to DB), so the
+	// service's loaded copy of the sandbox loses them on every round-
+	// trip. Re-derive them from the on-disk layout: if home-merged
+	// exists under the sandbox dir, the driver mounted a home overlay
+	// and bwrap should bind it at the host $HOME. We don't gate on
+	// "is mount" here because the same path serves the bind regardless
+	// — bwrap will correctly fall back if the mount disappeared.
+	if sandbox.HomeMergedDir == "" {
+		homeMerged := filepath.Join(root, "home-merged")
+		if _, err := os.Stat(homeMerged); err == nil {
+			sandbox.HomeMergedDir = homeMerged
+			sandbox.HomeUpperDir = filepath.Join(root, "home-upper")
+			sandbox.HomeWorkDir = filepath.Join(root, "home-work")
+			sandbox.HomeLowerDir = os.Getenv("HOME")
 			updated = true
 		}
 	}

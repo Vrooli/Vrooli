@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"workspace-sandbox/internal/types"
@@ -45,6 +46,19 @@ func (r *LifecycleReconciler) WithManualReviewTTL(ttl time.Duration) *LifecycleR
 }
 
 // Start begins the reconciliation loop in a goroutine.
+//
+// On the very first tick (before the timer kicks in), all four
+// reconcilers run synchronously so any pre-existing drift — including
+// filesystem orphans accumulated while the API was down — is cleaned
+// up before normal serving begins. Subsequent ticks run the same
+// reconcilers except ReconcileManualReviewExpiry, which is
+// startup-only because the manual-review TTL is a one-shot expiry,
+// not a periodic check (see the comment in lifecycle_test.go for the
+// design rationale).
+//
+// The orphan reconciler (ReconcileFilesystemOrphans) was added in
+// 2026-04-28 after a mount-leak incident — see orphan_reconciler.go
+// for the why.
 func (r *LifecycleReconciler) Start() {
 	if r == nil || r.service == nil {
 		return
@@ -55,20 +69,48 @@ func (r *LifecycleReconciler) Start() {
 		defer close(r.doneCh)
 
 		ctx := context.Background()
-		r.service.ReconcileLifecycle(ctx)
-		r.service.ReconcileManualReviewExpiry(ctx, r.manualReviewTTL, time.Now)
-		r.service.ReconcileActiveMounts(ctx, r.healTracker, r.healCfg)
+		r.runReconcilers(ctx, true)
 		for {
 			select {
 			case <-ticker.C:
-				ctx := context.Background()
-				r.service.ReconcileLifecycle(ctx)
-				r.service.ReconcileActiveMounts(ctx, r.healTracker, r.healCfg)
+				r.runReconcilers(context.Background(), false)
 			case <-r.stopCh:
 				return
 			}
 		}
 	}()
+}
+
+// runReconcilers fires the periodic reconcilers in dependency order.
+// The startup pass additionally runs ReconcileManualReviewExpiry, which
+// is a one-shot at boot rather than a periodic check.
+//
+// Order matters:
+//  1. Lifecycle: stops idle Active sandboxes and deletes expired ones.
+//     This may transition repo records to Deleted, which the orphan
+//     pass below will then clean up on disk.
+//  2. ManualReviewExpiry (startup only): auto-denies abandoned manual-
+//     review sandboxes; same Deleted->orphan cascade as above.
+//  3. ActiveMounts: re-mounts Active sandboxes with stale mounts. Must
+//     run AFTER lifecycle so we don't try to heal a sandbox that
+//     lifecycle just stopped.
+//  4. FilesystemOrphans: catches dirs the repo doesn't know about
+//     (drift, crash, agent-manager Delete that the API forgot, etc.).
+//     Last so anything the earlier passes transitioned to Deleted is
+//     reaped this cycle rather than next.
+func (r *LifecycleReconciler) runReconcilers(ctx context.Context, startup bool) {
+	r.service.ReconcileLifecycle(ctx)
+	if startup {
+		r.service.ReconcileManualReviewExpiry(ctx, r.manualReviewTTL, time.Now)
+	}
+	r.service.ReconcileActiveMounts(ctx, r.healTracker, r.healCfg)
+	report := r.service.ReconcileFilesystemOrphans(ctx)
+	// Only log when we found something or on startup, so steady-state
+	// noise stays low. Operators can grep boot logs for "orphan-reconciler"
+	// to verify the schedule is firing.
+	if startup || report.OrphansCleaned > 0 || report.OrphansFailed > 0 {
+		log.Println(FormatOrphanReport(report))
+	}
 }
 
 // Stop stops the reconciliation loop.

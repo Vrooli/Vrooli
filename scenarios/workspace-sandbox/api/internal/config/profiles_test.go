@@ -83,6 +83,34 @@ func TestFileProfileStore(t *testing.T) {
 		}
 	})
 
+	t.Run("vrooli-aware profile delegates $HOME visibility to the home overlay", func(t *testing.T) {
+		// 2026-04-28 home-overlay refactor: $HOME-relative state is no
+		// longer surfaced through ad-hoc per-subpath ReadOnlyBinds.
+		// Instead, driver.Mount creates a per-sandbox fuse-overlayfs
+		// over the host $HOME and bwrap binds the merged dir at the
+		// host $HOME path inside the namespace. The profile must NOT
+		// re-introduce per-subpath binds (they shadow the overlay) and
+		// must point HOME at the host home so $HOME-relative lookups
+		// resolve to the overlay's merged dir.
+		profile, err := store.Get("vrooli-aware")
+		if err != nil {
+			t.Fatalf("Get(vrooli-aware): %v", err)
+		}
+		for _, k := range []string{
+			"$HOME/.local/bin",
+			"$HOME/.local/share",
+			"$HOME/.config/vrooli",
+			"$HOME/.claude",
+		} {
+			if _, ok := profile.ReadOnlyBinds[k]; ok {
+				t.Errorf("vrooli-aware profile must not bind %s — the home overlay covers it; per-subpath binds shadow the overlay and reintroduce drift", k)
+			}
+		}
+		if got := profile.Environment["HOME"]; got != "$HOME" {
+			t.Errorf("vrooli-aware profile HOME = %q; want %q so $HOME-relative lookups resolve to the home overlay merged dir, not /tmp", got, "$HOME")
+		}
+	})
+
 	t.Run("Get returns error for non-existent profile", func(t *testing.T) {
 		_, err := store.Get("non-existent")
 		if err == nil {

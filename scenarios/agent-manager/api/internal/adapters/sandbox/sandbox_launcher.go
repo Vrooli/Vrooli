@@ -43,12 +43,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -99,6 +102,73 @@ func (l *SandboxLauncher) resolveHostMergedDir(ctx context.Context) (string, err
 		l.hostMergedDir, l.hostMergedErr = l.provider.GetWorkspacePath(ctx, l.sandboxID)
 	})
 	return l.hostMergedDir, l.hostMergedErr
+}
+
+// translateCommandToNamespace rewrites a host-absolute binary path so it
+// resolves inside the bwrap mount namespace. The contract reflects the
+// post-2026-04-28 home-overlay layout in workspace-sandbox:
+//
+//   - The per-sandbox HOME overlay (driver.Mount → bwrap --bind ...
+//     /home/<user>) makes the entire host $HOME visible inside the
+//     namespace at the same host path. Anything under $HOME/* is
+//     therefore reachable without rewrite — including symlink targets
+//     deep under ~/.local/share.
+//   - /usr, /bin, /usr/local/bin are bound at the same path by the
+//     system / vrooli-aware profile.
+//   - Anything else absolute (e.g. /opt/homebrew/bin/X on macOS) has no
+//     known sandbox mapping; falling back to the basename + sandbox
+//     PATH lookup is the safest behavior.
+//
+// Rules:
+//
+//   - $HOME/X → unchanged (HOME overlay)
+//   - /usr/bin/X, /bin/X, /usr/local/bin/X → unchanged (system bind)
+//   - any other host-absolute path → path.Base(X)
+//   - relative path / bare basename → unchanged
+//   - empty → unchanged
+//
+// Returns the (possibly-rewritten) command and a boolean indicating
+// whether a rewrite happened (for diagnostic logging).
+//
+// hostHome is the agent-manager process's $HOME. On the supported
+// single-machine deployment this matches workspace-sandbox's $HOME, so
+// the host home overlay's lower layer is the same directory tree the
+// agent-manager sees. Empty hostHome disables the $HOME rule but the
+// basename fallback still applies.
+//
+// DOC: keep in sync with the bwrap home-overlay layout in
+// workspace-sandbox/api/internal/driver/bwrap.go; if a future change
+// reroutes the home overlay to a different namespace path, update this
+// function and its tests.
+func translateCommandToNamespace(command, hostHome string) (string, bool) {
+	if command == "" {
+		return command, false
+	}
+	if !strings.HasPrefix(command, "/") {
+		// Already a basename or relative path — let sandbox PATH find it.
+		return command, false
+	}
+	if hostHome != "" {
+		homeLocal := strings.TrimRight(hostHome, "/") + "/.local/"
+		if strings.HasPrefix(command, homeLocal) {
+			// $HOME/.local/{bin,share}/X is bound at the same host path
+			// inside the namespace by the vrooli-aware profile.
+			return command, false
+		}
+	}
+	switch {
+	case strings.HasPrefix(command, "/usr/local/bin/"),
+		strings.HasPrefix(command, "/usr/bin/"),
+		strings.HasPrefix(command, "/bin/"):
+		// Already a path the sandbox namespace mounts at the same location.
+		return command, false
+	}
+	// Host-absolute path with no known sandbox mapping. Strip to basename
+	// and rely on the sandbox PATH (set to /usr/local/bin:/usr/bin:/bin).
+	// If the binary isn't discoverable that way, the run will fail with a
+	// real exec error visible in the captured stderr — much better than
+	// the silent host-path-doesn't-exist failure mode.
+	return path.Base(command), true
 }
 
 // translateHostPathToNamespace rewrites a value that may contain the
@@ -176,9 +246,27 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	}
 	envMap = translateEnvHostPaths(envMap, hostMerged)
 
+	// Command + args translation: agent-manager's runners resolve binary
+	// paths via host-side exec.LookPath and pass the absolute host path.
+	// Inside the bwrap namespace those host paths usually don't exist
+	// (only the vrooli-aware bind layout is mounted), so the host path
+	// needs to be rewritten before crossing the API boundary.
+	//
+	// All three coding-agent runners use buildEnvWrappedLaunchRequest,
+	// which sets Command="env" and stuffs the binary path into Args[1+].
+	// We must therefore translate Args entries too — Command="env" alone
+	// would resolve via PATH but bwrap's env shim then fails to exec the
+	// host-absolute binary path embedded in args.
+	hostHome := os.Getenv("HOME")
+	command, _ := translateCommandToNamespace(req.Command, hostHome)
+	translatedArgs := make([]string, len(req.Args))
+	for i, a := range req.Args {
+		translatedArgs[i], _ = translateCommandToNamespace(a, hostHome)
+	}
+
 	pid, err := l.startProcess(ctx, startProcessBody{
-		Command:        req.Command,
-		Args:           req.Args,
+		Command:        command,
+		Args:           translatedArgs,
 		Env:            envMap,
 		WorkingDir:     workingDir,
 		IsolationLevel: "vrooli-aware",
@@ -418,7 +506,11 @@ func (p *sandboxLaunchedProcess) runStream(ctx context.Context, stream string, w
 	defer wg.Done()
 
 	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes/%d/logs/stream?stream=%s", p.launcher.sandboxID, p.pid, stream)
-	resp, err := p.launcher.provider.doRawRequest(ctx, "GET", endpoint, "", nil)
+	// Use the streaming client (no total deadline) so long-running agent
+	// runs aren't cut off by the 30s default-client timeout. The stream
+	// stays open until the process exits, the server emits event:end, or
+	// ctx is cancelled by the caller.
+	resp, err := p.launcher.provider.doStreamRequest(ctx, "GET", endpoint)
 	if err != nil {
 		// Context cancellation surfaces as ctx.Err; not unique to this stream.
 		return
@@ -498,7 +590,13 @@ func (p *sandboxLaunchedProcess) finalizeWaitErr() {
 		// contract (see ErrSandboxNoExitInfo) this is a failure — the
 		// previous "treat as success" policy let bwrap launch errors
 		// masquerade as exit-0 successes. Callers must surface it.
-		p.waitErr = ErrSandboxNoExitInfo
+		//
+		// We wrap the sentinel in a typed domain error so the
+		// orchestration categorizer routes it to ErrCodeSandboxNoExitInfo
+		// (SANDBOX_NO_EXIT_INFO) instead of falling through to generic
+		// INTERNAL. errors.Is(p.waitErr, ErrSandboxNoExitInfo) keeps
+		// working because SandboxError.Unwrap returns the cause.
+		p.waitErr = domain.NewSandboxNoExitInfoError(ErrSandboxNoExitInfo)
 		return
 	}
 	if info.ExitCode == 0 && info.Signal == 0 {

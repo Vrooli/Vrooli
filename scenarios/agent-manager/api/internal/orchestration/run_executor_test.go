@@ -1897,11 +1897,24 @@ func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+		// Duration must clear validateRunOutcome's silent-launch
+		// heuristic (a real sandbox run takes seconds; a sub-2s run
+		// with zero message events is treated as a bwrap launch
+		// failure). Without this, validateRunOutcome demotes the run
+		// to FAILED before applyAtRunEnd ever sees it.
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, Duration: 3 * time.Second}, nil
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	sandboxProvider := newMockSandboxProvider()
+	// Mock returns Applied=1 so applyAtRunEnd sees a real auditable
+	// change and follows the success → Complete branch. (The default
+	// mock returns Applied=0; with the 2026-04-28 fix that path no
+	// longer promotes a failure to Complete, so the test must opt in
+	// to a non-empty apply explicitly.)
+	sandboxProvider.applyAtRunEndFunc = func(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
+		return &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1, AppliedAt: time.Now()}, nil
+	}
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,

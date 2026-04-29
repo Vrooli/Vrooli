@@ -334,3 +334,38 @@ func cleanupSandboxDir(baseDir string, sandboxID uuid.UUID, unmountFn func() err
 
 	return nil
 }
+
+// listSandboxDirsInBase returns the IDs of all UUID-named subdirectories
+// directly under baseDir. Non-UUID directories and stray files are
+// silently skipped — callers must NOT treat them as sandboxes (they may
+// belong to the driver's own bookkeeping, e.g., LoadDriverPreference's
+// preference file). A missing baseDir is not an error and returns an
+// empty slice, since "no dirs to enumerate" is the same as "no orphans".
+//
+// This helper is shared across drivers because the layout convention
+// (one UUID-named dir per sandbox under BaseDir) is identical for
+// FuseOverlayfsDriver, OverlayfsDriver, and CopyDriver.
+func listSandboxDirsInBase(baseDir string) ([]uuid.UUID, error) {
+	if baseDir == "" {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read baseDir %q: %w", baseDir, err)
+	}
+	out := make([]uuid.UUID, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		id, err := uuid.Parse(e.Name())
+		if err != nil {
+			continue // not a sandbox dir; skip silently
+		}
+		out = append(out, id)
+	}
+	return out, nil
+}

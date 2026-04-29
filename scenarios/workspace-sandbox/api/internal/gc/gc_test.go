@@ -167,6 +167,16 @@ func (m *MockDriverWithError) Cleanup(ctx context.Context, sandbox *types.Sandbo
 	return nil
 }
 
+// Orphan-reconciliation methods are unused by gc tests; stubs satisfy
+// the Driver interface added in 2026-04-28.
+func (m *MockDriverWithError) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return nil, nil
+}
+
+func (m *MockDriverWithError) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
 func (m *MockDriverWithError) GetChangedFiles(ctx context.Context, sandbox *types.Sandbox) ([]*types.FileChange, error) {
 	return nil, nil
 }
@@ -339,6 +349,14 @@ func (m *MockDriver) Unmount(ctx context.Context, sandbox *types.Sandbox) error 
 
 func (m *MockDriver) Cleanup(ctx context.Context, sandbox *types.Sandbox) error {
 	m.cleanupCalled = append(m.cleanupCalled, sandbox.ID)
+	return nil
+}
+
+func (m *MockDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return nil, nil
+}
+
+func (m *MockDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 

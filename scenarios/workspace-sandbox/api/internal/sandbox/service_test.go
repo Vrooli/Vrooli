@@ -246,6 +246,13 @@ type mockDriver struct {
 	mounted        bool
 	removeFromErr  error
 	verifyMountErr error
+
+	// Orphan-reconciler hooks. Tests that don't drive the reconciler
+	// can leave these zero.
+	listDirsResult   []uuid.UUID
+	listDirsErr      error
+	orphanCleanups   []uuid.UUID
+	orphanCleanupErr error
 }
 
 func newMockDriver() *mockDriver {
@@ -290,6 +297,21 @@ func (m *mockDriver) Cleanup(ctx context.Context, sandbox *types.Sandbox) error 
 		return m.cleanupErr
 	}
 	m.mounted = false
+	return nil
+}
+
+// ListSandboxDirs / CleanupOrphan back the orphan-reconciler. Tests that
+// don't exercise it leave these as no-ops; orphan_reconciler_test.go
+// uses a dedicated stub that drives them directly.
+func (m *mockDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return m.listDirsResult, m.listDirsErr
+}
+
+func (m *mockDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	m.orphanCleanups = append(m.orphanCleanups, id)
+	if m.orphanCleanupErr != nil {
+		return m.orphanCleanupErr
+	}
 	return nil
 }
 

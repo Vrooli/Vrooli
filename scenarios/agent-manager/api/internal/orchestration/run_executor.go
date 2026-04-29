@@ -10,11 +10,32 @@
 //   3. AcquireRunner() - gets and validates the runner
 //   4. Execute() - runs the agent
 //   5. HandleResult() - processes the outcome
-//   6. Cleanup() - releases resources (on failure)
+//   6. finalize() - DEFERRED: advances phase to Completed, releases sandbox
+//
+// FINALIZATION CONTRACT:
+// `finalize` is the single terminal seam for a run. It is registered as a
+// `defer` at the top of Execute, so it ALWAYS runs — on normal completion,
+// panic, or context cancellation. It guarantees:
+//   - The phase ladder ends at RunPhaseCompleted (no run is left at
+//     RunPhaseCollectingResults).
+//   - The sandbox mount is released exactly once via Delete or Stop, per
+//     the run's lifecycle config.
+//   - Sandbox teardown is IMMUNE to execCtx cancellation/timeout — the
+//     HTTP call uses a detached, bounded context.
+//
+// 2026-04-28 incident: before finalize existed, sandbox teardown was
+// scattered across handleSuccessfulCompletion / handleFailure /
+// handleCancellation / cleanupOnFailure, each calling applySandboxLifecycle
+// with execCtx. execCtx carries the run's 60-min timeout; a slow
+// applyAtRunEnd could exhaust the deadline before teardown ran, the
+// subsequent Delete HTTP call would fail with `context deadline exceeded`,
+// emit a `warn` event, and silently leak the fuse-overlayfs mount. 11
+// days of accumulation produced 326 orphan mounts holding ~49 GB of RAM.
+// Regression gates live in finalize_test.go.
 //
 // GRACEFUL DEGRADATION:
 // The executor is designed to fail safely and preserve useful state:
-// - Sandbox is preserved on failure for inspection
+// - Sandbox is preserved on failure for inspection (per lifecycle config)
 // - Events are flushed before marking failure
 // - Errors are classified for actionable recovery hints
 // - Partial work is captured in run summary
@@ -65,6 +86,13 @@ type ExecutorConfig struct {
 
 	// StaleThreshold is how long without heartbeat before considering stale
 	StaleThreshold time.Duration
+
+	// TeardownTimeout bounds the detached context used by finalize() for
+	// sandbox Delete/Stop calls and final phase persistence. It is INDEPENDENT
+	// of Timeout — teardown must run even when the run-execution deadline has
+	// already expired. 30s comfortably covers the workspace-sandbox DELETE
+	// p99; raise this only if that endpoint's tail latency grows.
+	TeardownTimeout time.Duration
 }
 
 // DefaultExecutorConfig returns sensible defaults for execution.
@@ -77,6 +105,7 @@ func DefaultExecutorConfig() ExecutorConfig {
 		CheckpointInterval: 1 * time.Minute,
 		MaxRetries:         3,
 		StaleThreshold:     5 * time.Minute, // More forgiving threshold
+		TeardownTimeout:    30 * time.Second,
 	}
 }
 
@@ -152,8 +181,11 @@ type RunExecutor struct {
 	// Resumption state
 	isResuming bool
 
-	// Sandbox finalization state
-	sandboxFinalized bool
+	// finalized guards the deferred finalize() seam. Set on first entry to
+	// finalize so re-entry (panic + recovery, paths that called finalize
+	// explicitly, etc.) is a no-op. There is no "partial finalize" — if the
+	// flag is set, the run has been through the terminal seam exactly once.
+	finalized bool
 
 	// Custom environment variables injected by API callers.
 	customEnv map[string]string
@@ -303,6 +335,15 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	go e.heartbeatLoop(ctx)
 	defer e.stopHeartbeat()
 
+	// finalize is the SINGLE terminal seam: phase→Completed + sandbox
+	// teardown. Registered as a defer so it runs no matter how Execute
+	// exits — normal return, panic, or context cancellation. See the
+	// finalize() docstring for the failure mode this prevents.
+	// Defer LIFO order: finalize() → stopHeartbeat() → cancel(), which
+	// is correct: teardown happens while heartbeat is still alive (so
+	// progress is observable) and before execCtx is torn down.
+	defer e.finalize()
+
 	// Determine starting phase (for resumption)
 	startPhase := e.checkpoint.Phase
 	if e.isResuming {
@@ -450,21 +491,25 @@ func phaseOrdinal(phase domain.RunPhase) int {
 }
 
 // advancePhase updates the checkpoint to a new phase and persists it.
+// Both persistence calls (checkpoint store, run repository) are best-effort
+// — failures emit a warn event but do not block phase advancement. The
+// nil-guards on e.runs and e.checkpoints mirror each other so unit tests
+// that drive a partially-wired executor (e.g., finalize_test.go,
+// auto_approval_test.go) don't have to satisfy every persistence seam.
 func (e *RunExecutor) advancePhase(ctx context.Context, phase domain.RunPhase) {
 	e.mu.Lock()
 	e.checkpoint = e.checkpoint.Update(phase, 0)
 	e.run.UpdateProgress(phase, domain.PhaseToProgress(phase))
 	e.mu.Unlock()
 
-	// Persist checkpoint if repository is available
 	e.saveCheckpoint(ctx)
 
-	// Update run in database
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to persist phase update: "+err.Error())
+	if e.runs != nil {
+		if err := e.runs.Update(ctx, e.run); err != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to persist phase update: "+err.Error())
+		}
 	}
 
-	// Emit phase change event
 	e.emitSystemEvent(ctx, "info", fmt.Sprintf("phase: %s", phase.Description()))
 }
 
@@ -1114,6 +1159,16 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 	// Execute
 	e.result, e.execErr = r.Execute(ctx, req)
 
+	// Promote typed terminal errors from the runner result into execErr so
+	// the failure-event emitter takes the typed-error branch and the
+	// classifier surfaces the right ErrorCode (SANDBOX_NO_EXIT_INFO etc.).
+	// Without this, e.g. ErrSandboxNoExitInfo bubbling up from the
+	// sandbox launcher would land as a plain string in result.ErrorMessage
+	// and emitGenericFailureEvent would mask it as ErrCodeInternal.
+	if e.execErr == nil && e.result != nil && e.result.TerminalError != nil {
+		e.execErr = e.result.TerminalError
+	}
+
 	// Categorize silent launch failures: a protected-sandbox run that
 	// returns Success=true after <2s with zero assistant message events
 	// almost certainly means the runner never actually started (the
@@ -1553,7 +1608,7 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 	}
 
 	e.revokeIdentityToken()
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
+	// Sandbox teardown is centralized in finalize() — see Execute()'s defer.
 }
 
 func (e *RunExecutor) handleFailure(ctx context.Context) {
@@ -1589,7 +1644,7 @@ func (e *RunExecutor) handleFailure(ctx context.Context) {
 	}
 
 	e.revokeIdentityToken()
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
+	// Sandbox teardown is centralized in finalize() — see Execute()'s defer.
 }
 
 func (e *RunExecutor) handleCancellation(ctx context.Context) {
@@ -1598,7 +1653,7 @@ func (e *RunExecutor) handleCancellation(ctx context.Context) {
 		e.applyAtRunEnd(ctx, domain.ContractRunOutcomeCancelled)
 	}
 	e.revokeIdentityToken()
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCancelled, "run cancelled")
+	// Sandbox teardown is centralized in finalize() — see Execute()'s defer.
 }
 
 // revokeIdentityToken marks the run's identity token as revoked.
@@ -1718,29 +1773,100 @@ func (e *RunExecutor) emitSystemEvent(ctx context.Context, level, message string
 // CLEANUP OPERATIONS
 // =============================================================================
 
-// cleanupOnFailure performs cleanup when a run fails.
-// NOTE: We intentionally do NOT delete the sandbox on failure.
-// This allows inspection of partial work and debugging.
+// cleanupOnFailure runs after a setup-phase failure (sandbox create, runner
+// acquire, in-place workspace resolution, etc.) before handleResult would
+// have run. It emits a status event noting whether the sandbox is being
+// preserved per the lifecycle config; the actual Delete/Stop call is
+// centralized in finalize() — see Execute()'s defer.
 func (e *RunExecutor) cleanupOnFailure(ctx context.Context) {
-	// Release any acquired locks
-	// (Future: implement lock cleanup when lock manager is wired up)
-
-	// Emit final status event
 	if e.shouldPreserveSandbox(domain.SandboxLifecycleRunFailed) {
 		e.emitSystemEvent(ctx, "info", "run failed - sandbox preserved for inspection")
 	}
-
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "failure cleanup")
 }
 
-func (e *RunExecutor) applySandboxLifecycle(ctx context.Context, event domain.SandboxLifecycleEvent, reason string) {
-	if e.sandboxFinalized {
+// finalize is the single terminal seam for a run. Registered as a `defer`
+// at the top of Execute, it ALWAYS runs — normal completion, panic, or
+// cancellation. It is idempotent: re-entry is a no-op.
+//
+// What it does:
+//  1. Advances phase to RunPhaseCleaningUp.
+//  2. Releases the sandbox per its lifecycle config (Delete or Stop).
+//  3. Advances phase to RunPhaseCompleted.
+//  4. Persists the final run state and broadcasts terminal status.
+//
+// Why it exists: see the 2026-04-28 incident in the file-level docstring.
+// Per-handler teardown using execCtx leaked sandbox mounts whenever
+// execCtx exhausted its deadline before teardown ran.
+//
+// Context discipline: finalize uses a fresh context.Background()-derived
+// timeout (TeardownTimeout). It does NOT take execCtx as a parameter —
+// the whole point is to be independent of execCtx's deadline and
+// cancellation. Callers that already passed execCtx through Execute can
+// stop worrying about it from this point forward.
+func (e *RunExecutor) finalize() {
+	if e.finalized {
 		return
 	}
+	e.finalized = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), e.config.TeardownTimeout)
+	defer cancel()
+
+	e.advancePhase(ctx, domain.RunPhaseCleaningUp)
+
+	event := lifecycleEventForStatus(e.run.Status)
+	e.applySandboxLifecycle(ctx, event, "finalize")
+
+	e.advancePhase(ctx, domain.RunPhaseCompleted)
+
+	if e.runs != nil {
+		if err := e.runs.Update(ctx, e.run); err != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to persist final run state: "+err.Error())
+		}
+	}
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
+}
+
+// lifecycleEventForStatus maps the run's terminal status to the
+// SandboxLifecycleEvent that finalize should fire. Centralized so the
+// switch is not duplicated across handlers.
+//
+// NeedsReview maps to RunCompleted: the apply step succeeded enough to
+// require operator review, so any StopOn=run_completed rule should fire.
+// Defensive default (status not yet terminal — e.g., panic before
+// handleResult) maps to RunFailed: treat as a failed run for teardown
+// purposes; the sandbox config decides whether to preserve.
+func lifecycleEventForStatus(status domain.RunStatus) domain.SandboxLifecycleEvent {
+	switch status {
+	case domain.RunStatusComplete:
+		return domain.SandboxLifecycleRunCompleted
+	case domain.RunStatusCancelled:
+		return domain.SandboxLifecycleRunCancelled
+	case domain.RunStatusNeedsReview:
+		return domain.SandboxLifecycleRunCompleted
+	default:
+		return domain.SandboxLifecycleRunFailed
+	}
+}
+
+// applySandboxLifecycle issues Delete or Stop on the sandbox per the run's
+// lifecycle config. Called only from finalize(); not safe to call from
+// other paths (no internal idempotency — the gate is finalize().finalized).
+//
+// The HTTP call uses a DETACHED context, not the supplied ctx. The supplied
+// ctx is used only for event emission (best-effort, tolerates cancellation).
+// Why detached: the supplied ctx is the run-scoped finalize context, which
+// is itself a fresh context.Background() in the production path — but
+// callers in tests sometimes pass an execCtx-shaped ctx. Detaching here
+// makes the function's contract explicit: teardown is independent of any
+// caller deadline. See run_executor.go file header for the 2026-04-28
+// mount-leak incident this guards against.
+func (e *RunExecutor) applySandboxLifecycle(ctx context.Context, event domain.SandboxLifecycleEvent, reason string) {
 	if e.run.RunMode != domain.RunModeSandboxed || e.sandboxID == nil || e.sandbox == nil {
 		return
 	}
-
 	cfg := e.effectiveSandboxConfig()
 	if cfg == nil {
 		return
@@ -1751,18 +1877,20 @@ func (e *RunExecutor) applySandboxLifecycle(ctx context.Context, event domain.Sa
 		events = append(events, domain.SandboxLifecycleTerminal)
 	}
 
+	teardownCtx, cancel := context.WithTimeout(context.Background(), e.config.TeardownTimeout)
+	defer cancel()
+
 	if hasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
-		if err := e.sandbox.Delete(ctx, *e.sandboxID); err != nil {
+		if err := e.sandbox.Delete(teardownCtx, *e.sandboxID); err != nil {
 			e.emitSystemEvent(ctx, "warn", "failed to delete sandbox: "+err.Error())
 		} else {
 			e.emitSystemEvent(ctx, "info", "sandbox deleted ("+reason+")")
-			e.sandboxFinalized = true
 		}
 		return
 	}
 
 	if hasLifecycleEvent(cfg.Lifecycle.StopOn, events) {
-		if err := e.sandbox.Stop(ctx, *e.sandboxID); err != nil {
+		if err := e.sandbox.Stop(teardownCtx, *e.sandboxID); err != nil {
 			e.emitSystemEvent(ctx, "warn", "failed to stop sandbox: "+err.Error())
 		} else {
 			e.emitSystemEvent(ctx, "info", "sandbox stopped ("+reason+")")
@@ -1892,11 +2020,21 @@ func (e *RunExecutor) applyAtRunEnd(ctx context.Context, outcome domain.Contract
 		return true
 	}
 
-	e.run.ApprovalState = domain.ApprovalStateApproved
-	e.run.Status = domain.RunStatusComplete
 	if result != nil && result.Applied == 0 {
 		e.emitSystemEvent(ctx, "info", "apply-at-run-end recorded empty provenance (no changes)")
+		if outcome != domain.ContractRunOutcomeSuccess {
+			// Empty provenance + non-success outcome: nothing was applied,
+			// so the "change is the audit unit" contract does NOT promote
+			// the failed run to Complete — there is no change to audit.
+			// Leave Status as set by handleFailure (RunStatusFailed) and
+			// don't promote ApprovalState to Approved either; both states
+			// belong to a successful apply, which didn't happen here.
+			// Regression of the 2026-04-28 silent-COMPLETE-despite-error bug.
+			return false
+		}
 	}
+	e.run.ApprovalState = domain.ApprovalStateApproved
+	e.run.Status = domain.RunStatusComplete
 	return true
 }
 

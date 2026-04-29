@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -343,6 +345,16 @@ func (s *Server) Cleanup() error {
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code.
+//
+// Embedding http.ResponseWriter does NOT propagate the writer's other
+// optional interfaces (Flusher, Hijacker, Pusher) to type assertions on
+// *responseWriter — Go interface satisfaction looks at the wrapper's own
+// method set. SSE handlers in this service do `w.(http.Flusher)`; without
+// explicit pass-through methods every SSE response would 500 with
+// "streaming not supported", silently breaking the agent-manager log
+// stream consumer (see ErrSandboxNoExitInfo). Each method below delegates
+// to the underlying writer when it actually supports the interface, and
+// no-ops otherwise so middleware composition stays robust.
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -351,6 +363,19 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, http.ErrNotSupported
 }
 
 // structuredLoggingMiddleware logs HTTP requests with structured JSON output.
@@ -519,8 +544,17 @@ func main() {
 	// Start background services before HTTP server
 	srv.StartServices()
 
+	// Forward server.* timeouts from local config so the SSE log-stream
+	// endpoint isn't capped by api-core's 30s WriteTimeout default.
+	// WriteTimeout is intentionally 0 (disabled) for this service —
+	// see config.Default for the rationale.
 	if err := server.Run(server.Config{
-		Handler: srv.Router(),
+		Handler:         srv.Router(),
+		Port:            srv.config.Server.Port,
+		ReadTimeout:     srv.config.Server.ReadTimeout,
+		WriteTimeout:    srv.config.Server.WriteTimeout,
+		IdleTimeout:     srv.config.Server.IdleTimeout,
+		ShutdownTimeout: srv.config.Server.ShutdownTimeout,
 		Cleanup: func(ctx context.Context) error {
 			return srv.Cleanup()
 		},

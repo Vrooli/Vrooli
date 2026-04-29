@@ -564,6 +564,13 @@ func (r *ClaudeCodeRunner) runDurableCommand(ctx context.Context, runID uuid.UUI
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = waitErr.Error()
+			// Propagate typed terminal errors (e.g. SANDBOX_NO_EXIT_INFO)
+			// so the orchestration layer's typed-error path classifies
+			// the failure correctly instead of falling through to
+			// ErrCodeInternal. Untyped errors leave TerminalError nil.
+			if _, ok := waitErr.(domain.DomainError); ok {
+				result.TerminalError = waitErr
+			}
 		}
 	} else if terminal != nil {
 		result.Success = terminal.Success

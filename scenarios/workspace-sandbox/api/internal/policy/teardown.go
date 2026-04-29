@@ -42,6 +42,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -167,18 +168,27 @@ func (p *HookTeardownPolicy) executeHook(ctx context.Context, hook TeardownHook,
 
 // buildTeardownHookEnv creates the environment variables for teardown hook execution.
 //
-// This provides the same sandbox metadata as validation hooks (SANDBOX_ID,
-// SANDBOX_SCOPE_PATH, etc.) plus SANDBOX_TEARDOWN_REASON so the hook knows
-// why teardown is happening.
+// Inherits the parent process environment so hooks see HOME, PATH, USER,
+// XDG_* etc. The default vrooli-heal-from-sandbox hook (and any user-
+// supplied hook command) needs these to resolve the user's home, locate
+// scenario state, and invoke shells/commands. Pre-2026-04-28 this returned
+// only SANDBOX_* variables, which made every teardown hook fail with
+// "$HOME is not defined".
+//
+// On top of the inherited environment we layer the sandbox metadata
+// (SANDBOX_ID, SANDBOX_SCOPE_PATH, etc.) plus SANDBOX_TEARDOWN_REASON so
+// the hook knows what's being torn down and why.
 func buildTeardownHookEnv(sandbox *types.Sandbox, reason string) []string {
-	return []string{
+	env := os.Environ()
+	env = append(env,
 		fmt.Sprintf("SANDBOX_ID=%s", sandbox.ID.String()),
 		fmt.Sprintf("SANDBOX_SCOPE_PATH=%s", sandbox.ScopePath),
 		fmt.Sprintf("SANDBOX_PROJECT_ROOT=%s", sandbox.ProjectRoot),
 		fmt.Sprintf("SANDBOX_UPPER_DIR=%s", sandbox.UpperDir),
 		fmt.Sprintf("SANDBOX_MERGED_DIR=%s", sandbox.MergedDir),
 		fmt.Sprintf("SANDBOX_TEARDOWN_REASON=%s", reason),
-	}
+	)
+	return env
 }
 
 // Verify interfaces are implemented.

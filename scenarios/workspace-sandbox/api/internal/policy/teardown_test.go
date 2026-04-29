@@ -2,6 +2,7 @@ package policy
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,21 @@ func TestHookTeardownPolicy_EnvVars(t *testing.T) {
 	}
 	if !strings.Contains(output, "SANDBOX_ID="+sbx.ID.String()) {
 		t.Errorf("missing SANDBOX_ID in env output:\n%s", output)
+	}
+
+	// Inherited parent-process env: pre-2026-04-28 the hook env was
+	// SANDBOX_*-only, which made the default vrooli-heal-from-sandbox
+	// hook fail with "$HOME is not defined" on every teardown.
+	// Hooks must inherit at minimum HOME and PATH from the parent.
+	if homeVal := os.Getenv("HOME"); homeVal != "" {
+		if !strings.Contains(output, "HOME="+homeVal) {
+			t.Errorf("missing inherited HOME=%s in hook env (regression of 2026-04-28 $HOME-not-defined bug):\n%s", homeVal, output)
+		}
+	}
+	if pathVal := os.Getenv("PATH"); pathVal != "" {
+		if !strings.Contains(output, "PATH="+pathVal) {
+			t.Errorf("missing inherited PATH in hook env:\n%s", output)
+		}
 	}
 }
 

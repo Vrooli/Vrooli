@@ -729,6 +729,17 @@ func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Clear the per-response write deadline so the SSE stream can stay
+	// open for the lifetime of the agent process — the server-wide
+	// http.Server.WriteTimeout (30s by default) would otherwise kill
+	// long-running streams mid-flight, surfacing as
+	// SANDBOX_NO_EXIT_INFO on the agent-manager side. Per-request ctx
+	// cancellation (client disconnect, server shutdown) still tears the
+	// stream down cleanly.
+	if rc := http.NewResponseController(w); rc != nil {
+		_ = rc.SetWriteDeadline(time.Time{})
+	}
+
 	ctx := r.Context()
 
 	// Stream log content. StreamLog replays existing disk content first

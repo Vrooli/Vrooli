@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"workspace-sandbox/internal/types"
 )
 
@@ -280,6 +282,30 @@ func (d *CopyDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
 	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
 	if err := os.RemoveAll(sandboxDir); err != nil {
 		return fmt.Errorf("failed to remove sandbox directory: %w", err)
+	}
+	return nil
+}
+
+// ListSandboxDirs walks BaseDir and returns the IDs of every UUID-named
+// subdirectory. See the Driver interface docstring for orphan-reconciliation
+// rationale.
+func (d *CopyDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return listSandboxDirsInBase(d.config.BaseDir)
+}
+
+// CleanupOrphan releases a sandbox by ID alone. CopyDriver has no mounts
+// to release, so this is purely directory removal. Idempotent: missing
+// dirs are a no-op.
+func (d *CopyDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	sandboxDir := filepath.Join(d.config.BaseDir, id.String())
+	if _, err := os.Stat(sandboxDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat orphan sandbox dir %q: %w", sandboxDir, err)
+	}
+	if err := os.RemoveAll(sandboxDir); err != nil {
+		return fmt.Errorf("remove orphan sandbox dir %q: %w", sandboxDir, err)
 	}
 	return nil
 }

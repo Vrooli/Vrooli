@@ -7,6 +7,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/google/uuid"
+
 	"workspace-sandbox/internal/types"
 )
 
@@ -132,6 +134,16 @@ func (m *Manager) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*typ
 // Cleanup removes all sandbox artifacts (dirs, mounts).
 func (m *Manager) Cleanup(ctx context.Context, s *types.Sandbox) error {
 	return m.Current().Cleanup(ctx, s)
+}
+
+// ListSandboxDirs returns the IDs of all sandbox directories on disk.
+func (m *Manager) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return m.Current().ListSandboxDirs(ctx)
+}
+
+// CleanupOrphan releases an orphaned sandbox by ID alone.
+func (m *Manager) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	return m.Current().CleanupOrphan(ctx, id)
 }
 
 // IsMounted verifies whether the sandbox overlay is currently mounted.

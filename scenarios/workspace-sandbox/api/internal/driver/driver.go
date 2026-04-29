@@ -30,11 +30,24 @@ const (
 )
 
 // MountPaths contains the paths used for overlay mounting.
+//
+// The home-overlay paths (HomeLowerDir/HomeUpperDir/HomeWorkDir/
+// HomeMergedDir) are populated when the driver mounts a per-sandbox
+// fuse-overlayfs over the host $HOME. The merged dir is bind-mounted
+// at /home/<user> inside the bwrap namespace so agent CLIs find their
+// host config while writes go to the upper layer (per-run, ephemeral).
+// They are zero when $HOME is not set or the driver chose not to set
+// up a home overlay (e.g. CopyDriver, tests).
 type MountPaths struct {
 	LowerDir  string // Read-only layer (canonical repo)
 	UpperDir  string // Writable layer (changes)
 	WorkDir   string // Overlayfs work directory
 	MergedDir string // Merged mount point
+
+	HomeLowerDir  string // Host $HOME, read-only via overlay
+	HomeUpperDir  string // Per-sandbox writable layer for $HOME writes
+	HomeWorkDir   string // fuse-overlayfs scratch dir for the home overlay
+	HomeMergedDir string // Merged $HOME mount point on the host side
 }
 
 // Driver is the interface for sandbox driver implementations.
@@ -59,6 +72,31 @@ type Driver interface {
 
 	// Cleanup removes all sandbox artifacts (dirs, mounts).
 	Cleanup(ctx context.Context, s *types.Sandbox) error
+
+	// --- Orphan Reconciliation (post-2026-04-28 mount-leak incident) ---
+
+	// ListSandboxDirs returns the IDs of all sandbox directories the
+	// driver has on disk under its BaseDir. Used by the filesystem
+	// orphan reconciler (see scenarios/workspace-sandbox/internal/sandbox/
+	// orphan_reconciler.go) to detect dirs/mounts the repository does
+	// not know about — e.g., from a database wipe, a crash mid-create,
+	// or a sandbox that was Delete()d at the API but whose teardown
+	// was killed before it finished.
+	//
+	// Implementations must skip non-UUID entries silently so unrelated
+	// driver bookkeeping (e.g., the LoadDriverPreference preference
+	// file under BaseDir) is not mistakenly reported as a sandbox.
+	// A missing BaseDir is not an error: an empty slice is returned.
+	ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error)
+
+	// CleanupOrphan releases an orphaned sandbox by ID alone. The
+	// caller has only a UUID (from a filesystem walk) and no
+	// *types.Sandbox record, because the orphan is by definition not
+	// in the repository. The driver must perform the same physical
+	// teardown as Cleanup — unmount(s), remove directory — using only
+	// the ID and BaseDir. Idempotent: missing dirs and already-
+	// unmounted overlays are not errors.
+	CleanupOrphan(ctx context.Context, id uuid.UUID) error
 
 	// --- Temporal Safety Methods ---
 

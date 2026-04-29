@@ -865,6 +865,11 @@ func (r *CodexRunner) runTranscriptCommand(
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = waitErr.Error()
+			// Propagate typed terminal errors so orchestration's typed
+			// classifier sees them. See claude_code.go for context.
+			if _, ok := waitErr.(domain.DomainError); ok {
+				result.TerminalError = waitErr
+			}
 		}
 	} else if terminal != nil {
 		result.Success = terminal.Success

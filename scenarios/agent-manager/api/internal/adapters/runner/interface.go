@@ -291,6 +291,15 @@ type ExecuteResult struct {
 	// SessionID is the runner-specific session identifier for conversation continuation.
 	// Populated from runner stream events (session_id, thread_id, sessionID).
 	SessionID string
+
+	// TerminalError carries a typed error when the runner detected a
+	// terminal failure (e.g. ErrSandboxNoExitInfo bubbling up from the
+	// sandbox launcher's Wait). When non-nil, the orchestration layer
+	// promotes it to e.execErr so the typed-error path classifies the
+	// failure correctly (SANDBOX_NO_EXIT_INFO, etc.). Optional —
+	// runners that don't have typed errors leave it nil and orchestration
+	// falls back to ErrorMessage as before.
+	TerminalError error
 }
 
 // ExecutionMetrics contains statistics about the execution.

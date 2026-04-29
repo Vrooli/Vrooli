@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/google/uuid"
+
 	"workspace-sandbox/internal/types"
 )
 
@@ -183,6 +185,39 @@ func (d *OverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
 	return cleanupSandboxDir(d.config.BaseDir, s.ID, func() error {
 		return d.Unmount(ctx, s)
 	})
+}
+
+// ListSandboxDirs walks BaseDir and returns the IDs of every UUID-named
+// subdirectory. See the Driver interface docstring for orphan-reconciliation
+// rationale.
+func (d *OverlayfsDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return listSandboxDirsInBase(d.config.BaseDir)
+}
+
+// CleanupOrphan releases a sandbox by ID alone. Idempotent. Lazy umount
+// (`umount -l`) is used because orphans by definition have no live
+// owning process to coordinate with — the caller is the reconciler,
+// not the agent that mounted it.
+func (d *OverlayfsDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	sandboxDir := filepath.Join(d.config.BaseDir, id.String())
+	if _, err := os.Stat(sandboxDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat orphan sandbox dir %q: %w", sandboxDir, err)
+	}
+
+	mergedDir := filepath.Join(sandboxDir, "merged")
+	if isMountPoint(mergedDir) {
+		// Best-effort: errors are surfaced via the rm -rf below if the
+		// FS is genuinely wedged.
+		_, _ = exec.CommandContext(ctx, "umount", "-l", mergedDir).CombinedOutput()
+	}
+
+	if err := os.RemoveAll(sandboxDir); err != nil {
+		return fmt.Errorf("remove orphan sandbox dir %q: %w", sandboxDir, err)
+	}
+	return nil
 }
 
 // --- Temporal Safety Methods ---

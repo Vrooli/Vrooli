@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -26,8 +27,19 @@ import (
 
 // WorkspaceSandboxProvider implements the Provider interface using workspace-sandbox.
 type WorkspaceSandboxProvider struct {
-	baseURL    string
+	baseURL string
+	// httpClient is used for short, request/response endpoints (sandbox
+	// CRUD, process spawn, apply-at-run-end). Has a 30s overall timeout
+	// because those endpoints should be fast.
 	httpClient *http.Client
+	// streamClient is used for long-lived SSE log streams. The default
+	// http.Client.Timeout is a *total* deadline including body read, so
+	// the same 30s limit would kill any agent run that exceeds 30 wall-
+	// clock seconds — exactly the silent failure observed 2026-04-28
+	// after the home-overlay refactor surfaced runs that actually run.
+	// We use Transport-level header/handshake timeouts instead so the
+	// request must connect quickly but can stream indefinitely.
+	streamClient *http.Client
 }
 
 // NewWorkspaceSandboxProvider creates a new workspace-sandbox provider.
@@ -36,6 +48,23 @@ func NewWorkspaceSandboxProvider(baseURL string) *WorkspaceSandboxProvider {
 		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
+		},
+		streamClient: &http.Client{
+			// No total Timeout — the body is the SSE stream. Connection
+			// and TLS handshake have explicit short timeouts; the
+			// per-request context (passed by callers) controls overall
+			// cancellation.
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   10 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				MaxIdleConns:          10,
+				IdleConnTimeout:       90 * time.Second,
+			},
 		},
 	}
 }
@@ -465,12 +494,10 @@ func (p *WorkspaceSandboxProvider) doRequest(ctx context.Context, method, path s
 }
 
 // doRawRequest sends a request with a caller-supplied body reader and
-// content-type. Used by the SandboxLauncher to (a) stream raw stdin bytes
-// to /processes/{pid}/stdin and (b) open long-lived SSE connections to
-// /processes/{pid}/logs/stream where the caller wants direct access to
-// the response body without JSON unmarshaling. The returned response uses
-// the same httpClient as doRequest, so timeouts and TLS settings stay
-// uniform across callers.
+// content-type. Used by the SandboxLauncher to stream raw stdin bytes
+// to /processes/{pid}/stdin. Uses the short-deadline httpClient because
+// stdin uploads are bounded and should fail fast on transport hiccups.
+// For long-lived SSE responses use doStreamRequest instead.
 func (p *WorkspaceSandboxProvider) doRawRequest(ctx context.Context, method, path, contentType string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, body)
 	if err != nil {
@@ -480,6 +507,19 @@ func (p *WorkspaceSandboxProvider) doRawRequest(ctx context.Context, method, pat
 		req.Header.Set("Content-Type", contentType)
 	}
 	return p.httpClient.Do(req)
+}
+
+// doStreamRequest opens a long-lived response (typically SSE) using the
+// streamClient. Unlike doRawRequest's 30s total-deadline client, this
+// uses Transport-level connect/handshake/header timeouts so the body
+// can stream for the lifetime of the underlying agent process. Cancel
+// via the supplied ctx to terminate the stream cleanly.
+func (p *WorkspaceSandboxProvider) doStreamRequest(ctx context.Context, method, path string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return p.streamClient.Do(req)
 }
 
 // SandboxAPIError represents a structured error response from the workspace-sandbox API.

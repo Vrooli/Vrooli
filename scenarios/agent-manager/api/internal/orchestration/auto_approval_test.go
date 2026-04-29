@@ -98,6 +98,15 @@ type stubSandbox struct {
 	applyResult *sandbox.ApplyAtRunEndResult
 	applyErr    error
 	applyHits   int
+
+	// Delete/Stop instrumentation. deleteCtxErr captures ctx.Err() at the
+	// moment Delete was called so finalize_test.go can assert that the
+	// teardown context is detached from any cancelled caller ctx.
+	deleteHits   int
+	deleteErr    error
+	deleteCtxErr error
+	stopHits     int
+	stopErr      error
 }
 
 func (s *stubSandbox) Create(context.Context, sandbox.CreateRequest) (*sandbox.Sandbox, error) {
@@ -107,7 +116,13 @@ func (s *stubSandbox) Create(context.Context, sandbox.CreateRequest) (*sandbox.S
 func (s *stubSandbox) Get(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
 	return nil, nil
 }
-func (s *stubSandbox) Delete(context.Context, uuid.UUID) error { return nil }
+
+func (s *stubSandbox) Delete(ctx context.Context, _ uuid.UUID) error {
+	s.deleteHits++
+	s.deleteCtxErr = ctx.Err()
+	return s.deleteErr
+}
+
 func (s *stubSandbox) GetWorkspacePath(context.Context, uuid.UUID) (string, error) {
 	return "", nil
 }
@@ -123,7 +138,11 @@ func (s *stubSandbox) Reject(context.Context, uuid.UUID, string) error { return 
 func (s *stubSandbox) PartialApprove(context.Context, sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error) {
 	return &sandbox.ApproveResult{Success: true}, nil
 }
-func (s *stubSandbox) Stop(context.Context, uuid.UUID) error  { return nil }
+
+func (s *stubSandbox) Stop(_ context.Context, _ uuid.UUID) error {
+	s.stopHits++
+	return s.stopErr
+}
 func (s *stubSandbox) Start(context.Context, uuid.UUID) error { return nil }
 func (s *stubSandbox) ValidatePath(context.Context, string, string) (*sandbox.PathValidationResult, error) {
 	return &sandbox.PathValidationResult{Valid: true}, nil
@@ -167,6 +186,14 @@ func newTestExecutorWithRun(t *testing.T, cfg *domain.SandboxConfig, run *domain
 		sandbox:   stub,
 		sandboxID: &sbxID,
 		events:    ev,
+		// finalize() and applySandboxLifecycle() use config.TeardownTimeout
+		// to bound their detached HTTP context. Use the production default
+		// here so unit-test paths exercise the same code path as prod.
+		config: DefaultExecutorConfig(),
+		// advancePhase() (called from finalize) updates the checkpoint;
+		// initialize it so the helper works in tests that drive finalize
+		// directly without going through Execute().
+		checkpoint: domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 	}
 	return exec, ev
 }
@@ -325,6 +352,59 @@ func TestRunExecutor_NoOpEmptyProvenance(t *testing.T) {
 	}
 	if _, ok := ev.findMessage("empty provenance"); !ok {
 		t.Error("expected info event acknowledging no-changes apply")
+	}
+}
+
+// TestApplyAtRunEnd_FailureWithEmptyProvenanceStaysFailed pins the
+// 2026-04-28 silent-COMPLETE-despite-error fix. When handleFailure calls
+// applyAtRunEnd with a non-success outcome AND the workspace-sandbox apply
+// reports zero changes (Applied=0), there is no auditable change to
+// promote — the run must remain in its failed state. Pre-fix, the empty
+// branch unconditionally set Status=Complete, so a sandboxed run that
+// emitted ErrSandboxNoExitInfo and produced no output came back to the
+// operator labeled COMPLETE despite a terminal error event in the timeline.
+func TestApplyAtRunEnd_FailureWithEmptyProvenanceStaysFailed(t *testing.T) {
+	stub := &stubSandbox{applyResult: &sandbox.ApplyAtRunEndResult{Success: true, Applied: 0}}
+	cfg := domain.DefaultSandboxConfig()
+	exec, ev := newTestExecutor(t, cfg, stub)
+	// Mirror handleFailure: the run is already marked Failed when it
+	// enters applyAtRunEnd via the failure-handler branch.
+	exec.run.Status = domain.RunStatusFailed
+
+	got := exec.applyAtRunEnd(context.Background(), domain.ContractRunOutcomeFailure)
+	if got {
+		t.Error("applyAtRunEnd must return false for empty-provenance failure (no change to apply)")
+	}
+	if exec.run.Status != domain.RunStatusFailed {
+		t.Errorf("Status must remain Failed after empty-provenance failure apply; got %q (regression of 2026-04-28 silent-COMPLETE bug)", exec.run.Status)
+	}
+	if exec.run.ApprovalState == domain.ApprovalStateApproved {
+		t.Errorf("ApprovalState must not be Approved when nothing was applied on a failed run; got %q", exec.run.ApprovalState)
+	}
+	if _, ok := ev.findMessage("empty provenance"); !ok {
+		t.Error("expected info event acknowledging the no-changes apply was attempted")
+	}
+}
+
+// TestApplyAtRunEnd_FailureWithPartialProvenanceMarksComplete is the
+// counterpart that pins the contract: when a failed run produced *some*
+// applied changes, the audit-of-change rule still flips it to Complete.
+// (Auditability favors recording the change; the failure flag is captured
+// in events.)
+func TestApplyAtRunEnd_FailureWithPartialProvenanceMarksComplete(t *testing.T) {
+	stub := &stubSandbox{applyResult: &sandbox.ApplyAtRunEndResult{
+		Success: true,
+		Applied: 2,
+	}}
+	cfg := domain.DefaultSandboxConfig()
+	exec, _ := newTestExecutor(t, cfg, stub)
+	exec.run.Status = domain.RunStatusFailed
+
+	if !exec.applyAtRunEnd(context.Background(), domain.ContractRunOutcomeFailure) {
+		t.Fatal("expected apply to succeed when failed run produced changes")
+	}
+	if exec.run.Status != domain.RunStatusComplete {
+		t.Errorf("failed run with applied changes must flip to Complete (audit-of-change contract); got %q", exec.run.Status)
 	}
 }
 
