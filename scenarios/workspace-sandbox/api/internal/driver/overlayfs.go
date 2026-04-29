@@ -15,6 +15,14 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+// Compile-time assertions: OverlayfsDriver implements both the composite
+// Driver interface AND MountVerifier (kernel overlayfs has a real mount
+// to verify).
+var (
+	_ Driver        = (*OverlayfsDriver)(nil)
+	_ MountVerifier = (*OverlayfsDriver)(nil)
+)
+
 // OverlayfsDriver implements the Driver interface using Linux overlayfs.
 type OverlayfsDriver struct {
 	config Config
@@ -44,26 +52,43 @@ func (d *OverlayfsDriver) Version() string {
 }
 
 // IsAvailable checks if overlayfs is available on this system.
+//
+// Contract: this driver is available when the kernel overlayfs module is
+// loaded AND the API can actually mount overlayfs — which on a stock
+// distro means we're either inside a user namespace (kernel 5.11+ allows
+// unprivileged mount via `unshare -U -m -r`) or running as root with
+// CAP_SYS_ADMIN. We don't perform a transient test mount; the boot-time
+// self-check in main.go verifies the deployment shape.
 func (d *OverlayfsDriver) IsAvailable(ctx context.Context) (bool, error) {
 	if runtime.GOOS != "linux" {
 		return false, fmt.Errorf("overlayfs driver requires Linux (current OS: %s)", runtime.GOOS)
 	}
 
-	// Check if overlayfs module is available
-	if _, err := os.Stat("/proc/filesystems"); err == nil {
-		data, err := os.ReadFile("/proc/filesystems")
-		if err == nil && strings.Contains(string(data), "overlay") {
-			return true, nil
+	// Module must be loaded.
+	moduleLoaded := false
+	if data, err := os.ReadFile("/proc/filesystems"); err == nil && strings.Contains(string(data), "overlay") {
+		moduleLoaded = true
+	} else {
+		cmd := exec.CommandContext(ctx, "modprobe", "-n", "overlay")
+		if err := cmd.Run(); err == nil {
+			moduleLoaded = true
 		}
 	}
-
-	// Try to check via modprobe (may need privileges)
-	cmd := exec.CommandContext(ctx, "modprobe", "-n", "overlay")
-	if err := cmd.Run(); err == nil {
-		return true, nil
+	if !moduleLoaded {
+		return false, fmt.Errorf("overlayfs module not available")
 	}
 
-	return false, fmt.Errorf("overlayfs module not available")
+	// We must be able to mount. Inside a user namespace the kernel allows
+	// unprivileged overlayfs mounts (5.11+). Otherwise CAP_SYS_ADMIN is
+	// required. checkCapSysAdmin already returns false when we're inside
+	// userns, so the two checks compose cleanly.
+	if InUserNamespace() {
+		return true, nil
+	}
+	if os.Geteuid() == 0 || checkCapSysAdmin() {
+		return true, nil
+	}
+	return false, fmt.Errorf("overlayfs module loaded but mount requires either a user namespace (`unshare -U -m -r`) or CAP_SYS_ADMIN")
 }
 
 // Mount creates the overlay mount for a sandbox.
@@ -221,15 +246,6 @@ func (d *OverlayfsDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error
 }
 
 // --- Temporal Safety Methods ---
-
-// IsMounted checks if the sandbox overlay is currently mounted.
-// Delegates to shared helper.
-func (d *OverlayfsDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, error) {
-	if s.MergedDir == "" {
-		return false, nil // No merge dir means nothing to check
-	}
-	return isMountPoint(s.MergedDir), nil
-}
 
 // VerifyMountIntegrity performs comprehensive health checks on the mount.
 // Delegates to shared helper.

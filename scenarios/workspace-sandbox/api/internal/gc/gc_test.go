@@ -181,20 +181,8 @@ func (m *MockDriverWithError) GetChangedFiles(ctx context.Context, sandbox *type
 	return nil, nil
 }
 
-func (m *MockDriverWithError) IsMounted(ctx context.Context, sandbox *types.Sandbox) (bool, error) {
-	return false, nil
-}
-
 func (m *MockDriverWithError) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
 	return nil
-}
-
-func (m *MockDriverWithError) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
-	return &driver.ExecResult{}, nil
-}
-
-func (m *MockDriverWithError) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
-	return 0, nil
 }
 
 func (m *MockDriverWithError) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {
@@ -364,20 +352,8 @@ func (m *MockDriver) GetChangedFiles(ctx context.Context, sandbox *types.Sandbox
 	return nil, nil
 }
 
-func (m *MockDriver) IsMounted(ctx context.Context, sandbox *types.Sandbox) (bool, error) {
-	return false, nil
-}
-
 func (m *MockDriver) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
 	return nil
-}
-
-func (m *MockDriver) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
-	return &driver.ExecResult{}, nil
-}
-
-func (m *MockDriver) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
-	return 0, nil
 }
 
 func (m *MockDriver) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {

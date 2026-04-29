@@ -208,23 +208,12 @@ func (d *fakeOrphanDriver) GetChangedFiles(context.Context, *types.Sandbox) ([]*
 	return nil, nil
 }
 func (d *fakeOrphanDriver) Cleanup(context.Context, *types.Sandbox) error { return nil }
-func (d *fakeOrphanDriver) IsMounted(context.Context, *types.Sandbox) (bool, error) {
-	return false, nil
-}
 func (d *fakeOrphanDriver) VerifyMountIntegrity(context.Context, *types.Sandbox) error {
 	return nil
 }
 
 func (d *fakeOrphanDriver) RemoveFromUpper(context.Context, *types.Sandbox, string) error {
 	return nil
-}
-
-func (d *fakeOrphanDriver) Exec(context.Context, *types.Sandbox, driver.BwrapConfig, string, ...string) (*driver.ExecResult, error) {
-	return nil, nil
-}
-
-func (d *fakeOrphanDriver) StartProcess(context.Context, *types.Sandbox, driver.BwrapConfig, string, ...string) (int, error) {
-	return 0, nil
 }
 
 // -----------------------------------------------------------------------------

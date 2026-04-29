@@ -322,20 +322,8 @@ func (m *mockDriver) GetChangedFiles(ctx context.Context, sandbox *types.Sandbox
 	return m.changedFiles, nil
 }
 
-func (m *mockDriver) IsMounted(ctx context.Context, sandbox *types.Sandbox) (bool, error) {
-	return m.mounted, nil
-}
-
 func (m *mockDriver) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
 	return m.verifyMountErr
-}
-
-func (m *mockDriver) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
-	return &driver.ExecResult{ExitCode: 0}, nil
-}
-
-func (m *mockDriver) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
-	return 12345, nil
 }
 
 func (m *mockDriver) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {

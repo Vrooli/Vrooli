@@ -16,6 +16,7 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	driverexec "workspace-sandbox/internal/driver/exec"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
@@ -25,9 +26,9 @@ import (
 // applyResourceLimitDefaults applies default resource limits from ExecutionConfig
 // when request values are 0, and clamps to maximum allowed values.
 func applyResourceLimitDefaults(
-	req driver.ResourceLimits,
+	req driverexec.ResourceLimits,
 	execCfg config.ExecutionConfig,
-) driver.ResourceLimits {
+) driverexec.ResourceLimits {
 	defaults := execCfg.DefaultResourceLimits
 	maxes := execCfg.MaxResourceLimits
 
@@ -70,12 +71,13 @@ func applyResourceLimitDefaults(
 	return result
 }
 
-// convertProfileToDriver converts a config.IsolationProfile to driver.IsolationProfile.
-func convertProfileToDriver(p *config.IsolationProfile) *driver.IsolationProfile {
+// convertProfileToDriver converts a config.IsolationProfile to the
+// exec-package representation used by ApplyIsolationProfile.
+func convertProfileToDriver(p *config.IsolationProfile) *driverexec.IsolationProfile {
 	if p == nil {
 		return nil
 	}
-	return &driver.IsolationProfile{
+	return &driverexec.IsolationProfile{
 		ID:             p.ID,
 		Name:           p.Name,
 		Description:    p.Description,
@@ -165,7 +167,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build bwrap config with resource limits and isolation level
-	cfg := driver.DefaultBwrapConfig()
+	cfg := driverexec.DefaultBwrapConfig()
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -186,13 +188,13 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	if h.ProfileStore != nil {
 		profile, profErr := h.ProfileStore.Get(isolationLevel)
 		if profErr == nil {
-			driver.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
+			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
 		} else if isolationLevel == "vrooli-aware" {
 			// Fallback for legacy "vrooli-aware" if not found in store
-			driver.ApplyVrooliAwareConfig(&cfg)
+			driverexec.ApplyVrooliAwareConfig(&cfg)
 		}
 	} else if isolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
+		driverexec.ApplyVrooliAwareConfig(&cfg)
 	}
 
 	// Override network if explicitly requested
@@ -201,7 +203,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set resource limits with defaults and clamping from ExecutionConfig
-	requestedLimits := driver.ResourceLimits{
+	requestedLimits := driverexec.ResourceLimits{
 		MemoryLimitMB: req.MemoryLimitMB,
 		CPUTimeSec:    req.CPUTimeSec,
 		MaxProcesses:  req.MaxProcesses,
@@ -210,8 +212,11 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg.ResourceLimits = applyResourceLimitDefaults(requestedLimits, h.Config.Execution)
 
-	// Execute the command (all drivers implement Exec via the Driver interface)
-	result, err := h.Driver().Exec(r.Context(), sb, cfg, req.Command, req.Args...)
+	// Execute the command. driverexec.DriverModeFor picks the correct
+	// isolation mode based on the active driver type (bwrap-required for
+	// kernel overlayfs, bwrap-preferred for fuse, none for copy).
+	d := h.Driver()
+	result, err := driverexec.Exec(r.Context(), sb, driverexec.DriverModeFor(d.Type()), cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -314,7 +319,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build bwrap config with resource limits and isolation level
-	cfg := driver.DefaultBwrapConfig()
+	cfg := driverexec.DefaultBwrapConfig()
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -335,13 +340,13 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	if h.ProfileStore != nil {
 		profile, profErr := h.ProfileStore.Get(isolationLevel)
 		if profErr == nil {
-			driver.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
+			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
 		} else if isolationLevel == "vrooli-aware" {
 			// Fallback for legacy "vrooli-aware" if not found in store
-			driver.ApplyVrooliAwareConfig(&cfg)
+			driverexec.ApplyVrooliAwareConfig(&cfg)
 		}
 	} else if isolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
+		driverexec.ApplyVrooliAwareConfig(&cfg)
 	}
 
 	// Override network if explicitly requested
@@ -351,7 +356,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 
 	// Set resource limits with defaults and clamping from ExecutionConfig
 	// Note: TimeoutSec is not used for background processes - use manual kill
-	requestedLimits := driver.ResourceLimits{
+	requestedLimits := driverexec.ResourceLimits{
 		MemoryLimitMB: req.MemoryLimitMB,
 		CPUTimeSec:    req.CPUTimeSec,
 		MaxProcesses:  req.MaxProcesses,
@@ -413,8 +418,10 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Start process
-	pid, err := h.Driver().StartProcess(r.Context(), sb, cfg, req.Command, req.Args...)
+	// Start process. driverexec.DriverModeFor picks the correct isolation
+	// mode based on the active driver type.
+	d := h.Driver()
+	pid, err := driverexec.StartProcess(r.Context(), sb, driverexec.DriverModeFor(d.Type()), cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			if abortErr := h.ProcessLogger.AbortPair(pendingPair); abortErr != nil {

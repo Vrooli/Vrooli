@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"workspace-sandbox/internal/driver"
+	driverexec "workspace-sandbox/internal/driver/exec"
 	"workspace-sandbox/internal/types"
 )
 
@@ -126,7 +126,7 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build bwrap config
-	cfg := driver.DefaultBwrapConfig()
+	cfg := driverexec.DefaultBwrapConfig()
 	if startReq.WorkingDir != "" {
 		cfg.WorkingDir = startReq.WorkingDir
 	}
@@ -136,13 +136,13 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 
 	// Set isolation level and related config
 	if startReq.IsolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
+		driverexec.ApplyVrooliAwareConfig(&cfg)
 	} else if startReq.AllowNetwork {
 		cfg.AllowNetwork = true
 	}
 
 	// Set resource limits
-	cfg.ResourceLimits = driver.ResourceLimits{
+	cfg.ResourceLimits = driverexec.ResourceLimits{
 		MemoryLimitMB: startReq.MemoryLimitMB,
 		CPUTimeSec:    startReq.CPUTimeSec,
 		MaxProcesses:  startReq.MaxProcesses,
@@ -154,9 +154,9 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 }
 
 // runInteractiveSession runs a command with PTY and streams I/O over WebSocket.
-func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.BwrapConfig, req InteractiveStartRequest) {
+func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest) {
 	// Build the command
-	executable, args := driver.BuildExecCommand(sb, cfg, req.Command, req.Args...)
+	executable, args := driverexec.BuildExecCommand(sb, cfg, req.Command, req.Args...)
 
 	cmd := exec.Command(executable, args...)
 	cmd.Dir = sb.MergedDir

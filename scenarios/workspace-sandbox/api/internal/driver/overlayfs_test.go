@@ -85,6 +85,13 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 		t.Errorf("MergedDir should be under base dir")
 	}
 
+	// Wire the returned mount paths onto the sandbox so Cleanup's
+	// Unmount step can find the merged dir to release.
+	sb.LowerDir = paths.LowerDir
+	sb.UpperDir = paths.UpperDir
+	sb.WorkDir = paths.WorkDir
+	sb.MergedDir = paths.MergedDir
+
 	// Clean up
 	if err := drv.Cleanup(ctx, sb); err != nil {
 		t.Errorf("Cleanup() failed: %v", err)

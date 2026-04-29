@@ -36,7 +36,7 @@ type StatsGetter interface {
 // Dependencies are expressed as interfaces to enable testing with mocks.
 type Handlers struct {
 	Service         sandbox.ServiceAPI // Service interface for testability
-	DriverManager   *driver.Manager    // Driver manager for hot-swapping drivers
+	DriverSlot      *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
 	DB              Pinger
 	Config          config.Config       // Unified configuration for accessing levers
 	StatsGetter     StatsGetter         // For retrieving sandbox statistics
@@ -47,10 +47,11 @@ type Handlers struct {
 	InUserNamespace bool                // Whether API is running in a user namespace
 }
 
-// Driver returns the current driver from the manager.
-// This is a convenience method that maintains backward compatibility.
+// Driver returns the active driver from the slot. Atomic load — safe for
+// in-flight ops to capture once at the top of an operation, matching the
+// prior Manager.Current() semantics.
 func (h *Handlers) Driver() driver.Driver {
-	return h.DriverManager
+	return h.DriverSlot.Current()
 }
 
 // Version is the API version string.

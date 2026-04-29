@@ -269,8 +269,11 @@ func TestCopyDriverGetChangedFilesSkipsOpaqueAndWhiteouts(t *testing.T) {
 	}
 }
 
-// TestCopyDriverIsMounted tests mount state checking
-func TestCopyDriverIsMounted(t *testing.T) {
+// TestCopyDriverMergedDirExists checks the merged-dir lifecycle:
+// before Mount the dir is absent, after Mount it exists, after Cleanup
+// it's gone. Replaces the dropped IsMounted() check — the copy driver
+// has no real mount, so directory presence is the only meaningful signal.
+func TestCopyDriverMergedDirExists(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sourceDir := filepath.Join(tmpDir, "source")
@@ -288,82 +291,33 @@ func TestCopyDriverIsMounted(t *testing.T) {
 		ProjectRoot: sourceDir,
 	}
 
-	// Before mount, should return false
-	mounted, err := drv.IsMounted(ctx, sandbox)
-	if err != nil {
-		t.Errorf("IsMounted() error: %v", err)
-	}
-	if mounted {
-		t.Error("IsMounted() should be false before Mount()")
-	}
-
-	// After mount
 	paths, err := drv.Mount(ctx, sandbox)
 	if err != nil {
 		t.Fatalf("Mount() failed: %v", err)
 	}
-	sandbox.MergedDir = paths.MergedDir
-
-	mounted, err = drv.IsMounted(ctx, sandbox)
-	if err != nil {
-		t.Errorf("IsMounted() error after mount: %v", err)
-	}
-	if !mounted {
-		t.Error("IsMounted() should be true after Mount()")
+	if _, err := os.Stat(paths.MergedDir); err != nil {
+		t.Errorf("merged dir should exist after Mount: %v", err)
 	}
 
-	// After cleanup
 	if err := drv.Cleanup(ctx, sandbox); err != nil {
 		t.Errorf("Cleanup() failed: %v", err)
 	}
-	mounted, err = drv.IsMounted(ctx, sandbox)
-	if err != nil {
-		t.Errorf("IsMounted() error after cleanup: %v", err)
-	}
-	if mounted {
-		t.Error("IsMounted() should be false after Cleanup()")
+	if _, err := os.Stat(paths.MergedDir); !os.IsNotExist(err) {
+		t.Errorf("merged dir should be removed after Cleanup, got err=%v", err)
 	}
 }
 
-// TestCopyDriverVerifyMountIntegrity tests integrity verification
-func TestCopyDriverVerifyMountIntegrity(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
-		t.Fatalf("failed to create source dir: %v", err)
+// TestCopyDriverIsNotMountVerifier guards the Phase 2 contract: CopyDriver
+// has no real mount and intentionally does NOT implement MountVerifier.
+// VerifyIfSupported should short-circuit to nil for it.
+func TestCopyDriverIsNotMountVerifier(t *testing.T) {
+	drv := NewCopyDriver(DefaultConfig())
+	if _, ok := interface{}(drv).(MountVerifier); ok {
+		t.Error("CopyDriver should NOT implement MountVerifier")
 	}
-
-	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg)
-	ctx := context.Background()
-
-	sandbox := &types.Sandbox{
-		ID:          uuid.New(),
-		ScopePath:   sourceDir,
-		ProjectRoot: sourceDir,
-	}
-
-	// Mount and verify
-	paths, err := drv.Mount(ctx, sandbox)
-	if err != nil {
-		t.Fatalf("Mount() failed: %v", err)
-	}
-	sandbox.MergedDir = paths.MergedDir
-	sandbox.LowerDir = paths.LowerDir
-
-	err = drv.VerifyMountIntegrity(ctx, sandbox)
-	if err != nil {
-		t.Errorf("VerifyMountIntegrity() should pass: %v", err)
-	}
-
-	// Cleanup and verify should fail
-	if err := drv.Cleanup(ctx, sandbox); err != nil {
-		t.Errorf("Cleanup() failed: %v", err)
-	}
-	err = drv.VerifyMountIntegrity(ctx, sandbox)
-	if err == nil {
-		t.Error("VerifyMountIntegrity() should fail after Cleanup()")
+	// VerifyIfSupported must return nil regardless of sandbox state.
+	if err := VerifyIfSupported(context.Background(), drv, &types.Sandbox{ID: uuid.New()}); err != nil {
+		t.Errorf("VerifyIfSupported on CopyDriver should return nil, got: %v", err)
 	}
 }
 
@@ -465,9 +419,14 @@ func TestSelectDriverFallsBackToCopy(t *testing.T) {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}
 
-	// Should return either overlayfs or copy driver
+	// Post-Phase 5 priority: kernel overlayfs > fuse-overlayfs > copy.
+	// Any of those is acceptable; we just want to confirm SelectDriver
+	// produced *some* valid driver.
 	drvType := drv.Type()
-	if drvType != DriverTypeOverlayfs && drvType != DriverTypeCopy {
+	switch drvType {
+	case DriverTypeOverlayfs, DriverTypeFuseOverlayfs, DriverTypeCopy:
+		// expected
+	default:
 		t.Errorf("SelectDriver() returned unexpected type: %v", drvType)
 	}
 

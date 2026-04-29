@@ -102,9 +102,17 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
-	// Wrap in Manager for hot-swap support
-	driverManager := driver.NewManager(initialDriver, driverCfg)
-	log.Printf("driver selected | type=%s version=%s", driverManager.Type(), driverManager.Version())
+	// Boot-time self-check: kernel overlayfs requires the API to be wrapped
+	// in `unshare -U -m -r` (see .vrooli/service.json:start-api). Without
+	// the wrapper, Mount() would fail at runtime; failing fatally at boot
+	// makes the deployment-shape contract explicit.
+	if initialDriver.Type() == driver.DriverTypeOverlayfs && !driver.InUserNamespace() {
+		log.Fatalf("driver overlayfs-userns selected but API is not running inside a user namespace; the start-api lifecycle step must wrap the binary with `unshare -U -m -r` (see .vrooli/service.json)")
+	}
+	// Hold the driver in an atomic.Pointer-backed slot so /api/v1/driver/select
+	// can hot-swap without locking every Driver() call.
+	driverSlot := driver.NewSlot(initialDriver)
+	log.Printf("driver selected | type=%s version=%s", initialDriver.Type(), initialDriver.Version())
 
 	// Initialize policies
 	attributionPolicy, err := policy.NewDefaultAttributionPolicy(cfg.Policy)
@@ -169,7 +177,7 @@ func NewServer() (*Server, error) {
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
-	svc := sandbox.NewService(repo, driverManager, svcCfg,
+	svc := sandbox.NewService(repo, driverSlot, svcCfg,
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
@@ -209,15 +217,18 @@ func NewServer() (*Server, error) {
 		DefaultLimit:         100,
 		MaxTotalSizeBytes:    cfg.Limits.MaxTotalSizeMB * 1024 * 1024,
 	}
-	gcService := gc.NewService(repo, driverManager, gcCfg)
+	gcService := gc.NewService(repo, driverSlot, gcCfg)
 
-	// Check if we're in a user namespace
-	inUserNS := namespace.Check().InUserNamespace
+	// Check if we're in a user namespace via /proc/self/uid_map.
+	// driver.InUserNamespace is the canonical probe; it agrees with the
+	// boot-time self-check above so the handlers and the driver layer
+	// see the same answer.
+	inUserNS := driver.InUserNamespace()
 
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
 		Service:         svc,
-		DriverManager:   driverManager,
+		DriverSlot:      driverSlot,
 		DB:              db,
 		Config:          cfg,
 		StatsGetter:     repo, // Repository implements StatsGetter
@@ -251,7 +262,7 @@ func NewServer() (*Server, error) {
 	// Create adapters for tool execution
 	processExecutor := toolexecution.NewProcessExecutorAdapter(toolexecution.ProcessExecutorConfig{
 		SandboxService: svc,
-		Driver:         driverManager,
+		Driver:         driverSlot,
 		ProcessTracker: processTracker,
 		ProcessLogger:  processLogger,
 		ProfileStore:   profileStore,
@@ -273,7 +284,7 @@ func NewServer() (*Server, error) {
 		config:           cfg,
 		db:               db,
 		router:           mux.NewRouter(),
-		driver:           driverManager,
+		driver:           driverSlot,
 		handlers:         h,
 		logger:           logger,
 		processTracker:   processTracker,
@@ -288,7 +299,7 @@ func NewServer() (*Server, error) {
 
 	logger.Info("server.initialized", "Server initialized successfully", map[string]interface{}{
 		"port":         cfg.Server.Port,
-		"driver":       driverManager.Type(),
+		"driver":       driverSlot.Type(),
 		"maxSandboxes": cfg.Limits.MaxSandboxes,
 	})
 
@@ -492,48 +503,16 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Decide whether to enter user namespace based on driver strategy.
-	//
-	// Key insight: fuse-overlayfs is already unprivileged (uses FUSE, not kernel mount).
-	// If we enter a user namespace with private mount propagation, the fuse-overlayfs
-	// mount becomes invisible to processes outside the namespace (like agent shells).
-	//
-	// Default behavior (optimized for agent integration):
-	// - If fuse-overlayfs is available → stay in host namespace (mounts visible)
-	// - If fuse-overlayfs unavailable → enter user namespace for native overlayfs
-	//
-	// Override with WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS=true to force user
-	// namespace even when fuse-overlayfs is available (better performance, isolated mounts).
-	preferNativeOverlayfs := os.Getenv("WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS") == "true" ||
-		os.Getenv("WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS") == "1"
-	fuseAvailable, _, _ := driver.IsFuseOverlayfsAvailable()
-
-	nsStatus := namespace.Check()
-
-	// Decision logic:
-	// 1. If already in namespace → continue (re-exec completed)
-	// 2. If fuse available AND not preferring native → stay in host namespace
-	// 3. If can create namespace AND (prefer native OR fuse unavailable) → enter namespace
-	// 4. Otherwise → use fallback (copy driver)
-	if nsStatus.InUserNamespace {
-		log.Printf("running in user namespace | kernel=%s overlayfs=%v",
-			nsStatus.KernelVersion, nsStatus.CanMountOverlayfs)
-	} else if fuseAvailable && !preferNativeOverlayfs {
-		// Best for agent integration: fuse-overlayfs in host namespace
-		// Mounts are visible to all processes (agents, shells, file managers)
-		log.Printf("using fuse-overlayfs in host namespace | mounts visible to all processes | kernel=%s",
-			nsStatus.KernelVersion)
-	} else if nsStatus.CanCreateUserNamespace {
-		// Enter user namespace for native overlayfs (better performance, isolated mounts)
-		log.Printf("entering user namespace for native overlayfs | kernel=%s | preferNative=%v fuseAvailable=%v",
-			nsStatus.KernelVersion, preferNativeOverlayfs, fuseAvailable)
-		if err := namespace.EnterUserNamespace(); err != nil {
-			// EnterUserNamespace only returns on error; success replaces the process
-			log.Printf("warning: failed to enter user namespace: %v (will use fallback driver)", err)
-		}
+	// User namespace + driver selection are decoupled from main's process
+	// model. Phase 5 makes overlayfs-userns the default, and the deployment
+	// wrapper (`unshare -U -m -r` in .vrooli/service.json:start-api) is
+	// responsible for placing the API inside a user namespace before main
+	// runs. NewServer's boot self-check fails fatally if the wrapper is
+	// misconfigured, so we don't try to re-exec ourselves here.
+	if driver.InUserNamespace() {
+		log.Printf("running in user namespace | kernel=%s", namespace.Check().KernelVersion)
 	} else {
-		log.Printf("no overlayfs available | kernel=%s reason=%s (will use copy driver)",
-			nsStatus.KernelVersion, nsStatus.Reason)
+		log.Printf("running in host namespace | kernel=%s", namespace.Check().KernelVersion)
 	}
 
 	srv, err := NewServer()

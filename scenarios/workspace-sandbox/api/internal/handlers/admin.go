@@ -196,9 +196,15 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hot-swap the driver using the manager
-	// This atomically switches to the new driver and saves the preference
-	if err := h.DriverManager.Switch(r.Context(), driver.DriverOptionID(req.DriverID)); err != nil {
+	// Hot-swap the driver via the slot. SwitchDriver does the
+	// validate → store → persist sequence atomically.
+	driverCfg := driver.Config{
+		BaseDir:          h.Config.Driver.BaseDir,
+		MaxSandboxes:     h.Config.Limits.MaxSandboxes,
+		MaxSizeMB:        h.Config.Limits.MaxSandboxSizeMB,
+		UseFuseOverlayfs: h.Config.Driver.UseFuseOverlayfs,
+	}
+	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.DriverOptionID(req.DriverID)); err != nil {
 		h.JSONError(w, "failed to switch driver: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

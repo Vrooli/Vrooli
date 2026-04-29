@@ -129,9 +129,9 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./workspace-sandbox-api",
+          "run": "cd api && exec unshare -U -m -r ./workspace-sandbox-api",
           "background": true,
-          "description": "Start Go API server in background",
+          "description": "Start Go API server inside an unprivileged user namespace (required for the kernel-overlayfs driver). Boot self-check fails fatally if the wrapper is missing.",
           "condition": {
             "file_exists": "api/workspace-sandbox-api"
           }

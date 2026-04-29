@@ -53,7 +53,7 @@ func newStartProcessHandlers(sb *types.Sandbox) *Handlers {
 			},
 		},
 		DB:            &mockPinger{},
-		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		DriverSlot:    driver.NewSlot(&mockDriver{available: true}),
 		Config:        config.Config{},
 	}
 }

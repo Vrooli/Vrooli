@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/types"
 )
 
@@ -104,8 +106,10 @@ func (s *Service) ReconcileActiveMounts(ctx context.Context, tracker *healTracke
 			continue
 		}
 
-		// Check mount health
-		if err := s.driver.VerifyMountIntegrity(ctx, sandbox); err == nil {
+		// Check mount health. Drivers without a real mount (CopyDriver)
+		// don't implement MountVerifier; VerifyIfSupported returns nil for
+		// them, so the heal loop never tries to auto-heal them.
+		if err := driver.VerifyIfSupported(ctx, s.driver, sandbox); err == nil {
 			// Mount is healthy; clear any prior failure state.
 			tracker.reset(sandbox.ID)
 			continue

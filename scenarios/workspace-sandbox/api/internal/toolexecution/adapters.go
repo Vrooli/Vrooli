@@ -18,6 +18,7 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	driverexec "workspace-sandbox/internal/driver/exec"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/types"
@@ -69,7 +70,7 @@ func (a *ProcessExecutorAdapter) ExecSync(ctx context.Context, sandboxID uuid.UU
 	}
 
 	// Build bwrap config
-	cfg := driver.DefaultBwrapConfig()
+	cfg := driverexec.DefaultBwrapConfig()
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -90,24 +91,25 @@ func (a *ProcessExecutorAdapter) ExecSync(ctx context.Context, sandboxID uuid.UU
 	if a.profileStore != nil {
 		profile, profErr := a.profileStore.Get(isolationLevel)
 		if profErr == nil {
-			driver.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
+			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
 		} else if isolationLevel == "vrooli-aware" {
-			driver.ApplyVrooliAwareConfig(&cfg)
+			driverexec.ApplyVrooliAwareConfig(&cfg)
 		}
 	} else if isolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
+		driverexec.ApplyVrooliAwareConfig(&cfg)
 	}
 
 	// Set resource limits
-	cfg.ResourceLimits = driver.ResourceLimits{
+	cfg.ResourceLimits = driverexec.ResourceLimits{
 		TimeoutSec: req.TimeoutSec,
 	}
 	if cfg.ResourceLimits.TimeoutSec == 0 {
 		cfg.ResourceLimits.TimeoutSec = 60
 	}
 
-	// Execute the command
-	result, err := a.driver.Exec(ctx, sb, cfg, req.Command, req.Args...)
+	// Execute the command via the canonical exec path. DriverModeFor picks
+	// the right isolation mode for the active driver.
+	result, err := driverexec.Exec(ctx, sb, driverexec.DriverModeFor(a.driver.Type()), cfg, req.Command, req.Args...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +142,7 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 	}
 
 	// Build bwrap config
-	cfg := driver.DefaultBwrapConfig()
+	cfg := driverexec.DefaultBwrapConfig()
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -161,12 +163,12 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 	if a.profileStore != nil {
 		profile, profErr := a.profileStore.Get(isolationLevel)
 		if profErr == nil {
-			driver.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
+			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
 		} else if isolationLevel == "vrooli-aware" {
-			driver.ApplyVrooliAwareConfig(&cfg)
+			driverexec.ApplyVrooliAwareConfig(&cfg)
 		}
 	} else if isolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
+		driverexec.ApplyVrooliAwareConfig(&cfg)
 	}
 
 	// No timeout for background processes
@@ -209,8 +211,8 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 		})
 	}
 
-	// Start process
-	pid, err := a.driver.StartProcess(ctx, sb, cfg, req.Command, req.Args...)
+	// Start the background process via the canonical exec path.
+	pid, err := driverexec.StartProcess(ctx, sb, driverexec.DriverModeFor(a.driver.Type()), cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			_ = a.processLogger.AbortPair(pendingPair)
@@ -343,12 +345,12 @@ func (a *ProcessExecutorAdapter) GetLogs(ctx context.Context, sandboxID uuid.UUI
 	return out, nil
 }
 
-// convertProfileToDriver converts a config.IsolationProfile to driver.IsolationProfile.
-func convertProfileToDriver(p *config.IsolationProfile) *driver.IsolationProfile {
+// convertProfileToDriver converts a config.IsolationProfile to driverexec.IsolationProfile.
+func convertProfileToDriver(p *config.IsolationProfile) *driverexec.IsolationProfile {
 	if p == nil {
 		return nil
 	}
-	return &driver.IsolationProfile{
+	return &driverexec.IsolationProfile{
 		ID:             p.ID,
 		Name:           p.Name,
 		Description:    p.Description,

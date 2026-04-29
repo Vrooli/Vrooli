@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	execStd "os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,6 +20,11 @@ import (
 
 	"workspace-sandbox/internal/types"
 )
+
+// Compile-time assertion that CopyDriver satisfies the composite Driver
+// interface (MountDriver + ChangeTracker). It intentionally does NOT
+// implement MountVerifier — callers use VerifyIfSupported.
+var _ Driver = (*CopyDriver)(nil)
 
 // CopyDriver implements the Driver interface using file copies.
 // This is a cross-platform fallback driver that works on any OS.
@@ -310,136 +314,9 @@ func (d *CopyDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// IsMounted always returns true for copy driver since there's no actual mount.
-func (d *CopyDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, error) {
-	// Check if the workspace directory exists
-	if s.MergedDir == "" {
-		return false, nil
-	}
-	_, err := os.Stat(s.MergedDir)
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// VerifyMountIntegrity checks that the workspace directories are intact.
-func (d *CopyDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
-	if s.MergedDir == "" {
-		return fmt.Errorf("workspace directory path is empty")
-	}
-
-	info, err := os.Stat(s.MergedDir)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("workspace directory does not exist: %s", s.MergedDir)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot stat workspace directory: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("workspace path is not a directory: %s", s.MergedDir)
-	}
-
-	// Check original dir exists too
-	if s.LowerDir != "" {
-		info, err = os.Stat(s.LowerDir)
-		if os.IsNotExist(err) {
-			return fmt.Errorf("original directory does not exist: %s", s.LowerDir)
-		}
-		if err != nil {
-			return fmt.Errorf("cannot stat original directory: %w", err)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("original path is not a directory: %s", s.LowerDir)
-		}
-	}
-
-	return nil
-}
-
-// --- Process Execution Methods (OT-P0-003) ---
-
-// Exec executes a command in the sandbox workspace.
-//
-// Unlike OverlayfsDriver, the CopyDriver doesn't use bubblewrap for isolation.
-// It simply runs the command in the workspace directory.
-//
-// Note: This provides no additional isolation - the process has full access
-// to the filesystem. For production use with untrusted code, use OverlayfsDriver
-// on Linux.
-func (d *CopyDriver) Exec(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (*ExecResult, error) {
-	if s.MergedDir == "" {
-		return nil, fmt.Errorf("sandbox workspace directory not set")
-	}
-
-	// For copy driver, we just run the command directly in the workspace
-	// No bwrap isolation available
-	execCmd := execStd.CommandContext(ctx, cmd, args...)
-	execCmd.Dir = s.MergedDir
-
-	// Set environment
-	env := os.Environ()
-	for k, v := range cfg.Env {
-		env = append(env, k+"="+v)
-	}
-	execCmd.Env = env
-
-	stdout, err := execCmd.Output()
-	exitCode := 0
-	var stderr []byte
-
-	if err != nil {
-		if exitErr, ok := err.(*execStd.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-			stderr = exitErr.Stderr
-		} else {
-			return nil, fmt.Errorf("failed to execute command: %w", err)
-		}
-	}
-
-	return &ExecResult{
-		ExitCode: exitCode,
-		Stdout:   stdout,
-		Stderr:   stderr,
-		PID:      0, // Not tracked for simple exec
-	}, nil
-}
-
-// StartProcess starts a background process in the sandbox workspace.
-//
-// Unlike OverlayfsDriver, this doesn't use bubblewrap for isolation.
-// The process runs directly in the workspace directory.
-//
-// stdout/stderr/stdin are wired from cfg per the BwrapConfig contract; the
-// driver also spawns a wait reaper that invokes cfg.OnExit when the process
-// terminates (when non-nil).
-func (d *CopyDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error) {
-	if s.MergedDir == "" {
-		return 0, fmt.Errorf("sandbox workspace directory not set")
-	}
-
-	execCmd := execStd.Command(cmd, args...)
-	execCmd.Dir = s.MergedDir
-
-	env := os.Environ()
-	for k, v := range cfg.Env {
-		env = append(env, k+"="+v)
-	}
-	execCmd.Env = env
-
-	wireStartProcessIO(execCmd, cfg)
-
-	if err := execCmd.Start(); err != nil {
-		return 0, fmt.Errorf("failed to start process: %w", err)
-	}
-
-	spawnExitReaper(execCmd, cfg.OnExit)
-
-	return execCmd.Process.Pid, nil
-}
+// CopyDriver intentionally does not implement MountVerifier: there is no
+// real mount to verify. Callers should use VerifyIfSupported, which
+// short-circuits to nil for drivers without a mount.
 
 // --- Helper Functions ---
 

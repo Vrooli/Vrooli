@@ -685,3 +685,86 @@ Tests pinning the contract:
   path for late SSE attachers.
 - `process.TestWaitForExit_ContextDeadline` — bounded wait must respect
   ctx so a stuck reaper does not hang the SSE stream forever.
+
+## Driver Layer (post-userns refactor)
+
+The `internal/driver` package is split into three orthogonal capability
+interfaces so each driver implementation declares exactly what it
+supports:
+
+- `MountDriver` — mount lifecycle (`Mount`/`Unmount`/`Cleanup`/
+  `ListSandboxDirs`/`CleanupOrphan`/`Type`/`Version`/`IsAvailable`).
+  Every driver implements it.
+- `ChangeTracker` — change detection seam (`GetChangedFiles`,
+  `RemoveFromUpper`). Every driver implements it.
+- `MountVerifier` — health-check seam (`VerifyMountIntegrity`).
+  `OverlayfsDriver` and `FuseOverlayfsDriver` implement it; `CopyDriver`
+  does NOT (no real mount to verify).
+
+`Driver = MountDriver + ChangeTracker` is the composite the service
+layer holds. Callers that want to verify a mount but might be holding a
+`CopyDriver` should call `driver.VerifyIfSupported(ctx, d, sb)`, which
+short-circuits to `nil` when the driver is not a `MountVerifier`.
+
+Process execution lives in the sub-package `driver/exec` behind a single
+`IsolationMode` knob:
+
+- `ModeNone` — no isolation, run in `s.MergedDir` directly. (`copy` driver)
+- `ModeBwrapPreferred` — bwrap if installed, direct fallback otherwise.
+  (`fuse-overlayfs` driver)
+- `ModeBwrapRequired` — bwrap or hard error. (`overlayfs` driver — the
+  mount lives inside the API's mount namespace, so a direct child can't
+  see it.)
+
+`exec.DriverModeFor(driverType)` is the single decision boundary; service
+code never picks a mode by hand.
+
+## Userns deployment contract (Phase 5)
+
+The default driver is **kernel overlayfs in an unprivileged user
+namespace** (`overlayfs-userns`). The deployment wrapper at
+`.vrooli/service.json:start-api` runs the API binary inside `unshare -U
+-m -r`, which is part of the contract:
+
+```
+"run": "cd api && exec unshare -U -m -r ./workspace-sandbox-api"
+```
+
+The boot self-check in `main.go::NewServer` verifies the wrapper is
+active by reading `/proc/self/uid_map` (via `driver.InUserNamespace`).
+If the selected driver is `overlayfs-userns` and the process is not
+inside a user namespace, the API exits fatally — no silent fallback.
+
+### Merged-dir visibility (cross-scenario invariant)
+
+Because the API runs inside its own user/mount namespace, sandbox merged
+directories are visible **only inside the API process's namespace**.
+This is fine for every in-process and child-process consumer, but
+operators who want to inspect a merged dir from a host shell must enter
+the namespace:
+
+```bash
+sudo nsenter -t $(pidof workspace-sandbox-api) -U -m
+```
+
+Or use the file-CRUD endpoints (`/api/v1/sandboxes/{id}/files/*`)
+which run in the API's namespace already.
+
+The agent-manager `SandboxLauncher`
+(`scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`)
+translates host merged paths to `/workspace` for in-namespace processes
+and never touches the merged dir from the host directly. Any future
+change to merged-path semantics must update that translator in lockstep.
+
+## Driver hot-swap (Phase 4)
+
+`driver.Slot` is a thread-safe holder for the active driver, backed by
+`atomic.Pointer[Driver]`. It implements `Driver` (and `MountVerifier`,
+which delegates via `VerifyIfSupported` so a slot wrapping `CopyDriver`
+returns `nil` rather than panicking).
+
+`driver.SwitchDriver(ctx, slot, cfg, optionID)` is the only path that
+mutates the slot in production. Sequence: `NewDriverFor` →
+`IsAvailable` → `Store` → `SaveDriverPreference`. In-flight ops
+captured the prior driver and continue with it; only new ops see the
+post-switch driver.

@@ -4,9 +4,7 @@ package driver
 import (
 	"context"
 	"os"
-	"os/exec"
 	"runtime"
-	"strings"
 
 	"workspace-sandbox/internal/namespace"
 )
@@ -345,15 +343,25 @@ func buildOverlayfsRootOption() DriverOption {
 		Requirements: make([]Requirement, 0),
 	}
 
-	// Requirement 1: Running as root or has CAP_SYS_ADMIN
-	isRoot := os.Geteuid() == 0
+	// Requirement 1: Running as root or has CAP_SYS_ADMIN, AND not inside
+	// a user namespace. Inside `unshare -U -r` Geteuid()==0 is true but
+	// only in the namespace; we still lack CAP_SYS_ADMIN on the host, so
+	// kernel overlayfs would mount via the userns code path — which is
+	// what OverlayfsUserNS already advertises. Showing both as available
+	// confuses operators, so we surface OverlayfsRoot only when we can
+	// genuinely use host-level privileges.
+	inUserNS := InUserNamespace()
+	isRoot := os.Geteuid() == 0 && !inUserNS
 	hasCapSysAdmin := checkCapSysAdmin()
 	privilegedOK := isRoot || hasCapSysAdmin
 
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name: "Root or CAP_SYS_ADMIN",
+		Name: "Root or CAP_SYS_ADMIN (host, not user namespace)",
 		Met:  privilegedOK,
 		Current: func() string {
+			if inUserNS {
+				return "running inside a user namespace; use OverlayfsUserNS"
+			}
 			if isRoot {
 				return "running as root"
 			}
@@ -363,6 +371,9 @@ func buildOverlayfsRootOption() DriverOption {
 			return "unprivileged"
 		}(),
 		HowToFix: func() string {
+			if inUserNS {
+				return "Switch to OverlayfsUserNS (the recommended driver) or remove the unshare wrapper to use OverlayfsRoot."
+			}
 			if !privilegedOK {
 				return "Run the API as root (sudo), or grant CAP_SYS_ADMIN: sudo setcap cap_sys_admin+ep /path/to/api"
 			}
@@ -413,20 +424,24 @@ func buildCopyDriverOption() DriverOption {
 }
 
 // markRecommended marks the best available option as recommended.
+//
+// Priority order (post-Phase 5):
+//  1. OverlayfsUserNS — kernel overlayfs in a user namespace. No
+//     fuse-overlayfs daemon overhead per mount; the host-visibility cost
+//     is irrelevant because every consumer of merged dirs runs inside
+//     the API process or as its child.
+//  2. FuseOverlayfs — daemon-per-mount fallback when the deployment
+//     isn't wrapped in `unshare -U -m -r`.
+//  3. OverlayfsRoot — kernel overlayfs with CAP_SYS_ADMIN. Rarely correct
+//     in single-tenant local dev.
+//  4. Copy — always available, slowest.
 func markRecommended(options []DriverOption) {
-	// Priority order for recommendation:
-	// 1. FUSE overlayfs (direct access, no root, good performance)
-	// 2. Overlayfs + root (direct access, best performance, but needs root)
-	// 3. Overlayfs + user namespace (no root, best performance, but no direct access)
-	// 4. Copy driver (always works, but slower)
-
 	priority := []DriverOptionID{
+		DriverOptionOverlayfsUserNS,
 		DriverOptionFuseOverlayfs,
 		DriverOptionOverlayfsRoot,
-		DriverOptionOverlayfsUserNS,
 		DriverOptionCopy,
 	}
-
 	for _, id := range priority {
 		for i := range options {
 			if options[i].ID == id && options[i].Available {
@@ -435,66 +450,4 @@ func markRecommended(options []DriverOption) {
 			}
 		}
 	}
-}
-
-// --- Helper functions ---
-
-// canCreateUserNamespace checks if user namespaces can be created.
-func canCreateUserNamespace() bool {
-	// Check the sysctl
-	data, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-	if err == nil {
-		val := strings.TrimSpace(string(data))
-		if val == "0" {
-			return false
-		}
-	}
-
-	// Try to actually create one
-	cmd := exec.Command("unshare", "--user", "true")
-	return cmd.Run() == nil
-}
-
-// commandExists checks if a command is available in PATH.
-func commandExists(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
-
-// getCommandVersion runs a command with a version flag and returns output.
-func getCommandVersion(name string, versionFlag string) string {
-	cmd := exec.Command(name, versionFlag)
-	out, err := cmd.Output()
-	if err != nil {
-		return "installed"
-	}
-	// Return first line only
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) > 0 {
-		return strings.TrimSpace(lines[0])
-	}
-	return "installed"
-}
-
-// fuseAvailable checks if FUSE is available.
-func fuseAvailable() bool {
-	_, err := os.Stat("/dev/fuse")
-	return err == nil
-}
-
-// checkCapSysAdmin checks if the process has CAP_SYS_ADMIN capability.
-func checkCapSysAdmin() bool {
-	// Try a simple test that requires CAP_SYS_ADMIN
-	// Creating a mount namespace requires this capability
-	cmd := exec.Command("unshare", "--mount", "true")
-	return cmd.Run() == nil
-}
-
-// overlayfsModuleAvailable checks if the overlayfs kernel module is available.
-func overlayfsModuleAvailable() bool {
-	data, err := os.ReadFile("/proc/filesystems")
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(data), "overlay")
 }
