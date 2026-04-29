@@ -53,8 +53,9 @@ func fuseAvailable() bool {
 // checkCapSysAdmin returns true when the process has effective CAP_SYS_ADMIN
 // in the host namespace. Inside a user namespace `unshare --mount` succeeds
 // even though the caller lacks CAP_SYS_ADMIN on the host, so we explicitly
-// treat that case as "no": OverlayfsRoot must not advertise as available
-// when the API is wrapped by `unshare -U -m -r` for OverlayfsUserNS.
+// treat that case as "no": the overlayfs-root flavor must not advertise
+// as available when the API is wrapped by `unshare -U -m -r` for the
+// overlayfs-userns flavor.
 func checkCapSysAdmin() bool {
 	if InUserNamespace() {
 		return false
@@ -79,8 +80,8 @@ func overlayfsModuleAvailable() bool {
 // shorter range) means we're sub-namespaced.
 //
 // Used by:
-//   - Boot-time self-check in main.go (fatal if OverlayfsDriver selected
-//     without userns wrapper).
+//   - Boot-time self-check in main.go (fatal if the overlayfs-userns
+//     driver is selected without a userns wrapper).
 //   - checkCapSysAdmin to suppress false-positives in `unshare -U -r`.
 //   - DriverOptionsResponse.InUserNamespace for the UI.
 func InUserNamespace() bool {

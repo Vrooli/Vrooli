@@ -33,7 +33,7 @@ func newProtectedSandboxFixture(id uuid.UUID, allowlist []string) *types.Sandbox
 		ProjectRoot:   "/project",
 		Owner:         "test-agent",
 		Status:        types.StatusActive,
-		DriverID: "overlayfs-userns",
+		DriverID:      "overlayfs-userns",
 		DriverVersion: "1.0",
 		CreatedAt:     time.Now(),
 		MergedDir:     "/tmp/sandbox/" + id.String() + "/merged",
@@ -52,9 +52,9 @@ func newStartProcessHandlers(sb *types.Sandbox) *Handlers {
 				return sb, nil
 			},
 		},
-		DB:            &mockPinger{},
-		DriverSlot:    driver.NewSlot(&mockDriver{available: true}),
-		Config:        config.Config{},
+		DB:         &mockPinger{},
+		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Config:     config.Config{},
 	}
 }
 

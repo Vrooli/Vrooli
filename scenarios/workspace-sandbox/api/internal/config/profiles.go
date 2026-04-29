@@ -182,7 +182,7 @@ func DefaultProfiles() []IsolationProfile {
 				// PATH includes the host $HOME/.local/bin (visible
 				// inside the sandbox via the HOME overlay at the same
 				// host path) so npm-style CLIs are reachable.
-				"PATH":        "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
+				"PATH": "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
 				// HOME points to the host home so $HOME-relative
 				// lookups resolve to the overlay merged dir, not /tmp.
 				"HOME":        "$HOME",

@@ -84,6 +84,24 @@ type Repository interface {
 	MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error
 	MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error)
 	GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
+
+	// Heal-state durability (Round 3 Phase 6). The auto-heal loop's
+	// failure history previously lived only in memory and was lost on
+	// restart, so a permanently broken sandbox would silently retry
+	// forever after every reboot.
+	GetHealState(ctx context.Context, sandboxID uuid.UUID) (*HealStateRow, error)
+	UpsertHealState(ctx context.Context, row HealStateRow) error
+	ClearHealState(ctx context.Context, sandboxID uuid.UUID) error
+	ListHealState(ctx context.Context) ([]HealStateRow, error)
+}
+
+// HealStateRow is the durable representation of a sandbox's auto-heal
+// failure history. Mirrors the heal_state SQLite table.
+type HealStateRow struct {
+	SandboxID           uuid.UUID
+	ConsecutiveFailures int
+	LastAttempt         time.Time
+	LastError           string
 }
 
 // TxRepository is a Repository bound to a transaction.

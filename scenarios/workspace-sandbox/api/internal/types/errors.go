@@ -246,7 +246,7 @@ func (e *IsolationProfileNotFoundError) Error() string {
 	return fmt.Sprintf("isolation profile not found: %q. Use a builtin profile or define a custom one.", e.ProfileID)
 }
 
-func (e *IsolationProfileNotFoundError) HTTPStatus() int { return http.StatusBadRequest }
+func (e *IsolationProfileNotFoundError) HTTPStatus() int   { return http.StatusBadRequest }
 func (e *IsolationProfileNotFoundError) IsRetryable() bool { return false }
 
 // Hint returns actionable guidance for resolving this error.
@@ -482,10 +482,10 @@ func (e *HomeOverlayUnavailableError) Error() string {
 	return fmt.Sprintf("home overlay unavailable: %v", e.Cause)
 }
 
-func (e *HomeOverlayUnavailableError) HTTPStatus() int { return http.StatusInternalServerError }
+func (e *HomeOverlayUnavailableError) HTTPStatus() int   { return http.StatusInternalServerError }
 func (e *HomeOverlayUnavailableError) IsRetryable() bool { return true }
-func (e *HomeOverlayUnavailableError) Unwrap() error    { return e.Cause }
-func (e *HomeOverlayUnavailableError) Code() string     { return "HOME_OVERLAY_UNAVAILABLE" }
+func (e *HomeOverlayUnavailableError) Unwrap() error     { return e.Cause }
+func (e *HomeOverlayUnavailableError) Code() string      { return "HOME_OVERLAY_UNAVAILABLE" }
 
 // NewHomeOverlayUnavailableError wraps cause as a HomeOverlayUnavailableError.
 func NewHomeOverlayUnavailableError(cause error) *HomeOverlayUnavailableError {
@@ -524,9 +524,9 @@ func (e *HomeOverlayRequiredError) Hint() string {
 // Details returns structured information for API responses.
 func (e *HomeOverlayRequiredError) Details() map[string]interface{} {
 	return map[string]interface{}{
-		"sandboxId":         e.SandboxID,
-		"profile":           e.Profile,
-		"homeOverlayState":  e.State,
+		"sandboxId":        e.SandboxID,
+		"profile":          e.Profile,
+		"homeOverlayState": e.State,
 	}
 }
 

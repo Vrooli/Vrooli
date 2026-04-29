@@ -1,7 +1,7 @@
 // Package driver provides sandbox driver interfaces and implementations.
 //
 // helpers.go contains shared helper functions for overlayfs-based drivers.
-// These functions are used by both OverlayfsDriver and FuseOverlayfsDriver
+// These functions are used by every OverlayDriver flavor (kernel and FUSE)
 // to avoid code duplication while maintaining proper separation of concerns.
 //
 // The pattern follows bwrap.go - package-level functions that drivers call
@@ -243,7 +243,7 @@ func listHomeOverlayDirs(homeOverlayBaseDir string) ([]uuid.UUID, error) {
 
 // getOverlayChangedFiles walks the upper directory and builds a list of FileChange
 // objects representing files that have been added, modified, or deleted.
-// Used by both OverlayfsDriver and FuseOverlayfsDriver.
+// Used by every OverlayDriver flavor (kernel and FUSE).
 func getOverlayChangedFiles(s *types.Sandbox) ([]*types.FileChange, error) {
 	if s.UpperDir == "" {
 		return nil, fmt.Errorf("sandbox upper directory not set")
@@ -608,7 +608,7 @@ func mergeUUIDLists(a []uuid.UUID, errA error, b []uuid.UUID, errB error) ([]uui
 //
 // This helper is shared across drivers because the layout convention
 // (one UUID-named dir per sandbox under BaseDir) is identical for
-// FuseOverlayfsDriver, OverlayfsDriver, and CopyDriver.
+// every OverlayDriver flavor and CopyDriver.
 func listSandboxDirsInBase(baseDir string) ([]uuid.UUID, error) {
 	if baseDir == "" {
 		return nil, nil

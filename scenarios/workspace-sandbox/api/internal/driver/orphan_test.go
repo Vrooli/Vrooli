@@ -154,7 +154,7 @@ func TestCopyDriver_OrphanReconciliation(t *testing.T) {
 	})
 }
 
-// FuseOverlayfsDriver and OverlayfsDriver share the same FS-walk +
+// All OverlayDriver flavors share the same FS-walk +
 // rm -rf path; the only delta is the unmount step (fusermount vs umount),
 // which is itself a best-effort guarded by isMountPoint(). Since we
 // don't create real mounts in unit tests, the unmount call short-

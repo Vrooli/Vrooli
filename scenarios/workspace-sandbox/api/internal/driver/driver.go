@@ -13,8 +13,7 @@
 //	options.go        DriverOption capability matrix
 //	probe.go          host capability probes
 //	helpers.go        shared overlayfs/cleanup helpers
-//	overlayfs.go      kernel overlayfs (OverlayfsUserNS, OverlayfsRoot)
-//	fuse_overlayfs.go fuse-overlayfs (incl. home overlay)
+//	overlay.go        unified OverlayDriver (overlayfs-userns, overlayfs-root, fuse-overlayfs)
 //	copy.go           cross-platform fallback
 //	exec/             process isolation (Exec, StartProcess, BwrapConfig, …)
 package driver

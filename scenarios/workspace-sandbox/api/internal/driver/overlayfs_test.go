@@ -13,16 +13,17 @@ import (
 )
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options.
-// Both UserNS and Root variants use the same OverlayfsDriver struct;
-// only the DriverID differs.
+// All overlay flavors use the same OverlayDriver struct; only the
+// DriverID and the per-flavor closures (mount/unmount/availability)
+// differ.
 func TestOverlayfsDriverID(t *testing.T) {
 	cases := []struct {
 		name string
-		ctor func() *OverlayfsDriver
+		ctor func() *OverlayDriver
 		want DriverID
 	}{
-		{"userns", func() *OverlayfsDriver { return NewOverlayfsUserNSDriver(DefaultConfig()) }, DriverOverlayfsUserNS},
-		{"root", func() *OverlayfsDriver { return NewOverlayfsRootDriver(DefaultConfig()) }, DriverOverlayfsRoot},
+		{"userns", func() *OverlayDriver { return NewOverlayfsUserNSDriver(DefaultConfig()) }, DriverOverlayfsUserNS},
+		{"root", func() *OverlayDriver { return NewOverlayfsRootDriver(DefaultConfig()) }, DriverOverlayfsRoot},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

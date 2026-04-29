@@ -23,12 +23,12 @@ type CandidateReport struct {
 // chosen. Logged at startup and surfaced via /api/v1/driver/options for
 // UI diagnostics.
 type SelectionReport struct {
-	Selected         DriverID          `json:"selected"`
-	InUserNamespace  bool              `json:"inUserNamespace"`
-	PreferenceFile   string            `json:"preferenceFile,omitempty"` // path that was checked
-	PreferenceValue  string            `json:"preferenceValue,omitempty"`
-	PreferenceUsed   bool              `json:"preferenceUsed"`
-	Candidates       []CandidateReport `json:"candidates"`
+	Selected        DriverID          `json:"selected"`
+	InUserNamespace bool              `json:"inUserNamespace"`
+	PreferenceFile  string            `json:"preferenceFile,omitempty"` // path that was checked
+	PreferenceValue string            `json:"preferenceValue,omitempty"`
+	PreferenceUsed  bool              `json:"preferenceUsed"`
+	Candidates      []CandidateReport `json:"candidates"`
 }
 
 // SelectDriver returns the best available driver for the current system.
@@ -45,8 +45,8 @@ func SelectDriver(ctx context.Context, cfg Config) (Driver, *SelectionReport, er
 	report := &SelectionReport{InUserNamespace: InUserNamespace()}
 
 	candidates := []struct {
-		id     DriverID
-		ctor   func() Driver
+		id   DriverID
+		ctor func() Driver
 	}{
 		{DriverOverlayfsUserNS, func() Driver { return NewOverlayfsUserNSDriver(cfg) }},
 		{DriverOverlayfsRoot, func() Driver { return NewOverlayfsRootDriver(cfg) }},

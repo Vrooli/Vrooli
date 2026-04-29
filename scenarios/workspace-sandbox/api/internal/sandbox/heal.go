@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/types"
 )
 
@@ -46,17 +48,62 @@ type healState struct {
 	lastError           string
 }
 
-// healTracker maintains in-memory failure state for auto-heal.
-// Resets on API restart, which is fine since restart triggers fresh reconciliation.
+// healTracker is a write-through cache over the heal_state SQLite
+// table. The in-memory map is the hot path; the repo is the source of
+// truth across API restarts. Round 3 Phase 6 closed the regression
+// where a permanently broken sandbox would silently retry forever
+// after every reboot because failure counters reset to zero.
+//
+// The repo handle may be nil (tests, defensive boot path); when it is
+// the cache acts as the only store and behaves like the pre-Phase-6
+// in-memory tracker.
 type healTracker struct {
 	mu       sync.Mutex
 	failures map[uuid.UUID]*healState
+	repo     repository.Repository
 }
 
 func newHealTracker() *healTracker {
 	return &healTracker{
 		failures: make(map[uuid.UUID]*healState),
 	}
+}
+
+// withRepo enables durability. The Service constructs the tracker
+// without a repo (the package-level newHealTracker keeps the cache-
+// only behavior for tests) and the Runner wires the repo in via
+// LoadFromRepo + SetRepo at boot.
+func (t *healTracker) withRepo(repo repository.Repository) *healTracker {
+	if t == nil {
+		return nil
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.repo = repo
+	return t
+}
+
+// loadFromRepo populates the in-memory cache from the durable store
+// at startup. Called once during Runner.Start before the first tick
+// so reconcilers see history that survived the last reboot.
+func (t *healTracker) loadFromRepo(ctx context.Context) error {
+	if t == nil || t.repo == nil {
+		return nil
+	}
+	rows, err := t.repo.ListHealState(ctx)
+	if err != nil {
+		return fmt.Errorf("load heal_state: %w", err)
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, row := range rows {
+		t.failures[row.SandboxID] = &healState{
+			consecutiveFailures: row.ConsecutiveFailures,
+			lastAttempt:         row.LastAttempt,
+			lastError:           row.LastError,
+		}
+	}
+	return nil
 }
 
 func (t *healTracker) get(id uuid.UUID) *healState {
@@ -67,7 +114,6 @@ func (t *healTracker) get(id uuid.UUID) *healState {
 
 func (t *healTracker) recordFailure(id uuid.UUID, now time.Time, errMsg string) int {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	s, ok := t.failures[id]
 	if !ok {
 		s = &healState{}
@@ -76,13 +122,67 @@ func (t *healTracker) recordFailure(id uuid.UUID, now time.Time, errMsg string) 
 	s.consecutiveFailures++
 	s.lastAttempt = now
 	s.lastError = errMsg
-	return s.consecutiveFailures
+	count := s.consecutiveFailures
+	repo := t.repo
+	row := repository.HealStateRow{
+		SandboxID:           id,
+		ConsecutiveFailures: count,
+		LastAttempt:         now,
+		LastError:           errMsg,
+	}
+	t.mu.Unlock()
+
+	if repo != nil {
+		if err := repo.UpsertHealState(context.Background(), row); err != nil {
+			// Durability is best-effort: a failed write means the next
+			// restart loses this increment, but the in-memory state still
+			// drives the loop-bomb escalation in this process. Log so
+			// operators see persistent DB trouble.
+			log.Printf("heal-state: upsert failed for %s: %v", id, err)
+		}
+	}
+	return count
 }
 
 func (t *healTracker) reset(id uuid.UUID) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	delete(t.failures, id)
+	repo := t.repo
+	t.mu.Unlock()
+	if repo != nil {
+		if err := repo.ClearHealState(context.Background(), id); err != nil {
+			log.Printf("heal-state: clear failed for %s: %v", id, err)
+		}
+	}
+}
+
+// activeCount returns the number of sandboxes currently tracked as
+// failing. Surfaced via metrics so operators can spot loop-bomb risk.
+func (t *healTracker) activeCount() int {
+	if t == nil {
+		return 0
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return len(t.failures)
+}
+
+// maxFailuresSeen returns the largest consecutive-failures count
+// across all tracked sandboxes. A spike on this gauge says "we have
+// at least one sandbox circling the loop-bomb threshold."
+func (t *healTracker) maxFailuresSeen() int {
+	if t == nil {
+		return 0
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	max := 0
+	for _, s := range t.failures {
+		if s.consecutiveFailures > max {
+			max = s.consecutiveFailures
+		}
+	}
+	return max
 }
 
 // ReconcileActiveMounts checks all Active sandboxes for stale mounts

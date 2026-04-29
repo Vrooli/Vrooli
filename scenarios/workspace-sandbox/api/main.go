@@ -48,7 +48,7 @@ type Server struct {
 	logger           *logging.Logger
 	processTracker   *process.Tracker // OT-P0-008: Process/Session Tracking
 	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
-	lifecycleRecon   *sandbox.LifecycleReconciler
+	lifecycleRecon   *sandbox.Runner
 	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
 
 	// Tool Discovery Protocol support
@@ -202,8 +202,7 @@ func NewServer() (*Server, error) {
 		MaxConsecutiveFailures: cfg.Lifecycle.AutoHealMaxRetries,
 		BaseBackoff:            cfg.Lifecycle.AutoHealBaseBackoff,
 	}
-	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval, healCfg).
-		WithManualReviewTTL(cfg.Lifecycle.ManualReviewTTL)
+	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, healCfg)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
@@ -252,6 +251,7 @@ func NewServer() (*Server, error) {
 		GCService:       gcService,
 		ProfileStore:    profileStore,
 		InUserNamespace: inUserNS,
+		Reconcilers:     lifecycleRecon,
 	}
 
 	// Initialize structured logger

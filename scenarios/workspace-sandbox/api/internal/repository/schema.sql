@@ -133,3 +133,19 @@ CREATE INDEX IF NOT EXISTS idx_applied_changes_conversation_id ON applied_change
 -- a trigger so the value format stays in lockstep with the RFC3339Nano
 -- format Go produces; SQLite's strftime drops trailing zeros differently
 -- and would yield mixed formats in the same column.
+
+-- heal_state: per-sandbox automatic-mount-heal failure history. Survives
+-- API restart so the loop-bomb (5 consecutive failures → mark Error) is
+-- not silently reset every reboot. Cleared on successful heal or
+-- sandbox delete. One row per sandbox; absence ≡ "no failures".
+--
+-- Round 3 (2026-04-29): introduced as the durable backing store for
+-- heal_state in internal/sandbox/heal.go.
+CREATE TABLE IF NOT EXISTS heal_state (
+    sandbox_id            TEXT PRIMARY KEY,
+    consecutive_failures  INTEGER NOT NULL DEFAULT 0,
+    last_attempt          TEXT NOT NULL,
+    last_error            TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (sandbox_id) REFERENCES sandboxes(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_heal_state_failures ON heal_state(consecutive_failures);

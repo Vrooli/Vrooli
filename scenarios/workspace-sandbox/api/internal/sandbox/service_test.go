@@ -220,6 +220,24 @@ func (m *mockRepository) GetPendingChangesByRun(ctx context.Context, projectRoot
 	return nil, nil
 }
 
+// Heal-state stubs (Round 3 Phase 6). The mock keeps no durable
+// state; tests that need it should use the real repository.
+func (m *mockRepository) GetHealState(ctx context.Context, id uuid.UUID) (*repository.HealStateRow, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) UpsertHealState(ctx context.Context, row repository.HealStateRow) error {
+	return nil
+}
+
+func (m *mockRepository) ClearHealState(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
+func (m *mockRepository) ListHealState(ctx context.Context) ([]repository.HealStateRow, error) {
+	return nil, nil
+}
+
 func (m *mockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return nil, errors.New("transactions not supported in mock")
 }
@@ -269,12 +287,12 @@ func newMockDriver() *mockDriver {
 	}
 }
 
-func (m *mockDriver) ID() driver.DriverID                { return "mock" }
+func (m *mockDriver) ID() driver.DriverID                 { return "mock" }
 func (m *mockDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
 func (m *mockDriver) Capabilities() driver.DriverCapabilities {
 	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
 }
-func (m *mockDriver) Version() string                    { return "1.0.0" }
+func (m *mockDriver) Version() string { return "1.0.0" }
 
 func (m *mockDriver) IsAvailable(ctx context.Context) (bool, error) {
 	return m.available, nil
@@ -445,7 +463,7 @@ func createTestSandbox(id uuid.UUID, status types.Status) *types.Sandbox {
 		Owner:         "test-user",
 		OwnerType:     types.OwnerTypeUser,
 		Status:        status,
-		DriverID: "mock",
+		DriverID:      "mock",
 		DriverVersion: "1.0.0",
 		LowerDir:      "/tmp/lower",
 		UpperDir:      "/tmp/upper",

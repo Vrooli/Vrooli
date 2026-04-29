@@ -102,8 +102,8 @@ func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, id DriverID) erro
 // continue with the driver they captured; new calls see the post-Switch
 // driver.
 
-func (s *Slot) ID() DriverID                       { return s.Current().ID() }
-func (s *Slot) Version() string                    { return s.Current().Version() }
+func (s *Slot) ID() DriverID    { return s.Current().ID() }
+func (s *Slot) Version() string { return s.Current().Version() }
 func (s *Slot) IsAvailable(ctx context.Context) (bool, error) {
 	return s.Current().IsAvailable(ctx)
 }

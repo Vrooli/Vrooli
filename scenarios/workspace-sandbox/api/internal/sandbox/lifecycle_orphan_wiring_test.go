@@ -1,4 +1,4 @@
-// Tests that LifecycleReconciler actually invokes the filesystem orphan
+// Tests that the Runner actually invokes the filesystem orphan
 // reconciler on both startup and every periodic tick. These are the
 // "verify the schedule fires" gates the user asked for after the
 // 2026-04-28 mount-leak incident — without them, a future refactor
@@ -35,18 +35,18 @@ func (d *countingDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, erro
 	return d.fakeOrphanDriver.ListSandboxDirs(ctx)
 }
 
-// TestLifecycleReconciler_Startup_InvokesOrphanReconciler — when Start()
+// TestRunner_Startup_InvokesOrphanReconciler — when Start()
 // is called, the very first synchronous pass MUST run the orphan
 // reconciler. Without this, a fresh process boot would delay orphan
 // cleanup until the first tick (potentially 15 minutes later).
-func TestLifecycleReconciler_Startup_InvokesOrphanReconciler(t *testing.T) {
+func TestRunner_Startup_InvokesOrphanReconciler(t *testing.T) {
 	repo := newFakeOrphanRepo()
 	drv := newCountingDriver()
 	svc := newReconcilerService(repo, drv.fakeOrphanDriver)
 	// Replace driver with the counting wrapper.
 	svc.driver = drv
 
-	r := NewLifecycleReconciler(svc, time.Hour, HealConfig{})
+	r := DefaultRunner(svc, time.Hour, 0, HealConfig{})
 	r.Start()
 	defer r.Stop()
 
@@ -66,16 +66,16 @@ func TestLifecycleReconciler_Startup_InvokesOrphanReconciler(t *testing.T) {
 	}
 }
 
-// TestLifecycleReconciler_PeriodicTick_InvokesOrphanReconciler — after
+// TestRunner_PeriodicTick_InvokesOrphanReconciler — after
 // the startup pass, each ticker fire must also run the orphan
 // reconciler. We use a 30ms interval so the test is fast.
-func TestLifecycleReconciler_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
+func TestRunner_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
 	repo := newFakeOrphanRepo()
 	drv := newCountingDriver()
 	svc := newReconcilerService(repo, drv.fakeOrphanDriver)
 	svc.driver = drv
 
-	r := NewLifecycleReconciler(svc, 30*time.Millisecond, HealConfig{})
+	r := DefaultRunner(svc, 30*time.Millisecond, 0, HealConfig{})
 	r.Start()
 	defer r.Stop()
 
@@ -95,17 +95,17 @@ func TestLifecycleReconciler_PeriodicTick_InvokesOrphanReconciler(t *testing.T) 
 	}
 }
 
-// TestLifecycleReconciler_Stop_ReleasesGoroutine — verifies Stop()
+// TestRunner_Stop_ReleasesGoroutine — verifies Stop()
 // terminates the goroutine. If it didn't, every test in this file
 // would leak goroutines and `go test -race` would eventually flag
 // them. Pins the contract for future readers.
-func TestLifecycleReconciler_Stop_ReleasesGoroutine(t *testing.T) {
+func TestRunner_Stop_ReleasesGoroutine(t *testing.T) {
 	repo := newFakeOrphanRepo()
 	drv := newCountingDriver()
 	svc := newReconcilerService(repo, drv.fakeOrphanDriver)
 	svc.driver = drv
 
-	r := NewLifecycleReconciler(svc, 10*time.Millisecond, HealConfig{})
+	r := DefaultRunner(svc, 10*time.Millisecond, 0, HealConfig{})
 	r.Start()
 	r.Stop()
 
@@ -114,17 +114,13 @@ func TestLifecycleReconciler_Stop_ReleasesGoroutine(t *testing.T) {
 	r.Stop()
 }
 
-// TestLifecycleReconciler_NilSafety — Start() and Stop() on a nil or
-// zero-service reconciler must not panic. Defensive coding so an
-// initialization failure can't take the whole API down.
-func TestLifecycleReconciler_NilSafety(t *testing.T) {
-	var nilRecon *LifecycleReconciler
-	nilRecon.Start() // no-op, no panic
-	nilRecon.Stop()  // no-op, no panic
-
-	emptyRecon := &LifecycleReconciler{}
-	emptyRecon.Start() // service is nil, must no-op
-	// Don't call Stop — channels are nil, would panic by design.
+// TestRunner_NilSafety — Start() and Stop() on a nil Runner must not
+// panic. Defensive coding so an initialization failure can't take the
+// whole API down.
+func TestRunner_NilSafety(t *testing.T) {
+	var nilRunner *Runner
+	nilRunner.Start() // no-op, no panic
+	nilRunner.Stop()  // no-op, no panic
 }
 
 // Compile-time guard: ensure the Driver interface still includes the

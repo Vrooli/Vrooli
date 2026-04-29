@@ -41,7 +41,7 @@ func (f *fakeProcFS) Open(pid string) (procEntry, error) {
 	return &e, nil
 }
 
-func (e *fakeProcEntry) Cmdline() []byte    { return e.cmdline }
+func (e *fakeProcEntry) Cmdline() []byte      { return e.cmdline }
 func (e *fakeProcEntry) StartTime() time.Time { return e.start }
 
 // TestReapStaleDaemons_FindsOrphan_SkipsLive_HonorsGrace covers the

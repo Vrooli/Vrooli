@@ -108,6 +108,19 @@ func (m *MockRepository) GetPendingChangesByRun(ctx context.Context, projectRoot
 	return nil, nil
 }
 
+// Heal-state stubs (Round 3 Phase 6).
+func (m *MockRepository) GetHealState(ctx context.Context, id uuid.UUID) (*repository.HealStateRow, error) {
+	return nil, nil
+}
+
+func (m *MockRepository) UpsertHealState(ctx context.Context, row repository.HealStateRow) error {
+	return nil
+}
+func (m *MockRepository) ClearHealState(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *MockRepository) ListHealState(ctx context.Context) ([]repository.HealStateRow, error) {
+	return nil, nil
+}
+
 func (m *MockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return &MockTxRepository{MockRepository: m}, nil
 }
@@ -140,12 +153,12 @@ func NewMockDriverWithError() *MockDriverWithError {
 	}
 }
 
-func (m *MockDriverWithError) ID() driver.DriverID                { return "mock" }
+func (m *MockDriverWithError) ID() driver.DriverID                 { return "mock" }
 func (m *MockDriverWithError) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
 func (m *MockDriverWithError) Capabilities() driver.DriverCapabilities {
 	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
 }
-func (m *MockDriverWithError) Version() string                    { return "1.0.0" }
+func (m *MockDriverWithError) Version() string { return "1.0.0" }
 func (m *MockDriverWithError) IsAvailable(ctx context.Context) (bool, error) {
 	return true, nil
 }
@@ -314,6 +327,19 @@ func (m *MockRepositoryWithError) GetPendingChangesByRun(ctx context.Context, pr
 	return nil, nil
 }
 
+// Heal-state stubs (Round 3 Phase 6).
+func (m *MockRepositoryWithError) GetHealState(ctx context.Context, id uuid.UUID) (*repository.HealStateRow, error) {
+	return nil, nil
+}
+
+func (m *MockRepositoryWithError) UpsertHealState(ctx context.Context, row repository.HealStateRow) error {
+	return nil
+}
+func (m *MockRepositoryWithError) ClearHealState(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *MockRepositoryWithError) ListHealState(ctx context.Context) ([]repository.HealStateRow, error) {
+	return nil, nil
+}
+
 func (m *MockRepositoryWithError) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return nil, nil
 }
@@ -325,12 +351,12 @@ type MockDriver struct {
 	cleanupCalled []uuid.UUID
 }
 
-func (m *MockDriver) ID() driver.DriverID                { return "mock" }
+func (m *MockDriver) ID() driver.DriverID                 { return "mock" }
 func (m *MockDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
 func (m *MockDriver) Capabilities() driver.DriverCapabilities {
 	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
 }
-func (m *MockDriver) Version() string                    { return "1.0.0" }
+func (m *MockDriver) Version() string { return "1.0.0" }
 func (m *MockDriver) IsAvailable(ctx context.Context) (bool, error) {
 	return true, nil
 }

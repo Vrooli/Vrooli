@@ -45,6 +45,7 @@ type Handlers struct {
 	GCService       GCService           // For garbage collection operations (OT-P1-003)
 	ProfileStore    config.ProfileStore // For isolation profile storage
 	InUserNamespace bool                // Whether API is running in a user namespace
+	Reconcilers     *sandbox.Runner     // Periodic reconciler dispatcher (Phase 2 Round 3)
 }
 
 // Driver returns the active driver from the slot. Atomic load — safe for
@@ -277,6 +278,12 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	// --- Admin: Audit Logs (OT-P1-004) ---
 	api.HandleFunc("/audit", h.GetAuditLog).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/audit", h.GetSandboxAuditLog).Methods("GET")
+
+	// --- Admin: Reconcilers (Round 3 Phase 2) ---
+	// On-demand trigger of one of the registered reconcilers
+	// (lifecycle, heal, orphan, daemon-reaper, manual-review-expiry).
+	api.HandleFunc("/admin/reconcilers", h.ListReconcilers).Methods("GET")
+	api.HandleFunc("/admin/reconcilers/{name}", h.RunReconciler).Methods("POST")
 
 	// --- Provenance Tracking ---
 	api.HandleFunc("/pending", h.GetPendingChanges).Methods("GET")

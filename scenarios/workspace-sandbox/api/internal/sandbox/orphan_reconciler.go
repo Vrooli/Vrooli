@@ -62,7 +62,7 @@ type OrphanCleanupFailure struct {
 //
 // This reconciler closes that gap. It is the second-line defense, run
 // once on startup (synchronously, so the boot log surfaces the orphan
-// count) and on every LifecycleReconciler tick (so any future drift is
+// count) and on every Runner tick (so any future drift is
 // caught within minutes).
 //
 // Safety properties:

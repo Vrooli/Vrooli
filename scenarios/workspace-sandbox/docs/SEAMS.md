@@ -905,3 +905,98 @@ tests substitute a synthetic `/proc` fixture.
 
 [CODE: `internal/sandbox/daemon_reaper.go::ReconcileStaleDaemons`] •
 [CODE: `internal/sandbox/lifecycle.go::runReconcilers`]
+
+## Round 3 (2026-04-29): orchestration-layer refactor
+
+### Driver collapse
+
+`OverlayfsDriver` and `FuseOverlayfsDriver` were byte-isomorphic on 8 of
+their methods. They are collapsed into a single `OverlayDriver` struct
+parameterized by:
+
+- `mountFunc` / `unmountFunc` — the kernel-syscall vs fuse-overlayfs
+  subprocess split.
+- `availabilityFunc` — userns vs root vs fuse-binary probe.
+- `version`, `isolation` — per-flavor static data.
+
+Three factories (`NewOverlayfsUserNSDriver`, `NewOverlayfsRootDriver`,
+`NewFuseOverlayfsDriver`) and the auto-pick `NewOverlayfsDriver` keep
+the wire surface identical: operators still see four `DriverOption`
+entries on `/driver/options`.
+
+[CODE: `internal/driver/overlay.go`]
+
+### Reconciler abstraction
+
+The Round-2 era hardcoded `LifecycleReconciler.runReconcilers` body
+inlined every reconciler in dependency order. Round 3 extracts a
+single `Reconciler` interface (`Name()` + `Run(ctx) ReconcileReport`)
+and a `Runner` that drives a slice in registration order. Order is
+data, not code.
+
+The four periodic reconcilers (`lifecycle`, `heal`, `orphan`,
+`daemon-reaper`) and the one startup-only (`manual-review-expiry`) all
+implement the interface. Per-reconciler metrics (last-run-at,
+items-processed, items-failed) fall out for free, surfaced via
+`Runner.Metrics()` and the new `POST /admin/reconcilers/{name}`
+endpoint that fires one on demand.
+
+[CODE: `internal/sandbox/reconciler.go::Reconciler` /
+`internal/sandbox/reconciler.go::Runner` /
+`internal/handlers/reconcilers.go`]
+
+### Home-overlay decision unification
+
+The same comparison
+(`profile.RequiresHomeOverlay && sb.HomeOverlayState != Present`)
+previously lived inline in three places. `internal/policy/home_overlay.go`
+now hosts a pure `DecideHomeOverlay(caps, profile, sb) HomeOverlayDecision`
+function consumed by the workspace-sandbox handler exec gate. The
+agent-manager mirror (`scenarios/agent-manager/.../sandbox_launcher.go`)
+exposes `IsHomeOverlayPresent(state) bool`; both predicates are pinned
+in lockstep by the parity test
+`agent-manager/.../home_overlay_policy_test.go::TestIsHomeOverlayPresent_ParityWithWorkspaceSandbox`.
+
+[CODE: `internal/policy/home_overlay.go::DecideHomeOverlay`] •
+[CODE: `internal/policy/home_overlay.go::IsHomeOverlayPresent`]
+
+### `internal/runtime/` package
+
+Profile resolution + home-overlay enforcement + protected-mode git
+allowlist + resource-limit defaulting moved out of the handler layer
+into `internal/runtime/`. The HTTP handler (`process.go`) shrinks to
+parse → call runtime → format response. A `process_loc_test.go`
+meta-test pins `process.go` ≤ 600 LOC so a future change can't
+re-balloon the file silently.
+
+[CODE: `internal/runtime/profile.go::ProfileResolver` /
+`internal/runtime/git_allowlist.go::EvaluateProtectedGitAllowlist`]
+
+### Service carving
+
+`internal/sandbox/service.go` (2,825 LOC, 60+ methods) was split into
+8 files by responsibility — `service_create.go`, `service_lifecycle.go`,
+`service_review.go`, `service_pending.go`, `service_acceptance.go`,
+`service_paths.go`, `service_audit.go`, `service_rebase.go`. The
+struct + ServiceAPI interface + ctor stay in `service.go` (now ≤ 350
+LOC). Mechanical move only; no logic changes.
+
+### Durable heal state
+
+The auto-heal failure tracker was in-memory only — a permanently
+broken sandbox would silently reset its loop-bomb counter on every
+API restart and retry forever. Phase 6 adds a `heal_state` SQLite
+table backing the in-memory cache (write-through). The Runner loads
+the table at boot before the first reconciler tick; metrics
+(`heal_state_active`, `heal_state_max_consecutive_failures`) make the
+loop-bomb risk observable.
+
+[CODE: `internal/repository/heal_state.go` /
+`internal/sandbox/heal.go::healTracker`]
+
+### Property tests for pathutil
+
+`internal/sandbox/pathutil_property_test.go` adds 4 properties using
+stdlib `testing/quick`: idempotence, traversal-rejection,
+encoding-invariance (NFC/NFD), and symlink-containment.
+

@@ -37,7 +37,7 @@ var _ Driver = (*CopyDriver)(nil)
 //  3. On diff, compares workspace against original to detect changes
 //  4. On approval, copies changed files back to the canonical repo
 //
-// # Trade-offs vs OverlayfsDriver
+// # Trade-offs vs OverlayDriver
 //
 // Pros:
 //   - Works on any OS (macOS, Windows, Linux without overlayfs)

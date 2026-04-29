@@ -153,6 +153,16 @@ func (r *fakeOrphanRepo) GetPendingChangesByRun(context.Context, string) ([]type
 	return nil, nil
 }
 
+func (r *fakeOrphanRepo) GetHealState(context.Context, uuid.UUID) (*repository.HealStateRow, error) {
+	return nil, nil
+}
+
+func (r *fakeOrphanRepo) UpsertHealState(context.Context, repository.HealStateRow) error { return nil }
+func (r *fakeOrphanRepo) ClearHealState(context.Context, uuid.UUID) error                { return nil }
+func (r *fakeOrphanRepo) ListHealState(context.Context) ([]repository.HealStateRow, error) {
+	return nil, nil
+}
+
 // -----------------------------------------------------------------------------
 // Driver stub for the reconciler
 // -----------------------------------------------------------------------------
@@ -196,8 +206,8 @@ func (d *fakeOrphanDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) erro
 // large; stubbing keeps the test type-safe without forcing real driver
 // setup (filesystem, exec, etc.) for tests that only need the orphan
 // surface.
-func (d *fakeOrphanDriver) ID() driver.DriverID                       { return "fake-orphan" }
-func (d *fakeOrphanDriver) RequiresBwrap() driver.IsolationMode       { return driver.ModeNone }
+func (d *fakeOrphanDriver) ID() driver.DriverID                 { return "fake-orphan" }
+func (d *fakeOrphanDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
 func (d *fakeOrphanDriver) Capabilities() driver.DriverCapabilities {
 	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
 }

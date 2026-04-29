@@ -59,7 +59,7 @@ func newTestSandbox() *types.Sandbox {
 		Owner:         "test-agent",
 		OwnerType:     types.OwnerTypeAgent,
 		Status:        types.StatusActive,
-		DriverID: "fuse-overlayfs",
+		DriverID:      "fuse-overlayfs",
 		DriverVersion: "1.0.0",
 		Tags:          []string{"unit", "test"},
 		Metadata:      map[string]any{"key": "value"},

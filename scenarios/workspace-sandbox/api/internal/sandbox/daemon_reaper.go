@@ -102,7 +102,8 @@ func (s *Service) ReconcileStaleDaemons(ctx context.Context) DaemonReapReport {
 func (s *Service) reconcileStaleDaemonsWithConfig(ctx context.Context, cfg DaemonReaperConfig, procFS interface {
 	Open(string) (procEntry, error)
 	List() ([]string, error)
-}) DaemonReapReport {
+},
+) DaemonReapReport {
 	start := time.Now()
 	report := DaemonReapReport{}
 	if s == nil || s.repo == nil {
