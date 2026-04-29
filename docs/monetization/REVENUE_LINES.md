@@ -29,6 +29,10 @@ A company with only subscriptions has one revenue line. Vrooli has multiple — 
 
 New candidates enter by adding a file to `revenue-lines/` via an approved decision. Retired lines stay in the folder with `Status: retired` — historical context matters for future decisions.
 
+### Channels are tracked separately
+
+Discovery channels (web SEO, app stores, skill registries, OSS discovery, community content, in-product expansion) are not revenue lines. They are *paths into* revenue lines and live as their own first-class axis with their own status lifecycle, owners, and telemetry. See [`CHANNELS.md`](CHANNELS.md) and [`channels/`](channels/) for the full set.
+
 ## Cross-cutting architectural rule for recommendation-adjacent lines
 
 Both `consumer-products` and `affiliate-commerce` share a hard architectural constraint that applies to any scenario participating in them:

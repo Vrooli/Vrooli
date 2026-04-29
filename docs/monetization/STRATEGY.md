@@ -4,11 +4,12 @@ Narrative framing and durable principles for how Vrooli monetizes. This document
 
 ## What Vrooli sells
 
-Three orthogonal axes — **what is packaged**, **how it reaches the user**, and **how money flows**:
+Four orthogonal axes — **what is packaged**, **how it's delivered**, **how it's discovered**, and **how money flows**:
 
-1. **Bundles of scenarios** — *what* is packaged. Themed collections that solve real problems. Today: business bundle (developer + solopreneur tools); next: lifestyle bundle (personal + household).
-2. **Delivery tiers** — *how* the bundles reach the user. Individual desktop/mobile apps, self-hosted full Vrooli runtime, hosted cloud Vrooli, and eventually a hardware appliance. Each tier has its own cost structure and price point.
-3. **Revenue lines** — *how* money flows. Distinct from bundles/tiers and tracked independently because their cost structures, acquisition channels, unit economics, and operational disciplines differ. See [REVENUE_LINES.md](REVENUE_LINES.md) for the full index.
+1. **Bundles of scenarios** — *what* is packaged. Themed collections that solve real problems. Today: business bundle (developer + solopreneur tools); next: lifestyle bundle (personal + household). See [CATALOG.md](CATALOG.md).
+2. **Delivery tiers** — *how* the bundles are delivered. Individual desktop/mobile apps, self-hosted full Vrooli runtime, hosted cloud Vrooli, and eventually a hardware appliance. Each tier has its own cost structure and price point. See [TIERS.md](TIERS.md).
+3. **Discovery channels** — *how* users find Vrooli. Web SEO, app stores, skill registries, OSS discovery, community content, in-product expansion. Each channel has its own audience, owner, and discipline. See [CHANNELS.md](CHANNELS.md).
+4. **Revenue lines** — *how* money flows. Distinct from bundles/tiers/channels and tracked independently because their cost structures, unit economics, and operational disciplines differ. See [REVENUE_LINES.md](REVENUE_LINES.md) for the full index.
 
 The current revenue lines are:
 
@@ -40,6 +41,8 @@ The free-self-host path builds brand credibility and produces evangelists. Most 
 Most SaaS companies spend heavily on lifecycle marketing — email drips, in-app nudges, webinar funnels — to get users to adopt more of the product. Vrooli has a structurally different surface: **the agents running in the user's workflow can organically suggest other apps from the bundle when relevant work appears.**
 
 This makes in-bundle expansion (the drive toward breadth-of-adoption, which is the strongest retention signal) a native capability, not a marketing function. When designing acquisition, activation, and upsell tactics, **default to agent-driven mechanisms over marketing-driven ones.** Only fall back to marketing when an agent surface cannot reach the relevant moment.
+
+The operational home for this principle is the [`in-product-expansion`](channels/in-product-expansion.md) channel — telemetry, anti-patterns, and recommendation-blindness alignment for lifestyle-bundle contexts live there.
 
 ### 3. Services are a deliberate lever, not a business
 
@@ -95,6 +98,8 @@ Where Vrooli is going beyond the near-term catalog. Two sub-categories — kept 
 Real directions the team is moving toward with concrete activation triggers. These are **not** `north-star` in the [TIERS.md](TIERS.md) lifecycle sense; they are `candidate` and can be planned against once their triggers fire.
 
 **Tier 3 — full-runtime hosted offering.** Users who want Vrooli without managing infrastructure get a hosted instance we run for them. Same runtime as self-hosted, on our infrastructure. Probably the largest long-term revenue surface because it captures users who would otherwise churn on setup friction. See [TIERS.md §"Tier 3"](TIERS.md) for activation trigger and capability prereqs.
+
+**Skill-registry distribution.** Agents running in Claude Code, Codex CLI, Gemini CLI, Cursor, and adjacent runtimes increasingly discover external capabilities through skill registries (Claude Skills, ClawHub/OpenClaw, skills.sh) rather than through web search or app stores. Vrooli is unusually well-positioned for this channel: the wrap-not-use principle and workspace-sandbox already produce the kind of audit-traceable, structurally-secure substrate that skill scanners reward. Plannable once the prerequisite — at least one Vrooli capability standalone-installable without the full runtime — is in place. See [`channels/skill-registries.md`](channels/skill-registries.md) for the channel discipline and [`docs/skills/`](../skills/) for the publishing pipeline.
 
 **Default-alive.** Monthly revenue meets or exceeds monthly burn, consistently, independent of funding. Every monetization-team decision should weigh its impact on the default-alive date. See [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) for the math and target.
 

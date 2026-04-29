@@ -131,6 +131,8 @@ What is the user doing?
 
 Skills are lazy-loaded — only pay context cost when relevant. The full instructions live in prompt-manager, not here.
 
+> **Two skill systems — don't confuse them.** The `prompt-manager` skills above are *internal* — instructions for an agent working on Vrooli right now. The top-level [`skills/`](skills/) folder is *publication source* for external Claude Skills (the open SKILL.md standard) that teach agents in *other* runtimes — Claude Code, Codex CLI, Cursor, etc. — how to use specific Vrooli capabilities standalone. Different audience, different content shape. Internal sessions should keep using `prompt-manager skill ...`; do not load the publication-source folder as if it were a runtime skills directory. See [`skills/README.md`](skills/README.md) for the full distinction.
+
 ## 🔧 Setup Configuration
 
 **Environment Profiles** (`--environment`):

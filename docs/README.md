@@ -35,6 +35,7 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 - [resources/README.md](resources/README.md) for the resource ecosystem
 - [strategy/README.md](strategy/README.md) for project framing, decisions, risks, and roadmap
 - [monetization/README.md](monetization/README.md) for the revenue / bundle / SKU canon
+- [skills/](skills/) for the external Claude Skills publishing pipeline (publishing guide, security baseline). The publication source itself lives at the repo top-level `skills/` folder; this `docs/skills/` directory holds the **how-to-publish** docs only.
 
 ## Structure
 
@@ -52,6 +53,7 @@ The project-level docs are organized around a stable taxonomy:
 - `resources/` for the resource system
 - `strategy/` for durable project framing and direction
 - `monetization/` for revenue / bundle / SKU canon
+- `skills/` for external-skills publishing pipeline (security baseline, publishing guide); the publication source itself lives at `<repo>/skills/`
 - `meta-optimization/` for self-improvement framework
 - `director-swarm/` for portfolio philosophy / roadmap / outcomes charter
 - `internal/` for docs-maintenance notes
