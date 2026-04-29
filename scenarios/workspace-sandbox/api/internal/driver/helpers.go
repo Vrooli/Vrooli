@@ -16,10 +16,10 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -244,12 +244,13 @@ func listHomeOverlayDirs(homeOverlayBaseDir string) ([]uuid.UUID, error) {
 // getOverlayChangedFiles walks the upper directory and builds a list of FileChange
 // objects representing files that have been added, modified, or deleted.
 // Used by every OverlayDriver flavor (kernel and FUSE).
-func getOverlayChangedFiles(s *types.Sandbox) ([]*types.FileChange, error) {
+func getOverlayChangedFiles(s *types.Sandbox, clk clock.Clock) ([]*types.FileChange, error) {
 	if s.UpperDir == "" {
 		return nil, fmt.Errorf("sandbox upper directory not set")
 	}
 
 	var changes []*types.FileChange
+	now := clk.Now()
 
 	err := filepath.Walk(s.UpperDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -318,7 +319,7 @@ func getOverlayChangedFiles(s *types.Sandbox) ([]*types.FileChange, error) {
 				ChangeType:     types.ChangeTypeDeleted,
 				FileSize:       fileSize,
 				FileMode:       fileMode,
-				DetectedAt:     time.Now(),
+				DetectedAt:     now,
 				ApprovalStatus: types.ApprovalPending,
 			}
 
@@ -336,7 +337,7 @@ func getOverlayChangedFiles(s *types.Sandbox) ([]*types.FileChange, error) {
 			ChangeType:     changeType,
 			FileSize:       info.Size(),
 			FileMode:       int(info.Mode()),
-			DetectedAt:     time.Now(),
+			DetectedAt:     now,
 			ApprovalStatus: types.ApprovalPending,
 		}
 

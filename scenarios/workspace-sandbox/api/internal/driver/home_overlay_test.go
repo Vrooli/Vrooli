@@ -108,10 +108,10 @@ func TestDriver_HomeOverlayCapability(t *testing.T) {
 		homeOverlay bool
 		cow         bool
 	}{
-		{"copy", NewCopyDriver(cfg), false, false},
-		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg), true, true},
-		{"overlayfs-userns", NewOverlayfsUserNSDriver(cfg), true, true},
-		{"overlayfs-root", NewOverlayfsRootDriver(cfg), true, true},
+		{"copy", NewCopyDriver(cfg, testClock()), false, false},
+		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testClock()), true, true},
+		{"overlayfs-userns", NewOverlayfsUserNSDriver(cfg, testClock()), true, true},
+		{"overlayfs-root", NewOverlayfsRootDriver(cfg, testClock()), true, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

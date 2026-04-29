@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -44,11 +45,15 @@ type OverlayDriver struct {
 	availability availabilityFunc
 	version      func() string
 	isolation    IsolationMode
+	clock        clock.Clock
 }
 
 // NewOverlayfsUserNSDriver builds the kernel-overlayfs flavor that runs
-// inside an unprivileged user namespace (Linux 5.11+).
-func NewOverlayfsUserNSDriver(cfg Config) *OverlayDriver {
+// inside an unprivileged user namespace (Linux 5.11+). clk is required.
+func NewOverlayfsUserNSDriver(cfg Config, clk clock.Clock) *OverlayDriver {
+	if clk == nil {
+		panic("driver.NewOverlayfsUserNSDriver: clock is required")
+	}
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
@@ -57,6 +62,7 @@ func NewOverlayfsUserNSDriver(cfg Config) *OverlayDriver {
 		config:    cfg,
 		isolation: ModeBwrapRequired,
 		version:   func() string { return "1.0" },
+		clock:     clk,
 	}
 	d.mount = kernelOverlayMount
 	d.unmount = kernelOverlayUnmount
@@ -77,7 +83,11 @@ func NewOverlayfsUserNSDriver(cfg Config) *OverlayDriver {
 
 // NewOverlayfsRootDriver builds the kernel-overlayfs flavor that runs as
 // root or with CAP_SYS_ADMIN on the host (NOT inside a user namespace).
-func NewOverlayfsRootDriver(cfg Config) *OverlayDriver {
+// clk is required.
+func NewOverlayfsRootDriver(cfg Config, clk clock.Clock) *OverlayDriver {
+	if clk == nil {
+		panic("driver.NewOverlayfsRootDriver: clock is required")
+	}
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
@@ -86,6 +96,7 @@ func NewOverlayfsRootDriver(cfg Config) *OverlayDriver {
 		config:    cfg,
 		isolation: ModeBwrapRequired,
 		version:   func() string { return "1.0" },
+		clock:     clk,
 	}
 	d.mount = kernelOverlayMount
 	d.unmount = kernelOverlayUnmount
@@ -109,8 +120,11 @@ func NewOverlayfsRootDriver(cfg Config) *OverlayDriver {
 
 // NewFuseOverlayfsDriver builds the userspace fuse-overlayfs flavor.
 // Available without a user namespace as long as the fuse-overlayfs
-// binary, fusermount, and /dev/fuse exist.
-func NewFuseOverlayfsDriver(cfg Config) *OverlayDriver {
+// binary, fusermount, and /dev/fuse exist. clk is required.
+func NewFuseOverlayfsDriver(cfg Config, clk clock.Clock) *OverlayDriver {
+	if clk == nil {
+		panic("driver.NewFuseOverlayfsDriver: clock is required")
+	}
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
@@ -119,6 +133,7 @@ func NewFuseOverlayfsDriver(cfg Config) *OverlayDriver {
 		config:    cfg,
 		isolation: ModeBwrapPreferred,
 		version:   fuseOverlayfsVersion,
+		clock:     clk,
 	}
 	d.mount = fuseOverlayMount
 	d.unmount = fuseOverlayUnmount
@@ -143,11 +158,11 @@ func NewFuseOverlayfsDriver(cfg Config) *OverlayDriver {
 // the current process: UserNS variant when wrapped in a user namespace,
 // Root variant otherwise. Convenience wrapper for tests and the
 // /driver/info diagnostic; production selection goes through SelectDriver.
-func NewOverlayfsDriver(cfg Config) *OverlayDriver {
+func NewOverlayfsDriver(cfg Config, clk clock.Clock) *OverlayDriver {
 	if InUserNamespace() {
-		return NewOverlayfsUserNSDriver(cfg)
+		return NewOverlayfsUserNSDriver(cfg, clk)
 	}
-	return NewOverlayfsRootDriver(cfg)
+	return NewOverlayfsRootDriver(cfg, clk)
 }
 
 // --- Driver interface ---
@@ -238,7 +253,7 @@ func (d *OverlayDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
 }
 
 func (d *OverlayDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
-	return getOverlayChangedFiles(s)
+	return getOverlayChangedFiles(s, d.clock)
 }
 
 func (d *OverlayDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {

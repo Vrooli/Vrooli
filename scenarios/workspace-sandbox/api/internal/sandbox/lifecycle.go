@@ -28,7 +28,7 @@ func (s *Service) ReconcileLifecycle(ctx context.Context) {
 		return
 	}
 
-	now := time.Now()
+	now := s.clock.Now()
 	for _, sandbox := range result.Sandboxes {
 		if sandbox == nil {
 			continue
@@ -97,17 +97,14 @@ func applyLifecycleTerminal(ctx context.Context, s *Service, sandbox *types.Sand
 // SourceWorkspaceSandboxGC (system-only) so reviewers can tell GC-driven
 // denials apart from operator denials.
 //
-// `now` is injected so tests can drive expiry deterministically; production
-// callers pass time.Now.
+// Time is sourced from s.clock so tests can drive expiry deterministically
+// via FakeClock.SetNow / FakeClock.Advance.
 //
 // Phase 4 of agent-sandbox-audit-foundation. See
 // scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
-func (s *Service) ReconcileManualReviewExpiry(ctx context.Context, ttl time.Duration, now func() time.Time) {
+func (s *Service) ReconcileManualReviewExpiry(ctx context.Context, ttl time.Duration) {
 	if s == nil || s.repo == nil || ttl <= 0 {
 		return
-	}
-	if now == nil {
-		now = time.Now
 	}
 
 	filter := &types.ListFilter{
@@ -119,7 +116,7 @@ func (s *Service) ReconcileManualReviewExpiry(ctx context.Context, ttl time.Dura
 		return
 	}
 
-	cutoff := now()
+	cutoff := s.clock.Now()
 	for _, sandbox := range result.Sandboxes {
 		if sandbox == nil {
 			continue

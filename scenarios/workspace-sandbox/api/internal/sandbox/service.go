@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/policy"
@@ -126,6 +127,7 @@ type Service struct {
 	repo   repository.Repository
 	driver driver.Driver
 	config ServiceConfig
+	clock  clock.Clock
 
 	// Policies — volatile decision points wired via ServiceOption.
 	attributionPolicy policy.AttributionPolicy
@@ -209,12 +211,20 @@ func WithGitOps(g diff.GitOperations) ServiceOption {
 	}
 }
 
-// NewService creates a new sandbox service.
-func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, opts ...ServiceOption) *Service {
+// NewService creates a new sandbox service. clk is required (idle
+// timeouts, audit timestamps, manual-review TTL evaluation, and the
+// per-sandbox auto-heal clock all flow through it). Production wires
+// clock.System{}; tests wire FakeClock so time-dependent behavior is
+// deterministic.
+func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk clock.Clock, opts ...ServiceOption) *Service {
+	if clk == nil {
+		panic("sandbox.NewService: clock is required")
+	}
 	s := &Service{
 		repo:   repo,
 		driver: drv,
 		config: cfg,
+		clock:  clk,
 		// Defaults: no-op policies + production GitOps.
 		validationPolicy: policy.NewNoOpValidationPolicy(),
 		teardownPolicy:   policy.NewNoOpTeardownPolicy(),

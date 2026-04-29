@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/clock"
 )
 
 // Stream identifies one of the two log streams for a process.
@@ -79,6 +81,7 @@ type Logger struct {
 	mu      sync.RWMutex
 	config  LogConfig
 	writers map[string]*logWriter // key: "{sandboxID}/{pid}/{stream}"
+	clock   clock.Clock
 }
 
 // logWriter handles writing to a single stream of a process log file. It
@@ -122,11 +125,17 @@ func (p *PendingLogPair) AsLogPair() LogPair {
 	return LogPair{Stdout: p.Stdout, Stderr: p.Stderr}
 }
 
-// NewLogger creates a new process logger.
-func NewLogger(cfg LogConfig) *Logger {
+// NewLogger creates a new process logger. clk is required (the log
+// header and exit-trailer timestamps go through it so tests can assert
+// the exact wording produced for a given exit info).
+func NewLogger(cfg LogConfig, clk clock.Clock) *Logger {
+	if clk == nil {
+		panic("process.NewLogger: clock is required")
+	}
 	return &Logger{
 		config:  cfg,
 		writers: make(map[string]*logWriter),
+		clock:   clk,
 	}
 }
 
@@ -150,11 +159,11 @@ func (l *Logger) CreatePendingLogPair(sandboxID uuid.UUID) (*PendingLogPair, err
 
 	tempID := uuid.New().String()[:8]
 
-	stdoutLW, err := openPendingStream(logDir, tempID, sandboxID, StreamStdout)
+	stdoutLW, err := openPendingStream(logDir, tempID, sandboxID, StreamStdout, l.clock)
 	if err != nil {
 		return nil, err
 	}
-	stderrLW, err := openPendingStream(logDir, tempID, sandboxID, StreamStderr)
+	stderrLW, err := openPendingStream(logDir, tempID, sandboxID, StreamStderr, l.clock)
 	if err != nil {
 		_ = stdoutLW.Close()
 		_ = os.Remove(stdoutLW.path)
@@ -169,14 +178,15 @@ func (l *Logger) CreatePendingLogPair(sandboxID uuid.UUID) (*PendingLogPair, err
 	}, nil
 }
 
-func openPendingStream(logDir, tempID string, sandboxID uuid.UUID, stream Stream) (*logWriter, error) {
+func openPendingStream(logDir, tempID string, sandboxID uuid.UUID, stream Stream, clk clock.Clock) (*logWriter, error) {
 	tempPath := filepath.Join(logDir, fmt.Sprintf("pending_%s.%s.log", tempID, stream))
 	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pending log file: %w", err)
 	}
+	now := clk.Now()
 	header := fmt.Sprintf("=== Process Log (%s) | Sandbox %s | Started %s ===\n\n",
-		stream, sandboxID.String(), time.Now().Format(time.RFC3339))
+		stream, sandboxID.String(), now.Format(time.RFC3339))
 	if _, err := file.WriteString(header); err != nil {
 		_ = file.Close()
 		return nil, fmt.Errorf("failed to write pending log header: %w", err)
@@ -188,7 +198,7 @@ func openPendingStream(logDir, tempID string, sandboxID uuid.UUID, stream Stream
 		sandboxID: sandboxID,
 		stream:    stream,
 		sizeBytes: int64(len(header)),
-		startedAt: time.Now(),
+		startedAt: now,
 	}, nil
 }
 
@@ -267,7 +277,7 @@ func (l *Logger) CloseLogPair(sandboxID uuid.UUID, pid int, info ExitInfo) error
 		}
 
 		footer := fmt.Sprintf("\n=== Process Exited: code %d signal %d oom %v | %s ===\n",
-			info.ExitCode, info.Signal, info.OOMKilled, time.Now().Format(time.RFC3339))
+			info.ExitCode, info.Signal, info.OOMKilled, l.clock.Now().Format(time.RFC3339))
 		if _, err := lw.Write([]byte(footer)); err != nil && firstErr == nil {
 			firstErr = err
 		}

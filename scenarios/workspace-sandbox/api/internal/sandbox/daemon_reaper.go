@@ -32,6 +32,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -93,18 +94,22 @@ type DaemonReapReport struct {
 //
 // DOC: daemon-reaper seam.
 func (s *Service) ReconcileStaleDaemons(ctx context.Context) DaemonReapReport {
-	return s.reconcileStaleDaemonsWithConfig(ctx, DefaultDaemonReaperConfig(), NewRealProcFS())
+	return s.ReconcileStaleDaemonsWithConfig(ctx, DefaultDaemonReaperConfig(), NewRealProcFS())
 }
 
-// reconcileStaleDaemonsWithConfig is the testable seam: takes an
-// fs.FS rooted at /proc plus the config, so unit tests can supply a
-// synthetic fixture (testing/fstest.MapFS) without spawning processes.
-func (s *Service) reconcileStaleDaemonsWithConfig(ctx context.Context, cfg DaemonReaperConfig, procFS interface {
-	Open(string) (procEntry, error)
+// ProcFS is the daemon reaper's view of /proc. Production wires the
+// real /proc-rooted impl via NewRealProcFS; tests inject a fake
+// (testutil/mocks/sandboxiface.FakeProcFS).
+type ProcFS interface {
+	Open(pid string) (ProcEntry, error)
 	List() ([]string, error)
-},
-) DaemonReapReport {
-	start := time.Now()
+}
+
+// ReconcileStaleDaemonsWithConfig is the testable seam: takes a ProcFS
+// plus the config, so unit tests can supply a synthetic fixture
+// without spawning processes.
+func (s *Service) ReconcileStaleDaemonsWithConfig(ctx context.Context, cfg DaemonReaperConfig, procFS ProcFS) DaemonReapReport {
+	start := s.clock.Now()
 	report := DaemonReapReport{}
 	if s == nil || s.repo == nil {
 		return report
@@ -116,7 +121,7 @@ func (s *Service) reconcileStaleDaemonsWithConfig(ctx context.Context, cfg Daemo
 		return report
 	}
 
-	now := time.Now()
+	now := s.clock.Now()
 	for _, pidStr := range pids {
 		pid, err := strconv.Atoi(pidStr)
 		if err != nil {
@@ -155,7 +160,7 @@ func (s *Service) reconcileStaleDaemonsWithConfig(ctx context.Context, cfg Daemo
 			continue
 		}
 
-		if err := killDaemon(pid, cfg.TermWait); err != nil {
+		if err := killDaemon(pid, cfg.TermWait, s.clock); err != nil {
 			log.Printf("daemon-reaper: kill pid=%d uuid=%s: %v", pid, id, err)
 			continue
 		}
@@ -169,29 +174,38 @@ func (s *Service) reconcileStaleDaemonsWithConfig(ctx context.Context, cfg Daemo
 		})
 	}
 
-	report.Duration = time.Since(start)
+	report.Duration = s.clock.Since(start)
 	return report
 }
 
 // daemonOwnerIsOrphan returns true if the sandbox referenced by id is
-// not in the repo or is marked deleted. Distinct from isOrphan() in
-// orphan_reconciler.go because that function refuses to act on
-// repo-error states (defensive); we want the same caution here.
+// not in the repo or is marked deleted. Mirrors isOrphan() in
+// orphan_reconciler.go: treat both repo's "missing" conventions
+// ((nil, nil) and *NotFoundError) as orphan, but refuse to act on
+// other repo errors (defensive — better to skip a daemon for one pass
+// than reap a process whose owner we can't confirm is gone).
 func (s *Service) daemonOwnerIsOrphan(ctx context.Context, id uuid.UUID) bool {
 	if s.repo == nil {
 		return false
 	}
 	sb, err := s.repo.Get(ctx, id)
 	if err == nil {
-		return sb != nil && sb.Status == types.StatusDeleted
+		// (nil, nil) means the row doesn't exist in the production repo.
+		if sb == nil {
+			return true
+		}
+		return sb.Status == types.StatusDeleted
 	}
 	var notFound *types.NotFoundError
 	return errors.As(err, &notFound)
 }
 
 // killDaemon sends SIGTERM, waits up to termWait, then SIGKILL.
-// Returns nil if the process is gone after the operation.
-func killDaemon(pid int, termWait time.Duration) error {
+// Returns nil if the process is gone after the operation. The poll loop
+// uses the supplied clock so tests can drive the wait deterministically
+// (FakeClock.Sleep advances the fake clock; the loop terminates after
+// one iteration once the deadline lies in the past).
+func killDaemon(pid int, termWait time.Duration, clk clock.Clock) error {
 	proc, err := os.FindProcess(pid)
 	if err != nil {
 		return fmt.Errorf("find process: %w", err)
@@ -203,12 +217,12 @@ func killDaemon(pid int, termWait time.Duration) error {
 		}
 		return fmt.Errorf("sigterm: %w", err)
 	}
-	deadline := time.Now().Add(termWait)
-	for time.Now().Before(deadline) {
+	deadline := clk.Now().Add(termWait)
+	for clk.Now().Before(deadline) {
 		if err := proc.Signal(syscall.Signal(0)); err != nil {
 			return nil // process gone
 		}
-		time.Sleep(100 * time.Millisecond)
+		clk.Sleep(100 * time.Millisecond)
 	}
 	if err := proc.Signal(syscall.SIGKILL); err != nil {
 		if errors.Is(err, syscall.ESRCH) || errors.Is(err, os.ErrProcessDone) {
@@ -230,10 +244,10 @@ func FormatDaemonReapReport(r DaemonReapReport) string {
 	)
 }
 
-// procEntry is the read-only view of a /proc/<pid> directory the
+// ProcEntry is the read-only view of a /proc/<pid> directory the
 // reaper needs. Implementations: realProcEntry (production) and
 // fixture-based (tests).
-type procEntry interface {
+type ProcEntry interface {
 	// Cmdline returns the contents of /proc/<pid>/cmdline. Args are
 	// NUL-separated; we just need substring matching, not parsing.
 	Cmdline() []byte
@@ -246,11 +260,8 @@ type procEntry interface {
 // realProcFS implements the fs interface against the host /proc.
 type realProcFS struct{ root string }
 
-// NewRealProcFS returns a /proc-rooted reaper FS.
-func NewRealProcFS() interface {
-	Open(string) (procEntry, error)
-	List() ([]string, error)
-} {
+// NewRealProcFS returns a /proc-rooted reaper ProcFS.
+func NewRealProcFS() ProcFS {
 	return &realProcFS{root: "/proc"}
 }
 
@@ -266,7 +277,7 @@ func (p *realProcFS) List() ([]string, error) {
 	return out, nil
 }
 
-func (p *realProcFS) Open(pid string) (procEntry, error) {
+func (p *realProcFS) Open(pid string) (ProcEntry, error) {
 	return &realProcEntry{path: filepath.Join(p.root, pid)}, nil
 }
 

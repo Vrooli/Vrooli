@@ -14,53 +14,30 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
-	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/testutil/mocks"
+	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 )
 
-// mockPinger is a mock implementation of the Pinger interface.
-type mockPinger struct {
-	err error
+// driverWithAvailability returns a FakeDriver whose IsAvailable
+// reports `available`. Tests for the health endpoint use this to
+// drive the "driver up/down" branch.
+func driverWithAvailability(available bool) *mocks.FakeDriver {
+	d := mocks.NewFakeDriver()
+	d.Available = available
+	return d
 }
 
-func (m *mockPinger) PingContext(ctx context.Context) error {
-	return m.err
-}
-
-// mockDriver is a mock implementation of the Driver interface.
-type mockDriver struct {
-	available bool
-	err       error
-}
-
-func (m *mockDriver) ID() driver.DriverID                 { return "mock" }
-func (m *mockDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
-func (m *mockDriver) Capabilities() driver.DriverCapabilities {
-	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
-}
-func (m *mockDriver) Version() string                               { return "test" }
-func (m *mockDriver) IsAvailable(ctx context.Context) (bool, error) { return m.available, m.err }
-func (m *mockDriver) Mount(ctx context.Context, s *types.Sandbox) (*driver.MountPaths, error) {
-	return nil, nil
-}
-func (m *mockDriver) Unmount(ctx context.Context, s *types.Sandbox) error { return nil }
-func (m *mockDriver) Cleanup(ctx context.Context, s *types.Sandbox) error { return nil }
-func (m *mockDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
-	return nil, nil
-}
-func (m *mockDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error { return nil }
-func (m *mockDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
-	return nil, nil
-}
-
-func (m *mockDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
-	return nil
-}
-
-func (m *mockDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {
-	return nil
+// driverWithErr returns a FakeDriver that reports unavailability with
+// the given error. Mirrors the original handlers_test mockDriver
+// constructor that took (available, err).
+func driverWithErr(available bool, err error) *mocks.FakeDriver {
+	d := driverWithAvailability(available)
+	d.IsAvailableErr = err
+	return d
 }
 
 // TestHealthHandler tests the Health endpoint handler.
@@ -108,8 +85,9 @@ func TestHealthHandler(t *testing.T) {
 			}
 
 			h := &Handlers{
-				DB:         &mockPinger{err: dbErr},
-				DriverSlot: driver.NewSlot(&mockDriver{available: tc.driverAvail}),
+				Clock:      clock.System{},
+				DB:         &mocks.FakePinger{Err: dbErr},
+				DriverSlot: driver.NewSlot(driverWithAvailability(tc.driverAvail)),
 				Config:     config.Config{},
 			}
 
@@ -142,8 +120,9 @@ func TestHealthHandler(t *testing.T) {
 // [REQ:REQ-P0-010] Health Check API Endpoint - JSON response schema validation
 func TestHealthResponseSchema(t *testing.T) {
 	h := &Handlers{
-		DB:         &mockPinger{err: nil},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -183,8 +162,9 @@ func TestHealthResponseSchema(t *testing.T) {
 // [REQ:REQ-P0-010] Health Check API Endpoint - content type validation
 func TestHealthContentType(t *testing.T) {
 	h := &Handlers{
-		DB:         &mockPinger{err: nil},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -199,175 +179,6 @@ func TestHealthContentType(t *testing.T) {
 	}
 }
 
-// --- Mock Service Implementation for Handler Tests ---
-
-// mockService implements sandbox.ServiceAPI for testing.
-type mockService struct {
-	createFn            func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
-	getFn               func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	listFn              func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
-	stopFn              func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	startFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	deleteFn            func(ctx context.Context, id uuid.UUID) error
-	getDiffFn           func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
-	approveFn           func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
-	applyAtRunEndFn     func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
-	rejectFn            func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
-	discardFn           func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
-	getWorkspaceFn      func(ctx context.Context, id uuid.UUID) (string, error)
-	checkConflictsFn    func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
-	rebaseFn            func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
-	validatePathFn      func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
-	getPendingChangesFn func(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
-	getFileProvenanceFn func(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
-	getCommitPreviewFn  func(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
-	commitPendingFn     func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
-}
-
-// Verify mockService implements ServiceAPI
-var _ sandbox.ServiceAPI = (*mockService)(nil)
-
-func (m *mockService) Create(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
-	if m.createFn != nil {
-		return m.createFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	if m.getFn != nil {
-		return m.getFn(ctx, id)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-	if m.listFn != nil {
-		return m.listFn(ctx, filter)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	if m.stopFn != nil {
-		return m.stopFn(ctx, id)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	if m.startFn != nil {
-		return m.startFn(ctx, id)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Delete(ctx context.Context, id uuid.UUID) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, id)
-	}
-	return fmt.Errorf("not implemented")
-}
-
-func (m *mockService) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
-	if m.getDiffFn != nil {
-		return m.getDiffFn(ctx, id)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Approve(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
-	if m.approveFn != nil {
-		return m.approveFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
-	if m.applyAtRunEndFn != nil {
-		return m.applyAtRunEndFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
-	if m.rejectFn != nil {
-		return m.rejectFn(ctx, id, actor)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Discard(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
-	if m.discardFn != nil {
-		return m.discardFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error) {
-	if m.getWorkspaceFn != nil {
-		return m.getWorkspaceFn(ctx, id)
-	}
-	return "", fmt.Errorf("not implemented")
-}
-
-func (m *mockService) CheckConflicts(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
-	if m.checkConflictsFn != nil {
-		return m.checkConflictsFn(ctx, id)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
-	if m.rebaseFn != nil {
-		return m.rebaseFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) ValidatePath(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
-	if m.validatePathFn != nil {
-		return m.validatePathFn(ctx, path, projectRoot)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
-	if m.getPendingChangesFn != nil {
-		return m.getPendingChangesFn(ctx, projectRoot, limit, offset)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
-	if m.getFileProvenanceFn != nil {
-		return m.getFileProvenanceFn(ctx, filePath, projectRoot, limit)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) GetCommitPreview(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error) {
-	if m.getCommitPreviewFn != nil {
-		return m.getCommitPreviewFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) CommitPending(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error) {
-	if m.commitPendingFn != nil {
-		return m.commitPendingFn(ctx, req)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockService) MarkCommitted(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error) {
-	return &types.MarkCommittedResult{MarkedCount: len(req.FilePaths)}, nil
-}
-
-func (m *mockService) GetProvenanceByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
-	return nil, nil
-}
-
 // --- CreateSandbox Handler Tests ---
 
 // TestCreateSandboxSuccess tests successful sandbox creation.
@@ -376,8 +187,8 @@ func TestCreateSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
 
-	svc := &mockService{
-		createFn: func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		CreateFn: func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
 			return &types.Sandbox{
 				ID:            testID,
 				ScopePath:     req.ScopePath,
@@ -393,9 +204,10 @@ func TestCreateSandboxSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -430,9 +242,10 @@ func TestCreateSandboxSuccess(t *testing.T) {
 // [REQ:REQ-P0-001] Fast Sandbox Creation - API returns 400 for invalid input
 func TestCreateSandboxInvalidJSON(t *testing.T) {
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -460,8 +273,8 @@ func TestCreateSandboxInvalidJSON(t *testing.T) {
 // TestCreateSandboxScopeConflict tests sandbox creation with scope conflict.
 // [REQ:REQ-P0-005] Scope Path Validation - API returns 409 for conflicting scope
 func TestCreateSandboxScopeConflict(t *testing.T) {
-	svc := &mockService{
-		createFn: func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		CreateFn: func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
 			return nil, &types.ScopeConflictError{
 				Conflicts: []types.PathConflict{
 					{
@@ -476,9 +289,10 @@ func TestCreateSandboxScopeConflict(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -499,8 +313,8 @@ func TestCreateSandboxScopeConflict(t *testing.T) {
 // TestListSandboxesEmpty tests listing sandboxes when none exist.
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns empty list
 func TestListSandboxesEmpty(t *testing.T) {
-	svc := &mockService{
-		listFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
+	svc := &sandboxiface.FakeService{
+		ListFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
 			return &types.ListResult{
 				Sandboxes:  []*types.Sandbox{},
 				TotalCount: 0,
@@ -511,9 +325,10 @@ func TestListSandboxesEmpty(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -540,8 +355,8 @@ func TestListSandboxesEmpty(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API filters by status
 func TestListSandboxesWithFilter(t *testing.T) {
 	var capturedFilter *types.ListFilter
-	svc := &mockService{
-		listFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
+	svc := &sandboxiface.FakeService{
+		ListFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
 			capturedFilter = filter
 			return &types.ListResult{
 				Sandboxes:  []*types.Sandbox{},
@@ -553,9 +368,10 @@ func TestListSandboxesWithFilter(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -590,8 +406,8 @@ func TestListSandboxesWithFilter(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns sandbox list
 func TestListSandboxesWithResults(t *testing.T) {
 	id1, id2 := uuid.New(), uuid.New()
-	svc := &mockService{
-		listFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
+	svc := &sandboxiface.FakeService{
+		ListFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
 			return &types.ListResult{
 				Sandboxes: []*types.Sandbox{
 					{ID: id1, ScopePath: "/project/src", Status: types.StatusActive},
@@ -605,9 +421,10 @@ func TestListSandboxesWithResults(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -639,8 +456,8 @@ func TestListSandboxesWithResults(t *testing.T) {
 // [REQ:REQ-P0-002] Stable Sandbox Identifier - API retrieves sandbox by ID
 func TestGetSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		getFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		GetFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return &types.Sandbox{
 				ID:          testID,
 				ScopePath:   "/project/src",
@@ -651,9 +468,10 @@ func TestGetSandboxSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -681,16 +499,17 @@ func TestGetSandboxSuccess(t *testing.T) {
 // [REQ:REQ-P0-002] Stable Sandbox Identifier - API returns 404 for unknown ID
 func TestGetSandboxNotFound(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		getFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		GetFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return nil, types.NewNotFoundError(id.String())
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -709,9 +528,10 @@ func TestGetSandboxNotFound(t *testing.T) {
 // [REQ:REQ-P0-002] Stable Sandbox Identifier - API validates UUID format
 func TestGetSandboxInvalidID(t *testing.T) {
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -732,16 +552,17 @@ func TestGetSandboxInvalidID(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API deletes sandbox
 func TestDeleteSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		deleteFn: func(ctx context.Context, id uuid.UUID) error {
+	svc := &sandboxiface.FakeService{
+		DeleteFn: func(ctx context.Context, id uuid.UUID) error {
 			return nil
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -760,16 +581,17 @@ func TestDeleteSandboxSuccess(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 404 for unknown ID
 func TestDeleteSandboxNotFound(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		deleteFn: func(ctx context.Context, id uuid.UUID) error {
+	svc := &sandboxiface.FakeService{
+		DeleteFn: func(ctx context.Context, id uuid.UUID) error {
 			return types.NewNotFoundError(id.String())
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -791,8 +613,8 @@ func TestDeleteSandboxNotFound(t *testing.T) {
 func TestStopSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
-	svc := &mockService{
-		stopFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		StopFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return &types.Sandbox{
 				ID:        testID,
 				Status:    types.StatusStopped,
@@ -802,9 +624,10 @@ func TestStopSandboxSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -834,8 +657,8 @@ func TestStopSandboxSuccess(t *testing.T) {
 // [REQ:REQ-P0-006] Diff Generation - API returns unified diff
 func TestGetDiffSuccess(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		getDiffFn: func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
+	svc := &sandboxiface.FakeService{
+		GetDiffFn: func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
 			return &types.DiffResult{
 				SandboxID:   testID,
 				UnifiedDiff: "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new",
@@ -851,9 +674,10 @@ func TestGetDiffSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -883,8 +707,8 @@ func TestGetDiffSuccess(t *testing.T) {
 // [REQ:REQ-P0-007] Patch Application - API approves all changes
 func TestApproveAllSuccess(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		approveFn: func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
+	svc := &sandboxiface.FakeService{
+		ApproveFn: func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
 			return &types.ApprovalResult{
 				Success:    true,
 				Applied:    3,
@@ -894,9 +718,10 @@ func TestApproveAllSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -931,8 +756,8 @@ func TestApproveAllSuccess(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API rejects sandbox
 func TestRejectSuccess(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		rejectFn: func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		RejectFn: func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
 			return &types.Sandbox{
 				ID:     testID,
 				Status: types.StatusRejected,
@@ -941,9 +766,10 @@ func TestRejectSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -975,8 +801,8 @@ func TestRejectSuccess(t *testing.T) {
 func TestDiscardSuccess(t *testing.T) {
 	testID := uuid.New()
 	fileID := uuid.New()
-	svc := &mockService{
-		discardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+	svc := &sandboxiface.FakeService{
+		DiscardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
 			return &types.DiscardResult{
 				Success:   true,
 				Discarded: 1,
@@ -987,9 +813,10 @@ func TestDiscardSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1024,8 +851,8 @@ func TestDiscardSuccess(t *testing.T) {
 // TestDiscardWithFilePaths tests discarding using file paths instead of IDs.
 func TestDiscardWithFilePaths(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		discardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+	svc := &sandboxiface.FakeService{
+		DiscardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
 			if len(req.FilePaths) != 1 || req.FilePaths[0] != "path/to/file.txt" {
 				t.Errorf("Expected filePaths to contain path/to/file.txt, got %v", req.FilePaths)
 			}
@@ -1039,9 +866,10 @@ func TestDiscardWithFilePaths(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1062,9 +890,10 @@ func TestDiscardWithFilePaths(t *testing.T) {
 func TestDiscardMissingFiles(t *testing.T) {
 	testID := uuid.New()
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1084,9 +913,10 @@ func TestDiscardMissingFiles(t *testing.T) {
 // TestDiscardInvalidSandboxID tests that discard rejects invalid sandbox IDs.
 func TestDiscardInvalidSandboxID(t *testing.T) {
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1110,16 +940,17 @@ func TestDiscardInvalidSandboxID(t *testing.T) {
 func TestGetWorkspaceSuccess(t *testing.T) {
 	testID := uuid.New()
 	expectedPath := "/tmp/sandbox/" + testID.String() + "/merged"
-	svc := &mockService{
-		getWorkspaceFn: func(ctx context.Context, id uuid.UUID) (string, error) {
+	svc := &sandboxiface.FakeService{
+		GetWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
 			return expectedPath, nil
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1149,8 +980,9 @@ func TestGetWorkspaceSuccess(t *testing.T) {
 // [REQ:REQ-P0-003] Overlayfs Copy-on-Write Driver - API reports driver status
 func TestDriverInfoAvailable(t *testing.T) {
 	h := &Handlers{
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1177,8 +1009,9 @@ func TestDriverInfoAvailable(t *testing.T) {
 // [REQ:REQ-P0-003] Overlayfs Copy-on-Write Driver - API reports unavailable status
 func TestDriverInfoUnavailable(t *testing.T) {
 	h := &Handlers{
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: false, err: fmt.Errorf("overlayfs not supported")}),
+		Clock:      clock.System{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(driverWithErr(false, fmt.Errorf("overlayfs not supported"))),
 		Config:     config.Config{},
 	}
 
@@ -1207,8 +1040,8 @@ func TestDriverInfoUnavailable(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API starts/resumes sandbox
 func TestStartSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		startFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		StartFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return &types.Sandbox{
 				ID:        testID,
 				Status:    types.StatusActive,
@@ -1218,9 +1051,10 @@ func TestStartSandboxSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1248,16 +1082,17 @@ func TestStartSandboxSuccess(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 404 for unknown ID
 func TestStartSandboxNotFound(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		startFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		StartFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return nil, types.NewNotFoundError(id.String())
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1276,8 +1111,8 @@ func TestStartSandboxNotFound(t *testing.T) {
 // [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 409 for invalid state
 func TestStartSandboxInvalidState(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		startFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	svc := &sandboxiface.FakeService{
+		StartFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return nil, types.NewStateError(&types.InvalidTransitionError{
 				Current:   types.StatusApproved,
 				Attempted: types.StatusActive,
@@ -1287,9 +1122,10 @@ func TestStartSandboxInvalidState(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1311,8 +1147,8 @@ func TestStartSandboxInvalidState(t *testing.T) {
 func TestCheckConflictsSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
-	svc := &mockService{
-		checkConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+	svc := &sandboxiface.FakeService{
+		CheckConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
 			return &types.ConflictCheckResponse{
 				HasConflict:         false,
 				BaseCommitHash:      "abc123",
@@ -1326,9 +1162,10 @@ func TestCheckConflictsSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1360,8 +1197,8 @@ func TestCheckConflictsSuccess(t *testing.T) {
 func TestCheckConflictsWithConflict(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
-	svc := &mockService{
-		checkConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+	svc := &sandboxiface.FakeService{
+		CheckConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
 			return &types.ConflictCheckResponse{
 				HasConflict:         true,
 				BaseCommitHash:      "abc123",
@@ -1375,9 +1212,10 @@ func TestCheckConflictsWithConflict(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1407,16 +1245,17 @@ func TestCheckConflictsWithConflict(t *testing.T) {
 // TestCheckConflictsNotFound tests conflict check for non-existent sandbox.
 func TestCheckConflictsNotFound(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		checkConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+	svc := &sandboxiface.FakeService{
+		CheckConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
 			return nil, types.NewNotFoundError(id.String())
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1438,8 +1277,8 @@ func TestCheckConflictsNotFound(t *testing.T) {
 func TestRebaseSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
-	svc := &mockService{
-		rebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+	svc := &sandboxiface.FakeService{
+		RebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
 			return &types.RebaseResult{
 				Success:          true,
 				PreviousBaseHash: "abc123",
@@ -1453,9 +1292,10 @@ func TestRebaseSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1492,8 +1332,8 @@ func TestRebaseSuccess(t *testing.T) {
 func TestRebaseWithConflicts(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
-	svc := &mockService{
-		rebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+	svc := &sandboxiface.FakeService{
+		RebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
 			return &types.RebaseResult{
 				Success:          false,
 				PreviousBaseHash: "abc123",
@@ -1508,9 +1348,10 @@ func TestRebaseWithConflicts(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1542,16 +1383,17 @@ func TestRebaseWithConflicts(t *testing.T) {
 // TestRebaseNotFound tests rebase for non-existent sandbox.
 func TestRebaseNotFound(t *testing.T) {
 	testID := uuid.New()
-	svc := &mockService{
-		rebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+	svc := &sandboxiface.FakeService{
+		RebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
 			return nil, types.NewNotFoundError(req.SandboxID.String())
 		},
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1573,8 +1415,8 @@ func TestRebaseNotFound(t *testing.T) {
 // TestValidatePathSuccess tests successfully validating a path.
 // [REQ:REQ-P0-005] Scope Path Validation - API validates scope paths
 func TestValidatePathSuccess(t *testing.T) {
-	svc := &mockService{
-		validatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
+	svc := &sandboxiface.FakeService{
+		ValidatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
 			return &types.PathValidationResult{
 				Path:              path,
 				ProjectRoot:       projectRoot,
@@ -1587,9 +1429,10 @@ func TestValidatePathSuccess(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1618,8 +1461,8 @@ func TestValidatePathSuccess(t *testing.T) {
 // TestValidatePathOutsideProject tests path validation for paths outside project.
 // [REQ:REQ-P0-005] Scope Path Validation - API rejects paths outside project
 func TestValidatePathOutsideProject(t *testing.T) {
-	svc := &mockService{
-		validatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
+	svc := &sandboxiface.FakeService{
+		ValidatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
 			return &types.PathValidationResult{
 				Path:              path,
 				ProjectRoot:       projectRoot,
@@ -1633,9 +1476,10 @@ func TestValidatePathOutsideProject(t *testing.T) {
 	}
 
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1667,9 +1511,10 @@ func TestValidatePathOutsideProject(t *testing.T) {
 // TestValidatePathMissingParam tests path validation without path parameter.
 func TestValidatePathMissingParam(t *testing.T) {
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1693,16 +1538,17 @@ func TestValidatePathMissingParam(t *testing.T) {
 func TestApplyAtRunEnd_Success(t *testing.T) {
 	testID := uuid.New()
 	var captured *types.ApplyAtRunEndRequest
-	svc := &mockService{
-		applyAtRunEndFn: func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
+	svc := &sandboxiface.FakeService{
+		ApplyAtRunEndFn: func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
 			captured = req
 			return &types.ApprovalResult{Success: true, Applied: 2}, nil
 		},
 	}
 	h := &Handlers{
+		Clock:      clock.System{},
 		Service:    svc,
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 
@@ -1743,9 +1589,10 @@ func TestApplyAtRunEnd_Success(t *testing.T) {
 
 func TestApplyAtRunEnd_InvalidSandboxID(t *testing.T) {
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 	req := httptest.NewRequest("POST", "/sandboxes/not-a-uuid/apply-at-run-end", bytes.NewBufferString(`{}`))
@@ -1761,9 +1608,10 @@ func TestApplyAtRunEnd_InvalidSandboxID(t *testing.T) {
 
 func TestApplyAtRunEnd_MalformedBody(t *testing.T) {
 	h := &Handlers{
-		Service:    &mockService{},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		Clock:      clock.System{},
+		Service:    &sandboxiface.FakeService{},
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 	id := uuid.New()

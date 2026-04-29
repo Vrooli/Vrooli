@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -52,7 +51,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 					SandboxID:   sandbox.ID,
 					Files:       []*types.FileChange{},
 					UnifiedDiff: "",
-					Generated:   time.Now(),
+					Generated:   s.clock.Now(),
 				}, nil
 			}
 			return nil, &types.ValidationError{
@@ -91,7 +90,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 			SandboxID:   sandbox.ID,
 			Files:       []*types.FileChange{},
 			UnifiedDiff: "",
-			Generated:   time.Now(),
+			Generated:   s.clock.Now(),
 		}, nil
 	}
 
@@ -206,7 +205,7 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			Success:   true,
 			Applied:   0,
 			Remaining: totalChanges,
-			AppliedAt: time.Now(),
+			AppliedAt: s.clock.Now(),
 		}, nil
 	}
 
@@ -232,7 +231,7 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			return &types.ApprovalResult{
 				Success:   true,
 				Applied:   0,
-				AppliedAt: time.Now(),
+				AppliedAt: s.clock.Now(),
 			}, nil
 		}
 	}
@@ -273,7 +272,7 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			Failed:    len(changes),
 			Remaining: totalChanges,
 			ErrorMsg:  fmt.Sprintf("patch application failed: %v", applyResult.Errors),
-			AppliedAt: time.Now(),
+			AppliedAt: s.clock.Now(),
 		}, nil
 	}
 
@@ -456,7 +455,7 @@ func (s *Service) preflightConflicts(ctx context.Context, sandbox *types.Sandbox
 func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest, commitHash string, changes []*types.FileChange, totalChanges int) *types.ApprovalResult {
 	remainingChanges := totalChanges - len(changes)
 	isPartial := remainingChanges > 0
-	now := time.Now()
+	now := s.clock.Now()
 
 	if isPartial {
 		for _, change := range changes {

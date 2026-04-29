@@ -14,10 +14,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -56,14 +56,19 @@ var _ Driver = (*CopyDriver)(nil)
 //   - When overlayfs is unavailable
 type CopyDriver struct {
 	config Config
+	clock  clock.Clock
 }
 
-// NewCopyDriver creates a new copy-based fallback driver.
-func NewCopyDriver(cfg Config) *CopyDriver {
+// NewCopyDriver creates a new copy-based fallback driver. clk is the
+// time source for FileChange.DetectedAt timestamps; it must not be nil.
+func NewCopyDriver(cfg Config, clk clock.Clock) *CopyDriver {
+	if clk == nil {
+		panic("driver.NewCopyDriver: clock is required")
+	}
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
-	return &CopyDriver{config: cfg}
+	return &CopyDriver{config: cfg, clock: clk}
 }
 
 // ID returns the canonical driver ID.
@@ -228,7 +233,7 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 			ChangeType:     changeType,
 			FileSize:       info.Size(),
 			FileMode:       int(info.Mode()),
-			DetectedAt:     time.Now(),
+			DetectedAt:     d.clock.Now(),
 			ApprovalStatus: types.ApprovalPending,
 		}
 
@@ -277,7 +282,7 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 				ChangeType:     types.ChangeTypeDeleted,
 				FileSize:       info.Size(),
 				FileMode:       int(info.Mode()),
-				DetectedAt:     time.Now(),
+				DetectedAt:     d.clock.Now(),
 				ApprovalStatus: types.ApprovalPending,
 			}
 			changes = append(changes, change)

@@ -19,7 +19,7 @@ import (
 func TestGetOverlayChangedFiles_EmptyUpperDir(t *testing.T) {
 	s := &types.Sandbox{UpperDir: ""}
 
-	_, err := getOverlayChangedFiles(s)
+	_, err := getOverlayChangedFiles(s, testClock())
 	if err == nil {
 		t.Error("expected error for empty upper directory")
 	}
@@ -48,7 +48,7 @@ func TestGetOverlayChangedFiles_SkipsDirectories(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestGetOverlayChangedFiles_DetectsAddedFiles(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestGetOverlayChangedFiles_DetectsModifiedFiles(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestGetOverlayChangedFiles_SkipsOverlayInternal(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestGetOverlayChangedFiles_HandlesWhiteoutMarkers(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestGetOverlayChangedFiles_SkipsOpaqueMarker(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestGetOverlayChangedFiles_SkipsGitDirectory(t *testing.T) {
 		LowerDir: lowerDir,
 	}
 
-	changes, err := getOverlayChangedFiles(s)
+	changes, err := getOverlayChangedFiles(s, testClock())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -58,7 +58,7 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 		"service":   "Workspace Sandbox API",
 		"version":   Version,
 		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp": h.Clock.Now().UTC().Format(time.RFC3339),
 		"dependencies": map[string]string{
 			"database": dbStatus,
 			"driver":   driverStatus,
@@ -116,7 +116,7 @@ func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {
 	// Include timestamp for cache invalidation hints
 	response := map[string]interface{}{
 		"stats":     stats,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp": h.Clock.Now().UTC().Format(time.RFC3339),
 	}
 
 	h.JSONSuccess(w, response)
@@ -204,7 +204,7 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 		MaxSizeMB:        h.Config.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs: h.Config.Driver.UseFuseOverlayfs,
 	}
-	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.DriverID(req.DriverID)); err != nil {
+	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, h.Clock, driver.DriverID(req.DriverID)); err != nil {
 		h.JSONError(w, "failed to switch driver: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

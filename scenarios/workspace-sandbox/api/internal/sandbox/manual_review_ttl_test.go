@@ -4,7 +4,8 @@
 // ManualReviewTTL, recording Source=SourceWorkspaceSandboxGC on the audit
 // event so reviewers can tell GC-driven denials apart from operator denials.
 //
-// Time is injected so expiry is deterministic.
+// Time is sourced from the service's FakeClock (Round 4 Phase 2) so expiry
+// is deterministic without bleeding the wall clock into assertions.
 
 package sandbox
 
@@ -13,21 +14,36 @@ import (
 	"testing"
 	"time"
 
-	"workspace-sandbox/internal/types"
-
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/testutil/mocks"
+	"workspace-sandbox/internal/types"
 )
+
+// newManualReviewTestService wires a Service with a FakeClock pinned to
+// `now` so the manual-review TTL reconciler reads a deterministic time.
+func newManualReviewTestService(t *testing.T, repo *mocks.FakeRepository, drv *mocks.FakeDriver, now time.Time) (*Service, *mocks.FakeClock) {
+	t.Helper()
+	clk := mocks.NewFakeClock(now)
+	svc := NewService(repo, drv, ServiceConfig{
+		DefaultProjectRoot: "/tmp/project",
+		MaxSandboxes:       100,
+		DefaultTTL:         24 * time.Hour,
+	}, clk, WithGitOps(mocks.NewFakeGitOps()))
+	return svc, clk
+}
 
 // TestReconcileManualReviewExpiry_AutoDeniesExpired verifies the happy path:
 // a manualReview=true sandbox idle past the TTL window is rejected and torn
 // down, with Source=SourceWorkspaceSandboxGC on the audit event.
 func TestReconcileManualReviewExpiry_AutoDeniesExpired(t *testing.T) {
-	repo := newMockRepository()
-	drv := newMockDriver()
-	svc := newTestService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	// FakeClock sits well past LastUsedAt + ttl.
+	svc, _ := newManualReviewTestService(t, repo, drv, time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC))
 
 	id := uuid.New()
-	repo.sandboxes[id] = &types.Sandbox{
+	repo.Sandboxes[id] = &types.Sandbox{
 		ID:          id,
 		ScopePath:   "/tmp/project/scope",
 		ProjectRoot: "/tmp/project",
@@ -40,18 +56,13 @@ func TestReconcileManualReviewExpiry_AutoDeniesExpired(t *testing.T) {
 	}
 
 	ttl := 7 * 24 * time.Hour
-	// fakeNow sits well past LastUsedAt + ttl.
-	fakeNow := func() time.Time {
-		return time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)
-	}
-
-	svc.ReconcileManualReviewExpiry(context.Background(), ttl, fakeNow)
+	svc.ReconcileManualReviewExpiry(context.Background(), ttl)
 
 	// Mock Delete removes the sandbox from the map; that path is the
 	// best-effort tear-down. The audit event is the load-bearing artifact:
 	// it carries Source=SourceWorkspaceSandboxGC.
 	var rejected *types.AuditEvent
-	for _, evt := range repo.auditEvents {
+	for _, evt := range repo.AuditEvents {
 		if evt.EventType == "rejected" {
 			rejected = evt
 			break
@@ -76,12 +87,13 @@ func TestReconcileManualReviewExpiry_AutoDeniesExpired(t *testing.T) {
 // alone. Without this, the reconciler would race against operators who are
 // genuinely mid-review.
 func TestReconcileManualReviewExpiry_PreservesIdleSandboxes(t *testing.T) {
-	repo := newMockRepository()
-	drv := newMockDriver()
-	svc := newTestService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	// FakeClock at LastUsedAt + 1 day (< ttl).
+	svc, _ := newManualReviewTestService(t, repo, drv, time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC))
 
 	id := uuid.New()
-	repo.sandboxes[id] = &types.Sandbox{
+	repo.Sandboxes[id] = &types.Sandbox{
 		ID:         id,
 		Status:     types.StatusActive,
 		LastUsedAt: time.Date(2026, 4, 14, 0, 0, 0, 0, time.UTC),
@@ -89,18 +101,14 @@ func TestReconcileManualReviewExpiry_PreservesIdleSandboxes(t *testing.T) {
 	}
 
 	ttl := 7 * 24 * time.Hour
-	fakeNow := func() time.Time {
-		return time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC) // 1 day < ttl
-	}
+	svc.ReconcileManualReviewExpiry(context.Background(), ttl)
 
-	svc.ReconcileManualReviewExpiry(context.Background(), ttl, fakeNow)
-
-	for _, evt := range repo.auditEvents {
+	for _, evt := range repo.AuditEvents {
 		if evt.EventType == "rejected" {
 			t.Fatalf("did not expect a 'rejected' audit event before TTL window: %+v", evt)
 		}
 	}
-	if got := repo.sandboxes[id]; got == nil || got.Status != types.StatusActive {
+	if got := repo.Sandboxes[id]; got == nil || got.Status != types.StatusActive {
 		t.Errorf("expected sandbox to remain Active before TTL, got status=%v", got)
 	}
 }
@@ -110,21 +118,21 @@ func TestReconcileManualReviewExpiry_PreservesIdleSandboxes(t *testing.T) {
 // to the manualReview TTL — they have their own apply-on-terminal cleanup
 // path via the existing applyLifecycleTerminal logic.
 func TestReconcileManualReviewExpiry_IgnoresAutoApplySandboxes(t *testing.T) {
-	repo := newMockRepository()
-	drv := newMockDriver()
-	svc := newTestService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	svc, _ := newManualReviewTestService(t, repo, drv, time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC))
 
 	id := uuid.New()
-	repo.sandboxes[id] = &types.Sandbox{
+	repo.Sandboxes[id] = &types.Sandbox{
 		ID:         id,
 		Status:     types.StatusActive,
 		LastUsedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), // ancient
 		Behavior:   types.SandboxBehavior{ManualReview: false},
 	}
 
-	svc.ReconcileManualReviewExpiry(context.Background(), 7*24*time.Hour, time.Now)
+	svc.ReconcileManualReviewExpiry(context.Background(), 7*24*time.Hour)
 
-	for _, evt := range repo.auditEvents {
+	for _, evt := range repo.AuditEvents {
 		if evt.EventType == "rejected" {
 			t.Fatalf("manualReview=false sandbox must not be GC-denied: %+v", evt)
 		}
@@ -134,12 +142,12 @@ func TestReconcileManualReviewExpiry_IgnoresAutoApplySandboxes(t *testing.T) {
 // TestReconcileManualReviewExpiry_ZeroTTLIsDisabled pins the
 // "ManualReviewTTL=0 disables expiry" semantics from the config doc string.
 func TestReconcileManualReviewExpiry_ZeroTTLIsDisabled(t *testing.T) {
-	repo := newMockRepository()
-	drv := newMockDriver()
-	svc := newTestService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	svc, _ := newManualReviewTestService(t, repo, drv, time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC))
 
 	id := uuid.New()
-	repo.sandboxes[id] = &types.Sandbox{
+	repo.Sandboxes[id] = &types.Sandbox{
 		ID:         id,
 		Status:     types.StatusActive,
 		LastUsedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -147,9 +155,9 @@ func TestReconcileManualReviewExpiry_ZeroTTLIsDisabled(t *testing.T) {
 	}
 
 	// ttl=0 disables.
-	svc.ReconcileManualReviewExpiry(context.Background(), 0, time.Now)
+	svc.ReconcileManualReviewExpiry(context.Background(), 0)
 
-	for _, evt := range repo.auditEvents {
+	for _, evt := range repo.AuditEvents {
 		if evt.EventType == "rejected" {
 			t.Fatalf("ttl=0 must disable GC; got rejected event %+v", evt)
 		}

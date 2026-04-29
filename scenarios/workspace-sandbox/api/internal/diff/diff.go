@@ -47,7 +47,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
@@ -211,11 +210,14 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 	unified := diffBuilder.String()
 	linesAdded, linesRemoved := countUnifiedDiffLines(unified)
 
+	// Generated is left as the zero value here. The caller (Service,
+	// using its injected clock) stamps it before returning the result
+	// to API consumers. Keeping the diff package clock-free keeps it a
+	// pure data-shaping module that tests can exercise without a clock.
 	return &types.DiffResult{
 		SandboxID:   s.ID,
 		Files:       sortedChanges,
 		UnifiedDiff: unified,
-		Generated:   time.Now(),
 		Stats: types.DiffStats{
 			FilesChanged:  added + modified + deleted,
 			FilesAdded:    added,

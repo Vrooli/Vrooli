@@ -1,8 +1,7 @@
-package sandbox
+package sandbox_test
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"strconv"
 	"testing"
@@ -10,39 +9,12 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/testutil/mocks"
+	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 )
-
-// fakeProcFS is a synthetic /proc fixture with controllable cmdlines
-// and start times. Used to exercise reconcileStaleDaemonsWithConfig
-// without touching the real /proc.
-type fakeProcFS struct {
-	entries map[string]fakeProcEntry
-}
-
-type fakeProcEntry struct {
-	cmdline []byte
-	start   time.Time
-}
-
-func (f *fakeProcFS) List() ([]string, error) {
-	pids := make([]string, 0, len(f.entries))
-	for k := range f.entries {
-		pids = append(pids, k)
-	}
-	return pids, nil
-}
-
-func (f *fakeProcFS) Open(pid string) (procEntry, error) {
-	e, ok := f.entries[pid]
-	if !ok {
-		return nil, fmt.Errorf("pid %s not in fixture", pid)
-	}
-	return &e, nil
-}
-
-func (e *fakeProcEntry) Cmdline() []byte      { return e.cmdline }
-func (e *fakeProcEntry) StartTime() time.Time { return e.start }
 
 // TestReapStaleDaemons_FindsOrphan_SkipsLive_HonorsGrace covers the
 // three branches of the per-PID decision tree: orphan (reap), live
@@ -72,28 +44,29 @@ func TestReapStaleDaemons_FindsOrphan_SkipsLive_HonorsGrace(t *testing.T) {
 	youngID := uuid.New()
 	now := time.Now()
 
-	fixture := &fakeProcFS{entries: map[string]fakeProcEntry{
+	fixture := sandboxiface.NewFakeProcFS(map[string]sandboxiface.FakeProcEntry{
 		strconv.Itoa(cmds[0].Process.Pid): {
-			cmdline: []byte("fuse-overlayfs\x00-o\x00lowerdir=/home,upperdir=/run/" + orphanID.String() + "/home-upper,workdir=/run/" + orphanID.String() + "/home-work\x00/run/" + orphanID.String() + "/home-merged\x00"),
-			start:   now.Add(-1 * time.Hour),
+			Cmdline:   []byte("fuse-overlayfs\x00-o\x00lowerdir=/home,upperdir=/run/" + orphanID.String() + "/home-upper,workdir=/run/" + orphanID.String() + "/home-work\x00/run/" + orphanID.String() + "/home-merged\x00"),
+			StartTime: now.Add(-1 * time.Hour),
 		},
 		strconv.Itoa(cmds[1].Process.Pid): {
-			cmdline: []byte("fuse-overlayfs\x00-o\x00lowerdir=/home,upperdir=/run/" + liveID.String() + "/home-upper,workdir=/run/" + liveID.String() + "/home-work\x00/run/" + liveID.String() + "/home-merged\x00"),
-			start:   now.Add(-1 * time.Hour),
+			Cmdline:   []byte("fuse-overlayfs\x00-o\x00lowerdir=/home,upperdir=/run/" + liveID.String() + "/home-upper,workdir=/run/" + liveID.String() + "/home-work\x00/run/" + liveID.String() + "/home-merged\x00"),
+			StartTime: now.Add(-1 * time.Hour),
 		},
 		strconv.Itoa(cmds[2].Process.Pid): {
-			cmdline: []byte("fuse-overlayfs\x00-o\x00upperdir=/run/" + youngID.String() + "/home-upper\x00/run/" + youngID.String() + "/home-merged\x00"),
-			start:   now, // within grace
+			Cmdline:   []byte("fuse-overlayfs\x00-o\x00upperdir=/run/" + youngID.String() + "/home-upper\x00/run/" + youngID.String() + "/home-merged\x00"),
+			StartTime: now, // within grace
 		},
-	}}
+	})
 
-	repo := newFakeOrphanRepo()
-	repo.setStatus(liveID, types.StatusActive)
-	// orphanID and youngID are absent (NotFoundError → orphan).
-	svc := &Service{repo: repo}
+	repo := mocks.NewFakeRepository()
+	// Live sandbox lives in the repo with StatusActive; orphanID and
+	// youngID are absent, which the reaper treats as orphans.
+	repo.SetSandbox(&types.Sandbox{ID: liveID, Status: types.StatusActive})
+	svc := sandbox.NewService(repo, nil, sandbox.ServiceConfig{}, clock.System{})
 
-	cfg := DaemonReaperConfig{GracePeriod: 30 * time.Second, TermWait: 200 * time.Millisecond}
-	report := svc.reconcileStaleDaemonsWithConfig(context.Background(), cfg, fixture)
+	cfg := sandbox.DaemonReaperConfig{GracePeriod: 30 * time.Second, TermWait: 200 * time.Millisecond}
+	report := svc.ReconcileStaleDaemonsWithConfig(context.Background(), cfg, fixture)
 
 	if report.Scanned != 3 {
 		t.Errorf("Scanned = %d, want 3", report.Scanned)
@@ -117,11 +90,7 @@ func TestReapStaleDaemons_FindsOrphan_SkipsLive_HonorsGrace(t *testing.T) {
 		_, _ = cmds[0].Process.Wait() // non-blocking via WNOHANG would be nicer; just retry
 		time.Sleep(20 * time.Millisecond)
 	}
-	// The live helper should still be running; the young one too.
 	if cmds[1].ProcessState != nil && cmds[1].ProcessState.Exited() {
 		t.Errorf("live helper PID %d should still be running", cmds[1].Process.Pid)
 	}
 }
-
-// (uses fakeOrphanRepo from orphan_reconciler_test.go)
-var _ = fmt.Sprintf // keep "fmt" import

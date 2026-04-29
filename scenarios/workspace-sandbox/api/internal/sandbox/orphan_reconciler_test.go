@@ -18,238 +18,53 @@
 //  4. The pass is bounded and idempotent — failures on one pass are
 //     retried on the next, and a re-run on a quiet system is a no-op.
 
-package sandbox
+package sandbox_test
 
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/driver"
-	"workspace-sandbox/internal/repository"
+	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
 
-// -----------------------------------------------------------------------------
-// Repo stub for the reconciler
-// -----------------------------------------------------------------------------
-
-// fakeOrphanRepo is a minimal Repository that only implements Get and
-// LogAuditEvent. It returns the configured status for known IDs and
-// NewNotFoundError for unknown ones — exactly what the reconciler relies on.
-type fakeOrphanRepo struct {
-	mu          sync.Mutex
-	known       map[uuid.UUID]types.Status
-	getErr      error
-	auditEvents []types.AuditEvent
-	auditErr    error
+// orphanRepo wires a FakeRepository so the reconciler sees Active
+// sandboxes (live) for IDs we explicitly seed and the production
+// (nil, nil) "missing" convention for everything else.
+//
+// The previous fakeOrphanRepo returned types.NewNotFoundError for
+// missing IDs — that's a non-production-faithful behavior; the real
+// SandboxRepository.Get returns (nil, nil) for missing rows. The
+// reconciler's isOrphan accepts both, but tests now run against the
+// production-faithful path.
+func setActive(t *testing.T, repo *mocks.FakeRepository, id uuid.UUID) {
+	t.Helper()
+	repo.SetSandbox(&types.Sandbox{ID: id, Status: types.StatusActive})
 }
 
-func newFakeOrphanRepo() *fakeOrphanRepo {
-	return &fakeOrphanRepo{known: map[uuid.UUID]types.Status{}}
-}
-
-func (r *fakeOrphanRepo) setStatus(id uuid.UUID, s types.Status) {
-	r.mu.Lock()
-	r.known[id] = s
-	r.mu.Unlock()
-}
-
-func (r *fakeOrphanRepo) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.getErr != nil {
-		return nil, r.getErr
-	}
-	if status, ok := r.known[id]; ok {
-		return &types.Sandbox{ID: id, Status: status}, nil
-	}
-	return nil, types.NewNotFoundError(id.String())
-}
-
-func (r *fakeOrphanRepo) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.auditErr != nil {
-		return r.auditErr
-	}
-	r.auditEvents = append(r.auditEvents, *event)
-	return nil
-}
-
-func (r *fakeOrphanRepo) auditEventCount(eventType string) int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	n := 0
-	for _, e := range r.auditEvents {
-		if e.EventType == eventType {
-			n++
-		}
-	}
-	return n
-}
-
-// Unused Repository methods — stubbed to satisfy the interface.
-func (r *fakeOrphanRepo) Create(context.Context, *types.Sandbox) error { return nil }
-func (r *fakeOrphanRepo) Update(context.Context, *types.Sandbox) error { return nil }
-func (r *fakeOrphanRepo) Delete(context.Context, uuid.UUID) error      { return nil }
-func (r *fakeOrphanRepo) List(context.Context, *types.ListFilter) (*types.ListResult, error) {
-	return &types.ListResult{}, nil
-}
-
-func (r *fakeOrphanRepo) CheckScopeOverlap(context.Context, string, string, *uuid.UUID) ([]types.PathConflict, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) GetActiveSandboxes(context.Context, string) ([]*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) GetAuditLog(context.Context, *uuid.UUID, int, int) ([]*types.AuditEvent, int, error) {
-	return nil, 0, nil
-}
-func (r *fakeOrphanRepo) GetStats(context.Context) (*types.SandboxStats, error) { return nil, nil }
-func (r *fakeOrphanRepo) FindByIdempotencyKey(context.Context, string) (*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) UpdateWithVersionCheck(context.Context, *types.Sandbox, int64) error {
-	return nil
-}
-func (r *fakeOrphanRepo) BeginTx(context.Context) (repository.TxRepository, error) { return nil, nil }
-func (r *fakeOrphanRepo) GetGCCandidates(context.Context, *types.GCPolicy, int) ([]*types.Sandbox, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) RecordAppliedChanges(context.Context, []*types.AppliedChange) error {
-	return nil
-}
-
-func (r *fakeOrphanRepo) GetPendingChanges(context.Context, string, int, int) (*types.PendingChangesResult, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) GetPendingChangeFiles(context.Context, string, []uuid.UUID) ([]*types.AppliedChange, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) GetFileProvenance(context.Context, string, string, int) ([]*types.AppliedChange, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) MarkChangesCommitted(context.Context, []uuid.UUID, string, string) error {
-	return nil
-}
-
-func (r *fakeOrphanRepo) MarkChangesCommittedByPath(context.Context, string, []string, string, string) (int, int, error) {
-	return 0, 0, nil
-}
-
-func (r *fakeOrphanRepo) GetPendingChangesByRun(context.Context, string) ([]types.ProvenanceRunGroup, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) GetHealState(context.Context, uuid.UUID) (*repository.HealStateRow, error) {
-	return nil, nil
-}
-
-func (r *fakeOrphanRepo) UpsertHealState(context.Context, repository.HealStateRow) error { return nil }
-func (r *fakeOrphanRepo) ClearHealState(context.Context, uuid.UUID) error                { return nil }
-func (r *fakeOrphanRepo) ListHealState(context.Context) ([]repository.HealStateRow, error) {
-	return nil, nil
-}
-
-// -----------------------------------------------------------------------------
-// Driver stub for the reconciler
-// -----------------------------------------------------------------------------
-
-type fakeOrphanDriver struct {
-	mu sync.Mutex
-
-	dirs       []uuid.UUID
-	listErr    error
-	cleaned    []uuid.UUID
-	cleanupErr map[uuid.UUID]error
-}
-
-func (d *fakeOrphanDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	out := make([]uuid.UUID, len(d.dirs))
-	copy(out, d.dirs)
-	return out, d.listErr
-}
-
-func (d *fakeOrphanDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if err, ok := d.cleanupErr[id]; ok {
-		return err
-	}
-	d.cleaned = append(d.cleaned, id)
-	// remove from dirs to model successful cleanup so re-runs are no-ops.
-	out := d.dirs[:0]
-	for _, x := range d.dirs {
-		if x != id {
-			out = append(out, x)
-		}
-	}
-	d.dirs = out
-	return nil
-}
-
-// Unused Driver methods. We can't easily skip them because Driver is
-// large; stubbing keeps the test type-safe without forcing real driver
-// setup (filesystem, exec, etc.) for tests that only need the orphan
-// surface.
-func (d *fakeOrphanDriver) ID() driver.DriverID                 { return "fake-orphan" }
-func (d *fakeOrphanDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
-func (d *fakeOrphanDriver) Capabilities() driver.DriverCapabilities {
-	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
-}
-func (d *fakeOrphanDriver) Version() string                           { return "test" }
-func (d *fakeOrphanDriver) IsAvailable(context.Context) (bool, error) { return true, nil }
-func (d *fakeOrphanDriver) Mount(context.Context, *types.Sandbox) (*driver.MountPaths, error) {
-	return nil, nil
-}
-func (d *fakeOrphanDriver) Unmount(context.Context, *types.Sandbox) error { return nil }
-
-func (d *fakeOrphanDriver) GetChangedFiles(context.Context, *types.Sandbox) ([]*types.FileChange, error) {
-	return nil, nil
-}
-func (d *fakeOrphanDriver) Cleanup(context.Context, *types.Sandbox) error { return nil }
-func (d *fakeOrphanDriver) VerifyMountIntegrity(context.Context, *types.Sandbox) error {
-	return nil
-}
-
-func (d *fakeOrphanDriver) RemoveFromUpper(context.Context, *types.Sandbox, string) error {
-	return nil
-}
-
-// -----------------------------------------------------------------------------
-// Tests
-// -----------------------------------------------------------------------------
-
-func newReconcilerService(repo *fakeOrphanRepo, drv *fakeOrphanDriver) *Service {
-	return &Service{repo: repo, driver: drv}
+func setDeleted(t *testing.T, repo *mocks.FakeRepository, id uuid.UUID) {
+	t.Helper()
+	repo.SetSandbox(&types.Sandbox{ID: id, Status: types.StatusDeleted})
 }
 
 // TestReconcileFilesystemOrphans_NoDirs — quiet system: no dirs, no
 // orphans, no audit events, fast pass.
 func TestReconcileFilesystemOrphans_NoDirs(t *testing.T) {
-	repo := newFakeOrphanRepo()
-	drv := &fakeOrphanDriver{}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 	if report.FilesystemDirs != 0 || report.OrphansCleaned != 0 || report.OrphansFailed != 0 {
 		t.Errorf("expected empty report on quiet system, got %+v", report)
 	}
-	if got := repo.auditEventCount("sandbox.orphan-cleaned"); got != 0 {
+	if got := repo.AuditEventCount("sandbox.orphan-cleaned"); got != 0 {
 		t.Errorf("expected 0 audit events on quiet system, got %d", got)
 	}
 }
@@ -258,19 +73,20 @@ func TestReconcileFilesystemOrphans_NoDirs(t *testing.T) {
 // 2026-04-28 case: a dir on disk with no repo record. Must be cleaned.
 func TestReconcileFilesystemOrphans_CleansUnknownDir(t *testing.T) {
 	orphan := uuid.New()
-	repo := newFakeOrphanRepo()
-	drv := &fakeOrphanDriver{dirs: []uuid.UUID{orphan}}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.ListDirsResult = []uuid.UUID{orphan}
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
 	if report.OrphansCleaned != 1 {
 		t.Errorf("expected 1 cleaned, got %d", report.OrphansCleaned)
 	}
-	if len(drv.cleaned) != 1 || drv.cleaned[0] != orphan {
-		t.Errorf("expected CleanupOrphan(%s), got %v", orphan, drv.cleaned)
+	if len(drv.OrphanCleanups) != 1 || drv.OrphanCleanups[0] != orphan {
+		t.Errorf("expected CleanupOrphan(%s), got %v", orphan, drv.OrphanCleanups)
 	}
-	if got := repo.auditEventCount("sandbox.orphan-cleaned"); got != 1 {
+	if got := repo.AuditEventCount("sandbox.orphan-cleaned"); got != 1 {
 		t.Errorf("expected 1 'sandbox.orphan-cleaned' audit event, got %d", got)
 	}
 }
@@ -279,18 +95,19 @@ func TestReconcileFilesystemOrphans_CleansUnknownDir(t *testing.T) {
 // invariant. A dir with an Active repo record MUST NOT be touched.
 func TestReconcileFilesystemOrphans_LeavesActiveSandboxes(t *testing.T) {
 	live := uuid.New()
-	repo := newFakeOrphanRepo()
-	repo.setStatus(live, types.StatusActive)
-	drv := &fakeOrphanDriver{dirs: []uuid.UUID{live}}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	setActive(t, repo, live)
+	drv := mocks.NewFakeDriver()
+	drv.ListDirsResult = []uuid.UUID{live}
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
 	if report.OrphansCleaned != 0 {
 		t.Fatalf("REGRESSION: live Active sandbox was cleaned (cleaned=%d)", report.OrphansCleaned)
 	}
-	if len(drv.cleaned) != 0 {
-		t.Fatalf("REGRESSION: CleanupOrphan called on live sandbox %v", drv.cleaned)
+	if len(drv.OrphanCleanups) != 0 {
+		t.Fatalf("REGRESSION: CleanupOrphan called on live sandbox %v", drv.OrphanCleanups)
 	}
 }
 
@@ -299,10 +116,11 @@ func TestReconcileFilesystemOrphans_LeavesActiveSandboxes(t *testing.T) {
 // has the dir; safe to remove. Closes the half-finished-Delete window.
 func TestReconcileFilesystemOrphans_CleansDeletedRepoRecord(t *testing.T) {
 	zombie := uuid.New()
-	repo := newFakeOrphanRepo()
-	repo.setStatus(zombie, types.StatusDeleted)
-	drv := &fakeOrphanDriver{dirs: []uuid.UUID{zombie}}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	setDeleted(t, repo, zombie)
+	drv := mocks.NewFakeDriver()
+	drv.ListDirsResult = []uuid.UUID{zombie}
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -318,12 +136,15 @@ func TestReconcileFilesystemOrphans_CleansDeletedRepoRecord(t *testing.T) {
 func TestReconcileFilesystemOrphans_RetriesFailure(t *testing.T) {
 	good := uuid.New()
 	bad := uuid.New()
-	repo := newFakeOrphanRepo()
-	drv := &fakeOrphanDriver{
-		dirs:       []uuid.UUID{good, bad},
-		cleanupErr: map[uuid.UUID]error{bad: errors.New("mount busy")},
-	}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.ListDirsResult = []uuid.UUID{good, bad}
+	// FakeDriver supports per-ID cleanup failure.
+	drv.CleanupOrphanErr = errors.New("mount busy")
+	// Configure the driver to fail only for `bad`. We do this by
+	// installing a custom driver whose CleanupOrphan inspects the ID.
+	failingDrv := &perIDFailingDriver{FakeDriver: drv, failID: bad}
+	svc := sandbox.NewService(repo, failingDrv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -336,9 +157,28 @@ func TestReconcileFilesystemOrphans_RetriesFailure(t *testing.T) {
 	if len(report.FailedIDs) != 1 || report.FailedIDs[0].ID != bad {
 		t.Errorf("expected FailedIDs to surface %s, got %+v", bad, report.FailedIDs)
 	}
-	if got := repo.auditEventCount("sandbox.orphan-cleanup-failed"); got != 1 {
+	if got := repo.AuditEventCount("sandbox.orphan-cleanup-failed"); got != 1 {
 		t.Errorf("expected 1 cleanup-failed audit, got %d", got)
 	}
+}
+
+// perIDFailingDriver wraps FakeDriver to fail CleanupOrphan only for a
+// specific ID. Per-ID failure injection isn't worth a generic feature
+// on FakeDriver since this is the one test that needs it.
+type perIDFailingDriver struct {
+	*mocks.FakeDriver
+	failID uuid.UUID
+}
+
+func (d *perIDFailingDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	if id == d.failID {
+		return errors.New("mount busy")
+	}
+	// Reset the parent's err so the success path takes effect for non-failID.
+	saved := d.FakeDriver.CleanupOrphanErr
+	d.FakeDriver.CleanupOrphanErr = nil
+	defer func() { d.FakeDriver.CleanupOrphanErr = saved }()
+	return d.FakeDriver.CleanupOrphan(ctx, id)
 }
 
 // TestReconcileFilesystemOrphans_RepoErrorIsFailSafe — if the repository
@@ -347,16 +187,17 @@ func TestReconcileFilesystemOrphans_RetriesFailure(t *testing.T) {
 // this pass, retry on the next.
 func TestReconcileFilesystemOrphans_RepoErrorIsFailSafe(t *testing.T) {
 	mystery := uuid.New()
-	repo := newFakeOrphanRepo()
-	repo.getErr = errors.New("connection refused")
-	drv := &fakeOrphanDriver{dirs: []uuid.UUID{mystery}}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	repo.GetErr = errors.New("connection refused")
+	drv := mocks.NewFakeDriver()
+	drv.ListDirsResult = []uuid.UUID{mystery}
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
-	if report.OrphansCleaned != 0 || len(drv.cleaned) != 0 {
+	if report.OrphansCleaned != 0 || len(drv.OrphanCleanups) != 0 {
 		t.Fatalf("REGRESSION: dir was cleaned despite repo error (cleaned=%d, drv.cleaned=%v)",
-			report.OrphansCleaned, drv.cleaned)
+			report.OrphansCleaned, drv.OrphanCleanups)
 	}
 }
 
@@ -364,9 +205,10 @@ func TestReconcileFilesystemOrphans_RepoErrorIsFailSafe(t *testing.T) {
 // driver itself can't enumerate (permissions, missing BaseDir), the
 // reconciler must return safely with an empty report rather than panic.
 func TestReconcileFilesystemOrphans_DriverListErrorReturnsEmpty(t *testing.T) {
-	repo := newFakeOrphanRepo()
-	drv := &fakeOrphanDriver{listErr: errors.New("permission denied")}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.ListSandboxDirsErr = errors.New("permission denied")
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -381,9 +223,10 @@ func TestReconcileFilesystemOrphans_DriverListErrorReturnsEmpty(t *testing.T) {
 func TestReconcileFilesystemOrphans_ReRunIsNoOp(t *testing.T) {
 	a := uuid.New()
 	b := uuid.New()
-	repo := newFakeOrphanRepo()
-	drv := &fakeOrphanDriver{dirs: []uuid.UUID{a, b}}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.ListDirsResult = []uuid.UUID{a, b}
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	first := svc.ReconcileFilesystemOrphans(context.Background())
 	if first.OrphansCleaned != 2 {
@@ -401,9 +244,9 @@ func TestReconcileFilesystemOrphans_ReRunIsNoOp(t *testing.T) {
 // passes. Loose bound (<5s for an empty pass) — this is a smoke test,
 // not a perf gate.
 func TestReconcileFilesystemOrphans_DurationMeasured(t *testing.T) {
-	repo := newFakeOrphanRepo()
-	drv := &fakeOrphanDriver{}
-	svc := newReconcilerService(repo, drv)
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 	if report.Duration < 0 || report.Duration > 5*time.Second {

@@ -491,8 +491,12 @@ func TestGenerateDiff(t *testing.T) {
 		if result.Stats.LinesRemoved == 0 {
 			t.Errorf("Stats.LinesRemoved should be > 0 for a deleted file with content, got %d", result.Stats.LinesRemoved)
 		}
-		if result.Generated.IsZero() {
-			t.Error("Generated timestamp should be set")
+		// Round 4 Phase 2: the diff package is clock-free. The caller
+		// (Service, with its injected clock) stamps DiffResult.Generated
+		// before returning to API consumers, so Generated is the zero
+		// value here.
+		if !result.Generated.IsZero() {
+			t.Errorf("expected zero Generated timestamp from diff package, got %v", result.Generated)
 		}
 	})
 

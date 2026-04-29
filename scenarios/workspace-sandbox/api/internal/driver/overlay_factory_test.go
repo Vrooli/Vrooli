@@ -14,9 +14,9 @@ func TestOverlayFactories(t *testing.T) {
 		wantBwrap    IsolationMode
 		wantHomeOver bool
 	}{
-		{"userns", NewOverlayfsUserNSDriver(cfg), DriverOverlayfsUserNS, ModeBwrapRequired, true},
-		{"root", NewOverlayfsRootDriver(cfg), DriverOverlayfsRoot, ModeBwrapRequired, true},
-		{"fuse", NewFuseOverlayfsDriver(cfg), DriverFuseOverlayfs, ModeBwrapPreferred, true},
+		{"userns", NewOverlayfsUserNSDriver(cfg, testClock()), DriverOverlayfsUserNS, ModeBwrapRequired, true},
+		{"root", NewOverlayfsRootDriver(cfg, testClock()), DriverOverlayfsRoot, ModeBwrapRequired, true},
+		{"fuse", NewFuseOverlayfsDriver(cfg, testClock()), DriverFuseOverlayfs, ModeBwrapPreferred, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

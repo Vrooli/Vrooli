@@ -3,7 +3,6 @@ package sandbox
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -29,7 +28,7 @@ func (s *Service) CheckConflicts(ctx context.Context, id uuid.UUID) (*types.Conf
 
 	response := &types.ConflictCheckResponse{
 		BaseCommitHash: sandbox.BaseCommitHash,
-		CheckedAt:      time.Now(),
+		CheckedAt:      s.clock.Now(),
 	}
 
 	sandboxChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
@@ -77,7 +76,7 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 	result := &types.RebaseResult{
 		PreviousBaseHash: sandbox.BaseCommitHash,
 		Strategy:         req.Strategy,
-		RebasedAt:        time.Now(),
+		RebasedAt:        s.clock.Now(),
 	}
 
 	if req.Strategy == "" {
@@ -115,7 +114,7 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 	}
 
 	sandbox.BaseCommitHash = newHash
-	sandbox.UpdatedAt = time.Now()
+	sandbox.UpdatedAt = s.clock.Now()
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {
 		result.Success = false

@@ -5,7 +5,7 @@
 // could silently drop the orphan pass and we'd be back to the same
 // failure mode.
 
-package sandbox
+package sandbox_test
 
 import (
 	"context"
@@ -15,24 +15,28 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
 
 // countingDriver records every ListSandboxDirs call so tests can
-// assert the reconciler ran the expected number of times.
+// assert the reconciler ran the expected number of times. Wraps the
+// canonical FakeDriver from testutil/mocks.
 type countingDriver struct {
-	*fakeOrphanDriver
+	*mocks.FakeDriver
 	listCalls atomic.Int32
 }
 
 func newCountingDriver() *countingDriver {
-	return &countingDriver{fakeOrphanDriver: &fakeOrphanDriver{}}
+	return &countingDriver{FakeDriver: mocks.NewFakeDriver()}
 }
 
 func (d *countingDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
 	d.listCalls.Add(1)
-	return d.fakeOrphanDriver.ListSandboxDirs(ctx)
+	return d.FakeDriver.ListSandboxDirs(ctx)
 }
 
 // TestRunner_Startup_InvokesOrphanReconciler — when Start()
@@ -40,19 +44,14 @@ func (d *countingDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, erro
 // reconciler. Without this, a fresh process boot would delay orphan
 // cleanup until the first tick (potentially 15 minutes later).
 func TestRunner_Startup_InvokesOrphanReconciler(t *testing.T) {
-	repo := newFakeOrphanRepo()
+	repo := mocks.NewFakeRepository()
 	drv := newCountingDriver()
-	svc := newReconcilerService(repo, drv.fakeOrphanDriver)
-	// Replace driver with the counting wrapper.
-	svc.driver = drv
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
-	r := DefaultRunner(svc, time.Hour, 0, HealConfig{})
+	r := sandbox.DefaultRunner(svc, time.Hour, 0, sandbox.HealConfig{})
 	r.Start()
 	defer r.Stop()
 
-	// The startup pass is synchronous before the goroutine enters its
-	// select loop. Give the goroutine a tiny window to record the
-	// initial pass — under 50ms is comfortable since the pass is in-mem.
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		if drv.listCalls.Load() >= 1 {
@@ -70,18 +69,14 @@ func TestRunner_Startup_InvokesOrphanReconciler(t *testing.T) {
 // the startup pass, each ticker fire must also run the orphan
 // reconciler. We use a 30ms interval so the test is fast.
 func TestRunner_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
-	repo := newFakeOrphanRepo()
+	repo := mocks.NewFakeRepository()
 	drv := newCountingDriver()
-	svc := newReconcilerService(repo, drv.fakeOrphanDriver)
-	svc.driver = drv
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
-	r := DefaultRunner(svc, 30*time.Millisecond, 0, HealConfig{})
+	r := sandbox.DefaultRunner(svc, 30*time.Millisecond, 0, sandbox.HealConfig{})
 	r.Start()
 	defer r.Stop()
 
-	// Wait for at least 2 list calls (1 startup + ≥1 tick). Bound the
-	// wait at 2s — generous for a 30ms ticker but tight enough to fail
-	// fast if the wiring is wrong.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if drv.listCalls.Load() >= 2 {
@@ -100,17 +95,14 @@ func TestRunner_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
 // would leak goroutines and `go test -race` would eventually flag
 // them. Pins the contract for future readers.
 func TestRunner_Stop_ReleasesGoroutine(t *testing.T) {
-	repo := newFakeOrphanRepo()
+	repo := mocks.NewFakeRepository()
 	drv := newCountingDriver()
-	svc := newReconcilerService(repo, drv.fakeOrphanDriver)
-	svc.driver = drv
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
 
-	r := DefaultRunner(svc, 10*time.Millisecond, 0, HealConfig{})
+	r := sandbox.DefaultRunner(svc, 10*time.Millisecond, 0, sandbox.HealConfig{})
 	r.Start()
 	r.Stop()
 
-	// Stop() blocks on doneCh; if it returned, the goroutine exited.
-	// A second Stop() must not panic or block.
 	r.Stop()
 }
 
@@ -118,7 +110,7 @@ func TestRunner_Stop_ReleasesGoroutine(t *testing.T) {
 // panic. Defensive coding so an initialization failure can't take the
 // whole API down.
 func TestRunner_NilSafety(t *testing.T) {
-	var nilRunner *Runner
+	var nilRunner *sandbox.Runner
 	nilRunner.Start() // no-op, no panic
 	nilRunner.Stop()  // no-op, no panic
 }

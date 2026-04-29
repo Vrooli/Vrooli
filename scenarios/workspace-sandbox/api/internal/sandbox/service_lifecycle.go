@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -155,7 +154,7 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 		return nil, fmt.Errorf("failed to unmount sandbox: %w", err)
 	}
 
-	now := time.Now()
+	now := s.clock.Now()
 	sandbox.Status = types.StatusStopped
 	sandbox.StoppedAt = &now
 
@@ -202,7 +201,7 @@ func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, erro
 	sandbox.HomeMergedDir = paths.HomeMergedDir
 	sandbox.Status = types.StatusActive
 	sandbox.StoppedAt = nil
-	sandbox.LastUsedAt = time.Now()
+	sandbox.LastUsedAt = s.clock.Now()
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {
 		if unmountErr := s.driver.Unmount(ctx, sandbox); unmountErr != nil {

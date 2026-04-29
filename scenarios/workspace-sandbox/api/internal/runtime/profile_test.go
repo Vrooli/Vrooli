@@ -6,43 +6,12 @@ import (
 
 	"workspace-sandbox/internal/config"
 	driverexec "workspace-sandbox/internal/driver/exec"
+	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
 
-// fakeProfileStore is a stub config.ProfileStore for tests.
-type fakeProfileStore struct {
-	profiles map[string]config.IsolationProfile
-}
-
-func (f *fakeProfileStore) List() ([]config.IsolationProfile, error) {
-	out := make([]config.IsolationProfile, 0, len(f.profiles))
-	for _, p := range f.profiles {
-		out = append(out, p)
-	}
-	return out, nil
-}
-
-func (f *fakeProfileStore) Get(id string) (*config.IsolationProfile, error) {
-	if p, ok := f.profiles[id]; ok {
-		return &p, nil
-	}
-	return nil, errors.New("not found")
-}
-
-func (f *fakeProfileStore) Save(p config.IsolationProfile) error {
-	f.profiles[p.ID] = p
-	return nil
-}
-
-func (f *fakeProfileStore) Delete(id string) error {
-	delete(f.profiles, id)
-	return nil
-}
-
 func TestProfileResolver_FallsBackToDefault(t *testing.T) {
-	store := &fakeProfileStore{profiles: map[string]config.IsolationProfile{
-		"full": {ID: "full"},
-	}}
+	store := mocks.NewFakeProfileStore(config.IsolationProfile{ID: "full"})
 	r := &ProfileResolver{Store: store, DefaultID: "full"}
 	got, err := r.Resolve("")
 	if err != nil {
@@ -54,9 +23,7 @@ func TestProfileResolver_FallsBackToDefault(t *testing.T) {
 }
 
 func TestProfileResolver_FallsBackToBuiltinFull(t *testing.T) {
-	store := &fakeProfileStore{profiles: map[string]config.IsolationProfile{
-		"full": {ID: "full"},
-	}}
+	store := mocks.NewFakeProfileStore(config.IsolationProfile{ID: "full"})
 	r := &ProfileResolver{Store: store}
 	got, err := r.Resolve("")
 	if err != nil {
@@ -68,7 +35,7 @@ func TestProfileResolver_FallsBackToBuiltinFull(t *testing.T) {
 }
 
 func TestProfileResolver_UnknownReturnsTypedError(t *testing.T) {
-	r := &ProfileResolver{Store: &fakeProfileStore{profiles: map[string]config.IsolationProfile{}}}
+	r := &ProfileResolver{Store: mocks.NewFakeProfileStore()}
 	_, err := r.Resolve("nope")
 	if err == nil {
 		t.Fatal("expected error for unknown profile")

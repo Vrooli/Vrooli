@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/gc"
@@ -63,6 +64,11 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
+
+	// Wall-clock seam (Round 4 Phase 2). Production wires
+	// clock.System{} once and threads it through every constructor that
+	// needs time. Tests construct equivalents with a FakeClock.
+	clk := clock.System{}
 
 	// Resolve the embedded SQLite database path. Honors SQLITE_PATH for
 	// explicit overrides; otherwise places the file under the cross-platform
@@ -112,7 +118,7 @@ func NewServer() (*Server, error) {
 		MaxSizeMB:          cfg.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs:   cfg.Driver.UseFuseOverlayfs,
 	}
-	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
+	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg, clk)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
@@ -182,7 +188,7 @@ func NewServer() (*Server, error) {
 	}
 
 	// Initialize repository and service
-	repo := repository.NewSandboxRepository(db)
+	repo := repository.NewSandboxRepository(db, clk)
 	svcCfg := sandbox.ServiceConfig{
 		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
 		MaxSandboxes:            cfg.Limits.MaxSandboxes,
@@ -192,7 +198,7 @@ func NewServer() (*Server, error) {
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
-	svc := sandbox.NewService(repo, driverSlot, svcCfg,
+	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk,
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
@@ -208,10 +214,10 @@ func NewServer() (*Server, error) {
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
 		GracePeriod: cfg.Lifecycle.ProcessGracePeriod,
 		KillWait:    cfg.Lifecycle.ProcessKillWait,
-	})
+	}, clk)
 
 	// Initialize process logger (Phase 2)
-	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir))
+	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir), clk)
 
 	// Initialize profile store for isolation profiles.
 	scenarioDir, err := resolveWorkspaceSandboxScenarioDir()
@@ -231,7 +237,7 @@ func NewServer() (*Server, error) {
 		DefaultLimit:         100,
 		MaxTotalSizeBytes:    cfg.Limits.MaxTotalSizeMB * 1024 * 1024,
 	}
-	gcService := gc.NewService(repo, driverSlot, gcCfg)
+	gcService := gc.NewService(repo, driverSlot, gcCfg, clk)
 
 	// Check if we're in a user namespace via /proc/self/uid_map.
 	// driver.InUserNamespace is the canonical probe; it agrees with the
@@ -252,10 +258,11 @@ func NewServer() (*Server, error) {
 		ProfileStore:    profileStore,
 		InUserNamespace: inUserNS,
 		Reconcilers:     lifecycleRecon,
+		Clock:           clk,
 	}
 
 	// Initialize structured logger
-	logger := logging.New("workspace-sandbox-api")
+	logger := logging.New("workspace-sandbox-api", logging.WithClock(clk))
 
 	// Initialize metrics collector [OT-P1-008]
 	metricsCollector := metrics.NewCollector()

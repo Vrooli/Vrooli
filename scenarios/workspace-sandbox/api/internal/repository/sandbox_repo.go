@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -126,22 +128,34 @@ var (
 )
 
 // SandboxRepository provides database operations for sandboxes against a
-// shared *sql.DB.
+// shared *sql.DB. The injected clock supplies every UTC timestamp the
+// repository writes (CreatedAt/UpdatedAt/DeletedAt/EventTime/AppliedAt),
+// so tests can drive timestamp-sensitive paths (GC candidate selection,
+// audit ordering, idempotency-window expiry) deterministically through
+// FakeClock.
 type SandboxRepository struct {
-	db *sql.DB
+	db    *sql.DB
+	clock clock.Clock
 }
 
-// NewSandboxRepository creates a new repository.
-func NewSandboxRepository(db *sql.DB) *SandboxRepository {
-	return &SandboxRepository{db: db}
+// NewSandboxRepository creates a new repository. clk is required and may
+// not be nil — production wires clock.System{}, tests wire FakeClock.
+func NewSandboxRepository(db *sql.DB, clk clock.Clock) *SandboxRepository {
+	if clk == nil {
+		panic("repository.NewSandboxRepository: clock is required")
+	}
+	return &SandboxRepository{db: db, clock: clk}
 }
 
 // TxSandboxRepository is bound to a single transaction. The DSN should set
 // _txlock=immediate so BeginTx acquires the SQLite reserved lock up front,
 // giving Create + CheckScopeOverlap mutual exclusion against concurrent
-// callers racing to claim overlapping reserved paths.
+// callers racing to claim overlapping reserved paths. Inherits the parent
+// repository's clock at BeginTx so the transaction's writes share the same
+// time source as the surrounding session.
 type TxSandboxRepository struct {
-	tx *sql.Tx
+	tx    *sql.Tx
+	clock clock.Clock
 }
 
 func (r *TxSandboxRepository) Commit() error   { return r.tx.Commit() }
@@ -152,7 +166,7 @@ func (r *SandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	return &TxSandboxRepository{tx: tx}, nil
+	return &TxSandboxRepository{tx: tx, clock: r.clock}, nil
 }
 
 func (r *TxSandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
@@ -263,14 +277,14 @@ func scanSandbox(row interface {
 	return &s, nil
 }
 
-func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
+func insertSandbox(ctx context.Context, exec dbExec, clk clock.Clock, s *types.Sandbox) error {
 	if s.ID == uuid.Nil {
 		s.ID = uuid.New()
 	}
 	if s.Version == 0 {
 		s.Version = 1
 	}
-	now := time.Now().UTC()
+	now := clk.Now().UTC()
 	if s.CreatedAt.IsZero() {
 		s.CreatedAt = now
 	}
@@ -334,11 +348,11 @@ func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 
 // Create inserts a new sandbox record.
 func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error {
-	return insertSandbox(ctx, r.db, s)
+	return insertSandbox(ctx, r.db, r.clock, s)
 }
 
 func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) error {
-	return insertSandbox(ctx, r.tx, s)
+	return insertSandbox(ctx, r.tx, r.clock, s)
 }
 
 func getSandbox(ctx context.Context, exec dbExec, id uuid.UUID) (*types.Sandbox, error) {
@@ -362,7 +376,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 	return getSandbox(ctx, r.tx, id)
 }
 
-func updateSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
+func updateSandbox(ctx context.Context, exec dbExec, clk clock.Clock, s *types.Sandbox) error {
 	metadataJSON, err := jsonObject(s.Metadata)
 	if err != nil {
 		return fmt.Errorf("marshal metadata: %w", err)
@@ -372,7 +386,7 @@ func updateSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 		return fmt.Errorf("marshal behavior: %w", err)
 	}
 
-	now := time.Now().UTC()
+	now := clk.Now().UTC()
 	const query = `
 		UPDATE sandboxes SET
 			status = ?, error_message = ?,
@@ -420,15 +434,15 @@ func updateSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 }
 
 func (r *SandboxRepository) Update(ctx context.Context, s *types.Sandbox) error {
-	return updateSandbox(ctx, r.db, s)
+	return updateSandbox(ctx, r.db, r.clock, s)
 }
 
 func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) error {
-	return updateSandbox(ctx, r.tx, s)
+	return updateSandbox(ctx, r.tx, r.clock, s)
 }
 
-func deleteSandbox(ctx context.Context, exec dbExec, id uuid.UUID) error {
-	now := time.Now().UTC()
+func deleteSandbox(ctx context.Context, exec dbExec, clk clock.Clock, id uuid.UUID) error {
+	now := clk.Now().UTC()
 	const query = `
 		UPDATE sandboxes
 		SET status = 'deleted', deleted_at = ?, version = version + 1, updated_at = ?
@@ -445,11 +459,11 @@ func deleteSandbox(ctx context.Context, exec dbExec, id uuid.UUID) error {
 }
 
 func (r *SandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return deleteSandbox(ctx, r.db, id)
+	return deleteSandbox(ctx, r.db, r.clock, id)
 }
 
 func (r *TxSandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return deleteSandbox(ctx, r.tx, id)
+	return deleteSandbox(ctx, r.tx, r.clock, id)
 }
 
 // ---------------------------------------------------------------------------
@@ -677,12 +691,12 @@ func (r *TxSandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, 
 // Audit log
 // ---------------------------------------------------------------------------
 
-func logAuditEvent(ctx context.Context, exec dbExec, event *types.AuditEvent) error {
+func logAuditEvent(ctx context.Context, exec dbExec, clk clock.Clock, event *types.AuditEvent) error {
 	if event.ID == uuid.Nil {
 		event.ID = uuid.New()
 	}
 	if event.EventTime.IsZero() {
-		event.EventTime = time.Now().UTC()
+		event.EventTime = clk.Now().UTC()
 	}
 	if event.ActorType == "" {
 		event.ActorType = "system"
@@ -723,11 +737,11 @@ func logAuditEvent(ctx context.Context, exec dbExec, event *types.AuditEvent) er
 }
 
 func (r *SandboxRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	return logAuditEvent(ctx, r.db, event)
+	return logAuditEvent(ctx, r.db, r.clock, event)
 }
 
 func (r *TxSandboxRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	return logAuditEvent(ctx, r.tx, event)
+	return logAuditEvent(ctx, r.tx, r.clock, event)
 }
 
 // GetAuditLog retrieves audit events ordered by event_time DESC.
@@ -882,7 +896,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 // Optimistic locking
 // ---------------------------------------------------------------------------
 
-func updateWithVersionCheck(ctx context.Context, exec dbExec, s *types.Sandbox, expectedVersion int64) error {
+func updateWithVersionCheck(ctx context.Context, exec dbExec, clk clock.Clock, s *types.Sandbox, expectedVersion int64) error {
 	metadataJSON, err := jsonObject(s.Metadata)
 	if err != nil {
 		return fmt.Errorf("marshal metadata: %w", err)
@@ -892,7 +906,7 @@ func updateWithVersionCheck(ctx context.Context, exec dbExec, s *types.Sandbox, 
 		return fmt.Errorf("marshal behavior: %w", err)
 	}
 
-	now := time.Now().UTC()
+	now := clk.Now().UTC()
 	const query = `
 		UPDATE sandboxes SET
 			status = ?, error_message = ?,
@@ -948,11 +962,11 @@ func updateWithVersionCheck(ctx context.Context, exec dbExec, s *types.Sandbox, 
 }
 
 func (r *SandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
-	return updateWithVersionCheck(ctx, r.db, s, expectedVersion)
+	return updateWithVersionCheck(ctx, r.db, r.clock, s, expectedVersion)
 }
 
 func (r *TxSandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
-	return updateWithVersionCheck(ctx, r.tx, s, expectedVersion)
+	return updateWithVersionCheck(ctx, r.tx, r.clock, s, expectedVersion)
 }
 
 // ---------------------------------------------------------------------------
@@ -985,7 +999,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 	qb := newQueryBuilder()
 	qb.addInCondition("status", safeStatuses)
 
-	now := time.Now().UTC()
+	now := r.clock.Now().UTC()
 	var orConditions []string
 
 	if policy.MaxAge > 0 {
@@ -1045,7 +1059,7 @@ func (r *TxSandboxRepository) GetGCCandidates(ctx context.Context, policy *types
 // Provenance / applied_changes
 // ---------------------------------------------------------------------------
 
-func recordAppliedChanges(ctx context.Context, exec dbExec, changes []*types.AppliedChange) error {
+func recordAppliedChanges(ctx context.Context, exec dbExec, clk clock.Clock, changes []*types.AppliedChange) error {
 	if len(changes) == 0 {
 		return nil
 	}
@@ -1061,7 +1075,7 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, changes []*types.App
 			c.ID = uuid.New()
 		}
 		if c.AppliedAt.IsZero() {
-			c.AppliedAt = time.Now().UTC()
+			c.AppliedAt = clk.Now().UTC()
 		}
 		var costArg any
 		if c.CostUSD != 0 {
@@ -1091,11 +1105,11 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, changes []*types.App
 }
 
 func (r *SandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
-	return recordAppliedChanges(ctx, r.db, changes)
+	return recordAppliedChanges(ctx, r.db, r.clock, changes)
 }
 
 func (r *TxSandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
-	return recordAppliedChanges(ctx, r.tx, changes)
+	return recordAppliedChanges(ctx, r.tx, r.clock, changes)
 }
 
 // GetPendingChanges returns counts grouped by sandbox.
@@ -1332,7 +1346,7 @@ func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid
 	placeholders = placeholders[:len(placeholders)-1]
 
 	args := make([]any, 0, len(ids)+3)
-	args = append(args, formatTime(time.Now().UTC()), commitHash, commitMessage)
+	args = append(args, formatTime(r.clock.Now().UTC()), commitHash, commitMessage)
 	for _, id := range ids {
 		args = append(args, id.String())
 	}
@@ -1357,7 +1371,7 @@ func (r *SandboxRepository) MarkChangesCommittedByPath(ctx context.Context, proj
 	placeholders = placeholders[:len(placeholders)-1]
 
 	args := make([]any, 0, len(filePaths)+4)
-	args = append(args, formatTime(time.Now().UTC()), commitHash, commitMessage, projectRoot)
+	args = append(args, formatTime(r.clock.Now().UTC()), commitHash, commitMessage, projectRoot)
 	for _, fp := range filePaths {
 		if !strings.HasPrefix(fp, "/") {
 			fp = filepath.Join(projectRoot, fp)

@@ -200,7 +200,7 @@ func (s *Service) ReconcileActiveMounts(ctx context.Context, tracker *healTracke
 		return
 	}
 
-	now := time.Now()
+	now := s.clock.Now()
 	for _, sandbox := range result.Sandboxes {
 		if sandbox == nil || sandbox.Status != types.StatusActive {
 			continue

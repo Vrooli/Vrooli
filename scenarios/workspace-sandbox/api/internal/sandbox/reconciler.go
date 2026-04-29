@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -68,6 +69,7 @@ type Runner struct {
 	startupOnly []Reconciler
 	stopCh      chan struct{}
 	doneCh      chan struct{}
+	clock       clock.Clock
 
 	mu      sync.Mutex
 	metrics map[string]ReconcilerMetrics
@@ -91,7 +93,14 @@ type ReconcilerMetrics struct {
 // startupOnly reconcilers run exactly once before the first periodic
 // pass — used for one-shot expirations like ManualReviewExpiry where
 // re-running on every tick would be wasteful.
-func NewRunner(interval time.Duration, periodic, startupOnly []Reconciler) *Runner {
+//
+// clk is required: the dispatch ticker and per-reconciler LastRunAt
+// metric both flow through it so tests can drive deterministic ticks
+// via FakeClock.Advance.
+func NewRunner(interval time.Duration, periodic, startupOnly []Reconciler, clk clock.Clock) *Runner {
+	if clk == nil {
+		panic("sandbox.NewRunner: clock is required")
+	}
 	if interval <= 0 {
 		interval = 15 * time.Minute
 	}
@@ -101,6 +110,7 @@ func NewRunner(interval time.Duration, periodic, startupOnly []Reconciler) *Runn
 		startupOnly: startupOnly,
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
+		clock:       clk,
 		metrics:     make(map[string]ReconcilerMetrics),
 	}
 }
@@ -115,7 +125,7 @@ func (r *Runner) Start() {
 		return
 	}
 	go func() {
-		ticker := time.NewTicker(r.interval)
+		ticker := r.clock.NewTicker(r.interval)
 		defer ticker.Stop()
 		defer close(r.doneCh)
 
@@ -123,7 +133,7 @@ func (r *Runner) Start() {
 		r.runOnce(ctx, true)
 		for {
 			select {
-			case <-ticker.C:
+			case <-ticker.C():
 				r.runOnce(context.Background(), false)
 			case <-r.stopCh:
 				return
@@ -216,7 +226,7 @@ func (r *Runner) invoke(ctx context.Context, rc Reconciler) ReconcileReport {
 	report := rc.Run(ctx)
 	r.mu.Lock()
 	m := r.metrics[rc.Name()]
-	m.LastRunAt = time.Now()
+	m.LastRunAt = r.clock.Now()
 	m.LastDuration = report.Duration
 	m.ItemsProcessed = report.ItemsProcessed
 	m.ItemsFailed = report.ItemsFailed
@@ -244,12 +254,12 @@ func NewLifecycleReconciler(svc *Service) *LifecycleReconciler {
 func (r *LifecycleReconciler) Name() string { return "lifecycle" }
 
 func (r *LifecycleReconciler) Run(ctx context.Context) ReconcileReport {
-	start := time.Now()
 	if r == nil || r.svc == nil {
-		return ReconcileReport{Duration: time.Since(start)}
+		return ReconcileReport{}
 	}
+	start := r.svc.clock.Now()
 	r.svc.ReconcileLifecycle(ctx)
-	return ReconcileReport{Duration: time.Since(start)}
+	return ReconcileReport{Duration: r.svc.clock.Since(start)}
 }
 
 // HealReconciler heals sandboxes whose mount has gone stale.
@@ -269,12 +279,12 @@ func NewHealReconciler(svc *Service, tracker *healTracker, cfg HealConfig) *Heal
 func (r *HealReconciler) Name() string { return "heal" }
 
 func (r *HealReconciler) Run(ctx context.Context) ReconcileReport {
-	start := time.Now()
 	if r == nil || r.svc == nil || r.tracker == nil {
-		return ReconcileReport{Duration: time.Since(start)}
+		return ReconcileReport{}
 	}
+	start := r.svc.clock.Now()
 	r.svc.ReconcileActiveMounts(ctx, r.tracker, r.cfg)
-	return ReconcileReport{Duration: time.Since(start)}
+	return ReconcileReport{Duration: r.svc.clock.Since(start)}
 }
 
 // OrphanReconciler walks the driver's BaseDir and releases dirs whose
@@ -291,9 +301,8 @@ func NewOrphanReconciler(svc *Service) *OrphanReconciler {
 func (r *OrphanReconciler) Name() string { return "orphan" }
 
 func (r *OrphanReconciler) Run(ctx context.Context) ReconcileReport {
-	start := time.Now()
 	if r == nil || r.svc == nil {
-		return ReconcileReport{Duration: time.Since(start)}
+		return ReconcileReport{}
 	}
 	report := r.svc.ReconcileFilesystemOrphans(ctx)
 	out := ReconcileReport{
@@ -326,9 +335,8 @@ func NewDaemonReaperReconciler(svc *Service) *DaemonReaperReconciler {
 func (r *DaemonReaperReconciler) Name() string { return "daemon-reaper" }
 
 func (r *DaemonReaperReconciler) Run(ctx context.Context) ReconcileReport {
-	start := time.Now()
 	if r == nil || r.svc == nil {
-		return ReconcileReport{Duration: time.Since(start)}
+		return ReconcileReport{}
 	}
 	report := r.svc.ReconcileStaleDaemons(ctx)
 	out := ReconcileReport{
@@ -349,31 +357,28 @@ func (r *DaemonReaperReconciler) Run(ctx context.Context) ReconcileReport {
 
 // ManualReviewExpiryReconciler auto-denies abandoned manualReview=true
 // sandboxes whose idle window exceeded the configured TTL. Startup-only:
-// the TTL is a one-shot expiry, not a periodic check.
+// the TTL is a one-shot expiry, not a periodic check. Time is sourced
+// from the wrapped service's clock, so tests drive expiry through the
+// service's FakeClock rather than a per-reconciler `now` function.
 type ManualReviewExpiryReconciler struct {
 	svc *Service
 	ttl time.Duration
-	now func() time.Time
 }
 
 // NewManualReviewExpiryReconciler wraps Service.ReconcileManualReviewExpiry.
-// `now` defaults to time.Now when nil; tests inject a fixed clock.
-func NewManualReviewExpiryReconciler(svc *Service, ttl time.Duration, now func() time.Time) *ManualReviewExpiryReconciler {
-	if now == nil {
-		now = time.Now
-	}
-	return &ManualReviewExpiryReconciler{svc: svc, ttl: ttl, now: now}
+func NewManualReviewExpiryReconciler(svc *Service, ttl time.Duration) *ManualReviewExpiryReconciler {
+	return &ManualReviewExpiryReconciler{svc: svc, ttl: ttl}
 }
 
 func (r *ManualReviewExpiryReconciler) Name() string { return "manual-review-expiry" }
 
 func (r *ManualReviewExpiryReconciler) Run(ctx context.Context) ReconcileReport {
-	start := time.Now()
 	if r == nil || r.svc == nil || r.ttl <= 0 {
-		return ReconcileReport{Duration: time.Since(start)}
+		return ReconcileReport{}
 	}
-	r.svc.ReconcileManualReviewExpiry(ctx, r.ttl, r.now)
-	return ReconcileReport{Duration: time.Since(start)}
+	start := r.svc.clock.Now()
+	r.svc.ReconcileManualReviewExpiry(ctx, r.ttl)
+	return ReconcileReport{Duration: r.svc.clock.Since(start)}
 }
 
 // =============================================================================
@@ -416,9 +421,9 @@ func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCf
 	}
 	var startupOnly []Reconciler
 	if manualReviewTTL > 0 {
-		startupOnly = append(startupOnly, NewManualReviewExpiryReconciler(svc, manualReviewTTL, time.Now))
+		startupOnly = append(startupOnly, NewManualReviewExpiryReconciler(svc, manualReviewTTL))
 	}
-	return NewRunner(interval, periodic, startupOnly)
+	return NewRunner(interval, periodic, startupOnly, svc.clock)
 }
 
 // =============================================================================

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
 
@@ -64,12 +65,13 @@ func (s *Slot) Store(d Driver) {
 
 // SwitchDriver atomically switches to a new driver based on the canonical ID.
 // Sequence: NewDriverFor → IsAvailable → Store → SaveDriverPreference.
-// A failure at any step before Store leaves the slot untouched.
-func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, id DriverID) error {
+// A failure at any step before Store leaves the slot untouched. clk is
+// the time source the new driver receives.
+func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, clk clock.Clock, id DriverID) error {
 	if slot == nil {
 		return fmt.Errorf("driver slot is nil")
 	}
-	newDriver, err := NewDriverFor(cfg, id)
+	newDriver, err := NewDriverFor(cfg, clk, id)
 	if err != nil {
 		return err
 	}

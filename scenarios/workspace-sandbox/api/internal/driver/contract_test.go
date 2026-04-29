@@ -8,8 +8,14 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 )
+
+// testClock returns the production clock for driver tests that don't
+// care about deterministic timestamps. Tests asserting on
+// FileChange.DetectedAt should construct a FakeClock instead.
+func testClock() clock.Clock { return clock.System{} }
 
 // TestDriverContract_RequiresBwrap pins each driver's isolation-mode
 // declaration. Adding a new driver = a new row here, not editing a
@@ -21,9 +27,9 @@ func TestDriverContract_RequiresBwrap(t *testing.T) {
 		drv  Driver
 		want IsolationMode
 	}{
-		{"copy", NewCopyDriver(cfg), ModeNone},
-		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg), ModeBwrapPreferred},
-		{"overlayfs", NewOverlayfsDriver(cfg), ModeBwrapRequired},
+		{"copy", NewCopyDriver(cfg, testClock()), ModeNone},
+		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testClock()), ModeBwrapPreferred},
+		{"overlayfs", NewOverlayfsDriver(cfg, testClock()), ModeBwrapRequired},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -72,9 +78,9 @@ func TestDriverContract(t *testing.T) {
 		ctor           func(Config) Driver
 		expectHomeOver bool // mount-backed drivers must populate HomeMergedDir when $HOME is set
 	}{
-		{"copy", func(cfg Config) Driver { return NewCopyDriver(cfg) }, false},
-		{"fuse-overlayfs", func(cfg Config) Driver { return NewFuseOverlayfsDriver(cfg) }, true},
-		{"overlayfs", func(cfg Config) Driver { return NewOverlayfsDriver(cfg) }, true},
+		{"copy", func(cfg Config) Driver { return NewCopyDriver(cfg, testClock()) }, false},
+		{"fuse-overlayfs", func(cfg Config) Driver { return NewFuseOverlayfsDriver(cfg, testClock()) }, true},
+		{"overlayfs", func(cfg Config) Driver { return NewOverlayfsDriver(cfg, testClock()) }, true},
 	}
 
 	for _, tc := range cases {

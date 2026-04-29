@@ -61,7 +61,7 @@ func TestFuseOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 		t.Fatalf("failed to create added file: %v", err)
 	}
 
-	drv := NewFuseOverlayfsDriver(DefaultConfig())
+	drv := NewFuseOverlayfsDriver(DefaultConfig(), testClock())
 	sb := &types.Sandbox{
 		ID:       uuid.New(),
 		LowerDir: lowerDir,

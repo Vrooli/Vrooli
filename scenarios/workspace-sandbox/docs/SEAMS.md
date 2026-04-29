@@ -1000,3 +1000,140 @@ loop-bomb risk observable.
 stdlib `testing/quick`: idempotence, traversal-rejection,
 encoding-invariance (NFC/NFD), and symlink-containment.
 
+
+### Round 4 Phase 1: Shared `internal/testutil/` package
+
+Round 4 inverts the usual order: test infrastructure first, boundary
+refactors driven by what tests want to inject. Phase 1 lands the
+shared testutil package — every fake the test suite needs in one place.
+
+Layout:
+
+- `internal/testutil/mocks/` — interface fakes that DO NOT import the
+  `sandbox` package. Hosts `FakeRepository` (full state, per-method
+  error knobs), `FakeTxRepository`, `FakeDriver` (full Driver +
+  MountVerifier), `FakeGitOps`, `FakePinger`, `FakeProfileStore`. Tests
+  inside package `sandbox` import these directly.
+- `internal/testutil/mocks/sandboxiface/` — fakes that DO import the
+  `sandbox` package. Hosts `FakeReconciler`, `FakeProcFS`, `FakeService`
+  (full ServiceAPI surface). External-test files import these. The
+  subpackage split exists solely so package-`sandbox` tests can pull in
+  `mocks/` without an import cycle.
+- `internal/testutil/fixtures/` — domain-object factories: `NewSandbox`,
+  `NewIsolationProfile`, `NewExitInfo`. Functional options keep
+  defaults out of test bodies.
+- `internal/testutil/db/` — `NewSQLite(t)` returns a connected DB with
+  the production `repository.SchemaSQL` applied to a `t.TempDir()`
+  file. Replaces the per-test `newTestDB` helpers.
+- `internal/testutil/httpx/` — `ParseSSEStream` (strict parser used by
+  Phase 3/5 frame-ordering tests). Phase 3 will add the live-HTTP
+  harness here.
+- `internal/testutil/assertx/` — domain assertions (`AssertStatus`,
+  `AssertHomeOverlayState`, `AssertSSEFrameSequence`, `AssertAuditEvents`).
+
+Guarantees pinned by tests:
+
+- `internal/testutil/no_prod_import_test.go` walks every non-test `.go`
+  file under `internal/` and asserts none imports
+  `workspace-sandbox/internal/testutil/...`. Production code that
+  accidentally references a fake fails CI loudly.
+- Each fake has a smoke test verifying default state plus at least one
+  error-injection knob.
+
+Production-code changes Phase 1 made en route:
+
+- Exported `sandbox.ProcFS` and `sandbox.ProcEntry` (was unexported
+  inline interface) so `FakeProcFS` can satisfy them from outside the
+  package.
+- Renamed `sandbox.reconcileStaleDaemonsWithConfig` →
+  `sandbox.ReconcileStaleDaemonsWithConfig` for the same reason.
+- Fixed a pre-existing bug in `sandbox.daemonOwnerIsOrphan` surfaced
+  by the production-faithful `FakeRepository.Get` contract: the real
+  SQLite repo returns `(nil, nil)` for missing rows, but
+  `daemonOwnerIsOrphan` only treated `*types.NotFoundError` as orphan,
+  meaning daemon-reaper would skip orphan fuse-overlayfs processes
+  in production. Now mirrors `orphan_reconciler.go::isOrphan`'s
+  both-conventions accept.
+
+[CODE: `internal/testutil/`]
+
+## Clock Seam (Round 4 Phase 2)
+
+`internal/clock/clock.go` is the canonical wall-clock seam. Every
+production component that previously called `time.Now()`, `time.Since`,
+`time.Sleep`, or `time.NewTicker` now consumes a `clock.Clock` instead.
+DOD: zero `time.Now()` or `time.NewTicker` references in `internal/`
+outside `internal/clock/` and `internal/testutil/`.
+
+Interface:
+
+```go
+type Clock interface {
+    Now() time.Time
+    Since(time.Time) time.Duration
+    Sleep(time.Duration)
+    NewTicker(time.Duration) Ticker
+}
+type Ticker interface {
+    C() <-chan time.Time
+    Stop()
+}
+```
+
+Production wires `clock.System{}` once in `main.go` and threads it
+through every constructor:
+
+- `repository.NewSandboxRepository(db, clk)` — every UTC timestamp the
+  repo writes (CreatedAt, UpdatedAt, DeletedAt, EventTime, AppliedAt).
+- `process.NewTracker(clk)` / `NewTrackerWithConfig(cfg, clk)` —
+  StartedAt on Track, StoppedAt fallback in RecordExit, kill-grace
+  Sleep loop.
+- `process.NewLogger(cfg, clk)` — log header timestamp (per-stream)
+  and exit-trailer wording in CloseLogPair.
+- `gc.NewService(repo, drv, cfg, clk)` — StartedAt/CompletedAt on
+  every GC pass, candidate-cutoff math.
+- `sandbox.NewService(repo, drv, cfg, clk, opts...)` — Stop's
+  StoppedAt, Start's LastUsedAt, Approve/finalizeApproval's now,
+  Rebase/CheckConflicts timestamps, manual-review TTL evaluation,
+  daemon-reaper start time, orphan reconciler duration.
+- `sandbox.NewRunner(interval, periodic, startupOnly, clk)` — the
+  reconciler dispatch ticker now flows through `clock.NewTicker`, and
+  per-reconciler LastRunAt metrics flow through `clock.Now`.
+- `driver.NewCopyDriver(cfg, clk)`, `NewOverlayfsUserNSDriver(cfg, clk)`,
+  `NewOverlayfsRootDriver(cfg, clk)`, `NewFuseOverlayfsDriver(cfg, clk)`,
+  `NewOverlayfsDriver(cfg, clk)` — FileChange.DetectedAt timestamps.
+- `driver.SelectDriver(ctx, cfg, clk)`, `SelectDriverWithPreference`,
+  `DriverInfo`, `NewDriverFor`, `SwitchDriver` — propagate the same
+  clock to every driver they construct.
+- `logging.New(service, WithClock(clk), opts...)` — entry-time
+  timestamps in JSON log lines.
+- `handlers.Handlers{Clock: clk, ...}` — admin/audit response
+  `timestamp`, interactive-shell exit-message Sleep.
+
+Test wiring: `testutil/mocks.FakeClock` advances only on `Advance` /
+`SetNow`. `Sleep` is implemented as `Advance`, so production polling
+loops (`for now < deadline { sleep(step) }`) terminate after one
+iteration. Tickers returned from `FakeClock.NewTicker` fire on
+`Advance`. Per-consumer deterministic tests live in
+`internal/sandbox/clock_seam_test.go` (Service.Stop timestamp,
+ReconcileLifecycle idle-TTL boundary, ReconcileManualReviewExpiry
+boundary, Runner ticker through FakeClock) and
+`internal/process/clock_seam_test.go` (Tracker.RecordExit StoppedAt
+fallback, Logger header timestamp).
+
+Production-code changes Phase 2 made en route:
+
+- Removed the per-reconciler `now func() time.Time` parameter on
+  `Service.ReconcileManualReviewExpiry` and the matching field on
+  `ManualReviewExpiryReconciler`. Time now flows through
+  `Service.clock`, eliminating a redundant injection point.
+- `diff.GenerateDiff` no longer stamps `DiffResult.Generated`; the
+  caller (Service, with its injected clock) does. Keeps the diff
+  package clock-free without breaking the API contract — the field
+  shape is unchanged, only the responsibility moved.
+- `process.ExitInfo.StoppedAt` is now stamped exclusively by
+  `Tracker.RecordExit` from the tracker's clock. Callers
+  (`handlers/process_start.go`, `toolexecution/adapters.go`) leave it
+  zero, removing a duplicated time source.
+
+[CODE: `internal/clock/clock.go`, `internal/testutil/mocks/clock.go`]

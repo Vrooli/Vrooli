@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
+	"workspace-sandbox/internal/clock"
 	driverexec "workspace-sandbox/internal/driver/exec"
 	"workspace-sandbox/internal/types"
 )
@@ -153,11 +154,11 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run the interactive session
-	runInteractiveSession(conn, sb, cfg, startReq)
+	runInteractiveSession(conn, sb, cfg, startReq, h.Clock)
 }
 
 // runInteractiveSession runs a command with PTY and streams I/O over WebSocket.
-func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest) {
+func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest, clk clock.Clock) {
 	// Build the command
 	executable, args := driverexec.BuildExecCommand(sb, cfg, req.Command, req.Args...)
 
@@ -284,7 +285,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 	}
 
 	// Give a moment for the message to be sent
-	time.Sleep(100 * time.Millisecond)
+	clk.Sleep(100 * time.Millisecond)
 
 	// Wait for goroutines to finish (with timeout)
 	done := make(chan struct{})

@@ -159,7 +159,11 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		default:
 		}
 		onExitOnce.Do(func() {
-			info := process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled, StoppedAt: time.Now()}
+			// StoppedAt is left zero so the tracker stamps it via its
+			// injected clock — keeps a single source of truth for the
+			// exit timestamp and avoids handlers needing a clock of
+			// their own for fallback exit info.
+			info := process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled}
 			if h.ProcessTracker != nil {
 				h.ProcessTracker.RecordExit(id, pid, info)
 			}

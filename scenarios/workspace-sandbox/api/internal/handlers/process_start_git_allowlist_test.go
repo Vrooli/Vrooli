@@ -23,6 +23,8 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/testutil/mocks"
+	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 )
 
@@ -47,13 +49,13 @@ func newProtectedSandboxFixture(id uuid.UUID, allowlist []string) *types.Sandbox
 
 func newStartProcessHandlers(sb *types.Sandbox) *Handlers {
 	return &Handlers{
-		Service: &mockService{
-			getFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+		Service: &sandboxiface.FakeService{
+			GetFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 				return sb, nil
 			},
 		},
-		DB:         &mockPinger{},
-		DriverSlot: driver.NewSlot(&mockDriver{available: true}),
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}
 }

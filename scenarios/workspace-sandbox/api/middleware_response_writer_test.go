@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/logging"
 )
 
@@ -25,7 +27,7 @@ import (
 func TestStructuredLoggingMiddleware_PreservesFlusherInterface(t *testing.T) {
 	t.Parallel()
 
-	srv := &Server{logger: logging.New("test")}
+	srv := &Server{logger: logging.New("test", logging.WithClock(clock.System{}))}
 
 	router := mux.NewRouter()
 	router.Use(srv.structuredLoggingMiddleware)
@@ -75,7 +77,7 @@ func TestStructuredLoggingMiddleware_PreservesFlusherInterface(t *testing.T) {
 func TestStructuredLoggingMiddleware_PreservesHijackerInterface(t *testing.T) {
 	t.Parallel()
 
-	srv := &Server{logger: logging.New("test")}
+	srv := &Server{logger: logging.New("test", logging.WithClock(clock.System{}))}
 
 	router := mux.NewRouter()
 	router.Use(srv.structuredLoggingMiddleware)
@@ -111,7 +113,8 @@ func TestStructuredLoggingMiddleware_PreservesHijackerInterface(t *testing.T) {
 
 func readAll(r interface {
 	Read(p []byte) (n int, err error)
-}) (string, error) {
+},
+) (string, error) {
 	br := bufio.NewReader(r)
 	var sb strings.Builder
 	buf := make([]byte, 4096)

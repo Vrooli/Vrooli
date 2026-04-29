@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"time"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/types"
@@ -44,6 +45,7 @@ type Service struct {
 	repo   repository.Repository
 	driver driver.Driver
 	config Config
+	clock  clock.Clock
 }
 
 // Config holds GC service configuration.
@@ -75,19 +77,26 @@ func DefaultConfig() Config {
 	}
 }
 
-// NewService creates a new GC service.
-func NewService(repo repository.Repository, drv driver.Driver, cfg Config) *Service {
+// NewService creates a new GC service. clk is required: every GC pass
+// timestamps StartedAt / CompletedAt and the candidate-cutoff math goes
+// through it so tests can hold time still while exercising the policy
+// branches.
+func NewService(repo repository.Repository, drv driver.Driver, cfg Config, clk clock.Clock) *Service {
+	if clk == nil {
+		panic("gc.NewService: clock is required")
+	}
 	return &Service{
 		repo:   repo,
 		driver: drv,
 		config: cfg,
+		clock:  clk,
 	}
 }
 
 // Run executes a garbage collection cycle based on the request parameters.
 // If DryRun is true, returns what would be collected without actually deleting.
 func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResult, error) {
-	startedAt := time.Now()
+	startedAt := s.clock.Now()
 
 	result := &types.GCResult{
 		Collected: []*types.GCCollectedSandbox{},
@@ -124,7 +133,7 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 	}
 
 	// Determine reasons for each candidate
-	now := time.Now()
+	now := s.clock.Now()
 	for _, sandbox := range candidates {
 		reasons := s.determineReasons(sandbox, policy, now)
 		result.Reasons[sandbox.ID.String()] = reasons
@@ -150,7 +159,7 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 			result.TotalBytesReclaimed += sandbox.SizeBytes
 		}
 		result.TotalCollected = len(result.Collected)
-		result.CompletedAt = time.Now()
+		result.CompletedAt = s.clock.Now()
 		return result, nil
 	}
 
@@ -210,7 +219,7 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 	}
 
 	result.TotalCollected = len(result.Collected)
-	result.CompletedAt = time.Now()
+	result.CompletedAt = s.clock.Now()
 
 	return result, nil
 }

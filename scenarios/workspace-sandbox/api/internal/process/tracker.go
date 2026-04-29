@@ -28,6 +28,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/clock"
 )
 
 // ExitInfo captures the terminal state of a tracked process. It is the
@@ -150,18 +152,21 @@ type Tracker struct {
 	mu        sync.RWMutex
 	processes map[uuid.UUID][]*TrackedProcess // sandboxID -> processes
 	config    TrackerConfig
+	clock     clock.Clock
 }
 
-// NewTracker creates a new process tracker with default config.
-func NewTracker() *Tracker {
-	return &Tracker{
-		processes: make(map[uuid.UUID][]*TrackedProcess),
-		config:    DefaultTrackerConfig(),
-	}
+// NewTracker creates a new process tracker with default config and the
+// supplied clock. clk is required: production wires clock.System{},
+// tests wire FakeClock so kill-grace-period semantics are deterministic.
+func NewTracker(clk clock.Clock) *Tracker {
+	return NewTrackerWithConfig(DefaultTrackerConfig(), clk)
 }
 
 // NewTrackerWithConfig creates a new process tracker with custom config.
-func NewTrackerWithConfig(cfg TrackerConfig) *Tracker {
+func NewTrackerWithConfig(cfg TrackerConfig, clk clock.Clock) *Tracker {
+	if clk == nil {
+		panic("process.NewTrackerWithConfig: clock is required")
+	}
 	if cfg.GracePeriod <= 0 {
 		cfg.GracePeriod = 100 * time.Millisecond
 	}
@@ -171,6 +176,7 @@ func NewTrackerWithConfig(cfg TrackerConfig) *Tracker {
 	return &Tracker{
 		processes: make(map[uuid.UUID][]*TrackedProcess),
 		config:    cfg,
+		clock:     clk,
 	}
 }
 
@@ -188,7 +194,7 @@ func (t *Tracker) Track(sandboxID uuid.UUID, pid int, command string, sessionID 
 		PGID:      pgid,
 		SandboxID: sandboxID,
 		Command:   command,
-		StartedAt: time.Now(),
+		StartedAt: t.clock.Now(),
 		SessionID: sessionID,
 		exitCh:    make(chan struct{}),
 	}
@@ -269,7 +275,7 @@ func (t *Tracker) RecordExit(sandboxID uuid.UUID, pid int, info ExitInfo) {
 	}
 	stoppedAt := info.StoppedAt
 	if stoppedAt.IsZero() {
-		stoppedAt = time.Now()
+		stoppedAt = t.clock.Now()
 	}
 	exitCode := info.ExitCode
 	target.ExitCode = &exitCode
@@ -436,7 +442,7 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		}
 
 		// Wait for graceful shutdown (configurable)
-		time.Sleep(t.config.GracePeriod)
+		t.clock.Sleep(t.config.GracePeriod)
 
 		// If still running, force kill (SIGKILL)
 		if proc.IsRunning() {
@@ -450,7 +456,7 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		}
 
 		// Give time for the process to die (configurable)
-		time.Sleep(t.config.KillWait)
+		t.clock.Sleep(t.config.KillWait)
 
 		// Check if actually dead now
 		if !proc.IsRunning() {
@@ -461,7 +467,7 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 				t.RecordExit(sandboxID, proc.PID, ExitInfo{
 					ExitCode:  -1,
 					Signal:    int(syscall.SIGKILL),
-					StoppedAt: time.Now(),
+					StoppedAt: t.clock.Now(),
 				})
 			}
 			killed++
@@ -505,7 +511,7 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 	}
 
 	// Wait for graceful shutdown (configurable)
-	time.Sleep(t.config.GracePeriod)
+	t.clock.Sleep(t.config.GracePeriod)
 	if target.IsRunning() {
 		if err := t.killProcess(target, syscall.SIGKILL); err != nil {
 			errors = append(errors, err)
@@ -517,7 +523,7 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 	}
 
 	// Give time for cleanup (configurable)
-	time.Sleep(t.config.KillWait)
+	t.clock.Sleep(t.config.KillWait)
 
 	if !target.IsRunning() {
 		return nil
@@ -592,7 +598,7 @@ func (t *Tracker) StartSession(sandboxID uuid.UUID) *Session {
 	return &Session{
 		ID:        uuid.New().String(),
 		SandboxID: sandboxID,
-		StartedAt: time.Now(),
+		StartedAt: t.clock.Now(),
 		Processes: []*TrackedProcess{},
 	}
 }
@@ -609,7 +615,7 @@ func (t *Tracker) TrackInSession(session *Session, pid int, command string) (*Tr
 
 // EndSession marks a session as ended and optionally kills its processes.
 func (t *Tracker) EndSession(ctx context.Context, session *Session, killProcesses bool) error {
-	now := time.Now()
+	now := t.clock.Now()
 	session.EndedAt = &now
 
 	if killProcesses {

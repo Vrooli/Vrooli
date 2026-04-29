@@ -169,7 +169,9 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 		default:
 		}
 		onExitOnce.Do(func() {
-			info := process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled, StoppedAt: time.Now()}
+			// StoppedAt is left zero; the tracker stamps it from its
+			// injected clock so we keep a single time source.
+			info := process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled}
 			if a.processTracker != nil {
 				a.processTracker.RecordExit(sandboxID, pid, info)
 			}

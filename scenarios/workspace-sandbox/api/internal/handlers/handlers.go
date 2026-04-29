@@ -19,6 +19,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/metrics"
@@ -46,6 +47,7 @@ type Handlers struct {
 	ProfileStore    config.ProfileStore // For isolation profile storage
 	InUserNamespace bool                // Whether API is running in a user namespace
 	Reconcilers     *sandbox.Runner     // Periodic reconciler dispatcher (Phase 2 Round 3)
+	Clock           clock.Clock         // Wall-clock seam (Round 4 Phase 2). Required.
 }
 
 // Driver returns the active driver from the slot. Atomic load — safe for

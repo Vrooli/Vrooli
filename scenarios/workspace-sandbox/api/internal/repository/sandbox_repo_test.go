@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
 
 	_ "modernc.org/sqlite"
@@ -46,7 +48,7 @@ func newTestDB(t *testing.T) *sql.DB {
 }
 
 func newTestRepo(t *testing.T) *SandboxRepository {
-	return NewSandboxRepository(newTestDB(t))
+	return NewSandboxRepository(newTestDB(t), clock.System{})
 }
 
 func newTestSandbox() *types.Sandbox {
