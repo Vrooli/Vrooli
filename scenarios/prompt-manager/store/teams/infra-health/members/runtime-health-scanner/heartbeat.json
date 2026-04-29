@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "infra-health",
+  "agentId": "runtime-health-scanner",
+  "enabled": true,
+  "schedule": "30 19 * * *",
+  "revision": 1,
+  "createdAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-04-28T00:00:00Z"
+}

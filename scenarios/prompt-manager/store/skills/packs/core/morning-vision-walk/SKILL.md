@@ -42,6 +42,8 @@ This skill exists because of a core insight about Vrooli:
 
 **Monetization context:** Vrooli's full monetization plan is canonical at `docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
 
+**Infra-health context:** The infra-health team produces decisions about platform reliability and internal-code quality — runtime patterns surfaced from autoheal/system-monitor history (heal-loops, repeat failures, slow-restart trends, investigation clusters), internal-code audit findings across cli/lifecycle/setup/infra/harness, instrumentation gaps the team needs filled, cross-platform debt for tier-2+ deployment, and proposed reliability-target updates. Phase 5.7 handles these. `capability-gap` items raised by infra-health (typically missing CLI verbs on autoheal, system-monitor, or vrooli core) surface in Phase 3 alongside marketing-crew's and meta-optimization's, since director-swarm consumes them. Plan-of-record lives at `docs/infra-health/` (`RELIABILITY_TARGETS.md`, `INSTRUMENTATION_ROADMAP.md`, `CROSS_PLATFORM_LEDGER.md`).
+
 **The long-term vision:** This morning walk should eventually be the *only* thing the human needs to do to steer the project. Everything else — execution, monitoring, deployment, testing — happens autonomously. The walk is where human judgment, creativity, and strategic thinking enter the system.
 
 ---
@@ -132,14 +134,16 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 **Entry criteria:** Retrospective complete.
 
 **Actions:**
-1. Present pending portfolio decisions from the prep deliverable (max 3). Portfolio decisions here include `capability-gap` items raised by the meta-optimization team (run-introspector or toolchain-validator) — those live on the meta-optimization queue but are portfolio decisions by design, so they're grouped here, not in Phase 5.5.
-2. For each decision: state what's being decided, the recommended option, and why it matters — in conversational language, not formal decision-doc prose. If the decision has an attached contrarian challenge note (meta-optimization `capability-gap` items may), present the skepticism alongside the recommendation so the operator sees both.
+1. Present pending portfolio decisions from the prep deliverable (max 3). Portfolio decisions here include `capability-gap` items raised by the meta-optimization team (run-introspector or toolchain-validator), the marketing-crew team, and the infra-health team — those live on their respective team queues but are portfolio decisions by design, so they're grouped here, not in Phases 5.3 / 5.5 / 5.7.
+2. For each decision: state what's being decided, the recommended option, and why it matters — in conversational language, not formal decision-doc prose. If the decision has an attached contrarian challenge note (any team's `capability-gap` items may), present the skepticism alongside the recommendation so the operator sees both.
 3. If the user makes a choice, execute it immediately on the correct team:
    ```bash
    # Director-swarm portfolio decisions
    prompt-manager team decision-accept director-swarm <decision-id> --selected <option-key> --notes "<user's reasoning>"
-   # capability-gap decisions live on meta-optimization
+   # capability-gap decisions live on the team that raised them
    prompt-manager team decision-accept meta-optimization <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept marketing-crew <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept infra-health <decision-id> --selected <option-key> --notes "<user's reasoning>"
    ```
    Note: if `decision-accept` is not yet available in the CLI, that is a parity bug — file/surface it and escalate; do NOT work around it by calling the API directly from this skill.
 4. If the user wants to defer, note it and move on.
@@ -246,10 +250,45 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 **Disabled-team branch:** If `teams/meta-optimization/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list meta-optimization`), skip with: "Meta-optimization team is not currently running. Once running, this phase will surface skill/agent/team/toolchain evolution proposals, run-derived lessons, and debt promotions." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
 
+**Exit criteria:**
+- [ ] All presented meta-optimization decisions addressed (accepted, rejected, or deferred)
+- [ ] Or section noted as disabled
+
+---
+
+### **Phase 5.7: Infra-Health Decisions**
+
+**Entry criteria:** Meta-optimization decisions complete.
+
+**Actions:**
+1. Present pending infra-health decisions from the prep deliverable (max 3, diversified across contexts — not 3 platform-code-findings in a row if other contexts have items).
+2. For each decision: state what's being decided, the proposing member (runtime-health-scanner / platform-code-auditor / infra-contrarian), the recommendation, and **any attached challenge notes from infra-contrarian**. The contrarian's skepticism is first-class — present it, don't bury it.
+3. Context-specific framings:
+   - `runtime-health-finding` — "Runtime-health-scanner observed a pattern across <window>: <pattern>. Proposed action: <action> via <swarm-manager fix / execute>. Approve (operator routes to swarm-manager), defer, or reject?"
+   - `platform-code-finding` — "Platform-code-auditor graded <slice> as <grade> on <dimension>. Top finding at `<file:line>`: <pattern>. Proposed action: <swarm-manager fix / execute draft>. Approve, defer, or reject?"
+   - `instrumentation-gap` — "<member> proposes Vrooli should be collecting <stat>. Without it, <which finding was blocked>. Approve (operator updates `INSTRUMENTATION_ROADMAP.md` and routes the build proposal), defer, or reject?"
+   - `cross-platform-debt` — "Platform-code-auditor identified Linux-only assumption at `<file:line>`. Target tier: <tier>. Approve (operator appends to `CROSS_PLATFORM_LEDGER.md`), defer, or reject?"
+   - `reliability-target-update` — "<member> proposes adjusting target for <component>: <old> → <new>. Reason: <30+ day baseline / consistently-missed-for-non-temporary>. Approve (operator updates `RELIABILITY_TARGETS.md`), defer, or reject?"
+   - `framework-meta` — "Infra-contrarian proposes a new failure mode for the rubric: <name>. Examples: <list>. Approve (rubric expands), defer, or reject?"
+   - `decision-rejection-proposed` — "Infra-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
+4. Execute the user's choice:
+   ```bash
+   prompt-manager team decision-accept infra-health <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   ```
+5. For approved `instrumentation-gap` / `cross-platform-debt` / `reliability-target-update` / `framework-meta` decisions, the operator (or you, on the operator's direction) executes the actual `docs/infra-health/*.md` edits proposed in the decision's attached diff. Cite the decision id in the change line.
+6. If the user wants to defer, note it and move on.
+7. If there are no pending decisions, say so briefly and move on.
+
+**Disabled-team branch:** If `teams/infra-health/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list infra-health`), skip with: "Infra-health team is not currently running. Once running, this phase will surface platform reliability findings, internal-code audit items, instrumentation gaps, and cross-platform debt." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
+
+**Boundary callout (one-time, on first walk after team is enabled):** "Infra-health watches the platform itself — internal Vrooli code, lifecycle, and patterns across autoheal/system-monitor history. It does NOT replace scenario-qa (scenario code quality) or system-monitor (live alerts). It looks at the *aggregate* across days/weeks, so most findings are about repeat failures or trends, not individual incidents."
+
+**Guardrail:** Max 3 decisions. Prep agent has already prioritized.
+
 **Transition:** At this point, the decision-triage portion of the walk is complete. Signal the gear shift: "That covers the decisions waiting on you. Let's shift to the creative side — what's been happening outside Vrooli?"
 
 **Exit criteria:**
-- [ ] All presented meta-optimization decisions addressed (accepted, rejected, or deferred)
+- [ ] All presented infra-health decisions addressed (accepted, rejected, or deferred)
 - [ ] Or section noted as disabled
 
 ---
@@ -454,7 +493,7 @@ This skill covers the **daily strategic sync ritual** — from triage through br
 When running a Morning Vision Walk, you **must**:
 
 1. Read the prep deliverable before starting (or note it's unavailable); if it contains a `## Walk Checkpoint` section, offer to resume before starting fresh (see Prerequisites + Section 5 "Explicit Divergence")
-2. Cover all 11 phases in order — 1, 2, 3, 4, 5, 5.3, 5.5, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it; Explicit Divergence may exit the walk early per Section 5 — resume under the checkpoint protocol instead of treating remaining phases as skipped)
+2. Cover all 12 phases in order — 1, 2, 3, 4, 5, 5.3, 5.5, 5.7, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it; Explicit Divergence may exit the walk early per Section 5 — resume under the checkpoint protocol instead of treating remaining phases as skipped)
 3. Execute decisions the user approves via CLI commands
 4. Create backlog items for actionable ideas via swarm-manager CLI
 5. Write knowledge entries for chore audit topics discussed (for next walk's continuity)
@@ -464,4 +503,4 @@ You **should** also:
 - Keep the overall session under 35-50 minutes of conversation
 - Ensure brainstorming (Phases 6-7) gets at least 10 minutes even on heavy decision days
 - Maintain a warm, collaborative tone — this is a daily ritual, not a performance review
-- Note when sections are "not yet active" (strategist, monetization, marketing-crew, meta-optimization) so the user knows what's coming
+- Note when sections are "not yet active" (strategist, monetization, marketing-crew, meta-optimization, infra-health) so the user knows what's coming

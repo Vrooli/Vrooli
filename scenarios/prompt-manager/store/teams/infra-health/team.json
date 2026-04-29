@@ -1,0 +1,37 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "infra-health",
+  "displayName": "Infra Health Team",
+  "mission": "Watch the platform's own health — internal Vrooli code, lifecycle, autoheal/system-monitor history — and surface durable findings the operator can act on. Detect patterns across runtime incidents, audit internal code along the same dimensions scenario-qa applies to scenarios, and drive internal instrumentation forward so future findings are sharper.",
+  "enabled": true,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "decisionMode": "approval",
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 1,
+  "createdAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-04-28T00:00:00Z"
+}

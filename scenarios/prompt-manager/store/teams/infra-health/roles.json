@@ -1,0 +1,22 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "infra-health",
+  "roles": [
+    {
+      "id": "runtime-health-scanner",
+      "name": "Runtime Health Scanner",
+      "description": "Reads vrooli-autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through a strict ladder (repeat-failure → heal-loop → slow-restart → investigation-cluster → quiet-day-shortcut) and picks one to investigate deeply. Produces durable runtime-health findings."
+    },
+    {
+      "id": "platform-code-auditor",
+      "name": "Platform Code Auditor",
+      "description": "Audits Vrooli's internal code (cli/, lifecycle, setup, infra, vrooli binary, harness scripts, Makefiles) along architecture / security / test-coverage / documentation dimensions, plus cross-platform readiness, signal-and-feedback surface quality, and instrumentation gaps. Produces Swarm Manager backlog items via decisions; never modifies internal code directly."
+    },
+    {
+      "id": "infra-contrarian",
+      "name": "Infra Contrarian",
+      "description": "Mandatory skeptic across runtime-health-scanner and platform-code-auditor proposals. Defends against alarm noise (heal-loops working as designed), aesthetic refactors masquerading as reliability work, premature cross-platform fixes for tiers that don't exist yet, and instrumentation sprawl. Owns the aging scan for the team's decision queue."
+    }
+  ]
+}

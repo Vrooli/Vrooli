@@ -1,9 +1,14 @@
 {
-  "generatedAt": "2026-04-23T16:16:49Z",
+  "generatedAt": "2026-04-29T03:29:32Z",
   "items": [
     {
       "id": "director-swarm",
       "displayName": "Director Swarm",
+      "memberCount": 3
+    },
+    {
+      "id": "infra-health",
+      "displayName": "Infra Health Team",
       "memberCount": 3
     },
     {

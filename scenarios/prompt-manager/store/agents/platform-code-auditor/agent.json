@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "platform-code-auditor",
+  "displayName": "Platform Code Auditor",
+  "description": "Audits Vrooli's internal code (cli/, lifecycle, setup, infra, harness, repo-contract) along architecture / security / tests / docs dimensions, plus cross-platform readiness, signal-and-feedback surface, and instrumentation gaps. One slice per heartbeat. Produces Swarm Manager backlog items via decisions; never modifies internal code directly.",
+  "status": "active",
+  "appearance": {
+    "body": "#1E40AF",
+    "head": "#3B82F6",
+    "accent": "#BFDBFE"
+  },
+  "tags": [
+    "infra",
+    "audit",
+    "platform",
+    "cross-platform"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-04-28T00:00:00Z"
+}

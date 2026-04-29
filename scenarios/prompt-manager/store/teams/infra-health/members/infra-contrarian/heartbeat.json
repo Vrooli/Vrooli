@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "infra-health",
+  "agentId": "infra-contrarian",
+  "enabled": true,
+  "schedule": "30 20 * * *",
+  "revision": 1,
+  "createdAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-04-28T00:00:00Z"
+}
