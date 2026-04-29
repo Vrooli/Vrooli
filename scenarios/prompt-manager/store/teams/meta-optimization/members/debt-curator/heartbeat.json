@@ -6,12 +6,13 @@
   "enabled": true,
   "schedule": "15 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-27T23:15:00Z",
-    "endedAt": "2026-04-27T23:15:03Z",
-    "status": "failed",
-    "error": "creating task: agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running port named API_PORT for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
+    "startedAt": "2026-04-28T23:15:00Z",
+    "endedAt": "2026-04-28T23:18:45Z",
+    "status": "completed",
+    "runId": "5befaf5f-f570-46f8-94c0-8078bfa1acb3",
+    "logPath": "../store/teams/meta-optimization/members/debt-curator/logs/2026-04-28T23-15-00Z.log"
   },
-  "revision": 17,
+  "revision": 24,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-27T23:15:03Z"
+  "updatedAt": "2026-04-28T23:18:45Z"
 }

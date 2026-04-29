@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "0 16 * * 2,5",
   "lastExecution": {
-    "startedAt": "2026-04-24T20:00:00Z",
-    "endedAt": "2026-04-24T20:05:05Z",
+    "startedAt": "2026-04-28T20:00:00Z",
+    "endedAt": "2026-04-28T20:03:50Z",
     "status": "completed",
-    "runId": "33ef0797-f4e9-47bf-a7c4-e33474dc535e",
-    "logPath": "../store/teams/monetization/members/market-validator/logs/2026-04-24T20-00-00Z.log"
+    "runId": "66b5bd4c-5b56-40dd-914e-cdfabd96edaa",
+    "logPath": "../store/teams/monetization/members/market-validator/logs/2026-04-28T20-00-00Z.log"
   },
-  "revision": 7,
+  "revision": 15,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-24T20:05:05Z"
+  "updatedAt": "2026-04-28T20:03:50Z"
 }

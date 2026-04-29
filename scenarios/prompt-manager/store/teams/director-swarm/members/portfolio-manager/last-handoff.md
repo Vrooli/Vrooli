@@ -1,16 +1,16 @@
-- **5th consecutive clean heartbeat on approval debt.** All 3 accepted decisions still have knowledge markers; no re-application performed.
-- **One pending decision exists**: `dec-1777312920606447957` (operator-raised social-media-scheduler scenario buildout, vision walk #4). NOT portfolio-manager output. Awaits operator self-review.
-- **Velocity recovered**: 7 completions last week (vs 2 prior heartbeat). 22 in 7d / 47 in 30d. Trend: 9, 6, 10, 15, 7. Healthy. Next heartbeat re-check: if it drops back below 5, that's a 2-week pattern worth flagging.
-- **Edge drift FLAT at 35** (~7 missing_explicit, ~28 possibly_stale). Same as last heartbeat. Below systemic-fix priority-bump threshold (need missing_explicit ≥10). Watch for growth.
-- **GCT cluster flat 4 consecutive heartbeats** (gct-pre-commit-security 1/5, git-control-tower-ai-provenance 0/2, others 0). Threshold (a) met. (b) and (c) not met (ready-now queue still healthy; no operator urgency signal). Hold. **Escalation triggers if GCT stays at 0 for 5+ heartbeats AND ready-now non-GCT queue meaningfully shrinks OR operator signals urgency.**
-- **vrooli-events 2/4 flat 4 heartbeats**, downstream `notification-hub-greenfield` (0/5) blocked but not starving. Below escalation bar.
-- **web-console-readiness exists at priority 7, 1/1 authored.** Workshop expansion is workshop's job; portfolio-manager monitors. Per knowledge marker, do NOT propose relocating items from continuous-audio-platform — that move was explicitly rejected.
-- **Net-new initiatives this heartbeat**: just `web-console-readiness` (expected, from accepted decision). 60 active.
-- **No new decisions created.** Below threshold across all signals.
-- **Next heartbeat priorities:**
-  1. Re-check velocity. If <5 again, that's a 2-week trend.
-  2. Re-check whether workshop authored items under `web-console-readiness`, `design-language-foundation`, `hosted-cloud-tier-foundation`. All still ≤1/N.
-  3. Re-check GCT cluster (5th consecutive flat = closer to escalation but still needs (b) or (c)).
-  4. Re-check edge drift; if missing_explicit reaches 10+, raise systemic priority-bump.
+- **6th consecutive clean heartbeat on approval debt.** All 4 portfolio-relevant accepted decisions now have knowledge markers (added one this heartbeat for `dec-1777173379756603490`).
+- **One pending decision unchanged**: `dec-1777312920606447957` (operator-raised social-media-scheduler scenario, 2026-04-27). NOT portfolio-manager output. Awaits operator self-review.
+- **Velocity strong**: 26 in 7d / 52 in 30d. Last full week 27. Trend `9, 6, 10, 27`. Recovery from earlier dip is solid, not a blip. Next heartbeat: re-check, but unlikely to need action unless it tanks.
+- **GCT cluster flat 5 consecutive heartbeats**. Trigger (a) (flat ≥5 heartbeats) now strongly met, but (b) and (c) still not — ready-now queue has plenty, no operator urgency. **Hold continues. Escalation triggers if GCT stays at 0 for ≥6 heartbeats AND ready-now non-GCT meaningfully shrinks OR operator signals urgency.** *Newly visible chokepoint*: every ready-to-execute GCT item depends on `execute/qa-git-control-tower-code-quality-20260408`. If that QA item lingers, the cluster cannot move regardless of workshop work — worth a structured proposal next heartbeat if still unaddressed.
+- **Edge drift FLAT at ~35 (7 missing_explicit + ~28 possibly_stale)** — 5 heartbeats flat. Below systemic-fix priority-bump threshold (need missing_explicit ≥10). The original 2 missing_explicit edges from `dec-1776896273747118927` have shifted: contribution one resolved naturally; emulator one still present. New legitimate-architectural edge `web-console-readiness → continuous-audio-platform` shows up as predicted; do not re-raise.
+- **vrooli-events 2/4 flat ≥5 heartbeats**. Downstream `notification-hub-greenfield` (0/5) blocked but not starving. Below escalation bar.
+- **Three new infrastructure initiatives at ≤1/N rollup, ≥2 days old**: `web-console-readiness`, `design-language-foundation`, `hosted-cloud-tier-foundation`. Workshop authoring lane has not picked them up. Portfolio-manager only monitors. **Next heartbeat**: if all three are still ≤1/N with no workshop activity, consider raising a single bounded pending decision asking the operator whether a workshop-prioritization signal is needed.
+- **Active initiative count down 2** (60 → 58). `agent-sandbox-audit-foundation` reads completed (10/10). Healthy churn.
+- **No new decisions created this heartbeat.** Below threshold across all signals.
+- **Next heartbeat priorities**:
+  1. Re-check velocity. If <10 again, that's a real slowdown.
+  2. Re-check whether workshop authored items under any of the three new infrastructure initiatives. If still all ≤1/N, raise a bounded decision.
+  3. Re-check GCT cluster (6th consecutive flat = closer to escalation). If still flat, weigh whether `qa-git-control-tower-code-quality-20260408` chokepoint warrants a proposal.
+  4. Re-check edge drift; if `missing_explicit` reaches 10+, raise systemic priority-bump for `execute/swarm-manager-edge-drift-mutation-time-check`.
   5. Re-check whether operator decided on `dec-1777312920606447957` (social-media-scheduler).
 - **Dormant items unchanged**: `dec-1776896273747118927` (edge mutation, awaits tooling), `dec-1776896266693850072` (desktop-monetization-assurance, awaits future swarm-manager initiative review features).

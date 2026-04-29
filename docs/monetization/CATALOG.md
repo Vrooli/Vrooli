@@ -17,6 +17,8 @@ Every SKU carries a status field that flows through this lifecycle:
 
 Promotion from `candidate` → `active` is a human decision surfaced at the morning vision walk. Agents never self-promote.
 
+**Where SKU-shaped ideas live before they enter this catalog:** the agent-side raw pool is `scenarios/prompt-manager/store/teams/monetization/shared/opportunities.jsonl`, populated by opportunity-scout. When an opportunity is broader-than-SKU OR not-yet-ready-for-active-tracking, it may instead be staged in [`docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/) — the operator-curated, capacity-deferred staging surface for project-wide ideas. Idea-pipeline graduates SKU-shaped entries here as `candidate` files when their revisit triggers fire and active tracking is warranted.
+
 ## Revisit trigger discipline
 
 A candidate SKU's doc file **must** contain a `Revisit trigger` field with a concrete condition. Examples:

@@ -1,23 +1,27 @@
 ### Proposals reviewed this heartbeat
-- 4 fresh opportunity-scout pool entries (family-bundle, regtech-intel-addon, home-inspection-vertical, compliance-attestation-services). 0 pending decisions.
+- 4 pending decisions, all from market-validator, all created 2026-04-28. 0 aged. Team queue 4/12 (normal mode); own-context 0/3.
 
-### Passed cleanly
-- opp-...799796 (family-bundle), opp-...799797 (regtech-intel-addon), opp-...799798 (home-inspection-vertical), opp-...799799 (compliance-attestation-services). All four cleared all seven failure modes at pool stage.
+### Passed cleanly (against the seven failure modes)
+- dec-1777406545371477289 (benchmark-update, BENCHMARKS.md gateway-pass-through-margin + Raycast refresh) — sources cited, dated, applicability=high.
+- dec-1777406561539481259 (financial-model-assumption-update, reframe Tier 1/2 unit-econ) — positioning-defensive, well-evidenced.
+- dec-1777406569817752756 (benchmark-update, populate Token pass-through margin subsection) — clean substance.
+- dec-1777406584829985287 (financial-model-assumption-update, tighten COGS framing) — clean substance.
 
 ### Challenge notes written
-- None. No failure-mode hits.
+- knw-1777411967764383009 — `challenge-note/dec-1777406584829985287`. Uncovered-flaw observation: stacks with dec-1777406561539481259 on the same Tier 1/2 COGS reframe; TEAM.md "Supersession over stacking (mandatory)" violation. Revision: market-validator should mark one superseded; recommend keeping ...259 as canonical.
+- knw-1777411976683535951 — `challenge-note/dec-1777406569817752756`. Uncovered-flaw observation: stacks with dec-1777406545371477289 on the BENCHMARKS.md "Token pass-through margin" subsection (both add OpenRouter); merge into one decision listing OpenRouter + Cursor + Raycast-refresh.
 
 ### Rejection recommendations raised
-- No rejection recommendations.
+- No rejection recommendations. Both stacking pairs trip only one (uncovered) flaw, not multiple of the seven named modes — below the rejection threshold.
 
 ### Framework-update candidates
-- None. The queue-stacking signal from operator's rejection of dec-1777060904331053267 still has n=1 source; opportunity-scout's 4 entries today were appended in a single batch, not separate decisions, so the pattern isn't yet recurring.
+- dec-1777411993624275085 — `framework-update`. Proposes adding "Decision queue stacking" as the 8th failure mode in contrarian's checklist (SOUL.md / AGENTS.md / RESPONSIBILITIES.md / HEARTBEAT.md), with concrete check criteria (same context + same target + redundant/competing recommendation, no supersedes link). Justification: pattern is now n=2 across distinct authors and heartbeats (operator's earlier rejection of dec-1777060904331053267 + today's two market-validator pairs). Cap: 1/1 used.
 
 ### Aged decisions acted on
-- 0. Empty queue.
+- 0. All pending decisions created today.
 
 ### Knowledge entries written
-- 1: `contrarian-scan-2026-04-27` (`knw-1777325470578437026`).
+- 3: `challenge-note/dec-1777406584829985287`, `challenge-note/dec-1777406569817752756`, `contrarian-scan-2026-04-28` (supersedes knw-1777325470578437026).
 
 ### Mode
-- Normal (0/12 team ceiling; 0/3 own-context cap). Quiet review — all 4 fresh proposals cleared cleanly with operator-vision-walk grounding, concrete revisit-triggers, and proper OSS-positioning framing. One forward-looking note: re-check the compliance-attestation entry's explicit sunset clause at promotion time; it's stubbed-via-convert today.
+- Normal (4/12 team ceiling; 0/3 own-context cap). Substance of all four market-validator proposals is sound; the recurring failure is queue hygiene, which the contrarian's own checklist doesn't currently catch — hence the framework-update.
