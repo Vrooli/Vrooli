@@ -255,7 +255,7 @@ func validateSandboxConfig(cfg *SandboxConfig) error {
 // modes (unspecified, tracking, protected) are accepted at the validation
 // layer; whether protected mode actually launches through the sandbox or
 // falls back to the host depends on runtime configuration of the runner's
-// SandboxLauncherFactory (see runner.NewClaudeCodeRunnerWithLaunchers).
+// SandboxLauncherFactory (see runnercore.NewRunner / SetSandboxLauncherFactory).
 //
 // The gate flipped from "reserved" to "allowed" with execute/protected-
 // sandbox-agent-launch — the runner-fork that introduced the

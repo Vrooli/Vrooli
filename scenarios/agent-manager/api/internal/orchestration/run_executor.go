@@ -60,54 +60,17 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/orchestration/emit"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
 )
-
-// ExecutorConfig holds configuration for run execution.
-type ExecutorConfig struct {
-	// Timeout is the maximum execution time
-	Timeout time.Duration
-
-	// HeartbeatInterval is how often to update heartbeat
-	HeartbeatInterval time.Duration
-
-	// CheckpointInterval is how often to save checkpoints
-	CheckpointInterval time.Duration
-
-	// MaxRetries is the maximum retries per phase
-	MaxRetries int
-
-	// StaleThreshold is how long without heartbeat before considering stale
-	StaleThreshold time.Duration
-
-	// TeardownTimeout bounds the detached context used by finalize() for
-	// sandbox Delete/Stop calls and final phase persistence. It is INDEPENDENT
-	// of Timeout — teardown must run even when the run-execution deadline has
-	// already expired. 30s comfortably covers the workspace-sandbox DELETE
-	// p99; raise this only if that endpoint's tail latency grows.
-	TeardownTimeout time.Duration
-}
-
-// DefaultExecutorConfig returns sensible defaults for execution.
-// HeartbeatInterval is set to 15s to ensure multiple heartbeats before stale threshold.
-// StaleThreshold is 5 minutes to allow for slow database updates or long tool calls.
-func DefaultExecutorConfig() ExecutorConfig {
-	return ExecutorConfig{
-		Timeout:            60 * time.Minute,
-		HeartbeatInterval:  15 * time.Second, // More frequent heartbeats for reliability
-		CheckpointInterval: 1 * time.Minute,
-		MaxRetries:         3,
-		StaleThreshold:     5 * time.Minute, // More forgiving threshold
-		TeardownTimeout:    30 * time.Second,
-	}
-}
 
 // RunExecutor handles the execution lifecycle of a single run.
 // It encapsulates all the steps needed to execute an agent run,
@@ -145,8 +108,14 @@ type RunExecutor struct {
 	modelChains ModelChainResolver              // optional: for model-level fallback
 	modelHealth ModelHealthReporter             // optional: surfaces runtime model verdicts to the health store
 
-	// Configuration
-	config ExecutorConfig
+	// Configuration: tunable thresholds (timeouts, intervals, buffers).
+	// Sourced from config.DefaultLevers() unless overridden via WithLevers.
+	levers config.Levers
+
+	// gate is the single Emit choke point for events flowing out of this run.
+	// Constructed lazily in createEventSink so tests that don't drive Execute
+	// don't pay the cost.
+	gate *emit.Gate
 
 	// Execution context
 	run          *domain.Run
@@ -217,7 +186,7 @@ func NewRunExecutor(
 		profile:       profile,
 		prompt:        prompt,
 		systemPrompt:  systemPrompt,
-		config:        DefaultExecutorConfig(),
+		levers:        config.DefaultLevers(),
 		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 		heartbeatStop: make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
@@ -227,9 +196,14 @@ func NewRunExecutor(
 	}
 }
 
-// WithConfig sets custom executor configuration.
-func (e *RunExecutor) WithConfig(config ExecutorConfig) *RunExecutor {
-	e.config = config
+// WithLevers overrides the default Levers used by this executor.
+//
+// Callers (orchestrator, tests) supply a fully-populated Levers — typically
+// config.DefaultLevers() with selective overrides applied for runtime
+// orchestration settings or test-fast intervals. The executor reads
+// Heartbeat / Recovery / Scanner / Diagnostics / Execution sub-sections.
+func (e *RunExecutor) WithLevers(l config.Levers) *RunExecutor {
+	e.levers = l
 	return e
 }
 
@@ -328,7 +302,7 @@ func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor 
 // - Resumption skips already-completed phases
 func (e *RunExecutor) Execute(ctx context.Context) {
 	// Apply timeout to context
-	execCtx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	execCtx, cancel := context.WithTimeout(ctx, e.levers.Execution.DefaultTimeout)
 	defer cancel()
 
 	// Start heartbeat goroutine
@@ -538,12 +512,12 @@ func (e *RunExecutor) heartbeatLoop(ctx context.Context) {
 	defer close(e.heartbeatDone)
 
 	log.Printf("[heartbeat] Starting heartbeat loop for run %s (tag=%s, interval=%v)",
-		e.run.ID, e.run.GetTag(), e.config.HeartbeatInterval)
+		e.run.ID, e.run.GetTag(), e.levers.Heartbeat.RunHeartbeatInterval)
 
 	// Send initial heartbeat immediately
 	e.sendHeartbeat(ctx)
 
-	ticker := time.NewTicker(e.config.HeartbeatInterval)
+	ticker := time.NewTicker(e.levers.Heartbeat.RunHeartbeatInterval)
 	defer ticker.Stop()
 
 	heartbeatCount := 1
@@ -615,7 +589,7 @@ func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 		e.failWithError(ctx, &domain.RunnerError{
 			RunnerType:  e.getRunnerType(),
 			Operation:   "timeout",
-			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
+			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.levers.Execution.DefaultTimeout),
 			IsTransient: true, // Timeout is retryable via continuation
 		})
 		e.outcome = domain.RunOutcomeTimeout
@@ -1187,8 +1161,8 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 // The heuristic is intentionally narrow:
 //   - mode must be PROTECTED (in-place runs don't traverse bwrap, so
 //     the failure shape doesn't apply).
-//   - duration must be < launchFailedMaxDuration. A real claude run
-//     takes seconds even for the simplest prompt.
+//   - duration must be < Diagnostics.LaunchFailedMaxDuration. A real
+//     claude run takes seconds even for the simplest prompt.
 //   - zero RUN_EVENT_TYPE_MESSAGE events. A real run always emits at
 //     least the user-prompt echo + one assistant turn; a tool-only run
 //     still emits assistant tool-call messages.
@@ -1202,7 +1176,7 @@ func (e *RunExecutor) validateRunOutcome(ctx context.Context) {
 	if !e.isProtectedSandboxRun() {
 		return
 	}
-	if e.result.Duration >= launchFailedMaxDuration {
+	if e.result.Duration >= e.levers.Diagnostics.LaunchFailedMaxDuration {
 		return
 	}
 	msgCount, err := e.countMessageEvents(ctx)
@@ -1234,11 +1208,6 @@ func (e *RunExecutor) validateRunOutcome(ctx context.Context) {
 	e.result.ErrorMessage = msg
 	e.execErr = domain.NewSandboxLaunchFailedError(msg)
 }
-
-// launchFailedMaxDuration is the upper bound for "ran too fast to be a
-// real run". Tuned generously above bwrap's ~50ms launch overhead and
-// well below any plausible claude turn.
-const launchFailedMaxDuration = 2 * time.Second
 
 // isProtectedSandboxRun returns true when the resolved config picks
 // SandboxModeProtected. Other modes (in-place, tracking) don't traverse
@@ -1513,20 +1482,33 @@ func (e *RunExecutor) generateIdentityToken(ctx context.Context) {
 	}
 }
 
+// createEventSink picks the underlying sink (broadcaster, store, or no-op)
+// and wraps it in the per-run emit.Gate. The Gate is the single emission
+// choke point: today it forwards verbatim; future invariants (dedupe,
+// throttle, audit hooks) attach inside the gate so they don't have to be
+// repeated at every Emit call site.
+//
+// The gate is cached on the executor so subsequent reads (or future phase
+// migrations that need to reuse the same gate instance) get the same value.
 func (e *RunExecutor) createEventSink() runner.EventSink {
-	// If we have a broadcaster, use the broadcasting sink for real-time updates
-	if e.broadcaster != nil {
-		return &broadcastingEventSink{
+	if e.gate != nil {
+		return e.gate
+	}
+	var underlying runner.EventSink
+	switch {
+	case e.broadcaster != nil:
+		underlying = &broadcastingEventSink{
 			store:       e.events,
 			runID:       e.run.ID,
 			broadcaster: e.broadcaster,
 		}
+	case e.events != nil:
+		underlying = &eventStoreAdapter{store: e.events, runID: e.run.ID}
+	default:
+		underlying = &noOpEventSink{}
 	}
-	// Fallback to just storing events
-	if e.events != nil {
-		return &eventStoreAdapter{store: e.events, runID: e.run.ID}
-	}
-	return &noOpEventSink{}
+	e.gate = emit.NewGate(underlying)
+	return e.gate
 }
 
 // =============================================================================
@@ -1841,7 +1823,7 @@ func (e *RunExecutor) finalize() {
 	}
 	e.finalized = true
 
-	ctx, cancel := context.WithTimeout(context.Background(), e.config.TeardownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), e.levers.Heartbeat.TeardownTimeout)
 	defer cancel()
 
 	e.advancePhase(ctx, domain.RunPhaseCleaningUp)
@@ -1909,7 +1891,7 @@ func (e *RunExecutor) applySandboxLifecycle(ctx context.Context, event domain.Sa
 		events = append(events, domain.SandboxLifecycleTerminal)
 	}
 
-	teardownCtx, cancel := context.WithTimeout(context.Background(), e.config.TeardownTimeout)
+	teardownCtx, cancel := context.WithTimeout(context.Background(), e.levers.Heartbeat.TeardownTimeout)
 	defer cancel()
 
 	if hasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {

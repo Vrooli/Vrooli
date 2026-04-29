@@ -51,6 +51,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -158,7 +159,7 @@ type NamespaceLayout struct {
 // DOC: namespace contract seam.
 func (l NamespaceLayout) PathEntries() []string {
 	base := []string{"/usr/local/bin", "/usr/bin", "/bin"}
-	if l.HomeOverlayState == HomeOverlayPresent && l.HostHome != "" {
+	if IsHomeOverlayPresent(l.HomeOverlayState) && l.HostHome != "" {
 		return append([]string{strings.TrimRight(l.HostHome, "/") + "/.local/bin"}, base...)
 	}
 	return base
@@ -223,7 +224,7 @@ func translateCommandToNamespace(command string, layout NamespaceLayout) (string
 	if layout.HostHome != "" {
 		homeAbs := strings.TrimRight(layout.HostHome, "/") + "/"
 		if strings.HasPrefix(command, homeAbs) {
-			if layout.HomeOverlayState != HomeOverlayPresent {
+			if !IsHomeOverlayPresent(layout.HomeOverlayState) {
 				return "", &ErrCommandRequiresHomeOverlay{
 					Command: command,
 					State:   layout.HomeOverlayState,
@@ -326,7 +327,7 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	// (only the vrooli-aware bind layout is mounted), so the host path
 	// needs to be rewritten before crossing the API boundary.
 	//
-	// All three coding-agent runners use buildEnvWrappedLaunchRequest,
+	// All three coding-agent runners use BuildEnvWrappedLaunchRequest,
 	// which sets Command="env" and stuffs the binary path into Args[1+].
 	// We must therefore translate Args entries too — Command="env" alone
 	// would resolve via PATH but bwrap's env shim then fails to exec the
@@ -561,7 +562,7 @@ func (p *sandboxLaunchedProcess) TimedOut() bool { return p.timedOut.Load() }
 func (p *sandboxLaunchedProcess) Kill() {
 	p.killOnce.Do(func() {
 		p.killed.Store(true)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), config.DefaultLevers().Runners.ProbeTimeout)
 		defer cancel()
 		_ = p.launcher.killProcess(ctx, p.pid)
 	})
@@ -740,7 +741,7 @@ func (p *sandboxLaunchedProcess) watchIdle(ctx context.Context) {
 //
 // Runners share an exit-code interface (ExitCode() int, satisfied by both
 // *exec.ExitError and *remoteExitError) so the wait-error type-switch is
-// uniform across host and sandbox launches. See runner.extractExitCode.
+// uniform across host and sandbox launches. See runner.ExtractExitCode.
 type remoteExitError struct {
 	code      int
 	signal    int
@@ -779,8 +780,9 @@ type sseParser struct {
 func newSSEParser(r io.Reader) *sseParser {
 	s := bufio.NewScanner(r)
 	// Larger buffer than default 64KB so single long lines don't trip the
-	// scanner. 4MB is plenty for a JSON exit frame or a chunky log line.
-	s.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	// scanner. Sized by Scanner.StdoutMaxLineBytes — a JSON exit frame or
+	// chunky log line fits comfortably under the runner-stream ceiling.
+	s.Buffer(make([]byte, 0, 64*1024), config.DefaultLevers().Scanner.StdoutMaxLineBytes)
 	return &sseParser{scanner: s}
 }
 

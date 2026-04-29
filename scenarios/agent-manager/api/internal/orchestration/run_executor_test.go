@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
@@ -283,30 +284,6 @@ func (m *mockSandboxProvider) ExecProcess(_ context.Context, _ sandbox.ExecProce
 }
 
 // =============================================================================
-// EXECUTOR CONFIG TESTS
-// =============================================================================
-
-func TestDefaultExecutorConfig(t *testing.T) {
-	config := orchestration.DefaultExecutorConfig()
-
-	if config.Timeout != 60*time.Minute {
-		t.Errorf("expected default timeout 60m, got %v", config.Timeout)
-	}
-	if config.HeartbeatInterval != 15*time.Second {
-		t.Errorf("expected default heartbeat interval 15s, got %v", config.HeartbeatInterval)
-	}
-	if config.CheckpointInterval != 1*time.Minute {
-		t.Errorf("expected default checkpoint interval 1m, got %v", config.CheckpointInterval)
-	}
-	if config.MaxRetries != 3 {
-		t.Errorf("expected default max retries 3, got %d", config.MaxRetries)
-	}
-	if config.StaleThreshold != 5*time.Minute {
-		t.Errorf("expected default stale threshold 5m, got %v", config.StaleThreshold)
-	}
-}
-
-// =============================================================================
 // EXECUTOR CREATION TESTS
 // =============================================================================
 
@@ -339,16 +316,15 @@ func TestNewRunExecutor(t *testing.T) {
 	}
 }
 
-func TestRunExecutor_WithConfig(t *testing.T) {
+func TestRunExecutor_WithLevers(t *testing.T) {
 	f := newTestFixtures()
 	repos, eventStore := setupExecutorRepos(t, f)
 	registry := runner.NewRegistry()
 
-	customConfig := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Minute,
-		HeartbeatInterval: 10 * time.Second,
-		MaxRetries:        5,
-	}
+	customLevers := cfgpkg.DefaultLevers()
+	customLevers.Execution.DefaultTimeout = 5 * time.Minute
+	customLevers.Heartbeat.RunHeartbeatInterval = 10 * time.Second
+	customLevers.Heartbeat.MaxRetriesPerPhase = 5
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -360,7 +336,7 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(customConfig)
+	).WithLevers(customLevers)
 
 	if executor == nil {
 		t.Fatal("expected executor, got nil")
@@ -392,11 +368,10 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	sandboxProvider := newMockSandboxProvider()
 
 	// Use short timeout for test
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-		MaxRetries:        1,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
+	levers.Heartbeat.MaxRetriesPerPhase = 1
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -408,7 +383,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -448,10 +423,9 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -463,7 +437,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -496,10 +470,9 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 		},
 	}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -511,7 +484,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -544,10 +517,9 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 	mockRunner.SetAvailable(true, "ready")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -559,7 +531,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -585,10 +557,9 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 	mockRunner.SetAvailable(false, "resource not installed")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -600,7 +571,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -620,10 +591,9 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 	// Empty registry - no runners registered
 	registry := runner.NewRegistry()
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -635,7 +605,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -664,10 +634,9 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -679,7 +648,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -708,10 +677,9 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -723,7 +691,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -765,10 +733,9 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           30 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 30 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -780,7 +747,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -820,8 +787,8 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	mockRunner.SetAvailable(true, "ready")
 
 	// Simulate real runner behavior: returns result with session ID even on timeout.
-	// The real ClaudeCodeRunner.Execute captures session ID from stream events
-	// and returns (result, nil), not (nil, ctx.Err()).
+	// The real claude codec captures session ID from stream events and the core
+	// Runner returns (result, nil), not (nil, ctx.Err()).
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		<-ctx.Done()
 		return &runner.ExecuteResult{
@@ -833,10 +800,9 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Very short timeout
-	config := orchestration.ExecutorConfig{
-		Timeout:           200 * time.Millisecond,
-		HeartbeatInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 200 * time.Millisecond
+	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -848,7 +814,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -880,10 +846,9 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           200 * time.Millisecond,
-		HeartbeatInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 200 * time.Millisecond
+	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -895,7 +860,7 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -942,10 +907,9 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           200 * time.Millisecond,
-		HeartbeatInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 200 * time.Millisecond
+	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -957,7 +921,7 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -994,11 +958,10 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:            5 * time.Second,
-		HeartbeatInterval:  100 * time.Millisecond,
-		CheckpointInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
+	levers.Heartbeat.CheckpointInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1010,7 +973,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config).WithCheckpointRepository(repos.Checkpoints)
+	).WithLevers(levers).WithCheckpointRepository(repos.Checkpoints)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1066,10 +1029,9 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 		},
 	}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1081,7 +1043,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config).WithResumeFrom(checkpoint)
+	).WithLevers(levers).WithResumeFrom(checkpoint)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1117,10 +1079,9 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1132,7 +1093,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1173,10 +1134,9 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1188,7 +1148,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1220,10 +1180,9 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1235,7 +1194,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1270,10 +1229,9 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1285,7 +1243,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1314,10 +1272,9 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	mockRunner.SetAvailable(true, "ready")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1329,7 +1286,7 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1376,10 +1333,9 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 			}
 			mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-			config := orchestration.ExecutorConfig{
-				Timeout:           5 * time.Second,
-				HeartbeatInterval: 50 * time.Millisecond,
-			}
+			levers := cfgpkg.DefaultLevers()
+			levers.Execution.DefaultTimeout = 5 * time.Second
+			levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 			executor := orchestration.NewRunExecutor(
 				repos.Runs,
@@ -1391,7 +1347,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 				f.profile,
 				fmt.Sprintf("test prompt %d", idx),
 				"", // no system prompt
-			).WithConfig(config)
+			).WithLevers(levers)
 
 			ctx := context.Background()
 			executor.Execute(ctx)
@@ -1638,15 +1594,14 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 
 	broadcaster := &testBroadcaster{}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
+	).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	executor.Execute(context.Background())
 
@@ -1678,15 +1633,14 @@ func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
 
 	broadcaster := &testBroadcaster{}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
+	).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	executor.Execute(context.Background())
 
@@ -1721,15 +1675,14 @@ func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
 
 	broadcaster := &testBroadcaster{}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           30 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 30 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
+	).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -1767,16 +1720,15 @@ func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	// No WithBroadcaster call — broadcaster stays nil
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 	// If we get here without panic, the nil guard works
@@ -1807,15 +1759,14 @@ func TestRunExecutor_InPlace_SkipsApproval(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -1856,15 +1807,14 @@ func TestRunExecutor_Sandboxed_ManualReviewDefersApply(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	sandboxProvider := newMockSandboxProvider()
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, sandboxProvider, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -1915,15 +1865,14 @@ func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
 	sandboxProvider.applyAtRunEndFunc = func(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
 		return &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1, AppliedAt: time.Now()}, nil
 	}
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, sandboxProvider, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -1954,15 +1903,14 @@ func TestRunExecutor_InPlace_EmitsSkipApplyEvent(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -2009,15 +1957,14 @@ func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
 
 	broadcaster := &testBroadcaster{}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
+	).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	executor.Execute(context.Background())
 
@@ -2057,15 +2004,14 @@ func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
 
 	broadcaster := &testBroadcaster{}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
+	).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	executor.Execute(context.Background())
 

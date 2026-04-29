@@ -1,0 +1,824 @@
+// Package core provides the generic [runner.Runner] implementation that
+// drives any agent CLI through a [codecs.Codec].
+//
+// The agent-manager refactor that introduced this package consolidated
+// three near-identical runner implementations (Claude Code, Codex,
+// OpenCode — each ~1.7k LOC, ~80% duplicated plumbing) into one shared
+// machinery + thin per-runner codec files. Adding a new agent now means
+// implementing [codecs.Codec] in one ~250 LOC file; no changes to core/
+// are required.
+//
+// What core owns:
+//   - process launch + lifecycle (selecting host vs sandbox launcher,
+//     registering the [runner.LaunchedProcess] for cancellation)
+//   - stdout scanning (buffered line reader sized via tunable levers)
+//   - stderr accumulation (background goroutine into a strings.Builder)
+//   - durable-transcript path (stdout tee + live [runner.Consume] tail
+//     plus a final drain after process exit)
+//   - status / log / completion event emission (the only places that
+//     touch [runner.EventSink] in the runner layer)
+//   - result classification (exit code, ctx-cancelled detection, typed
+//     terminal error propagation, rate-limit-flip via codec hook)
+//
+// What codecs own (see [codecs.Codec]):
+//   - CLI args, env, stdin prompt
+//   - per-line stdout JSON decoding (DecodeStreamLine)
+//   - transcript-line decoding for replay (ParseTranscriptLine)
+//   - per-run state (text buffers, tool accumulators, session ID)
+//   - capabilities, available, probe-model
+//   - status-message labels
+package core
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"sync"
+	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/config"
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
+)
+
+// Runner is the generic [runner.Runner] implementation parameterised by
+// a [codecs.Codec]. One Runner instance per codec is created at
+// startup; it is safe for concurrent Execute/Continue/Stop calls across
+// different RunIDs.
+type Runner struct {
+	codec    codecs.Codec
+	selector launcherSelector
+
+	mu       sync.Mutex
+	launched map[uuid.UUID]runner.LaunchedProcess
+}
+
+// launcherSelector is the host-vs-sandbox launcher picker. It mirrors
+// the shape of [runner.launcherSelector] (which lives in the parent
+// package and is internal to it) so core can hold a swappable selector
+// behind an interface without forcing the parent package to export its
+// concrete type.
+type launcherSelector interface {
+	Pick(ctx context.Context, req runner.ExecuteRequest) runner.Launcher
+	PickFor(ctx context.Context, runID uuid.UUID, cfg *domain.RunConfig, sandboxID *uuid.UUID, sink runner.EventSink) runner.Launcher
+	SetSandboxLauncherFactory(factory runner.SandboxLauncherFactory)
+}
+
+// NewRunner constructs a generic Runner around the supplied Codec. The
+// host launcher and (optional) sandbox factory follow the same wiring
+// pattern as the legacy per-runner constructors: the host launcher is
+// used for tracking-mode runs; the factory is consulted by the selector
+// when a request resolves to a protected-mode sandbox.
+func NewRunner(codec codecs.Codec, host runner.Launcher, sandboxFactory runner.SandboxLauncherFactory) *Runner {
+	return &Runner{
+		codec:    codec,
+		selector: runner.NewLauncherSelector(host, sandboxFactory),
+		launched: make(map[uuid.UUID]runner.LaunchedProcess),
+	}
+}
+
+// SetSandboxLauncherFactory swaps in (or removes) the protected-mode
+// factory. Used by main.go where the sandbox provider is constructed
+// after the runner registry; tests can also use it to inject a mock.
+func (r *Runner) SetSandboxLauncherFactory(factory runner.SandboxLauncherFactory) {
+	r.selector.SetSandboxLauncherFactory(factory)
+}
+
+// Type satisfies [runner.Runner] by delegating to the codec.
+func (r *Runner) Type() domain.RunnerType { return r.codec.Type() }
+
+// Capabilities satisfies [runner.Runner] by delegating to the codec.
+func (r *Runner) Capabilities() runner.Capabilities { return r.codec.Capabilities() }
+
+// IsAvailable satisfies [runner.Runner] by consulting the codec.
+func (r *Runner) IsAvailable(ctx context.Context) (bool, string) {
+	return r.codec.Available(ctx)
+}
+
+// ProbeModel satisfies [runner.Runner] by consulting the codec.
+func (r *Runner) ProbeModel(ctx context.Context, modelID string) error {
+	return r.codec.ProbeModel(ctx, modelID)
+}
+
+// ParseTranscriptLine satisfies [runner.TranscriptParser] by delegating
+// to the codec. Recovery code that needs a parser without holding a full
+// runner.Runner can type-assert on this method.
+func (r *Runner) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	return r.codec.ParseTranscriptLine(runID, line)
+}
+
+// Stop attempts a graceful shutdown of a running agent. SIGTERM is sent
+// to the process group with a bounded grace period before SIGKILL
+// escalation; ctx cancellation is honoured as immediate kill.
+func (r *Runner) Stop(ctx context.Context, runID uuid.UUID) error {
+	r.mu.Lock()
+	proc, ok := r.launched[runID]
+	r.mu.Unlock()
+	if !ok {
+		return domain.NewNotFoundErrorWithID("Run", runID.String())
+	}
+
+	proc.Signal(config.DefaultLevers().Heartbeat.RunnerSignalGracePeriod)
+	if ctx != nil {
+		go func() {
+			<-ctx.Done()
+			proc.Kill()
+		}()
+	}
+	return nil
+}
+
+// Execute runs the agent with the given configuration. Routes to the
+// durable-transcript path when [runner.ExecuteRequest.Transcript] is
+// supplied; otherwise uses the legacy in-memory streaming path.
+func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+	if avail, msg := r.codec.Available(ctx); !avail {
+		return nil, &domain.RunnerError{
+			RunnerType:  r.codec.Type(),
+			Operation:   "availability",
+			Cause:       errors.New(msg),
+			IsTransient: false,
+		}
+	}
+
+	startTime := time.Now()
+	state := r.codec.NewState()
+
+	if req.Transcript != nil {
+		return r.executeWithDurableTranscript(ctx, req, state, startTime)
+	}
+
+	args := r.codec.BuildArgs(state, req)
+	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
+	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
+	launcher := r.selector.Pick(ctx, req)
+
+	launchReq := runner.BuildEnvWrappedLaunchRequest(
+		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
+		req.GetTag(), prompt, env, req.WorkingDir,
+	)
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: r.codec.Type(),
+			Operation:  "execute",
+			Cause:      err,
+		}
+	}
+
+	r.registerProcess(req.RunID, proc)
+	defer r.deregisterProcess(req.RunID, proc)
+
+	r.emitStart(req.EventSink, req.RunID, r.codec.Labels().StartMessage, false)
+
+	metrics := runner.ExecutionMetrics{}
+	var lastAssistantMessage string
+	errorOutput := r.spawnStderrAccumulator(proc)
+
+	r.scanStream(ctx, scanInputs{
+		runID:         req.RunID,
+		state:         state,
+		proc:          proc,
+		sink:          req.EventSink,
+		metrics:       &metrics,
+		lastAssistant: &lastAssistantMessage,
+	})
+
+	waitErr := proc.Wait()
+	errorOutput.wait()
+	stderr := errorOutput.String()
+
+	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, time.Since(startTime), false)
+
+	if result.Success {
+		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
+	}
+
+	r.emitCompletion(req.EventSink, req.RunID, result.Success, r.codec.Labels().EndMessage, false)
+
+	return result, nil
+}
+
+// Continue resumes an existing session with a follow-up message.
+// Returns runner.ErrSessionExpired when the codec recognises a
+// session-not-found error from the runner CLI.
+func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+	if avail, msg := r.codec.Available(ctx); !avail {
+		return nil, &domain.RunnerError{
+			RunnerType:  r.codec.Type(),
+			Operation:   "availability",
+			Cause:       errors.New(msg),
+			IsTransient: false,
+		}
+	}
+	if req.SessionID == "" {
+		return nil, runner.ErrSessionExpired
+	}
+
+	startTime := time.Now()
+	state := r.codec.NewState()
+	tag := r.codec.ContinueTag(req)
+
+	if req.Transcript != nil {
+		return r.continueWithDurableTranscript(ctx, req, state, tag, startTime)
+	}
+
+	args := r.codec.BuildContinueArgs(state, req)
+	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
+	env := r.codec.BuildEnv(tag, req.Environment)
+	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
+
+	launchReq := runner.BuildEnvWrappedLaunchRequest(
+		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
+		tag, prompt, env, req.WorkingDir,
+	)
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: r.codec.Type(),
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	r.registerProcess(req.RunID, proc)
+	defer r.deregisterProcess(req.RunID, proc)
+
+	r.emitStart(req.EventSink, req.RunID, r.codec.Labels().ContinueStartMessage, true)
+
+	metrics := runner.ExecutionMetrics{}
+	var lastAssistantMessage string
+	errorOutput := r.spawnStderrAccumulator(proc)
+
+	r.scanStream(ctx, scanInputs{
+		runID:         req.RunID,
+		state:         state,
+		proc:          proc,
+		sink:          req.EventSink,
+		metrics:       &metrics,
+		lastAssistant: &lastAssistantMessage,
+	})
+
+	waitErr := proc.Wait()
+	errorOutput.wait()
+	stderr := errorOutput.String()
+
+	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, time.Since(startTime), true)
+
+	if result.Success {
+		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
+	}
+
+	// Preserve the session ID for further continuations: codecs may not
+	// emit a fresh session_id on every continuation, so keep the input
+	// when the stream did not reveal a new one.
+	if result.SessionID == "" {
+		result.SessionID = req.SessionID
+	}
+
+	// Codec-specific session-expiry detection. Only meaningful on the
+	// failure path; success leaves the session valid by definition.
+	if !result.Success && r.codec.DetectSessionExpiry(result.ErrorMessage) {
+		return nil, runner.ErrSessionExpired
+	}
+
+	r.emitCompletion(req.EventSink, req.RunID, result.Success, r.codec.Labels().ContinueEndMessage, true)
+
+	return result, nil
+}
+
+// scanInputs bundles the per-call state passed into scanStream. Avoids
+// a long parameter list and keeps each scan-loop iteration focused on
+// one line.
+type scanInputs struct {
+	runID         uuid.UUID
+	state         codecs.State
+	proc          runner.LaunchedProcess
+	sink          runner.EventSink
+	metrics       *runner.ExecutionMetrics
+	lastAssistant *string
+}
+
+// scanStream consumes proc.Stdout() line by line, dispatching to the
+// codec for decoding and emitting parsed events through sink. Honours
+// codec.OnEarlyTerminate for runners that signal completion via an
+// in-stream sentinel (e.g. OpenCode's step_finish).
+func (r *Runner) scanStream(ctx context.Context, in scanInputs) {
+	scanner := bufio.NewScanner(in.proc.Stdout())
+	scanner.Buffer(make([]byte, 0, 64*1024), config.DefaultLevers().Scanner.StdoutMaxLineBytes)
+
+	for scanner.Scan() {
+		in.proc.ResetIdleTimer()
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		events, err := r.codec.DecodeStreamLine(in.state, in.runID, line)
+		if err != nil {
+			if in.sink != nil {
+				_ = in.sink.Emit(domain.NewLogEvent(
+					in.runID, "warn",
+					fmt.Sprintf("Failed to parse event: %v", err),
+				))
+			}
+			continue
+		}
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			r.codec.UpdateMetrics(event, in.metrics, in.lastAssistant)
+			if in.sink != nil {
+				_ = in.sink.Emit(event)
+			}
+		}
+
+		// OnEarlyTerminate runs *after* the line's events are decoded
+		// and emitted, so terminal sentinel lines (e.g. OpenCode's
+		// terminal step_finish) still surface their cost/message events
+		// before the scanner loop exits. The codec stashes "did we just
+		// see a terminator?" on state during DecodeStreamLine and reads
+		// it back here.
+		if r.codec.OnEarlyTerminate(in.state, line) {
+			break
+		}
+	}
+
+	if in.proc.TimedOut() && in.sink != nil {
+		_ = in.sink.Emit(domain.NewLogEvent(
+			in.runID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", runner.DefaultStreamIdleTimeout),
+		))
+	}
+	if scannerErr := scanner.Err(); scannerErr != nil && in.sink != nil {
+		_ = in.sink.Emit(domain.NewLogEvent(
+			in.runID, "warn",
+			fmt.Sprintf("Scanner error (possible buffer overflow or I/O error): %v", scannerErr),
+		))
+	}
+}
+
+// classifyResult produces the final ExecuteResult from a wait error,
+// captured stderr, and codec-managed state. Handles ctx cancellation,
+// typed exit-code extraction, typed-terminal-error propagation, and
+// invokes the codec's PostClassify hook.
+func (r *Runner) classifyResult(
+	ctx context.Context,
+	waitErr error,
+	errorOutput string,
+	state codecs.State,
+	metrics *runner.ExecutionMetrics,
+	lastAssistant string,
+	duration time.Duration,
+	isContinue bool,
+) *runner.ExecuteResult {
+	result := &runner.ExecuteResult{
+		Duration: duration,
+		Metrics:  *metrics,
+	}
+
+	if waitErr != nil {
+		switch {
+		case ctx.Err() == context.Canceled:
+			result.Success = false
+			result.ExitCode = -1
+			if isContinue {
+				result.ErrorMessage = "continuation cancelled"
+			} else {
+				result.ErrorMessage = "execution cancelled"
+			}
+		default:
+			if code, ok := runner.ExtractExitCode(waitErr); ok {
+				result.Success = false
+				result.ExitCode = code
+				result.ErrorMessage = errorOutput
+			} else {
+				result.Success = false
+				result.ExitCode = -1
+				result.ErrorMessage = waitErr.Error()
+				if _, ok := waitErr.(domain.DomainError); ok {
+					result.TerminalError = waitErr
+				}
+			}
+		}
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+		result.Summary = &domain.RunSummary{
+			Description:   lastAssistant,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    runner.TotalTokens(*metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
+		}
+	}
+
+	r.codec.PostClassify(state, result)
+
+	if sid := state.SessionID(); sid != "" {
+		result.SessionID = sid
+	}
+
+	return result
+}
+
+// registerProcess records a launched process so Stop() can reach it
+// and the deferred Wait() chain can clean it up.
+func (r *Runner) registerProcess(runID uuid.UUID, proc runner.LaunchedProcess) {
+	r.mu.Lock()
+	r.launched[runID] = proc
+	r.mu.Unlock()
+}
+
+// deregisterProcess removes the process from the launched map and waits
+// for it to fully exit (idempotent — Wait can be called multiple times).
+func (r *Runner) deregisterProcess(runID uuid.UUID, proc runner.LaunchedProcess) {
+	r.mu.Lock()
+	delete(r.launched, runID)
+	r.mu.Unlock()
+	_ = proc.Wait()
+}
+
+// emitStart sends the "execution started" status event when sink != nil.
+// On Execute, the previous status is "starting"; on Continue both ends
+// are "running" because Continue takes an already-running run-row from
+// the orchestrator.
+func (r *Runner) emitStart(sink runner.EventSink, runID uuid.UUID, message string, isContinue bool) {
+	if sink == nil {
+		return
+	}
+	from := string(domain.RunStatusStarting)
+	if isContinue {
+		from = string(domain.RunStatusRunning)
+	}
+	_ = sink.Emit(domain.NewStatusEvent(
+		runID, from, string(domain.RunStatusRunning), message,
+	))
+}
+
+// emitCompletion sends the final status event and closes the sink.
+// Closing the sink signals downstream consumers (broadcaster, recovery
+// drainer) that no more events will arrive for this run.
+func (r *Runner) emitCompletion(sink runner.EventSink, runID uuid.UUID, success bool, message string, _ bool) {
+	if sink == nil {
+		return
+	}
+	finalStatus := string(domain.RunStatusComplete)
+	if !success {
+		finalStatus = string(domain.RunStatusFailed)
+	}
+	_ = sink.Emit(domain.NewStatusEvent(
+		runID, string(domain.RunStatusRunning), finalStatus, message,
+	))
+	_ = sink.Close()
+}
+
+// stderrAccumulator wraps the stderr-drainer goroutine with a done
+// channel so callers can synchronise on full drain rather than racing
+// against proc.Wait()'s return.
+type stderrAccumulator struct {
+	buf  strings.Builder
+	mu   sync.Mutex
+	done chan struct{}
+}
+
+// String reports the captured stderr. Safe to call after [stderrAccumulator.wait].
+func (a *stderrAccumulator) String() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.buf.String()
+}
+
+// wait blocks until the drainer goroutine has consumed everything from
+// proc.Stderr() (which happens when the producer closes the pipe). The
+// caller MUST invoke this after proc.Wait() returns and before reading
+// String(); otherwise the captured stderr may be incomplete.
+func (a *stderrAccumulator) wait() { <-a.done }
+
+// spawnStderrAccumulator launches a goroutine that drains proc.Stderr()
+// into an internal buffer. Use [stderrAccumulator.wait] after
+// proc.Wait() to ensure the drainer has finished before reading.
+func (r *Runner) spawnStderrAccumulator(proc runner.LaunchedProcess) *stderrAccumulator {
+	a := &stderrAccumulator{done: make(chan struct{})}
+	go func() {
+		defer close(a.done)
+		scanner := bufio.NewScanner(proc.Stderr())
+		for scanner.Scan() {
+			a.mu.Lock()
+			a.buf.WriteString(scanner.Text())
+			a.buf.WriteString("\n")
+			a.mu.Unlock()
+		}
+	}()
+	return a
+}
+
+// =============================================================================
+// Durable-transcript path
+// =============================================================================
+
+// executeWithDurableTranscript is the Execute() variant that writes
+// stdout to a durable file and runs a live [runner.Consume] tail so
+// agent-manager can resume after a restart.
+func (r *Runner) executeWithDurableTranscript(
+	ctx context.Context,
+	req runner.ExecuteRequest,
+	state codecs.State,
+	startTime time.Time,
+) (*runner.ExecuteResult, error) {
+	args := r.codec.BuildArgs(state, req)
+	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
+	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
+	launcher := r.selector.Pick(ctx, req)
+
+	launchReq := runner.BuildEnvWrappedLaunchRequest(
+		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
+		req.GetTag(), prompt, env, req.WorkingDir,
+	)
+	return r.runDurable(ctx, durableInputs{
+		runID:        req.RunID,
+		sink:         req.EventSink,
+		transcript:   req.Transcript,
+		state:        state,
+		startTime:    startTime,
+		launcher:     launcher,
+		request:      launchReq,
+		startMessage: r.codec.Labels().StartMessage,
+		endMessage:   r.codec.Labels().EndMessage,
+		isContinue:   false,
+	})
+}
+
+// continueWithDurableTranscript is the Continue() variant that writes
+// stdout to a durable file. Behaves like executeWithDurableTranscript
+// but uses the codec's continue-shape (different args, different tag).
+func (r *Runner) continueWithDurableTranscript(
+	ctx context.Context,
+	req runner.ContinueRequest,
+	state codecs.State,
+	tag string,
+	startTime time.Time,
+) (*runner.ExecuteResult, error) {
+	args := r.codec.BuildContinueArgs(state, req)
+	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
+	env := r.codec.BuildEnv(tag, req.Environment)
+	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
+
+	launchReq := runner.BuildEnvWrappedLaunchRequest(
+		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
+		tag, prompt, env, req.WorkingDir,
+	)
+	result, err := r.runDurable(ctx, durableInputs{
+		runID:        req.RunID,
+		sink:         req.EventSink,
+		transcript:   req.Transcript,
+		state:        state,
+		startTime:    startTime,
+		launcher:     launcher,
+		request:      launchReq,
+		startMessage: r.codec.Labels().ContinueStartMessage,
+		endMessage:   r.codec.Labels().ContinueEndMessage,
+		isContinue:   true,
+	})
+	if result != nil && result.SessionID == "" {
+		result.SessionID = req.SessionID
+	}
+	return result, err
+}
+
+type durableInputs struct {
+	runID        uuid.UUID
+	sink         runner.EventSink
+	transcript   *runner.TranscriptConfig
+	state        codecs.State
+	startTime    time.Time
+	launcher     runner.Launcher
+	request      runner.LaunchRequest
+	startMessage string
+	endMessage   string
+	isContinue   bool
+}
+
+// runDurable runs a launched agent through the durable-transcript path:
+// stdout is tee'd to the on-disk transcript while a background
+// [runner.Consume] tail parses it back into events for the live sink.
+// After the process exits, a final [runner.Consume] drain catches any
+// trailing transcript bytes the live tail might have raced past.
+//
+// This is the path that makes restart-resume work. When agent-manager
+// dies mid-run, the agent process keeps writing transcript.ndjson, and
+// the orchestrator's Recovery sweep on next boot finds the live process,
+// reattaches via the same Consume loop, and continues from
+// transcript.OnAdvance's last cursor.
+func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.ExecuteResult, error) {
+	if in.transcript == nil || in.transcript.StdoutFile == nil {
+		return nil, &domain.RunnerError{
+			RunnerType: r.codec.Type(),
+			Operation:  "execute",
+			Cause:      errors.New("durable transcript stdout file is required"),
+		}
+	}
+
+	proc, err := in.launcher.Launch(ctx, in.request)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: r.codec.Type(),
+			Operation:  "execute",
+			Cause:      err,
+		}
+	}
+
+	r.registerProcess(in.runID, proc)
+	defer func() {
+		r.mu.Lock()
+		delete(r.launched, in.runID)
+		r.mu.Unlock()
+	}()
+
+	if in.transcript.OnProcessStart != nil {
+		if err := in.transcript.OnProcessStart(proc.PID(), proc.PID()); err != nil {
+			proc.Kill()
+			_ = proc.Wait()
+			return nil, err
+		}
+	}
+
+	r.emitStart(in.sink, in.runID, in.startMessage, in.isContinue)
+
+	metrics := runner.ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+	var terminal *runner.TranscriptTerminal
+
+	// Tee stdout to the transcript file. The launcher's stdout reader
+	// closes on process exit, so this goroutine drains and returns.
+	stdoutDone := make(chan struct{})
+	go func() {
+		defer close(stdoutDone)
+		_, _ = io.Copy(in.transcript.StdoutFile, proc.Stdout())
+	}()
+
+	// Stderr drainer mirrors into transcript.StderrFile when present.
+	go func() {
+		scanner := bufio.NewScanner(proc.Stderr())
+		for scanner.Scan() {
+			line := scanner.Text()
+			errorOutput.WriteString(line)
+			errorOutput.WriteString("\n")
+			if in.transcript.StderrFile != nil {
+				_, _ = io.WriteString(in.transcript.StderrFile, line+"\n")
+			}
+		}
+	}()
+
+	// Live tail: parses the transcript as it grows, dispatching events.
+	consumeCtx, cancelConsume := context.WithCancel(context.Background())
+	liveDone := make(chan struct{})
+	var liveCursor int64
+	go func() {
+		defer close(liveDone)
+		cursor, liveTerminal, _ := runner.Consume(consumeCtx, runner.ConsumeArgs{
+			RunID:       in.runID,
+			Transcript:  in.transcript.TranscriptPath,
+			Live:        true,
+			ParseFn:     r.codec.ParseTranscriptLine,
+			EventSink:   in.sink,
+			OnAdvance:   in.transcript.OnAdvance,
+			OnSessionID: in.transcript.OnSessionID,
+			OnEvents: func(events []*domain.RunEvent) {
+				for _, evt := range events {
+					r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
+				}
+			},
+		})
+		liveCursor = cursor
+		if liveTerminal != nil {
+			terminal = liveTerminal
+		}
+	}()
+
+	waitErr := proc.Wait()
+	cancelConsume()
+	<-liveDone
+	<-stdoutDone
+
+	// Final drain: catch up on any trailing bytes the live tail raced past.
+	finalCursor, finalTerminal, drainErr := runner.Consume(context.Background(), runner.ConsumeArgs{
+		RunID:       in.runID,
+		Transcript:  in.transcript.TranscriptPath,
+		StartAt:     liveCursor,
+		ParseFn:     r.codec.ParseTranscriptLine,
+		EventSink:   in.sink,
+		OnAdvance:   in.transcript.OnAdvance,
+		OnSessionID: in.transcript.OnSessionID,
+		OnEvents: func(events []*domain.RunEvent) {
+			for _, evt := range events {
+				r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
+			}
+		},
+	})
+	if finalTerminal != nil {
+		terminal = finalTerminal
+	}
+	if in.transcript.OnAdvance != nil {
+		_ = in.transcript.OnAdvance(finalCursor, 0)
+	}
+
+	result := &runner.ExecuteResult{
+		Duration: time.Since(in.startTime),
+		Metrics:  metrics,
+	}
+
+	switch {
+	case waitErr != nil && ctx.Err() == context.Canceled:
+		result.Success = false
+		result.ExitCode = -1
+		if in.isContinue {
+			result.ErrorMessage = "continuation cancelled"
+		} else {
+			result.ErrorMessage = "execution cancelled"
+		}
+	case waitErr != nil:
+		if code, ok := runner.ExtractExitCode(waitErr); ok {
+			result.Success = false
+			result.ExitCode = code
+			result.ErrorMessage = errorOutput.String()
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = waitErr.Error()
+			if _, ok := waitErr.(domain.DomainError); ok {
+				result.TerminalError = waitErr
+			}
+		}
+	case terminal != nil:
+		result.Success = terminal.Success
+		result.ExitCode = terminal.ExitCode
+		result.ErrorMessage = terminal.ErrorMessage
+		if terminal.Summary != nil {
+			result.Summary = terminal.Summary
+		}
+	default:
+		result.Success = true
+		result.ExitCode = 0
+	}
+	if drainErr != nil && result.Success {
+		result.Success = false
+		result.ExitCode = -1
+		result.ErrorMessage = drainErr.Error()
+	}
+	if result.Success && result.Summary == nil {
+		result.Summary = runner.TerminalSummaryFromMessage(lastAssistantMessage, metrics)
+	} else if !result.Success && strings.TrimSpace(result.ErrorMessage) == "" {
+		result.ErrorMessage = strings.TrimSpace(errorOutput.String())
+	}
+
+	r.codec.PostClassify(in.state, result)
+
+	if result.Success {
+		runner.EmitStderrAsWarnOnSuccess(in.runID, in.sink, errorOutput.String())
+	}
+
+	if sid := in.state.SessionID(); sid != "" {
+		result.SessionID = sid
+	}
+
+	r.emitCompletion(in.sink, in.runID, result.Success, in.endMessage, in.isContinue)
+
+	return result, nil
+}
+
+// PID returns the host-visible process ID for a registered run, or 0 if
+// the run is not currently registered. Used by the reconciler to spot
+// stranded children.
+func (r *Runner) PID(runID uuid.UUID) int {
+	r.mu.Lock()
+	proc, ok := r.launched[runID]
+	r.mu.Unlock()
+	if !ok || proc == nil {
+		return 0
+	}
+	return proc.PID()
+}
+
+// LaunchedProcess returns the registered LaunchedProcess for runID, or
+// nil if no process is currently registered. Exposed for tests that
+// need to manipulate the underlying process directly.
+func (r *Runner) LaunchedProcess(runID uuid.UUID) runner.LaunchedProcess {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.launched[runID]
+}
+
+// Compile-time interface checks.
+var (
+	_ runner.Runner           = (*Runner)(nil)
+	_ runner.TranscriptParser = (*Runner)(nil)
+)

@@ -1030,7 +1030,7 @@ func TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent(t *testing.T) {
 
 // TestSandboxLauncher_LaunchPreservesEnvShimArgs verifies the realistic
 // runner shape: claude_code/codex/opencode go through
-// buildEnvWrappedLaunchRequest, which sets Command="env" and stuffs the
+// BuildEnvWrappedLaunchRequest, which sets Command="env" and stuffs the
 // host-absolute binary path into Args[1] (after a TAG=value env-var
 // assignment in Args[0]). The runtime profile binds $HOME/.local/bin at
 // the *host path* inside the namespace (the profile's dst mapping is
@@ -1081,10 +1081,10 @@ func TestSandboxLauncher_LaunchPreservesEnvShimArgs(t *testing.T) {
 
 	argsAny, _ := body["args"].([]any)
 	want := []string{
-		"CLAUDE_CODE_AGENT_TAG=run-12345",   // tag arg untouched
-		"/home/testuser/.local/bin/claude",  // binary path PRESERVED — profile binds at host path
-		"--print",                           // flag untouched
-		"--output-format=stream-json",       // flag untouched
+		"CLAUDE_CODE_AGENT_TAG=run-12345",  // tag arg untouched
+		"/home/testuser/.local/bin/claude", // binary path PRESERVED — profile binds at host path
+		"--print",                          // flag untouched
+		"--output-format=stream-json",      // flag untouched
 	}
 	if len(argsAny) != len(want) {
 		t.Fatalf("args length = %d; want %d (args=%v)", len(argsAny), len(want), argsAny)

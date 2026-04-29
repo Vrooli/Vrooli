@@ -1,0 +1,1274 @@
+// Package codecs — claude.go is the [Codec] implementation for Anthropic
+// Claude Code (the `claude` CLI invoked with `--output-format stream-json`).
+//
+// The [core.Runner] handles process launch, stdout scanning, transcript
+// writing, lifecycle, and event emission. This file owns:
+//
+//   - CLI args + env shape (BuildArgs, BuildContinueArgs, BuildEnv)
+//   - The Claude stream-json decoder (DecodeStreamLine, ParseTranscriptLine)
+//   - Per-run state: text accumulator, tool-use accumulator, captured
+//     session_id, /compact tracking, captured RateLimitEventData
+//   - Result classification flip on rate-limit (PostClassify)
+//   - Session-expiry detection from stderr (DetectSessionExpiry)
+//   - Diagnostic helpers used to enrich `is_error: true` results
+//
+// The previous package-private ClaudeCodeRunner type, and the parallel
+// claude_code_diagnostics.go / claude_code_heartbeat.go files, were
+// consolidated here. The heartbeat helper had no production caller; it
+// was deleted.
+package codecs
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/config"
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
+)
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+// ClaudeCLICommand is the binary name resolved on the host PATH.
+const ClaudeCLICommand = "claude"
+
+// ClaudeResourceCommand is the legacy Vrooli wrapper name kept around for
+// transition-period process detection in the reconciler/terminator.
+const ClaudeResourceCommand = "resource-claude-code"
+
+const claudeTagEnvKey = "CLAUDE_CODE_AGENT_TAG"
+
+// =============================================================================
+// Codec
+// =============================================================================
+
+// Claude is the [Codec] implementation for the Claude Code CLI.
+type Claude struct {
+	binaryPath  string
+	available   bool
+	message     string
+	installHint string
+}
+
+// NewClaude resolves the `claude` binary on PATH and returns a codec ready
+// to be wrapped in [core.NewRunner]. Returns a codec with Available=false
+// (rather than an error) when the binary is missing, so the runner
+// registry can register a stub instead.
+func NewClaude() (*Claude, error) {
+	binaryPath, err := exec.LookPath(ClaudeCLICommand)
+	if err != nil {
+		return &Claude{
+			available:   false,
+			message:     "claude CLI not found in PATH",
+			installHint: "Install: npm install -g @anthropic-ai/claude-code",
+		}, nil
+	}
+	return &Claude{
+		binaryPath: binaryPath,
+		available:  true,
+		message:    "claude CLI available",
+	}, nil
+}
+
+// NewClaudeForTest returns a Claude codec with a fake binary path and
+// Available=false. Used by codec tests that exercise BuildArgs / decode
+// paths without launching a real process.
+func NewClaudeForTest() *Claude {
+	return &Claude{
+		binaryPath: "/fake/path",
+		available:  false,
+		message:    "test claude codec",
+	}
+}
+
+// Type satisfies [Codec].
+func (c *Claude) Type() domain.RunnerType { return domain.RunnerTypeClaudeCode }
+
+// Capabilities satisfies [Codec].
+func (c *Claude) Capabilities() runner.Capabilities {
+	return runner.Capabilities{
+		SupportsMessages:         true,
+		SupportsToolEvents:       true,
+		SupportsCostTracking:     true,
+		SupportsStreaming:        true,
+		SupportsCancellation:     true,
+		SupportsContinuation:     true, // Claude Code supports --resume
+		SupportsImageAttachments: true,
+		MaxTurns:                 0, // unlimited
+		SupportedModels: []string{
+			"sonnet",
+			"opus",
+			"haiku",
+			"claude-sonnet-4-5-20250929",
+			"claude-opus-4-5-20251101",
+			"claude-haiku-4-5-20251001",
+		},
+		SupportedFeatures: []string{"EnableBrowser"},
+		AllowedExtraFlags: []string{"--disallowedTools"},
+	}
+}
+
+// BinaryPath satisfies [Codec].
+func (c *Claude) BinaryPath() string { return c.binaryPath }
+
+// BinaryDescription satisfies [Codec].
+func (c *Claude) BinaryDescription() string { return "claude CLI" }
+
+// TagEnvKey satisfies [Codec].
+func (c *Claude) TagEnvKey() string { return claudeTagEnvKey }
+
+// Available satisfies [Codec]. ProbeModel uses this; the runner registry
+// uses it; main.go uses it to decide stub-vs-real registration.
+func (c *Claude) Available(ctx context.Context) (bool, string) {
+	if !c.available {
+		msg := c.message
+		if c.installHint != "" {
+			msg += ". " + c.installHint
+		}
+		return false, msg
+	}
+	if _, err := os.Stat(c.binaryPath); os.IsNotExist(err) {
+		return false, "claude CLI not found. Install: npm install -g @anthropic-ai/claude-code"
+	}
+	return true, "claude CLI is available"
+}
+
+// ProbeModel satisfies [Codec]. Claude is intentionally lenient: the
+// canonical presets are vendor aliases that resolve server-side, and
+// pinned versions surface failures on first real invocation.
+func (c *Claude) ProbeModel(ctx context.Context, modelID string) error {
+	if available, msg := c.Available(ctx); !available {
+		return fmt.Errorf("claude-code unavailable: %s", msg)
+	}
+	return nil
+}
+
+// Labels satisfies [Codec].
+func (c *Claude) Labels() Labels {
+	return Labels{
+		StartMessage:         "Claude Code execution started",
+		EndMessage:           "Claude Code execution completed",
+		ContinueStartMessage: "Claude Code continuation started",
+		ContinueEndMessage:   "Claude Code continuation completed",
+	}
+}
+
+// ContinueTag satisfies [Codec]. Synthesised tag distinguishes
+// continuation runs from initial runs of the same RunID for /proc-based
+// reconciliation.
+func (c *Claude) ContinueTag(req runner.ContinueRequest) string {
+	return fmt.Sprintf("claude-continue-%s", req.RunID.String()[:8])
+}
+
+// BuildEnv satisfies [Codec]. The tag is the value the launcher writes to
+// CLAUDE_CODE_AGENT_TAG; codec extras are merged on top.
+func (c *Claude) BuildEnv(tag string, extras map[string]string) []string {
+	env := runner.SanitizedBaseEnv()
+	env = append(env, fmt.Sprintf("%s=%s", claudeTagEnvKey, tag))
+	return runner.AppendEnvMap(env, extras)
+}
+
+// BuildPrompt satisfies [Codec]. Claude reads image attachments by file
+// path; we prepend the paths to the prompt.
+func (c *Claude) BuildPrompt(prompt string, attachments []runner.Attachment) string {
+	if len(attachments) == 0 {
+		return prompt
+	}
+	var sb strings.Builder
+	for _, att := range attachments {
+		sb.WriteString(att.FilePath)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+	sb.WriteString(prompt)
+	return sb.String()
+}
+
+// BuildArgs satisfies [Codec]. Claude has no per-run state to stash
+// from the request; the state argument is unused.
+func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
+	args := []string{
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose", // required with --print --output-format stream-json
+	}
+
+	cfg := req.GetConfig()
+
+	if cfg.MaxTurns > 0 {
+		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
+	} else {
+		args = append(args, "--max-turns", "30")
+	}
+
+	if cfg.Model != "" {
+		args = append(args, "--model", cfg.Model)
+	}
+
+	if cfg.SkipPermissionPrompt {
+		args = append(args, "--dangerously-skip-permissions")
+	}
+
+	if len(cfg.AllowedTools) > 0 {
+		args = append(args, "--allowedTools", strings.Join(cfg.AllowedTools, ","))
+	}
+
+	if req.SystemPrompt != "" {
+		args = append(args, "--append-system-prompt", req.SystemPrompt)
+	}
+
+	if cfg.Features.EnableBrowser {
+		args = append(args, "--chrome")
+	}
+
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
+		args = append(args, extras...)
+	}
+
+	args = append(args, "-") // read prompt from stdin
+	return args
+}
+
+// BuildContinueArgs satisfies [Codec]. Claude has no per-run state to
+// stash; the state argument is unused.
+func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
+	return []string{
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose",
+		"--resume", req.SessionID,
+		"--dangerously-skip-permissions",
+		"-",
+	}
+}
+
+// =============================================================================
+// State
+// =============================================================================
+
+// claudeState carries per-run mutable state through the stream decode loop.
+// Implements [State].
+type claudeState struct {
+	textBuffer     strings.Builder
+	toolUseActive  bool
+	toolUseID      string
+	toolUseName    string
+	toolUsePayload strings.Builder
+	lastAssistant  string
+	sessionID      string
+	gotResult      bool
+	resultIsError  bool
+
+	// /compact command tracking
+	pendingCompact bool
+	compactCommand string
+	compactFocus   string
+
+	// Captured by DecodeStreamLine when the terminal `result` event is a
+	// rate-limit; consumed by PostClassify to flip Success=false / 429.
+	rateLimit *domain.RateLimitEventData
+}
+
+func (s *claudeState) SessionID() string { return s.sessionID }
+
+// NewState satisfies [Codec].
+func (c *Claude) NewState() State { return &claudeState{} }
+
+// =============================================================================
+// Stream-event types
+// =============================================================================
+
+// ClaudeStreamEvent represents a single event from Claude Code's
+// stream-json output.
+type ClaudeStreamEvent struct {
+	Type         string              `json:"type"`
+	Subtype      string              `json:"subtype,omitempty"`
+	Message      *ClaudeMessage      `json:"message,omitempty"`
+	Usage        *ClaudeUsage        `json:"usage,omitempty"`
+	ToolUse      *ClaudeToolUse      `json:"tool_use,omitempty"`
+	Result       json.RawMessage     `json:"result,omitempty"`
+	Error        *ClaudeError        `json:"error,omitempty"`
+	SessionID    string              `json:"session_id,omitempty"`
+	IsError      bool                `json:"is_error,omitempty"`
+	DurationMs   int                 `json:"duration_ms,omitempty"`
+	DurationAPI  int                 `json:"duration_api_ms,omitempty"`
+	NumTurns     int                 `json:"num_turns,omitempty"`
+	TotalCostUSD float64             `json:"total_cost_usd,omitempty"`
+	ServiceTier  string              `json:"service_tier,omitempty"`
+	ContentBlock *ClaudeContentBlock `json:"content_block,omitempty"`
+	Delta        *ClaudeDelta        `json:"delta,omitempty"`
+
+	// system/api_retry payload (HTTP status + retry counters). The
+	// "error" field on api_retry is a bare string ("rate_limit"); we let
+	// ClaudeError.UnmarshalJSON absorb it.
+	ErrorStatus  int `json:"error_status,omitempty"`
+	Attempt      int `json:"attempt,omitempty"`
+	MaxRetries   int `json:"max_retries,omitempty"`
+	RetryDelayMs int `json:"retry_delay_ms,omitempty"`
+}
+
+// ClaudeMessage carries the role + content of a stream message. Content
+// can be either a JSON string or an array of content blocks.
+type ClaudeMessage struct {
+	Role    string          `json:"role"`
+	Content json.RawMessage `json:"content"`
+}
+
+// ClaudeContentItem is one element in a content array.
+type ClaudeContentItem struct {
+	Type      string          `json:"type"`
+	Text      string          `json:"text,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+	ToolUseID string          `json:"tool_use_id,omitempty"`
+	Content   string          `json:"content,omitempty"`
+}
+
+// ExtractTextContent extracts text from a ClaudeMessage, handling both
+// the bare-string and content-blocks shapes. ANSI is stripped as defense
+// in depth — tool results may carry terminal formatting even when the
+// CLI wrapper separates stderr from stdout cleanly.
+func (m *ClaudeMessage) ExtractTextContent() string {
+	if len(m.Content) == 0 {
+		return ""
+	}
+	var simpleString string
+	if err := json.Unmarshal(m.Content, &simpleString); err == nil {
+		return runner.StripANSI(simpleString)
+	}
+	var contentBlocks []ClaudeContentItem
+	if err := json.Unmarshal(m.Content, &contentBlocks); err == nil {
+		var textParts []string
+		for _, block := range contentBlocks {
+			if block.Type == "text" && block.Text != "" {
+				textParts = append(textParts, runner.StripANSI(block.Text))
+			}
+		}
+		return strings.Join(textParts, "\n")
+	}
+	return ""
+}
+
+// ExtractToolUses extracts tool_use blocks from a content array.
+func (m *ClaudeMessage) ExtractToolUses() []ClaudeContentItem {
+	if len(m.Content) == 0 {
+		return nil
+	}
+	var contentBlocks []ClaudeContentItem
+	if err := json.Unmarshal(m.Content, &contentBlocks); err != nil {
+		return nil
+	}
+	var toolUses []ClaudeContentItem
+	for _, block := range contentBlocks {
+		if block.Type == "tool_use" {
+			toolUses = append(toolUses, block)
+		}
+	}
+	return toolUses
+}
+
+// ExtractToolResults extracts tool_result blocks from a user message's
+// content array (stripping ANSI from each).
+func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
+	if len(m.Content) == 0 {
+		return nil
+	}
+	var contentBlocks []ClaudeContentItem
+	if err := json.Unmarshal(m.Content, &contentBlocks); err != nil {
+		return nil
+	}
+	var toolResults []ClaudeContentItem
+	for _, block := range contentBlocks {
+		if block.Type == "tool_result" {
+			block.Content = runner.StripANSI(block.Content)
+			toolResults = append(toolResults, block)
+		}
+	}
+	return toolResults
+}
+
+// ClaudeUsage carries detailed token-usage info.
+type ClaudeUsage struct {
+	InputTokens              int               `json:"input_tokens"`
+	OutputTokens             int               `json:"output_tokens"`
+	CacheCreationInputTokens int               `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int               `json:"cache_read_input_tokens,omitempty"`
+	ServerToolUse            *ClaudeServerTool `json:"server_tool_use,omitempty"`
+}
+
+// ClaudeServerTool carries server-side tool counters (web search, etc.).
+type ClaudeServerTool struct {
+	WebSearchRequests int `json:"web_search_requests,omitempty"`
+}
+
+// ClaudeToolUse is the body of a top-level tool_use stream event.
+type ClaudeToolUse struct {
+	ID    string          `json:"id"`
+	Name  string          `json:"name"`
+	Input json.RawMessage `json:"input"`
+}
+
+// ClaudeError accepts both the {code,message} object form and the bare
+// string form used by system/api_retry.
+type ClaudeError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// UnmarshalJSON accepts either an object or a bare string. A bare string
+// is stored in Code and Message is left empty.
+func (e *ClaudeError) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		e.Code = s
+		return nil
+	}
+	type alias ClaudeError
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*e = ClaudeError(a)
+	return nil
+}
+
+// ClaudeContentBlock is the body of content_block_start.
+type ClaudeContentBlock struct {
+	Type string `json:"type"`
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	Text string `json:"text,omitempty"`
+}
+
+// ClaudeDelta is the body of content_block_delta / message_delta.
+type ClaudeDelta struct {
+	Type        string `json:"type"`
+	Text        string `json:"text,omitempty"`
+	PartialJSON string `json:"partial_json,omitempty"`
+}
+
+// =============================================================================
+// Stream decoding
+// =============================================================================
+
+// DecodeStreamLine satisfies [Codec]. Returns zero or more events.
+// Errors here are surfaced as warn-level log events upstream; lines that
+// look like CLI debug noise (non-JSON banners, etc.) are silently skipped.
+func (c *Claude) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
+	s := state.(*claudeState)
+	events, err := parseClaudeStreamEvents(s, runID, line)
+	if err != nil {
+		return events, err
+	}
+	for _, evt := range events {
+		if evt == nil {
+			continue
+		}
+		if data, ok := evt.Data.(*domain.RateLimitEventData); ok {
+			s.rateLimit = data
+		}
+	}
+	return events, nil
+}
+
+// OnEarlyTerminate satisfies [Codec]. Claude's stream ends with a
+// `result` event but the CLI exits cleanly afterwards, so we let the
+// scanner drain to EOF. No early break.
+func (c *Claude) OnEarlyTerminate(state State, line string) bool { return false }
+
+// PostClassify satisfies [Codec]. When the stream produced a terminal
+// rate-limit event but the process still exited cleanly, flip the result
+// so the orchestrator sees the failure.
+func (c *Claude) PostClassify(state State, result *runner.ExecuteResult) {
+	s := state.(*claudeState)
+	if s.rateLimit == nil {
+		return
+	}
+	if result.Success {
+		result.Success = false
+		result.ExitCode = 429
+		msg := strings.TrimSpace(s.rateLimit.Message)
+		if msg == "" {
+			msg = "rate limit reached"
+		}
+		result.ErrorMessage = msg
+		// Drop the success summary; PostClassify swept it.
+		result.Summary = nil
+	}
+}
+
+// DetectSessionExpiry satisfies [Codec]. Claude exits with a generic
+// non-zero code; the message is what tells us session expired.
+func (c *Claude) DetectSessionExpiry(errorMessage string) bool {
+	return strings.Contains(errorMessage, "session") && strings.Contains(errorMessage, "not found")
+}
+
+// UpdateMetrics satisfies [Codec]. RateLimitEventData is captured into
+// state by DecodeStreamLine; here we only update rolling counters.
+func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
+	if event == nil {
+		return
+	}
+	switch data := event.Data.(type) {
+	case *domain.MessageEventData:
+		if data.Role == "assistant" {
+			*lastAssistant = data.Content
+			metrics.TurnsUsed++
+		}
+	case *domain.ToolCallEventData:
+		metrics.ToolCallCount++
+	case *domain.MetricEventData:
+		if data.Name == "tokens" {
+			totalTokens := int(data.Value)
+			if totalTokens > metrics.TokensInput+metrics.TokensOutput {
+				metrics.TokensOutput = totalTokens - metrics.TokensInput
+			}
+		}
+	case *domain.CostEventData:
+		metrics.TokensInput = data.InputTokens
+		metrics.TokensOutput = data.OutputTokens
+		metrics.CacheReadTokens = data.CacheReadTokens
+		metrics.CacheCreationTokens = data.CacheCreationTokens
+		metrics.CostEstimateUSD = data.TotalCostUSD
+	}
+}
+
+// ParseTranscriptLine satisfies [Codec]. Used during agent-manager
+// restart-resume to replay events from the on-disk transcript.
+func (c *Claude) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	state := &claudeState{}
+	events, err := parseClaudeStreamEvents(state, runID, line)
+	result := runner.TranscriptParseResult{
+		Events: events,
+		Err:    err,
+	}
+
+	var streamEvent ClaudeStreamEvent
+	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &streamEvent); err == nil {
+		result.SessionID = streamEvent.SessionID
+		if strings.EqualFold(streamEvent.Type, "result") {
+			terminal := &runner.TranscriptTerminal{
+				Success:  !streamEvent.IsError,
+				ExitCode: 0,
+			}
+			if streamEvent.IsError {
+				terminal.Success = false
+				terminal.ExitCode = 1
+				terminal.ErrorMessage = strings.TrimSpace(decodeClaudeResultString(streamEvent.Result))
+				// Use the same rate-limit detector as the live stream path
+				// (DecodeStreamLine → parseClaudeResultEvent →
+				// detectClaudeRateLimit). Previously the transcript-replay
+				// code had a narrower string check that diverged from the
+				// live path; unifying them ensures a recovered run sees
+				// the same exit code as the live run.
+				if rl := detectClaudeRateLimit(terminal.ErrorMessage); rl.Detected {
+					terminal.ExitCode = 429
+				}
+				if terminal.ErrorMessage == "" {
+					terminal.ErrorMessage = "runner reported terminal error"
+				}
+			}
+			result.Terminal = terminal
+		}
+	}
+	return result
+}
+
+// =============================================================================
+// Stream parser
+// =============================================================================
+
+// parseClaudeStreamEvents parses one line from Claude's stream-json
+// output. Returns multiple events to preserve tool calls/results emitted
+// inside one message. State (text buffer, tool-use accumulator, captured
+// session_id, /compact tracking) is mutated in place.
+func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, nil
+	}
+
+	// Quick check: valid JSON objects start with '{', arrays with '['.
+	// Skip non-JSON banner lines like "Initializing...", "[Info] ...".
+	firstChar := line[0]
+	if firstChar != '{' && firstChar != '[' {
+		return nil, nil
+	}
+	if firstChar == '[' && len(line) > 1 {
+		secondChar := line[1]
+		if (secondChar >= 'A' && secondChar <= 'Z') || (secondChar >= 'a' && secondChar <= 'z') {
+			return nil, nil
+		}
+	}
+
+	var streamEvent ClaudeStreamEvent
+	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
+		// Silently skip malformed JSON from startup/debug output. Real
+		// streaming events from Claude Code are always well-formed.
+		return nil, nil
+	}
+
+	if streamEvent.SessionID != "" && state.sessionID == "" {
+		state.sessionID = streamEvent.SessionID
+	}
+
+	switch streamEvent.Type {
+	case "message":
+		return parseMessageEvent(state, runID, &streamEvent), nil
+
+	case "assistant":
+		return parseAssistantEvent(state, runID, &streamEvent), nil
+
+	case "user":
+		return parseUserEvent(state, runID, &streamEvent), nil
+
+	case "tool_use":
+		if streamEvent.ToolUse != nil {
+			var input map[string]interface{}
+			if streamEvent.ToolUse.Input != nil {
+				_ = json.Unmarshal(streamEvent.ToolUse.Input, &input)
+			}
+			return []*domain.RunEvent{domain.NewToolCallEvent(
+				runID,
+				streamEvent.ToolUse.Name,
+				streamEvent.ToolUse.ID,
+				input,
+			)}, nil
+		}
+
+	case "tool_result":
+		var resultStr string
+		if streamEvent.Result != nil {
+			_ = json.Unmarshal(streamEvent.Result, &resultStr)
+		}
+		resultStr = runner.StripANSI(resultStr)
+		return []*domain.RunEvent{domain.NewToolResultEvent(
+			runID, "", "", resultStr, nil,
+		)}, nil
+
+	case "error":
+		if streamEvent.Error != nil {
+			return []*domain.RunEvent{domain.NewErrorEvent(
+				runID,
+				streamEvent.Error.Code,
+				streamEvent.Error.Message,
+				false,
+			)}, nil
+		}
+
+	case "usage":
+		if streamEvent.Usage != nil {
+			return []*domain.RunEvent{domain.NewMetricEvent(
+				runID,
+				"tokens",
+				float64(streamEvent.Usage.InputTokens+streamEvent.Usage.OutputTokens),
+				"tokens",
+			)}, nil
+		}
+
+	case "result":
+		state.gotResult = true
+		state.resultIsError = streamEvent.IsError
+
+		var events []*domain.RunEvent
+		var resultStr string
+		if streamEvent.Result != nil {
+			_ = json.Unmarshal(streamEvent.Result, &resultStr)
+		}
+		if !streamEvent.IsError && resultStr != "" && state.lastAssistant == "" {
+			state.lastAssistant = resultStr
+			events = append(events, domain.NewMessageEvent(runID, "assistant", resultStr))
+		}
+		event, err := parseClaudeResultEvent(runID, &streamEvent)
+		if err != nil || event == nil {
+			return nil, err
+		}
+		events = append(events, event)
+		return events, nil
+
+	case "system":
+		var sysResult string
+		if streamEvent.Result != nil {
+			_ = json.Unmarshal(streamEvent.Result, &sysResult)
+		}
+		if strings.Contains(strings.ToLower(streamEvent.Subtype), "auto-compact") || isAutoCompactMarker(sysResult) {
+			return []*domain.RunEvent{domain.NewCompactionEvent(
+				runID,
+				strings.TrimSpace(sysResult),
+				"auto",
+				"",
+				0, 0, 0,
+				"",
+			)}, nil
+		}
+		// api_retry is informational — only the final `result` with
+		// is_error=true determines run outcome, so we never emit a
+		// RateLimitEvent from here.
+		if streamEvent.Subtype == "api_retry" {
+			return []*domain.RunEvent{domain.NewLogEvent(
+				runID,
+				"warn",
+				fmt.Sprintf("Claude CLI auto-retry: HTTP %d, attempt %d/%d, next in %dms",
+					streamEvent.ErrorStatus, streamEvent.Attempt, streamEvent.MaxRetries, streamEvent.RetryDelayMs),
+			)}, nil
+		}
+		return []*domain.RunEvent{domain.NewLogEvent(
+			runID, "debug", "System context received",
+		)}, nil
+
+	case "content_block_start":
+		if streamEvent.ContentBlock != nil && streamEvent.ContentBlock.Type == "tool_use" {
+			state.toolUseActive = true
+			state.toolUseID = streamEvent.ContentBlock.ID
+			state.toolUseName = streamEvent.ContentBlock.Name
+			state.toolUsePayload.Reset()
+			return nil, nil
+		}
+
+	case "content_block_delta":
+		if streamEvent.Delta != nil {
+			switch streamEvent.Delta.Type {
+			case "text_delta":
+				if streamEvent.Delta.Text != "" {
+					state.textBuffer.WriteString(streamEvent.Delta.Text)
+				}
+				return nil, nil
+			case "input_json_delta":
+				if state.toolUseActive && streamEvent.Delta.PartialJSON != "" {
+					state.toolUsePayload.WriteString(streamEvent.Delta.PartialJSON)
+				}
+				return nil, nil
+			}
+		}
+		return nil, nil
+
+	case "content_block_stop":
+		if state.toolUseActive {
+			toolEvent := toolCallFromState(runID, state)
+			resetToolUseState(state)
+			if toolEvent != nil {
+				return []*domain.RunEvent{toolEvent}, nil
+			}
+		}
+		return nil, nil
+
+	case "message_start":
+		return nil, nil
+
+	case "message_delta":
+		if streamEvent.Delta != nil && streamEvent.Delta.Text != "" {
+			state.textBuffer.WriteString(streamEvent.Delta.Text)
+			return nil, nil
+		}
+		return []*domain.RunEvent{domain.NewLogEvent(
+			runID, "debug", "message_delta received without text payload",
+		)}, nil
+
+	case "message_stop":
+		events := flushStreamMessage(runID, state)
+		if state.toolUseActive {
+			toolEvent := toolCallFromState(runID, state)
+			resetToolUseState(state)
+			if toolEvent != nil {
+				events = append(events, toolEvent)
+			}
+		}
+		if len(events) > 0 {
+			return events, nil
+		}
+		return nil, nil
+
+	case "init", "start", "ping", "heartbeat":
+		return nil, nil
+
+	case "":
+		return nil, nil
+	}
+
+	if streamEvent.Type != "" {
+		return []*domain.RunEvent{domain.NewLogEvent(
+			runID, "debug",
+			fmt.Sprintf("Unhandled event type: %s", streamEvent.Type),
+		)}, nil
+	}
+	return nil, nil
+}
+
+func parseMessageEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) []*domain.RunEvent {
+	if ev.Message == nil {
+		return nil
+	}
+	var events []*domain.RunEvent
+
+	textContent := ev.Message.ExtractTextContent()
+	if textContent != "" {
+		if ev.Message.Role == "user" {
+			if isCompact, focus := parseCompactCommand(textContent); isCompact {
+				state.pendingCompact = true
+				state.compactCommand = textContent
+				state.compactFocus = focus
+				return nil
+			}
+			// User text suppressed — orchestrator already creates message
+			// events for the prompt and follow-ups. Subagent Agent-tool
+			// echoes go through this path too.
+		} else {
+			if state.pendingCompact && ev.Message.Role == "assistant" {
+				if isCompactionSummary(textContent) {
+					state.pendingCompact = false
+					summary := extractSummaryContent(textContent)
+					return []*domain.RunEvent{domain.NewCompactionEvent(
+						runID, summary, "manual", state.compactFocus,
+						0, 0, 0, state.compactCommand,
+					)}
+				}
+				state.pendingCompact = false
+			}
+			if ev.Message.Role == "assistant" {
+				state.lastAssistant = textContent
+			}
+			events = append(events, domain.NewMessageEvent(
+				runID, ev.Message.Role, textContent,
+			))
+			state.textBuffer.Reset()
+		}
+	}
+
+	if ev.Message.Role == "user" {
+		toolResults := ev.Message.ExtractToolResults()
+		for _, r := range toolResults {
+			events = append(events, domain.NewToolResultEvent(
+				runID, "", r.ToolUseID, r.Content, nil,
+			))
+		}
+	}
+	toolUses := ev.Message.ExtractToolUses()
+	for _, tool := range toolUses {
+		var input map[string]interface{}
+		if tool.Input != nil {
+			_ = json.Unmarshal(tool.Input, &input)
+		}
+		events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
+	}
+	return events
+}
+
+func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) []*domain.RunEvent {
+	if ev.Message == nil {
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Assistant turn started")}
+	}
+	var events []*domain.RunEvent
+	textContent := ev.Message.ExtractTextContent()
+	if textContent != "" {
+		if state.pendingCompact && isCompactionSummary(textContent) {
+			state.pendingCompact = false
+			summary := extractSummaryContent(textContent)
+			return []*domain.RunEvent{domain.NewCompactionEvent(
+				runID, summary, "manual", state.compactFocus,
+				0, 0, 0, state.compactCommand,
+			)}
+		}
+		if state.pendingCompact {
+			state.pendingCompact = false
+		}
+		state.lastAssistant = textContent
+		events = append(events, domain.NewMessageEvent(runID, "assistant", textContent))
+		state.textBuffer.Reset()
+	}
+	toolUses := ev.Message.ExtractToolUses()
+	for _, tool := range toolUses {
+		var input map[string]interface{}
+		if tool.Input != nil {
+			_ = json.Unmarshal(tool.Input, &input)
+		}
+		events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
+	}
+	if len(events) > 0 {
+		return events
+	}
+	return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Assistant turn started")}
+}
+
+func parseUserEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) []*domain.RunEvent {
+	if ev.Message == nil {
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "User turn marker")}
+	}
+	var events []*domain.RunEvent
+	toolResults := ev.Message.ExtractToolResults()
+	for _, r := range toolResults {
+		events = append(events, domain.NewToolResultEvent(
+			runID, "", r.ToolUseID, r.Content, nil,
+		))
+	}
+	textContent := ev.Message.ExtractTextContent()
+	if textContent != "" {
+		if isCompact, focus := parseCompactCommand(textContent); isCompact {
+			state.pendingCompact = true
+			state.compactCommand = textContent
+			state.compactFocus = focus
+		}
+		// User text suppressed — same reasoning as parseMessageEvent.
+	}
+	if len(events) > 0 {
+		return events
+	}
+	return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "User turn marker")}
+}
+
+func flushStreamMessage(runID uuid.UUID, state *claudeState) []*domain.RunEvent {
+	if state == nil || state.textBuffer.Len() == 0 {
+		return nil
+	}
+	message := runner.StripANSI(state.textBuffer.String())
+	state.textBuffer.Reset()
+	state.lastAssistant = message
+	return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", message)}
+}
+
+func toolCallFromState(runID uuid.UUID, state *claudeState) *domain.RunEvent {
+	if state == nil || !state.toolUseActive {
+		return nil
+	}
+	raw := strings.TrimSpace(state.toolUsePayload.String())
+	var input map[string]interface{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &input); err != nil {
+			input = map[string]interface{}{"raw": raw}
+		}
+	}
+	return domain.NewToolCallEvent(runID, state.toolUseName, state.toolUseID, input)
+}
+
+func resetToolUseState(state *claudeState) {
+	state.toolUseActive = false
+	state.toolUseID = ""
+	state.toolUseName = ""
+	state.toolUsePayload.Reset()
+}
+
+// =============================================================================
+// Result event handling
+// =============================================================================
+
+// parseClaudeResultEvent handles the terminal `result` event. Errors are
+// classified via detectClaudeRateLimit; successful results emit a cost
+// event when usage data is present.
+func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.RunEvent, error) {
+	resultStr := decodeClaudeResultString(event.Result)
+
+	// Rate-limit classification only fires when the CLI itself flagged
+	// is_error: true. The result text on a successful run is the agent's
+	// final assistant message, which can legitimately mention rate limits
+	// (e.g. discussing rate limiting); scanning it would produce false
+	// positives. See https://code.claude.com/docs/en/errors.
+	if event.IsError {
+		if rl := detectClaudeRateLimit(resultStr); rl.Detected {
+			return domain.NewRateLimitEvent(
+				runID, rl.LimitType, rl.Message, rl.ResetTime, rl.RetryAfter,
+			), nil
+		}
+		msg := formatErrorMessage(event.Subtype, event.NumTurns, event.DurationMs, resultStr)
+		errEvent := domain.NewErrorEvent(runID, "execution_error", msg, false)
+		if data, ok := errEvent.Data.(*domain.ErrorEventData); ok {
+			data.Details = buildErrorDetails(event.Subtype, event.NumTurns, event.DurationMs, event.SessionID, resultStr, "")
+		}
+		return errEvent, nil
+	}
+
+	// Successful result with usage — emit a cost event.
+	if event.Usage != nil || event.TotalCostUSD > 0 {
+		costEvent := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeMetric,
+			Timestamp: time.Now(),
+			Data: &domain.CostEventData{
+				InputTokens:         usageInputTokens(event.Usage),
+				OutputTokens:        usageOutputTokens(event.Usage),
+				CacheCreationTokens: usageCacheCreation(event.Usage),
+				CacheReadTokens:     usageCacheRead(event.Usage),
+				TotalCostUSD:        event.TotalCostUSD,
+				ServiceTier:         event.ServiceTier,
+				CostSource:          domain.CostSourceRunnerReported,
+				PricingProvider:     "claude-code",
+			},
+		}
+		if event.Usage != nil && event.Usage.ServerToolUse != nil {
+			if data, ok := costEvent.Data.(*domain.CostEventData); ok {
+				data.WebSearchRequests = event.Usage.ServerToolUse.WebSearchRequests
+			}
+		}
+		return costEvent, nil
+	}
+
+	return domain.NewLogEvent(
+		runID, "info",
+		fmt.Sprintf("Execution completed in %d turns", event.NumTurns),
+	), nil
+}
+
+func usageInputTokens(u *ClaudeUsage) int {
+	if u == nil {
+		return 0
+	}
+	return u.InputTokens
+}
+
+func usageOutputTokens(u *ClaudeUsage) int {
+	if u == nil {
+		return 0
+	}
+	return u.OutputTokens
+}
+
+func usageCacheCreation(u *ClaudeUsage) int {
+	if u == nil {
+		return 0
+	}
+	return u.CacheCreationInputTokens
+}
+
+func usageCacheRead(u *ClaudeUsage) int {
+	if u == nil {
+		return 0
+	}
+	return u.CacheReadInputTokens
+}
+
+func decodeClaudeResultString(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var result string
+	if err := json.Unmarshal(raw, &result); err == nil {
+		return result
+	}
+	return strings.TrimSpace(string(raw))
+}
+
+// =============================================================================
+// Rate-limit detection
+// =============================================================================
+
+// rateLimitInfo is the parsed result of detectClaudeRateLimit.
+type rateLimitInfo struct {
+	Detected   bool
+	LimitType  string
+	ResetTime  *time.Time
+	RetryAfter int
+	Message    string
+}
+
+// detectClaudeRateLimit parses a Claude `result` payload. Callers MUST
+// gate this on the CLI's is_error flag; feeding successful-run output in
+// here will produce false positives when an agent's prose mentions rate
+// limits.
+//
+// The size cap (Diagnostics.RateLimitMessageMaxLen) refuses
+// classification on payloads much longer than the documented Claude Code
+// banners (~100 chars per https://code.claude.com/docs/en/errors). Long
+// payloads are almost certainly tool output that happens to contain a
+// trigger word.
+func detectClaudeRateLimit(resultStr string) rateLimitInfo {
+	info := rateLimitInfo{Message: resultStr}
+
+	if len(resultStr) > config.DefaultLevers().Diagnostics.RateLimitMessageMaxLen {
+		return info
+	}
+
+	lowerMsg := strings.ToLower(resultStr)
+
+	// Anchored phrases per https://code.claude.com/docs/en/errors. Bare
+	// "rate limit" is NOT matched because it appears in ordinary prose.
+	matched := strings.Contains(lowerMsg, "usage limit reached") ||
+		strings.Contains(lowerMsg, "rate limit reached") ||
+		strings.Contains(lowerMsg, "rate limit exceeded") ||
+		strings.Contains(lowerMsg, "request rejected (429)") ||
+		strings.Contains(lowerMsg, "server is temporarily limiting requests") ||
+		(strings.Contains(lowerMsg, "hit your") && strings.Contains(lowerMsg, "limit")) ||
+		(strings.Contains(lowerMsg, "reached your") && strings.Contains(lowerMsg, "limit"))
+
+	if !matched {
+		return info
+	}
+
+	info.Detected = true
+	info.LimitType = "5_hour" // most common
+
+	// Reset timestamp from "limit reached|1755806400" form.
+	parts := strings.Split(resultStr, "|")
+	if len(parts) >= 2 {
+		if ts, err := strconv.ParseInt(strings.TrimSpace(parts[len(parts)-1]), 10, 64); err == nil {
+			resetTime := time.Unix(ts, 0)
+			info.ResetTime = &resetTime
+			info.RetryAfter = int(time.Until(resetTime).Seconds())
+			if info.RetryAfter < 0 {
+				info.RetryAfter = 0
+			}
+		}
+	}
+
+	switch {
+	case strings.Contains(lowerMsg, "daily"):
+		info.LimitType = "daily"
+	case strings.Contains(lowerMsg, "weekly"):
+		info.LimitType = "weekly"
+	case strings.Contains(lowerMsg, "token"):
+		info.LimitType = "token"
+	}
+
+	return info
+}
+
+// =============================================================================
+// Compaction helpers
+// =============================================================================
+
+// parseCompactCommand extracts focus from "/compact focus on auth" → "auth".
+func parseCompactCommand(content string) (isCompact bool, focus string) {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "/compact") {
+		return false, ""
+	}
+	rest := strings.TrimPrefix(content, "/compact")
+	if rest != "" && rest[0] != ' ' && rest[0] != '\t' && rest[0] != '\n' {
+		return false, ""
+	}
+	remainder := strings.TrimSpace(rest)
+	if strings.HasPrefix(remainder, "focus on ") {
+		focus = strings.TrimPrefix(remainder, "focus on ")
+	} else if remainder != "" {
+		focus = remainder
+	}
+	return true, strings.TrimSpace(focus)
+}
+
+func isCompactionSummary(content string) bool {
+	return strings.Contains(content, "<summary>") ||
+		strings.HasPrefix(strings.TrimSpace(content), "Summary of")
+}
+
+func extractSummaryContent(content string) string {
+	start := strings.Index(content, "<summary>")
+	end := strings.Index(content, "</summary>")
+	if start != -1 && end != -1 && end > start {
+		return strings.TrimSpace(content[start+len("<summary>") : end])
+	}
+	return content
+}
+
+// isAutoCompactMarker recognises the log-style strings Claude Code emits
+// around an automatic (non-user-triggered) compaction.
+func isAutoCompactMarker(content string) bool {
+	c := strings.ToLower(strings.TrimSpace(content))
+	if c == "" {
+		return false
+	}
+	markers := []string{
+		"auto-compacting",
+		"auto compacting",
+		"conversation history has been compacted",
+		"context has been compacted",
+		"automatic compaction",
+	}
+	for _, m := range markers {
+		if strings.Contains(c, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// =============================================================================
+// Diagnostic helpers
+// =============================================================================
+
+// secretRedactors strips obvious credential patterns out of diagnostics
+// before they're attached to error events. Not full DLP — just the
+// patterns historically observed leaking via CLI wrappers.
+var secretRedactors = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)bearer\s+[A-Za-z0-9._\-]{8,}`),
+	regexp.MustCompile(`sk-[A-Za-z0-9_\-]{8,}`),
+	regexp.MustCompile(`(?i)api[_-]?key[=:\s]+[A-Za-z0-9._\-]{8,}`),
+}
+
+// redactSecrets replaces credential-shaped substrings with "<redacted>".
+func redactSecrets(s string) string {
+	for _, re := range secretRedactors {
+		s = re.ReplaceAllString(s, "<redacted>")
+	}
+	return s
+}
+
+// tailBytesUTF8Safe returns the last max bytes of s, rewound to the
+// nearest UTF-8 rune boundary so callers never see half a multi-byte
+// character. Returns s unchanged if it already fits.
+func tailBytesUTF8Safe(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	start := len(s) - max
+	for start < len(s) && !utf8.RuneStart(s[start]) {
+		start++
+	}
+	return s[start:]
+}
+
+// buildErrorDetails collects the structured context derivable from a
+// Claude `result` event when is_error: true.
+func buildErrorDetails(subtype string, numTurns int, durationMs int, sessionID, resultText, stderrTail string) map[string]interface{} {
+	details := map[string]interface{}{
+		"subtype":     subtype,
+		"num_turns":   numTurns,
+		"duration_ms": durationMs,
+		"result_text": resultText,
+	}
+	if sessionID != "" {
+		details["session_id"] = sessionID
+	}
+	if stderrTail != "" {
+		details["stderr_tail"] = stderrTail
+	}
+	return details
+}
+
+// formatErrorMessage builds a human-readable summary for an
+// execution_error event. Always produces a non-empty string.
+func formatErrorMessage(subtype string, numTurns int, durationMs int, resultText string) string {
+	summary := "claude-code terminated with is_error=true"
+	parts := []string{}
+	if subtype != "" {
+		parts = append(parts, "subtype="+subtype)
+	}
+	parts = append(parts, "turns="+strconv.Itoa(numTurns), "duration_ms="+strconv.Itoa(durationMs))
+	summary += " (" + strings.Join(parts, ", ") + ")"
+	if strings.TrimSpace(resultText) != "" {
+		summary += ": " + strings.TrimSpace(resultText)
+	}
+	return summary
+}
+
+// Compile-time interface checks.
+var (
+	_ Codec = (*Claude)(nil)
+	_ State = (*claudeState)(nil)
+)

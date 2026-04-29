@@ -14,6 +14,8 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
+	runnercore "agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
@@ -182,10 +184,11 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
 
-	// Register Claude Code runner (uses resource-claude-code)
-	claudeRunner, err := runner.NewClaudeCodeRunner()
-	if err != nil {
-		log.Printf("Warning: Failed to create Claude Code runner: %v", err)
+	// Register Claude Code runner (codecs.Claude wired through core.Runner).
+	hostLauncher := runner.NewHostLauncher()
+	var claudeRunner *runnercore.Runner
+	if claudeCodec, err := codecs.NewClaude(); err != nil {
+		log.Printf("Warning: Failed to create Claude Code codec: %v", err)
 		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeClaudeCode,
 			fmt.Sprintf("claude-code runner failed to initialize: %v", err),
@@ -193,6 +196,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			log.Printf("Warning: Failed to register stub Claude runner: %v", err)
 		}
 	} else {
+		claudeRunner = runnercore.NewRunner(claudeCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(claudeRunner); err != nil {
 			log.Printf("Warning: Failed to register Claude runner: %v", err)
 		}
@@ -203,10 +207,10 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		}
 	}
 
-	// Register Codex runner (uses resource-codex)
-	codexRunner, err := runner.NewCodexRunner()
-	if err != nil {
-		log.Printf("Warning: Failed to create Codex runner: %v", err)
+	// Register Codex runner (codecs.Codex wired through core.Runner).
+	var codexRunner *runnercore.Runner
+	if codexCodec, err := codecs.NewCodex(); err != nil {
+		log.Printf("Warning: Failed to create Codex codec: %v", err)
 		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeCodex,
 			fmt.Sprintf("codex runner failed to initialize: %v", err),
@@ -214,6 +218,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			log.Printf("Warning: Failed to register stub Codex runner: %v", err)
 		}
 	} else {
+		codexRunner = runnercore.NewRunner(codexCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(codexRunner); err != nil {
 			log.Printf("Warning: Failed to register Codex runner: %v", err)
 		}
@@ -224,10 +229,10 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		}
 	}
 
-	// Register OpenCode runner (uses resource-opencode)
-	openCodeRunner, err := runner.NewOpenCodeRunner()
-	if err != nil {
-		log.Printf("Warning: Failed to create OpenCode runner: %v", err)
+	// Register OpenCode runner (codecs.OpenCode wired through core.Runner).
+	var openCodeRunner *runnercore.Runner
+	if openCodeCodec, err := codecs.NewOpenCode(); err != nil {
+		log.Printf("Warning: Failed to create OpenCode codec: %v", err)
 		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeOpenCode,
 			fmt.Sprintf("opencode runner failed to initialize: %v", err),
@@ -235,6 +240,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			log.Printf("Warning: Failed to register stub OpenCode runner: %v", err)
 		}
 	} else {
+		openCodeRunner = runnercore.NewRunner(openCodeCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(openCodeRunner); err != nil {
 			log.Printf("Warning: Failed to register OpenCode runner: %v", err)
 		}

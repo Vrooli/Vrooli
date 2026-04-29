@@ -11,7 +11,7 @@ import (
 // while letting both error types flow through the same extraction logic.
 type exitCoder interface{ ExitCode() int }
 
-// extractExitCode returns the process exit code from a launcher Wait error.
+// ExtractExitCode returns the process exit code from a launcher Wait error.
 //
 //   - nil err → (0, true).
 //   - err implementing ExitCoder (host *exec.ExitError or sandbox
@@ -23,7 +23,7 @@ type exitCoder interface{ ExitCode() int }
 // Use this helper at the wait-error type-switch in every runner so
 // protected-mode runs (which return *remoteExitError) report exit codes
 // the same way tracking-mode runs (*exec.ExitError) do.
-func extractExitCode(err error) (int, bool) {
+func ExtractExitCode(err error) (int, bool) {
 	if err == nil {
 		return 0, true
 	}

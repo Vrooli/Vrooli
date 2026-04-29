@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 
@@ -89,6 +90,11 @@ type Reconciler struct {
 
 	config ReconcilerConfig
 
+	// levers exposes internal threshold knobs (e.g. recovery tail tick).
+	// Defaulted to config.DefaultLevers(); callers can override via
+	// WithReconcilerLevers when wiring the orchestrator.
+	levers cfgpkg.Levers
+
 	// State
 	mu           sync.Mutex
 	running      bool
@@ -129,6 +135,7 @@ func NewReconciler(
 		events:  nil,
 		runners: runners,
 		config:  DefaultReconcilerConfig(),
+		levers:  cfgpkg.DefaultLevers(),
 		stopCh:  make(chan struct{}),
 		doneCh:  make(chan struct{}),
 		tailers: make(map[uuid.UUID]context.CancelFunc),
@@ -168,6 +175,14 @@ func WithReconcilerEvents(store event.Store) ReconcilerOption {
 func WithReconcilerSandbox(s sandbox.Provider) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.sandbox = s
+	}
+}
+
+// WithReconcilerLevers overrides the lever set used for internal cadence
+// (recovery tail tick, etc.). Defaults to cfgpkg.DefaultLevers().
+func WithReconcilerLevers(l cfgpkg.Levers) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.levers = l
 	}
 }
 

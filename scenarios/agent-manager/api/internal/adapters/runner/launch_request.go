@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// buildEnvWrappedLaunchRequest builds a [LaunchRequest] for an agent that
+// BuildEnvWrappedLaunchRequest builds a [LaunchRequest] for an agent that
 // runs through the `env` shim so a per-run tag lands in `/proc/<pid>/cmdline`
 // (the agent-manager reconciler reads it to detect orphaned processes).
 //
@@ -28,7 +28,7 @@ import (
 // Centralising the construction here keeps the per-runner Execute
 // methods short and means one place to fix when the env shim pattern
 // changes or a new runner needs the same wiring.
-func buildEnvWrappedLaunchRequest(
+func BuildEnvWrappedLaunchRequest(
 	tagEnvKey, binaryPath string,
 	args []string,
 	tag, prompt string,

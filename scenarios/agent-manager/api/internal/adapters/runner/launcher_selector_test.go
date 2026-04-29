@@ -75,7 +75,7 @@ func (s *recordingSink) hasWarning(needle string) bool {
 func TestLauncherSelectorPick_NonProtectedUsesHost(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
 	sandbox := &stubLauncher{tag: "sandbox"}
-	selector := newLauncherSelector(host, &stubFactory{launcher: sandbox})
+	selector := NewLauncherSelector(host, &stubFactory{launcher: sandbox})
 
 	cfg := &domain.RunConfig{
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
@@ -88,7 +88,7 @@ func TestLauncherSelectorPick_NonProtectedUsesHost(t *testing.T) {
 
 func TestLauncherSelectorPick_UnspecifiedModeUsesHost(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
-	selector := newLauncherSelector(host, &stubFactory{launcher: &stubLauncher{tag: "sandbox"}})
+	selector := NewLauncherSelector(host, &stubFactory{launcher: &stubLauncher{tag: "sandbox"}})
 	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{}} // mode=""
 	picked := selector.Pick(context.Background(), ExecuteRequest{ResolvedConfig: cfg})
 	if picked != host {
@@ -103,7 +103,7 @@ func TestLauncherSelectorPick_ProtectedWithFactoryAndIDPicksSandbox(t *testing.T
 	host := &stubLauncher{tag: "host"}
 	sandboxLauncher := &stubLauncher{tag: "sandbox"}
 	factory := &stubFactory{launcher: sandboxLauncher}
-	selector := newLauncherSelector(host, factory)
+	selector := NewLauncherSelector(host, factory)
 
 	sandboxID := uuid.New()
 	cfg := &domain.RunConfig{
@@ -123,7 +123,7 @@ func TestLauncherSelectorPick_ProtectedWithFactoryAndIDPicksSandbox(t *testing.T
 
 func TestLauncherSelectorPick_ProtectedNoFactoryFallsBackWithWarning(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
-	selector := newLauncherSelector(host, nil) // no factory
+	selector := NewLauncherSelector(host, nil) // no factory
 	sink := &recordingSink{}
 	cfg := &domain.RunConfig{
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
@@ -146,7 +146,7 @@ func TestLauncherSelectorPick_ProtectedNoFactoryFallsBackWithWarning(t *testing.
 func TestLauncherSelectorPick_ProtectedNoSandboxIDFallsBackWithWarning(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
 	factory := &stubFactory{launcher: &stubLauncher{tag: "sandbox"}}
-	selector := newLauncherSelector(host, factory)
+	selector := NewLauncherSelector(host, factory)
 	sink := &recordingSink{}
 	cfg := &domain.RunConfig{
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
@@ -171,7 +171,7 @@ func TestLauncherSelectorPick_ProtectedNoSandboxIDFallsBackWithWarning(t *testin
 func TestLauncherSelectorPick_FactoryReturnsNilFallsBackWithWarning(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
 	factory := &stubFactory{launcher: nil}
-	selector := newLauncherSelector(host, factory)
+	selector := NewLauncherSelector(host, factory)
 	sink := &recordingSink{}
 	cfg := &domain.RunConfig{
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
@@ -193,7 +193,7 @@ func TestLauncherSelectorPick_FactoryReturnsNilFallsBackWithWarning(t *testing.T
 
 func TestLauncherSelectorPick_NoConfigUsesHost(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
-	selector := newLauncherSelector(host, &stubFactory{launcher: &stubLauncher{tag: "sandbox"}})
+	selector := NewLauncherSelector(host, &stubFactory{launcher: &stubLauncher{tag: "sandbox"}})
 	picked := selector.Pick(context.Background(), ExecuteRequest{}) // no config
 	if picked != host {
 		t.Errorf("no-config request picked %v; want host launcher", picked)
@@ -207,7 +207,7 @@ func TestLauncherSelectorPick_NoConfigUsesHost(t *testing.T) {
 func TestLauncherSelectorPickFor_ContinueRequestProtectedRoutesToSandbox(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
 	sandbox := &stubLauncher{tag: "sandbox"}
-	selector := newLauncherSelector(host, &stubFactory{launcher: sandbox})
+	selector := NewLauncherSelector(host, &stubFactory{launcher: sandbox})
 
 	id := uuid.New()
 	cont := ContinueRequest{
@@ -229,7 +229,7 @@ func TestLauncherSelectorPickFor_ContinueRequestProtectedRoutesToSandbox(t *test
 func TestLauncherSelectorPickFor_ContinueRequestNoSandboxIDFallsBack(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
 	factory := &stubFactory{launcher: &stubLauncher{tag: "sandbox"}}
-	selector := newLauncherSelector(host, factory)
+	selector := NewLauncherSelector(host, factory)
 	sink := &recordingSink{}
 
 	cont := ContinueRequest{
@@ -256,7 +256,7 @@ func TestLauncherSelectorPickFor_ContinueRequestNoSandboxIDFallsBack(t *testing.
 // host. Mirrors the Execute path's "no SandboxConfig → host" rule.
 func TestLauncherSelectorPickFor_NilContinueConfigUsesHost(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
-	selector := newLauncherSelector(host, &stubFactory{launcher: &stubLauncher{tag: "sandbox"}})
+	selector := NewLauncherSelector(host, &stubFactory{launcher: &stubLauncher{tag: "sandbox"}})
 
 	cont := ContinueRequest{RunID: uuid.New()}
 	picked := selector.PickFor(context.Background(), cont.RunID, cont.GetConfig(), cont.SandboxID, cont.EventSink)
@@ -271,7 +271,7 @@ func TestLauncherSelectorPickFor_NilContinueConfigUsesHost(t *testing.T) {
 // constructed after the runner registry.
 func TestLauncherSelectorSetSandboxLauncherFactory_SwapsFactoryAtRuntime(t *testing.T) {
 	host := &stubLauncher{tag: "host"}
-	selector := newLauncherSelector(host, nil)
+	selector := NewLauncherSelector(host, nil)
 
 	cfg := &domain.RunConfig{
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},

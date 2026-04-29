@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// launcherSelector holds the per-runner launcher wiring and produces a
+// LauncherSelector holds the per-runner launcher wiring and produces a
 // Launcher per Execute call.
 //
 // Why this is its own type:
@@ -25,26 +25,33 @@ import (
 // The selector also owns the warn-event emission so misconfigured
 // environments (protected mode requested, factory missing, etc.) surface
 // as visible run-level log events rather than silent downgrades.
-type launcherSelector struct {
+//
+// The concrete type is exported (rather than only its constructor) so
+// the generic [core.Runner] can hold it behind an interface while tests
+// in the same package can compose it directly.
+type LauncherSelector struct {
 	mu             sync.RWMutex
 	host           Launcher
 	sandboxFactory SandboxLauncherFactory
 }
 
-// newLauncherSelector returns a selector wired with the given launchers.
+// NewLauncherSelector returns a selector wired with the given launchers.
 // A nil host launcher is replaced with a fresh [HostLauncher]; a nil
 // factory means protected-mode requests will warn-and-fall-back to host.
-func newLauncherSelector(host Launcher, factory SandboxLauncherFactory) *launcherSelector {
+//
+// Exposed for use by the generic [core.Runner], which holds a selector
+// behind an interface so the parent package's concrete type stays internal.
+func NewLauncherSelector(host Launcher, factory SandboxLauncherFactory) *LauncherSelector {
 	if host == nil {
 		host = NewHostLauncher()
 	}
-	return &launcherSelector{host: host, sandboxFactory: factory}
+	return &LauncherSelector{host: host, sandboxFactory: factory}
 }
 
 // SetSandboxLauncherFactory swaps in (or removes) the protected-mode
 // factory. Used by main.go where the sandbox provider is constructed
 // after the runner registry; tests use it to inject mocks.
-func (s *launcherSelector) SetSandboxLauncherFactory(factory SandboxLauncherFactory) {
+func (s *LauncherSelector) SetSandboxLauncherFactory(factory SandboxLauncherFactory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sandboxFactory = factory
@@ -53,7 +60,7 @@ func (s *launcherSelector) SetSandboxLauncherFactory(factory SandboxLauncherFact
 // HostLauncher returns the configured host launcher. Used by Stop()
 // implementations that need to talk directly to the host runtime when no
 // LaunchedProcess is registered.
-func (s *launcherSelector) HostLauncher() Launcher {
+func (s *LauncherSelector) HostLauncher() Launcher {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.host
@@ -61,7 +68,7 @@ func (s *launcherSelector) HostLauncher() Launcher {
 
 // SandboxFactory returns the currently-wired factory, or nil. Used in
 // tests; production code should call [Pick] instead.
-func (s *launcherSelector) SandboxFactory() SandboxLauncherFactory {
+func (s *LauncherSelector) SandboxFactory() SandboxLauncherFactory {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.sandboxFactory
@@ -70,7 +77,7 @@ func (s *launcherSelector) SandboxFactory() SandboxLauncherFactory {
 // Pick returns the Launcher that should be used for the given Execute
 // request. Thin wrapper over [PickFor]; see that method for the full
 // routing-rules contract.
-func (s *launcherSelector) Pick(ctx context.Context, req ExecuteRequest) Launcher {
+func (s *LauncherSelector) Pick(ctx context.Context, req ExecuteRequest) Launcher {
 	return s.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
 }
 
@@ -93,7 +100,7 @@ func (s *launcherSelector) Pick(ctx context.Context, req ExecuteRequest) Launche
 // Each warn-and-fallback path emits a log event on the supplied EventSink
 // (when non-nil) so operators can spot misconfigured environments rather
 // than silently watching protected runs downgrade to host execution.
-func (s *launcherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *domain.RunConfig, sandboxID *uuid.UUID, sink EventSink) Launcher {
+func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *domain.RunConfig, sandboxID *uuid.UUID, sink EventSink) Launcher {
 	_ = ctx // reserved for future per-call factory needs (e.g. tracing)
 	s.mu.RLock()
 	host := s.host

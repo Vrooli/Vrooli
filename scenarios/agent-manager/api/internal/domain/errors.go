@@ -82,7 +82,7 @@ const (
 	// the workspace-sandbox WaitForExit fix, this should not happen
 	// for a real exit; callers must surface it as a hard failure
 	// rather than a clean success.
-	ErrCodeSandboxNoExitInfo   ErrorCode = "SANDBOX_NO_EXIT_INFO"
+	ErrCodeSandboxNoExitInfo ErrorCode = "SANDBOX_NO_EXIT_INFO"
 	// ErrCodeSandboxHomeOverlayUnavailable marks a sandbox-launch attempt
 	// where the agent CLI lives under $HOME/.local/... but the sandbox's
 	// per-run home overlay is not Present. Surfaced when
@@ -92,10 +92,10 @@ const (
 	// Retryable=true: transient mount failures usually resolve on a
 	// fresh sandbox.
 	ErrCodeSandboxHomeOverlayUnavailable ErrorCode = "SANDBOX_HOME_OVERLAY_UNAVAILABLE"
-	ErrCodeDatabaseConnection  ErrorCode = "DATABASE_CONNECTION"
-	ErrCodeDatabaseQuery       ErrorCode = "DATABASE_QUERY"
-	ErrCodeConfigInvalid       ErrorCode = "CONFIG_INVALID"
-	ErrCodeConfigMissing       ErrorCode = "CONFIG_MISSING"
+	ErrCodeDatabaseConnection            ErrorCode = "DATABASE_CONNECTION"
+	ErrCodeDatabaseQuery                 ErrorCode = "DATABASE_QUERY"
+	ErrCodeConfigInvalid                 ErrorCode = "CONFIG_INVALID"
+	ErrCodeConfigMissing                 ErrorCode = "CONFIG_MISSING"
 
 	// --- Internal Errors (500) ---
 	ErrCodeInternal          ErrorCode = "INTERNAL"

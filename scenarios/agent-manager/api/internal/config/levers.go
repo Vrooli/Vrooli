@@ -47,6 +47,20 @@ type Levers struct {
 
 	// Storage controls persistence settings
 	Storage StorageLevers `json:"storage"`
+
+	// Heartbeat controls run-lifecycle cadence (heartbeat, checkpoint,
+	// staleness, teardown, retries) — internal levers, not user-facing.
+	Heartbeat HeartbeatLevers `json:"heartbeat"`
+
+	// Recovery controls transcript-tail and resume-after-restart timing.
+	Recovery RecoveryLevers `json:"recovery"`
+
+	// Scanner controls stdout/transcript byte buffer ceilings.
+	Scanner ScannerLevers `json:"scanner"`
+
+	// Diagnostics controls heuristic windows used by run-outcome
+	// classification (silent-launch detection, message truncation).
+	Diagnostics DiagnosticsLevers `json:"diagnostics"`
 }
 
 // =============================================================================
@@ -199,6 +213,12 @@ type RunnerLevers struct {
 	// Useful when runners are slow to initialize.
 	// Range: 0 to 5m. Default: 30s.
 	StartupGracePeriod time.Duration `json:"startupGracePeriod"`
+
+	// ProbeTimeout bounds a single runner-availability probe (e.g. `codex
+	// status`, `opencode --version`). Kept short so an unhealthy binary
+	// does not stall startup or the orchestrator's IsAvailable path.
+	// Range: 1s to 30s. Default: 5s.
+	ProbeTimeout time.Duration `json:"probeTimeout"`
 }
 
 // =============================================================================
@@ -262,6 +282,123 @@ type StorageLevers struct {
 	// Higher = more history, but more storage.
 	// Range: 1 to 365. Default: 90.
 	ArtifactRetentionDays int `json:"artifactRetentionDays"`
+
+	// RunStateRetentionDays is how long the reconciler keeps on-disk
+	// run-state directories (transcripts, scratchpads) for terminal
+	// (Complete / Failed / Cancelled) runs before sweeping them.
+	// Range: 1 to 365. Default: 7.
+	RunStateRetentionDays int `json:"runStateRetentionDays"`
+}
+
+// =============================================================================
+// HEARTBEAT LEVERS
+// =============================================================================
+
+// HeartbeatLevers control run-execution lifecycle cadence.
+// These are internal levers — not exposed via env vars by default.
+type HeartbeatLevers struct {
+	// RunHeartbeatInterval is how often the run-executor heartbeat goroutine
+	// updates last_heartbeat_at on the run row. The reconciler uses
+	// last_heartbeat_at + StaleThreshold to detect stuck runs, so this must
+	// fire well below StaleThreshold.
+	// Range: 1s to 5m. Default: 15s.
+	RunHeartbeatInterval time.Duration `json:"runHeartbeatInterval"`
+
+	// CheckpointInterval is how often the run-executor persists checkpoint
+	// state for resumption. Lower = finer-grained recovery, higher overhead.
+	// Range: 5s to 10m. Default: 1m.
+	CheckpointInterval time.Duration `json:"checkpointInterval"`
+
+	// StaleThreshold is how long without a heartbeat before the reconciler
+	// considers a run stale. Must comfortably exceed RunHeartbeatInterval to
+	// tolerate slow DB writes and long tool calls.
+	// Range: 1m to 30m. Default: 5m.
+	StaleThreshold time.Duration `json:"staleThreshold"`
+
+	// TeardownTimeout bounds the detached context used by finalize() for
+	// sandbox Delete/Stop calls. Independent of run timeout — teardown must
+	// complete even when the run deadline already expired.
+	// Range: 5s to 5m. Default: 30s.
+	TeardownTimeout time.Duration `json:"teardownTimeout"`
+
+	// MaxRetriesPerPhase bounds retries for transient phase failures.
+	// Range: 0 to 10. Default: 3.
+	MaxRetriesPerPhase int `json:"maxRetriesPerPhase"`
+
+	// AgentTickInterval is how often runner-internal heartbeat goroutines
+	// (e.g. claude-code stream-stall watchdog) wake up to evaluate the
+	// idle threshold. Smaller = faster idle reporting, more wake-ups.
+	// Range: 100ms to 10s. Default: 2s.
+	AgentTickInterval time.Duration `json:"agentTickInterval"`
+
+	// AgentIdleThreshold is how long the runner-internal stream watchdog
+	// waits without observing a stdout event before emitting a debug log
+	// event. Used by claude-code's heartbeat to surface stream stalls.
+	// Range: 1s to 5m. Default: 30s.
+	AgentIdleThreshold time.Duration `json:"agentIdleThreshold"`
+
+	// RunnerSignalGracePeriod is how long Runner.Stop() waits for a
+	// SIGTERM-style graceful shutdown before escalating to SIGKILL.
+	// Same value is used as the context timeout for Stop's HTTP/IPC call.
+	// Range: 1s to 1m. Default: 5s.
+	RunnerSignalGracePeriod time.Duration `json:"runnerSignalGracePeriod"`
+}
+
+// =============================================================================
+// RECOVERY LEVERS
+// =============================================================================
+
+// RecoveryLevers control resume-after-restart timing.
+type RecoveryLevers struct {
+	// TranscriptTailInterval is how often the recovery tailer polls the
+	// transcript file for new lines after reattaching to a live run.
+	// Range: 50ms to 5s. Default: 100ms.
+	TranscriptTailInterval time.Duration `json:"transcriptTailInterval"`
+
+	// TranscriptPollInterval is the default poll interval for
+	// runner.Consume when no caller-supplied value is given.
+	// Range: 50ms to 5s. Default: 100ms.
+	TranscriptPollInterval time.Duration `json:"transcriptPollInterval"`
+}
+
+// =============================================================================
+// SCANNER LEVERS
+// =============================================================================
+
+// ScannerLevers control byte-buffer ceilings used when consuming
+// runner stdout and transcript files.
+type ScannerLevers struct {
+	// StdoutMaxLineBytes is the maximum line length bufio.Scanner will
+	// accept when reading runner stdout. Long lines beyond this trip
+	// scanner.Err() = bufio.ErrTooLong.
+	// Range: 64KB to 64MB. Default: 10MB.
+	StdoutMaxLineBytes int `json:"stdoutMaxLineBytes"`
+
+	// TranscriptMaxLineBytes is the maximum line length when reading
+	// the persisted NDJSON transcript on resume.
+	// Range: 64KB to 64MB. Default: 10MB.
+	TranscriptMaxLineBytes int `json:"transcriptMaxLineBytes"`
+}
+
+// =============================================================================
+// DIAGNOSTICS LEVERS
+// =============================================================================
+
+// DiagnosticsLevers control heuristic windows used by run-outcome
+// classification.
+type DiagnosticsLevers struct {
+	// LaunchFailedMaxDuration is the upper bound for "ran too fast to be a
+	// real run." When a sandbox-protected run exits within this window with
+	// no message events, validateOutcome reclassifies the failure as a
+	// launch failure (e.g. bwrap setup error).
+	// Range: 100ms to 30s. Default: 2s.
+	LaunchFailedMaxDuration time.Duration `json:"launchFailedMaxDuration"`
+
+	// RateLimitMessageMaxLen truncates rate-limit error messages before
+	// surfacing to operators. Keeps logs readable when providers return
+	// long structured error bodies.
+	// Range: 64 to 8192. Default: 512.
+	RateLimitMessageMaxLen int `json:"rateLimitMessageMaxLen"`
 }
 
 // =============================================================================
@@ -311,6 +448,7 @@ func DefaultLevers() Levers {
 			FallbackRunnerTypes: nil,
 			HealthCheckInterval: 1 * time.Minute,
 			StartupGracePeriod:  30 * time.Second,
+			ProbeTimeout:        5 * time.Second,
 		},
 		Server: ServerLevers{
 			Port:                "8080",
@@ -326,6 +464,29 @@ func DefaultLevers() Levers {
 			ConnMaxLifetime:       5 * time.Minute,
 			EventRetentionDays:    30,
 			ArtifactRetentionDays: 90,
+			RunStateRetentionDays: 7,
+		},
+		Heartbeat: HeartbeatLevers{
+			RunHeartbeatInterval:    15 * time.Second,
+			CheckpointInterval:      1 * time.Minute,
+			StaleThreshold:          5 * time.Minute,
+			TeardownTimeout:         30 * time.Second,
+			MaxRetriesPerPhase:      3,
+			AgentTickInterval:       2 * time.Second,
+			AgentIdleThreshold:      30 * time.Second,
+			RunnerSignalGracePeriod: 5 * time.Second,
+		},
+		Recovery: RecoveryLevers{
+			TranscriptTailInterval: 100 * time.Millisecond,
+			TranscriptPollInterval: 100 * time.Millisecond,
+		},
+		Scanner: ScannerLevers{
+			StdoutMaxLineBytes:     10 * 1024 * 1024,
+			TranscriptMaxLineBytes: 10 * 1024 * 1024,
+		},
+		Diagnostics: DiagnosticsLevers{
+			LaunchFailedMaxDuration: 2 * time.Second,
+			RateLimitMessageMaxLen:  512,
 		},
 	}
 }
@@ -357,6 +518,18 @@ func (l *Levers) Validate() error {
 	}
 	if err := l.Storage.Validate(); err != nil {
 		return wrapConfigSection("storage", err)
+	}
+	if err := l.Heartbeat.Validate(); err != nil {
+		return wrapConfigSection("heartbeat", err)
+	}
+	if err := l.Recovery.Validate(); err != nil {
+		return wrapConfigSection("recovery", err)
+	}
+	if err := l.Scanner.Validate(); err != nil {
+		return wrapConfigSection("scanner", err)
+	}
+	if err := l.Diagnostics.Validate(); err != nil {
+		return wrapConfigSection("diagnostics", err)
 	}
 	return nil
 }
@@ -425,6 +598,9 @@ func (r *RunnerLevers) Validate() error {
 	if r.StartupGracePeriod < 0 || r.StartupGracePeriod > 5*time.Minute {
 		return domain.NewConfigInvalidError("startupGracePeriod", fmt.Sprintf("must be between 0 and 5m, got %v", r.StartupGracePeriod), nil)
 	}
+	if r.ProbeTimeout < time.Second || r.ProbeTimeout > 30*time.Second {
+		return domain.NewConfigInvalidError("probeTimeout", fmt.Sprintf("must be between 1s and 30s, got %v", r.ProbeTimeout), nil)
+	}
 	return nil
 }
 
@@ -462,6 +638,72 @@ func (s *StorageLevers) Validate() error {
 	}
 	if s.ArtifactRetentionDays < 1 || s.ArtifactRetentionDays > 365 {
 		return domain.NewConfigInvalidError("artifactRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.ArtifactRetentionDays), nil)
+	}
+	if s.RunStateRetentionDays < 1 || s.RunStateRetentionDays > 365 {
+		return domain.NewConfigInvalidError("runStateRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.RunStateRetentionDays), nil)
+	}
+	return nil
+}
+
+func (h *HeartbeatLevers) Validate() error {
+	if h.RunHeartbeatInterval < time.Second || h.RunHeartbeatInterval > 5*time.Minute {
+		return domain.NewConfigInvalidError("runHeartbeatInterval", fmt.Sprintf("must be between 1s and 5m, got %v", h.RunHeartbeatInterval), nil)
+	}
+	if h.CheckpointInterval < 5*time.Second || h.CheckpointInterval > 10*time.Minute {
+		return domain.NewConfigInvalidError("checkpointInterval", fmt.Sprintf("must be between 5s and 10m, got %v", h.CheckpointInterval), nil)
+	}
+	if h.StaleThreshold < time.Minute || h.StaleThreshold > 30*time.Minute {
+		return domain.NewConfigInvalidError("staleThreshold", fmt.Sprintf("must be between 1m and 30m, got %v", h.StaleThreshold), nil)
+	}
+	if h.StaleThreshold <= h.RunHeartbeatInterval {
+		return domain.NewConfigInvalidError("staleThreshold", fmt.Sprintf("must exceed runHeartbeatInterval (%v), got %v", h.RunHeartbeatInterval, h.StaleThreshold), nil)
+	}
+	if h.TeardownTimeout < 5*time.Second || h.TeardownTimeout > 5*time.Minute {
+		return domain.NewConfigInvalidError("teardownTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", h.TeardownTimeout), nil)
+	}
+	if h.MaxRetriesPerPhase < 0 || h.MaxRetriesPerPhase > 10 {
+		return domain.NewConfigInvalidError("maxRetriesPerPhase", fmt.Sprintf("must be between 0 and 10, got %d", h.MaxRetriesPerPhase), nil)
+	}
+	if h.AgentTickInterval < 100*time.Millisecond || h.AgentTickInterval > 10*time.Second {
+		return domain.NewConfigInvalidError("agentTickInterval", fmt.Sprintf("must be between 100ms and 10s, got %v", h.AgentTickInterval), nil)
+	}
+	if h.AgentIdleThreshold < time.Second || h.AgentIdleThreshold > 5*time.Minute {
+		return domain.NewConfigInvalidError("agentIdleThreshold", fmt.Sprintf("must be between 1s and 5m, got %v", h.AgentIdleThreshold), nil)
+	}
+	if h.RunnerSignalGracePeriod < time.Second || h.RunnerSignalGracePeriod > time.Minute {
+		return domain.NewConfigInvalidError("runnerSignalGracePeriod", fmt.Sprintf("must be between 1s and 1m, got %v", h.RunnerSignalGracePeriod), nil)
+	}
+	return nil
+}
+
+func (r *RecoveryLevers) Validate() error {
+	if r.TranscriptTailInterval < 50*time.Millisecond || r.TranscriptTailInterval > 5*time.Second {
+		return domain.NewConfigInvalidError("transcriptTailInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptTailInterval), nil)
+	}
+	if r.TranscriptPollInterval < 50*time.Millisecond || r.TranscriptPollInterval > 5*time.Second {
+		return domain.NewConfigInvalidError("transcriptPollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptPollInterval), nil)
+	}
+	return nil
+}
+
+func (s *ScannerLevers) Validate() error {
+	const minBuf = 64 * 1024
+	const maxBuf = 64 * 1024 * 1024
+	if s.StdoutMaxLineBytes < minBuf || s.StdoutMaxLineBytes > maxBuf {
+		return domain.NewConfigInvalidError("stdoutMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.StdoutMaxLineBytes), nil)
+	}
+	if s.TranscriptMaxLineBytes < minBuf || s.TranscriptMaxLineBytes > maxBuf {
+		return domain.NewConfigInvalidError("transcriptMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.TranscriptMaxLineBytes), nil)
+	}
+	return nil
+}
+
+func (d *DiagnosticsLevers) Validate() error {
+	if d.LaunchFailedMaxDuration < 100*time.Millisecond || d.LaunchFailedMaxDuration > 30*time.Second {
+		return domain.NewConfigInvalidError("launchFailedMaxDuration", fmt.Sprintf("must be between 100ms and 30s, got %v", d.LaunchFailedMaxDuration), nil)
+	}
+	if d.RateLimitMessageMaxLen < 64 || d.RateLimitMessageMaxLen > 8192 {
+		return domain.NewConfigInvalidError("rateLimitMessageMaxLen", fmt.Sprintf("must be between 64 and 8192, got %d", d.RateLimitMessageMaxLen), nil)
 	}
 	return nil
 }

@@ -236,7 +236,7 @@ func (r *Reconciler) startTailer(run *domain.Run, transcriptPath string, state *
 			r.recoveryMu.Unlock()
 		}()
 
-		ticker := time.NewTicker(100 * time.Millisecond)
+		ticker := time.NewTicker(r.levers.Recovery.TranscriptTailInterval)
 		defer ticker.Stop()
 		for {
 			if _, err := r.recoverRun(ctx, run, false); err == nil && !r.isProcessAlive(ctx, run) {
@@ -319,7 +319,7 @@ func recoveredSummaryHasContent(summary *domain.RunSummary) bool {
 }
 
 func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
-	cutoff := time.Now().Add(-7 * 24 * time.Hour)
+	cutoff := time.Now().Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
 	statuses := []domain.RunStatus{
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,

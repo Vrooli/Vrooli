@@ -31,6 +31,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -186,10 +187,10 @@ func newTestExecutorWithRun(t *testing.T, cfg *domain.SandboxConfig, run *domain
 		sandbox:   stub,
 		sandboxID: &sbxID,
 		events:    ev,
-		// finalize() and applySandboxLifecycle() use config.TeardownTimeout
+		// finalize() and applySandboxLifecycle() use Heartbeat.TeardownTimeout
 		// to bound their detached HTTP context. Use the production default
 		// here so unit-test paths exercise the same code path as prod.
-		config: DefaultExecutorConfig(),
+		levers: config.DefaultLevers(),
 		// advancePhase() (called from finalize) updates the checkpoint;
 		// initialize it so the helper works in tests that drive finalize
 		// directly without going through Execute().

@@ -15,7 +15,7 @@ func TestSanitizedBaseEnv_RemovesCrossScenarioVars(t *testing.T) {
 	t.Setenv("CLAUDECODE", "1")
 	t.Setenv("SAFE_ENV_KEY", "keep-me")
 
-	env := sanitizedBaseEnv()
+	env := SanitizedBaseEnv()
 	keys := make([]string, 0, len(env))
 	for _, entry := range env {
 		key, _, found := strings.Cut(entry, "=")
@@ -51,7 +51,7 @@ func TestAppendEnvMap_IncludesProvidedVars(t *testing.T) {
 		"CUSTOM_API_URL":  "http://localhost:16544",
 	}
 
-	env := appendEnvMap(base, extras)
+	env := AppendEnvMap(base, extras)
 	joined := strings.Join(env, "\n")
 
 	if !strings.Contains(joined, "CUSTOM_API_PORT=16544") {

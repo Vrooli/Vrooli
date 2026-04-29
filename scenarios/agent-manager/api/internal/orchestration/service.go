@@ -2345,16 +2345,10 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		prompt,
 		systemPrompt,
 	)
-	// Apply orchestration settings to executor config if store is available.
-	if o.orchestrationSettings != nil {
-		s := o.orchestrationSettings.Get()
-		executor.WithConfig(ExecutorConfig{
-			Timeout:            time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute,
-			HeartbeatInterval:  time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second,
-			CheckpointInterval: 1 * time.Minute,
-			MaxRetries:         3,
-			StaleThreshold:     time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
-		})
+	// Apply orchestration-settings overrides to executor levers when a store
+	// is wired. Defaults come from config.DefaultLevers().
+	if levers, ok := o.executorLevers(); ok {
+		executor.WithLevers(levers)
 	}
 	// Configure executor with checkpoint repository if available
 	if o.checkpoints != nil {
@@ -2392,6 +2386,32 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.Execute(ctx)
+}
+
+// executorLevers folds the runtime OrchestrationSettings store (when wired)
+// onto the static config.DefaultLevers() to produce the per-run lever set
+// the executor reads. Returns ok=false when no override store is configured —
+// callers fall through to the executor's built-in defaults.
+//
+// Only fields that the OrchestrationSettings model actually exposes are
+// overridden. Other levers (recovery polls, scanner buffers, diagnostics)
+// stay at compile-time defaults until they are surfaced as runtime knobs.
+func (o *Orchestrator) executorLevers() (agentconfig.Levers, bool) {
+	if o.orchestrationSettings == nil {
+		return agentconfig.Levers{}, false
+	}
+	s := o.orchestrationSettings.Get()
+	levers := agentconfig.DefaultLevers()
+	if s.RunExecution.RunTimeoutMinutes > 0 {
+		levers.Execution.DefaultTimeout = time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute
+	}
+	if s.HealthDetection.HeartbeatIntervalSeconds > 0 {
+		levers.Heartbeat.RunHeartbeatInterval = time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second
+	}
+	if s.HealthDetection.StaleThresholdSeconds > 0 {
+		levers.Heartbeat.StaleThreshold = time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second
+	}
+	return levers, true
 }
 
 // -----------------------------------------------------------------------------
@@ -2471,16 +2491,10 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No new prompt for resume
 		"", // No system prompt for resume (session persists instructions)
 	)
-	// Apply orchestration settings to executor config if store is available.
-	if o.orchestrationSettings != nil {
-		s := o.orchestrationSettings.Get()
-		executor.WithConfig(ExecutorConfig{
-			Timeout:            time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute,
-			HeartbeatInterval:  time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second,
-			CheckpointInterval: 1 * time.Minute,
-			MaxRetries:         3,
-			StaleThreshold:     time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
-		})
+	// Apply orchestration-settings overrides to executor levers when a store
+	// is wired. Defaults come from config.DefaultLevers().
+	if levers, ok := o.executorLevers(); ok {
+		executor.WithLevers(levers)
 	}
 
 	// Configure for resumption

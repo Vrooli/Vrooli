@@ -8,15 +8,17 @@ import (
 	"os"
 	"time"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
 
-const (
-	maxTranscriptScannerBuffer = 10 * 1024 * 1024
-	transcriptPollInterval     = 100 * time.Millisecond
-)
+// Default poll interval for transcript consumption is sourced from
+// config.DefaultLevers().Recovery.TranscriptPollInterval. Callers (the
+// recovery tailer, codex/opencode resume drains) override via
+// ConsumeArgs.PollInterval when they want a different cadence.
+var transcriptPollInterval = config.DefaultLevers().Recovery.TranscriptPollInterval
 
 type ConsumeArgs struct {
 	RunID        uuid.UUID
@@ -120,7 +122,11 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 	}
 }
 
-func terminalSummaryFromMessage(message string, metrics ExecutionMetrics) *domain.RunSummary {
+// TerminalSummaryFromMessage builds a RunSummary from the captured last
+// assistant message and rolling metrics. Used on the success path of the
+// durable-transcript flow when the codec did not surface an explicit
+// terminal summary.
+func TerminalSummaryFromMessage(message string, metrics ExecutionMetrics) *domain.RunSummary {
 	if message == "" && metrics == (ExecutionMetrics{}) {
 		return nil
 	}

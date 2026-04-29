@@ -148,6 +148,16 @@ const (
 	HomeOverlayUnsupported  HomeOverlayState = "unsupported"
 )
 
+// IsHomeOverlayPresent reports whether the sandbox's home overlay is
+// usable for $HOME-relative operations. Mirrors the workspace-sandbox
+// policy.IsHomeOverlayPresent helper — kept synchronized via the
+// parity test in home_overlay_policy_test.go.
+//
+// DOC: home-overlay seam — single predicate for state==Present.
+func IsHomeOverlayPresent(state HomeOverlayState) bool {
+	return state == HomeOverlayPresent
+}
+
 // SandboxStatus represents the sandbox lifecycle state.
 type SandboxStatus string
 

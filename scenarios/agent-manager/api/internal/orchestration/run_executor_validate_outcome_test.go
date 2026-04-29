@@ -12,6 +12,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -72,6 +73,7 @@ func newSilentLaunchExecutor(t *testing.T, mode domain.SandboxMode, runMode doma
 	return &RunExecutor{
 		run:    run,
 		events: store,
+		levers: config.DefaultLevers(),
 	}, store
 }
 
