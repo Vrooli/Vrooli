@@ -1,0 +1,81 @@
+{
+  "_comment_top": "Image-prompt template. Compose by filling in the references and per-render fields, then submit to image-gen tool. Schema follows the 2026 industry-standard formula: Identity + Core Traits + Clothing/Style + Pose + Lighting/Camera + Background. Identity and Core Traits are frozen across renders for consistency; Pose, Lighting, Camera, Background vary per render.",
+  "_comment_references": "References point at character/scene/product entries by slug. The renderer (today: operator + agent; future: rich-media-studio CLI) hydrates these into full descriptive blocks before submission.",
+  "references": {
+    "character_slug": "REPLACE — character slug, or null if no character in this image",
+    "scene_slug": "REPLACE — scene slug, or null if abstract/studio",
+    "product_slugs": []
+  },
+  "identity": {
+    "_comment": "Hydrated from character.identity_block. FROZEN across all renders of the same character.",
+    "_hydrated_at_compose_time": true
+  },
+  "core_traits": {
+    "_comment": "Hydrated from character.core_traits. FROZEN.",
+    "_hydrated_at_compose_time": true
+  },
+  "clothing_style": {
+    "_comment": "Pick a wardrobe variant by id, or override.",
+    "wardrobe_variant_id": "REPLACE — id from character.wardrobe_variants, or 'override'",
+    "override_description": null,
+    "palette_consistency_with_scene_and_brand": "verified | not-verified"
+  },
+  "pose": {
+    "_comment": "Per-render. What the character is doing in this single frame.",
+    "description": "REPLACE — e.g. 'standing at kitchen counter, hands on coffee mug, looking down with slight smile'",
+    "facing": "front | three-quarter | side-profile | three-quarter-back | back",
+    "expression": "REPLACE — emotion / micro-expression"
+  },
+  "camera": {
+    "shot_type": "wide | medium | medium-close | close-up | extreme-close-up",
+    "angle": "eye-level | slightly-low | slightly-high | overhead | dutch",
+    "lens_or_focal_length": "REPLACE — e.g. '50mm equivalent, shallow depth of field'",
+    "framing_notes": "REPLACE — composition cues (rule of thirds, negative space, etc.)"
+  },
+  "lighting": {
+    "_comment": "Hydrated from scene.lighting by default; override fields per-render only when needed.",
+    "scene_default_overrides": null
+  },
+  "background": {
+    "_comment": "Hydrated from scene.environment by default; per-render override for specific elements.",
+    "scene_default_overrides": null,
+    "additional_props_in_frame": []
+  },
+  "product_in_frame": {
+    "_comment": "When a product slug is referenced. Defines how the product appears in this specific render.",
+    "shown": false,
+    "ui_surface_id": null,
+    "tier_depicted": null,
+    "do_not_distort_check": "verified-against-current-product-entry | not-verified"
+  },
+  "style_modifiers": {
+    "_comment": "Brand-canon style modifiers; per IMAGE_STYLE.md. These are appended to the prompt.",
+    "aesthetic": "REPLACE — e.g. 'photorealistic, soft natural light, slight film grain' or 'illustrative, flat colors with neon-green accents'",
+    "brand_palette_lock": true,
+    "negative_modifiers": [
+      "no on-screen text in image (text is added in post)",
+      "no fabricated UI elements not in product entry"
+    ]
+  },
+  "output_spec": {
+    "aspect_ratio": "1:1 | 9:16 | 16:9 | 4:5",
+    "resolution_target": "REPLACE — e.g. '1080x1080' or 'platform-default'",
+    "tool_target": "REPLACE — e.g. 'gpt-image-2' | 'flux' | 'qwen-image' | 'midjourney' | 'ideogram'"
+  },
+  "honesty_flags": {
+    "_comment": "Carried into the publish-log entry for the artifact this render is part of.",
+    "feature_claims": "measured | overclaimed | uncertain",
+    "tier_alignment": "verified | not-yet-checked",
+    "real_person_check": "verified-no-likeness",
+    "persona_disclosure": "labeled | exempt-minor-edit-only | n/a-no-person-depicted"
+  },
+  "render_provenance": {
+    "_comment": "Filled in by the renderer at compose time so renders are reproducible.",
+    "composed_at": null,
+    "composed_by": null,
+    "tool_used": null,
+    "seed": null,
+    "prompt_text_submitted": null,
+    "output_uri": null
+  }
+}

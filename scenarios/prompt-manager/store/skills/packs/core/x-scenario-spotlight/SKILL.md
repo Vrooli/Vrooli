@@ -2,7 +2,7 @@
 
 Generate a scenario-spotlight draft pitching **one Vrooli scenario** as a useful tool / app / product to its target user. Asset-led. Conversion-rung-aware. Contrarian-checked against type-level failure modes before handoff.
 
-> **Status:** v1 (thin). The strategic canon — purpose, audience model, conversion goal, asset requirements, failure modes — lives in [`docs/marketing/post-types/scenario-spotlight.md`](../../../../../../docs/marketing/post-types/scenario-spotlight.md). This skill is the executable spec; that file is the reasoning.
+> **Status:** v1 (thin). The strategic canon — purpose, audience model, conversion goal, asset requirements, failure modes — lives in [`docs/marketing/post-types/text/scenario-spotlight.md`](../../../../../../docs/marketing/post-types/text/scenario-spotlight.md). This skill is the executable spec; that file is the reasoning.
 
 ---
 
@@ -33,7 +33,7 @@ prompt-manager skill read swarm-manager-initiative-context  # how to pull scenar
 
 Required file reads (every run):
 
-- `docs/marketing/post-types/scenario-spotlight.md` — strategic canon (purpose, audience, conversion goal, asset requirements, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/post-types/text/scenario-spotlight.md` — strategic canon (purpose, audience, conversion goal, asset requirements, contrarian failure modes). **Load-bearing.**
 - `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
 - `docs/marketing/post-techniques/essay-shape.md`
 - `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`
@@ -88,7 +88,7 @@ Run the steps in order. Do not skip the verifiability passes — they are what d
 
 7. **Apply variant-specific shape.** For recommendation variant, frame in third-party voice and cite the `third_party_basis` (in production, not in the post copy itself unless natural). For problem-led, lead with the friction in the audience's voice. For comparison, name the comparison target and the concrete differentiator.
 
-8. **Run the contrarian self-check.** For each failure mode in `post-types/scenario-spotlight.md`'s contrarian table, produce a one-line answer:
+8. **Run the contrarian self-check.** For each failure mode in `post-types/text/scenario-spotlight.md`'s contrarian table, produce a one-line answer:
    - Capability inflation? (cite evidence: every claim verified in step 1)
    - Demo theater? (would a fresh audience-persona user replicate the demo without operator help?)
    - Pricing/tier confusion? (every demo'd feature reachable from CTA tier — verified in step 2)
@@ -173,7 +173,7 @@ End your response with a fenced ` ```json ` block with this shape:
 
 ### **7. Anti-Patterns**
 
-Defer to `post-types/scenario-spotlight.md`'s contrarian table for the canonical list. Common slips:
+Defer to `post-types/text/scenario-spotlight.md`'s contrarian table for the canonical list. Common slips:
 
 - **Drafting the post before pulling scenario state.** You'll discover you've claimed something the scenario doesn't do; the rewrite is harder than starting from verified claims.
 - **Burying the asset.** A spotlight is asset-led. If the body reads as a coherent post without the asset, the body is doing too much; the asset is doing too little.
@@ -187,7 +187,7 @@ Defer to `post-types/scenario-spotlight.md`'s contrarian table for the canonical
 If you observe a recurring pattern across runs (e.g., "audience X responds better to comparison variant," "scenarios with CLI-only surfaces benefit from asciinema rather than BAS recording"), append it to `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (create the file on first observation). Tag the entry with the pattern and a target promotion location:
 
 - Skill edit (this file's process / output contract) — most observations land here.
-- `docs/marketing/post-types/scenario-spotlight.md` — observations changing strategic canon (audience model, new variant, new failure mode).
+- `docs/marketing/post-types/text/scenario-spotlight.md` — observations changing strategic canon (audience model, new variant, new failure mode).
 - `docs/marketing/post-techniques/<name>.md` — observations that turn out cross-cutting and apply to other post types.
 
 `brand-manager` curates the promotion path via `notebook-promotion` decisions.
@@ -196,7 +196,7 @@ If you observe a recurring pattern across runs (e.g., "audience X responds bette
 
 ### **9. Cross-References**
 
-- Strategic canon: [`docs/marketing/post-types/scenario-spotlight.md`](../../../../../../docs/marketing/post-types/scenario-spotlight.md).
+- Strategic canon: [`docs/marketing/post-types/text/scenario-spotlight.md`](../../../../../../docs/marketing/post-types/text/scenario-spotlight.md).
 - Voice canon: [`docs/marketing/STRATEGY.md`](../../../../../../docs/marketing/STRATEGY.md).
 - Sibling post-type skill: `x-dev-log` (project-wide narrative — for contrast).
 - Asset substrate: [Browser Automation Studio scenario](../../../../../../scenarios/bas/) — known constraint: BAS `recordVideo` gray-bar requires CDP workaround (see BAS scenario docs).

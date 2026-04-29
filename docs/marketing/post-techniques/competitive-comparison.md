@@ -80,7 +80,7 @@ Honesty flags the publisher must attach to a competitive-comparison draft (exten
 ## Cross-references
 
 - `STRATEGY.md` — voice canon (builder-not-marketer; honest about struggles applies inversely here as honest about caveats).
-- `post-types/scenario-spotlight.md` — Comparison variant in the conversion-rate-friendly variants section; this technique is its canonical home.
+- `post-types/text/scenario-spotlight.md` — Comparison variant in the conversion-rate-friendly variants section; this technique is its canonical home.
 - `post-techniques/recommendation-framing.md` — companion when the comparison is third-party-attributed.
 - `post-techniques/hook-vs-body-asymmetry.md` — comparisons should lead the hook with the differentiator and let the body deliver the evidence.
 - `post-techniques/intro-on-first-mention.md` — when the named alternative may be unfamiliar to part of the audience, apply on top.

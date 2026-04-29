@@ -34,7 +34,7 @@
 ## Available Skills
 | Skill | Purpose |
 |-------|---------|
-| `prompt-manager skill read x-dev-log` | PRIMARY: mine scenario activity into dev logs. Required-reads `docs/marketing/post-types/dev-log.md` + the `post-techniques/` files it depends on. |
+| `prompt-manager skill read x-dev-log` | PRIMARY: mine scenario activity into dev logs. Required-reads `docs/marketing/post-types/text/dev-log.md` + the `post-techniques/` files it depends on. |
 | `prompt-manager skill read campaign-content-studio` | Longer-form OSS narratives |
 | `prompt-manager skill read seo-optimizer` | Blog discoverability |
 | `prompt-manager skill read video-studio` | Feature demos (draft capability — expect workarounds) |
@@ -44,6 +44,7 @@
 
 When producing a draft of a recognized post type, read the type's strategic canon under [`docs/marketing/post-types/`](../../../../../../../docs/marketing/post-types/) for purpose, audience, conversion goal, asset requirements, and contrarian failure modes. Currently authored:
 
-- `post-types/dev-log.md` — project-wide progress narrative; paired with `x-dev-log` skill (primary).
-- `post-types/scenario-spotlight.md` — pitching one scenario as an end-user tool/app/product (paired with `x-scenario-spotlight`; primary author is `subscription-advertiser`, but oss-advertiser may co-author when the spotlight is dev-tooling for a developer audience).
-- (`post-types/oss-framework.md` is future — pitching Vrooli as a developer platform; will be primarily owned by oss-advertiser when authored.)
+- `post-types/text/dev-log.md` — project-wide progress narrative; paired with `x-dev-log` skill (primary).
+- `post-types/text/scenario-spotlight.md` — pitching one scenario as an end-user tool/app/product (paired with `x-scenario-spotlight`; primary author is `subscription-advertiser`, but oss-advertiser may co-author when the spotlight is dev-tooling for a developer audience).
+- (`post-types/text/oss-framework.md` is future — pitching Vrooli as a developer platform; will be primarily owned by oss-advertiser when authored.)
+- See also `post-types/image/` and `post-types/video/` for image-medium and video-medium post types (skeletons authored 2026-04-28). When dev-tooling stories are best told as a video format (narrative-talking-head, problem-agitate-solve, comparison-reel), the relevant post-type doc applies; pair with [`docs/marketing/strategies/ai-ugc-personas.md`](../../../../../../../docs/marketing/strategies/ai-ugc-personas.md) when persona voice is used.

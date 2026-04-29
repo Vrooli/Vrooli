@@ -30,7 +30,7 @@ Required scenarios (check with `vrooli scenario status`):
 - **app-issue-tracker** - issues and investigations
 
 Required reading (every run):
-- `docs/marketing/post-types/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/post-types/text/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
 - `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
 - `docs/marketing/post-techniques/essay-shape.md`
 - `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`

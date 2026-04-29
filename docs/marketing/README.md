@@ -25,14 +25,16 @@ See [`scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/S
 
 | Folder | Purpose |
 |--------|---------|
-| [`post-types/`](post-types/) | One file per kind of marketing post Vrooli produces (`scenario-spotlight`, `dev-log`, `oss-framework`, …). Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
+| [`post-types/`](post-types/) | One file per kind of marketing post Vrooli produces, organized by primary medium under `text/`, `image/`, and `video/`. Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
 | [`post-techniques/`](post-techniques/) | One file per cross-cutting voice/structure technique (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, recommendation-framing, …). Techniques are referenced from multiple post-type files rather than duplicated. |
-| [`notebook/`](notebook/) | Working notebook for patterns observed in production. Append-anyone; brand-manager curates promotions to plan-of-record (here, in `post-types/`, in `post-techniques/`) or to permanent structure (a skill or scenario). |
+| [`strategies/`](strategies/) | Cross-cutting marketing strategies that span multiple post-types and aren't pure techniques (AI-UGC personas, hook library, funnel patterns). One file per strategy. |
+| [`rich-media/`](rich-media/) | Structured-data substrate for AI image and video generation: character / scene / product schemas (JSON), prompt templates (Veo/Seedance-compatible), and ground-truth assets. Drives multi-frame and multi-shot consistency. |
+| [`notebook/`](notebook/) | Working notebook for patterns observed in production. Append-anyone; brand-manager curates promotions to plan-of-record (here, in `post-types/`, in `post-techniques/`, in `strategies/`) or to permanent structure (a skill or scenario). |
 
 ## Write rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE *and* the cross-team narrative canon at `docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for CHANNELS.
+- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE / `strategies/*` / `rich-media/*` *and* the cross-team narrative canon at `docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for per-platform-rule edits to CHANNELS; `channel-strategy-update` (researcher) for channel-priority/strategy edits to CHANNELS; `post-type-proposal` (researcher) for new entries under `post-types/`; `hook-candidate-promotion` (researcher) for additions to `strategies/hook-library.md`.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
 
 ## Cross-references

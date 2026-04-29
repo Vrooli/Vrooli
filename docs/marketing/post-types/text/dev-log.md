@@ -2,9 +2,9 @@
 
 **Status:** Extracted from `STRATEGY.md`'s Content-type principles + Dev-log narrative principles on 2026-04-28 (walk #5 divergence #3, Action B). Original Dev-log narrative principles added 2026-04-27 via accepted framework-update `dec-1777300532504756717`.
 
-**Paired skill:** [`x-dev-log`](../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/)
+**Paired skill:** [`x-dev-log`](../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/)
 **Primary author:** `oss-advertiser`
-**Notebook home for emerging craft patterns:** [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../notebook/DEV_LOG_CRAFT.md) — already populated; promotion target is `x-dev-log` skill edits.
+**Notebook home for emerging craft patterns:** [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../notebook/DEV_LOG_CRAFT.md) — already populated; promotion target is `x-dev-log` skill edits.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ It is **not**:
 
 ## Audience
 
-Primary: the **OSS / contributor** persona (see [`AUDIENCES.md`](../AUDIENCES.md) for the full definition). Specifically:
+Primary: the **OSS / contributor** persona (see [`AUDIENCES.md`](../../AUDIENCES.md) for the full definition). Specifically:
 - Developers and curious followers interested in *how* Vrooli is built — the agents-as-builders story is the unique signal.
 - Existing contributors and would-be contributors orienting on the project's current state.
 - Other AI-builder communities watching how a multi-agent system actually evolves week-to-week.
@@ -34,16 +34,16 @@ Dev logs are **not** a sign-up funnel. Treat each post's success as "did the aud
 
 ## Structure
 
-Apply the cross-cutting [essay-shape technique](../post-techniques/essay-shape.md) — hook → introduction → body → conclusion. With the cross-cutting [hook-vs-body-asymmetry technique](../post-techniques/hook-vs-body-asymmetry.md) on length distribution.
+Apply the cross-cutting [essay-shape technique](../../post-techniques/essay-shape.md) — hook → introduction → body → conclusion. With the cross-cutting [hook-vs-body-asymmetry technique](../../post-techniques/hook-vs-body-asymmetry.md) on length distribution.
 
 Specific to dev-logs:
 - **Range:** 3-7 tweets per X thread is a typical range, *not* a structural cap. Body tweets may exceed 280 chars per the asymmetry technique. Blog version: 500-2000 words.
 - **Work-in-progress is explicitly labeled.** "This is shipping — here's what works and what's still rough" is honest builder voice; "we're proud to launch X" is voice drift.
-- **Inter-post linkage** ([technique](../post-techniques/inter-post-linkage.md)): each post after the first cites the prior post's URL via `previous_post_url` in `marketing-crew/shared/publish-log.jsonl`.
+- **Inter-post linkage** ([technique](../../post-techniques/inter-post-linkage.md)): each post after the first cites the prior post's URL via `previous_post_url` in `marketing-crew/shared/publish-log.jsonl`.
 
 ## Voice (dev-log-specific application)
 
-The general voice canon lives in [`STRATEGY.md`](../STRATEGY.md). Dev-logs apply it with an additional discipline:
+The general voice canon lives in [`STRATEGY.md`](../../STRATEGY.md). Dev-logs apply it with an additional discipline:
 
 **Personal voice grounded in builder identity.** Voice canon prescribes "first person, conversational, technically credible." Embodiment matters — a sentence that names an agent in third person is *not yet* personal voice. The first post of any series must especially feel like a software engineer talking about what they built — real grounded excitement tied to real work. The "I" can be the operator's or an agent's; pick deliberately, but pick.
 
@@ -63,13 +63,13 @@ The corresponding contrarian failure mode is **what-without-why** (mode 12 in `S
 
 ## Asset requirements
 
-Dev-logs are **text-led**, not asset-led (in contrast to `scenario-spotlight.md`'s asset-led shape). When an asset appears, it is supporting evidence for the narrative — a diff fragment, a screenshot of a graph view, an ASCII tree of the new package layout. Brand consistency with [`ASSETS.md`](../ASSETS.md) and [`IMAGE_STYLE.md`](../IMAGE_STYLE.md) still applies; sanitization per [`x-dev-log`](../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/) guardrails is non-negotiable.
+Dev-logs are **text-led**, not asset-led (in contrast to `scenario-spotlight.md`'s asset-led shape). When an asset appears, it is supporting evidence for the narrative — a diff fragment, a screenshot of a graph view, an ASCII tree of the new package layout. Brand consistency with [`ASSETS.md`](../../ASSETS.md) and [`IMAGE_STYLE.md`](../../IMAGE_STYLE.md) still applies; sanitization per [`x-dev-log`](../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/) guardrails is non-negotiable.
 
 When a dev-log post would benefit from a longer asset (e.g., a complete demo of a shipped feature), consider whether the right surface is actually a paired `scenario-spotlight` post linked from the dev-log conclusion, rather than embedding the full asset in the dev-log itself.
 
 ## Contrarian failure modes (dev-log-specific specializations)
 
-The `marketing-contrarian` member skill ingests this section as type-level review rules. Each failure mode below maps to a framework-level mode in `STRATEGY.md`'s Anti-patterns; type-level modes are *specializations*, not new framework modes (per [`marketing-contrarian/RESPONSIBILITIES.md`](../../../scenarios/prompt-manager/store/teams/marketing-crew/members/marketing-contrarian/RESPONSIBILITIES.md)).
+The `marketing-contrarian` member skill ingests this section as type-level review rules. Each failure mode below maps to a framework-level mode in `STRATEGY.md`'s Anti-patterns; type-level modes are *specializations*, not new framework modes (per [`marketing-contrarian/RESPONSIBILITIES.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/marketing-contrarian/RESPONSIBILITIES.md)).
 
 | Type-level failure mode | What it looks like in a dev-log | Framework-level mode |
 |---|---|---|
@@ -90,13 +90,13 @@ Honesty flags the publisher / oss-advertiser member must attach to a dev-log dra
 
 ## Cross-cutting techniques this type uses
 
-(All have canonical homes under [`../post-techniques/`](../post-techniques/).)
+(All have canonical homes under [`../../post-techniques/`](../../post-techniques/).)
 
-- [Essay-shape per post](../post-techniques/essay-shape.md)
-- [Hook-vs-body length asymmetry](../post-techniques/hook-vs-body-asymmetry.md)
-- [Intro-on-first-mention](../post-techniques/intro-on-first-mention.md) (with `published-scenario-mentions.jsonl` lookup before assuming familiarity; subject-familiarity corollary applies to hook calibration)
-- [Inter-post linkage](../post-techniques/inter-post-linkage.md)
-- [No internal numbering externally](../post-techniques/no-internal-numbering-externally.md)
+- [Essay-shape per post](../../post-techniques/essay-shape.md)
+- [Hook-vs-body length asymmetry](../../post-techniques/hook-vs-body-asymmetry.md)
+- [Intro-on-first-mention](../../post-techniques/intro-on-first-mention.md) (with `published-scenario-mentions.jsonl` lookup before assuming familiarity; subject-familiarity corollary applies to hook calibration)
+- [Inter-post linkage](../../post-techniques/inter-post-linkage.md)
+- [No internal numbering externally](../../post-techniques/no-internal-numbering-externally.md)
 
 ## Where this fits in the marketing flow
 
@@ -134,7 +134,7 @@ Honesty flags the publisher / oss-advertiser member must attach to a dev-log dra
 
 ## Promotion path for craft observations
 
-Patterns observed during production runs of `x-dev-log` are appended to [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../notebook/DEV_LOG_CRAFT.md). Promotion targets per [team-shared-docs-design](../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md):
+Patterns observed during production runs of `x-dev-log` are appended to [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../notebook/DEV_LOG_CRAFT.md). Promotion targets per [team-shared-docs-design](../../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md):
 
 - **Skill edit** — most observations land as edits to the `x-dev-log` skill (mining-strategy rubric, interestingness-scoring weights, output-contract refinements). Primary promotion target.
 - **This file** — observations that change strategic canon (audience model, conversion goal, new failure mode, type-specific voice rule).
@@ -144,9 +144,9 @@ Patterns observed during production runs of `x-dev-log` are appended to [`docs/m
 
 ## Cross-references
 
-- Paired skill: [`x-dev-log`](../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/) (in prompt-manager core skills).
-- Plan-of-record neighbors: [`../STRATEGY.md`](../STRATEGY.md) (voice canon, voice samples — Sample 5 specifically illustrates the first-post intro burden), [`../AUDIENCES.md`](../AUDIENCES.md), [`../CHANNELS.md`](../CHANNELS.md), [`../ASSETS.md`](../ASSETS.md).
-- Notebook: [`../notebook/DEV_LOG_CRAFT.md`](../notebook/DEV_LOG_CRAFT.md) — populated; promotes mostly to `x-dev-log` skill.
+- Paired skill: [`x-dev-log`](../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/) (in prompt-manager core skills).
+- Plan-of-record neighbors: [`../../STRATEGY.md`](../../STRATEGY.md) (voice canon, voice samples — Sample 5 specifically illustrates the first-post intro burden), [`../../AUDIENCES.md`](../../AUDIENCES.md), [`../../CHANNELS.md`](../../CHANNELS.md), [`../../ASSETS.md`](../../ASSETS.md).
+- Notebook: [`../../notebook/DEV_LOG_CRAFT.md`](../../notebook/DEV_LOG_CRAFT.md) — populated; promotes mostly to `x-dev-log` skill.
 - Sibling post type: [`scenario-spotlight.md`](scenario-spotlight.md) — for contrast (asset-led, product-focused, conversion-funnel).
 - Persistence surfaces: `marketing-crew/shared/publish-log.jsonl` (URL paste-back), `marketing-crew/shared/published-scenario-mentions.jsonl` (familiarity tracking), `marketing-crew/shared/published-improvements-log.jsonl` (what-→-why de-duplication).
 

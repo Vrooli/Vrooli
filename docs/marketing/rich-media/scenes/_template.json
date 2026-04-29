@@ -1,0 +1,26 @@
+{
+  "slug": "REPLACE-with-url-safe-slug",
+  "display_name": "REPLACE — short human-readable name",
+  "environment": {
+    "category": "indoor-residential",
+    "description": "REPLACE — one-paragraph descriptive prose of the environment, including spatial layout, materials, and characteristic feel",
+    "notable_objects": [
+      "REPLACE — list a few distinctive objects that anchor the scene"
+    ]
+  },
+  "lighting": {
+    "time_of_day": "morning",
+    "quality": "soft-diffused",
+    "key_light_direction": "from-left",
+    "notes": "REPLACE — color temperature, atmospheric notes"
+  },
+  "palette": {
+    "dominant": ["#REPLACE", "#REPLACE"],
+    "accent": ["#REPLACE"],
+    "notes": "REPLACE — how this palette interacts with brand canon (IMAGE_STYLE.md)"
+  },
+  "ambiance": "REPLACE — one-line feeling/mood the scene evokes",
+  "typical_props": [],
+  "brand_consistency_check": "REPLACE — note alignment with or deliberate deviation from IMAGE_STYLE.md",
+  "notes": ""
+}

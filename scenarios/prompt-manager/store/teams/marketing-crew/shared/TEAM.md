@@ -43,7 +43,10 @@ Members surface decisions with these contexts. The operator reviews them at the 
 - `campaign-launch-proposal` — a multi-artifact campaign with theme, timing, channel mix, and acquisition/retention hypothesis.
 - `brand-guideline-update` — plan-of-record edit proposal to `STRATEGY.md` or `BRAND.md`.
 - `audience-update` — plan-of-record edit proposal to `AUDIENCES.md`.
-- `channel-update` — platform or per-platform-rule change (new platform, retired platform, updated rules).
+- `channel-update` — per-platform-rule change (new platform rule, retired rule, updated rule). Operational scope. Owned by publisher.
+- `channel-strategy-update` — channel-level strategy change (priority shift, new channel activation request, account/purpose changes, bundle-conversion table updates). Strategic scope. Owned by researcher. Distinct from `channel-update` (rule-level).
+- `post-type-proposal` — propose a new entry under `docs/marketing/post-types/<medium>/<slug>.md`. Owned by researcher. Requires ≥3 converging `format-trend` scans. **Doc + skill discipline:** every post type ships as `doc + paired skill` per [`post-types/README.md`](../../../../../../docs/marketing/post-types/README.md#doc--skill-discipline-mandatory) — the proposal must name the proposed paired skill (`x-<slug>`) and either commit a skill-authoring window or set the `v0-stub-only` flag. v0-stub types are blocked at the contrarian gate from `content-publish-proposal` approval until activated (skill authored, status bumped to v1).
+- `hook-candidate-promotion` — promote stable observed-in-the-wild hooks from `hook-candidate` scans into `docs/marketing/strategies/hook-library.md`. Owned by researcher.
 - `coverage-gap` — a deployed or imminent-release SKU / app has stale or missing marketing material.
 - `notebook-promotion` — promote a stable notebook entry into permanent structure (new skill, plan-of-record edit, scenario-capability request).
 - `notebook-retirement` — retire a notebook entry that's been obsoleted by shipped scenario capability.
@@ -73,7 +76,7 @@ Each member's stop-early thresholds are computed against an explicit context lis
 - **subscription-advertiser:** `content-publish-proposal` (subscription variants), `coverage-gap` (subscription SKUs), `capability-gap`
 - **oss-advertiser:** `content-publish-proposal` (OSS variants), `coverage-gap` (OSS narrative), `capability-gap`
 - **publisher:** `channel-update`, `content-publish-proposal` (platform-variant pack from an approved upstream draft), `capability-gap`
-- **researcher:** `audience-update`, `capability-gap`
+- **researcher:** `audience-update`, `channel-strategy-update`, `post-type-proposal`, `hook-candidate-promotion`, `capability-gap`
 - **marketing-contrarian:** `decision-rejection-proposed`, `framework-update`
 
 Overlaps (e.g., `content-publish-proposal` is owned by multiple members) are expected — each member counts only its own variant/scope when evaluating its own stop-early threshold. `capability-gap` is shared with meta-optimization; marketing-crew is an authorized raiser, meta-optimization owns the context definition, director-swarm consumes.
