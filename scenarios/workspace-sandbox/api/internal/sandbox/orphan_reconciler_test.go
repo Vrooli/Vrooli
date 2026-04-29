@@ -198,6 +198,9 @@ func (d *fakeOrphanDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) erro
 // surface.
 func (d *fakeOrphanDriver) ID() driver.DriverID                       { return "fake-orphan" }
 func (d *fakeOrphanDriver) RequiresBwrap() driver.IsolationMode       { return driver.ModeNone }
+func (d *fakeOrphanDriver) Capabilities() driver.DriverCapabilities {
+	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
+}
 func (d *fakeOrphanDriver) Version() string                           { return "test" }
 func (d *fakeOrphanDriver) IsAvailable(context.Context) (bool, error) { return true, nil }
 func (d *fakeOrphanDriver) Mount(context.Context, *types.Sandbox) (*driver.MountPaths, error) {

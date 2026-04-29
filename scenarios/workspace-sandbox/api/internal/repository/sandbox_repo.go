@@ -152,7 +152,8 @@ const sandboxColumns = `
 	driver_id, driver_version, COALESCE(lower_dir, ''), COALESCE(upper_dir, ''),
 	COALESCE(work_dir, ''), COALESCE(merged_dir, ''),
 	size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-	COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')`
+	COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, ''),
+	home_overlay_state`
 
 func scanSandbox(row interface {
 	Scan(...any) error
@@ -175,6 +176,7 @@ func scanSandbox(row interface {
 		noLock        int
 	)
 
+	var homeOverlayState string
 	if err := row.Scan(
 		&idStr, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &noLock, &s.ProjectRoot,
 		&s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
@@ -183,9 +185,11 @@ func scanSandbox(row interface {
 		&s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDsStr, &s.SessionCount, &tagsStr, &metadataJSON, &behaviorJSON,
 		&s.IdempotencyKey, &updatedAt, &s.Version, &s.BaseCommitHash,
+		&homeOverlayState,
 	); err != nil {
 		return nil, err
 	}
+	s.HomeOverlayState = types.HomeOverlayState(homeOverlayState)
 
 	id, err := parseUUID(idStr)
 	if err != nil {
@@ -274,9 +278,14 @@ func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 			owner, owner_type, status,
 			created_at, last_used_at, updated_at,
 			driver_id, driver_version, tags, metadata, behavior,
-			idempotency_key, version, base_commit_hash, active_pids
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			idempotency_key, version, base_commit_hash, active_pids,
+			home_overlay_state
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
+	homeOverlayState := s.HomeOverlayState
+	if homeOverlayState == "" {
+		homeOverlayState = types.HomeOverlayAbsent
+	}
 	_, err = exec.ExecContext(ctx, query,
 		uuidText(s.ID),
 		nullableString(s.Name),
@@ -300,6 +309,7 @@ func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 		s.Version,
 		nullableString(s.BaseCommitHash),
 		jsonInts(s.ActivePIDs),
+		string(homeOverlayState),
 	)
 	return err
 }
@@ -352,17 +362,23 @@ func updateSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 			lower_dir = ?, upper_dir = ?, work_dir = ?, merged_dir = ?,
 			size_bytes = ?, file_count = ?, active_pids = ?, session_count = ?,
 			tags = ?, metadata = ?, behavior = ?,
+			home_overlay_state = ?,
 			version = version + 1,
 			updated_at = ?,
 			last_used_at = ?
 		WHERE id = ?`
 
+	homeOverlayState := s.HomeOverlayState
+	if homeOverlayState == "" {
+		homeOverlayState = types.HomeOverlayAbsent
+	}
 	if _, err := exec.ExecContext(ctx, query,
 		string(s.Status), nullableString(s.ErrorMsg),
 		formatTimePtr(s.StoppedAt), formatTimePtr(s.ApprovedAt), formatTimePtr(s.DeletedAt),
 		nullableString(s.LowerDir), nullableString(s.UpperDir), nullableString(s.WorkDir), nullableString(s.MergedDir),
 		s.SizeBytes, s.FileCount, jsonInts(s.ActivePIDs), s.SessionCount,
 		jsonStrings(s.Tags), metadataJSON, behaviorJSON,
+		string(homeOverlayState),
 		formatTime(now),
 		formatTime(now),
 		uuidText(s.ID),
@@ -866,17 +882,23 @@ func updateWithVersionCheck(ctx context.Context, exec dbExec, s *types.Sandbox, 
 			lower_dir = ?, upper_dir = ?, work_dir = ?, merged_dir = ?,
 			size_bytes = ?, file_count = ?, active_pids = ?, session_count = ?,
 			tags = ?, metadata = ?, behavior = ?,
+			home_overlay_state = ?,
 			version = version + 1,
 			updated_at = ?,
 			last_used_at = ?
 		WHERE id = ? AND version = ?`
 
+	homeOverlayState := s.HomeOverlayState
+	if homeOverlayState == "" {
+		homeOverlayState = types.HomeOverlayAbsent
+	}
 	res, err := exec.ExecContext(ctx, query,
 		string(s.Status), nullableString(s.ErrorMsg),
 		formatTimePtr(s.StoppedAt), formatTimePtr(s.ApprovedAt), formatTimePtr(s.DeletedAt),
 		nullableString(s.LowerDir), nullableString(s.UpperDir), nullableString(s.WorkDir), nullableString(s.MergedDir),
 		s.SizeBytes, s.FileCount, jsonInts(s.ActivePIDs), s.SessionCount,
 		jsonStrings(s.Tags), metadataJSON, behaviorJSON,
+		string(homeOverlayState),
 		formatTime(now),
 		formatTime(now),
 		uuidText(s.ID), expectedVersion,

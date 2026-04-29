@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,7 +63,21 @@ func NewOverlayfsRootDriver(cfg Config) *OverlayfsDriver {
 func (d *OverlayfsDriver) ID() DriverID                 { return d.id }
 func (d *OverlayfsDriver) RequiresBwrap() IsolationMode { return ModeBwrapRequired }
 func (d *OverlayfsDriver) BaseDir() string              { return d.config.BaseDir }
+func (d *OverlayfsDriver) HomeOverlayBaseDir() string   { return d.config.HomeOverlayBaseDir }
 func (d *OverlayfsDriver) Version() string              { return "1.0" }
+
+// Capabilities reports what the kernel overlayfs driver supports.
+// HomeOverlay is true: the same overlayfs syscall path that mounts the
+// project overlay also mounts the home overlay.
+//
+// DOC: home-overlay seam — driver-side capability declaration.
+func (d *OverlayfsDriver) Capabilities() DriverCapabilities {
+	return DriverCapabilities{
+		HomeOverlay:        true,
+		CoW:                true,
+		NamespaceIsolation: ModeBwrapRequired,
+	}
+}
 
 // IsAvailable checks the kernel overlayfs module is loaded AND we can
 // actually mount (userns 5.11+, root, or CAP_SYS_ADMIN).
@@ -113,15 +128,47 @@ func (d *OverlayfsDriver) unmount(ctx context.Context, target string) error {
 
 func (d *OverlayfsDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error) {
 	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
-	return mountOverlayPair(ctx, sandboxDir, s.ScopePath, os.Getenv("HOME"), d.mount)
+	paths, err := mountProjectOverlay(ctx, sandboxDir, s.ScopePath, d.mount)
+	if err != nil {
+		return nil, err
+	}
+	hostHome := os.Getenv("HOME")
+	if hostHome == "" {
+		s.HomeOverlayState = types.HomeOverlayNotRequested
+		return paths, nil
+	}
+	lower, upper, work, merged, err := mountHomeOverlay(ctx, d.config.HomeOverlayBaseDir, s.ID, hostHome, d.mount, d.unmount)
+	if err != nil {
+		// Boundary-of-responsibility: the driver mounts what it can; the
+		// caller (handler) decides whether absence is fatal based on the
+		// active profile's RequiresHomeOverlay flag. Loud structured
+		// warning so operators see the cause immediately.
+		slog.Warn("home overlay mount failed",
+			"sandboxId", s.ID.String(),
+			"driver", d.id,
+			"homeOverlayBaseDir", d.config.HomeOverlayBaseDir,
+			"hostHome", hostHome,
+			"error", err.Error(),
+		)
+		s.HomeOverlayState = types.HomeOverlayAbsent
+		return paths, nil
+	}
+	paths.HomeLowerDir = lower
+	paths.HomeUpperDir = upper
+	paths.HomeWorkDir = work
+	paths.HomeMergedDir = merged
+	s.HomeOverlayState = types.HomeOverlayPresent
+	return paths, nil
 }
 
 func (d *OverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) error {
 	if s.MergedDir == "" {
 		return nil
 	}
-	sandboxDir := filepath.Dir(s.MergedDir)
-	unmountHomeOverlay(ctx, sandboxDir, d.unmount)
+	unmountHomeOverlay(ctx, d.config.HomeOverlayBaseDir, s.ID, d.unmount)
+	if err := removeHomeOverlayDir(d.config.HomeOverlayBaseDir, s.ID); err != nil {
+		fmt.Fprintf(os.Stderr, "home overlay dir cleanup: %v\n", err)
+	}
 	if !isMountPoint(s.MergedDir) {
 		return nil
 	}
@@ -140,15 +187,17 @@ func (d *OverlayfsDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox,
 }
 
 func (d *OverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
-	return cleanupSandboxDirAll(ctx, d.config.BaseDir, s.ID, d.unmount)
+	return cleanupSandboxDirAll(ctx, d.config.BaseDir, d.config.HomeOverlayBaseDir, s.ID, d.unmount)
 }
 
 func (d *OverlayfsDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
-	return listSandboxDirsInBase(d.config.BaseDir)
+	a, errA := listSandboxDirsInBase(d.config.BaseDir)
+	b, errB := listHomeOverlayDirs(d.config.HomeOverlayBaseDir)
+	return mergeUUIDLists(a, errA, b, errB)
 }
 
 func (d *OverlayfsDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
-	return cleanupSandboxDirAll(ctx, d.config.BaseDir, id, d.unmount)
+	return cleanupSandboxDirAll(ctx, d.config.BaseDir, d.config.HomeOverlayBaseDir, id, d.unmount)
 }
 
 func (d *OverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {

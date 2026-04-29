@@ -388,12 +388,21 @@ func TestSelectDriverReturnsDriver(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.BaseDir = t.TempDir()
 
-	drv, err := SelectDriver(ctx, cfg)
+	drv, report, err := SelectDriver(ctx, cfg)
 	if err != nil {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}
 	if drv == nil {
 		t.Fatal("SelectDriver() returned nil driver")
+	}
+	if report == nil {
+		t.Fatal("SelectDriver() returned nil SelectionReport")
+	}
+	if report.Selected != drv.ID() {
+		t.Errorf("SelectionReport.Selected=%v but driver.ID()=%v", report.Selected, drv.ID())
+	}
+	if len(report.Candidates) == 0 {
+		t.Error("SelectionReport.Candidates should not be empty")
 	}
 
 	// Verify it's a valid driver
@@ -414,7 +423,7 @@ func TestSelectDriverFallsBackToCopy(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.BaseDir = t.TempDir()
 
-	drv, err := SelectDriver(ctx, cfg)
+	drv, _, err := SelectDriver(ctx, cfg)
 	if err != nil {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}

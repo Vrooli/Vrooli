@@ -44,6 +44,19 @@ type IsolationProfile struct {
 	// Hostname to set inside the sandbox.
 	Hostname string `json:"hostname"`
 
+	// RequiresHomeOverlay declares whether this profile NEEDS the
+	// per-sandbox host-$HOME overlay to be present. true for profiles
+	// whose Environment uses $HOME-relative paths (e.g. PATH=$HOME/.local/bin).
+	// When true and the sandbox's HomeOverlayState is anything other
+	// than HomeOverlayPresent, handlers MUST refuse exec with HTTP 409
+	// (HomeOverlayRequiredError) — failing fast at exec time prevents
+	// the silent "env: $HOME/.local/bin/agent: No such file or directory"
+	// at process spawn.
+	//
+	// DOC: home-overlay seam — profile-side requirement declaration.
+	// See docs/internal/SEAMS.md.
+	RequiresHomeOverlay bool `json:"requiresHomeOverlay"`
+
 	// Future extensibility (currently unused, reserved for later)
 	// SharePID bool `json:"sharePID,omitempty"`
 	// AllowDevices bool `json:"allowDevices,omitempty"`
@@ -114,6 +127,8 @@ func DefaultProfiles() []IsolationProfile {
 			Description:   "Maximum isolation - only /workspace and basic system paths accessible. No network access.",
 			Builtin:       true,
 			NetworkAccess: "none",
+			// HOME=/tmp; no host $HOME visibility expected.
+			RequiresHomeOverlay: false,
 			ReadOnlyBinds: map[string]string{
 				"/usr":             "/usr",
 				"/lib":             "/lib",
@@ -138,6 +153,9 @@ func DefaultProfiles() []IsolationProfile {
 			Description:   "Access to Vrooli CLIs, configs, and localhost network for API communication.",
 			Builtin:       true,
 			NetworkAccess: "localhost",
+			// PATH=$HOME/.local/bin and HOME=$HOME require the host-home
+			// overlay to be present; the handler refuses exec otherwise.
+			RequiresHomeOverlay: true,
 			// $HOME-relative state (~/.local/{bin,share}, ~/.config,
 			// ~/.claude, ~/.config/vrooli, etc.) is provided by the
 			// per-sandbox HOME overlay set up in driver.Mount. The

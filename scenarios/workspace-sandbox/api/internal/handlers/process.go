@@ -91,11 +91,17 @@ func convertProfileToDriver(p *config.IsolationProfile) *driverexec.IsolationPro
 }
 
 // applyIsolationProfile resolves the requested profile ID (with default
-// fallback) against the profile store and composes it onto cfg. Returns
-// a typed IsolationProfileNotFoundError when the ID does not resolve so
-// callers can surface a 400 via HandleDomainError. There is no preset
-// fallback; missing builtins are a configuration bug we want to surface.
-func (h *Handlers) applyIsolationProfile(cfg *driverexec.BwrapConfig, requestedID string) error {
+// fallback) against the profile store and composes it onto cfg.
+//
+// Returns a typed IsolationProfileNotFoundError when the ID does not
+// resolve. Returns a typed HomeOverlayRequiredError (HTTP 409) when the
+// resolved profile sets RequiresHomeOverlay=true but the sandbox's
+// HomeOverlayState is anything other than Present — failing fast at
+// exec time prevents the silent "env: $HOME/.local/bin/agent: No such
+// file or directory" at process spawn.
+//
+// DOC: home-overlay seam — handler-side enforcement.
+func (h *Handlers) applyIsolationProfile(sb *types.Sandbox, cfg *driverexec.BwrapConfig, requestedID string) error {
 	id := requestedID
 	if id == "" {
 		id = h.Config.Execution.DefaultIsolationProfile
@@ -109,6 +115,9 @@ func (h *Handlers) applyIsolationProfile(cfg *driverexec.BwrapConfig, requestedI
 	profile, err := h.ProfileStore.Get(id)
 	if err != nil {
 		return types.NewIsolationProfileNotFoundError(id)
+	}
+	if profile.RequiresHomeOverlay && sb != nil && sb.HomeOverlayState != types.HomeOverlayPresent {
+		return types.NewHomeOverlayRequiredError(sb.ID.String(), profile.ID, string(sb.HomeOverlayState))
 	}
 	return driverexec.ApplyIsolationProfile(cfg, convertProfileToDriver(profile))
 }
@@ -199,7 +208,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	if err := h.applyIsolationProfile(&cfg, req.IsolationLevel); err != nil {
+	if err := h.applyIsolationProfile(sb, &cfg, req.IsolationLevel); err != nil {
 		h.HandleDomainError(w, err)
 		return
 	}
@@ -335,7 +344,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	if err := h.applyIsolationProfile(&cfg, req.IsolationLevel); err != nil {
+	if err := h.applyIsolationProfile(sb, &cfg, req.IsolationLevel); err != nil {
 		h.HandleDomainError(w, err)
 		return
 	}

@@ -83,6 +83,15 @@ const (
 	// for a real exit; callers must surface it as a hard failure
 	// rather than a clean success.
 	ErrCodeSandboxNoExitInfo   ErrorCode = "SANDBOX_NO_EXIT_INFO"
+	// ErrCodeSandboxHomeOverlayUnavailable marks a sandbox-launch attempt
+	// where the agent CLI lives under $HOME/.local/... but the sandbox's
+	// per-run home overlay is not Present. Surfaced when
+	// SandboxLauncher.translateCommandToNamespace returns
+	// ErrCommandRequiresHomeOverlay; replaces the silent
+	// `env: …/claude: No such file or directory` exec-time failure.
+	// Retryable=true: transient mount failures usually resolve on a
+	// fresh sandbox.
+	ErrCodeSandboxHomeOverlayUnavailable ErrorCode = "SANDBOX_HOME_OVERLAY_UNAVAILABLE"
 	ErrCodeDatabaseConnection  ErrorCode = "DATABASE_CONNECTION"
 	ErrCodeDatabaseQuery       ErrorCode = "DATABASE_QUERY"
 	ErrCodeConfigInvalid       ErrorCode = "CONFIG_INVALID"

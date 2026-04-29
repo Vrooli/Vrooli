@@ -1741,17 +1741,49 @@ func (e *RunExecutor) emitFailureEvent(ctx context.Context, err domain.DomainErr
 
 // emitGenericFailureEvent captures a non-domain error as an event.
 // Uses the typed ErrorEventData for type safety.
+//
+// Before falling back to the catch-all INTERNAL code, this function
+// inspects the error chain for known typed sentinels (e.g.
+// *sandbox.ErrCommandRequiresHomeOverlay → SANDBOX_HOME_OVERLAY_UNAVAILABLE)
+// so the run timeline carries a useful, retryable code instead of a
+// blanket INTERNAL — that's the difference between
+// "the agent CLI couldn't be reached because the home overlay didn't
+// mount" and "something failed".
+//
+// DOC: home-overlay seam — agent-manager error surface.
 func (e *RunExecutor) emitGenericFailureEvent(ctx context.Context, err error) {
 	if e.events == nil {
 		return
 	}
 
-	evt := domain.NewErrorEvent(e.run.ID, string(domain.ErrCodeInternal), err.Error(), false)
+	code := domain.ErrCodeInternal
+	retryable := false
+	if coded := errorCode(err); coded != "" {
+		code = domain.ErrorCode(coded)
+		// Sentinels we know to be transient/retryable.
+		if code == domain.ErrCodeSandboxHomeOverlayUnavailable {
+			retryable = true
+		}
+	}
+	evt := domain.NewErrorEvent(e.run.ID, string(code), err.Error(), retryable)
 	_ = e.events.Append(ctx, e.run.ID, evt)
 	// Broadcast so WebSocket clients see post-runner events in real-time
 	if e.broadcaster != nil {
 		e.broadcaster.BroadcastEvent(evt)
 	}
+}
+
+// errorCode extracts a stable string error code from err if any error
+// in its chain implements `Code() string`. Returns "" otherwise.
+func errorCode(err error) string {
+	for cur := err; cur != nil; cur = errors.Unwrap(cur) {
+		if c, ok := cur.(interface{ Code() string }); ok {
+			if code := c.Code(); code != "" {
+				return code
+			}
+		}
+	}
+	return ""
 }
 
 // emitSystemEvent captures a system-level event (log, status change).

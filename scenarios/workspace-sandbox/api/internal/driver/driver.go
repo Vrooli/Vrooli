@@ -92,6 +92,26 @@ type MountPaths struct {
 	HomeMergedDir string // Merged $HOME mount point on the host side
 }
 
+// DriverCapabilities is the pure (no-I/O) declaration of what a driver
+// supports. Used by handlers to decide whether a profile's requirements
+// can be satisfied — see IsolationProfile.RequiresHomeOverlay.
+//
+// DOC: home-overlay seam — driver-side capability declaration. See
+// docs/internal/SEAMS.md.
+type DriverCapabilities struct {
+	// HomeOverlay is true when the driver can mount a per-sandbox overlay
+	// over the host $HOME. False for the copy driver. True for both
+	// overlayfs variants and fuse-overlayfs.
+	HomeOverlay bool
+	// CoW is true when changes are stored copy-on-write. False for the
+	// copy driver (full copies, not CoW).
+	CoW bool
+	// NamespaceIsolation is the isolation guarantee this driver provides
+	// when paired with bwrap. Mirrors RequiresBwrap() but is a struct
+	// field (one decision) rather than a method (one capability).
+	NamespaceIsolation IsolationMode
+}
+
 // MountDriver is the base interface every driver implements: mount
 // lifecycle plus orphan reconciliation.
 type MountDriver interface {
@@ -132,6 +152,13 @@ type MountDriver interface {
 	// the prior central exec.DriverModeFor type-switch — adding a new
 	// driver no longer requires editing a central dispatcher.
 	RequiresBwrap() IsolationMode
+
+	// Capabilities declares what features this driver supports. Pure
+	// (no I/O); each driver returns a static struct. Used by handlers
+	// to decide whether a requested profile can be satisfied.
+	//
+	// DOC: home-overlay seam.
+	Capabilities() DriverCapabilities
 }
 
 // ChangeTracker captures the change-detection + partial-approval seam.
@@ -173,6 +200,11 @@ func VerifyIfSupported(ctx context.Context, d Driver, s *types.Sandbox) error {
 type Config struct {
 	// BaseDir is the root directory for sandbox artifacts.
 	BaseDir string
+
+	// HomeOverlayBaseDir is the directory that holds per-sandbox
+	// home-{upper,work,merged} dirs. MUST be outside $HOME. Resolved by
+	// config.ResolveHomeOverlayBaseDir at startup.
+	HomeOverlayBaseDir string
 
 	// MaxSandboxes limits the total number of active sandboxes.
 	MaxSandboxes int

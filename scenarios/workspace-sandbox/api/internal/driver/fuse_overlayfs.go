@@ -6,6 +6,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,6 +37,17 @@ func NewFuseOverlayfsDriver(cfg Config) *FuseOverlayfsDriver {
 func (d *FuseOverlayfsDriver) ID() DriverID                { return DriverFuseOverlayfs }
 func (d *FuseOverlayfsDriver) RequiresBwrap() IsolationMode { return ModeBwrapPreferred }
 func (d *FuseOverlayfsDriver) BaseDir() string             { return d.config.BaseDir }
+func (d *FuseOverlayfsDriver) HomeOverlayBaseDir() string  { return d.config.HomeOverlayBaseDir }
+
+// Capabilities reports the fuse-overlayfs driver's contract.
+// DOC: home-overlay seam.
+func (d *FuseOverlayfsDriver) Capabilities() DriverCapabilities {
+	return DriverCapabilities{
+		HomeOverlay:        true,
+		CoW:                true,
+		NamespaceIsolation: ModeBwrapPreferred,
+	}
+}
 
 // Version parses `fuse-overlayfs --version` output. Returns "1.0" if
 // parsing fails. Format example: "fuse-overlayfs: version 1.13".
@@ -100,15 +112,43 @@ func (d *FuseOverlayfsDriver) unmount(ctx context.Context, target string) error 
 
 func (d *FuseOverlayfsDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error) {
 	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
-	return mountOverlayPair(ctx, sandboxDir, s.ScopePath, os.Getenv("HOME"), d.mount)
+	paths, err := mountProjectOverlay(ctx, sandboxDir, s.ScopePath, d.mount)
+	if err != nil {
+		return nil, err
+	}
+	hostHome := os.Getenv("HOME")
+	if hostHome == "" {
+		s.HomeOverlayState = types.HomeOverlayNotRequested
+		return paths, nil
+	}
+	lower, upper, work, merged, err := mountHomeOverlay(ctx, d.config.HomeOverlayBaseDir, s.ID, hostHome, d.mount, d.unmount)
+	if err != nil {
+		slog.Warn("home overlay mount failed",
+			"sandboxId", s.ID.String(),
+			"driver", DriverFuseOverlayfs,
+			"homeOverlayBaseDir", d.config.HomeOverlayBaseDir,
+			"hostHome", hostHome,
+			"error", err.Error(),
+		)
+		s.HomeOverlayState = types.HomeOverlayAbsent
+		return paths, nil
+	}
+	paths.HomeLowerDir = lower
+	paths.HomeUpperDir = upper
+	paths.HomeWorkDir = work
+	paths.HomeMergedDir = merged
+	s.HomeOverlayState = types.HomeOverlayPresent
+	return paths, nil
 }
 
 func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) error {
 	if s.MergedDir == "" {
 		return nil
 	}
-	sandboxDir := filepath.Dir(s.MergedDir)
-	unmountHomeOverlay(ctx, sandboxDir, d.unmount)
+	unmountHomeOverlay(ctx, d.config.HomeOverlayBaseDir, s.ID, d.unmount)
+	if err := removeHomeOverlayDir(d.config.HomeOverlayBaseDir, s.ID); err != nil {
+		fmt.Fprintf(os.Stderr, "home overlay dir cleanup: %v\n", err)
+	}
 	if !isMountPoint(s.MergedDir) {
 		return nil
 	}
@@ -127,15 +167,17 @@ func (d *FuseOverlayfsDriver) RemoveFromUpper(ctx context.Context, s *types.Sand
 }
 
 func (d *FuseOverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
-	return cleanupSandboxDirAll(ctx, d.config.BaseDir, s.ID, d.unmount)
+	return cleanupSandboxDirAll(ctx, d.config.BaseDir, d.config.HomeOverlayBaseDir, s.ID, d.unmount)
 }
 
 func (d *FuseOverlayfsDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
-	return listSandboxDirsInBase(d.config.BaseDir)
+	a, errA := listSandboxDirsInBase(d.config.BaseDir)
+	b, errB := listHomeOverlayDirs(d.config.HomeOverlayBaseDir)
+	return mergeUUIDLists(a, errA, b, errB)
 }
 
 func (d *FuseOverlayfsDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
-	return cleanupSandboxDirAll(ctx, d.config.BaseDir, id, d.unmount)
+	return cleanupSandboxDirAll(ctx, d.config.BaseDir, d.config.HomeOverlayBaseDir, id, d.unmount)
 }
 
 func (d *FuseOverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {

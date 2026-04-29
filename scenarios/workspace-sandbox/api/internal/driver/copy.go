@@ -77,6 +77,18 @@ func (d *CopyDriver) RequiresBwrap() IsolationMode {
 	return ModeNone
 }
 
+// Capabilities reports the copy driver's contract: no home overlay
+// support (it can't mount), no CoW (it copies), no namespace isolation.
+//
+// DOC: home-overlay seam — copy driver explicitly opts out.
+func (d *CopyDriver) Capabilities() DriverCapabilities {
+	return DriverCapabilities{
+		HomeOverlay:        false,
+		CoW:                false,
+		NamespaceIsolation: ModeNone,
+	}
+}
+
 // BaseDir returns the configured base directory for sandboxes.
 func (d *CopyDriver) BaseDir() string {
 	return d.config.BaseDir
@@ -134,6 +146,8 @@ func (d *CopyDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, 
 		return nil, fmt.Errorf("failed to copy scope to workspace: %w", err)
 	}
 
+	// Copy driver does not provide a home overlay — record it explicitly.
+	s.HomeOverlayState = types.HomeOverlayUnsupported
 	return paths, nil
 }
 

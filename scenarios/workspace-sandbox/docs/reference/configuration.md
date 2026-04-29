@@ -4,6 +4,40 @@ This document captures deployment-shape requirements that aren't
 expressed in environment variables — things the binary alone can't fix,
 that are wired into `.vrooli/service.json` instead.
 
+## Home overlay base directory (REQUIRED, validated at startup)
+
+The per-sandbox host-`$HOME` overlay's upper/work/merged dirs live
+**outside `$HOME`**. Putting them inside `$HOME` (the lower layer)
+creates a self-referential overlayfs mount whose behavior is undefined
+per kernel docs.
+
+`config.ResolveHomeOverlayBaseDir` resolves the base directory at
+startup; the resolved path is stored on `cfg.Driver.HomeOverlayBaseDir`
+and threaded through every driver `Mount`/`Unmount`/`CleanupOrphan`
+call.
+
+Resolution order (first match wins):
+
+1. **`WORKSPACE_SANDBOX_HOME_OVERLAY_BASE`** — explicit operator override.
+   Most common in tests and in containerized deployments where
+   `XDG_RUNTIME_DIR` isn't reliable.
+2. **`$XDG_RUNTIME_DIR/workspace-sandbox`** — the systemd-blessed
+   per-user runtime dir, e.g. `/run/user/1000/workspace-sandbox`. The
+   default on logind-managed Linux desktops.
+3. **`/var/tmp/workspace-sandbox-$UID`** — the cron/SSH/non-logind
+   fallback. Created with mode `0700` if missing.
+
+The resolver validates that the chosen path is **NOT** a subpath of
+`$HOME` and fails fatally otherwise. There is no silent fallback. If
+you need to override the location for a one-off run:
+
+```bash
+WORKSPACE_SANDBOX_HOME_OVERLAY_BASE=/var/cache/wsbox-home make start
+```
+
+[CODE: `api/internal/config/config.go::ResolveHomeOverlayBaseDir`] •
+[CODE: `api/internal/driver/helpers.go::mountHomeOverlay`]
+
 ## User-namespace wrapper (REQUIRED)
 
 The default driver is **kernel overlayfs in an unprivileged user

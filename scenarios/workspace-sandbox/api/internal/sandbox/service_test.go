@@ -271,6 +271,9 @@ func newMockDriver() *mockDriver {
 
 func (m *mockDriver) ID() driver.DriverID                { return "mock" }
 func (m *mockDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
+func (m *mockDriver) Capabilities() driver.DriverCapabilities {
+	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
+}
 func (m *mockDriver) Version() string                    { return "1.0.0" }
 
 func (m *mockDriver) IsAvailable(ctx context.Context) (bool, error) {

@@ -993,6 +993,26 @@ func (s *Service) inferMountPaths(sandbox *types.Sandbox) bool {
 		updated = applyPathsFromBaseDir(sandbox, baseDir) || updated
 	}
 	updated = applyPathsFromExistingDirs(sandbox) || updated
+
+	// Home overlay paths are transient (not persisted to DB); recover
+	// them from the per-sandbox subdir under HomeOverlayBaseDir if
+	// HomeOverlayState says we have one. This is what makes bwrap's
+	// home bind work on every Get(), not just immediately after Mount().
+	//
+	// DOC: home-overlay seam — recovery path.
+	if sandbox.HomeMergedDir == "" && sandbox.HomeOverlayState == types.HomeOverlayPresent {
+		if homeBase := s.driverHomeOverlayBaseDir(); homeBase != "" && sandbox.ID != uuid.Nil {
+			root := filepath.Join(homeBase, sandbox.ID.String())
+			homeMerged := filepath.Join(root, "home-merged")
+			if _, err := os.Stat(homeMerged); err == nil {
+				sandbox.HomeMergedDir = homeMerged
+				sandbox.HomeUpperDir = filepath.Join(root, "home-upper")
+				sandbox.HomeWorkDir = filepath.Join(root, "home-work")
+				sandbox.HomeLowerDir = os.Getenv("HOME")
+				updated = true
+			}
+		}
+	}
 	return updated
 }
 
@@ -1002,6 +1022,16 @@ func (s *Service) driverBaseDir() string {
 	}
 	if provider, ok := s.driver.(baseDirProvider); ok {
 		return provider.BaseDir()
+	}
+	return ""
+}
+
+func (s *Service) driverHomeOverlayBaseDir() string {
+	type homeOverlayBaseDirProvider interface {
+		HomeOverlayBaseDir() string
+	}
+	if provider, ok := s.driver.(homeOverlayBaseDirProvider); ok {
+		return provider.HomeOverlayBaseDir()
 	}
 	return ""
 }
@@ -1068,23 +1098,10 @@ func applyDerivedPaths(sandbox *types.Sandbox, root string) bool {
 			updated = true
 		}
 	}
-	// Home overlay paths are transient (not persisted to DB), so the
-	// service's loaded copy of the sandbox loses them on every round-
-	// trip. Re-derive them from the on-disk layout: if home-merged
-	// exists under the sandbox dir, the driver mounted a home overlay
-	// and bwrap should bind it at the host $HOME. We don't gate on
-	// "is mount" here because the same path serves the bind regardless
-	// — bwrap will correctly fall back if the mount disappeared.
-	if sandbox.HomeMergedDir == "" {
-		homeMerged := filepath.Join(root, "home-merged")
-		if _, err := os.Stat(homeMerged); err == nil {
-			sandbox.HomeMergedDir = homeMerged
-			sandbox.HomeUpperDir = filepath.Join(root, "home-upper")
-			sandbox.HomeWorkDir = filepath.Join(root, "home-work")
-			sandbox.HomeLowerDir = os.Getenv("HOME")
-			updated = true
-		}
-	}
+	// (Home overlay path recovery moved to inferMountPaths — the home
+	// overlay lives under HomeOverlayBaseDir, not the per-sandbox
+	// project root, since the Phase-B refactor that placed it outside
+	// $HOME. See driver/helpers.go::homeOverlayDir.)
 	return updated
 }
 

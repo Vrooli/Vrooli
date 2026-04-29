@@ -47,6 +47,10 @@ type mockSandbox struct {
 	// becomes identity in that case).
 	hostMergedDir string
 
+	// homeOverlayState is what the mock GET returns. Empty defaults to
+	// "present" so existing happy-path tests don't need to set it.
+	homeOverlayState string
+
 	// Recorded request state for assertions.
 	startProcessBody  map[string]any
 	startProcessSeen  atomic.Bool
@@ -106,13 +110,21 @@ func (m *mockSandbox) handleGetSandbox(w http.ResponseWriter, r *http.Request) {
 	// Extract sandbox id from /api/v1/sandboxes/<id>.
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/sandboxes/"), "/")
 	id := parts[0]
+	state := m.homeOverlayState
+	if state == "" {
+		// Mock default = Present so existing happy-path tests don't have
+		// to set the field. The Phase F regression tests explicitly set
+		// HomeOverlayAbsent / HomeOverlayUnsupported when needed.
+		state = string(HomeOverlayPresent)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"id":          id,
-		"scopePath":   "/scope",
-		"projectRoot": "/scope",
-		"status":      "active",
-		"mergedDir":   m.hostMergedDir,
+		"id":               id,
+		"scopePath":        "/scope",
+		"projectRoot":      "/scope",
+		"status":           "active",
+		"mergedDir":        m.hostMergedDir,
+		"homeOverlayState": state,
 	})
 }
 
@@ -873,8 +885,10 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 		name        string
 		command     string
 		hostHome    string
+		state       HomeOverlayState
 		want        string
 		wantRewrite bool
+		wantErr     bool
 	}{
 		{
 			name:        "empty passes through",
@@ -961,14 +975,54 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 			wantRewrite: true,
 		},
 	}
+	// Default state for cases that don't set it explicitly: Present.
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, rewrote := translateCommandToNamespace(c.command, c.hostHome)
+			state := c.state
+			if state == "" {
+				state = HomeOverlayPresent
+			}
+			layout := NamespaceLayout{HostHome: c.hostHome, HomeOverlayState: state}
+			got, err := translateCommandToNamespace(c.command, layout)
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got command=%q", got)
+				}
+				var typed *ErrCommandRequiresHomeOverlay
+				if !errors.As(err, &typed) {
+					t.Errorf("expected ErrCommandRequiresHomeOverlay, got %T: %v", err, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			if got != c.want {
 				t.Errorf("got command %q; want %q", got, c.want)
 			}
-			if rewrote != c.wantRewrite {
-				t.Errorf("got rewrote=%v; want %v", rewrote, c.wantRewrite)
+		})
+	}
+}
+
+// TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent — the
+// load-bearing seam introduced in Phase F. A command pointing under
+// $HOME with state != Present must surface as ErrCommandRequiresHomeOverlay
+// before the launcher POSTs to workspace-sandbox.
+func TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent(t *testing.T) {
+	const home = "/home/matt"
+	for _, state := range []HomeOverlayState{HomeOverlayAbsent, HomeOverlayUnsupported, HomeOverlayNotRequested} {
+		t.Run(string(state), func(t *testing.T) {
+			layout := NamespaceLayout{HostHome: home, HomeOverlayState: state}
+			_, err := translateCommandToNamespace(home+"/.local/bin/claude", layout)
+			if err == nil {
+				t.Fatalf("expected error for state=%s, got nil", state)
+			}
+			var typed *ErrCommandRequiresHomeOverlay
+			if !errors.As(err, &typed) {
+				t.Fatalf("expected ErrCommandRequiresHomeOverlay, got %T", err)
+			}
+			if typed.Code() != "SANDBOX_HOME_OVERLAY_UNAVAILABLE" {
+				t.Errorf("Code()=%q; want SANDBOX_HOME_OVERLAY_UNAVAILABLE", typed.Code())
 			}
 		})
 	}

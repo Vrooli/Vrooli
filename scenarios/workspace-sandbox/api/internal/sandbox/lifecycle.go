@@ -111,6 +111,14 @@ func (r *LifecycleReconciler) runReconcilers(ctx context.Context, startup bool) 
 	if startup || report.OrphansCleaned > 0 || report.OrphansFailed > 0 {
 		log.Println(FormatOrphanReport(report))
 	}
+	// Daemon reaper: kill fuse-overlayfs daemons whose sandbox UUID is no
+	// longer in the repo (or is marked deleted). Idempotent; runs on the
+	// same cadence as the dir reconciler so process-level drift is caught
+	// within the GC interval.
+	daemonReport := r.service.ReconcileStaleDaemons(ctx)
+	if startup || daemonReport.Reaped > 0 {
+		log.Println(FormatDaemonReapReport(daemonReport))
+	}
 }
 
 // Stop stops the reconciliation loop.

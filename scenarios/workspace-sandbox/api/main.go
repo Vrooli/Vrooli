@@ -98,20 +98,25 @@ func NewServer() (*Server, error) {
 	if err := migrateDriverColumn(context.Background(), db); err != nil {
 		return nil, fmt.Errorf("failed to migrate driver column: %w", err)
 	}
+	if err := migrateHomeOverlayStateColumn(context.Background(), db); err != nil {
+		return nil, fmt.Errorf("failed to migrate home_overlay_state column: %w", err)
+	}
 
 	// Initialize driver with automatic selection and fallback
 	// Respects saved preference if available, otherwise:
 	// Priority: native overlayfs (in user namespace) > fuse-overlayfs > copy driver
 	driverCfg := driver.Config{
-		BaseDir:          cfg.Driver.BaseDir,
-		MaxSandboxes:     cfg.Limits.MaxSandboxes,
-		MaxSizeMB:        cfg.Limits.MaxSandboxSizeMB,
-		UseFuseOverlayfs: cfg.Driver.UseFuseOverlayfs,
+		BaseDir:            cfg.Driver.BaseDir,
+		HomeOverlayBaseDir: cfg.Driver.HomeOverlayBaseDir,
+		MaxSandboxes:       cfg.Limits.MaxSandboxes,
+		MaxSizeMB:          cfg.Limits.MaxSandboxSizeMB,
+		UseFuseOverlayfs:   cfg.Driver.UseFuseOverlayfs,
 	}
-	initialDriver, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
+	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
+	driver.LogSelectionReport(selectionReport)
 	// Boot-time self-check: kernel overlayfs requires the API to be wrapped
 	// in `unshare -U -m -r` (see .vrooli/service.json:start-api). Without
 	// the wrapper, Mount() would fail at runtime; failing fatally at boot
@@ -574,6 +579,31 @@ func migrateDriverColumn(ctx context.Context, db *sql.DB) error {
 		`UPDATE sandboxes SET driver_id = 'overlayfs-userns' WHERE driver_id = 'overlayfs'`,
 	); err != nil {
 		return fmt.Errorf("backfill driver_id: %w", err)
+	}
+	return nil
+}
+
+// migrateHomeOverlayStateColumn idempotently adds the home_overlay_state
+// column to older sandboxes tables. Fresh databases land the column via
+// CREATE TABLE; this function only fires on pre-2026-04-29 databases
+// that predate the home-overlay refactor.
+//
+// DOC: home-overlay seam — schema-side state declaration.
+func migrateHomeOverlayStateColumn(ctx context.Context, db *sql.DB) error {
+	var exists int
+	err := db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM pragma_table_info('sandboxes') WHERE name='home_overlay_state'`,
+	).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("probe home_overlay_state column: %w", err)
+	}
+	if exists > 0 {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx,
+		`ALTER TABLE sandboxes ADD COLUMN home_overlay_state TEXT NOT NULL DEFAULT 'absent'`,
+	); err != nil {
+		return fmt.Errorf("add home_overlay_state column: %w", err)
 	}
 	return nil
 }

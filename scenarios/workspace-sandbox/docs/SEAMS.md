@@ -820,3 +820,88 @@ mutates the slot in production. Sequence: `NewDriverFor` →
 `IsAvailable` → `Store` → `SaveDriverPreference`. In-flight ops
 captured the prior driver and continue with it; only new ops see the
 post-switch driver.
+
+## Home overlay seam (2026-04-29)
+
+Three independent contracts decide whether agent CLIs reachable under
+`$HOME/.local/...` will work inside a sandbox. Each lives in exactly
+one place; together they make the failure mode loud and structured
+instead of silent (`env: ~/.local/bin/claude: No such file or directory`).
+
+| Contract | Owner | Implementation |
+|---|---|---|
+| **Does this driver provide a home overlay?** | Driver | `MountDriver.Capabilities() DriverCapabilities` — pure (no I/O). `HomeOverlay`=true for both overlayfs variants and fuse-overlayfs; false for copy. [CODE: `internal/driver/driver.go::DriverCapabilities`] |
+| **Does this profile need a home overlay?** | Profile | `IsolationProfile.RequiresHomeOverlay bool`. `vrooli-aware`=true; `full`=false. [CODE: `internal/config/profiles.go`] |
+| **Did this sandbox actually get one?** | Sandbox state | `Sandbox.HomeOverlayState` enum (`present | absent | not_requested | unsupported`), persisted in `sandboxes.home_overlay_state`. Set during `Mount`. [CODE: `internal/types/types.go::HomeOverlayState`] |
+
+The driver records `HomeOverlayState=Absent` when the per-sandbox home
+overlay fails to mount or fails post-mount verification (`isMountPoint`
++ stat + writable probe). The driver does NOT make the sandbox creation
+fail — the sandbox is still useful for profiles that don't need the
+overlay.
+
+The handler (`process.go::applyIsolationProfile` and friends) refuses
+exec with HTTP 409 + `HomeOverlayRequiredError` (code
+`HOME_OVERLAY_REQUIRED`) when:
+
+```
+profile.RequiresHomeOverlay && sandbox.HomeOverlayState != HomeOverlayPresent
+```
+
+The agent-manager side mirrors this contract: `SandboxLauncher`
+fetches the sandbox metadata, builds a `NamespaceLayout`, and refuses
+`$HOME/.local/...` commands when the overlay is missing — surfacing
+`SANDBOX_HOME_OVERLAY_UNAVAILABLE` on the run timeline before any
+HTTP call to workspace-sandbox.
+
+[CODE: `internal/driver/helpers.go::mountHomeOverlay`] •
+[CODE: `internal/driver/{overlayfs,fuse_overlayfs}.go::Mount`] •
+[CODE: `internal/handlers/process.go::applyIsolationProfile`]
+
+## Home overlay storage seam (2026-04-29)
+
+The home overlay's upper/work/merged dirs live **outside `$HOME`**.
+Putting them inside `$HOME` (the lower layer) creates a self-referential
+overlayfs mount whose behavior is undefined per kernel docs and
+manifests as intermittent EBUSY/EINVAL or a "every sandbox sees every
+other sandbox's upper layer" success path.
+
+`config.ResolveHomeOverlayBaseDir` resolves the base dir at startup:
+
+1. `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` env var (operator override).
+2. `${XDG_RUNTIME_DIR}/workspace-sandbox`.
+3. `/var/tmp/workspace-sandbox-$UID` (created mode 0700).
+
+Validation rejects any path that resolves under `$HOME`. Config-load
+fails fatally rather than producing a broken sandbox. The driver layer
+threads `HomeOverlayBaseDir` from `Config` through to
+`mountHomeOverlay`/`unmountHomeOverlay`/`cleanupSandboxDirAll` so the
+project overlay (`baseDir/<id>/`) and home overlay
+(`homeOverlayBaseDir/<id>/`) are released together.
+
+[CODE: `internal/config/config.go::ResolveHomeOverlayBaseDir`] •
+[CODE: `internal/driver/helpers.go::homeOverlayDir`]
+
+## Daemon reaper seam (2026-04-29)
+
+The orphan reconciler (`internal/sandbox/orphan_reconciler.go`) walks
+directories, but a stale `fuse-overlayfs` daemon can outlive its
+sandbox dir — we observed daemons running for three days after their
+sandboxes were Delete()d. `internal/sandbox/daemon_reaper.go` adds a
+process-level pass:
+
+1. Walk `/proc/*/cmdline`. Match processes whose argv contains
+   `fuse-overlayfs` AND `--upperdir=…/<uuid>/…`.
+2. Extract the UUID. If the UUID is not in the live sandbox repo (or is
+   marked `deleted`), and the daemon is older than the grace period
+   (30 s, to avoid racing in-flight Mounts), reap it.
+3. SIGTERM. Wait up to 5 s. If still alive, SIGKILL.
+4. Log every kill with structured fields and emit a
+   `sandbox.daemon-reaped` audit event.
+
+Runs at startup AND on every `LifecycleReconciler` tick (15 min by
+default). The implementation seam is `procEntry`/`realProcFS` so unit
+tests substitute a synthetic `/proc` fixture.
+
+[CODE: `internal/sandbox/daemon_reaper.go::ReconcileStaleDaemons`] •
+[CODE: `internal/sandbox/lifecycle.go::runReconcilers`]

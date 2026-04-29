@@ -9,32 +9,110 @@ import (
 	"path/filepath"
 )
 
+// CandidateReport is one driver's evaluation in SelectionReport.
+type CandidateReport struct {
+	ID         DriverID `json:"id"`
+	Available  bool     `json:"available"`
+	Reason     string   `json:"reason,omitempty"`     // why available/unavailable
+	Selected   bool     `json:"selected,omitempty"`   // true on the chosen driver
+	Preference bool     `json:"preference,omitempty"` // true if a saved preference picked it
+}
+
+// SelectionReport explains the driver-selection decision: every candidate
+// considered, why each was kept or rejected, and which one was finally
+// chosen. Logged at startup and surfaced via /api/v1/driver/options for
+// UI diagnostics.
+type SelectionReport struct {
+	Selected         DriverID          `json:"selected"`
+	InUserNamespace  bool              `json:"inUserNamespace"`
+	PreferenceFile   string            `json:"preferenceFile,omitempty"` // path that was checked
+	PreferenceValue  string            `json:"preferenceValue,omitempty"`
+	PreferenceUsed   bool              `json:"preferenceUsed"`
+	Candidates       []CandidateReport `json:"candidates"`
+}
+
 // SelectDriver returns the best available driver for the current system.
 // Priority order:
 //  1. Kernel overlayfs (UserNS variant when in a user namespace, Root
 //     variant otherwise) — flat memory, no per-mount daemon.
 //  2. fuse-overlayfs — userspace fallback when kernel overlayfs is unavailable.
 //  3. Copy driver — cross-platform fallback, always available.
-func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
-	overlayDriver := NewOverlayfsDriver(cfg)
-	if available, err := overlayDriver.IsAvailable(ctx); err == nil && available {
-		log.Printf("driver: using kernel overlayfs (%s)", overlayDriver.ID())
-		return overlayDriver, nil
-	} else if err != nil {
-		log.Printf("driver: kernel overlayfs not available: %v", err)
+//
+// Returns a SelectionReport so callers can log every candidate's
+// evaluation. The report includes one entry per candidate, in priority
+// order; the chosen driver has Selected=true.
+func SelectDriver(ctx context.Context, cfg Config) (Driver, *SelectionReport, error) {
+	report := &SelectionReport{InUserNamespace: InUserNamespace()}
+
+	candidates := []struct {
+		id     DriverID
+		ctor   func() Driver
+	}{
+		{DriverOverlayfsUserNS, func() Driver { return NewOverlayfsUserNSDriver(cfg) }},
+		{DriverOverlayfsRoot, func() Driver { return NewOverlayfsRootDriver(cfg) }},
+		{DriverFuseOverlayfs, func() Driver { return NewFuseOverlayfsDriver(cfg) }},
+		{DriverCopy, func() Driver { return NewCopyDriver(cfg) }},
 	}
 
-	fuseDriver := NewFuseOverlayfsDriver(cfg)
-	if available, err := fuseDriver.IsAvailable(ctx); err == nil && available {
-		log.Printf("driver: using fuse-overlayfs (kernel overlayfs unavailable; daemon-per-mount)")
-		return fuseDriver, nil
-	} else if err != nil {
-		log.Printf("driver: fuse-overlayfs not available: %v", err)
+	// Skip the inappropriate kernel-overlay variant for the current
+	// environment. UserNS variant only applies when we are in a userns;
+	// Root variant only applies when we are NOT in a userns. This matches
+	// the prior NewOverlayfsDriver auto-pick behavior, but here every
+	// candidate gets explicitly recorded.
+	inNS := report.InUserNamespace
+
+	var selected Driver
+	for _, c := range candidates {
+		entry := CandidateReport{ID: c.id}
+		switch c.id {
+		case DriverOverlayfsUserNS:
+			if !inNS {
+				entry.Available = false
+				entry.Reason = "skipped: API is not running inside a user namespace (kernel overlayfs userns variant requires `unshare -U -m -r`)"
+				report.Candidates = append(report.Candidates, entry)
+				continue
+			}
+		case DriverOverlayfsRoot:
+			if inNS {
+				entry.Available = false
+				entry.Reason = "skipped: API is inside a user namespace; the userns overlayfs variant takes precedence"
+				report.Candidates = append(report.Candidates, entry)
+				continue
+			}
+		}
+
+		d := c.ctor()
+		available, err := d.IsAvailable(ctx)
+		entry.Available = available
+		if err != nil {
+			entry.Reason = err.Error()
+		} else if available {
+			entry.Reason = "available"
+		} else {
+			entry.Reason = "not available"
+		}
+
+		if available && selected == nil {
+			selected = d
+			entry.Selected = true
+		}
+		report.Candidates = append(report.Candidates, entry)
 	}
 
-	log.Printf("driver: falling back to copy driver (slower but universal)")
-	log.Printf("driver: for better performance, install fuse-overlayfs or wrap startup with `unshare -U -m -r`")
-	return NewCopyDriver(cfg), nil
+	if selected == nil {
+		// Copy is unconditionally available, so this branch is unreachable
+		// in practice. Defensive fallback to keep the contract honest.
+		copy := NewCopyDriver(cfg)
+		selected = copy
+		report.Candidates = append(report.Candidates, CandidateReport{
+			ID:        DriverCopy,
+			Available: true,
+			Reason:    "fallback (defensive: no other driver was available)",
+			Selected:  true,
+		})
+	}
+	report.Selected = selected.ID()
+	return selected, report, nil
 }
 
 // DriverInfo returns information about available drivers on the current system.
@@ -109,16 +187,39 @@ func LoadDriverPreference(baseDir string) (string, error) {
 
 // SelectDriverWithPreference returns the best available driver, respecting
 // any saved preference. A saved preference for an unavailable driver
-// falls through to SelectDriver's normal priority.
-func SelectDriverWithPreference(ctx context.Context, cfg Config) (Driver, error) {
+// falls through to SelectDriver's normal priority. The SelectionReport
+// describes both the preference attempt (PreferenceFile/PreferenceValue/
+// PreferenceUsed) and every candidate's evaluation.
+func SelectDriverWithPreference(ctx context.Context, cfg Config) (Driver, *SelectionReport, error) {
+	prefPath := filepath.Join(cfg.BaseDir, preferenceFileName)
 	pref, err := LoadDriverPreference(cfg.BaseDir)
 	if err == nil && pref != "" {
 		if d, ok := tryPreferredDriver(ctx, cfg, DriverID(pref)); ok {
-			return d, nil
+			report := &SelectionReport{
+				Selected:        d.ID(),
+				InUserNamespace: InUserNamespace(),
+				PreferenceFile:  prefPath,
+				PreferenceValue: pref,
+				PreferenceUsed:  true,
+				Candidates: []CandidateReport{{
+					ID:         d.ID(),
+					Available:  true,
+					Reason:     "selected via saved preference",
+					Selected:   true,
+					Preference: true,
+				}},
+			}
+			return d, report, nil
 		}
 		log.Printf("driver: saved preference %q not available; falling through to auto-select", pref)
 	}
-	return SelectDriver(ctx, cfg)
+	d, report, err := SelectDriver(ctx, cfg)
+	if report != nil {
+		report.PreferenceFile = prefPath
+		report.PreferenceValue = pref
+		report.PreferenceUsed = false
+	}
+	return d, report, err
 }
 
 // tryPreferredDriver constructs the driver for id and returns it when
@@ -151,4 +252,27 @@ func NewDriverFor(cfg Config, id DriverID) (Driver, error) {
 		return NewCopyDriver(cfg), nil
 	}
 	return nil, fmt.Errorf("unknown driver ID: %s", id)
+}
+
+// LogSelectionReport writes the selection report as a structured log line
+// for operator diagnostics. Called once at startup; SelectDriver itself
+// does not log because a few callers (tests, options endpoint) want the
+// data structurally instead.
+func LogSelectionReport(report *SelectionReport) {
+	if report == nil {
+		return
+	}
+	for _, c := range report.Candidates {
+		state := "skipped"
+		if c.Selected {
+			state = "selected"
+		} else if c.Available {
+			state = "available"
+		} else {
+			state = "unavailable"
+		}
+		log.Printf("driver: candidate=%s state=%s reason=%q", c.ID, state, c.Reason)
+	}
+	log.Printf("driver: selected=%s inUserNamespace=%t preferenceUsed=%t preferenceValue=%q",
+		report.Selected, report.InUserNamespace, report.PreferenceUsed, report.PreferenceValue)
 }

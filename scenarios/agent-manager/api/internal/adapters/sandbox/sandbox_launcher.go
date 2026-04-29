@@ -82,6 +82,12 @@ type SandboxLauncher struct {
 	hostMergedOnce sync.Once
 	hostMergedDir  string
 	hostMergedErr  error
+
+	// layoutOnce caches the NamespaceLayout (home-overlay state etc.)
+	// fetched from workspace-sandbox.
+	layoutOnce sync.Once
+	layout     NamespaceLayout
+	layoutErr  error
 }
 
 // NewSandboxLauncher builds a Launcher for the given sandbox using the
@@ -104,15 +110,93 @@ func (l *SandboxLauncher) resolveHostMergedDir(ctx context.Context) (string, err
 	return l.hostMergedDir, l.hostMergedErr
 }
 
+// resolveNamespaceLayout fetches the workspace-sandbox-side metadata
+// (home overlay state) and caches it. The launcher refuses host-$HOME
+// commands when the overlay is absent, so this lookup is on the hot
+// path of every Launch.
+func (l *SandboxLauncher) resolveNamespaceLayout(ctx context.Context) (NamespaceLayout, error) {
+	l.layoutOnce.Do(func() {
+		sb, err := l.provider.Get(ctx, l.sandboxID)
+		if err != nil {
+			l.layoutErr = err
+			return
+		}
+		l.layout = NamespaceLayout{
+			HostHome:         os.Getenv("HOME"),
+			HomeOverlayState: sb.HomeOverlayState,
+		}
+	})
+	return l.layout, l.layoutErr
+}
+
+// NamespaceLayout describes what's visible inside the sandbox's bwrap
+// mount namespace from the agent-manager's perspective. Built from the
+// sandbox metadata returned by workspace-sandbox; consulted by every
+// command/path translation so the rules live in one place.
+//
+// DOC: namespace contract seam. See scenarios/agent-manager/docs/internal/SEAMS.md.
+type NamespaceLayout struct {
+	// HostHome is the host-side $HOME path. Empty disables $HOME-prefix
+	// reasoning.
+	HostHome string
+
+	// HomeOverlayState mirrors workspace-sandbox's per-sandbox state. When
+	// HomeOverlayPresent the host $HOME tree is reachable inside the
+	// namespace at the same host path; otherwise $HOME-prefixed paths
+	// MUST NOT be passed through unchanged.
+	HomeOverlayState HomeOverlayState
+}
+
+// PathEntries returns the PATH entries the sandbox profile exposes
+// inside the namespace. Single source of truth for command-resolution;
+// used by both translateCommandToNamespace (for fallbacks) and any
+// future env composition that needs to mirror the profile's PATH.
+//
+// Currently returns the static vrooli-aware PATH layout. When the
+// home overlay is absent, $HOME/.local/bin is excluded.
+//
+// DOC: namespace contract seam.
+func (l NamespaceLayout) PathEntries() []string {
+	base := []string{"/usr/local/bin", "/usr/bin", "/bin"}
+	if l.HomeOverlayState == HomeOverlayPresent && l.HostHome != "" {
+		return append([]string{strings.TrimRight(l.HostHome, "/") + "/.local/bin"}, base...)
+	}
+	return base
+}
+
+// ErrCommandRequiresHomeOverlay is returned by translateCommandToNamespace
+// when the command lives under $HOME but the sandbox's home overlay is
+// not Present. Surfaces upstream as SANDBOX_HOME_OVERLAY_UNAVAILABLE in
+// the run timeline rather than the silent-and-confusing
+// `env: …/claude: No such file or directory` at exec time.
+//
+// DOC: home-overlay seam — agent-manager-side enforcement.
+type ErrCommandRequiresHomeOverlay struct {
+	Command string
+	State   HomeOverlayState
+}
+
+func (e *ErrCommandRequiresHomeOverlay) Error() string {
+	return fmt.Sprintf(
+		"command %q lives under $HOME but the sandbox home overlay is %q (need %q); the agent CLI is not reachable inside the namespace",
+		e.Command, e.State, HomeOverlayPresent,
+	)
+}
+
+// Code returns the stable error code surfaced to the run timeline.
+func (e *ErrCommandRequiresHomeOverlay) Code() string { return "SANDBOX_HOME_OVERLAY_UNAVAILABLE" }
+
 // translateCommandToNamespace rewrites a host-absolute binary path so it
-// resolves inside the bwrap mount namespace. The contract reflects the
-// post-2026-04-28 home-overlay layout in workspace-sandbox:
+// resolves inside the bwrap mount namespace, OR returns
+// ErrCommandRequiresHomeOverlay when the command requires the host
+// $HOME overlay and the sandbox didn't get one.
+//
+// The contract reflects the post-2026-04-28 home-overlay layout in
+// workspace-sandbox:
 //
 //   - The per-sandbox HOME overlay (driver.Mount → bwrap --bind ...
 //     /home/<user>) makes the entire host $HOME visible inside the
-//     namespace at the same host path. Anything under $HOME/* is
-//     therefore reachable without rewrite — including symlink targets
-//     deep under ~/.local/share.
+//     namespace at the same host path — IFF state == Present.
 //   - /usr, /bin, /usr/local/bin are bound at the same path by the
 //     system / vrooli-aware profile.
 //   - Anything else absolute (e.g. /opt/homebrew/bin/X on macOS) has no
@@ -121,54 +205,44 @@ func (l *SandboxLauncher) resolveHostMergedDir(ctx context.Context) (string, err
 //
 // Rules:
 //
-//   - $HOME/X → unchanged (HOME overlay)
+//   - $HOME/X with state==Present → unchanged
+//   - $HOME/X with state!=Present → ErrCommandRequiresHomeOverlay
 //   - /usr/bin/X, /bin/X, /usr/local/bin/X → unchanged (system bind)
 //   - any other host-absolute path → path.Base(X)
 //   - relative path / bare basename → unchanged
 //   - empty → unchanged
 //
-// Returns the (possibly-rewritten) command and a boolean indicating
-// whether a rewrite happened (for diagnostic logging).
-//
-// hostHome is the agent-manager process's $HOME. On the supported
-// single-machine deployment this matches workspace-sandbox's $HOME, so
-// the host home overlay's lower layer is the same directory tree the
-// agent-manager sees. Empty hostHome disables the $HOME rule but the
-// basename fallback still applies.
-//
-// DOC: keep in sync with the bwrap home-overlay layout in
-// workspace-sandbox/api/internal/driver/bwrap.go; if a future change
-// reroutes the home overlay to a different namespace path, update this
-// function and its tests.
-func translateCommandToNamespace(command, hostHome string) (string, bool) {
+// DOC: home-overlay seam.
+func translateCommandToNamespace(command string, layout NamespaceLayout) (string, error) {
 	if command == "" {
-		return command, false
+		return command, nil
 	}
 	if !strings.HasPrefix(command, "/") {
-		// Already a basename or relative path — let sandbox PATH find it.
-		return command, false
+		return command, nil
 	}
-	if hostHome != "" {
-		homeLocal := strings.TrimRight(hostHome, "/") + "/.local/"
-		if strings.HasPrefix(command, homeLocal) {
-			// $HOME/.local/{bin,share}/X is bound at the same host path
-			// inside the namespace by the vrooli-aware profile.
-			return command, false
+	if layout.HostHome != "" {
+		homeAbs := strings.TrimRight(layout.HostHome, "/") + "/"
+		if strings.HasPrefix(command, homeAbs) {
+			if layout.HomeOverlayState != HomeOverlayPresent {
+				return "", &ErrCommandRequiresHomeOverlay{
+					Command: command,
+					State:   layout.HomeOverlayState,
+				}
+			}
+			// $HOME/X is bound at the same host path inside the namespace
+			// by the vrooli-aware profile (via the home overlay).
+			return command, nil
 		}
 	}
 	switch {
 	case strings.HasPrefix(command, "/usr/local/bin/"),
 		strings.HasPrefix(command, "/usr/bin/"),
 		strings.HasPrefix(command, "/bin/"):
-		// Already a path the sandbox namespace mounts at the same location.
-		return command, false
+		return command, nil
 	}
 	// Host-absolute path with no known sandbox mapping. Strip to basename
 	// and rely on the sandbox PATH (set to /usr/local/bin:/usr/bin:/bin).
-	// If the binary isn't discoverable that way, the run will fail with a
-	// real exec error visible in the captured stderr — much better than
-	// the silent host-path-doesn't-exist failure mode.
-	return path.Base(command), true
+	return path.Base(command), nil
 }
 
 // translateHostPathToNamespace rewrites a value that may contain the
@@ -257,11 +331,20 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	// We must therefore translate Args entries too — Command="env" alone
 	// would resolve via PATH but bwrap's env shim then fails to exec the
 	// host-absolute binary path embedded in args.
-	hostHome := os.Getenv("HOME")
-	command, _ := translateCommandToNamespace(req.Command, hostHome)
+	layout, layoutErr := l.resolveNamespaceLayout(ctx)
+	if layoutErr != nil {
+		return nil, fmt.Errorf("SandboxLauncher: resolve namespace layout: %w", layoutErr)
+	}
+	command, err := translateCommandToNamespace(req.Command, layout)
+	if err != nil {
+		return nil, err
+	}
 	translatedArgs := make([]string, len(req.Args))
 	for i, a := range req.Args {
-		translatedArgs[i], _ = translateCommandToNamespace(a, hostHome)
+		translatedArgs[i], err = translateCommandToNamespace(a, layout)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pid, err := l.startProcess(ctx, startProcessBody{

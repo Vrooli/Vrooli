@@ -121,14 +121,32 @@ type CreateRequest struct {
 
 // Sandbox represents an active or stopped sandbox.
 type Sandbox struct {
-	ID          uuid.UUID         `json:"id"`
-	ScopePath   string            `json:"scopePath"`
-	ProjectRoot string            `json:"projectRoot"`
-	Status      SandboxStatus     `json:"status"`
-	WorkDir     string            `json:"workDir"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID               uuid.UUID         `json:"id"`
+	ScopePath        string            `json:"scopePath"`
+	ProjectRoot      string            `json:"projectRoot"`
+	Status           SandboxStatus     `json:"status"`
+	WorkDir          string            `json:"workDir"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
+	HomeOverlayState HomeOverlayState  `json:"homeOverlayState"`
 }
+
+// HomeOverlayState mirrors the workspace-sandbox enum
+// (api/internal/types/types.go::HomeOverlayState). Single source of
+// truth for "did this sandbox get a host-$HOME overlay?". Used by the
+// SandboxLauncher to refuse $HOME/.local/... commands when the overlay
+// is missing — without this, a missing overlay manifests as
+// `env: …/claude: No such file or directory` at exec time.
+//
+// DOC: home-overlay seam — agent-manager mirror. See docs/internal/SEAMS.md.
+type HomeOverlayState string
+
+const (
+	HomeOverlayPresent      HomeOverlayState = "present"
+	HomeOverlayAbsent       HomeOverlayState = "absent"
+	HomeOverlayNotRequested HomeOverlayState = "not_requested"
+	HomeOverlayUnsupported  HomeOverlayState = "unsupported"
+)
 
 // SandboxStatus represents the sandbox lifecycle state.
 type SandboxStatus string

@@ -80,7 +80,11 @@ func TestDriverContract(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			baseDir := filepath.Join(tmpDir, "drv-"+tc.name)
-			cfg := Config{BaseDir: baseDir}
+			homeOverlayBaseDir := filepath.Join(tmpDir, "home-overlay-"+tc.name)
+			if err := os.MkdirAll(homeOverlayBaseDir, 0o700); err != nil {
+				t.Fatalf("mkdir homeOverlayBaseDir: %v", err)
+			}
+			cfg := Config{BaseDir: baseDir, HomeOverlayBaseDir: homeOverlayBaseDir}
 			drv := tc.ctor(cfg)
 
 			ctx := context.Background()

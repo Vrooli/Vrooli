@@ -691,3 +691,39 @@ func TestRequireEnv(t *testing.T) {
 		}
 	})
 }
+
+// TestResolveHomeOverlayBaseDir_RejectsHomeSubpath — fatal at boot when
+// the resolved base lives inside $HOME. Without this guard, the home
+// overlay's upperdir would be a subdir of its lowerdir, creating a
+// self-referential overlayfs mount whose behavior is undefined.
+//
+// DOC: home-overlay storage seam.
+func TestResolveHomeOverlayBaseDir_RejectsHomeSubpath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", filepath.Join(home, "evil"))
+	t.Setenv("XDG_RUNTIME_DIR", "")
+	_, err := ResolveHomeOverlayBaseDir()
+	if err == nil {
+		t.Fatal("expected error when base lands inside $HOME, got nil")
+	}
+	if !strings.Contains(err.Error(), "inside $HOME") {
+		t.Errorf("error should mention $HOME containment: %v", err)
+	}
+}
+
+// TestResolveHomeOverlayBaseDir_AcceptsOutsideHome — the happy path:
+// an explicit base under /tmp is accepted and the directory is created.
+func TestResolveHomeOverlayBaseDir_AcceptsOutsideHome(t *testing.T) {
+	home := t.TempDir()
+	outside := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", outside)
+	resolved, err := ResolveHomeOverlayBaseDir()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved != outside {
+		t.Errorf("got %q, want %q", resolved, outside)
+	}
+}

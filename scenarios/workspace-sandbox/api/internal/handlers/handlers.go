@@ -163,6 +163,17 @@ func (h *Handlers) JSONDomainError(w http.ResponseWriter, err types.DomainError)
 		response.Details = detailable.Details()
 	}
 
+	// Surface a stable string code in Details when the error provides
+	// one (e.g., HomeOverlayRequiredError → "HOME_OVERLAY_REQUIRED").
+	// Agent-manager keys off this to map the HTTP body into a typed
+	// ErrorEventData on the run timeline.
+	if codable, ok := err.(interface{ Code() string }); ok {
+		if response.Details == nil {
+			response.Details = map[string]interface{}{}
+		}
+		response.Details["code"] = codable.Code()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
 	if encErr := json.NewEncoder(w).Encode(response); encErr != nil {

@@ -532,7 +532,7 @@ func TestCleanupSandboxDirAll_RemovesDirectory(t *testing.T) {
 		return nil
 	}
 
-	err := cleanupSandboxDirAll(context.Background(), baseDir, sandboxID, unmountFn)
+	err := cleanupSandboxDirAll(context.Background(), baseDir, t.TempDir(), sandboxID, unmountFn)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -551,7 +551,7 @@ func TestCleanupSandboxDirAll_MissingDirIsNoop(t *testing.T) {
 		return nil
 	}
 
-	if err := cleanupSandboxDirAll(context.Background(), baseDir, sandboxID, unmountFn); err != nil {
+	if err := cleanupSandboxDirAll(context.Background(), baseDir, t.TempDir(), sandboxID, unmountFn); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

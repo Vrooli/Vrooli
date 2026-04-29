@@ -618,25 +618,34 @@ func (p *WorkspaceSandboxProvider) parseError(operation string, sandboxID *uuid.
 // =============================================================================
 
 type wsSandboxResponse struct {
-	ID          string            `json:"id"`
-	ScopePath   string            `json:"scopePath"`
-	ProjectRoot string            `json:"projectRoot"`
-	Status      string            `json:"status"`
-	MergedDir   string            `json:"mergedDir"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID               string            `json:"id"`
+	ScopePath        string            `json:"scopePath"`
+	ProjectRoot      string            `json:"projectRoot"`
+	Status           string            `json:"status"`
+	MergedDir        string            `json:"mergedDir"`
+	HomeOverlayState string            `json:"homeOverlayState"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
 }
 
 func (r *wsSandboxResponse) toSandbox() *Sandbox {
 	id, _ := uuid.Parse(r.ID)
+	state := HomeOverlayState(r.HomeOverlayState)
+	if state == "" {
+		// Older workspace-sandbox versions (pre-2026-04-29) may not set
+		// the field. Default to Absent so the launcher's RequiresHomeOverlay
+		// check fails fast rather than silently exec'ing into a missing path.
+		state = HomeOverlayAbsent
+	}
 	return &Sandbox{
-		ID:          id,
-		ScopePath:   r.ScopePath,
-		ProjectRoot: r.ProjectRoot,
-		Status:      SandboxStatus(r.Status),
-		WorkDir:     r.MergedDir,
-		CreatedAt:   r.CreatedAt,
-		Metadata:    r.Metadata,
+		ID:               id,
+		ScopePath:        r.ScopePath,
+		ProjectRoot:      r.ProjectRoot,
+		Status:           SandboxStatus(r.Status),
+		WorkDir:          r.MergedDir,
+		CreatedAt:        r.CreatedAt,
+		Metadata:         r.Metadata,
+		HomeOverlayState: state,
 	}
 }
 

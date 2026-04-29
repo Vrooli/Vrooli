@@ -135,7 +135,7 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	if err := h.applyIsolationProfile(&cfg, startReq.IsolationLevel); err != nil {
+	if err := h.applyIsolationProfile(sb, &cfg, startReq.IsolationLevel); err != nil {
 		sendErrorMessage(conn, err.Error())
 		return
 	}

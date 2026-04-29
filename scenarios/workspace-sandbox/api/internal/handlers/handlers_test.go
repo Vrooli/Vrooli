@@ -37,6 +37,9 @@ type mockDriver struct {
 
 func (m *mockDriver) ID() driver.DriverID                           { return "mock" }
 func (m *mockDriver) RequiresBwrap() driver.IsolationMode            { return driver.ModeNone }
+func (m *mockDriver) Capabilities() driver.DriverCapabilities {
+	return driver.DriverCapabilities{HomeOverlay: false, CoW: false, NamespaceIsolation: driver.ModeNone}
+}
 func (m *mockDriver) Version() string                               { return "test" }
 func (m *mockDriver) IsAvailable(ctx context.Context) (bool, error) { return m.available, m.err }
 func (m *mockDriver) Mount(ctx context.Context, s *types.Sandbox) (*driver.MountPaths, error) {

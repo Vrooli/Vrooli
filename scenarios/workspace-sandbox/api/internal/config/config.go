@@ -285,6 +285,18 @@ type DriverConfig struct {
 	// Default: false
 	UseFuseOverlayfs bool
 
+	// HomeOverlayBaseDir is the directory that holds per-sandbox
+	// home-{upper,work,merged} dirs for the host-$HOME overlay. MUST be
+	// outside $HOME — placing the upper layer inside $HOME (the lower
+	// layer) creates a self-referential overlayfs mount whose behavior is
+	// undefined per kernel docs and triggers intermittent EBUSY/EINVAL.
+	//
+	// DOC: home-overlay storage seam. See docs/internal/SEAMS.md.
+	// Default: ${XDG_RUNTIME_DIR}/workspace-sandbox or
+	// /var/tmp/workspace-sandbox-$UID. Validated fatally at startup if it
+	// resolves under $HOME.
+	HomeOverlayBaseDir string
+
 	// ProjectRoot is the default project root for sandboxes.
 	// Set via PROJECT_ROOT env var, otherwise resolved from repo-contract-aware
 	// root discovery (VROOLI_SOURCE_ROOT/VROOLI_ROOT/CWD).
@@ -359,6 +371,53 @@ func DefaultBaseDir() string {
 	return "/var/lib/workspace-sandbox"
 }
 
+// ResolveHomeOverlayBaseDir returns the directory that holds per-sandbox
+// home-{upper,work,merged} dirs. The result MUST be outside $HOME to
+// avoid a self-referential overlayfs mount (lower=$HOME, upper=$HOME/...).
+//
+// Resolution order:
+//  1. WORKSPACE_SANDBOX_HOME_OVERLAY_BASE env var (operator override).
+//  2. ${XDG_RUNTIME_DIR}/workspace-sandbox.
+//  3. /var/tmp/workspace-sandbox-$UID (created mode 0700 if missing).
+//
+// Validated to be outside $HOME; returns an error otherwise. The directory
+// is created (mode 0700) if missing.
+//
+// DOC: home-overlay storage seam. See docs/internal/SEAMS.md.
+func ResolveHomeOverlayBaseDir() (string, error) {
+	chosen := strings.TrimSpace(os.Getenv("WORKSPACE_SANDBOX_HOME_OVERLAY_BASE"))
+	if chosen == "" {
+		if runtimeDir := strings.TrimSpace(os.Getenv("XDG_RUNTIME_DIR")); runtimeDir != "" {
+			chosen = filepath.Join(runtimeDir, "workspace-sandbox")
+		}
+	}
+	if chosen == "" {
+		uid := os.Getuid()
+		chosen = filepath.Join("/var/tmp", fmt.Sprintf("workspace-sandbox-%d", uid))
+	}
+
+	abs, err := filepath.Abs(chosen)
+	if err != nil {
+		return "", fmt.Errorf("resolve home overlay base dir %q: %w", chosen, err)
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		homeAbs, err := filepath.Abs(home)
+		if err == nil {
+			rel, err := filepath.Rel(homeAbs, abs)
+			if err == nil && !strings.HasPrefix(rel, "..") && rel != "." {
+				return "", fmt.Errorf("home overlay base dir %q is inside $HOME (%q); pick a path outside $HOME via WORKSPACE_SANDBOX_HOME_OVERLAY_BASE to avoid a self-referential overlayfs mount", abs, homeAbs)
+			}
+			if rel == "." {
+				return "", fmt.Errorf("home overlay base dir %q equals $HOME; pick a path outside $HOME via WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", abs)
+			}
+		}
+	}
+	if err := os.MkdirAll(abs, 0o700); err != nil {
+		return "", fmt.Errorf("create home overlay base dir %q: %w", abs, err)
+	}
+	return abs, nil
+}
+
 // Default returns a Config with sensible defaults.
 // These defaults are safe for development and small deployments.
 func Default() Config {
@@ -425,6 +484,11 @@ func Default() Config {
 		Driver: DriverConfig{
 			BaseDir:          DefaultBaseDir(),
 			UseFuseOverlayfs: false,
+			// HomeOverlayBaseDir is resolved at LoadFromEnv() time so the
+			// validation error surfaces during startup rather than as a
+			// silent default difference between Default() and the running
+			// service. Default() leaves it empty.
+			HomeOverlayBaseDir: "",
 		},
 		Execution: ExecutionConfig{
 			DefaultResourceLimits: ResourceLimitsConfig{
@@ -540,6 +604,11 @@ func LoadFromEnv() (Config, error) {
 		cfg.Driver.BaseDir = baseDir
 	}
 	cfg.Driver.UseFuseOverlayfs = envBool("WORKSPACE_SANDBOX_USE_FUSE", cfg.Driver.UseFuseOverlayfs)
+	homeOverlayBase, err := ResolveHomeOverlayBaseDir()
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Driver.HomeOverlayBaseDir = homeOverlayBase
 
 	// Integration config
 	cfg.Integration.AgentManagerURL = envString("WORKSPACE_SANDBOX_AGENT_MANAGER_URL", cfg.Integration.AgentManagerURL)
@@ -629,6 +698,11 @@ func (c *Config) Validate() error {
 	if c.Driver.BaseDir == "" {
 		errs = append(errs, "driver.baseDir is required")
 	}
+	// HomeOverlayBaseDir is resolved at LoadFromEnv() time via
+	// ResolveHomeOverlayBaseDir, which fails fatally if the path lands
+	// inside $HOME. Default() leaves it empty so structural validation
+	// here doesn't require it; the operator-facing failure point is
+	// LoadFromEnv, not Validate.
 
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration validation failed: %s", strings.Join(errs, "; "))

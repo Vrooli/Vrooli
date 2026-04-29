@@ -206,6 +206,30 @@ const (
 	ApprovalRejected ApprovalStatus = "rejected"
 )
 
+// HomeOverlayState describes whether a sandbox has a working home
+// overlay (host $HOME visible inside the namespace via per-sandbox CoW).
+//
+// DOC: home-overlay seam. See docs/internal/SEAMS.md. Tied to:
+//   - driver.DriverCapabilities.HomeOverlay (does the driver provide it?)
+//   - config.IsolationProfile.RequiresHomeOverlay (does this profile need it?)
+//   - handlers.process exec (loud failure when required and Absent).
+type HomeOverlayState string
+
+const (
+	// HomeOverlayPresent means the home overlay was mounted and verified.
+	HomeOverlayPresent HomeOverlayState = "present"
+	// HomeOverlayAbsent means the driver supports the overlay but the
+	// mount failed (verify failure, mount-cmd error, layout invalid, etc.).
+	// Sandbox is still usable for profiles that don't need the overlay.
+	HomeOverlayAbsent HomeOverlayState = "absent"
+	// HomeOverlayNotRequested means no host $HOME was configured (rare —
+	// usually only in tests).
+	HomeOverlayNotRequested HomeOverlayState = "not_requested"
+	// HomeOverlayUnsupported means the driver doesn't provide a home
+	// overlay at all (copy driver).
+	HomeOverlayUnsupported HomeOverlayState = "unsupported"
+)
+
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
@@ -240,17 +264,26 @@ type Sandbox struct {
 
 	// Home overlay paths (transient — recreated on every Mount, not
 	// persisted to the DB). The home overlay is a per-sandbox
-	// fuse-overlayfs mount whose lower layer is the host $HOME and
-	// whose upper layer is a per-sandbox writable directory under
-	// BaseDir. bwrap binds HomeMergedDir at /home/<user> inside the
-	// namespace so agent CLIs (claude, codex, etc.) find their host
-	// configuration while writes go to the per-run upper layer.
-	// 2026-04-28: introduced with the home-overlay refactor that
-	// replaces the ad-hoc $HOME/.local/{bin,share} binds.
+	// overlay mount whose lower layer is the host $HOME and whose upper
+	// layer lives under HomeOverlayBaseDir (outside $HOME — see
+	// config.ResolveHomeOverlayBaseDir). bwrap binds HomeMergedDir at
+	// /home/<user> inside the namespace so agent CLIs (claude, codex,
+	// etc.) find their host configuration while writes go to the per-run
+	// upper layer.
 	HomeLowerDir  string `json:"-" db:"-"`
 	HomeUpperDir  string `json:"-" db:"-"`
 	HomeWorkDir   string `json:"-" db:"-"`
 	HomeMergedDir string `json:"homeMergedDir,omitempty" db:"-"`
+
+	// HomeOverlayState is the canonical answer to "did this sandbox get
+	// a home overlay?" Persisted in sandboxes.home_overlay_state.
+	// DOC: home-overlay seam. See docs/internal/SEAMS.md.
+	//
+	// Set during Mount: Present on success; Absent when the driver
+	// supports overlay but the mount failed; NotRequested when no
+	// $HOME was set; Unsupported on the copy driver. Handlers refuse
+	// vrooli-aware exec when this is anything other than Present.
+	HomeOverlayState HomeOverlayState `json:"homeOverlayState" db:"home_overlay_state"`
 
 	// Size accounting
 	SizeBytes int64 `json:"sizeBytes" db:"size_bytes"`

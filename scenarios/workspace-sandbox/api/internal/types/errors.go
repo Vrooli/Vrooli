@@ -460,3 +460,81 @@ func truncateHash(hash string) string {
 	}
 	return hash
 }
+
+// --- Home Overlay Errors ---
+
+// HomeOverlayUnavailableError indicates the driver tried to mount a
+// per-sandbox $HOME overlay and failed (mount syscall errored, post-mount
+// verification failed, or the layout was invalid). Surfaces internally so
+// the driver can record HomeOverlayState=Absent on the sandbox; never
+// returned to callers as a 5xx — it becomes HomeOverlayRequiredError at
+// exec time when the requested profile needs the overlay.
+//
+// DOC: home-overlay seam. See docs/internal/SEAMS.md.
+type HomeOverlayUnavailableError struct {
+	Cause error
+}
+
+func (e *HomeOverlayUnavailableError) Error() string {
+	if e.Cause == nil {
+		return "home overlay unavailable"
+	}
+	return fmt.Sprintf("home overlay unavailable: %v", e.Cause)
+}
+
+func (e *HomeOverlayUnavailableError) HTTPStatus() int { return http.StatusInternalServerError }
+func (e *HomeOverlayUnavailableError) IsRetryable() bool { return true }
+func (e *HomeOverlayUnavailableError) Unwrap() error    { return e.Cause }
+func (e *HomeOverlayUnavailableError) Code() string     { return "HOME_OVERLAY_UNAVAILABLE" }
+
+// NewHomeOverlayUnavailableError wraps cause as a HomeOverlayUnavailableError.
+func NewHomeOverlayUnavailableError(cause error) *HomeOverlayUnavailableError {
+	return &HomeOverlayUnavailableError{Cause: cause}
+}
+
+// HomeOverlayRequiredError indicates a process-launch attempt where the
+// requested isolation profile sets RequiresHomeOverlay=true, but the
+// sandbox's HomeOverlayState is anything other than Present. The handler
+// returns HTTP 409. Recoverable by selecting a profile that does not
+// require the overlay or recreating the sandbox after fixing the mount.
+//
+// DOC: home-overlay seam. See docs/internal/SEAMS.md.
+type HomeOverlayRequiredError struct {
+	SandboxID string
+	Profile   string
+	State     string // current HomeOverlayState
+}
+
+func (e *HomeOverlayRequiredError) Error() string {
+	return fmt.Sprintf(
+		"isolation profile %q requires a home overlay but sandbox %s has state=%q; recreate the sandbox or select a profile without RequiresHomeOverlay",
+		e.Profile, e.SandboxID, e.State,
+	)
+}
+
+func (e *HomeOverlayRequiredError) HTTPStatus() int   { return http.StatusConflict }
+func (e *HomeOverlayRequiredError) IsRetryable() bool { return false }
+func (e *HomeOverlayRequiredError) Code() string      { return "HOME_OVERLAY_REQUIRED" }
+
+// Hint returns actionable guidance for resolving this error.
+func (e *HomeOverlayRequiredError) Hint() string {
+	return "Recreate the sandbox after fixing the home-overlay mount cause (check workspace-sandbox logs), or pick a profile that does not require host $HOME visibility (e.g., 'full')."
+}
+
+// Details returns structured information for API responses.
+func (e *HomeOverlayRequiredError) Details() map[string]interface{} {
+	return map[string]interface{}{
+		"sandboxId":         e.SandboxID,
+		"profile":           e.Profile,
+		"homeOverlayState":  e.State,
+	}
+}
+
+// NewHomeOverlayRequiredError creates a HomeOverlayRequiredError.
+func NewHomeOverlayRequiredError(sandboxID, profile, state string) *HomeOverlayRequiredError {
+	return &HomeOverlayRequiredError{
+		SandboxID: sandboxID,
+		Profile:   profile,
+		State:     state,
+	}
+}

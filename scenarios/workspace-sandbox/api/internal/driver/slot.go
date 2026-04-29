@@ -132,6 +132,24 @@ func (s *Slot) RequiresBwrap() IsolationMode {
 	return s.Current().RequiresBwrap()
 }
 
+// Capabilities delegates to the inner driver's Capabilities. Pure pass-through.
+func (s *Slot) Capabilities() DriverCapabilities {
+	return s.Current().Capabilities()
+}
+
+// HomeOverlayBaseDir delegates to the inner driver if it exposes the
+// accessor (overlayfs / fuse-overlayfs do; copy does not). Returns ""
+// when unavailable so callers fall back gracefully.
+func (s *Slot) HomeOverlayBaseDir() string {
+	type provider interface {
+		HomeOverlayBaseDir() string
+	}
+	if p, ok := s.Current().(provider); ok {
+		return p.HomeOverlayBaseDir()
+	}
+	return ""
+}
+
 func (s *Slot) GetChangedFiles(ctx context.Context, sb *types.Sandbox) ([]*types.FileChange, error) {
 	return s.Current().GetChangedFiles(ctx, sb)
 }

@@ -900,6 +900,42 @@ func TestRun_IsStale(t *testing.T) {
 
 ---
 
+## Namespace contract seam (2026-04-29)
+
+The agent-manager side of the workspace-sandbox home-overlay contract.
+`SandboxLauncher` builds a `NamespaceLayout` from the sandbox's
+`HomeOverlayState` (returned by workspace-sandbox `GET /sandboxes/{id}`)
+and uses it to refuse `$HOME/.local/...` commands when the home overlay
+is missing — surfacing the failure on the run timeline before any HTTP
+call.
+
+Decision tree (one place):
+
+```
+command lives under $HOME?
+├── yes → state == Present?
+│         ├── yes → unchanged (host path is reachable inside namespace)
+│         └── no  → ErrCommandRequiresHomeOverlay (Code: SANDBOX_HOME_OVERLAY_UNAVAILABLE)
+├── /usr/bin, /bin, /usr/local/bin → unchanged
+├── any other host-absolute → path.Base(X) (sandbox PATH lookup)
+└── relative or empty → unchanged
+```
+
+`run_executor.emitGenericFailureEvent` walks the error chain, picks up
+the typed `Code()` method on `ErrCommandRequiresHomeOverlay`, and emits
+a structured `ErrorEventData{code: "SANDBOX_HOME_OVERLAY_UNAVAILABLE",
+retryable: true}` instead of the generic `INTERNAL`. What previously
+surfaced as `env: …/claude: No such file or directory` at exec time
+now surfaces on the run timeline as a typed, retryable code with a
+useful message.
+
+[CODE: `internal/adapters/sandbox/sandbox_launcher.go::translateCommandToNamespace`] •
+[CODE: `internal/adapters/sandbox/sandbox_launcher.go::NamespaceLayout`] •
+[CODE: `internal/adapters/sandbox/sandbox_launcher.go::ErrCommandRequiresHomeOverlay`] •
+[CODE: `internal/orchestration/run_executor.go::emitGenericFailureEvent`]
+
+---
+
 ## Related Documentation
 
 - [PRD.md](../PRD.md) - Product requirements and operational targets

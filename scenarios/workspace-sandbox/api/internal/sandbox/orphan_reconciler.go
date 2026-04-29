@@ -128,12 +128,16 @@ func (s *Service) isOrphan(ctx context.Context, id uuid.UUID) bool {
 	}
 	sandbox, err := s.repo.Get(ctx, id)
 	if err == nil {
-		// Repo has a record. Treat as orphan only if it's marked Deleted —
-		// a Deleted record means the API already finished its bookkeeping
-		// but the FS still has the dir; safe to remove.
-		return sandbox != nil && sandbox.Status == types.StatusDeleted
+		// Repo's contract: (nil, nil) means the row doesn't exist —
+		// treat as orphan. Otherwise act only on Status=Deleted (the
+		// API has finished bookkeeping but the FS still has the dir).
+		if sandbox == nil {
+			return true
+		}
+		return sandbox.Status == types.StatusDeleted
 	}
-	// Treat "not found" as orphan; treat anything else as "skip this pass".
+	// Repo error path: only act on the typed NotFoundError. Anything
+	// else means the repo is unhealthy → defer to the next pass.
 	var notFound *types.NotFoundError
 	return errors.As(err, &notFound)
 }

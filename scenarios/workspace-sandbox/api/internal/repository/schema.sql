@@ -50,9 +50,11 @@ CREATE TABLE IF NOT EXISTS sandboxes (
     version             INTEGER NOT NULL DEFAULT 1,
     updated_at          TEXT NOT NULL,
     base_commit_hash    TEXT,
+    home_overlay_state  TEXT NOT NULL DEFAULT 'absent',
     CHECK (scope_path != '' AND substr(scope_path, 1, 1) = '/'),
     CHECK (project_root != '' AND substr(project_root, 1, 1) = '/'),
-    CHECK (status IN ('creating', 'active', 'stopped', 'approved', 'rejected', 'deleted', 'error'))
+    CHECK (status IN ('creating', 'active', 'stopped', 'approved', 'rejected', 'deleted', 'error')),
+    CHECK (home_overlay_state IN ('present', 'absent', 'not_requested', 'unsupported'))
 );
 
 CREATE TABLE IF NOT EXISTS sandbox_changes (
