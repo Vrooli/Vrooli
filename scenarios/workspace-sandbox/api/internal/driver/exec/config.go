@@ -91,7 +91,7 @@ type BwrapConfig struct {
 	// StdinReader, if non-nil, is wired to the process's stdin pipe.
 	StdinReader io.Reader
 
-	// OnExit, if non-nil, fires exactly once after cmd.Wait() returns
+	// OnExit, if non-nil, fires exactly once after the spawned process exits
 	// for a background-started process. Dispatched from a goroutine
 	// owned by the exec package; callers must not assume synchronisation
 	// with StartProcess returning.

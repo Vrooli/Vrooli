@@ -18,6 +18,7 @@ import (
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
@@ -47,7 +48,7 @@ func (d *countingDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, erro
 func TestRunner_Startup_InvokesOrphanReconciler(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := newCountingDriver()
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
 	r := sandbox.DefaultRunner(svc, time.Hour, 0, sandbox.HealConfig{})
 	r.Start()
@@ -72,7 +73,7 @@ func TestRunner_Startup_InvokesOrphanReconciler(t *testing.T) {
 func TestRunner_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := newCountingDriver()
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
 	r := sandbox.DefaultRunner(svc, 30*time.Millisecond, 0, sandbox.HealConfig{})
 	r.Start()
@@ -98,7 +99,7 @@ func TestRunner_PeriodicTick_InvokesOrphanReconciler(t *testing.T) {
 func TestRunner_Stop_ReleasesGoroutine(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := newCountingDriver()
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
 	r := sandbox.DefaultRunner(svc, 10*time.Millisecond, 0, sandbox.HealConfig{})
 	r.Start()

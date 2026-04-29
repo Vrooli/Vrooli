@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -91,7 +93,7 @@ func TestIsBinaryLargeFile(t *testing.T) {
 func TestDiffNewFile(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("new text file", func(t *testing.T) {
@@ -211,7 +213,7 @@ func TestDiffNewFile(t *testing.T) {
 // TestDiffDeletedFile tests generating diffs for deleted files
 func TestDiffDeletedFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("deleted text file", func(t *testing.T) {
@@ -298,7 +300,7 @@ func TestDiffDeletedFile(t *testing.T) {
 func TestDiffModifiedFile(t *testing.T) {
 	lowerDir := t.TempDir()
 	upperDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("modified text file", func(t *testing.T) {
@@ -353,7 +355,7 @@ func TestDiffModifiedFile(t *testing.T) {
 func TestGenerateDiff(t *testing.T) {
 	lowerDir := t.TempDir()
 	upperDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	sandboxID := uuid.New()
@@ -785,7 +787,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: types.ChangeTypeAdded,
 		}
 
-		diff, err := GenerateFileDiff(ctx, sandbox, change, "")
+		diff, err := GenerateFileDiff(ctx, process.NewOSExecStarter(), sandbox, change, "")
 		if err != nil {
 			t.Fatalf("GenerateFileDiff failed: %v", err)
 		}
@@ -805,7 +807,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: types.ChangeTypeDeleted,
 		}
 
-		diff, err := GenerateFileDiff(ctx, sandbox, change, "")
+		diff, err := GenerateFileDiff(ctx, process.NewOSExecStarter(), sandbox, change, "")
 		if err != nil {
 			t.Fatalf("GenerateFileDiff failed: %v", err)
 		}
@@ -821,7 +823,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: "unknown",
 		}
 
-		_, err := GenerateFileDiff(ctx, sandbox, change, "")
+		_, err := GenerateFileDiff(ctx, process.NewOSExecStarter(), sandbox, change, "")
 		if err == nil {
 			t.Error("should fail for unknown change type")
 		}
@@ -830,7 +832,7 @@ func TestGenerateFileDiff(t *testing.T) {
 
 // TestPatcher tests the patch application
 func TestPatcher(t *testing.T) {
-	patcher := NewPatcher()
+	patcher := NewPatcher(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("apply empty diff", func(t *testing.T) {
@@ -875,11 +877,12 @@ func TestPatcher(t *testing.T) {
 	})
 }
 
-// TestIsGitRepo tests git repository detection
+// TestIsGitRepo tests git repository detection through GitOps.
 func TestIsGitRepo(t *testing.T) {
 	t.Run("non-git directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		if isGitRepo(tmpDir) {
+		gitOps := NewGitOps(process.NewOSExecStarter())
+		if gitOps.IsGitRepo(context.Background(), tmpDir) {
 			t.Error("temp directory should not be a git repo")
 		}
 	})
@@ -890,7 +893,7 @@ func TestIsGitRepo(t *testing.T) {
 
 // TestNewGenerator verifies generator creation
 func TestNewGenerator(t *testing.T) {
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	if gen == nil {
 		t.Error("NewGenerator should return non-nil generator")
 	}
@@ -898,7 +901,7 @@ func TestNewGenerator(t *testing.T) {
 
 // TestNewPatcher verifies patcher creation
 func TestNewPatcher(t *testing.T) {
-	patcher := NewPatcher()
+	patcher := NewPatcher(process.NewOSExecStarter())
 	if patcher == nil {
 		t.Error("NewPatcher should return non-nil patcher")
 	}
@@ -1257,7 +1260,7 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 		t.Fatalf("Failed to git commit: %v", err)
 	}
 
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("new file diff is valid git patch", func(t *testing.T) {

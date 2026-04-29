@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-
-	"workspace-sandbox/internal/clock"
 )
 
 // CandidateReport is one driver's evaluation in SelectionReport.
@@ -44,20 +42,21 @@ type SelectionReport struct {
 // evaluation. The report includes one entry per candidate, in priority
 // order; the chosen driver has Selected=true.
 //
-// clk is required and is shared by every constructed driver instance so
-// FileChange.DetectedAt timestamps stay consistent with the rest of the
-// application.
-func SelectDriver(ctx context.Context, cfg Config, clk clock.Clock) (Driver, *SelectionReport, error) {
+// deps carries the clock, mounter, and starter shared by every
+// constructed driver instance so the syscall seam stays consistent with
+// the rest of the application. All deps fields are required.
+func SelectDriver(ctx context.Context, cfg Config, deps Deps) (Driver, *SelectionReport, error) {
+	deps.Validate("driver.SelectDriver")
 	report := &SelectionReport{InUserNamespace: InUserNamespace()}
 
 	candidates := []struct {
 		id   DriverID
 		ctor func() Driver
 	}{
-		{DriverOverlayfsUserNS, func() Driver { return NewOverlayfsUserNSDriver(cfg, clk) }},
-		{DriverOverlayfsRoot, func() Driver { return NewOverlayfsRootDriver(cfg, clk) }},
-		{DriverFuseOverlayfs, func() Driver { return NewFuseOverlayfsDriver(cfg, clk) }},
-		{DriverCopy, func() Driver { return NewCopyDriver(cfg, clk) }},
+		{DriverOverlayfsUserNS, func() Driver { return NewOverlayfsUserNSDriver(cfg, deps) }},
+		{DriverOverlayfsRoot, func() Driver { return NewOverlayfsRootDriver(cfg, deps) }},
+		{DriverFuseOverlayfs, func() Driver { return NewFuseOverlayfsDriver(cfg, deps) }},
+		{DriverCopy, func() Driver { return NewCopyDriver(cfg, deps) }},
 	}
 
 	// Skip the inappropriate kernel-overlay variant for the current
@@ -108,7 +107,7 @@ func SelectDriver(ctx context.Context, cfg Config, clk clock.Clock) (Driver, *Se
 	if selected == nil {
 		// Copy is unconditionally available, so this branch is unreachable
 		// in practice. Defensive fallback to keep the contract honest.
-		copy := NewCopyDriver(cfg, clk)
+		copy := NewCopyDriver(cfg, deps)
 		selected = copy
 		report.Candidates = append(report.Candidates, CandidateReport{
 			ID:        DriverCopy,
@@ -122,15 +121,16 @@ func SelectDriver(ctx context.Context, cfg Config, clk clock.Clock) (Driver, *Se
 }
 
 // DriverInfo returns information about available drivers on the current
-// system. clk is shared by every driver instantiated for the report.
-func DriverInfo(ctx context.Context, cfg Config, clk clock.Clock) []Info {
-	overlayDriver := NewOverlayfsDriver(cfg, clk)
+// system. deps is shared by every driver instantiated for the report.
+func DriverInfo(ctx context.Context, cfg Config, deps Deps) []Info {
+	deps.Validate("driver.DriverInfo")
+	overlayDriver := NewOverlayfsDriver(cfg, deps)
 	overlayAvailable, _ := overlayDriver.IsAvailable(ctx)
 
-	fuseDriver := NewFuseOverlayfsDriver(cfg, clk)
+	fuseDriver := NewFuseOverlayfsDriver(cfg, deps)
 	fuseAvailable, _ := fuseDriver.IsAvailable(ctx)
 
-	copyDriver := NewCopyDriver(cfg, clk)
+	copyDriver := NewCopyDriver(cfg, deps)
 
 	return []Info{
 		{
@@ -197,11 +197,12 @@ func LoadDriverPreference(baseDir string) (string, error) {
 // falls through to SelectDriver's normal priority. The SelectionReport
 // describes both the preference attempt (PreferenceFile/PreferenceValue/
 // PreferenceUsed) and every candidate's evaluation.
-func SelectDriverWithPreference(ctx context.Context, cfg Config, clk clock.Clock) (Driver, *SelectionReport, error) {
+func SelectDriverWithPreference(ctx context.Context, cfg Config, deps Deps) (Driver, *SelectionReport, error) {
+	deps.Validate("driver.SelectDriverWithPreference")
 	prefPath := filepath.Join(cfg.BaseDir, preferenceFileName)
 	pref, err := LoadDriverPreference(cfg.BaseDir)
 	if err == nil && pref != "" {
-		if d, ok := tryPreferredDriver(ctx, cfg, clk, DriverID(pref)); ok {
+		if d, ok := tryPreferredDriver(ctx, cfg, deps, DriverID(pref)); ok {
 			report := &SelectionReport{
 				Selected:        d.ID(),
 				InUserNamespace: InUserNamespace(),
@@ -220,7 +221,7 @@ func SelectDriverWithPreference(ctx context.Context, cfg Config, clk clock.Clock
 		}
 		log.Printf("driver: saved preference %q not available; falling through to auto-select", pref)
 	}
-	d, report, err := SelectDriver(ctx, cfg, clk)
+	d, report, err := SelectDriver(ctx, cfg, deps)
 	if report != nil {
 		report.PreferenceFile = prefPath
 		report.PreferenceValue = pref
@@ -231,8 +232,8 @@ func SelectDriverWithPreference(ctx context.Context, cfg Config, clk clock.Clock
 
 // tryPreferredDriver constructs the driver for id and returns it when
 // IsAvailable succeeds. Returns (nil, false) on unknown ID or unavailability.
-func tryPreferredDriver(ctx context.Context, cfg Config, clk clock.Clock, id DriverID) (Driver, bool) {
-	d, err := NewDriverFor(cfg, clk, id)
+func tryPreferredDriver(ctx context.Context, cfg Config, deps Deps, id DriverID) (Driver, bool) {
+	d, err := NewDriverFor(cfg, deps, id)
 	if err != nil {
 		return nil, false
 	}
@@ -247,16 +248,17 @@ func tryPreferredDriver(ctx context.Context, cfg Config, clk clock.Clock, id Dri
 // NewDriverFor returns a fresh driver for the given canonical ID. Used by
 // SwitchDriver (in slot.go) when an operator hot-swaps drivers via
 // /api/v1/driver/select.
-func NewDriverFor(cfg Config, clk clock.Clock, id DriverID) (Driver, error) {
+func NewDriverFor(cfg Config, deps Deps, id DriverID) (Driver, error) {
+	deps.Validate("driver.NewDriverFor")
 	switch id {
 	case DriverFuseOverlayfs:
-		return NewFuseOverlayfsDriver(cfg, clk), nil
+		return NewFuseOverlayfsDriver(cfg, deps), nil
 	case DriverOverlayfsUserNS:
-		return NewOverlayfsUserNSDriver(cfg, clk), nil
+		return NewOverlayfsUserNSDriver(cfg, deps), nil
 	case DriverOverlayfsRoot:
-		return NewOverlayfsRootDriver(cfg, clk), nil
+		return NewOverlayfsRootDriver(cfg, deps), nil
 	case DriverCopy:
-		return NewCopyDriver(cfg, clk), nil
+		return NewCopyDriver(cfg, deps), nil
 	}
 	return nil, fmt.Errorf("unknown driver ID: %s", id)
 }

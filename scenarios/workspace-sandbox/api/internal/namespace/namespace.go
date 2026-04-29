@@ -21,17 +21,28 @@
 // we fall back to:
 // 1. fuse-overlayfs (if installed)
 // 2. Copy driver (always works, but slower)
+//
+// # Round 4 Phase 7
+//
+// Every external command invocation routes through process.Starter and
+// every overlayfs probe routes through fsmount.Mounter so the syscall
+// surface is confined to the canonical seams. The legacy syscall.Exec
+// in EnterUserNamespace stays here because it does process replacement
+// (no fork) — Starter is for spawning subprocesses, not replacing self.
 package namespace
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"workspace-sandbox/internal/fsmount"
+	"workspace-sandbox/internal/process"
 )
 
 // Environment variable set when we're running inside the user namespace
@@ -58,8 +69,11 @@ type Status struct {
 	Reason string
 }
 
-// Check returns the current namespace status
-func Check() Status {
+// Check returns the current namespace status. starter is required to
+// probe `unshare` availability and routes the test mount through
+// fsmount.Mounter; both are constructed once in main.go and threaded
+// down so tests can stub them.
+func Check(starter process.Starter) Status {
 	status := Status{
 		InUserNamespace: os.Getenv(InUserNamespaceEnv) == "1",
 		KernelVersion:   getKernelVersion(),
@@ -72,7 +86,7 @@ func Check() Status {
 	}
 
 	// Check if we can create user namespaces
-	status.CanCreateUserNamespace = canCreateUserNamespace()
+	status.CanCreateUserNamespace = canCreateUserNamespace(starter)
 	if !status.CanCreateUserNamespace {
 		status.Reason = "cannot create user namespaces (kernel config or security policy)"
 		return status
@@ -80,7 +94,7 @@ func Check() Status {
 
 	// If we're already in a user namespace, test if overlayfs works
 	if status.InUserNamespace {
-		status.CanMountOverlayfs = testOverlayfsMount()
+		status.CanMountOverlayfs = testOverlayfsMount(starter)
 		if !status.CanMountOverlayfs {
 			status.Reason = "overlayfs mount failed inside user namespace"
 		}
@@ -97,7 +111,12 @@ func Check() Status {
 //
 // Returns nil if we're already in a user namespace or if namespaces are disabled.
 // Returns an error if re-exec fails.
-func EnterUserNamespace() error {
+//
+// starter is used only to probe `unshare`/`true` availability before
+// committing to the re-exec; the re-exec itself uses syscall.Exec
+// directly because process replacement (not subprocess spawn) is the
+// required semantic — Starter cannot replace the calling process.
+func EnterUserNamespace(starter process.Starter) error {
 	// Already in user namespace?
 	if os.Getenv(InUserNamespaceEnv) == "1" {
 		return nil
@@ -109,12 +128,12 @@ func EnterUserNamespace() error {
 	}
 
 	// Check if we can create user namespaces
-	if !canCreateUserNamespace() {
+	if !canCreateUserNamespace(starter) {
 		return errors.New("user namespaces not available")
 	}
 
-	// Find unshare binary
-	unsharePath, err := exec.LookPath("unshare")
+	// Find unshare binary via the starter so test injection can stub it.
+	unsharePath, err := starter.LookPath("unshare")
 	if err != nil {
 		return fmt.Errorf("unshare command not found: %w", err)
 	}
@@ -130,10 +149,6 @@ func EnterUserNamespace() error {
 	}
 
 	// Build argument list for unshare
-	// --user: create user namespace
-	// --mount: create mount namespace (required for overlayfs)
-	// --map-root-user: map current UID/GID to root inside namespace
-	// --propagation private: prevent mount propagation issues
 	args := []string{
 		"unshare",
 		"--user",
@@ -148,22 +163,26 @@ func EnterUserNamespace() error {
 	env := os.Environ()
 	env = append(env, InUserNamespaceEnv+"=1")
 
-	// Re-exec via unshare
-	// Use syscall.Exec for true process replacement (no child process)
+	// Re-exec via unshare. Use syscall.Exec for true process replacement
+	// (no child process). This stays out of process.Starter because
+	// Starter spawns children; replacement-of-self is a different
+	// semantic that the seam intentionally does not expose.
 	return syscall.Exec(unsharePath, args, env)
 }
 
 // MustEnterUserNamespace is like EnterUserNamespace but logs and continues
 // on failure instead of returning an error. Use this when fallback is acceptable.
-func MustEnterUserNamespace(logger func(format string, args ...interface{})) {
-	err := EnterUserNamespace()
+func MustEnterUserNamespace(starter process.Starter, logger func(format string, args ...interface{})) {
+	err := EnterUserNamespace(starter)
 	if err != nil {
 		logger("user namespace not available, will use fallback driver: %v", err)
 	}
 }
 
-// canCreateUserNamespace checks if the current process can create user namespaces
-func canCreateUserNamespace() bool {
+// canCreateUserNamespace checks if the current process can create user
+// namespaces. Routes through Starter for the empirical `unshare --user
+// true` probe.
+func canCreateUserNamespace(starter process.Starter) bool {
 	// Check the sysctl that controls unprivileged user namespaces
 	data, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	if err == nil {
@@ -175,49 +194,27 @@ func canCreateUserNamespace() bool {
 	// If the file doesn't exist, user namespaces are likely enabled by default
 
 	// Check if unshare is available
-	_, err = exec.LookPath("unshare")
-	if err != nil {
+	if _, err := starter.LookPath("unshare"); err != nil {
 		return false
 	}
 
 	// Try to actually create a user namespace (most reliable test)
-	cmd := exec.Command("unshare", "--user", "true")
-	err = cmd.Run()
-	return err == nil
+	res, err := process.Run(context.Background(), starter, process.StartOpts{
+		Path: "unshare",
+		Args: []string{"--user", "true"},
+	})
+	if err != nil {
+		return false
+	}
+	return res.Exit.ExitCode == 0
 }
 
-// testOverlayfsMount tests if we can actually mount overlayfs
-func testOverlayfsMount() bool {
-	// Create temporary directories for the test
-	tmpDir, err := os.MkdirTemp("", "overlay-test-")
-	if err != nil {
-		return false
-	}
-	defer os.RemoveAll(tmpDir)
-
-	lower := filepath.Join(tmpDir, "lower")
-	upper := filepath.Join(tmpDir, "upper")
-	work := filepath.Join(tmpDir, "work")
-	merged := filepath.Join(tmpDir, "merged")
-
-	for _, dir := range []string{lower, upper, work, merged} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return false
-		}
-	}
-
-	// Try to mount overlayfs
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
-	err = syscall.Mount("overlay", merged, "overlay", 0, opts)
-	if err != nil {
-		return false
-	}
-
-	// Clean up - unmount
-	if err := syscall.Unmount(merged, 0); err != nil {
-		return false
-	}
-	return true
+// testOverlayfsMount tests if we can actually mount overlayfs. Routes
+// through fsmount.SystemMounter so the underlying mount syscalls stay
+// in the canonical seam.
+func testOverlayfsMount(starter process.Starter) bool {
+	mounter := fsmount.NewSystemMounter(starter)
+	return fsmount.ProbeKernelOverlayMount(context.Background(), mounter) == nil
 }
 
 // getKernelVersion returns the kernel version string

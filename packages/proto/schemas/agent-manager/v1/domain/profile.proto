@@ -109,9 +109,13 @@ message AgentProfile {
   // Network access level for agent execution.
   NetworkAccess network_access = 25;
 
-  // Whether runs using this profile require sandbox isolation.
-  // Default: true for safety.
-  bool requires_sandbox = 11;
+  // Field 11 (requires_sandbox bool) was removed in Phase 1 of the
+  // agent-manager reliability pass. SandboxConfig.mode is the single
+  // source of truth — see scenarios/agent-manager/docs/internal/SEAMS.md
+  // (RunMode decision boundary). Off disables sandboxing; every other
+  // mode produces a sandboxed run.
+  reserved 11;
+  reserved "requires_sandbox";
 
   reserved 12;
   reserved "requires_approval";
@@ -193,8 +197,11 @@ message RunConfig {
   // Network access level for agent execution.
   NetworkAccess network_access = 18;
 
-  // Require sandbox isolation.
-  bool requires_sandbox = 8;
+  // Field 8 (requires_sandbox bool) was removed in Phase 1 of the
+  // agent-manager reliability pass. SandboxConfig.mode is the single
+  // source of truth.
+  reserved 8;
+  reserved "requires_sandbox";
 
   reserved 9;
   reserved "requires_approval";
@@ -260,8 +267,11 @@ message RunConfigOverrides {
   // Network access level override.
   optional NetworkAccess network_access = 24;
 
-  // Require sandbox isolation.
-  optional bool requires_sandbox = 8;
+  // Field 8 (requires_sandbox bool) was removed in Phase 1 of the
+  // agent-manager reliability pass. SandboxConfig.mode is the single
+  // source of truth.
+  reserved 8;
+  reserved "requires_sandbox";
 
   reserved 9;
   reserved "requires_approval";

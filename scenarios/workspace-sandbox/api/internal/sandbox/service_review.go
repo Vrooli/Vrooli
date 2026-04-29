@@ -94,7 +94,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 		}, nil
 	}
 
-	gen := diff.NewGenerator()
+	gen := diff.NewGenerator(s.starter)
 	opts := &diff.GenerateOptions{
 		PathPrefix: scopePathPrefix(sandbox),
 	}
@@ -215,7 +215,7 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}
 	}
 
-	gen := diff.NewGenerator()
+	gen := diff.NewGenerator(s.starter)
 	diffOpts := &diff.GenerateOptions{
 		PathPrefix: scopePathPrefix(sandbox),
 	}
@@ -255,7 +255,7 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		filePaths[i] = change.FilePath
 	}
 
-	patcher := diff.NewPatcher()
+	patcher := diff.NewPatcher(s.starter)
 	applyResult, err := patcher.ApplyDiff(ctx, sandbox.ProjectRoot, diffResult.UnifiedDiff, diff.ApplyOptions{
 		CommitMsg:    commitMsg,
 		Author:       author,

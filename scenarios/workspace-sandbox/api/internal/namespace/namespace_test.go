@@ -5,12 +5,20 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"workspace-sandbox/internal/process"
 )
 
-// TestCheckReturnsStatus verifies that Check() returns a valid Status struct
+// testStarter is the production OSExecStarter, used by these tests
+// because they exercise host-level capability probes. Tests that want
+// to inject scripted responses construct a procmocks.FakeStarter
+// directly.
+var testStarter = process.NewOSExecStarter()
+
+// TestCheckReturnsStatus verifies that Check(testStarter) returns a valid Status struct
 // [REQ:P0-001] Sandbox creation relies on namespace status detection
 func TestCheckReturnsStatus(t *testing.T) {
-	status := Check()
+	status := Check(testStarter)
 
 	// Status should always have a kernel version
 	if status.KernelVersion == "" {
@@ -46,7 +54,7 @@ func TestCheckWithDisabledEnv(t *testing.T) {
 	// Disable user namespaces
 	os.Setenv(DisableUserNamespaceEnv, "1")
 
-	status := Check()
+	status := Check(testStarter)
 
 	if status.CanCreateUserNamespace {
 		t.Error("expected CanCreateUserNamespace to be false when disabled via env")
@@ -61,7 +69,7 @@ func TestCheckWithDisabledEnv(t *testing.T) {
 // [REQ:P0-002] Driver selection depends on kernel version detection
 func TestIsKernelAtLeastBasicCases(t *testing.T) {
 	// Get actual kernel version for context
-	status := Check()
+	status := Check(testStarter)
 	t.Logf("Running on kernel: %s", status.KernelVersion)
 
 	// Test against very old kernel - should always pass on modern systems
@@ -79,7 +87,7 @@ func TestIsKernelAtLeastBasicCases(t *testing.T) {
 // [REQ:P0-002] Driver selection depends on kernel version detection
 func TestIsKernelAtLeastEdgeCases(t *testing.T) {
 	// These tests are based on the running kernel
-	status := Check()
+	status := Check(testStarter)
 
 	// Parse actual kernel version for comparison
 	parts := strings.Split(status.KernelVersion, ".")
@@ -102,7 +110,7 @@ func TestEnterUserNamespaceAlreadyIn(t *testing.T) {
 	// Simulate already being in user namespace
 	os.Setenv(InUserNamespaceEnv, "1")
 
-	err := EnterUserNamespace()
+	err := EnterUserNamespace(testStarter)
 	if err != nil {
 		t.Errorf("expected nil error when already in namespace, got: %v", err)
 	}
@@ -125,7 +133,7 @@ func TestEnterUserNamespaceDisabled(t *testing.T) {
 	// Disable user namespaces
 	os.Setenv(DisableUserNamespaceEnv, "1")
 
-	err := EnterUserNamespace()
+	err := EnterUserNamespace(testStarter)
 	if err != nil {
 		t.Errorf("expected nil error when disabled, got: %v", err)
 	}
@@ -148,7 +156,7 @@ func TestConstantsAreDefined(t *testing.T) {
 // TestKernelVersionFormat verifies kernel version string format
 // [REQ:P2-025] Cross-platform driver selection uses kernel version
 func TestKernelVersionFormat(t *testing.T) {
-	status := Check()
+	status := Check(testStarter)
 
 	if status.KernelVersion == "unknown" {
 		t.Skip("kernel version detection returned 'unknown'")
@@ -168,7 +176,7 @@ func TestKernelVersionFormat(t *testing.T) {
 // TestStatusFieldsInitialized verifies Status struct is properly initialized
 // [REQ:P0-001] Sandbox creation depends on accurate status detection
 func TestStatusFieldsInitialized(t *testing.T) {
-	status := Check()
+	status := Check(testStarter)
 
 	// Booleans default to false, which is acceptable
 	// But KernelVersion should always be set
@@ -211,7 +219,7 @@ func TestMustEnterUserNamespaceCallsLogger(t *testing.T) {
 
 	// Call MustEnterUserNamespace - it may or may not call logger
 	// depending on whether namespaces are available
-	MustEnterUserNamespace(logger)
+	MustEnterUserNamespace(testStarter, logger)
 
 	// We can't assert loggerCalled because it depends on the system
 	// Just verify no panic occurred

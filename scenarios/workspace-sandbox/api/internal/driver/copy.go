@@ -59,16 +59,18 @@ type CopyDriver struct {
 	clock  clock.Clock
 }
 
-// NewCopyDriver creates a new copy-based fallback driver. clk is the
-// time source for FileChange.DetectedAt timestamps; it must not be nil.
-func NewCopyDriver(cfg Config, clk clock.Clock) *CopyDriver {
-	if clk == nil {
-		panic("driver.NewCopyDriver: clock is required")
-	}
+// NewCopyDriver creates a new copy-based fallback driver. deps.Clock is
+// the time source for FileChange.DetectedAt timestamps. CopyDriver does
+// not actually mount or spawn helper binaries, but the constructor still
+// takes Deps for symmetry with the overlay drivers — every driver
+// factory now has the same shape so SelectDriver / NewDriverFor can
+// pass through a single Deps value.
+func NewCopyDriver(cfg Config, deps Deps) *CopyDriver {
+	deps.Validate("driver.NewCopyDriver")
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
-	return &CopyDriver{config: cfg, clock: clk}
+	return &CopyDriver{config: cfg, clock: deps.Clock}
 }
 
 // ID returns the canonical driver ID.

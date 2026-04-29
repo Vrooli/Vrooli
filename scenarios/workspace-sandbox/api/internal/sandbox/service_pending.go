@@ -112,7 +112,7 @@ func (s *Service) CommitPending(ctx context.Context, req *types.CommitPendingReq
 		commitMsg = s.generateDefaultCommitMessage(reconciled.StillPending, pathToChange)
 	}
 
-	patcher := diff.NewPatcher()
+	patcher := diff.NewPatcher(s.starter)
 	commitHash, err := patcher.CreateCommitFromFiles(ctx, projectRoot, diff.ApplyOptions{
 		CommitMsg:    commitMsg,
 		Author:       req.Actor,

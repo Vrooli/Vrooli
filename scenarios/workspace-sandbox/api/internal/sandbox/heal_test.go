@@ -11,6 +11,7 @@ import (
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
@@ -21,7 +22,7 @@ func newHealTestService(drv *mocks.FakeDriver, repo *mocks.FakeRepository) *Serv
 	clk := clock.System{}
 	return NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
-	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter())
 }
 
 func activeSandbox(id uuid.UUID, lastUsed time.Time) *types.Sandbox {

@@ -24,6 +24,7 @@ import (
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/gc"
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/logging"
@@ -71,6 +72,21 @@ func NewServer() (*Server, error) {
 	// needs time. Tests construct equivalents with a FakeClock.
 	clk := clock.System{}
 
+	// Process exec seam (Round 4 Phase 7). OSExecStarter wraps os/exec
+	// for every external-command invocation in driver, namespace,
+	// fsmount, diff, policy hooks, and interactive handlers.
+	starter := process.NewOSExecStarter()
+
+	// Mount seam (Round 4 Phase 7). SystemMounter wraps syscall.Mount /
+	// syscall.Unmount and the fuse-overlayfs subprocess; it depends on
+	// starter for binary lookups and userspace fallbacks.
+	mounter := fsmount.NewSystemMounter(starter)
+
+	// driverDeps bundles the three seam dependencies every driver
+	// constructor needs. Pass-through for SelectDriver, NewDriverFor,
+	// and SwitchDriver so downstream code never sees raw nils.
+	driverDeps := driver.Deps{Clock: clk, Mounter: mounter, Starter: starter}
+
 	// Resolve the embedded SQLite database path. Honors SQLITE_PATH for
 	// explicit overrides; otherwise places the file under the cross-platform
 	// data directory provided by api-core/storage.
@@ -110,7 +126,7 @@ func NewServer() (*Server, error) {
 		MaxSizeMB:          cfg.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs:   cfg.Driver.UseFuseOverlayfs,
 	}
-	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg, clk)
+	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg, driverDeps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
@@ -147,7 +163,7 @@ func NewServer() (*Server, error) {
 				Required:    h.Required,
 			}
 		}
-		validationPolicy = policy.NewHookValidationPolicy(hooks,
+		validationPolicy = policy.NewHookValidationPolicy(starter, hooks,
 			policy.WithGlobalTimeout(cfg.Policy.ValidationTimeout),
 		)
 		log.Printf("validation hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.ValidationTimeout)
@@ -171,7 +187,7 @@ func NewServer() (*Server, error) {
 				Timeout:     h.Timeout,
 			}
 		}
-		teardownPolicy = policy.NewHookTeardownPolicy(hooks,
+		teardownPolicy = policy.NewHookTeardownPolicy(starter, hooks,
 			policy.WithTeardownGlobalTimeout(cfg.Policy.TeardownTimeout),
 		)
 		log.Printf("teardown hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.TeardownTimeout)
@@ -195,7 +211,7 @@ func NewServer() (*Server, error) {
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
-	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk, auditEmitter,
+	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk, auditEmitter, starter,
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
@@ -265,6 +281,8 @@ func NewServer() (*Server, error) {
 		InUserNamespace: inUserNS,
 		Reconcilers:     lifecycleRecon,
 		Clock:           clk,
+		Mounter:         mounter,
+		Starter:         starter,
 	}
 	h.SetProfileSnapshot(profileSnapshot)
 
@@ -296,6 +314,7 @@ func NewServer() (*Server, error) {
 		ProcessLogger:  processLogger,
 		ProfileStore:   profileStore,
 		ExecConfig:     cfg.Execution,
+		Starter:        starter,
 	})
 	fileOperator := toolexecution.NewFileOperatorAdapter(svc)
 
@@ -447,10 +466,11 @@ func main() {
 	// responsible for placing the API inside a user namespace before main
 	// runs. NewServer's boot self-check fails fatally if the wrapper is
 	// misconfigured, so we don't try to re-exec ourselves here.
+	bootStarter := process.NewOSExecStarter()
 	if driver.InUserNamespace() {
-		log.Printf("running in user namespace | kernel=%s", namespace.Check().KernelVersion)
+		log.Printf("running in user namespace | kernel=%s", namespace.Check(bootStarter).KernelVersion)
 	} else {
-		log.Printf("running in host namespace | kernel=%s", namespace.Check().KernelVersion)
+		log.Printf("running in host namespace | kernel=%s", namespace.Check(bootStarter).KernelVersion)
 	}
 
 	srv, err := NewServer()

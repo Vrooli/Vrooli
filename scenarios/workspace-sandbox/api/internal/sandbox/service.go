@@ -25,6 +25,7 @@ import (
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/policy"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/types"
 )
@@ -125,11 +126,12 @@ var _ ServiceAPI = (*Service)(nil)
 // distributed across service_*.go files by responsibility; the struct
 // itself only declares fields here.
 type Service struct {
-	repo   repository.Repository
-	driver driver.Driver
-	config ServiceConfig
-	clock  clock.Clock
-	audit  audit.Emitter
+	repo    repository.Repository
+	driver  driver.Driver
+	config  ServiceConfig
+	clock   clock.Clock
+	audit   audit.Emitter
+	starter process.Starter
 
 	// Policies — volatile decision points wired via ServiceOption.
 	attributionPolicy policy.AttributionPolicy
@@ -225,23 +227,27 @@ func WithGitOps(g diff.GitOperations) ServiceOption {
 //     through it. Production wires audit.NewRepoEmitter(repo.LogAuditEvent, clk);
 //     tests wire mocks.NewFakeEmitter(clk) and assert via
 //     assertx.AssertAuditEvents.
-func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk clock.Clock, emitter audit.Emitter, opts ...ServiceOption) *Service {
+func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk clock.Clock, emitter audit.Emitter, starter process.Starter, opts ...ServiceOption) *Service {
 	if clk == nil {
 		panic("sandbox.NewService: clock is required")
 	}
 	if emitter == nil {
 		panic("sandbox.NewService: audit emitter is required")
 	}
+	if starter == nil {
+		panic("sandbox.NewService: starter is required")
+	}
 	s := &Service{
-		repo:   repo,
-		driver: drv,
-		config: cfg,
-		clock:  clk,
-		audit:  emitter,
-		// Defaults: no-op policies + production GitOps.
+		repo:    repo,
+		driver:  drv,
+		config:  cfg,
+		clock:   clk,
+		audit:   emitter,
+		starter: starter,
+		// Defaults: no-op policies + production GitOps backed by starter.
 		validationPolicy: policy.NewNoOpValidationPolicy(),
 		teardownPolicy:   policy.NewNoOpTeardownPolicy(),
-		gitOps:           diff.NewGitOps(),
+		gitOps:           diff.NewGitOps(starter),
 	}
 
 	for _, opt := range opts {

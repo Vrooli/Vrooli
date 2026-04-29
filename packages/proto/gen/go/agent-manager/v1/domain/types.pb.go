@@ -148,7 +148,7 @@ func (ModelPreset) EnumDescriptor() ([]byte, []int) {
 
 // NetworkAccess controls the level of network access granted to an agent.
 //
-// This is independent of sandbox file isolation (RequiresSandbox).
+// This is independent of sandbox file isolation (SandboxConfig.mode).
 // Runners map this to runner-specific flags.
 //
 // @usage AgentProfile.network_access, RunConfig.network_access
@@ -318,14 +318,21 @@ func (SandboxAcceptanceMode) EnumDescriptor() ([]byte, []int) {
 }
 
 // SandboxMode names the per-run sandbox execution mode from the
-// auditability contract. Default is tracking; protected is reserved for
-// the protected-agent-sandboxing initiative.
+// auditability contract. The default in spawn surfaces is protected
+// (DefaultSandboxConfig); tracking is the explicit operator opt-out
+// for runs that need full host capability; off disables sandboxing
+// entirely (used only for runs with no auditability requirement).
+//
+// Mode is the single source of truth for "is this run sandboxed?" —
+// see scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision
+// boundary). Off → RunModeInPlace; every other value → RunModeSandboxed.
 type SandboxMode int32
 
 const (
 	SandboxMode_SANDBOX_MODE_UNSPECIFIED SandboxMode = 0
 	SandboxMode_SANDBOX_MODE_TRACKING    SandboxMode = 1
 	SandboxMode_SANDBOX_MODE_PROTECTED   SandboxMode = 2
+	SandboxMode_SANDBOX_MODE_OFF         SandboxMode = 3
 )
 
 // Enum value maps for SandboxMode.
@@ -334,11 +341,13 @@ var (
 		0: "SANDBOX_MODE_UNSPECIFIED",
 		1: "SANDBOX_MODE_TRACKING",
 		2: "SANDBOX_MODE_PROTECTED",
+		3: "SANDBOX_MODE_OFF",
 	}
 	SandboxMode_value = map[string]int32{
 		"SANDBOX_MODE_UNSPECIFIED": 0,
 		"SANDBOX_MODE_TRACKING":    1,
 		"SANDBOX_MODE_PROTECTED":   2,
+		"SANDBOX_MODE_OFF":         3,
 	}
 )
 
@@ -1602,11 +1611,12 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	" SANDBOX_LIFECYCLE_EVENT_TERMINAL\x10\x06*g\n" +
 	"\x15SandboxAcceptanceMode\x12'\n" +
 	"#SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED\x10\x00\x12%\n" +
-	"!SANDBOX_ACCEPTANCE_MODE_ALLOWLIST\x10\x01*b\n" +
+	"!SANDBOX_ACCEPTANCE_MODE_ALLOWLIST\x10\x01*x\n" +
 	"\vSandboxMode\x12\x1c\n" +
 	"\x18SANDBOX_MODE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SANDBOX_MODE_TRACKING\x10\x01\x12\x1a\n" +
-	"\x16SANDBOX_MODE_PROTECTED\x10\x02*\xdf\x01\n" +
+	"\x16SANDBOX_MODE_PROTECTED\x10\x02\x12\x14\n" +
+	"\x10SANDBOX_MODE_OFF\x10\x03*\xdf\x01\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +

@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"workspace-sandbox/internal/types"
-
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/process"
+	"workspace-sandbox/internal/types"
 )
 
 // =============================================================================
@@ -54,7 +55,7 @@ func TestHookTeardownPolicy_SuccessfulHook(t *testing.T) {
 		Name:    "success-hook",
 		Command: "/bin/true",
 	}}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	results := p.RunPreTeardownHooks(context.Background(), testSandboxWithDir(t), "delete")
 	if len(results) != 1 {
@@ -76,7 +77,7 @@ func TestHookTeardownPolicy_FailingHook_DoesNotBlock(t *testing.T) {
 		Name:    "failing-hook",
 		Command: "/bin/false",
 	}}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	results := p.RunPreTeardownHooks(context.Background(), testSandboxWithDir(t), "stop")
 	if len(results) != 1 {
@@ -98,7 +99,7 @@ func TestHookTeardownPolicy_Timeout(t *testing.T) {
 		Command: "sleep",
 		Args:    []string{"60"},
 	}}
-	p := NewHookTeardownPolicy(hooks,
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks,
 		WithTeardownGlobalTimeout(500*time.Millisecond),
 	)
 
@@ -124,7 +125,7 @@ func TestHookTeardownPolicy_EnvVars(t *testing.T) {
 		Name:    "env-check",
 		Command: "env",
 	}}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	sbx := testSandboxWithDir(t)
 	results := p.RunPreTeardownHooks(context.Background(), sbx, "delete")
@@ -170,7 +171,7 @@ func TestHookTeardownPolicy_MultipleHooks(t *testing.T) {
 		{Name: "second-fails", Command: "/bin/false"},
 		{Name: "third-succeeds", Command: "/bin/true"},
 	}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	results := p.RunPreTeardownHooks(context.Background(), testSandboxWithDir(t), "delete")
 	if len(results) != 3 {

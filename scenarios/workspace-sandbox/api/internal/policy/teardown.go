@@ -39,13 +39,13 @@
 package policy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
+	"strings"
 	"time"
 
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -64,9 +64,13 @@ func (p *NoOpTeardownPolicy) RunPreTeardownHooks(ctx context.Context, sandbox *t
 }
 
 // HookTeardownPolicy runs configured shell commands before sandbox teardown.
+//
+// Round 4 Phase 7: hook execution routes through process.Starter so the
+// canonical exec seam owns every external command spawn.
 type HookTeardownPolicy struct {
 	hooks         []TeardownHook
 	globalTimeout time.Duration
+	starter       process.Starter
 }
 
 // TeardownPolicyOption configures the HookTeardownPolicy.
@@ -79,11 +83,16 @@ func WithTeardownGlobalTimeout(timeout time.Duration) TeardownPolicyOption {
 	}
 }
 
-// NewHookTeardownPolicy creates a policy with the given hooks.
-func NewHookTeardownPolicy(hooks []TeardownHook, opts ...TeardownPolicyOption) *HookTeardownPolicy {
+// NewHookTeardownPolicy creates a policy with the given hooks. starter
+// routes hook execution through the canonical exec seam.
+func NewHookTeardownPolicy(starter process.Starter, hooks []TeardownHook, opts ...TeardownPolicyOption) *HookTeardownPolicy {
+	if starter == nil {
+		panic("policy.NewHookTeardownPolicy: starter is required")
+	}
 	p := &HookTeardownPolicy{
 		hooks:         hooks,
 		globalTimeout: 30 * time.Second, // Default: shorter than validation (teardown should be fast)
+		starter:       starter,
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -132,33 +141,31 @@ func (p *HookTeardownPolicy) executeHook(ctx context.Context, hook TeardownHook,
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(ctx, hook.Command, hook.Args...)
-	cmd.Env = env
-
-	// Set working directory to sandbox merged directory if available
+	opts := process.StartOpts{
+		Path: hook.Command,
+		Args: append([]string(nil), hook.Args...),
+		Env:  env,
+	}
 	if sandbox.MergedDir != "" {
-		cmd.Dir = sandbox.MergedDir
+		opts.Dir = sandbox.MergedDir
 	} else if sandbox.ProjectRoot != "" {
-		cmd.Dir = sandbox.ProjectRoot
+		opts.Dir = sandbox.ProjectRoot
 	}
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	result.Output = stdout.String()
-	if stderr.Len() > 0 {
+	res, runErr := process.Run(ctx, p.starter, opts)
+	result.Output = string(res.Stdout)
+	if len(res.Stderr) > 0 {
 		if result.Output != "" {
 			result.Output += "\n"
 		}
-		result.Output += stderr.String()
+		result.Output += string(res.Stderr)
 	}
-
-	if err != nil {
+	if runErr != nil {
 		result.Success = false
-		result.Error = err
+		result.Error = runErr
+	} else if res.Exit.ExitCode != 0 {
+		result.Success = false
+		result.Error = fmt.Errorf("hook %q exited with code %d: %s", hook.Name, res.Exit.ExitCode, strings.TrimSpace(string(res.Stderr)))
 	} else {
 		result.Success = true
 	}

@@ -1627,3 +1627,221 @@ were "quiet at boot, confusing at runtime":
   passes — config.go and the doc cannot drift silently.
 - `vrooli scenario restart workspace-sandbox` succeeds end-to-end with
   `Validate()` running on boot.
+
+## Mounter & Process Starter Seams (Round 4 Phase 7)
+
+### What Phase 7 introduced
+
+Two canonical seams that consolidate every kernel-mount syscall and
+every external-command invocation in workspace-sandbox into a single
+home each. The driver, namespace, exec, diff, policy, and interactive
+handler layers all route through them.
+
+#### `internal/fsmount/mount.go::Mounter`
+
+- `Mount(ctx, opts)` — mounts overlayfs at `opts.Merged` per
+  `opts.Backend` (kernel-overlay or fuse-overlayfs). Required-arg
+  validation rejects unset backends and missing layer paths.
+- `Unmount(ctx, target, lazy)` — idempotent unmount. Tries
+  `syscall.Unmount` first; falls back to `fusermount -u` then `umount
+  -l` so a non-root caller without `CAP_SYS_ADMIN` still wins on the
+  fuse path.
+- `IsMountPoint(path)` — wraps the `mountpoint` binary so mount-state
+  checks stay inside the seam.
+- `ProbeKernelOverlayMount(ctx, m)` — free function used by the
+  namespace package to test overlayfs availability without writing its
+  own probe.
+
+Production wiring: `fsmount.NewSystemMounter(starter)` from `main.go`,
+threaded through `driver.Deps`. The legacy `mountFunc` / `unmountFunc`
+closures and the package-level `isMountPoint` helper are gone.
+
+#### `internal/process/starter.go::Starter`
+
+- `Start(ctx, opts) (Handle, error)` — async spawn. Stdin/Stdout/Stderr
+  wiring lives in `StartOpts`; `SysProcAttr` carries `Setpgid` for
+  process-group reaping.
+- `LookPath(name)` — resolves a binary; normalised to
+  `process.ErrBinaryNotFound`.
+- `Run(ctx, s, opts)` and `RunCombinedOutput(ctx, s, opts)` — sync
+  helpers that capture output. Implemented in terms of `Start+Wait` so
+  fakes only need to implement `Start`.
+- `Handle.Wait` returns a `ProcessExit` (exit code, signal, OOM flag).
+  `KillProcessGroup` is canonical here — every caller that used to
+  reach for `syscall.Kill(-pgid, …)` now goes through the seam.
+
+Production wiring: `process.NewOSExecStarter()` in `main.go`. Threaded
+through every constructor that spawns: `driver.Deps.Starter`,
+`sandbox.NewService(..., starter, …)`,
+`toolexecution.ProcessExecutorConfig.Starter`,
+`policy.NewHookValidationPolicy(starter, …)`,
+`policy.NewHookTeardownPolicy(starter, …)`,
+`diff.NewGitOps(starter)` / `NewGenerator(starter)` /
+`NewPatcher(starter)`.
+
+#### `internal/process/pty.go::PTYStart`
+
+- The interactive WebSocket handler attaches a pseudo-terminal via
+  `pty.StartWithSize`, which requires a `*os/exec.Cmd` directly (PTY
+  allocation happens in the fork). PTY-attached spawning is therefore
+  its own seam: `PTYStart(opts) (*PTYHandle, error)`. The
+  `os/exec` dependency is confined to this single function so the
+  Round 4 Phase 7 invariant (no production code outside the seams
+  imports `os/exec` or `syscall.Mount`/`syscall.Unmount`) still holds
+  for the interactive path.
+
+### Failure modes now reachable from `go test`
+
+| Scenario | Seam knob |
+|---|---|
+| Kernel `syscall.Mount` returns `EPERM` | `FakeMounter.SetMountErr(...)` |
+| Mid-mount partial failure | `FakeMounter.SetMountErrFor(target, err)` |
+| `fuse-overlayfs` daemon forks-and-dies | custom `Mounter` returning nil from `Mount` and false from `IsMountPoint` |
+| `mountpoint -q` not on PATH | `FakeMounter.IsMountPoint` returns false |
+| Binary not in PATH | `FakeStarter.SetLookPath` omits it; `LookPath` returns `ErrBinaryNotFound` |
+| `fork()` failure | `FakeStarter.SetStartErr(...)` or per-command `StartErr` |
+| Process exits non-zero with custom stderr | per-command `Stdout/Stderr/Exit` script |
+| Hung process / context cancel | per-command `Hold: true` or `WaitDelay: ...` |
+| OOM-killed process | `Exit: ProcessExit{ExitCode: -1, Signal: 9, OOMKilled: true}` |
+
+### Test fakes
+
+- `internal/testutil/mocks/fsmountmocks/FakeMounter` — records every
+  `Mount`/`Unmount`/`IsMountPoint` call, lets tests inject per-target
+  errors, pre-seed leftover mount points, and assert call ordering.
+- `internal/testutil/mocks/procmocks/FakeStarter` + `FakeHandle` —
+  longest-prefix-match command table, per-command behaviors (start
+  error, wait error, scripted exit, scripted output, wait delay,
+  hold-until-release), call recording with shape (path, args, dir,
+  env). Default is paranoid: unmatched commands fail the test.
+
+Both fakes live in subpackages under `internal/testutil/mocks/` to
+break a would-be import cycle (process is imported by driver via
+`Deps`, so testutil/mocks itself can't depend on process at the top
+level without making process tests uncompilable).
+
+### What Phase 7 explicitly did NOT do
+
+- **Move the `process.Tracker` / `process.Logger` to Starter.** Those
+  are higher-level constructs that consume the spawned-process exit
+  stream; the seam is below them. They stay where they are, with
+  Tracker still owning sandbox-PID bookkeeping.
+- **Wrap `pty.StartWithSize` behind the abstract Starter contract.**
+  PTY allocation requires a real `*os/exec.Cmd`; abstracting it
+  through Starter would either lose typing or require parallel APIs.
+  PTYStart is its own seam in `internal/process/pty.go`.
+- **Migrate `syscall.Exec` in `namespace.EnterUserNamespace`.** That
+  call replaces the running process (no fork), which is a different
+  semantic from anything Starter exposes. Stays in namespace with a
+  comment.
+
+### DOD invariants
+
+- `grep -rn "syscall\.Mount\|syscall\.Unmount" internal/ --include="*.go" | grep -v "_test.go" | grep -v "internal/fsmount/"` returns 0 hits.
+- `grep -rn "exec\.Command\|exec\.CommandContext\|cmd\.Start()\|cmd\.Wait()" internal/ --include="*.go" | grep -v "_test.go" | grep -v "internal/process/" | grep -v "internal/fsmount/"` returns 0 hits.
+- `go build ./...` clean. `go test ./...` passes for every package.
+- `go vet ./...` clean. `gofumpt -l .` empty.
+- Cross-scenario parity test in `agent-manager/internal/policy` still passes.
+
+## Driver & Exec Failure-Mode Contract (Round 4 Phase 7+4)
+
+Phase 7 introduced `Mounter` and `Starter` as required seams. Phase 4
+exercises every failure mode they enable from `go test` so the failure
+contract is permanently observable, not just a paper invariant.
+
+### What Phase 4 added
+
+- `internal/driver/contract_failure_test.go` — failure-mode contract
+  test parameterized over every overlay flavor (`fuse-overlayfs`,
+  `overlayfs-userns`, `overlayfs-root`) plus a `CopyDriver` block.
+  Drives the `OverlayDriver` end-to-end against a `FakeMounter` so
+  every failure path is reachable on hosts that can't actually mount
+  overlayfs (macOS, sandboxed CI runners, dev machines without
+  CAP_SYS_ADMIN).
+- `internal/driver/exec/contract_test.go` — failure-mode contract
+  test for the exec layer driven by `FakeStarter`. Pins the exit-code,
+  signal, OOM, and timeout translations that handlers/process.go
+  consumes.
+- `FakeMounter.SetSilentMountFor(merged)` — new knob that models the
+  "fuse-overlayfs forks-and-dies before signaling failure" /
+  "kernel-mount returned 0 but no kernel mount appeared" stale-daemon
+  scenarios. With it, `Mount(opts)` returns nil but the merged path
+  is NOT registered as a mount point, forcing the driver's
+  `verifyMounted` post-mount check to fire.
+
+### Coverage matrix
+
+#### `internal/driver/contract_failure_test.go`
+
+| Scenario | Test | Per-flavor? |
+|---|---|---|
+| Project mount fails (`EPERM` from kernel/fuse) | `TestDriverFailure_ProjectMountErrorPropagates` | yes |
+| Home overlay mount fails (project succeeds) | `TestDriverFailure_HomeOverlayMountFailsSoft` | yes |
+| Silent mount failure caught by `verifyMounted` (project) | `TestDriverFailure_SilentMountCaughtByVerify` | yes |
+| Silent mount failure on home overlay (soft) | `TestDriverFailure_HomeOverlaySilentVerifySoft` | yes |
+| Unmount idempotent (second call is a no-op) | `TestDriverFailure_UnmountIdempotent` | yes |
+| Unmount error propagates | `TestDriverFailure_UnmountErrorPropagates` | yes |
+| Cleanup / CleanupOrphan idempotent | `TestDriverFailure_CleanupIdempotent` | yes |
+| CleanupOrphan unmounts before rm -rf | `TestDriverFailure_CleanupOrphanWhenStillMounted` | yes |
+| Partial-approval cycle (Add → Remove → empty) | `TestDriverFailure_PartialApprovalCycle` | yes |
+| GetChangedFiles after Unmount still walks UpperDir | `TestDriverFailure_GetChangedFilesAfterUnmount` | yes |
+| RemoveFromUpper rejects path traversal | `TestDriverFailure_RemoveFromUpperBlocksTraversal` | yes |
+| MountVerifier returns error after Unmount | `TestDriverFailure_VerifyMountIntegrityAfterUnmount` | yes |
+| Copy driver Cleanup / CleanupOrphan idempotent | `TestCopyDriverFailure_CleanupIdempotent` | n/a |
+| Copy driver missing scope path → rollback | `TestCopyDriverFailure_MissingScopePath` | n/a |
+| Copy driver reports `HomeOverlayUnsupported` | `TestCopyDriverFailure_UnsupportedHomeOverlayState` | n/a |
+
+#### `internal/driver/exec/contract_test.go`
+
+| Scenario | Test |
+|---|---|
+| Process exits 0 (fast path) | `TestExecContract_ExitZero` |
+| Process exits non-zero (e.g. exit 7) | `TestExecContract_ExitNonZero` |
+| `starter.Start` fails (fork EAGAIN) | `TestExecContract_StartError` |
+| `Wait` returns an error alongside the exit state | `TestExecContract_WaitError` |
+| Wall-clock timeout → `ExitCode=124` | `TestExecContract_WallClockTimeout` |
+| `ModeBwrapRequired` without bwrap on PATH | `TestExecContract_BwrapRequired_NoBwrap` |
+| `ModeBwrapPreferred` falls back to direct exec | `TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect` |
+| `ModeBwrapPreferred` routes through bwrap when available | `TestExecContract_BwrapPreferred_HasBwrap` |
+| ResourceLimits set but `prlimit` missing | `TestExecContract_BwrapRequired_ResourceLimitsRequirePrlimit` |
+| `StartProcess.OnExit` fires once on fast exit | `TestExecContract_StartProcess_OnExitFastExit` |
+| `StartProcess.OnExit` carries terminating signal | `TestExecContract_StartProcess_OnExitSignalKilled` |
+| `StartProcess.OnExit` carries `OOMKilled=true` | `TestExecContract_StartProcess_OnExitOOMKilled` |
+| `StartProcess` reaps even when `OnExit` is nil | `TestExecContract_StartProcess_OnExitNilStillReaped` |
+| `StartProcess.Start` failure surfaces (no `OnExit` fire) | `TestExecContract_StartProcess_StartErrorSurfaces` |
+| `StartProcess` stdout flushes through `cfg.StdoutWriter` | `TestExecContract_StartProcess_StdoutPiped` |
+| `Exec` / `StartProcess` reject sandboxes with empty `MergedDir` | `TestExecContract_RejectsUnmountedSandbox` |
+| `Exec` / `StartProcess` panic on nil starter (loud wiring) | `TestExecContract_NilStarterPanics` |
+
+### Why this layering
+
+The pre-Phase 7 driver layer constructed `*os/exec.Cmd` and called
+`syscall.Mount` directly, so failure tests would have needed real
+subprocesses, real privileges, and real overlayfs kernel support — the
+test surface was "anyone running locally can run a quarter of them and
+CI can run almost none." The Phase 7 seams pushed every syscall and
+exec into `Mounter` and `Starter`. Phase 4 cashes that in: every
+failure-mode listed above is now deterministic, runs in milliseconds,
+and works on every host `go test` runs on.
+
+The pre-existing `internal/driver/contract_test.go` (real-mount
+parameterized lifecycle) stays — it's the load-bearing end-to-end
+check that the seams' production impls actually satisfy the driver
+contract on a live kernel. Phase 4 didn't replace it; it augmented it
+with the deterministic failure-mode coverage that real-mount tests
+can't provide on hosts without privileges.
+
+### DOD invariants
+
+- `internal/driver/contract_failure_test.go` and
+  `internal/driver/exec/contract_test.go` exist and pass.
+- Both files run against `FakeMounter` / `FakeStarter` from
+  `internal/testutil/mocks/{fsmountmocks,procmocks}` — no real
+  subprocesses, no privileged operations.
+- `go test ./internal/driver/... -timeout 60s` passes deterministically
+  on a developer host without `CAP_SYS_ADMIN` or a user namespace.
+- The original real-mount `TestDriverContract` continues to pass
+  whenever `IsAvailable` reports true (i.e. CI hosts with overlayfs).
+- Cross-scenario parity test in
+  `agent-manager/internal/adapters/sandbox/home_overlay_policy_test.go`
+  continues to pass..

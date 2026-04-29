@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
@@ -30,7 +31,7 @@ func newManualReviewTestService(t *testing.T, repo *mocks.FakeRepository, drv *m
 		DefaultProjectRoot: "/tmp/project",
 		MaxSandboxes:       100,
 		DefaultTTL:         24 * time.Hour,
-	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(mocks.NewFakeGitOps()))
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(mocks.NewFakeGitOps()))
 	return svc, clk
 }
 

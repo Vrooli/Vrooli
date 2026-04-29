@@ -5,18 +5,16 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/creack/pty/v2"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"workspace-sandbox/internal/clock"
 	driverexec "workspace-sandbox/internal/driver/exec"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -157,22 +155,23 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 	runInteractiveSession(conn, sb, cfg, startReq, h.Clock)
 }
 
-// runInteractiveSession runs a command with PTY and streams I/O over WebSocket.
+// runInteractiveSession runs a command with PTY and streams I/O over
+// WebSocket. PTY allocation routes through process.PTYStart so the
+// os/exec dependency stays confined to the canonical PTY seam.
 func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest, clk clock.Clock) {
 	// Build the command
 	executable, args := driverexec.BuildExecCommand(sb, cfg, req.Command, req.Args...)
 
-	cmd := exec.Command(executable, args...)
-	cmd.Dir = sb.MergedDir
-
-	// Set up environment
-	cmd.Env = os.Environ()
+	env := os.Environ()
 	for k, v := range cfg.Env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Start with PTY
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
+	handle, err := process.PTYStart(process.PTYOpts{
+		Path: executable,
+		Args: args,
+		Dir:  sb.MergedDir,
+		Env:  env,
 		Rows: uint16(req.Rows),
 		Cols: uint16(req.Cols),
 	})
@@ -180,6 +179,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 		sendErrorMessage(conn, fmt.Sprintf("failed to start process: %v", err))
 		return
 	}
+	ptmx := handle.PTY()
 	defer ptmx.Close()
 
 	// Use a context to manage shutdown
@@ -242,10 +242,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 				}
 			case MsgTypeResize:
 				if msg.Cols > 0 && msg.Rows > 0 {
-					if err := pty.Setsize(ptmx, &pty.Winsize{
-						Rows: uint16(msg.Rows),
-						Cols: uint16(msg.Cols),
-					}); err != nil {
+					if err := handle.SetPTYSize(uint16(msg.Rows), uint16(msg.Cols)); err != nil {
 						return
 					}
 				}
@@ -262,13 +259,9 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverex
 
 	// Wait for process to exit
 	exitCode := 0
-	if err := cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				exitCode = status.ExitStatus()
-			}
-		}
-	}
+	waitErr := handle.Wait()
+	exit := handle.ExitInfo(waitErr)
+	exitCode = exit.ExitCode
 
 	// Cancel context to stop goroutines
 	cancel()

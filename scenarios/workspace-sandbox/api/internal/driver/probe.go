@@ -1,17 +1,23 @@
+// Package driver — capability probes.
+//
+// Every external command invocation in this file goes through
+// process.Starter so the syscalls are confined to the canonical seam
+// (Round 4 Phase 7). Tests inject FakeStarter from procmocks.
 package driver
 
 import (
 	"context"
 	"fmt"
 	"os"
-	osexec "os/exec"
 	"strings"
+
+	"workspace-sandbox/internal/process"
 )
 
 // canCreateUserNamespace reports whether the host can create unprivileged
 // user namespaces. Used by capability probes; not the same thing as
 // "currently inside a user namespace" (see InUserNamespace).
-func canCreateUserNamespace() bool {
+func canCreateUserNamespace(starter process.Starter) bool {
 	data, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	if err == nil {
 		val := strings.TrimSpace(string(data))
@@ -19,25 +25,34 @@ func canCreateUserNamespace() bool {
 			return false
 		}
 	}
-	cmd := osexec.Command("unshare", "--user", "true")
-	return cmd.Run() == nil
+	res, runErr := process.Run(context.Background(), starter, process.StartOpts{
+		Path: "unshare",
+		Args: []string{"--user", "true"},
+	})
+	if runErr != nil {
+		return false
+	}
+	return res.Exit.ExitCode == 0
 }
 
-// commandExists checks if a command is available in PATH.
-func commandExists(name string) bool {
-	_, err := osexec.LookPath(name)
-	return err == nil
+// commandExists checks if a command is available in PATH. Routes through
+// Starter so tests can inject deterministic LookPath results.
+func commandExists(starter process.Starter, name string) bool {
+	return process.CommandExists(starter, name)
 }
 
-// getCommandVersion runs a command with a version flag and returns the first
-// non-empty line of output.
-func getCommandVersion(name string, versionFlag string) string {
-	cmd := osexec.Command(name, versionFlag)
-	out, err := cmd.Output()
-	if err != nil {
+// getCommandVersion runs a command with a version flag and returns the
+// first non-empty line of output. Returns "installed" on any error so
+// callers always get a non-empty version string.
+func getCommandVersion(starter process.Starter, name string, versionFlag string) string {
+	res, err := process.Run(context.Background(), starter, process.StartOpts{
+		Path: name,
+		Args: []string{versionFlag},
+	})
+	if err != nil || res.Exit.ExitCode != 0 {
 		return "installed"
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(string(res.Stdout)), "\n")
 	if len(lines) > 0 {
 		return strings.TrimSpace(lines[0])
 	}
@@ -56,12 +71,18 @@ func fuseAvailable() bool {
 // treat that case as "no": the overlayfs-root flavor must not advertise
 // as available when the API is wrapped by `unshare -U -m -r` for the
 // overlayfs-userns flavor.
-func checkCapSysAdmin() bool {
+func checkCapSysAdmin(starter process.Starter) bool {
 	if InUserNamespace() {
 		return false
 	}
-	cmd := osexec.Command("unshare", "--mount", "true")
-	return cmd.Run() == nil
+	res, err := process.Run(context.Background(), starter, process.StartOpts{
+		Path: "unshare",
+		Args: []string{"--mount", "true"},
+	})
+	if err != nil {
+		return false
+	}
+	return res.Exit.ExitCode == 0
 }
 
 // overlayfsModuleAvailable reports whether the overlayfs filesystem is
@@ -102,17 +123,22 @@ func InUserNamespace() bool {
 }
 
 // IsBwrapAvailable checks if bubblewrap is installed and usable.
-func IsBwrapAvailable(ctx context.Context) (bool, string, error) {
-	bwrapPath, err := osexec.LookPath("bwrap")
+func IsBwrapAvailable(ctx context.Context, starter process.Starter) (bool, string, error) {
+	bwrapPath, err := starter.LookPath("bwrap")
 	if err != nil {
 		return false, "", fmt.Errorf("bwrap not found in PATH: %w", err)
 	}
-	cmd := osexec.CommandContext(ctx, bwrapPath, "--version")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, bwrapPath, fmt.Errorf("bwrap version check failed: %w", err)
+	res, runErr := process.Run(ctx, starter, process.StartOpts{
+		Path: bwrapPath,
+		Args: []string{"--version"},
+	})
+	if runErr != nil {
+		return false, bwrapPath, fmt.Errorf("bwrap version check failed: %w", runErr)
 	}
-	return true, strings.TrimSpace(string(output)), nil
+	if res.Exit.ExitCode != 0 {
+		return false, bwrapPath, fmt.Errorf("bwrap version check returned exit %d", res.Exit.ExitCode)
+	}
+	return true, strings.TrimSpace(string(res.Stdout)), nil
 }
 
 // BwrapInfo describes the bwrap installation and namespace capabilities.
@@ -126,35 +152,23 @@ type BwrapInfo struct {
 }
 
 // GetBwrapInfo returns information about the bwrap installation.
-func GetBwrapInfo(ctx context.Context) (*BwrapInfo, error) {
-	available, version, err := IsBwrapAvailable(ctx)
+func GetBwrapInfo(ctx context.Context, starter process.Starter) (*BwrapInfo, error) {
+	available, version, err := IsBwrapAvailable(ctx, starter)
 	if !available {
 		return &BwrapInfo{
 			Available: false,
 			Error:     err.Error(),
 		}, nil
 	}
+	bwrapPath, _ := starter.LookPath("bwrap")
 	info := &BwrapInfo{
 		Available: true,
 		Version:   version,
-		Path:      mustExecLookPath("bwrap"),
+		Path:      bwrapPath,
 	}
 	if data, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone"); err == nil {
 		info.UserNamespaceEnabled = strings.TrimSpace(string(data)) == "1"
 	}
-	info.OverlayfsInUserNS = checkOverlayfsUserNS()
+	info.OverlayfsInUserNS = overlayfsModuleAvailable()
 	return info, nil
-}
-
-func mustExecLookPath(name string) string {
-	path, _ := osexec.LookPath(name)
-	return path
-}
-
-func checkOverlayfsUserNS() bool {
-	data, err := os.ReadFile("/proc/filesystems")
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(data), "overlay")
 }

@@ -135,7 +135,7 @@ func (h *Handlers) ProcessStats(w http.ResponseWriter, r *http.Request) {
 // BwrapInfo returns bubblewrap capabilities and version info.
 // [OT-P0-003] Bubblewrap Process Isolation
 func (h *Handlers) BwrapInfo(w http.ResponseWriter, r *http.Request) {
-	info, err := driver.GetBwrapInfo(r.Context())
+	info, err := driver.GetBwrapInfo(r.Context(), h.Starter)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return

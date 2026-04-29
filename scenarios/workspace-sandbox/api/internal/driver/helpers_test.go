@@ -448,13 +448,13 @@ func TestIsMountPoint_ReturnsFalseForRegularDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Regular directory is not a mount point
-	if isMountPoint(tmpDir) {
+	if testMounter().IsMountPoint(tmpDir) {
 		t.Error("expected false for regular directory")
 	}
 }
 
 func TestIsMountPoint_ReturnsFalseForNonexistent(t *testing.T) {
-	if isMountPoint("/nonexistent/path/that/does/not/exist") {
+	if testMounter().IsMountPoint("/nonexistent/path/that/does/not/exist") {
 		t.Error("expected false for non-existent path")
 	}
 }
@@ -466,7 +466,7 @@ func TestIsMountPoint_ReturnsFalseForNonexistent(t *testing.T) {
 func TestVerifyOverlayMountIntegrity_RejectsEmptyMergedDir(t *testing.T) {
 	s := &types.Sandbox{MergedDir: ""}
 
-	err := verifyOverlayMountIntegrity(s)
+	err := verifyOverlayMountIntegrity(testMounter(), s)
 	if err == nil {
 		t.Error("expected error for empty merged directory")
 	}
@@ -475,7 +475,7 @@ func TestVerifyOverlayMountIntegrity_RejectsEmptyMergedDir(t *testing.T) {
 func TestVerifyOverlayMountIntegrity_RejectsNonexistentDir(t *testing.T) {
 	s := &types.Sandbox{MergedDir: "/nonexistent/path"}
 
-	err := verifyOverlayMountIntegrity(s)
+	err := verifyOverlayMountIntegrity(testMounter(), s)
 	if err == nil {
 		t.Error("expected error for non-existent directory")
 	}
@@ -491,7 +491,7 @@ func TestVerifyOverlayMountIntegrity_RejectsNonDirectory(t *testing.T) {
 
 	s := &types.Sandbox{MergedDir: tmpFile}
 
-	err := verifyOverlayMountIntegrity(s)
+	err := verifyOverlayMountIntegrity(testMounter(), s)
 	if err == nil {
 		t.Error("expected error for non-directory path")
 	}
@@ -503,7 +503,7 @@ func TestVerifyOverlayMountIntegrity_RejectsUnmounted(t *testing.T) {
 
 	s := &types.Sandbox{MergedDir: tmpDir}
 
-	err := verifyOverlayMountIntegrity(s)
+	err := verifyOverlayMountIntegrity(testMounter(), s)
 	if err == nil {
 		t.Error("expected error for unmounted directory")
 	}
@@ -527,12 +527,7 @@ func TestCleanupSandboxDirAll_RemovesDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	unmountFn := func(ctx context.Context, target string) error {
-		t.Errorf("unmountFn should not be called when there are no live mounts; got target=%s", target)
-		return nil
-	}
-
-	err := cleanupSandboxDirAll(context.Background(), baseDir, t.TempDir(), sandboxID, unmountFn)
+	err := cleanupSandboxDirAll(context.Background(), testMounter(), baseDir, t.TempDir(), sandboxID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -546,12 +541,7 @@ func TestCleanupSandboxDirAll_MissingDirIsNoop(t *testing.T) {
 	baseDir := t.TempDir()
 	sandboxID := uuid.New()
 
-	unmountFn := func(ctx context.Context, target string) error {
-		t.Errorf("unmountFn should not be called for missing sandbox dir; got target=%s", target)
-		return nil
-	}
-
-	if err := cleanupSandboxDirAll(context.Background(), baseDir, t.TempDir(), sandboxID, unmountFn); err != nil {
+	if err := cleanupSandboxDirAll(context.Background(), testMounter(), baseDir, t.TempDir(), sandboxID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -1,9 +1,9 @@
 // Package driver. overlay.go: the unified overlay driver that backs all
 // three overlay-flavored DriverIDs (overlayfs-userns, overlayfs-root,
 // fuse-overlayfs). The bodies of every method are identical across
-// flavors — only the mount/unmount syscalls, the availability probe,
-// the version string, and the required isolation mode differ. Those
-// vary points are captured as closures + fields on a single struct.
+// flavors — only the mount backend, the availability probe, the
+// version string, and the required isolation mode differ. Those vary
+// points are captured as fields on a single struct.
 package driver
 
 import (
@@ -11,15 +11,15 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/fsmount"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -40,8 +40,9 @@ type availabilityFunc func(ctx context.Context) (bool, error)
 type OverlayDriver struct {
 	id           DriverID
 	config       Config
-	mount        mountFunc
-	unmount      unmountFunc
+	backend      fsmount.Backend
+	mounter      fsmount.Mounter
+	starter      process.Starter
 	availability availabilityFunc
 	version      func() string
 	isolation    IsolationMode
@@ -49,28 +50,28 @@ type OverlayDriver struct {
 }
 
 // NewOverlayfsUserNSDriver builds the kernel-overlayfs flavor that runs
-// inside an unprivileged user namespace (Linux 5.11+). clk is required.
-func NewOverlayfsUserNSDriver(cfg Config, clk clock.Clock) *OverlayDriver {
-	if clk == nil {
-		panic("driver.NewOverlayfsUserNSDriver: clock is required")
-	}
+// inside an unprivileged user namespace (Linux 5.11+). All Deps fields
+// are required; nil panics with a structured message.
+func NewOverlayfsUserNSDriver(cfg Config, deps Deps) *OverlayDriver {
+	deps.Validate("driver.NewOverlayfsUserNSDriver")
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
 	d := &OverlayDriver{
 		id:        DriverOverlayfsUserNS,
 		config:    cfg,
+		backend:   fsmount.BackendKernelOverlay,
+		mounter:   deps.Mounter,
+		starter:   deps.Starter,
 		isolation: ModeBwrapRequired,
 		version:   func() string { return "1.0" },
-		clock:     clk,
+		clock:     deps.Clock,
 	}
-	d.mount = kernelOverlayMount
-	d.unmount = kernelOverlayUnmount
 	d.availability = func(ctx context.Context) (bool, error) {
 		if runtime.GOOS != "linux" {
 			return false, fmt.Errorf("overlayfs driver requires Linux (current OS: %s)", runtime.GOOS)
 		}
-		if !overlayKernelModuleLoaded(ctx) {
+		if !overlayKernelModuleLoaded(ctx, deps.Starter) {
 			return false, fmt.Errorf("overlayfs module not available")
 		}
 		if !InUserNamespace() {
@@ -83,34 +84,32 @@ func NewOverlayfsUserNSDriver(cfg Config, clk clock.Clock) *OverlayDriver {
 
 // NewOverlayfsRootDriver builds the kernel-overlayfs flavor that runs as
 // root or with CAP_SYS_ADMIN on the host (NOT inside a user namespace).
-// clk is required.
-func NewOverlayfsRootDriver(cfg Config, clk clock.Clock) *OverlayDriver {
-	if clk == nil {
-		panic("driver.NewOverlayfsRootDriver: clock is required")
-	}
+func NewOverlayfsRootDriver(cfg Config, deps Deps) *OverlayDriver {
+	deps.Validate("driver.NewOverlayfsRootDriver")
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
 	d := &OverlayDriver{
 		id:        DriverOverlayfsRoot,
 		config:    cfg,
+		backend:   fsmount.BackendKernelOverlay,
+		mounter:   deps.Mounter,
+		starter:   deps.Starter,
 		isolation: ModeBwrapRequired,
 		version:   func() string { return "1.0" },
-		clock:     clk,
+		clock:     deps.Clock,
 	}
-	d.mount = kernelOverlayMount
-	d.unmount = kernelOverlayUnmount
 	d.availability = func(ctx context.Context) (bool, error) {
 		if runtime.GOOS != "linux" {
 			return false, fmt.Errorf("overlayfs driver requires Linux (current OS: %s)", runtime.GOOS)
 		}
-		if !overlayKernelModuleLoaded(ctx) {
+		if !overlayKernelModuleLoaded(ctx, deps.Starter) {
 			return false, fmt.Errorf("overlayfs module not available")
 		}
 		if InUserNamespace() {
 			return false, fmt.Errorf("overlayfs-root requires running on the host (not inside a user namespace)")
 		}
-		if os.Geteuid() == 0 || checkCapSysAdmin() {
+		if os.Geteuid() == 0 || checkCapSysAdmin(deps.Starter) {
 			return true, nil
 		}
 		return false, fmt.Errorf("overlayfs-root requires root or CAP_SYS_ADMIN")
@@ -120,29 +119,28 @@ func NewOverlayfsRootDriver(cfg Config, clk clock.Clock) *OverlayDriver {
 
 // NewFuseOverlayfsDriver builds the userspace fuse-overlayfs flavor.
 // Available without a user namespace as long as the fuse-overlayfs
-// binary, fusermount, and /dev/fuse exist. clk is required.
-func NewFuseOverlayfsDriver(cfg Config, clk clock.Clock) *OverlayDriver {
-	if clk == nil {
-		panic("driver.NewFuseOverlayfsDriver: clock is required")
-	}
+// binary, fusermount, and /dev/fuse exist.
+func NewFuseOverlayfsDriver(cfg Config, deps Deps) *OverlayDriver {
+	deps.Validate("driver.NewFuseOverlayfsDriver")
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
 	d := &OverlayDriver{
 		id:        DriverFuseOverlayfs,
 		config:    cfg,
+		backend:   fsmount.BackendFuseOverlayfs,
+		mounter:   deps.Mounter,
+		starter:   deps.Starter,
 		isolation: ModeBwrapPreferred,
-		version:   fuseOverlayfsVersion,
-		clock:     clk,
+		version:   func() string { return fuseOverlayfsVersion(deps.Starter) },
+		clock:     deps.Clock,
 	}
-	d.mount = fuseOverlayMount
-	d.unmount = fuseOverlayUnmount
 	d.availability = func(ctx context.Context) (bool, error) {
-		if _, err := exec.LookPath("fuse-overlayfs"); err != nil {
+		if _, err := deps.Starter.LookPath("fuse-overlayfs"); err != nil {
 			return false, fmt.Errorf("fuse-overlayfs not found in PATH: %w", err)
 		}
-		if _, err := exec.LookPath("fusermount"); err != nil {
-			if _, err := exec.LookPath("fusermount3"); err != nil {
+		if _, err := deps.Starter.LookPath("fusermount"); err != nil {
+			if _, err := deps.Starter.LookPath("fusermount3"); err != nil {
 				return false, fmt.Errorf("fusermount/fusermount3 not found: %w", err)
 			}
 		}
@@ -158,11 +156,11 @@ func NewFuseOverlayfsDriver(cfg Config, clk clock.Clock) *OverlayDriver {
 // the current process: UserNS variant when wrapped in a user namespace,
 // Root variant otherwise. Convenience wrapper for tests and the
 // /driver/info diagnostic; production selection goes through SelectDriver.
-func NewOverlayfsDriver(cfg Config, clk clock.Clock) *OverlayDriver {
+func NewOverlayfsDriver(cfg Config, deps Deps) *OverlayDriver {
 	if InUserNamespace() {
-		return NewOverlayfsUserNSDriver(cfg, clk)
+		return NewOverlayfsUserNSDriver(cfg, deps)
 	}
-	return NewOverlayfsRootDriver(cfg, clk)
+	return NewOverlayfsRootDriver(cfg, deps)
 }
 
 // --- Driver interface ---
@@ -173,11 +171,7 @@ func (d *OverlayDriver) RequiresBwrap() IsolationMode { return d.isolation }
 func (d *OverlayDriver) BaseDir() string              { return d.config.BaseDir }
 func (d *OverlayDriver) HomeOverlayBaseDir() string   { return d.config.HomeOverlayBaseDir }
 
-// Capabilities reports the overlay driver's static contract. All overlay
-// flavors support a per-sandbox $HOME overlay and copy-on-write. The
-// isolation mode mirrors RequiresBwrap.
-//
-// DOC: home-overlay seam — driver-side capability declaration.
+// Capabilities reports the overlay driver's static contract.
 func (d *OverlayDriver) Capabilities() DriverCapabilities {
 	return DriverCapabilities{
 		HomeOverlay:        true,
@@ -192,7 +186,7 @@ func (d *OverlayDriver) IsAvailable(ctx context.Context) (bool, error) {
 
 func (d *OverlayDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error) {
 	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
-	paths, err := mountProjectOverlay(ctx, sandboxDir, s.ScopePath, d.mount)
+	paths, err := mountProjectOverlay(ctx, d.mounter, d.backend, sandboxDir, s.ScopePath)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +195,7 @@ func (d *OverlayDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPath
 		s.HomeOverlayState = types.HomeOverlayNotRequested
 		return paths, nil
 	}
-	lower, upper, work, merged, err := mountHomeOverlay(ctx, d.config.HomeOverlayBaseDir, s.ID, hostHome, d.mount, d.unmount)
+	lower, upper, work, merged, err := mountHomeOverlay(ctx, d.mounter, d.backend, d.config.HomeOverlayBaseDir, s.ID, hostHome)
 	if err != nil {
 		// Boundary-of-responsibility: the driver mounts what it can; the
 		// caller (handler) decides whether absence is fatal based on the
@@ -228,18 +222,18 @@ func (d *OverlayDriver) Unmount(ctx context.Context, s *types.Sandbox) error {
 	if s.MergedDir == "" {
 		return nil
 	}
-	unmountHomeOverlay(ctx, d.config.HomeOverlayBaseDir, s.ID, d.unmount)
+	unmountHomeOverlay(ctx, d.mounter, d.config.HomeOverlayBaseDir, s.ID)
 	if err := removeHomeOverlayDir(d.config.HomeOverlayBaseDir, s.ID); err != nil {
 		fmt.Fprintf(os.Stderr, "home overlay dir cleanup: %v\n", err)
 	}
-	if !isMountPoint(s.MergedDir) {
+	if !d.mounter.IsMountPoint(s.MergedDir) {
 		return nil
 	}
-	return d.unmount(ctx, s.MergedDir)
+	return d.mounter.Unmount(ctx, s.MergedDir, false)
 }
 
 func (d *OverlayDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
-	return cleanupSandboxDirAll(ctx, d.config.BaseDir, d.config.HomeOverlayBaseDir, s.ID, d.unmount)
+	return cleanupSandboxDirAll(ctx, d.mounter, d.config.BaseDir, d.config.HomeOverlayBaseDir, s.ID)
 }
 
 func (d *OverlayDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
@@ -249,7 +243,7 @@ func (d *OverlayDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error
 }
 
 func (d *OverlayDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
-	return cleanupSandboxDirAll(ctx, d.config.BaseDir, d.config.HomeOverlayBaseDir, id, d.unmount)
+	return cleanupSandboxDirAll(ctx, d.mounter, d.config.BaseDir, d.config.HomeOverlayBaseDir, id)
 }
 
 func (d *OverlayDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
@@ -264,78 +258,24 @@ func (d *OverlayDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, f
 }
 
 func (d *OverlayDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
-	return verifyOverlayMountIntegrity(s)
+	return verifyOverlayMountIntegrity(d.mounter, s)
 }
 
-// --- Per-flavor mount/unmount syscalls ---
-
-// kernelOverlayMount uses the kernel mount syscall, with a `mount`-command
-// fallback that surfaces a clearer error message on failure.
-func kernelOverlayMount(ctx context.Context, target, opts string) error {
-	if err := syscall.Mount("overlay", target, "overlay", 0, opts); err == nil {
-		return nil
-	}
-	out, err := exec.CommandContext(ctx, "mount", "-t", "overlay", "overlay", "-o", opts, target).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("mount: %v (output: %s)", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-// kernelOverlayUnmount lazy-unmounts target. Returns nil when target is
-// not a mount point.
-func kernelOverlayUnmount(ctx context.Context, target string) error {
-	if err := syscall.Unmount(target, syscall.MNT_DETACH); err == nil {
-		return nil
-	}
-	out, err := exec.CommandContext(ctx, "umount", "-l", target).CombinedOutput()
-	if err != nil && isMountPoint(target) {
-		return fmt.Errorf("umount: %v (output: %s)", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-// fuseOverlayMount invokes the fuse-overlayfs binary.
-func fuseOverlayMount(ctx context.Context, target, opts string) error {
-	out, err := exec.CommandContext(ctx, "fuse-overlayfs", "-o", opts, target).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("fuse-overlayfs: %v (output: %s)", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-// fuseOverlayUnmount tries fusermount -u, falls back to lazy -u -z.
-// Idempotent: returns nil when target is not a mount point.
-func fuseOverlayUnmount(ctx context.Context, target string) error {
-	bin := fusermountBin()
-	if _, err := exec.CommandContext(ctx, bin, "-u", target).CombinedOutput(); err == nil {
-		return nil
-	}
-	out, err := exec.CommandContext(ctx, bin, "-u", "-z", target).CombinedOutput()
-	if err != nil && isMountPoint(target) {
-		return fmt.Errorf("fusermount: %v (output: %s)", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-// fusermountBin returns "fusermount" when available, "fusermount3"
-// otherwise. Resolved per call so a host that gains the binary doesn't
-// need a process restart.
-func fusermountBin() string {
-	if _, err := exec.LookPath("fusermount"); err == nil {
-		return "fusermount"
-	}
-	return "fusermount3"
-}
+// =============================================================================
+// Helpers that consume the Starter for binary version/capability probes
+// =============================================================================
 
 // fuseOverlayfsVersion parses `fuse-overlayfs --version`. Returns "1.0"
 // when parsing fails so callers always get a non-empty string.
-func fuseOverlayfsVersion() string {
-	out, err := exec.Command("fuse-overlayfs", "--version").Output()
-	if err != nil {
+func fuseOverlayfsVersion(s process.Starter) string {
+	res, err := process.Run(context.Background(), s, process.StartOpts{
+		Path: "fuse-overlayfs",
+		Args: []string{"--version"},
+	})
+	if err != nil || res.Exit.ExitCode != 0 {
 		return "1.0"
 	}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for _, line := range strings.Split(strings.TrimSpace(string(res.Stdout)), "\n") {
 		if strings.HasPrefix(line, "fuse-overlayfs") {
 			if parts := strings.SplitN(line, "version", 2); len(parts) == 2 {
 				return strings.TrimSpace(parts[1])
@@ -348,12 +288,16 @@ func fuseOverlayfsVersion() string {
 // overlayKernelModuleLoaded checks /proc/filesystems for the overlay
 // entry, falling back to `modprobe -n overlay` for hosts that load it
 // on demand. Shared between userns and root flavors.
-func overlayKernelModuleLoaded(ctx context.Context) bool {
+func overlayKernelModuleLoaded(ctx context.Context, s process.Starter) bool {
 	if data, err := os.ReadFile("/proc/filesystems"); err == nil && strings.Contains(string(data), "overlay") {
 		return true
 	}
-	if err := exec.CommandContext(ctx, "modprobe", "-n", "overlay").Run(); err == nil {
-		return true
+	res, err := process.Run(ctx, s, process.StartOpts{
+		Path: "modprobe",
+		Args: []string{"-n", "overlay"},
+	})
+	if err != nil {
+		return false
 	}
-	return false
+	return res.Exit.ExitCode == 0
 }

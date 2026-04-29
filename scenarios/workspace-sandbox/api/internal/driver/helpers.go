@@ -4,15 +4,14 @@
 // These functions are used by every OverlayDriver flavor (kernel and FUSE)
 // to avoid code duplication while maintaining proper separation of concerns.
 //
-// The pattern follows bwrap.go - package-level functions that drivers call
-// rather than embedded structs, which is more idiomatic Go.
+// All mount/unmount operations route through fsmount.Mounter so syscalls
+// stay confined to the canonical seam (Round 4 Phase 7).
 package driver
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -20,16 +19,9 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/types"
 )
-
-// mountFunc performs the actual overlay mount given the option string and
-// target path. Driver-specific (kernel overlayfs vs fuse-overlayfs).
-type mountFunc func(ctx context.Context, target, opts string) error
-
-// unmountFunc tears down a mount at target. Must be idempotent: returning
-// nil for an already-unmounted target.
-type unmountFunc func(ctx context.Context, target string) error
 
 // =============================================================================
 // Overlayfs Mount Helpers (shared template for the two overlayfs drivers)
@@ -46,12 +38,11 @@ type unmountFunc func(ctx context.Context, target string) error
 //	  work/    (overlayfs scratch)
 //	  merged/  (the mount point)
 //
-// `mountFn` is the only driver-specific bit (kernel overlayfs syscall vs
-// fuse-overlayfs binary).
+// All syscalls go through `m`. `backend` selects kernel vs userspace.
 //
 // DOC: home-overlay seam (project overlay is its sibling). See
 // docs/internal/SEAMS.md.
-func mountProjectOverlay(ctx context.Context, sandboxDir, scopePath string, mountFn mountFunc) (*MountPaths, error) {
+func mountProjectOverlay(ctx context.Context, m fsmount.Mounter, backend fsmount.Backend, sandboxDir, scopePath string) (*MountPaths, error) {
 	paths := &MountPaths{
 		LowerDir:  scopePath,
 		UpperDir:  filepath.Join(sandboxDir, "upper"),
@@ -64,14 +55,17 @@ func mountProjectOverlay(ctx context.Context, sandboxDir, scopePath string, moun
 			return nil, fmt.Errorf("create overlay dir %s: %w", dir, err)
 		}
 	}
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s",
-		paths.LowerDir, paths.UpperDir, paths.WorkDir)
-	if err := mountFn(ctx, paths.MergedDir, opts); err != nil {
+	if err := m.Mount(ctx, fsmount.MountOpts{
+		Backend: backend,
+		Lower:   paths.LowerDir,
+		Upper:   paths.UpperDir,
+		Work:    paths.WorkDir,
+		Merged:  paths.MergedDir,
+	}); err != nil {
 		os.RemoveAll(sandboxDir)
 		return nil, fmt.Errorf("project overlay mount: %w", err)
 	}
-	if err := verifyMounted(paths.MergedDir); err != nil {
-		_ = mountFn // unused fallback; we cannot unmount here without unmountFn
+	if err := verifyMounted(m, paths.MergedDir); err != nil {
 		os.RemoveAll(sandboxDir)
 		return nil, fmt.Errorf("project overlay verify: %w", err)
 	}
@@ -107,7 +101,7 @@ func homeOverlayDir(homeOverlayBaseDir string, sandboxID uuid.UUID) string {
 //	  home-merged/   (the mount point bound at /home/<user> by bwrap)
 //
 // DOC: home-overlay seam. See docs/internal/SEAMS.md.
-func mountHomeOverlay(ctx context.Context, homeOverlayBaseDir string, sandboxID uuid.UUID, hostHome string, mountFn mountFunc, unmountFn unmountFunc) (lower, upper, work, merged string, err error) {
+func mountHomeOverlay(ctx context.Context, m fsmount.Mounter, backend fsmount.Backend, homeOverlayBaseDir string, sandboxID uuid.UUID, hostHome string) (lower, upper, work, merged string, err error) {
 	if homeOverlayBaseDir == "" {
 		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("HomeOverlayBaseDir is empty; config.ResolveHomeOverlayBaseDir was not called"))
 	}
@@ -121,32 +115,35 @@ func mountHomeOverlay(ctx context.Context, homeOverlayBaseDir string, sandboxID 
 			return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("create home overlay dir %s: %w", dir, err))
 		}
 	}
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", hostHome, upper, work)
-	if err := mountFn(ctx, merged, opts); err != nil {
+	if mountErr := m.Mount(ctx, fsmount.MountOpts{
+		Backend: backend,
+		Lower:   hostHome,
+		Upper:   upper,
+		Work:    work,
+		Merged:  merged,
+	}); mountErr != nil {
 		os.RemoveAll(parent)
-		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("home overlay mount: %w", err))
+		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("home overlay mount: %w", mountErr))
 	}
-	if err := verifyMounted(merged); err != nil {
-		// Roll back the mount we just made: a successful mount-cmd that
+	if verifyErr := verifyMounted(m, merged); verifyErr != nil {
+		// Roll back the mount we just made: a successful mount that
 		// doesn't actually appear as a mount point means a stale daemon
 		// or kernel state slipped through; tear it down so we don't
 		// leave a half-mount behind.
-		if unmountFn != nil {
-			_ = unmountFn(ctx, merged)
-		}
+		_ = m.Unmount(ctx, merged, false)
 		os.RemoveAll(parent)
-		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("home overlay verify: %w", err))
+		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("home overlay verify: %w", verifyErr))
 	}
 	return hostHome, upper, work, merged, nil
 }
 
-// verifyMounted is the post-mount sanity check. After mountFn returns
+// verifyMounted is the post-mount sanity check. After Mount returns
 // nil, we still need to confirm the mount actually exists in the kernel
 // (defensive against fuse-overlayfs daemon crashes that fork-and-die),
 // and that the resulting merged dir is readable + writable.
-func verifyMounted(merged string) error {
-	if !isMountPoint(merged) {
-		return fmt.Errorf("post-mount verify: %s is not a mount point (mountFn returned nil but no kernel mount appeared)", merged)
+func verifyMounted(m fsmount.Mounter, merged string) error {
+	if !m.IsMountPoint(merged) {
+		return fmt.Errorf("post-mount verify: %s is not a mount point (mount returned nil but no kernel mount appeared)", merged)
 	}
 	info, err := os.Stat(merged)
 	if err != nil {
@@ -175,16 +172,16 @@ func verifyMounted(merged string) error {
 // callers can proceed with the project unmount and rm -rf.
 //
 // DOC: home-overlay storage seam. See docs/internal/SEAMS.md.
-func unmountHomeOverlay(ctx context.Context, homeOverlayBaseDir string, sandboxID uuid.UUID, unmountFn unmountFunc) {
+func unmountHomeOverlay(ctx context.Context, m fsmount.Mounter, homeOverlayBaseDir string, sandboxID uuid.UUID) {
 	if homeOverlayBaseDir == "" {
 		return
 	}
 	parent := homeOverlayDir(homeOverlayBaseDir, sandboxID)
 	homeMerged := filepath.Join(parent, "home-merged")
-	if !isMountPoint(homeMerged) {
+	if !m.IsMountPoint(homeMerged) {
 		return
 	}
-	if err := unmountFn(ctx, homeMerged); err != nil {
+	if err := m.Unmount(ctx, homeMerged, false); err != nil {
 		fmt.Fprintf(os.Stderr, "home overlay unmount failed: %v\n", err)
 	}
 }
@@ -378,7 +375,6 @@ func detectOverlayChangeType(s *types.Sandbox, relPath string, upperInfo os.File
 		return types.ChangeTypeModified
 	}
 
-	// TODO: Could add content hash comparison for more accuracy
 	return types.ChangeTypeModified
 }
 
@@ -390,7 +386,6 @@ func isWhiteout(path string) bool {
 		return false
 	}
 
-	// Overlayfs whiteouts are character devices with major 0, minor 0
 	if info.Mode()&os.ModeCharDevice != 0 {
 		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 			return stat.Rdev == 0
@@ -403,13 +398,10 @@ func isWhiteout(path string) bool {
 // =============================================================================
 // Mount State Helpers
 // =============================================================================
-
-// isMountPoint checks if a path is currently a mount point using the
-// mountpoint command. Returns false if the command fails or path is not mounted.
-func isMountPoint(path string) bool {
-	cmd := exec.Command("mountpoint", "-q", path)
-	return cmd.Run() == nil
-}
+//
+// IsMountPoint(path) used to live here as a package-level function calling
+// `mountpoint -q`. It moved into fsmount.Mounter.IsMountPoint as part of
+// Round 4 Phase 7 so the seam owns every mount-state observation.
 
 // verifyOverlayMountIntegrity performs comprehensive health checks on an overlay mount.
 // Returns nil if healthy, error describing the problem otherwise.
@@ -419,7 +411,7 @@ func isMountPoint(path string) bool {
 //   - Mount is actually mounted (not just a directory)
 //   - Mount is accessible (can list contents)
 //   - Upper dir exists and is writable
-func verifyOverlayMountIntegrity(s *types.Sandbox) error {
+func verifyOverlayMountIntegrity(m fsmount.Mounter, s *types.Sandbox) error {
 	// Check merged dir exists
 	if s.MergedDir == "" {
 		return fmt.Errorf("merged directory path is empty")
@@ -437,7 +429,7 @@ func verifyOverlayMountIntegrity(s *types.Sandbox) error {
 	}
 
 	// Verify it's actually mounted
-	if !isMountPoint(s.MergedDir) {
+	if !m.IsMountPoint(s.MergedDir) {
 		return fmt.Errorf("merged directory is not mounted (may be stale): %s", s.MergedDir)
 	}
 
@@ -515,12 +507,10 @@ func removeFromUpperSecure(upperDir, filePath string) error {
 	}
 
 	// Also remove empty parent directories up to upperDir
-	// This prevents leftover empty directories after file removal
 	dir := filepath.Dir(fullPath)
 	for dir != absUpperDir && dir != "." && dir != "/" {
-		// Try to remove - will fail if not empty, which is fine
 		if rmErr := os.Remove(dir); rmErr != nil {
-			break // Directory not empty or error, stop
+			break
 		}
 		dir = filepath.Dir(dir)
 	}
@@ -542,11 +532,11 @@ func removeFromUpperSecure(upperDir, filePath string) error {
 // (filesystem-only path) on every mount-backed driver. The home overlay
 // dir lives outside baseDir (under homeOverlayBaseDir) since Phase B —
 // the upper layer cannot live inside $HOME without breaking overlayfs.
-func cleanupSandboxDirAll(ctx context.Context, baseDir, homeOverlayBaseDir string, sandboxID uuid.UUID, unmountFn unmountFunc) error {
+func cleanupSandboxDirAll(ctx context.Context, m fsmount.Mounter, baseDir, homeOverlayBaseDir string, sandboxID uuid.UUID) error {
 	// Always attempt to release the home overlay first; even if the
 	// project sandbox dir was already removed, a stale daemon may still
 	// hold the home merge.
-	unmountHomeOverlay(ctx, homeOverlayBaseDir, sandboxID, unmountFn)
+	unmountHomeOverlay(ctx, m, homeOverlayBaseDir, sandboxID)
 	if err := removeHomeOverlayDir(homeOverlayBaseDir, sandboxID); err != nil {
 		fmt.Fprintf(os.Stderr, "home overlay dir cleanup: %v\n", err)
 	}
@@ -560,8 +550,8 @@ func cleanupSandboxDirAll(ctx context.Context, baseDir, homeOverlayBaseDir strin
 	}
 
 	projectMerged := filepath.Join(sandboxDir, "merged")
-	if isMountPoint(projectMerged) {
-		if err := unmountFn(ctx, projectMerged); err != nil {
+	if m.IsMountPoint(projectMerged) {
+		if err := m.Unmount(ctx, projectMerged, false); err != nil {
 			fmt.Fprintf(os.Stderr, "project overlay unmount failed: %v\n", err)
 		}
 	}
@@ -628,7 +618,7 @@ func listSandboxDirsInBase(baseDir string) ([]uuid.UUID, error) {
 		}
 		id, err := uuid.Parse(e.Name())
 		if err != nil {
-			continue // not a sandbox dir; skip silently
+			continue
 		}
 		out = append(out, id)
 	}

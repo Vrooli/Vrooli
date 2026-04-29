@@ -11,6 +11,7 @@ import (
 
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
@@ -64,7 +65,7 @@ func TestReapStaleDaemons_FindsOrphan_SkipsLive_HonorsGrace(t *testing.T) {
 	// Live sandbox lives in the repo with StatusActive; orphanID and
 	// youngID are absent, which the reaper treats as orphans.
 	repo.SetSandbox(&types.Sandbox{ID: liveID, Status: types.StatusActive})
-	svc := sandbox.NewService(repo, nil, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
+	svc := sandbox.NewService(repo, nil, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
 
 	cfg := sandbox.DaemonReaperConfig{GracePeriod: 30 * time.Second, TermWait: 200 * time.Millisecond}
 	report := svc.ReconcileStaleDaemonsWithConfig(context.Background(), cfg, fixture)

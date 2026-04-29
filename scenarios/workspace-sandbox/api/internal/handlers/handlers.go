@@ -24,6 +24,7 @@ import (
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/metrics"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/runtime"
@@ -51,6 +52,8 @@ type Handlers struct {
 	InUserNamespace bool                // Whether API is running in a user namespace
 	Reconcilers     *sandbox.Runner     // Periodic reconciler dispatcher (Phase 2 Round 3)
 	Clock           clock.Clock         // Wall-clock seam (Round 4 Phase 2). Required.
+	Mounter         fsmount.Mounter     // Mount/unmount seam (Round 4 Phase 7). Required.
+	Starter         process.Starter     // Process exec seam (Round 4 Phase 7). Required.
 
 	// profileSnapshot holds the immutable {ID → profile} snapshot used
 	// by every Resolve in the request path. Loaded once at startup

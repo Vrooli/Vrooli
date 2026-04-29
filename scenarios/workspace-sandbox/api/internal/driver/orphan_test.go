@@ -104,7 +104,7 @@ func TestListSandboxDirsInBase(t *testing.T) {
 func TestCopyDriver_OrphanReconciliation(t *testing.T) {
 	base := t.TempDir()
 	cfg := Config{BaseDir: base}
-	d := NewCopyDriver(cfg, testClock())
+	d := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	a := uuid.New()
@@ -166,7 +166,7 @@ func TestCopyDriver_OrphanReconciliation(t *testing.T) {
 func TestFuseOverlayfsDriver_OrphanReconciliation_Smoke(t *testing.T) {
 	base := t.TempDir()
 	cfg := Config{BaseDir: base}
-	d := NewFuseOverlayfsDriver(cfg, testClock())
+	d := NewFuseOverlayfsDriver(cfg, testDeps())
 	id := uuid.New()
 	if err := os.MkdirAll(filepath.Join(base, id.String()), 0o755); err != nil {
 		t.Fatal(err)
@@ -187,7 +187,7 @@ func TestFuseOverlayfsDriver_OrphanReconciliation_Smoke(t *testing.T) {
 func TestOverlayfsDriver_OrphanReconciliation_Smoke(t *testing.T) {
 	base := t.TempDir()
 	cfg := Config{BaseDir: base}
-	d := NewOverlayfsDriver(cfg, testClock())
+	d := NewOverlayfsDriver(cfg, testDeps())
 	id := uuid.New()
 	if err := os.MkdirAll(filepath.Join(base, id.String()), 0o755); err != nil {
 		t.Fatal(err)

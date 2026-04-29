@@ -32,6 +32,7 @@ type ProcessExecutorAdapter struct {
 	processLogger  *process.Logger
 	profileStore   config.ProfileStore
 	execConfig     config.ExecutionConfig
+	starter        process.Starter
 }
 
 // ProcessExecutorConfig holds the configuration for ProcessExecutorAdapter.
@@ -42,10 +43,16 @@ type ProcessExecutorConfig struct {
 	ProcessLogger  *process.Logger
 	ProfileStore   config.ProfileStore
 	ExecConfig     config.ExecutionConfig
+	Starter        process.Starter
 }
 
 // NewProcessExecutorAdapter creates a new ProcessExecutorAdapter.
+// cfg.Starter is required (Round 4 Phase 7) — every external command
+// invocation routes through the canonical exec seam.
 func NewProcessExecutorAdapter(cfg ProcessExecutorConfig) *ProcessExecutorAdapter {
+	if cfg.Starter == nil {
+		panic("toolexecution.NewProcessExecutorAdapter: cfg.Starter is required")
+	}
 	return &ProcessExecutorAdapter{
 		sandboxService: cfg.SandboxService,
 		driver:         cfg.Driver,
@@ -53,6 +60,7 @@ func NewProcessExecutorAdapter(cfg ProcessExecutorConfig) *ProcessExecutorAdapte
 		processLogger:  cfg.ProcessLogger,
 		profileStore:   cfg.ProfileStore,
 		execConfig:     cfg.ExecConfig,
+		starter:        cfg.Starter,
 	}
 }
 
@@ -93,7 +101,7 @@ func (a *ProcessExecutorAdapter) ExecSync(ctx context.Context, sandboxID uuid.UU
 
 	// Execute the command via the canonical exec path. The driver
 	// declares its isolation mode via RequiresBwrap.
-	result, err := driverexec.Exec(ctx, sb, a.driver.RequiresBwrap(), cfg, req.Command, req.Args...)
+	result, err := driverexec.Exec(ctx, a.starter, sb, a.driver.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +190,7 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 	}
 
 	// Start the background process via the canonical exec path.
-	pid, err := driverexec.StartProcess(ctx, sb, a.driver.RequiresBwrap(), cfg, req.Command, req.Args...)
+	pid, err := driverexec.StartProcess(ctx, a.starter, sb, a.driver.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			_ = a.processLogger.AbortPair(pendingPair)

@@ -14,7 +14,7 @@ import (
 
 // TestCopyDriverID verifies CopyDriver returns correct ID
 func TestCopyDriverID(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig(), testClock())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 
 	if drv.ID() != DriverCopy {
 		t.Errorf("ID() = %v, want %v", drv.ID(), DriverCopy)
@@ -23,7 +23,7 @@ func TestCopyDriverID(t *testing.T) {
 
 // TestCopyDriverVersion verifies CopyDriver has a version string
 func TestCopyDriverVersion(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig(), testClock())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 
 	version := drv.Version()
 	if version == "" {
@@ -34,7 +34,7 @@ func TestCopyDriverVersion(t *testing.T) {
 // TestCopyDriverIsAvailable verifies CopyDriver is always available
 // [REQ:P2-004-002] CopyDriver.IsAvailable returns true on any platform
 func TestCopyDriverIsAvailable(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig(), testClock())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	available, err := drv.IsAvailable(ctx)
@@ -63,7 +63,7 @@ func TestCopyDriverMount(t *testing.T) {
 	cfg := Config{
 		BaseDir: filepath.Join(tmpDir, "sandboxes"),
 	}
-	drv := NewCopyDriver(cfg, testClock())
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -130,7 +130,7 @@ func TestCopyDriverGetChangedFiles(t *testing.T) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg, testClock())
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -240,7 +240,7 @@ func TestCopyDriverGetChangedFilesSkipsOpaqueAndWhiteouts(t *testing.T) {
 		t.Fatalf("failed to create added file: %v", err)
 	}
 
-	drv := NewCopyDriver(DefaultConfig(), testClock())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	sandbox := &types.Sandbox{
 		ID:       uuid.New(),
 		LowerDir: originalDir,
@@ -282,7 +282,7 @@ func TestCopyDriverMergedDirExists(t *testing.T) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg, testClock())
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -311,7 +311,7 @@ func TestCopyDriverMergedDirExists(t *testing.T) {
 // has no real mount and intentionally does NOT implement MountVerifier.
 // VerifyIfSupported should short-circuit to nil for it.
 func TestCopyDriverIsNotMountVerifier(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig(), testClock())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	if _, ok := interface{}(drv).(MountVerifier); ok {
 		t.Error("CopyDriver should NOT implement MountVerifier")
 	}
@@ -331,7 +331,7 @@ func TestCopyDriverRemoveFromUpper(t *testing.T) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg, testClock())
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -388,7 +388,7 @@ func TestSelectDriverReturnsDriver(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.BaseDir = t.TempDir()
 
-	drv, report, err := SelectDriver(ctx, cfg, testClock())
+	drv, report, err := SelectDriver(ctx, cfg, testDeps())
 	if err != nil {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestSelectDriverFallsBackToCopy(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.BaseDir = t.TempDir()
 
-	drv, _, err := SelectDriver(ctx, cfg, testClock())
+	drv, _, err := SelectDriver(ctx, cfg, testDeps())
 	if err != nil {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}
@@ -448,7 +448,7 @@ func TestDriverInfoReturnsAllDrivers(t *testing.T) {
 	ctx := context.Background()
 	cfg := DefaultConfig()
 
-	info := DriverInfo(ctx, cfg, testClock())
+	info := DriverInfo(ctx, cfg, testDeps())
 
 	if len(info) < 2 {
 		t.Errorf("DriverInfo() returned %d drivers, want at least 2", len(info))
@@ -494,8 +494,8 @@ func TestDriverInterfaceMethods(t *testing.T) {
 
 	// Test both driver implementations
 	drivers := []Driver{
-		NewOverlayfsDriver(cfg, testClock()),
-		NewCopyDriver(cfg, testClock()),
+		NewOverlayfsDriver(cfg, testDeps()),
+		NewCopyDriver(cfg, testDeps()),
 	}
 
 	for _, drv := range drivers {
@@ -540,7 +540,7 @@ func TestDriverIDConstants(t *testing.T) {
 
 // TestCopyDriverUnmount verifies Unmount is a no-op
 func TestCopyDriverUnmount(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig(), testClock())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -570,7 +570,7 @@ func BenchmarkCopyDriverMount(b *testing.B) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg, testClock())
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	b.ResetTimer()

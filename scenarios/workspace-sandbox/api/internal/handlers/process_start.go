@@ -138,7 +138,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		stdinWriter = sw
 	}
 
-	// onExit fires from the driver's wait reaper after cmd.Wait() returns.
+	// onExit fires from the driver's wait reaper after the spawned process exits.
 	// It records ExitInfo on the tracker (which closes the per-process exit
 	// channel and unblocks subscribers / SSE consumers) and finalises the
 	// log pair so subscribers see EOF.
@@ -174,7 +174,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := h.Driver()
-	pid, err := driverexec.StartProcess(r.Context(), sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
+	pid, err := driverexec.StartProcess(r.Context(), h.Starter, sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			if abortErr := h.ProcessLogger.AbortPair(pendingPair); abortErr != nil {

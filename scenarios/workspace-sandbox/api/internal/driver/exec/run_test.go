@@ -12,21 +12,23 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
 func TestIsBwrapAvailable(t *testing.T) {
 	ctx := context.Background()
+	starter := process.NewOSExecStarter()
 	_, lookErr := osexec.LookPath("bwrap")
 	if lookErr != nil {
 		// Not installed in CI; assert the probe agrees.
-		available, _, _ := driver.IsBwrapAvailable(ctx)
+		available, _, _ := driver.IsBwrapAvailable(ctx, starter)
 		if available {
 			t.Error("driver.IsBwrapAvailable returned true but bwrap is not in PATH")
 		}
 		return
 	}
-	available, version, err := driver.IsBwrapAvailable(ctx)
+	available, version, err := driver.IsBwrapAvailable(ctx, starter)
 	if !available {
 		t.Errorf("driver.IsBwrapAvailable returned false but bwrap is installed: %v", err)
 	}
@@ -78,7 +80,7 @@ func TestExec_TimeoutReturns124(t *testing.T) {
 	cfg := DefaultBwrapConfig()
 	cfg.ResourceLimits.TimeoutSec = 1
 	// ModeNone runs in s.MergedDir directly, no bwrap dependency.
-	result, err := Exec(context.Background(), sandbox, ModeNone, cfg, "sh", "-c", "sleep 5")
+	result, err := Exec(context.Background(), process.NewOSExecStarter(), sandbox, ModeNone, cfg, "sh", "-c", "sleep 5")
 	if err != nil {
 		t.Fatalf("Exec returned unexpected error: %v", err)
 	}
@@ -108,7 +110,7 @@ func TestStartProcess_OnExitFiresExactlyOnce(t *testing.T) {
 		close(done)
 	}
 
-	pid, err := StartProcess(context.Background(), sandbox, ModeNone, cfg, "true")
+	pid, err := StartProcess(context.Background(), process.NewOSExecStarter(), sandbox, ModeNone, cfg, "true")
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
@@ -145,7 +147,7 @@ func TestStartProcess_WaitHappensWhenOnExitNil(t *testing.T) {
 	// Use a marker file to know when the child has exited; that's an
 	// indirect signal that the reaper goroutine ran (cmd.Wait returned).
 	marker := filepath.Join(tmp, "done")
-	pid, err := StartProcess(context.Background(), sandbox, ModeNone, cfg, "sh", "-c", "touch "+marker)
+	pid, err := StartProcess(context.Background(), process.NewOSExecStarter(), sandbox, ModeNone, cfg, "sh", "-c", "touch "+marker)
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}

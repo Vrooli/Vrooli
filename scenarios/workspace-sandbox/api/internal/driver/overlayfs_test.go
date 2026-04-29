@@ -22,8 +22,8 @@ func TestOverlayfsDriverID(t *testing.T) {
 		ctor func() *OverlayDriver
 		want DriverID
 	}{
-		{"userns", func() *OverlayDriver { return NewOverlayfsUserNSDriver(DefaultConfig(), testClock()) }, DriverOverlayfsUserNS},
-		{"root", func() *OverlayDriver { return NewOverlayfsRootDriver(DefaultConfig(), testClock()) }, DriverOverlayfsRoot},
+		{"userns", func() *OverlayDriver { return NewOverlayfsUserNSDriver(DefaultConfig(), testDeps()) }, DriverOverlayfsUserNS},
+		{"root", func() *OverlayDriver { return NewOverlayfsRootDriver(DefaultConfig(), testDeps()) }, DriverOverlayfsRoot},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -54,7 +54,7 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 		BaseDir:      tmpDir,
 		MaxSandboxes: 10,
 	}
-	drv := NewOverlayfsDriver(cfg, testClock())
+	drv := NewOverlayfsDriver(cfg, testDeps())
 
 	// Create a mock sandbox
 	projectDir := filepath.Join(tmpDir, "project")
@@ -113,7 +113,7 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Check availability
 func TestOverlayfsDriverIsAvailable(t *testing.T) {
-	drv := NewOverlayfsDriver(DefaultConfig(), testClock())
+	drv := NewOverlayfsDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	available, err := drv.IsAvailable(ctx)
@@ -187,7 +187,7 @@ func TestDetectChangeType(t *testing.T) {
 	}
 
 	cfg := DefaultConfig()
-	drv := NewOverlayfsDriver(cfg, testClock())
+	drv := NewOverlayfsDriver(cfg, testDeps())
 
 	sb := &types.Sandbox{
 		ID:       uuid.New(),
@@ -264,7 +264,7 @@ func TestOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 		t.Fatalf("failed to create added file: %v", err)
 	}
 
-	drv := NewOverlayfsDriver(DefaultConfig(), testClock())
+	drv := NewOverlayfsDriver(DefaultConfig(), testDeps())
 	sb := &types.Sandbox{
 		ID:       uuid.New(),
 		LowerDir: lowerDir,
@@ -312,7 +312,7 @@ func BenchmarkOverlayfsIsAvailable(b *testing.B) {
 		b.Skip("overlayfs benchmark requires Linux")
 	}
 
-	drv := NewOverlayfsDriver(DefaultConfig(), testClock())
+	drv := NewOverlayfsDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	b.ResetTimer()

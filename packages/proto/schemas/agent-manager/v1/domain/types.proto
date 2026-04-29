@@ -77,7 +77,7 @@ enum ModelPreset {
 
 // NetworkAccess controls the level of network access granted to an agent.
 //
-// This is independent of sandbox file isolation (RequiresSandbox).
+// This is independent of sandbox file isolation (SandboxConfig.mode).
 // Runners map this to runner-specific flags.
 //
 // @usage AgentProfile.network_access, RunConfig.network_access
@@ -143,12 +143,19 @@ message SandboxLifecycleConfig {
 }
 
 // SandboxMode names the per-run sandbox execution mode from the
-// auditability contract. Default is tracking; protected is reserved for
-// the protected-agent-sandboxing initiative.
+// auditability contract. The default in spawn surfaces is protected
+// (DefaultSandboxConfig); tracking is the explicit operator opt-out
+// for runs that need full host capability; off disables sandboxing
+// entirely (used only for runs with no auditability requirement).
+//
+// Mode is the single source of truth for "is this run sandboxed?" —
+// see scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision
+// boundary). Off → RunModeInPlace; every other value → RunModeSandboxed.
 enum SandboxMode {
   SANDBOX_MODE_UNSPECIFIED = 0;
   SANDBOX_MODE_TRACKING = 1;
   SANDBOX_MODE_PROTECTED = 2;
+  SANDBOX_MODE_OFF = 3;
 }
 
 // SandboxConfig groups lifecycle, acceptance, and the auditability-contract

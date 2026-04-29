@@ -475,7 +475,7 @@ func Default() Config {
 			// process metadata scanning, and logging. In teardown.go's nested
 			// timeout model, each hook gets min(global, per-hook) time.
 			//
-			// If this timeout fires, exec.CommandContext sends SIGKILL to the hook
+			// If this timeout fires, the process.Starter context cancellation sends SIGKILL to the hook
 			// process, which means affected scenarios may not be stopped before
 			// unmount — they become orphaned with no filesystem. This is why the
 			// timeout must be generous.

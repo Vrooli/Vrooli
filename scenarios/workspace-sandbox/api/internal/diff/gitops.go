@@ -32,6 +32,7 @@ import (
 	"context"
 	"strings"
 
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -71,9 +72,10 @@ type GitOps struct {
 	runner CommandRunner
 }
 
-// NewGitOps creates a GitOps with the default command runner.
-func NewGitOps() *GitOps {
-	return &GitOps{runner: DefaultCommandRunner()}
+// NewGitOps creates a GitOps with a CommandRunner backed by the
+// supplied process.Starter (Round 4 Phase 7).
+func NewGitOps(starter process.Starter) *GitOps {
+	return &GitOps{runner: NewExecCommandRunner(starter)}
 }
 
 // NewGitOpsWithRunner creates a GitOps with a custom command runner.

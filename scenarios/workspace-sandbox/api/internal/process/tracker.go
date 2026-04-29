@@ -258,7 +258,7 @@ func (t *Tracker) CloseStdin(sandboxID uuid.UUID, pid int) error {
 // RecordExit stores ExitInfo on the tracked process and closes its exit
 // channel. Idempotent: subsequent calls no-op.
 //
-// Called by the driver's wait reaper goroutine when cmd.Wait() returns.
+// Called by the driver's wait reaper goroutine when the spawned process exits.
 // Closes the stdin pipe (if any) so the process doesn't block on stdin
 // during teardown.
 func (t *Tracker) RecordExit(sandboxID uuid.UUID, pid int, info ExitInfo) {

@@ -25,6 +25,7 @@ import (
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
@@ -37,7 +38,7 @@ func newTestService(repo *mocks.FakeRepository, drv *mocks.FakeDriver) *Service 
 		DefaultProjectRoot: "/tmp/project",
 		MaxSandboxes:       100,
 		DefaultTTL:         24 * time.Hour,
-	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(mocks.NewFakeGitOps()))
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(mocks.NewFakeGitOps()))
 }
 
 func createTestSandbox(id uuid.UUID, status types.Status) *types.Sandbox {
@@ -175,7 +176,7 @@ func TestService_Create_NoProjectRoot(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	clk := clock.System{}
-	svc := NewService(repo, drv, ServiceConfig{}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk)) // No default project root
+	svc := NewService(repo, drv, ServiceConfig{}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter()) // No default project root
 	ctx := context.Background()
 
 	req := &types.CreateRequest{
@@ -737,7 +738,7 @@ func TestService_CheckConflicts_NoConflicts(t *testing.T) {
 	gitOps.ConflictResult = &diff.ConflictCheckResult{HasChanged: false}
 
 	clk := clock.System{}
-	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(gitOps))
+	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(gitOps))
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -772,7 +773,7 @@ func TestService_CheckConflicts_WithConflicts(t *testing.T) {
 	}
 
 	clk := clock.System{}
-	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(gitOps))
+	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(gitOps))
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -804,7 +805,7 @@ func TestService_Rebase_Success(t *testing.T) {
 	gitOps.CommitHash = "new-hash-789"
 
 	clk := clock.System{}
-	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(gitOps))
+	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(gitOps))
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -876,7 +877,7 @@ func TestService_ValidatePath_Valid(t *testing.T) {
 		DefaultProjectRoot: tmpDir,
 		MaxSandboxes:       100,
 		DefaultTTL:         24 * time.Hour,
-	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(mocks.NewFakeGitOps()))
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(mocks.NewFakeGitOps()))
 
 	// Test with the temp dir which exists, is a directory, and not in dangerous paths
 	result, err := svc.ValidatePath(ctx, tmpDir, tmpDir)

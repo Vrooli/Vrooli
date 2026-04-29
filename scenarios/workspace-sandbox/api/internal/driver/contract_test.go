@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/fsmount"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -16,6 +18,26 @@ import (
 // care about deterministic timestamps. Tests asserting on
 // FileChange.DetectedAt should construct a FakeClock instead.
 func testClock() clock.Clock { return clock.System{} }
+
+// testStarter returns the production process.Starter; integration
+// tests that probe real binaries (overlay mounts, version queries)
+// need the OSExecStarter.
+func testStarter() process.Starter { return process.NewOSExecStarter() }
+
+// testMounter returns a SystemMounter wired to the production starter.
+// Tests that mount real overlays must be on linux with the right
+// privileges; non-linux environments will skip via IsAvailable.
+func testMounter() fsmount.Mounter {
+	return fsmount.NewSystemMounter(testStarter())
+}
+
+// testDeps assembles a driver.Deps with production seam impls. Used by
+// the contract test which actually mounts real overlay filesystems.
+// Unit tests that only inspect static fields (RequiresBwrap, ID) can
+// also use this; the real mounter/starter aren't exercised.
+func testDeps() Deps {
+	return Deps{Clock: testClock(), Mounter: testMounter(), Starter: testStarter()}
+}
 
 // TestDriverContract_RequiresBwrap pins each driver's isolation-mode
 // declaration. Adding a new driver = a new row here, not editing a
@@ -27,9 +49,9 @@ func TestDriverContract_RequiresBwrap(t *testing.T) {
 		drv  Driver
 		want IsolationMode
 	}{
-		{"copy", NewCopyDriver(cfg, testClock()), ModeNone},
-		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testClock()), ModeBwrapPreferred},
-		{"overlayfs", NewOverlayfsDriver(cfg, testClock()), ModeBwrapRequired},
+		{"copy", NewCopyDriver(cfg, testDeps()), ModeNone},
+		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testDeps()), ModeBwrapPreferred},
+		{"overlayfs", NewOverlayfsDriver(cfg, testDeps()), ModeBwrapRequired},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -78,9 +100,9 @@ func TestDriverContract(t *testing.T) {
 		ctor           func(Config) Driver
 		expectHomeOver bool // mount-backed drivers must populate HomeMergedDir when $HOME is set
 	}{
-		{"copy", func(cfg Config) Driver { return NewCopyDriver(cfg, testClock()) }, false},
-		{"fuse-overlayfs", func(cfg Config) Driver { return NewFuseOverlayfsDriver(cfg, testClock()) }, true},
-		{"overlayfs", func(cfg Config) Driver { return NewOverlayfsDriver(cfg, testClock()) }, true},
+		{"copy", func(cfg Config) Driver { return NewCopyDriver(cfg, testDeps()) }, false},
+		{"fuse-overlayfs", func(cfg Config) Driver { return NewFuseOverlayfsDriver(cfg, testDeps()) }, true},
+		{"overlayfs", func(cfg Config) Driver { return NewOverlayfsDriver(cfg, testDeps()) }, true},
 	}
 
 	for _, tc := range cases {

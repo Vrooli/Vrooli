@@ -3,21 +3,22 @@ package driver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/fsmount"
+	"workspace-sandbox/internal/testutil/mocks/fsmountmocks"
 	"workspace-sandbox/internal/types"
 )
 
-// TestMountHomeOverlay_FailureReturnsTypedError — when mountFn errors,
-// the helper must wrap the cause in *types.HomeOverlayUnavailableError
-// (not a plain error). This is the load-bearing seam that lets the
-// driver record HomeOverlayState=Absent and the handler's exec path
-// return HTTP 409.
+// TestMountHomeOverlay_FailureReturnsTypedError — when Mounter.Mount
+// errors, the helper must wrap the cause in
+// *types.HomeOverlayUnavailableError (not a plain error). This is the
+// load-bearing seam that lets the driver record HomeOverlayState=Absent
+// and the handler's exec path return HTTP 409.
 //
 // DOC: home-overlay seam — failure topography test.
 func TestMountHomeOverlay_FailureReturnsTypedError(t *testing.T) {
@@ -31,13 +32,11 @@ func TestMountHomeOverlay_FailureReturnsTypedError(t *testing.T) {
 		t.Fatalf("mkdir hostHome: %v", err)
 	}
 
-	failingMount := func(ctx context.Context, target, opts string) error {
-		return errors.New("synthetic mount failure")
-	}
-	noopUnmount := func(ctx context.Context, target string) error { return nil }
+	m := fsmountmocks.NewFakeMounter()
+	m.SetMountErr(errors.New("synthetic mount failure"))
 
 	id := uuid.New()
-	_, _, _, _, err := mountHomeOverlay(context.Background(), homeOverlayBaseDir, id, hostHome, failingMount, noopUnmount)
+	_, _, _, _, err := mountHomeOverlay(context.Background(), m, fsmount.BackendKernelOverlay, homeOverlayBaseDir, id, hostHome)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -56,9 +55,23 @@ func TestMountHomeOverlay_FailureReturnsTypedError(t *testing.T) {
 	}
 }
 
-// TestMountHomeOverlay_VerificationCatchesStaleMount — mountFn returns
-// nil, but no actual mount appeared (synthetic stale-daemon scenario).
+// TestMountHomeOverlay_VerificationCatchesStaleMount — Mounter.Mount
+// returns nil and reports the path as a mount point, but the post-
+// mount writable-probe fails (synthetic stale-daemon scenario).
 // verifyMounted must catch this and return the typed error.
+//
+// We simulate this by having the FakeMounter accept the Mount but
+// having the merged dir live somewhere unwritable for the probe step.
+// The simplest deterministic way to fail the probe is to make the
+// merged dir read-only after mkdir; we can't do that with FakeMounter
+// alone (the helper creates it), so we instead make Mount succeed but
+// then Unmount fail. That tests the rollback path. The
+// "verifyMounted-fails" path is covered by the integration contract
+// test (TestDriverContract).
+//
+// Here we focus on: Mount appears to succeed but IsMountPoint returns
+// false (the daemon forked and died). verifyMounted's IsMountPoint
+// check should catch this and trigger the unmount rollback.
 //
 // DOC: home-overlay seam — mount-verification test.
 func TestMountHomeOverlay_VerificationCatchesStaleMount(t *testing.T) {
@@ -72,17 +85,13 @@ func TestMountHomeOverlay_VerificationCatchesStaleMount(t *testing.T) {
 		t.Fatalf("mkdir hostHome: %v", err)
 	}
 
-	// mountFn lies: returns nil but doesn't actually mount anything.
-	// verifyMounted's isMountPoint check should catch the lie.
-	lyingMount := func(ctx context.Context, target, opts string) error { return nil }
-	unmountInvoked := false
-	noopUnmount := func(ctx context.Context, target string) error {
-		unmountInvoked = true
-		return nil
-	}
+	// staleMounter pretends Mount succeeded but never marks the path as
+	// mounted, so IsMountPoint returns false — exactly the "fuse
+	// daemon forked and died" failure mode.
+	m := &staleMounter{}
 
 	id := uuid.New()
-	_, _, _, _, err := mountHomeOverlay(context.Background(), homeOverlayBaseDir, id, hostHome, lyingMount, noopUnmount)
+	_, _, _, _, err := mountHomeOverlay(context.Background(), m, fsmount.BackendKernelOverlay, homeOverlayBaseDir, id, hostHome)
 	if err == nil {
 		t.Fatal("expected verify-mount error, got nil")
 	}
@@ -90,10 +99,28 @@ func TestMountHomeOverlay_VerificationCatchesStaleMount(t *testing.T) {
 	if !errors.As(err, &typed) {
 		t.Fatalf("expected *types.HomeOverlayUnavailableError, got %T", err)
 	}
-	if !unmountInvoked {
-		t.Error("expected verifyMount-failure rollback to invoke unmountFn")
+	if !m.unmountInvoked {
+		t.Error("expected verifyMount-failure rollback to invoke Unmount")
 	}
 }
+
+// staleMounter accepts Mount but never marks the path as mounted, so
+// IsMountPoint returns false — modeling a daemon that forked and died.
+type staleMounter struct {
+	mountErr       error
+	unmountInvoked bool
+}
+
+func (m *staleMounter) Mount(ctx context.Context, opts fsmount.MountOpts) error {
+	return m.mountErr
+}
+
+func (m *staleMounter) Unmount(ctx context.Context, target string, lazy bool) error {
+	m.unmountInvoked = true
+	return nil
+}
+
+func (m *staleMounter) IsMountPoint(path string) bool { return false }
 
 // TestDriver_HomeOverlayCapability pins each driver's Capabilities()
 // answer. Adding a new driver is a new row here, not editing a central
@@ -108,10 +135,10 @@ func TestDriver_HomeOverlayCapability(t *testing.T) {
 		homeOverlay bool
 		cow         bool
 	}{
-		{"copy", NewCopyDriver(cfg, testClock()), false, false},
-		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testClock()), true, true},
-		{"overlayfs-userns", NewOverlayfsUserNSDriver(cfg, testClock()), true, true},
-		{"overlayfs-root", NewOverlayfsRootDriver(cfg, testClock()), true, true},
+		{"copy", NewCopyDriver(cfg, testDeps()), false, false},
+		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg, testDeps()), true, true},
+		{"overlayfs-userns", NewOverlayfsUserNSDriver(cfg, testDeps()), true, true},
+		{"overlayfs-root", NewOverlayfsRootDriver(cfg, testDeps()), true, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -132,25 +159,15 @@ func TestDriver_HomeOverlayCapability(t *testing.T) {
 //
 // DOC: home-overlay storage seam — fatal validation test.
 func TestResolveHomeOverlayBaseDir_RejectsHomeSubpath(t *testing.T) {
-	// We can't directly call internal/config from here; this is a
-	// driver-level smoke that the layout we've adopted leaves home
-	// upper outside $HOME (the actual ResolveHomeOverlayBaseDir is
-	// covered in internal/config/config_test.go). The driver wires
-	// HomeOverlayBaseDir from cfg.HomeOverlayBaseDir, so a misconfigured
-	// path would surface at first Mount via the ErrHomeOverlayUnavailable
-	// path tested above.
-	//
-	// This test exists to keep the assertion adjacent to the seam: any
-	// future refactor that drops the "outside $HOME" invariant must
-	// notice that this test is here and fail to remove it cleanly.
 	cfg := Config{HomeOverlayBaseDir: ""}
+	m := fsmountmocks.NewFakeMounter()
 	_, _, _, _, err := mountHomeOverlay(
 		context.Background(),
+		m,
+		fsmount.BackendKernelOverlay,
 		cfg.HomeOverlayBaseDir,
 		uuid.New(),
 		os.Getenv("HOME"),
-		func(ctx context.Context, target, opts string) error { return fmt.Errorf("should not be reached") },
-		nil,
 	)
 	if err == nil {
 		t.Fatal("expected mountHomeOverlay to fail with empty HomeOverlayBaseDir")

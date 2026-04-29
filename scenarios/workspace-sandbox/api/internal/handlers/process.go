@@ -153,7 +153,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	cfg.ResourceLimits = runtime.ApplyResourceLimitDefaults(requestedLimits, h.Config.Execution)
 
 	d := h.Driver()
-	result, err := driverexec.Exec(r.Context(), sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
+	result, err := driverexec.Exec(r.Context(), h.Starter, sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return

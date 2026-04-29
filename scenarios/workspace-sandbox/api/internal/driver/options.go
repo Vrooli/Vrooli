@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"workspace-sandbox/internal/namespace"
+	"workspace-sandbox/internal/process"
 )
 
 // Requirement represents a single requirement for a driver option.
@@ -90,8 +91,10 @@ type DriverOptionsResponse struct {
 	Options []DriverOption `json:"options"`
 }
 
-// GetDriverOptions returns all available driver options with their requirements.
-func GetDriverOptions(ctx context.Context, currentID DriverID, inUserNS bool) DriverOptionsResponse {
+// GetDriverOptions returns all available driver options with their
+// requirements. starter routes every capability probe through the
+// canonical exec seam (Round 4 Phase 7).
+func GetDriverOptions(ctx context.Context, starter process.Starter, currentID DriverID, inUserNS bool) DriverOptionsResponse {
 	resp := DriverOptionsResponse{
 		OS:              runtime.GOOS,
 		InUserNamespace: inUserNS,
@@ -100,11 +103,11 @@ func GetDriverOptions(ctx context.Context, currentID DriverID, inUserNS bool) Dr
 	}
 
 	if runtime.GOOS == "linux" {
-		resp.Kernel = namespace.Check().KernelVersion
+		resp.Kernel = namespace.Check(starter).KernelVersion
 		resp.Options = append(resp.Options,
-			buildOverlayfsUserNSOption(),
-			buildFuseOverlayfsOption(),
-			buildOverlayfsRootOption(),
+			buildOverlayfsUserNSOption(starter),
+			buildFuseOverlayfsOption(starter),
+			buildOverlayfsRootOption(starter),
 		)
 	}
 	resp.Options = append(resp.Options, buildCopyDriverOption())
@@ -114,7 +117,7 @@ func GetDriverOptions(ctx context.Context, currentID DriverID, inUserNS bool) Dr
 }
 
 // buildOverlayfsUserNSOption checks requirements for overlayfs in user namespace.
-func buildOverlayfsUserNSOption() DriverOption {
+func buildOverlayfsUserNSOption(starter process.Starter) DriverOption {
 	opt := DriverOption{
 		ID:           DriverOverlayfsUserNS,
 		Name:         "Overlayfs (User Namespace)",
@@ -130,7 +133,7 @@ func buildOverlayfsUserNSOption() DriverOption {
 		Requirements: make([]Requirement, 0),
 	}
 
-	nsStatus := namespace.Check()
+	nsStatus := namespace.Check(starter)
 
 	kernelOK := namespace.IsKernelAtLeast(5, 11)
 	opt.Requirements = append(opt.Requirements, Requirement{
@@ -145,7 +148,7 @@ func buildOverlayfsUserNSOption() DriverOption {
 		}(),
 	})
 
-	usernsOK := canCreateUserNamespace()
+	usernsOK := canCreateUserNamespace(starter)
 	opt.Requirements = append(opt.Requirements, Requirement{
 		Name: "User namespaces enabled",
 		Met:  usernsOK,
@@ -163,7 +166,7 @@ func buildOverlayfsUserNSOption() DriverOption {
 		}(),
 	})
 
-	unshareOK := commandExists("unshare")
+	unshareOK := commandExists(starter, "unshare")
 	opt.Requirements = append(opt.Requirements, Requirement{
 		Name: "unshare command",
 		Met:  unshareOK,
@@ -186,8 +189,8 @@ func buildOverlayfsUserNSOption() DriverOption {
 }
 
 // buildFuseOverlayfsOption checks requirements for fuse-overlayfs.
-func buildFuseOverlayfsOption() DriverOption {
-	bwrapOK := commandExists("bwrap")
+func buildFuseOverlayfsOption(starter process.Starter) DriverOption {
+	bwrapOK := commandExists(starter, "bwrap")
 
 	opt := DriverOption{
 		ID:           DriverFuseOverlayfs,
@@ -209,13 +212,13 @@ func buildFuseOverlayfsOption() DriverOption {
 		Requirements: make([]Requirement, 0),
 	}
 
-	fuseOverlayfsOK := commandExists("fuse-overlayfs")
+	fuseOverlayfsOK := commandExists(starter, "fuse-overlayfs")
 	opt.Requirements = append(opt.Requirements, Requirement{
 		Name: "fuse-overlayfs installed",
 		Met:  fuseOverlayfsOK,
 		Current: func() string {
 			if fuseOverlayfsOK {
-				return getCommandVersion("fuse-overlayfs", "--version")
+				return getCommandVersion(starter, "fuse-overlayfs", "--version")
 			}
 			return "not installed"
 		}(),
@@ -245,7 +248,7 @@ func buildFuseOverlayfsOption() DriverOption {
 		}(),
 	})
 
-	fusermountOK := commandExists("fusermount") || commandExists("fusermount3")
+	fusermountOK := commandExists(starter, "fusermount") || commandExists(starter, "fusermount3")
 	opt.Requirements = append(opt.Requirements, Requirement{
 		Name: "fusermount command",
 		Met:  fusermountOK,
@@ -269,7 +272,7 @@ func buildFuseOverlayfsOption() DriverOption {
 		Optional: true,
 		Current: func() string {
 			if bwrapOK {
-				return getCommandVersion("bwrap", "--version")
+				return getCommandVersion(starter, "bwrap", "--version")
 			}
 			return "not installed"
 		}(),
@@ -286,7 +289,7 @@ func buildFuseOverlayfsOption() DriverOption {
 }
 
 // buildOverlayfsRootOption checks requirements for privileged overlayfs.
-func buildOverlayfsRootOption() DriverOption {
+func buildOverlayfsRootOption(starter process.Starter) DriverOption {
 	opt := DriverOption{
 		ID:           DriverOverlayfsRoot,
 		Name:         "Overlayfs (Privileged)",
@@ -308,7 +311,7 @@ func buildOverlayfsRootOption() DriverOption {
 	// Surface OverlayfsRoot only when host-level privileges are genuine.
 	inUserNS := InUserNamespace()
 	isRoot := os.Geteuid() == 0 && !inUserNS
-	hasCapSysAdmin := checkCapSysAdmin()
+	hasCapSysAdmin := checkCapSysAdmin(starter)
 	privilegedOK := isRoot || hasCapSysAdmin
 
 	opt.Requirements = append(opt.Requirements, Requirement{

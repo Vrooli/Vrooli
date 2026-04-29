@@ -51,6 +51,7 @@ class SandboxMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SANDBOX_MODE_UNSPECIFIED: _ClassVar[SandboxMode]
     SANDBOX_MODE_TRACKING: _ClassVar[SandboxMode]
     SANDBOX_MODE_PROTECTED: _ClassVar[SandboxMode]
+    SANDBOX_MODE_OFF: _ClassVar[SandboxMode]
 
 class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -176,6 +177,7 @@ SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: SandboxAcceptanceMode
 SANDBOX_MODE_UNSPECIFIED: SandboxMode
 SANDBOX_MODE_TRACKING: SandboxMode
 SANDBOX_MODE_PROTECTED: SandboxMode
+SANDBOX_MODE_OFF: SandboxMode
 TASK_STATUS_UNSPECIFIED: TaskStatus
 TASK_STATUS_QUEUED: TaskStatus
 TASK_STATUS_RUNNING: TaskStatus
