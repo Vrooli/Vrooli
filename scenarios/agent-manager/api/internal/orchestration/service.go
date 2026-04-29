@@ -31,6 +31,7 @@ import (
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
@@ -3081,11 +3082,11 @@ func stripANSI(s string) string {
 
 // EventBroadcaster is a callback for broadcasting events in real-time.
 // This is typically implemented by the WebSocket hub.
-type EventBroadcaster interface {
-	BroadcastEvent(event *domain.RunEvent)
-	BroadcastRunStatus(run *domain.Run)
-	BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string)
-}
+//
+// The canonical definition lives in the phases package so per-phase
+// functions can reference it without an import cycle. The alias here keeps
+// existing orchestration call sites compiling without per-site rewrites.
+type EventBroadcaster = phases.EventBroadcaster
 
 // eventStoreAdapter adapts event.Store to runner.EventSink
 type eventStoreAdapter struct {

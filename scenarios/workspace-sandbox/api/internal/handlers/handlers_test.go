@@ -1,182 +1,80 @@
-// Package handlers provides HTTP request handlers for the sandbox API.
-package handlers
+// Package handlers_test runs every middleware-relevant handler test
+// through the live-HTTP harness (testutil/httpx.NewLiveServer) so the
+// production middleware stack wraps every request — closing the gap
+// that let the 2026-04-28 SSE flusher bug ship under recorder-only
+// tests.
+//
+// External test package (handlers_test) breaks the import cycle:
+// testutil/httpx imports handlers, so handler tests must live outside
+// the handlers package to use the harness. Pure helper-function unit
+// tests that need no router and no middleware (process_git_allowlist,
+// process_loc bound) stay in `package handlers` and use
+// httptest.ResponseRecorder; that allowance is encoded in
+// handler_test_pattern_test.go.
+package handlers_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/handlers"
+	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/testutil/httpx"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 )
 
-// driverWithAvailability returns a FakeDriver whose IsAvailable
-// reports `available`. Tests for the health endpoint use this to
-// drive the "driver up/down" branch.
-func driverWithAvailability(available bool) *mocks.FakeDriver {
-	d := mocks.NewFakeDriver()
-	d.Available = available
-	return d
+// liveOpt customizes the *handlers.Handlers built by newLive before
+// the harness boots. Tests reach for these to add a non-default
+// driver, scope a custom DB error, etc.
+type liveOpt func(*handlers.Handlers)
+
+func withDriver(d driver.Driver) liveOpt {
+	return func(h *handlers.Handlers) { h.DriverSlot = driver.NewSlot(d) }
+}
+
+// newLive builds a *handlers.Handlers using a default-fake stack and
+// wires it into the live-HTTP harness. The returned LiveServer carries
+// a real *http.Client and an httptest.Server backed by the production
+// middleware. Tests issue requests through live.Do/DoJSON.
+func newLive(t *testing.T, svc sandbox.ServiceAPI, opts ...liveOpt) *httpx.LiveServer {
+	t.Helper()
+	h := &handlers.Handlers{
+		Clock:      clock.System{},
+		Service:    svc,
+		DB:         mocks.NewFakePinger(),
+		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
+		Config:     config.Config{},
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return httpx.NewLiveServer(t, h)
 }
 
 // driverWithErr returns a FakeDriver that reports unavailability with
-// the given error. Mirrors the original handlers_test mockDriver
-// constructor that took (available, err).
+// the given error. Used by the DriverInfo unavailable-state test.
 func driverWithErr(available bool, err error) *mocks.FakeDriver {
-	d := driverWithAvailability(available)
+	d := mocks.NewFakeDriver()
+	d.Available = available
 	d.IsAvailableErr = err
 	return d
 }
 
-// TestHealthHandler tests the Health endpoint handler.
-// [REQ:REQ-P0-010] Health Check API Endpoint - unit test for status codes
-func TestHealthHandler(t *testing.T) {
-	tests := []struct {
-		name           string
-		dbAvailable    bool
-		driverAvail    bool
-		wantStatus     string
-		wantReadiness  bool
-		wantHTTPStatus int
-	}{
-		{
-			name:           "healthy when db and driver available",
-			dbAvailable:    true,
-			driverAvail:    true,
-			wantStatus:     "healthy",
-			wantReadiness:  true,
-			wantHTTPStatus: http.StatusOK,
-		},
-		{
-			name:           "unhealthy when db unavailable",
-			dbAvailable:    false,
-			driverAvail:    true,
-			wantStatus:     "unhealthy",
-			wantReadiness:  false,
-			wantHTTPStatus: http.StatusOK,
-		},
-		{
-			name:           "healthy when driver unavailable but db ok",
-			dbAvailable:    true,
-			driverAvail:    false,
-			wantStatus:     "healthy",
-			wantReadiness:  true,
-			wantHTTPStatus: http.StatusOK,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var dbErr error
-			if !tc.dbAvailable {
-				dbErr = context.DeadlineExceeded
-			}
-
-			h := &Handlers{
-				Clock:      clock.System{},
-				DB:         &mocks.FakePinger{Err: dbErr},
-				DriverSlot: driver.NewSlot(driverWithAvailability(tc.driverAvail)),
-				Config:     config.Config{},
-			}
-
-			req := httptest.NewRequest("GET", "/health", nil)
-			rr := httptest.NewRecorder()
-
-			h.Health(rr, req)
-
-			if rr.Code != tc.wantHTTPStatus {
-				t.Errorf("Health() status = %d, want %d", rr.Code, tc.wantHTTPStatus)
-			}
-
-			var resp map[string]interface{}
-			if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-				t.Fatalf("Failed to parse response: %v", err)
-			}
-
-			if resp["status"] != tc.wantStatus {
-				t.Errorf("Health() status = %v, want %v", resp["status"], tc.wantStatus)
-			}
-
-			if resp["readiness"] != tc.wantReadiness {
-				t.Errorf("Health() readiness = %v, want %v", resp["readiness"], tc.wantReadiness)
-			}
-		})
-	}
-}
-
-// TestHealthResponseSchema tests that the health endpoint returns the required JSON schema.
-// [REQ:REQ-P0-010] Health Check API Endpoint - JSON response schema validation
-func TestHealthResponseSchema(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("GET", "/health", nil)
-	rr := httptest.NewRecorder()
-
-	h.Health(rr, req)
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	// Check required fields exist
-	requiredFields := []string{"status", "service", "version", "readiness", "timestamp", "dependencies"}
-	for _, field := range requiredFields {
-		if _, ok := resp[field]; !ok {
-			t.Errorf("Health response missing required field: %s", field)
-		}
-	}
-
-	// Check dependencies structure
-	deps, ok := resp["dependencies"].(map[string]interface{})
-	if !ok {
-		t.Fatal("dependencies should be a map")
-	}
-
-	if _, ok := deps["database"]; !ok {
-		t.Error("dependencies missing 'database' field")
-	}
-	if _, ok := deps["driver"]; !ok {
-		t.Error("dependencies missing 'driver' field")
-	}
-}
-
-// TestHealthContentType verifies the health endpoint returns JSON content type.
-// [REQ:REQ-P0-010] Health Check API Endpoint - content type validation
-func TestHealthContentType(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("GET", "/health", nil)
-	rr := httptest.NewRecorder()
-
-	h.Health(rr, req)
-
-	contentType := rr.Header().Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("Health() Content-Type = %v, want application/json", contentType)
-	}
+// sandboxesPath builds the canonical /api/v1/sandboxes... URL for a
+// sandbox-scoped endpoint. Centralizes the prefix so tests don't drift.
+func sandboxesPath(id uuid.UUID, suffix string) string {
+	return "/api/v1/sandboxes/" + id.String() + suffix
 }
 
 // --- CreateSandbox Handler Tests ---
@@ -203,70 +101,43 @@ func TestCreateSandboxSuccess(t *testing.T) {
 		},
 	}
 
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.DoJSON(t, "POST", "/api/v1/sandboxes",
+		`{"scopePath": "/project/src", "projectRoot": "/project", "owner": "test-agent"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("CreateSandbox status = %d, want %d; body=%s", resp.StatusCode, http.StatusCreated, body)
 	}
 
-	body := `{"scopePath": "/project/src", "projectRoot": "/project", "owner": "test-agent"}`
-	req := httptest.NewRequest("POST", "/sandboxes", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateSandbox(rr, req)
-
-	if rr.Code != http.StatusCreated {
-		t.Errorf("CreateSandbox() status = %d, want %d", rr.Code, http.StatusCreated)
+	var got types.Sandbox
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode body: %v", err)
 	}
-
-	var resp types.Sandbox
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	if got.ID != testID {
+		t.Errorf("ID = %v, want %v", got.ID, testID)
 	}
-
-	if resp.ID != testID {
-		t.Errorf("CreateSandbox() ID = %v, want %v", resp.ID, testID)
+	if got.Status != types.StatusActive {
+		t.Errorf("status = %v, want %v", got.Status, types.StatusActive)
 	}
-	if resp.Status != types.StatusActive {
-		t.Errorf("CreateSandbox() status = %v, want %v", resp.Status, types.StatusActive)
-	}
-	if resp.ScopePath != "/project/src" {
-		t.Errorf("CreateSandbox() scopePath = %v, want /project/src", resp.ScopePath)
+	if got.ScopePath != "/project/src" {
+		t.Errorf("scopePath = %q, want /project/src", got.ScopePath)
 	}
 }
 
 // TestCreateSandboxInvalidJSON tests sandbox creation with invalid JSON body.
 // [REQ:REQ-P0-001] Fast Sandbox Creation - API returns 400 for invalid input
 func TestCreateSandboxInvalidJSON(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, body := live.DoJSON(t, "POST", "/api/v1/sandboxes", `{invalid json}`)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", resp.StatusCode, body)
 	}
 
-	body := `{invalid json}`
-	req := httptest.NewRequest("POST", "/sandboxes", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateSandbox(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("CreateSandbox() status = %d, want %d", rr.Code, http.StatusBadRequest)
+	var got handlers.ErrorResponse
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode body: %v", err)
 	}
-
-	var resp ErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp.Success {
-		t.Error("CreateSandbox() success = true, want false")
+	if got.Success {
+		t.Error("success = true, want false")
 	}
 }
 
@@ -287,123 +158,64 @@ func TestCreateSandboxScopeConflict(t *testing.T) {
 			}
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	body := `{"scopePath": "/project/src/sub", "projectRoot": "/project"}`
-	req := httptest.NewRequest("POST", "/sandboxes", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateSandbox(rr, req)
-
-	if rr.Code != http.StatusConflict {
-		t.Errorf("CreateSandbox() status = %d, want %d", rr.Code, http.StatusConflict)
+	live := newLive(t, svc)
+	resp, _ := live.DoJSON(t, "POST", "/api/v1/sandboxes",
+		`{"scopePath": "/project/src/sub", "projectRoot": "/project"}`)
+	if resp.StatusCode != http.StatusConflict {
+		t.Errorf("status = %d, want 409", resp.StatusCode)
 	}
 }
 
 // --- ListSandboxes Handler Tests ---
 
-// TestListSandboxesEmpty tests listing sandboxes when none exist.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns empty list
 func TestListSandboxesEmpty(t *testing.T) {
 	svc := &sandboxiface.FakeService{
 		ListFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-			return &types.ListResult{
-				Sandboxes:  []*types.Sandbox{},
-				TotalCount: 0,
-				Limit:      100,
-				Offset:     0,
-			}, nil
+			return &types.ListResult{Sandboxes: []*types.Sandbox{}, TotalCount: 0, Limit: 100}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", "/api/v1/sandboxes", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes", nil)
-	rr := httptest.NewRecorder()
-
-	h.ListSandboxes(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("ListSandboxes() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.ListResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.ListResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if len(resp.Sandboxes) != 0 {
-		t.Errorf("ListSandboxes() count = %d, want 0", len(resp.Sandboxes))
+	if len(got.Sandboxes) != 0 {
+		t.Errorf("count = %d, want 0", len(got.Sandboxes))
 	}
 }
 
-// TestListSandboxesWithFilter tests listing sandboxes with query filters.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API filters by status
 func TestListSandboxesWithFilter(t *testing.T) {
-	var capturedFilter *types.ListFilter
+	var captured *types.ListFilter
 	svc := &sandboxiface.FakeService{
 		ListFn: func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-			capturedFilter = filter
-			return &types.ListResult{
-				Sandboxes:  []*types.Sandbox{},
-				TotalCount: 0,
-				Limit:      50,
-				Offset:     10,
-			}, nil
+			captured = filter
+			return &types.ListResult{Limit: 50, Offset: 10}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "GET",
+		"/api/v1/sandboxes?status=active&status=stopped&owner=agent1&limit=50&offset=10", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes?status=active&status=stopped&owner=agent1&limit=50&offset=10", nil)
-	rr := httptest.NewRecorder()
-
-	h.ListSandboxes(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("ListSandboxes() status = %d, want %d", rr.Code, http.StatusOK)
+	if captured == nil {
+		t.Fatal("filter not captured")
 	}
-
-	if capturedFilter == nil {
-		t.Fatal("Filter was not captured")
+	if len(captured.Status) != 2 {
+		t.Errorf("status filter count = %d, want 2", len(captured.Status))
 	}
-
-	if len(capturedFilter.Status) != 2 {
-		t.Errorf("Filter status count = %d, want 2", len(capturedFilter.Status))
+	if captured.Owner != "agent1" {
+		t.Errorf("owner = %q, want agent1", captured.Owner)
 	}
-	if capturedFilter.Owner != "agent1" {
-		t.Errorf("Filter owner = %s, want agent1", capturedFilter.Owner)
-	}
-	if capturedFilter.Limit != 50 {
-		t.Errorf("Filter limit = %d, want 50", capturedFilter.Limit)
-	}
-	if capturedFilter.Offset != 10 {
-		t.Errorf("Filter offset = %d, want 10", capturedFilter.Offset)
+	if captured.Limit != 50 || captured.Offset != 10 {
+		t.Errorf("limit/offset = %d/%d, want 50/10", captured.Limit, captured.Offset)
 	}
 }
 
-// TestListSandboxesWithResults tests listing sandboxes with actual results.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns sandbox list
 func TestListSandboxesWithResults(t *testing.T) {
 	id1, id2 := uuid.New(), uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -415,88 +227,49 @@ func TestListSandboxesWithResults(t *testing.T) {
 				},
 				TotalCount: 2,
 				Limit:      100,
-				Offset:     0,
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", "/api/v1/sandboxes", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes", nil)
-	rr := httptest.NewRecorder()
-
-	h.ListSandboxes(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("ListSandboxes() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.ListResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.ListResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if len(resp.Sandboxes) != 2 {
-		t.Errorf("ListSandboxes() count = %d, want 2", len(resp.Sandboxes))
-	}
-	if resp.TotalCount != 2 {
-		t.Errorf("ListSandboxes() totalCount = %d, want 2", resp.TotalCount)
+	if len(got.Sandboxes) != 2 || got.TotalCount != 2 {
+		t.Errorf("got %d sandboxes / total=%d, want 2/2", len(got.Sandboxes), got.TotalCount)
 	}
 }
 
 // --- GetSandbox Handler Tests ---
 
-// TestGetSandboxSuccess tests successfully getting a sandbox.
-// [REQ:REQ-P0-002] Stable Sandbox Identifier - API retrieves sandbox by ID
 func TestGetSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		GetFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return &types.Sandbox{
-				ID:          testID,
-				ScopePath:   "/project/src",
-				ProjectRoot: "/project",
-				Status:      types.StatusActive,
+				ID: testID, ScopePath: "/project/src", ProjectRoot: "/project",
+				Status: types.StatusActive,
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", sandboxesPath(testID, ""), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String(), nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.GetSandbox(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("GetSandbox() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.Sandbox
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.Sandbox
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp.ID != testID {
-		t.Errorf("GetSandbox() ID = %v, want %v", resp.ID, testID)
+	if got.ID != testID {
+		t.Errorf("ID = %v, want %v", got.ID, testID)
 	}
 }
 
-// TestGetSandboxNotFound tests getting a non-existent sandbox.
-// [REQ:REQ-P0-002] Stable Sandbox Identifier - API returns 404 for unknown ID
 func TestGetSandboxNotFound(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -504,81 +277,35 @@ func TestGetSandboxNotFound(t *testing.T) {
 			return nil, types.NewNotFoundError(id.String())
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String(), nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.GetSandbox(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("GetSandbox() status = %d, want %d", rr.Code, http.StatusNotFound)
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "GET", sandboxesPath(testID, ""), nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
 
-// TestGetSandboxInvalidID tests getting a sandbox with invalid UUID.
-// [REQ:REQ-P0-002] Stable Sandbox Identifier - API validates UUID format
 func TestGetSandboxInvalidID(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/not-a-uuid", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "not-a-uuid"})
-	rr := httptest.NewRecorder()
-
-	h.GetSandbox(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("GetSandbox() status = %d, want %d", rr.Code, http.StatusBadRequest)
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, _ := live.Do(t, "GET", "/api/v1/sandboxes/not-a-uuid", nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
 
 // --- DeleteSandbox Handler Tests ---
 
-// TestDeleteSandboxSuccess tests successfully deleting a sandbox.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API deletes sandbox
 func TestDeleteSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
-		DeleteFn: func(ctx context.Context, id uuid.UUID) error {
-			return nil
-		},
+		DeleteFn: func(ctx context.Context, id uuid.UUID) error { return nil },
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("DELETE", "/sandboxes/"+testID.String(), nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.DeleteSandbox(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("DeleteSandbox() status = %d, want %d", rr.Code, http.StatusNoContent)
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "DELETE", sandboxesPath(testID, ""), nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("status = %d, want 204", resp.StatusCode)
 	}
 }
 
-// TestDeleteSandboxNotFound tests deleting a non-existent sandbox.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 404 for unknown ID
 func TestDeleteSandboxNotFound(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -586,75 +313,39 @@ func TestDeleteSandboxNotFound(t *testing.T) {
 			return types.NewNotFoundError(id.String())
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("DELETE", "/sandboxes/"+testID.String(), nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.DeleteSandbox(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("DeleteSandbox() status = %d, want %d", rr.Code, http.StatusNotFound)
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "DELETE", sandboxesPath(testID, ""), nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
 
 // --- StopSandbox Handler Tests ---
 
-// TestStopSandboxSuccess tests successfully stopping a sandbox.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API stops sandbox
 func TestStopSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
 	svc := &sandboxiface.FakeService{
 		StopFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-			return &types.Sandbox{
-				ID:        testID,
-				Status:    types.StatusStopped,
-				StoppedAt: &now,
-			}, nil
+			return &types.Sandbox{ID: testID, Status: types.StatusStopped, StoppedAt: &now}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "POST", sandboxesPath(testID, "/stop"), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/stop", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.StopSandbox(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("StopSandbox() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.Sandbox
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.Sandbox
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp.Status != types.StatusStopped {
-		t.Errorf("StopSandbox() status = %v, want %v", resp.Status, types.StatusStopped)
+	if got.Status != types.StatusStopped {
+		t.Errorf("status = %v, want %v", got.Status, types.StatusStopped)
 	}
 }
 
 // --- GetDiff Handler Tests ---
 
-// TestGetDiffSuccess tests successfully getting sandbox diff.
-// [REQ:REQ-P0-006] Diff Generation - API returns unified diff
 func TestGetDiffSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -664,279 +355,140 @@ func TestGetDiffSuccess(t *testing.T) {
 				UnifiedDiff: "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new",
 				Files:       []*types.FileChange{},
 				Stats: types.DiffStats{
-					FilesChanged:  1,
-					FilesModified: 1,
-					LinesAdded:    1,
-					LinesRemoved:  1,
+					FilesChanged: 1, FilesModified: 1, LinesAdded: 1, LinesRemoved: 1,
 				},
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", sandboxesPath(testID, "/diff"), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/diff", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.GetDiff(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("GetDiff() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.DiffResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.DiffResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp.UnifiedDiff == "" {
-		t.Error("GetDiff() unifiedDiff should not be empty")
+	if got.UnifiedDiff == "" {
+		t.Error("UnifiedDiff should not be empty")
 	}
 }
 
 // --- Approve Handler Tests ---
 
-// TestApproveAllSuccess tests successfully approving all changes.
-// [REQ:REQ-P0-007] Patch Application - API approves all changes
 func TestApproveAllSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		ApproveFn: func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
-			return &types.ApprovalResult{
-				Success:    true,
-				Applied:    3,
-				CommitHash: "abc123",
-			}, nil
+			return &types.ApprovalResult{Success: true, Applied: 3, CommitHash: "abc123"}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.DoJSON(t, "POST", sandboxesPath(testID, "/approve"),
+		`{"mode": "all", "actor": "test-user"}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	body := `{"mode": "all", "actor": "test-user"}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/approve", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Approve(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Approve() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.ApprovalResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.ApprovalResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	if !got.Success {
+		t.Error("success = false, want true")
 	}
-
-	if !resp.Success {
-		t.Error("Approve() success = false, want true")
-	}
-	if resp.Applied != 3 {
-		t.Errorf("Approve() applied = %d, want 3", resp.Applied)
+	if got.Applied != 3 {
+		t.Errorf("Applied = %d, want 3", got.Applied)
 	}
 }
 
 // --- Reject Handler Tests ---
 
-// TestRejectSuccess tests successfully rejecting sandbox changes.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API rejects sandbox
 func TestRejectSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		RejectFn: func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
-			return &types.Sandbox{
-				ID:     testID,
-				Status: types.StatusRejected,
-			}, nil
+			return &types.Sandbox{ID: testID, Status: types.StatusRejected}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.DoJSON(t, "POST", sandboxesPath(testID, "/reject"), `{"actor": "test-user"}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	body := `{"actor": "test-user"}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/reject", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Reject(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Reject() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.Sandbox
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.Sandbox
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp.Status != types.StatusRejected {
-		t.Errorf("Reject() status = %v, want %v", resp.Status, types.StatusRejected)
+	if got.Status != types.StatusRejected {
+		t.Errorf("status = %v, want %v", got.Status, types.StatusRejected)
 	}
 }
 
 // --- Discard Handler Tests ---
 
-// TestDiscardSuccess tests successfully discarding files from a sandbox.
 func TestDiscardSuccess(t *testing.T) {
 	testID := uuid.New()
 	fileID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		DiscardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
 			return &types.DiscardResult{
-				Success:   true,
-				Discarded: 1,
-				Remaining: 2,
-				Files:     []string{"test.txt"},
+				Success: true, Discarded: 1, Remaining: 2, Files: []string{"test.txt"},
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
+	live := newLive(t, svc)
 	body := fmt.Sprintf(`{"fileIds": ["%s"], "actor": "test-user"}`, fileID.String())
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/discard", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Discard(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Discard() status = %d, want %d", rr.Code, http.StatusOK)
+	resp, respBody := live.DoJSON(t, "POST", sandboxesPath(testID, "/discard"), body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	var resp types.DiscardResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	var got types.DiscardResult
+	if err := json.Unmarshal(respBody, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	if !resp.Success {
-		t.Error("Discard() should return success=true")
-	}
-	if resp.Discarded != 1 {
-		t.Errorf("Discard() discarded = %d, want 1", resp.Discarded)
-	}
-	if resp.Remaining != 2 {
-		t.Errorf("Discard() remaining = %d, want 2", resp.Remaining)
+	if !got.Success || got.Discarded != 1 || got.Remaining != 2 {
+		t.Errorf("result = %+v, want success=true discarded=1 remaining=2", got)
 	}
 }
 
-// TestDiscardWithFilePaths tests discarding using file paths instead of IDs.
 func TestDiscardWithFilePaths(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		DiscardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
 			if len(req.FilePaths) != 1 || req.FilePaths[0] != "path/to/file.txt" {
-				t.Errorf("Expected filePaths to contain path/to/file.txt, got %v", req.FilePaths)
+				t.Errorf("FilePaths = %v, want [path/to/file.txt]", req.FilePaths)
 			}
-			return &types.DiscardResult{
-				Success:   true,
-				Discarded: 1,
-				Remaining: 0,
-				Files:     req.FilePaths,
-			}, nil
+			return &types.DiscardResult{Success: true, Discarded: 1, Files: req.FilePaths}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	body := `{"filePaths": ["path/to/file.txt"]}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/discard", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Discard(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Discard() status = %d, want %d", rr.Code, http.StatusOK)
+	live := newLive(t, svc)
+	resp, _ := live.DoJSON(t, "POST", sandboxesPath(testID, "/discard"),
+		`{"filePaths": ["path/to/file.txt"]}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
 	}
 }
 
-// TestDiscardMissingFiles tests that discard requires files to be specified.
 func TestDiscardMissingFiles(t *testing.T) {
 	testID := uuid.New()
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	body := `{"actor": "test-user"}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/discard", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Discard(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Discard() with no files status = %d, want %d", rr.Code, http.StatusBadRequest)
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, _ := live.DoJSON(t, "POST", sandboxesPath(testID, "/discard"), `{"actor": "test-user"}`)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
 
-// TestDiscardInvalidSandboxID tests that discard rejects invalid sandbox IDs.
 func TestDiscardInvalidSandboxID(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	body := `{"filePaths": ["test.txt"]}`
-	req := httptest.NewRequest("POST", "/sandboxes/invalid-uuid/discard", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": "invalid-uuid"})
-	rr := httptest.NewRecorder()
-
-	h.Discard(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Discard() with invalid ID status = %d, want %d", rr.Code, http.StatusBadRequest)
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, _ := live.DoJSON(t, "POST", "/api/v1/sandboxes/invalid-uuid/discard",
+		`{"filePaths": ["test.txt"]}`)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
 
 // --- GetWorkspace Handler Tests ---
 
-// TestGetWorkspaceSuccess tests getting workspace path.
-// [REQ:REQ-P0-001] Fast Sandbox Creation - API provides workspace path
 func TestGetWorkspaceSuccess(t *testing.T) {
 	testID := uuid.New()
 	expectedPath := "/tmp/sandbox/" + testID.String() + "/merged"
@@ -945,141 +497,79 @@ func TestGetWorkspaceSuccess(t *testing.T) {
 			return expectedPath, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", sandboxesPath(testID, "/workspace"), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/workspace", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.GetWorkspace(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("GetWorkspace() status = %d, want %d", rr.Code, http.StatusOK)
+	var got map[string]string
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp map[string]string
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp["path"] != expectedPath {
-		t.Errorf("GetWorkspace() path = %v, want %v", resp["path"], expectedPath)
+	if got["path"] != expectedPath {
+		t.Errorf("path = %q, want %q", got["path"], expectedPath)
 	}
 }
 
 // --- DriverInfo Handler Tests ---
 
-// TestDriverInfoAvailable tests getting driver info when available.
-// [REQ:REQ-P0-003] Overlayfs Copy-on-Write Driver - API reports driver status
 func TestDriverInfoAvailable(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, body := live.Do(t, "GET", "/api/v1/driver/info", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/driver", nil)
-	rr := httptest.NewRecorder()
-
-	h.DriverInfo(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("DriverInfo() status = %d, want %d", rr.Code, http.StatusOK)
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp["available"] != true {
-		t.Errorf("DriverInfo() available = %v, want true", resp["available"])
+	if got["available"] != true {
+		t.Errorf("available = %v, want true", got["available"])
 	}
 }
 
-// TestDriverInfoUnavailable tests getting driver info when unavailable.
-// [REQ:REQ-P0-003] Overlayfs Copy-on-Write Driver - API reports unavailable status
 func TestDriverInfoUnavailable(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(driverWithErr(false, fmt.Errorf("overlayfs not supported"))),
-		Config:     config.Config{},
+	live := newLive(t, &sandboxiface.FakeService{},
+		withDriver(driverWithErr(false, fmt.Errorf("overlayfs not supported"))))
+	resp, body := live.Do(t, "GET", "/api/v1/driver/info", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/driver", nil)
-	rr := httptest.NewRecorder()
-
-	h.DriverInfo(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("DriverInfo() status = %d, want %d", rr.Code, http.StatusOK)
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp["available"] != false {
-		t.Errorf("DriverInfo() available = %v, want false", resp["available"])
+	if got["available"] != false {
+		t.Errorf("available = %v, want false", got["available"])
 	}
 }
 
 // --- StartSandbox Handler Tests ---
 
-// TestStartSandboxSuccess tests successfully starting (resuming) a stopped sandbox.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API starts/resumes sandbox
 func TestStartSandboxSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		StartFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return &types.Sandbox{
-				ID:        testID,
-				Status:    types.StatusActive,
+				ID: testID, Status: types.StatusActive,
 				MergedDir: "/tmp/sandbox/" + testID.String() + "/merged",
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "POST", sandboxesPath(testID, "/start"), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/start", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.StartSandbox(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("StartSandbox() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.Sandbox
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.Sandbox
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if resp.Status != types.StatusActive {
-		t.Errorf("StartSandbox() status = %v, want %v", resp.Status, types.StatusActive)
+	if got.Status != types.StatusActive {
+		t.Errorf("status = %v, want %v", got.Status, types.StatusActive)
 	}
 }
 
-// TestStartSandboxNotFound tests starting a non-existent sandbox.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 404 for unknown ID
 func TestStartSandboxNotFound(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -1087,122 +577,68 @@ func TestStartSandboxNotFound(t *testing.T) {
 			return nil, types.NewNotFoundError(id.String())
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/start", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.StartSandbox(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("StartSandbox() status = %d, want %d", rr.Code, http.StatusNotFound)
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "POST", sandboxesPath(testID, "/start"), nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
 
-// TestStartSandboxInvalidState tests starting a sandbox that's not in a startable state.
-// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 409 for invalid state
 func TestStartSandboxInvalidState(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
 		StartFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 			return nil, types.NewStateError(&types.InvalidTransitionError{
-				Current:   types.StatusApproved,
-				Attempted: types.StatusActive,
-				Reason:    "cannot start approved sandbox",
+				Current: types.StatusApproved, Attempted: types.StatusActive,
+				Reason: "cannot start approved sandbox",
 			})
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/start", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.StartSandbox(rr, req)
-
-	if rr.Code != http.StatusConflict {
-		t.Errorf("StartSandbox() status = %d, want %d", rr.Code, http.StatusConflict)
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "POST", sandboxesPath(testID, "/start"), nil)
+	if resp.StatusCode != http.StatusConflict {
+		t.Errorf("status = %d, want 409", resp.StatusCode)
 	}
 }
 
 // --- CheckConflicts Handler Tests ---
 
-// TestCheckConflictsSuccess tests successfully checking for conflicts.
-// [REQ:OT-P2-002] Conflict Detection - API returns conflict info
 func TestCheckConflictsSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
 	svc := &sandboxiface.FakeService{
 		CheckConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
 			return &types.ConflictCheckResponse{
-				HasConflict:         false,
-				BaseCommitHash:      "abc123",
-				CurrentHash:         "abc123",
-				RepoChangedFiles:    []string{},
-				SandboxChangedFiles: []string{"file.txt"},
-				ConflictingFiles:    []string{},
-				CheckedAt:           now,
+				HasConflict: false, BaseCommitHash: "abc123", CurrentHash: "abc123",
+				RepoChangedFiles: []string{}, SandboxChangedFiles: []string{"file.txt"},
+				ConflictingFiles: []string{}, CheckedAt: now,
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", sandboxesPath(testID, "/conflicts"), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/conflicts", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.CheckConflicts(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("CheckConflicts() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.ConflictCheckResponse
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.ConflictCheckResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	if got.HasConflict {
+		t.Error("HasConflict = true, want false")
 	}
-
-	if resp.HasConflict {
-		t.Error("CheckConflicts() hasConflict = true, want false")
-	}
-	if resp.BaseCommitHash != "abc123" {
-		t.Errorf("CheckConflicts() baseCommitHash = %q, want 'abc123'", resp.BaseCommitHash)
+	if got.BaseCommitHash != "abc123" {
+		t.Errorf("BaseCommitHash = %q, want abc123", got.BaseCommitHash)
 	}
 }
 
-// TestCheckConflictsWithConflict tests conflict detection when files conflict.
-// [REQ:OT-P2-002] Conflict Detection - API returns conflicting files
 func TestCheckConflictsWithConflict(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
 	svc := &sandboxiface.FakeService{
 		CheckConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
 			return &types.ConflictCheckResponse{
-				HasConflict:         true,
-				BaseCommitHash:      "abc123",
-				CurrentHash:         "def456",
+				HasConflict: true, BaseCommitHash: "abc123", CurrentHash: "def456",
 				RepoChangedFiles:    []string{"file.txt", "config.go"},
 				SandboxChangedFiles: []string{"file.txt", "main.go"},
 				ConflictingFiles:    []string{"file.txt"},
@@ -1210,39 +646,23 @@ func TestCheckConflictsWithConflict(t *testing.T) {
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", sandboxesPath(testID, "/conflicts"), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/conflicts", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.CheckConflicts(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("CheckConflicts() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.ConflictCheckResponse
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.ConflictCheckResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	if !got.HasConflict {
+		t.Error("HasConflict = false, want true")
 	}
-
-	if !resp.HasConflict {
-		t.Error("CheckConflicts() hasConflict = false, want true")
-	}
-	if len(resp.ConflictingFiles) != 1 || resp.ConflictingFiles[0] != "file.txt" {
-		t.Errorf("CheckConflicts() conflictingFiles = %v, want ['file.txt']", resp.ConflictingFiles)
+	if len(got.ConflictingFiles) != 1 || got.ConflictingFiles[0] != "file.txt" {
+		t.Errorf("ConflictingFiles = %v, want [file.txt]", got.ConflictingFiles)
 	}
 }
 
-// TestCheckConflictsNotFound tests conflict check for non-existent sandbox.
 func TestCheckConflictsNotFound(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -1250,94 +670,49 @@ func TestCheckConflictsNotFound(t *testing.T) {
 			return nil, types.NewNotFoundError(id.String())
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/conflicts", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.CheckConflicts(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("CheckConflicts() status = %d, want %d", rr.Code, http.StatusNotFound)
+	live := newLive(t, svc)
+	resp, _ := live.Do(t, "GET", sandboxesPath(testID, "/conflicts"), nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
 
 // --- Rebase Handler Tests ---
 
-// TestRebaseSuccess tests successfully rebasing a sandbox.
-// [REQ:OT-P2-003] Rebase Workflow - API performs rebase operation
 func TestRebaseSuccess(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
 	svc := &sandboxiface.FakeService{
 		RebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
 			return &types.RebaseResult{
-				Success:          true,
-				PreviousBaseHash: "abc123",
-				NewBaseHash:      "def456",
-				ConflictingFiles: []string{},
-				RepoChangedFiles: []string{"file.txt"},
-				Strategy:         types.RebaseStrategyRegenerate,
-				RebasedAt:        now,
+				Success: true, PreviousBaseHash: "abc123", NewBaseHash: "def456",
+				ConflictingFiles: []string{}, RepoChangedFiles: []string{"file.txt"},
+				Strategy: types.RebaseStrategyRegenerate, RebasedAt: now,
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.DoJSON(t, "POST", sandboxesPath(testID, "/rebase"),
+		`{"strategy": "regenerate", "actor": "test-user"}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	body := `{"strategy": "regenerate", "actor": "test-user"}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/rebase", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Rebase(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Rebase() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.RebaseResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.RebaseResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if !resp.Success {
-		t.Error("Rebase() success = false, want true")
-	}
-	if resp.PreviousBaseHash != "abc123" {
-		t.Errorf("Rebase() previousBaseHash = %q, want 'abc123'", resp.PreviousBaseHash)
-	}
-	if resp.NewBaseHash != "def456" {
-		t.Errorf("Rebase() newBaseHash = %q, want 'def456'", resp.NewBaseHash)
+	if !got.Success || got.PreviousBaseHash != "abc123" || got.NewBaseHash != "def456" {
+		t.Errorf("got %+v, want success=true prev=abc123 new=def456", got)
 	}
 }
 
-// TestRebaseWithConflicts tests rebase when conflicts cannot be resolved.
-// [REQ:OT-P2-003] Rebase Workflow - API reports unresolvable conflicts
 func TestRebaseWithConflicts(t *testing.T) {
 	testID := uuid.New()
 	now := time.Now()
 	svc := &sandboxiface.FakeService{
 		RebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
 			return &types.RebaseResult{
-				Success:          false,
-				PreviousBaseHash: "abc123",
-				NewBaseHash:      "",
+				Success: false, PreviousBaseHash: "abc123",
 				ConflictingFiles: []string{"main.go", "config.go"},
 				RepoChangedFiles: []string{"main.go", "config.go", "readme.md"},
 				Strategy:         types.RebaseStrategyRegenerate,
@@ -1346,41 +721,23 @@ func TestRebaseWithConflicts(t *testing.T) {
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.DoJSON(t, "POST", sandboxesPath(testID, "/rebase"), `{"strategy": "regenerate"}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	body := `{"strategy": "regenerate"}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/rebase", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Rebase(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Rebase() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.RebaseResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.RebaseResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	if got.Success {
+		t.Error("Success = true, want false")
 	}
-
-	if resp.Success {
-		t.Error("Rebase() success = true, want false")
-	}
-	if len(resp.ConflictingFiles) != 2 {
-		t.Errorf("Rebase() conflictingFiles count = %d, want 2", len(resp.ConflictingFiles))
+	if len(got.ConflictingFiles) != 2 {
+		t.Errorf("ConflictingFiles count = %d, want 2", len(got.ConflictingFiles))
 	}
 }
 
-// TestRebaseNotFound tests rebase for non-existent sandbox.
 func TestRebaseNotFound(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
@@ -1388,149 +745,79 @@ func TestRebaseNotFound(t *testing.T) {
 			return nil, types.NewNotFoundError(req.SandboxID.String())
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	body := `{"strategy": "regenerate"}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/rebase", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.Rebase(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("Rebase() status = %d, want %d", rr.Code, http.StatusNotFound)
+	live := newLive(t, svc)
+	resp, _ := live.DoJSON(t, "POST", sandboxesPath(testID, "/rebase"), `{"strategy": "regenerate"}`)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
 
 // --- ValidatePath Handler Tests ---
 
-// TestValidatePathSuccess tests successfully validating a path.
-// [REQ:REQ-P0-005] Scope Path Validation - API validates scope paths
 func TestValidatePathSuccess(t *testing.T) {
 	svc := &sandboxiface.FakeService{
 		ValidatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
 			return &types.PathValidationResult{
-				Path:              path,
-				ProjectRoot:       projectRoot,
-				Valid:             true,
-				Exists:            true,
-				IsDirectory:       true,
-				WithinProjectRoot: true,
+				Path: path, ProjectRoot: projectRoot,
+				Valid: true, Exists: true, IsDirectory: true, WithinProjectRoot: true,
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", "/api/v1/validate-path?path=/project/src&projectRoot=/project", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/validate-path?path=/project/src&projectRoot=/project", nil)
-	rr := httptest.NewRecorder()
-
-	h.ValidatePath(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.PathValidationResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.PathValidationResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	if !resp.Valid {
-		t.Error("ValidatePath() valid = false, want true")
-	}
-	if !resp.WithinProjectRoot {
-		t.Error("ValidatePath() withinProjectRoot = false, want true")
+	if !got.Valid || !got.WithinProjectRoot {
+		t.Errorf("got valid=%v within=%v, want both true", got.Valid, got.WithinProjectRoot)
 	}
 }
 
-// TestValidatePathOutsideProject tests path validation for paths outside project.
-// [REQ:REQ-P0-005] Scope Path Validation - API rejects paths outside project
 func TestValidatePathOutsideProject(t *testing.T) {
 	svc := &sandboxiface.FakeService{
 		ValidatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
 			return &types.PathValidationResult{
-				Path:              path,
-				ProjectRoot:       projectRoot,
-				Valid:             false,
-				Exists:            true,
-				IsDirectory:       true,
-				WithinProjectRoot: false,
-				Error:             "path is outside project root",
+				Path: path, ProjectRoot: projectRoot,
+				Valid: false, Exists: true, IsDirectory: true, WithinProjectRoot: false,
+				Error: "path is outside project root",
 			}, nil
 		},
 	}
-
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
+	live := newLive(t, svc)
+	resp, body := live.Do(t, "GET", "/api/v1/validate-path?path=/etc/passwd&projectRoot=/project", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-
-	req := httptest.NewRequest("GET", "/validate-path?path=/etc/passwd&projectRoot=/project", nil)
-	rr := httptest.NewRecorder()
-
-	h.ValidatePath(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusOK)
+	var got types.PathValidationResult
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
-
-	var resp types.PathValidationResult
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
+	if got.Valid {
+		t.Error("Valid = true, want false")
 	}
-
-	if resp.Valid {
-		t.Error("ValidatePath() valid = true, want false")
+	if got.WithinProjectRoot {
+		t.Error("WithinProjectRoot = true, want false")
 	}
-	if resp.WithinProjectRoot {
-		t.Error("ValidatePath() withinProjectRoot = true, want false")
-	}
-	if resp.Error == "" {
-		t.Error("ValidatePath() error should not be empty")
+	if got.Error == "" {
+		t.Error("Error should not be empty")
 	}
 }
 
-// TestValidatePathMissingParam tests path validation without path parameter.
 func TestValidatePathMissingParam(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
-	req := httptest.NewRequest("GET", "/validate-path", nil)
-	rr := httptest.NewRecorder()
-
-	h.ValidatePath(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusBadRequest)
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, _ := live.Do(t, "GET", "/api/v1/validate-path", nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
 
 // --- ApplyAtRunEnd Handler Tests ---
 //
-// Cover the new auditability-contract endpoint added in Phase 2 of
+// Cover the auditability-contract endpoint added in Phase 2 of
 // execute/agent-manager-sandbox-auto-apply-defaults. The handler is a thin
 // JSON-decode + service-delegation layer; tests verify the wire-shape
 // translation and that domain errors surface as HTTP errors.
@@ -1544,14 +831,7 @@ func TestApplyAtRunEnd_Success(t *testing.T) {
 			return &types.ApprovalResult{Success: true, Applied: 2}, nil
 		},
 	}
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    svc,
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-
+	live := newLive(t, svc)
 	body := `{
 		"agentManagerRunId": "run-1",
 		"conversationId": "conv-7",
@@ -1560,21 +840,15 @@ func TestApplyAtRunEnd_Success(t *testing.T) {
 		"source": "agent-manager-auto-apply",
 		"actor": "auto-apply"
 	}`
-	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/apply-at-run-end", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
-	rr := httptest.NewRecorder()
-
-	h.ApplyAtRunEnd(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("ApplyAtRunEnd() status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	resp, respBody := live.DoJSON(t, "POST", sandboxesPath(testID, "/apply-at-run-end"), body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, respBody)
 	}
 	if captured == nil {
 		t.Fatal("service was not called")
 	}
 	if captured.SandboxID != testID {
-		t.Errorf("SandboxID populated from path var = %v, want %v", captured.SandboxID, testID)
+		t.Errorf("SandboxID = %v, want %v", captured.SandboxID, testID)
 	}
 	if captured.AgentManagerRunID != "run-1" {
 		t.Errorf("AgentManagerRunID = %q, want run-1", captured.AgentManagerRunID)
@@ -1588,40 +862,18 @@ func TestApplyAtRunEnd_Success(t *testing.T) {
 }
 
 func TestApplyAtRunEnd_InvalidSandboxID(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
-	req := httptest.NewRequest("POST", "/sandboxes/not-a-uuid/apply-at-run-end", bytes.NewBufferString(`{}`))
-	req = mux.SetURLVars(req, map[string]string{"id": "not-a-uuid"})
-	rr := httptest.NewRecorder()
-
-	h.ApplyAtRunEnd(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rr.Code)
+	live := newLive(t, &sandboxiface.FakeService{})
+	resp, _ := live.DoJSON(t, "POST", "/api/v1/sandboxes/not-a-uuid/apply-at-run-end", `{}`)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
 
 func TestApplyAtRunEnd_MalformedBody(t *testing.T) {
-	h := &Handlers{
-		Clock:      clock.System{},
-		Service:    &sandboxiface.FakeService{},
-		DB:         mocks.NewFakePinger(),
-		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
-		Config:     config.Config{},
-	}
+	live := newLive(t, &sandboxiface.FakeService{})
 	id := uuid.New()
-	req := httptest.NewRequest("POST", "/sandboxes/"+id.String()+"/apply-at-run-end", bytes.NewBufferString(`{ malformed`))
-	req = mux.SetURLVars(req, map[string]string{"id": id.String()})
-	rr := httptest.NewRecorder()
-
-	h.ApplyAtRunEnd(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rr.Code)
+	resp, _ := live.DoJSON(t, "POST", sandboxesPath(id, "/apply-at-run-end"), `{ malformed`)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }

@@ -13,17 +13,18 @@ import (
 	"github.com/gorilla/mux"
 
 	"workspace-sandbox/internal/process"
+	"workspace-sandbox/internal/sse"
 )
 
 // process_logs.go: per-process log retrieval + SSE streaming.
 //
-// The SSE handler explicitly clears the per-response write deadline so
-// long-running streams don't get killed mid-flight by the server-wide
-// http.Server.WriteTimeout. After the log stream closes, the handler
-// waits on the tracker's exit channel (bounded) to deliver a final
-// `event: exit` carrying ExitInfo — without this, fast-failing
-// processes would never emit it and clients would mistake the failure
-// for success.
+// SSE wire-format details (Content-Type, Flusher assertion, multi-line
+// data encoding, write-deadline reset, trailing `event: end`) live in
+// internal/sse. This file only chooses *what* to emit and in what
+// order; *how* it reaches the wire is the sse package's job. That
+// split is the point of Round 4 Phase 5 — the 2026-04-28 SSE Flusher
+// bug shipped because every handler re-derived the wire format
+// inline; one missed assertion was enough to break streaming.
 
 // exitInfoWaitTimeout caps how long StreamProcessLogs waits after the
 // log stream closes for the wait reaper to record exit info. 5s is
@@ -83,9 +84,14 @@ func (h *Handlers) GetProcessLogs(w http.ResponseWriter, r *http.Request) {
 // StreamProcessLogs streams one stream of a process's log via
 // Server-Sent Events. Required query parameter: stream=stdout|stderr.
 //
-// Sends `data:` events as bytes are written. When the process
-// terminates, sends a single `event: exit` carrying ExitInfo as JSON,
-// then `event: end` and closes the connection.
+// Wire contract (enforced by the sse package):
+//
+//   - Replays existing on-disk content as default-event frames.
+//   - On any underlying stream error other than client cancellation,
+//     emits one `event: error` frame.
+//   - Once the process has exited, emits exactly one `event: exit`
+//     frame carrying ExitInfo as JSON.
+//   - The closing `event: end` is emitted by sse.Writer.Close.
 func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 	id, pid, stream, ok := h.parseProcessLogParams(w, r)
 	if !ok {
@@ -96,38 +102,26 @@ func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	sw, err := sse.NewHTTPWriter(w)
+	if err != nil {
+		// Only ErrFlusherUnsupported lands here. The 2026-04-28
+		// Flusher regression now surfaces as a structured 500
+		// instead of a silently-buffered stream.
 		h.JSONError(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-
-	// Clear the per-response write deadline so the SSE stream can stay
-	// open for the lifetime of the agent process — the server-wide
-	// http.Server.WriteTimeout (30s by default) would otherwise kill
-	// long-running streams mid-flight, surfacing as
-	// SANDBOX_NO_EXIT_INFO on the agent-manager side.
-	if rc := http.NewResponseController(w); rc != nil {
-		_ = rc.SetWriteDeadline(time.Time{})
-	}
+	defer sw.Close()
 
 	ctx := r.Context()
 
 	// StreamLog replays existing disk content first so a late subscriber
 	// doesn't lose what was already written, then fans out new chunks.
 	streamErr := h.ProcessLogger.StreamLog(ctx, id, pid, stream, func(chunk []byte) {
-		fmt.Fprintf(w, "data: %s\n\n", string(chunk))
-		flusher.Flush()
+		_ = sw.WriteData(chunk)
 	})
 
 	if streamErr != nil && !errors.Is(streamErr, context.Canceled) && !errors.Is(streamErr, context.DeadlineExceeded) {
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", streamErr.Error())
-		flusher.Flush()
+		_ = sw.WriteEvent("error", []byte(streamErr.Error()))
 	}
 
 	// Push the structured exit info so consumers don't need a second
@@ -141,16 +135,11 @@ func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case info != nil:
 			payload, _ := json.Marshal(info)
-			fmt.Fprintf(w, "event: exit\ndata: %s\n\n", string(payload))
-			flusher.Flush()
+			_ = sw.WriteEvent("exit", payload)
 		case waitErr != nil:
-			fmt.Fprintf(w, "event: error\ndata: exit info unavailable: %s\n\n", waitErr.Error())
-			flusher.Flush()
+			_ = sw.WriteEvent("error", []byte("exit info unavailable: "+waitErr.Error()))
 		}
 	}
-
-	fmt.Fprintf(w, "event: end\ndata: stream closed\n\n")
-	flusher.Flush()
 }
 
 // ListProcessLogs returns all log files for a sandbox.

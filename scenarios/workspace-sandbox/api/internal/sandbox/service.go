@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
@@ -128,6 +129,7 @@ type Service struct {
 	driver driver.Driver
 	config ServiceConfig
 	clock  clock.Clock
+	audit  audit.Emitter
 
 	// Policies — volatile decision points wired via ServiceOption.
 	attributionPolicy policy.AttributionPolicy
@@ -211,20 +213,31 @@ func WithGitOps(g diff.GitOperations) ServiceOption {
 	}
 }
 
-// NewService creates a new sandbox service. clk is required (idle
-// timeouts, audit timestamps, manual-review TTL evaluation, and the
-// per-sandbox auto-heal clock all flow through it). Production wires
-// clock.System{}; tests wire FakeClock so time-dependent behavior is
-// deterministic.
-func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk clock.Clock, opts ...ServiceOption) *Service {
+// NewService creates a new sandbox service. clk and emitter are
+// required:
+//
+//   - clk: idle timeouts, audit timestamps, manual-review TTL
+//     evaluation, and the per-sandbox auto-heal clock all flow
+//     through it. Production wires clock.System{}; tests wire
+//     FakeClock so time-dependent behavior is deterministic.
+//   - emitter: every audit event (created, approved, rejected,
+//     auto-heal-failed, manual-review-ttl-expired, etc.) goes
+//     through it. Production wires audit.NewRepoEmitter(repo.LogAuditEvent, clk);
+//     tests wire mocks.NewFakeEmitter(clk) and assert via
+//     assertx.AssertAuditEvents.
+func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk clock.Clock, emitter audit.Emitter, opts ...ServiceOption) *Service {
 	if clk == nil {
 		panic("sandbox.NewService: clock is required")
+	}
+	if emitter == nil {
+		panic("sandbox.NewService: audit emitter is required")
 	}
 	s := &Service{
 		repo:   repo,
 		driver: drv,
 		config: cfg,
 		clock:  clk,
+		audit:  emitter,
 		// Defaults: no-op policies + production GitOps.
 		validationPolicy: policy.NewNoOpValidationPolicy(),
 		teardownPolicy:   policy.NewNoOpTeardownPolicy(),

@@ -1025,9 +1025,11 @@ Layout:
 - `internal/testutil/db/` — `NewSQLite(t)` returns a connected DB with
   the production `repository.SchemaSQL` applied to a `t.TempDir()`
   file. Replaces the per-test `newTestDB` helpers.
-- `internal/testutil/httpx/` — `ParseSSEStream` (strict parser used by
-  Phase 3/5 frame-ordering tests). Phase 3 will add the live-HTTP
-  harness here.
+- `internal/testutil/httpx/` — live-HTTP harness (`NewLiveServer`).
+  The SSE parser originally seeded here moved into `internal/sse`
+  in Phase 5 once the encoder needed to live next to it; this
+  package is now exclusively about the production middleware +
+  router boot path.
 - `internal/testutil/assertx/` — domain assertions (`AssertStatus`,
   `AssertHomeOverlayState`, `AssertSSEFrameSequence`, `AssertAuditEvents`).
 
@@ -1137,3 +1139,305 @@ Production-code changes Phase 2 made en route:
   zero, removing a duplicated time source.
 
 [CODE: `internal/clock/clock.go`, `internal/testutil/mocks/clock.go`]
+
+## HTTP Middleware + Live-HTTP Test Harness (Round 4 Phase 3)
+
+The 2026-04-28 SSE flusher bug shipped because handler tests used
+`httptest.ResponseRecorder`, which natively implements `http.Flusher` and
+`http.Hijacker`. The custom `responseWriter` wrapper in `main.go` was
+missing those forwarders, so every SSE response 500'd in production.
+Phase 3 closes the gap structurally.
+
+### Production middleware lives in `internal/server`
+
+`internal/server/middleware.go::Middleware{Logger, Clock,
+CORSAllowedOrigins, UIPortEnv}.Apply(router)` is the single home for the
+structured-logging + CORS middleware stack. The unexported
+`responseWriter` wrapper (with explicit `Flush`/`Hijack` pass-throughs)
+is private to this package; nothing else in the codebase implements an
+HTTP middleware. Both `main.go` (production) and the test harness
+construct a `Middleware` and call `Apply` on the same `*mux.Router` type,
+so the production stack and the test stack are byte-for-byte identical.
+
+### Live-HTTP test harness: `internal/testutil/httpx.NewLiveServer`
+
+`testutil/httpx.NewLiveServer(t, h *handlers.Handlers, opts...)` boots
+an `httptest.Server` wired with the production `server.Middleware`,
+`handlers.RegisterRoutes`, and `gorillahandlers.RecoveryHandler`. The
+returned `*httpx.LiveServer` carries a real `*http.Client`, helpful
+`Do`/`DoJSON` wrappers, and a `LogBuffer` capturing every middleware
+log line. Tests issue requests through real TCP — every status code,
+header, body, and SSE frame flows through the same code path the
+production binary runs.
+
+Options:
+
+- `WithClock(c)` — inject a `clock.Clock` (defaults to
+  `clock.System{}` or the Handlers' Clock).
+- `WithCORSAllowedOrigins([]string)` — seed the strict allowlist.
+- `WithUIPortEnv(name)` — override the env var the CORS dev fallback
+  reads (defaults to `WORKSPACE_SANDBOX_TESTUTIL_UI_PORT`, deliberately
+  not the operator's `UI_PORT`, so tests can't be polluted by ambient
+  state).
+- `WithMetricsCollector(c)` — wire a metrics collector for endpoints
+  that need it.
+- `WithExtraRoutes(fn)` — register additional routes (e.g., a
+  forced-500 probe to exercise the recovery handler) without touching
+  the handlers package.
+
+### Handler tests live in `package handlers_test`
+
+The harness imports `internal/handlers`, so handler tests must live in
+the external test package (`handlers_test`) to break the import cycle.
+`internal/handlers/handlers_test.go` and
+`internal/handlers/process_start_git_allowlist_test.go` migrated to
+this layout in Phase 3; the in-package files (`process_loc_test.go`,
+`process_git_allowlist_test.go`) remain `package handlers` because they
+test pure helpers and do not import the harness.
+
+### SSE regression tests: `internal/handlers/process_sse_test.go`
+
+The five scenarios cover the contract that broke in 2026-04-28:
+
+1. **Fast exit** — process exits before subscription; replayed disk
+   content reaches the client and `event: exit` carries the structured
+   `ExitInfo` JSON.
+2. **Slow exit** — chunks are produced over the SSE connection
+   lifetime; ordering invariant holds.
+3. **Frame ordering invariant** — across no-data / single-chunk /
+   many-chunk patterns, `event: end` is always preceded by
+   `event: exit`.
+4. **Multi-subscriber fanout** — two concurrent clients see the full
+   sequence; one disconnect doesn't break the other.
+5. **Client disconnect mid-stream** — context cancellation cleans up
+   without leaking; a fresh subscriber after the disconnect still
+   completes successfully.
+
+Phase 3 tests originally asserted on raw-body content for streamed
+data because the inlined `data: %s\n\n` encoder could not round-trip
+multi-line chunks (every line after the first parsed as an unknown
+field and was silently dropped). Phase 5 landed the
+`internal/sse.HTTPWriter` seam, which encodes multi-line data
+correctly; the Phase 3 raw-body checks have been replaced with
+per-frame data assertions plus a dedicated multi-line regression
+test (`TestStreamProcessLogs_MultiLineDataPreserved`). See
+"SSE Writer Seam (Round 4 Phase 5)" below.
+
+### Lint: `internal/handlers/handler_test_pattern_test.go`
+
+A `go ast` walker over every `internal/handlers/*_test.go` fails any
+use of `httptest.NewRecorder()` outside an empty allowlist. The
+recorder's native Flusher/Hijacker satisfaction is the precise gap
+that hid the 2026-04-28 bug, so Phase 3 makes the recorder
+unavailable to handler tests by policy. Pure helper tests
+(`process_git_allowlist_test.go`, `process_loc_test.go`) don't
+construct a recorder, so the lint never fires for them.
+
+### Production-code consolidation Phase 3 made en route
+
+- `main.go::responseWriter` (and its `Flush`/`Hijack` pass-throughs)
+  moved into `internal/server`. main.go no longer knows about the
+  middleware-internal wrapper.
+- `main.go::structuredLoggingMiddleware` and `corsMiddleware` deleted;
+  replaced by `server.Middleware{}.Apply(s.router)`.
+- The two remaining `time.Now()` / `time.Since(start)` calls in main.go
+  (Phase 2 missed them — the DOD greps `internal/`, not the root)
+  removed: middleware now reads duration through the injected clock.
+- The deprecated `handlers.Health` method was deleted (truly dead — no
+  route registered, no remaining callers); api-core/health is the
+  canonical health handler in `main.go::setupRoutes`.
+- `middleware_response_writer_test.go` at the api-package root was
+  removed; the same regression is covered more thoroughly by
+  `internal/server/middleware_test.go` against the new package's exact
+  surface (Flusher / Hijacker / CORS allowlist / OPTIONS short-circuit
+  / clock-driven duration measurement / Apply panics on missing deps).
+
+[CODE: `internal/server/middleware.go`, `internal/server/middleware_test.go`,
+`internal/testutil/httpx/server.go`, `internal/handlers/handlers_test.go`,
+`internal/handlers/process_sse_test.go`,
+`internal/handlers/handler_test_pattern_test.go`,
+`internal/handlers/process_start_git_allowlist_test.go`]
+
+## SSE Writer Seam (Round 4 Phase 5)
+
+Round 4 Phase 5 (2026-04-29) extracted the SSE wire format into
+`internal/sse`. Before this seam, `internal/handlers/process_logs.go`
+inlined every frame with `fmt.Fprintf(w, "data: %s\n\n", chunk)` and
+asserted `http.Flusher` per-handler. Two latent bugs piggybacked on
+that inlining — and only the second showed up in production:
+
+1. **Multi-line data encoding.** A chunk like `"alpha\nbeta\n"`
+   produced wire output that strict SSE parsers (the agent-manager
+   consumer included) could not reassemble. The first line was
+   reported as a `data:` field; subsequent lines parsed as unknown
+   fields and were silently dropped.
+2. **`http.Flusher` pass-through.** Phase 3 already moved the
+   middleware Flusher assertion into one place; Phase 5 does the same
+   for the handler side. Every handler that streams now goes through
+   `sse.NewHTTPWriter`, which is the only place that asserts Flusher.
+
+### Layout
+
+| File | Responsibility |
+|---|---|
+| `internal/sse/sse.go` | `Writer` interface + `HTTPWriter` production impl. Owns Flusher assertion, response headers, write-deadline reset, multi-line `data:` encoding, and the `event: end` close invariant. |
+| `internal/sse/parser.go` | `Frame` + `ParseStream`. Inverse of `encodeFrame`; the round-trip property (`ParseStream(encodeFrame(e, d))[0] == {e, d}`) is unit-tested across 11 byte-shape cases including embedded newlines. |
+| `internal/sse/sse_test.go` | `HTTPWriter` correctness against `httptest.ResponseRecorder` (legitimate use here): frame ordering, missing-Flusher rejection, header stamping, idempotent Close, write-after-Close = `ErrAlreadyClosed`, multi-flush forwarding, multi-line data round-trips. |
+| `internal/sse/parser_test.go` | Parser correctness: data-only frames, named events, multi-line data, comments, trailing frame without blank line. |
+| `internal/testutil/mocks/sse_writer.go` | `FakeSSEWriter` records every frame and enforces the same Close-once / no-write-after-Close contract as the production writer. |
+
+### Contract
+
+```go
+type Writer interface {
+    WriteData(data []byte) error
+    WriteEvent(name string, data []byte) error
+    Flush() error
+    Close() error // emits event: end exactly once; idempotent
+}
+```
+
+- Multi-line data is encoded per spec — every newline becomes a
+  separate `data:` line; the parser reassembles to the original bytes.
+- `Close` emits the trailing `event: end\ndata: stream closed\n\n`
+  frame (preserving the pre-Phase-5 wire shape; agent-manager's
+  consumer ignores the data field of an `end` frame).
+- Idempotent Close means handlers can `defer sw.Close()` and also
+  call it explicitly without producing duplicate `event: end` frames.
+- Writes after Close return `ErrAlreadyClosed` so contract violations
+  surface immediately rather than silently dropping bytes.
+- Construction failure (`ErrFlusherUnsupported`) does not mutate the
+  underlying `http.ResponseWriter` — the handler can still write a
+  non-SSE error response on top.
+
+### Handler simplification
+
+`StreamProcessLogs` now uses the seam:
+
+```go
+sw, err := sse.NewHTTPWriter(w)
+if err != nil { /* 500 */ }
+defer sw.Close()
+// ...
+_ = sw.WriteData(chunk)
+_ = sw.WriteEvent("exit", payload)
+```
+
+The Flusher assertion, header stamping, write-deadline reset, and
+trailing `event: end` are all consolidated. The handler shrank to
+204 LOC (≤ 500, pinned by `process_loc_test.go`).
+
+### Production-code consolidation Phase 5 made en route
+
+- The SSE parser previously living in `internal/testutil/httpx/sse.go`
+  moved into `internal/sse/parser.go` (renamed `ParseSSEStream` →
+  `ParseStream`, `SSEFrame` → `Frame`). The encoder and parser now
+  live next to each other so the wire-format invariant is testable
+  without crossing a package boundary. `testutil/httpx` now contains
+  only the live-HTTP server harness.
+- `internal/handlers/process_loc_test.go` extended to also bound
+  `process_logs.go` at 500 LOC. The bound is a tripwire: if a future
+  change re-balloons the file, the right move is to push more
+  encoding logic into `internal/sse`, not to bump the bound.
+- The Phase 3 SSE tests previously relied on raw-body substring
+  checks for streamed data because the inlined encoder could not
+  round-trip multi-line content. Those checks have been replaced
+  with per-frame data assertions (`framesByEvent`, `joinFrameData`),
+  and a new `TestStreamProcessLogs_MultiLineDataPreserved` regression
+  test pins the multi-line invariant directly.
+
+[CODE: `internal/sse/sse.go`, `internal/sse/parser.go`,
+`internal/sse/sse_test.go`, `internal/sse/parser_test.go`,
+`internal/testutil/mocks/sse_writer.go`,
+`internal/testutil/mocks/sse_writer_test.go`,
+`internal/testutil/assertx/sse.go`,
+`internal/handlers/process_logs.go`,
+`internal/handlers/process_sse_test.go`,
+`internal/handlers/process_loc_test.go`]
+
+## Audit Emitter Seam (Round 4 Phase 6)
+
+Round 4 Phase 6 (2026-04-29) extracted audit-event emission into
+`internal/audit`. Before this seam, three production sites
+constructed `&types.AuditEvent{...}` literals inline and called
+`Repository.LogAuditEvent` directly:
+
+- `internal/sandbox/service_audit.go::logAuditEventWith` — Service
+  layer with sandbox-state snapshot.
+- `internal/sandbox/orphan_reconciler.go::logOrphanAuditEvent` —
+  orphan-cleanup path (no Sandbox object).
+- `internal/gc/gc.go` — GC-collected path.
+
+Each site re-derived the event timestamp, the default ActorType, and
+its own error policy. The new seam unifies those three concerns and
+makes the Phase 6 DOD invariant
+`grep -rn "&types.AuditEvent{" internal/ | grep -v _test.go | grep -v internal/audit/ | grep -v internal/testutil/`
+return zero hits.
+
+### Layout
+
+| File | Responsibility |
+|---|---|
+| `internal/audit/audit.go` | `Event` (input shape) + `Emitter` interface + `RepoEmitter` production impl + `LogFunc` adapter. EventTime is stamped from the injected `clock.Clock`; ActorType defaults to `"system"`; ID is stamped via `uuid.New`. The `&types.AuditEvent{...}` literal lives only here. |
+| `internal/audit/audit_test.go` | Stamping correctness: EventTime via clock, UTC normalization, ActorType default, explicit-Source preservation, empty-EventType rejection, log-error propagation, panics on nil log/clock. External test package (`audit_test`) so the test can import `testutil/mocks` for `FakeClock` without creating a cycle. |
+| `internal/testutil/mocks/audit_emitter.go` | `FakeEmitter` records the same `*types.AuditEvent` shape `RepoEmitter` would have written. Existing tests that scan `FakeRepository.AuditEvents` continue to work because production paths (`RepoEmitter`) still hit the repo; tests that prefer to spy on the seam directly use `FakeEmitter.Events()`. |
+
+### Contract
+
+```go
+type Event struct {
+    EventType    string
+    SandboxID    *uuid.UUID
+    Actor        string
+    ActorType    string
+    Source       types.ApprovalSource
+    Details      map[string]interface{}
+    SandboxState map[string]interface{}
+}
+
+type Emitter interface {
+    Emit(ctx context.Context, e Event) error
+}
+```
+
+- `EventType` is required — `Emit` returns an error if empty so
+  programming bugs surface instead of silently emitting blank events.
+- `ActorType` defaults to `"system"` when omitted (matches the
+  pre-seam convention used by reconcilers and GC).
+- `EventTime` is stamped via the clock and converted to UTC. The
+  repository's stamping path remains as a defensive backstop.
+- Errors are propagated to the caller. Each call site picks its
+  policy: Service logs and continues (`fmt.Printf("warning: ...")`),
+  the orphan reconciler logs and continues (`log.Printf(...)`), GC
+  surfaces the error in `result.Errors`. The seam doesn't make the
+  policy choice for any of them.
+
+### Wiring
+
+Both `sandbox.NewService` and `gc.NewService` now require `audit.Emitter`
+as a positional argument (Round 4 greenfield rule — no defaults). Production
+wires `audit.NewRepoEmitter(repo.LogAuditEvent, clk)`; tests wire either
+the same emitter (preserves `FakeRepository.AuditEvents` assertions) or
+`mocks.NewFakeEmitter(clk)` (asserts on the seam directly).
+
+### Production-code consolidation Phase 6 made en route
+
+- `service_audit.go::logAuditEventWith` no longer hand-builds the
+  `&types.AuditEvent{}` literal — calls `s.audit.Emit(ctx, audit.Event{...})`
+  with the snapshot, preserving the user-vs-system ActorType
+  defaulting that's specific to Service-level events.
+- `orphan_reconciler.go` switched its nil-safety check from
+  `s.repo == nil` to `s.audit == nil` (the seam is the relevant
+  guard now; `s.repo` is still required by the constructor).
+- `gc/gc.go::Run` calls `s.emitter.Emit(...)` instead of
+  `s.repo.LogAuditEvent(...)`. The error path continues to populate
+  `result.Errors`; that policy is unchanged.
+- `sandbox.Service.audit` and `gc.Service.emitter` are required
+  fields — `NewService` panics on nil to fail loudly during boot.
+
+[CODE: `internal/audit/audit.go`, `internal/audit/audit_test.go`,
+`internal/testutil/mocks/audit_emitter.go`,
+`internal/testutil/mocks/audit_emitter_test.go`,
+`internal/sandbox/service.go`, `internal/sandbox/service_audit.go`,
+`internal/sandbox/orphan_reconciler.go`,
+`internal/gc/gc.go`, `main.go`]

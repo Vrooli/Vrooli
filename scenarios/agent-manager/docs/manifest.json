@@ -1,0 +1,96 @@
+{
+  "scenario": "agent-manager",
+  "title": "Agent Manager",
+  "description": "Lifecycle orchestration for code-runner agents (Claude Code, Codex, OpenCode) with sandboxed execution and per-run accountability.",
+  "sections": {
+    "concepts": {
+      "title": "Concepts",
+      "description": "Architectural patterns and invariants. Read these first.",
+      "docs": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Domain compression, folder structure, and the four big invariants that keep the codebase maintainable."
+        }
+      ]
+    },
+    "reference": {
+      "title": "Reference",
+      "description": "Configuration, error codes, API surface.",
+      "docs": [
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration (Levers)",
+          "description": "Every adjustable threshold in agent-manager — timeouts, intervals, buffers — organized by lever section."
+        }
+      ]
+    },
+    "guides": {
+      "title": "Guides",
+      "description": "How-to documentation for common operator workflows.",
+      "docs": [
+        {
+          "path": "PROTECTED_MODE_RUNNERS.md",
+          "title": "Protected Mode Runners",
+          "description": "How sandboxed runners (claude, codex, opencode) launch under bwrap and resolve VROOLI_SANDBOX_* env vars."
+        },
+        {
+          "path": "runner-transcript-recovery.md",
+          "title": "Runner Transcript Recovery",
+          "description": "How agent-manager survives its own restart by replaying transcripts and reattaching to detached runner processes."
+        }
+      ]
+    },
+    "internal": {
+      "title": "Internal",
+      "description": "Implementation notes for contributors.",
+      "docs": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Every testability boundary in the codebase — what's mockable, where the seam lives, and the test that exercises it."
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Cadences, timeouts, and timing-sensitive contracts. Maps every timing surface to its lever and regression test."
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Problems",
+          "description": "Outstanding architectural problems and their resolution status."
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Refactor + initiative progress journal."
+        },
+        {
+          "path": "internal/ERROR_SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error code taxonomy: when each domain.ErrCode* fires, who consumes it, and operator-facing messaging."
+        },
+        {
+          "path": "internal/COHERENCE_NOTES.md",
+          "title": "Coherence Notes",
+          "description": "Cross-package invariants and contracts that aren't obvious from one file alone."
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification Notes",
+          "description": "Notes on consolidating utility functions across packages."
+        },
+        {
+          "path": "FAILURE_TOPOGRAPHY.md",
+          "title": "Failure Topography",
+          "description": "Map of every failure mode the system handles, and how it routes to operator-actionable error events."
+        },
+        {
+          "path": "RESEARCH.md",
+          "title": "Research",
+          "description": "Research findings and open design questions."
+        }
+      ]
+    }
+  }
+}

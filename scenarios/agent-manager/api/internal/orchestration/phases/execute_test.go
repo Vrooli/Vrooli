@@ -1,4 +1,7 @@
-package orchestration
+// Tests for ExecuteWithModelFallback — preset-chain walk on
+// model-unavailable errors.
+
+package phases
 
 import (
 	"context"
@@ -7,71 +10,43 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
-	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
 
-// stubResolver is a ModelChainResolver backed by a fixed chain, for in-package tests.
+// stubResolver is a ModelChainResolver backed by a fixed chain.
 type stubResolver struct {
 	chain modelregistry.PresetChain
 }
 
-func (s stubResolver) ResolvePreset(_ string, _ string) (modelregistry.PresetChain, bool) {
+func (s stubResolver) ResolvePreset(_, _ string) (modelregistry.PresetChain, bool) {
 	if len(s.chain) == 0 {
 		return nil, false
 	}
 	return append(modelregistry.PresetChain(nil), s.chain...), true
 }
 
-// fallbackHarness assembles a minimal RunExecutor capable of exercising
-// executeAgentWithModelFallback without touching sandboxing or the full Execute loop.
+// fallbackHarness wires up a per-test fixture for ExecuteWithModelFallback.
 type fallbackHarness struct {
 	t        *testing.T
-	executor *RunExecutor
-	runner   *runner.MockRunner
+	mock     *runner.MockRunner
 	run      *domain.Run
+	deps     Deps
+	resolver ModelChainResolver
 	attempts []string
 }
 
 func newFallbackHarness(t *testing.T, runnerType domain.RunnerType, chain modelregistry.PresetChain, preset domain.ModelPreset) *fallbackHarness {
 	t.Helper()
-
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-
-	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "fallback-test",
-		RunnerType: runnerType,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-	task := &domain.Task{
-		ID:          uuid.New(),
-		Title:       "Fallback Task",
-		Description: "Task used for model fallback tests",
-		Status:      domain.TaskStatusQueued,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-	ctx := context.Background()
-	if err := repos.Profiles.Create(ctx, profile); err != nil {
-		t.Fatalf("seed profile: %v", err)
-	}
-	if err := repos.Tasks.Create(ctx, task); err != nil {
-		t.Fatalf("seed task: %v", err)
-	}
-
+	store := &filterableEventStore{}
 	run := &domain.Run{
-		ID:             uuid.New(),
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Status:         domain.RunStatusPending,
-		Phase:          domain.RunPhaseQueued,
-		RunMode:        domain.RunModeInPlace,
+		ID:      uuid.New(),
+		Status:  domain.RunStatusPending,
+		Phase:   domain.RunPhaseQueued,
+		RunMode: domain.RunModeInPlace,
 		ResolvedConfig: &domain.RunConfig{
 			RunnerType:  runnerType,
 			Model:       chain.Primary(),
@@ -80,35 +55,20 @@ func newFallbackHarness(t *testing.T, runnerType domain.RunnerType, chain modelr
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	if err := repos.Runs.Create(ctx, run); err != nil {
-		t.Fatalf("seed run: %v", err)
-	}
-
 	mock := runner.NewMockRunner(runnerType)
-	executor := NewRunExecutor(
-		repos.Runs,
-		nil, // runner registry not used; we call executeAgent directly
-		nil, // sandbox not used for in-place
-		eventStore,
-		run,
-		task,
-		profile,
-		"prompt", "systemPrompt",
-	).WithModelChainResolver(stubResolver{chain: chain})
-
+	deps := Deps{Events: store, Levers: config.DefaultLevers()}
 	return &fallbackHarness{
 		t:        t,
-		executor: executor,
-		runner:   mock,
+		mock:     mock,
 		run:      run,
+		deps:     deps,
+		resolver: stubResolver{chain: chain},
 	}
 }
 
-// programResponses sets the mock runner's ExecuteFunc to produce the given sequence
-// of outcomes, one per attempt, and records the model used each time.
 func (h *fallbackHarness) programResponses(results []*runner.ExecuteResult) {
 	index := 0
-	h.runner.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+	h.mock.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		h.attempts = append(h.attempts, req.ResolvedConfig.Model)
 		if index >= len(results) {
 			h.t.Fatalf("mock runner invoked %d times, only %d responses programmed", index+1, len(results))
@@ -117,6 +77,18 @@ func (h *fallbackHarness) programResponses(results []*runner.ExecuteResult) {
 		index++
 		return r, nil
 	}
+}
+
+func (h *fallbackHarness) run_(t *testing.T) ExecuteAgentOutput {
+	t.Helper()
+	return ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{
+			Deps:        h.deps,
+			Run:         h.run,
+			Runner:      h.mock,
+			ModelChains: h.resolver,
+		},
+	})
 }
 
 func successResult() *runner.ExecuteResult {
@@ -149,16 +121,12 @@ func genericFailureResult() *runner.ExecuteResult {
 	}
 }
 
-// =============================================================================
-// Tests
-// =============================================================================
-
 func TestModelFallback_SuccessOnPrimary(t *testing.T) {
 	chain := modelregistry.PresetChain{"primary", "secondary", ""}
 	h := newFallbackHarness(t, domain.RunnerTypeCodex, chain, domain.ModelPresetSmart)
 	h.programResponses([]*runner.ExecuteResult{successResult()})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	h.run_(t)
 
 	if len(h.attempts) != 1 {
 		t.Fatalf("expected 1 attempt, got %d: %v", len(h.attempts), h.attempts)
@@ -179,7 +147,7 @@ func TestModelFallback_WalksChainOnUnavailable(t *testing.T) {
 		successResult(),
 	})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	h.run_(t)
 
 	if len(h.attempts) != 2 {
 		t.Fatalf("expected 2 attempts, got %d: %v", len(h.attempts), h.attempts)
@@ -203,7 +171,7 @@ func TestModelFallback_RunnerDefaultSentinelOmitsFlag(t *testing.T) {
 		successResult(),
 	})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	h.run_(t)
 
 	if len(h.attempts) != 2 {
 		t.Fatalf("expected 2 attempts, got %d: %v", len(h.attempts), h.attempts)
@@ -221,7 +189,7 @@ func TestModelFallback_NonModelErrorSkipsRetry(t *testing.T) {
 	h := newFallbackHarness(t, domain.RunnerTypeCodex, chain, domain.ModelPresetSmart)
 	h.programResponses([]*runner.ExecuteResult{genericFailureResult()})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	h.run_(t)
 
 	if len(h.attempts) != 1 {
 		t.Fatalf("expected 1 attempt, got %d: %v", len(h.attempts), h.attempts)
@@ -239,7 +207,7 @@ func TestModelFallback_ChainExhausted(t *testing.T) {
 		modelUnavailableResult(domain.RunnerTypeCodex),
 	})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	out := h.run_(t)
 
 	if len(h.attempts) != 2 {
 		t.Fatalf("expected 2 attempts, got %d: %v", len(h.attempts), h.attempts)
@@ -247,21 +215,19 @@ func TestModelFallback_ChainExhausted(t *testing.T) {
 	if h.run.ActualModel != "secondary" {
 		t.Fatalf("expected ActualModel=secondary (last attempted), got %q", h.run.ActualModel)
 	}
-	if h.executor.result == nil || h.executor.result.Success {
-		t.Fatal("expected executor result to reflect the terminal failure after chain exhaustion")
+	if out.Result == nil || out.Result.Success {
+		t.Fatal("expected result to reflect the terminal failure after chain exhaustion")
 	}
 }
 
 func TestModelFallback_NoResolverFallsBackToSingleShot(t *testing.T) {
-	// Harness without a resolver should run exactly once with whatever cfg.Model holds.
-	chain := modelregistry.PresetChain{}
-	h := newFallbackHarness(t, domain.RunnerTypeCodex, chain, domain.ModelPresetUnspecified)
+	h := newFallbackHarness(t, domain.RunnerTypeCodex, modelregistry.PresetChain{}, domain.ModelPresetUnspecified)
 	h.run.ResolvedConfig.Model = "explicit-choice"
 	h.run.ResolvedConfig.ModelPreset = domain.ModelPresetUnspecified
-	h.executor.WithModelChainResolver(nil)
+	h.resolver = nil
 	h.programResponses([]*runner.ExecuteResult{successResult()})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	h.run_(t)
 
 	if len(h.attempts) != 1 {
 		t.Fatalf("expected 1 attempt, got %d", len(h.attempts))
@@ -285,7 +251,7 @@ func TestModelFallback_TransientErrorDoesNotAdvanceChain(t *testing.T) {
 		},
 	})
 
-	h.executor.executeAgentWithModelFallback(context.Background(), h.runner)
+	h.run_(t)
 
 	if len(h.attempts) != 1 {
 		t.Fatalf("transient failure must not trigger chain walk; got %d attempts", len(h.attempts))
@@ -295,11 +261,10 @@ func TestModelFallback_TransientErrorDoesNotAdvanceChain(t *testing.T) {
 	}
 }
 
-// Sanity: the classifier is the source of truth for model errors. If a future runner
-// wraps an unavailable error differently, we want the test to point at the classifier.
+// Sanity: the classifier is the source of truth for model errors.
 func TestModelFallback_UsesClassifier(t *testing.T) {
 	if got := runner.ClassifyModelError(domain.RunnerTypeCodex, "unknown model", 1); got != runner.ModelErrorUnavailable {
 		t.Fatalf("classifier drift: expected ModelErrorUnavailable, got %v", got)
 	}
-	var _ error = errors.New("classifier test placeholder") // keep errors import live
+	var _ error = errors.New("classifier test placeholder")
 }

@@ -451,6 +451,13 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 	log.Printf("[reconciler] DEBUG: Checking stale run %s (tag=%s, status=%s, heartbeat_age=%v, stale_threshold=%v)",
 		run.ID, tag, run.Status, heartbeatAge.Round(time.Second), r.config.StaleThreshold)
 
+	// reconcile() supplies pruned-column runs (no ResolvedConfig) — re-fetch
+	// with Get so recoverRun has everything recoveryParser needs. See the
+	// matching note in RecoverInFlightRuns for the production bug this guards.
+	if full, err := r.runs.Get(ctx, run.ID); err == nil && full != nil {
+		run = full
+	}
+
 	if result, err := r.recoverRun(ctx, run, true); err == nil && result != nil {
 		if result.Recovered {
 			stats.RunsRecovered++

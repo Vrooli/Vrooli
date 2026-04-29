@@ -1,17 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -20,9 +17,10 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apicoreserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
@@ -35,6 +33,7 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/server"
 	"workspace-sandbox/internal/toolexecution"
 	"workspace-sandbox/internal/toolregistry"
 )
@@ -47,6 +46,7 @@ type Server struct {
 	driver           driver.Driver
 	handlers         *handlers.Handlers
 	logger           *logging.Logger
+	clock            clock.Clock      // Wall-clock seam (Round 4 Phase 2). Threads through middleware.
 	processTracker   *process.Tracker // OT-P0-008: Process/Session Tracking
 	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
 	lifecycleRecon   *sandbox.Runner
@@ -189,6 +189,11 @@ func NewServer() (*Server, error) {
 
 	// Initialize repository and service
 	repo := repository.NewSandboxRepository(db, clk)
+	// Audit emitter — single seam for sandbox audit-log writes (Round
+	// 4 Phase 6). Wraps repo.LogAuditEvent and stamps EventTime via the
+	// shared clock so reconcilers, GC, and the Service all share a
+	// deterministic timestamp source.
+	auditEmitter := audit.NewRepoEmitter(repo.LogAuditEvent, clk)
 	svcCfg := sandbox.ServiceConfig{
 		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
 		MaxSandboxes:            cfg.Limits.MaxSandboxes,
@@ -198,7 +203,7 @@ func NewServer() (*Server, error) {
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
-	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk,
+	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk, auditEmitter,
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
@@ -237,7 +242,7 @@ func NewServer() (*Server, error) {
 		DefaultLimit:         100,
 		MaxTotalSizeBytes:    cfg.Limits.MaxTotalSizeMB * 1024 * 1024,
 	}
-	gcService := gc.NewService(repo, driverSlot, gcCfg, clk)
+	gcService := gc.NewService(repo, driverSlot, gcCfg, clk, auditEmitter)
 
 	// Check if we're in a user namespace via /proc/self/uid_map.
 	// driver.InUserNamespace is the canonical probe; it agrees with the
@@ -309,6 +314,7 @@ func NewServer() (*Server, error) {
 		driver:           driverSlot,
 		handlers:         h,
 		logger:           logger,
+		clock:            clk,
 		processTracker:   processTracker,
 		gcService:        gcService,
 		lifecycleRecon:   lifecycleRecon,
@@ -329,9 +335,15 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	// Apply middleware
-	s.router.Use(s.structuredLoggingMiddleware)
-	s.router.Use(s.corsMiddleware)
+	// Apply cross-cutting middleware. Round 4 Phase 3 extracted these
+	// into internal/server so the live-HTTP test harness exercises the
+	// exact same wrappers — closing the gap that let the 2026-04-28 SSE
+	// flusher bug ship.
+	server.Middleware{
+		Logger:             s.logger,
+		Clock:              s.clock,
+		CORSAllowedOrigins: s.config.Server.CORSAllowedOrigins,
+	}.Apply(s.router)
 
 	// Health endpoint using api-core/health for standardized response format
 	healthHandler := health.New().
@@ -375,104 +387,6 @@ func (s *Server) Cleanup() error {
 		return s.db.Close()
 	}
 	return nil
-}
-
-// responseWriter wraps http.ResponseWriter to capture status code.
-//
-// Embedding http.ResponseWriter does NOT propagate the writer's other
-// optional interfaces (Flusher, Hijacker, Pusher) to type assertions on
-// *responseWriter — Go interface satisfaction looks at the wrapper's own
-// method set. SSE handlers in this service do `w.(http.Flusher)`; without
-// explicit pass-through methods every SSE response would 500 with
-// "streaming not supported", silently breaking the agent-manager log
-// stream consumer (see ErrSandboxNoExitInfo). Each method below delegates
-// to the underlying writer when it actually supports the interface, and
-// no-ops otherwise so middleware composition stays robust.
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
-func (rw *responseWriter) Flush() {
-	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
-}
-
-func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if h, ok := rw.ResponseWriter.(http.Hijacker); ok {
-		return h.Hijack()
-	}
-	return nil, nil, http.ErrNotSupported
-}
-
-// structuredLoggingMiddleware logs HTTP requests with structured JSON output.
-func (s *Server) structuredLoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		// Wrap response writer to capture status
-		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-
-		// Add logger to context for handlers
-		ctx := logging.WithLogger(r.Context(), s.logger)
-		r = r.WithContext(ctx)
-
-		next.ServeHTTP(wrapped, r)
-
-		duration := time.Since(start)
-		s.logger.APIRequest(r.Method, r.RequestURI, wrapped.statusCode, float64(duration.Milliseconds()))
-	})
-}
-
-// corsMiddleware returns a handler that adds CORS headers based on config.
-// If CORSAllowedOrigins is empty, it allows the UI port origin for local dev.
-// Otherwise, it checks the Origin header against the allowed list.
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-
-		allowedOrigins := s.config.Server.CORSAllowedOrigins
-		if len(allowedOrigins) == 0 {
-			// Default: allow local UI port for development
-			// This is more secure than "*" while still supporting local dev
-			uiPort := os.Getenv("UI_PORT")
-			if uiPort != "" {
-				allowedOrigins = []string{
-					"http://localhost:" + uiPort,
-					"http://127.0.0.1:" + uiPort,
-				}
-			}
-		}
-
-		// Check if origin is allowed
-		originAllowed := false
-		for _, allowed := range allowedOrigins {
-			if origin == allowed {
-				originAllowed = true
-				break
-			}
-		}
-
-		if originAllowed && origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 // resolveSQLiteDSN returns the modernc.org/sqlite DSN for the embedded
@@ -549,7 +463,7 @@ func main() {
 	// endpoint isn't capped by api-core's 30s WriteTimeout default.
 	// WriteTimeout is intentionally 0 (disabled) for this service —
 	// see config.Default for the rationale.
-	if err := server.Run(server.Config{
+	if err := apicoreserver.Run(apicoreserver.Config{
 		Handler:         srv.Router(),
 		Port:            srv.config.Server.Port,
 		ReadTimeout:     srv.config.Server.ReadTimeout,

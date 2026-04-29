@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"time"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/repository"
@@ -42,10 +43,11 @@ import (
 
 // Service provides garbage collection operations for sandboxes.
 type Service struct {
-	repo   repository.Repository
-	driver driver.Driver
-	config Config
-	clock  clock.Clock
+	repo    repository.Repository
+	driver  driver.Driver
+	config  Config
+	clock   clock.Clock
+	emitter audit.Emitter
 }
 
 // Config holds GC service configuration.
@@ -77,19 +79,28 @@ func DefaultConfig() Config {
 	}
 }
 
-// NewService creates a new GC service. clk is required: every GC pass
-// timestamps StartedAt / CompletedAt and the candidate-cutoff math goes
-// through it so tests can hold time still while exercising the policy
-// branches.
-func NewService(repo repository.Repository, drv driver.Driver, cfg Config, clk clock.Clock) *Service {
+// NewService creates a new GC service. clk and emitter are required:
+//
+//   - clk: every GC pass timestamps StartedAt / CompletedAt and the
+//     candidate-cutoff math goes through it so tests can hold time
+//     still while exercising the policy branches.
+//   - emitter: every collection emits a "gc_collected" audit event
+//     through the audit.Emitter seam (Round 4 Phase 6). Production
+//     wires audit.NewRepoEmitter(repo.LogAuditEvent, clk); tests wire
+//     mocks.NewFakeEmitter(clk).
+func NewService(repo repository.Repository, drv driver.Driver, cfg Config, clk clock.Clock, emitter audit.Emitter) *Service {
 	if clk == nil {
 		panic("gc.NewService: clock is required")
 	}
+	if emitter == nil {
+		panic("gc.NewService: audit emitter is required")
+	}
 	return &Service{
-		repo:   repo,
-		driver: drv,
-		config: cfg,
-		clock:  clk,
+		repo:    repo,
+		driver:  drv,
+		config:  cfg,
+		clock:   clk,
+		emitter: emitter,
 	}
 }
 
@@ -189,10 +200,10 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 			continue
 		}
 
-		// Log audit event
-		if err := s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-			SandboxID: &sandbox.ID,
+		// Log audit event through the audit.Emitter seam.
+		if err := s.emitter.Emit(ctx, audit.Event{
 			EventType: "gc_collected",
+			SandboxID: &sandbox.ID,
 			Actor:     req.Actor,
 			ActorType: "gc",
 			Details: map[string]interface{}{

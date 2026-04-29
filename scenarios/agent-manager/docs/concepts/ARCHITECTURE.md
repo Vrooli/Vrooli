@@ -2,24 +2,96 @@
 
 This document describes the architectural patterns, invariants, and design decisions that make agent-manager robust, maintainable, and extensible.
 
-## Domain-Driven Design
+## Domain compression — the seven concepts
+
+The system reduces to seven concepts. Anything outside this list is plumbing, not architecture.
+
+| Concept | What it is | Where it lives |
+|---|---|---|
+| **Run** | One execution of an agent against a task. Carries status, phase, transcript, sandbox, identity. | `internal/domain.Run` |
+| **Runner** | The generic stdout-scan-decode-emit-wait pipeline. One implementation, three model bindings. | `internal/adapters/runner/core.Runner` |
+| **Codec** | Per-model translation: arg shape, JSON event schema, transcript replay. ~250 LOC each. | `internal/adapters/runner/codecs/*.go` |
+| **Phase** | One step of the run lifecycle (Setup, Acquire, Execute, Validate, Result, Finalize). Pure-ish function with explicit input struct. | `internal/orchestration/phases/*.go` |
+| **Sandbox** | Per-run overlayfs workspace for accountability/provenance — captures which files this run changed, not for safety. | `internal/adapters/sandbox` + `scenarios/workspace-sandbox` |
+| **Gate** (`emit.Gate`) | The single Emit choke point. Future invariants (dedupe, audit hooks, ordering) attach inside the gate. | `internal/orchestration/emit.Gate` |
+| **Tunables** (`config.Levers`) | Single home for every adjustable threshold (timeouts, intervals, buffers). One struct, validated on load. | `internal/config/levers.go` |
+
+Adding a new model = one ~250 LOC codec file. Adding a new phase = one file in `phases/`. Adding a new tunable = one field on `Levers` with a default + validation. Anything else means the architecture is not being respected — open a discussion.
+
+## Folder structure (post-Phase-6 refactor)
 
 The codebase follows **screaming architecture** where folder structure expresses domain intent:
 
 ```
 api/internal/
-├── domain/          # Core business logic (pure, no external deps)
-│   ├── types.go     # Entity definitions
-│   ├── errors.go    # Error taxonomy with recovery guidance
-│   ├── decisions.go # Pure decision functions
-│   ├── validation.go # Input validation
-│   └── invariants.go # Runtime invariant enforcement
-├── orchestration/   # Coordination layer
-├── adapters/        # External integration interfaces
-├── repository/      # Persistence abstractions
-├── policy/          # Authorization decisions
-└── handlers/        # HTTP presentation (thin layer)
+├── domain/                    # Core business logic (pure, no external deps)
+│   ├── types.go               # Entity definitions
+│   ├── errors.go              # Error taxonomy with recovery guidance
+│   ├── decisions.go           # Pure decision functions
+│   ├── validation.go          # Input validation
+│   └── invariants.go          # Runtime invariant enforcement
+├── config/
+│   └── levers.go              # Single Tunables struct (timeouts, intervals, buffers)
+├── orchestration/
+│   ├── run_executor.go        # Thin coordinator (~560 LOC). Owns shared state + phase ordering only.
+│   ├── recovery.go            # Restart-resume logic (RecoverInFlightRuns, drainTranscript, tailer)
+│   ├── reconciler.go          # Stale-run detection, orphan reaper, periodic reconcile
+│   ├── phases/                # Per-phase functions with explicit input structs
+│   │   ├── deps.go            # Shared dependency bundle
+│   │   ├── emitters.go        # Event emission helpers — route through Gate
+│   │   ├── env.go             # Sandbox + identity env-var construction
+│   │   ├── setup.go           # Workspace creation
+│   │   ├── acquire.go         # Runner selection + fallback chain
+│   │   ├── execute.go         # runner.Execute wrapper + model fallback
+│   │   ├── validate.go        # Silent-launch failure detection
+│   │   ├── result.go          # Outcome classification + handler dispatch
+│   │   ├── finalize.go        # Apply-at-run-end + sandbox teardown
+│   │   ├── failure.go         # FailWithError + HandleContextError + cleanup helpers
+│   │   ├── checkpoint.go      # Phase-ladder advancement + checkpoint save
+│   │   ├── heartbeat.go       # Heartbeat goroutine body
+│   │   └── identity.go        # Identity token generation
+│   ├── emit/
+│   │   └── gate.go            # The single Emit choke point
+│   └── integration/
+│       └── restart_resume_test.go  # End-to-end recovery regression gate
+├── adapters/
+│   ├── runner/
+│   │   ├── interface.go       # Runner / EventSink / TranscriptParser interfaces
+│   │   ├── launcher.go        # Process-launch abstraction (host / sandbox)
+│   │   ├── core/              # Generic Runner: stdout-scan + decode + emit
+│   │   │   └── runner.go
+│   │   └── codecs/            # Per-model codecs (~250 LOC each)
+│   │       ├── codec.go       # Codec interface
+│   │       ├── claude.go      # Claude Code codec
+│   │       ├── codex.go       # Codex codec
+│   │       └── opencode.go    # OpenCode codec
+│   └── sandbox/               # workspace-sandbox HTTP adapter
+├── repository/                # Persistence abstractions
+├── policy/                    # Authorization decisions
+└── handlers/                  # HTTP presentation (thin layer)
 ```
+
+## The four big invariants
+
+These behaviors are normative. Future changes must preserve them or fail loudly.
+
+1. **`emit.Gate` is the single Emit choke point.** Runners and phases never hold a raw `EventSink`. The Gate's API is `Emit(*domain.RunEvent) error` and `Close() error`. Future invariants (dedupe by event ID, ordering) attach inside the gate.
+
+2. **`core.Runner` is the only Runner implementation.** Codecs implement the `Codec` interface, not the `Runner` interface. Adding a new model = one file in `codecs/` and one registry line.
+
+3. **Phase functions take explicit input structs, no shared receiver.** Each phase function in `orchestration/phases/` takes a `<Phase>Input` struct (no `*RunExecutor` receiver) and returns an explicit result struct. Phase ordering is owned by `run_executor.go`'s `Execute()` and nowhere else.
+
+4. **`Levers` is the only home for adjustable thresholds.** A new hard-coded duration, count, or buffer size in agent-manager source is a code-review fail. Add it to `config/levers.go` with a default and documented purpose.
+
+## Restart-resume invariants
+
+The most load-bearing behavior. Tests live in `internal/orchestration/integration/restart_resume_test.go`.
+
+- The agent process is launched detached (`setsid` for host, sandbox supervisor for sandboxed) so killing agent-manager does not kill the agent.
+- Stdout is tee'd to `run.TranscriptPath` *before* in-memory event processing.
+- Transcript writes are append-only and line-flushed.
+- `TranscriptCursor` is persisted **before** events are emitted to the broadcaster (at-least-once delivery; downstream dedupes by event ID).
+- `RecoverInFlightRuns` re-fetches each run with `Get` (not `List`) so `ResolvedConfig` is populated for the recovery parser. The 2026-04-29 production bug — recovery silently no-oping because pruned `List` results lacked `ResolvedConfig` — was fixed when the integration test surfaced it.
 
 ## Validation Strategy
 

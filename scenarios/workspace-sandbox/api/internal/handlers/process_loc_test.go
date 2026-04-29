@@ -4,13 +4,15 @@
 // resolution, SSE wiring, git allowlist enforcement, resource limit
 // defaulting — that belonged in domain packages. The Round-3
 // refactor (2026-04-29) moved those out and split the remaining
-// handlers across process_*.go files. This test fails loudly if a
-// future change re-balloons process.go past 600 LOC.
+// handlers across process_*.go files. process_logs.go added an SSE
+// writer seam in Round-4 Phase 5 that pulled the wire-format details
+// out into internal/sse, leaving only orchestration here.
 //
-// 600 was chosen so the file has room to grow naturally; if the test
-// trips, the right move is to extract a helper into runtime/ or to
-// split the offending handler into its own process_*.go file, NOT
-// to bump the bound.
+// These tests fail loudly if a future change re-balloons either file.
+// 600 / 500 were chosen so the files have room to grow naturally; if a
+// test trips, the right move is to extract a helper into runtime/, or
+// to push wire-format / domain logic into a dedicated package, NOT to
+// bump the bound.
 
 package handlers
 
@@ -21,13 +23,32 @@ import (
 )
 
 func TestProcessHandlerFileBound(t *testing.T) {
-	const max = 600
-	data, err := os.ReadFile("process.go")
-	if err != nil {
-		t.Fatalf("read process.go: %v", err)
+	cases := []struct {
+		file string
+		max  int
+		hint string
+	}{
+		{
+			file: "process.go",
+			max:  600,
+			hint: "Extract handlers into a sibling process_*.go file or move shared helpers into internal/runtime/",
+		},
+		{
+			file: "process_logs.go",
+			max:  500,
+			hint: "Push wire-format / encoding logic into internal/sse and keep this file orchestration-only.",
+		},
 	}
-	lines := bytes.Count(data, []byte("\n"))
-	if lines > max {
-		t.Fatalf("process.go has %d lines; max is %d. Extract handlers into a sibling process_*.go file or move shared helpers into internal/runtime/", lines, max)
+	for _, tc := range cases {
+		t.Run(tc.file, func(t *testing.T) {
+			data, err := os.ReadFile(tc.file)
+			if err != nil {
+				t.Fatalf("read %s: %v", tc.file, err)
+			}
+			lines := bytes.Count(data, []byte("\n"))
+			if lines > tc.max {
+				t.Fatalf("%s has %d lines; max is %d. %s", tc.file, lines, tc.max, tc.hint)
+			}
+		})
 	}
 }

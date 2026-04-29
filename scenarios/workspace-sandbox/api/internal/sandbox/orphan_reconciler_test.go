@@ -28,6 +28,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/mocks"
@@ -58,7 +59,7 @@ func setDeleted(t *testing.T, repo *mocks.FakeRepository, id uuid.UUID) {
 func TestReconcileFilesystemOrphans_NoDirs(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 	if report.FilesystemDirs != 0 || report.OrphansCleaned != 0 || report.OrphansFailed != 0 {
@@ -76,7 +77,7 @@ func TestReconcileFilesystemOrphans_CleansUnknownDir(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	drv.ListDirsResult = []uuid.UUID{orphan}
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -99,7 +100,7 @@ func TestReconcileFilesystemOrphans_LeavesActiveSandboxes(t *testing.T) {
 	setActive(t, repo, live)
 	drv := mocks.NewFakeDriver()
 	drv.ListDirsResult = []uuid.UUID{live}
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -120,7 +121,7 @@ func TestReconcileFilesystemOrphans_CleansDeletedRepoRecord(t *testing.T) {
 	setDeleted(t, repo, zombie)
 	drv := mocks.NewFakeDriver()
 	drv.ListDirsResult = []uuid.UUID{zombie}
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -144,7 +145,7 @@ func TestReconcileFilesystemOrphans_RetriesFailure(t *testing.T) {
 	// Configure the driver to fail only for `bad`. We do this by
 	// installing a custom driver whose CleanupOrphan inspects the ID.
 	failingDrv := &perIDFailingDriver{FakeDriver: drv, failID: bad}
-	svc := sandbox.NewService(repo, failingDrv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, failingDrv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -191,7 +192,7 @@ func TestReconcileFilesystemOrphans_RepoErrorIsFailSafe(t *testing.T) {
 	repo.GetErr = errors.New("connection refused")
 	drv := mocks.NewFakeDriver()
 	drv.ListDirsResult = []uuid.UUID{mystery}
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -208,7 +209,7 @@ func TestReconcileFilesystemOrphans_DriverListErrorReturnsEmpty(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	drv.ListSandboxDirsErr = errors.New("permission denied")
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 
@@ -226,7 +227,7 @@ func TestReconcileFilesystemOrphans_ReRunIsNoOp(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	drv.ListDirsResult = []uuid.UUID{a, b}
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	first := svc.ReconcileFilesystemOrphans(context.Background())
 	if first.OrphansCleaned != 2 {
@@ -246,7 +247,7 @@ func TestReconcileFilesystemOrphans_ReRunIsNoOp(t *testing.T) {
 func TestReconcileFilesystemOrphans_DurationMeasured(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
-	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{})
+	svc := sandbox.NewService(repo, drv, sandbox.ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}))
 
 	report := svc.ReconcileFilesystemOrphans(context.Background())
 	if report.Duration < 0 || report.Duration > 5*time.Second {

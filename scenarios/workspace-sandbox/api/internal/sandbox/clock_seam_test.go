@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
 )
@@ -67,7 +68,7 @@ func newClockTestService(t *testing.T, repo *mocks.FakeRepository, drv *mocks.Fa
 		DefaultProjectRoot: "/tmp/project",
 		MaxSandboxes:       100,
 		DefaultTTL:         24 * time.Hour,
-	}, clk, WithGitOps(mocks.NewFakeGitOps()))
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), WithGitOps(mocks.NewFakeGitOps()))
 }
 
 // TestService_Stop_TimestampsViaClock pins that Service.Stop records

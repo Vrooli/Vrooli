@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"workspace-sandbox/internal/testutil/httpx"
+	"workspace-sandbox/internal/sse"
 )
 
 // FrameSpec describes one expected frame in an AssertSSEFrameSequence
@@ -22,7 +22,7 @@ type FrameSpec struct {
 // Extra frames at the end fail the assertion (with a clear message
 // listing the extras). Missing frames fail. Mismatched events at any
 // position fail.
-func AssertSSEFrameSequence(t *testing.T, frames []httpx.SSEFrame, want []FrameSpec) {
+func AssertSSEFrameSequence(t *testing.T, frames []sse.Frame, want []FrameSpec) {
 	t.Helper()
 	if len(frames) != len(want) {
 		t.Errorf("AssertSSEFrameSequence: got %d frames, want %d", len(frames), len(want))
@@ -44,7 +44,7 @@ func AssertSSEFrameSequence(t *testing.T, frames []httpx.SSEFrame, want []FrameS
 	}
 }
 
-func describeFrames(t *testing.T, label string, frames []httpx.SSEFrame) {
+func describeFrames(t *testing.T, label string, frames []sse.Frame) {
 	t.Helper()
 	var b strings.Builder
 	b.WriteString(label + ":\n")

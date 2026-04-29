@@ -34,43 +34,6 @@ func (h *Handlers) APIInfo(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, response)
 }
 
-// Health handles health check requests.
-// Deprecated: This handler has been replaced by api-core/health in main.go for standardized responses.
-// This method is kept for backwards compatibility with tests but is no longer registered in routes.
-func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := h.DB.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	// Check driver availability using injected driver
-	driverAvailable, _ := h.Driver().IsAvailable(r.Context())
-	driverStatus := "available"
-	if !driverAvailable {
-		driverStatus = "unavailable"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Workspace Sandbox API",
-		"version":   Version,
-		"readiness": status == "healthy",
-		"timestamp": h.Clock.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-			"driver":   driverStatus,
-		},
-		"config": map[string]interface{}{
-			"projectRoot": h.Config.Driver.ProjectRoot,
-		},
-	}
-
-	h.JSONSuccess(w, response)
-}
-
 // DriverInfo handles getting driver information.
 func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 	available, availErr := h.Driver().IsAvailable(r.Context())

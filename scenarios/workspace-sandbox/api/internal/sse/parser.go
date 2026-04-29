@@ -1,6 +1,4 @@
-// Package httpx contains test helpers for live-HTTP integration
-// tests (the SSE frame parser today; Phase 3 adds NewLiveServer).
-package httpx
+package sse
 
 import (
 	"bufio"
@@ -9,13 +7,16 @@ import (
 	"strings"
 )
 
-// SSEFrame is one parsed Server-Sent-Event frame.
+// Frame is one parsed Server-Sent-Event frame.
 //
 // The parser supports both `event: <name>\ndata: <payload>\n\n` (named
 // event) and bare `data: <payload>\n\n` (default `message` event).
 // `data:` lines accumulate (joined by `\n` per the spec); a blank
 // line dispatches.
-type SSEFrame struct {
+//
+// Frame is the inverse of encodeFrame in this package — together they
+// pin the wire-format invariant tested by TestEncodeFrame_RoundTrips.
+type Frame struct {
 	// Event is the event name (e.g., "exit", "end"). Empty when the
 	// frame had no `event:` line — by spec that means the default
 	// `message` event.
@@ -26,15 +27,17 @@ type SSEFrame struct {
 	Data []byte
 }
 
-// ParseSSEStream reads `r` to EOF and returns every dispatched frame.
+// ParseStream reads `r` to EOF and returns every dispatched frame.
 // Comment lines (`:` prefix) and unknown fields are skipped silently.
 //
-// Why a strict parser: Phase 3's frame-ordering invariant tests
-// require exact framing semantics. Tests that compare frames produced
-// by handlers against an expected sequence can't rely on substring
-// matching the raw stream.
-func ParseSSEStream(r io.Reader) []SSEFrame {
-	var frames []SSEFrame
+// Why a strict parser lives next to the encoder: SSE consumers across
+// the codebase (the agent-manager runtime, the handler tests, every
+// future SSE-shaped seam) need a single source of truth for the wire
+// contract. Putting parser and encoder in the same package keeps them
+// from drifting and means round-trip tests can reach them both
+// without import gymnastics.
+func ParseStream(r io.Reader) []Frame {
+	var frames []Frame
 	var event string
 	var data bytes.Buffer
 
@@ -49,7 +52,7 @@ func ParseSSEStream(r io.Reader) []SSEFrame {
 		}
 		out := make([]byte, len(payload))
 		copy(out, payload)
-		frames = append(frames, SSEFrame{Event: event, Data: out})
+		frames = append(frames, Frame{Event: event, Data: out})
 		event = ""
 		data.Reset()
 	}
@@ -70,10 +73,7 @@ func ParseSSEStream(r io.Reader) []SSEFrame {
 		value := ""
 		if idx := strings.Index(line, ":"); idx >= 0 {
 			field = line[:idx]
-			value = line[idx+1:]
-			if strings.HasPrefix(value, " ") {
-				value = value[1:]
-			}
+			value = strings.TrimPrefix(line[idx+1:], " ")
 		}
 		switch field {
 		case "event":

@@ -6,11 +6,15 @@
 // the codebase has one obvious place to find — and one obvious place to
 // change — emission policy.
 //
-// Phase-1 contract:
+// Contract:
 //   - RunExecutor instantiates exactly one Gate per run.
-//   - Phase 3+ migrations remove direct runner.EventSink usage in favor of *Gate.
+//   - Phases consume only *Gate; never raw runner.EventSink.
 //   - The Gate's external interface is identical to runner.EventSink so it
-//     can be passed through existing seams during the migration.
+//     can be passed through existing seams (runner.Execute, recovery tail).
+//
+// DOC: scenarios/agent-manager/docs/concepts/ARCHITECTURE.md
+// (invariant 1: "emit.Gate is the single Emit choke point").
+// DOC: scenarios/agent-manager/docs/internal/SEAMS.md (Gate seam table).
 package emit
 
 import (

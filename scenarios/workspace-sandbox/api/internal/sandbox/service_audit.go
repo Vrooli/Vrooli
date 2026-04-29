@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/types"
 )
 
@@ -147,8 +148,9 @@ func (s *Service) logAuditEvent(ctx context.Context, sandbox *types.Sandbox, eve
 }
 
 // logAuditEventWith builds the immutable sandbox-state snapshot and
-// writes the audit event to the repository. Failures are logged, never
-// surfaced — auditing must not block the operation it audits.
+// emits an audit event through the audit.Emitter seam. Failures are
+// logged, never surfaced — auditing must not block the operation it
+// audits.
 //
 // [OT-P1-004] Audit Trail Metadata
 func (s *Service) logAuditEventWith(ctx context.Context, sandbox *types.Sandbox, eventType, actor, actorType string, source types.ApprovalSource, details map[string]interface{}) {
@@ -179,21 +181,24 @@ func (s *Service) logAuditEventWith(ctx context.Context, sandbox *types.Sandbox,
 		sandboxState["errorMessage"] = sandbox.ErrorMsg
 	}
 
+	// Service-level events default ActorType to "user" when an actor
+	// is named — audit.Emitter would have defaulted to "system",
+	// which is wrong for user-driven approvals/rejections. The
+	// system/user distinction is what the audit query later groups
+	// on, so getting it right here matters.
 	if actorType == "" && actor != "" {
 		actorType = "user"
 	}
 
-	event := &types.AuditEvent{
-		SandboxID:    &sandbox.ID,
+	if err := s.audit.Emit(ctx, audit.Event{
 		EventType:    eventType,
+		SandboxID:    &sandbox.ID,
 		Actor:        actor,
 		ActorType:    actorType,
 		Source:       source,
 		Details:      details,
 		SandboxState: sandboxState,
-	}
-
-	if err := s.repo.LogAuditEvent(ctx, event); err != nil {
+	}); err != nil {
 		fmt.Printf("warning: failed to log audit event: %v\n", err)
 	}
 }

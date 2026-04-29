@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/types"
 )
 
@@ -143,20 +144,20 @@ func (s *Service) isOrphan(ctx context.Context, id uuid.UUID) bool {
 }
 
 // logOrphanAuditEvent records an audit event for an orphan we acted on.
-// Uses the repo path directly (not Service.logAuditEvent) because we
-// don't have a *types.Sandbox to feed the snapshot helper — the
-// sandbox isn't in the repo by definition.
+// Routes through the audit.Emitter seam (rather than Service.logAuditEvent)
+// because we don't have a *types.Sandbox to feed the snapshot helper —
+// the sandbox isn't in the repo by definition.
 func (s *Service) logOrphanAuditEvent(ctx context.Context, id uuid.UUID, eventType string, details map[string]interface{}) {
-	if s.repo == nil {
+	if s.audit == nil {
 		return
 	}
 	idCopy := id
 	if details == nil {
 		details = map[string]interface{}{}
 	}
-	if err := s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-		SandboxID: &idCopy,
+	if err := s.audit.Emit(ctx, audit.Event{
 		EventType: eventType,
+		SandboxID: &idCopy,
 		Actor:     "system",
 		ActorType: "system",
 		Details:   details,

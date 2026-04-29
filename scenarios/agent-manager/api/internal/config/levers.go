@@ -9,6 +9,11 @@
 // - Clear defaults that work for common usage
 // - Safe bounds on all values to prevent catastrophic misconfiguration
 // - Grouped by operator mental model, not implementation structure
+//
+// DOC: scenarios/agent-manager/docs/reference/configuration.md
+// (full lever-by-lever reference, organized by section).
+// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
+// (which lever controls which timing surface).
 
 package config
 

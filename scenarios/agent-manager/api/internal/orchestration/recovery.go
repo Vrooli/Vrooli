@@ -31,7 +31,18 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 		return err
 	}
 	for _, run := range runs {
-		if _, err := r.recoverRun(ctx, run, true); err != nil {
+		// List() returns runs with a pruned column set that omits
+		// ResolvedConfig — re-fetch with Get so recoveryParser has the
+		// runner type. Skipping this re-fetch silently no-ops recovery
+		// (recoveryParser bails when ResolvedConfig is nil), which was
+		// the original 2026-04-29 production bug surfaced by the
+		// restart-resume integration test.
+		full, err := r.runs.Get(ctx, run.ID)
+		if err != nil || full == nil {
+			log.Printf("[recovery] run %s: hydrate failed: %v", run.ID, err)
+			continue
+		}
+		if _, err := r.recoverRun(ctx, full, true); err != nil {
 			log.Printf("[recovery] run %s: %v", run.ID, err)
 		}
 	}

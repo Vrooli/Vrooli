@@ -1,4 +1,4 @@
-package httpx
+package sse
 
 import (
 	"bytes"
@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestParseSSEStream_DataOnly(t *testing.T) {
+func TestParseStream_DataOnly(t *testing.T) {
 	stream := "data: hello\n\ndata: world\n\n"
-	frames := ParseSSEStream(strings.NewReader(stream))
+	frames := ParseStream(strings.NewReader(stream))
 	if len(frames) != 2 {
 		t.Fatalf("got %d frames, want 2", len(frames))
 	}
@@ -23,9 +23,9 @@ func TestParseSSEStream_DataOnly(t *testing.T) {
 	}
 }
 
-func TestParseSSEStream_NamedEvent(t *testing.T) {
+func TestParseStream_NamedEvent(t *testing.T) {
 	stream := "event: exit\ndata: {\"code\":0}\n\nevent: end\ndata: \n\n"
-	frames := ParseSSEStream(strings.NewReader(stream))
+	frames := ParseStream(strings.NewReader(stream))
 	if len(frames) != 2 {
 		t.Fatalf("got %d frames, want 2 (frames=%v)", len(frames), frames)
 	}
@@ -40,9 +40,9 @@ func TestParseSSEStream_NamedEvent(t *testing.T) {
 	}
 }
 
-func TestParseSSEStream_MultilineData(t *testing.T) {
+func TestParseStream_MultilineData(t *testing.T) {
 	stream := "event: msg\ndata: line1\ndata: line2\n\n"
-	frames := ParseSSEStream(strings.NewReader(stream))
+	frames := ParseStream(strings.NewReader(stream))
 	if len(frames) != 1 {
 		t.Fatalf("got %d frames, want 1", len(frames))
 	}
@@ -51,9 +51,9 @@ func TestParseSSEStream_MultilineData(t *testing.T) {
 	}
 }
 
-func TestParseSSEStream_IgnoresComments(t *testing.T) {
+func TestParseStream_IgnoresComments(t *testing.T) {
 	stream := ": this is a comment\ndata: hi\n\n"
-	frames := ParseSSEStream(strings.NewReader(stream))
+	frames := ParseStream(strings.NewReader(stream))
 	if len(frames) != 1 {
 		t.Fatalf("got %d frames, want 1", len(frames))
 	}
@@ -62,9 +62,9 @@ func TestParseSSEStream_IgnoresComments(t *testing.T) {
 	}
 }
 
-func TestParseSSEStream_TrailingFrameWithoutBlankLine(t *testing.T) {
+func TestParseStream_TrailingFrameWithoutBlankLine(t *testing.T) {
 	stream := "event: tail\ndata: x"
-	frames := ParseSSEStream(strings.NewReader(stream))
+	frames := ParseStream(strings.NewReader(stream))
 	if len(frames) != 1 {
 		t.Fatalf("trailing frame should still dispatch on EOF; got %d", len(frames))
 	}

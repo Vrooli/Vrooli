@@ -1,0 +1,98 @@
+# Configuration Reference — Levers (Tunables)
+
+Every adjustable threshold in agent-manager lives in a single `config.Levers` struct (`internal/config/levers.go`). New durations, counts, or buffer sizes are added here — never as hard-coded literals scattered through source. This is the **only home for adjustable thresholds**, per the architecture's invariant 4.
+
+The struct splits into eleven sections; jump to the one that controls the behavior you're tuning.
+
+| Section | Purpose | Audience |
+|---|---|---|
+| [`Execution`](#execution) | Per-run timeouts, turn limits, event buffering | Operator |
+| [`Safety`](#safety) | Accident prevention (sandbox-by-default, etc.) | Operator |
+| [`Concurrency`](#concurrency) | Parallelism + resource caps | Operator |
+| [`Approval`](#approval) | Review workflow timings | Operator |
+| [`Runners`](#runners) | Per-runner availability checks, probe timeouts | Operator |
+| [`Server`](#server) | HTTP/WebSocket server tunables | Operator |
+| [`Storage`](#storage) | Persistence retention windows | Operator |
+| [`Heartbeat`](#heartbeat) | Run-lifecycle cadence | Internal |
+| [`Recovery`](#recovery) | Transcript-tail and resume-after-restart timing | Internal |
+| [`Scanner`](#scanner) | stdout/transcript buffer ceilings | Internal |
+| [`Diagnostics`](#diagnostics) | Silent-launch detection, log truncation | Internal |
+
+The "Internal" sections back individual machinery; operators rarely touch them directly. They're tuned via test-fast overrides in unit tests so the production defaults stay realistic.
+
+## Loading order
+
+`Levers` is constructed via `config.DefaultLevers()` at startup. The orchestration service applies any `OrchestrationSettings` overrides from the database via `executorLevers()` in `service.go`, then injects the merged value into `RunExecutor` via `WithLevers(...)` and into `Reconciler` via `WithReconcilerLevers(...)`.
+
+Validation happens at construction (`Levers.Validate()`); invalid values fail fast at startup rather than producing strange runtime behavior.
+
+## Execution
+
+Run-level execution behavior.
+
+| Field | Type | Default | Range | What it controls |
+|---|---|---|---|---|
+| `DefaultTimeout` | `time.Duration` | 30m | 1m–4h | Maximum execution time for a run when no profile-level timeout is set. |
+| `DefaultMaxTurns` | `int` | 100 | 1–1000 | Conversation-turn cap to prevent runaway loops. |
+| `EventBufferSize` | `int` | 100 | 10–10000 | Events buffered before flushing. Higher = better throughput, more memory. |
+| `EventFlushInterval` | `time.Duration` | 1s | 100ms–30s | How often buffered events flush. Lower = more responsive streaming, more I/O. |
+
+## Safety
+
+Accident prevention; these exist to prevent operator mistakes, not adversarial attacks.
+
+| Field | Type | Default | What it controls |
+|---|---|---|---|
+| `RequireSandboxByDefault` | `bool` | true | All runs use the overlayfs sandbox unless explicitly overridden. |
+
+(Plus other safety levers — see source for current set.)
+
+## Heartbeat
+
+Run-lifecycle cadence. The single home for the deferred-finalize teardown timeout, run-progress heartbeat interval, agent-idle threshold, and runner-signal grace period.
+
+| Field | Default | What it controls |
+|---|---|---|
+| `RunHeartbeatInterval` | 15s | How often the executor pings `Run.LastHeartbeat`. The reconciler uses this + StaleThreshold to detect stalled runs. |
+| `CheckpointInterval` | 1m | How often the checkpoint store is saved. |
+| `TeardownTimeout` | 30s | Bound on `Finalize`'s detached HTTP teardown context. The 2026-04-28 mount-leak gate. |
+| `AgentIdleThreshold` | (per-runner) | How long the runner can be silent before idle warnings fire. |
+| `RunnerSignalGracePeriod` | (per-runner) | Wait between SIGTERM and SIGKILL when stopping a runner. |
+
+## Recovery
+
+Transcript-tail and resume-after-restart cadence. Drives `Reconciler.startTailer` and `RecoverInFlightRuns`.
+
+| Field | Default | What it controls |
+|---|---|---|
+| `TranscriptTailInterval` | 100ms | How often the recovery tailer polls the transcript file for new lines. |
+| `RunStateRetentionDays` | (operator) | How long completed run state directories are kept on disk. |
+
+## Scanner
+
+Buffer ceilings for stdout and transcript readers. Higher = handles bigger lines without truncation, more memory.
+
+| Field | Default | What it controls |
+|---|---|---|
+| `StdoutBufferSize` | 10MB | Maximum line length the runner stdout scanner can hold. |
+| `TranscriptBufferSize` | 10MB | Same, for transcript replay. |
+
+## Diagnostics
+
+Heuristic windows used by `phases.ValidateRunOutcome` and stderr truncation.
+
+| Field | Default | What it controls |
+|---|---|---|
+| `LaunchFailedMaxDuration` | 2s | Sub-2s sandboxed runs with zero message events get demoted to `SANDBOX_LAUNCH_FAILED`. Pin this when bwrap chdir failures masquerade as success. |
+| `RateLimitTruncate` | 512B | How much error-message text is preserved in rate-limit warnings. |
+
+## Adding a new lever
+
+1. Pick the section that owns the behavior. If none fits, add a new section type.
+2. Add the field with a doc comment that names the trade-off (higher vs lower) and the valid range.
+3. Wire it into `DefaultLevers()` with the production-realistic default that matches the literal it replaces.
+4. Add a `Validate()` clause if the field has bounds.
+5. Replace every literal use of the old constant with `levers.<Section>.<Field>`.
+6. Update this document.
+
+The greenfield rule applies: literal constants are deleted in the same commit that introduces the lever — no `// was 60 * time.Minute` comments left behind.

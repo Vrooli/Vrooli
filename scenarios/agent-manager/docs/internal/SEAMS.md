@@ -1,42 +1,56 @@
-# Agent Manager - Architectural Seams
+# Agent Manager — Architectural Seams
 
-This document describes the architectural seams (deliberate boundaries) in agent-manager that enable testing, extensibility, and safe evolution.
+This document maps every testability boundary in the codebase: what's mockable, where the seam lives, and the test that exercises it.
+
+The four big seams added by the Phase 6 refactor:
+- **`emit.Gate`** — single Emit choke point for run events.
+- **`core.Runner` + `Codec`** — generic runner pipeline + per-model codec.
+- **`phases/*` functions** — per-phase logic with explicit input structs.
+- **`config.Levers`** — single home for adjustable thresholds.
+
+For the architectural overview and design invariants, see [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md).
 
 ## Architectural Principles
 
 The codebase follows three key architectural principles:
 
-1. **Decision Boundary Extraction** - Key decisions are explicit, named, and testable
-2. **Cognitive Load Reduction** - Code is organized to minimize mental overhead
-3. **Control Surface Design** - Tunable levers are organized, validated, and documented
+1. **Decision Boundary Extraction** — Key decisions are explicit, named, and testable.
+2. **Cognitive Load Reduction** — Code is organized to minimize mental overhead.
+3. **Control Surface Design** — Tunable levers are organized, validated, and documented.
 
-## Overview
+## Folder Structure
 
-Agent-manager uses a **screaming architecture** where the folder structure and naming clearly express the domain:
+Agent-manager uses a **screaming architecture** where folder structure clearly expresses domain intent:
 
 ```
 api/internal/
-├── domain/              # Core domain entities and decisions
-│   ├── types.go         # Task, Run, AgentProfile, Policy entities
-│   ├── errors.go        # Domain-specific error types
-│   ├── decisions.go     # Explicit decision helpers (state machines, classification)
-│   └── validation.go    # Entity validation logic
-├── orchestration/       # Coordination layer (wires components together)
-│   ├── service.go       # Main orchestration service and interface
-│   ├── run_executor.go  # Run lifecycle execution (extracted for clarity)
-│   └── approval.go      # Approval workflow operations
-├── adapters/            # External integration seams
-│   ├── runner/          # Agent runner implementations
-│   ├── sandbox/         # workspace-sandbox integration
-│   ├── event/           # Event streaming and storage
-│   └── artifact/        # Diff and artifact collection
-├── policy/              # Policy evaluation logic
-├── repository/          # Persistence interfaces
-├── handlers/            # HTTP handlers (thin presentation layer)
-└── config/              # Configuration management
-    ├── config.go        # Legacy config (being deprecated)
-    ├── levers.go        # Control surface definition
-    └── loader.go        # Configuration loading
+├── domain/                 # Core domain entities and decisions
+│   ├── types.go            # Task, Run, AgentProfile, Policy entities
+│   ├── errors.go           # Domain-specific error types
+│   ├── decisions.go        # Explicit decision helpers (state machines, classification)
+│   └── validation.go       # Entity validation logic
+├── orchestration/          # Coordination layer
+│   ├── run_executor.go     # Thin coordinator (~560 LOC). Owns shared state + phase ordering.
+│   ├── recovery.go         # Restart-resume entry points
+│   ├── reconciler.go       # Stale-run detection + orphan reaper
+│   ├── service.go          # HTTP-facing service surface
+│   ├── phases/             # Per-phase functions with explicit input structs
+│   ├── emit/               # The single Emit choke point (Gate)
+│   └── integration/        # End-to-end recovery regression gate
+├── adapters/
+│   ├── runner/
+│   │   ├── core/           # Generic Runner pipeline (one impl, three model bindings)
+│   │   ├── codecs/         # Per-model codecs: claude, codex, opencode (~250 LOC each)
+│   │   ├── interface.go    # Runner / EventSink / TranscriptParser interfaces
+│   │   └── launcher.go     # Process launcher (host / sandbox)
+│   ├── sandbox/            # workspace-sandbox HTTP adapter
+│   ├── event/              # Event streaming and storage
+│   └── artifact/           # Diff and artifact collection
+├── policy/                 # Policy evaluation logic
+├── repository/             # Persistence interfaces
+├── handlers/               # HTTP handlers (thin presentation layer)
+└── config/
+    └── levers.go           # Tunables struct — single home for adjustable thresholds
 ```
 
 ## Core Seams

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/testutil/mocks"
@@ -17,9 +18,10 @@ import (
 // --- helpers ---
 
 func newHealTestService(drv *mocks.FakeDriver, repo *mocks.FakeRepository) *Service {
+	clk := clock.System{}
 	return NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
-	}, clock.System{})
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 }
 
 func activeSandbox(id uuid.UUID, lastUsed time.Time) *types.Sandbox {
