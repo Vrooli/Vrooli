@@ -644,13 +644,20 @@ func LoadFromEnv() (Config, error) {
 	return cfg, cfg.Validate()
 }
 
-// Validate checks that all configuration values are within acceptable ranges.
+// Validate checks that all configuration values are within acceptable
+// ranges, that mutually-exclusive options aren't both set, and that
+// dependent options are coherent. Called from main.go after Load() so
+// startup fails loudly when the operator hands us a self-contradictory
+// configuration. Round 4 Phase 8 (2026-04-29) tightened the rule set
+// to cover the dependencies the runtime quietly assumed before.
 func (c *Config) Validate() error {
 	var errs []string
 
-	// Server validation
+	// --- Server ---
 	if c.Server.Port == "" {
 		errs = append(errs, "server.port is required")
+	} else if p, err := strconv.Atoi(c.Server.Port); err != nil || p < 1 || p > 65535 {
+		errs = append(errs, fmt.Sprintf("server.port must be a number in 1..65535 (got: %q)", c.Server.Port))
 	}
 	if c.Server.ReadTimeout < time.Second {
 		errs = append(errs, "server.readTimeout must be at least 1s")
@@ -662,8 +669,14 @@ func (c *Config) Validate() error {
 	if c.Server.WriteTimeout != 0 && c.Server.WriteTimeout < time.Second {
 		errs = append(errs, "server.writeTimeout must be 0 (disabled) or at least 1s")
 	}
+	if c.Server.IdleTimeout < time.Second {
+		errs = append(errs, "server.idleTimeout must be at least 1s")
+	}
+	if c.Server.ShutdownTimeout < time.Second {
+		errs = append(errs, "server.shutdownTimeout must be at least 1s")
+	}
 
-	// Limits validation
+	// --- Limits ---
 	if c.Limits.MaxSandboxes < 1 {
 		errs = append(errs, "limits.maxSandboxes must be at least 1")
 	}
@@ -673,13 +686,25 @@ func (c *Config) Validate() error {
 	if c.Limits.MaxSandboxSizeMB < 1 {
 		errs = append(errs, "limits.maxSandboxSizeMB must be at least 1")
 	}
+	if c.Limits.MaxTotalSizeMB < c.Limits.MaxSandboxSizeMB {
+		errs = append(errs, "limits.maxTotalSizeMB must be >= maxSandboxSizeMB")
+	}
+	if c.Limits.MaxListLimit < 1 {
+		errs = append(errs, "limits.maxListLimit must be at least 1")
+	}
 	if c.Limits.DefaultListLimit < 1 || c.Limits.DefaultListLimit > c.Limits.MaxListLimit {
 		errs = append(errs, "limits.defaultListLimit must be between 1 and maxListLimit")
 	}
 
-	// Lifecycle validation
+	// --- Lifecycle ---
 	if c.Lifecycle.DefaultTTL < time.Minute {
 		errs = append(errs, "lifecycle.defaultTTL must be at least 1 minute")
+	}
+	if c.Lifecycle.IdleTimeout <= 0 {
+		errs = append(errs, "lifecycle.idleTimeout must be greater than 0")
+	}
+	if c.Lifecycle.IdleTimeout > c.Lifecycle.DefaultTTL {
+		errs = append(errs, "lifecycle.idleTimeout must be <= defaultTTL (idle reclaim cannot outlive the absolute TTL)")
 	}
 	if c.Lifecycle.GCInterval < time.Minute {
 		errs = append(errs, "lifecycle.gcInterval must be at least 1 minute")
@@ -687,14 +712,47 @@ func (c *Config) Validate() error {
 	if c.Lifecycle.AutoHealMaxRetries < 1 {
 		errs = append(errs, "lifecycle.autoHealMaxRetries must be at least 1")
 	}
+	if c.Lifecycle.AutoHealBaseBackoff <= 0 {
+		errs = append(errs, "lifecycle.autoHealBaseBackoff must be greater than 0")
+	}
+	if c.Lifecycle.AutoHealIdleGrace < 0 {
+		errs = append(errs, "lifecycle.autoHealIdleGrace must be >= 0")
+	}
+	if c.Lifecycle.ProcessGracePeriod <= 0 {
+		errs = append(errs, "lifecycle.processGracePeriod must be greater than 0")
+	}
+	if c.Lifecycle.ProcessKillWait <= 0 {
+		errs = append(errs, "lifecycle.processKillWait must be greater than 0")
+	}
+	if c.Lifecycle.ManualReviewTTL < 0 {
+		errs = append(errs, "lifecycle.manualReviewTTL must be >= 0 (0 disables expiry)")
+	}
+	// Mutual exclusion: AutoCleanupTerminal=false makes TerminalCleanupDelay
+	// meaningless. Allow zero (the no-op value); reject non-zero so
+	// operators can't be misled into thinking the delay is honored.
+	if !c.Lifecycle.AutoCleanupTerminal && c.Lifecycle.TerminalCleanupDelay > 0 {
+		errs = append(errs, "lifecycle.terminalCleanupDelay must be 0 when autoCleanupTerminal is false (delay is unused)")
+	}
 
-	// Policy validation
+	// --- Policy ---
 	validAuthorModes := map[string]bool{"agent": true, "reviewer": true, "coauthored": true}
 	if !validAuthorModes[c.Policy.CommitAuthorMode] {
 		errs = append(errs, fmt.Sprintf("policy.commitAuthorMode must be one of: agent, reviewer, coauthored (got: %s)", c.Policy.CommitAuthorMode))
 	}
+	if c.Policy.CommitMessageTemplate == "" {
+		errs = append(errs, "policy.commitMessageTemplate is required")
+	}
+	if c.Policy.BinaryDetectionThreshold < 1 {
+		errs = append(errs, "policy.binaryDetectionThreshold must be at least 1")
+	}
+	if c.Policy.ValidationTimeout <= 0 {
+		errs = append(errs, "policy.validationTimeout must be greater than 0")
+	}
+	if c.Policy.TeardownTimeout <= 0 {
+		errs = append(errs, "policy.teardownTimeout must be greater than 0")
+	}
 
-	// Driver validation
+	// --- Driver ---
 	if c.Driver.BaseDir == "" {
 		errs = append(errs, "driver.baseDir is required")
 	}
@@ -703,6 +761,42 @@ func (c *Config) Validate() error {
 	// inside $HOME. Default() leaves it empty so structural validation
 	// here doesn't require it; the operator-facing failure point is
 	// LoadFromEnv, not Validate.
+
+	// --- Execution ---
+	// Per-resource: when both default and max are set, the default
+	// cannot exceed the max — otherwise zero-valued requests get
+	// clamped down by ApplyResourceLimitDefaults to a value below the
+	// configured default, which is operator-confusing.
+	def := c.Execution.DefaultResourceLimits
+	mx := c.Execution.MaxResourceLimits
+	if mx.MemoryLimitMB > 0 && def.MemoryLimitMB > mx.MemoryLimitMB {
+		errs = append(errs, "execution.defaultResourceLimits.memoryLimitMB must be <= maxResourceLimits.memoryLimitMB")
+	}
+	if mx.CPUTimeSec > 0 && def.CPUTimeSec > mx.CPUTimeSec {
+		errs = append(errs, "execution.defaultResourceLimits.cpuTimeSec must be <= maxResourceLimits.cpuTimeSec")
+	}
+	if mx.MaxProcesses > 0 && def.MaxProcesses > mx.MaxProcesses {
+		errs = append(errs, "execution.defaultResourceLimits.maxProcesses must be <= maxResourceLimits.maxProcesses")
+	}
+	if mx.MaxOpenFiles > 0 && def.MaxOpenFiles > mx.MaxOpenFiles {
+		errs = append(errs, "execution.defaultResourceLimits.maxOpenFiles must be <= maxResourceLimits.maxOpenFiles")
+	}
+	if mx.TimeoutSec > 0 && def.TimeoutSec > mx.TimeoutSec {
+		errs = append(errs, "execution.defaultResourceLimits.timeoutSec must be <= maxResourceLimits.timeoutSec")
+	}
+	if c.Execution.DefaultIsolationProfile == "" {
+		errs = append(errs, "execution.defaultIsolationProfile is required (typically \"full\")")
+	}
+
+	// --- Integration ---
+	// AgentManagerURL is allowed to be empty when sync is enabled —
+	// the Service falls back to discovery.ResolveScenarioURLDefault at
+	// request time (see internal/sandbox/service_audit.go::resolveAgentManagerURL).
+	// We therefore do NOT require URL when sync is enabled; the
+	// runtime fallback is the documented contract.
+	if c.Integration.AgentManagerSyncTimeout < 0 {
+		errs = append(errs, "integration.agentManagerSyncTimeout must be >= 0")
+	}
 
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration validation failed: %s", strings.Join(errs, "; "))

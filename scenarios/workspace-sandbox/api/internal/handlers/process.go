@@ -26,16 +26,18 @@ import (
 // protected-mode git allowlist lives in internal/runtime/git_allowlist.go.
 
 // profileResolver constructs a runtime.ProfileResolver wired to the
-// handler's profile store, default profile ID, and active driver
-// capabilities. Built per-call so a hot-swapped driver is reflected
-// immediately in subsequent requests.
+// handler's startup-cached profile snapshot, default profile ID, and
+// active driver capabilities. Built per-call so a hot-swapped driver
+// is reflected immediately in subsequent requests; the profile snapshot
+// itself is loaded once at startup and refreshed only on admin
+// Save/Delete (Round 4 Phase 9).
 func (h *Handlers) profileResolver() *runtime.ProfileResolver {
 	caps := driver.DriverCapabilities{}
 	if d := h.Driver(); d != nil {
 		caps = d.Capabilities()
 	}
 	return &runtime.ProfileResolver{
-		Store:     h.ProfileStore,
+		Profiles:  h.ProfileSnapshot(),
 		DefaultID: h.Config.Execution.DefaultIsolationProfile,
 		Caps:      caps,
 	}

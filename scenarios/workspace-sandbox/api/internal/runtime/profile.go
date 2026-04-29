@@ -11,6 +11,8 @@
 package runtime
 
 import (
+	"fmt"
+
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	driverexec "workspace-sandbox/internal/driver/exec"
@@ -18,13 +20,55 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
-// ProfileResolver pairs a ProfileStore with a default profile ID so
-// handlers can resolve a request's `isolationLevel` without reaching
-// into Handlers state for every call.
+// ProfileResolver resolves an isolation-profile ID against an
+// immutable, in-memory snapshot of the registry. Snapshot semantics
+// are deliberate: once a resolver is built, the underlying ProfileStore
+// can mutate (Save/Delete) without affecting future Resolve calls on
+// this instance.
+//
+// Round 4 Phase 9 (2026-04-29): replaced the per-call Store dip with
+// snapshot semantics. The handler holds an atomic.Pointer to the
+// canonical snapshot and rebuilds it on admin Save/Delete, so the
+// public API stays consistent without coupling the resolver to a
+// long-lived Store reference.
 type ProfileResolver struct {
-	Store     config.ProfileStore
+	// Profiles is the per-resolver snapshot of {ID → profile}. A nil
+	// or empty map is treated as "no profile registered" — Resolve
+	// returns IsolationProfileNotFoundError for any non-empty
+	// requestedID.
+	Profiles map[string]config.IsolationProfile
+
+	// DefaultID is the profile ID returned when callers pass an empty
+	// requestedID. Empty string falls through to the builtin "full"
+	// profile; if that's missing too, Resolve returns the typed error.
 	DefaultID string
-	Caps      driver.DriverCapabilities
+
+	// Caps captures the active driver's capabilities. Used by
+	// ResolveAndApply to evaluate the home-overlay decision.
+	Caps driver.DriverCapabilities
+}
+
+// LoadProfiles builds a snapshot map from a ProfileStore. Returns an
+// error wrapping the underlying List() failure so callers can fail
+// startup cleanly.
+//
+// Use at startup (or after admin Save/Delete) to capture the current
+// registry; pass the resulting map into a ProfileResolver. The map is
+// immutable from the resolver's point of view — never mutate it after
+// construction.
+func LoadProfiles(store config.ProfileStore) (map[string]config.IsolationProfile, error) {
+	if store == nil {
+		return nil, fmt.Errorf("LoadProfiles: store is nil")
+	}
+	profiles, err := store.List()
+	if err != nil {
+		return nil, fmt.Errorf("LoadProfiles: list: %w", err)
+	}
+	out := make(map[string]config.IsolationProfile, len(profiles))
+	for _, p := range profiles {
+		out[p.ID] = p
+	}
+	return out, nil
 }
 
 // Resolve returns the IsolationProfile for the requested ID, falling
@@ -38,14 +82,13 @@ func (r *ProfileResolver) Resolve(requestedID string) (*config.IsolationProfile,
 	if id == "" {
 		id = "full"
 	}
-	if r.Store == nil {
-		return nil, types.NewIsolationProfileNotFoundError(id)
+	if p, ok := r.Profiles[id]; ok {
+		// Return a copy so callers cannot mutate the snapshot via the
+		// returned pointer.
+		copy := p
+		return &copy, nil
 	}
-	profile, err := r.Store.Get(id)
-	if err != nil {
-		return nil, types.NewIsolationProfileNotFoundError(id)
-	}
-	return profile, nil
+	return nil, types.NewIsolationProfileNotFoundError(id)
 }
 
 // ResolveAndApply resolves the requested profile, applies the

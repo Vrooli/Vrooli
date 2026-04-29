@@ -1441,3 +1441,189 @@ the same emitter (preserves `FakeRepository.AuditEvents` assertions) or
 `internal/sandbox/service.go`, `internal/sandbox/service_audit.go`,
 `internal/sandbox/orphan_reconciler.go`,
 `internal/gc/gc.go`, `main.go`]
+
+## Schema Version + Profile Snapshot Hardening (Round 4 Phase 9)
+
+Round 4 Phase 9 (2026-04-29) closed two assumption gaps that were
+fail-confused-rather-than-fail-fast at startup:
+
+1. **Schema drift was silent.** The embedded SQLite schema is applied
+   on every boot via idempotent `CREATE TABLE IF NOT EXISTS`. Two
+   ad-hoc column migrations (`driver` → `driver_id`, add
+   `home_overlay_state`) lived in `main.go` next to the schema apply.
+   Future schema changes risked silent data loss because nothing
+   compared the running binary's expectations to the persisted state.
+2. **Profile registry was per-request.** `runtime.ProfileResolver`
+   held a `config.ProfileStore` and called `Get` on every Resolve.
+   File-system mutations to `profiles.json` (or a future external
+   profile-source) could change the resolver's behavior mid-process
+   in ways tests couldn't pin.
+
+### Schema version
+
+`internal/repository/schema.go` now exposes a single startup entry
+point `EnsureSchema(ctx, db, clk)`:
+
+```go
+const ExpectedSchemaVersion = 1
+
+func EnsureSchema(ctx context.Context, db *sql.DB, clk clock.Clock) error
+```
+
+Behavior:
+
+1. Apply `schema.sql` (idempotent — every CREATE is `IF NOT EXISTS`).
+2. Run forward-only legacy migrations (`migrateDriverColumn`,
+   `migrateHomeOverlayStateColumn`) — both probe `pragma_table_info`
+   before mutating, so they're no-ops on fresh DBs.
+3. Read `MAX(version)` from `schema_version`. If empty, write
+   `ExpectedSchemaVersion` stamped via the injected clock. If less
+   than expected: refuse to start (forward-only migration missing).
+   If greater: refuse to start (binary older than database).
+
+The `schema_version` table is part of `schema.sql`:
+
+```sql
+CREATE TABLE IF NOT EXISTS schema_version (
+    version    INTEGER NOT NULL PRIMARY KEY,
+    applied_at TEXT NOT NULL
+);
+```
+
+`main.go` calls `repository.EnsureSchema(ctx, db, clk)` once at boot;
+the inline migration helpers were deleted (greenfield — single source
+of truth lives next to the schema). `internal/testutil/db/sqlite.go`
+also routes through `EnsureSchema`, so test DBs are byte-identical to
+production DBs (including the `schema_version` row).
+
+### Profile snapshot
+
+`runtime.ProfileResolver` now holds an immutable
+`Profiles map[string]config.IsolationProfile` instead of a Store
+reference. `runtime.LoadProfiles(store)` is the snapshot factory used
+at startup and after admin Save/Delete:
+
+```go
+type ProfileResolver struct {
+    Profiles  map[string]config.IsolationProfile
+    DefaultID string
+    Caps      driver.DriverCapabilities
+}
+
+func LoadProfiles(store config.ProfileStore) (map[string]config.IsolationProfile, error)
+```
+
+`Resolve` reads from the snapshot and returns a copy so callers
+cannot mutate it via the returned pointer. The resolver is detached
+from the underlying store: deletion of a profile from `ProfileStore`
+does not affect future `Resolve` calls on a previously-built
+resolver. The snapshot lives on `Handlers.profileSnapshot`
+(`atomic.Pointer[map[string]config.IsolationProfile]`); admin
+Save/Delete handlers call `Handlers.RefreshProfileSnapshot()` after a
+successful mutation so the runtime API stays consistent without
+requiring a server restart.
+
+External edits to the profiles JSON file (or a hypothetical future
+SIGHUP-driven reload) are intentionally ignored after boot. The
+contract decision (Round 4 plan §9) is "startup-only for greenfield";
+SIGHUP reload is a follow-up if real operators ask for it.
+
+### DOD invariants
+
+- `grep -rn "schema_version" internal/repository/schema.go internal/repository/schema.sql` → present in both.
+- `grep -rn "time.Now()" internal/repository/schema.go` → 0 hits (clock-stamped).
+- `grep -rn "Store config.ProfileStore" internal/runtime/profile.go` → 0 hits (replaced by `Profiles map`).
+- `internal/repository/schema_version_test.go::TestEnsureSchema_RefusesNewerVersionThanExpected` covers drift refusal.
+- `internal/runtime/profile_test.go::TestResolveProfile_StartupCacheRejectsUnknown` covers snapshot detachment from Store.
+
+### Files added/changed
+
+- `internal/repository/schema.go` (now hosts `EnsureSchema`,
+  `ExpectedSchemaVersion`, and the legacy column migrations).
+- `internal/repository/schema.sql` (added `schema_version` table).
+- `internal/repository/schema_version_test.go` (new — fresh init,
+  idempotent re-init, refusal on older/newer drift, nil-deps,
+  legacy-migration end-to-end).
+- `internal/runtime/profile.go` (snapshot semantics; `LoadProfiles`).
+- `internal/runtime/profile_test.go` (snapshot-detachment contract
+  tests; per-call resolver tests in external test package).
+- `internal/handlers/handlers.go` (`profileSnapshot` atomic pointer
+  + `SetProfileSnapshot`/`RefreshProfileSnapshot`/`ProfileSnapshot`
+  accessors).
+- `internal/handlers/process.go` (`profileResolver()` reads from the
+  snapshot instead of the Store).
+- `internal/handlers/admin.go` (`SaveProfile`/`DeleteProfile` refresh
+  the snapshot after Store mutation).
+- `internal/testutil/db/sqlite.go` (routes through `EnsureSchema`
+  instead of raw `repository.SchemaSQL`).
+- `main.go` (calls `EnsureSchema` once; loads profile snapshot via
+  `runtime.LoadProfiles`; installs it on `Handlers` via
+  `SetProfileSnapshot`; legacy migration helpers deleted).
+
+## Control Surface Hardening (Round 4 Phase 8)
+
+Round 4 Phase 8 (2026-04-29) closed three operator-facing gaps that
+were "quiet at boot, confusing at runtime":
+
+1. **Validation was loose.** `Config.Validate()` checked a handful of
+   fields and ignored mutual-exclusion or dependency constraints. An
+   operator could set `AutoCleanupTerminal=false` *and* a non-zero
+   `TerminalCleanupDelay` — the delay would be silently ignored.
+2. **Resource-limit ordering was implicit.** `DefaultResourceLimits`
+   could exceed `MaxResourceLimits` without `Validate` complaining;
+   the runtime's clamp logic would silently override the operator's
+   default.
+3. **Env-var documentation didn't exist as a single reference.** Every
+   knob's doc lived in a struct comment in `config.go`. Operators had
+   to grep source to learn what they could tune. Drift between code
+   and docs was undetectable.
+
+### What Phase 8 added
+
+- **Tightened `Validate()`**: covers ranges (port number, all positive
+  durations), mutual exclusion (`AutoCleanupTerminal=false` blocks
+  non-zero `TerminalCleanupDelay`), dependency rules (idle timeout
+  ≤ default TTL, total size ≥ per-sandbox size, default resource
+  limits ≤ max resource limits per resource, non-empty
+  `DefaultIsolationProfile`, non-negative
+  `AgentManagerSyncTimeout`), and explicit non-negative bounds for
+  every duration knob. Seventeen new test cases in
+  `config_test.go::TestValidate`.
+- **`docs/reference/configuration.md`** now contains a complete env-var
+  reference grouped by purpose (Server, Capacity, Lifecycle, Driver,
+  Policy, Execution, Integration). Every knob has type, default,
+  range, audience, and related-knob entries.
+- **`config_test.go::TestExposedKnobs_DocumentationParity`** —
+  meta-test that scans `config.go` for env var literals matching the
+  canonical prefixes (`WORKSPACE_SANDBOX_*`, `API_PORT`,
+  `SQLITE_PATH`, `SANDBOX_BASE_DIR`, `PROJECT_ROOT`) and asserts the
+  same set appears in the doc. Drift either direction fails the test.
+
+### What Phase 8 explicitly did NOT do
+
+- **CORS knob deletion.** The plan flagged
+  `WORKSPACE_SANDBOX_CORS_ORIGINS` as a possible vestigial removal.
+  It is *not* vestigial — `internal/server/middleware.go::corsMiddleware`
+  reads it and the live-HTTP harness has parity tests
+  (`internal/server/middleware_test.go::TestCORS_*`). Kept and
+  documented.
+- **AgentManagerURL non-empty requirement.** The plan suggested
+  `AgentManagerSyncEnabled=true` should require a URL. It does NOT —
+  `Service.resolveAgentManagerURL` falls back to
+  `discovery.ResolveScenarioURLDefault` when the URL is empty. The
+  validation rule was dropped after empirically confirming the
+  discovery contract. Documented in `configuration.md` and the
+  `Validate()` comment.
+- **AgentManagerSyncTimeout default change.** Already at `5s` in
+  `Default()` — the plan's "set 30s default" suggestion was based on
+  out-of-date code. Left at 5s; documented.
+
+### DOD invariants
+
+- `Config.Validate()` covers every range, mutual-exclusion, and
+  dependency rule in §10 of the Round 4 plan.
+- `docs/reference/configuration.md` enumerates every operator knob.
+- `internal/config/config_test.go::TestExposedKnobs_DocumentationParity`
+  passes — config.go and the doc cannot drift silently.
+- `vrooli scenario restart workspace-sandbox` succeeds end-to-end with
+  `Validate()` running on boot.

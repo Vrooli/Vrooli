@@ -393,6 +393,159 @@ func TestValidate(t *testing.T) {
 			t.Error("expected error for missing BaseDir")
 		}
 	})
+
+	t.Run("non-numeric port fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "not-a-port"
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "server.port") {
+			t.Errorf("expected server.port error for non-numeric port, got: %v", err)
+		}
+	})
+
+	t.Run("port out of range fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "70000"
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "server.port") {
+			t.Errorf("expected server.port range error, got: %v", err)
+		}
+	})
+
+	t.Run("MaxTotalSizeMB below MaxSandboxSizeMB fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Limits.MaxSandboxSizeMB = 1024
+		cfg.Limits.MaxTotalSizeMB = 512
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "maxTotalSizeMB") {
+			t.Errorf("expected maxTotalSizeMB error, got: %v", err)
+		}
+	})
+
+	t.Run("IdleTimeout greater than DefaultTTL fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.IdleTimeout = 48 * time.Hour
+		cfg.Lifecycle.DefaultTTL = 24 * time.Hour
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "idleTimeout") {
+			t.Errorf("expected idleTimeout error, got: %v", err)
+		}
+	})
+
+	t.Run("AutoHealBaseBackoff zero fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.AutoHealBaseBackoff = 0
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "autoHealBaseBackoff") {
+			t.Errorf("expected autoHealBaseBackoff error, got: %v", err)
+		}
+	})
+
+	t.Run("ProcessGracePeriod zero fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.ProcessGracePeriod = 0
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "processGracePeriod") {
+			t.Errorf("expected processGracePeriod error, got: %v", err)
+		}
+	})
+
+	t.Run("TerminalCleanupDelay non-zero with AutoCleanupTerminal=false fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.AutoCleanupTerminal = false
+		cfg.Lifecycle.TerminalCleanupDelay = 10 * time.Minute
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "terminalCleanupDelay") {
+			t.Errorf("expected terminalCleanupDelay mutual-exclusion error, got: %v", err)
+		}
+	})
+
+	t.Run("TerminalCleanupDelay 0 with AutoCleanupTerminal=false passes", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.AutoCleanupTerminal = false
+		cfg.Lifecycle.TerminalCleanupDelay = 0
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected validation to pass when delay=0 and auto-cleanup disabled: %v", err)
+		}
+	})
+
+	t.Run("BinaryDetectionThreshold zero fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Policy.BinaryDetectionThreshold = 0
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "binaryDetectionThreshold") {
+			t.Errorf("expected binaryDetectionThreshold error, got: %v", err)
+		}
+	})
+
+	t.Run("empty CommitMessageTemplate fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Policy.CommitMessageTemplate = ""
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "commitMessageTemplate") {
+			t.Errorf("expected commitMessageTemplate error, got: %v", err)
+		}
+	})
+
+	t.Run("DefaultMemoryLimit above MaxMemoryLimit fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Execution.DefaultResourceLimits.MemoryLimitMB = 32768
+		cfg.Execution.MaxResourceLimits.MemoryLimitMB = 16384
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "memoryLimitMB") {
+			t.Errorf("expected memoryLimitMB ordering error, got: %v", err)
+		}
+	})
+
+	t.Run("DefaultCPUTimeSec above MaxCPUTimeSec fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Execution.DefaultResourceLimits.CPUTimeSec = 7200
+		cfg.Execution.MaxResourceLimits.CPUTimeSec = 3600
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "cpuTimeSec") {
+			t.Errorf("expected cpuTimeSec ordering error, got: %v", err)
+		}
+	})
+
+	t.Run("empty DefaultIsolationProfile fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Execution.DefaultIsolationProfile = ""
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "defaultIsolationProfile") {
+			t.Errorf("expected defaultIsolationProfile error, got: %v", err)
+		}
+	})
+
+	t.Run("AgentManagerSyncEnabled with empty URL passes (discovery fallback)", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Integration.AgentManagerSyncEnabled = true
+		cfg.Integration.AgentManagerURL = ""
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected validation to pass — discovery fills URL at request time, got: %v", err)
+		}
+	})
+
+	t.Run("negative AgentManagerSyncTimeout fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Integration.AgentManagerSyncTimeout = -1 * time.Second
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "agentManagerSyncTimeout") {
+			t.Errorf("expected agentManagerSyncTimeout error, got: %v", err)
+		}
+	})
 }
 
 func TestEnvHelpers(t *testing.T) {

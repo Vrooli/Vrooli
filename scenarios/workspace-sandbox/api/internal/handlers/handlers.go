@@ -15,7 +15,9 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/gorilla/mux"
 
@@ -24,6 +26,7 @@ import (
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/metrics"
 	"workspace-sandbox/internal/process"
+	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/types"
 )
@@ -44,10 +47,59 @@ type Handlers struct {
 	ProcessTracker  *process.Tracker    // For tracking sandbox processes (OT-P0-008)
 	ProcessLogger   *process.Logger     // For capturing process logs (Phase 2)
 	GCService       GCService           // For garbage collection operations (OT-P1-003)
-	ProfileStore    config.ProfileStore // For isolation profile storage
+	ProfileStore    config.ProfileStore // For isolation profile storage (admin write paths)
 	InUserNamespace bool                // Whether API is running in a user namespace
 	Reconcilers     *sandbox.Runner     // Periodic reconciler dispatcher (Phase 2 Round 3)
 	Clock           clock.Clock         // Wall-clock seam (Round 4 Phase 2). Required.
+
+	// profileSnapshot holds the immutable {ID → profile} snapshot used
+	// by every Resolve in the request path. Loaded once at startup
+	// (via SetProfileSnapshot) and rebuilt on admin Save/Delete (via
+	// RefreshProfileSnapshot). Read paths are atomic.Pointer.Load —
+	// no lock needed in the hot path.
+	//
+	// Round 4 Phase 9: introduced so file-system mutations to the
+	// profiles JSON cannot drift the running resolver, and so the
+	// snapshot semantics are testable in isolation from the Store.
+	profileSnapshot atomic.Pointer[map[string]config.IsolationProfile]
+}
+
+// SetProfileSnapshot installs the initial profile snapshot atomically.
+// Called once at startup from main.go after LoadProfiles. Panics if
+// snapshot is nil — startup is expected to fail loud rather than wire
+// in a nil pointer that crashes a request later.
+func (h *Handlers) SetProfileSnapshot(snapshot map[string]config.IsolationProfile) {
+	if snapshot == nil {
+		panic("Handlers.SetProfileSnapshot: snapshot is nil")
+	}
+	h.profileSnapshot.Store(&snapshot)
+}
+
+// ProfileSnapshot returns the current snapshot or an empty map when
+// none has been installed yet. Callers should treat the returned map
+// as read-only.
+func (h *Handlers) ProfileSnapshot() map[string]config.IsolationProfile {
+	if p := h.profileSnapshot.Load(); p != nil {
+		return *p
+	}
+	return map[string]config.IsolationProfile{}
+}
+
+// RefreshProfileSnapshot rebuilds the snapshot from the current
+// ProfileStore. Called by admin Save/Delete handlers so the public API
+// stays consistent for the life of the process. Returns the underlying
+// store error wrapped for context — admin endpoints surface it as a
+// 500 rather than silently leaving the snapshot stale.
+func (h *Handlers) RefreshProfileSnapshot() error {
+	if h.ProfileStore == nil {
+		return fmt.Errorf("RefreshProfileSnapshot: ProfileStore is nil")
+	}
+	snapshot, err := runtime.LoadProfiles(h.ProfileStore)
+	if err != nil {
+		return fmt.Errorf("RefreshProfileSnapshot: %w", err)
+	}
+	h.profileSnapshot.Store(&snapshot)
+	return nil
 }
 
 // Driver returns the active driver from the slot. Atomic load — safe for

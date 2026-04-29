@@ -149,3 +149,16 @@ CREATE TABLE IF NOT EXISTS heal_state (
     FOREIGN KEY (sandbox_id) REFERENCES sandboxes(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_heal_state_failures ON heal_state(consecutive_failures);
+
+-- schema_version records the canonical schema generation this binary
+-- expects. EnsureSchema (repository/schema.go) reads MAX(version),
+-- writes ExpectedSchemaVersion on first init, and refuses to start when
+-- the persisted version drifts from the expected one. Forward-only:
+-- there is no down-migration path.
+--
+-- Round 4 Phase 9 (2026-04-29): introduced so future schema changes
+-- fail loudly at startup instead of silently corrupting state.
+CREATE TABLE IF NOT EXISTS schema_version (
+    version    INTEGER NOT NULL PRIMARY KEY,
+    applied_at TEXT NOT NULL
+);

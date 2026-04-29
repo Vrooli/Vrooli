@@ -378,6 +378,12 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	// Refresh the resolver snapshot so future Resolves see the new
+	// profile without requiring a server restart (Round 4 Phase 9).
+	if err := h.RefreshProfileSnapshot(); err != nil {
+		h.JSONError(w, "profile saved but snapshot refresh failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	h.JSONSuccess(w, profile)
 }
@@ -395,6 +401,12 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.ProfileStore.Delete(id); err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// Mirror the resolver snapshot to the post-delete state so future
+	// Resolves see the deletion immediately (Round 4 Phase 9).
+	if err := h.RefreshProfileSnapshot(); err != nil {
+		h.JSONError(w, "profile deleted but snapshot refresh failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

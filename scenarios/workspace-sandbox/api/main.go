@@ -32,6 +32,7 @@ import (
 	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
+	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/server"
 	"workspace-sandbox/internal/toolexecution"
@@ -89,23 +90,14 @@ func NewServer() (*Server, error) {
 	// pragmas applied by the DSN govern every transaction.
 	db.SetMaxOpenConns(1)
 
-	// Apply the embedded schema. The file is idempotent (CREATE ... IF NOT
-	// EXISTS) so this runs safely on every startup.
-	if _, err := db.ExecContext(context.Background(), repository.SchemaSQL); err != nil {
-		return nil, fmt.Errorf("failed to apply SQLite schema: %w", err)
-	}
-
-	// Driver-column migration: rename legacy `driver` column to `driver_id`
-	// when an older DB is encountered, then backfill the legacy
-	// `overlayfs` value to its canonical DriverID. Idempotent: a fresh
-	// schema lands `driver_id` directly, in which case both steps are
-	// no-ops. Greenfield: no rollback path; the new ID space is the only
-	// truth.
-	if err := migrateDriverColumn(context.Background(), db); err != nil {
-		return nil, fmt.Errorf("failed to migrate driver column: %w", err)
-	}
-	if err := migrateHomeOverlayStateColumn(context.Background(), db); err != nil {
-		return nil, fmt.Errorf("failed to migrate home_overlay_state column: %w", err)
+	// Apply the embedded schema and run forward-only legacy migrations.
+	// EnsureSchema is the single startup entry point for DDL: it applies
+	// the idempotent CREATE TABLE statements, runs the driver_id rename
+	// and home_overlay_state column-add migrations, and stamps the
+	// schema_version row. Refuses to start if the persisted version
+	// drifts from repository.ExpectedSchemaVersion (Round 4 Phase 9).
+	if err := repository.EnsureSchema(context.Background(), db, clk); err != nil {
+		return nil, fmt.Errorf("failed to ensure schema: %w", err)
 	}
 
 	// Initialize driver with automatic selection and fallback
@@ -233,6 +225,15 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize profile store: %w", err)
 	}
+	// Snapshot the profile registry once at startup so the request-path
+	// resolver is detached from the underlying file (Round 4 Phase 9).
+	// Admin Save/Delete handlers refresh the snapshot via
+	// Handlers.RefreshProfileSnapshot — file-system mutations to
+	// profiles.json are intentionally ignored after boot.
+	profileSnapshot, err := runtime.LoadProfiles(profileStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load profile snapshot: %w", err)
+	}
 
 	// Initialize GC service (OT-P1-003)
 	gcCfg := gc.Config{
@@ -265,6 +266,7 @@ func NewServer() (*Server, error) {
 		Reconcilers:     lifecycleRecon,
 		Clock:           clk,
 	}
+	h.SetProfileSnapshot(profileSnapshot)
 
 	// Initialize structured logger
 	logger := logging.New("workspace-sandbox-api", logging.WithClock(clk))
@@ -476,55 +478,4 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
-}
-
-// migrateDriverColumn renames the legacy `driver` column to `driver_id`
-// when an older DB is encountered, and backfills `overlayfs` →
-// `overlayfs-userns`. Idempotent: both steps are no-ops on fresh DBs
-// where the schema landed `driver_id` directly. Greenfield: no rollback
-// path; the new ID space is the canonical truth.
-func migrateDriverColumn(ctx context.Context, db *sql.DB) error {
-	var oldColumnExists int
-	err := db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM pragma_table_info('sandboxes') WHERE name='driver'`,
-	).Scan(&oldColumnExists)
-	if err != nil {
-		return fmt.Errorf("probe driver column: %w", err)
-	}
-	if oldColumnExists > 0 {
-		if _, err := db.ExecContext(ctx, `ALTER TABLE sandboxes RENAME COLUMN driver TO driver_id`); err != nil {
-			return fmt.Errorf("rename driver column: %w", err)
-		}
-	}
-	if _, err := db.ExecContext(ctx,
-		`UPDATE sandboxes SET driver_id = 'overlayfs-userns' WHERE driver_id = 'overlayfs'`,
-	); err != nil {
-		return fmt.Errorf("backfill driver_id: %w", err)
-	}
-	return nil
-}
-
-// migrateHomeOverlayStateColumn idempotently adds the home_overlay_state
-// column to older sandboxes tables. Fresh databases land the column via
-// CREATE TABLE; this function only fires on pre-2026-04-29 databases
-// that predate the home-overlay refactor.
-//
-// DOC: home-overlay seam — schema-side state declaration.
-func migrateHomeOverlayStateColumn(ctx context.Context, db *sql.DB) error {
-	var exists int
-	err := db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM pragma_table_info('sandboxes') WHERE name='home_overlay_state'`,
-	).Scan(&exists)
-	if err != nil {
-		return fmt.Errorf("probe home_overlay_state column: %w", err)
-	}
-	if exists > 0 {
-		return nil
-	}
-	if _, err := db.ExecContext(ctx,
-		`ALTER TABLE sandboxes ADD COLUMN home_overlay_state TEXT NOT NULL DEFAULT 'absent'`,
-	); err != nil {
-		return fmt.Errorf("add home_overlay_state column: %w", err)
-	}
-	return nil
 }

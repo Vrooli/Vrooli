@@ -4,6 +4,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -18,9 +19,9 @@ import (
 // a file in the test's temp dir. The handle is closed automatically
 // via t.Cleanup. Connection pool is capped at 1 to mirror production.
 //
-// Schema is applied via repository.SchemaSQL (the same source main.go
-// uses), so the returned handle is byte-identical to a fresh prod
-// install.
+// Schema is applied via repository.EnsureSchema (the same entry point
+// main.go uses), so the returned handle is byte-identical to a fresh
+// prod install — including the schema_version row.
 func NewSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
@@ -35,9 +36,9 @@ func NewSQLite(t *testing.T) *sql.DB {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	d.SetMaxOpenConns(1)
-	if _, err := d.Exec(repository.SchemaSQL); err != nil {
+	if err := repository.EnsureSchema(context.Background(), d, clock.System{}); err != nil {
 		d.Close()
-		t.Fatalf("apply schema: %v", err)
+		t.Fatalf("ensure schema: %v", err)
 	}
 	t.Cleanup(func() { d.Close() })
 	return d
