@@ -493,10 +493,11 @@ func NewHomeOverlayUnavailableError(cause error) *HomeOverlayUnavailableError {
 }
 
 // HomeOverlayRequiredError indicates a process-launch attempt where the
-// requested isolation profile sets RequiresHomeOverlay=true, but the
-// sandbox's HomeOverlayState is anything other than Present. The handler
-// returns HTTP 409. Recoverable by selecting a profile that does not
-// require the overlay or recreating the sandbox after fixing the mount.
+// requested isolation profile sets HomeOverlayRequirement=required, but
+// the sandbox's HomeOverlayState is anything other than Present. The
+// handler returns HTTP 409. Recoverable by selecting a profile that
+// does not require the overlay or recreating the sandbox after fixing
+// the mount.
 //
 // DOC: home-overlay seam. See docs/internal/SEAMS.md.
 type HomeOverlayRequiredError struct {
@@ -507,7 +508,7 @@ type HomeOverlayRequiredError struct {
 
 func (e *HomeOverlayRequiredError) Error() string {
 	return fmt.Sprintf(
-		"isolation profile %q requires a home overlay but sandbox %s has state=%q; recreate the sandbox or select a profile without RequiresHomeOverlay",
+		"isolation profile %q requires a home overlay but sandbox %s has state=%q; recreate the sandbox or select a profile that does not require the overlay",
 		e.Profile, e.SandboxID, e.State,
 	)
 }

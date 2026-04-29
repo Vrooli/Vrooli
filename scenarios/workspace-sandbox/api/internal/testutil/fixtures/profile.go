@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"workspace-sandbox/internal/config"
+	"workspace-sandbox/internal/types"
 )
 
 // ProfileOpt mutates an IsolationProfile during construction.
@@ -12,14 +13,15 @@ type ProfileOpt func(*config.IsolationProfile)
 // network=none, $HOME-required profiles, etc.
 func NewIsolationProfile(opts ...ProfileOpt) config.IsolationProfile {
 	p := config.IsolationProfile{
-		ID:             "test-profile",
-		Name:           "Test Profile",
-		Description:    "Default test profile",
-		Builtin:        false,
-		NetworkAccess:  "full",
-		ReadOnlyBinds:  map[string]string{},
-		ReadWriteBinds: map[string]string{},
-		Environment:    map[string]string{},
+		ID:                     "test-profile",
+		Name:                   "Test Profile",
+		Description:            "Default test profile",
+		Builtin:                false,
+		NetworkAccess:          "full",
+		HomeOverlayRequirement: types.HomeOverlayNotNeeded,
+		ReadOnlyBinds:          map[string]string{},
+		ReadWriteBinds:         map[string]string{},
+		Environment:            map[string]string{},
 	}
 	for _, opt := range opts {
 		opt(&p)
@@ -70,6 +72,6 @@ func WithProfileReadWriteBind(host, sandbox string) ProfileOpt {
 	}
 }
 
-func WithProfileRequiresHomeOverlay(b bool) ProfileOpt {
-	return func(p *config.IsolationProfile) { p.RequiresHomeOverlay = b }
+func WithProfileHomeOverlayRequirement(r types.HomeOverlayRequirement) ProfileOpt {
+	return func(p *config.IsolationProfile) { p.HomeOverlayRequirement = r }
 }

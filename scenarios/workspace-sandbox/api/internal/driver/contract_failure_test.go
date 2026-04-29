@@ -421,7 +421,7 @@ func TestDriverFailure_CleanupOrphanWhenStillMounted(t *testing.T) {
 // Added, RemoveFromUpper drops it, GetChangedFiles is then empty.
 //
 // This runs against every overlay flavor since they share
-// getOverlayChangedFiles + removeFromUpperSecure, but the
+// changedetect.OverlayStrategy + removeFromUpperSecure, but the
 // parameterization keeps the contract observable per-flavor.
 func TestDriverFailure_PartialApprovalCycle(t *testing.T) {
 	for _, flavor := range overlayFlavors() {
@@ -615,7 +615,7 @@ func TestCopyDriverFailure_MissingScopePath(t *testing.T) {
 
 // TestCopyDriverFailure_UnsupportedHomeOverlayState pins: the copy
 // driver always reports HomeOverlayState=Unsupported after Mount,
-// regardless of $HOME. The handler-side gate (RequiresHomeOverlay)
+// regardless of $HOME. The handler-side gate (HomeOverlayRequirement)
 // keys off this exact value to refuse vrooli-aware exec.
 func TestCopyDriverFailure_UnsupportedHomeOverlayState(t *testing.T) {
 	tmp := t.TempDir()

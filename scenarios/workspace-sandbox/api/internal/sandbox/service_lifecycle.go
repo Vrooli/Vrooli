@@ -240,6 +240,12 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		fmt.Printf("warning: driver cleanup failed: %v\n", err)
 	}
 
+	// I-MOUNT-1: own the daemon teardown deterministically. The driver
+	// Cleanup unmounts; this kills any fuse-overlayfs daemon left behind
+	// (e.g. the userspace daemon that survives Unmount on some kernels).
+	// Background reaper stays as a safety net for API-crash paths.
+	s.killDaemonsForSandbox(ctx, id)
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		if err.Error() == "sandbox not found or already deleted" {
 			return nil

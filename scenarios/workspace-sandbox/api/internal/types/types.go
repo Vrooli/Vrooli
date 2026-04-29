@@ -211,7 +211,7 @@ const (
 //
 // DOC: home-overlay seam. See docs/internal/SEAMS.md. Tied to:
 //   - driver.DriverCapabilities.HomeOverlay (does the driver provide it?)
-//   - config.IsolationProfile.RequiresHomeOverlay (does this profile need it?)
+//   - config.IsolationProfile.HomeOverlayRequirement (does this profile need it?)
 //   - handlers.process exec (loud failure when required and Absent).
 type HomeOverlayState string
 
@@ -229,6 +229,41 @@ const (
 	// overlay at all (copy driver).
 	HomeOverlayUnsupported HomeOverlayState = "unsupported"
 )
+
+// HomeOverlayRequirement is the profile-side declaration of how
+// strongly the profile depends on the per-sandbox host-$HOME overlay.
+// Three-valued so profiles can express "uses $HOME if present, falls
+// back if not" rather than a binary required/off shape that would
+// force every absent-overlay case into a refusal.
+//
+// DOC: home-overlay seam — profile-side requirement declaration.
+// See docs/internal/SEAMS.md.
+type HomeOverlayRequirement string
+
+const (
+	// HomeOverlayNotNeeded means the profile does not depend on the
+	// host $HOME overlay. This is the default for new/unset profiles.
+	HomeOverlayNotNeeded HomeOverlayRequirement = "not_needed"
+	// HomeOverlayOptional means the profile uses $HOME-relative paths
+	// when the overlay is Present but functions correctly without it.
+	// Callers MUST treat absence as a soft fallback (HOME_OVERLAY_FALLBACK
+	// audit code) rather than a refusal.
+	HomeOverlayOptional HomeOverlayRequirement = "optional"
+	// HomeOverlayRequired means the profile cannot function without the
+	// host $HOME overlay. Handlers refuse exec with HTTP 409 when the
+	// sandbox's HomeOverlayState is anything other than Present.
+	HomeOverlayRequired HomeOverlayRequirement = "required"
+)
+
+// IsValid reports whether the requirement holds one of the three
+// canonical values.
+func (r HomeOverlayRequirement) IsValid() bool {
+	switch r {
+	case HomeOverlayNotNeeded, HomeOverlayOptional, HomeOverlayRequired:
+		return true
+	}
+	return false
+}
 
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {

@@ -327,11 +327,14 @@ func TestStreamProcessLogs_SlowExit(t *testing.T) {
 // chunk patterns), the parsed frame sequence must end with `end`, and
 // `exit` must precede `end`.
 func TestStreamProcessLogs_FrameOrderingInvariant(t *testing.T) {
+	// One of the subtests is named "I-SSE-1" so the invariant ID listed
+	// in docs/internal/INVARIANTS.md has a t.Run home that
+	// scripts/check-invariants.sh picks up.
 	patterns := []struct {
 		name   string
 		chunks []string
 	}{
-		{name: "no-data", chunks: nil},
+		{name: "I-SSE-1", chunks: nil},
 		{name: "single-chunk", chunks: []string{"only\n"}},
 		{name: "many-chunks", chunks: []string{"a\n", "b\n", "c\n", "d\n", "e\n"}},
 	}

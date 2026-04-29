@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"workspace-sandbox/internal/types"
 )
 
 func TestDefaultProfiles(t *testing.T) {
@@ -281,6 +283,81 @@ func TestFileProfileStoreReload(t *testing.T) {
 	reloaded, _ := store.Get("reload-test")
 	if reloaded.Name != "After External Edit" {
 		t.Errorf("expected reloaded Name 'After External Edit', got %s", reloaded.Name)
+	}
+}
+
+// TestDefaultProfiles_HomeOverlayRequirement pins the requirement value
+// each builtin profile carries. Catches accidental flips of the
+// vrooli-aware profile from required → optional/not_needed (which
+// would silently allow exec on a broken overlay).
+func TestDefaultProfiles_HomeOverlayRequirement(t *testing.T) {
+	want := map[string]types.HomeOverlayRequirement{
+		"full":         types.HomeOverlayNotNeeded,
+		"vrooli-aware": types.HomeOverlayRequired,
+	}
+	for _, p := range DefaultProfiles() {
+		expected, ok := want[p.ID]
+		if !ok {
+			continue
+		}
+		if p.HomeOverlayRequirement != expected {
+			t.Errorf("profile %q HomeOverlayRequirement = %q, want %q",
+				p.ID, p.HomeOverlayRequirement, expected)
+		}
+	}
+}
+
+// TestFileProfileStore_RejectsInvalidHomeOverlayRequirement asserts the
+// loader-time validator: a profiles.json containing an unknown
+// requirement value fails the load instead of being silently coerced.
+func TestFileProfileStore_RejectsInvalidHomeOverlayRequirement(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "profiles.json")
+	bad := `[{"id":"bad","name":"Bad","homeOverlayRequirement":"nonsense"}]`
+	if err := os.WriteFile(path, []byte(bad), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	store := NewFileProfileStoreAtPath(path)
+	_, err := store.List()
+	if err == nil {
+		t.Fatal("expected error for invalid homeOverlayRequirement, got nil")
+	}
+}
+
+// TestFileProfileStore_EmptyHomeOverlayRequirementDefaults asserts that
+// a profiles.json that omits the field is treated as "not_needed".
+// This keeps custom profiles authored before this field existed
+// loadable without manual rewriting.
+func TestFileProfileStore_EmptyHomeOverlayRequirementDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "profiles.json")
+	good := `[{"id":"unset","name":"Unset","networkAccess":"full"}]`
+	if err := os.WriteFile(path, []byte(good), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	store := NewFileProfileStoreAtPath(path)
+	got, err := store.Get("unset")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.HomeOverlayRequirement != types.HomeOverlayNotNeeded {
+		t.Errorf("HomeOverlayRequirement = %q, want %q",
+			got.HomeOverlayRequirement, types.HomeOverlayNotNeeded)
+	}
+}
+
+// TestFileProfileStore_SaveRejectsInvalidHomeOverlayRequirement covers
+// the runtime API: programmatic Save with an unknown value fails.
+func TestFileProfileStore_SaveRejectsInvalidHomeOverlayRequirement(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
+	err := store.Save(IsolationProfile{
+		ID:                     "bad-save",
+		Name:                   "Bad Save",
+		HomeOverlayRequirement: "wat",
+	})
+	if err == nil {
+		t.Fatal("expected error from Save with invalid requirement")
 	}
 }
 

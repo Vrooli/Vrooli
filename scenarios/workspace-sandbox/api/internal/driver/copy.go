@@ -13,11 +13,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/driver/changedetect"
 	"workspace-sandbox/internal/types"
 )
 
@@ -169,134 +169,11 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 	if s.UpperDir == "" {
 		return nil, fmt.Errorf("sandbox workspace directory not set")
 	}
-
-	originalDir := s.LowerDir
-	workspaceDir := s.UpperDir
-
-	var changes []*types.FileChange
-
-	// Track files we've seen in workspace
-	workspaceFiles := make(map[string]bool)
-
-	// Walk workspace to find added and modified files
-	err := filepath.Walk(workspaceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory
-		if path == workspaceDir {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(workspaceDir, path)
-		if err != nil {
-			return err
-		}
-
-		if isOverlayMarker(relPath) {
-			return nil
-		}
-
-		// Skip hidden files and directories that might be metadata
-		if strings.HasPrefix(relPath, ".") {
-			return nil
-		}
-
-		workspaceFiles[relPath] = true
-
-		// Check if file exists in original
-		originalPath := filepath.Join(originalDir, relPath)
-		originalInfo, originalErr := os.Stat(originalPath)
-
-		var changeType types.ChangeType
-
-		if os.IsNotExist(originalErr) {
-			// File doesn't exist in original - it's added
-			changeType = types.ChangeTypeAdded
-		} else if originalErr != nil {
-			// Error accessing original - treat as modified
-			changeType = types.ChangeTypeModified
-		} else if info.IsDir() && originalInfo.IsDir() {
-			// Both are directories - skip
-			return nil
-		} else if filesAreDifferent(originalPath, path, originalInfo, info) {
-			// Files are different - modified
-			changeType = types.ChangeTypeModified
-		} else {
-			// Files are the same - no change
-			return nil
-		}
-
-		change := &types.FileChange{
-			ID:             StableFileID(s.ID, relPath),
-			SandboxID:      s.ID,
-			FilePath:       relPath,
-			ChangeType:     changeType,
-			FileSize:       info.Size(),
-			FileMode:       int(info.Mode()),
-			DetectedAt:     d.clock.Now(),
-			ApprovalStatus: types.ApprovalPending,
-		}
-
-		changes = append(changes, change)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk workspace directory: %w", err)
-	}
-
-	// Walk original to find deleted files
-	err = filepath.Walk(originalDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == originalDir {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(originalDir, path)
-		if err != nil {
-			return err
-		}
-
-		if isOverlayMarker(relPath) {
-			return nil
-		}
-
-		// Skip hidden files
-		if strings.HasPrefix(relPath, ".") {
-			return nil
-		}
-
-		// If we already saw this in workspace, it's not deleted
-		if workspaceFiles[relPath] {
-			return nil
-		}
-
-		// File exists in original but not in workspace - deleted
-		if !info.IsDir() {
-			change := &types.FileChange{
-				ID:             StableFileID(s.ID, relPath),
-				SandboxID:      s.ID,
-				FilePath:       relPath,
-				ChangeType:     types.ChangeTypeDeleted,
-				FileSize:       info.Size(),
-				FileMode:       int(info.Mode()),
-				DetectedAt:     d.clock.Now(),
-				ApprovalStatus: types.ApprovalPending,
-			}
-			changes = append(changes, change)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk original directory: %w", err)
-	}
-
-	return changes, nil
+	return changedetect.Walk(ctx,
+		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID},
+		&changedetect.CopyStrategy{FileIDFn: StableFileID},
+		d.clock.Now(),
+	)
 }
 
 // RemoveFromUpper removes a file from the workspace directory.
@@ -390,39 +267,4 @@ func copyFile(src, dst string, mode fs.FileMode) error {
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
-}
-
-// filesAreDifferent checks if two files have different content.
-func filesAreDifferent(path1, path2 string, info1, info2 fs.FileInfo) bool {
-	// Different sizes means different content
-	if info1.Size() != info2.Size() {
-		return true
-	}
-
-	// Different modes means different
-	if info1.Mode() != info2.Mode() {
-		return true
-	}
-
-	// For small files, compare content directly
-	if info1.Size() < 64*1024 { // 64KB threshold
-		content1, err1 := os.ReadFile(path1)
-		content2, err2 := os.ReadFile(path2)
-		if err1 != nil || err2 != nil {
-			return true
-		}
-		return string(content1) != string(content2)
-	}
-
-	// For larger files, modification time is a reasonable heuristic
-	// (though not perfect - content could differ even with same mtime)
-	return info1.ModTime() != info2.ModTime()
-}
-
-func isOverlayMarker(relPath string) bool {
-	baseName := filepath.Base(relPath)
-	if baseName == ".wh..opq" {
-		return true
-	}
-	return strings.HasPrefix(baseName, ".wh.")
 }

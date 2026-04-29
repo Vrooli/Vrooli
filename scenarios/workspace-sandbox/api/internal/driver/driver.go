@@ -93,7 +93,7 @@ type MountPaths struct {
 
 // DriverCapabilities is the pure (no-I/O) declaration of what a driver
 // supports. Used by handlers to decide whether a profile's requirements
-// can be satisfied — see IsolationProfile.RequiresHomeOverlay.
+// can be satisfied — see IsolationProfile.HomeOverlayRequirement.
 //
 // DOC: home-overlay seam — driver-side capability declaration. See
 // docs/internal/SEAMS.md.

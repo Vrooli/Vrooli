@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/clock"
+	"workspace-sandbox/internal/driver/changedetect"
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
@@ -199,7 +200,7 @@ func (d *OverlayDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPath
 	if err != nil {
 		// Boundary-of-responsibility: the driver mounts what it can; the
 		// caller (handler) decides whether absence is fatal based on the
-		// active profile's RequiresHomeOverlay flag.
+		// active profile's HomeOverlayRequirement value.
 		slog.Warn("home overlay mount failed",
 			"sandboxId", s.ID.String(),
 			"driver", d.id,
@@ -247,7 +248,14 @@ func (d *OverlayDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
 }
 
 func (d *OverlayDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
-	return getOverlayChangedFiles(s, d.clock)
+	if s.UpperDir == "" {
+		return nil, fmt.Errorf("sandbox upper directory not set")
+	}
+	return changedetect.Walk(ctx,
+		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID},
+		&changedetect.OverlayStrategy{FileIDFn: StableFileID},
+		d.clock.Now(),
+	)
 }
 
 func (d *OverlayDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {

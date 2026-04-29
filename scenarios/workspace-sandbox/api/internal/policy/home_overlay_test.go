@@ -12,41 +12,54 @@ import (
 // requirement, sandbox state) decision space. Every cell of the matrix
 // is asserted to produce the documented decision so a future refactor
 // that "fixes" one row can't silently break another.
+//
+// I-HOME-2: HomeOverlayOptional + non-Present state ⇒ allowed +
+// HOME_OVERLAY_FALLBACK code (asserted by the rows tagged "optional").
 func TestDecideHomeOverlay_Matrix(t *testing.T) {
 	cases := []struct {
 		name        string
-		driverCap   bool                   // caps.HomeOverlay
-		requires    bool                   // profile.RequiresHomeOverlay
-		state       types.HomeOverlayState // sandbox.HomeOverlayState
+		driverCap   bool                         // caps.HomeOverlay
+		requirement types.HomeOverlayRequirement // profile.HomeOverlayRequirement
+		state       types.HomeOverlayState       // sandbox.HomeOverlayState
 		wantAllowed bool
 		wantCode    string
 	}{
-		// Profile does NOT require home overlay → always allowed.
-		{"no-req/cap/present", true, false, types.HomeOverlayPresent, true, ""},
-		{"no-req/cap/absent", true, false, types.HomeOverlayAbsent, true, ""},
-		{"no-req/no-cap/present", false, false, types.HomeOverlayPresent, true, ""},
-		{"no-req/no-cap/absent", false, false, types.HomeOverlayAbsent, true, ""},
-		{"no-req/no-cap/unsupported", false, false, types.HomeOverlayUnsupported, true, ""},
-		{"no-req/cap/notrequested", true, false, types.HomeOverlayNotRequested, true, ""},
+		// not_needed: always allowed, no code, regardless of driver/state.
+		{"not_needed/cap/present", true, types.HomeOverlayNotNeeded, types.HomeOverlayPresent, true, ""},
+		{"not_needed/cap/absent", true, types.HomeOverlayNotNeeded, types.HomeOverlayAbsent, true, ""},
+		{"not_needed/no-cap/present", false, types.HomeOverlayNotNeeded, types.HomeOverlayPresent, true, ""},
+		{"not_needed/no-cap/absent", false, types.HomeOverlayNotNeeded, types.HomeOverlayAbsent, true, ""},
+		{"not_needed/no-cap/unsupported", false, types.HomeOverlayNotNeeded, types.HomeOverlayUnsupported, true, ""},
+		{"not_needed/cap/notrequested", true, types.HomeOverlayNotNeeded, types.HomeOverlayNotRequested, true, ""},
 
-		// Profile requires home overlay; driver doesn't support it →
-		// HOME_OVERLAY_UNSUPPORTED_DRIVER regardless of state.
-		{"req/no-cap/present", false, true, types.HomeOverlayPresent, false, CodeHomeOverlayUnsupportedDriver},
-		{"req/no-cap/absent", false, true, types.HomeOverlayAbsent, false, CodeHomeOverlayUnsupportedDriver},
-		{"req/no-cap/unsupported", false, true, types.HomeOverlayUnsupported, false, CodeHomeOverlayUnsupportedDriver},
-		{"req/no-cap/notrequested", false, true, types.HomeOverlayNotRequested, false, CodeHomeOverlayUnsupportedDriver},
+		// optional: always allowed; non-Present state carries
+		// HOME_OVERLAY_FALLBACK. The "I-HOME-2" row name pins the
+		// invariant ID listed in docs/internal/INVARIANTS.md so the CI
+		// scan can find it via t.Run("I-HOME-2").
+		{"optional/cap/present", true, types.HomeOverlayOptional, types.HomeOverlayPresent, true, ""},
+		{"I-HOME-2", true, types.HomeOverlayOptional, types.HomeOverlayAbsent, true, CodeHomeOverlayFallback},
+		{"optional/no-cap/present", false, types.HomeOverlayOptional, types.HomeOverlayPresent, true, ""},
+		{"optional/no-cap/absent", false, types.HomeOverlayOptional, types.HomeOverlayAbsent, true, CodeHomeOverlayFallback},
+		{"optional/no-cap/unsupported", false, types.HomeOverlayOptional, types.HomeOverlayUnsupported, true, CodeHomeOverlayFallback},
+		{"optional/cap/notrequested", true, types.HomeOverlayOptional, types.HomeOverlayNotRequested, true, CodeHomeOverlayFallback},
 
-		// Profile requires home overlay; driver supports it.
-		{"req/cap/present", true, true, types.HomeOverlayPresent, true, ""},
-		{"req/cap/absent", true, true, types.HomeOverlayAbsent, false, CodeHomeOverlayRequired},
-		{"req/cap/unsupported", true, true, types.HomeOverlayUnsupported, false, CodeHomeOverlayRequired},
-		{"req/cap/notrequested", true, true, types.HomeOverlayNotRequested, false, CodeHomeOverlayRequired},
+		// required + driver doesn't support → HOME_OVERLAY_UNSUPPORTED_DRIVER, regardless of state.
+		{"required/no-cap/present", false, types.HomeOverlayRequired, types.HomeOverlayPresent, false, CodeHomeOverlayUnsupportedDriver},
+		{"required/no-cap/absent", false, types.HomeOverlayRequired, types.HomeOverlayAbsent, false, CodeHomeOverlayUnsupportedDriver},
+		{"required/no-cap/unsupported", false, types.HomeOverlayRequired, types.HomeOverlayUnsupported, false, CodeHomeOverlayUnsupportedDriver},
+		{"required/no-cap/notrequested", false, types.HomeOverlayRequired, types.HomeOverlayNotRequested, false, CodeHomeOverlayUnsupportedDriver},
+
+		// required + driver supports it.
+		{"required/cap/present", true, types.HomeOverlayRequired, types.HomeOverlayPresent, true, ""},
+		{"required/cap/absent", true, types.HomeOverlayRequired, types.HomeOverlayAbsent, false, CodeHomeOverlayRequired},
+		{"required/cap/unsupported", true, types.HomeOverlayRequired, types.HomeOverlayUnsupported, false, CodeHomeOverlayRequired},
+		{"required/cap/notrequested", true, types.HomeOverlayRequired, types.HomeOverlayNotRequested, false, CodeHomeOverlayRequired},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			caps := driver.DriverCapabilities{HomeOverlay: tc.driverCap}
-			profile := config.IsolationProfile{ID: "test", RequiresHomeOverlay: tc.requires}
+			profile := config.IsolationProfile{ID: "test", HomeOverlayRequirement: tc.requirement}
 			sb := types.Sandbox{HomeOverlayState: tc.state}
 			got := DecideHomeOverlay(caps, profile, sb)
 
@@ -59,7 +72,25 @@ func TestDecideHomeOverlay_Matrix(t *testing.T) {
 			if !got.Allowed && got.Reason == "" {
 				t.Error("Reason must be non-empty on refusal")
 			}
+			if got.Code == CodeHomeOverlayFallback && got.Reason == "" {
+				t.Error("Reason must be non-empty when HOME_OVERLAY_FALLBACK is emitted")
+			}
 		})
+	}
+}
+
+// TestDecideHomeOverlay_DefaultsToNotNeeded covers the empty-string
+// (zero-value / partial-decode) HomeOverlayRequirement. The validator
+// rewrites empty to "not_needed" at load time, but the policy must also
+// behave safely if it ever sees one — refuse-by-default would be
+// dangerous for existing flows.
+func TestDecideHomeOverlay_DefaultsToNotNeeded(t *testing.T) {
+	caps := driver.DriverCapabilities{HomeOverlay: false}
+	profile := config.IsolationProfile{ID: "test", HomeOverlayRequirement: ""}
+	sb := types.Sandbox{HomeOverlayState: types.HomeOverlayAbsent}
+	got := DecideHomeOverlay(caps, profile, sb)
+	if !got.Allowed || got.Code != "" {
+		t.Errorf("empty HomeOverlayRequirement: got %+v, want allowed:true code:\"\"", got)
 	}
 }
 

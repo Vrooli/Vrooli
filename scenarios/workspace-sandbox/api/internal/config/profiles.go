@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"github.com/vrooli/api-core/storage"
+
+	"workspace-sandbox/internal/types"
 )
 
 // IsolationProfile defines a named isolation configuration.
@@ -44,18 +46,26 @@ type IsolationProfile struct {
 	// Hostname to set inside the sandbox.
 	Hostname string `json:"hostname"`
 
-	// RequiresHomeOverlay declares whether this profile NEEDS the
-	// per-sandbox host-$HOME overlay to be present. true for profiles
-	// whose Environment uses $HOME-relative paths (e.g. PATH=$HOME/.local/bin).
-	// When true and the sandbox's HomeOverlayState is anything other
-	// than HomeOverlayPresent, handlers MUST refuse exec with HTTP 409
-	// (HomeOverlayRequiredError) — failing fast at exec time prevents
-	// the silent "env: $HOME/.local/bin/agent: No such file or directory"
-	// at process spawn.
+	// HomeOverlayRequirement declares how strongly this profile depends
+	// on the per-sandbox host-$HOME overlay being present:
+	//
+	//   - "not_needed":  profile ignores $HOME (e.g. HOME=/tmp).
+	//   - "optional":    profile uses $HOME-relative paths when the
+	//                    overlay is Present, falls back gracefully when
+	//                    Absent. Callers record HOME_OVERLAY_FALLBACK
+	//                    audit code instead of refusing.
+	//   - "required":    profile cannot function without the overlay.
+	//                    Handlers MUST refuse exec with HTTP 409
+	//                    (HomeOverlayRequiredError) when the sandbox's
+	//                    HomeOverlayState is anything other than
+	//                    HomeOverlayPresent — failing fast at exec time
+	//                    prevents the silent
+	//                    "env: $HOME/.local/bin/agent: No such file"
+	//                    at process spawn.
 	//
 	// DOC: home-overlay seam — profile-side requirement declaration.
 	// See docs/internal/SEAMS.md.
-	RequiresHomeOverlay bool `json:"requiresHomeOverlay"`
+	HomeOverlayRequirement types.HomeOverlayRequirement `json:"homeOverlayRequirement"`
 
 	// Future extensibility (currently unused, reserved for later)
 	// SharePID bool `json:"sharePID,omitempty"`
@@ -128,7 +138,7 @@ func DefaultProfiles() []IsolationProfile {
 			Builtin:       true,
 			NetworkAccess: "none",
 			// HOME=/tmp; no host $HOME visibility expected.
-			RequiresHomeOverlay: false,
+			HomeOverlayRequirement: types.HomeOverlayNotNeeded,
 			ReadOnlyBinds: map[string]string{
 				"/usr":             "/usr",
 				"/lib":             "/lib",
@@ -155,7 +165,7 @@ func DefaultProfiles() []IsolationProfile {
 			NetworkAccess: "localhost",
 			// PATH=$HOME/.local/bin and HOME=$HOME require the host-home
 			// overlay to be present; the handler refuses exec otherwise.
-			RequiresHomeOverlay: true,
+			HomeOverlayRequirement: types.HomeOverlayRequired,
 			// $HOME-relative state (~/.local/{bin,share}, ~/.config,
 			// ~/.claude, ~/.config/vrooli, etc.) is provided by the
 			// per-sandbox HOME overlay set up in driver.Mount. The
@@ -250,6 +260,17 @@ func (s *FileProfileStore) Save(profile IsolationProfile) error {
 		}
 	}
 
+	if profile.HomeOverlayRequirement == "" {
+		profile.HomeOverlayRequirement = types.HomeOverlayNotNeeded
+	}
+	if !profile.HomeOverlayRequirement.IsValid() {
+		return fmt.Errorf(
+			"profile %q: invalid homeOverlayRequirement %q (want one of %q/%q/%q)",
+			profile.ID, profile.HomeOverlayRequirement,
+			types.HomeOverlayNotNeeded, types.HomeOverlayOptional, types.HomeOverlayRequired,
+		)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -327,6 +348,19 @@ func (s *FileProfileStore) ensureLoaded() error {
 	var profiles []IsolationProfile
 	if err := json.Unmarshal(data, &profiles); err != nil {
 		return fmt.Errorf("failed to parse profiles: %w", err)
+	}
+
+	for i := range profiles {
+		if profiles[i].HomeOverlayRequirement == "" {
+			profiles[i].HomeOverlayRequirement = types.HomeOverlayNotNeeded
+		}
+		if !profiles[i].HomeOverlayRequirement.IsValid() {
+			return fmt.Errorf(
+				"profile %q: invalid homeOverlayRequirement %q (want one of %q/%q/%q)",
+				profiles[i].ID, profiles[i].HomeOverlayRequirement,
+				types.HomeOverlayNotNeeded, types.HomeOverlayOptional, types.HomeOverlayRequired,
+			)
+		}
 	}
 
 	s.cache = profiles

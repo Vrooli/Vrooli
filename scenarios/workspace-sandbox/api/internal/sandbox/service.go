@@ -24,6 +24,7 @@ import (
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/metrics"
 	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
@@ -142,6 +143,16 @@ type Service struct {
 	// When nil, the default production GitOps is used; tests inject a
 	// MockGitOps via WithGitOps to avoid touching real repos.
 	gitOps diff.GitOperations
+
+	// metrics is the optional observability sink. Production wires
+	// metrics.Default(); tests typically leave it nil so atomic counters
+	// don't bleed across cases. Always nil-checked by callers.
+	metrics *metrics.Collector
+
+	// procFS lets tests inject a synthetic /proc for the deterministic
+	// Delete-time daemon kill. nil → production scans the real /proc
+	// via NewRealProcFS().
+	procFS ProcFS
 }
 
 // ServiceConfig holds service configuration.
@@ -204,6 +215,23 @@ func WithValidationPolicy(p policy.ValidationPolicy) ServiceOption {
 func WithTeardownPolicy(p policy.TeardownPolicy) ServiceOption {
 	return func(s *Service) {
 		s.teardownPolicy = p
+	}
+}
+
+// WithMetrics wires a metrics collector. Production wires
+// metrics.Default(); tests usually leave it nil.
+func WithMetrics(m *metrics.Collector) ServiceOption {
+	return func(s *Service) {
+		s.metrics = m
+	}
+}
+
+// WithProcFS overrides the /proc view used by the deterministic
+// Delete-time daemon kill. Tests inject sandboxiface.FakeProcFS;
+// production leaves this unset so the real /proc is scanned.
+func WithProcFS(p ProcFS) ServiceOption {
+	return func(s *Service) {
+		s.procFS = p
 	}
 }
 

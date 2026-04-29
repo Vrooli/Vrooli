@@ -831,7 +831,7 @@ instead of silent (`env: ~/.local/bin/claude: No such file or directory`).
 | Contract | Owner | Implementation |
 |---|---|---|
 | **Does this driver provide a home overlay?** | Driver | `MountDriver.Capabilities() DriverCapabilities` — pure (no I/O). `HomeOverlay`=true for both overlayfs variants and fuse-overlayfs; false for copy. [CODE: `internal/driver/driver.go::DriverCapabilities`] |
-| **Does this profile need a home overlay?** | Profile | `IsolationProfile.RequiresHomeOverlay bool`. `vrooli-aware`=true; `full`=false. [CODE: `internal/config/profiles.go`] |
+| **Does this profile need a home overlay?** | Profile | `IsolationProfile.HomeOverlayRequirement` ∈ {`not_needed`, `optional`, `required`}. `vrooli-aware`=`required`; `full`=`not_needed`. Optional profiles run with overlay if Present, fall back when Absent (decision carries `HOME_OVERLAY_FALLBACK`). [CODE: `internal/config/profiles.go`] |
 | **Did this sandbox actually get one?** | Sandbox state | `Sandbox.HomeOverlayState` enum (`present | absent | not_requested | unsupported`), persisted in `sandboxes.home_overlay_state`. Set during `Mount`. [CODE: `internal/types/types.go::HomeOverlayState`] |
 
 The driver records `HomeOverlayState=Absent` when the per-sandbox home
@@ -845,7 +845,7 @@ exec with HTTP 409 + `HomeOverlayRequiredError` (code
 `HOME_OVERLAY_REQUIRED`) when:
 
 ```
-profile.RequiresHomeOverlay && sandbox.HomeOverlayState != HomeOverlayPresent
+profile.HomeOverlayRequirement == "required" && sandbox.HomeOverlayState != HomeOverlayPresent
 ```
 
 The agent-manager side mirrors this contract: `SandboxLauncher`
@@ -948,10 +948,15 @@ endpoint that fires one on demand.
 ### Home-overlay decision unification
 
 The same comparison
-(`profile.RequiresHomeOverlay && sb.HomeOverlayState != Present`)
-previously lived inline in three places. `internal/policy/home_overlay.go`
-now hosts a pure `DecideHomeOverlay(caps, profile, sb) HomeOverlayDecision`
-function consumed by the workspace-sandbox handler exec gate. The
+(`profile.HomeOverlayRequirement` × `sb.HomeOverlayState` × driver
+capability) previously lived inline in three places.
+`internal/policy/home_overlay.go` now hosts a pure
+`DecideHomeOverlay(caps, profile, sb) HomeOverlayDecision` function
+consumed by the workspace-sandbox handler exec gate. Three-valued
+profile requirement (`not_needed`/`optional`/`required`) lets
+profiles express "uses $HOME if present, falls back when absent" via
+the `HOME_OVERLAY_FALLBACK` decision code instead of a binary
+allowed/refused. The
 agent-manager mirror (`scenarios/agent-manager/.../sandbox_launcher.go`)
 exposes `IsHomeOverlayPresent(state) bool`; both predicates are pinned
 in lockstep by the parity test
@@ -1845,3 +1850,61 @@ can't provide on hosts without privileges.
 - Cross-scenario parity test in
   `agent-manager/internal/adapters/sandbox/home_overlay_policy_test.go`
   continues to pass..
+
+## Reliability Round 5 (2026-04-29) — Test-driven seams
+
+Round 5 closes the residual reliability gaps that survived rounds 1–4.
+None of these introduce new architecture; they push the existing
+seams across the last untestable boundaries.
+
+### Tri-state `HomeOverlayRequirement`
+
+Profiles declare one of `not_needed` / `optional` / `required`. The
+optional value carries the decision code `HOME_OVERLAY_FALLBACK` so
+callers can record soft fallback rather than refusing the run; the
+required value forces the existing HTTP 409 refusal when the sandbox
+state is anything other than Present.
+
+[CODE: `internal/types/types.go::HomeOverlayRequirement`] •
+[CODE: `internal/config/profiles.go::IsolationProfile.HomeOverlayRequirement`] •
+[CODE: `internal/policy/home_overlay.go::CodeHomeOverlayFallback`]
+
+### `internal/driver/changedetect/` walker
+
+Single shared walker plus two strategy implementations
+(`OverlayStrategy`, `CopyStrategy`). Replaces the duplicate ~100-line
+walks that previously lived in `helpers.go` and `copy.go`. The
+contract test in `walker_contract_test.go` parameterises every
+edge-case fixture across both strategies so a future drift-by-one bug
+fails loudly.
+
+[CODE: `internal/driver/changedetect/walker.go::Walk`] •
+[CODE: `internal/driver/changedetect/overlay_strategy.go::OverlayStrategy`] •
+[CODE: `internal/driver/changedetect/copy_strategy.go::CopyStrategy`]
+
+### Deterministic daemon teardown on Delete
+
+`Service.Delete` now owns the per-sandbox fuse-overlayfs daemon kill
+via `killDaemonsForSandbox`. The background reaper
+(`daemon_reaper.go`) stays as a safety net for API-crash paths only;
+its kills are now labelled with cause `api_crash` (sandbox marked
+deleted but daemon survived) or `orphan` (no row at all). The
+`workspace_sandbox_daemon_reaped_total{cause=…}` Prometheus counter
+exposes both labels for alerting.
+
+I-MOUNT-1 — Delete returns ⇒ no fuse-overlayfs daemon remains for
+that sandbox UUID. Pinned by `delete_daemon_lifecycle_test.go`.
+
+[CODE: `internal/sandbox/delete_daemon.go::Service.killDaemonsForSandbox`] •
+[CODE: `internal/metrics/metrics.go::Collector.IncDaemonReaped`]
+
+### Invariant capture
+
+Every behavioural invariant the runtime relies on is now listed in
+`docs/internal/INVARIANTS.md` with a stable `I-XXX-N` ID. Each ID
+appears as a `t.Run` subtest somewhere in the test tree;
+`scripts/check-invariants.sh` is the CI-level scan that enforces this
+correspondence so a missing test surfaces at PR time.
+
+[CODE: `docs/internal/INVARIANTS.md`] •
+[CODE: `scripts/check-invariants.sh`]

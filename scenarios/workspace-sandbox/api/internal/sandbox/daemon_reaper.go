@@ -154,8 +154,13 @@ func (s *Service) ReconcileStaleDaemonsWithConfig(ctx context.Context, cfg Daemo
 			continue
 		}
 
-		// Repo lookup: skip live sandboxes; reap deleted/missing.
-		if !s.daemonOwnerIsOrphan(ctx, id) {
+		// Repo lookup: skip live sandboxes; reap deleted/missing. Also
+		// label the cause: a daemon for a row marked StatusDeleted means
+		// Delete reached repo.Delete but didn't kill the daemon — i.e.
+		// the API crashed mid-Delete. A daemon for a row that never
+		// existed is a generic orphan (creation crash / pre-Delete leak).
+		ownerStatus, isOrphan := s.daemonOwnerStatus(ctx, id)
+		if !isOrphan {
 			report.SkippedAlive++
 			continue
 		}
@@ -166,38 +171,55 @@ func (s *Service) ReconcileStaleDaemonsWithConfig(ctx context.Context, cfg Daemo
 		}
 		report.Reaped++
 		report.ReapedPIDs = append(report.ReapedPIDs, pid)
-		log.Printf("daemon-reaper: reaped pid=%d uuid=%s reason=orphan",
-			pid, id)
+		cause := "orphan"
+		if ownerStatus == types.StatusDeleted {
+			cause = "api_crash"
+		}
+		log.Printf("daemon-reaper: reaped pid=%d uuid=%s reason=%s", pid, id, cause)
 		s.logOrphanAuditEvent(ctx, id, "sandbox.daemon-reaped", map[string]interface{}{
 			"pid":    pid,
 			"reason": "fuse-overlayfs daemon outlived sandbox",
+			"cause":  cause,
 		})
+		if s.metrics != nil {
+			s.metrics.IncDaemonReaped(cause)
+		}
 	}
 
 	report.Duration = s.clock.Since(start)
 	return report
 }
 
-// daemonOwnerIsOrphan returns true if the sandbox referenced by id is
-// not in the repo or is marked deleted. Mirrors isOrphan() in
-// orphan_reconciler.go: treat both repo's "missing" conventions
-// ((nil, nil) and *NotFoundError) as orphan, but refuse to act on
-// other repo errors (defensive — better to skip a daemon for one pass
-// than reap a process whose owner we can't confirm is gone).
-func (s *Service) daemonOwnerIsOrphan(ctx context.Context, id uuid.UUID) bool {
+// daemonOwnerStatus reports the status of the sandbox referenced by
+// id and whether it is reap-eligible. orphan == true when the row is
+// missing or marked deleted. status is the StatusDeleted constant in
+// the "marked deleted" case (used to label the cause as api_crash) and
+// the empty Status for "row missing entirely".
+//
+// Mirrors isOrphan() in orphan_reconciler.go: treat both repo's
+// "missing" conventions ((nil, nil) and *NotFoundError) as orphan, but
+// refuse to act on other repo errors (defensive — better to skip a
+// daemon for one pass than reap a process whose owner we can't confirm
+// is gone).
+func (s *Service) daemonOwnerStatus(ctx context.Context, id uuid.UUID) (status types.Status, orphan bool) {
 	if s.repo == nil {
-		return false
+		return "", false
 	}
 	sb, err := s.repo.Get(ctx, id)
 	if err == nil {
-		// (nil, nil) means the row doesn't exist in the production repo.
 		if sb == nil {
-			return true
+			return "", true
 		}
-		return sb.Status == types.StatusDeleted
+		if sb.Status == types.StatusDeleted {
+			return types.StatusDeleted, true
+		}
+		return sb.Status, false
 	}
 	var notFound *types.NotFoundError
-	return errors.As(err, &notFound)
+	if errors.As(err, &notFound) {
+		return "", true
+	}
+	return "", false
 }
 
 // killDaemon sends SIGTERM, waits up to termWait, then SIGKILL.

@@ -211,10 +211,16 @@ func NewServer() (*Server, error) {
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
+	// Metrics collector is constructed here so the Service can record
+	// daemon-reaped events via WithMetrics; handlers reuse the same
+	// instance below, exposing it on /metrics.
+	metricsCollector := metrics.NewCollector()
+
 	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk, auditEmitter, starter,
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
+		sandbox.WithMetrics(metricsCollector),
 	)
 	healCfg := sandbox.HealConfig{
 		IdleGracePeriod:        cfg.Lifecycle.AutoHealIdleGrace,
@@ -288,9 +294,6 @@ func NewServer() (*Server, error) {
 
 	// Initialize structured logger
 	logger := logging.New("workspace-sandbox-api", logging.WithClock(clk))
-
-	// Initialize metrics collector [OT-P1-008]
-	metricsCollector := metrics.NewCollector()
 
 	// --- Tool Discovery Protocol support ---
 	// Initialize tool registry with all providers
