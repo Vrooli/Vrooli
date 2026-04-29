@@ -44,26 +44,6 @@ func TestIsProcessRunning(t *testing.T) {
 	}
 }
 
-func TestDriverModeFor(t *testing.T) {
-	tests := []struct {
-		name string
-		typ  driver.DriverType
-		want IsolationMode
-	}{
-		{"overlayfs requires bwrap", driver.DriverTypeOverlayfs, ModeBwrapRequired},
-		{"fuse-overlayfs prefers bwrap", driver.DriverTypeFuseOverlayfs, ModeBwrapPreferred},
-		{"copy uses none", driver.DriverTypeCopy, ModeNone},
-		{"unknown defaults to none", driver.DriverTypeNone, ModeNone},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := DriverModeFor(tt.typ); got != tt.want {
-				t.Errorf("DriverModeFor(%q) = %v, want %v", tt.typ, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestExitInfoFromState_NormalExit(t *testing.T) {
 	// Running a successful command and reading its state.
 	cmd := osexec.Command("true")

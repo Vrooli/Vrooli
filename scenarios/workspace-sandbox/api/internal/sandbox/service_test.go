@@ -269,8 +269,9 @@ func newMockDriver() *mockDriver {
 	}
 }
 
-func (m *mockDriver) Type() driver.DriverType { return "mock" }
-func (m *mockDriver) Version() string         { return "1.0.0" }
+func (m *mockDriver) ID() driver.DriverID                { return "mock" }
+func (m *mockDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
+func (m *mockDriver) Version() string                    { return "1.0.0" }
 
 func (m *mockDriver) IsAvailable(ctx context.Context) (bool, error) {
 	return m.available, nil
@@ -441,7 +442,7 @@ func createTestSandbox(id uuid.UUID, status types.Status) *types.Sandbox {
 		Owner:         "test-user",
 		OwnerType:     types.OwnerTypeUser,
 		Status:        status,
-		Driver:        "mock",
+		DriverID: "mock",
 		DriverVersion: "1.0.0",
 		LowerDir:      "/tmp/lower",
 		UpperDir:      "/tmp/upper",

@@ -125,8 +125,9 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		startReq.Rows = 24
 	}
 
-	// Build bwrap config
+	// Build bwrap config: defaults → host env → isolation profile.
 	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if startReq.WorkingDir != "" {
 		cfg.WorkingDir = startReq.WorkingDir
 	}
@@ -134,10 +135,12 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Set isolation level and related config
-	if startReq.IsolationLevel == "vrooli-aware" {
-		driverexec.ApplyVrooliAwareConfig(&cfg)
-	} else if startReq.AllowNetwork {
+	if err := h.applyIsolationProfile(&cfg, startReq.IsolationLevel); err != nil {
+		sendErrorMessage(conn, err.Error())
+		return
+	}
+
+	if startReq.AllowNetwork {
 		cfg.AllowNetwork = true
 	}
 

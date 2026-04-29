@@ -36,14 +36,40 @@ func StableFileID(sandboxID uuid.UUID, filePath string) uuid.UUID {
 	return uuid.NewSHA1(sandboxID, []byte(filePath))
 }
 
-// DriverType identifies which driver implementation is in use.
-type DriverType string
+// DriverID is the canonical identifier across DB, wire, preference file,
+// and Go code. The four values are fixed.
+type DriverID string
 
 const (
-	DriverTypeOverlayfs     DriverType = "overlayfs"
-	DriverTypeFuseOverlayfs DriverType = "fuse-overlayfs"
-	DriverTypeCopy          DriverType = "copy"
-	DriverTypeNone          DriverType = "none"
+	DriverOverlayfsUserNS DriverID = "overlayfs-userns"
+	DriverOverlayfsRoot   DriverID = "overlayfs-root"
+	DriverFuseOverlayfs   DriverID = "fuse-overlayfs"
+	DriverCopy            DriverID = "copy"
+)
+
+// IsolationMode is the single decision boundary for "how isolated should
+// this exec be". Each driver declares its required mode via
+// MountDriver.RequiresBwrap; callers pass the result to exec.Exec /
+// exec.StartProcess. Defining the type here (instead of in driver/exec)
+// keeps the exec package free of a back-reference cycle.
+type IsolationMode int
+
+const (
+	// ModeNone runs the command directly in s.MergedDir with no namespace
+	// isolation. Used by the copy driver, which has no real mount.
+	ModeNone IsolationMode = iota
+
+	// ModeBwrapPreferred uses bwrap when available; falls back to direct
+	// execution when bwrap isn't installed. Used by fuse-overlayfs whose
+	// mount is host-visible — direct execution still operates against the
+	// merged dir, just without process isolation.
+	ModeBwrapPreferred
+
+	// ModeBwrapRequired hard-errors when bwrap is missing. Used by kernel
+	// overlayfs whose mount lives inside the API's mount namespace — a
+	// direct child won't see the merged dir, so falling back would return
+	// the host filesystem and silently produce wrong results.
+	ModeBwrapRequired
 )
 
 // MountPaths contains the paths used for overlay mounting.
@@ -69,8 +95,9 @@ type MountPaths struct {
 // MountDriver is the base interface every driver implements: mount
 // lifecycle plus orphan reconciliation.
 type MountDriver interface {
-	// Type returns the driver type.
-	Type() DriverType
+	// ID returns the canonical driver ID. Used in DB columns, wire
+	// payloads, preference files, and every internal switch.
+	ID() DriverID
 
 	// Version returns the driver version.
 	Version() string
@@ -99,6 +126,12 @@ type MountDriver interface {
 	// CleanupOrphan releases an orphaned sandbox by ID alone. Idempotent:
 	// missing dirs and already-unmounted overlays are not errors.
 	CleanupOrphan(ctx context.Context, id uuid.UUID) error
+
+	// RequiresBwrap declares which IsolationMode this driver requires.
+	// Callers pass the result to exec.Exec / exec.StartProcess. Replaces
+	// the prior central exec.DriverModeFor type-switch — adding a new
+	// driver no longer requires editing a central dispatcher.
+	RequiresBwrap() IsolationMode
 }
 
 // ChangeTracker captures the change-detection + partial-approval seam.
@@ -175,7 +208,7 @@ func DefaultConfig() Config {
 
 // Info contains metadata about a driver.
 type Info struct {
-	Type        DriverType
+	ID          DriverID
 	Version     string
 	Description string
 	Available   bool

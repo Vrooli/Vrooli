@@ -65,6 +65,24 @@ preference under `~/.local/share/workspace-sandbox/driver-preference.json`.
 The change applies to new operations immediately; in-flight ops finish
 with the prior driver.
 
+## Database column
+
+The active driver per sandbox is persisted in `sandboxes.driver_id`
+(`TEXT NOT NULL DEFAULT 'overlayfs-userns'`). Older databases that
+predate this column rename land with a `driver` column containing the
+legacy `overlayfs` value; `main.go::migrateDriverColumn` runs at
+startup and idempotently renames the column and backfills the value to
+`overlayfs-userns`. Greenfield: there is no rollback path; the column
+name and value space are the only truth.
+
+## Isolation profiles
+
+Process isolation is declared **only** by the active `IsolationProfile`
+loaded from `FileProfileStore`. There is no preset fallback: requesting
+an unknown profile ID returns HTTP 400 with `IsolationProfileNotFoundError`.
+The two builtin profiles (`full`, `vrooli-aware`) are guaranteed by
+`config.DefaultProfiles()`.
+
 Available driver IDs:
 
 | ID                  | Description                                                    |

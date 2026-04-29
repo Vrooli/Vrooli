@@ -196,7 +196,8 @@ func (d *fakeOrphanDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) erro
 // large; stubbing keeps the test type-safe without forcing real driver
 // setup (filesystem, exec, etc.) for tests that only need the orphan
 // surface.
-func (d *fakeOrphanDriver) Type() driver.DriverType                   { return "fake-orphan" }
+func (d *fakeOrphanDriver) ID() driver.DriverID                       { return "fake-orphan" }
+func (d *fakeOrphanDriver) RequiresBwrap() driver.IsolationMode       { return driver.ModeNone }
 func (d *fakeOrphanDriver) Version() string                           { return "test" }
 func (d *fakeOrphanDriver) IsAvailable(context.Context) (bool, error) { return true, nil }
 func (d *fakeOrphanDriver) Mount(context.Context, *types.Sandbox) (*driver.MountPaths, error) {

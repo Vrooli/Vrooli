@@ -33,7 +33,7 @@ func newProtectedSandboxFixture(id uuid.UUID, allowlist []string) *types.Sandbox
 		ProjectRoot:   "/project",
 		Owner:         "test-agent",
 		Status:        types.StatusActive,
-		Driver:        "overlayfs",
+		DriverID: "overlayfs-userns",
 		DriverVersion: "1.0",
 		CreatedAt:     time.Now(),
 		MergedDir:     "/tmp/sandbox/" + id.String() + "/merged",

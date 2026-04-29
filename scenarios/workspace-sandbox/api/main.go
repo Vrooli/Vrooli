@@ -89,6 +89,16 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to apply SQLite schema: %w", err)
 	}
 
+	// Driver-column migration: rename legacy `driver` column to `driver_id`
+	// when an older DB is encountered, then backfill the legacy
+	// `overlayfs` value to its canonical DriverID. Idempotent: a fresh
+	// schema lands `driver_id` directly, in which case both steps are
+	// no-ops. Greenfield: no rollback path; the new ID space is the only
+	// truth.
+	if err := migrateDriverColumn(context.Background(), db); err != nil {
+		return nil, fmt.Errorf("failed to migrate driver column: %w", err)
+	}
+
 	// Initialize driver with automatic selection and fallback
 	// Respects saved preference if available, otherwise:
 	// Priority: native overlayfs (in user namespace) > fuse-overlayfs > copy driver
@@ -106,13 +116,13 @@ func NewServer() (*Server, error) {
 	// in `unshare -U -m -r` (see .vrooli/service.json:start-api). Without
 	// the wrapper, Mount() would fail at runtime; failing fatally at boot
 	// makes the deployment-shape contract explicit.
-	if initialDriver.Type() == driver.DriverTypeOverlayfs && !driver.InUserNamespace() {
+	if initialDriver.ID() == driver.DriverOverlayfsUserNS && !driver.InUserNamespace() {
 		log.Fatalf("driver overlayfs-userns selected but API is not running inside a user namespace; the start-api lifecycle step must wrap the binary with `unshare -U -m -r` (see .vrooli/service.json)")
 	}
 	// Hold the driver in an atomic.Pointer-backed slot so /api/v1/driver/select
 	// can hot-swap without locking every Driver() call.
 	driverSlot := driver.NewSlot(initialDriver)
-	log.Printf("driver selected | type=%s version=%s", initialDriver.Type(), initialDriver.Version())
+	log.Printf("driver selected | id=%s version=%s", initialDriver.ID(), initialDriver.Version())
 
 	// Initialize policies
 	attributionPolicy, err := policy.NewDefaultAttributionPolicy(cfg.Policy)
@@ -299,7 +309,7 @@ func NewServer() (*Server, error) {
 
 	logger.Info("server.initialized", "Server initialized successfully", map[string]interface{}{
 		"port":         cfg.Server.Port,
-		"driver":       driverSlot.Type(),
+		"driver":       driverSlot.ID(),
 		"maxSandboxes": cfg.Limits.MaxSandboxes,
 	})
 
@@ -540,4 +550,30 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+// migrateDriverColumn renames the legacy `driver` column to `driver_id`
+// when an older DB is encountered, and backfills `overlayfs` →
+// `overlayfs-userns`. Idempotent: both steps are no-ops on fresh DBs
+// where the schema landed `driver_id` directly. Greenfield: no rollback
+// path; the new ID space is the canonical truth.
+func migrateDriverColumn(ctx context.Context, db *sql.DB) error {
+	var oldColumnExists int
+	err := db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM pragma_table_info('sandboxes') WHERE name='driver'`,
+	).Scan(&oldColumnExists)
+	if err != nil {
+		return fmt.Errorf("probe driver column: %w", err)
+	}
+	if oldColumnExists > 0 {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE sandboxes RENAME COLUMN driver TO driver_id`); err != nil {
+			return fmt.Errorf("rename driver column: %w", err)
+		}
+	}
+	if _, err := db.ExecContext(ctx,
+		`UPDATE sandboxes SET driver_id = 'overlayfs-userns' WHERE driver_id = 'overlayfs'`,
+	); err != nil {
+		return fmt.Errorf("backfill driver_id: %w", err)
+	}
+	return nil
 }

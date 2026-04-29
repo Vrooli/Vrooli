@@ -1,17 +1,6 @@
-// Package driver provides filesystem drivers for sandbox isolation.
-//
-// fuse_overlayfs.go implements a driver using fuse-overlayfs for unprivileged
-// operation with direct filesystem access.
-//
-// Key advantages over kernel overlayfs in user namespace:
-//   - Direct filesystem access (merged directory visible to all processes)
-//   - No need for user namespace wrapping
-//   - Compatible with file managers, IDEs, and other tools
-//
-// Trade-offs:
-//   - Slightly slower than kernel overlayfs
-//   - Requires fuse-overlayfs to be installed
-//   - Requires /dev/fuse access
+// Package driver. fuse_overlayfs.go: unprivileged overlayfs via the
+// fuse-overlayfs userspace daemon. Slower than the kernel driver but
+// produces a host-visible merged dir (no userns required).
 package driver
 
 import (
@@ -27,21 +16,16 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
-// Compile-time assertions: FuseOverlayfsDriver implements both the
-// composite Driver interface AND MountVerifier (it has a real mount to
-// verify).
 var (
 	_ Driver        = (*FuseOverlayfsDriver)(nil)
 	_ MountVerifier = (*FuseOverlayfsDriver)(nil)
 )
 
-// FuseOverlayfsDriver implements the Driver interface using fuse-overlayfs.
-// This driver provides unprivileged overlayfs with direct filesystem access.
+// FuseOverlayfsDriver implements Driver via the fuse-overlayfs binary.
 type FuseOverlayfsDriver struct {
 	config Config
 }
 
-// NewFuseOverlayfsDriver creates a new fuse-overlayfs driver.
 func NewFuseOverlayfsDriver(cfg Config) *FuseOverlayfsDriver {
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
@@ -49,236 +33,92 @@ func NewFuseOverlayfsDriver(cfg Config) *FuseOverlayfsDriver {
 	return &FuseOverlayfsDriver{config: cfg}
 }
 
-// Type returns the driver type.
-func (d *FuseOverlayfsDriver) Type() DriverType {
-	return DriverTypeFuseOverlayfs
-}
+func (d *FuseOverlayfsDriver) ID() DriverID                { return DriverFuseOverlayfs }
+func (d *FuseOverlayfsDriver) RequiresBwrap() IsolationMode { return ModeBwrapPreferred }
+func (d *FuseOverlayfsDriver) BaseDir() string             { return d.config.BaseDir }
 
-// BaseDir returns the configured base directory for sandboxes.
-func (d *FuseOverlayfsDriver) BaseDir() string {
-	return d.config.BaseDir
-}
-
-// Version returns the driver version.
+// Version parses `fuse-overlayfs --version` output. Returns "1.0" if
+// parsing fails. Format example: "fuse-overlayfs: version 1.13".
 func (d *FuseOverlayfsDriver) Version() string {
-	// Try to get fuse-overlayfs version
-	cmd := exec.Command("fuse-overlayfs", "--version")
-	output, err := cmd.Output()
-	if err == nil {
-		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-		// Look for the line containing "fuse-overlayfs" specifically
-		// Output format:
-		//   fusermount3 version: 3.14.0
-		//   fuse-overlayfs: version 1.13-dev
-		//   FUSE library version 3.14.0
-		for _, line := range lines {
-			if strings.HasPrefix(line, "fuse-overlayfs") {
-				// Extract version from "fuse-overlayfs: version 1.13-dev"
-				parts := strings.Split(line, "version")
-				if len(parts) > 1 {
-					return strings.TrimSpace(parts[1])
-				}
+	out, err := exec.Command("fuse-overlayfs", "--version").Output()
+	if err != nil {
+		return "1.0"
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.HasPrefix(line, "fuse-overlayfs") {
+			if parts := strings.SplitN(line, "version", 2); len(parts) == 2 {
+				return strings.TrimSpace(parts[1])
 			}
-		}
-		// Fallback to first line if fuse-overlayfs line not found
-		if len(lines) > 0 {
-			return strings.TrimSpace(lines[0])
 		}
 	}
 	return "1.0"
 }
 
-// IsAvailable checks if fuse-overlayfs can be used on this system.
+// IsAvailable requires fuse-overlayfs, fusermount(3), and /dev/fuse.
 func (d *FuseOverlayfsDriver) IsAvailable(ctx context.Context) (bool, error) {
-	// Check if fuse-overlayfs is installed
 	if _, err := exec.LookPath("fuse-overlayfs"); err != nil {
 		return false, fmt.Errorf("fuse-overlayfs not found in PATH: %w", err)
 	}
-
-	// Check if fusermount is available (for unmounting)
 	if _, err := exec.LookPath("fusermount"); err != nil {
 		if _, err := exec.LookPath("fusermount3"); err != nil {
 			return false, fmt.Errorf("fusermount/fusermount3 not found: %w", err)
 		}
 	}
-
-	// Check if /dev/fuse exists
 	if _, err := os.Stat("/dev/fuse"); err != nil {
 		return false, fmt.Errorf("/dev/fuse not available: %w", err)
 	}
-
 	return true, nil
 }
 
-// Mount creates the overlay mount using fuse-overlayfs.
-//
-// In addition to the project-root overlay (lower=ScopePath, merged at
-// MergedDir), Mount also brings up a per-sandbox $HOME overlay:
-// lower=host $HOME, upper=<sandboxDir>/home-upper, merged at
-// <sandboxDir>/home-merged. The home overlay is the audit-of-change
-// mechanism for HOME-relative writes (auth tokens, tool caches, etc.):
-// reads pass through to the host home, writes land in the per-sandbox
-// upper layer that's discarded at sandbox teardown. Without this, agent
-// CLIs that read $HOME/<tool>/<config> wouldn't find their host state.
+func fusermountBin() string {
+	if _, err := exec.LookPath("fusermount"); err == nil {
+		return "fusermount"
+	}
+	return "fusermount3"
+}
+
+func (d *FuseOverlayfsDriver) mount(ctx context.Context, target, opts string) error {
+	out, err := exec.CommandContext(ctx, "fuse-overlayfs", "-o", opts, target).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("fuse-overlayfs: %v (output: %s)", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// unmount tries fusermount -u, falls back to lazy -u -z. Idempotent.
+func (d *FuseOverlayfsDriver) unmount(ctx context.Context, target string) error {
+	bin := fusermountBin()
+	if _, err := exec.CommandContext(ctx, bin, "-u", target).CombinedOutput(); err == nil {
+		return nil
+	}
+	out, err := exec.CommandContext(ctx, bin, "-u", "-z", target).CombinedOutput()
+	if err != nil && isMountPoint(target) {
+		return fmt.Errorf("fusermount: %v (output: %s)", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 func (d *FuseOverlayfsDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error) {
 	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
-
-	paths := &MountPaths{
-		LowerDir:  s.ScopePath,
-		UpperDir:  filepath.Join(sandboxDir, "upper"),
-		WorkDir:   filepath.Join(sandboxDir, "work"),
-		MergedDir: filepath.Join(sandboxDir, "merged"),
-	}
-
-	// Create directories
-	for _, dir := range []string{paths.UpperDir, paths.WorkDir, paths.MergedDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
-		}
-	}
-
-	// Build mount options
-	// fuse-overlayfs format: lowerdir=...,upperdir=...,workdir=...
-	mountOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s",
-		paths.LowerDir, paths.UpperDir, paths.WorkDir)
-
-	// Mount using fuse-overlayfs
-	cmd := exec.CommandContext(ctx, "fuse-overlayfs", "-o", mountOpts, paths.MergedDir)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// Cleanup on failure
-		os.RemoveAll(sandboxDir)
-		return nil, fmt.Errorf("fuse-overlayfs mount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
-	}
-
-	// Best-effort home overlay. A failure here (no $HOME, fuse-overlayfs
-	// rejecting the home dir, etc.) leaves the project overlay in place
-	// and the home merged dir empty — the bwrap layer treats an empty
-	// HomeMergedDir as "skip the home bind", so the sandbox still works
-	// for callers that don't require host home visibility.
-	if hostHome := os.Getenv("HOME"); hostHome != "" {
-		if homePaths, hErr := mountHomeOverlay(ctx, sandboxDir, hostHome); hErr == nil {
-			paths.HomeLowerDir = homePaths.HomeLowerDir
-			paths.HomeUpperDir = homePaths.HomeUpperDir
-			paths.HomeWorkDir = homePaths.HomeWorkDir
-			paths.HomeMergedDir = homePaths.HomeMergedDir
-		} else {
-			// Don't fail the entire Mount on home-overlay failure —
-			// surface the error in the log but keep the sandbox usable.
-			fmt.Fprintf(os.Stderr, "home-overlay mount failed (continuing without it): %v\n", hErr)
-		}
-	}
-
-	return paths, nil
+	return mountOverlayPair(ctx, sandboxDir, s.ScopePath, os.Getenv("HOME"), d.mount)
 }
 
-// mountHomeOverlay sets up the per-sandbox fuse-overlayfs over the
-// host $HOME and returns the resulting paths. Caller is responsible for
-// tearing it down via unmountHomeOverlay (typically in Driver.Unmount).
-func mountHomeOverlay(ctx context.Context, sandboxDir, hostHome string) (*MountPaths, error) {
-	paths := &MountPaths{
-		HomeLowerDir:  hostHome,
-		HomeUpperDir:  filepath.Join(sandboxDir, "home-upper"),
-		HomeWorkDir:   filepath.Join(sandboxDir, "home-work"),
-		HomeMergedDir: filepath.Join(sandboxDir, "home-merged"),
-	}
-	for _, dir := range []string{paths.HomeUpperDir, paths.HomeWorkDir, paths.HomeMergedDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("create home overlay dir %s: %w", dir, err)
-		}
-	}
-	mountOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s",
-		paths.HomeLowerDir, paths.HomeUpperDir, paths.HomeWorkDir)
-	cmd := exec.CommandContext(ctx, "fuse-overlayfs", "-o", mountOpts, paths.HomeMergedDir)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("fuse-overlayfs home mount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
-	}
-	return paths, nil
-}
-
-// unmountHomeOverlay tears down the home overlay if mounted. Best-
-// effort: returns nil if the dir is missing or already unmounted.
-func unmountHomeOverlay(ctx context.Context, sandboxDir string) error {
-	homeMerged := filepath.Join(sandboxDir, "home-merged")
-	if _, err := os.Stat(homeMerged); err != nil {
-		return nil // no home overlay
-	}
-	if !isMountPoint(homeMerged) {
-		return nil
-	}
-	fusermount := "fusermount"
-	if _, err := exec.LookPath(fusermount); err != nil {
-		fusermount = "fusermount3"
-	}
-	cmd := exec.CommandContext(ctx, fusermount, "-u", homeMerged)
-	if _, err := cmd.CombinedOutput(); err == nil {
-		return nil
-	}
-	cmd = exec.CommandContext(ctx, fusermount, "-u", "-z", homeMerged)
-	output, err := cmd.CombinedOutput()
-	if err != nil && isMountPoint(homeMerged) {
-		return fmt.Errorf("home overlay unmount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
-	}
-	return nil
-}
-
-// Unmount removes the fuse-overlayfs mounts (project + home).
 func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) error {
-	// Tear down the home overlay first. Best-effort: a failure here
-	// must not block the project-overlay unmount or the caller's
-	// teardown, so we log it and continue.
-	if s.MergedDir != "" {
-		sandboxDir := filepath.Dir(s.MergedDir)
-		if err := unmountHomeOverlay(ctx, sandboxDir); err != nil {
-			fmt.Fprintf(os.Stderr, "home overlay unmount failed (continuing with project unmount): %v\n", err)
-		}
-	}
-
 	if s.MergedDir == "" {
-		return nil // Nothing to unmount
-	}
-
-	// Check if mounted first
-	if !isMountPoint(s.MergedDir) {
-		return nil // Already unmounted
-	}
-
-	// Use fusermount for FUSE unmounting
-	fusermount := "fusermount"
-	if _, err := exec.LookPath(fusermount); err != nil {
-		fusermount = "fusermount3"
-	}
-
-	// Try normal unmount first
-	cmd := exec.CommandContext(ctx, fusermount, "-u", s.MergedDir)
-	_, err := cmd.CombinedOutput()
-	if err == nil {
 		return nil
 	}
-
-	// Try lazy unmount if normal fails
-	cmd = exec.CommandContext(ctx, fusermount, "-u", "-z", s.MergedDir)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// Check if already unmounted
-		if !isMountPoint(s.MergedDir) {
-			return nil
-		}
-		return fmt.Errorf("fusermount unmount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
+	sandboxDir := filepath.Dir(s.MergedDir)
+	unmountHomeOverlay(ctx, sandboxDir, d.unmount)
+	if !isMountPoint(s.MergedDir) {
+		return nil
 	}
-
-	return nil
+	return d.unmount(ctx, s.MergedDir)
 }
 
-// GetChangedFiles returns the list of files changed in the upper layer.
-// Delegates to shared helper for overlayfs-based change detection.
 func (d *FuseOverlayfsDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
 	return getOverlayChangedFiles(s)
 }
 
-// RemoveFromUpper removes a file from the upper layer.
-// Delegates to shared helper with path traversal protection.
 func (d *FuseOverlayfsDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {
 	if s.UpperDir == "" {
 		return fmt.Errorf("sandbox has no upper directory configured")
@@ -286,72 +126,18 @@ func (d *FuseOverlayfsDriver) RemoveFromUpper(ctx context.Context, s *types.Sand
 	return removeFromUpperSecure(s.UpperDir, filePath)
 }
 
-// Cleanup removes all sandbox artifacts.
-// Delegates to shared helper with driver-specific unmount.
 func (d *FuseOverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
-	return cleanupSandboxDir(d.config.BaseDir, s.ID, func() error {
-		return d.Unmount(ctx, s)
-	})
+	return cleanupSandboxDirAll(ctx, d.config.BaseDir, s.ID, d.unmount)
 }
 
-// ListSandboxDirs walks BaseDir and returns the IDs of every UUID-named
-// subdirectory. Used by the orphan reconciler to detect sandboxes the
-// repository has lost track of.
 func (d *FuseOverlayfsDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
 	return listSandboxDirsInBase(d.config.BaseDir)
 }
 
-// CleanupOrphan releases a sandbox by ID alone. Mirrors Cleanup's
-// shape but does not require a *types.Sandbox: the caller has nothing
-// but a directory name from a filesystem walk. Both the project overlay
-// (<sandboxDir>/merged) and the home overlay (<sandboxDir>/home-merged)
-// are unmounted before the directory is removed.
-//
-// Idempotent: a missing dir, an already-unmounted overlay, or a
-// fusermount error are all treated as best-effort. Returns the first
-// hard rm-rf failure if the dir survives all attempts.
 func (d *FuseOverlayfsDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
-	sandboxDir := filepath.Join(d.config.BaseDir, id.String())
-	if _, err := os.Stat(sandboxDir); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("stat orphan sandbox dir %q: %w", sandboxDir, err)
-	}
-
-	mergedDir := filepath.Join(sandboxDir, "merged")
-	homeMerged := filepath.Join(sandboxDir, "home-merged")
-
-	// Unmount in the same order as Unmount(): home first, then project.
-	// Best-effort — if either is already unmounted (or never mounted)
-	// this is a no-op. We swallow errors because the rm -rf below is
-	// the actual teardown; failed fusermount just leaves the FS in a
-	// state RemoveAll cannot recover from, which we surface below.
-	fusermount := "fusermount"
-	if _, err := exec.LookPath(fusermount); err != nil {
-		fusermount = "fusermount3"
-	}
-	for _, mountPath := range []string{homeMerged, mergedDir} {
-		if !isMountPoint(mountPath) {
-			continue
-		}
-		// Try a clean unmount, then a lazy unmount. Either way, ignore
-		// the error: the subsequent RemoveAll surfaces any actual
-		// "FS is wedged" condition.
-		if out, err := exec.CommandContext(ctx, fusermount, "-u", mountPath).CombinedOutput(); err != nil {
-			_, _ = exec.CommandContext(ctx, fusermount, "-u", "-z", mountPath).CombinedOutput()
-			_ = out // discard; lazy unmount is the recovery path
-		}
-	}
-
-	if err := os.RemoveAll(sandboxDir); err != nil {
-		return fmt.Errorf("remove orphan sandbox dir %q: %w", sandboxDir, err)
-	}
-	return nil
+	return cleanupSandboxDirAll(ctx, d.config.BaseDir, id, d.unmount)
 }
 
-// VerifyMountIntegrity checks that the mount is healthy.
-// Delegates to shared helper.
 func (d *FuseOverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
 	return verifyOverlayMountIntegrity(s)
 }

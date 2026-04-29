@@ -5,25 +5,18 @@
 package exec
 
 import (
+	"errors"
 	"io"
 	"os"
 	"strings"
 )
 
-// IsolationLevel selects between the legacy "full" and "vrooli-aware" presets.
-// Newer call sites should configure isolation via IsolationProfile (loaded
-// from config.ProfileStore); IsolationLevel remains as a default switch
-// when no profile is supplied.
-type IsolationLevel string
-
-const (
-	// IsolationFull is the maximum-isolation preset: only /workspace and
-	// basic system paths are visible.
-	IsolationFull IsolationLevel = "full"
-
-	// IsolationVrooliAware allows access to Vrooli CLIs and localhost.
-	IsolationVrooliAware IsolationLevel = "vrooli-aware"
-)
+// ErrIsolationProfileRequired is returned when ApplyIsolationProfile is
+// called with a nil profile. Callers must always look up a profile by ID
+// (typically via config.ProfileStore.Get) and surface a 400-level error
+// to the user when the lookup fails — silent fallback to a default
+// preset is the bug class this contract eliminates.
+var ErrIsolationProfileRequired = errors.New("isolation profile is required")
 
 // ResourceLimits configures process resource constraints via prlimit.
 // Zero values mean unlimited (no limit applied).
@@ -53,17 +46,42 @@ func (r ResourceLimits) HasLimits() bool {
 // BwrapConfig configures bubblewrap execution parameters. The name is kept
 // for continuity with prior driver code; in ModeNone (copy driver) the
 // bwrap-specific fields are simply ignored.
+//
+// Construction order at every call site:
+//
+//	cfg := DefaultBwrapConfig()
+//	CaptureEnv().ApplyTo(&cfg)              // host env -> HostHome, MirrorProjectRoot, …
+//	if err := ApplyIsolationProfile(&cfg, profile); err != nil { … }
+//
+// After that, BuildBwrapArgs is a pure function of (sandbox, cfg).
 type BwrapConfig struct {
-	AllowNetwork  bool
-	AllowDevices  bool
-	ReadOnlyPaths []string
-	ReadWritePaths []string
-	Env           map[string]string
-	WorkingDir    string
-	SharePID      bool
-	Hostname      string
-	IsolationLevel IsolationLevel
+	AllowNetwork bool
+	AllowDevices bool
+	SharePID     bool
+	Hostname     string
+
 	ResourceLimits ResourceLimits
+
+	Env map[string]string
+
+	// ReadOnlyBinds maps host path -> sandbox path (read-only).
+	// ReadWriteBinds maps host path -> sandbox path (read-write).
+	// Both are populated by ApplyIsolationProfile from the active profile.
+	ReadOnlyBinds  map[string]string
+	ReadWriteBinds map[string]string
+
+	WorkingDir string
+
+	// HostHome is the host-side $HOME, used to bind the per-sandbox
+	// HOME overlay at the same path inside the namespace. Set by
+	// CaptureEnv().ApplyTo. Empty disables the home bind.
+	HostHome string
+
+	// MirrorProjectRoot, when true, also binds the merged dir at
+	// s.ProjectRoot inside the namespace so prompts using host-absolute
+	// paths resolve. Toggled via the WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT
+	// env var; captured via CaptureEnv().ApplyTo.
+	MirrorProjectRoot bool
 
 	// StdoutWriter / StderrWriter receive the process's stdout/stderr.
 	// Required for StartProcess; Exec uses its own buffers.
@@ -80,21 +98,73 @@ type BwrapConfig struct {
 	OnExit func(exitCode int, signal int, oomKilled bool)
 }
 
-// DefaultBwrapConfig returns the secure default configuration.
+// DefaultBwrapConfig returns the secure default configuration. The
+// returned config requires a subsequent ApplyIsolationProfile call to be
+// usable for execution; the empty bind maps are intentionally
+// minimalist so missing profile-application is a fail-closed signal.
 func DefaultBwrapConfig() BwrapConfig {
 	return BwrapConfig{
 		AllowNetwork:   false,
 		AllowDevices:   false,
 		SharePID:       false,
 		Hostname:       "sandbox",
-		IsolationLevel: IsolationFull,
-		Env: map[string]string{
-			"PATH":         "/usr/local/bin:/usr/bin:/bin",
-			"HOME":         "/tmp",
-			"SHELL":        "/bin/sh",
-			"PROJECT_PATH": "/workspace",
-		},
+		Env:            map[string]string{},
+		ReadOnlyBinds:  map[string]string{},
+		ReadWriteBinds: map[string]string{},
 	}
+}
+
+// EnvSnapshot captures the host-side env vars that influence sandbox
+// shape. Centralising the os.Getenv reads here keeps BuildBwrapArgs and
+// ApplyIsolationProfile pure-of-process-env, which is the precondition
+// for golden-testing the argv contract.
+type EnvSnapshot struct {
+	Home              string
+	User              string
+	VrooliRoot        string
+	MirrorProjectRoot bool
+	// extras carries any other env vars referenced by profile env values
+	// via $VAR placeholders (e.g. VROOLI_ENV). Captured at request time.
+	extras map[string]string
+}
+
+// CaptureEnv reads the relevant host env vars into a snapshot.
+func CaptureEnv() EnvSnapshot {
+	extras := map[string]string{}
+	for _, k := range []string{
+		"VROOLI_ENV",
+		"VROOLI_LOG_LEVEL",
+		"API_MANAGER_URL",
+		"SCENARIO_REGISTRY_URL",
+		"RESOURCE_REGISTRY_URL",
+		"XDG_CONFIG_HOME",
+		"XDG_DATA_HOME",
+	} {
+		if v := os.Getenv(k); v != "" {
+			extras[k] = v
+		}
+	}
+	return EnvSnapshot{
+		Home:              os.Getenv("HOME"),
+		User:              os.Getenv("USER"),
+		VrooliRoot:        os.Getenv("VROOLI_ROOT"),
+		MirrorProjectRoot: parseBoolEnv(os.Getenv("WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT")),
+		extras:            extras,
+	}
+}
+
+// ApplyTo populates env-derived fields on cfg. Idempotent.
+func (e EnvSnapshot) ApplyTo(cfg *BwrapConfig) {
+	cfg.HostHome = e.Home
+	cfg.MirrorProjectRoot = e.MirrorProjectRoot
+}
+
+func parseBoolEnv(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }
 
 // IsolationProfile mirrors config.IsolationProfile for exec-package use.
@@ -111,12 +181,20 @@ type IsolationProfile struct {
 	Hostname       string
 }
 
-// ApplyIsolationProfile configures BwrapConfig from a profile. Profile
-// binds are appended to the existing ReadOnlyPaths/ReadWritePaths arrays;
-// BuildBwrapArgs picks them up.
-func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) {
+// ApplyIsolationProfile composes the isolation profile into cfg. This is
+// the single source of truth for isolation: there is no preset fallback
+// path — callers that don't have a profile to apply must surface a 400.
+//
+// Placeholder handling:
+//   - $HOME, $USER, $VROOLI_ROOT in bind sources expand from the snapshot
+//     captured by CaptureEnv (read off cfg.HostHome / os.Getenv).
+//   - Source paths whose host-side existence is not visible at apply time
+//     are silently dropped from the bind map (e.g. /lib64 on systems
+//     without it). BuildBwrapArgs trusts the resulting map.
+//   - Env values support $VAR expansion via os.ExpandEnv (best-effort).
+func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 	if profile == nil {
-		return
+		return ErrIsolationProfileRequired
 	}
 
 	switch profile.NetworkAccess {
@@ -130,82 +208,66 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) {
 		cfg.Hostname = profile.Hostname
 	}
 
-	for src := range profile.ReadOnlyBinds {
-		expandedSrc := expandPathPlaceholders(src)
-		if expandedSrc != "" {
-			cfg.ReadOnlyPaths = append(cfg.ReadOnlyPaths, expandedSrc)
+	home := cfg.HostHome
+	if home == "" {
+		home = os.Getenv("HOME")
+	}
+	user := os.Getenv("USER")
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+
+	for src, dst := range profile.ReadOnlyBinds {
+		if expanded, ok := expandBindSource(src, home, user, vrooliRoot); ok {
+			cfg.ReadOnlyBinds[expanded] = expandBindDest(dst, expanded)
 		}
 	}
-
-	for src := range profile.ReadWriteBinds {
-		expandedSrc := expandPathPlaceholders(src)
-		if expandedSrc != "" {
-			cfg.ReadWritePaths = append(cfg.ReadWritePaths, expandedSrc)
+	for src, dst := range profile.ReadWriteBinds {
+		if expanded, ok := expandBindSource(src, home, user, vrooliRoot); ok {
+			cfg.ReadWriteBinds[expanded] = expandBindDest(dst, expanded)
 		}
 	}
 
 	if cfg.Env == nil {
-		cfg.Env = make(map[string]string)
+		cfg.Env = map[string]string{}
 	}
 	for k, v := range profile.Environment {
-		cfg.Env[k] = expandEnvPlaceholders(v)
+		cfg.Env[k] = os.ExpandEnv(v)
 	}
+
+	return nil
 }
 
-// ApplyVrooliAwareConfig augments cfg for the legacy "vrooli-aware" preset.
-// Used as a fallback when the ProfileStore does not have a matching profile.
-func ApplyVrooliAwareConfig(cfg *BwrapConfig) {
-	cfg.IsolationLevel = IsolationVrooliAware
-	for k, v := range GetVrooliEnvVars() {
-		cfg.Env[k] = v
+// expandBindSource resolves $-placeholders in a profile bind source and
+// verifies the resulting host path exists. Returns (expanded, true) on
+// success and ("", false) when expansion fails (placeholder not set) or
+// the path is absent on this host. Profile binds are best-effort by
+// design: a missing /lib64 should not block sandbox creation.
+func expandBindSource(src, home, user, vrooliRoot string) (string, bool) {
+	if src == "" {
+		return "", false
 	}
-	cfg.AllowNetwork = true
+	s := src
+	s = strings.ReplaceAll(s, "$HOME", home)
+	s = strings.ReplaceAll(s, "$USER", user)
+	s = strings.ReplaceAll(s, "$VROOLI_ROOT", vrooliRoot)
+	if strings.Contains(s, "$") {
+		return "", false
+	}
+	if _, err := os.Stat(s); err != nil {
+		return "", false
+	}
+	return s, true
 }
 
-// GetVrooliEnvVars returns environment variables for Vrooli-aware isolation.
-// The agent inside the sandbox sees /vrooli mapped to the host VROOLI_ROOT
-// via a bwrap bind set up in BuildBwrapArgs.
-func GetVrooliEnvVars() map[string]string {
-	vars := make(map[string]string)
-	if vrooliRoot := os.Getenv("VROOLI_ROOT"); vrooliRoot != "" {
-		vars["VROOLI_ROOT"] = "/vrooli"
+// expandBindDest mirrors expandBindSource but does not stat. An empty
+// destination defaults to "same as source" — preserving the
+// "host:host"-style bind shape that BuildBwrapArgs emits.
+func expandBindDest(dst, expandedSrc string) string {
+	if dst == "" {
+		return expandedSrc
 	}
-	envsToCopy := []string{
-		"VROOLI_ENV",
-		"VROOLI_LOG_LEVEL",
-		"API_MANAGER_URL",
-		"SCENARIO_REGISTRY_URL",
-		"RESOURCE_REGISTRY_URL",
-		"XDG_CONFIG_HOME",
-		"XDG_DATA_HOME",
-	}
-	for _, env := range envsToCopy {
-		if val := os.Getenv(env); val != "" {
-			vars[env] = val
-		}
-	}
-	return vars
-}
-
-// expandPathPlaceholders expands $HOME, $USER, $VROOLI_ROOT in paths.
-// Returns empty if any placeholder cannot be resolved (skips bind).
-func expandPathPlaceholders(path string) string {
-	if path == "" {
-		return ""
-	}
-	home := os.Getenv("HOME")
-	user := os.Getenv("USER")
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	result := path
-	result = strings.ReplaceAll(result, "$HOME", home)
-	result = strings.ReplaceAll(result, "$USER", user)
-	result = strings.ReplaceAll(result, "$VROOLI_ROOT", vrooliRoot)
-	if strings.Contains(result, "$") {
-		return ""
-	}
-	return result
-}
-
-func expandEnvPlaceholders(value string) string {
-	return os.ExpandEnv(value)
+	d := dst
+	// $HOME / $USER / $VROOLI_ROOT in destinations are not currently
+	// used by builtin profiles; expand them anyway for forward-compat.
+	d = os.ExpandEnv(d)
+	return d
 }

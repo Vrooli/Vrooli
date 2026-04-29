@@ -565,7 +565,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 		Owner:          req.Owner,
 		OwnerType:      req.OwnerType,
 		Status:         types.StatusCreating,
-		Driver:         string(s.driver.Type()),
+		DriverID:       string(s.driver.ID()),
 		DriverVersion:  s.driver.Version(),
 		Tags:           req.Tags,
 		Metadata:       req.Metadata,
@@ -1032,8 +1032,8 @@ func applyPathsFromExistingDirs(sandbox *types.Sandbox) bool {
 
 func applyDerivedPaths(sandbox *types.Sandbox, root string) bool {
 	updated := false
-	switch sandbox.Driver {
-	case string(driver.DriverTypeCopy):
+	switch sandbox.DriverID {
+	case string(driver.DriverCopy):
 		if sandbox.LowerDir == "" {
 			sandbox.LowerDir = filepath.Join(root, "original")
 			updated = true
@@ -2207,7 +2207,7 @@ func (s *Service) logAuditEventWith(ctx context.Context, sandbox *types.Sandbox,
 		"ownerType":   string(sandbox.OwnerType),
 		"sizeBytes":   sandbox.SizeBytes,
 		"fileCount":   sandbox.FileCount,
-		"driver":      sandbox.Driver,
+		"driver":      sandbox.DriverID,
 		"createdAt":   sandbox.CreatedAt.Format(time.RFC3339),
 	}
 

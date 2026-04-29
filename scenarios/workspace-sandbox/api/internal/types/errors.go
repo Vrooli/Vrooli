@@ -234,6 +234,36 @@ func NewDriverError(operation string, err error) *DriverError {
 	}
 }
 
+// IsolationProfileNotFoundError indicates the requested isolation profile
+// could not be loaded from the profile store. The only realistic trigger
+// is a typo in the request — the builtin profiles ("full", "vrooli-aware")
+// are guaranteed by DefaultProfiles().
+type IsolationProfileNotFoundError struct {
+	ProfileID string
+}
+
+func (e *IsolationProfileNotFoundError) Error() string {
+	return fmt.Sprintf("isolation profile not found: %q. Use a builtin profile or define a custom one.", e.ProfileID)
+}
+
+func (e *IsolationProfileNotFoundError) HTTPStatus() int { return http.StatusBadRequest }
+func (e *IsolationProfileNotFoundError) IsRetryable() bool { return false }
+
+// Hint returns actionable guidance for resolving this error.
+func (e *IsolationProfileNotFoundError) Hint() string {
+	return "Use a builtin profile ('full' or 'vrooli-aware'), or list profiles via GET /api/v1/profiles."
+}
+
+// Details returns structured information for API responses.
+func (e *IsolationProfileNotFoundError) Details() map[string]interface{} {
+	return map[string]interface{}{"profileId": e.ProfileID}
+}
+
+// NewIsolationProfileNotFoundError creates an IsolationProfileNotFoundError.
+func NewIsolationProfileNotFoundError(profileID string) *IsolationProfileNotFoundError {
+	return &IsolationProfileNotFoundError{ProfileID: profileID}
+}
+
 // --- Idempotency and Concurrency Errors ---
 
 // ConcurrentModificationError indicates an update conflicted with a concurrent change.

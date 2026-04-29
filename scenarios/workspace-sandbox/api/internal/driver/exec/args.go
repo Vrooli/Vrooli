@@ -2,8 +2,8 @@ package exec
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"workspace-sandbox/internal/types"
@@ -53,9 +53,10 @@ func BuildPrlimitArgs(limits ResourceLimits) []string {
 	return args
 }
 
-// BuildBwrapArgs constructs the bubblewrap argument list. Used by
-// BuildExecCommand and by interactive-session callers that wrap the
-// resulting argv themselves.
+// BuildBwrapArgs constructs the bubblewrap argument list. Pure function
+// of (sandbox, cfg) — every input that varies per request lives in cfg,
+// captured by CaptureEnv().ApplyTo and ApplyIsolationProfile at the
+// wiring boundary. This is the contract a golden test pins.
 func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	args := []string{}
 
@@ -69,10 +70,7 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 		args = append(args, "--unshare-pid")
 	}
 
-	// Network isolation depends on isolation level.
-	if cfg.IsolationLevel == IsolationVrooliAware {
-		// vrooli-aware: leave network namespace alone (allow localhost).
-	} else if !cfg.AllowNetwork {
+	if !cfg.AllowNetwork {
 		args = append(args, "--unshare-net")
 	}
 
@@ -91,16 +89,15 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	// namespace so agent CLIs find their host config (auth tokens, tool
 	// caches, etc.) via the overlay's lower layer; writes land in the
 	// per-sandbox upper layer that's discarded at sandbox teardown.
-	if s.HomeMergedDir != "" {
-		if hostHome := os.Getenv("HOME"); hostHome != "" && filepath.IsAbs(hostHome) {
-			addDirHierarchy(&args, hostHome)
-			args = append(args, "--bind", s.HomeMergedDir, filepath.Clean(hostHome))
-		}
+	if s.HomeMergedDir != "" && cfg.HostHome != "" && filepath.IsAbs(cfg.HostHome) {
+		addDirHierarchy(&args, cfg.HostHome)
+		args = append(args, "--bind", s.HomeMergedDir, filepath.Clean(cfg.HostHome))
 	}
 
 	// Optional: mirror the workspace at the project's host path so prompts
-	// using host-absolute paths work. Toggled via env var.
-	if shouldMirrorProjectRoot() && s.ProjectRoot != "" && filepath.IsAbs(s.ProjectRoot) {
+	// using host-absolute paths work. Set by the wiring layer from
+	// WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT.
+	if cfg.MirrorProjectRoot && s.ProjectRoot != "" && filepath.IsAbs(s.ProjectRoot) {
 		addDirHierarchy(&args, s.ProjectRoot)
 		args = append(args, "--bind", s.MergedDir, filepath.Clean(s.ProjectRoot))
 	}
@@ -108,46 +105,18 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	// Lower layer mounted read-only as /workspace-readonly.
 	args = append(args, "--ro-bind", s.LowerDir, "/workspace-readonly")
 
-	// Essential system directories (read-only).
-	args = append(args, "--ro-bind", "/usr", "/usr")
-	args = append(args, "--ro-bind", "/lib", "/lib")
-	if _, err := os.Stat("/lib64"); err == nil {
-		args = append(args, "--ro-bind", "/lib64", "/lib64")
+	// Profile-driven binds. Iterated in stable (sorted-by-source) order so
+	// the argv contract is deterministic for golden tests.
+	for _, src := range sortedKeys(cfg.ReadOnlyBinds) {
+		args = append(args, "--ro-bind", src, cfg.ReadOnlyBinds[src])
 	}
-	args = append(args, "--ro-bind", "/bin", "/bin")
-
-	// Read-only /etc essentials.
-	args = append(args, "--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf")
-	args = append(args, "--ro-bind", "/etc/hosts", "/etc/hosts")
-	args = append(args, "--ro-bind", "/etc/passwd", "/etc/passwd")
-	args = append(args, "--ro-bind", "/etc/group", "/etc/group")
-
-	// Vrooli-aware preset adds VROOLI_ROOT bind.
-	if cfg.IsolationLevel == IsolationVrooliAware {
-		addVrooliAwareBinds(&args)
+	for _, src := range sortedKeys(cfg.ReadWriteBinds) {
+		args = append(args, "--bind", src, cfg.ReadWriteBinds[src])
 	}
 
 	args = append(args, "--proc", "/proc")
-
-	if cfg.AllowDevices {
-		args = append(args, "--dev", "/dev")
-	} else {
-		args = append(args, "--dev", "/dev")
-	}
-
+	args = append(args, "--dev", "/dev")
 	args = append(args, "--tmpfs", "/tmp")
-
-	for _, path := range cfg.ReadOnlyPaths {
-		if _, err := os.Stat(path); err == nil {
-			args = append(args, "--ro-bind", path, path)
-		}
-	}
-
-	for _, path := range cfg.ReadWritePaths {
-		if _, err := os.Stat(path); err == nil {
-			args = append(args, "--bind", path, path)
-		}
-	}
 
 	workDir := cfg.WorkingDir
 	if workDir == "" {
@@ -160,11 +129,24 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	return args
 }
 
-func shouldMirrorProjectRoot() bool {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT")))
-	return v == "1" || v == "true" || v == "yes" || v == "on"
+// sortedKeys returns the keys of m in lexicographic order. Used to make
+// BuildBwrapArgs's output deterministic regardless of map iteration order.
+func sortedKeys(m map[string]string) []string {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
+// addDirHierarchy emits --dir entries for every parent of absPath
+// (excluding well-known system roots). Required so bwrap can create the
+// final mount point inside the namespace when the host-side path is not
+// already covered by the system root binds.
 func addDirHierarchy(args *[]string, absPath string) {
 	clean := filepath.Clean(absPath)
 	if clean == "" || clean == "/" || !filepath.IsAbs(clean) {
@@ -182,19 +164,5 @@ func addDirHierarchy(args *[]string, absPath string) {
 		}
 		cur = cur + string(filepath.Separator) + p
 		*args = append(*args, "--dir", cur)
-	}
-}
-
-// addVrooliAwareBinds adds the VROOLI_ROOT bind. Most agent-config
-// visibility (claude/codex configs, etc.) flows through the per-sandbox
-// HOME overlay set up by Driver.Mount and bound at the host $HOME path
-// inside the namespace by BuildBwrapArgs. This function only handles the
-// VROOLI_ROOT entry, which is independent of $HOME.
-func addVrooliAwareBinds(args *[]string) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot != "" {
-		if _, err := os.Stat(vrooliRoot); err == nil {
-			*args = append(*args, "--ro-bind", vrooliRoot, "/vrooli")
-		}
 	}
 }

@@ -62,14 +62,14 @@ func (s *Slot) Store(d Driver) {
 	s.p.Store(&d)
 }
 
-// SwitchDriver atomically switches to a new driver based on the option ID.
+// SwitchDriver atomically switches to a new driver based on the canonical ID.
 // Sequence: NewDriverFor → IsAvailable → Store → SaveDriverPreference.
 // A failure at any step before Store leaves the slot untouched.
-func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, optionID DriverOptionID) error {
+func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, id DriverID) error {
 	if slot == nil {
 		return fmt.Errorf("driver slot is nil")
 	}
-	newDriver, err := NewDriverFor(cfg, optionID)
+	newDriver, err := NewDriverFor(cfg, id)
 	if err != nil {
 		return err
 	}
@@ -78,18 +78,18 @@ func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, optionID DriverOp
 		return fmt.Errorf("failed to check driver availability: %w", err)
 	}
 	if !available {
-		return fmt.Errorf("driver %s is not available on this system", optionID)
+		return fmt.Errorf("driver %s is not available on this system", id)
 	}
 
 	old := slot.Current()
 	slot.Store(newDriver)
 	if old != nil {
-		log.Printf("driver: switched from %s to %s", old.Type(), newDriver.Type())
+		log.Printf("driver: switched from %s to %s", old.ID(), newDriver.ID())
 	} else {
-		log.Printf("driver: set to %s", newDriver.Type())
+		log.Printf("driver: set to %s", newDriver.ID())
 	}
 
-	if err := SaveDriverPreference(cfg.BaseDir, string(optionID)); err != nil {
+	if err := SaveDriverPreference(cfg.BaseDir, string(id)); err != nil {
 		log.Printf("driver: warning: failed to save preference: %v", err)
 	}
 	return nil
@@ -102,7 +102,7 @@ func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, optionID DriverOp
 // continue with the driver they captured; new calls see the post-Switch
 // driver.
 
-func (s *Slot) Type() DriverType                   { return s.Current().Type() }
+func (s *Slot) ID() DriverID                       { return s.Current().ID() }
 func (s *Slot) Version() string                    { return s.Current().Version() }
 func (s *Slot) IsAvailable(ctx context.Context) (bool, error) {
 	return s.Current().IsAvailable(ctx)
@@ -126,6 +126,10 @@ func (s *Slot) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
 
 func (s *Slot) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
 	return s.Current().CleanupOrphan(ctx, id)
+}
+
+func (s *Slot) RequiresBwrap() IsolationMode {
+	return s.Current().RequiresBwrap()
 }
 
 func (s *Slot) GetChangedFiles(ctx context.Context, sb *types.Sandbox) ([]*types.FileChange, error) {

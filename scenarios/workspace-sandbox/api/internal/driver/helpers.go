@@ -9,6 +9,7 @@
 package driver
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,6 +22,89 @@ import (
 
 	"workspace-sandbox/internal/types"
 )
+
+// mountFunc performs the actual overlay mount given the option string and
+// target path. Driver-specific (kernel overlayfs vs fuse-overlayfs).
+type mountFunc func(ctx context.Context, target, opts string) error
+
+// unmountFunc tears down a mount at target. Must be idempotent: returning
+// nil for an already-unmounted target.
+type unmountFunc func(ctx context.Context, target string) error
+
+// =============================================================================
+// Overlayfs Mount Helpers (shared template for the two overlayfs drivers)
+// =============================================================================
+
+// mountOverlayPair creates the standard per-sandbox directory layout and
+// mounts both the project overlay (always) and the home overlay
+// (best-effort; only if hostHome is non-empty).
+//
+// The project overlay's lower layer is `scopePath`. Failure to mount the
+// project overlay is fatal and triggers cleanup of sandboxDir. Failure to
+// mount the home overlay is logged and ignored — the bwrap layer treats
+// an empty HomeMergedDir as "skip the home bind", so the sandbox remains
+// usable for callers that don't require host-home visibility.
+//
+// `mountFn` is the only driver-specific bit (kernel overlayfs syscall vs
+// fuse-overlayfs binary).
+func mountOverlayPair(ctx context.Context, sandboxDir, scopePath, hostHome string, mountFn mountFunc) (*MountPaths, error) {
+	paths := &MountPaths{
+		LowerDir:  scopePath,
+		UpperDir:  filepath.Join(sandboxDir, "upper"),
+		WorkDir:   filepath.Join(sandboxDir, "work"),
+		MergedDir: filepath.Join(sandboxDir, "merged"),
+	}
+	for _, dir := range []string{paths.UpperDir, paths.WorkDir, paths.MergedDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			os.RemoveAll(sandboxDir)
+			return nil, fmt.Errorf("create overlay dir %s: %w", dir, err)
+		}
+	}
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s",
+		paths.LowerDir, paths.UpperDir, paths.WorkDir)
+	if err := mountFn(ctx, paths.MergedDir, opts); err != nil {
+		os.RemoveAll(sandboxDir)
+		return nil, fmt.Errorf("project overlay mount: %w", err)
+	}
+
+	if hostHome == "" {
+		return paths, nil
+	}
+
+	homeUpper := filepath.Join(sandboxDir, "home-upper")
+	homeWork := filepath.Join(sandboxDir, "home-work")
+	homeMerged := filepath.Join(sandboxDir, "home-merged")
+	for _, dir := range []string{homeUpper, homeWork, homeMerged} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "home overlay dir %s: %v (continuing without home overlay)\n", dir, err)
+			return paths, nil
+		}
+	}
+	homeOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s",
+		hostHome, homeUpper, homeWork)
+	if err := mountFn(ctx, homeMerged, homeOpts); err != nil {
+		fmt.Fprintf(os.Stderr, "home overlay mount: %v (continuing without home overlay)\n", err)
+		return paths, nil
+	}
+	paths.HomeLowerDir = hostHome
+	paths.HomeUpperDir = homeUpper
+	paths.HomeWorkDir = homeWork
+	paths.HomeMergedDir = homeMerged
+	return paths, nil
+}
+
+// unmountHomeOverlay tears down sandboxDir/home-merged if it is mounted.
+// Best-effort: errors are logged and discarded so callers can proceed
+// with the project unmount and rm -rf.
+func unmountHomeOverlay(ctx context.Context, sandboxDir string, unmountFn unmountFunc) {
+	homeMerged := filepath.Join(sandboxDir, "home-merged")
+	if !isMountPoint(homeMerged) {
+		return
+	}
+	if err := unmountFn(ctx, homeMerged); err != nil {
+		fmt.Fprintf(os.Stderr, "home overlay unmount failed: %v\n", err)
+	}
+}
 
 // =============================================================================
 // Overlayfs Change Detection Helpers
@@ -316,22 +400,34 @@ func removeFromUpperSecure(upperDir, filePath string) error {
 // Cleanup Helpers
 // =============================================================================
 
-// cleanupSandboxDir removes a sandbox directory after unmounting.
-// The unmount function is driver-specific and passed as a callback.
-// This allows sharing the cleanup logic while keeping unmount implementation separate.
-func cleanupSandboxDir(baseDir string, sandboxID uuid.UUID, unmountFn func() error) error {
-	// Unmount first
-	if err := unmountFn(); err != nil {
-		// Log but continue with cleanup
-		fmt.Printf("warning: unmount failed during cleanup: %v\n", err)
-	}
-
-	// Remove sandbox directory
+// cleanupSandboxDirAll unmounts both the home overlay (if present) and the
+// project overlay (if mounted), then removes the sandbox directory.
+// Idempotent: a missing dir is a no-op; unmount errors are logged and the
+// rm -rf proceeds (the rm error is the actual fatal signal).
+//
+// Used by both Cleanup (sandbox struct path) and CleanupOrphan
+// (filesystem-only path) on every mount-backed driver.
+func cleanupSandboxDirAll(ctx context.Context, baseDir string, sandboxID uuid.UUID, unmountFn unmountFunc) error {
 	sandboxDir := filepath.Join(baseDir, sandboxID.String())
-	if err := os.RemoveAll(sandboxDir); err != nil {
-		return fmt.Errorf("failed to remove sandbox directory: %w", err)
+	if _, err := os.Stat(sandboxDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat sandbox dir %q: %w", sandboxDir, err)
 	}
 
+	unmountHomeOverlay(ctx, sandboxDir, unmountFn)
+
+	projectMerged := filepath.Join(sandboxDir, "merged")
+	if isMountPoint(projectMerged) {
+		if err := unmountFn(ctx, projectMerged); err != nil {
+			fmt.Fprintf(os.Stderr, "project overlay unmount failed: %v\n", err)
+		}
+	}
+
+	if err := os.RemoveAll(sandboxDir); err != nil {
+		return fmt.Errorf("remove sandbox dir %q: %w", sandboxDir, err)
+	}
 	return nil
 }
 

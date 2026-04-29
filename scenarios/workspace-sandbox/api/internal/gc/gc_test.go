@@ -140,8 +140,9 @@ func NewMockDriverWithError() *MockDriverWithError {
 	}
 }
 
-func (m *MockDriverWithError) Type() driver.DriverType { return "mock" }
-func (m *MockDriverWithError) Version() string         { return "1.0.0" }
+func (m *MockDriverWithError) ID() driver.DriverID                { return "mock" }
+func (m *MockDriverWithError) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
+func (m *MockDriverWithError) Version() string                    { return "1.0.0" }
 func (m *MockDriverWithError) IsAvailable(ctx context.Context) (bool, error) {
 	return true, nil
 }
@@ -321,8 +322,9 @@ type MockDriver struct {
 	cleanupCalled []uuid.UUID
 }
 
-func (m *MockDriver) Type() driver.DriverType { return "mock" }
-func (m *MockDriver) Version() string         { return "1.0.0" }
+func (m *MockDriver) ID() driver.DriverID                { return "mock" }
+func (m *MockDriver) RequiresBwrap() driver.IsolationMode { return driver.ModeNone }
+func (m *MockDriver) Version() string                    { return "1.0.0" }
 func (m *MockDriver) IsAvailable(ctx context.Context) (bool, error) {
 	return true, nil
 }

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS sandboxes (
     stopped_at          TEXT,
     approved_at         TEXT,
     deleted_at          TEXT,
-    driver              TEXT NOT NULL DEFAULT 'overlayfs',
+    driver_id           TEXT NOT NULL DEFAULT 'overlayfs-userns',
     driver_version      TEXT NOT NULL DEFAULT '1.0',
     lower_dir           TEXT,
     upper_dir           TEXT,

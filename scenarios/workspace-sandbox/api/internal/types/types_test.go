@@ -199,7 +199,7 @@ func TestSandboxStructure(t *testing.T) {
 		ErrorMsg:       "",
 		CreatedAt:      now,
 		LastUsedAt:     now,
-		Driver:         "overlayfs",
+		DriverID: "overlayfs-userns",
 		DriverVersion:  "1.0",
 		LowerDir:       "/lower",
 		UpperDir:       "/upper",

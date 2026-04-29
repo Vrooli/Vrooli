@@ -90,6 +90,29 @@ func convertProfileToDriver(p *config.IsolationProfile) *driverexec.IsolationPro
 	}
 }
 
+// applyIsolationProfile resolves the requested profile ID (with default
+// fallback) against the profile store and composes it onto cfg. Returns
+// a typed IsolationProfileNotFoundError when the ID does not resolve so
+// callers can surface a 400 via HandleDomainError. There is no preset
+// fallback; missing builtins are a configuration bug we want to surface.
+func (h *Handlers) applyIsolationProfile(cfg *driverexec.BwrapConfig, requestedID string) error {
+	id := requestedID
+	if id == "" {
+		id = h.Config.Execution.DefaultIsolationProfile
+	}
+	if id == "" {
+		id = "full"
+	}
+	if h.ProfileStore == nil {
+		return types.NewIsolationProfileNotFoundError(id)
+	}
+	profile, err := h.ProfileStore.Get(id)
+	if err != nil {
+		return types.NewIsolationProfileNotFoundError(id)
+	}
+	return driverexec.ApplyIsolationProfile(cfg, convertProfileToDriver(profile))
+}
+
 // ExecRequest represents a request to execute a command in a sandbox.
 type ExecRequest struct {
 	Command      string            `json:"command"`
@@ -166,8 +189,9 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build bwrap config with resource limits and isolation level
+	// Build bwrap config: defaults → host env → isolation profile.
 	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -175,26 +199,9 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Determine isolation profile to use
-	isolationLevel := req.IsolationLevel
-	if isolationLevel == "" {
-		isolationLevel = h.Config.Execution.DefaultIsolationProfile
-	}
-	if isolationLevel == "" {
-		isolationLevel = "full" // Ultimate fallback
-	}
-
-	// Look up and apply isolation profile
-	if h.ProfileStore != nil {
-		profile, profErr := h.ProfileStore.Get(isolationLevel)
-		if profErr == nil {
-			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
-		} else if isolationLevel == "vrooli-aware" {
-			// Fallback for legacy "vrooli-aware" if not found in store
-			driverexec.ApplyVrooliAwareConfig(&cfg)
-		}
-	} else if isolationLevel == "vrooli-aware" {
-		driverexec.ApplyVrooliAwareConfig(&cfg)
+	if err := h.applyIsolationProfile(&cfg, req.IsolationLevel); err != nil {
+		h.HandleDomainError(w, err)
+		return
 	}
 
 	// Override network if explicitly requested
@@ -212,11 +219,11 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg.ResourceLimits = applyResourceLimitDefaults(requestedLimits, h.Config.Execution)
 
-	// Execute the command. driverexec.DriverModeFor picks the correct
-	// isolation mode based on the active driver type (bwrap-required for
-	// kernel overlayfs, bwrap-preferred for fuse, none for copy).
+	// Execute the command. The driver declares its isolation mode via
+	// RequiresBwrap (bwrap-required for kernel overlayfs, bwrap-preferred
+	// for fuse, none for copy).
 	d := h.Driver()
-	result, err := driverexec.Exec(r.Context(), sb, driverexec.DriverModeFor(d.Type()), cfg, req.Command, req.Args...)
+	result, err := driverexec.Exec(r.Context(), sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -318,8 +325,9 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build bwrap config with resource limits and isolation level
+	// Build bwrap config: defaults → host env → isolation profile.
 	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -327,26 +335,9 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Determine isolation profile to use
-	isolationLevel := req.IsolationLevel
-	if isolationLevel == "" {
-		isolationLevel = h.Config.Execution.DefaultIsolationProfile
-	}
-	if isolationLevel == "" {
-		isolationLevel = "full" // Ultimate fallback
-	}
-
-	// Look up and apply isolation profile
-	if h.ProfileStore != nil {
-		profile, profErr := h.ProfileStore.Get(isolationLevel)
-		if profErr == nil {
-			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
-		} else if isolationLevel == "vrooli-aware" {
-			// Fallback for legacy "vrooli-aware" if not found in store
-			driverexec.ApplyVrooliAwareConfig(&cfg)
-		}
-	} else if isolationLevel == "vrooli-aware" {
-		driverexec.ApplyVrooliAwareConfig(&cfg)
+	if err := h.applyIsolationProfile(&cfg, req.IsolationLevel); err != nil {
+		h.HandleDomainError(w, err)
+		return
 	}
 
 	// Override network if explicitly requested
@@ -418,10 +409,9 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Start process. driverexec.DriverModeFor picks the correct isolation
-	// mode based on the active driver type.
+	// Start process. The driver declares its isolation mode via RequiresBwrap.
 	d := h.Driver()
-	pid, err := driverexec.StartProcess(r.Context(), sb, driverexec.DriverModeFor(d.Type()), cfg, req.Command, req.Args...)
+	pid, err := driverexec.StartProcess(r.Context(), sb, d.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			if abortErr := h.ProcessLogger.AbortPair(pendingPair); abortErr != nil {

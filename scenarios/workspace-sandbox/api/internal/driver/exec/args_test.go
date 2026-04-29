@@ -1,8 +1,10 @@
 package exec
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -28,31 +30,19 @@ func TestBuildBwrapArgs(t *testing.T) {
 	cfg := DefaultBwrapConfig()
 	args := BuildBwrapArgs(sandbox, cfg)
 
-	tests := []struct {
-		name     string
-		expected string
-		find     func([]string) bool
-	}{
-		{"unshare-user", "--unshare-user", func(args []string) bool { return contains(args, "--unshare-user") }},
-		{"unshare-net (network disabled)", "--unshare-net", func(args []string) bool { return contains(args, "--unshare-net") }},
-		{"die-with-parent", "--die-with-parent", func(args []string) bool { return contains(args, "--die-with-parent") }},
-		{"workspace bind", "--bind /tmp/merged", func(args []string) bool {
-			for i, arg := range args {
-				if arg == "--bind" && i+2 < len(args) && args[i+1] == "/tmp/merged" {
-					return true
-				}
-			}
-			return false
-		}},
-		{"separator", "--", func(args []string) bool { return contains(args, "--") }},
+	for _, want := range []string{
+		"--unshare-user",
+		"--unshare-net", // network disabled by default
+		"--die-with-parent",
+		"--",
+	} {
+		if !contains(args, want) {
+			t.Errorf("expected %s in args, got: %v", want, args)
+		}
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !tt.find(args) {
-				t.Errorf("expected %s in args, got: %v", tt.expected, args)
-			}
-		})
+	// workspace bind
+	if !hasBind(args, "/tmp/merged", "/workspace") {
+		t.Errorf("expected --bind /tmp/merged /workspace; got: %v", args)
 	}
 }
 
@@ -184,24 +174,23 @@ func TestBuildExecCommand(t *testing.T) {
 		wantContain []string
 	}{
 		{
-			name:    "no limits - bwrap directly",
-			cfg:     DefaultBwrapConfig(),
-			cmd:     "ls",
-			args:    []string{"-la"},
-			wantExe: "bwrap",
+			name:        "no limits - bwrap directly",
+			cfg:         DefaultBwrapConfig(),
+			cmd:         "ls",
+			args:        []string{"-la"},
+			wantExe:     "bwrap",
 			wantContain: []string{"--unshare-user", "--bind", "/tmp/merged", "/workspace", "--", "ls", "-la"},
 		},
 		{
 			name: "with memory limit - prlimit wrapper",
 			cfg: BwrapConfig{
-				IsolationLevel: IsolationFull,
 				Hostname:       "sandbox",
 				Env:            map[string]string{"PATH": "/usr/bin"},
 				ResourceLimits: ResourceLimits{MemoryLimitMB: 512},
 			},
-			cmd:     "my-agent",
-			args:    []string{"--task", "fix"},
-			wantExe: "prlimit",
+			cmd:         "my-agent",
+			args:        []string{"--task", "fix"},
+			wantExe:     "prlimit",
 			wantContain: []string{"--as=536870912", "--", "bwrap", "--unshare-user", "my-agent", "--task", "fix"},
 		},
 		{
@@ -211,9 +200,9 @@ func TestBuildExecCommand(t *testing.T) {
 				Env:            map[string]string{},
 				ResourceLimits: ResourceLimits{MemoryLimitMB: 256, CPUTimeSec: 60},
 			},
-			cmd:     "build",
-			args:    nil,
-			wantExe: "prlimit",
+			cmd:         "build",
+			args:        nil,
+			wantExe:     "prlimit",
 			wantContain: []string{"--as=268435456", "--cpu=60", "bwrap", "build"},
 		},
 	}
@@ -233,44 +222,16 @@ func TestBuildExecCommand(t *testing.T) {
 	}
 }
 
-func TestVrooliAwareIsolation(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
-	}
-
-	sandbox := &types.Sandbox{
-		ID:        uuid.New(),
-		MergedDir: "/tmp/test",
-		LowerDir:  "/tmp/lower",
-	}
-
-	cfgFull := DefaultBwrapConfig()
-	cfgFull.IsolationLevel = IsolationFull
-	argsFull := BuildBwrapArgs(sandbox, cfgFull)
-	if !contains(argsFull, "--unshare-net") {
-		t.Error("full isolation should include --unshare-net")
-	}
-
-	cfgVrooli := DefaultBwrapConfig()
-	cfgVrooli.IsolationLevel = IsolationVrooliAware
-	argsVrooli := BuildBwrapArgs(sandbox, cfgVrooli)
-	if contains(argsVrooli, "--unshare-net") {
-		t.Error("vrooli-aware isolation should NOT include --unshare-net")
-	}
-}
-
 // TestBuildBwrapArgs_BindsHomeOverlayAtHostPath guards the home-overlay
 // contract: when Sandbox.HomeMergedDir is populated, BuildBwrapArgs binds
-// it at the host $HOME path inside the namespace so agent CLIs find their
-// host config via the overlay's lower layer.
+// it at cfg.HostHome inside the namespace so agent CLIs find their host
+// config via the overlay's lower layer.
 func TestBuildBwrapArgs_BindsHomeOverlayAtHostPath(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("bwrap tests require Linux")
 	}
 
 	fakeHome := t.TempDir()
-	t.Setenv("HOME", fakeHome)
-
 	sandboxDir := t.TempDir()
 	homeMerged := filepath.Join(sandboxDir, "home-merged")
 	if err := os.MkdirAll(homeMerged, 0o755); err != nil {
@@ -284,11 +245,11 @@ func TestBuildBwrapArgs_BindsHomeOverlayAtHostPath(t *testing.T) {
 		HomeMergedDir: homeMerged,
 	}
 	cfg := DefaultBwrapConfig()
-	cfg.IsolationLevel = IsolationVrooliAware
+	cfg.HostHome = fakeHome
 	args := BuildBwrapArgs(sandbox, cfg)
 
 	if !hasBind(args, homeMerged, fakeHome) {
-		t.Errorf("expected --bind %s %s in vrooli-aware args (home overlay must bind at host $HOME); got: %v",
+		t.Errorf("expected --bind %s %s in args (home overlay must bind at host $HOME); got: %v",
 			homeMerged, fakeHome, args)
 	}
 }
@@ -302,7 +263,6 @@ func TestBuildBwrapArgs_NoHomeBindWhenHomeMergedDirEmpty(t *testing.T) {
 	}
 
 	fakeHome := t.TempDir()
-	t.Setenv("HOME", fakeHome)
 
 	sandbox := &types.Sandbox{
 		ID:            uuid.New(),
@@ -311,13 +271,203 @@ func TestBuildBwrapArgs_NoHomeBindWhenHomeMergedDirEmpty(t *testing.T) {
 		HomeMergedDir: "",
 	}
 	cfg := DefaultBwrapConfig()
-	cfg.IsolationLevel = IsolationVrooliAware
+	cfg.HostHome = fakeHome
 	args := BuildBwrapArgs(sandbox, cfg)
 
 	for i := 0; i+2 < len(args); i++ {
 		if args[i] == "--bind" && args[i+2] == fakeHome {
 			t.Errorf("unexpected --bind <src> %s without HomeMergedDir set: src=%s", fakeHome, args[i+1])
 		}
+	}
+}
+
+// TestBuildBwrapArgs_PureNoEnvReads ensures BuildBwrapArgs ignores the
+// process environment — every input must arrive via cfg. Sets HOME and
+// MIRROR_PROJECT_ROOT in the process env, then asserts the argv shape
+// matches the equivalent run with cfg-supplied values only.
+func TestBuildBwrapArgs_PureNoEnvReads(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("bwrap tests require Linux")
+	}
+
+	t.Setenv("HOME", "/process/env/home")
+	t.Setenv("WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT", "1")
+	t.Setenv("VROOLI_ROOT", "/process/env/vrooli")
+
+	sandbox := &types.Sandbox{
+		ID:        uuid.New(),
+		MergedDir: "/tmp/merged",
+		LowerDir:  "/tmp/lower",
+		// HomeMergedDir empty → no home bind
+		// ProjectRoot empty → no mirror
+	}
+
+	cfg := DefaultBwrapConfig()
+	// HostHome and MirrorProjectRoot deliberately left unset on cfg.
+	args := BuildBwrapArgs(sandbox, cfg)
+
+	// Process env had HOME=/process/env/home but cfg.HostHome is empty,
+	// so no bind to that path should appear.
+	for i := 0; i+2 < len(args); i++ {
+		if args[i] == "--bind" && args[i+2] == "/process/env/home" {
+			t.Errorf("BuildBwrapArgs leaked $HOME from process env: %v", args)
+		}
+	}
+}
+
+// TestBuildBwrapArgs_Golden pins the full argv output for representative
+// (profile × home-overlay × mirror) combinations. Adding a new isolation
+// behavior without updating this test is the failure mode we want.
+func TestBuildBwrapArgs_Golden(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("bwrap tests require Linux")
+	}
+
+	id := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	sandbox := &types.Sandbox{
+		ID:        id,
+		MergedDir: "/sb/merged",
+		LowerDir:  "/sb/lower",
+	}
+
+	cases := []struct {
+		name string
+		s    *types.Sandbox
+		cfg  BwrapConfig
+		want []string
+	}{
+		{
+			name: "default-no-network",
+			s:    sandbox,
+			cfg:  BwrapConfig{Hostname: "sandbox"},
+			want: []string{
+				"--unshare-user", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup",
+				"--unshare-pid",
+				"--unshare-net",
+				"--die-with-parent",
+				"--hostname", "sandbox",
+				"--bind", "/sb/merged", "/workspace",
+				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				"--proc", "/proc",
+				"--dev", "/dev",
+				"--tmpfs", "/tmp",
+				"--chdir", "/workspace",
+				"--",
+			},
+		},
+		{
+			name: "allow-network-no-pid-unshare-when-shared",
+			s:    sandbox,
+			cfg:  BwrapConfig{Hostname: "sandbox", AllowNetwork: true, SharePID: true},
+			want: []string{
+				"--unshare-user", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup",
+				// no --unshare-pid (SharePID=true), no --unshare-net (AllowNetwork=true)
+				"--die-with-parent",
+				"--hostname", "sandbox",
+				"--bind", "/sb/merged", "/workspace",
+				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				"--proc", "/proc",
+				"--dev", "/dev",
+				"--tmpfs", "/tmp",
+				"--chdir", "/workspace",
+				"--",
+			},
+		},
+		{
+			name: "with-home-overlay",
+			s: &types.Sandbox{
+				ID:            id,
+				MergedDir:     "/sb/merged",
+				LowerDir:      "/sb/lower",
+				HomeMergedDir: "/sb/home-merged",
+			},
+			cfg: BwrapConfig{Hostname: "sandbox", HostHome: "/h/u"},
+			want: []string{
+				"--unshare-user", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup",
+				"--unshare-pid",
+				"--unshare-net",
+				"--die-with-parent",
+				"--hostname", "sandbox",
+				"--bind", "/sb/merged", "/workspace",
+				"--dir", "/h",
+				"--dir", "/h/u",
+				"--bind", "/sb/home-merged", "/h/u",
+				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				"--proc", "/proc",
+				"--dev", "/dev",
+				"--tmpfs", "/tmp",
+				"--chdir", "/workspace",
+				"--",
+			},
+		},
+		{
+			name: "with-mirror-project-root",
+			s: &types.Sandbox{
+				ID:          id,
+				MergedDir:   "/sb/merged",
+				LowerDir:    "/sb/lower",
+				ProjectRoot: "/proj/repo",
+			},
+			cfg: BwrapConfig{Hostname: "sandbox", MirrorProjectRoot: true},
+			want: []string{
+				"--unshare-user", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup",
+				"--unshare-pid",
+				"--unshare-net",
+				"--die-with-parent",
+				"--hostname", "sandbox",
+				"--bind", "/sb/merged", "/workspace",
+				"--dir", "/proj",
+				"--dir", "/proj/repo",
+				"--bind", "/sb/merged", "/proj/repo",
+				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				"--proc", "/proc",
+				"--dev", "/dev",
+				"--tmpfs", "/tmp",
+				"--chdir", "/workspace",
+				"--",
+			},
+		},
+		{
+			name: "with-binds-sorted",
+			s:    sandbox,
+			cfg: BwrapConfig{
+				Hostname: "sandbox",
+				ReadOnlyBinds: map[string]string{
+					"/usr": "/usr",
+					"/bin": "/bin",
+				},
+				ReadWriteBinds: map[string]string{
+					"/data": "/data",
+				},
+			},
+			want: []string{
+				"--unshare-user", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup",
+				"--unshare-pid",
+				"--unshare-net",
+				"--die-with-parent",
+				"--hostname", "sandbox",
+				"--bind", "/sb/merged", "/workspace",
+				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				// sorted-by-source: /bin before /usr
+				"--ro-bind", "/bin", "/bin",
+				"--ro-bind", "/usr", "/usr",
+				"--bind", "/data", "/data",
+				"--proc", "/proc",
+				"--dev", "/dev",
+				"--tmpfs", "/tmp",
+				"--chdir", "/workspace",
+				"--",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := BuildBwrapArgs(tc.s, tc.cfg)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("BuildBwrapArgs golden mismatch.\n got: %v\nwant: %v", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -335,91 +485,85 @@ func TestDefaultBwrapConfig(t *testing.T) {
 	if cfg.Hostname != "sandbox" {
 		t.Errorf("default hostname should be 'sandbox', got '%s'", cfg.Hostname)
 	}
-	if cfg.Env["PATH"] == "" {
-		t.Error("default config should set PATH")
+	if cfg.Env == nil {
+		t.Error("default Env must be a non-nil map")
+	}
+	if cfg.ReadOnlyBinds == nil {
+		t.Error("default ReadOnlyBinds must be a non-nil map")
+	}
+	if cfg.ReadWriteBinds == nil {
+		t.Error("default ReadWriteBinds must be a non-nil map")
 	}
 }
 
-func TestDefaultBwrapConfigIncludesIsolationLevel(t *testing.T) {
+func TestApplyIsolationProfile_RejectsNil(t *testing.T) {
 	cfg := DefaultBwrapConfig()
-	if cfg.IsolationLevel != IsolationFull {
-		t.Errorf("default IsolationLevel = %q, want %q", cfg.IsolationLevel, IsolationFull)
+	if err := ApplyIsolationProfile(&cfg, nil); !errors.Is(err, ErrIsolationProfileRequired) {
+		t.Errorf("ApplyIsolationProfile(nil) = %v, want ErrIsolationProfileRequired", err)
 	}
 }
 
-func TestGetVrooliEnvVars(t *testing.T) {
-	origVrooliRoot := os.Getenv("VROOLI_ROOT")
-	origVrooliEnv := os.Getenv("VROOLI_ENV")
-	origApiManager := os.Getenv("API_MANAGER_URL")
-	defer func() {
-		restoreEnv("VROOLI_ROOT", origVrooliRoot)
-		restoreEnv("VROOLI_ENV", origVrooliEnv)
-		restoreEnv("API_MANAGER_URL", origApiManager)
-	}()
-
-	os.Unsetenv("VROOLI_ROOT")
-	os.Unsetenv("VROOLI_ENV")
-	os.Unsetenv("API_MANAGER_URL")
-
-	vars := GetVrooliEnvVars()
-	if _, ok := vars["VROOLI_ROOT"]; ok {
-		t.Error("VROOLI_ROOT should not be set when environment variable is empty")
-	}
-
-	os.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
-	vars = GetVrooliEnvVars()
-	if vars["VROOLI_ROOT"] != "/vrooli" {
-		t.Errorf("VROOLI_ROOT = %q, want %q", vars["VROOLI_ROOT"], "/vrooli")
-	}
-
-	os.Setenv("VROOLI_ENV", "development")
-	os.Setenv("API_MANAGER_URL", "http://localhost:8110")
-	vars = GetVrooliEnvVars()
-	if vars["VROOLI_ENV"] != "development" {
-		t.Errorf("VROOLI_ENV = %q, want %q", vars["VROOLI_ENV"], "development")
-	}
-	if vars["API_MANAGER_URL"] != "http://localhost:8110" {
-		t.Errorf("API_MANAGER_URL = %q, want %q", vars["API_MANAGER_URL"], "http://localhost:8110")
-	}
-}
-
-func TestApplyVrooliAwareConfig(t *testing.T) {
-	origVrooliRoot := os.Getenv("VROOLI_ROOT")
-	defer restoreEnv("VROOLI_ROOT", origVrooliRoot)
-	os.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
-
+func TestApplyIsolationProfile_AppliesNetworkAndHostname(t *testing.T) {
 	cfg := DefaultBwrapConfig()
-	if cfg.IsolationLevel != IsolationFull {
-		t.Fatalf("default IsolationLevel = %q, want %q", cfg.IsolationLevel, IsolationFull)
+	p := &IsolationProfile{
+		ID:            "p",
+		NetworkAccess: "localhost",
+		Hostname:      "custom",
 	}
-	if cfg.AllowNetwork {
-		t.Fatal("default AllowNetwork = true, want false")
-	}
-
-	ApplyVrooliAwareConfig(&cfg)
-
-	if cfg.IsolationLevel != IsolationVrooliAware {
-		t.Errorf("IsolationLevel = %q, want %q", cfg.IsolationLevel, IsolationVrooliAware)
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
 	}
 	if !cfg.AllowNetwork {
-		t.Error("AllowNetwork = false, want true for Vrooli-aware isolation")
+		t.Error("expected AllowNetwork=true for NetworkAccess=localhost")
 	}
-	if cfg.Env["VROOLI_ROOT"] != "/vrooli" {
-		t.Errorf("Env[VROOLI_ROOT] = %q, want %q", cfg.Env["VROOLI_ROOT"], "/vrooli")
+	if cfg.Hostname != "custom" {
+		t.Errorf("expected Hostname=custom, got %q", cfg.Hostname)
 	}
 }
 
-func TestApplyVrooliAwareConfigPreservesExistingEnv(t *testing.T) {
+func TestApplyIsolationProfile_BindsAreMapped(t *testing.T) {
+	srcDir := t.TempDir()
 	cfg := DefaultBwrapConfig()
-	cfg.Env["CUSTOM_VAR"] = "custom_value"
-
-	ApplyVrooliAwareConfig(&cfg)
-
-	if cfg.Env["CUSTOM_VAR"] != "custom_value" {
-		t.Errorf("Env[CUSTOM_VAR] = %q, want %q", cfg.Env["CUSTOM_VAR"], "custom_value")
+	p := &IsolationProfile{
+		ReadOnlyBinds:  map[string]string{srcDir: "/inside-ro"},
+		ReadWriteBinds: map[string]string{srcDir: "/inside-rw"},
 	}
-	if cfg.Env["PATH"] == "" {
-		t.Error("Env[PATH] should not be empty")
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+	if cfg.ReadOnlyBinds[srcDir] != "/inside-ro" {
+		t.Errorf("expected ReadOnlyBinds[%s] = /inside-ro, got %q", srcDir, cfg.ReadOnlyBinds[srcDir])
+	}
+	if cfg.ReadWriteBinds[srcDir] != "/inside-rw" {
+		t.Errorf("expected ReadWriteBinds[%s] = /inside-rw, got %q", srcDir, cfg.ReadWriteBinds[srcDir])
+	}
+}
+
+func TestApplyIsolationProfile_SkipsMissingSource(t *testing.T) {
+	cfg := DefaultBwrapConfig()
+	p := &IsolationProfile{
+		ReadOnlyBinds: map[string]string{"/this/path/should/not/exist/zzqyx": "/inside"},
+	}
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+	if len(cfg.ReadOnlyBinds) != 0 {
+		t.Errorf("expected missing-source bind to be skipped, got: %v", cfg.ReadOnlyBinds)
+	}
+}
+
+func TestApplyIsolationProfile_ExpandsHomePlaceholder(t *testing.T) {
+	homeDir := t.TempDir()
+	cfg := DefaultBwrapConfig()
+	cfg.HostHome = homeDir
+	p := &IsolationProfile{
+		ReadOnlyBinds: map[string]string{"$HOME": "/inside-home"},
+	}
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+	if cfg.ReadOnlyBinds[homeDir] != "/inside-home" {
+		t.Errorf("expected $HOME placeholder expanded to %s, got: %v", homeDir, cfg.ReadOnlyBinds)
 	}
 }
 
@@ -441,12 +585,4 @@ func hasBind(args []string, wantSrc, wantDst string) bool {
 		}
 	}
 	return false
-}
-
-func restoreEnv(key, value string) {
-	if value == "" {
-		os.Unsetenv(key)
-	} else {
-		os.Setenv(key, value)
-	}
 }

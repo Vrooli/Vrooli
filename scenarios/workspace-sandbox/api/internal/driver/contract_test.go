@@ -11,6 +11,29 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+// TestDriverContract_RequiresBwrap pins each driver's isolation-mode
+// declaration. Adding a new driver = a new row here, not editing a
+// central type-switch.
+func TestDriverContract_RequiresBwrap(t *testing.T) {
+	cfg := Config{BaseDir: t.TempDir()}
+	cases := []struct {
+		name string
+		drv  Driver
+		want IsolationMode
+	}{
+		{"copy", NewCopyDriver(cfg), ModeNone},
+		{"fuse-overlayfs", NewFuseOverlayfsDriver(cfg), ModeBwrapPreferred},
+		{"overlayfs", NewOverlayfsDriver(cfg), ModeBwrapRequired},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.drv.RequiresBwrap(); got != tc.want {
+				t.Errorf("%s.RequiresBwrap() = %v, want %v", tc.name, got, tc.want)
+			}
+		})
+	}
+}
+
 // TestDriverContract is the parameterized lifecycle test that every driver
 // must pass: Mount → write → GetChangedFiles (Added) → RemoveFromUpper →
 // GetChangedFiles (empty) → Unmount → CleanupOrphan → second
@@ -34,13 +57,24 @@ func TestDriverContract(t *testing.T) {
 		t.Fatalf("seed scope: %v", err)
 	}
 
+	// Stable $HOME for the home-overlay contract: kernel overlayfs in a
+	// userns rejects mounts over directories with xattrs/uids it can't
+	// map (e.g. the actual host $HOME on a multi-user box), so we point
+	// the drivers at a fresh tempdir that's owned by the test process.
+	fakeHome := filepath.Join(tmpDir, "home")
+	if err := os.MkdirAll(fakeHome, 0o755); err != nil {
+		t.Fatalf("mkdir fakeHome: %v", err)
+	}
+	t.Setenv("HOME", fakeHome)
+
 	cases := []struct {
-		name string
-		ctor func(Config) Driver
+		name           string
+		ctor           func(Config) Driver
+		expectHomeOver bool // mount-backed drivers must populate HomeMergedDir when $HOME is set
 	}{
-		{"copy", func(cfg Config) Driver { return NewCopyDriver(cfg) }},
-		{"fuse-overlayfs", func(cfg Config) Driver { return NewFuseOverlayfsDriver(cfg) }},
-		{"overlayfs", func(cfg Config) Driver { return NewOverlayfsDriver(cfg) }},
+		{"copy", func(cfg Config) Driver { return NewCopyDriver(cfg) }, false},
+		{"fuse-overlayfs", func(cfg Config) Driver { return NewFuseOverlayfsDriver(cfg) }, true},
+		{"overlayfs", func(cfg Config) Driver { return NewOverlayfsDriver(cfg) }, true},
 	}
 
 	for _, tc := range cases {
@@ -71,6 +105,19 @@ func TestDriverContract(t *testing.T) {
 			sb.WorkDir = paths.WorkDir
 			sb.MergedDir = paths.MergedDir
 			sb.HomeMergedDir = paths.HomeMergedDir
+
+			// Mount-backed drivers must set up the per-sandbox HOME overlay
+			// when the host process has a $HOME. This is the load-bearing
+			// invariant for the vrooli-aware profile (HOME=$HOME / PATH=
+			// $HOME/.local/bin) — without it, agent CLIs see no home.
+			if tc.expectHomeOver && os.Getenv("HOME") != "" {
+				if paths.HomeMergedDir == "" {
+					t.Errorf("expected HomeMergedDir populated by mount-backed driver, got empty")
+				}
+			}
+			if !tc.expectHomeOver && paths.HomeMergedDir != "" {
+				t.Errorf("expected HomeMergedDir empty for non-mount-backed driver, got %q", paths.HomeMergedDir)
+			}
 
 			// MountVerifier (when supported) should be happy pre-Unmount.
 			if v, ok := drv.(MountVerifier); ok {

@@ -12,16 +12,28 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
-// [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options
-func TestOverlayfsDriverType(t *testing.T) {
-	drv := NewOverlayfsDriver(DefaultConfig())
-
-	if drv.Type() != DriverTypeOverlayfs {
-		t.Errorf("Type() = %v, want %v", drv.Type(), DriverTypeOverlayfs)
+// [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options.
+// Both UserNS and Root variants use the same OverlayfsDriver struct;
+// only the DriverID differs.
+func TestOverlayfsDriverID(t *testing.T) {
+	cases := []struct {
+		name string
+		ctor func() *OverlayfsDriver
+		want DriverID
+	}{
+		{"userns", func() *OverlayfsDriver { return NewOverlayfsUserNSDriver(DefaultConfig()) }, DriverOverlayfsUserNS},
+		{"root", func() *OverlayfsDriver { return NewOverlayfsRootDriver(DefaultConfig()) }, DriverOverlayfsRoot},
 	}
-
-	if drv.Version() == "" {
-		t.Error("Version() should not be empty")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			drv := tc.ctor()
+			if drv.ID() != tc.want {
+				t.Errorf("ID() = %v, want %v", drv.ID(), tc.want)
+			}
+			if drv.Version() == "" {
+				t.Error("Version() should not be empty")
+			}
+		})
 	}
 }
 

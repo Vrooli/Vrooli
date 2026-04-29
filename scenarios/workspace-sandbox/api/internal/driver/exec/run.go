@@ -14,43 +14,18 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
-// IsolationMode is the single decision boundary for "how isolated should
-// this exec be". Drivers no longer carry their own Exec implementations;
-// callers pass a mode (typically derived via DriverModeFor) and this
-// package handles the rest.
-type IsolationMode int
+// IsolationMode aliases driver.IsolationMode for convenience inside the
+// exec package. Each driver declares its required mode via
+// MountDriver.RequiresBwrap.
+type IsolationMode = driver.IsolationMode
 
+// Re-exported constants so exec callers don't have to import the driver
+// package just to spell ModeNone / ModeBwrap*.
 const (
-	// ModeNone runs the command directly in s.MergedDir with no namespace
-	// isolation. Used by the copy driver, which has no real mount.
-	ModeNone IsolationMode = iota
-
-	// ModeBwrapPreferred uses bwrap when available; falls back to direct
-	// execution when bwrap isn't installed. Used by fuse-overlayfs whose
-	// mount is host-visible — direct execution still operates against the
-	// merged dir, just without process isolation.
-	ModeBwrapPreferred
-
-	// ModeBwrapRequired hard-errors when bwrap is missing. Used by kernel
-	// overlayfs whose mount lives inside the API's mount namespace — a
-	// direct child won't see the merged dir, so falling back would return
-	// the host filesystem and silently produce wrong results.
-	ModeBwrapRequired
+	ModeNone           = driver.ModeNone
+	ModeBwrapPreferred = driver.ModeBwrapPreferred
+	ModeBwrapRequired  = driver.ModeBwrapRequired
 )
-
-// DriverModeFor maps a driver type to the appropriate isolation mode.
-// Service code calls this once per exec; tests pass a mode explicitly.
-func DriverModeFor(t driver.DriverType) IsolationMode {
-	switch t {
-	case driver.DriverTypeOverlayfs:
-		return ModeBwrapRequired
-	case driver.DriverTypeFuseOverlayfs:
-		return ModeBwrapPreferred
-	case driver.DriverTypeCopy:
-		return ModeNone
-	}
-	return ModeNone
-}
 
 // ExecResult contains the result of executing a command in the sandbox.
 type ExecResult struct {

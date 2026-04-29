@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -509,14 +510,15 @@ func TestVerifyOverlayMountIntegrity_RejectsUnmounted(t *testing.T) {
 }
 
 // =============================================================================
-// cleanupSandboxDir Tests
+// cleanupSandboxDirAll Tests
 // =============================================================================
 
-func TestCleanupSandboxDir_RemovesDirectory(t *testing.T) {
+func TestCleanupSandboxDirAll_RemovesDirectory(t *testing.T) {
 	baseDir := t.TempDir()
 	sandboxID := uuid.New()
 
-	// Create sandbox directory structure
+	// Create sandbox directory structure (no live mounts; unmountFn must
+	// not be invoked because isMountPoint returns false for plain dirs).
 	sandboxDir := filepath.Join(baseDir, sandboxID.String())
 	if err := os.MkdirAll(filepath.Join(sandboxDir, "upper"), 0o755); err != nil {
 		t.Fatal(err)
@@ -525,52 +527,32 @@ func TestCleanupSandboxDir_RemovesDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Unmount function that does nothing (no actual mount)
-	unmountCalled := false
-	unmountFn := func() error {
-		unmountCalled = true
+	unmountFn := func(ctx context.Context, target string) error {
+		t.Errorf("unmountFn should not be called when there are no live mounts; got target=%s", target)
 		return nil
 	}
 
-	err := cleanupSandboxDir(baseDir, sandboxID, unmountFn)
+	err := cleanupSandboxDirAll(context.Background(), baseDir, sandboxID, unmountFn)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify unmount was called
-	if !unmountCalled {
-		t.Error("unmount function should have been called")
-	}
-
-	// Verify directory is gone
 	if _, err := os.Stat(sandboxDir); !os.IsNotExist(err) {
 		t.Error("sandbox directory should have been removed")
 	}
 }
 
-func TestCleanupSandboxDir_ContinuesOnUnmountError(t *testing.T) {
+func TestCleanupSandboxDirAll_MissingDirIsNoop(t *testing.T) {
 	baseDir := t.TempDir()
 	sandboxID := uuid.New()
 
-	// Create sandbox directory
-	sandboxDir := filepath.Join(baseDir, sandboxID.String())
-	if err := os.MkdirAll(sandboxDir, 0o755); err != nil {
-		t.Fatal(err)
+	unmountFn := func(ctx context.Context, target string) error {
+		t.Errorf("unmountFn should not be called for missing sandbox dir; got target=%s", target)
+		return nil
 	}
 
-	// Unmount function that returns error
-	unmountFn := func() error {
-		return os.ErrNotExist // Simulate unmount failure
-	}
-
-	err := cleanupSandboxDir(baseDir, sandboxID, unmountFn)
-	if err != nil {
+	if err := cleanupSandboxDirAll(context.Background(), baseDir, sandboxID, unmountFn); err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Directory should still be removed despite unmount error
-	if _, err := os.Stat(sandboxDir); !os.IsNotExist(err) {
-		t.Error("sandbox directory should have been removed even after unmount error")
 	}
 }
 

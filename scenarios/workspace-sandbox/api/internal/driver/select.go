@@ -9,34 +9,21 @@ import (
 	"path/filepath"
 )
 
-// --- Driver Selection ---
-//
-// SelectDriver returns the best available driver for the current system,
-// honoring any saved preference. The priority order (post-Phase 5) is:
-//   1. OverlayfsUserNS — kernel overlayfs wrapped in a user namespace.
-//      No fuse-overlayfs daemon per mount → flat memory under load.
-//   2. FuseOverlayfs — userspace fallback when the deployment isn't
-//      wrapped in `unshare -U -m -r` or the kernel can't do unprivileged
-//      overlayfs.
-//   3. OverlayfsRoot — kernel overlayfs with CAP_SYS_ADMIN. Mostly an
-//      escape hatch; rarely correct in single-tenant local dev.
-//   4. Copy — cross-platform fallback. Always available; slowest.
-
 // SelectDriver returns the best available driver for the current system.
-// It tests each driver in priority order and returns the first one that
-// reports IsAvailable. All non-trivial branches log so operators can see
-// why a particular driver was chosen.
+// Priority order:
+//  1. Kernel overlayfs (UserNS variant when in a user namespace, Root
+//     variant otherwise) — flat memory, no per-mount daemon.
+//  2. fuse-overlayfs — userspace fallback when kernel overlayfs is unavailable.
+//  3. Copy driver — cross-platform fallback, always available.
 func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
-	// 1. OverlayfsUserNS / OverlayfsRoot — both surface as OverlayfsDriver.
 	overlayDriver := NewOverlayfsDriver(cfg)
 	if available, err := overlayDriver.IsAvailable(ctx); err == nil && available {
-		log.Printf("driver: using kernel overlayfs (optimal performance, no per-mount daemon)")
+		log.Printf("driver: using kernel overlayfs (%s)", overlayDriver.ID())
 		return overlayDriver, nil
 	} else if err != nil {
 		log.Printf("driver: kernel overlayfs not available: %v", err)
 	}
 
-	// 2. FuseOverlayfs.
 	fuseDriver := NewFuseOverlayfsDriver(cfg)
 	if available, err := fuseDriver.IsAvailable(ctx); err == nil && available {
 		log.Printf("driver: using fuse-overlayfs (kernel overlayfs unavailable; daemon-per-mount)")
@@ -45,7 +32,6 @@ func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
 		log.Printf("driver: fuse-overlayfs not available: %v", err)
 	}
 
-	// 3. Copy fallback.
 	log.Printf("driver: falling back to copy driver (slower but universal)")
 	log.Printf("driver: for better performance, install fuse-overlayfs or wrap startup with `unshare -U -m -r`")
 	return NewCopyDriver(cfg), nil
@@ -53,35 +39,34 @@ func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
 
 // DriverInfo returns information about available drivers on the current system.
 func DriverInfo(ctx context.Context, cfg Config) []Info {
-	var info []Info
-
 	overlayDriver := NewOverlayfsDriver(cfg)
 	overlayAvailable, _ := overlayDriver.IsAvailable(ctx)
-	info = append(info, Info{
-		Type:        DriverTypeOverlayfs,
-		Version:     overlayDriver.Version(),
-		Description: "Linux overlayfs driver - efficient copy-on-write using kernel overlayfs",
-		Available:   overlayAvailable,
-	})
 
 	fuseDriver := NewFuseOverlayfsDriver(cfg)
 	fuseAvailable, _ := fuseDriver.IsAvailable(ctx)
-	info = append(info, Info{
-		Type:        DriverTypeFuseOverlayfs,
-		Version:     fuseDriver.Version(),
-		Description: "FUSE overlayfs driver - unprivileged overlayfs with direct filesystem access",
-		Available:   fuseAvailable,
-	})
 
 	copyDriver := NewCopyDriver(cfg)
-	info = append(info, Info{
-		Type:        DriverTypeCopy,
-		Version:     copyDriver.Version(),
-		Description: "Cross-platform copy driver - works on any OS using file copies",
-		Available:   true,
-	})
 
-	return info
+	return []Info{
+		{
+			ID:          overlayDriver.ID(),
+			Version:     overlayDriver.Version(),
+			Description: "Linux overlayfs driver - efficient copy-on-write using kernel overlayfs",
+			Available:   overlayAvailable,
+		},
+		{
+			ID:          DriverFuseOverlayfs,
+			Version:     fuseDriver.Version(),
+			Description: "FUSE overlayfs driver - unprivileged overlayfs with direct filesystem access",
+			Available:   fuseAvailable,
+		},
+		{
+			ID:          DriverCopy,
+			Version:     copyDriver.Version(),
+			Description: "Cross-platform copy driver - works on any OS using file copies",
+			Available:   true,
+		},
+	}
 }
 
 // --- Driver Preference Storage ---
@@ -123,47 +108,47 @@ func LoadDriverPreference(baseDir string) (string, error) {
 }
 
 // SelectDriverWithPreference returns the best available driver, respecting
-// any saved preference. A saved preference for "copy" forces CopyDriver
-// even when overlayfs is available; preference for kernel/fuse overlayfs
-// short-circuits to that driver if available, otherwise we fall through
-// to SelectDriver's normal priority.
+// any saved preference. A saved preference for an unavailable driver
+// falls through to SelectDriver's normal priority.
 func SelectDriverWithPreference(ctx context.Context, cfg Config) (Driver, error) {
 	pref, err := LoadDriverPreference(cfg.BaseDir)
 	if err == nil && pref != "" {
-		switch DriverOptionID(pref) {
-		case DriverOptionCopy:
-			log.Printf("driver: using copy driver (saved preference)")
-			return NewCopyDriver(cfg), nil
-		case DriverOptionFuseOverlayfs:
-			fuseDriver := NewFuseOverlayfsDriver(cfg)
-			if available, err := fuseDriver.IsAvailable(ctx); err == nil && available {
-				log.Printf("driver: using fuse-overlayfs (saved preference)")
-				return fuseDriver, nil
-			}
-			log.Printf("driver: saved preference fuse-overlayfs not available; falling through to auto-select")
-		case DriverOptionOverlayfsUserNS, DriverOptionOverlayfsRoot:
-			overlayDriver := NewOverlayfsDriver(cfg)
-			if available, err := overlayDriver.IsAvailable(ctx); err == nil && available {
-				log.Printf("driver: using kernel overlayfs (saved preference: %s)", pref)
-				return overlayDriver, nil
-			}
-			log.Printf("driver: saved preference %s not available; falling through to auto-select", pref)
+		if d, ok := tryPreferredDriver(ctx, cfg, DriverID(pref)); ok {
+			return d, nil
 		}
+		log.Printf("driver: saved preference %q not available; falling through to auto-select", pref)
 	}
 	return SelectDriver(ctx, cfg)
 }
 
-// NewDriverFor returns a fresh driver for the given option ID. Used by
+// tryPreferredDriver constructs the driver for id and returns it when
+// IsAvailable succeeds. Returns (nil, false) on unknown ID or unavailability.
+func tryPreferredDriver(ctx context.Context, cfg Config, id DriverID) (Driver, bool) {
+	d, err := NewDriverFor(cfg, id)
+	if err != nil {
+		return nil, false
+	}
+	available, err := d.IsAvailable(ctx)
+	if err != nil || !available {
+		return nil, false
+	}
+	log.Printf("driver: using %s (saved preference)", id)
+	return d, true
+}
+
+// NewDriverFor returns a fresh driver for the given canonical ID. Used by
 // SwitchDriver (in slot.go) when an operator hot-swaps drivers via
 // /api/v1/driver/select.
-func NewDriverFor(cfg Config, optionID DriverOptionID) (Driver, error) {
-	switch optionID {
-	case DriverOptionFuseOverlayfs:
+func NewDriverFor(cfg Config, id DriverID) (Driver, error) {
+	switch id {
+	case DriverFuseOverlayfs:
 		return NewFuseOverlayfsDriver(cfg), nil
-	case DriverOptionOverlayfsUserNS, DriverOptionOverlayfsRoot:
-		return NewOverlayfsDriver(cfg), nil
-	case DriverOptionCopy:
+	case DriverOverlayfsUserNS:
+		return NewOverlayfsUserNSDriver(cfg), nil
+	case DriverOverlayfsRoot:
+		return NewOverlayfsRootDriver(cfg), nil
+	case DriverCopy:
 		return NewCopyDriver(cfg), nil
 	}
-	return nil, fmt.Errorf("unknown driver option: %s", optionID)
+	return nil, fmt.Errorf("unknown driver ID: %s", id)
 }

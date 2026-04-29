@@ -66,9 +66,15 @@ func NewCopyDriver(cfg Config) *CopyDriver {
 	return &CopyDriver{config: cfg}
 }
 
-// Type returns the driver type.
-func (d *CopyDriver) Type() DriverType {
-	return DriverTypeCopy
+// ID returns the canonical driver ID.
+func (d *CopyDriver) ID() DriverID {
+	return DriverCopy
+}
+
+// RequiresBwrap returns ModeNone: the copy driver has no real mount, so
+// commands run directly in the workspace dir without namespace isolation.
+func (d *CopyDriver) RequiresBwrap() IsolationMode {
+	return ModeNone
 }
 
 // BaseDir returns the configured base directory for sandboxes.

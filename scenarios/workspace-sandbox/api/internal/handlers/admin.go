@@ -76,7 +76,7 @@ func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 	available, availErr := h.Driver().IsAvailable(r.Context())
 
 	info := driver.Info{
-		Type:        h.Driver().Type(),
+		ID:          h.Driver().ID(),
 		Version:     h.Driver().Version(),
 		Description: "Linux overlayfs driver for copy-on-write sandboxes",
 		Available:   available,
@@ -96,7 +96,7 @@ func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 // DriverOptions handles getting all available driver options with their requirements.
 // This endpoint is used by the UI settings dialog to show driver configuration options.
 func (h *Handlers) DriverOptions(w http.ResponseWriter, r *http.Request) {
-	resp := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
+	resp := driver.GetDriverOptions(r.Context(), h.Driver().ID(), h.InUserNamespace)
 	h.JSONSuccess(w, resp)
 }
 
@@ -153,7 +153,7 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get available options to validate the request
-	options := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
+	options := driver.GetDriverOptions(r.Context(), h.Driver().ID(), h.InUserNamespace)
 
 	// Find the requested driver option
 	var selectedOption *driver.DriverOption
@@ -204,7 +204,7 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 		MaxSizeMB:        h.Config.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs: h.Config.Driver.UseFuseOverlayfs,
 	}
-	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.DriverOptionID(req.DriverID)); err != nil {
+	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.DriverID(req.DriverID)); err != nil {
 		h.JSONError(w, "failed to switch driver: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -222,10 +222,10 @@ func (h *Handlers) GetDriverPreference(w http.ResponseWriter, r *http.Request) {
 	pref, err := driver.LoadDriverPreference(h.Config.Driver.BaseDir)
 	if err != nil {
 		// No preference set - return current driver
-		pref = string(h.Driver().Type())
+		pref = string(h.Driver().ID())
 	}
 
-	options := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
+	options := driver.GetDriverOptions(r.Context(), h.Driver().ID(), h.InUserNamespace)
 
 	response := map[string]interface{}{
 		"preference":    pref,

@@ -64,19 +64,34 @@ The `Driver` interface is the primary seam for OS-level isolation:
 
 ```go
 type Driver interface {
-    Type() DriverType
+    ID() DriverID
     Version() string
     IsAvailable(ctx context.Context) (bool, error)
+    RequiresBwrap() IsolationMode
     Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, error)
     Unmount(ctx context.Context, s *types.Sandbox) error
     GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error)
     Cleanup(ctx context.Context, s *types.Sandbox) error
+    ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error)
+    CleanupOrphan(ctx context.Context, id uuid.UUID) error
+    RemoveFromUpper(ctx context.Context, s *types.Sandbox, relPath string) error
 }
 ```
 
+`DriverID` is the canonical identifier across DB column (`driver_id`),
+wire payloads, preference file, and every internal switch. Four values:
+`overlayfs-userns`, `overlayfs-root`, `fuse-overlayfs`, `copy`.
+
+`RequiresBwrap` declares the per-driver isolation mode (replaces the
+prior central `exec.DriverModeFor` switch). `Mount` populates a
+`MountPaths` struct that may include the per-sandbox HOME overlay
+fields (`HomeMergedDir`, etc.) — both kernel overlayfs and
+fuse-overlayfs set these up; CopyDriver leaves them empty.
+
 **Implementations**:
-- `OverlayfsDriver` - Linux overlayfs (primary)
-- Future: fuse-overlayfs, fallback drivers for non-Linux
+- `OverlayfsDriver` (kernel; backs both UserNS and Root variants)
+- `FuseOverlayfsDriver` (userspace daemon-per-mount fallback)
+- `CopyDriver` (cross-platform fallback)
 
 **Testing Strategy**: Mock driver for unit tests; real driver for integration tests.
 
@@ -716,8 +731,45 @@ Process execution lives in the sub-package `driver/exec` behind a single
   mount lives inside the API's mount namespace, so a direct child can't
   see it.)
 
-`exec.DriverModeFor(driverType)` is the single decision boundary; service
-code never picks a mode by hand.
+Each driver declares its required mode via `Driver.RequiresBwrap()`;
+service code calls that and passes the result to `exec.Exec` /
+`exec.StartProcess`. There is no central type-switch — adding a new
+driver type means implementing the method, not editing a dispatcher.
+
+### Isolation profile is the only knob (post-Phase B)
+
+`exec.BwrapConfig` is constructed in three steps at every call site:
+
+```go
+cfg := exec.DefaultBwrapConfig()
+exec.CaptureEnv().ApplyTo(&cfg)              // host env: HOME, MIRROR_PROJECT_ROOT
+if err := exec.ApplyIsolationProfile(&cfg, profile); err != nil { … }
+```
+
+There is no preset fallback. A nil or unresolvable profile surfaces
+`types.IsolationProfileNotFoundError` (HTTP 400). The legacy
+`IsolationLevel` / `ApplyVrooliAwareConfig` / `GetVrooliEnvVars` knobs
+are gone — every isolation behaviour is declared in the profile JSON.
+
+### `BuildBwrapArgs` is a pure function (post-Phase C)
+
+`exec.BuildBwrapArgs(s, cfg)` reads only its inputs — no `os.Getenv`,
+no filesystem calls. Every host-derived input arrives via
+`cfg.HostHome`, `cfg.MirrorProjectRoot`, or the bind maps populated by
+`ApplyIsolationProfile`. The argv contract is pinned by
+`args_golden_test.go`; changing it without updating the golden fails
+the build.
+
+### HOME overlay invariant (post-Phase A)
+
+Both `OverlayfsDriver.Mount` and `FuseOverlayfsDriver.Mount` set up the
+per-sandbox HOME overlay (lower=$HOME, upper=per-sandbox writable
+layer). `Mount` populates `s.HomeMergedDir` for both drivers; the
+`vrooli-aware` profile binds it at `$HOME` inside the namespace via
+`BuildBwrapArgs`. The home overlay is best-effort: if mount fails (no
+`$HOME`, kernel rejection), `HomeMergedDir` stays empty and the
+profile's `HOME=$HOME` env entry degrades gracefully (no bind, no
+overlay — the agent CLI runs without host-config visibility).
 
 ## Userns deployment contract (Phase 5)
 

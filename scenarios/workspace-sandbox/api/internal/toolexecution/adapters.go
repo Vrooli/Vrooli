@@ -69,8 +69,9 @@ func (a *ProcessExecutorAdapter) ExecSync(ctx context.Context, sandboxID uuid.UU
 		return nil, fmt.Errorf("sandbox must be active to execute commands")
 	}
 
-	// Build bwrap config
+	// Build bwrap config: defaults → host env → isolation profile.
 	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -78,25 +79,8 @@ func (a *ProcessExecutorAdapter) ExecSync(ctx context.Context, sandboxID uuid.UU
 		cfg.Env[k] = v
 	}
 
-	// Determine isolation profile
-	isolationLevel := req.IsolationProfile
-	if isolationLevel == "" {
-		isolationLevel = a.execConfig.DefaultIsolationProfile
-	}
-	if isolationLevel == "" {
-		isolationLevel = "full"
-	}
-
-	// Look up and apply isolation profile
-	if a.profileStore != nil {
-		profile, profErr := a.profileStore.Get(isolationLevel)
-		if profErr == nil {
-			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
-		} else if isolationLevel == "vrooli-aware" {
-			driverexec.ApplyVrooliAwareConfig(&cfg)
-		}
-	} else if isolationLevel == "vrooli-aware" {
-		driverexec.ApplyVrooliAwareConfig(&cfg)
+	if err := a.applyIsolationProfile(&cfg, req.IsolationProfile); err != nil {
+		return nil, err
 	}
 
 	// Set resource limits
@@ -107,9 +91,9 @@ func (a *ProcessExecutorAdapter) ExecSync(ctx context.Context, sandboxID uuid.UU
 		cfg.ResourceLimits.TimeoutSec = 60
 	}
 
-	// Execute the command via the canonical exec path. DriverModeFor picks
-	// the right isolation mode for the active driver.
-	result, err := driverexec.Exec(ctx, sb, driverexec.DriverModeFor(a.driver.Type()), cfg, req.Command, req.Args...)
+	// Execute the command via the canonical exec path. The driver
+	// declares its isolation mode via RequiresBwrap.
+	result, err := driverexec.Exec(ctx, sb, a.driver.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +125,9 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 		return nil, fmt.Errorf("sandbox must be active to start processes")
 	}
 
-	// Build bwrap config
+	// Build bwrap config: defaults → host env → isolation profile.
 	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -150,25 +135,8 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 		cfg.Env[k] = v
 	}
 
-	// Determine isolation profile
-	isolationLevel := req.IsolationProfile
-	if isolationLevel == "" {
-		isolationLevel = a.execConfig.DefaultIsolationProfile
-	}
-	if isolationLevel == "" {
-		isolationLevel = "full"
-	}
-
-	// Look up and apply isolation profile
-	if a.profileStore != nil {
-		profile, profErr := a.profileStore.Get(isolationLevel)
-		if profErr == nil {
-			driverexec.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
-		} else if isolationLevel == "vrooli-aware" {
-			driverexec.ApplyVrooliAwareConfig(&cfg)
-		}
-	} else if isolationLevel == "vrooli-aware" {
-		driverexec.ApplyVrooliAwareConfig(&cfg)
+	if err := a.applyIsolationProfile(&cfg, req.IsolationProfile); err != nil {
+		return nil, err
 	}
 
 	// No timeout for background processes
@@ -212,7 +180,7 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 	}
 
 	// Start the background process via the canonical exec path.
-	pid, err := driverexec.StartProcess(ctx, sb, driverexec.DriverModeFor(a.driver.Type()), cfg, req.Command, req.Args...)
+	pid, err := driverexec.StartProcess(ctx, sb, a.driver.RequiresBwrap(), cfg, req.Command, req.Args...)
 	if err != nil {
 		if pendingPair != nil {
 			_ = a.processLogger.AbortPair(pendingPair)
@@ -343,6 +311,29 @@ func (a *ProcessExecutorAdapter) GetLogs(ctx context.Context, sandboxID uuid.UUI
 		}
 	}
 	return out, nil
+}
+
+// applyIsolationProfile resolves the requested profile ID against the
+// store and composes it onto cfg. Returns IsolationProfileNotFoundError
+// when the ID does not resolve so callers can surface a 400 to the
+// requestor. There is no preset fallback; missing builtins are a
+// configuration bug we want to surface rather than mask.
+func (a *ProcessExecutorAdapter) applyIsolationProfile(cfg *driverexec.BwrapConfig, requestedID string) error {
+	id := requestedID
+	if id == "" {
+		id = a.execConfig.DefaultIsolationProfile
+	}
+	if id == "" {
+		id = "full"
+	}
+	if a.profileStore == nil {
+		return types.NewIsolationProfileNotFoundError(id)
+	}
+	profile, err := a.profileStore.Get(id)
+	if err != nil {
+		return types.NewIsolationProfileNotFoundError(id)
+	}
+	return driverexec.ApplyIsolationProfile(cfg, convertProfileToDriver(profile))
 }
 
 // convertProfileToDriver converts a config.IsolationProfile to driverexec.IsolationProfile.

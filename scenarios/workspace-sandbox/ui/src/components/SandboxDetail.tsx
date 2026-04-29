@@ -464,7 +464,7 @@ export function SandboxDetail({
                   <MetadataRow
                     icon={<Server className="h-3.5 w-3.5" />}
                     label="Driver"
-                    value={`${sandbox.driver} v${sandbox.driverVersion}`}
+                    value={`${sandbox.driverId} v${sandbox.driverVersion}`}
                   />
                   {sandbox.mergedDir && sandbox.status === "active" && (
                     <MetadataRow

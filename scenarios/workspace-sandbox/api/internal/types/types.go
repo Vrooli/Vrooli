@@ -225,8 +225,11 @@ type Sandbox struct {
 	ApprovedAt    *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
 	DeletedAt     *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 
-	// Driver configuration
-	Driver        string `json:"driver" db:"driver"`
+	// Driver configuration. DriverID is the canonical driver identifier
+	// (overlayfs-userns, overlayfs-root, fuse-overlayfs, copy). The DB
+	// column is `driver_id`; an older `driver` column (with the legacy
+	// `overlayfs` value) is migrated at startup by main.go.
+	DriverID      string `json:"driverId" db:"driver_id"`
 	DriverVersion string `json:"driverVersion" db:"driver_version"`
 
 	// Mount paths

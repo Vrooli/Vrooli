@@ -12,12 +12,12 @@ import (
 
 // [REQ:P2-004-002] CopyDriver Implementation - Basic functionality tests
 
-// TestCopyDriverType verifies CopyDriver returns correct type
-func TestCopyDriverType(t *testing.T) {
+// TestCopyDriverID verifies CopyDriver returns correct ID
+func TestCopyDriverID(t *testing.T) {
 	drv := NewCopyDriver(DefaultConfig())
 
-	if drv.Type() != DriverTypeCopy {
-		t.Errorf("Type() = %v, want %v", drv.Type(), DriverTypeCopy)
+	if drv.ID() != DriverCopy {
+		t.Errorf("ID() = %v, want %v", drv.ID(), DriverCopy)
 	}
 }
 
@@ -397,8 +397,8 @@ func TestSelectDriverReturnsDriver(t *testing.T) {
 	}
 
 	// Verify it's a valid driver
-	if drv.Type() == DriverTypeNone {
-		t.Error("SelectDriver() should return a valid driver type")
+	if drv.ID() == "" {
+		t.Error("SelectDriver() should return a valid driver ID")
 	}
 	if drv.Version() == "" {
 		t.Error("SelectDriver() returned driver with no version")
@@ -422,15 +422,15 @@ func TestSelectDriverFallsBackToCopy(t *testing.T) {
 	// Post-Phase 5 priority: kernel overlayfs > fuse-overlayfs > copy.
 	// Any of those is acceptable; we just want to confirm SelectDriver
 	// produced *some* valid driver.
-	drvType := drv.Type()
-	switch drvType {
-	case DriverTypeOverlayfs, DriverTypeFuseOverlayfs, DriverTypeCopy:
+	id := drv.ID()
+	switch id {
+	case DriverOverlayfsUserNS, DriverOverlayfsRoot, DriverFuseOverlayfs, DriverCopy:
 		// expected
 	default:
-		t.Errorf("SelectDriver() returned unexpected type: %v", drvType)
+		t.Errorf("SelectDriver() returned unexpected ID: %v", id)
 	}
 
-	t.Logf("SelectDriver() returned: %v", drvType)
+	t.Logf("SelectDriver() returned: %v", id)
 }
 
 // TestDriverInfoReturnsAllDrivers verifies DriverInfo lists all drivers
@@ -445,14 +445,14 @@ func TestDriverInfoReturnsAllDrivers(t *testing.T) {
 		t.Errorf("DriverInfo() returned %d drivers, want at least 2", len(info))
 	}
 
-	// Check for expected driver types
+	// Check for expected driver IDs
 	foundOverlayfs := false
 	foundCopy := false
 	for _, i := range info {
-		if i.Type == DriverTypeOverlayfs {
+		switch i.ID {
+		case DriverOverlayfsUserNS, DriverOverlayfsRoot:
 			foundOverlayfs = true
-		}
-		if i.Type == DriverTypeCopy {
+		case DriverCopy:
 			foundCopy = true
 			// Copy should always be available
 			if !i.Available {
@@ -461,15 +461,15 @@ func TestDriverInfoReturnsAllDrivers(t *testing.T) {
 		}
 		// All drivers should have version and description
 		if i.Version == "" {
-			t.Errorf("Driver %s has no version", i.Type)
+			t.Errorf("Driver %s has no version", i.ID)
 		}
 		if i.Description == "" {
-			t.Errorf("Driver %s has no description", i.Type)
+			t.Errorf("Driver %s has no description", i.ID)
 		}
 	}
 
 	if !foundOverlayfs {
-		t.Error("DriverInfo() should include overlayfs driver")
+		t.Error("DriverInfo() should include an overlayfs driver")
 	}
 	if !foundCopy {
 		t.Error("DriverInfo() should include copy driver")
@@ -490,10 +490,10 @@ func TestDriverInterfaceMethods(t *testing.T) {
 	}
 
 	for _, drv := range drivers {
-		t.Run(string(drv.Type()), func(t *testing.T) {
-			// Type
-			if drv.Type() == "" {
-				t.Error("Type() should not be empty")
+		t.Run(string(drv.ID()), func(t *testing.T) {
+			// ID
+			if drv.ID() == "" {
+				t.Error("ID() should not be empty")
 			}
 
 			// Version
@@ -509,21 +509,23 @@ func TestDriverInterfaceMethods(t *testing.T) {
 	}
 }
 
-// TestDriverTypeConstants verifies driver type constants are defined
-func TestDriverTypeConstants(t *testing.T) {
-	if DriverTypeOverlayfs == "" {
-		t.Error("DriverTypeOverlayfs should not be empty")
+// TestDriverIDConstants verifies driver ID constants are defined and unique.
+func TestDriverIDConstants(t *testing.T) {
+	all := []DriverID{
+		DriverOverlayfsUserNS,
+		DriverOverlayfsRoot,
+		DriverFuseOverlayfs,
+		DriverCopy,
 	}
-	if DriverTypeCopy == "" {
-		t.Error("DriverTypeCopy should not be empty")
-	}
-	if DriverTypeNone == "" {
-		t.Error("DriverTypeNone should not be empty")
-	}
-
-	// Ensure they're distinct
-	if DriverTypeOverlayfs == DriverTypeCopy {
-		t.Error("DriverTypeOverlayfs and DriverTypeCopy should be different")
+	seen := map[DriverID]bool{}
+	for _, id := range all {
+		if id == "" {
+			t.Error("DriverID constant must not be empty")
+		}
+		if seen[id] {
+			t.Errorf("duplicate DriverID: %s", id)
+		}
+		seen[id] = true
 	}
 }
 

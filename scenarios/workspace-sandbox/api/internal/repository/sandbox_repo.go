@@ -149,7 +149,7 @@ const sandboxColumns = `
 	id, COALESCE(name, ''), scope_path, COALESCE(reserved_path, ''), reserved_paths, no_lock, project_root,
 	COALESCE(owner, ''), owner_type, status, COALESCE(error_message, ''),
 	created_at, last_used_at, stopped_at, approved_at, deleted_at,
-	driver, driver_version, COALESCE(lower_dir, ''), COALESCE(upper_dir, ''),
+	driver_id, driver_version, COALESCE(lower_dir, ''), COALESCE(upper_dir, ''),
 	COALESCE(work_dir, ''), COALESCE(merged_dir, ''),
 	size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 	COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')`
@@ -179,7 +179,7 @@ func scanSandbox(row interface {
 		&idStr, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &noLock, &s.ProjectRoot,
 		&s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&createdAt, &lastUsedAt, &stoppedAt, &approvedAt, &deletedAt,
-		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir,
+		&s.DriverID, &s.DriverVersion, &s.LowerDir, &s.UpperDir,
 		&s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDsStr, &s.SessionCount, &tagsStr, &metadataJSON, &behaviorJSON,
 		&s.IdempotencyKey, &updatedAt, &s.Version, &s.BaseCommitHash,
@@ -273,7 +273,7 @@ func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root,
 			owner, owner_type, status,
 			created_at, last_used_at, updated_at,
-			driver, driver_version, tags, metadata, behavior,
+			driver_id, driver_version, tags, metadata, behavior,
 			idempotency_key, version, base_commit_hash, active_pids
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
@@ -291,7 +291,7 @@ func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
 		formatTime(s.CreatedAt),
 		formatTime(s.LastUsedAt),
 		formatTime(s.UpdatedAt),
-		s.Driver,
+		s.DriverID,
 		s.DriverVersion,
 		jsonStrings(s.Tags),
 		metadataJSON,

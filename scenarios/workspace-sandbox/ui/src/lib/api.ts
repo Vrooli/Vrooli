@@ -48,7 +48,7 @@ export interface Sandbox {
   stoppedAt?: string;
   approvedAt?: string;
   deletedAt?: string;
-  driver: string;
+  driverId: string;
   driverVersion: string;
   lowerDir?: string;
   upperDir?: string;
@@ -118,7 +118,7 @@ export interface HealthResponse {
 
 export interface DriverInfo {
   driver: {
-    type: string;
+    id: string;
     version: string;
     description: string;
     available: boolean;

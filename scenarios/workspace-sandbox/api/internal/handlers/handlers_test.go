@@ -35,7 +35,8 @@ type mockDriver struct {
 	err       error
 }
 
-func (m *mockDriver) Type() driver.DriverType                       { return "mock" }
+func (m *mockDriver) ID() driver.DriverID                           { return "mock" }
+func (m *mockDriver) RequiresBwrap() driver.IsolationMode            { return driver.ModeNone }
 func (m *mockDriver) Version() string                               { return "test" }
 func (m *mockDriver) IsAvailable(ctx context.Context) (bool, error) { return m.available, m.err }
 func (m *mockDriver) Mount(ctx context.Context, s *types.Sandbox) (*driver.MountPaths, error) {
@@ -380,7 +381,7 @@ func TestCreateSandboxSuccess(t *testing.T) {
 				ProjectRoot:   req.ProjectRoot,
 				Owner:         req.Owner,
 				Status:        types.StatusActive,
-				Driver:        "overlayfs",
+				DriverID: "overlayfs-userns",
 				DriverVersion: "1.0",
 				CreatedAt:     now,
 				MergedDir:     "/tmp/sandbox/" + testID.String() + "/merged",
