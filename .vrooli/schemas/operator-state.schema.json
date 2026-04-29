@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/operator-state.schema.json",
+  "title": "Operator State",
+  "description": "Mutable per-install operator choices written by vrooli-onboarding (and editable by hand). Manifest data — what scenarios/resources/tools/safeguards exist and what they declare — lives in scenario service.json, resource.json, tool.json, and safeguard.json files. This file holds *what was selected on this install*: enabled flags, per-scenario auto-restart overrides, host-tool and safeguard opt-ins. Fields are optional; a missing entry falls back to the manifest's declared default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "updated_at"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver",
+      "description": "Schema version of this operator-state document."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last write. Onboarding updates this on every save."
+    },
+    "active_profile": {
+      "type": ["string", "null"],
+      "description": "Optional named profile this state was derived from (e.g. 'engineering', 'marketing'). Reserved for future use; null today. Profiles themselves are deferred — see docs/configuration/profiles.md."
+    },
+    "scenarios": {
+      "type": "object",
+      "description": "Per-scenario operator choices. Keyed by scenario name. A scenario absent from this map falls back to its manifest's `service.system_required` and `runtime.auto_restart_default` defaults.",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Operator-selected enabled state. Overrides manifest defaults except where `service.system_required: true`, in which case this field is ignored (system-required scenarios are always enabled)."
+            },
+            "auto_restart": {
+              "type": "boolean",
+              "description": "Operator override for runtime.auto_restart_default. When absent, the manifest default applies."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "resources": {
+      "type": "object",
+      "description": "Per-resource operator choices. Keyed by resource id (e.g. 'postgres', 'vault').",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether the operator wants this resource installed and running on this host."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "host_tools": {
+      "type": "object",
+      "description": "Per-tool operator opt-ins. Keyed by tool name as it appears in tool.json manifests.",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9_-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "opted_in": {
+              "type": "boolean",
+              "description": "Whether the operator has consented to install this host tool. Required tools (per the manifest's `required: true`) bypass this and are always installed."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "host_safeguards": {
+      "type": "object",
+      "description": "Per-safeguard operator opt-ins. Keyed by safeguard name as it appears in safeguard.json manifests. Safeguards modify host state, so opt-in is explicit; risk level (low/medium/high) on the manifest informs the operator's choice.",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9_-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "opted_in": {
+              "type": "boolean",
+              "description": "Whether the operator has consented to apply this safeguard to the host."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -112,6 +112,11 @@
             "standard",
             "experimental"
           ]
+        },
+        "system_required": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, this scenario is part of Vrooli's own operation (e.g. vrooli-onboarding, secrets-manager). Onboarding renders system-required scenarios as enabled and not user-toggleable. Distinct from 'importance', which is the user-facing priority axis."
         }
       },
       "additionalProperties": false
@@ -174,6 +179,24 @@
       "type": "array",
       "items": {
         "$ref": "#/definitions/hostRequirement"
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "description": "How this scenario or service is meant to be run. Declares the scenario's recommended runtime shape; per-install operator choices (whether to actually keep it running) live in operator-state.json.",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["long_running", "on_demand", "one_shot"],
+          "default": "on_demand",
+          "description": "'long_running' = process intended to stay up (e.g. an API server, a watcher); 'on_demand' = started when invoked and stopped when idle; 'one_shot' = runs to completion and exits (e.g. a migration tool)."
+        },
+        "auto_restart_default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Recommended default for the auto-heal toggle in onboarding. Operators can override per-install via operator-state.json. Typically true for long_running scenarios that are part of system operation; false for user applications the operator may prefer to start manually."
+        }
       }
     },
     "deployment": {

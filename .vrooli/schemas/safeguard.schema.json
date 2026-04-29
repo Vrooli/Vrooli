@@ -29,6 +29,12 @@
       },
       "description": "Platforms this safeguard applies to. Omit for all platforms."
     },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "default": "low",
+      "description": "Operator-facing risk indicator. 'low' = no system state changes outside Vrooli's tree (probes, reads); 'medium' = writes config files outside Vrooli's tree or modifies networking rules; 'high' = modifies kernel parameters or requires root in ways that broadly affect host behavior. Used by onboarding to surface risk before opt-in."
+    },
     "healthCheck": {
       "$ref": "#/$defs/healthCheck"
     },

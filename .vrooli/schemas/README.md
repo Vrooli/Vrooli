@@ -19,7 +19,10 @@ The most important source-of-truth rule is:
 
 - `service.schema.json`
   Defines project-level and scenario-level `.vrooli/service.json` manifests.
-  The current top-level properties include `service`, `dependencies`, `deployment`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, and `version`.
+  The current top-level properties include `service`, `dependencies`, `deployment`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`.
+
+- `operator-state.schema.json`
+  Defines the per-install operator-state document at `.vrooli/operator-state.json`. Holds mutable operator choices (which scenarios/resources are enabled, per-scenario auto-restart overrides, host-tool and safeguard opt-ins) written by `vrooli-onboarding`. See [`docs/configuration/architecture.md`](../../docs/configuration/architecture.md) for the manifest-vs-state separation.
 
 - `resource.schema.json`
   Defines `resources/<name>/resource.json` manifests for active resources and resource templates.

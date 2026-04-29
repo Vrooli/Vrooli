@@ -88,6 +88,50 @@
     "secretRef": {
       "$ref": "#/definitions/secretReference",
       "description": "Alias for secretReference (backward compatibility)"
+    },
+    "secretDescriptor": {
+      "type": "object",
+      "description": "Operator-facing metadata for a secret value the user supplies. Distinct from secretReference (which describes where a secret is stored): a secretDescriptor describes what the secret is and how the operator obtains it, surfaced in onboarding and admin UIs. Replaces the older deploymentTierSecret type for new code paths.",
+      "required": ["env"],
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "type": "string",
+          "description": "Environment variable name the secret is exposed as at runtime (e.g. GEMINI_API_KEY)."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable display name shown in onboarding and admin UIs (e.g. 'Gemini API Key')."
+        },
+        "description": {
+          "type": "string",
+          "description": "Why this secret is needed and what it unlocks. Shown to operators while they decide whether to provide it."
+        },
+        "classification": {
+          "type": "string",
+          "enum": ["infrastructure", "service", "user"],
+          "default": "user",
+          "description": "Origin of the secret. 'infrastructure' = system-generated (e.g. internal service-to-service tokens); 'service' = scenario-specific (e.g. a webhook signing secret); 'user' = operator-provided (e.g. a third-party API key)."
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the resource or scenario refuses to start without this value. Optional secrets gate specific features rather than the whole component."
+        },
+        "default_hint": {
+          "type": "string",
+          "description": "Hint shown next to the input field guiding the operator on shape or generation (e.g. 'Generate a 32-character random string', 'Starts with sk-...'). Not a default value — never auto-filled."
+        },
+        "obtain_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL where the operator can sign up for or generate this credential. Onboarding surfaces this as a 'Get one' link."
+        },
+        "validation_pattern": {
+          "type": "string",
+          "description": "Regex the value must match. Lightweight client-side check to catch typos; not a security control."
+        }
+      }
     }
   }
 }

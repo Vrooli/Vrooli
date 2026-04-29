@@ -20,6 +20,17 @@
 - [x] OT-P2-001 | Smart Flow Optimization | Intelligent setup order suggestions while maintaining flow flexibility
 - [x] OT-P2-002 | User-Friendly Documentation | Context-aware help content with plain language descriptions replacing technical terms
 
+### 🔵 V2 Rework – Configuration substrate alignment (planned)
+The wizard's first iteration grouped operator choices around resources. The v2 rework inverts the model so operators select scenarios first (capabilities), and resources, secrets, host tools/safeguards, and integrations are derived from that selection. The configuration substrate this rework consumes is documented in [`/docs/configuration/`](../../docs/configuration/); see [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md) for the flow and wireframes.
+
+- [ ] OT-V2-001 | Scenarios-first wizard flow | Replace the resources-first flow with scenarios → resources → secrets → integrations → host → operating-mode → validation. System-required scenarios render as locked-on per `service.system_required`.
+- [ ] OT-V2-002 | Operator state persisted to operator-state.json | Wizard writes choices to `.vrooli/operator-state.json` per [`operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json). Manifests remain the source of declarative truth; this file holds operator choices only.
+- [ ] OT-V2-003 | Host tools/safeguards step with risk indicator | New step rendering `risk` field on safeguards and opt-in toggles writing to `host_tools` and `host_safeguards` in operator-state.
+- [ ] OT-V2-004 | Per-scenario auto-restart toggle | "Keep running" toggle per scenario, defaulting from `runtime.auto_restart_default`, override stored in operator-state.
+- [ ] OT-V2-005 | Re-enterable from any step | Wizard is idempotent and re-enterable; not a one-shot. Adding a scenario or resource later re-enters at the relevant step with prior state pre-loaded.
+- [ ] OT-V2-006 | Final validation report | Terminal step runs full health-probe pass and shows green-light or actionable error list.
+- [ ] OT-V2-FEATURE-COMPLETE | Wizard covers every documented integration | **Feature-complete when every integration documented in [`/docs/configuration/integrations/`](../../docs/configuration/integrations/) has a wizard step.** This is the explicit acceptance criterion: the configuration docs are the contract; the wizard is the implementation.
+
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks: Go (API/CLI), React/TypeScript (UI)
 - Data + storage expectations: Local file system (.vrooli/), HTTP endpoints for health checks
@@ -46,3 +57,5 @@
 - Reference: GuidedTour implementation from browser-automation-studio
 - Schema: service.json validation requirements
 - Health check endpoint specifications
+- **Configuration substrate**: [`/docs/configuration/`](../../docs/configuration/) — the source-of-truth contract this scenario implements. New configurability must be documented there before becoming a wizard step.
+- **V2 wizard flow + wireframes**: [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md) — step-by-step plan, UX sketches, and transcripts from the design conversation.

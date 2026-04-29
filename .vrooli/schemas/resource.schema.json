@@ -87,15 +87,21 @@
     },
     "credentials": {
       "type": "object",
+      "description": "Declares the secrets this resource needs at runtime. Each entry in `env` is either a bare environment-variable name (legacy, minimal) or a secretDescriptor (preferred, surfaces label/description/obtain_url to onboarding). `secret_ref` is the canonical Vault path where the value is stored.",
       "properties": {
         "env": {
           "type": "array",
+          "description": "Environment variables required at runtime. Strings are accepted for backward compatibility; objects supply the rich descriptor used by onboarding and admin UIs. Mix freely.",
           "items": {
-            "type": "string"
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "common.schema.json#/definitions/secretDescriptor" }
+            ]
           }
         },
         "secret_ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Canonical Vault path where the secret values are stored (e.g. 'secret/vrooli/gemini')."
         }
       }
     },

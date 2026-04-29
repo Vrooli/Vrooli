@@ -2,10 +2,12 @@
 
 Central configuration hub guiding users through Vrooli resource setup with guided flows, secret validation, and health visualization.
 
+> **Configuration substrate is documented at [`/docs/configuration/`](../../docs/configuration/).** That folder is the canonical contract this scenario implements; new configurability lands as a doc page first, then becomes a wizard step. The v2 rework flow and wireframes are in [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md).
+
 ## Architecture
 
 - **Go API** (`api/`) - REST endpoints for resource discovery, config generation/validation, and progress persistence
-- **React + TypeScript + Vite UI** (`ui/`) - 4-step onboarding wizard (Welcome → Select Resources → Review → Complete)
+- **React + TypeScript + Vite UI** (`ui/`) - Onboarding wizard. Current shipped flow: Welcome → Select Resources → Review → Complete (4 steps). V2 rework planned: Scenarios → Resources → Secrets → Integrations → Host → Operating-mode → Validation (see [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md))
 - **CLI** (`cli/`) - Command-line interface for health checks and configuration
 - **Lifecycle + health wiring** (`.vrooli/service.json`)
 - **Requirements registry + progress log** (`requirements/`, `docs/PROGRESS.md`)
