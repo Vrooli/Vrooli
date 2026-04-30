@@ -2,12 +2,65 @@ package settings
 
 import (
 	"testing"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
 
 func TestNormalizeSettingsDefaultsTheme(t *testing.T) {
 	normalized := normalizeSettings(Settings{Theme: ""})
 	if normalized.Theme != "dark" {
 		t.Fatalf("expected default theme dark, got %q", normalized.Theme)
+	}
+}
+
+func TestDeleteConfirmLevelProtoDefaulting(t *testing.T) {
+	tests := []struct {
+		name  string
+		proto domainpb.DeleteConfirmLevel
+		want  DeleteConfirmLevel
+	}{
+		{
+			name:  "unspecified defaults to simple",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_UNSPECIFIED,
+			want:  DeleteConfirmSimple,
+		},
+		{
+			name:  "simple round-trips",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE,
+			want:  DeleteConfirmSimple,
+		},
+		{
+			name:  "none round-trips",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE,
+			want:  DeleteConfirmNone,
+		},
+		{
+			name:  "strong round-trips",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG,
+			want:  DeleteConfirmStrong,
+		},
+		{
+			name:  "unknown defaults to simple",
+			proto: domainpb.DeleteConfirmLevel(99),
+			want:  DeleteConfirmSimple,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := deleteConfirmLevelFromProto(tc.proto); got != tc.want {
+				t.Fatalf("deleteConfirmLevelFromProto(%v) = %q, want %q", tc.proto, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDeleteConfirmLevelToProtoUsesExplicitSimple(t *testing.T) {
+	if got := deleteConfirmLevelToProto(DeleteConfirmSimple); got != domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE {
+		t.Fatalf("deleteConfirmLevelToProto(simple) = %v, want SIMPLE", got)
+	}
+	if got := deleteConfirmLevelToProto(DeleteConfirmLevel("")); got != domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE {
+		t.Fatalf("deleteConfirmLevelToProto(empty) = %v, want SIMPLE", got)
 	}
 }
 

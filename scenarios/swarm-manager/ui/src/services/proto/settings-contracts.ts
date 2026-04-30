@@ -26,6 +26,8 @@ function normalizeThemePreference(value?: string): ThemePreference {
 
 function mapDeleteConfirmLevel(proto: DeleteConfirmLevel): DomainDeleteConfirmLevel {
   switch (proto) {
+    case DeleteConfirmLevel.SIMPLE:
+      return "simple";
     case DeleteConfirmLevel.NONE:
       return "none";
     case DeleteConfirmLevel.STRONG:

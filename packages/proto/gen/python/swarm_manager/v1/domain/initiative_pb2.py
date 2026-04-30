@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xf9\x02\n\nInitiative\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n\x05title\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05title\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x30\n\x06status\x18\x04 \x01(\tB\x18\xbaH\x15r\x13R\x06\x61\x63tiveR\tcompletedR\x06status\x12\x14\n\x05items\x18\x05 \x03(\tR\x05items\x12\x18\n\x07\x63reated\x18\x06 \x01(\tR\x07\x63reated\x12\x18\n\x07updated\x18\x07 \x01(\tR\x07updated\x12\x17\n\x04note\x18\x08 \x01(\tH\x00R\x04note\x88\x01\x01\x12$\n\x0b\x61rchived_at\x18\t \x01(\tH\x01R\narchivedAt\x88\x01\x01\x12\x1a\n\x08priority\x18\n \x01(\x05R\x08priority\x12\x1d\n\ndepends_on\x18\x0b \x03(\tR\tdependsOnB\x07\n\x05_noteB\x0e\n\x0c_archived_at\"\xb5\x01\n\x10InitiativeRollup\x12\x14\n\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x1f\n\x0bin_progress\x18\x03 \x01(\x05R\ninProgress\x12\x16\n\x06\x66\x61iled\x18\x04 \x01(\x05R\x06\x66\x61iled\x12\x18\n\x07pending\x18\x05 \x01(\x05R\x07pending\x12\x1a\n\x08\x61rchived\x18\x06 \x01(\x05R\x08\x61rchivedBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xa6\x04\n\nInitiative\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n\x05title\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05title\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x63\n\x06status\x18\x04 \x01(\tBK\xbaHHrFR\x06\x61\x63tiveR\tin_reviewR\x0ereview_pendingR\tcompletedR\x06\x66\x61iledR\x0eneeds_followupR\x06status\x12\x14\n\x05items\x18\x05 \x03(\tR\x05items\x12\x18\n\x07\x63reated\x18\x06 \x01(\tR\x07\x63reated\x12\x18\n\x07updated\x18\x07 \x01(\tR\x07updated\x12\x17\n\x04note\x18\x08 \x01(\tH\x00R\x04note\x88\x01\x01\x12$\n\x0b\x61rchived_at\x18\t \x01(\tH\x01R\narchivedAt\x88\x01\x01\x12\x1a\n\x08priority\x18\n \x01(\x05R\x08priority\x12\x1d\n\ndepends_on\x18\x0b \x03(\tR\tdependsOn\x12G\n\x04mode\x18\x0c \x01(\tB3\xbaH0r.R\nitem-levelR\rholistic-loopR\x11phased-plan-drainR\x04mode\x12/\n\x13\x61\x63\x63\x65ptance_criteria\x18\r \x03(\tR\x12\x61\x63\x63\x65ptanceCriteriaB\x07\n\x05_noteB\x0e\n\x0c_archived_at\"\xb5\x01\n\x10InitiativeRollup\x12\x14\n\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x1f\n\x0bin_progress\x18\x03 \x01(\x05R\ninProgress\x12\x16\n\x06\x66\x61iled\x18\x04 \x01(\x05R\x06\x66\x61iled\x12\x18\n\x07pending\x18\x05 \x01(\x05R\x07pending\x12\x1a\n\x08\x61rchived\x18\x06 \x01(\x05R\x08\x61rchivedBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,9 +38,11 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_INITIATIVE'].fields_by_name['title']._loaded_options = None
   _globals['_INITIATIVE'].fields_by_name['title']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_INITIATIVE'].fields_by_name['status']._loaded_options = None
-  _globals['_INITIATIVE'].fields_by_name['status']._serialized_options = b'\272H\025r\023R\006activeR\tcompleted'
+  _globals['_INITIATIVE'].fields_by_name['status']._serialized_options = b'\272HHrFR\006activeR\tin_reviewR\016review_pendingR\tcompletedR\006failedR\016needs_followup'
+  _globals['_INITIATIVE'].fields_by_name['mode']._loaded_options = None
+  _globals['_INITIATIVE'].fields_by_name['mode']._serialized_options = b'\272H0r.R\nitem-levelR\rholistic-loopR\021phased-plan-drain'
   _globals['_INITIATIVE']._serialized_start=92
-  _globals['_INITIATIVE']._serialized_end=469
-  _globals['_INITIATIVEROLLUP']._serialized_start=472
-  _globals['_INITIATIVEROLLUP']._serialized_end=653
+  _globals['_INITIATIVE']._serialized_end=642
+  _globals['_INITIATIVEROLLUP']._serialized_start=645
+  _globals['_INITIATIVEROLLUP']._serialized_end=826
 # @@protoc_insertion_point(module_scope)

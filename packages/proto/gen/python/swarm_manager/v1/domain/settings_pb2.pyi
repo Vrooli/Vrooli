@@ -9,9 +9,11 @@ DESCRIPTOR: _descriptor.FileDescriptor
 
 class DeleteConfirmLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
+    DELETE_CONFIRM_LEVEL_UNSPECIFIED: _ClassVar[DeleteConfirmLevel]
     DELETE_CONFIRM_LEVEL_SIMPLE: _ClassVar[DeleteConfirmLevel]
     DELETE_CONFIRM_LEVEL_NONE: _ClassVar[DeleteConfirmLevel]
     DELETE_CONFIRM_LEVEL_STRONG: _ClassVar[DeleteConfirmLevel]
+DELETE_CONFIRM_LEVEL_UNSPECIFIED: DeleteConfirmLevel
 DELETE_CONFIRM_LEVEL_SIMPLE: DeleteConfirmLevel
 DELETE_CONFIRM_LEVEL_NONE: DeleteConfirmLevel
 DELETE_CONFIRM_LEVEL_STRONG: DeleteConfirmLevel

@@ -32,7 +32,7 @@ type Initiative struct {
 	// Detailed description of the initiative.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Lifecycle state for the initiative.
-	// @constraint one of: active, completed
+	// @constraint one of: active, in_review, review_pending, completed, failed, needs_followup
 	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	// Backlog item references as "kind/name" strings.
 	Items []string `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
@@ -53,9 +53,14 @@ type Initiative struct {
 	Priority int32 `protobuf:"varint,10,opt,name=priority,proto3" json:"priority,omitempty"`
 	// Upstream initiative names this initiative depends on. Creates a directed
 	// edge in the initiative DAG; dependents cannot start until upstreams complete.
-	DependsOn     []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DependsOn []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Operating mode that owns initiative execution semantics.
+	// @constraint one of: item-level, holistic-loop, phased-plan-drain
+	Mode string `protobuf:"bytes,12,opt,name=mode,proto3" json:"mode,omitempty"`
+	// Initiative-scoped acceptance criteria used by non-item-level modes.
+	AcceptanceCriteria []string `protobuf:"bytes,13,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Initiative) Reset() {
@@ -165,6 +170,20 @@ func (x *Initiative) GetDependsOn() []string {
 	return nil
 }
 
+func (x *Initiative) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *Initiative) GetAcceptanceCriteria() []string {
+	if x != nil {
+		return x.AcceptanceCriteria
+	}
+	return nil
+}
+
 // InitiativeRollup provides aggregated status counts for initiative items.
 type InitiativeRollup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -260,13 +279,13 @@ var File_swarm_manager_v1_domain_initiative_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf9\x02\n" +
+	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa6\x04\n" +
 	"\n" +
 	"Initiative\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x120\n" +
-	"\x06status\x18\x04 \x01(\tB\x18\xbaH\x15r\x13R\x06activeR\tcompletedR\x06status\x12\x14\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12c\n" +
+	"\x06status\x18\x04 \x01(\tBK\xbaHHrFR\x06activeR\tin_reviewR\x0ereview_pendingR\tcompletedR\x06failedR\x0eneeds_followupR\x06status\x12\x14\n" +
 	"\x05items\x18\x05 \x03(\tR\x05items\x12\x18\n" +
 	"\acreated\x18\x06 \x01(\tR\acreated\x12\x18\n" +
 	"\aupdated\x18\a \x01(\tR\aupdated\x12\x17\n" +
@@ -276,7 +295,10 @@ const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\bpriority\x18\n" +
 	" \x01(\x05R\bpriority\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\v \x03(\tR\tdependsOnB\a\n" +
+	"depends_on\x18\v \x03(\tR\tdependsOn\x12G\n" +
+	"\x04mode\x18\f \x01(\tB3\xbaH0r.R\n" +
+	"item-levelR\rholistic-loopR\x11phased-plan-drainR\x04mode\x12/\n" +
+	"\x13acceptance_criteria\x18\r \x03(\tR\x12acceptanceCriteriaB\a\n" +
 	"\x05_noteB\x0e\n" +
 	"\f_archived_at\"\xb5\x01\n" +
 	"\x10InitiativeRollup\x12\x14\n" +

@@ -26,12 +26,15 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 
 // Confirmation level for delete operations.
 enum DeleteConfirmLevel {
-  // Simple OK/Cancel dialog (proto3 zero-value default).
-  DELETE_CONFIRM_LEVEL_SIMPLE = 0;
+  // Unset value. Runtime settings normalize this to the system default for the
+  // entity type, which is currently simple confirmation for missing values.
+  DELETE_CONFIRM_LEVEL_UNSPECIFIED = 0;
+  // Simple OK/Cancel dialog.
+  DELETE_CONFIRM_LEVEL_SIMPLE = 1;
   // No confirmation — delete immediately on click.
-  DELETE_CONFIRM_LEVEL_NONE = 1;
+  DELETE_CONFIRM_LEVEL_NONE = 2;
   // Strong confirmation — user must type the entity name.
-  DELETE_CONFIRM_LEVEL_STRONG = 2;
+  DELETE_CONFIRM_LEVEL_STRONG = 3;
 }
 
 // Per-entity-type delete confirmation settings.

@@ -26,25 +26,30 @@ const (
 type DeleteConfirmLevel int32
 
 const (
-	// Simple OK/Cancel dialog (proto3 zero-value default).
-	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE DeleteConfirmLevel = 0
+	// Unset value. Runtime settings normalize this to the system default for the
+	// entity type, which is currently simple confirmation for missing values.
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_UNSPECIFIED DeleteConfirmLevel = 0
+	// Simple OK/Cancel dialog.
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE DeleteConfirmLevel = 1
 	// No confirmation — delete immediately on click.
-	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE DeleteConfirmLevel = 1
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE DeleteConfirmLevel = 2
 	// Strong confirmation — user must type the entity name.
-	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG DeleteConfirmLevel = 2
+	DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG DeleteConfirmLevel = 3
 )
 
 // Enum value maps for DeleteConfirmLevel.
 var (
 	DeleteConfirmLevel_name = map[int32]string{
-		0: "DELETE_CONFIRM_LEVEL_SIMPLE",
-		1: "DELETE_CONFIRM_LEVEL_NONE",
-		2: "DELETE_CONFIRM_LEVEL_STRONG",
+		0: "DELETE_CONFIRM_LEVEL_UNSPECIFIED",
+		1: "DELETE_CONFIRM_LEVEL_SIMPLE",
+		2: "DELETE_CONFIRM_LEVEL_NONE",
+		3: "DELETE_CONFIRM_LEVEL_STRONG",
 	}
 	DeleteConfirmLevel_value = map[string]int32{
-		"DELETE_CONFIRM_LEVEL_SIMPLE": 0,
-		"DELETE_CONFIRM_LEVEL_NONE":   1,
-		"DELETE_CONFIRM_LEVEL_STRONG": 2,
+		"DELETE_CONFIRM_LEVEL_UNSPECIFIED": 0,
+		"DELETE_CONFIRM_LEVEL_SIMPLE":      1,
+		"DELETE_CONFIRM_LEVEL_NONE":        2,
+		"DELETE_CONFIRM_LEVEL_STRONG":      3,
 	}
 )
 
@@ -119,21 +124,21 @@ func (x *DeleteConfirmationSettings) GetBacklog() DeleteConfirmLevel {
 	if x != nil {
 		return x.Backlog
 	}
-	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_UNSPECIFIED
 }
 
 func (x *DeleteConfirmationSettings) GetInitiative() DeleteConfirmLevel {
 	if x != nil {
 		return x.Initiative
 	}
-	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_UNSPECIFIED
 }
 
 func (x *DeleteConfirmationSettings) GetCapture() DeleteConfirmLevel {
 	if x != nil {
 		return x.Capture
 	}
-	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE
+	return DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_UNSPECIFIED
 }
 
 // Settings captures persisted configuration for Swarm Manager.
@@ -443,11 +448,12 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x17agent_requires_approvalR\x1bconfirm_destructive_actions*u\n" +
-	"\x12DeleteConfirmLevel\x12\x1f\n" +
-	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x00\x12\x1d\n" +
-	"\x19DELETE_CONFIRM_LEVEL_NONE\x10\x01\x12\x1f\n" +
-	"\x1bDELETE_CONFIRM_LEVEL_STRONG\x10\x02BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x17agent_requires_approvalR\x1bconfirm_destructive_actions*\x9b\x01\n" +
+	"\x12DeleteConfirmLevel\x12$\n" +
+	" DELETE_CONFIRM_LEVEL_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x01\x12\x1d\n" +
+	"\x19DELETE_CONFIRM_LEVEL_NONE\x10\x02\x12\x1f\n" +
+	"\x1bDELETE_CONFIRM_LEVEL_STRONG\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once

@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/initiative.proto.
  */
 export const file_swarm_manager_v1_domain_initiative: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIpcCCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSKAoGc3RhdHVzGAQgASgJQhi6SBVyE1IGYWN0aXZlUgljb21wbGV0ZWQSDQoFaXRlbXMYBSADKAkSDwoHY3JlYXRlZBgGIAEoCRIPCgd1cGRhdGVkGAcgASgJEhEKBG5vdGUYCCABKAlIAIgBARIYCgthcmNoaXZlZF9hdBgJIAEoCUgBiAEBEhAKCHByaW9yaXR5GAogASgFEhIKCmRlcGVuZHNfb24YCyADKAlCBwoFX25vdGVCDgoMX2FyY2hpdmVkX2F0InwKEEluaXRpYXRpdmVSb2xsdXASDQoFdG90YWwYASABKAUSEQoJY29tcGxldGVkGAIgASgFEhMKC2luX3Byb2dyZXNzGAMgASgFEg4KBmZhaWxlZBgEIAEoBRIPCgdwZW5kaW5nGAUgASgFEhAKCGFyY2hpdmVkGAYgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIqoDCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSWwoGc3RhdHVzGAQgASgJQku6SEhyRlIGYWN0aXZlUglpbl9yZXZpZXdSDnJldmlld19wZW5kaW5nUgljb21wbGV0ZWRSBmZhaWxlZFIObmVlZHNfZm9sbG93dXASDQoFaXRlbXMYBSADKAkSDwoHY3JlYXRlZBgGIAEoCRIPCgd1cGRhdGVkGAcgASgJEhEKBG5vdGUYCCABKAlIAIgBARIYCgthcmNoaXZlZF9hdBgJIAEoCUgBiAEBEhAKCHByaW9yaXR5GAogASgFEhIKCmRlcGVuZHNfb24YCyADKAkSQQoEbW9kZRgMIAEoCUIzukgwci5SCml0ZW0tbGV2ZWxSDWhvbGlzdGljLWxvb3BSEXBoYXNlZC1wbGFuLWRyYWluEhsKE2FjY2VwdGFuY2VfY3JpdGVyaWEYDSADKAlCBwoFX25vdGVCDgoMX2FyY2hpdmVkX2F0InwKEEluaXRpYXRpdmVSb2xsdXASDQoFdG90YWwYASABKAUSEQoJY29tcGxldGVkGAIgASgFEhMKC2luX3Byb2dyZXNzGAMgASgFEg4KBmZhaWxlZBgEIAEoBRIPCgdwZW5kaW5nGAUgASgFEhAKCGFyY2hpdmVkGAYgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * Initiative represents a named grouping of backlog items.
@@ -42,7 +42,7 @@ export type Initiative = Message<"swarm_manager.v1.Initiative"> & {
 
   /**
    * Lifecycle state for the initiative.
-   * @constraint one of: active, completed
+   * @constraint one of: active, in_review, review_pending, completed, failed, needs_followup
    *
    * @generated from field: string status = 4;
    */
@@ -102,6 +102,21 @@ export type Initiative = Message<"swarm_manager.v1.Initiative"> & {
    * @generated from field: repeated string depends_on = 11;
    */
   dependsOn: string[];
+
+  /**
+   * Operating mode that owns initiative execution semantics.
+   * @constraint one of: item-level, holistic-loop, phased-plan-drain
+   *
+   * @generated from field: string mode = 12;
+   */
+  mode: string;
+
+  /**
+   * Initiative-scoped acceptance criteria used by non-item-level modes.
+   *
+   * @generated from field: repeated string acceptance_criteria = 13;
+   */
+  acceptanceCriteria: string[];
 };
 
 /**

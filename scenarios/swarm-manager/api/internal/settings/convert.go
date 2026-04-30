@@ -18,6 +18,8 @@ func deleteConfirmLevelToProto(level DeleteConfirmLevel) domainpb.DeleteConfirmL
 
 func deleteConfirmLevelFromProto(level domainpb.DeleteConfirmLevel) DeleteConfirmLevel {
 	switch level {
+	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE:
+		return DeleteConfirmSimple
 	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE:
 		return DeleteConfirmNone
 	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG:
