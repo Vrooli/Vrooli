@@ -40,11 +40,13 @@ func (f fakeBacklog) LoadBacklogItem(kind, name string) (BacklogItemSnapshot, er
 
 type fakeBacklogMutator struct {
 	completed []string
+	sources   []BacklogMutationSource
 }
 
-func (f *fakeBacklogMutator) MarkBacklogItemCompleted(_ context.Context, kind, name, source string) (BacklogCompletionResult, error) {
+func (f *fakeBacklogMutator) MarkBacklogItemCompleted(_ context.Context, kind, name string, source BacklogMutationSource) (BacklogCompletionResult, error) {
 	ref := kind + "/" + name
-	f.completed = append(f.completed, ref+"@"+source)
+	f.completed = append(f.completed, ref+"@"+source.Entrypoint)
+	f.sources = append(f.sources, source)
 	return BacklogCompletionResult{ItemRef: ref, FromStatus: "ready", ToStatus: "completed"}, nil
 }
 
@@ -127,10 +129,18 @@ func (f *fakeAgent) StopRun(_ context.Context, runID string) error {
 
 type fakePrompts struct {
 	calls []string
+	err   error
+	text  string
 }
 
 func (f *fakePrompts) ReadSkill(_ context.Context, skillID string, _ map[string]string, _ bool) (string, error) {
 	f.calls = append(f.calls, skillID)
+	if f.err != nil {
+		return "", f.err
+	}
+	if f.text != "" {
+		return f.text, nil
+	}
 	return "rendered " + skillID, nil
 }
 
@@ -174,6 +184,175 @@ func TestStartPhaseCreatesRoundLocksAndSpawnsWithProfile(t *testing.T) {
 	}
 	if holder == nil || holder.RunID != "run-1" || holder.Purpose != "holistic_loop_investigate" {
 		t.Fatalf("holder = %+v, want run-1 holistic_loop_investigate", holder)
+	}
+}
+
+func TestStartPhaseRejectsInvalidFirstPhase(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "review",
+	})
+	if err == nil || !strings.Contains(err.Error(), `first phase must be "investigate"`) {
+		t.Fatalf("StartPhase review first error = %v, want start phase error", err)
+	}
+	if len(agent.spawned) != 0 {
+		t.Fatalf("spawned = %d, want no spawn for invalid phase", len(agent.spawned))
+	}
+	rounds, listErr := svc.store.ListRounds("init-a", ModeHolisticLoop)
+	if listErr != nil {
+		t.Fatalf("ListRounds: %v", listErr)
+	}
+	if len(rounds) != 0 {
+		t.Fatalf("rounds = %+v, want no reserved round for invalid phase", rounds)
+	}
+}
+
+func TestStartPhaseFollowsHolisticLoopTransitions(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
+
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "execute",
+	})
+	if err == nil || !strings.Contains(err.Error(), `does not transition to "execute"`) {
+		t.Fatalf("StartPhase execute after investigate error = %v, want transition error", err)
+	}
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "plan",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase plan after investigate returned error: %v", err)
+	}
+	if round.Phase != "plan" {
+		t.Fatalf("round phase = %q, want plan", round.Phase)
+	}
+}
+
+func TestWorkspaceExposesBackendPhaseActions(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
+
+	workspace, err := svc.Workspace(context.Background(), "init-a")
+	if err != nil {
+		t.Fatalf("Workspace returned error: %v", err)
+	}
+	actions := map[string]WorkspacePhase{}
+	for _, phase := range workspace.Definition.Phases {
+		actions[phase.Phase] = phase
+	}
+	if !actions["plan"].Startable || !actions["plan"].Next {
+		t.Fatalf("plan action = %+v, want startable next phase", actions["plan"])
+	}
+	if actions["execute"].Startable || !strings.Contains(actions["execute"].Reason, "investigate") {
+		t.Fatalf("execute action = %+v, want disabled with transition reason", actions["execute"])
+	}
+}
+
+func TestStartPhaseUsesReplanSignalForHolisticExecuteNextPhase(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestService(t, root, &fakeAgent{}, &fakePrompts{})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", map[string]any{"replan_needed": true})
+
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "review",
+	})
+	if err == nil || !strings.Contains(err.Error(), `does not transition to "review"`) {
+		t.Fatalf("StartPhase review after replan execute error = %v, want transition error", err)
+	}
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase investigate after replan execute returned error: %v", err)
+	}
+	if round.Phase != "investigate" {
+		t.Fatalf("round phase = %q, want investigate", round.Phase)
+	}
+}
+
+func TestStartPhaseFollowsPhasedPlanProgressTransitions(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-phased": {
+				Name:               "init-phased",
+				Title:              "Init Phased",
+				Description:        "Test phased initiative",
+				Mode:               string(ModePhasedPlanDrain),
+				Items:              []string{"execute/do-thing"},
+				AcceptanceCriteria: []string{"works end to end"},
+			},
+		}},
+	})
+
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-phased",
+		Phase:          "execute_next",
+	})
+	if err == nil || !strings.Contains(err.Error(), `first phase must be "prepare_plan"`) {
+		t.Fatalf("StartPhase execute_next first error = %v, want start phase error", err)
+	}
+
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "classify_progress", map[string]any{
+		"progress": ProgressState{Decision: ProgressContinue},
+	})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-phased",
+		Phase:          "execute_next",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase execute_next after continue returned error: %v", err)
+	}
+	if round.Phase != "execute_next" {
+		t.Fatalf("round phase = %q, want execute_next", round.Phase)
+	}
+}
+
+func TestStartPhaseFailsClosedWhenPromptRenderFails(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	svc := newTestService(t, root, agent, &fakePrompts{err: errors.New("prompt-manager unavailable")})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err == nil || !strings.Contains(err.Error(), "render operating-mode prompt") {
+		t.Fatalf("StartPhase error = %v, want prompt render failure", err)
+	}
+	if len(agent.spawned) != 0 {
+		t.Fatalf("spawned = %d, want no spawn when prompt rendering fails", len(agent.spawned))
+	}
+	loaded, loadErr := svc.store.LoadRound("init-a", ModeHolisticLoop, round.Round)
+	if loadErr != nil {
+		t.Fatalf("LoadRound: %v", loadErr)
+	}
+	if loaded.Status != RoundStatusFailed || !strings.Contains(loaded.Error, "prompt-manager unavailable") {
+		t.Fatalf("round = %+v, want failed prompt round", loaded)
+	}
+	holder, inspectErr := svc.lock.Inspect("init-a")
+	if inspectErr != nil {
+		t.Fatalf("Inspect lock: %v", inspectErr)
+	}
+	if holder != nil {
+		t.Fatalf("lock holder = %+v, want nil after prompt failure", holder)
 	}
 }
 
@@ -255,6 +434,8 @@ func TestCompleteItemsRequiresRoundRunIDAndMembership(t *testing.T) {
 	root := t.TempDir()
 	mutator := &fakeBacklogMutator{}
 	svc := newTestServiceWithOptions(t, root, serviceOptions{backlogMutator: mutator})
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
 	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
 		Phase:          "execute",
@@ -276,8 +457,15 @@ func TestCompleteItemsRequiresRoundRunIDAndMembership(t *testing.T) {
 	if len(result.CompletedItems) != 1 || result.CompletedItems[0].ItemRef != "execute/do-thing" {
 		t.Fatalf("completed items = %+v", result.CompletedItems)
 	}
-	if got := fmt.Sprint(mutator.completed); got != "[execute/do-thing@holistic-loop/round-001]" {
+	if got := fmt.Sprint(mutator.completed); got != "[execute/do-thing@initiative.operating_mode.complete_items]" {
 		t.Fatalf("mutator completed = %s", got)
+	}
+	if len(mutator.sources) != 1 {
+		t.Fatalf("mutation sources = %+v, want one", mutator.sources)
+	}
+	source := mutator.sources[0]
+	if source.InitiativeName != "init-a" || source.Mode != string(ModeHolisticLoop) || source.Phase != "execute" || source.Round != round.Round || source.RunID != round.RunID || source.RequestedBy != "swarm-manager" {
+		t.Fatalf("mutation source = %+v", source)
 	}
 
 	_, err = svc.CompleteItems(context.Background(), CompleteItemsRequest{
@@ -312,6 +500,9 @@ func TestApplyBacklogSyncAppliesProposalThroughProposalBoundary(t *testing.T) {
 	summary := `{"operating_mode_result":{"backlog_sync":{"proposal":{"form":"mutation_list","mutations":[{"id":"m1","op":"add_item","item":{"kind":"fix","name":"follow-up","title":"Follow up"}}]}}}}`
 	agent := svc.agent.(*fakeAgent)
 	agent.states["run-1"] = agentmanager.RunState{RunID: "run-1", Status: "complete", Summary: summary, FinishedAt: "2026-04-30T12:05:00Z"}
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "plan", nil)
+	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "execute", map[string]any{"replan_needed": false})
 	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
 		InitiativeName: "init-a",
 		Phase:          "review",
@@ -344,7 +535,7 @@ func TestApplyBacklogSyncAppliesProposalThroughProposalBoundary(t *testing.T) {
 	if got := fmt.Sprint(reconciler.req.AcceptedMutationIDs); got != "[m1]" {
 		t.Fatalf("accepted = %s", got)
 	}
-	if reconciler.req.InitiativeName != "init-a" || reconciler.req.Round != round.Round || reconciler.req.DecidedBy != "tester" {
+	if reconciler.req.InitiativeName != "init-a" || reconciler.req.Mode != string(ModeHolisticLoop) || reconciler.req.Round != round.Round || reconciler.req.Phase != "review" || reconciler.req.RunID != round.RunID || reconciler.req.DecidedBy != "tester" {
 		t.Fatalf("reconcile request = %+v", reconciler.req)
 	}
 	loaded, err := svc.store.LoadRound("init-a", ModeHolisticLoop, round.Round)
@@ -439,6 +630,48 @@ func TestSwitchModeCancelsActiveItemExecutionsThenUpdatesMode(t *testing.T) {
 	}
 }
 
+func TestSwitchModeRejectsActiveOperatingModeRound(t *testing.T) {
+	root := t.TempDir()
+	updater := &fakeModeUpdater{items: map[string]InitiativeSnapshot{
+		"init-mode": {
+			Name:  "init-mode",
+			Title: "Init Mode",
+			Mode:  string(ModeHolisticLoop),
+		},
+	}}
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-mode": updater.items["init-mode"],
+		}},
+		modeUpdater: updater,
+	})
+	if _, err := svc.store.CreateRound(RoundEnvelope{
+		Mode:           string(ModeHolisticLoop),
+		InitiativeName: "init-mode",
+		ScopeID:        "init-mode",
+		Phase:          "investigate",
+		Status:         RoundStatusAgentRunning,
+		RunID:          "run-active",
+	}); err != nil {
+		t.Fatalf("CreateRound: %v", err)
+	}
+
+	_, err := svc.SwitchMode(context.Background(), SwitchModeRequest{
+		InitiativeName: "init-mode",
+		Mode:           string(ModeItemLevel),
+	})
+	var conflict *ActiveOperatingModeRoundConflict
+	if err == nil || !errors.As(err, &conflict) {
+		t.Fatalf("SwitchMode error = %v, want ActiveOperatingModeRoundConflict", err)
+	}
+	if conflict.Round.RunID != "run-active" {
+		t.Fatalf("conflict round = %+v, want run-active", conflict.Round)
+	}
+	if len(updater.updates) != 0 {
+		t.Fatalf("updates = %v, want none while operating-mode round is active", updater.updates)
+	}
+}
+
 func newTestService(t *testing.T, root string, agent *fakeAgent, prompts *fakePrompts) *Service {
 	t.Helper()
 	return newTestServiceWithOptions(t, root, serviceOptions{agent: agent, prompts: prompts})
@@ -505,11 +738,49 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		ItemExecutions: opts.itemExecutions,
 		Agent:          agent,
 		PromptClient:   prompts,
-		ScenarioRoot:   root,
-		Clock:          store.Clock,
+		PromptCatalog: func(mode, phase string) (PromptCatalogEntry, bool) {
+			def, err := DefinitionFor(Mode(mode))
+			if err != nil {
+				return PromptCatalogEntry{}, false
+			}
+			phaseDef, ok := def.PhaseGraph.Phases[Phase(phase)]
+			if !ok {
+				return PromptCatalogEntry{}, false
+			}
+			return PromptCatalogEntry{SkillID: phaseDef.SkillID}, true
+		},
+		ScenarioRoot: root,
+		Clock:        store.Clock,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
 	return svc
+}
+
+func saveCompletedRound(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any) RoundEnvelope {
+	t.Helper()
+	return saveCompletedRoundWith(t, svc, initiativeName, mode, phase, payload, nil)
+}
+
+func saveCompletedRoundWithHandoff(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any) RoundEnvelope {
+	t.Helper()
+	return saveCompletedRoundWith(t, svc, initiativeName, mode, phase, payload, []Handoff{{Summary: "handoff"}})
+}
+
+func saveCompletedRoundWith(t *testing.T, svc *Service, initiativeName string, mode Mode, phase Phase, payload map[string]any, handoffs []Handoff) RoundEnvelope {
+	t.Helper()
+	round, err := svc.store.CreateRound(RoundEnvelope{
+		Mode:           string(mode),
+		InitiativeName: initiativeName,
+		ScopeID:        initiativeName,
+		Phase:          string(phase),
+		Status:         RoundStatusCompleted,
+		Payload:        payload,
+		Handoffs:       handoffs,
+	})
+	if err != nil {
+		t.Fatalf("CreateRound %s/%s: %v", mode, phase, err)
+	}
+	return round
 }

@@ -146,20 +146,19 @@ func TestService_CreateAndGet(t *testing.T) {
 	}
 }
 
-func TestService_Create_WithModeAndAcceptanceCriteria(t *testing.T) {
+func TestService_Create_DefaultsModeAndNormalizesAcceptanceCriteria(t *testing.T) {
 	svc := newTestService(t, nil)
 
 	init, err := svc.Create(CreateRequest{
 		Name:               "holistic",
 		Title:              "Holistic",
-		Mode:               "holistic-loop",
 		AcceptanceCriteria: []string{"  system works ", "", "system works", "audit trail preserved"},
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	if init.Mode != "holistic-loop" {
-		t.Fatalf("Mode = %q, want holistic-loop", init.Mode)
+	if init.Mode != "item-level" {
+		t.Fatalf("Mode = %q, want item-level", init.Mode)
 	}
 	want := []string{"system works", "audit trail preserved"}
 	if len(init.AcceptanceCriteria) != len(want) {
@@ -172,10 +171,13 @@ func TestService_Create_WithModeAndAcceptanceCriteria(t *testing.T) {
 	}
 }
 
-func TestService_Create_InvalidMode(t *testing.T) {
+func TestService_SetModeLifecycle_InvalidMode(t *testing.T) {
 	svc := newTestService(t, nil)
 
-	_, err := svc.Create(CreateRequest{Name: "bad-mode", Title: "Bad Mode", Mode: "sideways"})
+	if _, err := svc.Create(CreateRequest{Name: "bad-mode", Title: "Bad Mode"}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	_, err := svc.SetModeLifecycle("bad-mode", "sideways")
 	if err == nil {
 		t.Fatal("expected invalid mode error")
 	}
@@ -198,7 +200,7 @@ func TestService_Create_DuplicateName(t *testing.T) {
 	}
 }
 
-func TestService_Update_ModeEmitsEvent(t *testing.T) {
+func TestService_SetModeLifecycle_EmitsEvent(t *testing.T) {
 	svc := newTestService(t, nil)
 	logger := &initiativeEventLogger{}
 	svc.SetEventLogger(logger)
@@ -207,9 +209,9 @@ func TestService_Update_ModeEmitsEvent(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 	mode := "phased-plan-drain"
-	updated, err := svc.Update("mode-switch", UpdateRequest{Mode: &mode})
+	updated, err := svc.SetModeLifecycle("mode-switch", mode)
 	if err != nil {
-		t.Fatalf("Update failed: %v", err)
+		t.Fatalf("SetModeLifecycle failed: %v", err)
 	}
 	if updated.Mode != mode {
 		t.Fatalf("Mode = %q, want %q", updated.Mode, mode)
@@ -220,6 +222,27 @@ func TestService_Update_ModeEmitsEvent(t *testing.T) {
 	got := logger.modeChanges[0]
 	if got.name != "mode-switch" || got.from != "item-level" || got.to != mode {
 		t.Fatalf("mode change event = %+v", got)
+	}
+}
+
+func TestService_SetModeLifecycle_RejectsArchivedInitiative(t *testing.T) {
+	svc := newTestService(t, nil)
+	init, err := svc.Create(CreateRequest{Name: "archived-mode", Title: "Archived Mode"})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	archivedAt := "2026-04-30T12:00:00Z"
+	init.ArchivedAt = &archivedAt
+	if err := svc.store.Save(init); err != nil {
+		t.Fatalf("Save archived initiative: %v", err)
+	}
+
+	_, err = svc.SetModeLifecycle("archived-mode", "holistic-loop")
+	if err == nil {
+		t.Fatal("expected archived initiative mode switch error")
+	}
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected ErrValidation, got %v", err)
 	}
 }
 

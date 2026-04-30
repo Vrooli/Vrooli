@@ -213,15 +213,19 @@ type GraphEdge struct {
 
 // Source carries attribution metadata for every apply. Feedback rounds
 // (W4) populate FeedbackRoundID + InitiativeName + RoundNumber/RoundSlug;
-// review rounds (W5) populate ReviewRoundID. At least InitiativeName is
+// review rounds (W5) populate ReviewRoundID; operating-mode proposals
+// also populate Mode, Phase, and RunID. At least InitiativeName is
 // required. Entrypoint identifies the originating surface so downstream
 // telemetry (event log, agentactivity) can group by code path
 // ("initiative.feedback", "initiative.review", etc.).
 type Source struct {
 	InitiativeName   string
+	Mode             string
+	Phase            string
 	FeedbackRoundID  string
 	RoundNumber      int
 	RoundSlug        string
+	RunID            string
 	Entrypoint       string
 	ReviewRoundID    string
 	DecidedBy        string

@@ -55,6 +55,8 @@ describe("OperatingModePanel", () => {
           activityPurpose: "holistic_loop_investigate",
           profileKey: "swarm-manager/deep-work",
           writesRepo: false,
+          startable: true,
+          next: true,
           outputArtifacts: [{
             path: "modes/holistic-loop/findings.md",
             contentType: "text/markdown",

@@ -46,7 +46,6 @@ type CreateRequest struct {
 	Title              string   `json:"title"`
 	Description        string   `json:"description,omitempty"`
 	Status             string   `json:"status,omitempty"`
-	Mode               string   `json:"mode,omitempty"`
 	Priority           int      `json:"priority,omitempty"`
 	DependsOn          []string `json:"depends_on,omitempty"`
 	Items              []string `json:"items,omitempty"`
@@ -58,7 +57,6 @@ type UpdateRequest struct {
 	Title              *string   `json:"title,omitempty"`
 	Description        *string   `json:"description,omitempty"`
 	Status             *string   `json:"status,omitempty"`
-	Mode               *string   `json:"mode,omitempty"`
 	Priority           *int      `json:"priority,omitempty"`
 	DependsOn          *[]string `json:"depends_on,omitempty"`
 	Items              *[]string `json:"items,omitempty"`
@@ -69,7 +67,7 @@ type UpdateRequest struct {
 // HasChanges reports whether the update request contains at least one field.
 func (r UpdateRequest) HasChanges() bool {
 	return r.Title != nil || r.Description != nil || r.Status != nil ||
-		r.Mode != nil || r.Priority != nil || r.DependsOn != nil ||
+		r.Priority != nil || r.DependsOn != nil ||
 		r.Items != nil || r.AcceptanceCriteria != nil || r.Note != nil
 }
 

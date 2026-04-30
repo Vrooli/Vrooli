@@ -83,6 +83,45 @@ func TestEmitBacklogStatusChanged(t *testing.T) {
 	}
 }
 
+func TestEmitBacklogStatusChangedFromSource(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitBacklogStatusChangedFromSource("execute/do-thing", "ready", "completed", eventlog.BacklogMutationSourcePayload{
+		Entrypoint:     "initiative.operating_mode.complete_items",
+		InitiativeName: "init-a",
+		Mode:           "holistic-loop",
+		Phase:          "execute",
+		Round:          3,
+		RunID:          "run-123",
+		RequestedBy:    "operator",
+	}, []string{"execute/do-thing"})
+
+	e := lastEvent(t, repo)
+	if e.EventType != eventlog.EventBacklogStatusChanged {
+		t.Errorf("event_type: got %q", e.EventType)
+	}
+	if e.ActorType != "operating_mode" || e.ActorID != "run-123" {
+		t.Errorf("actor: got %q/%q", e.ActorType, e.ActorID)
+	}
+
+	var p eventlog.StatusChangePayload
+	if err := json.Unmarshal(e.Metadata, &p); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if p.From != "ready" || p.To != "completed" {
+		t.Fatalf("status payload = %+v", p)
+	}
+	if p.Source == nil {
+		t.Fatalf("source missing from payload: %+v", p)
+	}
+	if p.Source.Mode != "holistic-loop" || p.Source.Phase != "execute" || p.Source.Round != 3 || p.Source.RunID != "run-123" || p.Source.RequestedBy != "operator" {
+		t.Fatalf("source payload = %+v", p.Source)
+	}
+	if !reflect.DeepEqual(p.ItemRefs, []string{"execute/do-thing"}) {
+		t.Fatalf("item refs = %+v", p.ItemRefs)
+	}
+}
+
 func TestEmitExecutionCompleted(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 

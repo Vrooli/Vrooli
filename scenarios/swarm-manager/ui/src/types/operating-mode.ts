@@ -27,6 +27,9 @@ export interface OperatingModeWorkspacePhase {
   writesRepo: boolean;
   outputArtifacts?: OperatingModeArtifactDefinition[];
   requiresCriteria?: boolean;
+  startable: boolean;
+  reason?: string;
+  next?: boolean;
 }
 
 export interface OperatingModeWorkspaceDefinition {

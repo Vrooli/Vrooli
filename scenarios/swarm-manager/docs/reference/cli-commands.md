@@ -140,7 +140,8 @@ swarm-manager initiatives mode-workspace --name desktop-release-governance --jso
 
 Switch modes through the lifecycle boundary. When switching from `item-level` into
 an initiative-scoped mode, add `--cancel-active-item-executions` only after you
-intend to stop active member item runs:
+intend to stop active member item runs. Switching out of an initiative-scoped
+mode is rejected while any mode round is reserved or agent-running:
 
 ```bash
 swarm-manager initiatives mode-switch \
@@ -149,7 +150,8 @@ swarm-manager initiatives mode-switch \
   --cancel-active-item-executions
 ```
 
-Start and manage phase rounds:
+Start and manage phase rounds. `mode-start` follows backend phase action state;
+invalid phases are rejected even if the CLI command is formed correctly:
 
 ```bash
 swarm-manager initiatives mode-start --name desktop-release-governance --phase investigate

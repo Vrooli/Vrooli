@@ -334,6 +334,48 @@ func ModeList() string {
 	return strings.Join(parts, ", ")
 }
 
+// RequiredProfileKeys returns every AgentManager profile key referenced by the
+// operating-mode registry. Profile JSON remains the source of profile defaults;
+// the registry only declares which scenario-owned keys must exist before the
+// API serves traffic.
+func RequiredProfileKeys() ([]string, error) {
+	keys := map[string]struct{}{}
+	for mode, def := range registry {
+		if err := collectProfileKey(keys, mode, def.Profile.DefaultProfileKey); err != nil {
+			return nil, err
+		}
+		for phase, key := range def.Profile.PhaseProfiles {
+			if err := collectProfileKey(keys, mode, key); err != nil {
+				return nil, fmt.Errorf("phase %q: %w", phase, err)
+			}
+		}
+		for phase, phaseDef := range def.PhaseGraph.Phases {
+			if err := collectProfileKey(keys, mode, phaseDef.ProfileKey); err != nil {
+				return nil, fmt.Errorf("phase %q: %w", phase, err)
+			}
+		}
+	}
+
+	out := make([]string, 0, len(keys))
+	for key := range keys {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func collectProfileKey(keys map[string]struct{}, mode Mode, key string) error {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" {
+		return nil
+	}
+	if !strings.HasPrefix(trimmed, "swarm-manager/") {
+		return fmt.Errorf("mode %q references non-scenario-owned AgentManager profile key %q", mode, trimmed)
+	}
+	keys[trimmed] = struct{}{}
+	return nil
+}
+
 func (d Definition) PhaseDefinition(phase Phase) (PhaseDefinition, error) {
 	p, ok := d.PhaseGraph.Phases[phase]
 	if !ok {

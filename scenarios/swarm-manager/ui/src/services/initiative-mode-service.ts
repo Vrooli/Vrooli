@@ -59,6 +59,9 @@ function normalizePhase(raw: unknown): OperatingModeWorkspacePhase {
       ? artifacts.map(normalizeArtifact)
       : [],
     requiresCriteria: boolValue(phase.requires_criteria ?? phase.requiresCriteria),
+    startable: boolValue(phase.startable) ?? false,
+    reason: stringValue(phase.reason, undefined),
+    next: boolValue(phase.next),
   };
 }
 

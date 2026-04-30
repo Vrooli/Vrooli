@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -224,6 +225,20 @@ type decisionKindCounters struct {
 	itemsFreeformChosen    int
 }
 
+const (
+	operatingModeVerdictAccept   = "accept"
+	operatingModeVerdictAccepted = "accepted"
+)
+
+func isOperatingModeAcceptedVerdict(verdict string) bool {
+	switch strings.ToLower(strings.TrimSpace(verdict)) {
+	case operatingModeVerdictAccept, operatingModeVerdictAccepted:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *aggregateState) recordModePhaseStarted(p eventlog.OperatingModePhasePayload) {
 	if p.Mode == "" || p.Phase == "" {
 		return
@@ -266,7 +281,7 @@ func (s *aggregateState) recordModePhaseTerminal(p eventlog.OperatingModePhasePa
 		}
 		if p.Phase == "review" && p.Verdict != "" {
 			s.modeAcceptanceDenom[p.Mode]++
-			if p.Verdict == "accept" || p.Verdict == "accepted" {
+			if isOperatingModeAcceptedVerdict(p.Verdict) {
 				s.modeAcceptanceNumerator[p.Mode]++
 			}
 		}
@@ -476,12 +491,6 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 		var p eventlog.OperatingModePhasePayload
 		if unmarshalMeta(e.Metadata, &p) {
 			s.recordModePhaseTerminal(p, "canceled")
-		}
-
-	case eventlog.EventOperatingModeReplanNeeded:
-		var p eventlog.OperatingModePhasePayload
-		if unmarshalMeta(e.Metadata, &p) && p.Mode != "" {
-			s.modeReplanNumerator[p.Mode]++
 		}
 
 	case eventlog.EventOperatingModeBacklogSynced:

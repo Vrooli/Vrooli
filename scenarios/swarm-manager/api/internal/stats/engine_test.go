@@ -157,6 +157,63 @@ func TestOperatingModePhaseStats(t *testing.T) {
 	}
 }
 
+func TestOperatingModeReplanRateCountsCompletedExecutePayloadOnly(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	base := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+
+	payload := eventlog.OperatingModePhasePayload{
+		Mode:         "holistic-loop",
+		ScopeKind:    "initiative",
+		ScopeID:      "init-a",
+		Phase:        "execute",
+		RunStrategy:  "operator_gated_loop",
+		RoundNumber:  3,
+		RunID:        "run-replan",
+		Status:       "completed",
+		ReplanNeeded: true,
+	}
+	appendEvent(t, repo, base, eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModePhaseCompleted, payload)
+	appendEvent(t, repo, base.Add(time.Second), eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModeReplanNeeded, payload)
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	got := engine.GetStats().Mode.ReplanRateByMode["holistic-loop"]
+	if got.SampleSize != 1 || got.Rate != 1 {
+		t.Fatalf("replan rate = %+v, want n=1 rate=1", got)
+	}
+}
+
+func TestOperatingModeReplanRateFalseExecutePayload(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	base := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+
+	appendEvent(t, repo, base, eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
+			Mode:         "holistic-loop",
+			ScopeKind:    "initiative",
+			ScopeID:      "init-a",
+			Phase:        "execute",
+			RunStrategy:  "operator_gated_loop",
+			RoundNumber:  3,
+			RunID:        "run-no-replan",
+			Status:       "completed",
+			ReplanNeeded: false,
+		})
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	got := engine.GetStats().Mode.ReplanRateByMode["holistic-loop"]
+	if got.SampleSize != 1 || got.Rate != 0 {
+		t.Fatalf("replan rate = %+v, want n=1 rate=0", got)
+	}
+}
+
 func TestOperatingModeAcceptanceStats(t *testing.T) {
 	engine, repo := setupEngine(t)
 	ctx := context.Background()

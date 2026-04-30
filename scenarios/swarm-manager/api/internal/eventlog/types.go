@@ -133,8 +133,22 @@ type Event struct {
 
 // StatusChangePayload records a from/to status transition.
 type StatusChangePayload struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	From     string                        `json:"from"`
+	To       string                        `json:"to"`
+	Source   *BacklogMutationSourcePayload `json:"source,omitempty"`
+	ItemRefs []string                      `json:"item_refs,omitempty"`
+}
+
+// BacklogMutationSourcePayload records the causality chain for backlog
+// mutations triggered by higher-level workflows such as operating modes.
+type BacklogMutationSourcePayload struct {
+	Entrypoint     string `json:"entrypoint,omitempty"`
+	InitiativeName string `json:"initiative_name,omitempty"`
+	Mode           string `json:"mode,omitempty"`
+	Phase          string `json:"phase,omitempty"`
+	Round          int    `json:"round,omitempty"`
+	RunID          string `json:"run_id,omitempty"`
+	RequestedBy    string `json:"requested_by,omitempty"`
 }
 
 // PriorityChangePayload records a priority change.
@@ -190,20 +204,22 @@ type OperatingModePhasePayload struct {
 // summary for a mode phase. Counts are recorded even for no-op syncs so the
 // absence of mutations remains observable.
 type OperatingModeBacklogSyncPayload struct {
-	Mode                  string   `json:"mode"`
-	ScopeKind             string   `json:"scope_kind"`
-	ScopeID               string   `json:"scope_id"`
-	InitiativeName        string   `json:"initiative_name,omitempty"`
-	Phase                 string   `json:"phase"`
-	RunStrategy           string   `json:"run_strategy,omitempty"`
-	AgentProfileKey       string   `json:"agent_profile_key,omitempty"`
-	RoundNumber           int      `json:"round_number,omitempty"`
-	RunID                 string   `json:"run_id,omitempty"`
-	Status                string   `json:"status,omitempty"`
-	BacklogItemsCompleted int      `json:"backlog_items_completed,omitempty"`
-	BacklogItemsCreated   int      `json:"backlog_items_created,omitempty"`
-	BacklogItemsUpdated   int      `json:"backlog_items_updated,omitempty"`
-	ArtifactPaths         []string `json:"artifact_paths,omitempty"`
+	Mode                  string                        `json:"mode"`
+	ScopeKind             string                        `json:"scope_kind"`
+	ScopeID               string                        `json:"scope_id"`
+	InitiativeName        string                        `json:"initiative_name,omitempty"`
+	Phase                 string                        `json:"phase"`
+	RunStrategy           string                        `json:"run_strategy,omitempty"`
+	AgentProfileKey       string                        `json:"agent_profile_key,omitempty"`
+	RoundNumber           int                           `json:"round_number,omitempty"`
+	RunID                 string                        `json:"run_id,omitempty"`
+	Status                string                        `json:"status,omitempty"`
+	BacklogItemsCompleted int                           `json:"backlog_items_completed,omitempty"`
+	BacklogItemsCreated   int                           `json:"backlog_items_created,omitempty"`
+	BacklogItemsUpdated   int                           `json:"backlog_items_updated,omitempty"`
+	ItemRefs              []string                      `json:"item_refs,omitempty"`
+	Source                *BacklogMutationSourcePayload `json:"source,omitempty"`
+	ArtifactPaths         []string                      `json:"artifact_paths,omitempty"`
 }
 
 // BlockPayload records a block/unblock reason.
@@ -380,10 +396,13 @@ type ViewPayload struct {
 // payload so consumers can group by feedback/review round.
 type ProposalAppliedPayload struct {
 	InitiativeName  string `json:"initiative_name"`
+	Mode            string `json:"mode,omitempty"`
+	Phase           string `json:"phase,omitempty"`
 	FeedbackRoundID string `json:"feedback_round_id,omitempty"`
 	ReviewRoundID   string `json:"review_round_id,omitempty"`
 	RoundNumber     int    `json:"round_number,omitempty"`
 	RoundSlug       string `json:"round_slug,omitempty"`
+	RunID           string `json:"run_id,omitempty"`
 	Entrypoint      string `json:"entrypoint,omitempty"`
 	DecidedBy       string `json:"decided_by,omitempty"`
 	MutationID      string `json:"mutation_id"`

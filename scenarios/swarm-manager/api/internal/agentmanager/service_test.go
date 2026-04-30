@@ -87,6 +87,79 @@ func TestProfileRefFor_FailsWhenReconciledProfilesMissingExplicitKey(t *testing.
 	}
 }
 
+func TestValidateRequiredProfilesAcceptsAllRequiredProfiles(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"swarm-manager/deep-work", "swarm-manager/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":   "profile-default",
+		"swarm-manager/deep-work": "profile-deep-work",
+		"swarm-manager/analysis":  "profile-analysis",
+	})
+	if err != nil {
+		t.Fatalf("validateRequiredProfiles returned error: %v", err)
+	}
+}
+
+func TestValidateRequiredProfilesRejectsMissingDeepWork(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"swarm-manager/deep-work", "swarm-manager/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":  "profile-default",
+		"swarm-manager/analysis": "profile-analysis",
+	})
+	if err == nil || !strings.Contains(err.Error(), "swarm-manager/deep-work") {
+		t.Fatalf("expected missing deep-work profile error, got %v", err)
+	}
+}
+
+func TestValidateRequiredProfilesRejectsMissingAnalysis(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"swarm-manager/deep-work", "swarm-manager/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":   "profile-default",
+		"swarm-manager/deep-work": "profile-deep-work",
+	})
+	if err == nil || !strings.Contains(err.Error(), "swarm-manager/analysis") {
+		t.Fatalf("expected missing analysis profile error, got %v", err)
+	}
+}
+
+func TestValidateRequiredProfilesRejectsNonOwnedProfileKey(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"other-scenario/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":   "profile-default",
+		"other-scenario/analysis": "profile-analysis",
+	})
+	if err == nil || !strings.Contains(err.Error(), "not owned") {
+		t.Fatalf("expected non-owned profile error, got %v", err)
+	}
+}
+
 func TestBuildProfile(t *testing.T) {
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "Swarm Manager",

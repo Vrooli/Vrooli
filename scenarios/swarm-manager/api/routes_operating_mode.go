@@ -8,11 +8,13 @@ import (
 	"strings"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operatingmode"
+	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/proposals"
 )
@@ -47,6 +49,13 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		Agent:        s.agentSvc,
 		Activity:     s.agentActivitySvc,
 		PromptClient: promptmanager.NewHTTPClient(),
+		PromptCatalog: func(mode, phase string) (operatingmode.PromptCatalogEntry, bool) {
+			entry, ok := promptcatalog.ResolveInitiativeModeSkill(mode, phase)
+			if !ok {
+				return operatingmode.PromptCatalogEntry{}, false
+			}
+			return operatingmode.PromptCatalogEntry{SkillID: entry.SkillID}, true
+		},
 		Events:       s.emitter,
 		ScenarioRoot: scenarioRoot,
 	})
@@ -83,8 +92,11 @@ func (r operatingModeProposalReconciler) ApplyBacklogSyncProposal(ctx context.Co
 	}
 	result, err := r.applier.Apply(ctx, normalized, state, req.AcceptedMutationIDs, proposals.Source{
 		InitiativeName:   req.InitiativeName,
+		Mode:             req.Mode,
+		Phase:            req.Phase,
 		RoundNumber:      req.Round,
 		RoundSlug:        req.Phase,
+		RunID:            req.RunID,
 		Entrypoint:       "initiative.operating_mode.backlog_sync",
 		DecidedBy:        req.DecidedBy,
 		DecidedAtRFC3339: req.DecidedAtRFC3339,
@@ -153,11 +165,11 @@ func (r operatingModeBacklogReader) LoadBacklogItem(kind, name string) (operatin
 type operatingModeBacklogMutator struct {
 	store  backlog.Store
 	events interface {
-		EmitBacklogStatusChanged(entityID, from, to string)
+		EmitBacklogStatusChangedFromSource(entityID, from, to string, source eventlog.BacklogMutationSourcePayload, itemRefs []string)
 	}
 }
 
-func (m operatingModeBacklogMutator) MarkBacklogItemCompleted(_ context.Context, kind, name, source string) (operatingmode.BacklogCompletionResult, error) {
+func (m operatingModeBacklogMutator) MarkBacklogItemCompleted(_ context.Context, kind, name string, source operatingmode.BacklogMutationSource) (operatingmode.BacklogCompletionResult, error) {
 	item, err := m.store.LoadItem(backlog.BacklogKind(kind), name)
 	if err != nil {
 		return operatingmode.BacklogCompletionResult{}, err
@@ -169,10 +181,18 @@ func (m operatingModeBacklogMutator) MarkBacklogItemCompleted(_ context.Context,
 			return operatingmode.BacklogCompletionResult{}, err
 		}
 		if m.events != nil {
-			m.events.EmitBacklogStatusChanged(kind+"/"+name, string(prior), string(item.Status))
+			ref := kind + "/" + name
+			m.events.EmitBacklogStatusChangedFromSource(ref, string(prior), string(item.Status), eventlog.BacklogMutationSourcePayload{
+				Entrypoint:     source.Entrypoint,
+				InitiativeName: source.InitiativeName,
+				Mode:           source.Mode,
+				Phase:          source.Phase,
+				Round:          source.Round,
+				RunID:          source.RunID,
+				RequestedBy:    source.RequestedBy,
+			}, []string{ref})
 		}
 	}
-	_ = source
 	return operatingmode.BacklogCompletionResult{
 		ItemRef:    kind + "/" + name,
 		FromStatus: string(prior),
@@ -207,7 +227,7 @@ func (u operatingModeUpdater) UpdateInitiativeMode(name, mode string) (operating
 	if u.service == nil {
 		return operatingmode.InitiativeSnapshot{}, nil
 	}
-	updated, err := u.service.Update(name, initiatives.UpdateRequest{Mode: &mode})
+	updated, err := u.service.SetModeLifecycle(name, mode)
 	if err != nil {
 		return operatingmode.InitiativeSnapshot{}, err
 	}

@@ -52,6 +52,7 @@ type AgentService struct {
 	client         *HTTPClient
 	profileName    string
 	profileKey     string
+	requiredKeys   []string
 	profileID      string
 	profileIDs     map[string]string
 	mu             sync.RWMutex
@@ -63,6 +64,7 @@ type AgentService struct {
 type AgentServiceConfig struct {
 	ProfileName    string
 	ProfileKey     string
+	RequiredKeys   []string
 	Timeout        time.Duration
 	Enabled        bool
 	SettingsReader SettingsReader
@@ -88,10 +90,45 @@ func NewAgentService(cfg AgentServiceConfig) *AgentService {
 		client:         client,
 		profileName:    strings.TrimSpace(cfg.ProfileName),
 		profileKey:     strings.TrimSpace(cfg.ProfileKey),
+		requiredKeys:   normalizeProfileKeys(cfg.RequiredKeys),
 		profileIDs:     make(map[string]string),
 		enabled:        cfg.Enabled,
 		settingsReader: cfg.SettingsReader,
 	}
+}
+
+func normalizeProfileKeys(keys []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		trimmed := strings.TrimSpace(key)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+func (s *AgentService) requiredProfileKeys() []string {
+	return normalizeProfileKeys(append([]string{s.profileKey}, s.requiredKeys...))
+}
+
+func (s *AgentService) validateRequiredProfiles(profileIDs map[string]string) error {
+	const prefix = "swarm-manager/"
+	for _, key := range s.requiredProfileKeys() {
+		if !strings.HasPrefix(key, prefix) {
+			return fmt.Errorf("required profile %q is not owned by scenario %q", key, "swarm-manager")
+		}
+		if strings.TrimSpace(profileIDs[key]) == "" {
+			return fmt.Errorf("required profile %q was not returned", key)
+		}
+	}
+	return nil
 }
 
 // IsEnabled returns whether agent-manager integration is enabled.
@@ -143,8 +180,11 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 	if resp.Failed > 0 {
 		return fmt.Errorf("reconcile scenario profiles: %d profile source(s) failed validation", resp.Failed)
 	}
+	if err := s.validateRequiredProfiles(profileIDs); err != nil {
+		return fmt.Errorf("reconcile scenario profiles: %w", err)
+	}
 	if !found {
-		return fmt.Errorf("reconcile scenario profiles: profile %q was not returned", s.profileKey)
+		return fmt.Errorf("profile %q was not returned", s.profileKey)
 	}
 
 	slog.Info("reconciled agent profiles", "scenario", resp.Scenario, "created", resp.Created, "updated", resp.Updated, "unchanged", resp.Unchanged, "failed", resp.Failed)

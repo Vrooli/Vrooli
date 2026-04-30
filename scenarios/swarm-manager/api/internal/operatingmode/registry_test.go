@@ -50,6 +50,36 @@ func TestInitiativeModesCarryPhaseProfilePolicy(t *testing.T) {
 	}
 }
 
+func TestRequiredProfileKeysReturnsScenarioOwnedRegistryProfiles(t *testing.T) {
+	keys, err := RequiredProfileKeys()
+	if err != nil {
+		t.Fatalf("RequiredProfileKeys returned error: %v", err)
+	}
+	want := []string{ProfileAnalysis, ProfileDeepWork, ProfileDefault}
+	if len(keys) != len(want) {
+		t.Fatalf("RequiredProfileKeys len = %d, want %d: %v", len(keys), len(want), keys)
+	}
+	for i := range want {
+		if keys[i] != want[i] {
+			t.Fatalf("RequiredProfileKeys[%d] = %q, want %q; got %v", i, keys[i], want[i], keys)
+		}
+	}
+}
+
+func TestRequiredProfileKeysRejectsNonScenarioOwnedProfile(t *testing.T) {
+	original := registry[ModeHolisticLoop]
+	modified := original
+	modified.Profile.DefaultProfileKey = "other-scenario/deep-work"
+	registry[ModeHolisticLoop] = modified
+	t.Cleanup(func() {
+		registry[ModeHolisticLoop] = original
+	})
+
+	if _, err := RequiredProfileKeys(); err == nil {
+		t.Fatal("expected non-scenario-owned profile key to fail")
+	}
+}
+
 func TestInitiativeModePhasesCarryStableActivityPurposes(t *testing.T) {
 	cases := []struct {
 		mode  Mode

@@ -186,6 +186,12 @@
           "title": "Action Entity Implementation Plan",
           "description": "Greenfield implementation plan for first-class Action storage, API, CLI, search, graph, UI, validation, and execution",
           "audience": ["developers"]
+        },
+        {
+          "path": "plans/operation-contract-drift-prevention-plan.md",
+          "title": "Operation Contract Drift Prevention Plan",
+          "description": "First-version foundation plan for preventing drift between APIs, CLIs, command catalogs, and prompt-manager Actions",
+          "audience": ["developers", "operators"]
         }
       ]
     },

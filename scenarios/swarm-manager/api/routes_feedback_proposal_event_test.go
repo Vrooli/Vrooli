@@ -193,10 +193,13 @@ func TestFeedbackEventEmitter_NoSourcesForNonMergeOps(t *testing.T) {
 func buildPayloadForTest(source proposals.Source, m proposals.Mutation) eventlog.ProposalAppliedPayload {
 	payload := eventlog.ProposalAppliedPayload{
 		InitiativeName:  source.InitiativeName,
+		Mode:            source.Mode,
+		Phase:           source.Phase,
 		FeedbackRoundID: source.FeedbackRoundID,
 		ReviewRoundID:   source.ReviewRoundID,
 		RoundNumber:     source.RoundNumber,
 		RoundSlug:       source.RoundSlug,
+		RunID:           source.RunID,
 		Entrypoint:      source.Entrypoint,
 		DecidedBy:       source.DecidedBy,
 		MutationID:      m.ID,

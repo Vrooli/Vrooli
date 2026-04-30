@@ -419,5 +419,20 @@ describe("StatsPanel", () => {
       expect(screen.getByText("swarm-manager/deep-work")).toBeInTheDocument();
       expect(screen.getByText("Backlog Sync")).toBeInTheDocument();
     });
+
+    it("renders replan and acceptance rates with sample sizes", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-modes"));
+
+      expect(screen.getByText("Holistic Loop Replan")).toBeInTheDocument();
+      expect(screen.getByText("50.0%")).toBeInTheDocument();
+      expect(screen.getByText("n=2")).toBeInTheDocument();
+      expect(screen.getByText("Holistic Loop Acceptance")).toBeInTheDocument();
+      expect(screen.getByText("100%")).toBeInTheDocument();
+      expect(screen.getByText("n=1")).toBeInTheDocument();
+    });
   });
 });

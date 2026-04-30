@@ -182,8 +182,9 @@ below so active item-level executions can be handled explicitly.
 }
 ```
 
-`mode` defaults to `item-level` when omitted on create. Valid values are
-`item-level`, `holistic-loop`, and `phased-plan-drain`.
+New initiatives always start in `item-level`. The generic create/update
+endpoints reject `mode`; use the operating-mode switch endpoint below for every
+mode change.
 
 ## Initiative Operating Mode Switch
 
@@ -192,7 +193,9 @@ below so active item-level executions can be handled explicitly.
 Switches the initiative's operating mode through the lifecycle-aware mode
 boundary. When switching from `item-level` into a non-default mode, active
 member item executions cause a `409 active_item_executions` response unless the
-request explicitly confirms cancellation.
+request explicitly confirms cancellation. Switching out of an initiative-scoped
+mode is rejected with `409 active_operating_mode_round` while any mode round is
+reserved or agent-running.
 
 ```json
 {
@@ -224,18 +227,24 @@ Response:
 
 `GET /api/v1/initiatives/{name}/operating-mode/workspace`
 
-Returns the current mode definition, live initiative lock holder if present,
-declared mode artifacts, and durable phase rounds. For active rounds, the API
-best-effort refreshes AgentManager state before responding.
+Returns the current mode definition, backend-computed phase action state, live
+initiative lock holder if present, declared mode artifacts, and durable phase
+rounds. For active rounds, the API best-effort refreshes AgentManager state
+before responding.
 
 ## Initiative Operating Mode Phase Start
 
 `POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/start`
 
 Starts an initiative-scoped operating-mode phase through the registered mode
-definition. The handler resolves the phase's prompt skill, AgentManager profile,
-activity purpose, lock purpose, run strategy, and artifact policy from the
-operating-mode registry.
+definition. The backend validates the registered phase graph before reserving a
+round, acquiring the initiative lock, rendering the prompt, or spawning an
+agent. Failed/canceled rounds do not advance the graph; active rounds block all
+new phase starts. Prompt skills, AgentManager profiles, activity purposes, lock
+purposes, run strategies, and artifact policies are resolved from the registry.
+Prompt rendering is fail-closed: catalog misses, skill mismatches,
+prompt-manager errors, and empty rendered content fail the start before
+AgentManager spawn.
 
 ```json
 {
@@ -270,8 +279,10 @@ and releases the initiative lock when the run is the current holder.
 
 Run-id-validated backlog reconciliation endpoint for non-default operating
 modes. It marks only member backlog items complete and emits an
-`operating_mode.backlog_synced` audit event. Agents must use this boundary
-instead of editing backlog `spec.json` files.
+`operating_mode.backlog_synced` audit event. The underlying
+`backlog.status_changed` event also carries a structured `source` payload with
+entrypoint, initiative, mode, phase, round, run ID, requested-by, and item refs.
+Agents must use this boundary instead of editing backlog `spec.json` files.
 
 ```json
 {
@@ -319,7 +330,9 @@ applier used by initiative feedback before applying the accepted mutation IDs.
 Response includes `proposal_result` with applied/failed/skipped counts,
 per-mutation outcomes, and created/updated summary counts. The round payload is
 updated with the applied sync result and an `operating_mode.backlog_synced`
-event is emitted.
+event is emitted. Applied proposal mutation events carry the same operating-mode
+source metadata (`mode`, `phase`, `round`, `run_id`, and `entrypoint`) through
+the proposal event payload.
 
 ## Initiative Archive / Unarchive
 

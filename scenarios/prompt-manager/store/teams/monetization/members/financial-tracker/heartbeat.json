@@ -6,12 +6,14 @@
   "enabled": true,
   "schedule": "0 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-29T18:00:00Z",
-    "endedAt": "2026-04-29T18:00:03Z",
+    "startedAt": "2026-04-30T18:00:00Z",
+    "endedAt": "2026-04-30T18:00:05Z",
     "status": "failed",
-    "error": "creating task: agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running port named API_PORT for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
+    "runId": "8927882c-1a13-4f4d-8e8d-d8c02b418396",
+    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-04-30T18-00-00Z.log",
+    "error": "2026-04-30T18:00:04.215625Z ERROR codex_core::session: failed to record rollout items: thread 019ddf8c-35e6-7202-a420-41d951c75696 not found\n"
   },
-  "revision": 28,
+  "revision": 31,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-29T18:00:03Z"
+  "updatedAt": "2026-04-30T18:00:05Z"
 }

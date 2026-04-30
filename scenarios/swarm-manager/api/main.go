@@ -32,6 +32,7 @@ import (
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/initiativereview"
 	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/prompts"
@@ -90,11 +91,16 @@ func NewServer() *Server {
 // Tests should use this with t.TempDir() to avoid touching production data.
 func NewServerWithRoot(scenarioRoot string) *Server {
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
+	requiredProfileKeys, err := operatingmode.RequiredProfileKeys()
+	if err != nil {
+		log.Fatalf("invalid operating-mode profile policy: %v", err)
+	}
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
-		ProfileName: getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
-		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
-		Timeout:     30 * time.Second,
-		Enabled:     agentEnabled,
+		ProfileName:  getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
+		ProfileKey:   getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
+		RequiredKeys: requiredProfileKeys,
+		Timeout:      30 * time.Second,
+		Enabled:      agentEnabled,
 	})
 
 	srv := &Server{
@@ -348,7 +354,8 @@ func main() {
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := srv.agentSvc.Initialize(initCtx, nil); err != nil {
-			slog.Warn("failed to initialize agent-manager profile", "error", err)
+			cancel()
+			log.Fatalf("failed to initialize agent-manager profiles: %v", err)
 		}
 		cancel()
 	}

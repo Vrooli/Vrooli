@@ -256,11 +256,16 @@ func modeFromQuery(r *http.Request) Mode {
 func mapOperatingModeError(w http.ResponseWriter, ctx string, err error) {
 	var conflict *initiativelock.Conflict
 	var activeConflict *ActiveItemExecutionsConflict
+	var activeRoundConflict *ActiveOperatingModeRoundConflict
 	switch {
 	case errors.As(err, &activeConflict):
 		apierr.MapError(w, ctx, apierr.Conflict("%s", err.Error()).
 			WithCode("active_item_executions").
 			WithDetails(activeConflict))
+	case errors.As(err, &activeRoundConflict):
+		apierr.MapError(w, ctx, apierr.Conflict("%s", err.Error()).
+			WithCode("active_operating_mode_round").
+			WithDetails(activeRoundConflict))
 	case errors.As(err, &conflict):
 		apierr.MapError(w, ctx, apierr.Conflict("%s", err.Error()).WithDetails(conflict.Holder))
 	case errors.Is(err, ErrRoundNotFound), strings.Contains(err.Error(), "not found"):

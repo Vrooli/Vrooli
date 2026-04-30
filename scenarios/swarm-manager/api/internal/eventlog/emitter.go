@@ -46,6 +46,25 @@ func (e *Emitter) EmitBacklogStatusChanged(entityID, from, to string) {
 	e.emit(EntityBacklogItem, entityID, EventBacklogStatusChanged, StatusChangePayload{From: from, To: to})
 }
 
+func (e *Emitter) EmitBacklogStatusChangedFromSource(entityID, from, to string, source BacklogMutationSourcePayload, itemRefs []string) {
+	payload := StatusChangePayload{
+		From:     from,
+		To:       to,
+		Source:   &source,
+		ItemRefs: append([]string(nil), itemRefs...),
+	}
+	actorType := "user"
+	actorID := ""
+	if source.Mode != "" || source.Entrypoint != "" {
+		actorType = "operating_mode"
+		actorID = source.InitiativeName
+		if source.RunID != "" {
+			actorID = source.RunID
+		}
+	}
+	e.emitWithActor(EntityBacklogItem, entityID, EventBacklogStatusChanged, actorType, actorID, payload)
+}
+
 func (e *Emitter) EmitBacklogPriorityChanged(entityID string, from, to int) {
 	e.emit(EntityBacklogItem, entityID, EventBacklogPriorityChanged, PriorityChangePayload{From: from, To: to})
 }

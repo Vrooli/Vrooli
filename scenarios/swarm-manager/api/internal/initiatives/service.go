@@ -122,10 +122,7 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	if !IsUserSettableInitiativeStatus(status) {
 		return nil, validationErr("status %q is owned by the review pipeline; initiatives are created as %q and transition via the review-decide endpoint", status, InitiativeStatusActive)
 	}
-	mode := NormalizeMode(req.Mode)
-	if !ValidateMode(mode) {
-		return nil, validationErr("invalid operating mode %q: must be one of %s", req.Mode, OperatingModeList())
-	}
+	mode := NormalizeMode("")
 
 	if !ValidatePriority(req.Priority) {
 		return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", req.Priority)
@@ -158,10 +155,6 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	}
 	if s.eventLogger != nil {
 		s.eventLogger.EmitInitiativeCreated(name)
-		defaultMode := NormalizeMode("")
-		if mode != defaultMode {
-			s.eventLogger.EmitInitiativeModeChanged(name, defaultMode, mode)
-		}
 		for _, item := range items {
 			s.eventLogger.EmitInitiativeItemAdded(name, item)
 		}
@@ -331,13 +324,6 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 		}
 		init.Status = status
 	}
-	if req.Mode != nil {
-		mode := NormalizeMode(*req.Mode)
-		if !ValidateMode(mode) {
-			return nil, validationErr("invalid operating mode %q: must be one of %s", *req.Mode, OperatingModeList())
-		}
-		init.Mode = mode
-	}
 	if req.Priority != nil {
 		if !ValidatePriority(*req.Priority) {
 			return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", *req.Priority)
@@ -367,6 +353,31 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	}
 	if s.eventLogger != nil && oldStatus != init.Status {
 		s.eventLogger.EmitInitiativeStatusChanged(name, oldStatus, init.Status)
+	}
+	s.invalidateTopologyGraph()
+	return init, nil
+}
+
+// SetModeLifecycle is the single initiative-mode mutation path. It is intended
+// for the operating-mode lifecycle service only; public initiative create/update
+// APIs always create item-level initiatives and reject mode mutation.
+func (s *Service) SetModeLifecycle(name, mode string) (*Initiative, error) {
+	init, err := s.store.Load(name)
+	if err != nil {
+		return nil, err
+	}
+	if init.ArchivedAt != nil {
+		return nil, validationErr("archived initiative %q cannot change operating mode", name)
+	}
+	oldMode := NormalizeMode(init.Mode)
+	nextMode := NormalizeMode(mode)
+	if !ValidateMode(nextMode) {
+		return nil, validationErr("invalid operating mode %q: must be one of %s", mode, OperatingModeList())
+	}
+	init.Mode = nextMode
+	init.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.store.Save(init); err != nil {
+		return nil, fmt.Errorf("save initiative: %w", err)
 	}
 	if s.eventLogger != nil && oldMode != init.Mode {
 		s.eventLogger.EmitInitiativeModeChanged(name, oldMode, init.Mode)

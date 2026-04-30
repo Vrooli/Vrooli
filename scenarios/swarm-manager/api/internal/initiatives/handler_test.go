@@ -231,6 +231,32 @@ func TestHandler_Update_RejectsUnknownField(t *testing.T) {
 	}
 }
 
+func TestHandler_Update_RejectsModeField(t *testing.T) {
+	h := setupTestHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", CreateRequest{Name: "mode-test", Title: "Mode Test"}, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d", rec.Code)
+	}
+
+	req := httptest.NewRequest("PUT", "/api/v1/initiatives/mode-test", strings.NewReader(`{
+		"mode": "holistic-loop"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"name": "mode-test"})
+	rec = httptest.NewRecorder()
+
+	h.Update(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "invalid request body") {
+		t.Fatalf("expected invalid request body error, got: %s", rec.Body.String())
+	}
+}
+
 func TestHandler_Update_NotFound(t *testing.T) {
 	h := setupTestHandler(t)
 
