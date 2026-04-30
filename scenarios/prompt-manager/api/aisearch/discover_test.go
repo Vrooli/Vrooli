@@ -21,6 +21,40 @@ type MockTopicStoreReader struct {
 	skills    map[string][]string      // topicID -> accumulated skill IDs
 }
 
+type MockActionStore struct {
+	actions []store.Action
+}
+
+func (m *MockActionStore) List(_ context.Context) ([]store.Action, error) {
+	return append([]store.Action(nil), m.actions...), nil
+}
+
+func (m *MockActionStore) Get(_ context.Context, id string) (*store.Action, error) {
+	for _, action := range m.actions {
+		if action.ID == id {
+			copy := action
+			return &copy, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
+func (m *MockActionStore) Create(_ context.Context, _ string, _ *store.Action) error {
+	return nil
+}
+
+func (m *MockActionStore) Update(_ context.Context, _ string, _ *store.Action) error {
+	return nil
+}
+
+func (m *MockActionStore) Archive(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *MockActionStore) Delete(_ context.Context, _ string) error {
+	return nil
+}
+
 func NewMockTopicStoreReader() *MockTopicStoreReader {
 	return &MockTopicStoreReader{
 		topics:    make(map[string]*store.Topic),
@@ -186,6 +220,79 @@ func TestDiscover_ReadCommand_Empty(t *testing.T) {
 
 	if resp.ReadCommand != "" {
 		t.Errorf("expected empty readCommand for no results, got %q", resp.ReadCommand)
+	}
+}
+
+func TestDiscoverTyped_DefaultPreservesSkillOnlyShape(t *testing.T) {
+	mockSkills := NewMockSkillStore()
+	mockSkills.AddSkill("core", skills.Metadata{
+		ID:          "api-debugging",
+		Name:        "API Debugging",
+		Description: "Debug API failures",
+		File:        "core/api-debugging.md",
+	}, "debug APIs")
+	svc := &Service{
+		skillStore:    mockSkills,
+		searchService: search.NewService(mockSkills),
+		actionStore: &MockActionStore{actions: []store.Action{{
+			ID:          "team.decisions.list",
+			Name:        "List Decisions",
+			Description: "List team decisions",
+			Status:      store.StatusActive,
+			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
+			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
+		}}},
+		reindex: &reindexState{},
+	}
+
+	resp, err := svc.DiscoverTyped(context.Background(), []string{"debug"}, "", 10, "")
+	if err != nil {
+		t.Fatalf("DiscoverTyped failed: %v", err)
+	}
+	if resp.Total != 1 {
+		t.Fatalf("total = %d, want 1", resp.Total)
+	}
+	if resp.Results[0].Type != "" {
+		t.Fatalf("legacy skill result type = %q, want empty", resp.Results[0].Type)
+	}
+	if resp.Results[0].ID != "api-debugging" {
+		t.Fatalf("result ID = %q, want api-debugging", resp.Results[0].ID)
+	}
+}
+
+func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
+	mockSkills := NewMockSkillStore()
+	svc := &Service{
+		skillStore:    mockSkills,
+		searchService: search.NewService(mockSkills),
+		actionStore: &MockActionStore{actions: []store.Action{{
+			ID:          "team.decisions.list",
+			Name:        "List Decisions",
+			Description: "List pending team decisions",
+			Status:      store.StatusActive,
+			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
+			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
+			Tags:        []string{"team", "decisions"},
+		}}},
+		reindex: &reindexState{},
+	}
+
+	resp, err := svc.DiscoverTyped(context.Background(), []string{"team decisions"}, "", 10, "action")
+	if err != nil {
+		t.Fatalf("DiscoverTyped failed: %v", err)
+	}
+	if resp.Total != 1 {
+		t.Fatalf("total = %d, want 1", resp.Total)
+	}
+	result := resp.Results[0]
+	if result.Type != "action" || result.ID != "team.decisions.list" {
+		t.Fatalf("unexpected action result: %+v", result)
+	}
+	if result.ShowCommand != "prompt-manager action show team.decisions.list" {
+		t.Fatalf("show command = %q", result.ShowCommand)
+	}
+	if resp.ReadCommand != "" {
+		t.Fatalf("read command = %q, want empty for action-only discover", resp.ReadCommand)
 	}
 }
 

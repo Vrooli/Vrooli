@@ -26,6 +26,96 @@ type Skill struct {
 	Pack string `json:"-"` // Which pack this skill belongs to
 }
 
+// Action represents a typed executable wrapper over one controlled CLI command.
+//
+// DOC: docs/concepts/ACTIONS.md
+type Action struct {
+	BaseEntity
+	ID          string                  `json:"id"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description,omitempty"`
+	Status      string                  `json:"status"`
+	Owner       ActionOwner             `json:"owner"`
+	Command     ActionCommand           `json:"command"`
+	Inputs      map[string]ActionInput  `json:"inputs,omitempty"`
+	Outputs     map[string]ActionOutput `json:"outputs,omitempty"`
+	Permissions ActionPermissions       `json:"permissions,omitempty"`
+	Examples    []ActionExample         `json:"examples,omitempty"`
+	Tags        []string                `json:"tags,omitempty"`
+	Execution   *ActionExecution        `json:"execution,omitempty"`
+	Validation  *ActionValidation       `json:"validation,omitempty"`
+	Timestamps
+
+	// Runtime fields (not persisted in action.json)
+	Pack string `json:"-"`
+}
+
+// ActionOwner identifies the Vrooli-owned surface responsible for the command.
+type ActionOwner struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
+// ActionCommand declares the exact argv template this Action wraps.
+type ActionCommand struct {
+	Argv []string `json:"argv"`
+}
+
+// ActionInput declares one typed input accepted by an Action.
+type ActionInput struct {
+	Type           string   `json:"type"`
+	Description    string   `json:"description,omitempty"`
+	Required       bool     `json:"required,omitempty"`
+	Enum           []string `json:"enum,omitempty"`
+	Default        any      `json:"default,omitempty"`
+	Pattern        string   `json:"pattern,omitempty"`
+	Min            *float64 `json:"min,omitempty"`
+	Max            *float64 `json:"max,omitempty"`
+	MaxLength      *int     `json:"maxLength,omitempty"`
+	AllowMultiline bool     `json:"allowMultiline,omitempty"`
+}
+
+// ActionOutput declares one structured output emitted by an Action.
+type ActionOutput struct {
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+}
+
+// ActionPermissions declares side effects the Action may require.
+type ActionPermissions struct {
+	FilesystemRead   bool `json:"filesystemRead,omitempty"`
+	FilesystemWrite  bool `json:"filesystemWrite,omitempty"`
+	LocalhostNetwork bool `json:"localhostNetwork,omitempty"`
+	ExternalNetwork  bool `json:"externalNetwork,omitempty"`
+	APIRead          bool `json:"apiRead,omitempty"`
+	APIWrite         bool `json:"apiWrite,omitempty"`
+	ProcessStart     bool `json:"processStart,omitempty"`
+	ProcessStop      bool `json:"processStop,omitempty"`
+	HostConfigure    bool `json:"hostConfigure,omitempty"`
+	SecretRead       bool `json:"secretRead,omitempty"`
+	SecretWrite      bool `json:"secretWrite,omitempty"`
+	Destructive      bool `json:"destructive,omitempty"`
+}
+
+// ActionExample shows a concrete input payload for an Action.
+type ActionExample struct {
+	Description string         `json:"description,omitempty"`
+	Input       map[string]any `json:"input,omitempty"`
+}
+
+// ActionExecution contains optional runtime policy for future execution support.
+type ActionExecution struct {
+	TimeoutSeconds *int   `json:"timeoutSeconds,omitempty"`
+	OutputMode     string `json:"outputMode,omitempty"`
+	RunEligible    *bool  `json:"runEligible,omitempty"`
+}
+
+// ActionValidation contains optional owner-specific validation metadata.
+type ActionValidation struct {
+	Mode string   `json:"mode,omitempty"`
+	Argv []string `json:"argv,omitempty"`
+}
+
 // Agent represents an agent entity from agent.json
 type Agent struct {
 	BaseEntity

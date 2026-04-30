@@ -41,7 +41,7 @@ Raw learning starts in Notebooks.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-`*` Actions are proposed and documented before implementation. See [Actions](ACTIONS.md).
+`*` Actions are partially implemented as typed command contracts with API/CLI validation and opt-in discovery. Execution remains governed by the Action runtime plan. See [Actions](ACTIONS.md).
 
 ## The Three Current Domains
 

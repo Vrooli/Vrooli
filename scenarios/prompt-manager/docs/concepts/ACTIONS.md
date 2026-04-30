@@ -1,8 +1,8 @@
 # Actions
 
-Actions are the proposed executable layer between prompt-manager's judgment-oriented skills and Vrooli-controlled CLI implementations.
+Actions are the executable layer between prompt-manager's judgment-oriented skills and Vrooli-controlled CLI implementations.
 
-Status: proposed. This document defines the intended contract before the Action entity is implemented in the API, CLI, UI, and search index.
+Status: partially implemented. Action storage, API CRUD, validation, CLI list/show/create/update/delete/validate, AI indexing, and opt-in discovery are implemented. Action execution, graph integration, and UI surfaces remain planned.
 
 ## Why Actions Exist
 
@@ -92,7 +92,7 @@ Actions should not wrap commands outside Vrooli's control. This keeps execution 
 
 ## Contract Shape
 
-The future `action.json` contract should include at least:
+The `action.json` contract includes at least:
 
 ```json
 {
@@ -172,7 +172,7 @@ The intended discovery path is capability-first rather than entity-first:
 prompt-manager discover "take screenshot of scenario UI" --type all
 ```
 
-The result set should be able to include both skills and Actions. Agents should prefer an exact Action match for deterministic execution and use skills when they need judgment, methodology, or synthesis.
+The result set can include both skills and Actions when `--type all` is used. Omitting `--type` remains skill-only for compatibility. Agents should prefer an exact Action match for deterministic execution and use skills when they need judgment, methodology, or synthesis.
 
 ## Naming Note
 

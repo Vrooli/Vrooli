@@ -212,7 +212,13 @@ func (h *Handlers) Discover(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	resp, err := h.service.Discover(r.Context(), req.Queries, complexity, limit)
+	discoverType := strings.ToLower(strings.TrimSpace(req.Type))
+	if discoverType != "" && normalizeDiscoverType(discoverType) == "" {
+		http.Error(w, "type must be one of: skill, action, all", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.DiscoverTyped(r.Context(), req.Queries, complexity, limit, discoverType)
 	if err != nil {
 		log.Printf("[aisearch] Discover error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

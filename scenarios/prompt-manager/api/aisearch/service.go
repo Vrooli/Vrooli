@@ -35,6 +35,10 @@ type Service struct {
 	topicVectorStore *VectorStore
 	topicStore       TopicStoreReader
 
+	// Action support
+	actionVectorStore *VectorStore
+	actionStore       store.ActionStore
+
 	// Budget configuration
 	budgetConfig BudgetConfigProvider
 
@@ -315,19 +319,37 @@ func (s *Service) SearchTopics(ctx context.Context, query string, limit int) ([]
 // For each query: searches topics (accumulates their skills) and searches skills directly.
 // Results are deduplicated, sorted by topic depth then search score, and annotated with content sizes.
 func (s *Service) Discover(ctx context.Context, queries []string, complexity string, limit int) (*DiscoverResponse, error) {
+	return s.DiscoverTyped(ctx, queries, complexity, limit, "")
+}
+
+// DiscoverTyped performs unified discovery for skills, Actions, or both.
+// Empty discoverType preserves the historical skill-only response shape.
+func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexity string, limit int, discoverType string) (*DiscoverResponse, error) {
 	if len(queries) == 0 {
 		return nil, fmt.Errorf("at least one query is required")
 	}
 	if limit <= 0 {
 		limit = 10
 	}
+	requestedType := strings.TrimSpace(discoverType)
+	discoverType = normalizeDiscoverType(discoverType)
+	if discoverType == "" {
+		return nil, fmt.Errorf("discover type must be skill, action, or all")
+	}
+	includeSkills := discoverType == "skill" || discoverType == "all"
+	includeActions := discoverType == "action" || discoverType == "all"
+	legacySkillOnly := discoverType == "skill" && requestedType == ""
 
 	seen := make(map[string]*discoverSkillEntry)
+	seenActions := make(map[string]DiscoverResult)
 	topicNames := make(map[string]string) // cache topic ID → name
 	method := "ai"
 
 	// Step 1: Topic search per query
 	for _, query := range queries {
+		if !includeSkills {
+			break
+		}
 		topicResults, topicMethod, err := s.SearchTopics(ctx, query, 3)
 		if err != nil {
 			log.Printf("[aisearch] Discover topic search failed for %q: %v", query, err)
@@ -413,6 +435,9 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 
 	// Step 2: Skill search per query
 	for _, query := range queries {
+		if !includeSkills {
+			break
+		}
 		resp, err := s.Search(ctx, query, limit)
 		if err != nil {
 			log.Printf("[aisearch] Discover skill search failed for %q: %v", query, err)
@@ -459,6 +484,39 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 		}
 	}
 
+	// Step 2.25: Action search per query. Topics intentionally remain skill-only for now.
+	if includeActions {
+		for _, query := range queries {
+			resp, err := s.SearchActions(ctx, query, limit)
+			if err != nil {
+				log.Printf("[aisearch] Discover action search failed for %q: %v", query, err)
+				continue
+			}
+			if resp.Method == "text" {
+				method = "mixed"
+			}
+			for _, r := range resp.Results {
+				if existing, ok := seenActions[r.ID]; ok && existing.Score >= r.Score {
+					continue
+				}
+				seenActions[r.ID] = DiscoverResult{
+					Type:         "action",
+					ID:           r.ID,
+					Name:         r.Name,
+					Description:  r.Description,
+					Tags:         r.Tags,
+					Score:        r.Score,
+					ScorePercent: r.ScorePercent,
+					Source:       "search",
+					ContentChars: actionDiscoveryChars(r),
+					Status:       r.Status,
+					Owner:        r.Owner,
+					ShowCommand:  "prompt-manager action show " + r.ID,
+				}
+			}
+		}
+	}
+
 	// Step 2.5: Apply persisted filter config
 	if s.filterConfig != nil {
 		if filterCfg, err := s.filterConfig.Get(ctx); err == nil {
@@ -469,17 +527,26 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 	// Step 3: Sort - topic-sourced first (depth asc, score desc), then search-sourced (score desc)
 	var topicResults, searchResults []DiscoverResult
 	for _, entry := range seen {
+		if !legacySkillOnly {
+			entry.result.Type = "skill"
+		}
 		if entry.result.Source == "topic" {
 			topicResults = append(topicResults, entry.result)
 		} else {
 			searchResults = append(searchResults, entry.result)
 		}
 	}
+	actionResults := make([]DiscoverResult, 0, len(seenActions))
+	for _, result := range seenActions {
+		actionResults = append(actionResults, result)
+	}
 
 	sortDiscoverTopicResults(topicResults)
 	sortDiscoverSearchResults(searchResults)
+	sortDiscoverSearchResults(actionResults)
 
 	results := append(topicResults, searchResults...)
+	results = append(results, actionResults...)
 	if len(results) > limit {
 		results = results[:limit]
 	}
@@ -487,14 +554,23 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 	// Step 4: Build response
 	totalChars := 0
 	ids := make([]string, 0, len(results))
+	actionIDs := make([]string, 0, len(results))
 	for _, r := range results {
 		totalChars += r.ContentChars
-		ids = append(ids, r.ID)
+		if r.Type == "action" {
+			actionIDs = append(actionIDs, r.ID)
+		} else {
+			ids = append(ids, r.ID)
+		}
 	}
 
 	readCommand := ""
 	if len(ids) > 0 {
 		readCommand = "prompt-manager skill read " + strings.Join(ids, " ")
+	}
+	showCommand := ""
+	if len(actionIDs) == 1 {
+		showCommand = "prompt-manager action show " + actionIDs[0]
 	}
 
 	resp := &DiscoverResponse{
@@ -504,6 +580,7 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 		Method:            method,
 		TotalContentChars: totalChars,
 		ReadCommand:       readCommand,
+		ShowCommand:       showCommand,
 	}
 
 	// Step 5: Budget calculation
@@ -531,6 +608,9 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 				trimmedIDs := []string{}
 				cumChars := 0
 				for _, r := range results {
+					if r.Type == "action" {
+						continue
+					}
 					if cumChars+r.ContentChars > budgetChars {
 						break
 					}
@@ -545,6 +625,19 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 	}
 
 	return resp, nil
+}
+
+func normalizeDiscoverType(discoverType string) string {
+	switch strings.ToLower(strings.TrimSpace(discoverType)) {
+	case "", "skill", "skills":
+		return "skill"
+	case "action", "actions":
+		return "action"
+	case "all":
+		return "all"
+	default:
+		return ""
+	}
 }
 
 func sortDiscoverTopicResults(results []DiscoverResult) {
@@ -941,6 +1034,18 @@ func (s *Service) NeedsReindex(ctx context.Context) (bool, int, int, error) {
 		}
 	}
 
+	// Check action collection
+	if s.actionVectorStore != nil && s.actionStore != nil {
+		actionIndexed, err := s.actionVectorStore.CountPoints(ctx)
+		if err == nil {
+			actions, err := s.actionStore.List(ctx)
+			if err == nil {
+				totalIndexed += actionIndexed
+				totalDisk += len(actions)
+			}
+		}
+	}
+
 	return totalIndexed != totalDisk, totalIndexed, totalDisk, nil
 }
 
@@ -988,6 +1093,12 @@ func (s *Service) SetTeamSearch(vectorStore *VectorStore, teamStore TeamStoreRea
 func (s *Service) SetTopicSearch(vectorStore *VectorStore, topicStore TopicStoreReader) {
 	s.topicVectorStore = vectorStore
 	s.topicStore = topicStore
+}
+
+// SetActionSearch configures Action AI search support.
+func (s *Service) SetActionSearch(vectorStore *VectorStore, actionStore store.ActionStore) {
+	s.actionVectorStore = vectorStore
+	s.actionStore = actionStore
 }
 
 // SetBudgetConfig sets the budget configuration provider.
@@ -1068,6 +1179,161 @@ func (s *Service) SearchTeams(ctx context.Context, query string, limit int) (*AI
 		Query:   query,
 		Method:  "ai",
 	}, nil
+}
+
+// SearchActions performs AI semantic search for Actions with fallback to text search.
+func (s *Service) SearchActions(ctx context.Context, query string, limit int) (*AIActionSearchResponse, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	if s.actionVectorStore == nil || s.embedder == nil {
+		return s.fallbackToActionTextSearch(ctx, query, limit)
+	}
+	vector, err := s.embedder.Embed(ctx, query)
+	if err != nil {
+		log.Printf("[aisearch] Action embedding failed, falling back to text search: %v", err)
+		return s.fallbackToActionTextSearch(ctx, query, limit)
+	}
+	results, err := s.actionVectorStore.Search(ctx, vector, limit, s.threshold)
+	if err != nil {
+		log.Printf("[aisearch] Action vector search failed, falling back to text search: %v", err)
+		return s.fallbackToActionTextSearch(ctx, query, limit)
+	}
+	out := make([]AIActionSearchResult, 0, len(results))
+	for _, r := range results {
+		out = append(out, toAIActionSearchResult(r))
+	}
+	return &AIActionSearchResponse{Results: out, Total: len(out), Query: query, Method: "ai"}, nil
+}
+
+func (s *Service) fallbackToActionTextSearch(ctx context.Context, query string, limit int) (*AIActionSearchResponse, error) {
+	if s.actionStore == nil {
+		return &AIActionSearchResponse{Query: query, Method: "text"}, nil
+	}
+	actions, err := s.actionStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	terms := strings.Fields(strings.ToLower(query))
+	results := make([]AIActionSearchResult, 0, len(actions))
+	for _, action := range actions {
+		if !actionMatchesTerms(action, terms) {
+			continue
+		}
+		results = append(results, actionToSearchResult(action, textActionScore(action, terms)))
+	}
+	sortActionResults(results)
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return &AIActionSearchResponse{Results: results, Total: len(results), Query: query, Method: "text"}, nil
+}
+
+func toAIActionSearchResult(r SearchResult) AIActionSearchResult {
+	id, _ := r.Payload["action_id"].(string)
+	if id == "" {
+		id = r.ID
+	}
+	name, _ := r.Payload["name"].(string)
+	description, _ := r.Payload["description"].(string)
+	status, _ := r.Payload["status"].(string)
+	owner, _ := r.Payload["owner"].(string)
+	return AIActionSearchResult{
+		ID:           id,
+		Name:         name,
+		Description:  description,
+		Status:       status,
+		Owner:        owner,
+		Tags:         stringSlicePayload(r.Payload["tags"]),
+		Score:        r.Score,
+		ScorePercent: int(r.Score * 100),
+	}
+}
+
+func stringSlicePayload(raw interface{}) []string {
+	switch values := raw.(type) {
+	case []string:
+		return values
+	case []interface{}:
+		out := make([]string, 0, len(values))
+		for _, value := range values {
+			if s, ok := value.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func actionToSearchResult(action store.Action, score float64) AIActionSearchResult {
+	return AIActionSearchResult{
+		ID:           action.ID,
+		Name:         action.Name,
+		Description:  action.Description,
+		Status:       action.Status,
+		Owner:        strings.Trim(action.Owner.Type+":"+action.Owner.ID, ":"),
+		Tags:         action.Tags,
+		Score:        score,
+		ScorePercent: int(score * 100),
+	}
+}
+
+func actionMatchesTerms(action store.Action, terms []string) bool {
+	if len(terms) == 0 {
+		return true
+	}
+	haystack := strings.ToLower(strings.Join([]string{
+		action.ID,
+		action.Name,
+		action.Description,
+		strings.Join(action.Tags, " "),
+		strings.Join(action.Command.Argv, " "),
+		action.Owner.Type,
+		action.Owner.ID,
+	}, " "))
+	for _, term := range terms {
+		if !strings.Contains(haystack, term) {
+			return false
+		}
+	}
+	return true
+}
+
+func textActionScore(action store.Action, terms []string) float64 {
+	if len(terms) == 0 {
+		return 0.5
+	}
+	name := strings.ToLower(action.Name)
+	id := strings.ToLower(action.ID)
+	score := 0.4
+	for _, term := range terms {
+		switch {
+		case strings.Contains(id, term):
+			score += 0.2
+		case strings.Contains(name, term):
+			score += 0.15
+		default:
+			score += 0.05
+		}
+	}
+	if score > 1 {
+		return 1
+	}
+	return score
+}
+
+func sortActionResults(results []AIActionSearchResult) {
+	for i := 1; i < len(results); i++ {
+		for j := i; j > 0 && results[j].Score > results[j-1].Score; j-- {
+			results[j], results[j-1] = results[j-1], results[j]
+		}
+	}
+}
+
+func actionDiscoveryChars(r AIActionSearchResult) int {
+	return len(r.ID) + len(r.Name) + len(r.Description) + len(strings.Join(r.Tags, " ")) + len(r.Owner) + len(r.Status)
 }
 
 func (s *Service) fallbackToAgentTextSearch(ctx context.Context, query string, limit int) (*AIAgentSearchResponse, error) {

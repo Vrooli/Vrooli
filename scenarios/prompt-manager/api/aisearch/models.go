@@ -79,6 +79,28 @@ type VectorPayload struct {
 	Modes       []string `json:"modes"`
 }
 
+// --- Action AI search types ---
+
+// AIActionSearchResult represents a single Action AI search result.
+type AIActionSearchResult struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Status       string   `json:"status"`
+	Owner        string   `json:"owner"`
+	Tags         []string `json:"tags,omitempty"`
+	Score        float64  `json:"score"`
+	ScorePercent int      `json:"scorePercent"`
+}
+
+// AIActionSearchResponse wraps Action AI search results.
+type AIActionSearchResponse struct {
+	Results []AIActionSearchResult `json:"results,omitempty"`
+	Total   int                    `json:"total"`
+	Query   string                 `json:"query"`
+	Method  string                 `json:"method"`
+}
+
 // --- Agent AI search types ---
 
 // AIAgentSearchRequest represents an agent AI search request.
@@ -140,10 +162,12 @@ type DiscoverRequest struct {
 	Queries    []string `json:"queries"`
 	Complexity string   `json:"complexity,omitempty"` // minor|moderate|major|architectural
 	Limit      int      `json:"limit,omitempty"`
+	Type       string   `json:"type,omitempty"` // skill|action|all; empty preserves skill-only behavior
 }
 
 // DiscoverResult is a single discovery result with content size and source tracking.
 type DiscoverResult struct {
+	Type         string   `json:"type,omitempty"` // skill|action; omitted for legacy skill-only discovery
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
 	Description  string   `json:"description,omitempty"`
@@ -156,6 +180,10 @@ type DiscoverResult struct {
 	TopicID      string   `json:"topicId,omitempty"`    // which topic sourced this skill
 	TopicName    string   `json:"topicName,omitempty"`  // resolved topic name for display
 	ContentChars int      `json:"contentChars"`
+	Status       string   `json:"status,omitempty"`
+	Owner        string   `json:"owner,omitempty"`
+	ShowCommand  string   `json:"showCommand,omitempty"`
+	RunCommand   string   `json:"runCommand,omitempty"`
 }
 
 // DiscoverResponse wraps discovery results with budget metadata.
@@ -166,6 +194,8 @@ type DiscoverResponse struct {
 	Method                 string           `json:"method"`
 	TotalContentChars      int              `json:"totalContentChars"`
 	ReadCommand            string           `json:"readCommand"`
+	ShowCommand            string           `json:"showCommand,omitempty"`
+	RunCommand             string           `json:"runCommand,omitempty"`
 	BudgetChars            int              `json:"budgetChars,omitempty"`
 	BudgetStatus           string           `json:"budgetStatus,omitempty"`           // under|over|at
 	RecommendedReadCommand string           `json:"recommendedReadCommand,omitempty"` // trimmed command if over budget

@@ -36,6 +36,27 @@ type SkillStore interface {
 	Rename(ctx context.Context, oldID, newID string) (*Skill, error)
 }
 
+// ActionStore defines operations for Action storage.
+type ActionStore interface {
+	// List returns all Actions from active packs.
+	List(ctx context.Context) ([]Action, error)
+
+	// Get retrieves an Action by ID, searching through active packs.
+	Get(ctx context.Context, id string) (*Action, error)
+
+	// Create creates a new Action in the specified pack.
+	Create(ctx context.Context, pack string, action *Action) error
+
+	// Update updates an existing Action.
+	Update(ctx context.Context, id string, action *Action) error
+
+	// Archive marks an Action archived without deleting its files.
+	Archive(ctx context.Context, id string) error
+
+	// Delete removes an Action.
+	Delete(ctx context.Context, id string) error
+}
+
 // VariantStore defines operations for skill variant storage
 type VariantStore interface {
 	// List returns all variants for a skill
@@ -217,6 +238,7 @@ type IndexStore interface {
 // Store combines all store interfaces
 type Store interface {
 	Skills() SkillStore
+	Actions() ActionStore
 	Variants() VariantStore
 	Experiments() ExperimentStore
 	Agents() AgentStore

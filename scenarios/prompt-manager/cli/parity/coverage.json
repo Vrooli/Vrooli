@@ -20,6 +20,13 @@
   "PUT /skills/{id}/rating": {"status": "covered", "cli": "skill rate <id>"},
   "GET /skills/{id}/experiments": {"status": "covered", "cli": "experiment list --skill=<id>"},
 
+  "GET /actions": {"status": "covered", "cli": "action list"},
+  "POST /actions": {"status": "covered", "cli": "action create --file=action.json"},
+  "GET /actions/{id}": {"status": "covered", "cli": "action show <id>"},
+  "PUT /actions/{id}": {"status": "covered", "cli": "action update <id> --file=action.json"},
+  "DELETE /actions/{id}": {"status": "covered", "cli": "action delete <id>"},
+  "POST /actions/{id}/validate": {"status": "covered", "cli": "action validate <id>"},
+
   "GET /experiments": {"status": "covered", "cli": "experiment list"},
   "POST /experiments": {"status": "covered", "cli": "experiment create"},
   "GET /experiments/{eid}": {"status": "covered", "cli": "experiment show <eid>"},

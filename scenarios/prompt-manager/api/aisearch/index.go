@@ -8,6 +8,7 @@ import (
 	"log"
 	"prompt-manager/skills"
 	"prompt-manager/store"
+	"sort"
 	"strings"
 )
 
@@ -241,6 +242,33 @@ func (s *Service) reindexAllWithProgress(
 					}
 					if err := s.IndexTopic(ctx, topic.ID); err != nil {
 						log.Printf("[aisearch] Failed to index topic %s: %v", topic.ID, err)
+						errors++
+					} else {
+						indexed++
+					}
+					if progress != nil {
+						progress(indexed, skipped, errors)
+					}
+				}
+			}
+		}
+	}
+
+	// Index Actions if configured
+	if s.actionVectorStore != nil && s.actionStore != nil {
+		if err := s.actionVectorStore.EnsureCollection(ctx); err != nil {
+			log.Printf("[aisearch] Failed to ensure action collection: %v", err)
+		} else {
+			actions, err := s.actionStore.List(ctx)
+			if err != nil {
+				log.Printf("[aisearch] Failed to list actions: %v", err)
+			} else {
+				for _, action := range actions {
+					if err := ctx.Err(); err != nil {
+						break
+					}
+					if err := s.IndexAction(ctx, action.ID); err != nil {
+						log.Printf("[aisearch] Failed to index action %s: %v", action.ID, err)
 						errors++
 					} else {
 						indexed++
@@ -523,6 +551,91 @@ func topicPointID(topicID string) string {
 		name = "unknown"
 	}
 	return uuidV5(qdrantNamespace, "prompt-manager-topic:"+name)
+}
+
+// --- Action indexing ---
+
+func actionPointID(actionID string) string {
+	name := strings.TrimSpace(actionID)
+	if name == "" {
+		name = "unknown"
+	}
+	return uuidV5(qdrantNamespace, "prompt-manager-action:"+name)
+}
+
+func composeActionEmbeddingText(action *store.Action) string {
+	var parts []string
+	parts = append(parts, action.Name)
+	if action.Description != "" {
+		parts = append(parts, action.Description)
+	}
+	if len(action.Tags) > 0 {
+		parts = append(parts, "Tags: "+strings.Join(action.Tags, ", "))
+	}
+	if action.Owner.Type != "" || action.Owner.ID != "" {
+		parts = append(parts, "Owner: "+strings.Trim(action.Owner.Type+":"+action.Owner.ID, ":"))
+	}
+	if len(action.Command.Argv) > 0 {
+		parts = append(parts, "Command: "+strings.Join(action.Command.Argv, " "))
+	}
+	if len(action.Inputs) > 0 {
+		inputs := make([]string, 0, len(action.Inputs))
+		for name, input := range action.Inputs {
+			inputs = append(inputs, name+":"+input.Type)
+		}
+		sort.Strings(inputs)
+		parts = append(parts, "Inputs: "+strings.Join(inputs, ", "))
+	}
+	if len(action.Outputs) > 0 {
+		outputs := make([]string, 0, len(action.Outputs))
+		for name, output := range action.Outputs {
+			outputs = append(outputs, name+":"+output.Type)
+		}
+		sort.Strings(outputs)
+		parts = append(parts, "Outputs: "+strings.Join(outputs, ", "))
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// IndexAction indexes a single Action into the vector store.
+func (s *Service) IndexAction(ctx context.Context, actionID string) error {
+	if s.actionVectorStore == nil || s.actionStore == nil {
+		return nil
+	}
+	action, err := s.actionStore.Get(ctx, actionID)
+	if err != nil {
+		return fmt.Errorf("action not found: %w", err)
+	}
+	embeddingText := composeActionEmbeddingText(action)
+	vector, err := s.embedder.Embed(ctx, embeddingText)
+	if err != nil {
+		return fmt.Errorf("embedding failed: %w", err)
+	}
+	payload := map[string]interface{}{
+		"action_id":   action.ID,
+		"name":        action.Name,
+		"description": action.Description,
+		"status":      action.Status,
+		"owner":       strings.Trim(action.Owner.Type+":"+action.Owner.ID, ":"),
+		"tags":        action.Tags,
+	}
+	if err := s.actionVectorStore.Upsert(ctx, actionPointID(action.ID), vector, payload); err != nil {
+		return fmt.Errorf("upsert failed: %w", err)
+	}
+	log.Printf("[aisearch] Indexed action: %s (%s)", action.Name, action.ID)
+	return nil
+}
+
+// DeleteActionFromIndex removes an Action from the vector index.
+func (s *Service) DeleteActionFromIndex(ctx context.Context, actionID string) error {
+	if s.actionVectorStore == nil {
+		return nil
+	}
+	if err := s.actionVectorStore.Delete(ctx, actionPointID(actionID)); err != nil {
+		return fmt.Errorf("delete from action index failed: %w", err)
+	}
+	log.Printf("[aisearch] Deleted action from index: %s", actionID)
+	return nil
 }
 
 // composeTopicEmbeddingText creates a rich text representation for topic embedding.

@@ -12,6 +12,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"prompt-manager/actions"
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
 	"prompt-manager/graph"
@@ -28,9 +33,6 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -120,6 +122,8 @@ func main() {
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
 	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
+	actionService := actions.NewService(fileStore.Actions(), actions.NewManifestCommandResolver(absStoreDir))
+	actionHandlers := actions.NewHandlers(actionService)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
 	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir, fileStore.Relations(), fileStore.Teams())
@@ -188,10 +192,17 @@ func main() {
 	}
 	topicVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, topicAICollection, 768)
 
+	actionAICollection := os.Getenv("AI_SEARCH_ACTION_COLLECTION")
+	if actionAICollection == "" {
+		actionAICollection = "prompt-manager-actions"
+	}
+	actionVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, actionAICollection, 768)
+
 	// Wire agent/team/topic AI search into the service
 	aiSearchService.SetAgentSearch(agentVectorStore, fileStore.Agents().(*store.FileAgentStore), agentSearchService)
 	aiSearchService.SetTeamSearch(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations(), teamSearchService)
 	aiSearchService.SetTopicSearch(topicVectorStore, fileStore.FileTopics())
+	aiSearchService.SetActionSearch(actionVectorStore, fileStore.Actions())
 
 	// Budget config store
 	budgetConfigStore := aisearch.NewBudgetConfigStore(absStoreDir)
@@ -205,6 +216,7 @@ func main() {
 
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
+	actionHandlers.SetAIIndexer(aiSearchService)
 
 	// Graph detection
 	scenarioNames := discoverScenarioNames(absStoreDir)
@@ -239,6 +251,7 @@ func main() {
 
 	// Inject graph invalidator into mutation handlers
 	skillHandlers.SetGraphInvalidator(graphIndex)
+	actionHandlers.SetGraphInvalidator(graphIndex)
 	agentHandlers.SetGraphInvalidator(graphIndex)
 
 	// Log AI search status and trigger startup indexing if available
@@ -271,7 +284,7 @@ func main() {
 					log.Printf("AI Search: Reindex already running (started at %s)", status.StartedAt)
 				}
 			} else {
-				log.Printf("AI Search: Index up-to-date (%d skills)", indexed)
+				log.Printf("AI Search: Index up-to-date (%d entities)", indexed)
 			}
 
 			// Start periodic sync to catch external file changes and service recovery
@@ -311,6 +324,14 @@ func main() {
 	// Version history routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
 	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
+
+	// Action routes
+	v1.HandleFunc("/actions", actionHandlers.List).Methods("GET")
+	v1.HandleFunc("/actions", actionHandlers.Create).Methods("POST")
+	v1.HandleFunc("/actions/{id}/validate", actionHandlers.Validate).Methods("POST")
+	v1.HandleFunc("/actions/{id}", actionHandlers.Get).Methods("GET")
+	v1.HandleFunc("/actions/{id}", actionHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/actions/{id}", actionHandlers.Delete).Methods("DELETE")
 
 	// Variant routes
 	v1.HandleFunc("/skills/{id}/variants", variantHandlers.ListVariants).Methods("GET")

@@ -1,0 +1,83 @@
+// Package actions owns the Action API/domain layer.
+//
+// DOC: docs/concepts/ACTIONS.md
+// DOC: docs/plans/action-entity-implementation-plan.md
+package actions
+
+import "prompt-manager/store"
+
+type CheckStatus string
+
+const (
+	CheckPassed  CheckStatus = "passed"
+	CheckWarning CheckStatus = "warning"
+	CheckFailed  CheckStatus = "failed"
+)
+
+type Check struct {
+	Code    string      `json:"code"`
+	Status  CheckStatus `json:"status"`
+	Message string      `json:"message"`
+	Path    string      `json:"path,omitempty"`
+}
+
+type ValidationResponse struct {
+	ActionID string             `json:"actionId"`
+	Valid    bool               `json:"valid"`
+	Runnable bool               `json:"runnable"`
+	Status   string             `json:"status"`
+	Command  *CommandResolution `json:"command,omitempty"`
+	Checks   []Check            `json:"checks"`
+	Action   *store.Action      `json:"action,omitempty"`
+}
+
+type ListFilters struct {
+	Pack   string
+	Status string
+	Owner  string
+	Tag    string
+}
+
+type CreateRequest struct {
+	store.Action
+	Pack string `json:"pack,omitempty"`
+}
+
+type MutationResponse struct {
+	Action     *store.Action      `json:"action"`
+	Validation ValidationResponse `json:"validation"`
+}
+
+type CommandCertainty string
+
+const (
+	CertaintyNone      CommandCertainty = "none"
+	CertaintyOwnerOnly CommandCertainty = "owner-only"
+	CertaintyCommand   CommandCertainty = "command"
+	CertaintyOperation CommandCertainty = "operation"
+)
+
+type CommandEffect string
+
+const (
+	EffectRead        CommandEffect = "read"
+	EffectWrite       CommandEffect = "write"
+	EffectDestructive CommandEffect = "destructive"
+	EffectAdmin       CommandEffect = "admin"
+)
+
+type CommandOwner struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
+type CommandResolution struct {
+	Certainty   CommandCertainty `json:"certainty"`
+	Owner       CommandOwner     `json:"owner"`
+	Target      string           `json:"target"`
+	CommandPath []string         `json:"commandPath,omitempty"`
+	Effect      CommandEffect    `json:"effect,omitempty"`
+	Permissions []string         `json:"permissions,omitempty"`
+	RunSurfaces []string         `json:"runSurfaces,omitempty"`
+	Message     string           `json:"message,omitempty"`
+}

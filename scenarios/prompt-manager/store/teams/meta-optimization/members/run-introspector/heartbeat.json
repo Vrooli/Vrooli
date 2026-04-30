@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "45 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-29T22:45:00Z",
-    "endedAt": "2026-04-29T22:45:10Z",
+    "startedAt": "2026-04-30T22:45:00Z",
+    "endedAt": "2026-04-30T22:45:00Z",
     "status": "failed",
-    "runId": "73760206-8e5a-4683-adde-08bc76e6ad0c",
-    "logPath": "../store/teams/meta-optimization/members/run-introspector/logs/2026-04-29T22-45-00Z.log",
-    "error": "2026-04-29T22:45:05.920641Z ERROR codex_core::session: failed to record rollout items: thread 019ddb6a-c963-7782-8955-43f9a8c58408 not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 30,
+  "revision": 32,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-29T22:45:10Z"
+  "updatedAt": "2026-04-30T22:45:00Z"
 }

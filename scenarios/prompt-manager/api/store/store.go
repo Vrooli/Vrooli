@@ -11,6 +11,7 @@ import (
 type FileStore struct {
 	storeDir    string
 	skills      *FileSkillStore
+	actions     *FileActionStore
 	variants    *FileVariantStore
 	experiments *FileExperimentStore
 	agents      *FileAgentStore
@@ -30,6 +31,7 @@ func NewFileStore(storeDir string) *FileStore {
 
 	// Create entity stores
 	skillStore := NewFileSkillStore(storeDir)
+	actionStore := NewFileActionStore(storeDir)
 	variantStore := NewFileVariantStore(skillStore)
 	experimentStore := NewFileExperimentStore(storeDir)
 	teamStore := NewFileTeamStore(storeDir, relationStore)
@@ -42,6 +44,7 @@ func NewFileStore(storeDir string) *FileStore {
 	return &FileStore{
 		storeDir:    storeDir,
 		skills:      skillStore,
+		actions:     actionStore,
 		variants:    variantStore,
 		experiments: experimentStore,
 		agents:      agentStore,
@@ -50,6 +53,16 @@ func NewFileStore(storeDir string) *FileStore {
 		relations:   relationStore,
 		indexes:     indexStore,
 	}
+}
+
+// Actions returns the Action store
+func (s *FileStore) Actions() ActionStore {
+	return s.actions
+}
+
+// FileActions returns the concrete file Action store (for adapters that need direct access)
+func (s *FileStore) FileActions() *FileActionStore {
+	return s.actions
 }
 
 // Skills returns the skill store
@@ -113,6 +126,9 @@ func ensureStoreDirectories(storeDir string) {
 		filepath.Join(storeDir, "skills", "packs", "core"),
 		filepath.Join(storeDir, "skills", "packs", "local"),
 		filepath.Join(storeDir, "skills", "packs", "drafts"),
+		filepath.Join(storeDir, "actions", "packs", "core"),
+		filepath.Join(storeDir, "actions", "packs", "local"),
+		filepath.Join(storeDir, "actions", "packs", "drafts"),
 		filepath.Join(storeDir, "experiments"),
 		filepath.Join(storeDir, "templates", "agent-files"),
 		filepath.Join(storeDir, "agents"),
@@ -137,6 +153,17 @@ func ensureStoreDirectories(storeDir string) {
 		}
 		if err := SaveJSON(packOrderPath, defaultOrder); err != nil {
 			log.Printf("Warning: failed to create pack order file: %v", err)
+		}
+	}
+
+	actionPackOrderPath := filepath.Join(storeDir, "actions", "_pack-order.json")
+	if !FileExists(actionPackOrderPath) {
+		defaultOrder := &PackOrder{
+			ActivePacks:   []string{"local", "core"},
+			InactivePacks: []string{"drafts"},
+		}
+		if err := SaveJSON(actionPackOrderPath, defaultOrder); err != nil {
+			log.Printf("Warning: failed to create action pack order file: %v", err)
 		}
 	}
 }

@@ -584,9 +584,9 @@ Cancel an in-progress reindex operation.
 
 ---
 
-## Actions (Proposed)
+## Actions
 
-Actions are proposed typed wrappers over exactly one Vrooli-controlled CLI command. The endpoints below are planned contracts, not currently implemented. See [DOC: docs/concepts/ACTIONS.md].
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The storage, CRUD, and validation endpoints are implemented; execution remains deferred until Phase 4 governance is complete. See [DOC: docs/concepts/ACTIONS.md].
 
 ### GET /api/v1/actions
 
@@ -632,14 +632,15 @@ Create a new Action contract.
 - The API must reject command strings that require shell interpretation.
 - The command target must be a Vrooli-controlled CLI command.
 - Creation should validate input/output schemas and permission declarations.
+- Invalid contracts return `422` with a validation response.
 
 ### PUT /api/v1/actions/{id}
 
-Update an existing Action contract. Updates should create version history once Action history is implemented.
+Update an existing Action contract. Updates validate the replacement contract before persistence.
 
 ### DELETE /api/v1/actions/{id}
 
-Archive or delete an Action according to pack/status policy. Core Actions should follow the same protection posture as core skills.
+Archive an Action by default. Use `?hard=true` for hard deletion.
 
 ### POST /api/v1/actions/{id}/validate
 
@@ -662,7 +663,7 @@ Validate an Action contract without running its target operation.
 
 ### POST /api/v1/actions/{id}/run
 
-Run an Action with typed input.
+Run an Action with typed input. This endpoint is intentionally not implemented yet.
 
 **Request Body:**
 ```json
@@ -685,21 +686,21 @@ Run an Action with typed input.
 }
 ```
 
-Execution should use the argv-shaped command contract from `action.json`. Branching and implementation logic belong in the owning CLI, not the Action runtime.
+Execution must use the argv-shaped command contract from `action.json`. Branching and implementation logic belong in the owning CLI, not the Action runtime. Do not add this route until timeout, concurrency, stdout/stderr caps, audit history, permission enforcement, and no-shell argv execution are implemented.
 
 ### POST /api/v1/discover
 
-The existing discovery endpoint currently returns skill results. Planned Action integration should allow mixed results:
+Discover skills, Actions, or both. Omitting `type` preserves the legacy skill-only response shape.
 
 ```json
 {
   "queries": ["take screenshot of scenario UI"],
-  "types": ["skill", "action"],
+  "type": "all",
   "limit": 10
 }
 ```
 
-Mixed responses should include a result type discriminator so agents can prefer exact Actions for deterministic operations and skills for judgment-heavy work.
+`type` accepts `skill`, `action`, or `all`. Mixed responses include a result type discriminator so agents can prefer exact Actions for deterministic operations and skills for judgment-heavy work.
 
 ---
 

@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "0 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-29T23:00:00Z",
-    "endedAt": "2026-04-29T23:00:05Z",
+    "startedAt": "2026-04-30T23:00:00Z",
+    "endedAt": "2026-04-30T23:00:00Z",
     "status": "failed",
-    "runId": "ae58e73f-34ec-4e7a-99dc-09c7a15cb7ec",
-    "logPath": "../store/teams/meta-optimization/members/meta-contrarian/logs/2026-04-29T23-00-00Z.log",
-    "error": "2026-04-29T23:00:04.894028Z ERROR codex_core::session: failed to record rollout items: thread 019ddb78-7f76-7aa1-9b09-203ea35d8bb0 not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 33,
+  "revision": 35,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-29T23:00:05Z"
+  "updatedAt": "2026-04-30T23:00:00Z"
 }

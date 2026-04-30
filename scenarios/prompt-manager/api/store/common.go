@@ -27,6 +27,7 @@ const (
 	KindTeamInbox  = "team-inbox"
 	KindTeamMember = "team-member"
 	KindTopic      = "topic"
+	KindAction     = "action"
 )
 
 // Experiment status values

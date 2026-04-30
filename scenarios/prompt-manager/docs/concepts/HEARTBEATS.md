@@ -110,12 +110,12 @@ This layered approach means:
 - **Team Inbox**: "Pending messages to act on or reply to"
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
 
-### Planned Action Discovery Guidance
+### Action Discovery Guidance
 
-Actions are proposed as typed executable wrappers over Vrooli-controlled CLI commands. Once implemented, heartbeat prompts should include a compact runtime rule:
+Actions are typed executable wrappers over Vrooli-controlled CLI commands. Heartbeat prompts can include a compact runtime rule:
 
 ```text
-Before manual operational work, use `prompt-manager discover "<what you need>" --type all`; prefer an exact Action over prose instructions when the task is deterministic.
+Before manual operational work, use `prompt-manager discover "<what you need>" --type all`; prefer an exact Action contract over prose instructions when the task is deterministic. Until Action execution governance lands, inspect matching Actions with `prompt-manager action show <id>` rather than running them through prompt-manager.
 ```
 
 This keeps judgment in skills and execution in Actions without bloating every heartbeat prompt. See [Actions](ACTIONS.md) and [Memory Promotion](MEMORY-PROMOTION.md).

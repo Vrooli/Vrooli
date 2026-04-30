@@ -2,6 +2,100 @@
 
 Status: ready for implementation.
 
+## Implementation Progress
+
+2026-04-30:
+
+- Completed the Phase 1 foundation slice for Action storage:
+  - Added `store/schemas/action.schema.json`.
+  - Added Action models and `KindAction` to the API store package.
+  - Added `FileActionStore` with pack order, list/get/create/update/archive/delete, structural contract validation, history entries, dotted Action ID validation, and unsafe command-shape rejection.
+  - Wired `Actions()` / `FileActions()` into `NewFileStore` and initialized `store/actions/packs/{core,local,drafts}` plus `store/actions/_pack-order.json`.
+  - Added focused store tests covering CRUD, archive, pack precedence, malformed/invalid file skipping, duplicate IDs, invalid IDs, invalid command forms, timestamps, and revision updates.
+  - Added a draft core fixture at `store/actions/packs/core/team.decisions.list/action.json`.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./...`
+  - `cd scenarios/prompt-manager && jq . store/schemas/action.schema.json >/dev/null && jq . store/actions/_pack-order.json >/dev/null && jq . store/actions/packs/core/team.decisions.list/action.json >/dev/null`
+
+- Completed the first Phase 2 slice for Action validation:
+  - Added the `api/actions/` package with validation response models, a `Service`, HTTP `Handlers`, and a `ControlledCommandResolver` seam.
+  - Added `ManifestCommandResolver`, which classifies known `vrooli` root/scenario/resource command paths, known prompt-manager command groups, and manifest-owned scenario/resource CLI binaries without treating first-token ownership as sufficient command certainty.
+  - Wired `POST /api/v1/actions/{id}/validate` in `api/main.go`.
+  - Added tests for unsafe command forms, unknown subcommands, manifest-owned owner-only certainty, active-vs-draft behavior, recursive validation hooks, default value validation, and the validate handler.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+
+- Completed the Phase 3 API CRUD slice, excluding execution:
+  - Added Action list/get/create/update/delete/archive handlers in `api/actions/handlers.go`.
+  - Added service methods and request/response models for Action CRUD.
+  - Wired `GET /api/v1/actions`, `GET /api/v1/actions/{id}`, `POST /api/v1/actions`, `PUT /api/v1/actions/{id}`, and `DELETE /api/v1/actions/{id}` in `api/main.go`.
+  - Kept `DELETE` conservative: it archives by default and only hard-deletes with `?hard=true`.
+  - Added pack/status/owner/tag filtering for `GET /api/v1/actions`.
+  - Mutations run Action validation before persistence and invalidate the graph index after successful changes.
+  - Added handler tests for success, not found, malformed JSON, validation failures, and pack/status/tag filters.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+
+- Completed an additional Phase 2 validation-hardening slice:
+  - Exported shared structural argv validation from the Action store layer and reused it for owner-specific validation hooks.
+  - Store validation now rejects invalid `execution.outputMode`, invalid `validation.mode`, and unsafe `validation.argv` contracts before persistence.
+  - Action validation now resolves validation hooks through the controlled-command resolver, rejects unknown hooks for active Actions, rejects destructive/admin validation hooks, and catches both `prompt-manager action validate <same-id>` and `prompt-manager actions validate <same-id>` self-recursion.
+  - Integer default validation now enforces declared `min` / `max` bounds.
+  - Added focused tests for unsafe validation hooks, unknown validation hooks, destructive validation hooks, invalid runtime metadata, and integer default bounds.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+
+- Completed another Phase 2 resolver/permission hardening slice:
+  - Replaced broad prompt-manager command-group validation with subcommand-level command certainty for current prompt-manager CLI groups, including `action` / `actions` routes planned in this implementation.
+  - Added path-specific effect classification for read/write/destructive prompt-manager subcommands so unknown or mutating subcommands no longer inherit generic read certainty.
+  - Expanded Action permission declarations and schema with `apiRead`, `apiWrite`, `processStart`, `processStop`, `hostConfigure`, `secretRead`, and `secretWrite`.
+  - Permission alignment now enforces API, process, host, and secret permissions in addition to filesystem/network/destructive declarations.
+  - Added tests proving prompt-manager subcommand classification, unknown subcommand rejection, and API/process permission failures.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+  - `jq . scenarios/prompt-manager/store/schemas/action.schema.json >/dev/null`
+
+- Completed the first Phase 3 CLI/docs slice:
+  - Added `prompt-manager action list`, `prompt-manager action show <id>`, and `prompt-manager action validate <id>` as thin API clients in `cli/actions`.
+  - Registered the `action` / `actions` command group in the CLI domain bootstrap.
+  - Added CLI unit tests for command registration, list filters, show path routing, validate routing, and invalid validation results.
+  - Updated CLI/API parity coverage for the implemented Action routes and marked Action create/update/delete CLI wrappers as `audit-pending`.
+  - Updated the Action concept, API reference, CLI reference, docs manifest, and parity audit so they no longer describe storage/API/validate/list/show as purely proposed.
+- Verified with:
+  - `cd scenarios/prompt-manager/cli && go test ./actions ./domains ./parity`
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+
+- Completed the second Phase 3 CLI/docs slice:
+  - Added `prompt-manager action create --file=action.json [--pack=...]`, `prompt-manager action update <id> --file=action.json`, and `prompt-manager action delete <id> [--yes] [--hard]` as thin API clients.
+  - Kept create/update contract input file-based so the CLI does not duplicate Action schema validation or invent an interactive editor.
+  - Added CLI unit tests for create payloads, update routing, archive-by-default delete, and hard-delete routing.
+  - Updated CLI reference, Action concept status, and CLI/API parity coverage so Action CRUD/validation routes are covered.
+- Verified with:
+  - `cd scenarios/prompt-manager/cli && go test ./actions ./parity`
+  - `cd scenarios/prompt-manager/cli && go test ./...`
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `git diff --check`
+
+- Completed the first Phase 6 AI search/discovery slice:
+  - Added Action vector indexing with a dedicated `AI_SEARCH_ACTION_COLLECTION` defaulting to `prompt-manager-actions`.
+  - Wired Action indexing into full reindex, staleness checks, and Action create/update/delete mutation hooks.
+  - Added Action text fallback search for environments without reachable Qdrant/Ollama.
+  - Extended `/api/v1/discover` with opt-in `type: "skill" | "action" | "all"` while preserving legacy skill-only response shape when `type` is omitted.
+  - Extended `prompt-manager discover` with `--type skill|action|all`; the CLI omits `type` for default skill discovery for API compatibility.
+  - Updated Action concept, API reference, CLI reference, and configuration docs.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./aisearch ./store`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+  - `cd scenarios/prompt-manager/cli && go test ./discover ./actions ./parity`
+  - `cd scenarios/prompt-manager/cli && go test ./...`
+  - `git diff --check`
+
+Next resume point: Continue Phase 6 by polishing mixed discovery response ergonomics and docs/examples, then move to Phase 7 graph integration. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands. Do not wire `POST /api/v1/actions/{id}/run` or `prompt-manager action run` until Phase 4 execution governance is implemented.
+
 ## Purpose
 
 Fully implement the prompt-manager Action entity described in [DOC: docs/concepts/ACTIONS.md] as a first-class, typed executable wrapper over exactly one Vrooli-controlled CLI command.

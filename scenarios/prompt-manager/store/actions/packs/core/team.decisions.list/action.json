@@ -1,0 +1,53 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "team.decisions.list",
+  "name": "List Team Decisions",
+  "description": "List recent decisions for a prompt-manager team.",
+  "status": "draft",
+  "owner": {
+    "type": "scenario",
+    "id": "prompt-manager"
+  },
+  "command": {
+    "argv": [
+      "prompt-manager",
+      "team",
+      "decision-list",
+      "{{team}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "team": {
+      "type": "team",
+      "required": true,
+      "description": "Prompt-manager team ID."
+    }
+  },
+  "outputs": {
+    "decisions": {
+      "type": "json",
+      "description": "Decision list response from the prompt-manager CLI."
+    }
+  },
+  "permissions": {},
+  "examples": [
+    {
+      "description": "List recent decisions for director-swarm.",
+      "input": {
+        "team": "director-swarm"
+      }
+    }
+  ],
+  "tags": [
+    "teams",
+    "decisions"
+  ],
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-30T00:00:00Z"
+}

@@ -6,14 +6,14 @@
 
 ---
 
-## Current State (2026-04-24)
+## Current State (2026-04-30)
 
 | Status | Count |
 |---|---:|
-| `covered` | 107 |
+| `covered` | 113 |
 | `intentionally-absent` | 5 |
 | `audit-pending` | 50 |
-| **Total v1 routes** | **162** |
+| **Total v1 routes** | **168** |
 
 `audit-pending` entries are not gaps in the strict CI-failing sense — they have been classified just enough to satisfy the guard, but every one needs a follow-up pass to either confirm `covered` (with the precise CLI invocation) or `intentionally-absent` (with a real reason). They are the work surface for follow-up backlog items.
 
@@ -62,6 +62,7 @@ The following groups summarize where covered/audit-pending entries cluster. See 
 - **Knowledge** — `team knowledge-{add,list,update,delete}` (all 4 endpoints)
 - **Tasks (team-scoped)** — `team task-{list,add,update,delete}` (all 4 endpoints)
 - **Skills core CRUD** — `skill {list,show,add,read,update,delete,sync,use,rate,versions,revert,variants,add-variant,rm-variant}`
+- **Actions CRUD/validation** — `action {list,show,create,update,delete,validate}`; execution is intentionally deferred until runtime governance lands
 - **Agents core CRUD** — `agent {list,show,create,update,delete,soul,search}`
 - **Experiments core** — `experiment {list,show,create,delete,start,conclude,outcomes}`
 - **Graph reads** — `graph {show,regenerate,orphans,skillless,empty-teams,unaffiliated,popular,cycles,health,node}`

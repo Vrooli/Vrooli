@@ -20,10 +20,12 @@ type DiscoverRequest struct {
 	Queries    []string `json:"queries"`
 	Complexity string   `json:"complexity,omitempty"`
 	Limit      int      `json:"limit,omitempty"`
+	Type       string   `json:"type,omitempty"`
 }
 
 // DiscoverResult represents a single discovery result.
 type DiscoverResult struct {
+	Type         string   `json:"type,omitempty"`
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
 	Description  string   `json:"description,omitempty"`
@@ -35,6 +37,10 @@ type DiscoverResult struct {
 	TopicDepth   *int     `json:"topicDepth,omitempty"`
 	TopicID      string   `json:"topicId,omitempty"`
 	ContentChars int      `json:"contentChars"`
+	Status       string   `json:"status,omitempty"`
+	Owner        string   `json:"owner,omitempty"`
+	ShowCommand  string   `json:"showCommand,omitempty"`
+	RunCommand   string   `json:"runCommand,omitempty"`
 }
 
 // DiscoverResponse wraps discovery results.
@@ -45,6 +51,8 @@ type DiscoverResponse struct {
 	Method                 string           `json:"method"`
 	TotalContentChars      int              `json:"totalContentChars"`
 	ReadCommand            string           `json:"readCommand"`
+	ShowCommand            string           `json:"showCommand,omitempty"`
+	RunCommand             string           `json:"runCommand,omitempty"`
 	BudgetChars            int              `json:"budgetChars,omitempty"`
 	BudgetStatus           string           `json:"budgetStatus,omitempty"`
 	RecommendedReadCommand string           `json:"recommendedReadCommand,omitempty"`
@@ -73,13 +81,17 @@ func cmdDiscover(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("discover", flag.ContinueOnError)
 	complexity := fs.String("complexity", "moderate", "Task complexity (minor|moderate|major|architectural)")
 	limit := fs.Int("limit", 10, "Maximum number of results")
+	resultType := fs.String("type", "skill", "Result type (skill|action|all)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: discover \"query1\" \"query2\" [--complexity moderate] [--limit 10] [--json]")
+		return fmt.Errorf("usage: discover \"query1\" \"query2\" [--complexity moderate] [--limit 10] [--type skill|action|all] [--json]")
+	}
+	if !validDiscoverType(*resultType) {
+		return fmt.Errorf("--type must be one of: skill, action, all")
 	}
 
 	queries := fs.Args()
@@ -88,6 +100,9 @@ func cmdDiscover(ctx appctx.Context, args []string) error {
 		Queries:    queries,
 		Complexity: *complexity,
 		Limit:      *limit,
+	}
+	if *resultType != "skill" {
+		req.Type = *resultType
 	}
 
 	var resp DiscoverResponse
@@ -101,18 +116,24 @@ func cmdDiscover(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
+	label := discoverLabel(*resultType)
 	if resp.Total == 0 {
-		fmt.Printf("No skills found for: %s\n", strings.Join(queries, ", "))
+		fmt.Printf("No %s found for: %s\n", label, strings.Join(queries, ", "))
 		return nil
 	}
 
 	// Header
-	fmt.Printf("Found %d skills (~%s chars combined, %s budget):\n\n",
-		resp.Total, formatNumber(resp.TotalContentChars), resp.Complexity)
+	fmt.Printf("Found %d %s (~%s chars combined, %s budget):\n\n",
+		resp.Total, label, formatNumber(resp.TotalContentChars), resp.Complexity)
 
 	// Table
-	fmt.Printf("  %-3s  %-6s  %-7s  %-30s  %s\n", "#", "Score", "Source", "ID", "Chars")
-	fmt.Printf("  %-3s  %-6s  %-7s  %-30s  %s\n", "---", "------", "-------", "------------------------------", "-----")
+	if *resultType == "skill" {
+		fmt.Printf("  %-3s  %-6s  %-7s  %-30s  %s\n", "#", "Score", "Source", "ID", "Chars")
+		fmt.Printf("  %-3s  %-6s  %-7s  %-30s  %s\n", "---", "------", "-------", "------------------------------", "-----")
+	} else {
+		fmt.Printf("  %-3s  %-6s  %-7s  %-7s  %-30s  %s\n", "#", "Score", "Type", "Source", "ID", "Chars")
+		fmt.Printf("  %-3s  %-6s  %-7s  %-7s  %-30s  %s\n", "---", "------", "-------", "-------", "------------------------------", "-----")
+	}
 
 	for i, r := range resp.Results {
 		scoreStr := fmt.Sprintf("%.2f", r.Score)
@@ -121,12 +142,23 @@ func cmdDiscover(ctx appctx.Context, args []string) error {
 		if len(id) > 30 {
 			id = id[:27] + "..."
 		}
-		fmt.Printf("  %-3d  %-6s  %-7s  %-30s  %s\n", i+1, scoreStr, r.Source, id, charsStr)
+		if *resultType == "skill" {
+			fmt.Printf("  %-3d  %-6s  %-7s  %-30s  %s\n", i+1, scoreStr, r.Source, id, charsStr)
+		} else {
+			rowType := r.Type
+			if rowType == "" {
+				rowType = "skill"
+			}
+			fmt.Printf("  %-3d  %-6s  %-7s  %-7s  %-30s  %s\n", i+1, scoreStr, rowType, r.Source, id, charsStr)
+		}
 	}
 
 	// Read command
 	if resp.ReadCommand != "" {
 		fmt.Printf("\n  %s\n", resp.ReadCommand)
+	}
+	if resp.ShowCommand != "" {
+		fmt.Printf("\n  %s\n", resp.ShowCommand)
 	}
 
 	// Budget status
@@ -143,6 +175,26 @@ func cmdDiscover(ctx appctx.Context, args []string) error {
 	}
 
 	return nil
+}
+
+func validDiscoverType(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "skill", "action", "all":
+		return true
+	default:
+		return false
+	}
+}
+
+func discoverLabel(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "action":
+		return "actions"
+	case "all":
+		return "results"
+	default:
+		return "skills"
+	}
 }
 
 func formatNumber(n int) string {

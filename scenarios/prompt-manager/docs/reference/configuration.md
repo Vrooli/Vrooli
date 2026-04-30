@@ -14,6 +14,7 @@ Environment variables and configuration options for prompt-manager.
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant vector database URL for AI search |
 | `QDRANT_API_KEY` | (none) | API key for Qdrant authentication |
 | `AI_SEARCH_COLLECTION` | `prompt-manager-skills` | Qdrant collection name for skill embeddings |
+| `AI_SEARCH_ACTION_COLLECTION` | `prompt-manager-actions` | Qdrant collection name for Action embeddings |
 | `AI_SEARCH_THRESHOLD` | `0.5` | Minimum similarity score for AI search results |
 
 ### CLI
@@ -127,9 +128,9 @@ store/
 }
 ```
 
-### action.json Format (Proposed)
+### action.json Format
 
-Actions are proposed typed wrappers over one Vrooli-controlled CLI command. The future schema should be documented in detail in [DOC: docs/concepts/ACTIONS.md].
+Actions are typed wrappers over one Vrooli-controlled CLI command. See [DOC: docs/concepts/ACTIONS.md] for the full contract.
 
 ```json
 {
