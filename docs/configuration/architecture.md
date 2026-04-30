@@ -32,7 +32,11 @@ For each operator-visible decision, exactly one file is the source of truth. Oth
 | Host safeguard opt-in | `.vrooli/operator-state.json` → `host_safeguards.<name>.opted_in` (override of manifest `required`) | onboarding host step |
 | Safeguard risk indicator | `internal/safeguards/<name>/safeguard.json` → `risk` | onboarding host step (risk column) |
 | What host tools/safeguards exist | filesystem: `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` (drift-protected by `internal/runtime/manifests_test.go`) | onboarding host step (registry source) |
-| External-auth tokens (OAuth, device flow) | Vault under reserved prefix; schema TBD | onboarding integrations step (deferred) |
+| What integration connector types exist | filesystem: `scenarios/integration-hub/connectors/<id>/connector.json` (deferred) | integration-hub UI; onboarding integrations step |
+| Connection instances (OAuth tokens, API keys for connectors) | Vault under `secret/vrooli/integrations/<connector>/<connection_id>` + integration-hub state (deferred) | integration-hub UI |
+| Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; deferred) | onboarding integrations step |
+| Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (deferred) | onboarding integrations step |
+| Connector-level secrets (e.g. OAuth client_secret) | Vault under `secret/vrooli/connectors/<connector_id>` (deferred) | integration-hub setup, not user-facing |
 | Active profile | `.vrooli/operator-state.json` → `active_profile` | reserved for future use; profiles deferred |
 
 Anything not in this table is out of scope for the wizard.
@@ -74,13 +78,26 @@ To answer "what is the *effective* value of X right now?", the system applies a 
 2. fall back: empty (resource declares no credentials)
 ```
 
+### Which connection a scenario uses for a given connector (deferred)
+
+Lands when `integration-hub` ships. The intent:
+
+```
+1. .vrooli/operator-state.json → integrations.<scenario>.<connector>   (operator binding)
+2. if absent and scenario marks the integration as required → wizard error: "no connection bound"
+3. if absent and scenario marks the integration as optional → scenario runs in degraded mode
+```
+
+For `multi: true` scenarios (persona-actor case), the operator-state value is an array of `{ context, connection_id }` rather than a single `connection_id`. The scenario picks at runtime by `context`.
+
 These resolution orders are the contract. UIs and runtime code consume them; new surfaces should reuse the same evaluator rather than reimplementing.
 
 ## Open work items
 
 Items intentionally deferred from the current schema bundle. Each is a future-conversation decision; do not resolve speculatively.
 
-- **External-auth credential schema** — current `secretDescriptor` covers paste-string secrets. OAuth / device-flow / coding-agent sign-in credentials need their own shape but no concrete integration is wired today. Schema lands when the first integration ships. See [`integrations/external-auth.md`](integrations/external-auth.md).
+- **`integration-hub` scenario** — the home for both connector definitions (declarative manifests of *how to talk to provider X*) and connection instances (operator's actual authenticated sessions). Owns the auth-flow drivers, the Vault layout for connection tokens, the bind/unbind/refresh CLI, and the storage for unbound/scratch credentials. Non-trivial work (probably 2–4 weeks when scoped); blocking the integrations wizard step beyond the current empty placeholder. First concrete connector is most likely `fal-api` (paste-string) followed by `github-oauth`. See [`integrations/connectors.md`](integrations/connectors.md) and [`integrations/connections.md`](integrations/connections.md) for the full design intent.
+- **External-auth credential schema** — concrete schema dispatch for `oauth_web` / `oauth_device` / `external_sign_in_command` / `app_password` patterns. Catalog lives in [`integrations/external-auth.md`](integrations/external-auth.md); the schema lands as part of the integration-hub work above. The current `secretDescriptor` continues to cover paste-string resource secrets independently.
 - **Profiles** — bundled selections of scenarios + resources + secrets (e.g. "engineering", "marketing", "homelab"). `operator-state.json` reserves `active_profile` for this; `profile.schema.json` lands when the second concrete profile exists. See [`profiles.md`](profiles.md).
 - **Schema-types unification (separate plan)** — `healthCheck` is currently defined four times across `tool.schema.json`, `safeguard.schema.json`, `deployment.schema.json`, and `resource.schema.json` `health_checks`. `dependencies` shapes overlap between `service.dependencies.scenarios` and `service.deployment.dependencies`. Consolidating these into shared `common.schema.json` defs is the follow-up plan after the current bundle lands.
 - **Renaming the `service.deployment` block** — the name overlaps with `deployment.schema.json` (runtime config). One block is hand-edited config; the other is analyzer output. Rename to `analysis` or `feasibility` is on the table for the unification plan.

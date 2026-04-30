@@ -1,37 +1,50 @@
 # Integrations
 
-This folder describes external integrations Vrooli can connect to — third-party APIs, OAuth providers, cloud services, coding-agent sign-ins. Each page describes one integration: what the operator needs to provide, how the system stores and consumes it, and what the wizard surfaces.
+This folder describes how Vrooli connects to external services — third-party APIs, OAuth providers, cloud services, coding-agent sign-ins, social-media accounts. The integration model is a connector + connection split, owned by the deferred `integration-hub` scenario.
+
+## Read order
+
+If you're new to the integration model, read in this order:
+
+1. [`connectors.md`](connectors.md) — what a connector is (the *type* definition).
+2. [`connections.md`](connections.md) — what a connection is (an *instance* of a connector for one operator).
+3. [`external-auth.md`](external-auth.md) — catalog of auth patterns connectors can declare.
+
+The model intentionally mirrors the well-trodden integration-platform pattern (Zapier, n8n, Pipedream, Nango, Composio): one connector definition, many connection instances, scenarios reference instances by id.
 
 ## What goes in this folder
 
-Pages are added when an integration is *actually wired*. Speculative pages for "things we might support someday" do not belong here — they rot. The discipline is:
+- **`connectors.md`** — the connector concept, manifest sketch, capability declarations.
+- **`connections.md`** — connection instances, bound vs unbound, Vault layout, lifecycle CLI.
+- **`external-auth.md`** — catalog of supported auth patterns (`api_key`, `oauth_web`, `oauth_device`, `external_sign_in_command`, `app_password`).
+- **Per-integration pages** — one file per *wired* connector or per concrete integration that doesn't fit the connector model. Examples below.
 
-- A new integration is on a backlog or being scoped → no page yet.
-- A scenario or resource ships that consumes the integration → add a page describing the operator-facing surface.
-- The wizard adds a step for the integration → already documented here, by definition.
+The discipline is: **a page lives here only when the integration is actually wired.** Speculative pages for "things we might support someday" rot. New pages are added when a scenario or resource ships that consumes the integration.
 
-## Existing pages
+## Existing per-integration pages
 
-- [`external-auth.md`](external-auth.md) — concept page for OAuth / device-flow / coding-agent sign-ins. Schema is intentionally deferred until the first concrete integration lands; this page describes the framework and the gap.
-- [`video-providers.md`](video-providers.md) — Seedance, Veo, Sora and the like. Worked example of wiring a pay-per-use AI video model via API key.
+- [`video-providers.md`](video-providers.md) — Seedance, Veo, Sora and the like. Worked example of wiring a pay-per-use AI video model via API key. (Will likely become a `fal-api` connector when integration-hub ships.)
 
-Other integrations (Cloudflare tunnels, LLM providers, GitHub, Slack, etc.) will get pages as they are wired. The absence of a page means the integration is either not yet wired or wired ad-hoc; flag the gap as a backlog item rather than writing a speculative page.
+Other integrations (Cloudflare tunnels, GitHub, Slack, Telegram, Gmail, TikTok-account, Instagram-account, etc.) get pages as they are wired. The absence of a page means the integration is either not yet wired or wired ad-hoc; flag the gap as a backlog item rather than writing a speculative page.
 
-## Two integration patterns
+## Why integrations are not resources
 
-Integrations split into two patterns based on credential shape:
+Some integrations look resource-shaped (a model API, a database service). The dividing line is documented in [`connectors.md`](connectors.md#connector-vs-resource--when-to-use-which). Short version:
 
-### Paste-string (API key)
+- **Resource** — a runtime capability the system depends on; lifecycle-managed (start/stop/health), typically singleton.
+- **Connector** — access to an external account or service; not lifecycle-managed by Vrooli; can have many instances per install.
 
-Operator obtains a string from a provider's web UI and pastes it. The system stores it in Vault and reads it via `packages/api-core/secrets`. The full flow lives in [`../secrets.md`](../secrets.md); the integration page describes provider-specifics (where to obtain, naming conventions, gotchas).
+A pay-per-use AI API is a borderline case. Today these live as resources because the credential plumbing was already there; some may migrate to `api_key`-pattern connectors as integration-hub matures.
 
-### External-auth (OAuth / device flow / sign-in)
+## Status
 
-Operator performs an interactive flow (browser-based OAuth, device code, CLI sign-in) and a token is returned. The system stores the token, but the obtain-flow is *interactive*, not paste-and-paste. Schema is currently deferred — see [`external-auth.md`](external-auth.md).
+The integration-hub scenario does not exist yet. Until it does:
 
-Coding-agent sign-ins (Claude Code, Codex, etc.) are usually external-auth: the package is installed during setup, then the operator runs an external sign-in command outside the wizard. The wizard's role is to detect whether sign-in succeeded (a probe) and surface the result, not to handle the auth flow itself.
+- Paste-string credentials live as resource credentials (the existing pattern). See [`../secrets.md`](../secrets.md).
+- Loose / scratch keys for ad-hoc testing have no clean home. See the [scratch case](connections.md#unbound-connections-the-scratch-case) for the eventual story.
+- Multi-instance integrations (the persona-actor case) are not supported. The marketing-crew persona accounts will land alongside or after integration-hub.
 
 ## See also
 
-- [`../secrets.md`](../secrets.md) — paste-string credential layering
-- [`../architecture.md`](../architecture.md) — source-of-truth tables and resolution order
+- [`../secrets.md`](../secrets.md) — paste-string credential layering for resources (the existing pattern)
+- [`../architecture.md`](../architecture.md) — source-of-truth tables; integration-hub is on the deferred-scenarios list

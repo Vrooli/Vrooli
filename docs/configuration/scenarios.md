@@ -12,6 +12,8 @@ Scenarios are the user-facing capability layer. An operator selects which scenar
 | Recommended default for auto-restart | `scenarios/<name>/.vrooli/service.json` | `runtime.auto_restart_default` |
 | Operator override for auto-restart | `.vrooli/operator-state.json` | `scenarios.<name>.auto_restart` |
 | Other scenarios this one depends on | `scenarios/<name>/.vrooli/service.json` | `dependencies.scenarios.<name>` |
+| Integrations this scenario needs (deferred) | `scenarios/<name>/.vrooli/service.json` | `integrations[]` |
+| Which connection satisfies each integration on this install (deferred) | `.vrooli/operator-state.json` | `integrations.<scenario>.<connector>` |
 
 For the resolution order between manifest defaults and operator overrides, see [`architecture.md`](architecture.md#resolution-order).
 
@@ -59,6 +61,45 @@ Onboarding consumes this to display a cascade hint when a scenario is selected:
 > Selecting `swarm-manager` will also enable `agent-manager` (required) and try to start `workspace-sandbox` (degrades without it).
 
 When you add a new scenario dependency to a manifest, no onboarding change is needed — the cascade is data-driven.
+
+## Integrations a scenario needs (deferred)
+
+When a scenario depends on an external service (GitHub, Slack, a TikTok account, a paid API), it declares the requirement in `service.json` under an `integrations` array. **The schema for this field is deferred** until the `integration-hub` scenario ships; the shape sketched here is the design intent, not yet a contract.
+
+```jsonc
+"integrations": [
+  {
+    "connector": "github-oauth",
+    "scopes": ["repo:read"],
+    "purpose": "fetch issues for swarm-manager initiative tracking",
+    "required": true
+  },
+  {
+    "connector": "tiktok-account",
+    "scopes": ["post:write"],
+    "purpose": "publish AI-UGC videos for marketing-crew personas",
+    "required": false,
+    "multi": true
+  }
+]
+```
+
+Field intent:
+
+- **`connector`** — id of a connector defined in `scenarios/integration-hub/connectors/<id>/connector.json`. The scenario manifest declares the *type*; the operator picks the actual connection in onboarding.
+- **`scopes`** — minimum scopes the connection must have granted. Validated by integration-hub when the operator binds a connection.
+- **`required`** — `true` if the scenario refuses to start without a satisfying connection; `false` if the integration gates a feature rather than the whole scenario.
+- **`multi`** — `true` for scenarios that use many connections of the same type, each tagged with a `context` the scenario understands (e.g. one TikTok account per persona).
+- **`purpose`** — operator-facing string surfaced in the wizard so the operator understands *why* the integration is needed.
+
+The binding (which concrete `connection_id` satisfies the requirement) is operator state, not manifest data. See [`integrations/connections.md`](integrations/connections.md#how-scenarios-bind-to-connections) for the binding mechanics.
+
+**Until integration-hub ships**, scenarios that need external services either:
+
+1. Use a resource (for paste-string API keys that fit the existing `resource.credentials` shape), or
+2. Block on integration-hub and document the dependency in their backlog.
+
+Don't pre-populate `integrations[]` on existing scenarios; the field is a no-op until the consumer scenario exists.
 
 ## When to populate the new fields
 
