@@ -60,9 +60,15 @@ type AgentProfile struct {
 	DeniedPaths  []string `json:"deniedPaths,omitempty" db:"denied_paths"`
 
 	// Metadata
-	CreatedBy string    `json:"createdBy,omitempty" db:"created_by"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+	CreatedBy       string    `json:"createdBy,omitempty" db:"created_by"`
+	OwnerScenario   string    `json:"ownerScenario,omitempty" db:"owner_scenario"`
+	SourcePath      string    `json:"sourcePath,omitempty" db:"source_path"`
+	SourceHash      string    `json:"sourceHash,omitempty" db:"source_hash"`
+	LastAppliedHash string    `json:"lastAppliedHash,omitempty" db:"last_applied_hash"`
+	SourceUpdatedAt time.Time `json:"sourceUpdatedAt,omitempty" db:"source_updated_at"`
+	LocalOverride   bool      `json:"localOverride,omitempty" db:"local_override"`
+	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 // RunnerType identifies which agent runner to use.

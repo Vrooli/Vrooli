@@ -302,10 +302,17 @@ func TestAgentService_Initialize(t *testing.T) {
 
 	t.Run("creates profile and stores ID", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v1/profiles/ensure", r.URL.Path)
-			resp := &apipb.EnsureProfileResponse{
-				Profile: &domainpb.AgentProfile{Id: "profile-xyz"},
-				Created: true,
+			assert.Equal(t, "/api/v1/profiles/reconcile-scenario", r.URL.Path)
+			resp := &apipb.ReconcileScenarioProfilesResponse{
+				Scenario: "scenario-to-desktop",
+				Results: []*apipb.ProfileReconcileResult{
+					{
+						ProfileKey: "test-key",
+						ProfileId:  "profile-xyz",
+						Status:     apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_CREATED,
+					},
+				},
+				Created: 1,
 			}
 			opts := protojson.MarshalOptions{UseProtoNames: false}
 			data, _ := opts.Marshal(resp)

@@ -122,6 +122,31 @@ func (c *HTTPClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfile
 	return &result, nil
 }
 
+// ReconcileScenarioProfiles reconciles profile files declared by the calling scenario.
+func (c *HTTPClient) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	req := &apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}
+	body, err := protoJSONMarshal.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/reconcile-scenario", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+
+	var result apipb.ReconcileScenarioProfilesResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // CreateTask creates a new task using proto JSON payloads.
 func (c *HTTPClient) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
 	req := &apipb.CreateTaskRequest{Task: task}

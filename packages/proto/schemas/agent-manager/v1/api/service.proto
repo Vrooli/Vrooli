@@ -71,6 +71,14 @@ service AgentManagerService {
     };
   }
 
+  // ReconcileScenarioProfiles resolves all profile sources declared by a scenario.
+  rpc ReconcileScenarioProfiles(ReconcileScenarioProfilesRequest) returns (ReconcileScenarioProfilesResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/profiles/reconcile-scenario"
+      body: "*"
+    };
+  }
+
   // GetProfile retrieves a profile by ID.
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
     option (google.api.http) = {get: "/api/v1/profiles/{profile_id}"};
@@ -321,6 +329,52 @@ message EnsureProfileResponse {
 
   // True if the profile was updated during this call.
   bool updated = 3;
+}
+
+// ReconcileScenarioProfilesRequest reconciles profile sources declared by a scenario.
+message ReconcileScenarioProfilesRequest {
+  // Scenario slug whose service manifest declares agent-manager profile sources.
+  string scenario = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+
+  // When true, validates and reports actions without writing to the database.
+  bool dry_run = 2;
+}
+
+// ProfileReconcileStatus classifies the reconciliation result for one profile.
+enum ProfileReconcileStatus {
+  PROFILE_RECONCILE_STATUS_UNSPECIFIED = 0;
+  PROFILE_RECONCILE_STATUS_CREATED = 1;
+  PROFILE_RECONCILE_STATUS_UPDATED = 2;
+  PROFILE_RECONCILE_STATUS_UNCHANGED = 3;
+  PROFILE_RECONCILE_STATUS_SKIPPED = 4;
+  PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE = 5;
+  PROFILE_RECONCILE_STATUS_FAILED_VALIDATION = 6;
+}
+
+// ProfileReconcileResult reports the outcome for one source profile.
+message ProfileReconcileResult {
+  string profile_key = 1;
+  string source_path = 2;
+  string source_hash = 3;
+  string profile_id = 4;
+  ProfileReconcileStatus status = 5;
+  string message = 6;
+}
+
+// ReconcileScenarioProfilesResponse returns the full scenario reconciliation report.
+message ReconcileScenarioProfilesResponse {
+  string scenario = 1;
+  repeated ProfileReconcileResult results = 2;
+  int32 created = 3;
+  int32 updated = 4;
+  int32 unchanged = 5;
+  int32 skipped = 6;
+  int32 conflicted = 7;
+  int32 failed = 8;
+  bool dry_run = 9;
 }
 
 // GetProfileRequest identifies a profile to retrieve.

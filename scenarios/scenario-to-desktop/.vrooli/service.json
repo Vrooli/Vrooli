@@ -269,6 +269,22 @@
       }
     },
     "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Agent orchestration layer for pipeline investigations",
+        "config": {
+          "profiles": {
+            "reconcile": true,
+            "mode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-profiles/default.json"
+            ]
+          }
+        }
+      },
       "deployment-manager": {
         "required": true,
         "version": "1.0.0",

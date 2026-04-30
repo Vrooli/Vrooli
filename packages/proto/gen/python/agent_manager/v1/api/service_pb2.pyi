@@ -15,12 +15,29 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ProfileReconcileStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PROFILE_RECONCILE_STATUS_UNSPECIFIED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_CREATED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_UPDATED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_UNCHANGED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_SKIPPED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_FAILED_VALIDATION: _ClassVar[ProfileReconcileStatus]
+
 class PurgeTarget(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PURGE_TARGET_UNSPECIFIED: _ClassVar[PurgeTarget]
     PURGE_TARGET_PROFILES: _ClassVar[PurgeTarget]
     PURGE_TARGET_TASKS: _ClassVar[PurgeTarget]
     PURGE_TARGET_RUNS: _ClassVar[PurgeTarget]
+PROFILE_RECONCILE_STATUS_UNSPECIFIED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_CREATED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_UPDATED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_UNCHANGED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_SKIPPED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_FAILED_VALIDATION: ProfileReconcileStatus
 PURGE_TARGET_UNSPECIFIED: PurgeTarget
 PURGE_TARGET_PROFILES: PurgeTarget
 PURGE_TARGET_TASKS: PurgeTarget
@@ -93,6 +110,52 @@ class EnsureProfileResponse(_message.Message):
     created: bool
     updated: bool
     def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., created: _Optional[bool] = ..., updated: _Optional[bool] = ...) -> None: ...
+
+class ReconcileScenarioProfilesRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class ProfileReconcileResult(_message.Message):
+    __slots__ = ("profile_key", "source_path", "source_hash", "profile_id", "status", "message")
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    profile_key: str
+    source_path: str
+    source_hash: str
+    profile_id: str
+    status: ProfileReconcileStatus
+    message: str
+    def __init__(self, profile_key: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., profile_id: _Optional[str] = ..., status: _Optional[_Union[ProfileReconcileStatus, str]] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ReconcileScenarioProfilesResponse(_message.Message):
+    __slots__ = ("scenario", "results", "created", "updated", "unchanged", "skipped", "conflicted", "failed", "dry_run")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_FIELD_NUMBER: _ClassVar[int]
+    UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    CONFLICTED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    results: _containers.RepeatedCompositeFieldContainer[ProfileReconcileResult]
+    created: int
+    updated: int
+    unchanged: int
+    skipped: int
+    conflicted: int
+    failed: int
+    dry_run: bool
+    def __init__(self, scenario: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ProfileReconcileResult, _Mapping]]] = ..., created: _Optional[int] = ..., updated: _Optional[int] = ..., unchanged: _Optional[int] = ..., skipped: _Optional[int] = ..., conflicted: _Optional[int] = ..., failed: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class GetProfileRequest(_message.Message):
     __slots__ = ("profile_id",)

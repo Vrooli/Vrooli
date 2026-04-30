@@ -1,0 +1,21 @@
+{
+  "name": "scenario-to-desktop",
+  "profileKey": "scenario-to-desktop/default",
+  "description": "Agent profile for scenario-to-desktop pipeline investigations",
+  "runnerType": "RUNNER_TYPE_CODEX",
+  "modelPreset": "MODEL_PRESET_SMART",
+  "maxTurns": 75,
+  "timeout": "600s",
+  "allowedTools": [
+    "read_file",
+    "list_files",
+    "execute_command",
+    "analyze_code",
+    "write_file"
+  ],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF"
+  },
+  "createdBy": "scenario-to-desktop"
+}

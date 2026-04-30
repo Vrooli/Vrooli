@@ -217,6 +217,11 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.ensureProfileSourceColumns(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to add source metadata columns to agent_profiles")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -228,6 +233,55 @@ func (db *DB) initSchema() error {
 	}
 
 	db.log.Info("Database schema initialized successfully")
+	return nil
+}
+
+// ensureProfileSourceColumns adds source reconciliation metadata columns to
+// agent_profiles for existing databases.
+func (db *DB) ensureProfileSourceColumns(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'agent_profiles'
+	`); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	hasColumn := make(map[string]bool, len(columns))
+	for _, col := range columns {
+		hasColumn[col.Name] = true
+	}
+
+	additions := map[string]string{
+		"owner_scenario":    "ALTER TABLE agent_profiles ADD COLUMN owner_scenario TEXT DEFAULT ''",
+		"source_path":       "ALTER TABLE agent_profiles ADD COLUMN source_path TEXT DEFAULT ''",
+		"source_hash":       "ALTER TABLE agent_profiles ADD COLUMN source_hash TEXT DEFAULT ''",
+		"last_applied_hash": "ALTER TABLE agent_profiles ADD COLUMN last_applied_hash TEXT DEFAULT ''",
+		"source_updated_at": "ALTER TABLE agent_profiles ADD COLUMN source_updated_at TEXT",
+		"local_override":    "ALTER TABLE agent_profiles ADD COLUMN local_override INTEGER DEFAULT 0",
+	}
+	for name, stmt := range additions {
+		if hasColumn[name] {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "migration",
+				EntityType: "Schema",
+				Cause:      fmt.Errorf("add column %s: %w", name, err),
+			}
+		}
+	}
 	return nil
 }
 

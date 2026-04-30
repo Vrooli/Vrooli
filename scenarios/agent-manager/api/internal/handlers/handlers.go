@@ -108,6 +108,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Profile endpoints
 	r.HandleFunc("/api/v1/profiles", h.CreateProfile).Methods("POST")
 	r.HandleFunc("/api/v1/profiles/ensure", h.EnsureProfile).Methods("POST")
+	r.HandleFunc("/api/v1/profiles/reconcile-scenario", h.ReconcileScenarioProfiles).Methods("POST")
 	r.HandleFunc("/api/v1/profiles", h.ListProfiles).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.GetProfile).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.UpdateProfile).Methods("PUT")
@@ -830,6 +831,82 @@ func (h *Handler) EnsureProfile(w http.ResponseWriter, r *http.Request) {
 		Created: result.Created,
 		Updated: result.Updated,
 	})
+}
+
+// ReconcileScenarioProfiles reconciles all profile sources declared by a scenario.
+func (h *Handler) ReconcileScenarioProfiles(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.ReconcileScenarioProfilesRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	result, err := h.svc.ReconcileScenarioProfiles(r.Context(), orchestration.ReconcileScenarioProfilesRequest{
+		Scenario: req.Scenario,
+		DryRun:   req.DryRun,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, reconcileScenarioProfilesToProto(result))
+}
+
+func reconcileScenarioProfilesToProto(result *orchestration.ReconcileScenarioProfilesResult) *apipb.ReconcileScenarioProfilesResponse {
+	if result == nil {
+		return &apipb.ReconcileScenarioProfilesResponse{}
+	}
+	items := make([]*apipb.ProfileReconcileResult, 0, len(result.Results))
+	for _, item := range result.Results {
+		items = append(items, &apipb.ProfileReconcileResult{
+			ProfileKey: item.ProfileKey,
+			SourcePath: item.SourcePath,
+			SourceHash: item.SourceHash,
+			ProfileId:  item.ProfileID,
+			Status:     profileReconcileStatusToProto(item.Status),
+			Message:    item.Message,
+		})
+	}
+	return &apipb.ReconcileScenarioProfilesResponse{
+		Scenario:   result.Scenario,
+		Results:    items,
+		Created:    int32(result.Created),
+		Updated:    int32(result.Updated),
+		Unchanged:  int32(result.Unchanged),
+		Skipped:    int32(result.Skipped),
+		Conflicted: int32(result.Conflicted),
+		Failed:     int32(result.Failed),
+		DryRun:     result.DryRun,
+	}
+}
+
+func profileReconcileStatusToProto(status orchestration.ProfileReconcileStatus) apipb.ProfileReconcileStatus {
+	switch status {
+	case orchestration.ProfileReconcileStatusCreated:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_CREATED
+	case orchestration.ProfileReconcileStatusUpdated:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_UPDATED
+	case orchestration.ProfileReconcileStatusUnchanged:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_UNCHANGED
+	case orchestration.ProfileReconcileStatusSkipped:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_SKIPPED
+	case orchestration.ProfileReconcileStatusConflictedLocalOverride:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE
+	case orchestration.ProfileReconcileStatusFailedValidation:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_FAILED_VALIDATION
+	default:
+		return apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_UNSPECIFIED
+	}
 }
 
 // GetProfile retrieves a profile by ID.

@@ -573,9 +573,14 @@
         "degraded_behavior": {
           "type": "string",
           "description": "Human explanation of the fallback behavior when this dependency is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
+        },
+        "config": {
+          "type": "object",
+          "description": "Dependency-specific configuration owned by the declaring scenario and the dependent scenario.",
+          "additionalProperties": true
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "deploymentRequirements": {
       "type": "object",

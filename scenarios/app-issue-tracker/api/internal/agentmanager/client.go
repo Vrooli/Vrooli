@@ -70,6 +70,31 @@ func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequ
 	return &result, nil
 }
 
+// ReconcileScenarioProfiles reconciles profile files declared by the calling scenario.
+func (c *Client) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	req := &apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}
+	body, err := c.jsonOpts.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/reconcile-scenario", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	var result apipb.ReconcileScenarioProfilesResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // UpdateProfile updates an existing profile.
 func (c *Client) UpdateProfile(ctx context.Context, profileID string, profile *domainpb.AgentProfile) (*domainpb.AgentProfile, error) {
 	req := &apipb.UpdateProfileRequest{Profile: profile}

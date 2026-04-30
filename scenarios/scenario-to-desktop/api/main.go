@@ -253,18 +253,18 @@ func NewServer(port int) *Server {
 	systemHandler := system.NewHandler(wineService, systemBuildStore, templateDir)
 
 	pipelineDeps := pipelineInitDeps{
-		scenarioRoot:          scenarioRoot,
-		vrooliRoot:            vrooliRoot,
-		logger:                logger,
-		storePaths:            storePaths,
-		preflightService:      preflightService,
-		bundlePackager:        bundlePackager,
-		generationService:     generationService,
-		generationBuildStore:  generationBuildStore,
-		buildService:          buildService,
-		buildStore:            buildStore,
-		smokeTestService:      smokeTestService,
-		smokeTestStore:        smokeTestStore,
+		scenarioRoot:         scenarioRoot,
+		vrooliRoot:           vrooliRoot,
+		logger:               logger,
+		storePaths:           storePaths,
+		preflightService:     preflightService,
+		bundlePackager:       bundlePackager,
+		generationService:    generationService,
+		generationBuildStore: generationBuildStore,
+		buildService:         buildService,
+		buildStore:           buildStore,
+		smokeTestService:     smokeTestService,
+		smokeTestStore:       smokeTestStore,
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
 
@@ -499,7 +499,7 @@ func initTaskOrchestration(dataDir string, pipelineOrchestrator *pipeline.Defaul
 	invStore := persistence.NewInvestigationStore(filepath.Join(dataDir, "investigations"))
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: "scenario-to-desktop",
-		ProfileKey:  "scenario-to-desktop",
+		ProfileKey:  "scenario-to-desktop/default",
 		Timeout:     30 * time.Second,
 		Enabled:     true,
 	})

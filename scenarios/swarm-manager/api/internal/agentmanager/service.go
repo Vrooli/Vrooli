@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -70,7 +71,7 @@ type AgentServiceConfig struct {
 func DefaultServiceConfig() AgentServiceConfig {
 	return AgentServiceConfig{
 		ProfileName: "swarm-manager",
-		ProfileKey:  "swarm-manager",
+		ProfileKey:  "swarm-manager/default",
 		Timeout:     30 * time.Second,
 		Enabled:     true,
 	}
@@ -119,32 +120,39 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 	if !s.enabled {
 		return nil
 	}
-	if cfg == nil {
-		cfg = s.resolveProfileConfig()
-	}
 
-	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildProfile(cfg),
-		UpdateExisting: false,
-	})
+	resp, err := s.client.ReconcileScenarioProfiles(ctx, scenario.Name())
 	if err != nil {
-		return fmt.Errorf("ensure profile: %w", err)
+		return fmt.Errorf("reconcile scenario profiles: %w", err)
 	}
 
 	s.mu.Lock()
-	if resp.Profile != nil {
-		s.profileID = resp.Profile.Id
+	found := false
+	for _, item := range resp.Results {
+		if item.ProfileKey == s.profileKey {
+			s.profileID = item.ProfileId
+			found = true
+			break
+		}
 	}
 	s.mu.Unlock()
-
-	if resp.Created {
-		slog.Info("created agent profile", "profile", s.profileName, "id", s.profileID)
-	} else {
-		slog.Info("resolved agent profile", "profile", s.profileName, "id", s.profileID)
+	if resp.Failed > 0 {
+		return fmt.Errorf("reconcile scenario profiles: %d profile source(s) failed validation", resp.Failed)
+	}
+	if !found {
+		return fmt.Errorf("reconcile scenario profiles: profile %q was not returned", s.profileKey)
 	}
 
+	slog.Info("reconciled agent profiles", "scenario", resp.Scenario, "created", resp.Created, "updated", resp.Updated, "unchanged", resp.Unchanged, "failed", resp.Failed)
+
 	return nil
+}
+
+func (s *AgentService) ensureProfilesReconciled(ctx context.Context) error {
+	if s.GetProfileID() != "" {
+		return nil
+	}
+	return s.Initialize(ctx, nil)
 }
 
 // ResearchSpawnRequest describes a request to spawn an idea research agent.
@@ -244,6 +252,9 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
 	}
+	if err := s.ensureProfilesReconciled(ctx); err != nil {
+		return RunResult{}, err
+	}
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -309,6 +320,9 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error) {
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
+	}
+	if err := s.ensureProfilesReconciled(ctx); err != nil {
+		return RunResult{}, err
 	}
 
 	title := strings.TrimSpace(req.Title)
@@ -378,6 +392,9 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnRequest) (RunResult, error) {
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
+	}
+	if err := s.ensureProfilesReconciled(ctx); err != nil {
+		return RunResult{}, err
 	}
 
 	title := strings.TrimSpace(req.Title)

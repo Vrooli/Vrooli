@@ -13,7 +13,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class AgentProfile(_message.Message):
-    __slots__ = ("id", "name", "profile_key", "description", "runner_type", "model", "model_preset", "max_turns", "timeout", "fallback_runner_types", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "network_access", "sandbox_config", "allowed_paths", "denied_paths", "created_by", "created_at", "updated_at")
+    __slots__ = ("id", "name", "profile_key", "description", "runner_type", "model", "model_preset", "max_turns", "timeout", "fallback_runner_types", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "created_by", "created_at", "updated_at")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +37,12 @@ class AgentProfile(_message.Message):
     FEATURES_FIELD_NUMBER: _ClassVar[int]
     EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     NETWORK_ACCESS_FIELD_NUMBER: _ClassVar[int]
+    OWNER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    LAST_APPLIED_HASH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
     SANDBOX_CONFIG_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
@@ -59,13 +65,19 @@ class AgentProfile(_message.Message):
     features: _types_pb2.FeatureFlags
     extra_flags: _containers.MessageMap[str, _types_pb2.ExtraFlagList]
     network_access: _types_pb2.NetworkAccess
+    owner_scenario: str
+    source_path: str
+    source_hash: str
+    last_applied_hash: str
+    source_updated_at: _timestamp_pb2.Timestamp
+    local_override: bool
     sandbox_config: _types_pb2.SandboxConfig
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
     created_by: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunConfig(_message.Message):
     __slots__ = ("runner_type", "model", "model_preset", "max_turns", "timeout", "fallback_runner_types", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "network_access", "sandbox_config", "allowed_paths", "denied_paths")

@@ -36,6 +36,8 @@ func (a *App) cmdProfile(args []string) error {
 		return a.profileDelete(args[1:])
 	case "ensure":
 		return a.profileEnsure(args[1:])
+	case "reconcile-scenario":
+		return a.profileReconcileScenario(args[1:])
 	case "help", "-h", "--help":
 		return a.profileHelp()
 	default:
@@ -53,6 +55,7 @@ Subcommands:
   update <id>       Update an existing profile
   delete <id>       Delete a profile
   ensure            Resolve profile by key, creating with defaults if needed
+  reconcile-scenario Reconcile profile files declared by a scenario
 
 Options:
   --json            Output raw JSON
@@ -63,7 +66,8 @@ Examples:
   agent-manager profile get abc123
   agent-manager profile create --name "My Agent" --runner-type claude-code
   agent-manager profile delete abc123
-  agent-manager profile ensure --key "my-agent" --name "My Agent" --runner-type claude-code`)
+  agent-manager profile ensure --key "my-agent" --name "My Agent" --runner-type claude-code
+  agent-manager profile reconcile-scenario --scenario swarm-manager`)
 	return nil
 }
 
@@ -523,5 +527,46 @@ func (a *App) profileEnsure(args []string) error {
 		action = "Updated"
 	}
 	fmt.Printf("%s profile: %s (%s)\n", action, resp.Profile.Name, resp.Profile.Id)
+	return nil
+}
+
+func (a *App) profileReconcileScenario(args []string) error {
+	fs := flag.NewFlagSet("profile reconcile-scenario", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	scenario := fs.String("scenario", "", "Scenario slug whose manifest declares profile sources")
+	dryRun := fs.Bool("dry-run", false, "Validate and report actions without writing")
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*scenario) == "" {
+		return fmt.Errorf("usage: agent-manager profile reconcile-scenario --scenario <slug>")
+	}
+
+	body, resp, err := a.services.Profiles.ReconcileScenario(&apipb.ReconcileScenarioProfilesRequest{
+		Scenario: strings.TrimSpace(*scenario),
+		DryRun:   *dryRun,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Scenario:   %s\n", resp.Scenario)
+	fmt.Printf("Created:    %d\n", resp.Created)
+	fmt.Printf("Updated:    %d\n", resp.Updated)
+	fmt.Printf("Unchanged:  %d\n", resp.Unchanged)
+	fmt.Printf("Skipped:    %d\n", resp.Skipped)
+	fmt.Printf("Conflicted: %d\n", resp.Conflicted)
+	fmt.Printf("Failed:     %d\n", resp.Failed)
+	for _, item := range resp.Results {
+		fmt.Printf("- %s %s (%s)\n", item.ProfileKey, item.Status.String(), item.SourcePath)
+		if item.Message != "" {
+			fmt.Printf("  %s\n", item.Message)
+		}
+	}
 	return nil
 }

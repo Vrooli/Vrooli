@@ -152,15 +152,10 @@ func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
 	if s.profileKey == "" {
 		return nil
 	}
-	// UpdateExisting=true makes swarm-manager's code-declared profile the
-	// source of truth: every dispatch overwrites the DB row with the current
-	// defaults, so a code change to DefaultProfileConfig() takes effect on
-	// the next run without requiring manual profile edits. This prevents
-	// the code/DB desync that caused sandboxed-but-requires-approval runs
-	// to silently accumulate in NEEDS_REVIEW in 2026-04.
+	// Profile defaults are reconciled from .vrooli/agent-profiles at startup.
+	// Run creation only references the stable profile key so dispatch cannot
+	// overwrite DB edits with code-declared defaults.
 	return &apipb.ProfileRef{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildProfile(s.resolveProfileConfig()),
-		UpdateExisting: true,
+		ProfileKey: s.profileKey,
 	}
 }

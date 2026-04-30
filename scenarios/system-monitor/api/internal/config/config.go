@@ -1,4 +1,5 @@
 package config
+
 // DOC: docs/reference/configuration.md
 
 import (
@@ -160,7 +161,7 @@ func Load() *Config {
 	}
 
 	if cfg.AgentManager.ProfileKey == "" {
-		cfg.AgentManager.ProfileKey = cfg.AgentManager.ProfileName
+		cfg.AgentManager.ProfileKey = "system-monitor/default"
 	}
 
 	if cfg.Server.APIBaseURL == "" {

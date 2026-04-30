@@ -109,6 +109,24 @@ message AgentProfile {
   // Network access level for agent execution.
   NetworkAccess network_access = 25;
 
+  // Scenario slug that owns this repo-sourced profile.
+  string owner_scenario = 26;
+
+  // Relative path to the source profile JSON within the owning scenario.
+  string source_path = 27;
+
+  // SHA-256 hash of the current source file content.
+  string source_hash = 28;
+
+  // SHA-256 hash last applied to this profile by reconciliation.
+  string last_applied_hash = 29;
+
+  // Modification time of the source file when it was last reconciled.
+  google.protobuf.Timestamp source_updated_at = 30;
+
+  // True when the profile has been edited locally since source reconciliation.
+  bool local_override = 31;
+
   // Reserved to prevent accidental reuse of the wire IDs/names from
   // earlier schema iterations. SandboxConfig.mode is the single source
   // of truth for whether a run is sandboxed — see

@@ -1,0 +1,22 @@
+{
+  "name": "system-monitor-investigator",
+  "profileKey": "system-monitor/default",
+  "description": "Agent profile for system-monitor investigations",
+  "runnerType": "RUNNER_TYPE_CODEX",
+  "modelPreset": "MODEL_PRESET_SMART",
+  "maxTurns": 75,
+  "timeout": "600s",
+  "allowedTools": [
+    "read_file",
+    "write_file",
+    "append_file",
+    "list_files",
+    "analyze_code",
+    "execute_command"
+  ],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF"
+  },
+  "createdBy": "system-monitor"
+}

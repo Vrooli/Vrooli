@@ -37,10 +37,10 @@ func TestDefaultProfileConfig(t *testing.T) {
 	// path — sandbox is the auditability layer, not a review queue.
 }
 
-func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
+func TestDefaultProfileRef_UsesManifestProfileOnly(t *testing.T) {
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "Swarm Manager",
-		ProfileKey:  "swarm-manager",
+		ProfileKey:  "swarm-manager/default",
 		Timeout:     5 * time.Second,
 		Enabled:     true,
 	})
@@ -48,28 +48,18 @@ func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
 	if ref == nil {
 		t.Fatal("defaultProfileRef returned nil for configured service")
 	}
-	if !ref.UpdateExisting {
-		t.Fatal("expected UpdateExisting=true so code-declared defaults are authoritative over stale DB state")
+	if ref.ProfileKey != "swarm-manager/default" {
+		t.Fatalf("expected manifest profile key, got %q", ref.ProfileKey)
 	}
-	if ref.Defaults == nil {
-		t.Fatal("expected Defaults to be populated")
-	}
-	// Phase-1 contract: swarm-manager carries an explicit
-	// SandboxConfig.Mode through to agent-manager so the dispatch path
-	// is unambiguous. agent-manager.resolveSandboxConfig fills in the
-	// remaining contract defaults (auto-apply, no manual review).
-	if ref.Defaults.SandboxConfig == nil {
-		t.Fatal("expected Defaults.SandboxConfig to carry an explicit Mode (the safe-default-via-bool pattern was removed in Phase 1)")
-	}
-	if ref.Defaults.SandboxConfig.Mode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
-		t.Fatalf("expected Defaults.SandboxConfig.Mode=PROTECTED, got %v", ref.Defaults.SandboxConfig.Mode)
+	if ref.UpdateExisting || ref.Defaults != nil {
+		t.Fatalf("expected run creation to reference the reconciled manifest profile without inline defaults")
 	}
 }
 
 func TestBuildProfile(t *testing.T) {
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "Swarm Manager",
-		ProfileKey:  "swarm-manager",
+		ProfileKey:  "swarm-manager/default",
 		Timeout:     5 * time.Second,
 		Enabled:     true,
 	})
@@ -89,7 +79,7 @@ func TestBuildProfile(t *testing.T) {
 	if profile.Name != "Swarm Manager" {
 		t.Fatalf("expected profile name to match, got %q", profile.Name)
 	}
-	if profile.ProfileKey != "swarm-manager" {
+	if profile.ProfileKey != "swarm-manager/default" {
 		t.Fatalf("expected profile key to match, got %q", profile.ProfileKey)
 	}
 	if profile.Timeout.AsDuration() != 30*time.Second {

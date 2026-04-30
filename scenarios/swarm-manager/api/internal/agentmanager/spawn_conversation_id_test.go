@@ -22,8 +22,8 @@ func captureCreateRunSurface(t *testing.T) (*httptest.Server, *capturedCreateRun
 	t.Helper()
 	cap := &capturedCreateRun{}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/profiles", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"profile":{"id":"00000000-0000-0000-0000-000000000099","name":"swarm-manager","profileKey":"swarm-manager"},"created":true}`))
+	mux.HandleFunc("/api/v1/profiles/reconcile-scenario", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"scenario":"swarm-manager","results":[{"profileKey":"swarm-manager/default","profileId":"00000000-0000-0000-0000-000000000099","status":"PROFILE_RECONCILE_STATUS_CREATED"}],"created":1}`))
 	})
 	mux.HandleFunc("/api/v1/tasks", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"task":{"id":"task-1","title":"t","scopePath":"."}}`))
@@ -54,7 +54,7 @@ func newSpawnTestService(t *testing.T, baseURL string) *AgentService {
 	t.Helper()
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "swarm-manager",
-		ProfileKey:  "swarm-manager",
+		ProfileKey:  "swarm-manager/default",
 		Enabled:     true,
 	})
 	svc.client = NewHTTPClientWithResolver(func(_ context.Context) (string, error) {

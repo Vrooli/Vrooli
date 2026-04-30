@@ -144,6 +144,24 @@ func (s *ProfileService) Ensure(req *apipb.EnsureProfileRequest) ([]byte, *apipb
 	return body, &resp, nil
 }
 
+// ReconcileScenario reconciles profiles declared by a scenario manifest.
+func (s *ProfileService) ReconcileScenario(req *apipb.ReconcileScenarioProfilesRequest) ([]byte, *apipb.ReconcileScenarioProfilesResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/profiles/reconcile-scenario", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.ReconcileScenarioProfilesResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 // =============================================================================
 // Task Service
 // =============================================================================

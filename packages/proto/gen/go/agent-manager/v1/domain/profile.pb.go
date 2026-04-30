@@ -78,6 +78,18 @@ type AgentProfile struct {
 	ExtraFlags map[string]*ExtraFlagList `protobuf:"bytes,24,rep,name=extra_flags,json=extraFlags,proto3" json:"extra_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Network access level for agent execution.
 	NetworkAccess NetworkAccess `protobuf:"varint,25,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_access,omitempty"`
+	// Scenario slug that owns this repo-sourced profile.
+	OwnerScenario string `protobuf:"bytes,26,opt,name=owner_scenario,json=ownerScenario,proto3" json:"owner_scenario,omitempty"`
+	// Relative path to the source profile JSON within the owning scenario.
+	SourcePath string `protobuf:"bytes,27,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	// SHA-256 hash of the current source file content.
+	SourceHash string `protobuf:"bytes,28,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
+	// SHA-256 hash last applied to this profile by reconciliation.
+	LastAppliedHash string `protobuf:"bytes,29,opt,name=last_applied_hash,json=lastAppliedHash,proto3" json:"last_applied_hash,omitempty"`
+	// Modification time of the source file when it was last reconciled.
+	SourceUpdatedAt *timestamppb.Timestamp `protobuf:"bytes,30,opt,name=source_updated_at,json=sourceUpdatedAt,proto3" json:"source_updated_at,omitempty"`
+	// True when the profile has been edited locally since source reconciliation.
+	LocalOverride bool `protobuf:"varint,31,opt,name=local_override,json=localOverride,proto3" json:"local_override,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,20,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
@@ -235,6 +247,48 @@ func (x *AgentProfile) GetNetworkAccess() NetworkAccess {
 		return x.NetworkAccess
 	}
 	return NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
+}
+
+func (x *AgentProfile) GetOwnerScenario() string {
+	if x != nil {
+		return x.OwnerScenario
+	}
+	return ""
+}
+
+func (x *AgentProfile) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
+	}
+	return ""
+}
+
+func (x *AgentProfile) GetSourceHash() string {
+	if x != nil {
+		return x.SourceHash
+	}
+	return ""
+}
+
+func (x *AgentProfile) GetLastAppliedHash() string {
+	if x != nil {
+		return x.LastAppliedHash
+	}
+	return ""
+}
+
+func (x *AgentProfile) GetSourceUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SourceUpdatedAt
+	}
+	return nil
+}
+
+func (x *AgentProfile) GetLocalOverride() bool {
+	if x != nil {
+		return x.LocalOverride
+	}
+	return false
 }
 
 func (x *AgentProfile) GetSandboxConfig() *SandboxConfig {
@@ -769,7 +823,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe9\t\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\v\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -794,7 +848,15 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\bfeatures\x18\x17 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsR\bfeatures\x12O\n" +
 	"\vextra_flags\x18\x18 \x03(\v2..agent_manager.v1.AgentProfile.ExtraFlagsEntryR\n" +
 	"extraFlags\x12F\n" +
-	"\x0enetwork_access\x18\x19 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\rnetworkAccess\x12F\n" +
+	"\x0enetwork_access\x18\x19 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\rnetworkAccess\x12%\n" +
+	"\x0eowner_scenario\x18\x1a \x01(\tR\rownerScenario\x12\x1f\n" +
+	"\vsource_path\x18\x1b \x01(\tR\n" +
+	"sourcePath\x12\x1f\n" +
+	"\vsource_hash\x18\x1c \x01(\tR\n" +
+	"sourceHash\x12*\n" +
+	"\x11last_applied_hash\x18\x1d \x01(\tR\x0flastAppliedHash\x12F\n" +
+	"\x11source_updated_at\x18\x1e \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceUpdatedAt\x12%\n" +
+	"\x0elocal_override\x18\x1f \x01(\bR\rlocalOverride\x12F\n" +
 	"\x0esandbox_config\x18\x14 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\r \x03(\tR\fallowedPaths\x12!\n" +
 	"\fdenied_paths\x18\x0e \x03(\tR\vdeniedPaths\x12\x1d\n" +
@@ -901,8 +963,8 @@ var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	(*durationpb.Duration)(nil),   // 9: google.protobuf.Duration
 	(*FeatureFlags)(nil),          // 10: agent_manager.v1.FeatureFlags
 	(NetworkAccess)(0),            // 11: agent_manager.v1.NetworkAccess
-	(*SandboxConfig)(nil),         // 12: agent_manager.v1.SandboxConfig
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*SandboxConfig)(nil),         // 13: agent_manager.v1.SandboxConfig
 	(*ExtraFlagList)(nil),         // 14: agent_manager.v1.ExtraFlagList
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
@@ -913,35 +975,36 @@ var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	10, // 4: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
 	4,  // 5: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
 	11, // 6: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
-	12, // 7: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	13, // 8: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	13, // 9: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	7,  // 10: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	8,  // 11: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
-	9,  // 12: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	7,  // 13: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	10, // 14: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
-	5,  // 15: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
-	11, // 16: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
-	12, // 17: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	7,  // 18: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	8,  // 19: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
-	9,  // 20: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	7,  // 21: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	10, // 22: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
-	6,  // 23: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	11, // 24: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
-	12, // 25: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	9,  // 26: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	9,  // 27: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	14, // 28: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	14, // 29: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	14, // 30: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	12, // 7: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
+	13, // 8: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	12, // 9: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	12, // 10: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 11: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	8,  // 12: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
+	9,  // 13: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	7,  // 14: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	10, // 15: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
+	5,  // 16: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
+	11, // 17: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
+	13, // 18: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	7,  // 19: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	8,  // 20: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
+	9,  // 21: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	7,  // 22: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	10, // 23: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
+	6,  // 24: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	11, // 25: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
+	13, // 26: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	9,  // 27: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	9,  // 28: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	14, // 29: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	14, // 30: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	14, // 31: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	32, // [32:32] is the sub-list for method output_type
+	32, // [32:32] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }

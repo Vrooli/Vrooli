@@ -143,11 +143,10 @@ type Dependency struct {
 	Description      string `json:"description,omitempty"`
 	Database         string `json:"database,omitempty"`
 
-	// Config holds resource-specific keys that aren't modeled as typed fields
-	// (e.g. ollama's `models`, qdrant's `collections`). The scenario loader
-	// preserves them verbatim; the consuming resource owns the schema. Always
-	// a JSON object when non-empty.
-	Config json.RawMessage `json:"-"`
+	// Config holds dependency-specific keys that aren't modeled as typed fields.
+	// The declaring scenario and the dependency own the config schema together.
+	// Always a JSON object when non-empty.
+	Config json.RawMessage `json:"config,omitempty"`
 }
 
 const (
@@ -622,6 +621,17 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	if err := takeString("database", &dependency.Database); err != nil {
 		return err
 	}
+	if v, ok := raw["config"]; ok {
+		var cfg map[string]json.RawMessage
+		if err := json.Unmarshal(v, &cfg); err != nil {
+			return fmt.Errorf("config: %w", err)
+		}
+		if cfg == nil {
+			return fmt.Errorf("config: must be a JSON object")
+		}
+		dependency.Config = append(dependency.Config[:0], v...)
+		delete(raw, "config")
+	}
 
 	dependency.Type = strings.TrimSpace(dependency.Type)
 	dependency.StartupPolicy = strings.TrimSpace(dependency.StartupPolicy)
@@ -631,23 +641,35 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	dependency.Database = strings.TrimSpace(dependency.Database)
 
 	if len(raw) > 0 {
-		cfg, err := json.Marshal(raw)
-		if err != nil {
-			return fmt.Errorf("dependency config: %w", err)
+		cfg := map[string]json.RawMessage{}
+		if len(dependency.Config) > 0 {
+			if err := json.Unmarshal(dependency.Config, &cfg); err != nil {
+				return fmt.Errorf("config: %w", err)
+			}
 		}
-		dependency.Config = cfg
+		for key, value := range raw {
+			cfg[key] = value
+		}
+		encoded, err := json.Marshal(cfg)
+		if err != nil {
+			return fmt.Errorf("config: %w", err)
+		}
+		dependency.Config = encoded
 	}
 	return nil
 }
 
-// MarshalJSON emits the typed fields alongside any extra keys stored in
-// Config, so declarations round-trip losslessly through json.Marshal. The
-// `enabled` key is always emitted (default is true when absent on input).
+// MarshalJSON emits typed fields and the dependency-specific Config object.
+// The `enabled` key is always emitted (default is true when absent on input).
 func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	out := map[string]json.RawMessage{}
 	if len(dependency.Config) > 0 {
-		if err := json.Unmarshal(dependency.Config, &out); err != nil {
+		var cfg map[string]json.RawMessage
+		if err := json.Unmarshal(dependency.Config, &cfg); err != nil {
 			return nil, fmt.Errorf("dependency config: %w", err)
+		}
+		if cfg == nil {
+			return nil, fmt.Errorf("dependency config: must be a JSON object")
 		}
 	}
 
@@ -697,6 +719,9 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	}
 	if err := emitIfNonEmpty("database", dependency.Database); err != nil {
 		return nil, err
+	}
+	if len(dependency.Config) > 0 {
+		out["config"] = append([]byte(nil), dependency.Config...)
 	}
 
 	return json.Marshal(out)

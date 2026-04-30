@@ -191,7 +191,16 @@
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "description": "Spawning agents for automated work"
+        "description": "Spawning agents for automated work",
+        "config": {
+          "profiles": {
+            "reconcile": true,
+            "mode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-profiles/default.json"
+            ]
+          }
+        }
       },
       "ecosystem-manager": {
         "enabled": true,

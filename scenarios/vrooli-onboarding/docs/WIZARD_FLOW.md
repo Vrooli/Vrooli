@@ -16,7 +16,7 @@ Six real steps; one optional pre-step. Re-enterable from any step.
 2. **Scenarios** — search/filter list; system-required scenarios locked-on; per-scenario "keep running" toggle with default from `runtime.auto_restart_default`; selecting a scenario cascades scenario→scenario and scenario→resource dependencies.
 3. **Resources** — auto-derived required + optional from scenario selection; user toggles optionals; no manual-only path to enable a resource without a scenario that uses it (besides standalone selection).
 4. **Secrets** — only the credentials actually needed by the selected stack. Renders `secretDescriptor` fields (label, description, obtain_url) for rich resources; bare label for legacy ones.
-5. **Integrations (external auth)** — OAuth / device-flow / coding-agent sign-ins, per-integration "Sign in with X" or "Run command" surfaces. Schema deferred today; this step is mostly empty until the first concrete external-auth integration ships.
+5. **Integrations** — for each `integrations[]` requirement on a selected scenario, render a connector card with required scopes + purpose, and let the operator pick an existing connection or create a new one (which kicks off the connector's auth flow per [`/docs/configuration/integrations/external-auth.md`](../../../docs/configuration/integrations/external-auth.md)). Multi-instance scenarios (the persona-actor case) get a binding table with one row per `context`. The connector + connection model itself is owned by the deferred `integration-hub` scenario; this step is empty in the v2 baseline and lights up when integration-hub ships.
 6. **Host (tools + safeguards)** — declared by selected scenarios and resources. Required tools install automatically; non-required tools and safeguards are opt-in. Safeguards display `risk` (low/medium/high).
 7. **Operating mode + final validation** — confirm auto-restart per scenario; commit to operator-state.json; run full probe pass; show green-light or actionable error list.
 
@@ -78,20 +78,46 @@ Per-resource list of credentials the selected stack needs. Each entry renders th
 
 Bare-string `credentials.env` entries render with just the env-var name as label and no other metadata. Operators are encouraged (via doc) to enrich credentials with `secretDescriptor` over time.
 
-### Step 5 — Integrations (deferred)
+### Step 5 — Integrations (deferred until integration-hub ships)
 
-For each external-auth-pattern integration the selected stack depends on:
+The integrations step consumes connector and connection state owned by the `integration-hub` scenario (see [`/docs/configuration/integrations/connectors.md`](../../../docs/configuration/integrations/connectors.md) and [`connections.md`](../../../docs/configuration/integrations/connections.md)). Each connector requirement on a selected scenario gets a card; the operator picks an existing connection or creates a new one.
+
+Single-instance requirement (e.g. one GitHub account):
 
 ```
-┌─ GitHub  (sign in for repository access) ──────────────┐
-│  Vrooli will read repository metadata for swarm-manager│
-│  initiative tracking.                                  │
-│  Status: not signed in                                 │
-│  [Sign in with GitHub] [Probe again]                   │
+┌─ GitHub  (required by swarm-manager) ───────────────────┐
+│  scopes: repo:read                                      │
+│  purpose: fetch issues for initiative tracking          │
+│                                                         │
+│  Existing connections:                                  │
+│    ⦿ github-default       healthy  (last probed 2m ago) │
+│    ○ + Sign in with GitHub                              │
+│                                                         │
+│  [Bind selected]   [Probe again]                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+Multi-instance requirement (the persona-actor case):
+
+```
+┌─ TikTok account  (required by marketing-crew, multi) ──┐
+│  scopes: post:write                                    │
+│  purpose: publish AI-UGC videos per persona            │
+│                                                        │
+│  context           connection                          │
+│  persona-amy       [tiktok-amy ▼]      healthy         │
+│  persona-bob       [tiktok-bob ▼]      needs_refresh   │
+│  persona-carol     [+ Sign in… ▼]      —               │
+│                                                        │
+│  [Bind all]                                            │
 └────────────────────────────────────────────────────────┘
 ```
 
-Mostly empty in v2 baseline because no external-auth integration is wired today. Schema and step land together when the first integration ships. See [`/docs/configuration/integrations/external-auth.md`](../../../docs/configuration/integrations/external-auth.md).
+Loose / scratch credentials (the operator wants to test fal.ai before any scenario uses it) appear in integration-hub's standalone view, not this wizard step. They show up here only once a scenario declares them.
+
+Auth-flow specifics per pattern (`api_key`, `oauth_web`, `oauth_device`, `external_sign_in_command`, `app_password`) live in [`/docs/configuration/integrations/external-auth.md`](../../../docs/configuration/integrations/external-auth.md). The wizard dispatches by `connector.auth.kind` and renders the right surface (paste-form vs sign-in button vs device-code panel vs sign-in-command instructions).
+
+This step is empty in the v2 baseline and lights up when `integration-hub` ships. Until then, scenarios that need external services either use a resource (for paste-string API keys) or block on integration-hub.
 
 ### Step 6 — Host (tools + safeguards)
 
@@ -157,7 +183,7 @@ Captured here so a future implementation conversation has the full picture witho
 
 - **Goal-intake step** — depends on profiles (deferred).
 - **Profiles** — deferred until second concrete profile exists. Reserved field `active_profile` already in `operator-state.json`.
-- **External-auth integrations** — schema deferred until first wired integration. Wizard step 5 is mostly empty until then.
+- **Integration-hub scenario** — owns connector definitions and connection instances; powers wizard step 5; covers both bound (scenario-attached) and unbound (scratch / testing) credentials. Probably 2–4 weeks of scenario work when scoped. Wizard step 5 is empty until then. See [`/docs/configuration/integrations/connectors.md`](../../../docs/configuration/integrations/connectors.md).
 - **Schema-types unification** (separate plan) — `healthCheck` defined four times across schemas; consolidating into `common.schema.json`. Not blocking the v2 rework but should land before too many new schemas accrete.
 
 ## Implementation pointers
@@ -174,6 +200,8 @@ When the rework is picked up:
 
 - [`/docs/configuration/`](../../../docs/configuration/) — the full configuration substrate this wizard implements
 - [`/docs/configuration/architecture.md`](../../../docs/configuration/architecture.md) — source-of-truth tables and resolution order
-- [`/docs/configuration/scenarios.md`](../../../docs/configuration/scenarios.md) — `system_required`, `runtime.kind`, scenario deps
+- [`/docs/configuration/scenarios.md`](../../../docs/configuration/scenarios.md) — `system_required`, `runtime.kind`, scenario deps, `integrations[]` (deferred)
 - [`/docs/configuration/host/safeguards.md`](../../../docs/configuration/host/safeguards.md) — `risk` field meaning
+- [`/docs/configuration/integrations/connectors.md`](../../../docs/configuration/integrations/connectors.md) — connector model powering step 5
+- [`/docs/configuration/integrations/connections.md`](../../../docs/configuration/integrations/connections.md) — connection instances and binding
 - [`/.vrooli/schemas/operator-state.schema.json`](../../../.vrooli/schemas/operator-state.schema.json) — wizard's write target

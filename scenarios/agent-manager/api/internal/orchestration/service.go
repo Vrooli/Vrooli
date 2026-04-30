@@ -58,6 +58,7 @@ type Service interface {
 	UpdateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error)
 	DeleteProfile(ctx context.Context, id uuid.UUID) error
 	EnsureProfile(ctx context.Context, req EnsureProfileRequest) (*EnsureProfileResult, error)
+	ReconcileScenarioProfiles(ctx context.Context, req ReconcileScenarioProfilesRequest) (*ReconcileScenarioProfilesResult, error)
 
 	// --- Task Operations ---
 	CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
@@ -292,6 +293,47 @@ type EnsureProfileResult struct {
 	Profile *domain.AgentProfile `json:"profile"`
 	Created bool                 `json:"created"`
 	Updated bool                 `json:"updated"`
+}
+
+// ReconcileScenarioProfilesRequest resolves all profile sources declared by a scenario.
+type ReconcileScenarioProfilesRequest struct {
+	Scenario string `json:"scenario"`
+	DryRun   bool   `json:"dryRun,omitempty"`
+}
+
+// ProfileReconcileStatus classifies one source profile reconciliation result.
+type ProfileReconcileStatus string
+
+const (
+	ProfileReconcileStatusCreated                 ProfileReconcileStatus = "created"
+	ProfileReconcileStatusUpdated                 ProfileReconcileStatus = "updated"
+	ProfileReconcileStatusUnchanged               ProfileReconcileStatus = "unchanged"
+	ProfileReconcileStatusSkipped                 ProfileReconcileStatus = "skipped"
+	ProfileReconcileStatusConflictedLocalOverride ProfileReconcileStatus = "conflicted_local_override"
+	ProfileReconcileStatusFailedValidation        ProfileReconcileStatus = "failed_validation"
+)
+
+// ProfileReconcileResult reports one profile source outcome.
+type ProfileReconcileResult struct {
+	ProfileKey string                 `json:"profileKey,omitempty"`
+	SourcePath string                 `json:"sourcePath,omitempty"`
+	SourceHash string                 `json:"sourceHash,omitempty"`
+	ProfileID  string                 `json:"profileId,omitempty"`
+	Status     ProfileReconcileStatus `json:"status"`
+	Message    string                 `json:"message,omitempty"`
+}
+
+// ReconcileScenarioProfilesResult captures a scenario-level reconciliation report.
+type ReconcileScenarioProfilesResult struct {
+	Scenario   string                   `json:"scenario"`
+	Results    []ProfileReconcileResult `json:"results"`
+	Created    int                      `json:"created"`
+	Updated    int                      `json:"updated"`
+	Unchanged  int                      `json:"unchanged"`
+	Skipped    int                      `json:"skipped"`
+	Conflicted int                      `json:"conflicted"`
+	Failed     int                      `json:"failed"`
+	DryRun     bool                     `json:"dryRun"`
 }
 
 // StopAllOptions specifies which runs to stop in a bulk operation.
@@ -789,7 +831,22 @@ func (o *Orchestrator) ListProfiles(ctx context.Context, opts ListOptions) ([]*d
 }
 
 func (o *Orchestrator) UpdateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error) {
+	existing, err := o.profiles.Get(ctx, profile.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil && existing.SourcePath != "" {
+		profile.OwnerScenario = existing.OwnerScenario
+		profile.SourcePath = existing.SourcePath
+		profile.SourceHash = existing.SourceHash
+		profile.LastAppliedHash = existing.LastAppliedHash
+		profile.SourceUpdatedAt = existing.SourceUpdatedAt
+		profile.LocalOverride = true
+	}
 	profile.UpdatedAt = time.Now()
+	if existing != nil {
+		profile.CreatedAt = existing.CreatedAt
+	}
 
 	if err := normalizeProfileInput(profile); err != nil {
 		return nil, err
@@ -1446,15 +1503,32 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 
 	// Resolve profile by key if provided
 	if req.ProfileRef != nil {
-		result, err := o.EnsureProfile(ctx, EnsureProfileRequest{
-			ProfileKey:     req.ProfileRef.ProfileKey,
-			Defaults:       req.ProfileRef.Defaults,
-			UpdateExisting: req.ProfileRef.UpdateExisting,
-		})
-		if err != nil {
-			return nil, nil, err
+		if req.ProfileRef.Defaults == nil && !req.ProfileRef.UpdateExisting {
+			key := strings.TrimSpace(req.ProfileRef.ProfileKey)
+			if key == "" {
+				return nil, nil, domain.NewValidationErrorWithHint("profileRef.profileKey", "field is required",
+					"Provide a stable profile key or inline profile defaults")
+			}
+			var err error
+			profile, err = o.profiles.GetByKey(ctx, key)
+			if err != nil {
+				return nil, nil, err
+			}
+			if profile == nil {
+				return nil, nil, domain.NewValidationErrorWithHint("profileRef.profileKey", "profile not found",
+					"Start the owning scenario so agent-manager can reconcile its manifest-declared profiles")
+			}
+		} else {
+			result, err := o.EnsureProfile(ctx, EnsureProfileRequest{
+				ProfileKey:     req.ProfileRef.ProfileKey,
+				Defaults:       req.ProfileRef.Defaults,
+				UpdateExisting: req.ProfileRef.UpdateExisting,
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+			profile = result.Profile
 		}
-		profile = result.Profile
 		if profile != nil {
 			cfg.ApplyProfile(profile)
 		}

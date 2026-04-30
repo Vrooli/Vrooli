@@ -530,8 +530,10 @@ func TestDependencyPreservesExtraConfigKeysRoundTrip(t *testing.T) {
         "required": false,
         "startup_policy": "try_start",
         "description": "Local LLM",
-        "models": ["qwen3:4b", {"name": "nomic-embed-text"}],
-        "fallback": "openrouter"
+        "config": {
+          "models": ["qwen3:4b", {"name": "nomic-embed-text"}],
+          "fallback": "openrouter"
+        }
     }`)
 
 	var got Dependency
@@ -558,11 +560,6 @@ func TestDependencyPreservesExtraConfigKeysRoundTrip(t *testing.T) {
 	if cfg["fallback"] != "openrouter" {
 		t.Errorf("Config missing 'fallback': %s", got.Config)
 	}
-	for _, reserved := range []string{"type", "enabled", "required", "startup_policy", "description"} {
-		if _, present := cfg[reserved]; present {
-			t.Errorf("Config must not shadow typed key %q", reserved)
-		}
-	}
 
 	// Round-trip: marshal, unmarshal, confirm extra keys survive.
 	out, err := json.Marshal(got)
@@ -588,6 +585,26 @@ func TestDependencyPreservesExtraConfigKeysRoundTrip(t *testing.T) {
 	}
 	if cfgAgain["fallback"] != "openrouter" {
 		t.Errorf("'fallback' lost on round-trip: %s", again.Config)
+	}
+}
+
+func TestDependencyCapturesLegacyTopLevelConfigKeys(t *testing.T) {
+	input := []byte(`{
+        "type": "ollama",
+        "enabled": true,
+        "models": ["qwen3:4b"]
+    }`)
+
+	var got Dependency
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(got.Config, &cfg); err != nil {
+		t.Fatalf("Config is not JSON: %v", err)
+	}
+	if _, ok := cfg["models"]; !ok {
+		t.Fatalf("expected legacy top-level models key in Config, got %s", got.Config)
 	}
 }
 

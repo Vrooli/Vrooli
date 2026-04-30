@@ -11,7 +11,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-const agentManagerProfileKey = "app-issue-tracker-investigations"
+const agentManagerProfileKey = "app-issue-tracker/default"
 
 func (s *Server) initializeAgentManager() error {
 	settings := GetAgentSettings()

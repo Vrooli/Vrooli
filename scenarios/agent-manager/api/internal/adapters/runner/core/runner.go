@@ -701,6 +701,7 @@ func (r *Runner) executeWithDurableTranscript(
 	)
 	return r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
+		sandboxID:    req.SandboxID,
 		sink:         req.EventSink,
 		transcript:   req.Transcript,
 		state:        state,
@@ -734,6 +735,7 @@ func (r *Runner) continueWithDurableTranscript(
 	)
 	result, err := r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
+		sandboxID:    req.SandboxID,
 		sink:         req.EventSink,
 		transcript:   req.Transcript,
 		state:        state,
@@ -752,6 +754,7 @@ func (r *Runner) continueWithDurableTranscript(
 
 type durableInputs struct {
 	runID        uuid.UUID
+	sandboxID    *uuid.UUID
 	sink         runner.EventSink
 	transcript   *runner.TranscriptConfig
 	state        codecs.State
@@ -784,9 +787,14 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	}
 
 	launcherType := launcherLabel(in.launcher)
+	sandboxIDStr := ""
+	if in.sandboxID != nil && *in.sandboxID != uuid.Nil {
+		sandboxIDStr = in.sandboxID.String()
+	}
 	r.runnerLog().Info("agent launch (durable)",
 		obs.KeyRunID, in.runID.String(),
 		obs.KeyLauncherType, launcherType,
+		obs.KeySandboxID, sandboxIDStr,
 		"binary", filepath.Base(r.codec.BinaryPath()),
 		"argCount", len(in.request.Args),
 		"workdir", in.request.WorkingDir,
@@ -798,6 +806,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		r.runnerLog().Error("agent launch failed (durable)",
 			obs.KeyRunID, in.runID.String(),
 			obs.KeyLauncherType, launcherType,
+			obs.KeySandboxID, sandboxIDStr,
 			obs.KeyError, err.Error(),
 		)
 		return nil, &domain.RunnerError{
@@ -811,10 +820,12 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		obs.KeyRunID, in.runID.String(),
 		"pid", proc.PID(),
 		obs.KeyLauncherType, launcherType,
+		obs.KeySandboxID, sandboxIDStr,
 	)
 	obs.EmitRunnerAcquired(in.sink, in.runID, obs.RunnerAcquiredFields{
 		RunnerType:   r.codec.Type(),
 		LauncherType: launcherType,
+		SandboxID:    in.sandboxID,
 	})
 
 	r.registerProcess(in.runID, proc)

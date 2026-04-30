@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -94,26 +95,22 @@ func (s *AgentService) IsAvailable(ctx context.Context) bool {
 
 // Initialize ensures the profile exists with current settings.
 func (s *AgentService) Initialize(ctx context.Context, cfg ProfileConfig) error {
-	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildProfile(s.profileKey, "app-issue-tracker-investigations", "Agent profile for app-issue-tracker investigations", cfg),
-		UpdateExisting: false,
-	})
+	resp, err := s.client.ReconcileScenarioProfiles(ctx, scenario.Name())
 	if err != nil {
-		return fmt.Errorf("ensure profile: %w", err)
+		return fmt.Errorf("reconcile scenario profiles: %w", err)
 	}
 
 	s.mu.Lock()
-	if resp.Profile != nil {
-		s.profileID = resp.Profile.Id
+	for _, item := range resp.Results {
+		if item.ProfileKey == s.profileKey {
+			s.profileID = item.ProfileId
+			break
+		}
 	}
 	s.mu.Unlock()
 
-	if resp.Created {
-		log.Printf("[agent-manager] Created profile '%s' (id=%s)", s.profileKey, s.profileID)
-	} else {
-		log.Printf("[agent-manager] Resolved profile '%s' (id=%s)", s.profileKey, s.profileID)
-	}
+	log.Printf("[agent-manager] Reconciled profiles for %s (created=%d updated=%d unchanged=%d failed=%d)",
+		resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
 
 	return nil
 }
@@ -236,6 +233,5 @@ func (s *AgentService) buildProfile(profileKey, name, description string, cfg Pr
 func (s *AgentService) buildProfileRef(cfg ProfileConfig) *apipb.ProfileRef {
 	return &apipb.ProfileRef{
 		ProfileKey: s.profileKey,
-		Defaults:   s.buildProfile(s.profileKey, "app-issue-tracker-investigations", "Agent profile for app-issue-tracker investigations", cfg),
 	}
 }

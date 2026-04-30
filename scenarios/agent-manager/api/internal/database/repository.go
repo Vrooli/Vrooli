@@ -95,6 +95,12 @@ type profileRow struct {
 	AllowedPaths         StringSlice              `db:"allowed_paths"`
 	DeniedPaths          StringSlice              `db:"denied_paths"`
 	CreatedBy            string                   `db:"created_by"`
+	OwnerScenario        string                   `db:"owner_scenario"`
+	SourcePath           string                   `db:"source_path"`
+	SourceHash           string                   `db:"source_hash"`
+	LastAppliedHash      string                   `db:"last_applied_hash"`
+	SourceUpdatedAt      SQLiteTime               `db:"source_updated_at"`
+	LocalOverride        bool                     `db:"local_override"`
 	CreatedAt            SQLiteTime               `db:"created_at"`
 	UpdatedAt            SQLiteTime               `db:"updated_at"`
 }
@@ -125,6 +131,12 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		AllowedPaths:         r.AllowedPaths,
 		DeniedPaths:          r.DeniedPaths,
 		CreatedBy:            r.CreatedBy,
+		OwnerScenario:        r.OwnerScenario,
+		SourcePath:           r.SourcePath,
+		SourceHash:           r.SourceHash,
+		LastAppliedHash:      r.LastAppliedHash,
+		SourceUpdatedAt:      r.SourceUpdatedAt.Time(),
+		LocalOverride:        r.LocalOverride,
 		CreatedAt:            r.CreatedAt.Time(),
 		UpdatedAt:            r.UpdatedAt.Time(),
 	}
@@ -156,6 +168,12 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		AllowedPaths:         p.AllowedPaths,
 		DeniedPaths:          p.DeniedPaths,
 		CreatedBy:            p.CreatedBy,
+		OwnerScenario:        p.OwnerScenario,
+		SourcePath:           p.SourcePath,
+		SourceHash:           p.SourceHash,
+		LastAppliedHash:      p.LastAppliedHash,
+		SourceUpdatedAt:      SQLiteTime(p.SourceUpdatedAt),
+		LocalOverride:        p.LocalOverride,
 		CreatedAt:            SQLiteTime(p.CreatedAt),
 		UpdatedAt:            SQLiteTime(p.UpdatedAt),
 	}
@@ -191,7 +209,8 @@ func fromRunnerTypes(values []domain.RunnerType) StringSlice {
 
 const profileColumns = `id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 	fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
-	network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at`
+	network_access, sandbox_config, allowed_paths, denied_paths, created_by, owner_scenario, source_path,
+	source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at`
 
 func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentProfile) error {
 	if profile.ID == uuid.Nil {
@@ -204,10 +223,12 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 		fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
-		network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at)
+		network_access, sandbox_config, allowed_paths, denied_paths, created_by, owner_scenario, source_path,
+		source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :model_preset, :max_turns, :timeout_ms,
 		:fallback_runner_types, :allowed_tools, :denied_tools, :skip_permission_prompt, :features, :extra_flags,
-		:network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
+		:network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :owner_scenario, :source_path,
+		:source_hash, :last_applied_hash, :source_updated_at, :local_override, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -280,7 +301,9 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
 		network_access = :network_access,
 		sandbox_config = :sandbox_config, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
-		created_by = :created_by, updated_at = :updated_at
+		created_by = :created_by, owner_scenario = :owner_scenario, source_path = :source_path,
+		source_hash = :source_hash, last_applied_hash = :last_applied_hash, source_updated_at = :source_updated_at,
+		local_override = :local_override, updated_at = :updated_at
 		WHERE id = :id`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
