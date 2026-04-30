@@ -400,11 +400,13 @@ func (c *Codex) PostClassify(state State, result *runner.ExecuteResult) {}
 //   - On resume, the session id no longer maps to a live thread: a
 //     plain "thread … not found" without rollout-writer context means
 //     the session is genuinely gone → ErrCodeRunnerSessionExpired.
-//   - During a live run, codex's `record_rollout_items` writer
-//     goroutine occasionally drops the thread mid-stream; the stderr
-//     line is `record_rollout_items: thread … not found`. The session
-//     id is still valid but the rollout state is unrecoverable →
-//     ErrCodeRunnerSessionStateLost.
+//   - During a live run, codex's rollout-recorder goroutine drops the
+//     thread mid-stream. Codex emits this in two surface forms across
+//     versions — the function-name form `record_rollout_items` and the
+//     human-readable form `failed to record rollout items` (the latter
+//     is what current codex prints; both are treated as the same
+//     condition). The session id is still valid but the rollout state
+//     is unrecoverable → ErrCodeRunnerSessionStateLost.
 //
 // Returning nil from this method (no recognised pattern) lets
 // core.Runner fall back to ErrCodeRunnerExecution as before.
@@ -413,7 +415,7 @@ func (c *Codex) ClassifyTerminalError(stderr string, exitCode int) *domain.Runne
 		return nil
 	}
 	cause := strings.TrimSpace(stderr)
-	if strings.Contains(stderr, "record_rollout_items") {
+	if strings.Contains(stderr, "record_rollout_items") || strings.Contains(stderr, "record rollout items") {
 		return domain.NewRunnerSessionStateLostError(c.Type(), errors.New(cause))
 	}
 	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(cause))

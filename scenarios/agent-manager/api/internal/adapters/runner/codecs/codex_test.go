@@ -577,8 +577,19 @@ func TestCodex_ClassifyTerminalError(t *testing.T) {
 			wantCode: domain.ErrCodeRunnerSessionExpired,
 		},
 		{
-			name:     "state-lost rollout-writer race",
+			name:     "state-lost rollout-writer race (function-name form)",
 			stderr:   "ERROR codex_rollout::recorder: record_rollout_items: thread 019dda9c was not found",
+			exitCode: 1,
+			wantCode: domain.ErrCodeRunnerSessionStateLost,
+		},
+		{
+			// Real production stderr from a heartbeat-driven failure
+			// (run 08f9fb93, 2026-04-29 23:15 UTC). The codex binary
+			// emits the human-readable form, not the function-name
+			// form, so the classifier MUST match both shapes or the
+			// state-lost burst stays misclassified as session-expired.
+			name:     "state-lost rollout-writer race (human-readable form)",
+			stderr:   "2026-04-29T23:15:03.309169Z ERROR codex_core::session: failed to record rollout items: thread 019ddb86-3b2e-72a0-9a6b-cd6bc787b155 not found",
 			exitCode: 1,
 			wantCode: domain.ErrCodeRunnerSessionStateLost,
 		},
