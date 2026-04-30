@@ -24,3 +24,25 @@ Acceptance criteria:
 Operator note:
 
 {{OPERATOR_NOTE}}
+
+## Final Result Envelope
+
+End your response with a fenced JSON block containing `operating_mode_result` so Swarm Manager can persist the phased plan:
+
+```json
+{
+  "operating_mode_result": {
+    "artifacts": [
+      {
+        "path": "modes/phased-plan-drain/phased-plan.md",
+        "content_type": "text/markdown",
+        "content": "..."
+      }
+    ],
+    "handoff": {
+      "summary": "...",
+      "next_step": "execute_next"
+    }
+  }
+}
+```

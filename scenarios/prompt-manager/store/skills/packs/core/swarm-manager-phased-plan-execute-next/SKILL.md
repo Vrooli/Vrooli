@@ -22,3 +22,22 @@ Rules:
 - Run focused validation for touched areas.
 - Do not edit backlog `spec.json` files directly.
 - End with a final handoff listing completed phases, changed files, tests, blockers, and the next earliest unfinished phase.
+
+## Final Result Envelope
+
+End your response with a fenced JSON block containing `operating_mode_result` so Swarm Manager can persist the sequential handoff:
+
+```json
+{
+  "operating_mode_result": {
+    "handoff": {
+      "summary": "...",
+      "completed_phases": [],
+      "changed_files": [],
+      "tests": [],
+      "blockers": [],
+      "next_step": "classify_progress"
+    }
+  }
+}
+```

@@ -1,4 +1,5 @@
 import type { InitiativeOperatingMode } from "./initiative";
+import type { Proposal } from "./feedback";
 
 export type OperatingModeRoundStatus =
   | "reserved"
@@ -83,6 +84,14 @@ export interface OperatingModeRound {
   error?: string;
 }
 
+export interface OperatingModeBacklogSyncPlan {
+  completedItems?: string[];
+  createdItems?: string[];
+  updatedItems?: string[];
+  proposal?: Proposal;
+  rationale?: string;
+}
+
 export interface OperatingModeLockHolder {
   run_id?: string;
   runId?: string;
@@ -119,4 +128,35 @@ export interface SwitchOperatingModeResult {
   activeItemExecutions?: ActiveItemExecution[];
   requiresCancellation?: boolean;
   operatingModeWorkspaceId?: string;
+}
+
+export interface OperatingModeCompletedItem {
+  itemRef: string;
+  fromStatus: string;
+  toStatus: string;
+}
+
+export interface OperatingModeBacklogSyncResult {
+  initiativeName: string;
+  mode: InitiativeOperatingMode;
+  phase: string;
+  round: number;
+  runId?: string;
+  completedItems: OperatingModeCompletedItem[];
+  proposalResult?: {
+    applied: number;
+    failed: number;
+    skipped: number;
+    created?: number;
+    updated?: number;
+    outcomes?: Array<{
+      mutationId: string;
+      op: string;
+      target?: string;
+      applied: boolean;
+      skipped?: boolean;
+      error?: string;
+    }>;
+  };
+  noop?: boolean;
 }

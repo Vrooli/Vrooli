@@ -21,3 +21,21 @@ Prior rounds:
 ```
 
 Produce a concise verdict with evidence, validation performed, remaining gaps, and recommended next action. Do not mutate backlog specs directly.
+
+## Final Result Envelope
+
+End your response with a fenced JSON block containing `operating_mode_result` so Swarm Manager can persist the review verdict:
+
+```json
+{
+  "operating_mode_result": {
+    "verdict": "accepted",
+    "handoff": {
+      "summary": "...",
+      "tests": [],
+      "blockers": [],
+      "next_step": "complete initiative or return to prepare_plan"
+    }
+  }
+}
+```

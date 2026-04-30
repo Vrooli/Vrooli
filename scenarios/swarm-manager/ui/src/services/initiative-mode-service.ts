@@ -3,6 +3,7 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
   OperatingModeArtifactSnapshot,
+  OperatingModeBacklogSyncResult,
   OperatingModeRound,
   OperatingModeRoundItem,
   OperatingModeWorkspace,
@@ -167,12 +168,71 @@ export interface SwitchOperatingModeArgs {
   requestedBy?: string;
 }
 
+export interface CompleteOperatingModeItemsArgs {
+  mode: InitiativeOperatingMode;
+  round: number;
+  runId: string;
+  itemRefs: string[];
+  requestedBy?: string;
+}
+
+export interface ApplyOperatingModeBacklogSyncArgs {
+  mode: InitiativeOperatingMode;
+  round: number;
+  runId: string;
+  acceptedMutationIds?: string[];
+  requestedBy?: string;
+}
+
 export interface IInitiativeModeService {
   workspace(name: string): Promise<OperatingModeWorkspace>;
   switchMode(name: string, args: SwitchOperatingModeArgs): Promise<SwitchOperatingModeResult>;
   startPhase(name: string, phase: string, args?: StartOperatingModePhaseArgs): Promise<OperatingModeRound>;
   refreshRound(name: string, mode: string, round: number): Promise<OperatingModeRound>;
   cancelRound(name: string, mode: string, round: number): Promise<OperatingModeRound>;
+  completeItems(name: string, args: CompleteOperatingModeItemsArgs): Promise<OperatingModeBacklogSyncResult>;
+  applyBacklogSync(name: string, args: ApplyOperatingModeBacklogSyncArgs): Promise<OperatingModeBacklogSyncResult>;
+}
+
+function normalizeBacklogSyncResult(raw: unknown): OperatingModeBacklogSyncResult {
+  const result = recordValue(raw);
+  const completed = result.completed_items ?? result.completedItems;
+  const proposalResult = recordValue(result.proposal_result ?? result.proposalResult);
+  const outcomes = proposalResult.outcomes;
+  return {
+    initiativeName: stringValue(result.initiative_name ?? result.initiativeName),
+    mode: stringValue(result.mode, "item-level") as InitiativeOperatingMode,
+    phase: stringValue(result.phase),
+    round: numberValue(result.round, 0) ?? 0,
+    runId: stringValue(result.run_id ?? result.runId, undefined),
+    completedItems: Array.isArray(completed) ? completed.map((item) => {
+      const completedItem = recordValue(item);
+      return {
+        itemRef: stringValue(completedItem.item_ref ?? completedItem.itemRef),
+        fromStatus: stringValue(completedItem.from_status ?? completedItem.fromStatus),
+        toStatus: stringValue(completedItem.to_status ?? completedItem.toStatus),
+      };
+    }) : [],
+    proposalResult: Object.keys(proposalResult).length > 0 ? {
+      applied: numberValue(proposalResult.applied, 0) ?? 0,
+      failed: numberValue(proposalResult.failed, 0) ?? 0,
+      skipped: numberValue(proposalResult.skipped, 0) ?? 0,
+      created: numberValue(proposalResult.created, undefined),
+      updated: numberValue(proposalResult.updated, undefined),
+      outcomes: Array.isArray(outcomes) ? outcomes.map((item) => {
+        const outcome = recordValue(item);
+        return {
+          mutationId: stringValue(outcome.mutation_id ?? outcome.mutationId),
+          op: stringValue(outcome.op),
+          target: stringValue(outcome.target, undefined),
+          applied: boolValue(outcome.applied) ?? false,
+          skipped: boolValue(outcome.skipped, undefined),
+          error: stringValue(outcome.error, undefined),
+        };
+      }) : [],
+    } : undefined,
+    noop: boolValue(result.noop, undefined),
+  };
 }
 
 export function createInitiativeModeService(
@@ -222,6 +282,32 @@ export function createInitiativeModeService(
         {},
       );
       return normalizeRound(raw);
+    },
+
+    async completeItems(name: string, args: CompleteOperatingModeItemsArgs): Promise<OperatingModeBacklogSyncResult> {
+      const raw = await apiClient.post<unknown>(
+        API_ENDPOINTS.initiativeOperatingModeCompleteItems(name, args.round, args.mode),
+        {
+          mode: args.mode,
+          run_id: args.runId,
+          item_refs: args.itemRefs,
+          requested_by: args.requestedBy ?? "swarm-manager-ui",
+        },
+      );
+      return normalizeBacklogSyncResult(raw);
+    },
+
+    async applyBacklogSync(name: string, args: ApplyOperatingModeBacklogSyncArgs): Promise<OperatingModeBacklogSyncResult> {
+      const raw = await apiClient.post<unknown>(
+        API_ENDPOINTS.initiativeOperatingModeApplyBacklogSync(name, args.round, args.mode),
+        {
+          mode: args.mode,
+          run_id: args.runId,
+          accepted_mutation_ids: args.acceptedMutationIds ?? [],
+          requested_by: args.requestedBy ?? "swarm-manager-ui",
+        },
+      );
+      return normalizeBacklogSyncResult(raw);
     },
   };
 }

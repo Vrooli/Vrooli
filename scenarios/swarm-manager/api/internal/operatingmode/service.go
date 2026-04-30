@@ -44,6 +44,49 @@ type BacklogReader interface {
 	LoadBacklogItem(kind, name string) (BacklogItemSnapshot, error)
 }
 
+type BacklogCompletionResult struct {
+	ItemRef    string `json:"item_ref"`
+	FromStatus string `json:"from_status"`
+	ToStatus   string `json:"to_status"`
+}
+
+type BacklogMutator interface {
+	MarkBacklogItemCompleted(ctx context.Context, kind, name, source string) (BacklogCompletionResult, error)
+}
+
+type ProposalReconciler interface {
+	ApplyBacklogSyncProposal(ctx context.Context, req ProposalReconcileRequest) (*ProposalApplyResult, error)
+}
+
+type ProposalReconcileRequest struct {
+	InitiativeName      string
+	Round               int
+	Phase               string
+	RunID               string
+	Proposal            json.RawMessage
+	AcceptedMutationIDs []string
+	DecidedBy           string
+	DecidedAtRFC3339    string
+}
+
+type ProposalApplyResult struct {
+	Outcomes []ProposalOutcome `json:"outcomes"`
+	Applied  int               `json:"applied"`
+	Failed   int               `json:"failed"`
+	Skipped  int               `json:"skipped"`
+	Created  int               `json:"created,omitempty"`
+	Updated  int               `json:"updated,omitempty"`
+}
+
+type ProposalOutcome struct {
+	MutationID string `json:"mutation_id"`
+	Op         string `json:"op"`
+	Target     string `json:"target,omitempty"`
+	Applied    bool   `json:"applied"`
+	Skipped    bool   `json:"skipped,omitempty"`
+	Error      string `json:"error,omitempty"`
+}
+
 type ActiveItemExecution struct {
 	ItemRef     string `json:"item_ref"`
 	ExecutionID string `json:"execution_id,omitempty"`
@@ -68,6 +111,8 @@ type Config struct {
 	Initiatives      InitiativeReader
 	ModeUpdater      InitiativeModeUpdater
 	Backlog          BacklogReader
+	BacklogMutator   BacklogMutator
+	Reconciler       ProposalReconciler
 	ItemExecutions   ItemExecutionController
 	Agent            AgentSpawner
 	Activity         *agentactivity.Service
@@ -84,6 +129,8 @@ type Service struct {
 	initiatives  InitiativeReader
 	modeUpdater  InitiativeModeUpdater
 	backlog      BacklogReader
+	backlogMut   BacklogMutator
+	reconciler   ProposalReconciler
 	itemExecs    ItemExecutionController
 	agent        AgentSpawner
 	activity     *agentactivity.Service
@@ -107,6 +154,35 @@ type SwitchModeRequest struct {
 	Mode                       string
 	CancelActiveItemExecutions bool
 	RequestedBy                string
+}
+
+type CompleteItemsRequest struct {
+	InitiativeName string
+	Mode           string
+	Round          int
+	RunID          string
+	ItemRefs       []string
+	RequestedBy    string
+}
+
+type ApplyBacklogSyncRequest struct {
+	InitiativeName      string
+	Mode                string
+	Round               int
+	RunID               string
+	AcceptedMutationIDs []string
+	RequestedBy         string
+}
+
+type BacklogSyncResult struct {
+	InitiativeName string                    `json:"initiative_name"`
+	Mode           string                    `json:"mode"`
+	Phase          string                    `json:"phase"`
+	Round          int                       `json:"round"`
+	RunID          string                    `json:"run_id,omitempty"`
+	CompletedItems []BacklogCompletionResult `json:"completed_items,omitempty"`
+	ProposalResult *ProposalApplyResult      `json:"proposal_result,omitempty"`
+	Noop           bool                      `json:"noop,omitempty"`
 }
 
 type SwitchModeResult struct {
@@ -191,6 +267,8 @@ func NewService(cfg Config) (*Service, error) {
 		initiatives:  cfg.Initiatives,
 		modeUpdater:  cfg.ModeUpdater,
 		backlog:      cfg.Backlog,
+		backlogMut:   cfg.BacklogMutator,
+		reconciler:   cfg.Reconciler,
 		itemExecs:    cfg.ItemExecutions,
 		agent:        cfg.Agent,
 		activity:     cfg.Activity,
@@ -444,7 +522,12 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 		round.Payload = ensurePayload(round.Payload)
 		round.Payload["agent_summary"] = strings.TrimSpace(state.Summary)
 		round.Payload["finished_at"] = finishTime(state, s.clock)
+		if err := s.applyPhaseResult(&round, state.Summary); err != nil {
+			round.Error = err.Error()
+			slog.Warn("operating mode: parse/apply phase result failed", "err", err, "initiative", round.InitiativeName, "round", round.Round)
+		}
 		s.emitPhaseCompleted(round)
+		s.emitParsedPhaseSignals(round)
 		_ = s.lock.Release(round.InitiativeName, round.RunID)
 	case "failed":
 		round.Status = RoundStatusFailed
@@ -469,6 +552,153 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 		return RoundEnvelope{}, err
 	}
 	return round, nil
+}
+
+func (s *Service) CompleteItems(ctx context.Context, req CompleteItemsRequest) (BacklogSyncResult, error) {
+	if s.backlogMut == nil {
+		return BacklogSyncResult{}, errors.New("operatingmode: BacklogMutator is not configured")
+	}
+	name := strings.TrimSpace(req.InitiativeName)
+	if name == "" {
+		return BacklogSyncResult{}, fmt.Errorf("initiative name is required")
+	}
+	mode := NormalizeMode(req.Mode)
+	round, err := s.store.LoadRound(name, mode, req.Round)
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
+	def, err := DefinitionFor(mode)
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
+	if def.Mode == ModeItemLevel {
+		return BacklogSyncResult{}, fmt.Errorf("item-level mode backlog completion is owned by the existing backlog execution flow")
+	}
+	if !hasBacklogSyncCapability(def.BacklogSync, BacklogSyncMarkComplete) {
+		return BacklogSyncResult{}, fmt.Errorf("mode %q does not allow marking backlog items complete", mode)
+	}
+	runID := strings.TrimSpace(req.RunID)
+	if def.BacklogSync.RequiresRunID && runID == "" {
+		return BacklogSyncResult{}, fmt.Errorf("run_id is required")
+	}
+	if def.BacklogSync.RequiresRunID && strings.TrimSpace(round.RunID) != runID {
+		return BacklogSyncResult{}, fmt.Errorf("run_id does not match round %03d", round.Round)
+	}
+	if len(req.ItemRefs) == 0 {
+		return BacklogSyncResult{}, fmt.Errorf("item_refs is required")
+	}
+	memberRefs := map[string]bool{}
+	for _, item := range round.Items {
+		memberRefs[strings.TrimSpace(item.Ref)] = true
+	}
+
+	completed := make([]BacklogCompletionResult, 0, len(req.ItemRefs))
+	for _, ref := range req.ItemRefs {
+		kind, itemName, cleanRef, err := parseBacklogRef(ref)
+		if err != nil {
+			return BacklogSyncResult{}, err
+		}
+		if def.BacklogSync.RequiresMembership && !memberRefs[cleanRef] {
+			return BacklogSyncResult{}, fmt.Errorf("item %q is not a member of initiative %q", cleanRef, name)
+		}
+		result, err := s.backlogMut.MarkBacklogItemCompleted(ctx, kind, itemName, fmt.Sprintf("%s/round-%03d", def.BacklogSync.EventSource, round.Round))
+		if err != nil {
+			return BacklogSyncResult{}, err
+		}
+		completed = append(completed, result)
+	}
+
+	result := BacklogSyncResult{
+		InitiativeName: name,
+		Mode:           round.Mode,
+		Phase:          round.Phase,
+		Round:          round.Round,
+		RunID:          round.RunID,
+		CompletedItems: completed,
+		Noop:           len(completed) == 0,
+	}
+	round.Payload = ensurePayload(round.Payload)
+	round.Payload["backlog_sync"] = result
+	if err := s.store.SaveRound(round); err != nil {
+		return BacklogSyncResult{}, err
+	}
+	s.emitBacklogSynced(round, len(completed), 0, 0)
+	return result, nil
+}
+
+func (s *Service) ApplyBacklogSync(ctx context.Context, req ApplyBacklogSyncRequest) (BacklogSyncResult, error) {
+	if s.reconciler == nil {
+		return BacklogSyncResult{}, errors.New("operatingmode: ProposalReconciler is not configured")
+	}
+	name := strings.TrimSpace(req.InitiativeName)
+	if name == "" {
+		return BacklogSyncResult{}, fmt.Errorf("initiative name is required")
+	}
+	mode := NormalizeMode(req.Mode)
+	round, err := s.store.LoadRound(name, mode, req.Round)
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
+	def, err := DefinitionFor(mode)
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
+	if def.Mode == ModeItemLevel {
+		return BacklogSyncResult{}, fmt.Errorf("item-level mode backlog reconciliation is owned by the existing backlog execution flow")
+	}
+	if !hasBacklogSyncCapability(def.BacklogSync, BacklogSyncProposeMutations) {
+		return BacklogSyncResult{}, fmt.Errorf("mode %q does not allow backlog mutation proposals", mode)
+	}
+	runID := strings.TrimSpace(req.RunID)
+	if def.BacklogSync.RequiresRunID && runID == "" {
+		return BacklogSyncResult{}, fmt.Errorf("run_id is required")
+	}
+	if def.BacklogSync.RequiresRunID && strings.TrimSpace(round.RunID) != runID {
+		return BacklogSyncResult{}, fmt.Errorf("run_id does not match round %03d", round.Round)
+	}
+	plan, err := backlogSyncPlanFromRound(round)
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
+	if len(plan.Proposal) == 0 {
+		return BacklogSyncResult{}, fmt.Errorf("round %03d has no backlog_sync proposal", round.Round)
+	}
+	now := s.clock().UTC().Format(time.RFC3339)
+	result, err := s.reconciler.ApplyBacklogSyncProposal(ctx, ProposalReconcileRequest{
+		InitiativeName:      name,
+		Round:               round.Round,
+		Phase:               round.Phase,
+		RunID:               round.RunID,
+		Proposal:            append(json.RawMessage(nil), plan.Proposal...),
+		AcceptedMutationIDs: append([]string(nil), req.AcceptedMutationIDs...),
+		DecidedBy:           defaultString(req.RequestedBy, s.requestedBy),
+		DecidedAtRFC3339:    now,
+	})
+	if err != nil {
+		return BacklogSyncResult{}, fmt.Errorf("apply backlog sync proposal: %w", err)
+	}
+	syncResult := BacklogSyncResult{
+		InitiativeName: name,
+		Mode:           round.Mode,
+		Phase:          round.Phase,
+		Round:          round.Round,
+		RunID:          round.RunID,
+		ProposalResult: result,
+		Noop:           result == nil || result.Applied == 0,
+	}
+	round.Payload = ensurePayload(round.Payload)
+	round.Payload["backlog_sync"] = syncResult
+	round.Payload["backlog_sync_applied_at"] = now
+	if err := s.store.SaveRound(round); err != nil {
+		return BacklogSyncResult{}, err
+	}
+	created, updated := 0, 0
+	if result != nil {
+		created = result.Created
+		updated = result.Updated
+	}
+	s.emitBacklogSynced(round, 0, created, updated)
+	return syncResult, nil
 }
 
 func (s *Service) CancelRound(ctx context.Context, initiativeName string, mode Mode, number int) (RoundEnvelope, error) {
@@ -611,6 +841,108 @@ func (s *Service) emitPhaseCanceled(round RoundEnvelope) {
 	}
 }
 
+func (s *Service) emitParsedPhaseSignals(round RoundEnvelope) {
+	if s.events == nil || round.Payload == nil {
+		return
+	}
+	if replan, _ := round.Payload["replan_needed"].(bool); replan {
+		s.events.EmitOperatingModeReplanNeeded(round.ScopeID, phasePayload(round, "completed", ""))
+	}
+	if _, ok := round.Payload["progress"].(ProgressState); ok {
+		s.emitBacklogSynced(round, 0, 0, 0)
+		return
+	}
+	if _, ok := round.Payload["progress"].(map[string]any); ok {
+		s.emitBacklogSynced(round, 0, 0, 0)
+	}
+}
+
+func (s *Service) emitBacklogSynced(round RoundEnvelope, completed, created, updated int) {
+	if s.events == nil {
+		return
+	}
+	s.events.EmitOperatingModeBacklogSynced(round.ScopeID, eventlog.OperatingModeBacklogSyncPayload{
+		Mode:                  round.Mode,
+		ScopeKind:             round.ScopeKind,
+		ScopeID:               round.ScopeID,
+		InitiativeName:        round.InitiativeName,
+		Phase:                 round.Phase,
+		RunStrategy:           round.RunStrategy,
+		AgentProfileKey:       round.AgentProfileKey,
+		RoundNumber:           round.Round,
+		RunID:                 round.RunID,
+		Status:                string(round.Status),
+		BacklogItemsCompleted: completed,
+		BacklogItemsCreated:   created,
+		BacklogItemsUpdated:   updated,
+		ArtifactPaths:         artifactPaths(round.ArtifactUpdates),
+	})
+}
+
+func (s *Service) applyPhaseResult(round *RoundEnvelope, output string) error {
+	result, ok, err := ParsePhaseResult(output)
+	if err != nil || !ok {
+		return err
+	}
+	now := s.clock().UTC().Format(time.RFC3339)
+	round.Payload = ensurePayload(round.Payload)
+	round.Payload[resultEnvelopeKey] = result
+	if strings.TrimSpace(result.Verdict) != "" {
+		round.Payload["verdict"] = strings.TrimSpace(result.Verdict)
+	}
+	if result.ReplanNeeded {
+		round.Payload["replan_needed"] = true
+	}
+	if result.Readiness != nil {
+		round.Readiness = result.Readiness
+	}
+	if result.Progress != nil {
+		result.Progress.UpdatedAt = defaultString(result.Progress.UpdatedAt, now)
+		round.Payload["progress"] = *result.Progress
+		if round.Mode == string(ModePhasedPlanDrain) {
+			data, err := json.MarshalIndent(result.Progress, "", "  ")
+			if err != nil {
+				return err
+			}
+			clean, err := s.store.WriteArtifact(round.InitiativeName, Mode(round.Mode), "modes/phased-plan-drain/progress.json", data)
+			if err != nil {
+				return err
+			}
+			round.ArtifactUpdates = append(round.ArtifactUpdates, ArtifactUpdate{Path: clean, ContentType: "application/json", Required: true, UpdatedAt: now, Source: string(resultEnvelopeKey)})
+		}
+	}
+	for _, artifact := range result.Artifacts {
+		path := strings.TrimSpace(artifact.Path)
+		if path == "" {
+			continue
+		}
+		clean, err := s.store.WriteArtifact(round.InitiativeName, Mode(round.Mode), path, []byte(artifact.Content))
+		if err != nil {
+			return err
+		}
+		round.ArtifactUpdates = append(round.ArtifactUpdates, ArtifactUpdate{
+			Path:        clean,
+			ContentType: defaultString(artifact.ContentType, artifactDeclaration(MustDefinition(Mode(round.Mode)), clean).ContentType),
+			Required:    artifactDeclaration(MustDefinition(Mode(round.Mode)), clean).Required,
+			UpdatedAt:   now,
+			Source:      string(resultEnvelopeKey),
+		})
+	}
+	if result.Handoff != nil {
+		handoff := *result.Handoff
+		handoff.CreatedAt = defaultString(handoff.CreatedAt, now)
+		round.Handoffs = append(round.Handoffs, handoff)
+	}
+	for _, handoff := range result.Handoffs {
+		handoff.CreatedAt = defaultString(handoff.CreatedAt, now)
+		round.Handoffs = append(round.Handoffs, handoff)
+	}
+	if result.BacklogSync != nil {
+		round.Payload["backlog_sync_plan"] = result.BacklogSync
+	}
+	return nil
+}
+
 func phasePayload(round RoundEnvelope, status, reason string) eventlog.OperatingModePhasePayload {
 	payload := eventlog.OperatingModePhasePayload{
 		Mode:            round.Mode,
@@ -627,6 +959,13 @@ func phasePayload(round RoundEnvelope, status, reason string) eventlog.Operating
 	}
 	if reason != "" {
 		payload.Verdict = reason
+	} else if round.Payload != nil {
+		if verdict, _ := round.Payload["verdict"].(string); strings.TrimSpace(verdict) != "" {
+			payload.Verdict = strings.TrimSpace(verdict)
+		}
+		if replan, _ := round.Payload["replan_needed"].(bool); replan {
+			payload.ReplanNeeded = true
+		}
 	}
 	payload.DurationSeconds = roundDuration(round)
 	return payload
@@ -784,4 +1123,51 @@ func ensurePayload(payload map[string]any) map[string]any {
 		return map[string]any{}
 	}
 	return payload
+}
+
+func hasBacklogSyncCapability(policy BacklogSyncPolicy, want BacklogSyncCapability) bool {
+	for _, capability := range policy.Capabilities {
+		if capability == want {
+			return true
+		}
+	}
+	return false
+}
+
+func backlogSyncPlanFromRound(round RoundEnvelope) (BacklogSyncPlan, error) {
+	if round.Payload == nil {
+		return BacklogSyncPlan{}, fmt.Errorf("round %03d has no backlog_sync_plan", round.Round)
+	}
+	raw, ok := round.Payload["backlog_sync_plan"]
+	if !ok {
+		return BacklogSyncPlan{}, fmt.Errorf("round %03d has no backlog_sync_plan", round.Round)
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return BacklogSyncPlan{}, fmt.Errorf("marshal backlog_sync_plan: %w", err)
+	}
+	var plan BacklogSyncPlan
+	if err := json.Unmarshal(data, &plan); err != nil {
+		return BacklogSyncPlan{}, fmt.Errorf("parse backlog_sync_plan: %w", err)
+	}
+	return plan, nil
+}
+
+func parseBacklogRef(ref string) (kind, name, clean string, err error) {
+	clean = strings.TrimSpace(ref)
+	parts := strings.SplitN(clean, "/", 2)
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return "", "", "", fmt.Errorf("item ref %q must be kind/name", ref)
+	}
+	kind = strings.TrimSpace(parts[0])
+	name = strings.TrimSpace(parts[1])
+	clean = kind + "/" + name
+	return kind, name, clean, nil
+}
+
+func defaultString(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return strings.TrimSpace(value)
+	}
+	return fallback
 }

@@ -42,37 +42,7 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 		return
 	}
 
-	// Guard against the typed-nil-into-interface trap: ServiceConfig.Events
-	// is the CreationEventEmitter interface. Assigning a nil *eventlog.Emitter
-	// would yield a non-nil interface that passes the `s.events != nil` check
-	// in Service.Create and then panic on first method call. Only set Events
-	// when we actually have a constructed emitter.
-	cfg := backlog.ServiceConfig{
-		Store:       s.backlogHandler.Store(),
-		Assigner:    s.initiativeService,
-		Invalidator: materializer,
-		// Workshop and CycleChecker intentionally omitted: proposal-
-		// applied items skip auto-workshop (agent already chose the
-		// item) and cycle validation is performed by the Applier's
-		// Validate phase using CurrentState.
-	}
-	if s.emitter != nil {
-		cfg.Events = s.emitter
-	}
-	creator, err := backlog.NewService(cfg)
-	if err != nil {
-		slog.Warn("feedback: failed to build backlog.Service for proposals", "err", err)
-		return
-	}
-
-	applier, err := proposals.NewApplier(proposals.Config{
-		Store:       s.backlogHandler.Store(),
-		Assigner:    s.initiativeService,
-		Creator:     creator,
-		Canceller:   newExecutionCancellerAdapter(s.executionSvc),
-		Invalidator: materializer,
-		Events:      &feedbackEventEmitter{eventlog: s.emitter},
-	})
+	applier, err := s.buildProposalApplier(materializer)
 	if err != nil {
 		slog.Warn("feedback: failed to build proposals.Applier", "err", err)
 		return
@@ -340,6 +310,41 @@ func normalizeFeedbackPurpose(p string) agentactivity.Purpose {
 	default:
 		return agentactivity.PurposeFeedback
 	}
+}
+
+func (s *Server) buildProposalApplier(materializer *graph.Materializer) (*proposals.Applier, error) {
+	if s.backlogHandler == nil || s.initiativeService == nil {
+		return nil, fmt.Errorf("backlog and initiative services are required")
+	}
+	// Guard against the typed-nil-into-interface trap: ServiceConfig.Events
+	// is the CreationEventEmitter interface. Assigning a nil *eventlog.Emitter
+	// would yield a non-nil interface that passes the `s.events != nil` check
+	// in Service.Create and then panic on first method call. Only set Events
+	// when we actually have a constructed emitter.
+	cfg := backlog.ServiceConfig{
+		Store:       s.backlogHandler.Store(),
+		Assigner:    s.initiativeService,
+		Invalidator: materializer,
+		// Workshop and CycleChecker intentionally omitted: proposal-
+		// applied items skip auto-workshop (agent already chose the
+		// item) and cycle validation is performed by the Applier's
+		// Validate phase using CurrentState.
+	}
+	if s.emitter != nil {
+		cfg.Events = s.emitter
+	}
+	creator, err := backlog.NewService(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("build backlog.Service for proposals: %w", err)
+	}
+	return proposals.NewApplier(proposals.Config{
+		Store:       s.backlogHandler.Store(),
+		Assigner:    s.initiativeService,
+		Creator:     creator,
+		Canceller:   newExecutionCancellerAdapter(s.executionSvc),
+		Invalidator: materializer,
+		Events:      &feedbackEventEmitter{eventlog: s.emitter},
+	})
 }
 
 // buildPromptAndAttachments hydrates the prompt context from disk and

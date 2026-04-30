@@ -79,6 +79,9 @@ func (a *App) cmdInitiativesList(args []string) error {
 		rollup := item.Rollup
 		fmt.Printf("  %s (%s)\n", init.Name, init.Status)
 		fmt.Printf("    Title: %s\n", init.Title)
+		if init.Mode != "" {
+			fmt.Printf("    Mode: %s\n", init.Mode)
+		}
 		if init.Description != "" {
 			fmt.Printf("    Description: %s\n", init.Description)
 		}
@@ -140,6 +143,9 @@ func (a *App) cmdInitiativesGet(args []string) error {
 		fmt.Printf("  Description: %s\n", init.Description)
 	}
 	fmt.Printf("  Status: %s\n", init.Status)
+	if init.Mode != "" {
+		fmt.Printf("  Mode: %s\n", init.Mode)
+	}
 	if init.Priority > 0 {
 		fmt.Printf("  Priority: %d\n", init.Priority)
 	}
@@ -160,6 +166,12 @@ func (a *App) cmdInitiativesGet(args []string) error {
 		printSection("Items")
 		for _, item := range init.Items {
 			fmt.Printf("  - %s\n", item)
+		}
+	}
+	if len(init.AcceptanceCriteria) > 0 {
+		printSection("Acceptance Criteria")
+		for _, criterion := range init.AcceptanceCriteria {
+			fmt.Printf("  - %s\n", criterion)
 		}
 	}
 
@@ -213,6 +225,9 @@ func (a *App) cmdInitiativesContext(args []string) error {
 		fmt.Printf("  Description: %s\n", init.Description)
 	}
 	fmt.Printf("  Status: %s\n", init.Status)
+	if init.Mode != "" {
+		fmt.Printf("  Mode: %s\n", init.Mode)
+	}
 	if init.Priority > 0 {
 		fmt.Printf("  Priority: %d\n", init.Priority)
 	}

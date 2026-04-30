@@ -2,20 +2,28 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/graph"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/proposals"
 )
 
-func (s *Server) registerOperatingModeRoutes(scenarioRoot string) {
-	if s.initStore == nil || s.initiativeService == nil {
+func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *graph.Materializer) {
+	if s.initStore == nil || s.initiativeService == nil || s.backlogHandler == nil {
 		return
+	}
+	applier, err := s.buildProposalApplier(materializer)
+	if err != nil {
+		slog.Warn("operating-mode: proposal applier unavailable; mutation reconciliation disabled", "err", err)
 	}
 	store := operatingmode.NewStore(s.initiativeService.InitDir)
 	lock := &initiativelock.Lock{Dir: s.initiativeService.InitDir}
@@ -25,6 +33,14 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string) {
 		Initiatives: operatingModeInitiativeReader{store: s.initStore},
 		ModeUpdater: operatingModeUpdater{service: s.initiativeService},
 		Backlog:     operatingModeBacklogReader{store: s.backlogHandler.Store()},
+		BacklogMutator: operatingModeBacklogMutator{
+			store:  s.backlogHandler.Store(),
+			events: s.emitter,
+		},
+		Reconciler: operatingModeProposalReconciler{
+			applier:      applier,
+			stateBuilder: newFeedbackStateBuilder(materializer, s.initStore, s.backlogHandler.Store()),
+		},
 		ItemExecutions: operatingModeExecutionController{
 			service: s.executionSvc,
 		},
@@ -41,6 +57,82 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string) {
 	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
 }
 
+type operatingModeProposalReconciler struct {
+	applier      *proposals.Applier
+	stateBuilder func(string) (proposals.CurrentState, error)
+}
+
+func (r operatingModeProposalReconciler) ApplyBacklogSyncProposal(ctx context.Context, req operatingmode.ProposalReconcileRequest) (*operatingmode.ProposalApplyResult, error) {
+	if r.applier == nil {
+		return nil, fmt.Errorf("proposal applier is not configured")
+	}
+	if r.stateBuilder == nil {
+		return nil, fmt.Errorf("proposal state builder is not configured")
+	}
+	var proposal proposals.Proposal
+	if err := json.Unmarshal(req.Proposal, &proposal); err != nil {
+		return nil, fmt.Errorf("parse backlog_sync proposal: %w", err)
+	}
+	state, err := r.stateBuilder(req.InitiativeName)
+	if err != nil {
+		return nil, fmt.Errorf("build proposal state: %w", err)
+	}
+	normalized, err := proposals.Normalize(proposal, state)
+	if err != nil {
+		return nil, fmt.Errorf("normalize proposal: %w", err)
+	}
+	result, err := r.applier.Apply(ctx, normalized, state, req.AcceptedMutationIDs, proposals.Source{
+		InitiativeName:   req.InitiativeName,
+		RoundNumber:      req.Round,
+		RoundSlug:        req.Phase,
+		Entrypoint:       "initiative.operating_mode.backlog_sync",
+		DecidedBy:        req.DecidedBy,
+		DecidedAtRFC3339: req.DecidedAtRFC3339,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return operatingModeApplyResult(result, normalized), nil
+}
+
+func operatingModeApplyResult(result *proposals.ApplyResult, proposal proposals.Proposal) *operatingmode.ProposalApplyResult {
+	if result == nil {
+		return nil
+	}
+	out := &operatingmode.ProposalApplyResult{
+		Outcomes: make([]operatingmode.ProposalOutcome, 0, len(result.Outcomes)),
+		Applied:  result.Applied,
+		Failed:   result.Failed,
+		Skipped:  result.Skipped,
+	}
+	applied := make(map[string]bool, len(result.Outcomes))
+	for _, outcome := range result.Outcomes {
+		if outcome.Applied {
+			applied[outcome.MutationID] = true
+		}
+		out.Outcomes = append(out.Outcomes, operatingmode.ProposalOutcome{
+			MutationID: outcome.MutationID,
+			Op:         string(outcome.Op),
+			Target:     outcome.Target,
+			Applied:    outcome.Applied,
+			Skipped:    outcome.Skipped,
+			Error:      outcome.Error,
+		})
+	}
+	for _, mutation := range proposal.Mutations {
+		if !applied[mutation.ID] {
+			continue
+		}
+		switch mutation.Op {
+		case proposals.OpAddItem, proposals.OpSplitItem, proposals.OpMergeItems:
+			out.Created++
+		default:
+			out.Updated++
+		}
+	}
+	return out
+}
+
 type operatingModeBacklogReader struct {
 	store backlog.Store
 }
@@ -55,6 +147,36 @@ func (r operatingModeBacklogReader) LoadBacklogItem(kind, name string) (operatin
 		Status:   string(item.Status),
 		Priority: item.Priority,
 		Effort:   item.Effort,
+	}, nil
+}
+
+type operatingModeBacklogMutator struct {
+	store  backlog.Store
+	events interface {
+		EmitBacklogStatusChanged(entityID, from, to string)
+	}
+}
+
+func (m operatingModeBacklogMutator) MarkBacklogItemCompleted(_ context.Context, kind, name, source string) (operatingmode.BacklogCompletionResult, error) {
+	item, err := m.store.LoadItem(backlog.BacklogKind(kind), name)
+	if err != nil {
+		return operatingmode.BacklogCompletionResult{}, err
+	}
+	prior := item.Status
+	if prior != backlog.StatusCompleted {
+		item.Status = backlog.StatusCompleted
+		if err := m.store.SaveItem(item); err != nil {
+			return operatingmode.BacklogCompletionResult{}, err
+		}
+		if m.events != nil {
+			m.events.EmitBacklogStatusChanged(kind+"/"+name, string(prior), string(item.Status))
+		}
+	}
+	_ = source
+	return operatingmode.BacklogCompletionResult{
+		ItemRef:    kind + "/" + name,
+		FromStatus: string(prior),
+		ToStatus:   string(backlog.StatusCompleted),
 	}, nil
 }
 

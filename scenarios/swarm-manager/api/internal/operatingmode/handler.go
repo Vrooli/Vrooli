@@ -31,6 +31,20 @@ type switchModeBody struct {
 	RequestedBy                string `json:"requested_by,omitempty"`
 }
 
+type completeItemsBody struct {
+	Mode        string   `json:"mode,omitempty"`
+	RunID       string   `json:"run_id"`
+	ItemRefs    []string `json:"item_refs,omitempty"`
+	RequestedBy string   `json:"requested_by,omitempty"`
+}
+
+type applyBacklogSyncBody struct {
+	Mode                string   `json:"mode,omitempty"`
+	RunID               string   `json:"run_id"`
+	AcceptedMutationIDs []string `json:"accepted_mutation_ids,omitempty"`
+	RequestedBy         string   `json:"requested_by,omitempty"`
+}
+
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
@@ -41,6 +55,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/phases/{phase}/start", h.StartPhase).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/refresh", h.RefreshRound).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/cancel", h.CancelRound).Methods("POST")
+	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/complete-items", h.CompleteItems).Methods("POST")
+	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/apply-backlog-sync", h.ApplyBacklogSync).Methods("POST")
 }
 
 func (h *Handler) Workspace(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +164,76 @@ func (h *Handler) CancelRound(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) CompleteItems(w http.ResponseWriter, r *http.Request) {
+	name, roundNumber, ok := parseRoundRoute(w, r, "[operating-mode] complete items")
+	if !ok {
+		return
+	}
+	var body completeItemsBody
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[operating-mode] complete items", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if strings.TrimSpace(body.RunID) == "" {
+		apierr.MapError(w, "[operating-mode] complete items", apierr.BadRequest("run_id is required"))
+		return
+	}
+	mode := NormalizeMode(body.Mode)
+	if body.Mode == "" {
+		mode = modeFromQuery(r)
+	}
+	result, err := h.service.CompleteItems(r.Context(), CompleteItemsRequest{
+		InitiativeName: name,
+		Mode:           string(mode),
+		Round:          roundNumber,
+		RunID:          body.RunID,
+		ItemRefs:       body.ItemRefs,
+		RequestedBy:    body.RequestedBy,
+	})
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] complete items", err)
+		return
+	}
+	if err := httputil.JSON(w, result); err != nil {
+		apierr.MapError(w, "[operating-mode] complete items", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) ApplyBacklogSync(w http.ResponseWriter, r *http.Request) {
+	name, roundNumber, ok := parseRoundRoute(w, r, "[operating-mode] apply backlog sync")
+	if !ok {
+		return
+	}
+	var body applyBacklogSyncBody
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[operating-mode] apply backlog sync", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if strings.TrimSpace(body.RunID) == "" {
+		apierr.MapError(w, "[operating-mode] apply backlog sync", apierr.BadRequest("run_id is required"))
+		return
+	}
+	mode := NormalizeMode(body.Mode)
+	if body.Mode == "" {
+		mode = modeFromQuery(r)
+	}
+	result, err := h.service.ApplyBacklogSync(r.Context(), ApplyBacklogSyncRequest{
+		InitiativeName:      name,
+		Mode:                string(mode),
+		Round:               roundNumber,
+		RunID:               body.RunID,
+		AcceptedMutationIDs: body.AcceptedMutationIDs,
+		RequestedBy:         body.RequestedBy,
+	})
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] apply backlog sync", err)
+		return
+	}
+	if err := httputil.JSON(w, result); err != nil {
+		apierr.MapError(w, "[operating-mode] apply backlog sync", apierr.Internal("failed to encode response"))
+	}
+}
+
 func parseRoundRoute(w http.ResponseWriter, r *http.Request, ctx string) (string, int, bool) {
 	vars := mux.Vars(r)
 	name := strings.TrimSpace(vars["name"])
@@ -180,7 +266,11 @@ func mapOperatingModeError(w http.ResponseWriter, ctx string, err error) {
 	case errors.Is(err, ErrRoundNotFound), strings.Contains(err.Error(), "not found"):
 		apierr.MapError(w, ctx, apierr.NotFound("%s", err.Error()))
 	case strings.Contains(err.Error(), "requires"), strings.Contains(err.Error(), "unknown operating mode"),
-		strings.Contains(err.Error(), "does not define phase"), strings.Contains(err.Error(), "item-level mode"):
+		strings.Contains(err.Error(), "does not define phase"), strings.Contains(err.Error(), "item-level mode"),
+		strings.Contains(err.Error(), "run_id"), strings.Contains(err.Error(), "item_refs"),
+		strings.Contains(err.Error(), "must be kind/name"), strings.Contains(err.Error(), "is not a member"),
+		strings.Contains(err.Error(), "does not allow"), strings.Contains(err.Error(), "no backlog_sync"),
+		strings.Contains(err.Error(), "proposal"):
 		apierr.MapError(w, ctx, apierr.BadRequest("%s", err.Error()))
 	case errors.Is(err, agentmanager.ErrNotAvailable):
 		apierr.MapError(w, ctx, apierr.Unavailable("agent-manager is not available"))

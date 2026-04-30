@@ -13,6 +13,8 @@ vi.mock("../../services", () => ({
     startPhase: vi.fn(),
     refreshRound: vi.fn(),
     cancelRound: vi.fn(),
+    completeItems: vi.fn(),
+    applyBacklogSync: vi.fn(),
   },
   initiativeService: {
     updateMetadata: vi.fn(),
@@ -75,8 +77,12 @@ describe("OperatingModePanel", () => {
         runStrategy: "operator_gated_loop",
         agentProfileKey: "swarm-manager/deep-work",
         generatedAt: "2026-04-30T00:00:00Z",
+        runId: "run-1",
         status: "completed",
-        payload: { agent_summary: "Investigation complete" },
+        payload: {
+          agent_summary: "Investigation complete",
+          backlog_sync_plan: { completed_items: ["execute/item-1"] },
+        },
       }],
     });
   });
@@ -119,6 +125,107 @@ describe("OperatingModePanel", () => {
       "investigate",
       { note: "" },
     );
+  });
+
+  it("completes items from a round backlog sync plan", async () => {
+    vi.mocked(initiativeModeService.completeItems).mockResolvedValue({
+      initiativeName: "mode-initiative",
+      mode: "holistic-loop",
+      phase: "investigate",
+      round: 1,
+      runId: "run-1",
+      completedItems: [{
+        itemRef: "execute/item-1",
+        fromStatus: "ready",
+        toStatus: "completed",
+      }],
+    });
+    const onInitiativeUpdated = vi.fn();
+
+    renderPanel(onInitiativeUpdated);
+    await screen.findByText("execute/item-1");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("initiative-mode-complete-items"));
+
+    await waitFor(() => {
+      expect(initiativeModeService.completeItems).toHaveBeenCalledWith("mode-initiative", {
+        mode: "holistic-loop",
+        round: 1,
+        runId: "run-1",
+        itemRefs: ["execute/item-1"],
+      });
+    });
+    expect(onInitiativeUpdated).toHaveBeenCalled();
+  });
+
+  it("applies selected proposal mutations from a round backlog sync plan", async () => {
+    vi.mocked(initiativeModeService.workspace).mockResolvedValue({
+      initiativeName: "mode-initiative",
+      mode: "holistic-loop",
+      definition: {
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        scopeKind: "initiative",
+        runStrategy: "operator_gated_loop",
+        terminal: ["review"],
+        transitions: {},
+        phases: [],
+      },
+      artifacts: [],
+      rounds: [{
+        round: 2,
+        mode: "holistic-loop",
+        scopeKind: "initiative",
+        scopeId: "mode-initiative",
+        phase: "execute",
+        runStrategy: "operator_gated_loop",
+        agentProfileKey: "swarm-manager/deep-work",
+        generatedAt: "2026-04-30T00:00:00Z",
+        runId: "run-2",
+        status: "completed",
+        payload: {
+          backlog_sync_plan: {
+            proposal: {
+              form: "mutation_list",
+              rationale: "Follow-up cleanup",
+              mutations: [
+                { id: "m1", op: "add_item", rationale: "Add follow-up", item: { kind: "fix", name: "follow-up", title: "Follow up" } },
+                { id: "m2", op: "change_status", target: "execute/item-1", status: "blocked" },
+              ],
+            },
+          },
+        },
+      }],
+    });
+    vi.mocked(initiativeModeService.applyBacklogSync).mockResolvedValue({
+      initiativeName: "mode-initiative",
+      mode: "holistic-loop",
+      phase: "execute",
+      round: 2,
+      runId: "run-2",
+      completedItems: [],
+      proposalResult: { applied: 1, failed: 0, skipped: 1 },
+    });
+    const onInitiativeUpdated = vi.fn();
+
+    renderPanel(onInitiativeUpdated);
+    await screen.findByTestId("initiative-mode-backlog-proposal");
+
+    const toggles = screen.getAllByTestId("initiative-mode-backlog-proposal-mutation-toggle");
+    const user = userEvent.setup();
+    await user.click(toggles[1]!);
+    await user.click(screen.getByTestId("initiative-mode-apply-backlog-sync"));
+
+    await waitFor(() => {
+      expect(initiativeModeService.applyBacklogSync).toHaveBeenCalledWith("mode-initiative", {
+        mode: "holistic-loop",
+        round: 2,
+        runId: "run-2",
+        acceptedMutationIds: ["m1"],
+      });
+    });
+    expect(onInitiativeUpdated).toHaveBeenCalled();
   });
 
   it("saves mode and acceptance criteria through initiative metadata", async () => {

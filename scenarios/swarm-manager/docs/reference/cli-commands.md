@@ -129,6 +129,62 @@ Response shape (`--json`):
 
 Only direct upstream and downstream are returned — the endpoint is a one-hop neighborhood view, not a transitive traversal. Use it in place of the global `overview` command when the question is scoped to one initiative.
 
+## Initiative Operating Modes
+
+Inspect the mode workspace:
+
+```bash
+swarm-manager initiatives mode-workspace --name desktop-release-governance
+swarm-manager initiatives mode-workspace --name desktop-release-governance --json
+```
+
+Switch modes through the lifecycle boundary. When switching from `item-level` into
+an initiative-scoped mode, add `--cancel-active-item-executions` only after you
+intend to stop active member item runs:
+
+```bash
+swarm-manager initiatives mode-switch \
+  --name desktop-release-governance \
+  --mode holistic-loop \
+  --cancel-active-item-executions
+```
+
+Start and manage phase rounds:
+
+```bash
+swarm-manager initiatives mode-start --name desktop-release-governance --phase investigate
+swarm-manager initiatives mode-refresh --name desktop-release-governance --mode holistic-loop --round 1
+swarm-manager initiatives mode-cancel --name desktop-release-governance --mode holistic-loop --round 1
+```
+
+Apply the audited mark-complete reconciliation from a completed mode round:
+
+```bash
+swarm-manager initiatives mode-complete-items \
+  --name desktop-release-governance \
+  --mode holistic-loop \
+  --round 3 \
+  --run-id run_abc123 \
+  --items execute/item-a,fix/item-b
+```
+
+Apply selected proposal-backed create/update/follow-up reconciliation from a
+completed mode round:
+
+```bash
+swarm-manager initiatives mode-apply-backlog-sync \
+  --name desktop-release-governance \
+  --mode phased-plan-drain \
+  --round 4 \
+  --run-id run_def456 \
+  --mutations m1,m3
+```
+
+Rules:
+- `mode-switch` is the only CLI path for changing initiative `mode`; generic initiative updates do not own mode lifecycle.
+- `mode-complete-items` requires the round's AgentManager `run_id` and only accepts member item refs from the round.
+- `mode-apply-backlog-sync` requires the round's AgentManager `run_id` and applies the round's `backlog_sync.proposal` through the existing proposal boundary.
+
 ## Cascade semantics
 
 The API maintains referential integrity automatically when items or initiatives are mutated. Callers do not need to emit follow-up cleanup calls:

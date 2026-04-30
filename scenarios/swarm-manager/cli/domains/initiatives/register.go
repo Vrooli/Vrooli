@@ -42,6 +42,15 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("review-decide", "Decide an initiative review (--name NAME (--accept|--fail|--followup) [--rationale MSG] [--decided-by WHO] [--json])", deps.InitiativesReviewDecide),
 			support.APICommand("review-decisions", "List past review decisions (--name NAME) [--json]", deps.InitiativesReviewDecisions),
 
+			// Initiative operating modes.
+			support.APICommand("mode-workspace", "Show operating-mode workspace (--name NAME) [--json]", deps.InitiativesModeWorkspace),
+			support.APICommand("mode-switch", "Switch operating mode (--name NAME --mode MODE [--cancel-active-item-executions] [--requested-by WHO] [--json])", deps.InitiativesModeSwitch),
+			support.APICommand("mode-start", "Start an operating-mode phase (--name NAME --phase PHASE [--note MSG] [--override] [--requested-by WHO] [--json])", deps.InitiativesModeStart),
+			support.APICommand("mode-refresh", "Refresh an operating-mode round (--name NAME --mode MODE --round N [--json])", deps.InitiativesModeRefresh),
+			support.APICommand("mode-cancel", "Cancel an operating-mode round (--name NAME --mode MODE --round N [--json])", deps.InitiativesModeCancel),
+			support.APICommand("mode-complete-items", "Mark member items complete from an operating-mode round (--name NAME --mode MODE --round N --run-id RUN --items kind/name,... [--requested-by WHO] [--json])", deps.InitiativesModeComplete),
+			support.APICommand("mode-apply-backlog-sync", "Apply proposal mutations from an operating-mode round (--name NAME --mode MODE --round N --run-id RUN --mutations m1,m2 [--requested-by WHO] [--json])", deps.InitiativesModeApplyBacklogSync),
+
 			// Materialized item-graph projection.
 			support.APICommand("graph-show", "Show materialized graph.json for an initiative (--name NAME) [--json]", deps.InitiativesGraphShow),
 		},

@@ -118,6 +118,10 @@ export const API_ENDPOINTS = {
     `/initiatives/${name}/operating-mode/rounds/${round}/refresh?mode=${encodeURIComponent(mode)}`,
   initiativeOperatingModeCancelRound: (name: string, round: number, mode: string) =>
     `/initiatives/${name}/operating-mode/rounds/${round}/cancel?mode=${encodeURIComponent(mode)}`,
+  initiativeOperatingModeCompleteItems: (name: string, round: number, mode: string) =>
+    `/initiatives/${name}/operating-mode/rounds/${round}/complete-items?mode=${encodeURIComponent(mode)}`,
+  initiativeOperatingModeApplyBacklogSync: (name: string, round: number, mode: string) =>
+    `/initiatives/${name}/operating-mode/rounds/${round}/apply-backlog-sync?mode=${encodeURIComponent(mode)}`,
   graph: "/graph",
   overview: "/overview",
   stats: "/stats",

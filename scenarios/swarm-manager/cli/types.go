@@ -473,15 +473,17 @@ type AgentManagerStopResponse struct {
 
 // Initiative represents a named grouping of backlog items.
 type Initiative struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Status      string   `json:"status"`
-	Priority    int      `json:"priority,omitempty"`
-	DependsOn   []string `json:"depends_on,omitempty"`
-	Items       []string `json:"items"`
-	Created     string   `json:"created"`
-	Updated     string   `json:"updated"`
+	Name               string   `json:"name"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description,omitempty"`
+	Status             string   `json:"status"`
+	Mode               string   `json:"mode,omitempty"`
+	Priority           int      `json:"priority,omitempty"`
+	DependsOn          []string `json:"depends_on,omitempty"`
+	Items              []string `json:"items"`
+	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
+	Created            string   `json:"created"`
+	Updated            string   `json:"updated"`
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

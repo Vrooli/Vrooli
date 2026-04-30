@@ -48,3 +48,26 @@ Investigate the initiative as a coupled system. Read the relevant repo files, me
 Write or update `modes/holistic-loop/findings.md` in the initiative folder. Keep it concise but durable enough for a later agent to plan from without this conversation.
 
 End with a short summary of what changed and any blockers.
+
+## Final Result Envelope
+
+End your response with a fenced JSON block containing `operating_mode_result` so Swarm Manager can persist artifacts into the mode workspace:
+
+```json
+{
+  "operating_mode_result": {
+    "artifacts": [
+      {
+        "path": "modes/holistic-loop/findings.md",
+        "content_type": "text/markdown",
+        "content": "..."
+      }
+    ],
+    "handoff": {
+      "summary": "...",
+      "blockers": [],
+      "next_step": "plan"
+    }
+  }
+}
+```

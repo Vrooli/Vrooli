@@ -256,12 +256,70 @@ Supported non-default phases:
 `POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/refresh?mode={mode}`
 
 Polls AgentManager for the round's run and persists terminal state when the run
-is complete, failed, or canceled.
+is complete, failed, or canceled. Completed runs may include a final
+`operating_mode_result` JSON envelope; when present, Swarm Manager persists
+declared artifacts, handoffs, progress state, verdicts, and replan signals into
+the round/workspace.
 
 `POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/cancel?mode={mode}`
 
 Stops the AgentManager run when it is still active, marks the round canceled,
 and releases the initiative lock when the run is the current holder.
+
+`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/complete-items?mode={mode}`
+
+Run-id-validated backlog reconciliation endpoint for non-default operating
+modes. It marks only member backlog items complete and emits an
+`operating_mode.backlog_synced` audit event. Agents must use this boundary
+instead of editing backlog `spec.json` files.
+
+```json
+{
+  "run_id": "run-456",
+  "item_refs": ["execute/item-1"],
+  "requested_by": "operator-or-agent"
+}
+```
+
+Response:
+
+```json
+{
+  "initiative_name": "desktop-release-governance",
+  "mode": "holistic-loop",
+  "phase": "execute",
+  "round": 3,
+  "run_id": "run-456",
+  "completed_items": [
+    {
+      "item_ref": "execute/item-1",
+      "from_status": "ready",
+      "to_status": "completed"
+    }
+  ]
+}
+```
+
+`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/apply-backlog-sync?mode={mode}`
+
+Run-id-validated backlog reconciliation endpoint for create/update/follow-up
+work proposed by a completed operating-mode round. The round must contain a
+`backlog_sync.proposal` object in its final `operating_mode_result`; Swarm
+Manager normalizes and validates that proposal through the same proposal
+applier used by initiative feedback before applying the accepted mutation IDs.
+
+```json
+{
+  "run_id": "run-456",
+  "accepted_mutation_ids": ["m1", "m3"],
+  "requested_by": "operator"
+}
+```
+
+Response includes `proposal_result` with applied/failed/skipped counts,
+per-mutation outcomes, and created/updated summary counts. The round payload is
+updated with the applied sync result and an `operating_mode.backlog_synced`
+event is emitted.
 
 ## Initiative Archive / Unarchive
 

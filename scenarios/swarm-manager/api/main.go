@@ -157,7 +157,7 @@ func (s *Server) setupRoutes() {
 	materializer := s.registerGraphRoutes(scenarioRoot)
 	s.registerFeedbackRoutes(materializer)
 	s.registerInitiativeReviewRoutes(materializer)
-	s.registerOperatingModeRoutes(scenarioRoot)
+	s.registerOperatingModeRoutes(scenarioRoot, materializer)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 

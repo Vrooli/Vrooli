@@ -16,3 +16,22 @@ Artifacts and rounds:
 ```
 
 Produce a verdict of `accepted`, `needs_followup`, or `replan_needed`. Include concrete evidence, tests inspected or run, gaps, and recommended next action. Do not mutate backlog specs directly.
+
+## Final Result Envelope
+
+End your response with a fenced JSON block containing `operating_mode_result` so Swarm Manager can persist the acceptance verdict:
+
+```json
+{
+  "operating_mode_result": {
+    "verdict": "accepted",
+    "replan_needed": false,
+    "handoff": {
+      "summary": "...",
+      "tests": [],
+      "blockers": [],
+      "next_step": "complete initiative or return to execute"
+    }
+  }
+}
+```

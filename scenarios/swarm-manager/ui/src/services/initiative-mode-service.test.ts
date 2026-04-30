@@ -143,4 +143,79 @@ describe("Initiative Mode Service", () => {
     expect(result.toMode).toBe("holistic-loop");
     expect(result.canceledItemExecutions?.[0]?.executionId).toBe("exec-1");
   });
+
+  it("marks operating-mode round items complete through the reconciliation endpoint", async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      initiative_name: "initiative-a",
+      mode: "holistic-loop",
+      phase: "execute",
+      round: 3,
+      run_id: "run-3",
+      completed_items: [{
+        item_ref: "execute/item-1",
+        from_status: "ready",
+        to_status: "completed",
+      }],
+    });
+
+    const result = await service.completeItems("initiative-a", {
+      mode: "holistic-loop",
+      round: 3,
+      runId: "run-3",
+      itemRefs: ["execute/item-1"],
+    });
+
+    expect(api.post).toHaveBeenCalledWith(
+      "/initiatives/initiative-a/operating-mode/rounds/3/complete-items?mode=holistic-loop",
+      {
+        mode: "holistic-loop",
+        run_id: "run-3",
+        item_refs: ["execute/item-1"],
+        requested_by: "swarm-manager-ui",
+      },
+    );
+    expect(result.completedItems[0]?.itemRef).toBe("execute/item-1");
+  });
+
+  it("applies operating-mode backlog proposal mutations through the reconciliation endpoint", async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      initiative_name: "initiative-a",
+      mode: "phased-plan-drain",
+      phase: "classify_progress",
+      round: 4,
+      run_id: "run-4",
+      proposal_result: {
+        applied: 1,
+        failed: 0,
+        skipped: 1,
+        created: 1,
+        updated: 0,
+        outcomes: [{
+          mutation_id: "m1",
+          op: "add_item",
+          target: "fix/follow-up",
+          applied: true,
+        }],
+      },
+    });
+
+    const result = await service.applyBacklogSync("initiative-a", {
+      mode: "phased-plan-drain",
+      round: 4,
+      runId: "run-4",
+      acceptedMutationIds: ["m1"],
+    });
+
+    expect(api.post).toHaveBeenCalledWith(
+      "/initiatives/initiative-a/operating-mode/rounds/4/apply-backlog-sync?mode=phased-plan-drain",
+      {
+        mode: "phased-plan-drain",
+        run_id: "run-4",
+        accepted_mutation_ids: ["m1"],
+        requested_by: "swarm-manager-ui",
+      },
+    );
+    expect(result.proposalResult?.applied).toBe(1);
+    expect(result.proposalResult?.outcomes?.[0]?.mutationId).toBe("m1");
+  });
 });
