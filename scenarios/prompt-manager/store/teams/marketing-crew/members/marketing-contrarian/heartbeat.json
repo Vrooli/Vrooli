@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "0 17 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-29T21:00:00Z",
-    "endedAt": "2026-04-29T21:00:10Z",
+    "startedAt": "2026-04-30T21:00:00Z",
+    "endedAt": "2026-04-30T21:00:00Z",
     "status": "failed",
-    "runId": "be0b94f1-f120-42e9-abff-f1973916af71",
-    "logPath": "../store/teams/marketing-crew/members/marketing-contrarian/logs/2026-04-29T21-00-00Z.log",
-    "error": "2026-04-29T21:00:05.386833Z ERROR codex_core::session: failed to record rollout items: thread 019ddb0a-a383-77d3-b3d5-98cbe99af71a not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 33,
+  "revision": 35,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-29T21:00:10Z"
+  "updatedAt": "2026-04-30T21:00:00Z"
 }

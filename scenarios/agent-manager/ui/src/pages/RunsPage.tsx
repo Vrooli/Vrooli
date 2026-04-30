@@ -47,6 +47,7 @@ import { ResumeFromFailureModal } from "../components/ResumeFromFailureModal";
 import { RunDetail } from "../components/RunDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { useRunsPageState } from "../hooks/useRunsPageState";
+import { useSelectedRunController } from "../hooks/useSelectedRunController";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -139,17 +140,12 @@ export function RunsPage({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isDesktop } = useViewportSize();
-  const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const isDeselectingRef = useRef(false);
-  const [diff, setDiff] = useState<RunDiff | null>(null);
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [diffLoading, setDiffLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteConfirmRun, setDeleteConfirmRun] = useState<Run | null>(null);
   const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
   const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
-  const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
   const {
     searchQuery,
@@ -183,60 +179,38 @@ export function RunsPage({
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
 
-  const getTaskById = useCallback(
-    (taskId: string) => extraTasks[taskId] ?? tasks.find((t) => t.id === taskId) ?? null,
-    [extraTasks, tasks]
-  );
-
-  const getTaskTitle = useCallback(
-    (taskId: string) => getTaskById(taskId)?.title || "Unknown Task",
-    [getTaskById]
-  );
-
   const getProfileName = useCallback(
     (profileId?: string) =>
       profileId ? profiles.find((p) => p.id === profileId)?.name || "Unknown Profile" : "Unknown Profile",
     [profiles]
   );
 
-  const resolvedRuns = useMemo(() => {
-    const snapshots = runEventStore.state.runsById;
-    return runs.map((run) => ({ ...run, ...(snapshots[run.id] ?? {}) } as Run));
-  }, [runs, runEventStore.state.runsById]);
-
-  const syncRunDetails = useCallback(
-    async (runId: string) => {
-      try {
-        const latest = await onGetRun(runId);
-        runEventStore.actions.runSnapshotLoaded(latest);
-        setSelectedRun((prev) => (prev && prev.id === runId ? { ...prev, ...latest } : prev));
-
-        if (!getTaskById(latest.taskId)) {
-          const task = await onGetTask(latest.taskId);
-          setExtraTasks((prev) => ({ ...prev, [task.id]: task }));
-        }
-      } catch (err) {
-        console.error("Failed to sync run details:", err);
-      }
-    },
-    [getTaskById, onGetRun, onGetTask, runEventStore.actions]
-  );
-
-  // Extract IDs as stable primitives to avoid unnecessary effect re-runs
-  const selectedRunId = selectedRun?.id ?? null;
   const applyInvestigationRunId = applyInvestigationRun?.id ?? null;
-  const events = selectedRunId ? runEventStore.getRunEvents(selectedRunId) : [];
-
-  // Subscribe to WebSocket events for the selected run
-  useEffect(() => {
-    if (!selectedRunId) return;
-    runEventStore.actions.subscribeRun(selectedRunId);
-    wsSubscribe(selectedRunId);
-    return () => {
-      runEventStore.actions.unsubscribeRun(selectedRunId);
-      wsUnsubscribe(selectedRunId);
-    };
-  }, [selectedRunId, runEventStore.actions, wsSubscribe, wsUnsubscribe]);
+  const {
+    selectedRun,
+    setSelectedRun,
+    selectedRunId,
+    diff,
+    events,
+    eventsLoading,
+    diffLoading,
+    resolvedRuns,
+    getTaskById,
+    getTaskTitle,
+    loadRunDetails,
+  } = useSelectedRunController({
+    runs,
+    tasks,
+    routeRunId: runId,
+    isDeselectingRef,
+    onGetRun,
+    onGetEvents,
+    onGetDiff,
+    onGetTask,
+    runEventStore,
+    wsSubscribe,
+    wsUnsubscribe,
+  });
 
   // Subscribe to WebSocket events for the investigation run when Apply modal is open
   // This ensures we get updates when recommendation extraction completes
@@ -251,66 +225,12 @@ export function RunsPage({
   }, [applyInvestigationRunId, applyModalOpen, runEventStore.actions, wsSubscribe, wsUnsubscribe]);
 
   useEffect(() => {
-    if (!selectedRunId) return;
-    const snapshot = runEventStore.state.runsById[selectedRunId];
-    if (snapshot) {
-      setSelectedRun((prev) => (prev && prev.id === selectedRunId ? { ...prev, ...snapshot } as Run : prev));
-    }
-  }, [selectedRunId, runEventStore.state.runsById]);
-
-  useEffect(() => {
     if (!applyInvestigationRunId) return;
     const snapshot = runEventStore.state.runsById[applyInvestigationRunId];
     if (snapshot) {
       setApplyInvestigationRun((prev) => (prev ? { ...prev, ...snapshot } as Run : prev));
     }
   }, [applyInvestigationRunId, runEventStore.state.runsById]);
-
-  const loadRunDetails = useCallback(
-    async (run: Run) => {
-      setSelectedRun(run);
-      setDiff(null);
-      runEventStore.actions.runSnapshotLoaded(run);
-      runEventStore.actions.subscribeRun(run.id);
-      void syncRunDetails(run.id);
-
-      setEventsLoading(true);
-      try {
-        const evts = await onGetEvents(run.id);
-        runEventStore.actions.eventsGapFilled(run.id, evts || []);
-      } catch (err) {
-        console.error("Failed to load events:", err);
-      } finally {
-        setEventsLoading(false);
-      }
-
-      if (
-        run.status === RunStatus.NEEDS_REVIEW ||
-        run.status === RunStatus.COMPLETE ||
-        run.approvalState !== ApprovalState.NONE
-      ) {
-        setDiffLoading(true);
-        try {
-          const diffResult = await onGetDiff(run.id);
-          setDiff(diffResult);
-        } catch (err) {
-          console.error("Failed to load diff:", err);
-        } finally {
-          setDiffLoading(false);
-        }
-      }
-    },
-    [onGetEvents, onGetDiff, runEventStore.actions, syncRunDetails]
-  );
-
-  // Sync selectedRun with the runs list when it updates
-  useEffect(() => {
-    if (!selectedRun) return;
-    const updatedRun = resolvedRuns.find((r) => r.id === selectedRun.id);
-    if (updatedRun && updatedRun !== selectedRun) {
-      setSelectedRun(updatedRun);
-    }
-  }, [resolvedRuns, selectedRun]);
 
   useEffect(() => {
     if (!applyInvestigationRun) return;
@@ -329,17 +249,6 @@ export function RunsPage({
     }
   }, [runId]);
 
-  // Load run from URL params when component mounts or runId changes
-  useEffect(() => {
-    if (isDeselectingRef.current) return;
-    if (!runId || resolvedRuns.length === 0) return;
-    if (selectedRunId === runId) return;
-    const run = resolvedRuns.find((r) => r.id === runId);
-    if (run) {
-      loadRunDetails(run);
-    }
-  }, [runId, resolvedRuns, selectedRunId, loadRunDetails]);
-
   const handleStop = async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
     try {
@@ -351,7 +260,6 @@ export function RunsPage({
   };
 
   const handleDeleteRequest = (run: Run) => {
-    console.log("[DELETE] handleDeleteRequest called", { runId: run?.id, run });
     setDeleteError(null);
     setDeleteConfirmRun(run);
   };
@@ -687,7 +595,6 @@ export function RunsPage({
                   aria-label={`Delete run ${getTaskTitle(run.taskId)}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log("[DELETE] List trash icon clicked", { runId: run.id });
                     handleDeleteRequest(run);
                   }}
                 >

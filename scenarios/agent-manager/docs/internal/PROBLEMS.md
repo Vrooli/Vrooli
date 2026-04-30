@@ -66,6 +66,15 @@
 
 ## Resolved Incidents
 
+### R-003: Global run-event streaming and WebSocket subscription races (2026-04-30)
+**Symptom**: The UI subscribed to all WebSocket events at app startup, which kept run lists fresh but also streamed and retained full event bodies for unrelated runs. Backend broadcast filtering also read per-client subscription fields while the socket read pump could mutate them.
+**Root causes**:
+1. `subscribeAll` was used as a coarse substitute for a lightweight list-status subscription.
+2. The run event store treated all live `run_event` messages as timeline state, regardless of selected-run subscription intent.
+3. WebSocket client subscription state had no single synchronization boundary between fanout and client message handling.
+**Fix**: `RUN_STATUS` delivery is now global metadata, full run-event/progress payloads remain subscription-scoped, the UI no longer calls `subscribeAll` by default, the store only tracks live events for subscribed runs, selected-run coordination moved into `useSelectedRunController`, reconnect decisions became explicit/tested, and backend subscription fields are guarded.
+**Validation**: `go test -race ./internal/handlers -run 'WebSocketHub|Broadcast|Subscription'`, UI type-check/unit tests, orchestration/domain lifecycle tests, lint, and scenario validation were run during the hardening pass.
+
 ### R-002: Split realtime state caused stale run timelines and action flags (2026-04-30)
 **Symptom**: `App.tsx` and `RunsPage.tsx` both consumed WebSocket messages and reconciled run events independently. Fixes to one path left another stale path behind, especially around reconnects, terminal status updates, and stop/continue action flags.
 **Root causes**:

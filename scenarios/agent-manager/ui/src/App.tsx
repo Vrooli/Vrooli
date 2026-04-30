@@ -125,17 +125,7 @@ export default function App() {
       }
     },
   });
-  const { subscribeAll, unsubscribeAll } = ws;
   const getRunEvents = runs.getRunEvents;
-
-  useEffect(() => {
-    runEventStore.actions.subscribeAll();
-    subscribeAll();
-    return () => {
-      runEventStore.actions.unsubscribeAll();
-      unsubscribeAll();
-    };
-  }, [runEventStore.actions, subscribeAll, unsubscribeAll]);
 
   useEffect(() => {
     for (const intent of runEventStore.reconciliationIntents) {

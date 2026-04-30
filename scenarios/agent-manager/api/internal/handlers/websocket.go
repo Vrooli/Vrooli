@@ -42,6 +42,7 @@ type WebSocketClient struct {
 	hub           *WebSocketHub
 	conn          *websocket.Conn
 	send          chan []byte
+	mu            sync.RWMutex
 	subscriptions map[string]bool // runID -> subscribed
 	allEvents     bool            // subscribe to all events
 }
@@ -87,14 +88,9 @@ func (h *WebSocketHub) Run() {
 			var stale []*WebSocketClient
 			h.mu.RLock()
 			for client := range h.clients {
-				// Check if client should receive this message
-				if message.RunId != nil && !client.allEvents {
-					runID := message.GetRunId()
-					if runID == "" || !client.subscriptions[runID] {
-						continue
-					}
+				if !client.shouldReceive(message) {
+					continue
 				}
-
 				select {
 				case client.send <- data:
 				default:
@@ -265,10 +261,10 @@ func (c *WebSocketClient) readPump() {
 			case "unsubscribe":
 				updateSubscription(c, legacy.Payload.RunID, false)
 			case "subscribe_all":
-				c.allEvents = true
+				updateAllEventsSubscription(c, true)
 				log.Printf("[ws] Client subscribed to all events")
 			case "unsubscribe_all":
-				c.allEvents = false
+				updateAllEventsSubscription(c, false)
 				log.Printf("[ws] Client unsubscribed from all events")
 			}
 			continue
@@ -285,11 +281,11 @@ func (c *WebSocketClient) readPump() {
 			updateSubscription(c, msg.GetRunSubscription().GetRunId(), false)
 
 		case domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE_ALL:
-			c.allEvents = true
+			updateAllEventsSubscription(c, true)
 			log.Printf("[ws] Client subscribed to all events")
 
 		case domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL:
-			c.allEvents = false
+			updateAllEventsSubscription(c, false)
 			log.Printf("[ws] Client unsubscribed from all events")
 		}
 	}
@@ -315,6 +311,8 @@ func updateSubscription(c *WebSocketClient, runID string, subscribe bool) {
 	if _, err := uuid.Parse(runID); err != nil {
 		return
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if subscribe {
 		c.subscriptions[runID] = true
 		log.Printf("[ws] Client subscribed to run: %s", runID)
@@ -322,6 +320,30 @@ func updateSubscription(c *WebSocketClient, runID string, subscribe bool) {
 	}
 	delete(c.subscriptions, runID)
 	log.Printf("[ws] Client unsubscribed from run: %s", runID)
+}
+
+func updateAllEventsSubscription(c *WebSocketClient, subscribe bool) {
+	c.mu.Lock()
+	c.allEvents = subscribe
+	c.mu.Unlock()
+}
+
+func (c *WebSocketClient) shouldReceive(message *domainpb.AgentManagerWsMessage) bool {
+	runID := message.GetRunId()
+	if runID == "" {
+		return true
+	}
+
+	// Status updates are small list-level invalidation messages. They are
+	// intentionally global so the UI can keep run lists fresh without receiving
+	// every run event body.
+	if message.Type == domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS {
+		return true
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.allEvents || c.subscriptions[runID]
 }
 
 // writePump handles outgoing messages to a client

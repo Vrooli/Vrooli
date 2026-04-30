@@ -21,6 +21,7 @@ function makeEvent(id: string, sequence: bigint, runId = "run-1"): RunEvent {
 test("runEventReceived appends events in sequence order", () => {
   let state = createInitialRunEventStoreState();
 
+  state = runEventStoreReducer(state, { type: "subscribeRun", runId: "run-1" });
   state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-2", 2n) });
   state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-1", 1n) });
 
@@ -31,6 +32,7 @@ test("runEventReceived appends events in sequence order", () => {
 test("runEventReceived ignores duplicates by event id and then sequence", () => {
   let state = createInitialRunEventStoreState();
 
+  state = runEventStoreReducer(state, { type: "subscribeRun", runId: "run-1" });
   state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-1", 1n) });
   state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-1", 2n) });
   state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-2", 1n) });
@@ -58,6 +60,7 @@ test("eventsGapFilled merges missing REST events and clears reconciliation inten
 test("terminal run status records targeted reconciliation after the latest sequence", () => {
   let state = createInitialRunEventStoreState();
 
+  state = runEventStoreReducer(state, { type: "subscribeRun", runId: "run-1" });
   state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-4", 4n) });
   state = runEventStoreReducer(state, {
     type: "runStatusReceived",
@@ -67,6 +70,20 @@ test("terminal run status records targeted reconciliation after the latest seque
   assert.deepEqual(selectReconciliationIntents(state), [
     { runId: "run-1", afterSequence: 4n, reason: "terminal" },
   ]);
+});
+
+test("unsubscribed live events are ignored while global statuses update metadata only", () => {
+  let state = createInitialRunEventStoreState();
+
+  state = runEventStoreReducer(state, { type: "runEventReceived", event: makeEvent("event-1", 1n) });
+  state = runEventStoreReducer(state, {
+    type: "runStatusReceived",
+    run: { id: "run-1", status: 5 },
+  });
+
+  assert.deepEqual(selectRunEvents(state, "run-1"), []);
+  assert.equal(state.runsById["run-1"]?.status, 5);
+  assert.deepEqual(selectReconciliationIntents(state), []);
 });
 
 test("reconnect preserves subscriptions and requests after-sequence gap fill", () => {
@@ -82,4 +99,3 @@ test("reconnect preserves subscriptions and requests after-sequence gap fill", (
     { runId: "run-1", afterSequence: 6n, reason: "reconnect" },
   ]);
 });
-

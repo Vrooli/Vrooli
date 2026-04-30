@@ -445,7 +445,7 @@ export function RunDetail({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { console.log("[DELETE] Desktop header delete clicked", { runId: run.id }); onDelete(run); }}
+                    onClick={() => { onDelete(run); }}
                     className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
                     disabled={deleteLoading}
                     title="Delete run"
@@ -519,7 +519,7 @@ export function RunDetail({
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
                         disabled={deleteLoading}
-                        onClick={() => { console.log("[DELETE] Desktop menu delete clicked", { runId: run.id }); onDelete(run); setActionsMenuOpen(false); }}
+                        onClick={() => { onDelete(run); setActionsMenuOpen(false); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </button>
@@ -1547,7 +1547,7 @@ function MobileHeaderActions({
                 type="button"
                 className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
                 disabled={deleteLoading}
-                onClick={() => { console.log("[DELETE] Mobile menu delete clicked"); onDelete(); setActionsMenuOpen(() => false); }}
+                onClick={() => { onDelete(); setActionsMenuOpen(() => false); }}
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>

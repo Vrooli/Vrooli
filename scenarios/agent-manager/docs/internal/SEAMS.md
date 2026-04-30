@@ -55,6 +55,31 @@ api/internal/
 
 ## Core Seams
 
+### 0. Realtime Event Delivery (`handlers` + UI store)
+
+**Purpose:** Keep list-level run status live without streaming every run event body to every browser.
+
+**Backend boundary:**
+- `api/internal/handlers/websocket.go`
+- `WebSocketHub` owns connection registration and fanout.
+- `WebSocketClient.shouldReceive` is the broadcast filter:
+  - `RUN_STATUS` is global metadata for run lists.
+  - `TASK_STATUS` has no run id and remains global.
+  - `RUN_EVENT` and `RUN_PROGRESS` require explicit run subscription or all-event subscription.
+- Per-client subscription fields are guarded by the client mutex; all mutation must go through `updateSubscription` or `updateAllEventsSubscription`.
+
+**UI boundary:**
+- `ui/src/App.tsx` owns WebSocket ingress and dispatches normalized messages into `useRunEventStore`.
+- `ui/src/lib/runEventStore.ts` owns ordering, dedupe, subscriptions, and gap-fill intent.
+- `ui/src/hooks/useSelectedRunController.ts` owns selected-run event subscription and REST gap-fill for the current detail view.
+- `ui/src/lib/webSocketConnection.ts` owns pure reconnect decisions used by `useWebSocket`.
+
+**Testability:**
+- Backend filtering/race coverage: `api/internal/handlers/websocket_test.go`
+- Store and connection decisions: `ui/tests/lib/runEventStore.test.ts`, `ui/tests/lib/webSocketConnection.test.ts`
+
+---
+
 ### 1. Runner Adapter (`adapters/runner`)
 
 **Purpose:** Abstract agent execution across different runners.

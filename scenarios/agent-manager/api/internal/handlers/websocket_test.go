@@ -90,24 +90,24 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 
 	// Broadcast for unsubscribed run — should NOT be received
 	hub.broadcast <- &domainpb.AgentManagerWsMessage{
-		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
+		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 		RunId: &otherRunID,
-		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
-			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:  otherRunID,
-				Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
+		Payload: &domainpb.AgentManagerWsMessage_RunEvent{
+			RunEvent: &domainpb.RunEvent{
+				Id:    uuid.New().String(),
+				RunId: otherRunID,
 			},
 		},
 	}
 
 	// Broadcast for subscribed run — SHOULD be received
 	hub.broadcast <- &domainpb.AgentManagerWsMessage{
-		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
+		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 		RunId: &subscribedRunID,
-		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
-			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:  subscribedRunID,
-				Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		Payload: &domainpb.AgentManagerWsMessage_RunEvent{
+			RunEvent: &domainpb.RunEvent{
+				Id:    uuid.New().String(),
+				RunId: subscribedRunID,
 			},
 		},
 	}
@@ -126,6 +126,45 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 	}
 	if parsed.GetRunId() != subscribedRunID {
 		t.Errorf("expected run_id %s, got %s", subscribedRunID, parsed.GetRunId())
+	}
+}
+
+func TestWebSocketHub_RunStatusBroadcastsToUnsubscribedClients(t *testing.T) {
+	hub := NewWebSocketHub()
+	go hub.Run()
+
+	client := &WebSocketClient{
+		hub:           hub,
+		send:          make(chan []byte, 256),
+		subscriptions: make(map[string]bool),
+		allEvents:     false,
+	}
+	hub.register <- client
+	time.Sleep(10 * time.Millisecond)
+
+	runID := uuid.New().String()
+	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
+		RunId: &runID,
+		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
+			RunStatus: &domainpb.RunStatusUpdate{
+				RunId:  runID,
+				Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
+			},
+		},
+	}
+
+	select {
+	case msg := <-client.send:
+		var parsed domainpb.AgentManagerWsMessage
+		if err := protoconv.UnmarshalJSON(msg, &parsed); err != nil {
+			t.Fatalf("failed to unmarshal message: %v", err)
+		}
+		if parsed.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS {
+			t.Errorf("expected RUN_STATUS type, got %v", parsed.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for global run_status broadcast")
 	}
 }
 
@@ -220,6 +259,45 @@ func TestWebSocketHub_StaleClientRemoval_ConcurrentSafety(t *testing.T) {
 	wg.Wait()
 	// If we get here without a data race panic, the fix works.
 	// Run with -race flag to verify: go test -race -run TestWebSocketHub_StaleClient
+}
+
+func TestWebSocketHub_SubscriptionMutationConcurrentSafety(t *testing.T) {
+	hub := NewWebSocketHub()
+	go hub.Run()
+
+	runID := uuid.New().String()
+	client := &WebSocketClient{
+		hub:           hub,
+		send:          make(chan []byte, 4096),
+		subscriptions: make(map[string]bool),
+		allEvents:     false,
+	}
+	hub.register <- client
+	time.Sleep(10 * time.Millisecond)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(2)
+		go func(i int) {
+			defer wg.Done()
+			updateSubscription(client, runID, i%2 == 0)
+			updateAllEventsSubscription(client, i%3 == 0)
+		}(i)
+		go func() {
+			defer wg.Done()
+			hub.broadcast <- &domainpb.AgentManagerWsMessage{
+				Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
+				RunId: &runID,
+				Payload: &domainpb.AgentManagerWsMessage_RunEvent{
+					RunEvent: &domainpb.RunEvent{
+						Id:    uuid.New().String(),
+						RunId: runID,
+					},
+				},
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 // =============================================================================

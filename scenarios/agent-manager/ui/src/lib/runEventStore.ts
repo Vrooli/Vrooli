@@ -161,6 +161,10 @@ function clearReconciliationIntent(state: RunEventStoreState, runId: string): Ru
   };
 }
 
+function shouldTrackRunEvents(state: RunEventStoreState, runId: string): boolean {
+  return state.allEventsSubscribed || state.subscribedRunIds.has(runId);
+}
+
 export function runEventStoreReducer(
   state: RunEventStoreState,
   action: RunEventStoreAction
@@ -191,13 +195,14 @@ export function runEventStoreReducer(
           [action.run.id]: existing ? { ...existing, ...action.run } : action.run,
         },
       };
-      return TERMINAL_RUN_STATUSES.has(action.run.status)
+      return TERMINAL_RUN_STATUSES.has(action.run.status) && shouldTrackRunEvents(next, action.run.id)
         ? withReconciliationIntent(next, action.run.id, "terminal")
         : next;
     }
     case "runEventReceived": {
       const runId = action.event.runId;
       if (!runId) return state;
+      if (!shouldTrackRunEvents(state, runId)) return state;
       const merged = mergeEvents(state.eventsByRunId[runId] ?? [], [action.event]);
       return withEvents(state, runId, merged);
     }
@@ -255,4 +260,3 @@ export function runEventStoreReducer(
       return state;
   }
 }
-

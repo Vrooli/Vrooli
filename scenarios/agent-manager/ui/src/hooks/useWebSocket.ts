@@ -8,6 +8,7 @@ import {
   createWebSocketSubscriptionManager,
   type WebSocketSubscriptionManager,
 } from "../lib/webSocketSubscriptions";
+import { nextReconnectDelayMs, shouldReconnectAfterClose } from "../lib/webSocketConnection";
 
 export type { WebSocketMessage } from "../lib/webSocketProtocol";
 
@@ -54,6 +55,7 @@ export function useWebSocket(
   const subscriptionManagerRef = useRef<WebSocketSubscriptionManager | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
   const onMessageRef = useRef(onMessage);
   const onStatusChangeRef = useRef(onStatusChange);
 
@@ -87,7 +89,11 @@ export function useWebSocket(
   }, []);
 
   const connect = useCallback(() => {
-    if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) {
+    if (
+      !enabled ||
+      wsRef.current?.readyState === WebSocket.OPEN ||
+      wsRef.current?.readyState === WebSocket.CONNECTING
+    ) {
       return;
     }
 
@@ -97,6 +103,7 @@ export function useWebSocket(
 
       console.log(`[WebSocket] Connecting to ${wsUrl}`);
       const ws = new WebSocket(wsUrl);
+      intentionalCloseRef.current = false;
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -129,15 +136,24 @@ export function useWebSocket(
       };
 
       ws.onclose = () => {
-        console.log("[WebSocket] Connection closed");
-        updateStatus("disconnected");
+        const socketIsCurrent = wsRef.current === ws;
+        if (!socketIsCurrent) {
+          return;
+        }
+        const intentionalClose = intentionalCloseRef.current;
         wsRef.current = null;
 
+        console.log("[WebSocket] Connection closed");
+        updateStatus("disconnected");
+
         // Attempt to reconnect if enabled and within retry limits
-        if (
-          enabled &&
-          reconnectAttemptsRef.current < maxReconnectAttempts
-        ) {
+        if (shouldReconnectAfterClose({
+          enabled,
+          intentionalClose,
+          socketIsCurrent,
+          reconnectAttempts: reconnectAttemptsRef.current,
+          maxReconnectAttempts,
+        })) {
           reconnectAttemptsRef.current += 1;
           const attempt = reconnectAttemptsRef.current;
 
@@ -145,13 +161,7 @@ export function useWebSocket(
             `[WebSocket] Reconnecting in ${reconnectInterval}ms (attempt ${attempt})`
           );
 
-          // Exponential backoff with jitter
-          const backoff = Math.min(
-            reconnectInterval * Math.pow(1.5, attempt - 1),
-            30000 // Max 30 seconds
-          );
-          const jitter = Math.random() * 1000;
-          const delay = backoff + jitter;
+          const delay = nextReconnectDelayMs(reconnectInterval, attempt);
 
           reconnectTimeoutRef.current = window.setTimeout(() => {
             if (enabled) {
@@ -175,6 +185,7 @@ export function useWebSocket(
     }
 
     if (wsRef.current) {
+      intentionalCloseRef.current = true;
       wsRef.current.close();
       wsRef.current = null;
     }

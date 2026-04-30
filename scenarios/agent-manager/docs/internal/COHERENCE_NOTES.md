@@ -77,6 +77,29 @@ Run timeline rendering remains pure display logic over normalized events in `ui/
 
 ---
 
+# React Coherence Update - 2026-04-30
+
+## Completed In Realtime Hardening Follow-up
+
+1. Removed the default browser-wide `subscribeAll` path:
+   - `App.tsx` now receives global `run_status` metadata without subscribing to every `run_event` body.
+   - `runEventStore.ts` only records live event bodies and terminal gap-fill intents for explicitly subscribed runs.
+
+2. Extracted selected-run coordination from `RunsPage.tsx`:
+   - `ui/src/hooks/useSelectedRunController.ts` owns selected run snapshots, timeline gap-fill, diff loading, selected-run WebSocket subscription, and URL-driven selection.
+   - `RunsPage.tsx` remains responsible for page composition, filters, modal workflows, and run actions.
+
+3. Made reconnect behavior testable:
+   - `ui/src/lib/webSocketConnection.ts` contains pure reconnect decision/backoff helpers.
+   - `useWebSocket.ts` now distinguishes intentional cleanup closes from unexpected socket closes and ignores stale socket close callbacks.
+
+## Validation
+
+- `pnpm --dir scenarios/agent-manager/ui run type-check`
+- `pnpm --dir scenarios/agent-manager/ui run test:unit`
+
+---
+
 # React Coherence Update - 2026-02-07
 
 ## Completed This Pass
