@@ -67,7 +67,7 @@ export function OperatingModePanel({
       {workspaceQuery.error && (
         <ErrorState
           title="Failed to load mode workspace"
-          error={workspaceQuery.error as Error}
+          error={workspaceQuery.error}
           onRetry={() => void workspaceQuery.refetch()}
         />
       )}

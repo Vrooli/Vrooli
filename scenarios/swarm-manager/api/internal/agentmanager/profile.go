@@ -2,7 +2,6 @@ package agentmanager
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -134,20 +133,6 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
 	}
 	return profile
-}
-
-// resolveProfileConfig returns a ProfileConfig derived from the settings store
-// when available, falling back to hardcoded defaults on error or when no
-// SettingsReader is configured.
-func (s *AgentService) resolveProfileConfig() *ProfileConfig {
-	if s.settingsReader != nil {
-		maxTurns, timeout, err := s.settingsReader.LoadAgentSettings()
-		if err == nil {
-			return ProfileConfigFromSettings(maxTurns, timeout)
-		}
-		slog.Warn("settings read failed, using defaults", "error", err)
-	}
-	return DefaultProfileConfig()
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {

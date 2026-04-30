@@ -122,9 +122,20 @@ type PromptCatalogEntry struct {
 
 type PromptCatalogResolver func(mode, phase string) (PromptCatalogEntry, bool)
 
+// InitiativeLock is the narrow initiative-agent lock seam used by operating
+// mode lifecycle orchestration. Production uses initiativelock.Lock; tests can
+// inject failures at specific lifecycle points without touching file-lock
+// internals.
+type InitiativeLock interface {
+	Acquire(initiativeName string, holder initiativelock.Holder) error
+	AcquireOverride(initiativeName string, holder initiativelock.Holder) error
+	Release(initiativeName, runID string) error
+	Inspect(initiativeName string) (*initiativelock.Holder, error)
+}
+
 type Config struct {
 	Store            *Store
-	Lock             *initiativelock.Lock
+	Lock             InitiativeLock
 	Initiatives      InitiativeReader
 	ModeUpdater      InitiativeModeUpdater
 	Backlog          BacklogReader
@@ -143,7 +154,7 @@ type Config struct {
 
 type Service struct {
 	store         *Store
-	lock          *initiativelock.Lock
+	lock          InitiativeLock
 	initiatives   InitiativeReader
 	modeUpdater   InitiativeModeUpdater
 	backlog       BacklogReader

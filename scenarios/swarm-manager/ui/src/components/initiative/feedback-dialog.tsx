@@ -52,6 +52,8 @@ import type {
   ItemActivity,
   LockHolder,
 } from "../../types";
+import { buildEnvelope, pruneActionsForSelection } from "./feedback-dialog-envelope";
+import type { QuickActionKey } from "./feedback-dialog-envelope";
 
 const DRAFT_KEY_PREFIX = "swarm-initiative-feedback-draft:";
 const MAX_VISIBLE_LINES = 8;
@@ -64,16 +66,6 @@ export interface FeedbackDialogItem {
   ref: string; // "kind/name"
   title: string;
 }
-
-/** Stable identifiers for the five quick-action lenses. These are the
- *  strings emitted into the `<requested_actions>` envelope and the
- *  swarm-manager-initiative-feedback skill is contracted against them. */
-export type QuickActionKey =
-  | "split_oversized"
-  | "merge_coupled"
-  | "identify_missing_work"
-  | "reconcile_with_code_drift"
-  | "reframe_scope";
 
 const QUICK_ACTIONS: ReadonlyArray<{
   key: QuickActionKey;
@@ -111,13 +103,6 @@ const QUICK_ACTIONS: ReadonlyArray<{
     hint: "Holistic re-shape: items partitioned along the wrong lines.",
     testId: selectors.feedback.dialogQuickActionReframe,
   },
-];
-
-const PRESCRIPTIVE_LENSES: QuickActionKey[] = [
-  "split_oversized",
-  "merge_coupled",
-  "identify_missing_work",
-  "reconcile_with_code_drift",
 ];
 
 export interface FeedbackDialogProps {
@@ -484,7 +469,7 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted, i
         {/* Item-selection picker — only when there are items to pick from. */}
         {pickerAvailable && (
           <ItemPicker
-            items={items!}
+            items={items ?? []}
             selected={selectedItems}
             onToggle={(ref) => {
               setSelectedItems((prev) => {
@@ -843,54 +828,9 @@ function BlockerNotice({ blocker, override, onOverrideChange }: BlockerNoticePro
   );
 }
 
-// ---------------------------------------------------------------------------
-// Envelope assembly
-// ---------------------------------------------------------------------------
-
-/** Build the XML envelope sent to the feedback agent when at least one
- *  Quick action is selected, or items are selected without an action.
- *  The skill's "Requested-actions interpretation" section consumes this
- *  shape — the action names are stable identifiers, not human labels. */
-export function buildEnvelope(input: { items: string[]; actions: QuickActionKey[]; note: string }): string {
-  const itemsBlock = input.items.length
-    ? `<selection>\n${input.items.map((ref) => `  <item ref="${escapeXml(ref)}" />`).join("\n")}\n</selection>`
-    : "<selection></selection>";
-  const actionsBlock = input.actions.length
-    ? `<requested_actions>\n${input.actions.map((name) => `  <action name="${escapeXml(name)}" />`).join("\n")}\n</requested_actions>`
-    : "<requested_actions></requested_actions>";
-  const note = input.note.trim();
-  const noteBlock = `<user_note>\n${note}\n</user_note>`;
-  return `${itemsBlock}\n\n${actionsBlock}\n\n${noteBlock}`;
-}
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-// pruneActionsForSelection removes split/merge if the new selection size
-// drops below their gating thresholds. Called when the user toggles items
-// after picking an action — we don't want a stale "Split oversized" stuck
-// active when the user just deselected the only item.
-function pruneActionsForSelection(prev: Set<QuickActionKey>, nextSelectionSize: number): Set<QuickActionKey> {
-  if (prev.size === 0) return prev;
-  const next = new Set(prev);
-  if (nextSelectionSize < 1 && next.has("split_oversized")) next.delete("split_oversized");
-  if (nextSelectionSize < 2 && next.has("merge_coupled")) next.delete("merge_coupled");
-  return next;
-}
-
 function computeNextSelectionSize(prev: Set<string>, toggledRef: string): number {
   return prev.has(toggledRef) ? prev.size - 1 : prev.size + 1;
 }
-
-// PRESCRIPTIVE_LENSES is referenced indirectly via the test-only helpers
-// below; explicit export keeps it tree-shakeable when not bundled into the
-// runtime path.
-export const __testing = { PRESCRIPTIVE_LENSES, buildEnvelope, pruneActionsForSelection };
 
 // ---------------------------------------------------------------------------
 // Draft persistence helpers

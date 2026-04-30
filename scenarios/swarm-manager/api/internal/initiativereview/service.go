@@ -428,24 +428,9 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		Evidence:    []review.EvidenceItem{},
 	}
 
-	if s.spawner == nil || !s.spawner.IsEnabled() {
-		// Degraded mode (no spawner): the round still lands on disk and
-		// the initiative flips to in_review so the UI doesn't lie about
-		// lifecycle, but no agent-manager work happens. Callers that
-		// need a running agent must wire a spawner at construction.
-		if err := review.SaveRound(itemDir, round); err != nil {
-			return TriggerResult{}, fmt.Errorf("save round: %w", err)
-		}
-		if err := s.setInitiativeStatus(init, initiatives.InitiativeStatusInReview, generatedAt); err != nil {
-			return TriggerResult{}, err
-		}
-		return TriggerResult{Started: true, Round: roundNum}, nil
-	}
-
-	// Acquire the per-initiative lock before spawning. Feedback rounds use
-	// the same file (`.feedback-lock`), so a feedback holder here is a real
-	// conflict that the caller should surface rather than racing into a
-	// concurrent agent spawn.
+	// Acquire the per-initiative lock before starting review work. Feedback
+	// rounds use the same file (`.feedback-lock`), so a feedback holder here
+	// is a real conflict even in degraded no-spawner mode.
 	provisionalRunID := fmt.Sprintf("review-provisional-%d-%d", roundNum, s.clock().UnixNano())
 	if s.lock != nil {
 		if err := s.lock.Acquire(init.Name, initiativelock.Holder{
@@ -456,6 +441,30 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		}); err != nil {
 			return TriggerResult{}, err
 		}
+	}
+
+	if s.spawner == nil || !s.spawner.IsEnabled() {
+		// Degraded mode (no spawner): the round still lands on disk and
+		// the initiative flips to in_review so the UI doesn't lie about
+		// lifecycle, but no agent-manager work happens. The provisional
+		// lock is released immediately because there is no live run to own
+		// it after the status transition.
+		if err := review.SaveRound(itemDir, round); err != nil {
+			if s.lock != nil {
+				_ = s.lock.Release(init.Name, provisionalRunID)
+			}
+			return TriggerResult{}, fmt.Errorf("save round: %w", err)
+		}
+		if err := s.setInitiativeStatus(init, initiatives.InitiativeStatusInReview, generatedAt); err != nil {
+			if s.lock != nil {
+				_ = s.lock.Release(init.Name, provisionalRunID)
+			}
+			return TriggerResult{}, err
+		}
+		if s.lock != nil {
+			_ = s.lock.Release(init.Name, provisionalRunID)
+		}
+		return TriggerResult{Started: true, Round: roundNum}, nil
 	}
 
 	runResult, err := s.spawner.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{

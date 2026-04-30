@@ -150,7 +150,7 @@ The mode-switch is itself an operator-chosen action and is supported as a first-
 
 ## Companion: rescoping affordances inside backlog-item mode
 
-A separate but related capability gap, addressed in Plan A ([`docs/plans/swarm-manager-initiative-feedback-ux.md`](../plans/swarm-manager-initiative-feedback-ux.md)), is **rescoping inside backlog-item mode**. Even when backlog-item mode is the right choice, the items as initially-scoped may be wrong: too granular, too coarse, or incorrectly partitioned. The initiative-feedback flow today supports most rescoping ops (`add_item`, `update_item`, `change_priority`, `change_status`, `add_edge`, `remove_edge`, `move_initiative`, `archive_item`, `interrupt_in_progress`, `split_item`) but is asymmetric: split is supported, merge/consolidate is not. The UI also gives the operator no surfaced affordances for these — they are discoverable only by the agent reading the skill prompt.
+A separate but related capability gap, addressed in Plan A ([`docs/plans/swarm-manager-initiative-feedback-ux.md`](../../../../docs/plans/swarm-manager-initiative-feedback-ux.md)), is **rescoping inside backlog-item mode**. Even when backlog-item mode is the right choice, the items as initially-scoped may be wrong: too granular, too coarse, or incorrectly partitioned. The initiative-feedback flow today supports most rescoping ops (`add_item`, `update_item`, `change_priority`, `change_status`, `add_edge`, `remove_edge`, `move_initiative`, `archive_item`, `interrupt_in_progress`, `split_item`) but is asymmetric: split is supported, merge/consolidate is not. The UI also gives the operator no surfaced affordances for these — they are discoverable only by the agent reading the skill prompt.
 
 Plan A handles that asymmetry and the UX gap. It is a *backlog-item-mode improvement*; it does not replace the need for initiative-level mode.
 
@@ -171,6 +171,13 @@ Plan A handles that asymmetry and the UX gap. It is a *backlog-item-mode improve
    operating-mode reconciliation endpoints with structured audit metadata.
 7. Prompt skills are registered by `(mode, phase)` and fail closed if the prompt
    catalog or prompt-manager cannot supply the exact registered skill.
+8. Completed phase rounds must satisfy the registry's output contract before
+   they can advance the graph: required structured result envelopes, artifacts,
+   handoffs, progress decisions, review verdicts, and replan permissions are
+   validated before artifacts are written [CODE: api/internal/operatingmode/registry.go].
+9. Round-control and backlog-reconciliation operations are scoped to
+   non-default modes. `item-level` is never a fallback for refresh, cancel,
+   complete-items, or apply-backlog-sync [CODE: api/internal/operatingmode/handler.go].
 
 ## Why both modes are first-class
 
@@ -188,8 +195,8 @@ The modes solve different problems for different work shapes. Both are necessary
 - [`docs/guides/workshop-workflow.md`](../guides/workshop-workflow.md) — The backlog-item-level workshop loop, readiness model, and plan.md handoff.
 - [`docs/guides/holistic-loop-mode.md`](../guides/holistic-loop-mode.md) — Operator workflow for holistic-loop mode.
 - [`docs/guides/phased-plan-drain-mode.md`](../guides/phased-plan-drain-mode.md) — Operator workflow for phased-plan-drain mode.
-- [`docs/plans/swarm-manager-initiative-feedback-ux.md`](../plans/swarm-manager-initiative-feedback-ux.md) — Plan A: rescoping affordances inside backlog-item mode (companion, not replacement).
-- [`docs/plans/swarm-manager-initiative-operating-mode-implementation.md`](../plans/swarm-manager-initiative-operating-mode-implementation.md) — Original implementation plan for initiative-level operating modes.
+- [`docs/plans/swarm-manager-initiative-feedback-ux.md`](../../../../docs/plans/swarm-manager-initiative-feedback-ux.md) — Plan A: rescoping affordances inside backlog-item mode (companion, not replacement).
+- [`docs/plans/swarm-manager-initiative-operating-mode-implementation.md`](../../../../docs/plans/swarm-manager-initiative-operating-mode-implementation.md) — Original implementation plan for initiative-level operating modes.
 - [CODE: api/internal/operatingmode/registry.go] — static mode definitions.
 - [CODE: api/internal/operatingmode/state.go] — backend phase action state.
 - [CODE: api/internal/operatingmode/backlog_reconciler.go] — audited backlog reconciliation.

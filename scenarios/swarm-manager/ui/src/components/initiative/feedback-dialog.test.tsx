@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite
 import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { FeedbackDialog, __testing as feedbackDialogTesting } from "./feedback-dialog";
+import { FeedbackDialog } from "./feedback-dialog";
 import type { FeedbackDialogItem } from "./feedback-dialog";
+import { buildEnvelope, pruneActionsForSelection } from "./feedback-dialog-envelope";
 import { FeedbackBusyError, FeedbackLockConflictError } from "../../services/feedback-service";
 import { selectors } from "../../consts/selectors";
 import type { FeedbackRound, LockStatusResponse } from "../../types";
@@ -516,8 +517,6 @@ describe("FeedbackDialog · Quick Actions", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildEnvelope (Plan A)", () => {
-  const { buildEnvelope, pruneActionsForSelection } = feedbackDialogTesting;
-
   it("assembles selection + requested_actions + user_note", () => {
     const env = buildEnvelope({
       items: ["execute/alpha", "execute/beta"],

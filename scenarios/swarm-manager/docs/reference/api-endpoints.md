@@ -237,10 +237,14 @@ before responding.
 `POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/start`
 
 Starts an initiative-scoped operating-mode phase through the registered mode
-definition. The backend validates the registered phase graph before reserving a
-round, acquiring the initiative lock, rendering the prompt, or spawning an
-agent. Failed/canceled rounds do not advance the graph; active rounds block all
-new phase starts. Prompt skills, AgentManager profiles, activity purposes, lock
+definition. The backend validates the registered phase graph before attempting
+the lifecycle, then owns round reservation, initiative lock acquisition, prompt
+rendering, AgentManager spawn, and run-ID lock ownership as one temporal flow
+[CODE: api/internal/operatingmode/phase_runner.go]. Failed/canceled rounds do
+not advance the graph; active rounds block all new phase starts. Lock conflicts,
+prompt failures, spawn failures, and run-ID lock swap failures are terminally
+recorded as failed audit rounds and must not leave an active reserved/running
+round behind. Prompt skills, AgentManager profiles, activity purposes, lock
 purposes, run strategies, and artifact policies are resolved from the registry.
 Prompt rendering is fail-closed: catalog misses, skill mismatches,
 prompt-manager errors, and empty rendered content fail the start before
@@ -264,11 +268,21 @@ Supported non-default phases:
 
 `POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/refresh?mode={mode}`
 
+Round-control endpoints are non-default-mode-only. Callers should pass
+`mode={mode}` explicitly. If the query value is omitted, the API may infer the
+mode from the initiative only when the initiative is already in a non-default
+operating mode; blank mode and `item-level` are rejected rather than treated as
+fallbacks [CODE: api/internal/operatingmode/handler.go].
+
 Polls AgentManager for the round's run and persists terminal state when the run
 is complete, failed, or canceled. Completed runs may include a final
-`operating_mode_result` JSON envelope; when present, Swarm Manager persists
-declared artifacts, handoffs, progress state, verdicts, and replan signals into
-the round/workspace.
+`operating_mode_result` JSON envelope. Required phases fail closed when the
+envelope is missing, malformed, empty, or violates the phase output contract.
+Swarm Manager stages artifact and payload changes, validates required
+artifacts, handoffs, progress decisions, review verdicts, and allowed replan
+signals, and only then marks the round completed [CODE: api/internal/operatingmode/artifact_applier.go].
+Contract failures mark the round failed, release the initiative lock, and emit
+a phase-failed event rather than a misleading completion.
 
 `POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/cancel?mode={mode}`
 

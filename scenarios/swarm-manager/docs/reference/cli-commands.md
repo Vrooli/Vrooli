@@ -151,7 +151,9 @@ swarm-manager initiatives mode-switch \
 ```
 
 Start and manage phase rounds. `mode-start` follows backend phase action state;
-invalid phases are rejected even if the CLI command is formed correctly:
+invalid phases are rejected even if the CLI command is formed correctly.
+Round-control commands require `--mode` to name a registered non-default mode;
+do not omit it or pass `item-level`:
 
 ```bash
 swarm-manager initiatives mode-start --name desktop-release-governance --phase investigate
@@ -184,6 +186,8 @@ swarm-manager initiatives mode-apply-backlog-sync \
 
 Rules:
 - `mode-switch` is the only CLI path for changing initiative `mode`; generic initiative updates do not own mode lifecycle.
+- `mode-refresh`, `mode-cancel`, `mode-complete-items`, and `mode-apply-backlog-sync` are non-default-mode-only operations and should always include `--mode`.
+- `mode-refresh` fails completed runs whose final output is missing or violates the registered phase output contract; those failures release the initiative lock and do not advance the phase graph.
 - `mode-complete-items` requires the round's AgentManager `run_id` and only accepts member item refs from the round.
 - `mode-apply-backlog-sync` requires the round's AgentManager `run_id` and applies the round's `backlog_sync.proposal` through the existing proposal boundary.
 

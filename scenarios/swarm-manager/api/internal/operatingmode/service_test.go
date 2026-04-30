@@ -148,6 +148,33 @@ func (f *fakePrompts) ReadSkill(_ context.Context, skillID string, _ map[string]
 	return "rendered " + skillID, nil
 }
 
+type failingOverrideLock struct {
+	base           *initiativelock.Lock
+	overrideCalls  int
+	failOverrideAt int
+	failErr        error
+}
+
+func (l *failingOverrideLock) Acquire(initiativeName string, holder initiativelock.Holder) error {
+	return l.base.Acquire(initiativeName, holder)
+}
+
+func (l *failingOverrideLock) AcquireOverride(initiativeName string, holder initiativelock.Holder) error {
+	l.overrideCalls++
+	if l.failOverrideAt > 0 && l.overrideCalls == l.failOverrideAt {
+		return l.failErr
+	}
+	return l.base.AcquireOverride(initiativeName, holder)
+}
+
+func (l *failingOverrideLock) Release(initiativeName, runID string) error {
+	return l.base.Release(initiativeName, runID)
+}
+
+func (l *failingOverrideLock) Inspect(initiativeName string) (*initiativelock.Holder, error) {
+	return l.base.Inspect(initiativeName)
+}
+
 func (f *fakePrompts) ReadSkillWithExperiment(context.Context, string, map[string]string, bool, string) (promptmanager.ReadSkillResult, error) {
 	return promptmanager.ReadSkillResult{}, fmt.Errorf("not implemented")
 }
@@ -417,6 +444,56 @@ func TestStartPhaseSpawnFailurePersistsFailedRoundAndReleasesLock(t *testing.T) 
 	}
 	if holder != nil {
 		t.Fatalf("lock holder = %+v, want nil after spawn failure", holder)
+	}
+}
+
+func TestStartPhaseLockSwapFailureFailsRoundStopsRunAndReleasesLock(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	baseLock := &initiativelock.Lock{
+		Dir: func(name string) string {
+			return filepath.Join(root, "initiatives", name)
+		},
+		Clock: func() time.Time {
+			return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+		},
+	}
+	lock := &failingOverrideLock{
+		base:           baseLock,
+		failOverrideAt: 1,
+		failErr:        errors.New("disk write refused"),
+	}
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		agent: agent,
+		lock:  lock,
+	})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err == nil || !strings.Contains(err.Error(), "swap operating-mode lock holder") {
+		t.Fatalf("StartPhase error = %v, want lock swap failure", err)
+	}
+	loaded, loadErr := svc.store.LoadRound("init-a", ModeHolisticLoop, round.Round)
+	if loadErr != nil {
+		t.Fatalf("LoadRound: %v", loadErr)
+	}
+	if loaded.Status != RoundStatusFailed || !strings.Contains(loaded.Error, "disk write refused") {
+		t.Fatalf("round = %+v, want failed lock-swap round", loaded)
+	}
+	if loaded.RunID != "run-1" {
+		t.Fatalf("round run id = %q, want spawned run id retained for audit", loaded.RunID)
+	}
+	if len(agent.stopped) != 1 || agent.stopped[0] != "run-1" {
+		t.Fatalf("stopped runs = %v, want run-1 stopped after lock swap failure", agent.stopped)
+	}
+	holder, inspectErr := svc.lock.Inspect("init-a")
+	if inspectErr != nil {
+		t.Fatalf("Inspect lock: %v", inspectErr)
+	}
+	if holder != nil {
+		t.Fatalf("lock holder = %+v, want nil after lock swap failure", holder)
 	}
 }
 
@@ -858,6 +935,7 @@ func newTestService(t *testing.T, root string, agent *fakeAgent, prompts *fakePr
 type serviceOptions struct {
 	agent          *fakeAgent
 	prompts        *fakePrompts
+	lock           InitiativeLock
 	initiatives    fakeInitiatives
 	modeUpdater    InitiativeModeUpdater
 	itemExecutions ItemExecutionController
@@ -890,6 +968,12 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		},
 		Clock: store.Clock,
 	}
+	var serviceLock InitiativeLock
+	if opts.lock != nil {
+		serviceLock = opts.lock
+	} else {
+		serviceLock = lock
+	}
 	initiatives := opts.initiatives
 	if initiatives.items == nil {
 		initiatives = fakeInitiatives{items: map[string]InitiativeSnapshot{
@@ -905,7 +989,7 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 	}
 	svc, err := NewService(Config{
 		Store:       store,
-		Lock:        lock,
+		Lock:        serviceLock,
 		Initiatives: initiatives,
 		ModeUpdater: opts.modeUpdater,
 		Backlog: fakeBacklog{items: map[string]BacklogItemSnapshot{

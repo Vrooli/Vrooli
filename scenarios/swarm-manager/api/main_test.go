@@ -48,6 +48,7 @@ func newTestServer(t *testing.T) *Server {
 	t.Setenv("XDG_DATA_HOME", filepath.Join(xdg, "data"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(xdg, "cache"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(xdg, "config"))
+	t.Setenv("AGENT_MANAGER_ENABLED", "false")
 	return NewServerWithRoot(root)
 }
 

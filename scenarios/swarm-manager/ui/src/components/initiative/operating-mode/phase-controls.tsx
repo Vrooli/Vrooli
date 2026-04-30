@@ -28,7 +28,7 @@ export function PhaseControls({
   onPhaseNoteChange: (value: string) => void;
   onStartPhase: (phase: string) => void;
 }) {
-  const enabled = Boolean(canRunPhases);
+  const enabled = canRunPhases;
 
   return (
     <div className="rounded-lg border border-slate-800/80 bg-slate-900/55 p-4">
