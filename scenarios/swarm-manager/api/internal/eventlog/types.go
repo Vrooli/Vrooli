@@ -47,6 +47,7 @@ const (
 	EventInitiativeItemAdded     EventType = "initiative.item_added"
 	EventInitiativeItemRemoved   EventType = "initiative.item_removed"
 	EventInitiativeStatusChanged EventType = "initiative.status_changed"
+	EventInitiativeModeChanged   EventType = "initiative.mode_changed"
 	EventInitiativeArchived      EventType = "initiative.archived"
 	EventInitiativeUnarchived    EventType = "initiative.unarchived"
 )
@@ -103,6 +104,16 @@ const (
 	EventSystemMigrationApplied EventType = "system.migration_applied"
 )
 
+// Operating mode events.
+const (
+	EventOperatingModePhaseStarted   EventType = "operating_mode.phase_started"
+	EventOperatingModePhaseCompleted EventType = "operating_mode.phase_completed"
+	EventOperatingModePhaseFailed    EventType = "operating_mode.phase_failed"
+	EventOperatingModePhaseCanceled  EventType = "operating_mode.phase_canceled"
+	EventOperatingModeReplanNeeded   EventType = "operating_mode.replan_needed"
+	EventOperatingModeBacklogSynced  EventType = "operating_mode.backlog_synced"
+)
+
 // EntitySystem is used for events that are not tied to a domain entity.
 const EntitySystem EntityType = "system"
 
@@ -147,6 +158,52 @@ type DependencyPayload struct {
 type InitiativeChangePayload struct {
 	From string `json:"from"`
 	To   string `json:"to"`
+}
+
+// InitiativeModeChangePayload records an initiative operating-mode transition.
+type InitiativeModeChangePayload struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// OperatingModePhasePayload records an initiative operating-mode phase
+// lifecycle event. It is intentionally shared by started/completed/failed/
+// canceled so stats can aggregate phase usage without phase-specific parsing.
+type OperatingModePhasePayload struct {
+	Mode            string   `json:"mode"`
+	ScopeKind       string   `json:"scope_kind"`
+	ScopeID         string   `json:"scope_id"`
+	InitiativeName  string   `json:"initiative_name,omitempty"`
+	Phase           string   `json:"phase"`
+	RunStrategy     string   `json:"run_strategy"`
+	AgentProfileKey string   `json:"agent_profile_key"`
+	RoundNumber     int      `json:"round_number,omitempty"`
+	RunID           string   `json:"run_id,omitempty"`
+	DurationSeconds float64  `json:"duration_seconds,omitempty"`
+	Status          string   `json:"status,omitempty"`
+	Verdict         string   `json:"verdict,omitempty"`
+	ReplanNeeded    bool     `json:"replan_needed,omitempty"`
+	ArtifactPaths   []string `json:"artifact_paths,omitempty"`
+}
+
+// OperatingModeBacklogSyncPayload records the audited backlog reconciliation
+// summary for a mode phase. Counts are recorded even for no-op syncs so the
+// absence of mutations remains observable.
+type OperatingModeBacklogSyncPayload struct {
+	Mode                  string   `json:"mode"`
+	ScopeKind             string   `json:"scope_kind"`
+	ScopeID               string   `json:"scope_id"`
+	InitiativeName        string   `json:"initiative_name,omitempty"`
+	Phase                 string   `json:"phase"`
+	RunStrategy           string   `json:"run_strategy,omitempty"`
+	AgentProfileKey       string   `json:"agent_profile_key,omitempty"`
+	RoundNumber           int      `json:"round_number,omitempty"`
+	RunID                 string   `json:"run_id,omitempty"`
+	Status                string   `json:"status,omitempty"`
+	BacklogItemsCompleted int      `json:"backlog_items_completed,omitempty"`
+	BacklogItemsCreated   int      `json:"backlog_items_created,omitempty"`
+	BacklogItemsUpdated   int      `json:"backlog_items_updated,omitempty"`
+	ArtifactPaths         []string `json:"artifact_paths,omitempty"`
 }
 
 // BlockPayload records a block/unblock reason.

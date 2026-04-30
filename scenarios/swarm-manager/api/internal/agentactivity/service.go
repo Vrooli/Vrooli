@@ -150,6 +150,19 @@ func (s *Service) GetRunDiff(ctx context.Context, runID string) (agentmanager.Ru
 	return s.differ.GetRunDiff(ctx, runID)
 }
 
+func metadataWithProfileKey(metadata map[string]string, profileKey string) map[string]string {
+	key := strings.TrimSpace(profileKey)
+	if key == "" {
+		return metadata
+	}
+	out := make(map[string]string, len(metadata)+1)
+	for k, v := range metadata {
+		out[k] = v
+	}
+	out["agent_profile_key"] = key
+	return out
+}
+
 func (s *Service) StopRun(ctx context.Context, runID string) error {
 	if s.agentService == nil {
 		return agentmanager.ErrNotAvailable
@@ -343,7 +356,7 @@ func (s *Service) spawnTracked(
 		Status:          StatusPending,
 		RequestedAt:     now,
 		RequestedBy:     spec.RequestedBy,
-		Metadata:        spec.Metadata,
+		Metadata:        metadataWithProfileKey(spec.Metadata, req.ProfileKey),
 		UpdatedAt:       now,
 	}
 	records = append(records, record)
@@ -429,7 +442,7 @@ func (s *Service) spawnInitiativeTracked(
 		Status:          StatusPending,
 		RequestedAt:     now,
 		RequestedBy:     spec.RequestedBy,
-		Metadata:        spec.Metadata,
+		Metadata:        metadataWithProfileKey(spec.Metadata, req.ProfileKey),
 		UpdatedAt:       now,
 	}
 	records = append(records, record)

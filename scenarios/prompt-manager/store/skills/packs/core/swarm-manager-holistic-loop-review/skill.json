@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-holistic-loop-review",
+  "name": "Swarm Manager Holistic Loop Review",
+  "description": "Review holistic-loop results against initiative acceptance criteria.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "operating-mode", "holistic-loop", "review"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-30T00:00:00Z"
+}

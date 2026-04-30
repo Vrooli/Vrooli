@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-phased-plan-prepare",
+  "name": "Swarm Manager Phased Plan Prepare",
+  "description": "Create or update the stable phased plan for phased-plan-drain mode.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "operating-mode", "phased-plan-drain"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-30T00:00:00Z"
+}

@@ -10,6 +10,12 @@ import (
 // normalizeDependsOn trims whitespace, removes blanks, and dedupes while
 // preserving order.
 func normalizeDependsOn(raw []string) []string {
+	return normalizeStringList(raw)
+}
+
+// normalizeStringList trims whitespace, removes blanks, and dedupes while
+// preserving order.
+func normalizeStringList(raw []string) []string {
 	if len(raw) == 0 {
 		return nil
 	}

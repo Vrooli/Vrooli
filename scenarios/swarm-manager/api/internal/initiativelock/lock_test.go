@@ -62,6 +62,17 @@ func TestLock_Acquire_RejectsLiveHolder(t *testing.T) {
 	}
 }
 
+func TestLock_Acquire_DifferentPurposesStillConflict(t *testing.T) {
+	lock, _ := newLockInTempDir(t)
+	if err := lock.Acquire("i", Holder{RunID: "a", Purpose: PurposeFeedback}); err != nil {
+		t.Fatal(err)
+	}
+	err := lock.Acquire("i", Holder{RunID: "b", Purpose: PurposeHolisticLoopExecute})
+	if !errors.Is(err, ErrLocked) {
+		t.Fatalf("expected ErrLocked across different purposes, got %v", err)
+	}
+}
+
 func TestLock_AcquireOverride_Preempts(t *testing.T) {
 	lock, _ := newLockInTempDir(t)
 	if err := lock.Acquire("i", Holder{RunID: "a", Purpose: "feedback"}); err != nil {

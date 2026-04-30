@@ -21,6 +21,27 @@ func intPtr(value int) *int {
 	return &value
 }
 
+type initiativeEventCall struct {
+	name string
+	from string
+	to   string
+}
+
+type initiativeEventLogger struct {
+	modeChanges []initiativeEventCall
+}
+
+func (l *initiativeEventLogger) EmitInitiativeCreated(name string)                 {}
+func (l *initiativeEventLogger) EmitInitiativeItemAdded(name, item string)         {}
+func (l *initiativeEventLogger) EmitInitiativeItemRemoved(name, item string)       {}
+func (l *initiativeEventLogger) EmitInitiativeStatusChanged(name, from, to string) {}
+func (l *initiativeEventLogger) EmitInitiativeModeChanged(name, from, to string) {
+	l.modeChanges = append(l.modeChanges, initiativeEventCall{name: name, from: from, to: to})
+}
+func (l *initiativeEventLogger) EmitInitiativeArchived(name, previousStatus, archivedAt string) {}
+func (l *initiativeEventLogger) EmitInitiativeUnarchived(name, archivedAt string)               {}
+func (l *initiativeEventLogger) EmitInitiativeViewed(name string)                               {}
+
 // mockBacklogLoader is a test double implementing BacklogLoader. It tracks
 // cascade writes so tests can assert that initiative service operations
 // correctly propagate item-initiative changes to the backlog side.
@@ -112,6 +133,9 @@ func TestService_CreateAndGet(t *testing.T) {
 	if init.Status != "active" {
 		t.Errorf("expected status active, got %q", init.Status)
 	}
+	if init.Mode != "item-level" {
+		t.Errorf("expected default mode item-level, got %q", init.Mode)
+	}
 
 	result, err := svc.Get("my-init")
 	if err != nil {
@@ -119,6 +143,44 @@ func TestService_CreateAndGet(t *testing.T) {
 	}
 	if result.Initiative.Title != "My Initiative" {
 		t.Errorf("expected title 'My Initiative', got %q", result.Initiative.Title)
+	}
+}
+
+func TestService_Create_WithModeAndAcceptanceCriteria(t *testing.T) {
+	svc := newTestService(t, nil)
+
+	init, err := svc.Create(CreateRequest{
+		Name:               "holistic",
+		Title:              "Holistic",
+		Mode:               "holistic-loop",
+		AcceptanceCriteria: []string{"  system works ", "", "system works", "audit trail preserved"},
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if init.Mode != "holistic-loop" {
+		t.Fatalf("Mode = %q, want holistic-loop", init.Mode)
+	}
+	want := []string{"system works", "audit trail preserved"}
+	if len(init.AcceptanceCriteria) != len(want) {
+		t.Fatalf("AcceptanceCriteria = %v, want %v", init.AcceptanceCriteria, want)
+	}
+	for i := range want {
+		if init.AcceptanceCriteria[i] != want[i] {
+			t.Errorf("AcceptanceCriteria[%d] = %q, want %q", i, init.AcceptanceCriteria[i], want[i])
+		}
+	}
+}
+
+func TestService_Create_InvalidMode(t *testing.T) {
+	svc := newTestService(t, nil)
+
+	_, err := svc.Create(CreateRequest{Name: "bad-mode", Title: "Bad Mode", Mode: "sideways"})
+	if err == nil {
+		t.Fatal("expected invalid mode error")
+	}
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected ErrValidation, got %v", err)
 	}
 }
 
@@ -133,6 +195,31 @@ func TestService_Create_DuplicateName(t *testing.T) {
 	_, err = svc.Create(CreateRequest{Name: "dup", Title: "Second"})
 	if err == nil {
 		t.Fatal("expected error for duplicate name")
+	}
+}
+
+func TestService_Update_ModeEmitsEvent(t *testing.T) {
+	svc := newTestService(t, nil)
+	logger := &initiativeEventLogger{}
+	svc.SetEventLogger(logger)
+
+	if _, err := svc.Create(CreateRequest{Name: "mode-switch", Title: "Mode Switch"}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	mode := "phased-plan-drain"
+	updated, err := svc.Update("mode-switch", UpdateRequest{Mode: &mode})
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+	if updated.Mode != mode {
+		t.Fatalf("Mode = %q, want %q", updated.Mode, mode)
+	}
+	if len(logger.modeChanges) != 1 {
+		t.Fatalf("modeChanges = %v, want one event", logger.modeChanges)
+	}
+	got := logger.modeChanges[0]
+	if got.name != "mode-switch" || got.from != "item-level" || got.to != mode {
+		t.Fatalf("mode change event = %+v", got)
 	}
 }
 

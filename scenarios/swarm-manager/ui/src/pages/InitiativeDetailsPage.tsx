@@ -12,7 +12,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, AlertTriangle, MessageCirclePlus, ClipboardCheck } from "lucide-react";
+import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, MessageCirclePlus, ClipboardCheck, Workflow } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -30,6 +30,7 @@ import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDe
 import { FeedbackPanel } from "../components/initiative/feedback-panel";
 import { FeedbackDialog } from "../components/initiative/feedback-dialog";
 import { InitiativeReviewPanel } from "../components/initiative/initiative-review-panel";
+import { OperatingModePanel } from "../components/initiative/operating-mode-panel";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
 import { useUrlState } from "../hooks/use-url-state";
@@ -54,7 +55,7 @@ import { BACKLOG_STATUS_COLORS } from "../types";
 import { backlogDetailPath, initiativeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
 
-type InitiativeTab = "info" | "feedback" | "review" | "files";
+type InitiativeTab = "info" | "mode" | "feedback" | "review" | "files";
 type ItemsView = "list" | "graph";
 
 interface ResolvedInitiativeItem {
@@ -333,7 +334,7 @@ export function InitiativeDetailsPage() {
 
   // --- Tab state ---
   const [activeTab, setActiveTab] = useUrlState<InitiativeTab>("tab", "info", {
-    validate: (v): v is InitiativeTab => ["info", "feedback", "review", "files"].includes(v),
+    validate: (v): v is InitiativeTab => ["info", "mode", "feedback", "review", "files"].includes(v),
   });
 
   // --- Feedback dialog (header button entry point) ---
@@ -604,6 +605,10 @@ export function InitiativeDetailsPage() {
             <CircleHelp className="h-4 w-4" />
             Info
           </TabsTrigger>
+          <TabsTrigger value="mode" className="gap-2" data-testid={selectors.initiativeDetails.tabMode}>
+            <Workflow className="h-4 w-4" />
+            Mode
+          </TabsTrigger>
           <TabsTrigger value="feedback" className="gap-2" data-testid={selectors.initiativeDetails.tabFeedback}>
             <MessageCirclePlus className="h-4 w-4" />
             Feedback
@@ -722,12 +727,14 @@ export function InitiativeDetailsPage() {
                   </div>
                   <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      Priority
+                      <Workflow className="h-3.5 w-3.5" />
+                      Mode
                     </div>
-                    <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">{priority > 0 ? `P${priority}` : "Unset"}</div>
+                    <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">
+                      {formatDisplayText((initiative.mode ?? "item-level").replace(/-/g, " "))}
+                    </div>
                     <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
-                      {missingItemCount > 0 ? `${missingItemCount} unresolved item ${missingItemCount === 1 ? "ref" : "refs"}` : "All item refs resolved"}
+                      {missingItemCount > 0 ? `${missingItemCount} unresolved item ${missingItemCount === 1 ? "ref" : "refs"}` : priority > 0 ? `P${priority} priority` : "Priority unset"}
                     </p>
                   </div>
                 </div>
@@ -956,6 +963,16 @@ export function InitiativeDetailsPage() {
               archivedAt: item.archivedAt,
               missing: item.missing,
             }))}
+          />
+        )}
+
+        {activeTab === "mode" && (
+          <OperatingModePanel
+            initiative={initiative}
+            onInitiativeUpdated={() => {
+              void refetch();
+              void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
+            }}
           />
         )}
 

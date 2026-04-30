@@ -42,6 +42,10 @@ export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } 
 export { initiativeService, createInitiativeService } from "./initiative-service";
 export type { IInitiativeService } from "./initiative-service";
 
+// Initiative Operating Modes
+export { initiativeModeService, createInitiativeModeService } from "./initiative-mode-service";
+export type { IInitiativeModeService, StartOperatingModePhaseArgs, SwitchOperatingModeArgs } from "./initiative-mode-service";
+
 // Prompt Center
 export { promptService, createPromptService } from "./prompt-service";
 export type {

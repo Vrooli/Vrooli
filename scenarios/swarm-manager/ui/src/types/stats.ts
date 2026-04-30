@@ -16,6 +16,7 @@ export interface StatsResponse {
   blocking: BlockingStats;
   agent: AgentStats;
   dashboard: DashboardStats;
+  mode: ModeStats;
 }
 
 /** Span of event-log history observed by the engine. */
@@ -114,11 +115,36 @@ export interface DashboardStats {
   velocity_weeks_covered: number;
 }
 
+/** Operating-mode adoption and phase-run metrics. */
+export interface ModeStats {
+  usage_by_mode: Record<string, number>;
+  mode_switch_count: number;
+  phase_runs_by_mode: Record<string, Record<string, number>>;
+  completed_by_mode: Record<string, number>;
+  failed_by_mode: Record<string, number>;
+  canceled_by_mode: Record<string, number>;
+  replan_rate_by_mode: Record<string, KindRate>;
+  acceptance_rate_by_mode: Record<string, KindRate>;
+  avg_phase_duration_seconds: Record<string, Record<string, number>>;
+  avg_runs_per_completed_scope: Record<string, number>;
+  backlog_sync_by_mode: Record<string, BacklogSyncStats>;
+  usage_by_profile: Record<string, number>;
+  phase_runs_by_profile: Record<string, Record<string, number>>;
+}
+
+/** Backlog reconciliation summary emitted by operating-mode phases. */
+export interface BacklogSyncStats {
+  events: number;
+  items_completed: number;
+  items_created: number;
+  items_updated: number;
+}
+
 /** Completions in a calendar week. */
 export interface VelocityPoint {
   week_start: string;
   completed: number;
 }
 
-/** The 6 stat categories, matching the API's ?category= filter values. */
-export type StatsCategory = "dashboard" | "throughput" | "agent" | "timing" | "blocking" | "scope";
+/** The stat categories, matching the API's ?category= filter values. */
+export type StatsCategory = "dashboard" | "throughput" | "agent" | "timing" | "blocking" | "scope" | "modes";

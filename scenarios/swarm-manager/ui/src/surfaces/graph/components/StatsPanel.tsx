@@ -25,6 +25,7 @@ import type {
   BlockingStats,
   DashboardStats,
   HistoryWindow,
+  ModeStats,
   ScopeStats,
   StatsCategory,
   StatsResponse,
@@ -43,6 +44,7 @@ const STATS_TABS: { id: StatsCategory; label: string }[] = [
   { id: "timing", label: "Timing" },
   { id: "blocking", label: "Blocking" },
   { id: "scope", label: "Scope" },
+  { id: "modes", label: "Modes" },
 ];
 
 // Default min sample threshold used when the response does not include one.
@@ -147,6 +149,8 @@ function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) 
       return <BlockingTab data={data.blocking} />;
     case "scope":
       return <ScopeTab data={data.scope} />;
+    case "modes":
+      return <ModesTab data={data.mode} />;
   }
 }
 
@@ -607,4 +611,135 @@ function ScopeTab({ data }: { data: ScopeStats }) {
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Modes tab
+// ---------------------------------------------------------------------------
+
+function ModesTab({ data }: { data: ModeStats }) {
+  const usageEntries = Object.entries(data?.usage_by_mode ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const phaseEntries = Object.entries(data?.phase_runs_by_mode ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const profileEntries = Object.entries(data?.usage_by_profile ?? {}).sort(([, a], [, b]) => b - a);
+  const syncEntries = Object.entries(data?.backlog_sync_by_mode ?? {}).sort(([a], [b]) => a.localeCompare(b));
+
+  return (
+    <div className="space-y-4" data-testid="stats-content-modes">
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Mode Switches" value={String(data?.mode_switch_count ?? 0)} />
+        <StatCard label="Profiles Used" value={String(profileEntries.length)} />
+      </div>
+
+      <div>
+        <SectionLabel>Current Mode Usage</SectionLabel>
+        {usageEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No initiatives recorded yet</p>
+        ) : (
+          <ul className="space-y-2">
+            {usageEntries.map(([mode, count]) => (
+              <li key={mode} className="flex items-center justify-between rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-sm">
+                <span className="text-slate-300">{formatModeLabel(mode)}</span>
+                <span className="font-medium text-slate-100">{count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <SectionLabel>Phase Runs</SectionLabel>
+        {phaseEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No operating-mode phase runs yet</p>
+        ) : (
+          <div className="space-y-3">
+            {phaseEntries.map(([mode, phases]) => (
+              <div key={mode} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-200">{formatModeLabel(mode)}</span>
+                  <span className="text-xs text-slate-500">{sumValues(phases)} runs</span>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(phases).sort(([a], [b]) => a.localeCompare(b)).map(([phase, count]) => (
+                    <div key={phase} className="text-xs">
+                      <div className="mb-1 flex justify-between">
+                        <span className="text-slate-400">{formatModeLabel(phase)}</span>
+                        <span className="text-slate-300">{count}</span>
+                      </div>
+                      <ProgressBar value={count} max={Math.max(1, sumValues(phases))} color="bg-cyan-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {Object.entries(data?.replan_rate_by_mode ?? {}).map(([mode, rate]) => (
+          <StatCard
+            key={`replan-${mode}`}
+            label={`${formatModeLabel(mode)} Replan`}
+            value={formatRate(rate.rate)}
+            subtext={`n=${rate.sample_size}`}
+          />
+        ))}
+        {Object.entries(data?.acceptance_rate_by_mode ?? {}).map(([mode, rate]) => (
+          <StatCard
+            key={`acceptance-${mode}`}
+            label={`${formatModeLabel(mode)} Acceptance`}
+            value={formatRate(rate.rate)}
+            subtext={`n=${rate.sample_size}`}
+          />
+        ))}
+      </div>
+
+      <div>
+        <SectionLabel>Profile Usage</SectionLabel>
+        {profileEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No profile usage recorded yet</p>
+        ) : (
+          <ul className="space-y-1">
+            {profileEntries.map(([profile, count]) => (
+              <li key={profile} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-800/50">
+                <span className="truncate text-slate-300">{profile}</span>
+                <span className="ml-2 shrink-0 rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">{count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {syncEntries.length > 0 && (
+        <div>
+          <SectionLabel>Backlog Sync</SectionLabel>
+          <ul className="space-y-2">
+            {syncEntries.map(([mode, sync]) => (
+              <li key={mode} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3 text-xs text-slate-400">
+                <div className="mb-1 font-medium text-slate-200">{formatModeLabel(mode)}</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <span>{sync.events} events</span>
+                  <span>{sync.items_completed} completed</span>
+                  <span>{sync.items_created} created</span>
+                  <span>{sync.items_updated} updated</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatModeLabel(value: string): string {
+  return value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function sumValues(values: Record<string, number>): number {
+  return Object.values(values).reduce((sum, value) => sum + value, 0);
 }

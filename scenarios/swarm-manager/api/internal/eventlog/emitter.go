@@ -149,6 +149,10 @@ func (e *Emitter) EmitInitiativeStatusChanged(name, from, to string) {
 	e.emit(EntityInitiative, name, EventInitiativeStatusChanged, StatusChangePayload{From: from, To: to})
 }
 
+func (e *Emitter) EmitInitiativeModeChanged(name, from, to string) {
+	e.emit(EntityInitiative, name, EventInitiativeModeChanged, InitiativeModeChangePayload{From: from, To: to})
+}
+
 func (e *Emitter) EmitInitiativeArchived(name, previousStatus, archivedAt string) {
 	e.emit(EntityInitiative, name, EventInitiativeArchived, ArchivePayload{
 		PreviousStatus: previousStatus,
@@ -191,6 +195,33 @@ func (e *Emitter) EmitMigrationApplied(name, description string, affectedIDs int
 		Description: description,
 		AffectedIDs: affectedIDs,
 	})
+}
+
+// --- Operating mode events ---
+
+func (e *Emitter) EmitOperatingModePhaseStarted(scopeID string, payload OperatingModePhasePayload) {
+	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseStarted, payload)
+}
+
+func (e *Emitter) EmitOperatingModePhaseCompleted(scopeID string, payload OperatingModePhasePayload) {
+	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseCompleted, payload)
+}
+
+func (e *Emitter) EmitOperatingModePhaseFailed(scopeID string, payload OperatingModePhasePayload) {
+	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseFailed, payload)
+}
+
+func (e *Emitter) EmitOperatingModePhaseCanceled(scopeID string, payload OperatingModePhasePayload) {
+	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseCanceled, payload)
+}
+
+func (e *Emitter) EmitOperatingModeReplanNeeded(scopeID string, payload OperatingModePhasePayload) {
+	payload.ReplanNeeded = true
+	e.emit(EntityInitiative, scopeID, EventOperatingModeReplanNeeded, payload)
+}
+
+func (e *Emitter) EmitOperatingModeBacklogSynced(scopeID string, payload OperatingModeBacklogSyncPayload) {
+	e.emit(EntityInitiative, scopeID, EventOperatingModeBacklogSynced, payload)
 }
 
 // --- Decision/workshop events ---

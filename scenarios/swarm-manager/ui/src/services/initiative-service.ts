@@ -29,8 +29,11 @@ interface RawRollup {
 interface RawInitiative {
   archived_at?: string;
   archivedAt?: string;
+  acceptance_criteria?: string[];
+  acceptanceCriteria?: string[];
   depends_on?: string[];
   dependsOn?: string[];
+  mode?: string;
   priority?: number;
   [key: string]: unknown;
 }
@@ -48,13 +51,17 @@ function normalizeItem(
   const initiative = raw.initiative ?? {};
   // Normalize snake_case fields from API to camelCase expected by TS types.
   const archivedAt = initiative.archivedAt ?? initiative.archived_at;
+  const acceptanceCriteria = initiative.acceptanceCriteria ?? initiative.acceptance_criteria ?? [];
   const dependsOn = initiative.dependsOn ?? initiative.depends_on ?? [];
+  const mode = initiative.mode ?? "item-level";
   const priority = initiative.priority ?? 0;
   const targetScenarios = raw.targetScenarios ?? raw.target_scenarios;
   return {
     ...raw,
     initiative: {
       ...initiative,
+      acceptanceCriteria,
+      mode,
       priority,
       dependsOn,
       ...(archivedAt ? { archivedAt } : {}),
@@ -83,6 +90,9 @@ export interface IInitiativeService {
   listFiles(name: string): Promise<TreeFile[]>;
   getFileContent(name: string, path: string): Promise<string>;
   updateNote(name: string, note: string): Promise<InitiativeWithRollup>;
+  updateMetadata(name: string, patch: {
+    acceptanceCriteria?: string[];
+  }): Promise<InitiativeWithRollup>;
 }
 
 export function createInitiativeService(
@@ -113,6 +123,20 @@ export function createInitiativeService(
       const raw = await apiClient.put<Record<string, unknown>>(
         API_ENDPOINTS.initiativeByName(name),
         { note },
+      );
+      return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
+    },
+
+    async updateMetadata(name: string, patch: {
+      acceptanceCriteria?: string[];
+    }): Promise<InitiativeWithRollup> {
+      const body: Record<string, unknown> = {};
+      if (patch.acceptanceCriteria !== undefined) {
+        body.acceptance_criteria = patch.acceptanceCriteria;
+      }
+      const raw = await apiClient.put<Record<string, unknown>>(
+        API_ENDPOINTS.initiativeByName(name),
+        body,
       );
       return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
     },

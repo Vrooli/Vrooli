@@ -668,6 +668,25 @@ func TestSpec_RejectsUnknownOwnerType(t *testing.T) {
 	}
 }
 
+func TestSpec_AcceptsOperatingModePurposes(t *testing.T) {
+	t.Parallel()
+	purposes := []Purpose{
+		PurposeHolisticLoopInvestigate,
+		PurposeHolisticLoopPlan,
+		PurposeHolisticLoopExecute,
+		PurposeHolisticLoopReview,
+		PurposePhasedPlanPrepare,
+		PurposePhasedPlanExecuteNext,
+		PurposePhasedPlanClassifyProgress,
+		PurposePhasedPlanReview,
+	}
+	for _, purpose := range purposes {
+		if _, err := (Spec{OwnerType: OwnerInitiative, OwnerName: "init-a", Purpose: purpose}).normalized(); err != nil {
+			t.Fatalf("purpose %q rejected: %v", purpose, err)
+		}
+	}
+}
+
 func TestHasActiveAgent_ReturnsFalseAfterComplete(t *testing.T) {
 	t.Parallel()
 	raw := &stubAgentService{enabled: true}

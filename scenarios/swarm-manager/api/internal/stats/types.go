@@ -18,6 +18,7 @@ type StatsResponse struct {
 	Agent       AgentStats      `json:"agent"`
 	Dashboard   DashboardStats  `json:"dashboard"`
 	Review      ReviewStats     `json:"review"`
+	Mode        ModeStats       `json:"mode"`
 }
 
 // HistoryWindow reports the span of event history the engine has observed. The
@@ -149,4 +150,28 @@ type ReviewStats struct {
 	VerificationRate        float64 `json:"verification_rate"`
 	RequestMoreRate         float64 `json:"request_more_rate"`
 	AverageReviewDuration   float64 `json:"avg_review_duration_seconds"`
+}
+
+// ModeStats tracks operating-mode adoption and phase-run outcomes.
+type ModeStats struct {
+	UsageByMode              map[string]int                `json:"usage_by_mode"`
+	ModeSwitchCount          int                           `json:"mode_switch_count"`
+	PhaseRunsByMode          map[string]map[string]int     `json:"phase_runs_by_mode"`
+	CompletedByMode          map[string]int                `json:"completed_by_mode"`
+	FailedByMode             map[string]int                `json:"failed_by_mode"`
+	CanceledByMode           map[string]int                `json:"canceled_by_mode"`
+	ReplanRateByMode         map[string]KindRate           `json:"replan_rate_by_mode"`
+	AcceptanceRateByMode     map[string]KindRate           `json:"acceptance_rate_by_mode"`
+	AvgPhaseDurationSeconds  map[string]map[string]float64 `json:"avg_phase_duration_seconds"`
+	AvgRunsPerCompletedScope map[string]float64            `json:"avg_runs_per_completed_scope"`
+	BacklogSyncByMode        map[string]BacklogSyncStats   `json:"backlog_sync_by_mode"`
+	UsageByProfile           map[string]int                `json:"usage_by_profile"`
+	PhaseRunsByProfile       map[string]map[string]int     `json:"phase_runs_by_profile"`
+}
+
+type BacklogSyncStats struct {
+	Events         int `json:"events"`
+	ItemsCompleted int `json:"items_completed"`
+	ItemsCreated   int `json:"items_created"`
+	ItemsUpdated   int `json:"items_updated"`
 }

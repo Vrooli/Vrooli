@@ -56,6 +56,37 @@ func TestDefaultProfileRef_UsesManifestProfileOnly(t *testing.T) {
 	}
 }
 
+func TestProfileRefFor_UsesExplicitProfileKey(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName: "Swarm Manager",
+		ProfileKey:  "swarm-manager/default",
+		Timeout:     5 * time.Second,
+		Enabled:     true,
+	})
+	ref, err := svc.profileRefFor("swarm-manager/deep-work")
+	if err != nil {
+		t.Fatalf("profileRefFor returned error: %v", err)
+	}
+	if ref == nil || ref.ProfileKey != "swarm-manager/deep-work" {
+		t.Fatalf("profileRefFor explicit key = %+v", ref)
+	}
+}
+
+func TestProfileRefFor_FailsWhenReconciledProfilesMissingExplicitKey(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName: "Swarm Manager",
+		ProfileKey:  "swarm-manager/default",
+		Timeout:     5 * time.Second,
+		Enabled:     true,
+	})
+	svc.profileIDs = map[string]string{"swarm-manager/default": "profile-default"}
+
+	_, err := svc.profileRefFor("swarm-manager/deep-work")
+	if err == nil {
+		t.Fatal("expected missing reconciled profile error")
+	}
+}
+
 func TestBuildProfile(t *testing.T) {
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "Swarm Manager",

@@ -53,6 +53,7 @@ type AgentService struct {
 	profileName    string
 	profileKey     string
 	profileID      string
+	profileIDs     map[string]string
 	mu             sync.RWMutex
 	enabled        bool
 	settingsReader SettingsReader
@@ -87,6 +88,7 @@ func NewAgentService(cfg AgentServiceConfig) *AgentService {
 		client:         client,
 		profileName:    strings.TrimSpace(cfg.ProfileName),
 		profileKey:     strings.TrimSpace(cfg.ProfileKey),
+		profileIDs:     make(map[string]string),
 		enabled:        cfg.Enabled,
 		settingsReader: cfg.SettingsReader,
 	}
@@ -128,13 +130,15 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 
 	s.mu.Lock()
 	found := false
+	profileIDs := make(map[string]string, len(resp.Results))
 	for _, item := range resp.Results {
+		profileIDs[item.ProfileKey] = item.ProfileId
 		if item.ProfileKey == s.profileKey {
 			s.profileID = item.ProfileId
 			found = true
-			break
 		}
 	}
+	s.profileIDs = profileIDs
 	s.mu.Unlock()
 	if resp.Failed > 0 {
 		return fmt.Errorf("reconcile scenario profiles: %d profile source(s) failed validation", resp.Failed)
@@ -165,6 +169,7 @@ type ResearchSpawnRequest struct {
 	ProjectRoot string
 	CreatedBy   string
 	Mode        string
+	ProfileKey  string
 }
 
 // InitiativeSpawnRequest describes a request to spawn an initiative-scoped
@@ -188,6 +193,7 @@ type InitiativeSpawnRequest struct {
 	Creates            []string
 	Environment        map[string]string
 	ContextAttachments []*domainpb.ContextAttachment
+	ProfileKey         string
 }
 
 // BacklogSpawnRequest describes a request to spawn a backlog agent.
@@ -206,6 +212,7 @@ type BacklogSpawnRequest struct {
 	Creates            []string
 	Environment        map[string]string
 	ContextAttachments []*domainpb.ContextAttachment
+	ProfileKey         string
 }
 
 // RunResult returns agent-manager identifiers.
@@ -290,10 +297,14 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 	}
 
 	tag := buildResearchTag(req.IdeaName)
+	profileRef, err := s.profileRefFor(req.ProfileKey)
+	if err != nil {
+		return RunResult{}, err
+	}
 	runReq := &apipb.CreateRunRequest{
 		ConversationId: freshConversationID(),
 		TaskId:         createdTask.Id,
-		ProfileRef:     s.defaultProfileRef(),
+		ProfileRef:     profileRef,
 		Tag:            &tag,
 		Force:          true,
 	}
@@ -355,10 +366,14 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	}
 
 	tag := buildBacklogTag(req.Kind, req.Name, req.Purpose)
+	profileRef, err := s.profileRefFor(req.ProfileKey)
+	if err != nil {
+		return RunResult{}, err
+	}
 	runReq := &apipb.CreateRunRequest{
 		ConversationId: freshConversationID(),
 		TaskId:         createdTask.Id,
-		ProfileRef:     s.defaultProfileRef(),
+		ProfileRef:     profileRef,
 		Tag:            &tag,
 		Force:          true,
 	}
@@ -427,10 +442,14 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 	}
 
 	tag := buildInitiativeTag(req.Name, req.Purpose, req.RoundNumber)
+	profileRef, err := s.profileRefFor(req.ProfileKey)
+	if err != nil {
+		return RunResult{}, err
+	}
 	runReq := &apipb.CreateRunRequest{
 		ConversationId: freshConversationID(),
 		TaskId:         createdTask.Id,
-		ProfileRef:     s.defaultProfileRef(),
+		ProfileRef:     profileRef,
 		Tag:            &tag,
 		Force:          true,
 	}

@@ -1,17 +1,30 @@
-# Execution Modes: Backlog-Item-Level vs. Initiative-Level
+# Execution Modes and Operating Modes
 
-> **Status:** Concept document. Defines the dual-mode framework that governs *what unit of work an operator-and-agent pair operates on at one time*. The backlog-item-level mode is fully implemented today. The initiative-level mode is documented here as the intended target; its implementation is described in [`docs/plans/swarm-manager-initiative-operating-mode-implementation.md`](../plans/swarm-manager-initiative-operating-mode-implementation.md).
+> **Status:** Concept document. Defines the operating-mode framework that governs *what unit of work an operator-and-agent pair operates on at one time*. `item-level` is the default implemented mode. `holistic-loop` and `phased-plan-drain` are registered non-default initiative modes whose execution runners are being implemented in phases; see [`docs/plans/swarm-manager-initiative-operating-mode-implementation.md`](../plans/swarm-manager-initiative-operating-mode-implementation.md).
 
 ## TL;DR
 
-Swarm Manager has two execution modes that reflect two genuinely different shapes of work:
+Swarm Manager now models execution methodology as an explicit initiative `mode`. A mode is not just a phase list; it owns the unit of work, phase graph, run strategy, artifact policy, prompt routing, AgentManager profile policy, backlog/audit reconciliation policy, metrics policy, locking behavior, and UI workspace surface.
 
 | Mode | Unit of execution | Work shape it fits | When to use |
 |------|------------------|--------------------|-------------|
-| **Backlog-item-level** (default, implemented) | One backlog item per agent run | Items are properly scoped, independent, and stable through execution | Items are right-sized, loosely coupled, reviewable in isolation |
-| **Initiative-level** (documented; see Plan B for implementation) | The whole initiative, holistically | Items are coupled, likely to shift mid-flight, mis-scoped, or only validatable as a system | Per-item execution would leave broken intermediate states; the right item shape is only knowable after work begins; the natural unit of validation crosses item boundaries |
+| **item-level** (default) | One backlog item per agent run | Items are properly scoped, independent, and stable through execution | Items are right-sized, loosely coupled, reviewable in isolation |
+| **holistic-loop** | The whole initiative through `investigate -> plan -> execute -> review -> replan` | Items are coupled, likely to shift mid-flight, mis-scoped, or only validatable as a system | Per-item execution would leave broken intermediate states; the right item shape is only knowable after investigation/execution |
+| **phased-plan-drain** | The whole initiative through a stable sequential plan and accumulated handoffs | A large multi-phase plan should be drained by agents completing the earliest contiguous phase(s) they can fully finish | A plan already exists or can be prepared once, and continuity between handoffs matters more than parallelism |
 
-The two modes are not "small vs. big work" and they are not "operator-absent vs. operator-present" — both modes use the same async cadence (operator reviews artifacts and gives minimal feedback between phases). They are **two different units of execution and validation**, chosen based on the shape of the work. Choosing the right mode for an initiative is a property of *how its work is shaped*, not of how much work there is or how much the operator is around to drive it.
+The modes are not "small vs. big work" and they are not "operator-absent vs. operator-present" — they are different units of execution and validation, chosen based on work shape. Choosing the right mode for an initiative is a property of *how its work is shaped*, not of how much work there is or how much the operator is around to drive it.
+
+## Operating-Mode Contract
+
+The backend registry lives at [CODE: api/internal/operatingmode/registry.go]. It currently registers:
+
+- `item-level` as the default bridge over the existing backlog-item execution/workshop/review flows.
+- `holistic-loop` as an initiative-scoped, operator-gated loop using `swarm-manager/deep-work` for investigate/plan/execute and `swarm-manager/analysis` for review.
+- `phased-plan-drain` as an initiative-scoped sequential handoff strategy using `swarm-manager/deep-work` for prepare/execute and `swarm-manager/analysis` for classify/review.
+
+Initiative metadata now stores `mode` and `acceptance_criteria`; historical records normalize blank mode to `item-level`. Mode changes emit `initiative.mode_changed` events so stats and audit surfaces can observe adoption.
+
+Mode phases are also registered in the prompt catalog by `(mode, phase)`, with stable Agent Activity purposes and AgentManager profile keys supplied by the operating-mode definition. The event log now has typed operating-mode phase, replan, and backlog-sync events; the stats surface includes a Modes tab for mode usage, phase runs, profile usage, replan/acceptance rates, and backlog reconciliation counts. The shared runner and phase APIs still need to call these primitives.
 
 ## Why this distinction exists
 
@@ -159,4 +172,5 @@ The modes solve different problems for different work shapes. Both are necessary
 
 ## Changelog
 
+- **2026-04-30** — Added mode-aware prompt catalog resolution, stable phase activity purposes, typed operating-mode event/stat contracts, and the first Modes stats UI surface.
 - **2026-04-28** — Initial document. Authored during walk #5 explicit divergence after the 2026-04-27 sandboxing trap surfaced "items are the right unit of execution and validation" as a load-bearing assumption that doesn't hold for coupled or shifting work.

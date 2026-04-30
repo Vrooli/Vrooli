@@ -1,6 +1,10 @@
 package promptcatalog
 
-import "testing"
+import (
+	"testing"
+
+	"swarm-manager/internal/operatingmode"
+)
 
 func TestResolveBacklogSkill(t *testing.T) {
 	tests := []struct {
@@ -81,6 +85,34 @@ func TestResolveInitiativeSkill(t *testing.T) {
 	}
 	if _, ok := ResolveInitiativeSkill("unknown"); ok {
 		t.Fatal("expected unknown purpose to miss")
+	}
+}
+
+func TestResolveInitiativeModeSkill(t *testing.T) {
+	for _, mode := range []operatingmode.Mode{operatingmode.ModeHolisticLoop, operatingmode.ModePhasedPlanDrain} {
+		def, err := operatingmode.DefinitionFor(mode)
+		if err != nil {
+			t.Fatalf("DefinitionFor(%q): %v", mode, err)
+		}
+		for phase, phaseDef := range def.PhaseGraph.Phases {
+			entry, ok := ResolveInitiativeModeSkill(string(mode), string(phase))
+			if !ok {
+				t.Fatalf("ResolveInitiativeModeSkill(%q, %q) missed", mode, phase)
+			}
+			if entry.ID != phaseDef.CatalogID {
+				t.Fatalf("%s/%s catalog id = %q, want %q", mode, phase, entry.ID, phaseDef.CatalogID)
+			}
+			if entry.SkillID != phaseDef.SkillID {
+				t.Fatalf("%s/%s skill = %q, want %q", mode, phase, entry.SkillID, phaseDef.SkillID)
+			}
+		}
+	}
+
+	if _, ok := ResolveInitiativeModeSkill("item-level", "execute"); ok {
+		t.Fatal("item-level should not resolve through initiative mode phase catalog")
+	}
+	if _, ok := ResolveInitiativeModeSkill("holistic-loop", "unknown"); ok {
+		t.Fatal("unknown phase should miss")
 	}
 }
 

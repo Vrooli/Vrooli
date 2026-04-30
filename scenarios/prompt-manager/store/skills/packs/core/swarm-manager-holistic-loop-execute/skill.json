@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-holistic-loop-execute",
+  "name": "Swarm Manager Holistic Loop Execute",
+  "description": "Execute the current holistic-loop initiative plan at initiative scope.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "operating-mode", "holistic-loop", "execution"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-30T00:00:00Z"
+}

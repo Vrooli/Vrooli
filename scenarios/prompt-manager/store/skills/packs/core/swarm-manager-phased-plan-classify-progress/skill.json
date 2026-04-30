@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-phased-plan-classify-progress",
+  "name": "Swarm Manager Phased Plan Classify Progress",
+  "description": "Classify phased-plan-drain progress as continue, blocked, replan, or complete.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "operating-mode", "phased-plan-drain", "classification"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-30T00:00:00Z"
+}

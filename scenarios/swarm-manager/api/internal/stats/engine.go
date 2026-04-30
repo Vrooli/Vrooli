@@ -123,7 +123,25 @@ type aggregateState struct {
 	initiativeItems   map[string]map[string]bool // initiative → set of items
 	initiativeInitial map[string]int             // initiative → item count at creation
 	initiativeCreated map[string]bool            // initiatives that exist
-	itemStatus        map[string]string          // entity_id → current status
+	initiativeMode    map[string]string          // initiative → current operating mode
+	modeSwitchCount   int
+	itemStatus        map[string]string // entity_id → current status
+
+	// Operating-mode tracking.
+	modePhaseRuns           map[string]map[string]int
+	modeCompleted           map[string]int
+	modeFailed              map[string]int
+	modeCanceled            map[string]int
+	modeReplanNumerator     map[string]int
+	modeReplanDenominator   map[string]int
+	modeAcceptanceNumerator map[string]int
+	modeAcceptanceDenom     map[string]int
+	modeDurationSums        map[string]map[string]float64
+	modeDurationCounts      map[string]map[string]int
+	modeCompletedScopes     map[string]map[string]bool
+	modeProfileUsage        map[string]int
+	modeProfilePhaseRuns    map[string]map[string]int
+	modeBacklogSync         map[string]*BacklogSyncStats
 
 	// Execution tracking.
 	//
@@ -164,21 +182,36 @@ type aggregateState struct {
 
 func newAggregateState() *aggregateState {
 	return &aggregateState{
-		now:               time.Now,
-		currentBacklog:    make(map[string]bool),
-		createdAt:         make(map[string]time.Time),
-		inProgressAt:      make(map[string]time.Time),
-		queuedAt:          make(map[string]time.Time),
-		blockedItems:      make(map[string]time.Time),
-		blockReasons:      make(map[string]int),
-		initiativeItems:   make(map[string]map[string]bool),
-		initiativeInitial: make(map[string]int),
-		initiativeCreated: make(map[string]bool),
-		itemStatus:        make(map[string]string),
-		execHasFixup:      make(map[string]bool),
-		workshopRounds:    make(map[string]int),
-		execOutcome:       make(map[string]string),
-		decisionByKind:    make(map[string]*decisionKindCounters),
+		now:                     time.Now,
+		currentBacklog:          make(map[string]bool),
+		createdAt:               make(map[string]time.Time),
+		inProgressAt:            make(map[string]time.Time),
+		queuedAt:                make(map[string]time.Time),
+		blockedItems:            make(map[string]time.Time),
+		blockReasons:            make(map[string]int),
+		initiativeItems:         make(map[string]map[string]bool),
+		initiativeInitial:       make(map[string]int),
+		initiativeCreated:       make(map[string]bool),
+		initiativeMode:          make(map[string]string),
+		itemStatus:              make(map[string]string),
+		modePhaseRuns:           make(map[string]map[string]int),
+		modeCompletedScopes:     make(map[string]map[string]bool),
+		modeCompleted:           make(map[string]int),
+		modeFailed:              make(map[string]int),
+		modeCanceled:            make(map[string]int),
+		modeReplanNumerator:     make(map[string]int),
+		modeReplanDenominator:   make(map[string]int),
+		modeAcceptanceNumerator: make(map[string]int),
+		modeAcceptanceDenom:     make(map[string]int),
+		modeDurationSums:        make(map[string]map[string]float64),
+		modeDurationCounts:      make(map[string]map[string]int),
+		modeProfileUsage:        make(map[string]int),
+		modeProfilePhaseRuns:    make(map[string]map[string]int),
+		modeBacklogSync:         make(map[string]*BacklogSyncStats),
+		execHasFixup:            make(map[string]bool),
+		workshopRounds:          make(map[string]int),
+		execOutcome:             make(map[string]string),
+		decisionByKind:          make(map[string]*decisionKindCounters),
 	}
 }
 
@@ -189,6 +222,69 @@ type decisionKindCounters struct {
 	itemsAnswered          int
 	itemsRecommendedChosen int
 	itemsFreeformChosen    int
+}
+
+func (s *aggregateState) recordModePhaseStarted(p eventlog.OperatingModePhasePayload) {
+	if p.Mode == "" || p.Phase == "" {
+		return
+	}
+	incrementNested(s.modePhaseRuns, p.Mode, p.Phase, 1)
+	if p.AgentProfileKey != "" {
+		s.modeProfileUsage[p.AgentProfileKey]++
+		incrementNested(s.modeProfilePhaseRuns, p.AgentProfileKey, p.Phase, 1)
+	}
+}
+
+func (s *aggregateState) recordModePhaseTerminal(p eventlog.OperatingModePhasePayload, outcome string) {
+	if p.Mode == "" {
+		return
+	}
+	switch outcome {
+	case "completed":
+		s.modeCompleted[p.Mode]++
+		if p.ScopeID != "" {
+			if s.modeCompletedScopes[p.Mode] == nil {
+				s.modeCompletedScopes[p.Mode] = make(map[string]bool)
+			}
+			s.modeCompletedScopes[p.Mode][p.ScopeID] = true
+		}
+	case "failed":
+		s.modeFailed[p.Mode]++
+	case "canceled":
+		s.modeCanceled[p.Mode]++
+	}
+	if p.DurationSeconds > 0 && p.Phase != "" {
+		addNestedFloat(s.modeDurationSums, p.Mode, p.Phase, p.DurationSeconds)
+		incrementNested(s.modeDurationCounts, p.Mode, p.Phase, 1)
+	}
+	if outcome == "completed" {
+		if p.Phase == "execute" || p.Phase == "execute_next" {
+			s.modeReplanDenominator[p.Mode]++
+			if p.ReplanNeeded {
+				s.modeReplanNumerator[p.Mode]++
+			}
+		}
+		if p.Phase == "review" && p.Verdict != "" {
+			s.modeAcceptanceDenom[p.Mode]++
+			if p.Verdict == "accept" || p.Verdict == "accepted" {
+				s.modeAcceptanceNumerator[p.Mode]++
+			}
+		}
+	}
+}
+
+func incrementNested(m map[string]map[string]int, outer, inner string, delta int) {
+	if m[outer] == nil {
+		m[outer] = make(map[string]int)
+	}
+	m[outer][inner] += delta
+}
+
+func addNestedFloat(m map[string]map[string]float64, outer, inner string, delta float64) {
+	if m[outer] == nil {
+		m[outer] = make(map[string]float64)
+	}
+	m[outer][inner] += delta
 }
 
 // countExecOutcomes returns (completed, failed, manuallyAccepted) from
@@ -319,6 +415,9 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 	// --- Initiative ---
 	case eventlog.EventInitiativeCreated:
 		s.initiativeCreated[e.EntityID] = true
+		if s.initiativeMode[e.EntityID] == "" {
+			s.initiativeMode[e.EntityID] = "item-level"
+		}
 		if s.initiativeItems[e.EntityID] == nil {
 			s.initiativeItems[e.EntityID] = make(map[string]bool)
 		}
@@ -343,6 +442,60 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 			if items := s.initiativeItems[e.EntityID]; items != nil {
 				delete(items, p.Item)
 			}
+		}
+
+	case eventlog.EventInitiativeModeChanged:
+		var p eventlog.InitiativeModeChangePayload
+		if !unmarshalMeta(e.Metadata, &p) {
+			return
+		}
+		s.modeSwitchCount++
+		if p.To != "" {
+			s.initiativeMode[e.EntityID] = p.To
+		}
+
+	case eventlog.EventOperatingModePhaseStarted:
+		var p eventlog.OperatingModePhasePayload
+		if unmarshalMeta(e.Metadata, &p) {
+			s.recordModePhaseStarted(p)
+		}
+
+	case eventlog.EventOperatingModePhaseCompleted:
+		var p eventlog.OperatingModePhasePayload
+		if unmarshalMeta(e.Metadata, &p) {
+			s.recordModePhaseTerminal(p, "completed")
+		}
+
+	case eventlog.EventOperatingModePhaseFailed:
+		var p eventlog.OperatingModePhasePayload
+		if unmarshalMeta(e.Metadata, &p) {
+			s.recordModePhaseTerminal(p, "failed")
+		}
+
+	case eventlog.EventOperatingModePhaseCanceled:
+		var p eventlog.OperatingModePhasePayload
+		if unmarshalMeta(e.Metadata, &p) {
+			s.recordModePhaseTerminal(p, "canceled")
+		}
+
+	case eventlog.EventOperatingModeReplanNeeded:
+		var p eventlog.OperatingModePhasePayload
+		if unmarshalMeta(e.Metadata, &p) && p.Mode != "" {
+			s.modeReplanNumerator[p.Mode]++
+		}
+
+	case eventlog.EventOperatingModeBacklogSynced:
+		var p eventlog.OperatingModeBacklogSyncPayload
+		if unmarshalMeta(e.Metadata, &p) && p.Mode != "" {
+			bucket := s.modeBacklogSync[p.Mode]
+			if bucket == nil {
+				bucket = &BacklogSyncStats{}
+				s.modeBacklogSync[p.Mode] = bucket
+			}
+			bucket.Events++
+			bucket.ItemsCompleted += p.BacklogItemsCompleted
+			bucket.ItemsCreated += p.BacklogItemsCreated
+			bucket.ItemsUpdated += p.BacklogItemsUpdated
 		}
 
 	// --- Execution ---

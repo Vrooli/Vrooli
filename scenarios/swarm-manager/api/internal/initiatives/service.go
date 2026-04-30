@@ -41,6 +41,7 @@ type EventLogger interface {
 	EmitInitiativeItemAdded(name, item string)
 	EmitInitiativeItemRemoved(name, item string)
 	EmitInitiativeStatusChanged(name, from, to string)
+	EmitInitiativeModeChanged(name, from, to string)
 	EmitInitiativeArchived(name, previousStatus, archivedAt string)
 	EmitInitiativeUnarchived(name, archivedAt string)
 	EmitInitiativeViewed(name string)
@@ -121,6 +122,10 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	if !IsUserSettableInitiativeStatus(status) {
 		return nil, validationErr("status %q is owned by the review pipeline; initiatives are created as %q and transition via the review-decide endpoint", status, InitiativeStatusActive)
 	}
+	mode := NormalizeMode(req.Mode)
+	if !ValidateMode(mode) {
+		return nil, validationErr("invalid operating mode %q: must be one of %s", req.Mode, OperatingModeList())
+	}
 
 	if !ValidatePriority(req.Priority) {
 		return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", req.Priority)
@@ -136,21 +141,27 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	init := &Initiative{
-		Name:        name,
-		Title:       title,
-		Description: strings.TrimSpace(req.Description),
-		Status:      status,
-		Priority:    req.Priority,
-		DependsOn:   dependsOn,
-		Items:       items,
-		Created:     now,
-		Updated:     now,
+		Name:               name,
+		Title:              title,
+		Description:        strings.TrimSpace(req.Description),
+		Status:             status,
+		Mode:               mode,
+		Priority:           req.Priority,
+		DependsOn:          dependsOn,
+		Items:              items,
+		AcceptanceCriteria: normalizeStringList(req.AcceptanceCriteria),
+		Created:            now,
+		Updated:            now,
 	}
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)
 	}
 	if s.eventLogger != nil {
 		s.eventLogger.EmitInitiativeCreated(name)
+		defaultMode := NormalizeMode("")
+		if mode != defaultMode {
+			s.eventLogger.EmitInitiativeModeChanged(name, defaultMode, mode)
+		}
 		for _, item := range items {
 			s.eventLogger.EmitInitiativeItemAdded(name, item)
 		}
@@ -286,6 +297,8 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	}
 
 	oldStatus := init.Status
+	oldMode := NormalizeMode(init.Mode)
+	init.Mode = oldMode
 
 	if req.Title != nil {
 		title := strings.TrimSpace(*req.Title)
@@ -318,6 +331,13 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 		}
 		init.Status = status
 	}
+	if req.Mode != nil {
+		mode := NormalizeMode(*req.Mode)
+		if !ValidateMode(mode) {
+			return nil, validationErr("invalid operating mode %q: must be one of %s", *req.Mode, OperatingModeList())
+		}
+		init.Mode = mode
+	}
 	if req.Priority != nil {
 		if !ValidatePriority(*req.Priority) {
 			return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", *req.Priority)
@@ -334,6 +354,9 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if req.Items != nil {
 		init.Items = *req.Items
 	}
+	if req.AcceptanceCriteria != nil {
+		init.AcceptanceCriteria = normalizeStringList(*req.AcceptanceCriteria)
+	}
 	if req.Note != nil {
 		init.Note = strings.TrimSpace(*req.Note)
 	}
@@ -344,6 +367,9 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	}
 	if s.eventLogger != nil && oldStatus != init.Status {
 		s.eventLogger.EmitInitiativeStatusChanged(name, oldStatus, init.Status)
+	}
+	if s.eventLogger != nil && oldMode != init.Mode {
+		s.eventLogger.EmitInitiativeModeChanged(name, oldMode, init.Mode)
 	}
 	s.invalidateTopologyGraph()
 	return init, nil
@@ -499,7 +525,12 @@ func (s *Service) Replace(init Initiative) error {
 	init.Title = strings.TrimSpace(init.Title)
 	init.Description = strings.TrimSpace(init.Description)
 	init.Status = strings.TrimSpace(init.Status)
+	init.Mode = NormalizeMode(init.Mode)
+	if !ValidateMode(init.Mode) {
+		return fmt.Errorf("invalid operating mode %q: must be one of %s", init.Mode, OperatingModeList())
+	}
 	init.DependsOn = normalizeDependsOn(init.DependsOn)
+	init.AcceptanceCriteria = normalizeStringList(init.AcceptanceCriteria)
 	if err := s.validateDependsOn(init.Name, init.DependsOn); err != nil {
 		return err
 	}

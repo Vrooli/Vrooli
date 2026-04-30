@@ -112,6 +112,25 @@ const MOCK_STATS: StatsResponse = {
     estimated_weeks_remaining: 8.6,
     velocity_weeks_covered: 4,
   },
+  mode: {
+    usage_by_mode: { "item-level": 2, "holistic-loop": 1 },
+    mode_switch_count: 1,
+    phase_runs_by_mode: {
+      "holistic-loop": { investigate: 1, execute: 1 },
+    },
+    completed_by_mode: { "holistic-loop": 1 },
+    failed_by_mode: {},
+    canceled_by_mode: {},
+    replan_rate_by_mode: { "holistic-loop": { rate: 0.5, sample_size: 2 } },
+    acceptance_rate_by_mode: { "holistic-loop": { rate: 1, sample_size: 1 } },
+    avg_phase_duration_seconds: { "holistic-loop": { execute: 90 } },
+    avg_runs_per_completed_scope: { "holistic-loop": 2 },
+    backlog_sync_by_mode: {
+      "holistic-loop": { events: 1, items_completed: 2, items_created: 0, items_updated: 1 },
+    },
+    usage_by_profile: { "swarm-manager/deep-work": 2 },
+    phase_runs_by_profile: { "swarm-manager/deep-work": { investigate: 1, execute: 1 } },
+  },
 };
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -151,7 +170,7 @@ describe("StatsPanel", () => {
     expect(screen.getByText(/Server down/)).toBeInTheDocument();
   });
 
-  it("renders all 6 tab buttons", async () => {
+  it("renders all 7 tab buttons", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
     renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
 
@@ -163,6 +182,7 @@ describe("StatsPanel", () => {
     expect(screen.getByTestId("stats-tab-timing")).toBeInTheDocument();
     expect(screen.getByTestId("stats-tab-blocking")).toBeInTheDocument();
     expect(screen.getByTestId("stats-tab-scope")).toBeInTheDocument();
+    expect(screen.getByTestId("stats-tab-modes")).toBeInTheDocument();
   });
 
   it("defaults to the dashboard tab", async () => {
@@ -383,6 +403,21 @@ describe("StatsPanel", () => {
       fireEvent.click(screen.getByTestId("stats-tab-scope"));
 
       expect(screen.getByText("No initiatives yet")).toBeInTheDocument();
+    });
+  });
+
+  describe("Modes tab", () => {
+    it("displays operating mode usage and profile metrics", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-modes"));
+
+      expect(screen.getByTestId("stats-content-modes")).toBeInTheDocument();
+      expect(screen.getAllByText("Holistic Loop").length).toBeGreaterThan(0);
+      expect(screen.getByText("swarm-manager/deep-work")).toBeInTheDocument();
+      expect(screen.getByText("Backlog Sync")).toBeInTheDocument();
     });
   });
 });

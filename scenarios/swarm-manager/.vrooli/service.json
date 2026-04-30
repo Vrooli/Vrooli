@@ -201,7 +201,9 @@
             "reconcile": true,
             "mode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-profiles/default.json"
+              ".vrooli/agent-profiles/default.json",
+              ".vrooli/agent-profiles/deep-work.json",
+              ".vrooli/agent-profiles/analysis.json"
             ]
           }
         }

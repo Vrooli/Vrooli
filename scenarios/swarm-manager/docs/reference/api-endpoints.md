@@ -168,14 +168,100 @@ All list endpoints support `?archived=` query parameter:
 
 `PUT /api/v1/initiatives/{name}`
 
-Updates are partial.
+Updates are partial. This endpoint owns descriptive initiative metadata and
+acceptance criteria. Operating-mode changes use the dedicated switch endpoint
+below so active item-level executions can be handled explicitly.
 
 ```json
 {
   "title": "Desktop Release Governance",
-  "description": "Revised wording only"
+  "description": "Revised wording only",
+  "acceptance_criteria": [
+    "The full initiative can be reviewed at system scope."
+  ]
 }
 ```
+
+`mode` defaults to `item-level` when omitted on create. Valid values are
+`item-level`, `holistic-loop`, and `phased-plan-drain`.
+
+## Initiative Operating Mode Switch
+
+`POST /api/v1/initiatives/{name}/operating-mode/switch`
+
+Switches the initiative's operating mode through the lifecycle-aware mode
+boundary. When switching from `item-level` into a non-default mode, active
+member item executions cause a `409 active_item_executions` response unless the
+request explicitly confirms cancellation.
+
+```json
+{
+  "mode": "holistic-loop",
+  "cancel_active_item_executions": true,
+  "requested_by": "operator"
+}
+```
+
+Response:
+
+```json
+{
+  "initiative_name": "desktop-release-governance",
+  "from_mode": "item-level",
+  "to_mode": "holistic-loop",
+  "canceled_item_executions": [
+    {
+      "item_ref": "execute/item-1",
+      "execution_id": "exec-123",
+      "run_id": "run-456",
+      "status": "canceled"
+    }
+  ]
+}
+```
+
+## Initiative Operating Mode Workspace
+
+`GET /api/v1/initiatives/{name}/operating-mode/workspace`
+
+Returns the current mode definition, live initiative lock holder if present,
+declared mode artifacts, and durable phase rounds. For active rounds, the API
+best-effort refreshes AgentManager state before responding.
+
+## Initiative Operating Mode Phase Start
+
+`POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/start`
+
+Starts an initiative-scoped operating-mode phase through the registered mode
+definition. The handler resolves the phase's prompt skill, AgentManager profile,
+activity purpose, lock purpose, run strategy, and artifact policy from the
+operating-mode registry.
+
+```json
+{
+  "note": "Focus this pass on the API runner foundation.",
+  "override": false,
+  "requested_by": "operator"
+}
+```
+
+Response: `202 Accepted` with the created round envelope.
+
+Supported non-default phases:
+- `holistic-loop`: `investigate`, `plan`, `execute`, `review`
+- `phased-plan-drain`: `prepare_plan`, `execute_next`, `classify_progress`, `review`
+
+## Initiative Operating Mode Round Control
+
+`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/refresh?mode={mode}`
+
+Polls AgentManager for the round's run and persists terminal state when the run
+is complete, failed, or canceled.
+
+`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/cancel?mode={mode}`
+
+Stops the AgentManager run when it is still active, marks the round canceled,
+and releases the initiative lock when the run is the current holder.
 
 ## Initiative Archive / Unarchive
 

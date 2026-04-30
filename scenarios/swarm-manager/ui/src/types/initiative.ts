@@ -27,12 +27,22 @@ export type InitiativeStatus =
   | "failed"
   | "needs_followup";
 
+/** Initiative operating mode: the execution and validation methodology. */
+export type InitiativeOperatingMode =
+  | "item-level"
+  | "holistic-loop"
+  | "phased-plan-drain";
+
 /**
  * A named grouping of related backlog items.
  */
 export type Initiative = ProtoMessage<ProtoInitiative> & {
   /** ISO timestamp when the initiative was archived, or undefined if not archived. */
   archivedAt?: string;
+  /** Operating mode defaults to item-level for historical records. */
+  mode?: InitiativeOperatingMode;
+  /** Initiative-level acceptance criteria used by non-item-level modes. */
+  acceptanceCriteria?: string[];
 };
 
 /**

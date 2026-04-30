@@ -2,8 +2,9 @@
 // mutex that both the feedback and initiative-review services coordinate
 // through.
 //
-// Only one active agent run — feedback, feedback_continue, or review — may
-// hold the lock at a time per initiative. The lock is a JSON file
+// Only one active agent run — feedback, feedback_continue, initiative review,
+// or an operating-mode phase — may hold the lock at a time per initiative.
+// The lock is a JSON file
 // (`.feedback-lock`) in the initiative folder storing the holder's metadata
 // so UIs and CLI tools can surface *why* an initiative is locked rather than
 // a bare boolean.
@@ -43,7 +44,7 @@ type Lock struct {
 // Holder describes the run currently holding the lock.
 type Holder struct {
 	RunID          string `json:"run_id"`
-	Purpose        string `json:"purpose"` // feedback | review | feedback_continue
+	Purpose        string `json:"purpose"` // diagnostic purpose, not a lock namespace
 	RoundNumber    int    `json:"round_number,omitempty"`
 	AcquiredAt     string `json:"acquired_at"`
 	AcquiredBy     string `json:"acquired_by,omitempty"`
@@ -78,6 +79,23 @@ const (
 	// duration so a crash-stranded lock is swept by the next boot
 	// sweep within roughly one run's worth of time.
 	DefaultLockMaxAge = 2 * time.Hour
+)
+
+// Canonical initiative-agent lock purposes. The file name remains
+// `.feedback-lock` for disk compatibility, but these purpose values describe
+// every initiative-scoped agent that contends on the same mutex.
+const (
+	PurposeFeedback                   = "feedback"
+	PurposeFeedbackContinue           = "feedback_continue"
+	PurposeInitiativeReview           = "initiative_review"
+	PurposeHolisticLoopInvestigate    = "holistic_loop_investigate"
+	PurposeHolisticLoopPlan           = "holistic_loop_plan"
+	PurposeHolisticLoopExecute        = "holistic_loop_execute"
+	PurposeHolisticLoopReview         = "holistic_loop_review"
+	PurposePhasedPlanPrepare          = "phased_plan_prepare"
+	PurposePhasedPlanExecuteNext      = "phased_plan_execute_next"
+	PurposePhasedPlanClassifyProgress = "phased_plan_classify_progress"
+	PurposePhasedPlanReview           = "phased_plan_review"
 )
 
 func (l *Lock) path(initiativeName string) string {

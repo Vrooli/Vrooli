@@ -23,7 +23,95 @@ func (s *aggregateState) buildResponse() StatsResponse {
 		Agent:       s.buildAgent(),
 		Dashboard:   s.buildDashboard(now),
 		Review:      s.buildReview(),
+		Mode:        s.buildMode(),
 	}
+}
+
+func (s *aggregateState) buildMode() ModeStats {
+	usage := make(map[string]int)
+	for name := range s.initiativeCreated {
+		mode := s.initiativeMode[name]
+		if mode == "" {
+			mode = "item-level"
+		}
+		usage[mode]++
+	}
+
+	avgDurations := make(map[string]map[string]float64, len(s.modeDurationSums))
+	for mode, phases := range s.modeDurationSums {
+		avgDurations[mode] = make(map[string]float64, len(phases))
+		for phase, total := range phases {
+			if count := s.modeDurationCounts[mode][phase]; count > 0 {
+				avgDurations[mode][phase] = total / float64(count)
+			}
+		}
+	}
+
+	avgRunsPerScope := make(map[string]float64, len(s.modeCompletedScopes))
+	for mode, scopes := range s.modeCompletedScopes {
+		if len(scopes) == 0 {
+			continue
+		}
+		totalRuns := 0
+		for _, count := range s.modePhaseRuns[mode] {
+			totalRuns += count
+		}
+		avgRunsPerScope[mode] = float64(totalRuns) / float64(len(scopes))
+	}
+
+	return ModeStats{
+		UsageByMode:              usage,
+		ModeSwitchCount:          s.modeSwitchCount,
+		PhaseRunsByMode:          cloneNestedInt(s.modePhaseRuns),
+		CompletedByMode:          cloneIntMap(s.modeCompleted),
+		FailedByMode:             cloneIntMap(s.modeFailed),
+		CanceledByMode:           cloneIntMap(s.modeCanceled),
+		ReplanRateByMode:         buildRateMap(s.modeReplanNumerator, s.modeReplanDenominator),
+		AcceptanceRateByMode:     buildRateMap(s.modeAcceptanceNumerator, s.modeAcceptanceDenom),
+		AvgPhaseDurationSeconds:  avgDurations,
+		AvgRunsPerCompletedScope: avgRunsPerScope,
+		BacklogSyncByMode:        cloneBacklogSyncMap(s.modeBacklogSync),
+		UsageByProfile:           cloneIntMap(s.modeProfileUsage),
+		PhaseRunsByProfile:       cloneNestedInt(s.modeProfilePhaseRuns),
+	}
+}
+
+func buildRateMap(numerators, denominators map[string]int) map[string]KindRate {
+	result := make(map[string]KindRate, len(denominators))
+	for key, denom := range denominators {
+		var rate float64
+		if denom > 0 {
+			rate = float64(numerators[key]) / float64(denom)
+		}
+		result[key] = KindRate{Rate: rate, SampleSize: denom}
+	}
+	return result
+}
+
+func cloneIntMap(in map[string]int) map[string]int {
+	out := make(map[string]int, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+func cloneNestedInt(in map[string]map[string]int) map[string]map[string]int {
+	out := make(map[string]map[string]int, len(in))
+	for outer, inner := range in {
+		out[outer] = cloneIntMap(inner)
+	}
+	return out
+}
+
+func cloneBacklogSyncMap(in map[string]*BacklogSyncStats) map[string]BacklogSyncStats {
+	out := make(map[string]BacklogSyncStats, len(in))
+	for key, value := range in {
+		if value != nil {
+			out[key] = *value
+		}
+	}
+	return out
 }
 
 func (s *aggregateState) buildHistory(now time.Time) HistoryWindow {

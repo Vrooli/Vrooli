@@ -367,8 +367,17 @@ export const literalSelectors = {
     tabFiles: "initiative-details-tab-files",
     tabFeedback: "initiative-details-tab-feedback",
     tabReview: "initiative-details-tab-review",
+    tabMode: "initiative-details-tab-mode",
     addFeedbackButtonDesktop: "initiative-details-add-feedback-desktop",
     addFeedbackButtonMobile: "initiative-details-add-feedback-mobile",
+    modePanel: "initiative-mode-panel",
+    modeSelect: "initiative-mode-select",
+    modeSave: "initiative-mode-save",
+    criteriaInput: "initiative-mode-criteria",
+    criteriaSave: "initiative-mode-criteria-save",
+    phaseStart: "initiative-mode-phase-start",
+    roundCard: "initiative-mode-round-card",
+    artifactCard: "initiative-mode-artifact-card",
   },
   // Initiative feedback surface — dialog, panel, thread, proposal review.
   feedback: {

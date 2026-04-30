@@ -451,6 +451,25 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByTestId("initiative-details-add-feedback-desktop")).toBeInTheDocument();
   });
 
+  it("exposes the operating mode workspace tab", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      ...mockInitiativeData,
+      initiative: {
+        ...mockInitiativeData.initiative,
+        mode: "holistic-loop",
+        acceptanceCriteria: ["Pass initiative-level acceptance review"],
+      },
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("initiative-details-tab-mode")).toBeInTheDocument();
+    expect(screen.getByText(/Holistic loop/i)).toBeInTheDocument();
+  });
+
   it("renders the new in_review status chip colors when an item is in review", async () => {
     useBacklogStore.getState().setItems([
       {

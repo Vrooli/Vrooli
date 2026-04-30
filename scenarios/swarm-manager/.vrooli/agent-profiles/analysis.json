@@ -1,0 +1,20 @@
+{
+  "name": "swarm-manager-analysis",
+  "profileKey": "swarm-manager/analysis",
+  "description": "Read-mostly profile for Swarm Manager operating-mode classification and acceptance-review phases",
+  "runnerType": "RUNNER_TYPE_CLAUDE_CODE",
+  "modelPreset": "MODEL_PRESET_SMART",
+  "maxTurns": 450,
+  "timeout": "2700s",
+  "allowedTools": [
+    "Read",
+    "Glob",
+    "Grep",
+    "Bash"
+  ],
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "swarm-manager"
+}

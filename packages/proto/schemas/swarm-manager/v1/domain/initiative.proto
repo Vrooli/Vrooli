@@ -36,8 +36,8 @@ message Initiative {
   string description = 3;
 
   // Lifecycle state for the initiative.
-  // @constraint one of: active, completed
-  string status = 4 [(buf.validate.field).string = { in: ["active", "completed"] }];
+  // @constraint one of: active, in_review, review_pending, completed, failed, needs_followup
+  string status = 4 [(buf.validate.field).string = { in: ["active", "in_review", "review_pending", "completed", "failed", "needs_followup"] }];
 
   // Backlog item references as "kind/name" strings.
   repeated string items = 5;
@@ -65,6 +65,13 @@ message Initiative {
   // Upstream initiative names this initiative depends on. Creates a directed
   // edge in the initiative DAG; dependents cannot start until upstreams complete.
   repeated string depends_on = 11;
+
+  // Operating mode that owns initiative execution semantics.
+  // @constraint one of: item-level, holistic-loop, phased-plan-drain
+  string mode = 12 [(buf.validate.field).string = { in: ["item-level", "holistic-loop", "phased-plan-drain"] }];
+
+  // Initiative-scoped acceptance criteria used by non-item-level modes.
+  repeated string acceptance_criteria = 13;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

@@ -45,6 +45,16 @@ const (
 	PurposeFeedback         Purpose = "feedback"
 	PurposeFeedbackContinue Purpose = "feedback_continue"
 	PurposeInitiativeReview Purpose = "initiative_review"
+
+	PurposeHolisticLoopInvestigate Purpose = "holistic_loop_investigate"
+	PurposeHolisticLoopPlan        Purpose = "holistic_loop_plan"
+	PurposeHolisticLoopExecute     Purpose = "holistic_loop_execute"
+	PurposeHolisticLoopReview      Purpose = "holistic_loop_review"
+
+	PurposePhasedPlanPrepare          Purpose = "phased_plan_prepare"
+	PurposePhasedPlanExecuteNext      Purpose = "phased_plan_execute_next"
+	PurposePhasedPlanClassifyProgress Purpose = "phased_plan_classify_progress"
+	PurposePhasedPlanReview           Purpose = "phased_plan_review"
 )
 
 type InteractionType string
@@ -131,7 +141,9 @@ func (s Spec) normalized() (Spec, error) {
 	switch s.Purpose {
 	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
 		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview,
-		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview:
+		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview,
+		PurposeHolisticLoopInvestigate, PurposeHolisticLoopPlan, PurposeHolisticLoopExecute, PurposeHolisticLoopReview,
+		PurposePhasedPlanPrepare, PurposePhasedPlanExecuteNext, PurposePhasedPlanClassifyProgress, PurposePhasedPlanReview:
 	default:
 		return Spec{}, fmt.Errorf("purpose is required")
 	}

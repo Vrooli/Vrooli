@@ -79,6 +79,21 @@ const MOCK_STATS: StatsResponse = {
     estimated_weeks_remaining: 4.0,
     velocity_weeks_covered: 1,
   },
+  mode: {
+    usage_by_mode: { "item-level": 1 },
+    mode_switch_count: 0,
+    phase_runs_by_mode: {},
+    completed_by_mode: {},
+    failed_by_mode: {},
+    canceled_by_mode: {},
+    replan_rate_by_mode: {},
+    acceptance_rate_by_mode: {},
+    avg_phase_duration_seconds: {},
+    avg_runs_per_completed_scope: {},
+    backlog_sync_by_mode: {},
+    usage_by_profile: {},
+    phase_runs_by_profile: {},
+  },
 };
 
 describe("useStats", () => {

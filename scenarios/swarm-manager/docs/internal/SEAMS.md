@@ -215,10 +215,29 @@ Consumed by `backlog-sort.ts` (sidebar/command post sorting) and `feed.ts` (unif
 `api/internal/initiatives/` provides initiative CRUD and rollup status computation.
 
 - **BacklogLoader interface**: Seam between initiatives and the backlog store -- initiatives need to list backlog items to compute rollup status, but do not depend on the backlog HTTP handlers
-- **Partial update contract**: Initiative updates accept only the fields that are changing (`title`, `description`, `status`, `items`)
+- **Partial update contract**: Initiative updates accept only the fields that are changing (`title`, `description`, `status`, `mode`, `priority`, `depends_on`, `items`, `acceptance_criteria`, `note`)
 - **Rollup status**: Derived from member item statuses (pending if all backlog, active if any in_progress, completed if all done, blocked if any has unmet deps)
+- **Operating-mode metadata**: CRUD owns persistence and validation of `mode` and `acceptance_criteria`, but not phase orchestration, prompt rendering, artifact parsing, or runner behavior. Blank historical mode normalizes to `item-level`.
 
 **Testing at the seam**: Mock `BacklogLoader` to test rollup computation without touching the filesystem.
+
+### Operating Mode Boundary
+
+`api/internal/operatingmode/` is the static methodology registry for Swarm Manager execution modes.
+
+- **Registry ownership**: Mode values, scope kind, phase graph, run strategy, prompt/catalog IDs, profile keys, artifact roots, backlog-sync policy, metrics source, lock policy, and UI workspace IDs live in one package.
+- **Current modes**: `item-level`, `holistic-loop`, and `phased-plan-drain` are registered. `item-level` bridges to existing backlog execution; the two initiative-scoped modes define their phase/profile policy before runner implementation lands.
+- **Validation rule**: Unknown modes fail closed. Initiative CRUD calls the registry for validation instead of carrying a local enum.
+- **Profile policy**: Registry references stable scenario-owned AgentManager profile keys such as `swarm-manager/deep-work` and `swarm-manager/analysis`; runner code must not inline model/tool policy.
+- **Activity purpose policy**: Initiative mode phases use stable `agentactivity.Purpose` values such as `holistic_loop_execute` and `phased_plan_classify_progress`; phase runners should not invent free-form purpose strings.
+- **Audit rule**: Mode changes are emitted as `initiative.mode_changed` events. Phase runners emit typed `operating_mode.phase_*`, `operating_mode.replan_needed`, and `operating_mode.backlog_synced` events rather than relying on file scans or agentactivity inference.
+- **Switch rule**: External callers switch modes through `POST /api/v1/initiatives/{name}/operating-mode/switch`, not generic initiative metadata update. The switch service is the lifecycle boundary that detects active item-level executions and requires explicit cancellation confirmation before entering a non-default initiative mode.
+- **Stats rule**: Mode stats derive from the durable event log. Profile usage, phase counts, replan/acceptance rates, phase durations, and backlog-sync counts are all sourced from operating-mode event payloads.
+- **Artifact and round persistence**: `operatingmode.Store` owns mode-scoped paths under each initiative (`modes/<mode>/...`), current-state artifact reads/writes, and append-only round envelopes at `modes/<mode>/rounds/round-NNN.json`. Runner and handler code should use this store rather than constructing paths directly.
+- **Round envelope contract**: Round JSON records mode, phase, scope, run strategy, selected `agent_profile_key`, run ID, status, readiness, artifact updates, handoffs, and phase payload. Sequential modes preserve handoffs in round JSON so future runs have durable context.
+- **Classification/readiness helpers**: Holistic readiness and phased-plan progress classification are parsed/validated in `operatingmode`; UI and runner code should not duplicate accepted dimension or decision enums.
+
+**Testing at the seam**: `api/internal/operatingmode/*_test.go` locks required modes, default normalization, unknown-mode rejection, phase profile mappings, stable activity/lock purposes, mode-scoped path resolution, round numbering, malformed JSON rejection, handoff/profile preservation, artifact root validation, readiness scoring, and progress classification validation.
 
 ### Backlog Import Boundary
 
@@ -248,6 +267,7 @@ The overview endpoint composes these interfaces to produce a summary containing 
 
 - **Entries()**: Returns the full catalog exposed by `/api/v1/prompts/catalog`
 - **ResolveBacklogSkill(mode, kind)**: Resolves the runtime workshop/initialize/finalize skill for backlog flows
+- **ResolveInitiativeModeSkill(mode, phase)**: Resolves initiative operating-mode phase skills from catalog metadata instead of adding phase-specific switches
 - **ResolveCaptureSkill() / ResolveSpecSyncSkill()**: Resolve non-backlog runtime skills
 - **SkillUsageCount() / SkillImpactSummary()**: Drive prompt center summaries from the same inventory used by runtime code
 - Covers both prompt-manager skills and generated runtime prompts, so the catalog reflects actual execution behavior instead of only stored skills
@@ -1624,3 +1644,15 @@ Post-execution evidence gathering system. A review agent produces typed evidence
 | Stats engine | `api/internal/stats/engine.go` | Processes review events to compute `ReviewStats`: rounds completed, avg evidence per round, verification rate, request-more rate, avg duration. | `stats/engine_test.go` |
 | CLI commands | `cli/cmd_review.go` | `review-list`, `review-verify`, `review-request`, `review-trigger` — thin API wrappers with human-friendly default output. | — |
 | Prompt skill | `prompt-manager/store/skills/packs/core/swarm-manager-review/` | `SKILL.md` instructs the review agent on evidence strategy, output schema, classification rules, and Request More mode. | — |
+
+### Operating Mode Runner Boundary (updated 2026-04-30)
+
+Initiative non-default modes now have a backend runner seam instead of routing
+phase starts through feedback or item-level execution.
+
+| Boundary | Location | Behavior | Test |
+|----------|----------|----------|------|
+| Mode service | `api/internal/operatingmode/service.go` | Switches modes with explicit item-execution cancellation, starts registered mode phases, reserves durable round envelopes, acquires the shared initiative lock, renders the phase skill through prompt-manager, spawns AgentManager through agent-activity when wired, persists run IDs, refreshes terminal state, emits phase events, and releases locks. | `operatingmode/service_test.go` |
+| Mode handler | `api/internal/operatingmode/handler.go` | Thin HTTP layer for workspace read, mode switch, phase start, round refresh, and round cancel under `/api/v1/initiatives/{name}/operating-mode/...`. | Service-backed route compile coverage |
+| Dependency adapters | `api/routes_operating_mode.go` | Keeps `operatingmode` from importing `initiatives` or `backlog`, avoiding cycles with the existing initiative metadata and prompt-catalog tests. | `go test . -run '^$'` |
+| Prompt skills | `prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-*` and `swarm-manager-phased-plan-*` | Prompt-manager runtime skills for the eight registered mode phases. The runner still has a fallback prompt, but normal operation resolves these skills. | `jq empty` on skill metadata |

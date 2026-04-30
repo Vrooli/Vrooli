@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-holistic-loop-plan",
+  "name": "Swarm Manager Holistic Loop Plan",
+  "description": "Create or update an initiative-wide plan for holistic-loop mode.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "operating-mode", "holistic-loop"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-30T00:00:00Z"
+}

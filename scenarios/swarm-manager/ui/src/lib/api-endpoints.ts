@@ -108,6 +108,16 @@ export const API_ENDPOINTS = {
   initiativeReviewTrigger: (name: string) => `/initiatives/${name}/review/trigger`,
   initiativeReviewDecide: (name: string) => `/initiatives/${name}/review/decide`,
   initiativeReviewDecisions: (name: string) => `/initiatives/${name}/review/decisions`,
+  initiativeOperatingModeWorkspace: (name: string) =>
+    `/initiatives/${name}/operating-mode/workspace`,
+  initiativeOperatingModeSwitch: (name: string) =>
+    `/initiatives/${name}/operating-mode/switch`,
+  initiativeOperatingModeStartPhase: (name: string, phase: string) =>
+    `/initiatives/${name}/operating-mode/phases/${phase}/start`,
+  initiativeOperatingModeRefreshRound: (name: string, round: number, mode: string) =>
+    `/initiatives/${name}/operating-mode/rounds/${round}/refresh?mode=${encodeURIComponent(mode)}`,
+  initiativeOperatingModeCancelRound: (name: string, round: number, mode: string) =>
+    `/initiatives/${name}/operating-mode/rounds/${round}/cancel?mode=${encodeURIComponent(mode)}`,
   graph: "/graph",
   overview: "/overview",
   stats: "/stats",

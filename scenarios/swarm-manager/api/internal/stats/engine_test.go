@@ -66,6 +66,130 @@ func TestEmptyEngine(t *testing.T) {
 	}
 }
 
+func TestModeStats(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "default-init",
+		eventlog.EventInitiativeCreated, nil)
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "holistic-init",
+		eventlog.EventInitiativeCreated, nil)
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "holistic-init",
+		eventlog.EventInitiativeModeChanged, eventlog.InitiativeModeChangePayload{From: "item-level", To: "holistic-loop"})
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	stats := engine.GetStats()
+
+	if stats.Mode.UsageByMode["item-level"] != 1 {
+		t.Errorf("item-level usage = %d, want 1", stats.Mode.UsageByMode["item-level"])
+	}
+	if stats.Mode.UsageByMode["holistic-loop"] != 1 {
+		t.Errorf("holistic-loop usage = %d, want 1", stats.Mode.UsageByMode["holistic-loop"])
+	}
+	if stats.Mode.ModeSwitchCount != 1 {
+		t.Errorf("mode switch count = %d, want 1", stats.Mode.ModeSwitchCount)
+	}
+}
+
+func TestOperatingModePhaseStats(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	base := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+
+	startPayload := eventlog.OperatingModePhasePayload{
+		Mode:            "holistic-loop",
+		ScopeKind:       "initiative",
+		ScopeID:         "init-a",
+		InitiativeName:  "init-a",
+		Phase:           "execute",
+		RunStrategy:     "operator_gated_loop",
+		AgentProfileKey: "swarm-manager/deep-work",
+		RoundNumber:     2,
+		RunID:           "run-123",
+	}
+	appendEvent(t, repo, base, eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModePhaseStarted, startPayload)
+	completedPayload := startPayload
+	completedPayload.DurationSeconds = 90
+	completedPayload.Status = "completed"
+	completedPayload.ReplanNeeded = true
+	appendEvent(t, repo, base.Add(90*time.Second), eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModePhaseCompleted, completedPayload)
+	appendEvent(t, repo, base.Add(91*time.Second), eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModeBacklogSynced, eventlog.OperatingModeBacklogSyncPayload{
+			Mode:                  "holistic-loop",
+			ScopeKind:             "initiative",
+			ScopeID:               "init-a",
+			InitiativeName:        "init-a",
+			Phase:                 "execute",
+			BacklogItemsCompleted: 2,
+			BacklogItemsUpdated:   1,
+		})
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	stats := engine.GetStats()
+
+	if stats.Mode.PhaseRunsByMode["holistic-loop"]["execute"] != 1 {
+		t.Fatalf("phase runs = %+v", stats.Mode.PhaseRunsByMode)
+	}
+	if stats.Mode.CompletedByMode["holistic-loop"] != 1 {
+		t.Fatalf("completed by mode = %+v", stats.Mode.CompletedByMode)
+	}
+	if got := stats.Mode.ReplanRateByMode["holistic-loop"]; got.SampleSize != 1 || got.Rate != 1 {
+		t.Fatalf("replan rate = %+v, want n=1 rate=1", got)
+	}
+	if stats.Mode.AvgPhaseDurationSeconds["holistic-loop"]["execute"] != 90 {
+		t.Fatalf("avg duration = %+v", stats.Mode.AvgPhaseDurationSeconds)
+	}
+	if stats.Mode.UsageByProfile["swarm-manager/deep-work"] != 1 {
+		t.Fatalf("profile usage = %+v", stats.Mode.UsageByProfile)
+	}
+	if stats.Mode.PhaseRunsByProfile["swarm-manager/deep-work"]["execute"] != 1 {
+		t.Fatalf("profile phase runs = %+v", stats.Mode.PhaseRunsByProfile)
+	}
+	if got := stats.Mode.BacklogSyncByMode["holistic-loop"]; got.Events != 1 || got.ItemsCompleted != 2 || got.ItemsUpdated != 1 {
+		t.Fatalf("backlog sync = %+v", got)
+	}
+}
+
+func TestOperatingModeAcceptanceStats(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-a",
+		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
+			Mode:        "phased-plan-drain",
+			ScopeKind:   "initiative",
+			ScopeID:     "init-a",
+			Phase:       "review",
+			RunStrategy: "sequential_handoff",
+			Verdict:     "accept",
+		})
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-b",
+		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
+			Mode:        "phased-plan-drain",
+			ScopeKind:   "initiative",
+			ScopeID:     "init-b",
+			Phase:       "review",
+			RunStrategy: "sequential_handoff",
+			Verdict:     "request_changes",
+		})
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	got := engine.GetStats().Mode.AcceptanceRateByMode["phased-plan-drain"]
+	if got.SampleSize != 2 || got.Rate != 0.5 {
+		t.Fatalf("acceptance rate = %+v, want n=2 rate=.5", got)
+	}
+}
+
 func TestThroughput(t *testing.T) {
 	engine, repo := setupEngine(t)
 	ctx := context.Background()

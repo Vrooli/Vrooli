@@ -1,0 +1,25 @@
+{
+  "initiative_name": "git-control-tower-ai-provenance",
+  "number": 3,
+  "slug": "selection-selection-requested-actions-ac",
+  "type": "feedback",
+  "status": "awaiting_user",
+  "submission": {
+    "text": "\u003cselection\u003e\u003c/selection\u003e\n\n\u003crequested_actions\u003e\n  \u003caction name=\"identify_missing_work\" /\u003e\n  \u003caction name=\"reconcile_with_code_drift\" /\u003e\n\u003c/requested_actions\u003e\n\n\u003cuser_note\u003e\n\n\u003c/user_note\u003e",
+    "created_at": "2026-04-30T13:00:55Z"
+  },
+  "thread": [
+    {
+      "role": "user",
+      "content": "\u003cselection\u003e\u003c/selection\u003e\n\n\u003crequested_actions\u003e\n  \u003caction name=\"identify_missing_work\" /\u003e\n  \u003caction name=\"reconcile_with_code_drift\" /\u003e\n\u003c/requested_actions\u003e\n\n\u003cuser_note\u003e\n\n\u003c/user_note\u003e",
+      "created_at": "2026-04-30T13:00:55Z"
+    },
+    {
+      "role": "agent",
+      "content": "agent spawn failed: agent-manager request failed: status 400: {\"code\":\"VALIDATION_FIELD\", \"message\":\"validation error on body: invalid JSON request body\", \"details\":{\"fields\":{\"field\":{\"string_value\":\"body\"}, \"message\":{\"string_value\":\"invalid JSON request body\"}, \"recovery\":{\"string_value\":\"fix_input\"}, \"request_id\":{\"string_value\":\"945bcd6d-d992-4c96-beaa-8779e8849542\"}, \"retryable\":{\"bool_value\":false}, \"user_message\":{\"string_value\":\"Invalid value for body: invalid JSON request body\"}}}}",
+      "created_at": "2026-04-30T13:00:56Z"
+    }
+  ],
+  "created_at": "2026-04-30T13:00:55Z",
+  "updated_at": "2026-04-30T13:00:56Z"
+}

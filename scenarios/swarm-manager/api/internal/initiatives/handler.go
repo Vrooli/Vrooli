@@ -133,6 +133,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be %s", UserSettableInitiativeStatusList()))
 		return
 	}
+	if mode := strings.TrimSpace(req.Mode); mode != "" && !ValidateMode(mode) {
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("mode must be one of %s", OperatingModeList()))
+		return
+	}
 
 	init, err := h.service.Create(req)
 	if err != nil {
@@ -234,6 +238,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Status != nil && !ValidateStatus(strings.TrimSpace(*req.Status)) {
 		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("status must be %s", UserSettableInitiativeStatusList()))
+		return
+	}
+	if req.Mode != nil {
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("mode changes must use /api/v1/initiatives/{name}/operating-mode/switch"))
 		return
 	}
 
