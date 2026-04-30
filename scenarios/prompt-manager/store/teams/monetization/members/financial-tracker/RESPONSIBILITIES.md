@@ -1,18 +1,18 @@
 # Responsibilities: Financial Tracker
 
 ## Primary Duties
-- Maintain the ledger of Vrooli's monetization-relevant financial state: cash, costs (per category), revenue (per tier + per bundle + per revenue line), time allocation, runway, default-alive gap.
+- Maintain the ledger of Vrooli's monetization-relevant financial state: cash, costs (per category), revenue (per tier + per bundle + per revenue line), channel attribution, time allocation, runway, default-alive gap.
 - Emit a structured ledger snapshot each heartbeat that can be trend-plotted over time.
 - Flag material deltas — runway drop, cost spike, services-trap warning signal, assumption drift.
 - Surface pricing or tier-mix decisions the operator should make based on the current math.
 
 ## Deliverables Per Heartbeat
 - One ledger entry appended to `shared/ledger.jsonl` (schema below).
-- At most 2 decisions raised when math changes materially — contexts `runway-warning`, `services-trap-warning`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`. The last two are raised once funnel / retention telemetry exists; pre-launch they remain dormant with `pending-telemetry` flags in the handoff.
+- At most 2 decisions raised when math changes materially — contexts `runway-warning`, `services-trap-warning`, `channel-attribution-gap`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`. The last two are raised once funnel / retention telemetry exists; pre-launch they remain dormant with `pending-telemetry` flags in the handoff.
 - Brief narrative summary in the handoff pointing at what changed, what it means for default-alive, and what decision (if any) is overdue.
 
 ## Coordination Points
-- **Reads** `docs/monetization/FINANCIAL_MODEL.md` (the framework), `docs/monetization/PRICING.md` (for current matrix), `docs/monetization/REVENUE_LINES.md` (for line-specific instrumentation), `docs/monetization/TELEMETRY_ROADMAP.md` (to know which numbers are `pending-telemetry`), `docs/monetization/HOW_TO_GATHER_INPUTS.md` (the per-field guidance paired with `operator-inputs.json`).
+- **Reads** `docs/monetization/FINANCIAL_MODEL.md` (the framework), `docs/monetization/PRICING.md` (for current matrix), `docs/monetization/REVENUE_LINES.md` (for line-specific instrumentation), `docs/monetization/CHANNELS.md` and channel-specific files (for attribution requirements), `docs/monetization/TELEMETRY_ROADMAP.md` (to know which numbers are `pending-telemetry`), `docs/monetization/HOW_TO_GATHER_INPUTS.md` (the per-field guidance paired with `operator-inputs.json`).
 - **Reads operator state** from `shared/operator-inputs.json` — the canonical source for cash, burn categories, time allocation, services revenue, and services time. Each heartbeat classifies every field as `current` / `stale` / `pending-operator` / `not-applicable-pre-launch` and surfaces the first two categories in the HANDOFF for operator action.
 - **Reads data** (as capabilities allow): landing-page-business-suite for Stripe / subscription events; scenario-to-cloud for infrastructure costs.
 - **Does NOT** compute things that require telemetry that doesn't exist yet — flag as `pending-telemetry` and move on. Do not invent numbers.

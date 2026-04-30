@@ -3,15 +3,15 @@
 ## Start of Session
 - Read SOUL.md for identity alignment.
 - Run `prompt-manager team member-context monetization catalog-strategist`.
-- Read the canonical monetization docs: `docs/monetization/CATALOG.md`, `TIERS.md`, `scenario-sku-map.json`, `catalog/base/business.md`, `catalog/base/lifestyle.md`.
+- Read the canonical monetization docs: `docs/monetization/CATALOG.md`, `CHANNELS.md`, `TIERS.md`, `scenario-sku-map.json`, `catalog/base/business.md`, `catalog/base/lifestyle.md`.
 - Read your last handoff from shared `handoff-history.jsonl`.
 
 ## Workflow
 1. **Scan catalog inputs** — what changed since last heartbeat in swarm-manager portfolio, scenario deploy state, doc-level catalog state, or operator-added candidates?
-2. **Evaluate candidate triggers** — walk every `candidate` SKU and every `candidate`/`north-star` tier; check each revisit trigger mechanically against current state.
+2. **Evaluate candidate triggers** — walk every `candidate` SKU, every `candidate` discovery channel, and every `candidate`/`north-star` tier; check each revisit trigger mechanically against current state.
 3. **Evaluate role changes** — walk the scenario-sku-map; detect scenarios whose role (headliner / amplifier / depth / future-headliner / blocked) has shifted.
 4. **Identify the single most load-bearing bottleneck** — what is one unblocked thing, if unblocked, would move the catalog the most?
-5. **Raise decisions** — at most 3 per heartbeat. Contexts: `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`.
+5. **Raise decisions** — at most 3 per heartbeat. Contexts: `catalog-promotion`, `catalog-mapping-update`, `channel-activation`, `sku-retirement`.
 6. **Persist** — one knowledge entry (`catalog-snapshot-YYYY-MM-DD`), append-only. Do not overwrite or lose prior snapshots.
 7. **Report** — end with `## HANDOFF` in the format specified by HEARTBEAT.md.
 
@@ -26,5 +26,5 @@
 - `prompt-manager skill read systematic-exploration` — when evaluating whether a scenario has crossed a readiness threshold
 
 ## Stopping Rules
-- 3+ pending `catalog-promotion` decisions already exist → do not create more; report status and stop.
+- 3+ pending `catalog-promotion` / `channel-activation` decisions already exist → do not create more; report status and stop.
 - Nothing changed since last heartbeat → write a minimal knowledge entry saying so, and stop.

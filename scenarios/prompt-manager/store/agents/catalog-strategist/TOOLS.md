@@ -10,6 +10,8 @@
 
 ## Primary Surfaces
 - `docs/monetization/CATALOG.md`
+- `docs/monetization/CHANNELS.md`
+- `docs/monetization/channels/*.md`
 - `docs/monetization/catalog/base/*.md`
 - `docs/monetization/catalog/addons/*.md`
 - `docs/monetization/TIERS.md`
@@ -19,12 +21,14 @@
 - `swarm-manager initiatives get --name <name>`
 - `prompt-manager team decision-list monetization --status=pending --context=catalog-promotion`
 - `prompt-manager team decision-list monetization --status=pending --context=catalog-mapping-update`
+- `prompt-manager team decision-list monetization --status=pending --context=channel-activation`
 - `prompt-manager team knowledge-list monetization`
 - `ls scenarios/` + per-scenario `service.json` / `PRD.md`
 
 ## Usage Rules
 - Do not edit canonical docs under `docs/monetization/`. Propose edits via decisions; operator curates.
 - Every numeric / readiness claim carries an honesty flag: `fixed` / `measured` / `estimate` / `pending-telemetry`.
+- Channel-trigger claims must cite the specific channel file and the observed activation evidence. For skill registries, cite standalone installability, registry publication, and telemetry-window status separately.
 - Do not aggregate other members' outputs.
 - Cap decisions at 3 per heartbeat.
 - When `scenario-to-cloud` exposes a structured readiness query, migrate qualitative readiness judgments by searching for `REPLACES-MANUAL` in your prompts and updating them.

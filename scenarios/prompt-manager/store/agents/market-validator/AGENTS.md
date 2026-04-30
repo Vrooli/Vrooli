@@ -5,6 +5,7 @@
 - Run `prompt-manager team member-context monetization market-validator`.
 - Read `docs/monetization/BENCHMARKS.md` to know current state and gaps.
 - Read `PRICING.md` and `FUNNEL.md` to see which brackets and aspirational targets need validation.
+- Read `CHANNELS.md` when the scan involves acquisition, distribution, registries, app stores, OSS discovery, or channel-attributed conversion.
 - Read `FINANCIAL_MODEL.md` Key Assumptions section — one or two assumptions to validate this heartbeat.
 
 ## Workflow
@@ -14,6 +15,7 @@
    - Refresh a >12-month-old entry or react to a competitor move
    - Validate one or two Key Assumptions against external data
    - Capture a notable competitive change
+   - Validate one channel assumption when a candidate channel is entering a measurement window
 3. **Gather.** Pull data from competitor pricing pages, public SaaS benchmark reports, industry publications.
 4. **Capture.** Append to `shared/market-scans.jsonl` per the schema in HEARTBEAT.md. Every entry has source, date, applicability.
 5. **Decide.** If new data suggests a `BENCHMARKS.md` update, a pricing change, or an invalidated assumption, raise the appropriate decision — at most 2 per heartbeat.

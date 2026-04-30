@@ -1,7 +1,7 @@
 # Monetization Team
 
 ## Mission
-Own the canonical monetization plan for Vrooli — catalog, tiers, funnel, revenue lines, and financial model — and surface the decisions the operator must make each heartbeat to stay on a path to default-alive. The operator is the real strategist; this team maintains the plan, tracks current state against it, and converts measurable changes into concrete decisions.
+Own the canonical monetization plan for Vrooli — catalog, tiers, channels, funnel, revenue lines, and financial model — and surface the decisions the operator must make each heartbeat to stay on a path to default-alive. The operator is the real strategist; this team maintains the plan, tracks current state against it, and converts measurable changes into concrete decisions.
 
 ## Coordination Pattern
 Leaderless / independent. Five members, each with its own heartbeat and its own decision stream. There is no AI lead — do not recreate one implicitly through "synthesize the other agents" behavior. Coordination happens outside the team, in the morning vision walk, where the operator reviews pending decisions across all members.
@@ -9,9 +9,9 @@ Leaderless / independent. Five members, each with its own heartbeat and its own 
 If a member is tempted to aggregate other members' outputs into a single brief, that is the leader-led antipattern. Each member stays in its own lane and produces its own first-class output.
 
 ## Members
-- **catalog-strategist** — maintains the SKU / tier / scenario graph and proposes promotions when triggers fire.
-- **opportunity-scout** — generates and classifies candidate SKUs, add-ons, and services lines.
-- **financial-tracker** — maintains the ledger (costs, revenue, time allocation, runway, default-alive gap).
+- **catalog-strategist** — maintains the SKU / tier / channel / scenario graph and proposes promotions when triggers fire.
+- **opportunity-scout** — generates and classifies candidate SKUs, add-ons, services lines, and discovery channels.
+- **financial-tracker** — maintains the ledger (costs, revenue, channel attribution, time allocation, runway, default-alive gap).
 - **market-validator** — grounds pricing and retention assumptions in external benchmarks for the active tier.
 - **contrarian** — mandatory skeptic across all other members' outputs and pending decisions.
 
@@ -26,20 +26,24 @@ Each member has an AGENTS.md, SOUL.md, TOOLS.md under `store/agents/<member>/` a
 5. **Open-source self-host is strategic positioning.** Frame the subscription as convenience + integrated gateway. Do NOT frame it as paywalling core features. If an output reads as "users who go free are leaking revenue," the framing is broken.
 6. **Agents are the expansion engine.** When proposing acquisition, activation, upsell, or retention mechanisms, default to agent-driven surfaces. Fall back to marketing/email/pop-ups only when agents cannot reach the relevant moment.
 7. **Services are a deliberate lever, not a business.** Scenarios are double-revenue assets — sold as products AND operated by us for paying clients (the same shovels we sell are the shovels we use to dig for gold). Services are expected to activate in the post-bundle / pre-default-alive window and produce meaningful revenue, but every active line must have a hypothesis, a fixed-duration pilot, a productization target, and a sunset/convert clause. Services revenue is tracked separately from subscription revenue. The discipline exists because we intend to lean into this lever — not to suppress it.
-8. **Tier 4 (hardware) is north-star.** Do not plan work against it without explicit operator initiation.
-9. **Every scenario proposal articulates both acquisition AND retention impact.** Scenarios evaluated only on acquisition appeal will starve the retention side of the funnel.
-10. **Activation work is retention work.** Most churn is failed activation. When the team proposes retention investments, check whether the real issue is activation first.
-11. **Downgrade-to-free is not churn.** Track separately. Different signal, different causes.
-12. **Legal surface check on every services line.** Lead-gen (TCPA/CAN-SPAM/GDPR), consulting (contract/IP), done-for-you builds (warranty/liability) all carry distinct regulatory exposure.
-13. **Services capacity ≤ 30% of time budget.** Exceeding for 3+ consecutive weeks triggers a services-trap review.
-14. **Pre-launch metrics are aspirational.** Do not hallucinate current-state numbers for unmeasured metrics. Use `pending-telemetry` and point at [`TELEMETRY_ROADMAP.md`](../../../../../../docs/monetization/TELEMETRY_ROADMAP.md) instead.
-15. **This team does not build telemetry scenarios.** Capability gaps are captured in TELEMETRY_ROADMAP.md; scenarios are built (or not) by feature/QA/portfolio lanes when their priority justifies it.
+8. **Discovery channels are not revenue lines.** Channels explain where users or agents come from; revenue lines explain how money flows. Skill registries, OSS discovery, and app stores can validate capability and feed subscription without being monetized directly.
+9. **Channel activation requires evidence.** A candidate channel activates only when its channel-specific trigger fires and telemetry can attribute lift. For skill registries, standalone installability, signed/scanned registry publication, and per-skill telemetry are prerequisites.
+10. **Tier 4 (hardware) is north-star.** Do not plan work against it without explicit operator initiation.
+11. **Every scenario proposal articulates both acquisition AND retention impact.** Scenarios evaluated only on acquisition appeal will starve the retention side of the funnel.
+12. **Activation work is retention work.** Most churn is failed activation. When the team proposes retention investments, check whether the real issue is activation first.
+13. **Downgrade-to-free is not churn.** Track separately. Different signal, different causes.
+14. **Legal surface check on every services line.** Lead-gen (TCPA/CAN-SPAM/GDPR), consulting (contract/IP), done-for-you builds (warranty/liability) all carry distinct regulatory exposure.
+15. **Services capacity ≤ 30% of time budget.** Exceeding for 3+ consecutive weeks triggers a services-trap review.
+16. **Pre-launch metrics are aspirational.** Do not hallucinate current-state numbers for unmeasured metrics. Use `pending-telemetry` and point at [`TELEMETRY_ROADMAP.md`](../../../../../../docs/monetization/TELEMETRY_ROADMAP.md) instead.
+17. **This team does not build telemetry scenarios.** Capability gaps are captured in TELEMETRY_ROADMAP.md; scenarios are built (or not) by feature/QA/portfolio lanes when their priority justifies it.
 
 ## Decision Contexts
 Members surface decisions with these contexts. The operator reviews them at the morning vision walk.
 
 - `catalog-promotion` — scenario gains headliner status, candidate SKU or tier gets trigger-met and is proposed for promotion
 - `catalog-mapping-update` — scenario-sku-map.json change proposal
+- `channel-activation` — candidate discovery channel's activation trigger has fired; propose promotion
+- `channel-attribution-gap` — active or pilot channel lacks required attribution telemetry
 - `sku-retirement` — proposal to retire a SKU or tier
 - `services-activation` — candidate services line's trigger has fired; propose promotion
 - `services-conversion` — service client → subscription conversion proposal
@@ -74,9 +78,9 @@ Stacking (creating a new decision alongside a superseded-in-spirit prior one) is
 
 Each member's stop-early thresholds are computed against an explicit context list, not a fuzzy "my contexts" reference:
 
-- **catalog-strategist:** `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`, `services-activation`, `services-conversion`, `services-sunset`
-- **opportunity-scout:** `catalog-promotion` (only via direct promotion; opportunity-pool entries in `opportunities.jsonl` are not decisions)
-- **financial-tracker:** `runway-warning`, `services-trap-warning`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`
+- **catalog-strategist:** `catalog-promotion`, `catalog-mapping-update`, `channel-activation`, `sku-retirement`, `services-activation`, `services-conversion`, `services-sunset`
+- **opportunity-scout:** `catalog-promotion`, `channel-activation` (only via direct promotion; opportunity-pool entries in `opportunities.jsonl` are not decisions)
+- **financial-tracker:** `runway-warning`, `services-trap-warning`, `channel-attribution-gap`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`
 - **market-validator:** `benchmark-update`, `pricing-decision`, `financial-model-assumption-update`
 - **contrarian:** `decision-rejection-proposed`, `framework-update`
 

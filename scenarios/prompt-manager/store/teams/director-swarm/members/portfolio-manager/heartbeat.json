@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "16 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-29T22:16:00Z",
-    "endedAt": "2026-04-29T22:16:05Z",
+    "startedAt": "2026-04-30T22:16:00Z",
+    "endedAt": "2026-04-30T22:16:00Z",
     "status": "failed",
-    "runId": "26db7904-cf35-41e7-842a-7866d1ad862d",
-    "logPath": "../store/teams/director-swarm/members/portfolio-manager/logs/2026-04-29T22-16-00Z.log",
-    "error": "2026-04-29T22:16:02.683904Z ERROR codex_core::session: failed to record rollout items: thread 019ddb50-35db-7240-9179-50a27ed0716e not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 35,
+  "revision": 37,
   "createdAt": "2026-04-09T19:58:09Z",
-  "updatedAt": "2026-04-29T22:16:05Z"
+  "updatedAt": "2026-04-30T22:16:00Z"
 }

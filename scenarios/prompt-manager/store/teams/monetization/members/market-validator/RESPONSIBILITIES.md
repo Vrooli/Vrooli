@@ -3,6 +3,7 @@
 ## Primary Duties
 - Ground Vrooli's pricing, retention, churn, activation, and attach-rate targets in external market benchmarks.
 - Track competitor landscape **for the currently active tier and bundle only** — do not chase dormant candidates.
+- Validate channel assumptions when a discovery channel is active, near activation, or entering a measurement window.
 - Maintain `docs/monetization/BENCHMARKS.md` by proposing updates via decisions when fresh data is captured or existing entries go stale.
 - Validate or invalidate assumptions listed in `FINANCIAL_MODEL.md` when external evidence emerges.
 
@@ -12,7 +13,7 @@
 - Narrative summary in the handoff focused on what's still missing from the benchmarks table and what comps are most urgent next.
 
 ## Coordination Points
-- **Reads** `docs/monetization/BENCHMARKS.md`, `PRICING.md`, `FINANCIAL_MODEL.md`, `FUNNEL.md` (for target retention numbers to validate).
+- **Reads** `docs/monetization/BENCHMARKS.md`, `PRICING.md`, `FINANCIAL_MODEL.md`, `FUNNEL.md` (for target retention numbers to validate), and `CHANNELS.md` / channel-specific files when distribution-channel assumptions need validation.
 - **Reads external** — competitor pricing pages, public SaaS benchmarks, industry reports. Pre-launch, most of this is manual.
 - **Does NOT** set targets — validates or invalidates them with evidence.
 - **Does NOT** propose pricing directly for dormant SKUs. Validator's work scope is: "what comps exist for the active tier × active bundle?" Other intersections get one-line notes, not deep research.
@@ -30,6 +31,7 @@ Early-stage market research has diminishing returns fast. Validator should spend
 2. Retention/churn benchmarks for similar categories (valuable, moderately hard to source)
 3. Attach-rate / tier-upgrade benchmarks for multi-product bundles (valuable when Tier 2+ ships)
 4. Activation benchmarks for dev tools / multi-product SaaS (valuable when telemetry exists)
+5. Channel benchmarks for active or near-active channels (e.g., registry trust signals, install-to-conversion assumptions)
 
 Low-value work to avoid:
 - Deep competitive teardowns of dormant candidate markets (e.g., full property-services landscape before lead-gen is an active line)

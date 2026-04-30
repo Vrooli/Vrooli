@@ -10,8 +10,9 @@ Each heartbeat, decide which of the following is highest leverage **for this hea
 2. **Refresh a stale entry** — if an existing comp is >12 months old or a competitor has materially changed (pricing page, product focus, shutdown), update it.
 3. **Validate an assumption** — walk one or two assumptions from `FINANCIAL_MODEL.md` and check against external data.
 4. **Observe competitive change** — a competitor launched, pivoted, raised pricing, shut down. Capture the fact and its implication.
+5. **Validate a channel assumption** — when a discovery channel is active, near activation, or in a measurement window, check the relevant external benchmark or ecosystem signal.
 
-Do **not** do all four every heartbeat. Pick the one or two highest-leverage items.
+Do **not** do all five every heartbeat. Pick the one or two highest-leverage items.
 
 ## Active scope filter
 
@@ -21,6 +22,8 @@ Only deep-research markets that correspond to:
 
 Everything else gets **a one-line note in `market-scans.jsonl`** if something changes, nothing more. When a new SKU or tier activates, the validator's scope expands to cover it.
 
+Channel research follows the same discipline: deep-research active channels or candidate channels whose activation trigger is close to firing; otherwise capture a one-line note only.
+
 ## Data Sources (replaceable)
 
 Read the canonical docs:
@@ -28,6 +31,7 @@ Read the canonical docs:
 - `docs/monetization/PRICING.md` — target brackets; what comps would validate them
 - `docs/monetization/FINANCIAL_MODEL.md` — assumptions to validate
 - `docs/monetization/FUNNEL.md` — aspirational targets to validate (retention, activation, etc.)
+- `docs/monetization/CHANNELS.md` and `docs/monetization/channels/*.md` — channel assumptions and telemetry requirements when relevant
 
 External sources (manual today, browser-fetched):
 - Competitor pricing pages
@@ -62,7 +66,7 @@ Read own state:
   "id": "scan-<unix-nanos>",
   "at": "YYYY-MM-DDTHH:MM:SSZ",
   "by": "market-validator",
-  "kind": "benchmark-capture" | "assumption-check" | "competitive-observation" | "stale-refresh",
+    "kind": "benchmark-capture" | "assumption-check" | "competitive-observation" | "stale-refresh" | "channel-assumption-check",
   "comp": "company / product / source",
   "category": "dev-tool SaaS | multi-product bundle | consumer sub | services",
   "dimension": "pricing | retention | churn | attach-rate | activation | other",

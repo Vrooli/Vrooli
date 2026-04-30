@@ -10,6 +10,8 @@
 
 ## Primary Surfaces
 - `docs/monetization/CATALOG.md`
+- `docs/monetization/CHANNELS.md`
+- `docs/monetization/channels/*.md`
 - `docs/monetization/catalog/addons/*`
 - `docs/monetization/STRATEGY.md`
 - `shared/opportunities.jsonl`
@@ -23,6 +25,8 @@
 - Every candidate attaches to a plausible Vrooli capability — no pure daydreams.
 - Every candidate has a concrete revisit trigger. No triggers = no entry.
 - Every candidate has both acquisition AND retention hypotheses.
+- Channel candidates must name the downstream revenue line they feed and the telemetry needed to prove lift.
+- Skill-registry candidates must pass through `docs/monetization/channels/skill-registries.md` and `skills/README.md`; standalone installability is the gating prerequisite.
 - Honesty: if TAM or demand is self-generated speculation, mark it so. Cite external sources when available.
 - Cap promotion proposals at 3 per heartbeat.
 - Do not propose Tier 4 / hardware work — that's north-star only.

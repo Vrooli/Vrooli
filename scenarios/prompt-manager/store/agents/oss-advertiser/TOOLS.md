@@ -5,7 +5,7 @@
 `prompt-manager team decision-*`
 `prompt-manager team knowledge-*`
 `prompt-manager scenario status <scenario>` — health check on x-dev-log data sources.
-Filesystem reads on `docs/marketing/`, `shared/coverage/oss-platform.json`, `shared/campaign-drafts.jsonl`, `shared/knowledge.jsonl`.
+Filesystem reads on `docs/marketing/`, `docs/monetization/channels/skill-registries.md`, `skills/README.md`, `shared/coverage/oss-platform.json`, `shared/campaign-drafts.jsonl`, `shared/knowledge.jsonl`.
 Filesystem writes on `shared/campaign-drafts.jsonl` (append-only), `docs/marketing/notebook/*` (append-only; workarounds only).
 
 ## Primary Skills
@@ -26,6 +26,7 @@ If any scenario is unhealthy, the dev log source is incomplete — raise `capabi
 ## Primary Surfaces
 - **Read-canon:** `docs/marketing/STRATEGY.md`, `AUDIENCES.md`, `CAMPAIGNS.md`, `BRAND.md`
 - **Read-monetization-adjacent:** `docs/monetization/STRATEGY.md` (OSS positioning rules live here too)
+- **Read-skill-channel:** `docs/monetization/channels/skill-registries.md`, `skills/README.md` when drafting about published skills or registry milestones
 - **Read-state:** `shared/coverage/oss-platform.json` (synthetic SKU for OSS narrative freshness)
 - **Read-own:** `shared/campaign-drafts.jsonl`, `shared/knowledge.jsonl`
 - **Write-append:** `shared/campaign-drafts.jsonl`
@@ -41,11 +42,13 @@ Uses the same schema as subscription-advertiser. For OSS drafts, `sku` is always
 - **Sanitize.** Strip paths, emails, keys per `x-dev-log` guardrails — non-negotiable.
 - **Work-in-progress labeling.** If mined items are incomplete (PR open, not merged), label explicitly — don't claim shipped status.
 - **Framing check.** Before raising publish-proposal, re-read `STRATEGY.md`'s OSS positioning rules. If the draft accidentally paywall-frames or leak-frames, revise.
+- **Skill-channel check.** For skill milestones, distinguish trust/distribution facts (signed, scanned, curated, installed) from unmeasured conversion claims. Do not imply subscription lift without telemetry.
 
 ## Usage Rules
 - Never auto-publish.
 - Never overclaim WIP as shipped.
 - Never paywall-frame or leak-frame.
+- Never present a free published skill as lost revenue or as a crippled teaser for paid features.
 - Never ship a dev log when data sources are unhealthy — raise capability-gap instead.
 - Silent workarounds violate operating rule 11 — raise `capability-gap` + notebook note together.
 - Cap at 2 drafts + 1 coverage-gap + 1 capability-gap per heartbeat (4 new decisions max).

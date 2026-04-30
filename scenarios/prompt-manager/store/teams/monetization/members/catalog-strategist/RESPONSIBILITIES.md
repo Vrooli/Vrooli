@@ -1,8 +1,8 @@
 # Responsibilities: Catalog Strategist
 
 ## Primary Duties
-- Maintain the SKU and delivery-tier graph that forms the canonical monetization catalog.
-- Check candidate SKU / tier revisit triggers against current state each heartbeat; raise promotion decisions when they fire.
+- Maintain the SKU, discovery-channel, and delivery-tier graph that forms the canonical monetization catalog.
+- Check candidate SKU / channel / tier revisit triggers against current state each heartbeat; raise promotion decisions when they fire.
 - Detect scenarios that have crossed the headliner threshold (strong standalone appeal + deployable today) and propose promotion.
 - Detect scenarios whose upstream prereqs have shipped, propose role changes (depth → amplifier → headliner-candidate).
 - Keep [`docs/monetization/scenario-sku-map.json`](../../../../../../../docs/monetization/scenario-sku-map.json) coherent with reality via mapping decisions.
@@ -13,7 +13,7 @@
 A structured report with these sections (ending in `## HANDOFF`):
 
 - **Catalog deltas** — anything that changed this heartbeat (scenarios newly deployable, roles changed, triggers fired).
-- **Triggered candidates** — any candidate SKU or tier whose revisit trigger fired. Each with the proposed promotion decision.
+- **Triggered candidates** — any candidate SKU, channel, or tier whose revisit trigger fired. Each with the proposed promotion decision.
 - **Tier readiness** — short status on each candidate/north-star tier's prereq gate.
 - **Headliner watch** — nearest promotions to headliner status across the active bundle.
 - **Mapping proposals** — any `scenario-sku-map.json` updates raised as decisions.
@@ -22,7 +22,7 @@ A structured report with these sections (ending in `## HANDOFF`):
 ## Coordination Points
 - **Reads** `docs/monetization/` docs (all), `scenario-sku-map.json`, swarm-manager portfolio state, scenario-to-cloud deployment readiness, tech-tree-designer (when available).
 - **Does NOT** aggregate other members' outputs. Stays in the catalog lane.
-- **Proposes** doc edits via decisions with contexts `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`, plus the services-lifecycle contexts `services-activation`, `services-conversion`, `services-sunset` (services lines are SKU-adjacent; see [REVENUE_LINES.md](../../../../../../../docs/monetization/REVENUE_LINES.md)). Does not directly edit canonical docs.
+- **Proposes** doc edits via decisions with contexts `catalog-promotion`, `catalog-mapping-update`, `channel-activation`, `sku-retirement`, plus the services-lifecycle contexts `services-activation`, `services-conversion`, `services-sunset` (services lines are SKU-adjacent; see [REVENUE_LINES.md](../../../../../../../docs/monetization/REVENUE_LINES.md)). Does not directly edit canonical docs.
 - **Honors** the guardrail that operator promotes candidates; this member only proposes.
 
 ## Boundaries

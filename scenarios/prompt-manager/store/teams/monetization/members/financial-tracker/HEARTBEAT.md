@@ -20,6 +20,7 @@ Per-tier × per-bundle × per-revenue-line MRR, plus totals:
 - Subscription MRR by bundle (business, lifestyle)
 - Services revenue by revenue line (subscription is the product line; `lead-gen`, `done-for-you`, `consulting` are the non-subscription lines when active)
 - Total monthly revenue
+- Channel-attributed acquisition/conversion where telemetry exists; channels are attribution tags, not revenue lines.
 
 Until subscriptions ship, all subscription fields carry `pending-telemetry` or `aspirational: 0`.
 
@@ -65,6 +66,8 @@ Read canonical model:
 - `docs/monetization/FINANCIAL_MODEL.md` — framework and assumptions
 - `docs/monetization/PRICING.md` — current price points (for MRR math)
 - `docs/monetization/REVENUE_LINES.md` — line-specific instrumentation
+- `docs/monetization/CHANNELS.md` — channel-attribution requirements
+- `docs/monetization/channels/*.md` — channel-specific telemetry, especially for active/pilot channels
 
 Read data (as available):
 - **Operator-provided state:** `shared/operator-inputs.json` — the canonical source for cash, monthly burn by category, time allocation, services revenue, and services time. Per-field `status` distinguishes `pending-operator` (operator can provide, hasn't yet), `current` (fresh), `stale` (updatedAt exceeds the staleness window in the file's `stalenessPolicy`), and `not-applicable-pre-launch` (genuinely out of scope at this phase). Per-field gathering guidance lives in `docs/monetization/HOW_TO_GATHER_INPUTS.md`.
@@ -90,15 +93,16 @@ Read own state:
     Bucket fields accordingly and build the input table for step 6.
 3. Read last 5-10 entries from `shared/ledger.jsonl` for delta context.
 4. Read `FINANCIAL_MODEL.md` for current assumptions.
-5. Read pending decisions in your owned contexts: `runway-warning`, `services-trap-warning`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`.
+5. Read pending decisions in your owned contexts: `runway-warning`, `services-trap-warning`, `channel-attribution-gap`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`.
 6. Collect inputs from available data sources (as above). Mark each with appropriate honesty flag. For any value sourced from `operator-inputs.json`, carry its `flag` through unchanged; for values with `pending-operator` status, propagate as null with flag `pending-operator` in the snapshot.
-7. Compute the snapshot: cash, per-category burn, per-tier/per-bundle revenue, runway, default-alive gap, time allocation, LTV (if computable). Fields with `pending-operator` inputs produce `pending-operator` outputs downstream (e.g., runway cannot be computed without cash + burn — if either is missing, runway field is `pending-operator` rather than fabricated).
+7. Compute the snapshot: cash, per-category burn, per-tier/per-bundle/per-revenue-line revenue, channel attribution where telemetry exists, runway, default-alive gap, time allocation, LTV (if computable). Fields with `pending-operator` inputs produce `pending-operator` outputs downstream (e.g., runway cannot be computed without cash + burn — if either is missing, runway field is `pending-operator` rather than fabricated).
 8. Compute deltas vs. last snapshot.
 9. Walk assumption list; check each.
 10. **Supersession check (runs even in read-only mode).** For each pending decision in your owned contexts, determine if your latest snapshot produces a fresher, contradicting, or more complete take on the same underlying question (e.g., a prior `runway-warning` is obsolete because runway has recovered; a prior `pricing-decision` proposal has been outdated by new cost data). If yes: mark the prior `superseded` and include `supersedes: <prior-decision-id>` on the replacement.
 11. Identify flag-worthy deltas. Raise at most 2 new decisions this heartbeat (by priority); skip entirely if in read-only mode. Candidates:
     - `services-trap-warning` if time or revenue-ratio guardrail exceeded
     - `runway-warning` if runway dropped materially or default-alive gap worsened
+    - `channel-attribution-gap` if an active or pilot channel lacks the telemetry its channel file requires
     - `financial-model-assumption-update` if an assumption is invalidated
     - `pricing-decision` if math suggests pricing needs to change (outlier gateway costs, unsustainable tier margins, etc.)
     - `funnel-bottleneck` once funnel telemetry exists: one stage's measured metric is materially worse than its target AND is the dominant drag on the next default-alive milestone. Pre-telemetry this context stays dormant; the HANDOFF notes "funnel-bottleneck: pending-telemetry" rather than raising.
