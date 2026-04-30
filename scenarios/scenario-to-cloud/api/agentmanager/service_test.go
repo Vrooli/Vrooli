@@ -25,8 +25,11 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if len(cfg.AllowedTools) == 0 {
 		t.Fatalf("expected default allowed tools to be populated")
 	}
-	if !cfg.SkipPermissions || cfg.RequiresSandbox || cfg.RequiresApproval {
-		t.Fatalf("expected default permissions to skip prompts without sandbox/approval")
+	if !cfg.SkipPermissions {
+		t.Fatalf("expected default permissions to skip prompts")
+	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_OFF {
+		t.Fatalf("expected SandboxMode=OFF for SSH-driven cloud investigations; got %v", cfg.SandboxMode)
 	}
 }
 
@@ -39,15 +42,14 @@ func TestBuildProfile(t *testing.T) {
 	})
 
 	cfg := &ProfileConfig{
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		Model:            "model-x",
-		ModelPreset:      domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:         10,
-		TimeoutSeconds:   30,
-		AllowedTools:     []string{"read_file"},
-		SkipPermissions:  true,
-		RequiresSandbox:  false,
-		RequiresApproval: true,
+		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CODEX,
+		Model:           "model-x",
+		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		MaxTurns:        10,
+		TimeoutSeconds:  30,
+		AllowedTools:    []string{"read_file"},
+		SkipPermissions: true,
+		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_OFF,
 	}
 
 	profile := svc.buildProfile(cfg)
@@ -63,7 +65,10 @@ func TestBuildProfile(t *testing.T) {
 	if len(profile.AllowedTools) != 1 || profile.AllowedTools[0] != "read_file" {
 		t.Fatalf("expected allowed tools to be preserved, got %+v", profile.AllowedTools)
 	}
-	if !profile.SkipPermissionPrompt || profile.RequiresSandbox || !profile.RequiresApproval {
-		t.Fatalf("expected permission flags to be preserved")
+	if !profile.SkipPermissionPrompt {
+		t.Fatalf("expected SkipPermissionPrompt to be preserved")
+	}
+	if profile.SandboxConfig == nil || profile.SandboxConfig.Mode != domainpb.SandboxMode_SANDBOX_MODE_OFF {
+		t.Fatalf("expected SandboxConfig.Mode=OFF; got %+v", profile.SandboxConfig)
 	}
 }

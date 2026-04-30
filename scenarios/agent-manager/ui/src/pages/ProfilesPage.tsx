@@ -24,7 +24,7 @@ import { Label } from "../components/ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
-import { runnerTypeLabel } from "../lib/utils";
+import { profileSandboxModeFormValue, runnerTypeLabel } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
 import { ModelPreset, NetworkAccess, RunnerType as RunnerTypeEnum } from "../types";
 import { runnerTypeToSlug } from "../lib/utils";
@@ -138,7 +138,7 @@ export function ProfilesPage({
     modelPreset: ModelPreset.UNSPECIFIED,
     modelMode: "default",
     maxTurns: 100,
-    requiresSandbox: true,
+    sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
     fallbackRunnerTypes: [],
@@ -181,7 +181,7 @@ export function ProfilesPage({
       modelPreset: ModelPreset.UNSPECIFIED,
       modelMode: "default",
       maxTurns: 100,
-      requiresSandbox: true,
+      sandboxMode: "protected",
       networkAccess: "localhost" as const,
       timeoutMinutes: 30,
       fallbackRunnerTypes: [],
@@ -204,7 +204,7 @@ export function ProfilesPage({
       modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
       modelMode: resolveModelMode(profile.model, profile.modelPreset),
       maxTurns: profile.maxTurns || 100,
-      requiresSandbox: profile.requiresSandbox,
+      sandboxMode: profileSandboxModeFormValue(profile),
       networkAccess: profile.networkAccess === NetworkAccess.NONE ? "none"
         : profile.networkAccess === NetworkAccess.FULL ? "full"
         : "localhost",
@@ -640,21 +640,29 @@ export function ProfilesPage({
               </div>
 
               <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.requiresSandbox}
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Sandbox Mode</span>
+                  <select
+                    value={formData.sandboxMode ?? "protected"}
                     onChange={(e) =>
-                      setFormData({ ...formData, requiresSandbox: e.target.checked })
+                      setFormData({
+                        ...formData,
+                        sandboxMode: e.target.value as "off" | "tracking" | "protected",
+                      })
                     }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Sandbox</span>
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="off">Off</option>
+                    <option value="tracking">Tracking</option>
+                    <option value="protected">Protected</option>
+                  </select>
                 </label>
-                {/* "Require Approval" toggle removed in
-                    agent-sandbox-audit-foundation Phase 3b. Operator-gated
-                    apply now lives on SandboxConfig.manualReview, surfaced
-                    via the Sandbox Config editor. */}
+                {/* The "Require Approval" toggle was removed in
+                    agent-sandbox-audit-foundation Phase 3b — operator-gated
+                    apply lives on SandboxConfig.manualReview now. The
+                    "Require Sandbox" boolean was removed in agent-manager
+                    Phase 1: SandboxConfig.mode is the single source of
+                    truth (see DeriveRunMode in domain/decisions.go). */}
                 <label className="flex items-center gap-2">
                   <span className="text-sm">Network Access</span>
                   <select

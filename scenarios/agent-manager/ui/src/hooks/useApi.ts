@@ -70,7 +70,25 @@ import {
   ExtraFlagListSchema,
   FeatureFlagsSchema,
   NetworkAccess,
+  SandboxConfigSchema,
+  SandboxMode,
 } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+
+// sandboxModeFromForm parses the UI form-string to the proto enum.
+// Empty/unknown maps to UNSPECIFIED so agent-manager applies its
+// DefaultSandboxConfig.
+function sandboxModeFromForm(s?: "off" | "tracking" | "protected"): SandboxMode {
+  switch (s) {
+    case "off":
+      return SandboxMode.OFF;
+    case "tracking":
+      return SandboxMode.TRACKING;
+    case "protected":
+      return SandboxMode.PROTECTED;
+    default:
+      return SandboxMode.UNSPECIFIED;
+  }
+}
 
 function networkAccessToProto(na: "none" | "localhost" | "full"): NetworkAccess {
   switch (na) {
@@ -310,7 +328,9 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     allowedTools: profile.allowedTools ?? [],
     deniedTools: profile.deniedTools ?? [],
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
-    requiresSandbox: profile.requiresSandbox ?? true,
+    sandboxConfig: profile.sandboxMode
+      ? create(SandboxConfigSchema, { mode: sandboxModeFromForm(profile.sandboxMode) })
+      : undefined,
     networkAccess: networkAccessToProto(profile.networkAccess ?? "localhost"),
     allowedPaths: profile.allowedPaths ?? [],
     deniedPaths: profile.deniedPaths ?? [],
@@ -380,8 +400,15 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (typeof run.skipPermissionPrompt === "boolean") {
     payload.skipPermissionPrompt = run.skipPermissionPrompt;
   }
-  if (typeof run.requiresSandbox === "boolean") {
-    payload.requiresSandbox = run.requiresSandbox;
+  if (run.sandboxMode !== undefined) {
+    // SandboxConfig.mode is the single source of truth for sandbox
+    // selection — see agent-manager DeriveRunMode. Pass it via
+    // sandboxConfig (the request struct's field), letting the
+    // orchestrator's resolveSandboxConfig backfill the rest of the
+    // contract defaults (auto-apply, manual-review, etc).
+    payload.sandboxConfig = create(SandboxConfigSchema, {
+      mode: sandboxModeFromForm(run.sandboxMode),
+    });
   }
   if (run.networkAccess !== undefined) {
     payload.networkAccess = networkAccessToProto(run.networkAccess);
@@ -428,7 +455,7 @@ function hasInlineConfig(run: RunFormData): boolean {
       run.allowedTools !== undefined ||
       run.deniedTools !== undefined ||
       typeof run.skipPermissionPrompt === "boolean" ||
-      typeof run.requiresSandbox === "boolean" ||
+      run.sandboxMode !== undefined ||
       run.networkAccess !== undefined ||
       run.allowedPaths !== undefined ||
       run.deniedPaths !== undefined ||

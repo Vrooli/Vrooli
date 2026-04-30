@@ -18,35 +18,37 @@ import (
 
 // DeepSearchProfileConfig defines the agent profile for deep search.
 type DeepSearchProfileConfig struct {
-	ProfileKey       string
-	ProfileName      string
-	Description      string
-	RunnerType       domainpb.RunnerType
-	Model            string
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
-	CreatedBy        string
+	ProfileKey      string
+	ProfileName     string
+	Description     string
+	RunnerType      domainpb.RunnerType
+	Model           string
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	// SandboxMode selects the sandbox execution mode. Read-only deep
+	// search runs in-place because there are no writes to audit. See
+	// agent-manager domain.DeriveRunMode.
+	SandboxMode domainpb.SandboxMode
+	CreatedBy   string
 }
 
 // DefaultDeepSearchProfileConfig returns the default deep search profile settings.
 func DefaultDeepSearchProfileConfig() DeepSearchProfileConfig {
 	return DeepSearchProfileConfig{
-		ProfileKey:       "deep-documentation-search",
-		ProfileName:      "Deep Documentation Search",
-		Description:      "Agent profile for read-only documentation deep search",
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:            "claude-3-haiku",
-		MaxTurns:         10,
-		TimeoutSeconds:   60,
-		AllowedTools:     []string{"Read", "Glob", "Grep"},
-		SkipPermissions:  true,
-		RequiresSandbox:  false,
-		RequiresApproval: false,
-		CreatedBy:        "knowledge-observatory",
+		ProfileKey:      "deep-documentation-search",
+		ProfileName:     "Deep Documentation Search",
+		Description:     "Agent profile for read-only documentation deep search",
+		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		Model:           "claude-3-haiku",
+		MaxTurns:        10,
+		TimeoutSeconds:  60,
+		AllowedTools:    []string{"Read", "Glob", "Grep"},
+		SkipPermissions: true,
+		// Read-only — no sandbox needed.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
+		CreatedBy:   "knowledge-observatory",
 	}
 }
 
@@ -187,7 +189,7 @@ func (c *DeepSearchClient) GetRunEvents(ctx context.Context, runID string, after
 }
 
 func (c *DeepSearchClient) buildProfile() *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 c.cfg.ProfileName,
 		ProfileKey:           c.cfg.ProfileKey,
 		Description:          c.cfg.Description,
@@ -197,10 +199,12 @@ func (c *DeepSearchClient) buildProfile() *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(c.cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         c.cfg.AllowedTools,
 		SkipPermissionPrompt: c.cfg.SkipPermissions,
-		RequiresSandbox:      c.cfg.RequiresSandbox,
-		RequiresApproval:     c.cfg.RequiresApproval,
 		CreatedBy:            c.cfg.CreatedBy,
 	}
+	if c.cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: c.cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (c *DeepSearchClient) profileID() string {
@@ -209,13 +213,12 @@ func (c *DeepSearchClient) profileID() string {
 	return c.id
 }
 
+// resolveRunMode lets agent-manager derive the mode from the resolved
+// SandboxConfig (single source of truth). Returning nil here is the
+// preferred default; the orchestrator's domain.DeriveRunMode handles
+// the OFF→InPlace and other-→Sandboxed mapping.
 func (c *DeepSearchClient) resolveRunMode() *domainpb.RunMode {
-	if c.cfg.RequiresSandbox {
-		mode := domainpb.RunMode_RUN_MODE_SANDBOXED
-		return &mode
-	}
-	mode := domainpb.RunMode_RUN_MODE_IN_PLACE
-	return &mode
+	return nil
 }
 
 func mapRunStatus(status domainpb.RunStatus) deepsearch.RunStatus {

@@ -304,6 +304,8 @@ func SandboxLifecycleConfigFromProto(cfg *pb.SandboxLifecycleConfig) domain.Sand
 // SandboxModeToProto converts domain SandboxMode to proto SandboxMode.
 func SandboxModeToProto(m domain.SandboxMode) pb.SandboxMode {
 	switch m {
+	case domain.SandboxModeOff:
+		return pb.SandboxMode_SANDBOX_MODE_OFF
 	case domain.SandboxModeTracking:
 		return pb.SandboxMode_SANDBOX_MODE_TRACKING
 	case domain.SandboxModeProtected:
@@ -316,6 +318,8 @@ func SandboxModeToProto(m domain.SandboxMode) pb.SandboxMode {
 // SandboxModeFromProto converts proto SandboxMode to domain.
 func SandboxModeFromProto(m pb.SandboxMode) domain.SandboxMode {
 	switch m {
+	case pb.SandboxMode_SANDBOX_MODE_OFF:
+		return domain.SandboxModeOff
 	case pb.SandboxMode_SANDBOX_MODE_TRACKING:
 		return domain.SandboxModeTracking
 	case pb.SandboxMode_SANDBOX_MODE_PROTECTED:
@@ -611,6 +615,10 @@ func RunEventTypeToProto(t domain.RunEventType) pb.RunEventType {
 		return pb.RunEventType_RUN_EVENT_TYPE_ARTIFACT
 	case domain.EventTypeError:
 		return pb.RunEventType_RUN_EVENT_TYPE_ERROR
+	case domain.EventTypeCompaction:
+		return pb.RunEventType_RUN_EVENT_TYPE_COMPACTION
+	case domain.EventTypeLifecycle:
+		return pb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE
 	default:
 		return pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED
 	}
@@ -637,6 +645,10 @@ func RunEventTypeFromProto(t pb.RunEventType) domain.RunEventType {
 		return domain.EventTypeArtifact
 	case pb.RunEventType_RUN_EVENT_TYPE_ERROR:
 		return domain.EventTypeError
+	case pb.RunEventType_RUN_EVENT_TYPE_COMPACTION:
+		return domain.EventTypeCompaction
+	case pb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE:
+		return domain.EventTypeLifecycle
 	default:
 		return domain.EventTypeLog
 	}

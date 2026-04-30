@@ -9,6 +9,17 @@
 //
 // Sandbox teardown is centralized in Finalize (the deferred terminal
 // seam); HandleResult does not call ApplySandboxLifecycle directly.
+//
+// Typed runner errors flow through HandleResult: when [core.Runner]
+// stores a [*domain.RunnerError] on [runner.ExecuteResult.TerminalError]
+// (populated by the codec's [codecs.Codec.ClassifyTerminalError]), the
+// failure path lifts it into ExecErr so [EmitFailureEvent] surfaces the
+// typed ErrorCode on the run timeline rather than a bare INTERNAL.
+//
+// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+// (Codec Terminal-Error Classification).
+// DOC: scenarios/agent-manager/docs/internal/INVARIANTS.md
+// (I3 — codec-side error classifier).
 
 package phases
 

@@ -8,7 +8,11 @@ Slim policy seam left after the agent-sandbox audit foundation cleanup
 - The `Evaluator` interface — the seam for policy decisions.
 - The `Decision` struct — what the evaluator returns. Fields:
   - `Allowed`, `DenialReason`, `DenialPolicy` — go/no-go.
-  - `RequiresSandbox` — gates `RunMode`.
+  - `RequiredSandboxMode` — minimum sandbox strictness the run must
+    satisfy (`Off < Tracking < Protected`); zero-value
+    `SandboxModeUnspecified` means "no minimum". The orchestrator
+    rejects the run if the resolved `SandboxConfig.Mode` is below this
+    minimum.
   - `EffectiveTimeout` — the run executor enforces.
   - `AppliedPolicies` — audit trail of which policy contributed.
 - `EvaluateRequest`, `ConcurrencyDecision`, `ApprovalDecision` —
@@ -40,7 +44,7 @@ at the boundary that owns the resource:
 
 | Concern | Enforced by | Surface |
 |---|---|---|
-| Sandbox required? | agent-manager | `Decision.RequiresSandbox` → router gates `RunMode` |
+| Sandbox required? | agent-manager | `Decision.RequiredSandboxMode` enforces a minimum on `SandboxConfig.Mode`; `domain.DeriveRunMode` derives the binary `RunMode` from the resolved Mode |
 | Timeout | agent-manager | run executor cancels |
 | Apply gate (manual vs auto) | agent-manager | `applyAtRunEnd` reads `SandboxConfig` |
 | Per-file allow/deny paths | workspace-sandbox | `apply-at-run-end` filters by `Behavior.Acceptance.{Allow,Deny}.PathGlobs` |

@@ -21,10 +21,10 @@ import (
 
 // Continuation errors
 var (
-	// ErrSessionExpired indicates the session no longer exists or has expired.
-	ErrSessionExpired = errors.New("session no longer exists or has expired")
-
-	// ErrContinuationNotSupported indicates the runner doesn't support session continuation.
+	// ErrContinuationNotSupported indicates the runner doesn't support
+	// session continuation. Session-expiry on the wire is now signalled
+	// via *domain.RunnerError with ErrCodeRunnerSessionExpired (see
+	// codecs.Codec.ClassifyTerminalError).
 	ErrContinuationNotSupported = errors.New("runner does not support session continuation")
 )
 
@@ -49,8 +49,10 @@ type Runner interface {
 
 	// Continue resumes an existing session with a follow-up message.
 	// Uses the stored session_id to continue the conversation.
-	// Returns ErrSessionExpired if the session no longer exists.
-	// Returns ErrContinuationNotSupported if the runner doesn't support this.
+	// Returns a typed *domain.RunnerError (with code RUNNER_SESSION_EXPIRED
+	// or RUNNER_SESSION_STATE_LOST) when the codec recognises a known
+	// session/state failure shape. Returns ErrContinuationNotSupported
+	// if the runner doesn't support continuation at all.
 	Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
 
 	// Stop attempts to gracefully stop a running agent.

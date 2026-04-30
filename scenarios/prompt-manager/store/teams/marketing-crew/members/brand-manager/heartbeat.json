@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "0 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-28T19:00:00Z",
-    "endedAt": "2026-04-28T19:02:00Z",
-    "status": "completed",
-    "runId": "58b2d8d2-1a4d-488a-ba0c-696a776601e8",
-    "logPath": "../store/teams/marketing-crew/members/brand-manager/logs/2026-04-28T19-00-00Z.log"
+    "startedAt": "2026-04-29T19:00:00Z",
+    "endedAt": "2026-04-29T19:00:10Z",
+    "status": "failed",
+    "runId": "325bbcb0-d170-49e9-b786-5d62d094d5b9",
+    "logPath": "../store/teams/marketing-crew/members/brand-manager/logs/2026-04-29T19-00-00Z.log",
+    "error": "2026-04-29T19:00:06.363989Z ERROR codex_core::session: failed to record rollout items: thread 019dda9c-c9f2-7730-814d-cf7b896b0bfd not found\n"
   },
-  "revision": 21,
+  "revision": 27,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-28T19:02:00Z"
+  "updatedAt": "2026-04-29T19:00:10Z"
 }

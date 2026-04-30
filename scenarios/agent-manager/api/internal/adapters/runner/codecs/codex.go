@@ -18,6 +18,7 @@ package codecs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -246,7 +247,9 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	}
 
 	// Network access policy determines Codex's internal sandbox mode.
-	// RequiresSandbox is a separate concern (overlayfs file isolation).
+	// SandboxConfig.Mode (overlayfs file isolation / bwrap-based agent
+	// containment) is a separate concern handled at the orchestration
+	// layer; this codec only sees the resolved RunConfig.
 	switch cfg.NetworkAccess.Effective() {
 	case domain.NetworkAccessNone:
 		args = append(args, "--full-auto")
@@ -391,10 +394,29 @@ func (c *Codex) OnEarlyTerminate(state State, line string) bool { return false }
 // no-op.
 func (c *Codex) PostClassify(state State, result *runner.ExecuteResult) {}
 
-// DetectSessionExpiry satisfies [Codec]. Codex surfaces session-expired
-// via stderr text containing "thread" + "not found".
-func (c *Codex) DetectSessionExpiry(errorMessage string) bool {
-	return strings.Contains(errorMessage, "thread") && strings.Contains(errorMessage, "not found")
+// ClassifyTerminalError satisfies [Codec]. Codex's failure shapes
+// distinguish two distinct "thread not found" cases:
+//
+//   - On resume, the session id no longer maps to a live thread: a
+//     plain "thread … not found" without rollout-writer context means
+//     the session is genuinely gone → ErrCodeRunnerSessionExpired.
+//   - During a live run, codex's `record_rollout_items` writer
+//     goroutine occasionally drops the thread mid-stream; the stderr
+//     line is `record_rollout_items: thread … not found`. The session
+//     id is still valid but the rollout state is unrecoverable →
+//     ErrCodeRunnerSessionStateLost.
+//
+// Returning nil from this method (no recognised pattern) lets
+// core.Runner fall back to ErrCodeRunnerExecution as before.
+func (c *Codex) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+	if !strings.Contains(stderr, "thread") || !strings.Contains(stderr, "not found") {
+		return nil
+	}
+	cause := strings.TrimSpace(stderr)
+	if strings.Contains(stderr, "record_rollout_items") {
+		return domain.NewRunnerSessionStateLostError(c.Type(), errors.New(cause))
+	}
+	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(cause))
 }
 
 // UpdateMetrics satisfies [Codec].

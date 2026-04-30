@@ -366,8 +366,8 @@ func TestEnsureProfileRequest_ProtojsonCompatibility(t *testing.T) {
 		"name": true, "profile_key": true, "description": true,
 		"runner_type": true, "model": true, "model_preset": true,
 		"max_turns": true, "timeout": true, "allowed_tools": true,
-		"skip_permission_prompt": true, "requires_sandbox": true,
-		"requires_approval": true, "created_by": true,
+		"skip_permission_prompt": true, "sandbox_config": true,
+		"created_by": true,
 	}
 	for key := range defaultsFields {
 		if !allowedDefaults[key] {

@@ -83,13 +83,13 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 
 	// Create a profile
 	profile := &domain.AgentProfile{
-		ID:              uuid.New(),
-		Name:            "consecutive-test-profile",
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		Model:           "claude-3-opus",
-		RequiresSandbox: false, // In-place execution
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:            uuid.New(),
+		Name:          "consecutive-test-profile",
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		Model:         "claude-3-opus",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, // In-place execution
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 	createdProfile, err := svc.CreateProfile(ctx, profile)
 	if err != nil {
@@ -246,12 +246,12 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:              uuid.New(),
-		Name:            "heartbeat-test-profile",
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:            uuid.New(),
+		Name:          "heartbeat-test-profile",
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 	createdProfile, err := svc.CreateProfile(ctx, profile)
 	if err != nil {

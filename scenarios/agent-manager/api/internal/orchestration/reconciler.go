@@ -18,7 +18,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strconv"
@@ -31,6 +31,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
@@ -199,9 +200,25 @@ func (r *Reconciler) Start(ctx context.Context) error {
 	r.mu.Unlock()
 
 	go r.loop(ctx)
-	log.Printf("[reconciler] Started with interval=%v, staleThreshold=%v",
-		r.config.Interval, r.config.StaleThreshold)
+	r.log().Info("reconciler started",
+		"interval", r.config.Interval.String(),
+		"staleThreshold", r.config.StaleThreshold.String(),
+	)
 	return nil
+}
+
+// log returns the reconciler's component-tagged structured logger.
+// Centralised so every call site uses the same component name.
+func (r *Reconciler) log() *slog.Logger { return obs.Component("reconciler") }
+
+// formatTimePtr renders an optional timestamp as RFC3339 or "<nil>" so
+// it serialises cleanly into structured log fields without printing the
+// type name.
+func formatTimePtr(t *time.Time) string {
+	if t == nil {
+		return "<nil>"
+	}
+	return t.Format(time.RFC3339)
 }
 
 // Stop gracefully stops the reconciliation loop.
@@ -220,7 +237,7 @@ func (r *Reconciler) Stop() error {
 	r.running = false
 	r.mu.Unlock()
 
-	log.Printf("[reconciler] Stopped")
+	r.log().Info("reconciler stopped")
 	return nil
 }
 
@@ -293,9 +310,14 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 
 	// Log summary
 	if stats.StaleRuns > 0 || stats.OrphansFound > 0 {
-		log.Printf("[reconciler] cycle: checked=%d stale=%d orphans=%d recovered=%d killed=%d errors=%d",
-			stats.RunsChecked, stats.StaleRuns, stats.OrphansFound,
-			stats.RunsRecovered, stats.OrphansKilled, len(stats.Errors))
+		r.log().Info("cycle complete",
+			"checked", stats.RunsChecked,
+			"stale", stats.StaleRuns,
+			"orphans", stats.OrphansFound,
+			"recovered", stats.RunsRecovered,
+			"killed", stats.OrphansKilled,
+			"errors", len(stats.Errors),
+		)
 	}
 }
 
@@ -411,7 +433,7 @@ func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain
 	run.UpdatedAt = now
 
 	if err := r.runs.Update(ctx, run); err != nil {
-		log.Printf("[reconciler] Failed to sync approved run %s: %v", run.ID, err)
+		r.log().Warn("approved run sync failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
 	if r.broadcaster != nil {
@@ -430,7 +452,7 @@ func (r *Reconciler) markRunRejectedFromSandbox(ctx context.Context, run *domain
 	run.UpdatedAt = now
 
 	if err := r.runs.Update(ctx, run); err != nil {
-		log.Printf("[reconciler] Failed to sync rejected run %s: %v", run.ID, err)
+		r.log().Warn("rejected run sync failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
 	if r.broadcaster != nil {
@@ -448,8 +470,13 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 		heartbeatAge = time.Since(run.CreatedAt)
 	}
 
-	log.Printf("[reconciler] DEBUG: Checking stale run %s (tag=%s, status=%s, heartbeat_age=%v, stale_threshold=%v)",
-		run.ID, tag, run.Status, heartbeatAge.Round(time.Second), r.config.StaleThreshold)
+	r.log().Debug("checking stale run",
+		obs.KeyRunID, run.ID.String(),
+		"tag", tag,
+		"status", string(run.Status),
+		"heartbeatAge", heartbeatAge.Round(time.Second).String(),
+		"staleThreshold", r.config.StaleThreshold.String(),
+	)
 
 	// reconcile() supplies pruned-column runs (no ResolvedConfig) — re-fetch
 	// with Get so recoverRun has everything recoveryParser needs. See the
@@ -472,8 +499,11 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 
 	if !processAlive {
 		// Process died but DB wasn't updated - mark as failed
-		log.Printf("[reconciler] Run %s (tag=%s) process not found after %v without heartbeat, marking as failed",
-			run.ID, tag, heartbeatAge.Round(time.Second))
+		r.log().Warn("run process not found, marking failed",
+			obs.KeyRunID, run.ID.String(),
+			"tag", tag,
+			"heartbeatAge", heartbeatAge.Round(time.Second).String(),
+		)
 		r.markRunFailed(ctx, run, fmt.Sprintf("process terminated unexpectedly (detected by reconciler after %v without heartbeat, tag=%s)",
 			heartbeatAge.Round(time.Second), tag))
 		return
@@ -482,15 +512,21 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 	// Process is alive but heartbeat is stale - could be legitimate slow work,
 	// or the executor is gone (e.g., agent-manager restarted) and nobody is
 	// managing this process anymore.
-	log.Printf("[reconciler] Run %s is stale (last heartbeat: %v) but process is alive",
-		run.ID, run.LastHeartbeat)
+	r.log().Info("run stale but process alive",
+		obs.KeyRunID, run.ID.String(),
+		"lastHeartbeat", formatTimePtr(run.LastHeartbeat),
+	)
 
 	// If the heartbeat has been absent beyond MaxRecoveryAge, the executor
 	// is gone. Kill the process and mark the run as failed rather than
 	// perpetually recovering it.
 	if r.config.MaxRecoveryAge > 0 && heartbeatAge > r.config.MaxRecoveryAge {
-		log.Printf("[reconciler] Run %s (tag=%s) exceeded max recovery age (%v > %v), killing process and marking failed",
-			run.ID, tag, heartbeatAge.Round(time.Second), r.config.MaxRecoveryAge)
+		r.log().Warn("run exceeded max recovery age, killing process",
+			obs.KeyRunID, run.ID.String(),
+			"tag", tag,
+			"heartbeatAge", heartbeatAge.Round(time.Second).String(),
+			"maxRecoveryAge", r.config.MaxRecoveryAge.String(),
+		)
 		r.killRunProcesses(ctx, run)
 		r.markRunFailed(ctx, run, fmt.Sprintf(
 			"executor heartbeat absent for %v (max recovery age %v exceeded) — process killed by reconciler (tag=%s)",
@@ -516,7 +552,7 @@ func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason 
 	run.UpdatedAt = now
 
 	if err := r.runs.Update(ctx, run); err != nil {
-		log.Printf("[reconciler] Failed to update run %s status: %v", run.ID, err)
+		r.log().Warn("run status update failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
 
 	// Broadcast status change
@@ -533,8 +569,11 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 		runnerType = string(run.ResolvedConfig.RunnerType)
 	}
 
-	log.Printf("[reconciler] DEBUG: isProcessAlive check for run %s (tag=%s, runner=%s)",
-		run.ID, tag, runnerType)
+	r.log().Debug("isProcessAlive check",
+		obs.KeyRunID, run.ID.String(),
+		"tag", tag,
+		obs.KeyRunnerType, runnerType,
+	)
 
 	// Method 1: Check via runner if available
 	if r.runners != nil && run.ResolvedConfig != nil {
@@ -548,7 +587,11 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 
 	// Method 2: Scan /proc for the process
 	alive := r.scanForProcess(tag)
-	log.Printf("[reconciler] DEBUG: isProcessAlive result for run %s (tag=%s): %v", run.ID, tag, alive)
+	r.log().Debug("isProcessAlive result",
+		obs.KeyRunID, run.ID.String(),
+		"tag", tag,
+		"alive", alive,
+	)
 	return alive
 }
 
@@ -567,9 +610,9 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 func (r *Reconciler) scanForProcess(tag string) bool {
 	found := r.scanRunnerProcessesByTag(tag)
 	if found {
-		log.Printf("[reconciler] DEBUG: Found runner process with tag '%s'", tag)
+		r.log().Debug("runner process found", "tag", tag)
 	} else {
-		log.Printf("[reconciler] DEBUG: No runner process found with tag '%s'", tag)
+		r.log().Debug("no runner process found", "tag", tag)
 	}
 	return found
 }
@@ -614,13 +657,13 @@ func (r *Reconciler) scanRunnerProcessByTag(runnerName, tag string) bool {
 
 		// First check: does the command line have --tag with our specific tag?
 		if cmdTag := extractTagFromCommand(command); cmdTag == tag {
-			log.Printf("[reconciler] DEBUG: PID %d matched tag '%s' via command-line --tag", pid, tag)
+			r.log().Debug("pid matched tag via --tag", "pid", pid, "tag", tag)
 			return true
 		}
 
 		// Second check: does the process environment have the tag?
 		if extractTagFromEnv(pid) == tag {
-			log.Printf("[reconciler] DEBUG: PID %d matched tag '%s' via environment variable", pid, tag)
+			r.log().Debug("pid matched tag via env", "pid", pid, "tag", tag)
 			return true
 		}
 	}
@@ -839,8 +882,11 @@ func getProcessStartTime(pid int) time.Time {
 
 // handleOrphan handles an orphan process.
 func (r *Reconciler) handleOrphan(ctx context.Context, orphan OrphanProcess, stats *ReconcileStats) {
-	log.Printf("[reconciler] Found orphan process: PID=%d tag=%s running since %v",
-		orphan.PID, orphan.Tag, orphan.StartTime)
+	r.log().Info("orphan process detected",
+		"pid", orphan.PID,
+		"tag", orphan.Tag,
+		"runningSince", orphan.StartTime.Format(time.RFC3339),
+	)
 
 	if !r.config.KillOrphans {
 		// Just log it, don't kill
@@ -852,7 +898,7 @@ func (r *Reconciler) handleOrphan(ctx context.Context, orphan OrphanProcess, sta
 		stats.Errors = append(stats.Errors, fmt.Sprintf("failed to kill orphan %d: %v", orphan.PID, err))
 	} else {
 		stats.OrphansKilled++
-		log.Printf("[reconciler] Killed orphan process: PID=%d tag=%s", orphan.PID, orphan.Tag)
+		r.log().Info("orphan process killed", "pid", orphan.PID, "tag", orphan.Tag)
 
 		// Clean up resource registries to remove stale entries
 		r.cleanupResourceRegistries(ctx)
@@ -875,7 +921,7 @@ func (r *Reconciler) cleanupResourceRegistries(ctx context.Context) {
 			// Log but don't fail - cleanup is best-effort
 			// The resource might not be installed or the command might not exist
 			if !strings.Contains(err.Error(), "executable file not found") {
-				log.Printf("[reconciler] Warning: %s agents cleanup failed: %v", cmd, err)
+				r.log().Warn("resource agents cleanup failed", "command", cmd, obs.KeyError, err.Error())
 			}
 		}
 	}
@@ -908,9 +954,9 @@ func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
 
 			command := parts[1]
 			if extractTagFromCommand(command) == tag || extractTagFromEnv(pid) == tag {
-				log.Printf("[reconciler] Killing run process: PID=%d tag=%s", pid, tag)
+				r.log().Info("killing run process", "pid", pid, "tag", tag)
 				if err := r.killProcess(pid); err != nil {
-					log.Printf("[reconciler] Warning: failed to kill PID %d: %v", pid, err)
+					r.log().Warn("kill PID failed", "pid", pid, obs.KeyError, err.Error())
 				}
 			}
 		}

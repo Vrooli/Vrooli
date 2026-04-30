@@ -211,81 +211,86 @@ func TestRun_IsApprovable(t *testing.T) {
 // RUN MODE DECISION TESTS
 // =============================================================================
 
-func TestDecideRunMode(t *testing.T) {
-	sandboxed := RunModeSandboxed
-	inPlace := RunModeInPlace
-
+// TestDeriveRunMode is the regression gate for the silent-sandbox-bypass
+// class of bug. SandboxConfig.Mode is the single source of truth; every
+// mode except Off must produce RunModeSandboxed, and a nil config must
+// not silently default to Sandboxed (the orchestrator always populates
+// a non-nil cfg via DefaultSandboxConfig before calling DeriveRunMode,
+// so nil here legitimately means "no sandbox at all").
+func TestDeriveRunMode(t *testing.T) {
 	tests := []struct {
-		name                   string
-		requestedMode          *RunMode
-		forceInPlace           bool
-		policyAllowsInPlace    bool
-		profileRequiresSandbox bool
-		wantMode               RunMode
-		wantExplicit           bool
-		wantPolicyOverride     bool
+		name string
+		cfg  *SandboxConfig
+		want RunMode
 	}{
 		{
-			name:          "explicit sandboxed request",
-			requestedMode: &sandboxed,
-			wantMode:      RunModeSandboxed,
-			wantExplicit:  true,
+			name: "nil config → in-place (caller did not request a sandbox)",
+			cfg:  nil,
+			want: RunModeInPlace,
 		},
 		{
-			name:          "explicit in_place request",
-			requestedMode: &inPlace,
-			wantMode:      RunModeInPlace,
-			wantExplicit:  true,
+			name: "Mode=Off → in-place",
+			cfg:  &SandboxConfig{Mode: SandboxModeOff},
+			want: RunModeInPlace,
 		},
 		{
-			name:                "force in_place with policy permission",
-			forceInPlace:        true,
-			policyAllowsInPlace: true,
-			wantMode:            RunModeInPlace,
-			wantPolicyOverride:  true,
+			name: "Mode=Tracking → sandboxed (host execution + tracking)",
+			cfg:  &SandboxConfig{Mode: SandboxModeTracking},
+			want: RunModeSandboxed,
 		},
 		{
-			name:                "force in_place without policy permission",
-			forceInPlace:        true,
-			policyAllowsInPlace: false,
-			wantMode:            RunModeSandboxed, // Falls back to default
+			name: "Mode=Protected → sandboxed (production default)",
+			cfg:  &SandboxConfig{Mode: SandboxModeProtected},
+			want: RunModeSandboxed,
 		},
 		{
-			name:                   "profile requires sandbox",
-			profileRequiresSandbox: true,
-			wantMode:               RunModeSandboxed,
+			name: "Mode=Unspecified (zero-value) → sandboxed via Effective→Tracking",
+			cfg:  &SandboxConfig{},
+			want: RunModeSandboxed,
 		},
 		{
-			name:                "policy allows in_place but not forced",
-			policyAllowsInPlace: true,
-			wantMode:            RunModeSandboxed, // Defaults to safer option
-		},
-		{
-			name:     "default is sandboxed",
-			wantMode: RunModeSandboxed,
+			name: "DefaultSandboxConfig produces sandboxed",
+			cfg:  DefaultSandboxConfig(),
+			want: RunModeSandboxed,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decision := DecideRunMode(
-				tt.requestedMode,
-				tt.forceInPlace,
-				tt.policyAllowsInPlace,
-				tt.profileRequiresSandbox,
-			)
+			got := DeriveRunMode(tt.cfg)
+			if got != tt.want {
+				t.Errorf("DeriveRunMode(%+v) = %q, want %q", tt.cfg, got, tt.want)
+			}
+		})
+	}
+}
 
-			if decision.Mode != tt.wantMode {
-				t.Errorf("Mode = %v, want %v", decision.Mode, tt.wantMode)
-			}
-			if decision.ExplicitChoice != tt.wantExplicit {
-				t.Errorf("ExplicitChoice = %v, want %v", decision.ExplicitChoice, tt.wantExplicit)
-			}
-			if decision.PolicyOverride != tt.wantPolicyOverride {
-				t.Errorf("PolicyOverride = %v, want %v", decision.PolicyOverride, tt.wantPolicyOverride)
-			}
-			if decision.Reason == "" {
-				t.Errorf("Reason should not be empty")
+// TestSandboxModeAtLeast covers the strictness ordering used by the
+// orchestrator to enforce policy-declared minimum sandbox modes:
+// Off (0) < Tracking (1) < Protected (2). SandboxModeUnspecified
+// normalises to Tracking via Effective().
+func TestSandboxModeAtLeast(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     SandboxMode
+		required SandboxMode
+		want     bool
+	}{
+		{"protected satisfies tracking", SandboxModeProtected, SandboxModeTracking, true},
+		{"protected satisfies protected", SandboxModeProtected, SandboxModeProtected, true},
+		{"tracking does not satisfy protected", SandboxModeTracking, SandboxModeProtected, false},
+		{"tracking satisfies tracking", SandboxModeTracking, SandboxModeTracking, true},
+		{"tracking satisfies off", SandboxModeTracking, SandboxModeOff, true},
+		{"off does not satisfy tracking", SandboxModeOff, SandboxModeTracking, false},
+		{"off does not satisfy protected", SandboxModeOff, SandboxModeProtected, false},
+		{"unspecified equals tracking", SandboxModeUnspecified, SandboxModeTracking, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.mode.AtLeast(tt.required)
+			if got != tt.want {
+				t.Errorf("%q.AtLeast(%q) = %v, want %v", tt.mode, tt.required, got, tt.want)
 			}
 		})
 	}

@@ -278,8 +278,11 @@ func (c *fakeCodec) PostClassify(state codecs.State, result *runner.ExecuteResul
 	}
 }
 
-func (c *fakeCodec) DetectSessionExpiry(errorMessage string) bool {
-	return c.expirePhrase != "" && strings.Contains(errorMessage, c.expirePhrase)
+func (c *fakeCodec) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+	if c.expirePhrase == "" || !strings.Contains(stderr, c.expirePhrase) {
+		return nil
+	}
+	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(stderr))
 }
 
 func (c *fakeCodec) Labels() codecs.Labels {
@@ -583,7 +586,7 @@ func TestContinue_RoutesContinueArgs(t *testing.T) {
 	}
 }
 
-func TestContinue_EmptySessionReturnsExpired(t *testing.T) {
+func TestContinue_EmptySessionReturnsTypedError(t *testing.T) {
 	codec := newFakeCodec()
 	launcher := &fakeLauncher{}
 	r := newRunnerForTest(t, codec, launcher)
@@ -593,12 +596,16 @@ func TestContinue_EmptySessionReturnsExpired(t *testing.T) {
 		SessionID:      "",
 		ResolvedConfig: domain.DefaultRunConfig(),
 	})
-	if !errors.Is(err, runner.ErrSessionExpired) {
-		t.Fatalf("expected ErrSessionExpired, got %v", err)
+	var rerr *domain.RunnerError
+	if !errors.As(err, &rerr) {
+		t.Fatalf("expected *domain.RunnerError, got %T (%v)", err, err)
+	}
+	if rerr.Code() != domain.ErrCodeRunnerSessionExpired {
+		t.Errorf("Code = %s, want RUNNER_SESSION_EXPIRED", rerr.Code())
 	}
 }
 
-func TestContinue_DetectSessionExpiry(t *testing.T) {
+func TestContinue_ClassifiesSessionExpired(t *testing.T) {
 	codec := newFakeCodec()
 	codec.expirePhrase = "session expired"
 	launcher := &fakeLauncher{
@@ -618,8 +625,12 @@ func TestContinue_DetectSessionExpiry(t *testing.T) {
 		EventSink:      sink,
 		ResolvedConfig: cfg,
 	})
-	if !errors.Is(err, runner.ErrSessionExpired) {
-		t.Fatalf("expected ErrSessionExpired, got %v", err)
+	var rerr *domain.RunnerError
+	if !errors.As(err, &rerr) {
+		t.Fatalf("expected *domain.RunnerError, got %T (%v)", err, err)
+	}
+	if rerr.Code() != domain.ErrCodeRunnerSessionExpired {
+		t.Errorf("Code = %s, want RUNNER_SESSION_EXPIRED", rerr.Code())
 	}
 }
 

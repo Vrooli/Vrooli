@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-28T19:30:00Z",
-    "endedAt": "2026-04-28T19:33:40Z",
-    "status": "completed",
-    "runId": "c0c1a078-234c-4d49-8915-ee87e4f6ffeb",
-    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-04-28T19-30-00Z.log"
+    "startedAt": "2026-04-29T19:30:00Z",
+    "endedAt": "2026-04-29T19:30:05Z",
+    "status": "failed",
+    "runId": "2a628ead-5614-4dfb-beb3-ca16decbd059",
+    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-04-29T19-30-00Z.log",
+    "error": "2026-04-29T19:30:04.449904Z ERROR codex_core::session: failed to record rollout items: thread 019ddab8-3f24-7062-a4b2-e7404205234f not found\n"
   },
-  "revision": 21,
+  "revision": 26,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-28T19:33:40Z"
+  "updatedAt": "2026-04-29T19:30:05Z"
 }

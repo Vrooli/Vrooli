@@ -3,7 +3,6 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
@@ -30,6 +30,7 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	recoveryLog := obs.Component("recovery")
 	for _, run := range runs {
 		// List() returns runs with a pruned column set that omits
 		// ResolvedConfig — re-fetch with Get so recoveryParser has the
@@ -39,14 +40,24 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 		// restart-resume integration test.
 		full, err := r.runs.Get(ctx, run.ID)
 		if err != nil || full == nil {
-			log.Printf("[recovery] run %s: hydrate failed: %v", run.ID, err)
+			recoveryLog.Warn("run hydrate failed", obs.KeyRunID, run.ID.String(), obs.KeyError, errString(err))
 			continue
 		}
 		if _, err := r.recoverRun(ctx, full, true); err != nil {
-			log.Printf("[recovery] run %s: %v", run.ID, err)
+			recoveryLog.Warn("run recovery failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
 	}
 	return nil
+}
+
+// errString returns the error message or "<nil>" when err is nil. Used
+// by structured logging sites where err is nullable but we still want a
+// stable string representation.
+func errString(err error) string {
+	if err == nil {
+		return "<nil>"
+	}
+	return err.Error()
 }
 
 func (r *Reconciler) RecoverRun(ctx context.Context, runID uuid.UUID) (*RecoverResult, error) {

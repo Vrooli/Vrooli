@@ -633,8 +633,8 @@ func (r *wsSandboxResponse) toSandbox() *Sandbox {
 	state := HomeOverlayState(r.HomeOverlayState)
 	if state == "" {
 		// Older workspace-sandbox versions (pre-2026-04-29) may not set
-		// the field. Default to Absent so the launcher's RequiresHomeOverlay
-		// check fails fast rather than silently exec'ing into a missing path.
+		// the field. Default to Absent so the launcher's command-translation
+		// guard fails fast rather than silently exec'ing into a missing path.
 		state = HomeOverlayAbsent
 	}
 	return &Sandbox{

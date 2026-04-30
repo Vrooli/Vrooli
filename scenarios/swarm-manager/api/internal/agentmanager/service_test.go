@@ -29,8 +29,8 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if cfg.SkipPermissions {
 		t.Fatal("expected SkipPermissions=false by default")
 	}
-	if !cfg.RequiresSandbox {
-		t.Fatal("expected RequiresSandbox=true: swarm-manager agents run sandboxed so agent-manager's auto-approve-if-empty path handles read-only runs cleanly")
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
+		t.Fatalf("expected SandboxMode=PROTECTED so swarm-manager runs always carry the auditability sandbox; got %v", cfg.SandboxMode)
 	}
 	// swarm-manager auto-accepts; the ManualReview field was removed
 	// from ProfileConfig 2026-04-28. There is no per-skill override
@@ -54,14 +54,15 @@ func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
 	if ref.Defaults == nil {
 		t.Fatal("expected Defaults to be populated")
 	}
-	if !ref.Defaults.RequiresSandbox {
-		t.Fatal("expected Defaults.RequiresSandbox=true to match DefaultProfileConfig")
+	// Phase-1 contract: swarm-manager carries an explicit
+	// SandboxConfig.Mode through to agent-manager so the dispatch path
+	// is unambiguous. agent-manager.resolveSandboxConfig fills in the
+	// remaining contract defaults (auto-apply, no manual review).
+	if ref.Defaults.SandboxConfig == nil {
+		t.Fatal("expected Defaults.SandboxConfig to carry an explicit Mode (the safe-default-via-bool pattern was removed in Phase 1)")
 	}
-	// SandboxConfig is intentionally omitted from buildProfile — see
-	// the ProfileConfig comment. agent-manager fills in the contract
-	// defaults (auto-apply, no manual review) at resolveSandboxConfig.
-	if ref.Defaults.SandboxConfig != nil {
-		t.Fatalf("expected Defaults.SandboxConfig to be nil; got %+v", ref.Defaults.SandboxConfig)
+	if ref.Defaults.SandboxConfig.Mode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
+		t.Fatalf("expected Defaults.SandboxConfig.Mode=PROTECTED, got %v", ref.Defaults.SandboxConfig.Mode)
 	}
 }
 
@@ -81,7 +82,7 @@ func TestBuildProfile(t *testing.T) {
 		TimeoutSeconds:  30,
 		AllowedTools:    []string{"Read"},
 		SkipPermissions: false,
-		RequiresSandbox: false,
+		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_TRACKING,
 	}
 
 	profile := svc.buildProfile(cfg)
@@ -97,14 +98,17 @@ func TestBuildProfile(t *testing.T) {
 	if len(profile.AllowedTools) != 1 || profile.AllowedTools[0] != "Read" {
 		t.Fatalf("expected allowed tools to be preserved, got %+v", profile.AllowedTools)
 	}
-	if profile.SkipPermissionPrompt || profile.RequiresSandbox {
-		t.Fatalf("expected permission flags to be preserved")
+	if profile.SkipPermissionPrompt {
+		t.Fatalf("expected SkipPermissionPrompt to be preserved as false")
 	}
-	// swarm-manager omits SandboxConfig in the proto profile; the
-	// agent-manager side fills in the contract defaults
-	// (auto-apply on success, no manual review).
-	if profile.SandboxConfig != nil {
-		t.Fatalf("expected SandboxConfig to be nil; got %+v", profile.SandboxConfig)
+	// Phase-1 contract: buildProfile carries the explicit Mode through
+	// agent-manager fills in the remaining defaults at
+	// resolveSandboxConfig (AutoApply, ApplyOnFailure, etc).
+	if profile.SandboxConfig == nil {
+		t.Fatal("expected SandboxConfig to carry the explicit Mode")
+	}
+	if profile.SandboxConfig.Mode != domainpb.SandboxMode_SANDBOX_MODE_TRACKING {
+		t.Fatalf("expected SandboxConfig.Mode=TRACKING, got %v", profile.SandboxConfig.Mode)
 	}
 }
 

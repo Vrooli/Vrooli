@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,6 +23,8 @@ import (
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/promptmanager"
@@ -68,7 +69,22 @@ type Server struct {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	// Initialize structured logger
+	// Load levers first so the structured logger can be initialised
+	// from the operator's chosen format/level before any orchestration
+	// log site fires.
+	levers, leversErr := agentconfig.LoadLevers()
+	if levers == nil {
+		defaults := agentconfig.DefaultLevers()
+		levers = &defaults
+	}
+	obs.Init(levers.Observability.LogFormat, levers.Observability.LogLevel)
+	if leversErr != nil {
+		obs.Logger().Warn("config levers failed to load; using defaults", obs.KeyError, leversErr.Error())
+	}
+
+	// Initialize logrus for HTTP-ingress paths that still consume it
+	// (database, pricing, websockets). The orchestration / runner /
+	// phases layers use obs.Logger exclusively.
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
@@ -94,7 +110,7 @@ func NewServer() (*Server, error) {
 	uploadStorage := storage.NewLocalService(uploadDir)
 
 	// Create the orchestrator with appropriate repositories and broadcaster
-	deps := createOrchestrator(db, wsHub, logger, uploadStorage)
+	deps := createOrchestrator(db, wsHub, logger, uploadStorage, levers)
 
 	// Create tool registry for tool discovery protocol
 	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
@@ -127,17 +143,17 @@ func NewServer() (*Server, error) {
 	// Start the reconciler for orphan detection and stale run recovery
 	if srv.reconciler != nil {
 		if err := srv.reconciler.RecoverInFlightRuns(context.Background()); err != nil {
-			log.Printf("Warning: Failed initial run recovery: %v", err)
+			obs.Logger().Warn("initial run recovery failed", obs.KeyError, err.Error())
 		}
 		if err := srv.reconciler.Start(context.Background()); err != nil {
-			log.Printf("Warning: Failed to start reconciler: %v", err)
+			obs.Logger().Warn("reconciler start failed", obs.KeyError, err.Error())
 		}
 	}
 
 	// Start the recommendation worker for passive extraction from investigation runs
 	if srv.recommendationWorker != nil {
 		if err := srv.recommendationWorker.Start(context.Background()); err != nil {
-			log.Printf("Warning: Failed to start recommendation worker: %v", err)
+			obs.Logger().Warn("recommendation worker start failed", obs.KeyError, err.Error())
 		}
 	}
 
@@ -161,15 +177,12 @@ type orchestratorDeps struct {
 	modelHealthProbe     *modelregistry.HealthProbe
 }
 
-// createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger, uploadStorage storage.Service) orchestratorDeps {
-	levers, err := agentconfig.LoadLevers()
-	if err != nil {
-		log.Printf("Warning: failed to load config levers: %v", err)
-	}
-
-	// Create repositories from SQLite database
-	log.Printf("Using SQLite persistence")
+// createOrchestrator creates the orchestration service with all dependencies.
+// levers is pre-loaded by NewServer so observability is initialised before the
+// first log site fires.
+func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger, uploadStorage storage.Service, levers *agentconfig.Levers) orchestratorDeps {
+	bootLog := obs.Component("bootstrap")
+	bootLog.Info("using SQLite persistence")
 	storageLabel := "sqlite"
 	eventStore := event.NewSQLiteStore(db.DB, logger)
 	repos := database.NewRepositories(db, logger)
@@ -188,66 +201,66 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	hostLauncher := runner.NewHostLauncher()
 	var claudeRunner *runnercore.Runner
 	if claudeCodec, err := codecs.NewClaude(); err != nil {
-		log.Printf("Warning: Failed to create Claude Code codec: %v", err)
+		bootLog.Warn("Claude Code codec construction failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeClaudeCode,
 			fmt.Sprintf("claude-code runner failed to initialize: %v", err),
 		)); err != nil {
-			log.Printf("Warning: Failed to register stub Claude runner: %v", err)
+			bootLog.Warn("stub Claude runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		}
 	} else {
 		claudeRunner = runnercore.NewRunner(claudeCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(claudeRunner); err != nil {
-			log.Printf("Warning: Failed to register Claude runner: %v", err)
+			bootLog.Warn("Claude runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyError, err.Error())
 		}
 		if avail, msg := claudeRunner.IsAvailable(context.Background()); avail {
-			log.Printf("Claude Code runner: available")
+			bootLog.Info("runner available", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode))
 		} else {
-			log.Printf("Claude Code runner: %s", msg)
+			bootLog.Warn("runner unavailable", obs.KeyRunnerType, string(domain.RunnerTypeClaudeCode), obs.KeyMessage, msg)
 		}
 	}
 
 	// Register Codex runner (codecs.Codex wired through core.Runner).
 	var codexRunner *runnercore.Runner
 	if codexCodec, err := codecs.NewCodex(); err != nil {
-		log.Printf("Warning: Failed to create Codex codec: %v", err)
+		bootLog.Warn("Codex codec construction failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeCodex,
 			fmt.Sprintf("codex runner failed to initialize: %v", err),
 		)); err != nil {
-			log.Printf("Warning: Failed to register stub Codex runner: %v", err)
+			bootLog.Warn("stub Codex runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		}
 	} else {
 		codexRunner = runnercore.NewRunner(codexCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(codexRunner); err != nil {
-			log.Printf("Warning: Failed to register Codex runner: %v", err)
+			bootLog.Warn("Codex runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyError, err.Error())
 		}
 		if avail, msg := codexRunner.IsAvailable(context.Background()); avail {
-			log.Printf("Codex runner: available")
+			bootLog.Info("runner available", obs.KeyRunnerType, string(domain.RunnerTypeCodex))
 		} else {
-			log.Printf("Codex runner: %s", msg)
+			bootLog.Warn("runner unavailable", obs.KeyRunnerType, string(domain.RunnerTypeCodex), obs.KeyMessage, msg)
 		}
 	}
 
 	// Register OpenCode runner (codecs.OpenCode wired through core.Runner).
 	var openCodeRunner *runnercore.Runner
 	if openCodeCodec, err := codecs.NewOpenCode(); err != nil {
-		log.Printf("Warning: Failed to create OpenCode codec: %v", err)
+		bootLog.Warn("OpenCode codec construction failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeOpenCode,
 			fmt.Sprintf("opencode runner failed to initialize: %v", err),
 		)); err != nil {
-			log.Printf("Warning: Failed to register stub OpenCode runner: %v", err)
+			bootLog.Warn("stub OpenCode runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		}
 	} else {
 		openCodeRunner = runnercore.NewRunner(openCodeCodec, hostLauncher, nil)
 		if err := runnerRegistry.Register(openCodeRunner); err != nil {
-			log.Printf("Warning: Failed to register OpenCode runner: %v", err)
+			bootLog.Warn("OpenCode runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyError, err.Error())
 		}
 		if avail, msg := openCodeRunner.IsAvailable(context.Background()); avail {
-			log.Printf("OpenCode runner: available")
+			bootLog.Info("runner available", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode))
 		} else {
-			log.Printf("OpenCode runner: %s", msg)
+			bootLog.Warn("runner unavailable", obs.KeyRunnerType, string(domain.RunnerTypeOpenCode), obs.KeyMessage, msg)
 		}
 	}
 
@@ -291,7 +304,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	orchSettingsPath := agentconfig.ResolveOrchestrationSettingsPath()
 	orchSettingsStore, err := agentconfig.NewOrchestrationSettingsStore(orchSettingsPath)
 	if err != nil {
-		log.Printf("Warning: failed to load orchestration settings from %s: %v", orchSettingsPath, err)
+		bootLog.Warn("orchestration settings load failed", "path", orchSettingsPath, obs.KeyError, err.Error())
 	}
 
 	// Build terminator config from orchestration settings (or defaults).
@@ -318,7 +331,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	modelRegistryPath := modelregistry.ResolvePath()
 	modelRegistryStore, err := modelregistry.NewStore(modelRegistryPath)
 	if err != nil {
-		log.Printf("Warning: Failed to load model registry from %s: %v", modelRegistryPath, err)
+		bootLog.Warn("model registry load failed", "path", modelRegistryPath, obs.KeyError, err.Error())
 	}
 
 	modelHealth := modelregistry.NewHealthStore()
@@ -346,7 +359,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			for _, runnerType := range levers.Runners.FallbackRunnerTypes {
 				rt := domain.RunnerType(runnerType)
 				if !rt.IsValid() {
-					log.Printf("Warning: skipping invalid fallback runner type: %s", runnerType)
+					bootLog.Warn("skipping invalid fallback runner type", obs.KeyRunnerType, runnerType)
 					continue
 				}
 				if _, exists := seen[rt]; exists {
@@ -378,6 +391,22 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		log.Fatalf("Failed to initialize identity secret: %v", err)
 	}
 
+	// Build the spawn dispatcher up front so it can be installed on
+	// the orchestrator. Defaults come from levers; QueueCapacity ==
+	// 0 means "auto-derive from MaxConcurrentRuns".
+	spawnCfg := spawn.Config{MaxStartingConcurrency: 1, QueueCapacity: orchConfig.MaxConcurrentRuns * 2}
+	if levers != nil {
+		spawnCfg.MaxStartingConcurrency = levers.Spawn.MaxStartingConcurrency
+		spawnCfg.MinSpacing = levers.Spawn.MinSpacing
+		if levers.Spawn.QueueCapacity > 0 {
+			spawnCfg.QueueCapacity = levers.Spawn.QueueCapacity
+		}
+	}
+	if spawnCfg.QueueCapacity < spawnCfg.MaxStartingConcurrency {
+		spawnCfg.QueueCapacity = spawnCfg.MaxStartingConcurrency
+	}
+	spawnDispatcher := spawn.New(spawnCfg)
+
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
@@ -401,6 +430,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithAttachmentStorage(uploadStorage),
 		orchestration.WithOrchestrationSettings(orchSettingsStore),
 		orchestration.WithIdentitySecret(identitySecret),
+		orchestration.WithSpawnDispatcher(spawnDispatcher),
 	)
 
 	// Build reconciler config from orchestration settings (or defaults).
@@ -476,12 +506,12 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		if parsed, err := time.ParseDuration(raw); err == nil {
 			probeCfg.Interval = parsed
 		} else {
-			log.Printf("Warning: invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL %q: %v", raw, err)
+			bootLog.Warn("invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL", "raw", raw, obs.KeyError, err.Error())
 		}
 	}
 	modelHealthProbe := modelregistry.NewHealthProbe(modelRegistryStore, modelHealth, modelResolver, probeCfg)
 
-	log.Printf("Orchestrator initialized (storage: %s, sandbox: %s)", storageLabel, sandboxURL)
+	bootLog.Info("orchestrator initialized", "storage", storageLabel, "sandbox", sandboxURL)
 	return orchestratorDeps{
 		orchestrator:         orch,
 		statsService:         statsSvc,
@@ -522,18 +552,20 @@ func (s *Server) setupRoutes() {
 	// WebSocket hub was created in NewServer and is shared with orchestrator
 	handler.RegisterRoutes(s.router)
 
+	routesLog := obs.Component("routes")
+
 	// Register stats routes
 	if s.statsService != nil {
 		statsHandler := handlers.NewStatsHandler(s.statsService)
 		statsHandler.RegisterRoutes(s.router)
-		log.Printf("Stats endpoints available at /api/v1/stats/*")
+		routesLog.Info("stats endpoints registered", "path", "/api/v1/stats/*")
 	}
 
 	// Register pricing routes
 	if s.pricingService != nil && s.statsRepo != nil {
 		pricingHandler := handlers.NewPricingHandler(s.pricingService, s.statsRepo)
 		pricingHandler.RegisterRoutes(s.router)
-		log.Printf("Pricing endpoints available at /api/v1/pricing/*")
+		routesLog.Info("pricing endpoints registered", "path", "/api/v1/pricing/*")
 	}
 
 	// Register tool discovery routes
@@ -550,10 +582,10 @@ func (s *Server) setupRoutes() {
 	// Prometheus metrics endpoint
 	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
 
-	log.Printf("Tool discovery endpoint available at /api/v1/tools")
-	log.Printf("Tool execution endpoint available at /api/v1/tools/execute")
-	log.Printf("WebSocket endpoint available at /api/v1/ws")
-	log.Printf("Prometheus metrics available at /metrics")
+	routesLog.Info("tool discovery endpoint registered", "path", "/api/v1/tools")
+	routesLog.Info("tool execution endpoint registered", "path", "/api/v1/tools/execute")
+	routesLog.Info("websocket endpoint registered", "path", "/api/v1/ws")
+	routesLog.Info("metrics endpoint registered", "path", "/metrics")
 }
 
 // muxRouteAdapter adapts mux.Router to the routeRegistrar interface.
@@ -582,17 +614,19 @@ func (s *Server) Router() http.Handler {
 
 // Cleanup releases resources when the server shuts down
 func (s *Server) Cleanup() error {
+	shutdownLog := obs.Component("shutdown")
+
 	// Stop the reconciler
 	if s.reconciler != nil {
 		if err := s.reconciler.Stop(); err != nil {
-			s.log("reconciler shutdown failed", map[string]interface{}{"error": err.Error()})
+			shutdownLog.Warn("reconciler shutdown failed", obs.KeyError, err.Error())
 		}
 	}
 
 	// Stop the recommendation worker
 	if s.recommendationWorker != nil {
 		if err := s.recommendationWorker.Stop(); err != nil {
-			s.log("recommendation worker shutdown failed", map[string]interface{}{"error": err.Error()})
+			shutdownLog.Warn("recommendation worker shutdown failed", obs.KeyError, err.Error())
 		}
 	}
 
@@ -601,16 +635,21 @@ func (s *Server) Cleanup() error {
 		s.db.Close()
 	}
 
-	s.log("server stopped", nil)
+	shutdownLog.Info("server stopped")
 	return nil
 }
 
 // loggingMiddleware prints simple request logs
 func loggingMiddleware(next http.Handler) http.Handler {
+	httpLog := obs.Component("http")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+		httpLog.Debug("request",
+			"method", r.Method,
+			"uri", r.RequestURI,
+			obs.KeyDuration, time.Since(start).Milliseconds(),
+		)
 	})
 }
 
@@ -673,15 +712,6 @@ func isOriginAllowed(origin string, allowed []string) bool {
 		}
 	}
 	return false
-}
-
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		log.Println(msg)
-		return
-	}
-	data, _ := json.Marshal(fields)
-	log.Printf("%s | %s", msg, string(data))
 }
 
 func main() {

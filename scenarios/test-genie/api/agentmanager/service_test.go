@@ -22,8 +22,8 @@ func TestDefaultProfileConfigHasExpectedSafetyDefaults(t *testing.T) {
 	if cfg.SkipPermissions {
 		t.Fatal("expected permission prompts to remain enabled by default")
 	}
-	if cfg.RequiresSandbox {
-		t.Fatal("expected sandbox to remain disabled for in-place execution")
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
+		t.Fatalf("expected SandboxMode=PROTECTED so test-genie runs always reach the workspace-sandbox merged dir; got %v", cfg.SandboxMode)
 	}
 }
 
@@ -43,7 +43,7 @@ func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
 		TimeoutSeconds:  45,
 		AllowedTools:    []string{"Read", "Write"},
 		SkipPermissions: true,
-		RequiresSandbox: true,
+		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
 	})
 
 	if profile.Name != "Test Genie Agent" {
@@ -55,8 +55,11 @@ func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
 	if profile.Timeout.AsDuration() != 45*time.Second {
 		t.Fatalf("expected timeout to be converted to duration, got %s", profile.Timeout.AsDuration())
 	}
-	if !profile.SkipPermissionPrompt || !profile.RequiresSandbox {
-		t.Fatal("expected profile flags to mirror the config")
+	if !profile.SkipPermissionPrompt {
+		t.Fatal("expected SkipPermissionPrompt to mirror the config")
+	}
+	if profile.SandboxConfig == nil || profile.SandboxConfig.Mode != domainpb.SandboxMode_SANDBOX_MODE_PROTECTED {
+		t.Fatalf("expected SandboxConfig.Mode=PROTECTED to mirror cfg.SandboxMode, got %+v", profile.SandboxConfig)
 	}
 
 	ref := svc.defaultProfileRef()

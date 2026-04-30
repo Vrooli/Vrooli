@@ -988,9 +988,9 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error, got command=%q", got)
 				}
-				var typed *ErrCommandRequiresHomeOverlay
+				var typed *ErrCommandHomeOverlayUnavailable
 				if !errors.As(err, &typed) {
-					t.Errorf("expected ErrCommandRequiresHomeOverlay, got %T: %v", err, err)
+					t.Errorf("expected ErrCommandHomeOverlayUnavailable, got %T: %v", err, err)
 				}
 				return
 			}
@@ -1006,7 +1006,7 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 
 // TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent — the
 // load-bearing seam introduced in Phase F. A command pointing under
-// $HOME with state != Present must surface as ErrCommandRequiresHomeOverlay
+// $HOME with state != Present must surface as ErrCommandHomeOverlayUnavailable
 // before the launcher POSTs to workspace-sandbox.
 func TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent(t *testing.T) {
 	const home = "/home/matt"
@@ -1017,9 +1017,9 @@ func TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error for state=%s, got nil", state)
 			}
-			var typed *ErrCommandRequiresHomeOverlay
+			var typed *ErrCommandHomeOverlayUnavailable
 			if !errors.As(err, &typed) {
-				t.Fatalf("expected ErrCommandRequiresHomeOverlay, got %T", err)
+				t.Fatalf("expected ErrCommandHomeOverlayUnavailable, got %T", err)
 			}
 			if typed.Code() != "SANDBOX_HOME_OVERLAY_UNAVAILABLE" {
 				t.Errorf("Code()=%q; want SANDBOX_HOME_OVERLAY_UNAVAILABLE", typed.Code())

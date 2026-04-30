@@ -562,20 +562,58 @@ func TestCodex_ParseTranscriptLine_SessionID(t *testing.T) {
 // Continue rejects empty session
 // =============================================================================
 
-func TestCodex_DetectSessionExpiry(t *testing.T) {
+func TestCodex_ClassifyTerminalError(t *testing.T) {
 	c := NewCodexForTest()
 	cases := []struct {
-		msg    string
-		expect bool
+		name     string
+		stderr   string
+		exitCode int
+		wantCode domain.ErrorCode // empty = expect nil result
 	}{
-		{"thread abc was not found", true},
-		{"the thread is missing", false},
-		{"some other error", false},
+		{
+			name:     "session-expired bare thread-not-found",
+			stderr:   "thread abc was not found",
+			exitCode: 1,
+			wantCode: domain.ErrCodeRunnerSessionExpired,
+		},
+		{
+			name:     "state-lost rollout-writer race",
+			stderr:   "ERROR codex_rollout::recorder: record_rollout_items: thread 019dda9c was not found",
+			exitCode: 1,
+			wantCode: domain.ErrCodeRunnerSessionStateLost,
+		},
+		{
+			name:     "missing thread without not-found is not classified",
+			stderr:   "the thread is missing",
+			exitCode: 1,
+			wantCode: "",
+		},
+		{
+			name:     "unrelated stderr is not classified",
+			stderr:   "some other error",
+			exitCode: 1,
+			wantCode: "",
+		},
 	}
 	for _, tc := range cases {
-		if got := c.DetectSessionExpiry(tc.msg); got != tc.expect {
-			t.Errorf("DetectSessionExpiry(%q)=%v want %v", tc.msg, got, tc.expect)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.ClassifyTerminalError(tc.stderr, tc.exitCode)
+			if tc.wantCode == "" {
+				if got != nil {
+					t.Fatalf("expected nil result, got %v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected %s, got nil", tc.wantCode)
+			}
+			if got.Code() != tc.wantCode {
+				t.Errorf("Code() = %s, want %s", got.Code(), tc.wantCode)
+			}
+			if got.RunnerType != domain.RunnerTypeCodex {
+				t.Errorf("RunnerType = %s, want codex", got.RunnerType)
+			}
+		})
 	}
 }
 

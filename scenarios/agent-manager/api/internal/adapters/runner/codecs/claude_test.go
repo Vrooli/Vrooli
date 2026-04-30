@@ -678,21 +678,34 @@ func TestClaude_PostClassify_NoOpWhenNoRateLimit(t *testing.T) {
 	}
 }
 
-func TestClaude_DetectSessionExpiry(t *testing.T) {
+func TestClaude_ClassifyTerminalError(t *testing.T) {
 	c := NewClaudeForTest()
 	cases := []struct {
-		msg    string
-		expect bool
+		name     string
+		stderr   string
+		wantCode domain.ErrorCode // empty = expect nil
 	}{
-		{"session not found", true},
-		{"the session abc was not found", true},
-		{"some other error", false},
-		{"session abc is invalid", false},
+		{"session-expired bare", "session not found", domain.ErrCodeRunnerSessionExpired},
+		{"session-expired prefixed", "the session abc was not found", domain.ErrCodeRunnerSessionExpired},
+		{"unrelated error", "some other error", ""},
+		{"session-invalid is not classified", "session abc is invalid", ""},
 	}
 	for _, tc := range cases {
-		if got := c.DetectSessionExpiry(tc.msg); got != tc.expect {
-			t.Errorf("DetectSessionExpiry(%q)=%v want %v", tc.msg, got, tc.expect)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.ClassifyTerminalError(tc.stderr, 1)
+			if tc.wantCode == "" {
+				if got != nil {
+					t.Fatalf("expected nil, got %v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected %s, got nil", tc.wantCode)
+			}
+			if got.Code() != tc.wantCode {
+				t.Errorf("Code() = %s, want %s", got.Code(), tc.wantCode)
+			}
+		})
 	}
 }
 

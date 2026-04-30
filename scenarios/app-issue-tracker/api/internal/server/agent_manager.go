@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"app-issue-tracker-api/internal/agentmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 const agentManagerProfileKey = "app-issue-tracker-investigations"
@@ -57,7 +59,10 @@ func buildProfileConfig(settings AgentSettings) (agentmanager.ProfileConfig, err
 		TimeoutSeconds:  int32(settings.TimeoutSeconds),
 		AllowedTools:    allowedTools,
 		SkipPermissions: settings.SkipPermissions,
-		RequiresSandbox: false,
+		// app-issue-tracker investigations run in-place; the bug reproduction
+		// surfaces happen against the live repo so the agent needs to see
+		// it directly rather than through a sandbox overlay.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
 	}, nil
 }
 

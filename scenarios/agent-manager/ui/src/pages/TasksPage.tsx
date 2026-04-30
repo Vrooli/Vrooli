@@ -1175,20 +1175,29 @@ export function TasksPage({
               </div>
 
               <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={profileFormData.requiresSandbox}
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Sandbox Mode</span>
+                  <select
+                    value={profileFormData.sandboxMode ?? "protected"}
                     onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, requiresSandbox: e.target.checked })
+                      setProfileFormData({
+                        ...profileFormData,
+                        sandboxMode: e.target.value as "off" | "tracking" | "protected",
+                      })
                     }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Sandbox</span>
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="off">Off</option>
+                    <option value="tracking">Tracking</option>
+                    <option value="protected">Protected</option>
+                  </select>
                 </label>
-                {/* Require Approval toggle removed in
-                    agent-sandbox-audit-foundation Phase 3b. Operator-gated
-                    apply now lives on SandboxConfig.manualReview. */}
+                {/* The "Require Approval" toggle was removed in
+                    agent-sandbox-audit-foundation Phase 3b — operator-gated
+                    apply lives on SandboxConfig.manualReview now. The
+                    "Require Sandbox" boolean was removed in agent-manager
+                    Phase 1: SandboxConfig.mode is the single source of
+                    truth (see DeriveRunMode in domain/decisions.go). */}
                 <label className="flex items-center gap-2">
                   <span className="text-sm">Network Access</span>
                   <select

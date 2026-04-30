@@ -834,17 +834,20 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 
 // AgentConfigResponse represents the current agent configuration.
 type AgentConfigResponse struct {
-	Enabled          bool     `json:"enabled"`
-	ProfileID        string   `json:"profile_id,omitempty"`
-	ProfileName      string   `json:"profile_name"`
-	RunnerType       string   `json:"runner_type"`
-	Model            string   `json:"model"`
-	MaxTurns         int32    `json:"max_turns"`
-	TimeoutSeconds   int32    `json:"timeout_seconds"`
-	AllowedTools     []string `json:"allowed_tools"`
-	SkipPermissions  bool     `json:"skip_permissions"`
-	RequiresSandbox  bool     `json:"requires_sandbox"`
-	RequiresApproval bool     `json:"requires_approval"`
+	Enabled         bool     `json:"enabled"`
+	ProfileID       string   `json:"profile_id,omitempty"`
+	ProfileName     string   `json:"profile_name"`
+	RunnerType      string   `json:"runner_type"`
+	Model           string   `json:"model"`
+	MaxTurns        int32    `json:"max_turns"`
+	TimeoutSeconds  int32    `json:"timeout_seconds"`
+	AllowedTools    []string `json:"allowed_tools"`
+	SkipPermissions bool     `json:"skip_permissions"`
+	// SandboxMode is the proto enum string ("off"/"tracking"/"protected"/"unspecified").
+	// system-monitor agents run with Mode=Off because they manipulate
+	// host system state. Replaces the older RequiresSandbox/RequiresApproval
+	// JSON pair removed in the agent-manager Phase 1 reliability pass.
+	SandboxMode string `json:"sandbox_mode"`
 }
 
 // RunnerResponse represents an available runner.
@@ -874,16 +877,15 @@ func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfig
 		// Return defaults when agent-manager is not enabled
 		defaultCfg := agentmanager.DefaultProfileConfig()
 		return &AgentConfigResponse{
-			Enabled:          false,
-			ProfileName:      s.config.AgentManager.ProfileName,
-			RunnerType:       runnerTypeToString(defaultCfg.RunnerType),
-			Model:            defaultCfg.Model,
-			MaxTurns:         defaultCfg.MaxTurns,
-			TimeoutSeconds:   defaultCfg.TimeoutSeconds,
-			AllowedTools:     defaultCfg.AllowedTools,
-			SkipPermissions:  defaultCfg.SkipPermissions,
-			RequiresSandbox:  defaultCfg.RequiresSandbox,
-			RequiresApproval: defaultCfg.RequiresApproval,
+			Enabled:         false,
+			ProfileName:     s.config.AgentManager.ProfileName,
+			RunnerType:      runnerTypeToString(defaultCfg.RunnerType),
+			Model:           defaultCfg.Model,
+			MaxTurns:        defaultCfg.MaxTurns,
+			TimeoutSeconds:  defaultCfg.TimeoutSeconds,
+			AllowedTools:    defaultCfg.AllowedTools,
+			SkipPermissions: defaultCfg.SkipPermissions,
+			SandboxMode:     sandboxModeToString(defaultCfg.SandboxMode),
 		}, nil
 	}
 
@@ -892,16 +894,15 @@ func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfig
 		// Return defaults with error context
 		defaultCfg := agentmanager.DefaultProfileConfig()
 		return &AgentConfigResponse{
-			Enabled:          true,
-			ProfileName:      s.config.AgentManager.ProfileName,
-			RunnerType:       runnerTypeToString(defaultCfg.RunnerType),
-			Model:            defaultCfg.Model,
-			MaxTurns:         defaultCfg.MaxTurns,
-			TimeoutSeconds:   defaultCfg.TimeoutSeconds,
-			AllowedTools:     defaultCfg.AllowedTools,
-			SkipPermissions:  defaultCfg.SkipPermissions,
-			RequiresSandbox:  defaultCfg.RequiresSandbox,
-			RequiresApproval: defaultCfg.RequiresApproval,
+			Enabled:         true,
+			ProfileName:     s.config.AgentManager.ProfileName,
+			RunnerType:      runnerTypeToString(defaultCfg.RunnerType),
+			Model:           defaultCfg.Model,
+			MaxTurns:        defaultCfg.MaxTurns,
+			TimeoutSeconds:  defaultCfg.TimeoutSeconds,
+			AllowedTools:    defaultCfg.AllowedTools,
+			SkipPermissions: defaultCfg.SkipPermissions,
+			SandboxMode:     sandboxModeToString(defaultCfg.SandboxMode),
 		}, nil
 	}
 
@@ -911,18 +912,60 @@ func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfig
 	}
 
 	return &AgentConfigResponse{
-		Enabled:          true,
-		ProfileID:        profile.Id,
-		ProfileName:      profile.Name,
-		RunnerType:       runnerTypeToString(profile.RunnerType),
-		Model:            profile.Model,
-		MaxTurns:         profile.MaxTurns,
-		TimeoutSeconds:   timeoutSecs,
-		AllowedTools:     profile.AllowedTools,
-		SkipPermissions:  profile.SkipPermissionPrompt,
-		RequiresSandbox:  profile.RequiresSandbox,
-		RequiresApproval: profile.RequiresApproval,
+		Enabled:         true,
+		ProfileID:       profile.Id,
+		ProfileName:     profile.Name,
+		RunnerType:      runnerTypeToString(profile.RunnerType),
+		Model:           profile.Model,
+		MaxTurns:        profile.MaxTurns,
+		TimeoutSeconds:  timeoutSecs,
+		AllowedTools:    profile.AllowedTools,
+		SkipPermissions: profile.SkipPermissionPrompt,
+		SandboxMode:     profileSandboxModeString(profile),
 	}, nil
+}
+
+// sandboxModeToString renders an agent-manager SandboxMode enum as the
+// stable JSON string used in the system-monitor REST API. Empty input
+// (Unspecified) is rendered as "" so callers can distinguish "the
+// profile didn't set a mode" from "the profile set Off explicitly".
+func sandboxModeToString(m domainpb.SandboxMode) string {
+	switch m {
+	case domainpb.SandboxMode_SANDBOX_MODE_OFF:
+		return "off"
+	case domainpb.SandboxMode_SANDBOX_MODE_TRACKING:
+		return "tracking"
+	case domainpb.SandboxMode_SANDBOX_MODE_PROTECTED:
+		return "protected"
+	default:
+		return ""
+	}
+}
+
+// profileSandboxModeString returns the SandboxMode of an agent-manager
+// profile as a string. Empty when SandboxConfig is nil.
+func profileSandboxModeString(profile *domainpb.AgentProfile) string {
+	if profile == nil || profile.SandboxConfig == nil {
+		return ""
+	}
+	return sandboxModeToString(profile.SandboxConfig.Mode)
+}
+
+// stringToSandboxMode parses the string accepted by the system-monitor
+// REST API back to the agent-manager SandboxMode enum. Empty / unknown
+// values map to Unspecified so the orchestrator's DefaultSandboxConfig
+// kicks in.
+func stringToSandboxMode(s string) domainpb.SandboxMode {
+	switch s {
+	case "off":
+		return domainpb.SandboxMode_SANDBOX_MODE_OFF
+	case "tracking":
+		return domainpb.SandboxMode_SANDBOX_MODE_TRACKING
+	case "protected":
+		return domainpb.SandboxMode_SANDBOX_MODE_PROTECTED
+	default:
+		return domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED
+	}
 }
 
 // GetAvailableRunners returns available runners from agent-manager.
@@ -960,20 +1003,23 @@ func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]Runne
 }
 
 // UpdateAgentConfig updates the agent profile configuration.
-func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions, requiresSandbox, requiresApproval bool) (*AgentConfigResponse, error) {
+//
+// sandboxMode replaces the previous (requiresSandbox bool, requiresApproval bool)
+// pair. Accepted strings: "off", "tracking", "protected", "" (unspecified —
+// agent-manager applies DefaultSandboxConfig).
+func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions bool, sandboxMode string) (*AgentConfigResponse, error) {
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
 		return nil, apierrors.Unavailable("agent-manager")
 	}
 
 	cfg := &agentmanager.ProfileConfig{
-		RunnerType:       stringToRunnerType(runnerType),
-		Model:            model,
-		MaxTurns:         maxTurns,
-		TimeoutSeconds:   timeoutSeconds,
-		AllowedTools:     allowedTools,
-		SkipPermissions:  skipPermissions,
-		RequiresSandbox:  requiresSandbox,
-		RequiresApproval: requiresApproval,
+		RunnerType:      stringToRunnerType(runnerType),
+		Model:           model,
+		MaxTurns:        maxTurns,
+		TimeoutSeconds:  timeoutSeconds,
+		AllowedTools:    allowedTools,
+		SkipPermissions: skipPermissions,
+		SandboxMode:     stringToSandboxMode(sandboxMode),
 	}
 
 	// Apply defaults if not provided
@@ -1002,17 +1048,16 @@ func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType
 	}
 
 	return &AgentConfigResponse{
-		Enabled:          true,
-		ProfileID:        profile.Id,
-		ProfileName:      profile.Name,
-		RunnerType:       runnerTypeToString(profile.RunnerType),
-		Model:            profile.Model,
-		MaxTurns:         profile.MaxTurns,
-		TimeoutSeconds:   timeoutSecs,
-		AllowedTools:     profile.AllowedTools,
-		SkipPermissions:  profile.SkipPermissionPrompt,
-		RequiresSandbox:  profile.RequiresSandbox,
-		RequiresApproval: profile.RequiresApproval,
+		Enabled:         true,
+		ProfileID:       profile.Id,
+		ProfileName:     profile.Name,
+		RunnerType:      runnerTypeToString(profile.RunnerType),
+		Model:           profile.Model,
+		MaxTurns:        profile.MaxTurns,
+		TimeoutSeconds:  timeoutSecs,
+		AllowedTools:    profile.AllowedTools,
+		SkipPermissions: profile.SkipPermissionPrompt,
+		SandboxMode:     profileSandboxModeString(profile),
 	}, nil
 }
 

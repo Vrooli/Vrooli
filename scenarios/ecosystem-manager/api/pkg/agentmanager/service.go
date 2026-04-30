@@ -380,7 +380,10 @@ type ProfileConfig struct {
 	TimeoutSeconds  int32
 	AllowedTools    []string
 	SkipPermissions bool
-	RequiresSandbox bool
+	// SandboxMode selects the sandbox execution mode. ecosystem-manager
+	// runs in-place because its tasks operate on the live ecosystem
+	// database and config files. See agent-manager domain.DeriveRunMode.
+	SandboxMode domainpb.SandboxMode
 }
 
 func (s *AgentService) buildTaskProfileConfig() *ProfileConfig {
@@ -392,7 +395,7 @@ func (s *AgentService) buildTaskProfileConfig() *ProfileConfig {
 		TimeoutSeconds:  int32(currentSettings.TaskTimeout * 60), // Convert minutes to seconds
 		AllowedTools:    parseToolsList(currentSettings.AllowedTools),
 		SkipPermissions: currentSettings.SkipPermissions,
-		RequiresSandbox: false, // In-place execution
+		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_OFF, // In-place execution
 	}
 }
 
@@ -403,7 +406,7 @@ func (s *AgentService) buildInsightsProfileConfig() *ProfileConfig {
 		TimeoutSeconds:  300, // 5 minutes
 		AllowedTools:    []string{"Read", "Glob", "Grep", "Bash"},
 		SkipPermissions: true,
-		RequiresSandbox: false,
+		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_OFF,
 	}
 }
 
@@ -420,7 +423,7 @@ func (s *AgentService) getRunnerType() domainpb.RunnerType {
 }
 
 func (s *AgentService) buildProfile(profileKey, name, description string, cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 name,
 		ProfileKey:           profileKey,
 		Description:          description,
@@ -429,9 +432,12 @@ func (s *AgentService) buildProfile(profileKey, name, description string, cfg *P
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
 		CreatedBy:            "ecosystem-manager",
 	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (s *AgentService) buildTaskProfileRef() *apipb.ProfileRef {

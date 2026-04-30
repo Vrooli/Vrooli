@@ -18,36 +18,40 @@ import (
 
 // DocHealingProfileConfig defines the agent profile for doc healing.
 type DocHealingProfileConfig struct {
-	ProfileKey       string
-	ProfileName      string
-	Description      string
-	RunnerType       domainpb.RunnerType
-	Model            string
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
-	SandboxConfig    *domainpb.SandboxConfig
-	CreatedBy        string
+	ProfileKey      string
+	ProfileName     string
+	Description     string
+	RunnerType      domainpb.RunnerType
+	Model           string
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	// SandboxConfig carries the full sandbox config (including Mode);
+	// SandboxConfig.Mode is the single source of truth for whether the
+	// run is sandboxed. See agent-manager domain.DeriveRunMode.
+	SandboxConfig *domainpb.SandboxConfig
+	CreatedBy     string
 }
 
 // DefaultDocHealingProfileConfig returns the default doc healing profile settings.
 func DefaultDocHealingProfileConfig() DocHealingProfileConfig {
 	return DocHealingProfileConfig{
-		ProfileKey:       "doc-healer",
-		ProfileName:      "Documentation Healing",
-		Description:      "Agent profile for documentation healing tasks",
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:            "claude-opus-4.5",
-		MaxTurns:         20,
-		TimeoutSeconds:   600,
-		AllowedTools:     []string{"Read", "Write", "Edit", "Bash", "Glob", "Grep", "LS"},
-		SkipPermissions:  true,
-		RequiresSandbox:  true,
-		RequiresApproval: true,
+		ProfileKey:      "doc-healer",
+		ProfileName:     "Documentation Healing",
+		Description:     "Agent profile for documentation healing tasks",
+		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		Model:           "claude-opus-4.5",
+		MaxTurns:        20,
+		TimeoutSeconds:  600,
+		AllowedTools:    []string{"Read", "Write", "Edit", "Bash", "Glob", "Grep", "LS"},
+		SkipPermissions: true,
 		SandboxConfig: &domainpb.SandboxConfig{
+			// Protected mode keeps the doc-healer's edits inside the
+			// workspace-sandbox merged dir so changes flow through the
+			// auditability contract before reaching the canonical repo.
+			Mode:         domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
+			ManualReview: true,
 			Acceptance: &domainpb.SandboxAcceptanceConfig{
 				Mode: domainpb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST,
 				Allow: &domainpb.SandboxFileCriteria{
@@ -284,8 +288,6 @@ func (c *DocHealingClient) buildProfile() *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(c.cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         c.cfg.AllowedTools,
 		SkipPermissionPrompt: c.cfg.SkipPermissions,
-		RequiresSandbox:      c.cfg.RequiresSandbox,
-		RequiresApproval:     c.cfg.RequiresApproval,
 		SandboxConfig:        c.cfg.SandboxConfig,
 		CreatedBy:            c.cfg.CreatedBy,
 	}
@@ -297,13 +299,13 @@ func (c *DocHealingClient) profileID() string {
 	return c.id
 }
 
+// resolveRunMode mirrors agent-manager's domain.DeriveRunMode: every
+// sandbox mode except OFF produces a sandboxed run. Returning nil lets
+// the orchestrator derive the mode itself from the resolved
+// SandboxConfig — the preferred path so this client doesn't hold a
+// stale view of the contract.
 func (c *DocHealingClient) resolveRunMode() *domainpb.RunMode {
-	if c.cfg.RequiresSandbox {
-		mode := domainpb.RunMode_RUN_MODE_SANDBOXED
-		return &mode
-	}
-	mode := domainpb.RunMode_RUN_MODE_IN_PLACE
-	return &mode
+	return nil
 }
 
 func mapDocHealingRunStatus(status domainpb.RunStatus) dochealing.RunStatus {

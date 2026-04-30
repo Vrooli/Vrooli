@@ -440,6 +440,11 @@ enum RunEventType {
 
   // Context compaction/summarization event.
   RUN_EVENT_TYPE_COMPACTION = 10;
+
+  // Lifecycle transition event (spawn-enqueued, spawn-started,
+  // runner-acquired, runner-exited, finalize-started, finalize-completed).
+  // Emitted only by internal/orchestration/obs/events.go helpers.
+  RUN_EVENT_TYPE_LIFECYCLE = 11;
 }
 
 // =============================================================================

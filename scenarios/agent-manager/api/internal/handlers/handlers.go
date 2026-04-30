@@ -198,6 +198,20 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 // RESPONSE HELPERS
 // =============================================================================
 
+// newCreateRunResponse builds the canonical CreateRunResponse with the
+// dispatcher snapshot embedded. Centralised so all four run-creation
+// handlers (CreateRun, CreateInvestigationRun, ResumeFromFailedRun,
+// CreateInvestigationApplyRun) report queue depth identically.
+func (h *Handler) newCreateRunResponse(run *domain.Run) *apipb.CreateRunResponse {
+	stats := h.svc.SpawnStats()
+	return &apipb.CreateRunResponse{
+		Run:           protoconv.RunToProto(run),
+		QueueDepth:    int32(stats.QueueDepth),
+		ActiveCount:   int32(stats.ActiveCount),
+		StartingCount: int32(stats.StartingCount),
+	}
+}
+
 // writeProtoJSON writes a proto message as JSON using protojson.
 // This ensures consistent snake_case field names per the proto schema.
 func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
@@ -1359,10 +1373,6 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if len(inline.ExtraFlags) > 0 || inline.ClearExtraFlags {
 			req.ExtraFlags = protoconv.RunnerExtraFlagsFromProto(inline.ExtraFlags)
 		}
-		if inline.RequiresSandbox != nil {
-			requiresSandbox := inline.GetRequiresSandbox()
-			req.RequiresSandbox = &requiresSandbox
-		}
 		if inline.NetworkAccess != nil {
 			na := protoconv.NetworkAccessFromProto(inline.GetNetworkAccess())
 			req.NetworkAccess = &na
@@ -1403,9 +1413,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
-		Run: protoconv.RunToProto(run),
-	})
+	writeProtoJSON(w, http.StatusCreated, h.newCreateRunResponse(run))
 }
 
 // validateCustomEnvironment validates that custom environment variables use
@@ -1487,9 +1495,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
-		Run: protoconv.RunToProto(run),
-	})
+	writeProtoJSON(w, http.StatusCreated, h.newCreateRunResponse(run))
 }
 
 // parseOptionalRunnerType validates an optional runner-type override from an HTTP request.
@@ -1550,9 +1556,7 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
-		Run: protoconv.RunToProto(run),
-	})
+	writeProtoJSON(w, http.StatusCreated, h.newCreateRunResponse(run))
 }
 
 // CreateInvestigationApplyRun creates a new run to apply investigation recommendations.
@@ -1598,9 +1602,7 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
-		Run: protoconv.RunToProto(run),
-	})
+	writeProtoJSON(w, http.StatusCreated, h.newCreateRunResponse(run))
 }
 
 // GetRun retrieves a run by ID.

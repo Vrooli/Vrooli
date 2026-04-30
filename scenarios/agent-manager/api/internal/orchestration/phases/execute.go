@@ -44,6 +44,10 @@ type ExecuteAgentInput struct {
 	Mu           *sync.Mutex
 	ModelHealth  ModelHealthReporter
 	ModelChains  ModelChainResolver
+
+	// OnRunning fires when the run flips to RunStatusRunning. Used by
+	// the spawn dispatcher to release the startup slot. Nil is safe.
+	OnRunning func()
 }
 
 // ExecuteAgentOutput carries the result + transient state of one Execute call.
@@ -69,6 +73,13 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	}
 	if in.Deps.Broadcaster != nil {
 		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+	}
+	// Signal the spawn dispatcher that the startup slot can be
+	// released. Done immediately after status flip so the next queued
+	// run can begin its bootstrap as soon as we're past the codex
+	// SQLite/rollout-file race window.
+	if in.OnRunning != nil {
+		in.OnRunning()
 	}
 
 	transcriptCfg, runState, err := PrepareTranscriptConfig(ctx, PrepareTranscriptInput{

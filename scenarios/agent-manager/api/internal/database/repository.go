@@ -90,7 +90,6 @@ type profileRow struct {
 	SkipPermissionPrompt bool                     `db:"skip_permission_prompt"`
 	Features             NullableFeatureFlags     `db:"features"`
 	ExtraFlags           NullableRunnerExtraFlags `db:"extra_flags"`
-	RequiresSandbox      bool                     `db:"requires_sandbox"`
 	NetworkAccess        string                   `db:"network_access"`
 	SandboxConfig        NullableSandboxConfig    `db:"sandbox_config"`
 	AllowedPaths         StringSlice              `db:"allowed_paths"`
@@ -121,7 +120,6 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		SkipPermissionPrompt: r.SkipPermissionPrompt,
 		Features:             r.Features.V,
 		ExtraFlags:           r.ExtraFlags.V,
-		RequiresSandbox:      r.RequiresSandbox,
 		NetworkAccess:        domain.NetworkAccess(r.NetworkAccess),
 		SandboxConfig:        r.SandboxConfig.V,
 		AllowedPaths:         r.AllowedPaths,
@@ -153,7 +151,6 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
 		Features:             NullableFeatureFlags{V: p.Features},
 		ExtraFlags:           NullableRunnerExtraFlags{V: p.ExtraFlags},
-		RequiresSandbox:      p.RequiresSandbox,
 		NetworkAccess:        string(p.NetworkAccess),
 		SandboxConfig:        NullableSandboxConfig{V: p.SandboxConfig},
 		AllowedPaths:         p.AllowedPaths,
@@ -194,7 +191,7 @@ func fromRunnerTypes(values []domain.RunnerType) StringSlice {
 
 const profileColumns = `id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 	fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
-	requires_sandbox, network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at`
+	network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at`
 
 func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentProfile) error {
 	if profile.ID == uuid.Nil {
@@ -207,10 +204,10 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 		fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
-		requires_sandbox, network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at)
+		network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :model_preset, :max_turns, :timeout_ms,
 		:fallback_runner_types, :allowed_tools, :denied_tools, :skip_permission_prompt, :features, :extra_flags,
-		:requires_sandbox, :network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
+		:network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -281,7 +278,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 		runner_type = :runner_type, model = :model, model_preset = :model_preset, max_turns = :max_turns, timeout_ms = :timeout_ms,
 		fallback_runner_types = :fallback_runner_types, allowed_tools = :allowed_tools, denied_tools = :denied_tools,
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
-		requires_sandbox = :requires_sandbox, network_access = :network_access,
+		network_access = :network_access,
 		sandbox_config = :sandbox_config, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
 		created_by = :created_by, updated_at = :updated_at
 		WHERE id = :id`

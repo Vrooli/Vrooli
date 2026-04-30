@@ -66,6 +66,18 @@ type Levers struct {
 	// Diagnostics controls heuristic windows used by run-outcome
 	// classification (silent-launch detection, message truncation).
 	Diagnostics DiagnosticsLevers `json:"diagnostics"`
+
+	// Observability controls structured logging format and verbosity.
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+	// (the obs.Logger seam) and obs/log.go (stable key constants).
+	Observability ObservabilityLevers `json:"observability"`
+
+	// Spawn controls runner-startup serialization. The dispatcher caps
+	// how many runs may be in the codex bootstrap window simultaneously
+	// and exposes queue depth so callers see backpressure.
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+	// (the spawn.Dispatcher seam) and spawn/dispatcher.go.
+	Spawn SpawnLevers `json:"spawn"`
 }
 
 // =============================================================================
@@ -407,6 +419,56 @@ type DiagnosticsLevers struct {
 }
 
 // =============================================================================
+// OBSERVABILITY LEVERS
+// =============================================================================
+
+// ObservabilityLevers control structured-logging output. Logging in
+// agent-manager is centralised in internal/orchestration/obs; these
+// levers feed obs.Init at server startup.
+type ObservabilityLevers struct {
+	// LogFormat selects the slog handler. Allowed values: "text" (human-
+	// readable, default for development) and "json" (one structured JSON
+	// object per line, suitable for shipping to log aggregators).
+	// Default: "text".
+	LogFormat string `json:"logFormat"`
+
+	// LogLevel sets the minimum slog level to emit. Allowed values:
+	// "debug", "info", "warn", "error".
+	// Default: "info".
+	LogLevel string `json:"logLevel"`
+}
+
+// =============================================================================
+// SPAWN LEVERS
+// =============================================================================
+
+// SpawnLevers control runner-startup serialization in
+// orchestration/spawn.Dispatcher. The defaults are conservative because
+// codex's bootstrap window (SQLite WAL contention + rollout-file open
+// race) burst-fails silently when N>1 starts overlap; lift them only
+// once the burst-test confirms the runner tolerates parallelism.
+type SpawnLevers struct {
+	// MaxStartingConcurrency caps how many runs may be in the codex-
+	// bootstrap window simultaneously. Default 1 (strict serialization).
+	// Range: 1 to 16.
+	MaxStartingConcurrency int `json:"maxStartingConcurrency"`
+
+	// MinSpacing is the minimum delay between two successive
+	// slot-acquisition events. Zero disables spacing. Use this to
+	// stretch out spawns when MaxStartingConcurrency > 1 still
+	// produces transient races.
+	// Range: 0 to 30s.
+	MinSpacing time.Duration `json:"minSpacing"`
+
+	// QueueCapacity is the maximum number of runs that may be queued
+	// (not yet started) before Enqueue returns CapacityExceededError.
+	// Set to zero to derive from Concurrency.MaxConcurrentRuns at
+	// orchestrator construction time (default = MaxConcurrentRuns * 2).
+	// Range: 0 (auto) or 1 to 1024 (explicit).
+	QueueCapacity int `json:"queueCapacity"`
+}
+
+// =============================================================================
 // DEFAULTS
 // =============================================================================
 
@@ -493,6 +555,15 @@ func DefaultLevers() Levers {
 			LaunchFailedMaxDuration: 2 * time.Second,
 			RateLimitMessageMaxLen:  512,
 		},
+		Observability: ObservabilityLevers{
+			LogFormat: "text",
+			LogLevel:  "info",
+		},
+		Spawn: SpawnLevers{
+			MaxStartingConcurrency: 1,
+			MinSpacing:             0,
+			QueueCapacity:          0, // 0 means "auto-derive from MaxConcurrentRuns"
+		},
 	}
 }
 
@@ -535,6 +606,12 @@ func (l *Levers) Validate() error {
 	}
 	if err := l.Diagnostics.Validate(); err != nil {
 		return wrapConfigSection("diagnostics", err)
+	}
+	if err := l.Observability.Validate(); err != nil {
+		return wrapConfigSection("observability", err)
+	}
+	if err := l.Spawn.Validate(); err != nil {
+		return wrapConfigSection("spawn", err)
 	}
 	return nil
 }
@@ -709,6 +786,37 @@ func (d *DiagnosticsLevers) Validate() error {
 	}
 	if d.RateLimitMessageMaxLen < 64 || d.RateLimitMessageMaxLen > 8192 {
 		return domain.NewConfigInvalidError("rateLimitMessageMaxLen", fmt.Sprintf("must be between 64 and 8192, got %d", d.RateLimitMessageMaxLen), nil)
+	}
+	return nil
+}
+
+func (s *SpawnLevers) Validate() error {
+	if s.MaxStartingConcurrency < 1 || s.MaxStartingConcurrency > 16 {
+		return domain.NewConfigInvalidError("maxStartingConcurrency", fmt.Sprintf("must be between 1 and 16, got %d", s.MaxStartingConcurrency), nil)
+	}
+	if s.MinSpacing < 0 || s.MinSpacing > 30*time.Second {
+		return domain.NewConfigInvalidError("minSpacing", fmt.Sprintf("must be between 0 and 30s, got %v", s.MinSpacing), nil)
+	}
+	// QueueCapacity == 0 means "auto-derive at orchestrator wiring time".
+	if s.QueueCapacity < 0 || s.QueueCapacity > 1024 {
+		return domain.NewConfigInvalidError("queueCapacity", fmt.Sprintf("must be 0 (auto) or between 1 and 1024, got %d", s.QueueCapacity), nil)
+	}
+	if s.QueueCapacity > 0 && s.QueueCapacity < s.MaxStartingConcurrency {
+		return domain.NewConfigInvalidError("queueCapacity", fmt.Sprintf("must be >= maxStartingConcurrency (%d), got %d", s.MaxStartingConcurrency, s.QueueCapacity), nil)
+	}
+	return nil
+}
+
+func (o *ObservabilityLevers) Validate() error {
+	switch o.LogFormat {
+	case "text", "json":
+	default:
+		return domain.NewConfigInvalidError("logFormat", fmt.Sprintf("must be \"text\" or \"json\", got %q", o.LogFormat), nil)
+	}
+	switch o.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		return domain.NewConfigInvalidError("logLevel", fmt.Sprintf("must be one of debug|info|warn|error, got %q", o.LogLevel), nil)
 	}
 	return nil
 }

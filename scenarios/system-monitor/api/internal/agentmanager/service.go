@@ -99,33 +99,37 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	Model            string
-	ModelPreset      domainpb.ModelPreset
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RunnerType      domainpb.RunnerType
+	Model           string
+	ModelPreset     domainpb.ModelPreset
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	// SandboxMode selects the per-run sandbox execution mode. system-monitor
+	// runs in-place by default because it controls system-level state that
+	// must hit the host directly. See agent-manager domain.DeriveRunMode.
+	SandboxMode domainpb.SandboxMode
 }
 
 // DefaultProfileConfig returns the default configuration for system-monitor.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		ModelPreset:      domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:         75,
-		TimeoutSeconds:   600,
-		AllowedTools:     []string{"read_file", "write_file", "append_file", "list_files", "analyze_code", "execute_command"},
-		SkipPermissions:  true,
-		RequiresSandbox:  false, // In-place execution for system control
-		RequiresApproval: false, // Auto-apply changes
+		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CODEX,
+		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		MaxTurns:        75,
+		TimeoutSeconds:  600,
+		AllowedTools:    []string{"read_file", "write_file", "append_file", "list_files", "analyze_code", "execute_command"},
+		SkipPermissions: true,
+		// system-monitor needs to mutate host state (start/stop services,
+		// edit config files outside the sandbox merged dir), so the
+		// sandbox is explicitly disabled rather than left implicit.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
 	}
 }
 
 func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for system-monitor investigations",
@@ -136,10 +140,12 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "system-monitor",
 	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {

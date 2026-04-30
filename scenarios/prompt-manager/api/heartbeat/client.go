@@ -51,20 +51,31 @@ type ProfileRef struct {
 // AgentProfile defines the configuration for running an agent.
 // JSON tags use snake_case to match agent-manager's protojson schema.
 type AgentProfile struct {
-	ID                   string   `json:"id,omitempty"`
-	Name                 string   `json:"name"`
-	ProfileKey           string   `json:"profile_key"`
-	Description          string   `json:"description,omitempty"`
-	RunnerType           string   `json:"runner_type"`
-	Model                string   `json:"model,omitempty"`
-	ModelPreset          string   `json:"model_preset,omitempty"`
-	MaxTurns             int32    `json:"max_turns,omitempty"`
-	Timeout              string   `json:"timeout,omitempty"` // protojson Duration format, e.g. "600s"
-	AllowedTools         []string `json:"allowed_tools,omitempty"`
-	SkipPermissionPrompt bool     `json:"skip_permission_prompt,omitempty"`
-	RequiresSandbox      bool     `json:"requires_sandbox,omitempty"`
-	RequiresApproval     bool     `json:"requires_approval,omitempty"`
-	CreatedBy            string   `json:"created_by,omitempty"`
+	ID                   string         `json:"id,omitempty"`
+	Name                 string         `json:"name"`
+	ProfileKey           string         `json:"profile_key"`
+	Description          string         `json:"description,omitempty"`
+	RunnerType           string         `json:"runner_type"`
+	Model                string         `json:"model,omitempty"`
+	ModelPreset          string         `json:"model_preset,omitempty"`
+	MaxTurns             int32          `json:"max_turns,omitempty"`
+	Timeout              string         `json:"timeout,omitempty"` // protojson Duration format, e.g. "600s"
+	AllowedTools         []string       `json:"allowed_tools,omitempty"`
+	SkipPermissionPrompt bool           `json:"skip_permission_prompt,omitempty"`
+	// SandboxConfig.Mode is the single source of truth for whether the
+	// run is sandboxed (replaces the older RequiresSandbox bool removed
+	// in the agent-manager Phase 1 reliability pass). See
+	// scenarios/agent-manager/api/internal/domain/decisions.go DeriveRunMode.
+	SandboxConfig *SandboxConfig `json:"sandbox_config,omitempty"`
+	CreatedBy     string         `json:"created_by,omitempty"`
+}
+
+// SandboxConfig is the prompt-manager-side view of the agent-manager
+// proto SandboxConfig. Only the Mode is consulted by heartbeat callers;
+// the remaining fields are filled in by agent-manager's
+// resolveSandboxConfig before the run is created.
+type SandboxConfig struct {
+	Mode string `json:"mode,omitempty"` // "off" / "tracking" / "protected" / ""
 }
 
 // Task represents a task for agent execution.

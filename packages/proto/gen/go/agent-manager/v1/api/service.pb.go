@@ -1899,11 +1899,25 @@ func (x *DeleteRunResponse) GetSuccess() bool {
 	return false
 }
 
-// CreateRunResponse returns the created run.
+// CreateRunResponse returns the created run plus a snapshot of the
+// spawn-dispatcher state taken just after Enqueue. The dispatcher
+// fields surface backpressure to UI/CLI callers without a separate
+// stats endpoint — operators see "you're queued behind N runs" in the
+// same response that confirmed the run was accepted.
 type CreateRunResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The created run.
-	Run           *domain.Run `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	Run *domain.Run `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	// Number of runs currently waiting in the spawn-dispatcher queue
+	// (not yet acquired a startup slot). Includes this run if it was
+	// enqueued behind the MaxStartingConcurrency cap.
+	QueueDepth int32 `protobuf:"varint,2,opt,name=queue_depth,json=queueDepth,proto3" json:"queue_depth,omitempty"`
+	// Total runs currently tracked by the spawn dispatcher (queued +
+	// in startup window + executing).
+	ActiveCount int32 `protobuf:"varint,3,opt,name=active_count,json=activeCount,proto3" json:"active_count,omitempty"`
+	// Number of runs currently holding a startup slot (in the codex
+	// bootstrap window). Bounded by Spawn.MaxStartingConcurrency.
+	StartingCount int32 `protobuf:"varint,4,opt,name=starting_count,json=startingCount,proto3" json:"starting_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1943,6 +1957,27 @@ func (x *CreateRunResponse) GetRun() *domain.Run {
 		return x.Run
 	}
 	return nil
+}
+
+func (x *CreateRunResponse) GetQueueDepth() int32 {
+	if x != nil {
+		return x.QueueDepth
+	}
+	return 0
+}
+
+func (x *CreateRunResponse) GetActiveCount() int32 {
+	if x != nil {
+		return x.ActiveCount
+	}
+	return 0
+}
+
+func (x *CreateRunResponse) GetStartingCount() int32 {
+	if x != nil {
+		return x.StartingCount
+	}
+	return 0
 }
 
 // GetRunRequest identifies a run to retrieve.
@@ -3780,9 +3815,13 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x10DeleteRunRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"-\n" +
 	"\x11DeleteRunResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"<\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xa7\x01\n" +
 	"\x11CreateRunResponse\x12'\n" +
-	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"0\n" +
+	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\x12\x1f\n" +
+	"\vqueue_depth\x18\x02 \x01(\x05R\n" +
+	"queueDepth\x12!\n" +
+	"\factive_count\x18\x03 \x01(\x05R\vactiveCount\x12%\n" +
+	"\x0estarting_count\x18\x04 \x01(\x05R\rstartingCount\"0\n" +
 	"\rGetRunRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"9\n" +
 	"\x0eGetRunResponse\x12'\n" +

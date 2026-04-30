@@ -165,19 +165,19 @@ func (l NamespaceLayout) PathEntries() []string {
 	return base
 }
 
-// ErrCommandRequiresHomeOverlay is returned by translateCommandToNamespace
+// ErrCommandHomeOverlayUnavailable is returned by translateCommandToNamespace
 // when the command lives under $HOME but the sandbox's home overlay is
 // not Present. Surfaces upstream as SANDBOX_HOME_OVERLAY_UNAVAILABLE in
 // the run timeline rather than the silent-and-confusing
 // `env: …/claude: No such file or directory` at exec time.
 //
 // DOC: home-overlay seam — agent-manager-side enforcement.
-type ErrCommandRequiresHomeOverlay struct {
+type ErrCommandHomeOverlayUnavailable struct {
 	Command string
 	State   HomeOverlayState
 }
 
-func (e *ErrCommandRequiresHomeOverlay) Error() string {
+func (e *ErrCommandHomeOverlayUnavailable) Error() string {
 	return fmt.Sprintf(
 		"command %q lives under $HOME but the sandbox home overlay is %q (need %q); the agent CLI is not reachable inside the namespace",
 		e.Command, e.State, HomeOverlayPresent,
@@ -185,11 +185,11 @@ func (e *ErrCommandRequiresHomeOverlay) Error() string {
 }
 
 // Code returns the stable error code surfaced to the run timeline.
-func (e *ErrCommandRequiresHomeOverlay) Code() string { return "SANDBOX_HOME_OVERLAY_UNAVAILABLE" }
+func (e *ErrCommandHomeOverlayUnavailable) Code() string { return "SANDBOX_HOME_OVERLAY_UNAVAILABLE" }
 
 // translateCommandToNamespace rewrites a host-absolute binary path so it
 // resolves inside the bwrap mount namespace, OR returns
-// ErrCommandRequiresHomeOverlay when the command requires the host
+// ErrCommandHomeOverlayUnavailable when the command requires the host
 // $HOME overlay and the sandbox didn't get one.
 //
 // The contract reflects the post-2026-04-28 home-overlay layout in
@@ -207,7 +207,7 @@ func (e *ErrCommandRequiresHomeOverlay) Code() string { return "SANDBOX_HOME_OVE
 // Rules:
 //
 //   - $HOME/X with state==Present → unchanged
-//   - $HOME/X with state!=Present → ErrCommandRequiresHomeOverlay
+//   - $HOME/X with state!=Present → ErrCommandHomeOverlayUnavailable
 //   - /usr/bin/X, /bin/X, /usr/local/bin/X → unchanged (system bind)
 //   - any other host-absolute path → path.Base(X)
 //   - relative path / bare basename → unchanged
@@ -225,7 +225,7 @@ func translateCommandToNamespace(command string, layout NamespaceLayout) (string
 		homeAbs := strings.TrimRight(layout.HostHome, "/") + "/"
 		if strings.HasPrefix(command, homeAbs) {
 			if !IsHomeOverlayPresent(layout.HomeOverlayState) {
-				return "", &ErrCommandRequiresHomeOverlay{
+				return "", &ErrCommandHomeOverlayUnavailable{
 					Command: command,
 					State:   layout.HomeOverlayState,
 				}

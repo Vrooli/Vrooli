@@ -276,11 +276,12 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	}
 
 	tag := agentID
-	// RunMode is left unset so the orchestrator resolves it to RUN_MODE_SANDBOXED
-	// via the profile's RequiresSandbox=true. Sandboxed mode is required to get
-	// VROOLI_SANDBOX_* env vars injected, which keeps the auditor's CLI helpers
-	// (cliutil.ResolveScenarioPath in cli/internal/support) operating on the
-	// agent's overlay rather than the real repo.
+	// RunMode is left unset so the orchestrator derives sandboxed via
+	// the profile's SandboxConfig.Mode (Protected). Sandboxed mode is
+	// required to get VROOLI_SANDBOX_* env vars injected, which keeps
+	// the auditor's CLI helpers (cliutil.ResolveScenarioPath in
+	// cli/internal/support) operating on the agent's overlay rather
+	// than the real repo.
 	run, err := am.client.CreateRun(ctx, &apipb.CreateRunRequest{
 		TaskId:         task.Id,
 		Tag:            &tag,
@@ -482,8 +483,8 @@ func (am *AgentManager) defaultProfile() *domainpb.AgentProfile {
 		// (cliutil.ResolveScenarioPath) gets activated by VROOLI_SANDBOX_*.
 		// ManualReview defaults to false so audit fixes flow into the canonical
 		// repo with provenance recorded for traceability.
-		RequiresSandbox: true,
-		CreatedBy:       serviceName,
+		SandboxConfig: &domainpb.SandboxConfig{Mode: domainpb.SandboxMode_SANDBOX_MODE_PROTECTED},
+		CreatedBy:     serviceName,
 	}
 }
 

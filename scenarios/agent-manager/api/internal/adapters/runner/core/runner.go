@@ -35,6 +35,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -43,9 +45,38 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
 )
+
+// runnerLog returns the runner-core's component-tagged logger,
+// pre-tagged with codec/runner type so every log line is filterable
+// without per-call boilerplate.
+func (r *Runner) runnerLog() *slog.Logger {
+	return obs.Component("runner-core").With(
+		obs.KeyRunnerType, string(r.codec.Type()),
+	)
+}
+
+// launcherLabel returns "sandbox" or "host" so structured logs and
+// lifecycle events can distinguish the launch path. Identification is
+// by Go type name to avoid coupling core to the parent runner package's
+// concrete types via an exported interface.
+func launcherLabel(l runner.Launcher) string {
+	if l == nil {
+		return ""
+	}
+	name := fmt.Sprintf("%T", l)
+	switch {
+	case strings.Contains(name, "SandboxLauncher"), strings.Contains(name, "sandboxLauncher"):
+		return "sandbox"
+	case strings.Contains(name, "HostLauncher"), strings.Contains(name, "hostLauncher"):
+		return "host"
+	default:
+		return name
+	}
+}
 
 // Runner is the generic [runner.Runner] implementation parameterised by
 // a [codecs.Codec]. One Runner instance per codec is created at
@@ -158,19 +189,52 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
 	launcher := r.selector.Pick(ctx, req)
+	launcherType := launcherLabel(launcher)
+	sandboxIDStr := ""
+	if req.SandboxID != nil {
+		sandboxIDStr = req.SandboxID.String()
+	}
 
 	launchReq := runner.BuildEnvWrappedLaunchRequest(
 		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
+
+	r.runnerLog().Info("agent launch",
+		obs.KeyRunID, req.RunID.String(),
+		obs.KeyLauncherType, launcherType,
+		obs.KeySandboxID, sandboxIDStr,
+		"binary", filepath.Base(r.codec.BinaryPath()),
+		"argCount", len(args),
+		"envKeys", redactedEnvKeys(env),
+		"workdir", req.WorkingDir,
+	)
+
 	proc, err := launcher.Launch(ctx, launchReq)
 	if err != nil {
+		r.runnerLog().Error("agent launch failed",
+			obs.KeyRunID, req.RunID.String(),
+			obs.KeyLauncherType, launcherType,
+			obs.KeyError, err.Error(),
+		)
 		return nil, &domain.RunnerError{
 			RunnerType: r.codec.Type(),
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+
+	r.runnerLog().Info("agent launched",
+		obs.KeyRunID, req.RunID.String(),
+		"pid", proc.PID(),
+		obs.KeyLauncherType, launcherType,
+		obs.KeySandboxID, sandboxIDStr,
+	)
+	obs.EmitRunnerAcquired(req.EventSink, req.RunID, obs.RunnerAcquiredFields{
+		RunnerType:   r.codec.Type(),
+		LauncherType: launcherType,
+		SandboxID:    req.SandboxID,
+	})
 
 	r.registerProcess(req.RunID, proc)
 	defer r.deregisterProcess(req.RunID, proc)
@@ -194,20 +258,85 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	errorOutput.wait()
 	stderr := errorOutput.String()
 
-	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, time.Since(startTime), false)
+	duration := time.Since(startTime)
+	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, duration, false)
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
 	}
+
+	r.logRunnerExited(req.RunID, req.EventSink, result, duration)
 
 	r.emitCompletion(req.EventSink, req.RunID, result.Success, r.codec.Labels().EndMessage, false)
 
 	return result, nil
 }
 
+// logRunnerExited emits the runner-exited lifecycle event + a structured
+// log line. Centralised so both Execute and Continue funnel into the
+// same recorder; future adjustments (e.g. capturing stderr length) live
+// in one place.
+func (r *Runner) logRunnerExited(runID uuid.UUID, sink runner.EventSink, result *runner.ExecuteResult, duration time.Duration) {
+	if result == nil {
+		return
+	}
+	exitCode := result.ExitCode
+	terminalCode := ""
+	if result.TerminalError != nil {
+		if dom, ok := result.TerminalError.(domain.DomainError); ok {
+			terminalCode = string(dom.Code())
+		}
+	}
+	r.runnerLog().Info("agent exited",
+		obs.KeyRunID, runID.String(),
+		obs.KeyExitCode, exitCode,
+		obs.KeyDuration, duration.Milliseconds(),
+		obs.KeyTerminalCode, terminalCode,
+		"success", result.Success,
+	)
+	obs.EmitRunnerExited(sink, runID, obs.RunnerExitedFields{
+		RunnerType:   r.codec.Type(),
+		ExitCode:     &exitCode,
+		Duration:     duration,
+		TerminalCode: terminalCode,
+		Success:      result.Success,
+	})
+}
+
+// redactedEnvKeys returns a sorted list of env-var keys (values
+// elided). Argv values can carry secrets; env values often do; keys are
+// always safe and useful for diagnostic comparison ("did this run get
+// the same env as the last successful one?"). Keys are passed as-is
+// without further filtering — callers should not put secrets into the
+// key namespace.
+//
+// Accepts the os.Environ()-shaped slice ("KEY=value") that codec
+// BuildEnv emits.
+func redactedEnvKeys(env []string) []string {
+	if len(env) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(env))
+	for _, kv := range env {
+		eq := strings.IndexByte(kv, '=')
+		if eq <= 0 {
+			continue
+		}
+		keys = append(keys, kv[:eq])
+	}
+	// Cheap order: caller wants stability, not lexical correctness.
+	for i := 1; i < len(keys); i++ {
+		for j := i; j > 0 && keys[j-1] > keys[j]; j-- {
+			keys[j], keys[j-1] = keys[j-1], keys[j]
+		}
+	}
+	return keys
+}
+
 // Continue resumes an existing session with a follow-up message.
-// Returns runner.ErrSessionExpired when the codec recognises a
-// session-not-found error from the runner CLI.
+// Returns a typed *domain.RunnerError (ErrCodeRunnerSessionExpired or
+// ErrCodeRunnerSessionStateLost) when the codec recognises a session
+// or rollout-state failure shape — see [codecs.Codec.ClassifyTerminalError].
 func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
 	if avail, msg := r.codec.Available(ctx); !avail {
 		return nil, &domain.RunnerError{
@@ -218,7 +347,8 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		}
 	}
 	if req.SessionID == "" {
-		return nil, runner.ErrSessionExpired
+		return nil, domain.NewRunnerSessionExpiredError(r.codec.Type(),
+			errors.New("continue called with empty session id"))
 	}
 
 	startTime := time.Now()
@@ -269,7 +399,8 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	errorOutput.wait()
 	stderr := errorOutput.String()
 
-	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, time.Since(startTime), true)
+	duration := time.Since(startTime)
+	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, duration, true)
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
@@ -282,11 +413,23 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		result.SessionID = req.SessionID
 	}
 
-	// Codec-specific session-expiry detection. Only meaningful on the
-	// failure path; success leaves the session valid by definition.
-	if !result.Success && r.codec.DetectSessionExpiry(result.ErrorMessage) {
-		return nil, runner.ErrSessionExpired
+	// Codec-specific terminal-error classification. The codec recognises
+	// "session/thread gone" vs "rollout-writer dropped the thread" vs
+	// other failure shapes and returns a typed RunnerError so the
+	// orchestration timeline shows a stable code (RUNNER_SESSION_EXPIRED
+	// / RUNNER_SESSION_STATE_LOST) rather than a bare INTERNAL.
+	if !result.Success {
+		if classified := r.codec.ClassifyTerminalError(result.ErrorMessage, result.ExitCode); classified != nil {
+			r.runnerLog().Warn("classified continue failure",
+				obs.KeyRunID, req.RunID.String(),
+				obs.KeyDuration, duration.Milliseconds(),
+				obs.KeyTerminalCode, string(classified.Code()),
+			)
+			return nil, classified
+		}
 	}
+
+	r.logRunnerExited(req.RunID, req.EventSink, result, duration)
 
 	r.emitCompletion(req.EventSink, req.RunID, result.Success, r.codec.Labels().ContinueEndMessage, true)
 
@@ -424,6 +567,20 @@ func (r *Runner) classifyResult(
 
 	if sid := state.SessionID(); sid != "" {
 		result.SessionID = sid
+	}
+
+	// Apply codec-specific terminal-error classification on the failure
+	// path. Sets result.TerminalError so the orchestration layer's
+	// promotion-into-execErr (phases/execute.go) emits a typed event
+	// with the right ErrorCode rather than ErrCodeInternal.
+	//
+	// Skipped when waitErr already produced a domain-typed
+	// TerminalError (e.g. SANDBOX_NO_EXIT_INFO from the launcher) so
+	// we don't overwrite a more-specific upstream classification.
+	if !result.Success && result.TerminalError == nil {
+		if classified := r.codec.ClassifyTerminalError(result.ErrorMessage, result.ExitCode); classified != nil {
+			result.TerminalError = classified
+		}
 	}
 
 	return result
@@ -626,14 +783,39 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		}
 	}
 
+	launcherType := launcherLabel(in.launcher)
+	r.runnerLog().Info("agent launch (durable)",
+		obs.KeyRunID, in.runID.String(),
+		obs.KeyLauncherType, launcherType,
+		"binary", filepath.Base(r.codec.BinaryPath()),
+		"argCount", len(in.request.Args),
+		"workdir", in.request.WorkingDir,
+		"transcript", in.transcript.TranscriptPath,
+	)
+
 	proc, err := in.launcher.Launch(ctx, in.request)
 	if err != nil {
+		r.runnerLog().Error("agent launch failed (durable)",
+			obs.KeyRunID, in.runID.String(),
+			obs.KeyLauncherType, launcherType,
+			obs.KeyError, err.Error(),
+		)
 		return nil, &domain.RunnerError{
 			RunnerType: r.codec.Type(),
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+
+	r.runnerLog().Info("agent launched (durable)",
+		obs.KeyRunID, in.runID.String(),
+		"pid", proc.PID(),
+		obs.KeyLauncherType, launcherType,
+	)
+	obs.EmitRunnerAcquired(in.sink, in.runID, obs.RunnerAcquiredFields{
+		RunnerType:   r.codec.Type(),
+		LauncherType: launcherType,
+	})
 
 	r.registerProcess(in.runID, proc)
 	defer func() {
@@ -789,6 +971,8 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	if sid := in.state.SessionID(); sid != "" {
 		result.SessionID = sid
 	}
+
+	r.logRunnerExited(in.runID, in.sink, result, time.Since(in.startTime))
 
 	r.emitCompletion(in.sink, in.runID, result.Success, in.endMessage, in.isContinue)
 

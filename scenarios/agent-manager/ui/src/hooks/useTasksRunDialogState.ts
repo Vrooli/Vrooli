@@ -46,7 +46,7 @@ function createInitialProfileFormData(): ProfileFormState {
     modelPreset: ModelPreset.UNSPECIFIED,
     modelMode: "default",
     maxTurns: 100,
-    requiresSandbox: true,
+    sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
     fallbackRunnerTypes: [],

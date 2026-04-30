@@ -2,7 +2,7 @@
 
 Every adjustable threshold in agent-manager lives in a single `config.Levers` struct (`internal/config/levers.go`). New durations, counts, or buffer sizes are added here — never as hard-coded literals scattered through source. This is the **only home for adjustable thresholds**, per the architecture's invariant 4.
 
-The struct splits into eleven sections; jump to the one that controls the behavior you're tuning.
+The struct splits into thirteen sections; jump to the one that controls the behavior you're tuning.
 
 | Section | Purpose | Audience |
 |---|---|---|
@@ -13,6 +13,8 @@ The struct splits into eleven sections; jump to the one that controls the behavi
 | [`Runners`](#runners) | Per-runner availability checks, probe timeouts | Operator |
 | [`Server`](#server) | HTTP/WebSocket server tunables | Operator |
 | [`Storage`](#storage) | Persistence retention windows | Operator |
+| [`Spawn`](#spawn) | Runner-startup serialization + queue depth | Operator |
+| [`Observability`](#observability) | Structured-log format and verbosity | Operator |
 | [`Heartbeat`](#heartbeat) | Run-lifecycle cadence | Internal |
 | [`Recovery`](#recovery) | Transcript-tail and resume-after-restart timing | Internal |
 | [`Scanner`](#scanner) | stdout/transcript buffer ceilings | Internal |
@@ -46,6 +48,35 @@ Accident prevention; these exist to prevent operator mistakes, not adversarial a
 | `RequireSandboxByDefault` | `bool` | true | All runs use the overlayfs sandbox unless explicitly overridden. |
 
 (Plus other safety levers — see source for current set.)
+
+## Spawn
+
+Runner-startup serialization. The `spawn.Dispatcher` is the single entry point for starting any run (CreateRun + ResumeRun); these levers control how many runs may be in the codex bootstrap window simultaneously and how the queue behaves under burst load.
+
+The `Dispatcher`'s startup-window cap exists because codex's bootstrap (SQLite WAL contention, rollout-file open race, in-memory writer registration) burst-fails silently when N>1 starts overlap. The default of 1 means strict serialization of *startup*, while *running* runs proceed in parallel. Lift only after the burst-test confirms the runner tolerates parallelism in your environment.
+
+| Field | Default | Range | What it controls |
+|---|---|---|---|
+| `MaxStartingConcurrency` | 1 | 1–16 | How many runs may be in the codex-bootstrap window simultaneously. The default of 1 is the safe choice; lift after burst-testing. |
+| `MinSpacing` | 0 | 0–30s | Minimum delay between two successive slot-acquisition events. Useful when `MaxStartingConcurrency > 1` still produces transient races. Zero disables. |
+| `QueueCapacity` | auto | 0 (auto) or 1–1024 | Maximum number of runs queued (not yet started) before `Enqueue` returns `*domain.CapacityExceededError` (HTTP 429, `Resource: "spawn_queue"`). Zero auto-derives from `Concurrency.MaxConcurrentRuns * 2`. |
+
+`CreateRunResponse` carries `queue_depth`, `active_count`, `starting_count` populated from `Dispatcher.Stats()` so UI/CLI callers see backpressure on every accept response — there is no separate stats endpoint.
+
+When the queue is full, callers receive `domain.ErrCodeCapacityRuns`. UI should surface this as transient backpressure, not a hard failure; the caller can retry with backoff.
+
+Tests: `internal/orchestration/spawn/dispatcher_test.go` (unit) + `internal/orchestration/integration/spawn_serialization_test.go` (full orchestrator burst gate).
+
+## Observability
+
+Structured-logging output. Logging is centralised in `internal/orchestration/obs`; these levers feed `obs.Init` at server startup. The set is deliberately tiny — log shape is a contract, not a control surface.
+
+| Field | Default | Allowed values | What it controls |
+|---|---|---|---|
+| `LogFormat` | `text` | `text`, `json` | Selects the slog handler. Use `text` in development for human readability; `json` in production for log aggregators. |
+| `LogLevel` | `info` | `debug`, `info`, `warn`, `error` | Minimum slog level to emit. Lower = noisier, useful when reproducing a spawn-bootstrap failure; higher = cleaner steady-state logs. |
+
+Stable log keys are declared as constants in `internal/orchestration/obs/log.go` (`KeyRunID`, `KeyRunMode`, `KeyPhase`, …). Adding a new key is a contract change — never log ad-hoc string keys.
 
 ## Heartbeat
 

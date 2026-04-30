@@ -132,11 +132,25 @@ type Codec interface {
 	// state holds a captured RateLimitEventData.
 	PostClassify(state State, result *runner.ExecuteResult)
 
-	// DetectSessionExpiry inspects an error message produced during
-	// Continue and reports whether it indicates the runner-side session
-	// is gone (codecs that distinguish this error map it to
-	// runner.ErrSessionExpired in core).
-	DetectSessionExpiry(errorMessage string) bool
+	// ClassifyTerminalError inspects a non-zero-exit run's accumulated
+	// stderr and exit code and returns a typed *domain.RunnerError when
+	// the codec recognises a known failure shape. Returning nil means
+	// "no codec-specific classification — let core.Runner fall back to
+	// the generic ErrCodeRunnerExecution path."
+	//
+	// Codecs typically distinguish:
+	//   - session/thread genuinely gone   → NewRunnerSessionExpiredError
+	//   - in-memory writer race mid-run   → NewRunnerSessionStateLostError
+	// so operators see distinct ErrorCodes on the run timeline rather
+	// than a single `INTERNAL` bucket.
+	//
+	// Implementations MUST be deterministic for the same (stderr,
+	// exitCode) pair — the result feeds the run's typed-error event
+	// and is therefore part of the public API surface.
+	//
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md (Codec
+	// Terminal-Error Classification).
+	ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError
 
 	// Labels supplies the human-readable status messages the runner
 	// emits on Execute/Continue start and completion.

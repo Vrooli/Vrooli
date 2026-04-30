@@ -7,15 +7,22 @@ package orchestration
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
 )
+
+// approvalLog returns the approval workflow's component-tagged logger.
+// Centralised so every approval/rejection site logs under the same
+// component name; aggregator queries can then filter on
+// component=approval cleanly.
+func approvalLog() *slog.Logger { return obs.Component("approval") }
 
 // =============================================================================
 // FULL APPROVAL
@@ -46,7 +53,7 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 
 	// Update run to approved state
 	if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
-		log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
+		approvalLog().Warn("mark run approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
 
 	return mapApproveResult(result), nil
@@ -72,12 +79,18 @@ func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reaso
 	if run.SandboxID != nil && o.sandbox != nil {
 		// First mark as rejected in workspace-sandbox
 		if err := o.sandbox.Reject(ctx, *run.SandboxID, actor); err != nil {
-			log.Printf("Warning: failed to reject sandbox %s: %v", *run.SandboxID, err)
+			approvalLog().Warn("sandbox reject failed",
+				obs.KeySandboxID, run.SandboxID.String(),
+				obs.KeyError, err.Error(),
+			)
 		}
 		// Then delete to fully release the scope lock
 		// This ensures the sandbox is cleaned up and scope is available for new runs
 		if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
-			log.Printf("Warning: failed to delete sandbox %s: %v", *run.SandboxID, err)
+			approvalLog().Warn("sandbox delete failed",
+				obs.KeySandboxID, run.SandboxID.String(),
+				obs.KeyError, err.Error(),
+			)
 		}
 	}
 
@@ -115,11 +128,11 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 	// Update run state based on remaining files
 	if result.Remaining == 0 {
 		if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
-			log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
+			approvalLog().Warn("mark run approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
 	} else {
 		if err := o.markRunPartiallyApproved(ctx, run); err != nil {
-			log.Printf("Warning: failed to mark run %s as partially approved: %v", run.ID, err)
+			approvalLog().Warn("mark run partially approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
 	}
 

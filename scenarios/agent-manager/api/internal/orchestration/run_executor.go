@@ -123,6 +123,11 @@ type RunExecutor struct {
 	// Identity token state
 	identitySecret []byte
 	identityToken  string
+
+	// onRunning fires exactly once when the run reaches
+	// RunStatusRunning. Wired by the spawn dispatcher to release the
+	// startup slot. Nil is safe — the executor still runs.
+	onRunning func()
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -221,6 +226,14 @@ func (e *RunExecutor) WithAttachments(attachments []runner.Attachment) *RunExecu
 
 func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor {
 	e.customEnv = env
+	return e
+}
+
+// WithOnRunning registers a callback fired exactly once when the run
+// transitions to RunStatusRunning. The spawn dispatcher uses this to
+// release the startup slot so the next queued run can proceed.
+func (e *RunExecutor) WithOnRunning(fn func()) *RunExecutor {
+	e.onRunning = fn
 	return e
 }
 
@@ -343,6 +356,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 			Mu:           &e.mu,
 			ModelHealth:  e.modelHealth,
 			ModelChains:  e.modelChains,
+			OnRunning:    e.onRunning,
 		},
 	})
 	e.result = out.Result

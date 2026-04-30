@@ -161,67 +161,49 @@ func (r *Run) IsRejectable() (bool, string) {
 // RUN MODE DECISIONS
 // =============================================================================
 
-// RunModeDecision captures the decision about which run mode to use.
+// RunModeDecision captures the decision about which run mode to use,
+// along with a human-readable reason for audit/event logging.
 type RunModeDecision struct {
 	Mode           RunMode
 	Reason         string
-	PolicyOverride bool
 	ExplicitChoice bool
+	PolicyDenied   bool
 }
 
-// DecideRunMode determines which run mode should be used based on inputs.
-// This is a pure function that makes the decision logic explicit and testable.
+// DeriveRunMode returns the RunMode for a given resolved SandboxConfig.
 //
-// Decision priority (highest to lowest):
-// 1. Explicit mode request from caller (if provided)
-// 2. Policy override (in-place allowed by policy)
-// 3. Default to sandboxed
-func DecideRunMode(
-	requestedMode *RunMode,
-	forceInPlace bool,
-	policyAllowsInPlace bool,
-	profileRequiresSandbox bool,
-) RunModeDecision {
-	// Priority 1: Explicit request
-	if requestedMode != nil {
-		return RunModeDecision{
-			Mode:           *requestedMode,
-			Reason:         "explicitly requested by caller",
-			ExplicitChoice: true,
-		}
+// SandboxConfig.Mode is the single source of truth for "is this run
+// sandboxed?" — every Mode except [SandboxModeOff] yields
+// [RunModeSandboxed]. Spawn surfaces resolve the SandboxConfig (via
+// orchestration.resolveSandboxConfig) before calling this function, so
+// nil here implies "no sandbox config" and is treated identically to
+// [SandboxModeOff].
+//
+// Mapping:
+//   - SandboxModeOff   → RunModeInPlace  (explicit no-sandbox)
+//   - any other Mode   → RunModeSandboxed (incl Tracking, Protected)
+//   - nil cfg          → RunModeInPlace  (treated as Off; in practice
+//     the orchestrator always populates a non-nil cfg)
+//
+// This function does NOT consult any other input. Callers that need to
+// override the derived mode (e.g. an explicit req.RunMode on CreateRun)
+// should compose:
+//
+//	mode := DeriveRunMode(cfg.SandboxConfig)
+//	if req.RunMode != nil {
+//	    mode = *req.RunMode
+//	}
+//
+// DOC: scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision boundary).
+// DOC: scenarios/agent-manager/docs/internal/INVARIANTS.md (run mode invariant).
+func DeriveRunMode(cfg *SandboxConfig) RunMode {
+	if cfg == nil {
+		return RunModeInPlace
 	}
-
-	// Priority 2: Force in-place with policy permission
-	if forceInPlace && policyAllowsInPlace {
-		return RunModeDecision{
-			Mode:           RunModeInPlace,
-			Reason:         "force in-place requested and allowed by policy",
-			PolicyOverride: true,
-		}
+	if cfg.Mode.Effective() == SandboxModeOff {
+		return RunModeInPlace
 	}
-
-	// Priority 3: Profile requires sandbox
-	if profileRequiresSandbox {
-		return RunModeDecision{
-			Mode:   RunModeSandboxed,
-			Reason: "agent profile requires sandbox",
-		}
-	}
-
-	// Priority 4: Policy allows in-place but not forced
-	if policyAllowsInPlace {
-		// Even if allowed, default to sandboxed for safety
-		return RunModeDecision{
-			Mode:   RunModeSandboxed,
-			Reason: "defaulting to sandbox (in-place allowed but not requested)",
-		}
-	}
-
-	// Default: Sandboxed
-	return RunModeDecision{
-		Mode:   RunModeSandboxed,
-		Reason: "sandbox-first default policy",
-	}
+	return RunModeSandboxed
 }
 
 // =============================================================================

@@ -209,7 +209,8 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 }
 
 // TestWorkspaceSandboxProvider_GetDiff_Empty verifies that an empty sandbox
-// decodes to FilesChanged=0. This is the happy path for auto-approve-if-empty.
+// decodes to FilesChanged=0. The decoded value is consumed by the diff
+// display surface; auto-apply gating is independent of diff size.
 func TestWorkspaceSandboxProvider_GetDiff_Empty(t *testing.T) {
 	sandboxID := uuid.New()
 

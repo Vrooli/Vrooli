@@ -286,7 +286,6 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 		AllowedTools:         []string{"read", "write"},
 		DeniedTools:          []string{"bash"},
 		SkipPermissionPrompt: true,
-		RequiresSandbox:      true,
 		AllowedPaths:         []string{"/src"},
 		DeniedPaths:          []string{"/secrets"},
 		CreatedBy:            "test-user",

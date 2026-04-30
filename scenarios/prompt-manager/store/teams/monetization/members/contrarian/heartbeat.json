@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 17 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-28T21:30:00Z",
-    "endedAt": "2026-04-28T21:33:55Z",
-    "status": "completed",
-    "runId": "f989eccd-4381-492a-8d38-632628fca9a8",
-    "logPath": "../store/teams/monetization/members/contrarian/logs/2026-04-28T21-30-00Z.log"
+    "startedAt": "2026-04-29T21:30:00Z",
+    "endedAt": "2026-04-29T21:30:10Z",
+    "status": "failed",
+    "runId": "6c8d09cf-ddab-4b7d-b29c-db3bf176ff05",
+    "logPath": "../store/teams/monetization/members/contrarian/logs/2026-04-29T21-30-00Z.log",
+    "error": "2026-04-29T21:30:07.322007Z ERROR codex_core::session: failed to record rollout items: thread 019ddb26-1ecd-7970-bc3e-752022507e67 not found\n"
   },
-  "revision": 26,
+  "revision": 33,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-28T21:33:55Z"
+  "updatedAt": "2026-04-29T21:30:10Z"
 }

@@ -37,7 +37,7 @@ type InvestigationManager interface {
 	StopInvestigationAgent(ctx context.Context, id string) error
 	GetAgentConfig(ctx context.Context) (*services.AgentConfigResponse, error)
 	GetAvailableRunners(ctx context.Context) ([]services.RunnerResponse, error)
-	UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions, requiresSandbox, requiresApproval bool) (*services.AgentConfigResponse, error)
+	UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions bool, sandboxMode string) (*services.AgentConfigResponse, error)
 	GetAgentStatus(ctx context.Context) (*services.AgentStatusResponse, error)
 }
 

@@ -99,15 +99,17 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	Model            string
-	ModelPreset      domainpb.ModelPreset
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RunnerType      domainpb.RunnerType
+	Model           string
+	ModelPreset     domainpb.ModelPreset
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	// SandboxMode selects the sandbox execution mode. scenario-to-cloud
+	// runs SSH commands against remote hosts so the sandbox is
+	// explicitly disabled. See agent-manager domain.DeriveRunMode.
+	SandboxMode domainpb.SandboxMode
 }
 
 // DefaultProfileConfig returns the default configuration for deployment investigations.
@@ -125,14 +127,14 @@ func DefaultProfileConfig() *ProfileConfig {
 			"analyze_code",    // Understand deployment scripts
 			"write_file",      // Write investigation report
 		},
-		SkipPermissions:  true,  // Auto-approve for automated investigations
-		RequiresSandbox:  false, // In-place execution for SSH access
-		RequiresApproval: false, // Auto-apply (report-only by default)
+		SkipPermissions: true, // Auto-approve for automated investigations
+		// In-place execution for SSH access to remote VPS hosts.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
 	}
 }
 
 func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for scenario-to-cloud deployment investigations",
@@ -143,10 +145,12 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "scenario-to-cloud",
 	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {

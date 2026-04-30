@@ -19,6 +19,7 @@ export {
   RunnerType,
   ModelPreset,
   NetworkAccess,
+  SandboxMode,
   TaskStatus,
   RunStatus,
   ApprovalState,
@@ -108,7 +109,9 @@ export interface ProfileFormData {
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
-  requiresSandbox?: boolean;
+  // Sandbox mode for the run. Empty preserves the server-side default
+  // (Tracking); "off" disables sandboxing entirely.
+  sandboxMode?: "off" | "tracking" | "protected";
   networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
@@ -140,7 +143,9 @@ export interface RunFormData {
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
-  requiresSandbox?: boolean;
+  // Sandbox mode override for this run. Empty preserves the profile /
+  // server default.
+  sandboxMode?: "off" | "tracking" | "protected";
   networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];

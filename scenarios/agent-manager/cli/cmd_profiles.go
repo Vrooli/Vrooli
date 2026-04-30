@@ -109,23 +109,20 @@ func (a *App) profileList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", "ID", "NAME", "RUNNER", "SANDBOX", "APPROVE")
-	fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", strings.Repeat("-", 36), strings.Repeat("-", 20), strings.Repeat("-", 12), strings.Repeat("-", 8), strings.Repeat("-", 7))
+	fmt.Printf("%-36s  %-20s  %-12s  %-10s  %-12s\n", "ID", "NAME", "RUNNER", "SANDBOX", "MANUAL_REVIEW")
+	fmt.Printf("%-36s  %-20s  %-12s  %-10s  %-12s\n", strings.Repeat("-", 36), strings.Repeat("-", 20), strings.Repeat("-", 12), strings.Repeat("-", 10), strings.Repeat("-", 12))
 	for _, p := range profiles {
 		name := p.Name
 		if len(name) > 20 {
 			name = name[:17] + "..."
 		}
-		sandbox := "no"
-		if p.RequiresSandbox {
-			sandbox = "yes"
-		}
-		approval := "no"
-		if p.RequiresApproval {
-			approval = "yes"
+		sandbox := profileSandboxMode(p)
+		manualReview := "no"
+		if p.SandboxConfig != nil && p.SandboxConfig.ManualReview {
+			manualReview = "yes"
 		}
 		runner := formatEnumValue(p.RunnerType, "RUNNER_TYPE_", "-")
-		fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", p.Id, name, runner, sandbox, approval)
+		fmt.Printf("%-36s  %-20s  %-12s  %-10s  %-12s\n", p.Id, name, runner, sandbox, manualReview)
 	}
 
 	return nil
@@ -177,8 +174,10 @@ func (a *App) profileGet(args []string) error {
 	if timeout := formatDuration(profile.Timeout); timeout != "" {
 		fmt.Printf("Timeout:        %s\n", timeout)
 	}
-	fmt.Printf("Requires Sandbox:  %v\n", profile.RequiresSandbox)
-	fmt.Printf("Requires Approval: %v\n", profile.RequiresApproval)
+	fmt.Printf("Sandbox Mode:      %s\n", profileSandboxMode(profile))
+	if profile.SandboxConfig != nil && profile.SandboxConfig.ManualReview {
+		fmt.Printf("Manual Review:     yes (apply gated by operator approval)\n")
+	}
 	if profile.SandboxConfig != nil {
 		fmt.Printf("Sandbox Config:   %s\n", marshalProtoJSON(profile.SandboxConfig))
 	}
@@ -212,8 +211,7 @@ func (a *App) profileCreate(args []string) error {
 	model := fs.String("model", "", "Model to use")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 30m)")
-	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
-	requiresApproval := fs.Bool("approval", true, "Require approval before applying changes")
+	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
 	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
@@ -238,8 +236,6 @@ func (a *App) profileCreate(args []string) error {
 		RunnerType:           parseRunnerType(*runnerType),
 		Model:                *model,
 		MaxTurns:             int32(*maxTurns),
-		RequiresSandbox:      *requiresSandbox,
-		RequiresApproval:     *requiresApproval,
 		SkipPermissionPrompt: *skipPermissions,
 		CreatedBy:            *createdBy,
 	}
@@ -257,6 +253,10 @@ func (a *App) profileCreate(args []string) error {
 		return err
 	} else {
 		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
+		}
+		cfg, err = applySandboxModeOverride(cfg, *sandboxMode)
 		if err != nil {
 			return err
 		}
@@ -300,8 +300,7 @@ func (a *App) profileUpdate(args []string) error {
 	model := fs.String("model", "", "Model to use")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout")
-	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
-	requiresApproval := fs.Bool("approval", true, "Require approval")
+	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the existing SandboxConfig")
 	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
@@ -367,12 +366,21 @@ func (a *App) profileUpdate(args []string) error {
 		if err != nil {
 			return err
 		}
+		cfg, err = applySandboxModeOverride(cfg, *sandboxMode)
+		if err != nil {
+			return err
+		}
 		if cfg != nil {
+			req.SandboxConfig = cfg
+		} else if mode := strings.ToLower(strings.TrimSpace(*sandboxMode)); mode != "" {
+			// --sandbox-mode set but no SandboxConfig present yet: build one.
+			cfg, err = applySandboxModeOverride(&domainpb.SandboxConfig{}, *sandboxMode)
+			if err != nil {
+				return err
+			}
 			req.SandboxConfig = cfg
 		}
 	}
-	req.RequiresSandbox = *requiresSandbox
-	req.RequiresApproval = *requiresApproval
 
 	body, profile, err := a.services.Profiles.Update(id, req)
 	if err != nil {
@@ -444,8 +452,7 @@ func (a *App) profileEnsure(args []string) error {
 	model := fs.String("model", "", "Default model to use")
 	maxTurns := fs.Int("max-turns", 0, "Default maximum turns")
 	timeout := fs.String("timeout", "", "Default execution timeout (e.g., 30m)")
-	requiresSandbox := fs.Bool("sandbox", true, "Default require sandbox execution")
-	requiresApproval := fs.Bool("approval", true, "Default require approval")
+	sandboxMode := fs.String("sandbox-mode", "", "Default sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
 	sandboxConfig := fs.String("sandbox-config", "", "Default sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to default sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Default sandbox retention mode")
@@ -460,14 +467,12 @@ func (a *App) profileEnsure(args []string) error {
 	}
 
 	defaults := &domainpb.AgentProfile{
-		ProfileKey:       *profileKey,
-		Name:             *name,
-		Description:      *description,
-		RunnerType:       parseRunnerType(*runnerType),
-		Model:            *model,
-		MaxTurns:         int32(*maxTurns),
-		RequiresSandbox:  *requiresSandbox,
-		RequiresApproval: *requiresApproval,
+		ProfileKey:  *profileKey,
+		Name:        *name,
+		Description: *description,
+		RunnerType:  parseRunnerType(*runnerType),
+		Model:       *model,
+		MaxTurns:    int32(*maxTurns),
 	}
 	if defaults.Name == "" {
 		defaults.Name = *profileKey
@@ -483,6 +488,10 @@ func (a *App) profileEnsure(args []string) error {
 		return err
 	} else {
 		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
+		}
+		cfg, err = applySandboxModeOverride(cfg, *sandboxMode)
 		if err != nil {
 			return err
 		}

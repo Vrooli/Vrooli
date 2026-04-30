@@ -156,10 +156,6 @@ export type AgentProfile = Message<"agent_manager.v1.AgentProfile"> & {
 
   /**
    * Sandbox lifecycle + acceptance configuration.
-   * Run-end apply behavior is now controlled by SandboxConfig
-   * (manual_review / auto_apply / apply_on_failure) per the
-   * auditability contract; the legacy requires_approval field
-   * (12) was removed in agent-sandbox-audit-foundation Phase 3b.
    *
    * @generated from field: agent_manager.v1.SandboxConfig sandbox_config = 20;
    */
@@ -312,7 +308,6 @@ export type RunConfig = Message<"agent_manager.v1.RunConfig"> & {
 
   /**
    * Sandbox lifecycle + acceptance configuration.
-   * Run-end apply behavior moved to SandboxConfig levers.
    *
    * @generated from field: agent_manager.v1.SandboxConfig sandbox_config = 13;
    */

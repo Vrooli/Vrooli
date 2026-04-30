@@ -62,11 +62,21 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 		t.Fatalf("register runner: %v", err)
 	}
 
-	// Create orchestrator with dependencies
+	// Create orchestrator with dependencies. A DefaultProjectRoot is
+	// supplied so handler tests that create tasks without an explicit
+	// projectRoot can still reach RunStatusPending — SandboxConfig.Mode
+	// is the single source of truth for RunMode, so a default-config
+	// run resolves to sandboxed and preflightScopePath needs a project
+	// root.
 	orch := orchestration.New(
 		repos.Profiles,
 		repos.Tasks,
 		repos.Runs,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{
+			DefaultTimeout:     5 * time.Minute,
+			MaxConcurrentRuns:  10,
+			DefaultProjectRoot: t.TempDir(),
+		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 	)

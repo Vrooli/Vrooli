@@ -5,23 +5,82 @@ Every cadence, timeout, and timing-sensitive contract in agent-manager lives in 
 ## Run execution timeline
 
 ```
-   t=0     submit run
-   t=0+    Setup phase (sandbox create) ......... bounded by Execution.DefaultTimeout
-   t=…     Acquire phase (runner.IsAvailable) ... bounded by Runners.ProbeTimeout
-   t=…     Generate identity token .............. unbounded (HMAC sign)
-   t=…     Execute phase
-            • runner Execute() blocks ........... cancelled at Execution.DefaultTimeout
-            • heartbeat goroutine ............... fires every Heartbeat.RunHeartbeatInterval
-            • checkpoint persistence ............ every Heartbeat.CheckpointInterval
-   t=end   HandleResult (classify + apply)
-   t=end+  Finalize (DEFERRED) ................. bounded by Heartbeat.TeardownTimeout
+   t=0      submit run (CreateRun)
+   t=0      dispatcher.Enqueue ................. bounded by Spawn.QueueCapacity
+   t=q      slot acquired (queue → starting) ... bounded by Spawn.MaxStartingConcurrency
+   t=q+     optional MinSpacing delay .......... Spawn.MinSpacing
+   t=s      executeRun begins
+            • Setup phase (sandbox create) ..... bounded by Execution.DefaultTimeout
+            • Acquire phase (runner.IsAvailable) bounded by Runners.ProbeTimeout
+            • Generate identity token .......... unbounded (HMAC sign)
+            • Execute phase
+              ─ runner Execute() blocks ........ cancelled at Execution.DefaultTimeout
+              ─ heartbeat goroutine ............ fires every Heartbeat.RunHeartbeatInterval
+              ─ checkpoint persistence ......... every Heartbeat.CheckpointInterval
+              ─ Started() callback fires once
+                Status = RunStatusRunning ...... releases the dispatcher slot
+   t=end    HandleResult (classify + apply)
+   t=end+   Finalize (DEFERRED) ................ bounded by Heartbeat.TeardownTimeout
             • detached from execCtx — runs
               even after deadline exceeded
 ```
 
-**Lever:** `Execution.DefaultTimeout` (default 30m) caps the entire pipeline through HandleResult. Finalize uses `Heartbeat.TeardownTimeout` so sandbox teardown completes even after the run timed out.
+**Lever:** `Execution.DefaultTimeout` (default 30m) caps the entire pipeline through HandleResult. Finalize uses `Heartbeat.TeardownTimeout` so sandbox teardown completes even after the run timed out. Startup serialization is bounded by `Spawn.MaxStartingConcurrency` and `Spawn.MinSpacing`.
 
 **Test:** `phases/finalize_test.go::TestApplySandboxLifecycle_DeletesEvenWithCancelledCallerCtx` pins the 2026-04-28 mount-leak fix.
+
+## Spawn-startup window
+
+The codex bootstrap window — the interval between `exec.CommandContext` returning and codex emitting its first JSON event — is the most fragile interval in the runner pipeline. During this window codex:
+
+1. Opens `~/.codex/state_5.sqlite` and acquires the WAL lock.
+2. Registers the in-memory rollout-items writer task.
+3. Opens `~/.codex/sessions/.../rollout-*.jsonl` for append.
+4. Emits `session_meta` and the initial `turn_context` events.
+
+Steps 1–3 are not safe to overlap with another codex process starting at the same time on the same `$CODEX_HOME`. Heartbeat-driven callers — most prominently prompt-manager team agents firing on a shared tick — used to spawn N codex processes at the exact same UTC second, racing this window. The visible failure mode was multiple concurrent rollout files all stalling within ~3s with only initial events written.
+
+The `spawn.Dispatcher` shrinks this window's concurrency to `Spawn.MaxStartingConcurrency` (default 1). The slot is held until either the executor calls the injected `Started()` callback (signalling `RunStatusRunning`) or `ExecuteFn` returns — whichever fires first. The defer-release semantics inside the dispatcher worker protect against panics and early-exit terminal failures.
+
+```
+heartbeat tick → CreateRun #1 ┐
+heartbeat tick → CreateRun #2 ├─▶ dispatcher.Enqueue (FIFO)
+heartbeat tick → CreateRun #3 ┘
+                                 │
+                                 ▼
+                          worker goroutine
+                                 │
+                          ┌──────┴──────┐
+                          │  semaphore  │  cap = MaxStartingConcurrency
+                          └──────┬──────┘
+                                 │
+                                 ▼
+                       acquire slot → optional MinSpacing
+                                 │
+                                 ▼
+                            ExecuteFn(run, started)
+                                 │
+                       Started() releases slot
+                       (or defer-release on exit)
+```
+
+**Levers:** `Spawn.MaxStartingConcurrency`, `Spawn.MinSpacing`, `Spawn.QueueCapacity`. See [`../reference/configuration.md`](../reference/configuration.md#spawn).
+
+**Tests:**
+- `internal/orchestration/spawn/dispatcher_test.go` — unit: capacity, panic safety, idempotent `Started()`, `MinSpacing` enforcement.
+- `internal/orchestration/integration/spawn_serialization_test.go` — burst gate: 10 concurrent CreateRun calls must keep `in Execute` ≤ `MaxStartingConcurrency` at every observation.
+
+## Heartbeat-driven caller burst pattern
+
+Multiple Vrooli scenarios drive agent-manager from a periodic heartbeat (most notably prompt-manager team agents and swarm-manager initiative orchestrators). When several heartbeats fire on the same second, the resulting `CreateRun` calls land at agent-manager within a few ms of each other.
+
+Symptoms before the dispatcher: silent rollout-file truncation; `record_rollout_items: thread … not found` errors that surfaced as bare `code: INTERNAL`; runs that completed successfully on retry but never explained the first-attempt failure.
+
+Mitigation:
+
+- `spawn.Dispatcher` serializes the bootstrap window even when the heartbeat fires N requests on the same tick.
+- `Codec.ClassifyTerminalError` maps the rollout-writer race to typed `ErrCodeRunnerSessionStateLost` so the first-attempt failure is still legible if it does occur.
+- Callers can still detect backpressure: `CreateRunResponse.queue_depth` is non-zero when serialization is in effect, so heartbeat-driven schedulers can choose to skip a tick rather than stack work behind a deep queue.
 
 ## Heartbeat cadence
 

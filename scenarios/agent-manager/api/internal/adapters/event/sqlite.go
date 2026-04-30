@@ -162,6 +162,11 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		if err := json.Unmarshal(e.Data, &data); err == nil {
 			evt.Data = &data
 		}
+	case domain.EventTypeLifecycle:
+		var data domain.LifecycleEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
 	default:
 		// For unknown types, try legacy format
 		var legacy domain.RunEventData

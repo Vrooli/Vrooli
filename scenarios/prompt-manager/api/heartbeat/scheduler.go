@@ -363,8 +363,7 @@ func buildCodexProfile(profileKey string) *AgentProfile {
 		Timeout:              DurationToProtojson(10 * time.Minute),
 		AllowedTools:         []string{"read_file", "write_file", "execute_command"},
 		SkipPermissionPrompt: true,
-		RequiresSandbox:      false,
-		RequiresApproval:     false,
+		SandboxConfig:        &SandboxConfig{Mode: "off"},
 		CreatedBy:            "prompt-manager",
 	}
 }
@@ -380,8 +379,7 @@ func buildClaudeCodeProfile(profileKey string) *AgentProfile {
 		Timeout:              DurationToProtojson(30 * time.Minute),
 		AllowedTools:         []string{},
 		SkipPermissionPrompt: true,
-		RequiresSandbox:      false,
-		RequiresApproval:     false,
+		SandboxConfig:        &SandboxConfig{Mode: "off"},
 		CreatedBy:            "prompt-manager",
 	}
 }

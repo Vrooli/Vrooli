@@ -186,6 +186,52 @@ func parseSandboxConfig(value, filePath string) (*domainpb.SandboxConfig, error)
 	return &cfg, nil
 }
 
+// applySandboxModeOverride parses --sandbox-mode and applies it to cfg.
+// Empty input is a no-op (preserves the existing mode); non-empty input
+// must match one of: off, tracking, protected (case-insensitive). When
+// cfg is nil and a non-empty mode is requested the caller is expected
+// to construct a SandboxConfig before calling — see profileUpdate's
+// "build one if missing" branch.
+func applySandboxModeOverride(cfg *domainpb.SandboxConfig, mode string) (*domainpb.SandboxConfig, error) {
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return cfg, nil
+	}
+	if cfg == nil {
+		cfg = &domainpb.SandboxConfig{}
+	}
+	switch strings.ToLower(mode) {
+	case "off":
+		cfg.Mode = domainpb.SandboxMode_SANDBOX_MODE_OFF
+	case "tracking":
+		cfg.Mode = domainpb.SandboxMode_SANDBOX_MODE_TRACKING
+	case "protected":
+		cfg.Mode = domainpb.SandboxMode_SANDBOX_MODE_PROTECTED
+	default:
+		return nil, fmt.Errorf("invalid sandbox mode %q: expected one of off, tracking, protected", mode)
+	}
+	return cfg, nil
+}
+
+// profileSandboxMode renders the sandbox mode for human display.
+// Returns "off"/"tracking"/"protected"/"-"; "-" means the profile has
+// no SandboxConfig set, in which case the run-time default applies.
+func profileSandboxMode(p *domainpb.AgentProfile) string {
+	if p == nil || p.SandboxConfig == nil {
+		return "-"
+	}
+	switch p.SandboxConfig.Mode {
+	case domainpb.SandboxMode_SANDBOX_MODE_OFF:
+		return "off"
+	case domainpb.SandboxMode_SANDBOX_MODE_TRACKING:
+		return "tracking"
+	case domainpb.SandboxMode_SANDBOX_MODE_PROTECTED:
+		return "protected"
+	default:
+		return "default"
+	}
+}
+
 func applySandboxRetention(cfg *domainpb.SandboxConfig, mode, ttl string) (*domainpb.SandboxConfig, error) {
 	mode = strings.TrimSpace(mode)
 	ttl = strings.TrimSpace(ttl)

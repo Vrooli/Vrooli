@@ -19,7 +19,7 @@ package orchestration
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -27,8 +27,14 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 )
+
+// recommendationWorkerLog returns the worker's component-tagged logger.
+func recommendationWorkerLog() *slog.Logger {
+	return obs.Component("recommendation-worker")
+}
 
 // AllowlistProvider provides access to the investigation tag allowlist.
 // This abstraction allows the worker to get the current allowlist without
@@ -192,12 +198,14 @@ func (w *RecommendationWorker) Start(ctx context.Context) error {
 	// Seed the queue with existing unextracted investigation runs on startup
 	seeded := w.seedExistingRuns(ctx)
 	if seeded > 0 {
-		log.Printf("[recommendation-worker] Seeded %d existing investigation runs for extraction", seeded)
+		recommendationWorkerLog().Info("seeded investigation runs for extraction", "count", seeded)
 	}
 
 	go w.loop(ctx)
-	log.Printf("[recommendation-worker] Started with interval=%v, maxRetries=%d",
-		w.config.Interval, w.config.MaxRetries)
+	recommendationWorkerLog().Info("worker started",
+		"interval", w.config.Interval.String(),
+		"maxRetries", w.config.MaxRetries,
+	)
 	return nil
 }
 
@@ -217,7 +225,7 @@ func (w *RecommendationWorker) Stop() error {
 	w.running = false
 	w.mu.Unlock()
 
-	log.Printf("[recommendation-worker] Stopped")
+	recommendationWorkerLog().Info("worker stopped")
 	return nil
 }
 
@@ -283,9 +291,13 @@ func (w *RecommendationWorker) updateStats(stats RecommendationWorkerStats) {
 
 	// Log summary if there was any activity
 	if stats.RunsProcessed > 0 {
-		log.Printf("[recommendation-worker] cycle: processed=%d success=%d retried=%d failed=%d errors=%d",
-			stats.RunsProcessed, stats.ExtractionsSuccess, stats.ExtractionsRetried,
-			stats.ExtractionsFailed, len(stats.Errors))
+		recommendationWorkerLog().Info("cycle complete",
+			"processed", stats.RunsProcessed,
+			"success", stats.ExtractionsSuccess,
+			"retried", stats.ExtractionsRetried,
+			"failed", stats.ExtractionsFailed,
+			"errors", len(stats.Errors),
+		)
 	}
 }
 
@@ -298,7 +310,7 @@ func (w *RecommendationWorker) recoverStaleExtractions(ctx context.Context) int 
 
 	stale, err := w.runs.ListStaleExtractions(ctx, w.config.StaleTimeout, 50)
 	if err != nil {
-		log.Printf("[recommendation-worker] Failed to list stale extractions: %v", err)
+		recommendationWorkerLog().Warn("list stale extractions failed", obs.KeyError, err.Error())
 		return 0
 	}
 
@@ -312,13 +324,18 @@ func (w *RecommendationWorker) recoverStaleExtractions(ctx context.Context) int 
 		run.UpdatedAt = now
 
 		if err := w.runs.Update(ctx, run); err != nil {
-			log.Printf("[recommendation-worker] Failed to recover stale run %s: %v", run.ID, err)
+			recommendationWorkerLog().Warn("recover stale run failed",
+				obs.KeyRunID, run.ID.String(),
+				obs.KeyError, err.Error(),
+			)
 			continue
 		}
 
 		recovered++
-		log.Printf("[recommendation-worker] Recovered stale extraction for run %s (was extracting for >%v)",
-			run.ID, w.config.StaleTimeout)
+		recommendationWorkerLog().Info("recovered stale extraction",
+			obs.KeyRunID, run.ID.String(),
+			"staleTimeout", w.config.StaleTimeout.String(),
+		)
 
 		// Broadcast status update
 		if w.broadcaster != nil {
@@ -337,7 +354,7 @@ func (w *RecommendationWorker) processQueue(ctx context.Context) RecommendationW
 	// First, recover any stale extractions from crashed workers
 	recovered := w.recoverStaleExtractions(ctx)
 	if recovered > 0 {
-		log.Printf("[recommendation-worker] Recovered %d stale extractions", recovered)
+		recommendationWorkerLog().Info("recovered stale extractions", "count", recovered)
 	}
 
 	// Check if extractor is available
@@ -557,7 +574,7 @@ func (w *RecommendationWorker) seedExistingRuns(ctx context.Context) int {
 	// We pass empty string to get all runs with "investigation" in the tag
 	runs, err := w.runs.ListUnextractedInvestigationRuns(ctx, "", maxSeedLimit*2)
 	if err != nil {
-		log.Printf("[recommendation-worker] Failed to list unextracted runs: %v", err)
+		recommendationWorkerLog().Warn("list unextracted runs failed", obs.KeyError, err.Error())
 		return 0
 	}
 
@@ -583,7 +600,10 @@ func (w *RecommendationWorker) seedExistingRuns(ctx context.Context) int {
 		run.UpdatedAt = now
 
 		if err := w.runs.Update(ctx, run); err != nil {
-			log.Printf("[recommendation-worker] Failed to queue run %s for extraction: %v", run.ID, err)
+			recommendationWorkerLog().Warn("queue run for extraction failed",
+				obs.KeyRunID, run.ID.String(),
+				obs.KeyError, err.Error(),
+			)
 			continue
 		}
 		seeded++

@@ -50,8 +50,7 @@ type AgentProfile struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty" db:"extra_flags"`
 
 	// Default policies (can be overridden per task)
-	RequiresSandbox bool          `json:"requiresSandbox" db:"requires_sandbox"`
-	NetworkAccess   NetworkAccess `json:"networkAccess" db:"network_access"`
+	NetworkAccess NetworkAccess `json:"networkAccess" db:"network_access"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
@@ -217,6 +216,11 @@ type SandboxAcceptanceConfig struct {
 // are visible rather than silent. [SandboxModeTracking] is the
 // documented operator opt-out for runs that legitimately need full host
 // capability — set explicitly per-spawn; nothing defaults to it.
+// [SandboxModeOff] is the explicit "no sandbox at all" choice — used
+// only for runs that legitimately have no auditability requirement
+// (e.g. agent-manager developing itself). It is the single switch that
+// controls whether the orchestrator allocates a sandbox for the run;
+// see [DeriveRunMode] in package orchestration.
 type SandboxMode string
 
 const (
@@ -228,6 +232,15 @@ const (
 	// zero-initialising, so the unspecified→tracking fallback only fires
 	// for legacy or test code paths.
 	SandboxModeUnspecified SandboxMode = ""
+
+	// SandboxModeOff disables sandboxing for the run entirely. The
+	// orchestrator skips workspace-sandbox allocation, the runner edits
+	// the canonical repo directly, and no provenance record is written.
+	// Reserved for runs where auditability is genuinely irrelevant
+	// (e.g. agent-manager developing itself, in-place tests). This is
+	// the *only* value that produces RunModeInPlace; every other Mode
+	// produces RunModeSandboxed.
+	SandboxModeOff SandboxMode = "off"
 
 	// SandboxModeTracking is the host-tracked auditability mode: the
 	// agent runs on the host and the sandbox merely tracks file changes
@@ -256,7 +269,7 @@ const (
 // currently implemented — see Validate for the runtime gate).
 func (m SandboxMode) IsValid() bool {
 	switch m {
-	case SandboxModeUnspecified, SandboxModeTracking, SandboxModeProtected:
+	case SandboxModeUnspecified, SandboxModeOff, SandboxModeTracking, SandboxModeProtected:
 		return true
 	default:
 		return false
@@ -264,11 +277,43 @@ func (m SandboxMode) IsValid() bool {
 }
 
 // Effective returns the mode value, defaulting empty to SandboxModeTracking.
+// SandboxModeOff is preserved as-is (it is an explicit, intentional choice).
 func (m SandboxMode) Effective() SandboxMode {
 	if m == SandboxModeUnspecified {
 		return SandboxModeTracking
 	}
 	return m
+}
+
+// strictnessRank orders sandbox modes from least to most strict, so a
+// "minimum-mode" policy can be expressed as a numeric ≥ comparison.
+// SandboxModeUnspecified is treated as Tracking (matches Effective).
+//
+//	Off (0) < Tracking (1) < Protected (2)
+//
+// The values are an internal implementation detail of [SandboxMode.AtLeast];
+// callers should not depend on the integers.
+func (m SandboxMode) strictnessRank() int {
+	switch m.Effective() {
+	case SandboxModeOff:
+		return 0
+	case SandboxModeTracking:
+		return 1
+	case SandboxModeProtected:
+		return 2
+	default:
+		// Unknown values fall back to "off" so an invalid mode never
+		// silently satisfies a strictness requirement.
+		return 0
+	}
+}
+
+// AtLeast reports whether m is at least as strict as required. It is the
+// canonical comparison used by the orchestrator when validating that a
+// resolved SandboxConfig.Mode satisfies a policy-declared minimum.
+// SandboxModeUnspecified on either side is normalised via Effective().
+func (m SandboxMode) AtLeast(required SandboxMode) bool {
+	return m.strictnessRank() >= required.strictnessRank()
 }
 
 // SandboxConfig holds lifecycle + acceptance settings for a sandbox.
@@ -723,10 +768,15 @@ type RunConfig struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty"`
 
 	// Policy flags
-	RequiresSandbox bool          `json:"requiresSandbox"`
-	NetworkAccess   NetworkAccess `json:"networkAccess"`
+	NetworkAccess NetworkAccess `json:"networkAccess"`
 
-	// Sandbox behavior settings
+	// Sandbox behavior settings.
+	//
+	// SandboxConfig.Mode is the single source of truth for whether the
+	// run is sandboxed. See [orchestration.DeriveRunMode]. A nil
+	// SandboxConfig is treated as "unspecified" — orchestration spawn
+	// surfaces clone [DefaultSandboxConfig] before resolving so the
+	// nil case only arises in legacy tests.
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
 
 	// Path restrictions
@@ -757,9 +807,14 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 			c.ExtraFlags[rt] = append([]string(nil), flags...)
 		}
 	}
-	c.RequiresSandbox = profile.RequiresSandbox
 	c.NetworkAccess = profile.NetworkAccess
-	c.SandboxConfig = profile.SandboxConfig
+	// Only overwrite SandboxConfig when the profile actually provides
+	// one. A nil profile.SandboxConfig means "use the run-config
+	// default"; copying it would silently clobber DefaultSandboxConfig
+	// and reintroduce the zero-value-bool bypass class of bug.
+	if profile.SandboxConfig != nil {
+		c.SandboxConfig = profile.SandboxConfig
+	}
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
 }
@@ -767,15 +822,18 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 // DefaultRunConfig returns sensible defaults for run configuration.
 //
 // The auditability-contract apply defaults (ManualReview=false,
-// AutoApply=true, ApplyOnFailure=true) live on SandboxConfig — see
-// DefaultSandboxConfig.
+// AutoApply=true, ApplyOnFailure=true, Mode=Protected) live on
+// SandboxConfig — see DefaultSandboxConfig. Embedding the default
+// SandboxConfig here is what makes the "sandbox by default" invariant
+// hold even when callers ApplyProfile a profile with no SandboxConfig
+// of its own.
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		RunnerType:      RunnerTypeClaudeCode,
-		MaxTurns:        30,
-		Timeout:         60 * time.Minute,
-		RequiresSandbox: true,
-		NetworkAccess:   NetworkAccessLocalhost,
+		RunnerType:    RunnerTypeClaudeCode,
+		MaxTurns:      30,
+		Timeout:       60 * time.Minute,
+		NetworkAccess: NetworkAccessLocalhost,
+		SandboxConfig: DefaultSandboxConfig(),
 	}
 }
 
@@ -818,6 +876,21 @@ const (
 	EventTypeArtifact       RunEventType = "artifact"
 	EventTypeError          RunEventType = "error"
 	EventTypeCompaction     RunEventType = "compaction"
+	EventTypeLifecycle      RunEventType = "lifecycle"
+)
+
+// LifecyclePhase identifies a stable transition in the spawn-to-finalize
+// pipeline. The set is closed; new entries require a contract decision in
+// scenarios/agent-manager/docs/internal/SEAMS.md.
+type LifecyclePhase string
+
+const (
+	LifecyclePhaseSpawnEnqueued     LifecyclePhase = "spawn_enqueued"
+	LifecyclePhaseSpawnStarted      LifecyclePhase = "spawn_started"
+	LifecyclePhaseRunnerAcquired    LifecyclePhase = "runner_acquired"
+	LifecyclePhaseRunnerExited      LifecyclePhase = "runner_exited"
+	LifecyclePhaseFinalizeStarted   LifecyclePhase = "finalize_started"
+	LifecyclePhaseFinalizeCompleted LifecyclePhase = "finalize_completed"
 )
 
 // =============================================================================
@@ -1276,6 +1349,47 @@ func NewCompactionEvent(
 			TokensAfter:       tokensAfter,
 			OriginalCommand:   originalCommand,
 		},
+	}
+}
+
+// =============================================================================
+// LIFECYCLE EVENT
+// =============================================================================
+
+// LifecycleEventData carries timing + classification fields for the
+// stable spawn → finalize transitions enumerated by [LifecyclePhase].
+//
+// Lifecycle events are emitted only via the helpers in
+// `internal/orchestration/obs/events.go`; ad-hoc construction outside
+// that package is a contract violation (see SEAMS.md, contract decision
+// "Lifecycle events are emitted through obs/events.go only").
+type LifecycleEventData struct {
+	Phase        LifecyclePhase `json:"phase"`
+	Message      string         `json:"message,omitempty"`
+	DurationMS   int64          `json:"durationMs,omitempty"`
+	SandboxID    string         `json:"sandboxId,omitempty"`
+	RunnerType   string         `json:"runnerType,omitempty"`
+	LauncherType string         `json:"launcherType,omitempty"`
+	QueueDepth   int            `json:"queueDepth,omitempty"`
+	ActiveCount  int            `json:"activeCount,omitempty"`
+	ExitCode     *int           `json:"exitCode,omitempty"`
+	TerminalCode string         `json:"terminalCode,omitempty"`
+}
+
+func (d *LifecycleEventData) EventType() RunEventType { return EventTypeLifecycle }
+func (d *LifecycleEventData) isEventPayload()         {}
+
+// NewLifecycleEvent constructs a lifecycle event for the given phase.
+// Caller-supplied data is shallow-copied so the event is safe to emit
+// without sharing pointer state with the caller.
+func NewLifecycleEvent(runID uuid.UUID, data LifecycleEventData) *RunEvent {
+	d := data
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeLifecycle,
+		Timestamp: time.Now(),
+		Data:      &d,
 	}
 }
 

@@ -108,7 +108,11 @@ type ProfileConfig struct {
 	TimeoutSeconds  int32
 	AllowedTools    []string
 	SkipPermissions bool
-	RequiresSandbox bool
+	// SandboxMode selects the per-run sandbox execution mode. Empty
+	// (Unspecified) lets agent-manager apply its DefaultSandboxConfig
+	// (Mode=Protected). Set to SANDBOX_MODE_OFF for in-place runs.
+	// See agent-manager's domain.DeriveRunMode for the contract.
+	SandboxMode domainpb.SandboxMode
 }
 
 // DefaultProfileConfig returns the default configuration for test generation.
@@ -129,17 +133,18 @@ func DefaultProfileConfig() *ProfileConfig {
 		},
 		SkipPermissions: false, // Require confirmation for safety
 		// Run in workspace-sandbox so the test-genie CLI's sandbox-aware
-		// resolution (cliutil.ResolveScenarioPath) gets activated: agent-manager
-		// injects VROOLI_SANDBOX_{ID,MERGED,SCOPE} only for sandboxed runs, and
-		// without those env vars the CLI silently falls back to the real-repo
-		// path. ManualReview defaults to false (auto-apply), so any test/test-fix
-		// edits flow into the canonical repo with provenance recorded.
-		RequiresSandbox: true,
+		// resolution (cliutil.ResolveScenarioPath) gets activated:
+		// agent-manager injects VROOLI_SANDBOX_{ID,MERGED,SCOPE} only
+		// for sandboxed runs, and without those env vars the CLI
+		// silently falls back to the real-repo path. ManualReview
+		// defaults to false (auto-apply), so any test/test-fix edits
+		// flow into the canonical repo with provenance recorded.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
 	}
 }
 
 func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for test-genie test generation",
@@ -150,9 +155,12 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
 		CreatedBy:            "test-genie",
 	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
@@ -312,10 +320,12 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 				return
 			}
 
-			// Create run for this task. RunMode is left unset so the orchestrator
-			// resolves it to RUN_MODE_SANDBOXED via the profile's RequiresSandbox=true
-			// — required to get VROOLI_SANDBOX_* env vars injected into the agent
-			// process and inherited by the test-genie CLI subprocess.
+			// Create run for this task. RunMode is left unset so the
+			// orchestrator resolves it via DeriveRunMode from the
+			// profile's SandboxConfig.Mode (Protected by default) —
+			// required to get VROOLI_SANDBOX_* env vars injected into
+			// the agent process and inherited by the test-genie CLI
+			// subprocess.
 			runReq := &apipb.CreateRunRequest{
 				TaskId:     createdTask.Id,
 				ProfileRef: s.defaultProfileRef(),
@@ -583,8 +593,9 @@ func (s *AgentService) SpawnSingle(ctx context.Context, req SpawnSingleRequest) 
 	}
 	result.TaskID = createdTask.Id
 
-	// Create run. RunMode unset → orchestrator resolves to sandboxed via the
-	// profile's RequiresSandbox=true. See SpawnBatch for the full rationale.
+	// Create run. RunMode unset → orchestrator derives sandboxed via
+	// the profile's SandboxConfig.Mode (Protected). See SpawnBatch for
+	// the full rationale.
 	runReq := &apipb.CreateRunRequest{
 		TaskId:     createdTask.Id,
 		ProfileRef: s.defaultProfileRef(),

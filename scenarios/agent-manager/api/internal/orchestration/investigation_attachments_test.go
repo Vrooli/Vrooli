@@ -45,6 +45,7 @@ func TestCreateInvestigationRun_WithAttachmentIDs(t *testing.T) {
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          5 * time.Minute,
 			MaxConcurrentRuns:       10,
+			DefaultProjectRoot:      t.TempDir(),
 			RequireSandboxByDefault: false,
 		}),
 		orchestration.WithEvents(eventStore),
@@ -61,13 +62,14 @@ func TestCreateInvestigationRun_WithAttachmentIDs(t *testing.T) {
 		Title:       "source-task",
 		Description: "task that the investigation targets",
 		ScopePath:   "src/",
+		ProjectRoot: t.TempDir(),
 	})
 
 	sourceProfile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "source-profile",
-		ProfileKey:      "source-" + uuid.New().String()[:8],
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
+		Name:          "source-profile",
+		ProfileKey:    "source-" + uuid.New().String()[:8],
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 
 	// Pre-create the investigation profile with a concrete Model so the CreateRun
@@ -75,11 +77,11 @@ func TestCreateInvestigationRun_WithAttachmentIDs(t *testing.T) {
 	// built-in default profile uses ModelPreset=Smart, which requires a
 	// configured registry we don't wire up for this unit test).
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "investigation-profile",
-		ProfileKey:      domain.InvestigationTag,
-		RunnerType:      domain.RunnerTypeCodex,
-		Model:           "mock-model",
-		RequiresSandbox: false,
+		Name:          "investigation-profile",
+		ProfileKey:    domain.InvestigationTag,
+		RunnerType:    domain.RunnerTypeCodex,
+		Model:         "mock-model",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 
 	now := time.Now()
@@ -164,6 +166,7 @@ func TestCreateInvestigationRun_SkipsBlankAttachmentIDs(t *testing.T) {
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          5 * time.Minute,
 			MaxConcurrentRuns:       10,
+			DefaultProjectRoot:      t.TempDir(),
 			RequireSandboxByDefault: false,
 		}),
 		orchestration.WithEvents(eventStore),
@@ -174,21 +177,22 @@ func TestCreateInvestigationRun_SkipsBlankAttachmentIDs(t *testing.T) {
 	)
 
 	sourceTask := mustCreateTask(t, svc, ctx, &domain.Task{
-		Title:     "source-task-blank-atts",
-		ScopePath: "src/",
+		Title:       "source-task-blank-atts",
+		ScopePath:   "src/",
+		ProjectRoot: t.TempDir(),
 	})
 	sourceProfile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "source-profile-blank",
-		ProfileKey:      "source-blank-" + uuid.New().String()[:8],
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
+		Name:          "source-profile-blank",
+		ProfileKey:    "source-blank-" + uuid.New().String()[:8],
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "investigation-profile-blank",
-		ProfileKey:      domain.InvestigationTag,
-		RunnerType:      domain.RunnerTypeCodex,
-		Model:           "mock-model",
-		RequiresSandbox: false,
+		Name:          "investigation-profile-blank",
+		ProfileKey:    domain.InvestigationTag,
+		RunnerType:    domain.RunnerTypeCodex,
+		Model:         "mock-model",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 	now := time.Now()
 	sourceRunID := uuid.New()
@@ -260,6 +264,7 @@ func TestCreateInvestigationApplyRun_WithAttachmentIDs(t *testing.T) {
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          5 * time.Minute,
 			MaxConcurrentRuns:       10,
+			DefaultProjectRoot:      t.TempDir(),
 			RequireSandboxByDefault: false,
 		}),
 		orchestration.WithEvents(eventStore),
@@ -272,18 +277,18 @@ func TestCreateInvestigationApplyRun_WithAttachmentIDs(t *testing.T) {
 	// Both built-in profiles need concrete Model values so the CreateRun
 	// validation doesn't require a model registry.
 	mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "investigation-profile-apply-test",
-		ProfileKey:      domain.InvestigationTag,
-		RunnerType:      domain.RunnerTypeCodex,
-		Model:           "mock-model",
-		RequiresSandbox: false,
+		Name:          "investigation-profile-apply-test",
+		ProfileKey:    domain.InvestigationTag,
+		RunnerType:    domain.RunnerTypeCodex,
+		Model:         "mock-model",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 	applyProfile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "apply-investigation-profile-test",
-		ProfileKey:      domain.InvestigationApplyTag,
-		RunnerType:      domain.RunnerTypeCodex,
-		Model:           "mock-model",
-		RequiresSandbox: false,
+		Name:          "apply-investigation-profile-test",
+		ProfileKey:    domain.InvestigationApplyTag,
+		RunnerType:    domain.RunnerTypeCodex,
+		Model:         "mock-model",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 
 	// Seed an investigation task (which the apply flow will copy attachments
@@ -292,6 +297,7 @@ func TestCreateInvestigationApplyRun_WithAttachmentIDs(t *testing.T) {
 		Title:       "investigation-task",
 		Description: "investigation that apply will build on",
 		ScopePath:   "src/",
+		ProjectRoot: t.TempDir(),
 	})
 
 	now := time.Now()

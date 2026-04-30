@@ -14,7 +14,6 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +30,9 @@ import (
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
@@ -109,6 +110,7 @@ type Service interface {
 	GetHealth(ctx context.Context) (*HealthStatus, error)
 	GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, error)
 	ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error)
+	SpawnStats() spawn.Stats
 
 	// --- Maintenance Operations ---
 	PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error)
@@ -227,7 +229,6 @@ type CreateRunRequest struct {
 	SkipPermissionPrompt *bool                   `json:"skipPermissionPrompt,omitempty"`
 	EnableBrowser        *bool                   `json:"enableBrowser,omitempty"`
 	ExtraFlags           domain.RunnerExtraFlags `json:"extraFlags,omitempty"`
-	RequiresSandbox      *bool                   `json:"requiresSandbox,omitempty"`
 	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
 	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
@@ -503,6 +504,11 @@ type Orchestrator struct {
 
 	// Identity signing secret for agent identity tokens.
 	identitySecret []byte
+
+	// dispatcher serializes runner startups and exposes queue depth.
+	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
+	// see contract decision 2 in scenarios/agent-manager/docs/internal/SEAMS.md.
+	dispatcher *spawn.Dispatcher
 }
 
 // OrchestratorConfig holds service configuration.
@@ -674,13 +680,40 @@ func WithIdentitySecret(secret []byte) Option {
 	}
 }
 
+// WithSpawnDispatcher installs the runner-startup dispatcher. The
+// orchestrator routes every spawn (CreateRun, ResumeRun) through it
+// to enforce startup serialization and surface queue depth in
+// CreateRunResponse. Supplying nil leaves the dispatcher unset, which
+// is only valid in tests that mock CreateRun's spawn path.
+func WithSpawnDispatcher(d *spawn.Dispatcher) Option {
+	return func(o *Orchestrator) {
+		o.dispatcher = d
+	}
+}
+
 // SetReconciler sets the reconciler reference for hot-reload propagation.
 // This is called after construction because the reconciler depends on the orchestrator.
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 }
 
+// SpawnStats returns the current spawn-dispatcher state. Safe to call
+// from the HTTP response path. Returns the zero Stats when the
+// dispatcher is unset (test-only).
+func (o *Orchestrator) SpawnStats() spawn.Stats {
+	if o.dispatcher == nil {
+		return spawn.Stats{}
+	}
+	return o.dispatcher.Stats()
+}
+
 // New creates a new Orchestrator with the given dependencies.
+//
+// If no spawn dispatcher is supplied via [WithSpawnDispatcher], a
+// default one is constructed with single-slot serialization and queue
+// capacity = MaxConcurrentRuns * 2. This keeps tests that don't care
+// about the dispatcher working without per-test boilerplate, while
+// production wiring still passes an explicitly-tuned dispatcher.
 func New(
 	profiles repository.ProfileRepository,
 	tasks repository.TaskRepository,
@@ -696,6 +729,17 @@ func New(
 
 	for _, opt := range opts {
 		opt(o)
+	}
+
+	if o.dispatcher == nil {
+		queueCap := o.config.MaxConcurrentRuns * 2
+		if queueCap < 1 {
+			queueCap = 8
+		}
+		o.dispatcher = spawn.New(spawn.Config{
+			MaxStartingConcurrency: 1,
+			QueueCapacity:          queueCap,
+		})
 	}
 
 	return o
@@ -1067,14 +1111,44 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		}
 	}
 
-	// Determine run mode
-	runMode := domain.RunModeSandboxed
+	// Determine run mode.
+	//
+	// SandboxConfig.Mode is the single source of truth; DeriveRunMode
+	// translates the resolved Mode to a RunMode without consulting any
+	// other input. See docs/internal/SEAMS.md (RunMode decision boundary)
+	// and docs/internal/INVARIANTS.md.
+	//
+	// Decision priority (highest first):
+	//   1. Explicit caller override via req.RunMode
+	//   2. ForceInPlace (policy must permit; orchestrator validates that
+	//      the resolved sandbox mode is at or above policy's required
+	//      minimum below)
+	//   3. Derived from sandboxConfig.Mode
+	runMode := domain.DeriveRunMode(sandboxConfig)
 	if req.RunMode != nil {
 		runMode = *req.RunMode
-	} else if policyDecision != nil && !policyDecision.RequiresSandbox {
+	} else if req.ForceInPlace {
 		runMode = domain.RunModeInPlace
-	} else if resolvedConfig != nil && !resolvedConfig.RequiresSandbox {
-		runMode = domain.RunModeInPlace
+	}
+
+	// Enforce the policy-declared minimum sandbox mode. The policy layer
+	// expresses sandbox requirements as a minimum SandboxMode rather
+	// than a bool so a higher-strictness policy can require Protected
+	// while still allowing Tracking-mode runs through other paths.
+	if policyDecision != nil && policyDecision.RequiredSandboxMode != domain.SandboxModeUnspecified {
+		resolvedMode := domain.SandboxModeOff
+		if sandboxConfig != nil {
+			resolvedMode = sandboxConfig.Mode.Effective()
+		}
+		if !resolvedMode.AtLeast(policyDecision.RequiredSandboxMode) {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint(
+				"sandboxConfig.mode",
+				"resolved sandbox mode is below the policy-required minimum",
+				fmt.Sprintf("policy requires Mode >= %q; resolved Mode is %q",
+					policyDecision.RequiredSandboxMode, resolvedMode),
+			)
+		}
 	}
 
 	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
@@ -1087,7 +1161,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		if runMode != domain.RunModeSandboxed {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "existing sandbox requires sandboxed run mode",
-				"set runMode to sandboxed or enable requiresSandbox in the profile")
+				"set runMode to sandboxed or set sandboxConfig.mode to a sandbox-enabled value (tracking/protected)")
 		}
 		if o.sandbox == nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -1267,8 +1341,22 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		}
 	}
 
-	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment)
+	// Hand the executor body to the spawn dispatcher. Enqueue is the
+	// only path through which a run begins — direct goroutine spawning
+	// would skip startup serialization (codex SQLite WAL contention)
+	// and queue-depth surfacing.
+	if err := o.dispatcher.Enqueue(&spawn.Job{
+		RunID:      run.ID,
+		RunMode:    run.RunMode,
+		RunnerType: runnerTypeOrEmpty(run),
+		Sink:       o.dispatcherSink(run.ID),
+		Fn: func(started spawn.StartedFn) {
+			o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+		},
+	}); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -1418,9 +1506,6 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		for rt, flags := range req.ExtraFlags {
 			cfg.ExtraFlags[rt] = append([]string(nil), flags...)
 		}
-	}
-	if req.RequiresSandbox != nil {
-		cfg.RequiresSandbox = *req.RequiresSandbox
 	}
 	if req.NetworkAccess != nil {
 		cfg.NetworkAccess = *req.NetworkAccess
@@ -1707,7 +1792,7 @@ func validateSandboxConfig(cfg *domain.SandboxConfig) error {
 	if cfg.GetAutoApply() && !cfg.ManualReview &&
 		len(cfg.Acceptance.Allow.PathGlobs) == 0 &&
 		len(cfg.Acceptance.Allow.Extensions) == 0 {
-		log.Printf("[sandbox-config] autoApply enabled with no allow criteria — all non-denied files will be applied at run end")
+		obs.Component("sandbox-config").Info("autoApply enabled with no allow criteria; all non-denied files will be applied at run end")
 	}
 	return nil
 }
@@ -2127,7 +2212,10 @@ func (o *Orchestrator) continuationHeartbeat(ctx context.Context, run *domain.Ru
 			run.LastHeartbeat = &now
 			run.UpdatedAt = now
 			if err := o.runs.Update(ctx, run); err != nil {
-				log.Printf("[heartbeat] ERROR: continuation heartbeat failed for run %s: %v", run.ID, err)
+				obs.Component("heartbeat").Error("continuation heartbeat failed",
+					obs.KeyRunID, run.ID.String(),
+					obs.KeyError, err.Error(),
+				)
 			}
 		}
 	}
@@ -2333,8 +2421,11 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 }
 
 // executeRun handles the actual agent execution (runs in background).
-// This delegates to RunExecutor for the actual work.
-func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment, customEnv map[string]string) {
+// This delegates to RunExecutor for the actual work. `started` is the
+// spawn dispatcher's slot-release callback, fired the moment the run
+// reaches RunStatusRunning so the next queued run can begin its
+// codex-bootstrap window.
+func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment, customEnv map[string]string, started spawn.StartedFn) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -2386,6 +2477,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		executor.WithIdentitySecret(o.identitySecret)
 	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
+	executor.WithOnRunning(started)
 	executor.Execute(ctx)
 }
 
@@ -2473,14 +2565,27 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		return nil, err
 	}
 
-	// Start execution asynchronously with resumption
-	go o.resumeRun(context.Background(), run, task, profile, checkpoint)
+	// Resume goes through the same dispatcher as initial spawn —
+	// per contract decision 2 in SEAMS.md, no goroutine spawn outside
+	// spawn.Dispatcher.Enqueue.
+	if err := o.dispatcher.Enqueue(&spawn.Job{
+		RunID:      run.ID,
+		RunMode:    run.RunMode,
+		RunnerType: runnerTypeOrEmpty(run),
+		Sink:       o.dispatcherSink(run.ID),
+		Fn: func(started spawn.StartedFn) {
+			o.resumeRun(context.Background(), run, task, profile, checkpoint, started)
+		},
+	}); err != nil {
+		return nil, err
+	}
 
 	return o.attachRunActions(ctx, run), nil
 }
 
 // resumeRun handles the actual agent resumption (runs in background).
-func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, checkpoint *domain.RunCheckpoint) {
+// `started` is the spawn dispatcher's slot-release callback.
+func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, checkpoint *domain.RunCheckpoint, started spawn.StartedFn) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -2511,6 +2616,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithResumeFrom(checkpoint)
+	executor.WithOnRunning(started)
 
 	executor.Execute(ctx)
 }
@@ -3127,7 +3233,10 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 	if b.store != nil {
 		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {
 			// Log but don't fail - broadcasting is more important for UX
-			log.Printf("[broadcast-sink] failed to store event for run %s: %v", b.runID, err)
+			obs.Component("broadcast-sink").Warn("event store append failed",
+				obs.KeyRunID, b.runID.String(),
+				obs.KeyError, err.Error(),
+			)
 		} else {
 			b.lastSequence = evt.Sequence
 		}
@@ -3155,6 +3264,40 @@ func (b *broadcastingEventSink) Close() error {
 
 func (b *broadcastingEventSink) LastSequence() int64 {
 	return b.lastSequence
+}
+
+// runnerTypeOrEmpty returns the runner type from a run's resolved
+// config, or "" when no resolved config is set yet (e.g. during
+// pre-spawn validation). Used for lifecycle event tagging.
+func runnerTypeOrEmpty(run *domain.Run) domain.RunnerType {
+	if run == nil || run.ResolvedConfig == nil {
+		return ""
+	}
+	return run.ResolvedConfig.RunnerType
+}
+
+// dispatcherSink returns an obs.Sink for emitting lifecycle events
+// (spawn-enqueued, spawn-started) from the spawn dispatcher path. It
+// uses the same store + broadcaster as the per-run gate, so the
+// timeline shows a continuous lifecycle from "queued" through "exited"
+// regardless of where in the run-executor stack the event originated.
+//
+// Returned sink is non-nil even when the orchestrator has no event
+// store wired (defaults to the noOp sink so dispatcher.Enqueue still
+// emits its log line).
+func (o *Orchestrator) dispatcherSink(runID uuid.UUID) obs.Sink {
+	switch {
+	case o.broadcaster != nil:
+		return &broadcastingEventSink{
+			store:       o.events,
+			runID:       runID,
+			broadcaster: o.broadcaster,
+		}
+	case o.events != nil:
+		return &eventStoreAdapter{store: o.events, runID: runID}
+	default:
+		return &noOpEventSink{}
+	}
 }
 
 // noOpEventSink discards events

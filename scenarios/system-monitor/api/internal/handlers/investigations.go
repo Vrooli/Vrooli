@@ -406,14 +406,16 @@ func (h *InvestigationHandler) UpdateAgentConfig(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	var req struct {
-		RunnerType       string   `json:"runner_type,omitempty"`
-		Model            string   `json:"model,omitempty"`
-		MaxTurns         int32    `json:"max_turns,omitempty"`
-		TimeoutSeconds   int32    `json:"timeout_seconds,omitempty"`
-		AllowedTools     []string `json:"allowed_tools,omitempty"`
-		SkipPermissions  bool     `json:"skip_permissions,omitempty"`
-		RequiresSandbox  bool     `json:"requires_sandbox,omitempty"`
-		RequiresApproval bool     `json:"requires_approval,omitempty"`
+		RunnerType      string   `json:"runner_type,omitempty"`
+		Model           string   `json:"model,omitempty"`
+		MaxTurns        int32    `json:"max_turns,omitempty"`
+		TimeoutSeconds  int32    `json:"timeout_seconds,omitempty"`
+		AllowedTools    []string `json:"allowed_tools,omitempty"`
+		SkipPermissions bool     `json:"skip_permissions,omitempty"`
+		// SandboxMode replaces the (requires_sandbox, requires_approval)
+		// pair removed in agent-manager Phase 1. Accepted: "off",
+		// "tracking", "protected", or empty for the agent-manager default.
+		SandboxMode string `json:"sandbox_mode,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -421,7 +423,7 @@ func (h *InvestigationHandler) UpdateAgentConfig(w http.ResponseWriter, r *http.
 		return
 	}
 
-	config, err := h.investigationSvc.UpdateAgentConfig(ctx, req.RunnerType, req.Model, req.MaxTurns, req.TimeoutSeconds, req.AllowedTools, req.SkipPermissions, req.RequiresSandbox, req.RequiresApproval)
+	config, err := h.investigationSvc.UpdateAgentConfig(ctx, req.RunnerType, req.Model, req.MaxTurns, req.TimeoutSeconds, req.AllowedTools, req.SkipPermissions, req.SandboxMode)
 	if err != nil {
 		httputil.HandleError(w, h.log, r, err)
 		return

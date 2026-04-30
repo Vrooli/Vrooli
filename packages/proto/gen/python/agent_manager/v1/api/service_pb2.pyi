@@ -323,10 +323,16 @@ class DeleteRunResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ...) -> None: ...
 
 class CreateRunResponse(_message.Message):
-    __slots__ = ("run",)
+    __slots__ = ("run", "queue_depth", "active_count", "starting_count")
     RUN_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_DEPTH_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    STARTING_COUNT_FIELD_NUMBER: _ClassVar[int]
     run: _run_pb2.Run
-    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
+    queue_depth: int
+    active_count: int
+    starting_count: int
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., queue_depth: _Optional[int] = ..., active_count: _Optional[int] = ..., starting_count: _Optional[int] = ...) -> None: ...
 
 class GetRunRequest(_message.Message):
     __slots__ = ("run_id",)

@@ -614,10 +614,27 @@ message DeleteRunResponse {
   bool success = 1;
 }
 
-// CreateRunResponse returns the created run.
+// CreateRunResponse returns the created run plus a snapshot of the
+// spawn-dispatcher state taken just after Enqueue. The dispatcher
+// fields surface backpressure to UI/CLI callers without a separate
+// stats endpoint — operators see "you're queued behind N runs" in the
+// same response that confirmed the run was accepted.
 message CreateRunResponse {
   // The created run.
   Run run = 1;
+
+  // Number of runs currently waiting in the spawn-dispatcher queue
+  // (not yet acquired a startup slot). Includes this run if it was
+  // enqueued behind the MaxStartingConcurrency cap.
+  int32 queue_depth = 2;
+
+  // Total runs currently tracked by the spawn dispatcher (queued +
+  // in startup window + executing).
+  int32 active_count = 3;
+
+  // Number of runs currently holding a startup slot (in the codex
+  // bootstrap window). Bounded by Spawn.MaxStartingConcurrency.
+  int32 starting_count = 4;
 }
 
 // GetRunRequest identifies a run to retrieve.

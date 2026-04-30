@@ -46,6 +46,16 @@
       "description": "Implementation notes for contributors.",
       "docs": [
         {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Normative contracts the code enforces. Every entry pairs a statement with the test that pins it; refactors must preserve them."
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Facts the code takes for granted about the world (codex internals, sandbox layout, heartbeat callers). Document drift here before fixing it."
+        },
+        {
           "path": "internal/SEAMS.md",
           "title": "Seams",
           "description": "Every testability boundary in the codebase — what's mockable, where the seam lives, and the test that exercises it."

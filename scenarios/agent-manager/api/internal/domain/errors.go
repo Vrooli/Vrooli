@@ -64,10 +64,26 @@ const (
 	ErrCodeRunnerTimeout       ErrorCode = "RUNNER_TIMEOUT"
 	ErrCodeRunnerExecution     ErrorCode = "RUNNER_EXECUTION"
 	ErrCodeRunnerCommunication ErrorCode = "RUNNER_COMMUNICATION"
-	ErrCodeSandboxCreate       ErrorCode = "SANDBOX_CREATE"
-	ErrCodeSandboxApprove      ErrorCode = "SANDBOX_APPROVE"
-	ErrCodeSandboxReject       ErrorCode = "SANDBOX_REJECT"
-	ErrCodeSandboxOperation    ErrorCode = "SANDBOX_OPERATION"
+	// ErrCodeRunnerSessionExpired marks a continuation that failed
+	// because the runner-side session/thread no longer exists. The
+	// canonical example is codex on resume after the in-process thread
+	// state has been GC'd (or the thread id is wrong). Recovery: start
+	// a fresh run instead of resuming. Retryable=false at the same
+	// session id; the operator must restart.
+	ErrCodeRunnerSessionExpired ErrorCode = "RUNNER_SESSION_EXPIRED"
+	// ErrCodeRunnerSessionStateLost marks a *live* runner whose
+	// in-memory session-state writer dropped the thread mid-run — e.g.
+	// codex's `record_rollout_items: thread … not found` race during
+	// rollout-file writeback. The session id is still valid in the
+	// database but the runner's writer goroutine bailed; the run can't
+	// continue from where it stopped. Recovery: start a fresh run;
+	// the partially-written transcript is preserved for inspection.
+	// Retryable=false; not auto-retried.
+	ErrCodeRunnerSessionStateLost ErrorCode = "RUNNER_SESSION_STATE_LOST"
+	ErrCodeSandboxCreate          ErrorCode = "SANDBOX_CREATE"
+	ErrCodeSandboxApprove         ErrorCode = "SANDBOX_APPROVE"
+	ErrCodeSandboxReject          ErrorCode = "SANDBOX_REJECT"
+	ErrCodeSandboxOperation       ErrorCode = "SANDBOX_OPERATION"
 	// ErrCodeSandboxLaunchFailed marks a protected-sandbox run that
 	// produced no assistant output and exited too fast to have
 	// genuinely run the agent. The validateRunOutcome categorizer in
@@ -87,7 +103,7 @@ const (
 	// where the agent CLI lives under $HOME/.local/... but the sandbox's
 	// per-run home overlay is not Present. Surfaced when
 	// SandboxLauncher.translateCommandToNamespace returns
-	// ErrCommandRequiresHomeOverlay; replaces the silent
+	// ErrCommandHomeOverlayUnavailable; replaces the silent
 	// `env: …/claude: No such file or directory` exec-time failure.
 	// Retryable=true: transient mount failures usually resolve on a
 	// fresh sandbox.
@@ -602,6 +618,10 @@ func (e *RunnerError) Code() ErrorCode {
 		return ErrCodeRunnerCommunication
 	case "timeout":
 		return ErrCodeRunnerTimeout
+	case "session_expired":
+		return ErrCodeRunnerSessionExpired
+	case "session_state_lost":
+		return ErrCodeRunnerSessionStateLost
 	default:
 		return ErrCodeRunnerUnavailable
 	}
@@ -644,6 +664,44 @@ func (e *RunnerError) Details() map[string]interface{} {
 		d["alternative"] = e.Alternative
 	}
 	return d
+}
+
+// NewRunnerSessionExpiredError marks a continuation that the runner
+// rejected because the session/thread no longer exists. Construct it
+// with the runner type and the underlying stderr message that the
+// codec used to identify the condition. The orchestration layer
+// surfaces it on the run timeline as ErrCodeRunnerSessionExpired —
+// distinct from a generic INTERNAL so operators can filter.
+//
+// IsTransient is false: the session id will not exist again. Recovery
+// is "start a fresh run", not "retry the continuation."
+func NewRunnerSessionExpiredError(runnerType RunnerType, cause error) *RunnerError {
+	return &RunnerError{
+		RunnerType:  runnerType,
+		Operation:   "session_expired",
+		Cause:       cause,
+		IsTransient: false,
+	}
+}
+
+// NewRunnerSessionStateLostError marks a *live* runner whose
+// in-memory session-state writer dropped the thread mid-run (the
+// canonical case is codex's `record_rollout_items: thread … not
+// found` race during rollout-file writeback). The session was valid
+// when the run started; it became invalid before the run finished.
+// Recovery is "start a fresh run" — the partially-written transcript
+// is preserved for inspection.
+//
+// IsTransient is false: the failure is structural (a writer goroutine
+// race), not load-related; immediate retry would just hit the same
+// race window again.
+func NewRunnerSessionStateLostError(runnerType RunnerType, cause error) *RunnerError {
+	return &RunnerError{
+		RunnerType:  runnerType,
+		Operation:   "session_state_lost",
+		Cause:       cause,
+		IsTransient: false,
+	}
 }
 
 // =============================================================================

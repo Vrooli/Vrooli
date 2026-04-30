@@ -27,6 +27,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/metrics"
+	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
 )
@@ -50,6 +51,12 @@ func Finalize(in FinalizeInput) {
 	ctx, cancel := context.WithTimeout(context.Background(), in.Deps.Levers.Heartbeat.TeardownTimeout)
 	defer cancel()
 
+	finalizeStart := time.Now()
+	sink := finalizeSink(in.Deps)
+	obs.EmitFinalizeStarted(sink, in.Run.ID, obs.FinalizeFields{
+		SandboxID: in.SandboxID,
+	})
+
 	AdvancePhase(ctx, AdvancePhaseInput{
 		Deps:  in.Deps,
 		Run:   in.Run,
@@ -57,7 +64,7 @@ func Finalize(in FinalizeInput) {
 	})
 
 	event := LifecycleEventForStatus(in.Run.Status)
-	ApplySandboxLifecycle(ctx, ApplySandboxLifecycleInput{
+	action := ApplySandboxLifecycle(ctx, ApplySandboxLifecycleInput{
 		Deps:      in.Deps,
 		Run:       in.Run,
 		SandboxID: in.SandboxID,
@@ -81,6 +88,20 @@ func Finalize(in FinalizeInput) {
 	if in.Deps.Broadcaster != nil {
 		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
 	}
+
+	obs.EmitFinalizeCompleted(sink, in.Run.ID, obs.FinalizeFields{
+		SandboxID: in.SandboxID,
+		Action:    action,
+	}, time.Since(finalizeStart))
+}
+
+// finalizeSink converts the phase Deps into the obs.Sink shape used by
+// the lifecycle helpers. Falls back to nil — obs helpers tolerate it.
+func finalizeSink(deps Deps) obs.Sink {
+	if deps.Gate != nil {
+		return deps.Gate
+	}
+	return nil
 }
 
 // LifecycleEventForStatus maps the run's terminal status to the
@@ -119,16 +140,20 @@ type ApplySandboxLifecycleInput struct {
 // lifecycle config. Called only from Finalize; not safe to call from other
 // paths (no internal idempotency — the gate is the caller's finalized flag).
 //
+// Returns a short action label ("delete" | "stop" | "preserve") describing
+// which path executed, so callers can include it in lifecycle events for
+// auditability without re-deriving the decision.
+//
 // The HTTP call uses a DETACHED context, not the supplied ctx. The supplied
 // ctx is used only for event emission. Detaching here makes the function's
 // contract explicit: teardown is independent of any caller deadline.
-func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) {
+func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) string {
 	if in.Run.RunMode != domain.RunModeSandboxed || in.SandboxID == nil || in.Sandbox == nil {
-		return
+		return ""
 	}
 	cfg := EffectiveSandboxConfig(in.Run)
 	if cfg == nil {
-		return
+		return ""
 	}
 
 	events := []domain.SandboxLifecycleEvent{in.Event}
@@ -147,7 +172,7 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) {
 		} else {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "sandbox deleted ("+in.Reason+")")
 		}
-		return
+		return "delete"
 	}
 
 	if HasLifecycleEvent(cfg.Lifecycle.StopOn, events) {
@@ -156,7 +181,9 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) {
 		} else {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "sandbox stopped ("+in.Reason+")")
 		}
+		return "stop"
 	}
+	return "preserve"
 }
 
 // EffectiveSandboxConfig returns the run's resolved sandbox config or nil.

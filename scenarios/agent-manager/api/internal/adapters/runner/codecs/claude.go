@@ -9,18 +9,14 @@
 //   - Per-run state: text accumulator, tool-use accumulator, captured
 //     session_id, /compact tracking, captured RateLimitEventData
 //   - Result classification flip on rate-limit (PostClassify)
-//   - Session-expiry detection from stderr (DetectSessionExpiry)
+//   - Terminal-error classification from stderr (ClassifyTerminalError)
 //   - Diagnostic helpers used to enrich `is_error: true` results
-//
-// The previous package-private ClaudeCodeRunner type, and the parallel
-// claude_code_diagnostics.go / claude_code_heartbeat.go files, were
-// consolidated here. The heartbeat helper had no production caller; it
-// was deleted.
 package codecs
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -516,10 +512,15 @@ func (c *Claude) PostClassify(state State, result *runner.ExecuteResult) {
 	}
 }
 
-// DetectSessionExpiry satisfies [Codec]. Claude exits with a generic
-// non-zero code; the message is what tells us session expired.
-func (c *Claude) DetectSessionExpiry(errorMessage string) bool {
-	return strings.Contains(errorMessage, "session") && strings.Contains(errorMessage, "not found")
+// ClassifyTerminalError satisfies [Codec]. Claude has only one
+// recognised typed-failure shape today: stderr mentions "session" +
+// "not found" → ErrCodeRunnerSessionExpired. All other failures fall
+// through to ErrCodeRunnerExecution.
+func (c *Claude) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+	if strings.Contains(stderr, "session") && strings.Contains(stderr, "not found") {
+		return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
+	}
+	return nil
 }
 
 // UpdateMetrics satisfies [Codec]. RateLimitEventData is captured into

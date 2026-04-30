@@ -465,17 +465,43 @@ ok, reason := run.IsRejectable()
 
 ### Run Mode Decisions
 
-The decision of whether to use sandbox or in-place execution is explicit:
+`SandboxConfig.Mode` is the single source of truth for whether a run is
+sandboxed. `DeriveRunMode` is the only function that translates a
+resolved `SandboxConfig` to a `RunMode`:
 
 ```go
-decision := DecideRunMode(
-    requestedMode,         // Explicit request (highest priority)
-    forceInPlace,          // Override flag
-    policyAllowsInPlace,   // Policy permission
-    profileRequiresSandbox, // Profile requirement
-)
-// Returns: Mode, Reason, PolicyOverride, ExplicitChoice
+runMode := domain.DeriveRunMode(sandboxCfg)
+// Off            → RunModeInPlace  (explicit no-sandbox)
+// Tracking       → RunModeSandboxed
+// Protected      → RunModeSandboxed
+// Unspecified    → RunModeSandboxed (Effective() resolves to Tracking)
+// nil cfg        → RunModeInPlace (treated as Off; in practice the
+//                                  orchestrator always populates a
+//                                  non-nil SandboxConfig before calling)
 ```
+
+The orchestrator's `CreateRun` composes that with two optional overrides:
+
+```go
+runMode := domain.DeriveRunMode(sandboxConfig)
+if req.RunMode != nil {
+    runMode = *req.RunMode      // explicit caller override (highest priority)
+} else if req.ForceInPlace {
+    runMode = domain.RunModeInPlace
+}
+```
+
+Policies enforce a minimum sandbox strictness via
+`policy.Decision.RequiredSandboxMode` (zero-value = no requirement);
+the orchestrator rejects the run with `ErrCodePolicyValidation` when
+the resolved `SandboxConfig.Mode` is below the required minimum. Use
+`SandboxMode.AtLeast` to compare strictness rank
+(`Off < Tracking < Protected`).
+
+For the rationale behind picking `SandboxConfig.Mode` over a parallel
+boolean field — and the worked example explaining why a Go bool is the
+wrong shape for a "safe by default" decision — see
+[`INVARIANTS.md`](INVARIANTS.md) (run-mode invariant).
 
 ### Result Classification
 
@@ -484,6 +510,97 @@ outcome := ClassifyRunOutcome(err, exitCode, cancelled, timedOut)
 if outcome.RequiresReview() { ... }
 if outcome.IsTerminalFailure() { ... }
 ```
+
+### Observability (Phase 2 of the reliability pass)
+
+The orchestration layer emits structured logs and run-timeline lifecycle
+events through a single package: `internal/orchestration/obs`.
+
+`obs.Logger` is the package-level `*slog.Logger`, installed at server
+startup from `Levers.Observability.LogFormat` / `LogLevel`. Component
+code never constructs its own logger — it calls `obs.Logger()`,
+`obs.Component(name)`, or (per-run) reads a context-scoped logger via
+`obs.L(ctx)`. The only allowed log keys are the `KeyXxx` constants
+declared in `obs/log.go`; new keys are a contract change.
+
+The lifecycle event taxonomy lives in `obs/events.go`. Six transitions
+are emitted as `EventTypeLifecycle` (a new typed payload added in
+Phase 2):
+
+| Phase                     | Producer site                                                 |
+|---------------------------|---------------------------------------------------------------|
+| `spawn_enqueued`          | `spawn.Dispatcher.Enqueue` (added Phase 3)                    |
+| `spawn_started`           | `spawn.Dispatcher` worker on slot acquisition (added Phase 3) |
+| `runner_acquired`         | `core.Runner.Execute` after `launcher.Launch`                 |
+| `runner_exited`           | `core.Runner.Execute` after `classifyResult`                  |
+| `finalize_started`        | `phases.Finalize` entry                                       |
+| `finalize_completed`      | `phases.Finalize` exit                                        |
+
+Helpers in `obs/events.go` are the *only* construction site — direct
+construction of `LifecycleEventData` outside `obs/` is a contract
+violation. Helpers always log + emit so a missing sink (nil Gate, test
+seams) still surfaces the transition in stderr.
+
+The structured-log + lifecycle-event surfaces are tested in
+`obs/log_test.go` (key stability, format selection, RunCtx threading)
+and `obs/events_test.go` (taxonomy coverage, sink-nil safety).
+
+### Spawn Dispatcher (Phase 3 of the reliability pass)
+
+`internal/orchestration/spawn.Dispatcher` is the **single startup-
+serialization choke point** for runs.
+
+- `Dispatcher.Enqueue` is the only path through which a run begins.
+  CreateRun and ResumeRun both call it; direct `go executeRun(...)` is
+  forbidden.
+- The dispatcher caps `MaxStartingConcurrency` runs in the codex-
+  bootstrap window simultaneously. Default 1 (strict serialization);
+  raise via `Levers.Spawn.MaxStartingConcurrency` once the burst-test
+  proves the runner tolerates parallelism.
+- `MinSpacing` enforces a minimum delay between successive slot
+  acquisitions for cases where MaxStartingConcurrency > 1 still races.
+- `QueueCapacity` bounds the queue depth; full → `*domain.CapacityExceededError`
+  with `Resource: "spawn_queue"`, mapped to the existing 429 path.
+- The startup slot releases either when the executor calls the injected
+  `StartedFn` (signalling the run reached `RunStatusRunning`) or when
+  `ExecuteFn` returns — whichever comes first. The defer-release
+  semantics protect against panics and early-exit terminal failures.
+
+`CreateRunResponse` proto carries `queue_depth`, `active_count`,
+`starting_count` populated from `Dispatcher.Stats()`. UI/CLI callers see
+backpressure on every accept response, no separate stats endpoint.
+
+Tests: `spawn/dispatcher_test.go` (unit) +
+`integration/spawn_serialization_test.go` (full orchestrator burst gate).
+
+### Codec Terminal-Error Classification (Phase 4 of the reliability pass)
+
+`Codec.ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError`
+is the **single codec-side error classifier**. Codecs return typed
+`*RunnerError` values directly — there is no `Detect…(stderr) bool`
+proliferation; new failure shapes are added by extending the switch
+inside the codec, not by adding more boolean predicates.
+
+When a run exits non-zero, `core.Runner` calls `ClassifyTerminalError`
+and stores the typed error on `ExecuteResult.TerminalError`. The
+orchestration layer's existing promotion-into-`ExecErr` step
+(`phases.ExecuteAgent`) lifts it into `EmitFailureEvent`'s typed-error
+branch, where it lands on the timeline as the typed `ErrorCode` rather
+than `INTERNAL`.
+
+| Codec    | Pattern                                          | ErrorCode                          |
+|----------|--------------------------------------------------|------------------------------------|
+| codex    | `record_rollout_items` + `thread … not found`    | `RUNNER_SESSION_STATE_LOST`        |
+| codex    | `thread … not found` (no rollout-writer context) | `RUNNER_SESSION_EXPIRED`           |
+| claude   | `session` + `not found`                          | `RUNNER_SESSION_EXPIRED`           |
+| opencode | `session` + (`not found`\|`expired`\|`invalid`)  | `RUNNER_SESSION_EXPIRED`           |
+
+New stderr fixtures landing as `INTERNAL` are a signal to extend
+`ClassifyTerminalError` for the relevant codec; never to add a one-off
+`Detect…` helper. The regression gate
+`internal/orchestration/phases/emitters_test.go::TestEmitFailureEvent_TypedRunnerError_PreservesCode`
+fails loudly if a typed `*RunnerError` ever leaks to the timeline as
+`INTERNAL`.
 
 ### Scope Conflict Detection
 
@@ -929,14 +1046,14 @@ Decision tree (one place):
 command lives under $HOME?
 ├── yes → state == Present?
 │         ├── yes → unchanged (host path is reachable inside namespace)
-│         └── no  → ErrCommandRequiresHomeOverlay (Code: SANDBOX_HOME_OVERLAY_UNAVAILABLE)
+│         └── no  → ErrCommandHomeOverlayUnavailable (Code: SANDBOX_HOME_OVERLAY_UNAVAILABLE)
 ├── /usr/bin, /bin, /usr/local/bin → unchanged
 ├── any other host-absolute → path.Base(X) (sandbox PATH lookup)
 └── relative or empty → unchanged
 ```
 
 `run_executor.emitGenericFailureEvent` walks the error chain, picks up
-the typed `Code()` method on `ErrCommandRequiresHomeOverlay`, and emits
+the typed `Code()` method on `ErrCommandHomeOverlayUnavailable`, and emits
 a structured `ErrorEventData{code: "SANDBOX_HOME_OVERLAY_UNAVAILABLE",
 retryable: true}` instead of the generic `INTERNAL`. What previously
 surfaced as `env: …/claude: No such file or directory` at exec time
@@ -945,7 +1062,7 @@ useful message.
 
 [CODE: `internal/adapters/sandbox/sandbox_launcher.go::translateCommandToNamespace`] •
 [CODE: `internal/adapters/sandbox/sandbox_launcher.go::NamespaceLayout`] •
-[CODE: `internal/adapters/sandbox/sandbox_launcher.go::ErrCommandRequiresHomeOverlay`] •
+[CODE: `internal/adapters/sandbox/sandbox_launcher.go::ErrCommandHomeOverlayUnavailable`] •
 [CODE: `internal/orchestration/run_executor.go::emitGenericFailureEvent`]
 
 ---

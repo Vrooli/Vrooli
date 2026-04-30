@@ -80,8 +80,8 @@ func TestDefaultProfileConfig(t *testing.T) {
 	assert.Equal(t, int32(600), cfg.TimeoutSeconds)
 	assert.True(t, len(cfg.AllowedTools) > 0, "should have allowed tools")
 	assert.True(t, cfg.SkipPermissions)
-	assert.False(t, cfg.RequiresSandbox)
-	assert.False(t, cfg.RequiresApproval)
+	assert.Equal(t, domainpb.SandboxMode_SANDBOX_MODE_OFF, cfg.SandboxMode,
+		"scenario-to-desktop investigations run in-place against the local build tooling")
 }
 
 // =============================================================================

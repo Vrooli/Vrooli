@@ -14,12 +14,12 @@ package phases
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 )
 
@@ -40,8 +40,11 @@ type HeartbeatLoopInput struct {
 func RunHeartbeatLoop(ctx context.Context, in HeartbeatLoopInput) {
 	defer close(in.Done)
 
-	log.Printf("[heartbeat] Starting heartbeat loop for run %s (tag=%s, interval=%v)",
-		in.Run.ID, in.Run.GetTag(), in.Levers.Heartbeat.RunHeartbeatInterval)
+	hbLog := obs.Component("heartbeat").With(
+		obs.KeyRunID, in.Run.ID.String(),
+		"tag", in.Run.GetTag(),
+	)
+	hbLog.Info("heartbeat loop starting", "interval", in.Levers.Heartbeat.RunHeartbeatInterval.String())
 
 	SendHeartbeat(ctx, in)
 
@@ -52,12 +55,10 @@ func RunHeartbeatLoop(ctx context.Context, in HeartbeatLoopInput) {
 	for {
 		select {
 		case <-in.Stop:
-			log.Printf("[heartbeat] Stopping heartbeat loop for run %s (sent %d heartbeats)",
-				in.Run.ID, heartbeatCount)
+			hbLog.Info("heartbeat loop stopping", "sent", heartbeatCount)
 			return
 		case <-ctx.Done():
-			log.Printf("[heartbeat] Context cancelled for run %s (sent %d heartbeats)",
-				in.Run.ID, heartbeatCount)
+			hbLog.Info("heartbeat loop context cancelled", "sent", heartbeatCount)
 			return
 		case <-ticker.C:
 			heartbeatCount++
@@ -83,14 +84,17 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 		in.Mu.Unlock()
 	}
 
+	hbLog := obs.Component("heartbeat").With(
+		obs.KeyRunID, runID.String(),
+		"tag", tag,
+	)
+
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
-			log.Printf("[heartbeat] ERROR: Failed to update heartbeat for run %s (tag=%s): %v",
-				runID, tag, err)
+			hbLog.Error("heartbeat update failed", obs.KeyError, err.Error())
 			EmitSystemEvent(ctx, in.Deps, runID, "warn", "heartbeat update failed: "+err.Error())
 		} else {
-			log.Printf("[heartbeat] DEBUG: Updated heartbeat for run %s (tag=%s) at %v",
-				runID, tag, now.Format(time.RFC3339))
+			hbLog.Debug("heartbeat updated", "at", now.Format(time.RFC3339))
 		}
 	}
 

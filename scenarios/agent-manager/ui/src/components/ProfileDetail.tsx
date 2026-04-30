@@ -1,7 +1,7 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { networkAccessLabel, runnerTypeLabel } from "../lib/utils";
+import { networkAccessLabel, runnerTypeLabel, sandboxModeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
 import { ModelPreset } from "../types";
@@ -74,8 +74,8 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
         {profile.model && profile.model.trim() !== "" && (
           <Badge variant="outline">{profile.model}</Badge>
         )}
-        {profile.requiresSandbox && (
-          <Badge variant="outline">Sandbox Required</Badge>
+        {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== 0 && (
+          <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
         )}
         {profile.sandboxConfig?.manualReview && (
           <Badge variant="outline">Manual Review</Badge>

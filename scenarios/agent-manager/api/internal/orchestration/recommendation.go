@@ -2,12 +2,12 @@ package orchestration
 
 import (
 	"context"
-	"log"
 	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
 )
@@ -60,7 +60,10 @@ func (o *Orchestrator) ExtractRecommendations(ctx context.Context, runID uuid.UU
 	// Status is "none" or empty - queue for background extraction
 	// This avoids blocking the API request with a synchronous LLM call
 	if err := o.queueRecommendationExtraction(ctx, run); err != nil {
-		log.Printf("[recommendation] Failed to queue extraction for run %s: %v", run.ID, err)
+		obs.Component("recommendation").Warn("queue extraction failed",
+			obs.KeyRunID, run.ID.String(),
+			obs.KeyError, err.Error(),
+		)
 		// Return error but don't fail - the background worker will eventually pick it up
 	}
 

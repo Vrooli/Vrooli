@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "0 17 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-28T21:00:00Z",
-    "endedAt": "2026-04-28T21:01:35Z",
-    "status": "completed",
-    "runId": "61e70e42-c2ab-403c-b6a7-601ef5d6e81f",
-    "logPath": "../store/teams/marketing-crew/members/marketing-contrarian/logs/2026-04-28T21-00-00Z.log"
+    "startedAt": "2026-04-29T21:00:00Z",
+    "endedAt": "2026-04-29T21:00:10Z",
+    "status": "failed",
+    "runId": "be0b94f1-f120-42e9-abff-f1973916af71",
+    "logPath": "../store/teams/marketing-crew/members/marketing-contrarian/logs/2026-04-29T21-00-00Z.log",
+    "error": "2026-04-29T21:00:05.386833Z ERROR codex_core::session: failed to record rollout items: thread 019ddb0a-a383-77d3-b3d5-98cbe99af71a not found\n"
   },
-  "revision": 26,
+  "revision": 33,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-28T21:01:35Z"
+  "updatedAt": "2026-04-29T21:00:10Z"
 }

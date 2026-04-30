@@ -79,10 +79,6 @@ type AgentProfile struct {
 	// Network access level for agent execution.
 	NetworkAccess NetworkAccess `protobuf:"varint,25,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_access,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
-	// Run-end apply behavior is now controlled by SandboxConfig
-	// (manual_review / auto_apply / apply_on_failure) per the
-	// auditability contract; the legacy requires_approval field
-	// (12) was removed in agent-sandbox-audit-foundation Phase 3b.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,20,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	// Empty means no path restrictions.
@@ -322,7 +318,6 @@ type RunConfig struct {
 	// Network access level for agent execution.
 	NetworkAccess NetworkAccess `protobuf:"varint,18,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_access,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
-	// Run-end apply behavior moved to SandboxConfig levers.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,13,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	AllowedPaths []string `protobuf:"bytes,10,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`

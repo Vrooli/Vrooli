@@ -214,8 +214,18 @@ func TestDefaultRunConfig(t *testing.T) {
 		t.Errorf("Timeout = %v, want 60m", cfg.Timeout)
 	}
 
-	if !cfg.RequiresSandbox {
-		t.Error("RequiresSandbox should be true by default")
+	// Sandbox-by-default is encoded by SandboxConfig.Mode — the single
+	// source of truth for whether a run is sandboxed. DefaultRunConfig
+	// must produce a non-nil SandboxConfig in Protected mode so a profile
+	// that does not specify a SandboxConfig inherits the safe default.
+	if cfg.SandboxConfig == nil {
+		t.Fatal("SandboxConfig should be non-nil by default")
+	}
+	if cfg.SandboxConfig.Mode != SandboxModeProtected {
+		t.Errorf("SandboxConfig.Mode = %q, want %q", cfg.SandboxConfig.Mode, SandboxModeProtected)
+	}
+	if DeriveRunMode(cfg.SandboxConfig) != RunModeSandboxed {
+		t.Error("DeriveRunMode should yield RunModeSandboxed for the default config")
 	}
 }
 
@@ -230,7 +240,7 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 			AllowedTools:         []string{"Read", "Write"},
 			DeniedTools:          []string{"Bash"},
 			SkipPermissionPrompt: true,
-			RequiresSandbox:      false,
+			SandboxConfig:        &SandboxConfig{Mode: SandboxModeOff},
 			AllowedPaths:         []string{"/src"},
 			DeniedPaths:          []string{"/secrets"},
 		}
@@ -258,8 +268,36 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 		if !cfg.SkipPermissionPrompt {
 			t.Error("SkipPermissionPrompt should be true")
 		}
-		if cfg.RequiresSandbox {
-			t.Error("RequiresSandbox should be false")
+		if cfg.SandboxConfig == nil || cfg.SandboxConfig.Mode != SandboxModeOff {
+			t.Errorf("SandboxConfig.Mode = %v, want %q", cfg.SandboxConfig, SandboxModeOff)
+		}
+		if DeriveRunMode(cfg.SandboxConfig) != RunModeInPlace {
+			t.Error("DeriveRunMode should yield RunModeInPlace when profile sets Mode=Off")
+		}
+	})
+
+	t.Run("preserves cfg.SandboxConfig when profile does not specify one", func(t *testing.T) {
+		// Regression gate for the silent-bypass class of bug: a profile
+		// that leaves SandboxConfig nil must not overwrite the cfg's
+		// resolved default. SandboxConfig.Mode is the single source of
+		// truth for run mode (see docs/internal/INVARIANTS.md); a nil
+		// profile pointer carries no signal and must not clobber it.
+		cfg := DefaultRunConfig()
+		profile := &AgentProfile{
+			RunnerType: RunnerTypeCodex,
+			Model:      "opus",
+			MaxTurns:   100,
+			// SandboxConfig deliberately left nil.
+		}
+
+		cfg.ApplyProfile(profile)
+
+		if cfg.SandboxConfig == nil {
+			t.Fatal("ApplyProfile must not clobber the default SandboxConfig with nil")
+		}
+		if cfg.SandboxConfig.Mode != SandboxModeProtected {
+			t.Errorf("SandboxConfig.Mode = %q, want %q (default preserved)",
+				cfg.SandboxConfig.Mode, SandboxModeProtected)
 		}
 	})
 

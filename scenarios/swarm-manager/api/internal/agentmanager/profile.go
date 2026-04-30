@@ -36,7 +36,13 @@ type ProfileConfig struct {
 	TimeoutSeconds  int32
 	AllowedTools    []string
 	SkipPermissions bool
-	RequiresSandbox bool
+	// SandboxMode selects the per-run sandbox execution mode. The
+	// zero-value (Unspecified) lets agent-manager apply its
+	// DefaultSandboxConfig (Mode=Protected). Set to SandboxModeOff
+	// only for profiles that legitimately need to run on the host
+	// without a sandbox; every other value yields a sandboxed run.
+	// See agent-manager's domain.DeriveRunMode for the contract.
+	SandboxMode domainpb.SandboxMode
 }
 
 // SettingsReader provides agent settings from an external source (e.g. settings store)
@@ -82,7 +88,10 @@ func DefaultProfileConfig() *ProfileConfig {
 			"Bash",
 		},
 		SkipPermissions: false,
-		RequiresSandbox: true,
+		// Explicitly request the protected-mode sandbox so the dispatch
+		// path is unambiguous and an inadvertent SandboxConfig change
+		// elsewhere cannot silently drop swarm-manager runs into Tracking.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
 	}
 }
 
@@ -100,7 +109,7 @@ func (s *AgentService) GetProfileID() string {
 }
 
 func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for swarm-manager research and execution",
@@ -111,14 +120,18 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
-		// SandboxConfig is intentionally omitted — agent-manager
-		// resolveSandboxConfig fills in the contract defaults
-		// (auto-apply, no manual review). swarm-manager has no
-		// operator-gated apply path; sandbox is the auditability
-		// layer, not a review queue.
-		CreatedBy: "swarm-manager",
+		CreatedBy:            "swarm-manager",
 	}
+	// Always carry an explicit SandboxConfig.Mode through to
+	// agent-manager; agent-manager.resolveSandboxConfig fills in the
+	// rest of the contract defaults (auto-apply, no manual review).
+	// Sending the SandboxConfig with only the Mode field set is the
+	// correct partial-override pattern. See agent-manager
+	// resolveSandboxConfig for the backfill semantics.
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 // resolveProfileConfig returns a ProfileConfig derived from the settings store

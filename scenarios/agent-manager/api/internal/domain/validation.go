@@ -252,23 +252,23 @@ func validateSandboxConfig(cfg *SandboxConfig) error {
 }
 
 // validateSandboxMode rejects unknown SandboxMode values. All recognised
-// modes (unspecified, tracking, protected) are accepted at the validation
-// layer; whether protected mode actually launches through the sandbox or
-// falls back to the host depends on runtime configuration of the runner's
-// SandboxLauncherFactory (see runnercore.NewRunner / SetSandboxLauncherFactory).
+// modes (unspecified, off, tracking, protected) are accepted at the
+// validation layer; whether protected mode actually launches through
+// the sandbox or falls back to the host depends on runtime configuration
+// of the runner's SandboxLauncherFactory (see runnercore.NewRunner /
+// SetSandboxLauncherFactory).
 //
-// The gate flipped from "reserved" to "allowed" with execute/protected-
-// sandbox-agent-launch — the runner-fork that introduced the
-// SandboxLauncher seam.
+// SandboxModeOff is the explicit "no sandbox" choice; it is the only
+// Mode that produces RunModeInPlace via DeriveRunMode.
 func validateSandboxMode(mode SandboxMode) error {
 	switch mode {
-	case SandboxModeUnspecified, SandboxModeTracking, SandboxModeProtected:
+	case SandboxModeUnspecified, SandboxModeOff, SandboxModeTracking, SandboxModeProtected:
 		return nil
 	default:
 		return NewValidationErrorWithHint(
 			"sandboxConfig.mode",
 			"invalid sandbox mode",
-			"valid values: tracking (default), protected",
+			"valid values: off, tracking (default), protected",
 		)
 	}
 }

@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { resolveApiBase } from "@vrooli/api-base";
-import { JsonObject, JsonValue, NetworkAccess, RunnerType } from "../types";
+import { JsonObject, JsonValue, NetworkAccess, RunnerType, SandboxMode } from "../types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -70,6 +70,41 @@ export function networkAccessLabel(na?: NetworkAccess): string {
       return "Full";
     default:
       return "Localhost";
+  }
+}
+
+// sandboxModeLabel renders the per-run SandboxMode for the UI.
+// Replaces the older "Sandbox Required" boolean badge — see
+// scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision boundary).
+export function sandboxModeLabel(mode?: SandboxMode): string {
+  switch (mode) {
+    case SandboxMode.OFF:
+      return "Off";
+    case SandboxMode.TRACKING:
+      return "Tracking";
+    case SandboxMode.PROTECTED:
+      return "Protected";
+    default:
+      return "Default";
+  }
+}
+
+// profileSandboxModeFormValue extracts the sandbox-mode form-string
+// ("off"/"tracking"/"protected") from a profile. Falls back to
+// "protected" for profiles with no SandboxConfig — matches the
+// agent-manager DefaultSandboxConfig.
+export function profileSandboxModeFormValue(profile: {
+  sandboxConfig?: { mode?: SandboxMode };
+}): "off" | "tracking" | "protected" {
+  switch (profile.sandboxConfig?.mode) {
+    case SandboxMode.OFF:
+      return "off";
+    case SandboxMode.TRACKING:
+      return "tracking";
+    case SandboxMode.PROTECTED:
+      return "protected";
+    default:
+      return "protected";
   }
 }
 

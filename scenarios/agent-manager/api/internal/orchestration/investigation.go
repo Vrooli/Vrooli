@@ -1315,7 +1315,6 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 			"web_search",
 		},
 		SkipPermissionPrompt: true,
-		RequiresSandbox:      true,
 		// Read-only by intent, but the tool surface (`execute_command`,
 		// `web_search`) doesn't hard-prevent writes. ManualReview=true is
 		// defense-in-depth: if the agent does mutate files, those changes
@@ -1360,7 +1359,6 @@ func defaultApplyInvestigationProfile() *domain.AgentProfile {
 			"delete_file",
 		},
 		SkipPermissionPrompt: true,
-		RequiresSandbox:      true,
 		SandboxConfig: func() *domain.SandboxConfig {
 			cfg := domain.DefaultSandboxConfig()
 			cfg.ManualReview = true

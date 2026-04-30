@@ -411,12 +411,21 @@ func (c *OpenCode) PostClassify(_ State, result *runner.ExecuteResult) {
 	}
 }
 
-// DetectSessionExpiry satisfies [Codec].
-func (c *OpenCode) DetectSessionExpiry(errorMessage string) bool {
-	return strings.Contains(errorMessage, "session") &&
-		(strings.Contains(errorMessage, "not found") ||
-			strings.Contains(errorMessage, "expired") ||
-			strings.Contains(errorMessage, "invalid"))
+// ClassifyTerminalError satisfies [Codec]. OpenCode signals session
+// expiry via stderr that mentions "session" and one of "not found" /
+// "expired" / "invalid". OpenCode does not currently surface a state-
+// lost shape distinct from expiry, so all matches map to
+// ErrCodeRunnerSessionExpired.
+func (c *OpenCode) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+	if !strings.Contains(stderr, "session") {
+		return nil
+	}
+	if !strings.Contains(stderr, "not found") &&
+		!strings.Contains(stderr, "expired") &&
+		!strings.Contains(stderr, "invalid") {
+		return nil
+	}
+	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
 }
 
 // UpdateMetrics satisfies [Codec].

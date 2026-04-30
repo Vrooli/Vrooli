@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-28T18:30:00Z",
-    "endedAt": "2026-04-28T18:33:40Z",
+    "startedAt": "2026-04-29T18:30:00Z",
+    "endedAt": "2026-04-29T18:30:10Z",
     "status": "failed",
-    "runId": "d2b19d3e-5195-4f89-99e8-f91747c9fb79",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-28T18-30-00Z.log"
+    "runId": "8294d48a-9091-4b10-a815-70c05a101029",
+    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-29T18-30-00Z.log",
+    "error": "2026-04-29T18:30:06.869068Z ERROR codex_core::session: failed to record rollout items: thread 019dda81-5216-7171-8ed6-f12531ad7fb8 not found\n"
   },
-  "revision": 23,
+  "revision": 28,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-28T18:33:40Z"
+  "updatedAt": "2026-04-29T18:30:10Z"
 }

@@ -23,17 +23,17 @@ func TestInterfaceTypes(t *testing.T) {
 func TestDecision_Fields(t *testing.T) {
 	// Verify Decision struct can be instantiated with correct fields
 	d := policy.Decision{
-		Allowed:          true,
-		RequiresSandbox:  true,
-		EffectiveTimeout: 30 * 60 * 1000, // 30 minutes in ms
-		DenialReason:     "",
+		Allowed:             true,
+		RequiredSandboxMode: domain.SandboxModeProtected,
+		EffectiveTimeout:    30 * 60 * 1000, // 30 minutes in ms
+		DenialReason:        "",
 	}
 
 	if !d.Allowed {
 		t.Error("expected decision to be allowed")
 	}
-	if !d.RequiresSandbox {
-		t.Error("expected sandbox to be required")
+	if d.RequiredSandboxMode != domain.SandboxModeProtected {
+		t.Errorf("expected required sandbox mode %q, got %q", domain.SandboxModeProtected, d.RequiredSandboxMode)
 	}
 	if d.EffectiveTimeout != 30*60*1000 {
 		t.Errorf("expected effective timeout %d, got %d", 30*60*1000, d.EffectiveTimeout)
@@ -192,8 +192,8 @@ func TestDecision_WithAppliedPolicies(t *testing.T) {
 	policy2ID := uuid.New()
 
 	d := policy.Decision{
-		Allowed:         true,
-		RequiresSandbox: true,
+		Allowed:             true,
+		RequiredSandboxMode: domain.SandboxModeProtected,
 		AppliedPolicies: []policy.AppliedPolicy{
 			{PolicyID: policy1ID, PolicyName: "sandbox-rule", Effect: "require_sandbox"},
 			{PolicyID: policy2ID, PolicyName: "approval-rule", Effect: "require_approval"},

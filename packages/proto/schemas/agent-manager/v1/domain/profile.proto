@@ -109,22 +109,17 @@ message AgentProfile {
   // Network access level for agent execution.
   NetworkAccess network_access = 25;
 
-  // Field 11 (requires_sandbox bool) was removed in Phase 1 of the
-  // agent-manager reliability pass. SandboxConfig.mode is the single
-  // source of truth — see scenarios/agent-manager/docs/internal/SEAMS.md
-  // (RunMode decision boundary). Off disables sandboxing; every other
-  // mode produces a sandboxed run.
-  reserved 11;
-  reserved "requires_sandbox";
-
-  reserved 12;
-  reserved "requires_approval";
+  // Reserved to prevent accidental reuse of the wire IDs/names from
+  // earlier schema iterations. SandboxConfig.mode is the single source
+  // of truth for whether a run is sandboxed — see
+  // scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision
+  // boundary). Run-end apply behavior is controlled by
+  // SandboxConfig (manual_review / auto_apply / apply_on_failure) per
+  // the auditability contract.
+  reserved 11, 12;
+  reserved "requires_sandbox", "requires_approval";
 
   // Sandbox lifecycle + acceptance configuration.
-  // Run-end apply behavior is now controlled by SandboxConfig
-  // (manual_review / auto_apply / apply_on_failure) per the
-  // auditability contract; the legacy requires_approval field
-  // (12) was removed in agent-sandbox-audit-foundation Phase 3b.
   SandboxConfig sandbox_config = 20;
 
   // Paths the agent is allowed to access.
@@ -197,17 +192,15 @@ message RunConfig {
   // Network access level for agent execution.
   NetworkAccess network_access = 18;
 
-  // Field 8 (requires_sandbox bool) was removed in Phase 1 of the
-  // agent-manager reliability pass. SandboxConfig.mode is the single
-  // source of truth.
-  reserved 8;
-  reserved "requires_sandbox";
-
-  reserved 9;
-  reserved "requires_approval";
+  // Reserved to prevent accidental reuse of the wire IDs/names from
+  // earlier schema iterations. SandboxConfig.mode is the single source
+  // of truth for whether a run is sandboxed; run-end apply behavior is
+  // controlled by SandboxConfig levers (manual_review / auto_apply /
+  // apply_on_failure).
+  reserved 8, 9;
+  reserved "requires_sandbox", "requires_approval";
 
   // Sandbox lifecycle + acceptance configuration.
-  // Run-end apply behavior moved to SandboxConfig levers.
   SandboxConfig sandbox_config = 13;
 
   // Paths the agent is allowed to access.
@@ -267,14 +260,12 @@ message RunConfigOverrides {
   // Network access level override.
   optional NetworkAccess network_access = 24;
 
-  // Field 8 (requires_sandbox bool) was removed in Phase 1 of the
-  // agent-manager reliability pass. SandboxConfig.mode is the single
-  // source of truth.
-  reserved 8;
-  reserved "requires_sandbox";
-
-  reserved 9;
-  reserved "requires_approval";
+  // Reserved to prevent accidental reuse of wire IDs/names from earlier
+  // schema iterations. SandboxConfig.mode is the single source of truth
+  // for whether a run is sandboxed; run-end apply behavior is on
+  // SandboxConfig levers.
+  reserved 8, 9;
+  reserved "requires_sandbox", "requires_approval";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 17;

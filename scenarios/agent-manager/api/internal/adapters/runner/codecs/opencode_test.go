@@ -360,25 +360,38 @@ func TestOpenCode_PostClassify_NoOpWhenMessageMeaningful(t *testing.T) {
 }
 
 // =============================================================================
-// DetectSessionExpiry
+// ClassifyTerminalError
 // =============================================================================
 
-func TestOpenCode_DetectSessionExpiry(t *testing.T) {
+func TestOpenCode_ClassifyTerminalError(t *testing.T) {
 	c := NewOpenCodeForTest()
 	cases := []struct {
-		msg    string
-		expect bool
+		name     string
+		stderr   string
+		wantCode domain.ErrorCode // empty = expect nil
 	}{
-		{"session not found", true},
-		{"session expired", true},
-		{"session is invalid", true},
-		{"thread missing", false},
-		{"random error", false},
+		{"session not found", "session not found", domain.ErrCodeRunnerSessionExpired},
+		{"session expired", "session expired", domain.ErrCodeRunnerSessionExpired},
+		{"session invalid", "session is invalid", domain.ErrCodeRunnerSessionExpired},
+		{"thread missing without session", "thread missing", ""},
+		{"random error", "random error", ""},
 	}
 	for _, tc := range cases {
-		if got := c.DetectSessionExpiry(tc.msg); got != tc.expect {
-			t.Errorf("DetectSessionExpiry(%q)=%v want %v", tc.msg, got, tc.expect)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.ClassifyTerminalError(tc.stderr, 1)
+			if tc.wantCode == "" {
+				if got != nil {
+					t.Fatalf("expected nil, got %v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected %s, got nil", tc.wantCode)
+			}
+			if got.Code() != tc.wantCode {
+				t.Errorf("Code() = %s, want %s", got.Code(), tc.wantCode)
+			}
+		})
 	}
 }
 

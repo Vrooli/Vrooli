@@ -58,7 +58,10 @@ type ProfileConfig struct {
 	TimeoutSeconds  int32
 	AllowedTools    []string
 	SkipPermissions bool
-	RequiresSandbox bool
+	// SandboxMode selects the sandbox execution mode. Empty
+	// (Unspecified) lets agent-manager apply its DefaultSandboxConfig
+	// (Mode=Protected). Set to OFF for in-place execution.
+	SandboxMode domainpb.SandboxMode
 }
 
 // RunRequest contains parameters for a run.
@@ -213,7 +216,7 @@ func (s *AgentService) StopRun(ctx context.Context, runID string) error {
 }
 
 func (s *AgentService) buildProfile(profileKey, name, description string, cfg ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 name,
 		ProfileKey:           profileKey,
 		Description:          description,
@@ -222,9 +225,12 @@ func (s *AgentService) buildProfile(profileKey, name, description string, cfg Pr
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
 		CreatedBy:            "app-issue-tracker",
 	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (s *AgentService) buildProfileRef(cfg ProfileConfig) *apipb.ProfileRef {

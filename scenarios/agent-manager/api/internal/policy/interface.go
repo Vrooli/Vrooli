@@ -83,8 +83,13 @@ type Decision struct {
 	// DenialPolicy is the policy that caused denial (if any).
 	DenialPolicy *domain.Policy
 
-	// RequiresSandbox indicates sandbox mode must be used.
-	RequiresSandbox bool
+	// RequiredSandboxMode is the minimum sandbox mode the run must use.
+	// SandboxModeUnspecified means the policy has no requirement; the
+	// resolved SandboxConfig.Mode wins. Higher modes are stricter:
+	// Off < Tracking < Protected. The orchestrator rejects the run with
+	// ErrCodePolicySandbox when the resolved cfg.SandboxConfig.Mode is
+	// below this minimum.
+	RequiredSandboxMode domain.SandboxMode
 
 	// EffectiveTimeout is the maximum execution time allowed.
 	EffectiveTimeout int64 // milliseconds

@@ -31,7 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
-import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug, sandboxModeLabel } from "../lib/utils";
 import { presetPrimaryMap } from "../lib/modelRegistry";
 import type {
   AgentProfile,
@@ -610,8 +610,8 @@ export function QuickRunDialog({
                                       {profile.model}
                                     </Badge>
                                   )}
-                                  {profile.requiresSandbox && (
-                                    <Badge variant="outline">Sandbox</Badge>
+                                  {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== 0 && (
+                                    <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
                                   )}
                                   {profile.sandboxConfig?.manualReview && (
                                     <Badge variant="outline">Manual Review</Badge>
@@ -970,8 +970,8 @@ export function QuickRunDialog({
                               {profile.model && (
                                 <Badge variant="outline">{profile.model}</Badge>
                               )}
-                              {profile.requiresSandbox && (
-                                <Badge variant="outline">Sandbox</Badge>
+                              {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== 0 && (
+                                <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
                               )}
                               {profile.sandboxConfig?.manualReview && (
                                 <Badge variant="outline">Manual Review</Badge>

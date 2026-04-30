@@ -108,11 +108,11 @@ func seedFailedRun(
 	ctx := context.Background()
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "resume-source-profile",
-		ProfileKey:      "resume-source-" + uuid.New().String()[:8],
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		Model:           "mock-model",
-		RequiresSandbox: false,
+		Name:          "resume-source-profile",
+		ProfileKey:    "resume-source-" + uuid.New().String()[:8],
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		Model:         "mock-model",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
@@ -288,10 +288,10 @@ func TestResumeFromFailedRun_RejectsRunning(t *testing.T) {
 	ctx := context.Background()
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "running-profile",
-		ProfileKey:      "running-" + uuid.New().String()[:8],
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
+		Name:          "running-profile",
+		ProfileKey:    "running-" + uuid.New().String()[:8],
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "running-task",
