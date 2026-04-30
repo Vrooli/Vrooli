@@ -52,7 +52,30 @@ Completed in the first implementation pass:
   - `operating_mode.replan_needed` remains a timeline event but no longer increments the replan numerator
   - operating-mode acceptance verdict matching is centralized and normalized
   - UI Modes-tab coverage asserts replan and acceptance rates render with sample sizes
-- API, CLI, concept, and seam docs updated for those completed boundaries.
+- Phase 7 backend responsibility refactor:
+  - `api/internal/operatingmode/service.go` now owns public service contracts and dependency wiring only
+  - mode switching moved to `switcher.go`
+  - phase start orchestration and context collection moved to `phase_runner.go`
+  - prompt catalog validation/rendering moved to `prompt.go`
+  - run-state polling and cancellation moved to `round_refresher.go`
+  - structured result parsing and artifact writes moved to `artifact_applier.go`
+  - backlog completion/proposal reconciliation moved to `backlog_reconciler.go`
+  - workspace read-model construction moved to `workspace.go`
+  - operating-mode event helpers moved to `events.go`
+  - shared local helpers moved to `utils.go`
+- Phase 8 UI workspace refactor:
+  - `ui/src/components/initiative/operating-mode-panel.tsx` is now composition-only
+  - React Query orchestration, mutations, and panel-local state moved to `operating-mode/use-operating-mode-workspace.ts`
+  - mode switching, acceptance criteria, phase controls, artifact list, round timeline, and round card rendering moved to focused `operating-mode/` components
+  - backend-provided phase `startable`, `reason`, and `next` state remains the only phase enablement source
+  - existing test selectors were preserved through the component split
+- Phase 9 documentation and seam health:
+  - `scenarios/swarm-manager/docs/internal/SEAMS.md` now documents phase-state ownership, lifecycle-only mode switching, audited backlog reconciliation, fail-closed prompt rendering, startup profile policy, and the refactored backend/UI boundary files
+  - `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` now describes the implemented `item-level`, `holistic-loop`, and `phased-plan-drain` model instead of target/open-question implementation language
+  - added `scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
+  - added `scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
+  - `scenarios/swarm-manager/docs/manifest.json` now registers the new guides and no longer references missing historical internal docs
+- API, CLI, concept, guide, manifest, and seam docs updated for the completed boundaries.
 
 Validated commands:
 
@@ -67,6 +90,8 @@ go test ./... -run '^$' -timeout 300s
 cd scenarios/swarm-manager/ui
 npm test -- InitiativeDetailsPage initiative-mode operating-mode-panel StatsPanel stats-service
 npm test -- StatsPanel
+npm test -- operating-mode-panel
+npm run type-check
 ```
 
 ```bash
@@ -74,13 +99,27 @@ cd scenarios/swarm-manager/cli
 go test ./... -timeout 300s
 ```
 
+```bash
+cd scenarios/swarm-manager
+make test
+```
+
+Result on 2026-04-30: did not reach Swarm Manager tests. Lifecycle attempted
+to rebuild/start dependencies and failed during `prompt-manager` setup
+`build-ui`; the prompt-manager UI build was terminated with exit code 143.
+Relevant log path: `/home/matthalloran8/.vrooli/logs/prompt-manager.log`.
+
 Known validation note:
 
 - `cd scenarios/swarm-manager/api && go test ./... -timeout 300s` still fails in existing initiative-review E2E tests because the test app attempts to spawn AgentManager without `dependencies.scenarios.agent-manager` configured. Compile-only `go test ./... -run '^$'` passes.
+- Full scenario validation still needs a clean rerun after the prompt-manager
+  dependency setup/build interruption is resolved.
 
 Recommended next phase:
 
-- Resume at Phase 7 - Backend Responsibility Refactor.
+- All implementation phases in this hardening plan are complete. Resume with
+  full scenario validation and any manual end-to-end checks that require live
+  AgentManager/prompt-manager services.
 
 ## 2. Required Reading
 

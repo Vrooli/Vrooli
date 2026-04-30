@@ -31,6 +31,19 @@ Strong fits today: Git Control Tower, Prompt Manager, Workspace Sandbox.
 Weak fits today: anything tightly coupled to Swarm Manager / Agent Manager / scenarios that assume other Vrooli scenarios are running.
 Never fits: scenarios where `--help` + a README would already do the job (don't publish a "use the CLI's help command" skill — registries will reject it as low-value).
 
+## Scenario-to-skill readiness checklist
+
+A scenario is ready to become a published skill only when the answer to each question is yes:
+
+1. **Standalone value:** Would an external agent choose this capability without needing the rest of Vrooli?
+2. **Standalone install:** Is there a one-command install path that avoids dragging in the full Vrooli runtime by stealth?
+3. **Stable interface:** Is the CLI/API surface stable enough that the skill will not drift every few days?
+4. **Security posture:** Can the skill pass the full security baseline with minimal `allowed-tools`, pinned downloads, scanner clearance, signature, provenance, and SBOM?
+5. **Telemetry hook:** Can installs, registry referrers, scanner status, and downstream conversion be attributed to this skill separately?
+6. **Subscription path:** Is the eventual convenience-layer path clear for users who want managed gateway access, hosted infrastructure, or the broader bundle?
+
+Publishing is valid before direct monetization exists. Free agent usage is a validation channel: it proves standalone task value, exposes integration failures, and builds registry trust. It is not a reason to weaken curation. A low-value or insecure skill damages the channel more than no skill.
+
 ## How to add a skill
 
 1. Read [SECURITY.md](SECURITY.md) and [docs/skills/security-baseline.md](../docs/skills/security-baseline.md). Both are non-negotiable.

@@ -4,12 +4,13 @@ Durable monetization strategy, catalog, and operational framework for Vrooli. Ow
 
 ## Organizing principle
 
-Monetization is described across **four orthogonal axes**:
+Monetization is described across **five orthogonal axes**:
 
 1. **WHAT** we sell — the [catalog](CATALOG.md) of bundles and add-ons.
 2. **HOW** it's delivered — the [delivery tiers](TIERS.md) (apps → self-hosted → hosted → hardware).
-3. **WHO** flows through — the [funnel](FUNNEL.md) from acquisition to advocacy.
-4. **HOW WE MAKE MONEY** — the [revenue lines](REVENUE_LINES.md) (subscriptions, services, lead-gen, consulting).
+3. **WHERE USERS COME FROM** — the [channels](CHANNELS.md) (web SEO, app stores, skill registries, OSS discovery, community content, in-product expansion).
+4. **WHO** flows through — the [funnel](FUNNEL.md) from acquisition to advocacy.
+5. **HOW WE MAKE MONEY** — the [revenue lines](REVENUE_LINES.md) (subscriptions, services, lead-gen, consulting).
 
 Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODEL.md) projects runway, default-alive position, and per-tier economics from these inputs.
 
@@ -25,6 +26,7 @@ Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODE
 | [TIERS.md](TIERS.md) | Delivery tiers with activation triggers |
 | [PRICING.md](PRICING.md) | Tier × bundle pricing matrix (mostly TBD pre-launch) |
 | [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) | Cost structure, runway math, default-alive target |
+| [CHANNELS.md](CHANNELS.md) | Discovery-channel index + activation discipline |
 | [FUNNEL.md](FUNNEL.md) | Acquisition → retention stages, metrics, telemetry gaps |
 | [REVENUE_LINES.md](REVENUE_LINES.md) | Revenue-line index + standing discipline (services trap, activation procedure) |
 | [revenue-lines/](revenue-lines/) | One file per revenue line (subscription, lead-gen, app-dev, consulting) |
@@ -47,6 +49,7 @@ Other teams and scenarios read these docs as the source of truth for monetizatio
 - **marketing-crew** reads `CATALOG.md` + `STRATEGY.md` for positioning.
 - **landing-page-business-suite** reads `CATALOG.md` + `PRICING.md` to generate pricing pages and entitlements.
 - **scenario-to-cloud** reads `TIERS.md` to understand which deployment modes the monetization plan requires.
+- **publisher / OSS surfaces** read `CHANNELS.md` + channel-specific files when a distribution channel produces a publishable event.
 
 ## Honesty conventions
 

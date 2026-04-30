@@ -14,6 +14,8 @@ A meaningful share of agent-driven workflows in 2026+ will discover external cap
 
 This channel is the agentic-era equivalent of SEO + app-store presence: a discovery surface that needs structural investment but that doesn't change the product itself.
 
+Free agent usage is intentional, not leakage. A published skill lets external agents validate that a Vrooli capability has standalone value before the surrounding subscription surface is mature. The near-term return is proof: installs, task fit, failure reports, registry trust signals, and referrer traffic. The later return is conversion into the subscription convenience layer for users who want managed gateway access, hosted infrastructure, or a fuller bundle. Do not force monetization into the skill before the capability has earned usage; do not omit the eventual subscription path once usage is real.
+
 ## Why this is `candidate` and not `active`
 
 Three things have to be true before this channel produces measurable subscription lift, and none of them is true today:
@@ -43,6 +45,7 @@ Beyond that:
 - **Security baseline is non-negotiable.** Every published skill MUST pass the [security baseline](../../skills/security-baseline.md) — Cosign signature, SLSA provenance, SBOM, scanner clearance, OWASP Agentic Skills Top 10 checklist. Publishing without these does net harm: a flagged Vrooli skill damages every other Vrooli skill's trust score, and recovery from a "Vrooli ships malware" headline is steep.
 - **Workspace-sandbox by default.** Where possible, install scripts should set up the capability to run *under* workspace-sandbox rather than directly in the agent's shell. This converts Vrooli's existing accountability substrate into a publish-time differentiator: 99% of published skills go raw-shell; "runs under workspace-sandbox" is a real moat in a market where 13.4% of skills carry critical vulns.
 - **Per-skill telemetry separation.** Each skill's installs, referrer traffic, and downstream subscription conversion tracked separately. Aggregate channel revenue is meaningless without per-skill resolution.
+- **Human-facing announcement is optional but expected when useful.** The channel itself is agent-audience, but a signed, curated skill is also a credible OSS/dev-log event. Marketing-crew may tell the builder-in-public story if the post stays factual, avoids paywall framing, and links back to the capability rather than inventing a human marketing campaign around the registry.
 
 ## Anti-patterns
 
