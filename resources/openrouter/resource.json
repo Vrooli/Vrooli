@@ -43,7 +43,15 @@
   "endpoint": "https://openrouter.ai/api/v1/models",
   "credentials": {
     "env": [
-      "OPENROUTER_API_KEY"
+      {
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API Key",
+        "description": "OpenRouter unified API gateway across LLM providers. Required for scenarios that route LLM calls through OpenRouter rather than calling providers directly.",
+        "classification": "user",
+        "required": true,
+        "obtain_url": "https://openrouter.ai/keys",
+        "default_hint": "Starts with 'sk-or-...'"
+      }
     ],
     "secret_ref": "secret/openrouter"
   },

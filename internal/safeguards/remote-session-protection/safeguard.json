@@ -4,6 +4,7 @@
   "description": "Linux sysctl, systemd, cgroup, and swap hardening for remote GUI/SSH sessions with desktop-aware memory protection",
   "handler": "remote_session_protection",
   "platforms": ["linux"],
+  "risk": "high",
   "healthCheck": {
     "files": [
       "/etc/sysctl.d/99-vrooli-remote-session-protection.conf",

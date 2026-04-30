@@ -4,6 +4,7 @@
   "description": "Configure kernel parameters for optimal Vrooli operation (inotify file watcher limits)",
   "handler": "kernel_config",
   "platforms": ["linux"],
+  "risk": "medium",
   "healthCheck": {
     "files": ["/etc/sysctl.d/99-vrooli.conf"]
   }

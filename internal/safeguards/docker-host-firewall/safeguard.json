@@ -4,6 +4,7 @@
   "description": "Manage iptables chain for Docker container to host service connectivity",
   "handler": "docker_host_firewall",
   "platforms": ["linux"],
+  "risk": "medium",
   "healthCheck": {
     "command": "iptables",
     "args": ["-n", "-L", "VROOLI-DOCKER"],

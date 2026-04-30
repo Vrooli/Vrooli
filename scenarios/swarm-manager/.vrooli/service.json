@@ -35,6 +35,10 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",

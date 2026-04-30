@@ -34,7 +34,12 @@
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "support": {
       "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    },
+    "system_required": true
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
   },
   "ports": {
     "api": {
