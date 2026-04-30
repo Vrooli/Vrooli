@@ -24,6 +24,7 @@ import { selectors } from '@/constants/selectors'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useIsCompactHeader, useIsMobile } from '@/hooks/useMediaQuery'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import * as orgChartService from '@/services/orgChartService'
 
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
@@ -343,22 +344,14 @@ export function TeamEditorPanel({
   )
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape: deselect member or close editor
-      if (e.key === 'Escape') {
-        if (selectedMemberId) {
-          setSelectedMemberId(null)
-        } else {
-          onClose()
-        }
-        return
-      }
+  useGlobalKeydown((e) => {
+    if (e.key !== 'Escape') return
+    if (selectedMemberId) {
+      setSelectedMemberId(null)
+      return
     }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedMemberId, setSelectedMemberId, onClose])
+    onClose()
+  })
 
   // Empty state when no team selected
   if (!team) {
@@ -686,4 +679,3 @@ export function TeamEditorPanel({
     </div>
   )
 }
-

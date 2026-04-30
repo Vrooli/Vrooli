@@ -1,25 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { resolveWsBase } from "@vrooli/api-base";
-import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import type { RunEvent, Task } from "../types";
 import {
-  AgentManagerWsClientMessageSchema,
-  AgentManagerWsClientMessageType,
-  AgentManagerWsMessageSchema,
-  AgentManagerWsMessageType,
-} from "@vrooli/proto-types/agent-manager/v1/domain/events_pb";
+  parseWebSocketMessage,
+  type WebSocketMessage,
+} from "../lib/webSocketProtocol";
+import {
+  createWebSocketSubscriptionManager,
+  type WebSocketSubscriptionManager,
+} from "../lib/webSocketSubscriptions";
+
+export type { WebSocketMessage } from "../lib/webSocketProtocol";
 
 export type ConnectionStatus =
   | "connecting"
   | "connected"
   | "disconnected"
   | "error";
-
-export interface WebSocketMessage {
-  type: string;
-  payload: unknown;
-  runId?: string;
-}
 
 export type MessageHandler = (message: WebSocketMessage) => void;
 
@@ -44,85 +40,6 @@ interface UseWebSocketReturn {
   removeMessageHandler: (handler: MessageHandler) => void;
 }
 
-const protoReadOptions = { ignoreUnknownFields: true, protoFieldName: true };
-const protoWriteOptions = { useProtoFieldName: true };
-
-function parseProtoMessage(raw: unknown): WebSocketMessage | null {
-  const message = fromJson(AgentManagerWsMessageSchema, raw as JsonValue, protoReadOptions);
-  switch (message.type) {
-    case AgentManagerWsMessageType.RUN_EVENT:
-      if (message.payload.case !== "runEvent") return null;
-      return {
-        type: "run_event",
-        runId: message.runId,
-        payload: message.payload.value as RunEvent,
-      };
-    case AgentManagerWsMessageType.RUN_STATUS:
-      if (message.payload.case !== "runStatus") return null;
-      {
-        const runId = message.payload.value.runId || message.runId;
-        if (!runId) return null;
-        const statusPayload: Record<string, unknown> = {
-          id: runId,
-          status: message.payload.value.status,
-        };
-        if (message.payload.value.taskId) {
-          statusPayload.taskId = message.payload.value.taskId;
-        }
-        if (message.payload.value.promptPreview) {
-          statusPayload.promptPreview = message.payload.value.promptPreview;
-        }
-        return {
-          type: "run_status",
-          runId,
-          payload: statusPayload,
-        };
-      }
-    case AgentManagerWsMessageType.TASK_STATUS:
-      if (message.payload.case !== "taskStatus") return null;
-      {
-        const taskId = message.payload.value.taskId;
-        if (!taskId) return null;
-        return {
-          type: "task_status",
-          payload: { id: taskId, status: message.payload.value.status } as Partial<Task>,
-        };
-      }
-    case AgentManagerWsMessageType.RUN_PROGRESS:
-      if (message.payload.case !== "runProgress") return null;
-      return {
-        type: "run_progress",
-        runId: message.runId,
-        payload: message.payload.value,
-      };
-    case AgentManagerWsMessageType.CONNECTED:
-      if (message.payload.case !== "connected") return null;
-      return {
-        type: "connected",
-        payload: message.payload.value,
-      };
-    case AgentManagerWsMessageType.PONG:
-      if (message.payload.case !== "pong") return null;
-      return {
-        type: "pong",
-        payload: message.payload.value,
-      };
-    default:
-      return null;
-  }
-}
-
-function buildClientMessage(type: AgentManagerWsClientMessageType, runId?: string) {
-  const payload = runId
-    ? { payload: { case: "runSubscription" as const, value: { runId } } }
-    : undefined;
-  const message = create(AgentManagerWsClientMessageSchema, {
-    type,
-    ...(payload ?? {}),
-  });
-  return toJson(AgentManagerWsClientMessageSchema, message, protoWriteOptions) as Record<string, unknown>;
-}
-
 export function useWebSocket(
   options: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
@@ -138,11 +55,21 @@ export function useWebSocket(
   const [error, setError] = useState<Error | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const subscriptionManagerRef = useRef<WebSocketSubscriptionManager | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const onMessageRef = useRef(onMessage);
   const onStatusChangeRef = useRef(onStatusChange);
   const messageHandlersRef = useRef<Set<MessageHandler>>(new Set());
+
+  if (subscriptionManagerRef.current === null) {
+    subscriptionManagerRef.current = createWebSocketSubscriptionManager({
+      isOpen: () => wsRef.current?.readyState === WebSocket.OPEN,
+      send: (message) => {
+        wsRef.current?.send(JSON.stringify(message));
+      },
+    });
+  }
 
   // Keep refs fresh
   useEffect(() => {
@@ -190,12 +117,17 @@ export function useWebSocket(
         updateStatus("connected");
         setError(null);
         reconnectAttemptsRef.current = 0;
+        subscriptionManagerRef.current?.replayDesired();
       };
 
       ws.onmessage = (event) => {
         try {
           const data: unknown = JSON.parse(String(event.data));
-          const normalized = parseProtoMessage(data) ?? (data as WebSocketMessage);
+          const normalized = parseWebSocketMessage(data);
+          if (!normalized) {
+            console.warn("[WebSocket] Ignoring unsupported message");
+            return;
+          }
           onMessageRef.current?.(normalized);
           // Call all registered message handlers
           messageHandlersRef.current.forEach((handler) => {
@@ -280,27 +212,21 @@ export function useWebSocket(
     }
   }, []);
 
-  const subscribe = useCallback(
-    (runId: string) => {
-      send(buildClientMessage(AgentManagerWsClientMessageType.SUBSCRIBE, runId));
-    },
-    [send]
-  );
+  const subscribe = useCallback((runId: string) => {
+    subscriptionManagerRef.current?.subscribe(runId);
+  }, []);
 
-  const unsubscribe = useCallback(
-    (runId: string) => {
-      send(buildClientMessage(AgentManagerWsClientMessageType.UNSUBSCRIBE, runId));
-    },
-    [send]
-  );
+  const unsubscribe = useCallback((runId: string) => {
+    subscriptionManagerRef.current?.unsubscribe(runId);
+  }, []);
 
   const subscribeAll = useCallback(() => {
-    send(buildClientMessage(AgentManagerWsClientMessageType.SUBSCRIBE_ALL));
-  }, [send]);
+    subscriptionManagerRef.current?.subscribeAll();
+  }, []);
 
   const unsubscribeAll = useCallback(() => {
-    send(buildClientMessage(AgentManagerWsClientMessageType.UNSUBSCRIBE_ALL));
-  }, [send]);
+    subscriptionManagerRef.current?.unsubscribeAll();
+  }, []);
 
   const reconnect = useCallback(() => {
     disconnect();

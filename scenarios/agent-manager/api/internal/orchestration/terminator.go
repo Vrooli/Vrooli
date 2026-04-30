@@ -198,17 +198,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 
 	result.Duration = time.Since(start)
 
-	// Update run status if successful
-	if result.Success {
-		now := time.Now()
-		run.Status = domain.RunStatusCancelled
-		run.EndedAt = &now
-		run.UpdatedAt = now
-		if err := t.runs.Update(ctx, run); err != nil {
-			// Log but don't fail - the process is dead
-			result.Error = err
-		}
-	} else {
+	if !result.Success {
 		result.Error = domain.NewInternalError(fmt.Sprintf("failed to terminate run after %d attempts", result.Attempts), nil)
 	}
 
@@ -474,23 +464,4 @@ func (t *Terminator) calculateBackoff(attempt int) time.Duration {
 		backoff = t.config.MaxBackoff
 	}
 	return backoff
-}
-
-// =============================================================================
-// ENHANCED STOP RUN FOR SERVICE
-// =============================================================================
-
-// StopRunWithRetry is an enhanced StopRun implementation that uses the terminator.
-// This should replace the simple StopRun in service.go
-func (t *Terminator) StopRunWithRetry(ctx context.Context, runID uuid.UUID) error {
-	result, err := t.Terminate(ctx, runID)
-	if err != nil {
-		return err
-	}
-
-	if !result.Success {
-		return result.Error
-	}
-
-	return nil
 }

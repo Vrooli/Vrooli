@@ -2088,7 +2088,7 @@ func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
 		Status:             store.DecisionStatusPending,
 		Topic:              req.Topic,
 		Description:        req.Description,
-		Options:             req.Options,
+		Options:            req.Options,
 		InitiativeMetadata: req.InitiativeMetadata,
 	}
 
@@ -2421,12 +2421,11 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 	// failure is persisted on the decision and surfaced in the response with
 	// a pre-filled manual workaround (per d8=C + d9=A).
 	var autoOutcome *AutoCreateOutcome
-	justAcceptedProposal :=
-		effectiveStatus != nil &&
-			*effectiveStatus == store.DecisionStatusAccepted &&
-			updated.Context == store.DecisionContextInitiativeProposal &&
-			updated.InitiativeMetadata != nil &&
-			updated.AutoCreateStatus != store.AutoCreateStatusCreated
+	justAcceptedProposal := effectiveStatus != nil &&
+		*effectiveStatus == store.DecisionStatusAccepted &&
+		updated.Context == store.DecisionContextInitiativeProposal &&
+		updated.InitiativeMetadata != nil &&
+		updated.AutoCreateStatus != store.AutoCreateStatusCreated
 	if justAcceptedProposal {
 		autoOutcome = h.runAutoCreateInitiative(r.Context(), teamID, updated)
 		// Persist the outcome on the decision record.

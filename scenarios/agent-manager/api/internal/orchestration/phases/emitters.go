@@ -62,7 +62,11 @@ func publishEvent(ctx context.Context, deps Deps, runID uuid.UUID, evt *domain.R
 		return
 	}
 	if deps.Events != nil {
-		_ = deps.Events.Append(ctx, runID, evt)
+		if err := deps.Events.Append(ctx, runID, evt); err != nil {
+			return
+		}
+	} else {
+		return
 	}
 	if deps.Broadcaster != nil {
 		deps.Broadcaster.BroadcastEvent(evt)

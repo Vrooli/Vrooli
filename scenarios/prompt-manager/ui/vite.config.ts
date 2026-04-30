@@ -4,7 +4,8 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
+  // INTEROP-CRITICAL: Relative assets keep prompt-manager functional behind Vrooli tunnels/proxies.
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {
@@ -34,6 +35,7 @@ export default defineConfig({
     },
   },
   define: {
+    // INTEROP-CRITICAL: Some browser-side dependencies probe process.env; provide an empty shim.
     'process.env': {}
   }
 })

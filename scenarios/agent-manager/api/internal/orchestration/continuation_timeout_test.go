@@ -144,6 +144,7 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("continuation runner was never called")
 	}
+	waitForStatusEvents(t, ctx, eventStore, runID, 2)
 
 	if !hadDeadline {
 		t.Error("expected continuation context to have a deadline from per-turn timeout")

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"testing"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -77,5 +78,50 @@ func TestEmitGenericFailureEvent_FallsBackToInternal(t *testing.T) {
 	data := store.events[0].Data.(*domain.ErrorEventData)
 	if data.Code != string(domain.ErrCodeInternal) {
 		t.Errorf("Code = %q, want INTERNAL for bare error", data.Code)
+	}
+}
+
+type failingPhaseEventStore struct{}
+
+func (failingPhaseEventStore) Append(context.Context, uuid.UUID, ...*domain.RunEvent) error {
+	return errors.New("append failed")
+}
+
+func (failingPhaseEventStore) Get(context.Context, uuid.UUID, event.GetOptions) ([]*domain.RunEvent, error) {
+	return nil, nil
+}
+
+func (failingPhaseEventStore) Stream(context.Context, uuid.UUID, event.StreamOptions) (<-chan *domain.RunEvent, error) {
+	return nil, nil
+}
+
+func (failingPhaseEventStore) Count(context.Context, uuid.UUID) (int64, error) {
+	return 0, nil
+}
+
+func (failingPhaseEventStore) Delete(context.Context, uuid.UUID) error {
+	return nil
+}
+
+type recordingPhaseBroadcaster struct {
+	count int
+}
+
+func (b *recordingPhaseBroadcaster) BroadcastEvent(*domain.RunEvent) {
+	b.count++
+}
+
+func (b *recordingPhaseBroadcaster) BroadcastRunStatus(*domain.Run) {}
+
+func (b *recordingPhaseBroadcaster) BroadcastProgress(uuid.UUID, domain.RunPhase, int, string) {}
+
+func TestEmitSystemEvent_DoesNotBroadcastWhenAppendFails(t *testing.T) {
+	broadcaster := &recordingPhaseBroadcaster{}
+	deps := Deps{Events: failingPhaseEventStore{}, Broadcaster: broadcaster}
+
+	EmitSystemEvent(context.Background(), deps, uuid.New(), "info", "hello")
+
+	if broadcaster.count != 0 {
+		t.Fatalf("expected no broadcasts after append failure, got %d", broadcaster.count)
 	}
 }

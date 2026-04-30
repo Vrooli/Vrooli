@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+import { initSpatialNav } from '@vrooli/iframe-bridge/spatial'
 import App from './App.tsx'
 import './styles/globals.css'
 
@@ -24,6 +25,9 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__promp
   initIframeBridgeChild({ parentOrigin, appId: 'prompt-manager' })
   window.__promptManagerBridgeInitialized = true
 }
+
+// INTEROP-CRITICAL: Enables keyboard/gamepad spatial navigation for embedded Vrooli surfaces.
+initSpatialNav()
 
 // Create a client
 const queryClient = new QueryClient({

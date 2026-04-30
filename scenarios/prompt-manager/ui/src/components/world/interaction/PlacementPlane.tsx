@@ -2,7 +2,7 @@
  * PlacementPlane - Invisible plane used to place new objects on the ground.
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
@@ -11,6 +11,7 @@ import { useEnvironmentStore } from '@/stores/environmentStore'
 import { DECORATION_CONFIGS, type DecorationType } from '@/types/decoration'
 import type { FurnitureType } from '@/types/furniture'
 import { applyPlacementConstraints } from '@/lib/world'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 
 interface PlacementPlaneProps {
   /** Size of the plane (width/depth) */
@@ -74,10 +75,8 @@ export function PlacementPlane({ size, y }: PlacementPlaneProps) {
     ]
   )
 
-  useEffect(() => {
-    if (!placingObject) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
+  useGlobalKeydown(
+    (event) => {
       if (event.key === 'Escape') {
         placementRotation.current = 0
         cancelPlacing()
@@ -86,13 +85,9 @@ export function PlacementPlane({ size, y }: PlacementPlaneProps) {
         const TAU = Math.PI * 2
         placementRotation.current = ((placementRotation.current + delta) % TAU + TAU) % TAU
       }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [placingObject, cancelPlacing])
+    },
+    { enabled: Boolean(placingObject) }
+  )
 
   if (!placingObject) {
     return null

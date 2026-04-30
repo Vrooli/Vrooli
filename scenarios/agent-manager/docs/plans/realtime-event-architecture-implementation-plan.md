@@ -397,10 +397,10 @@ Manual validation:
 
 ## 10. Rollout and Validation Checklist
 
-- [ ] Phase 1 backend tests pass.
-- [ ] Phase 2 stop/continue status transition tests pass.
-- [ ] Phase 3 WebSocket protocol/subscription tests pass.
-- [ ] Phase 4 store reducer tests pass.
+- [x] Phase 1 backend tests pass.
+- [x] Phase 2 stop/continue status transition tests pass.
+- [x] Phase 3 WebSocket protocol/subscription tests pass.
+- [x] Phase 4 store reducer tests pass.
 - [ ] Phase 5 UI type-check and unit tests pass.
 - [ ] Phase 6 continuation tests pass.
 - [ ] `vrooli scenario test agent-manager` passes.
@@ -440,4 +440,3 @@ The work is complete when:
 - Existing and new backend/frontend tests pass.
 - `vrooli scenario test agent-manager` passes.
 - Internal docs describe the new seams and temporal flows.
-

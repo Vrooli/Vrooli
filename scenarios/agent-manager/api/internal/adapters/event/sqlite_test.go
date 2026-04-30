@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,8 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 			sequence INTEGER NOT NULL,
 			event_type TEXT NOT NULL,
 			timestamp DATETIME NOT NULL,
-			data TEXT
+			data TEXT,
+			UNIQUE(run_id, sequence)
 		);
 		CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 		CREATE INDEX IF NOT EXISTS idx_run_events_sequence ON run_events(run_id, sequence);
@@ -513,9 +515,7 @@ func TestSQLiteStore_EventDataRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_SequentialAppend(t *testing.T) {
-	// SQLite doesn't handle concurrent writes well, so this test
-	// uses sequential appends to verify sequence uniqueness.
+func TestSQLiteStore_ConcurrentAppendSequences(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
@@ -523,17 +523,29 @@ func TestSQLiteStore_SequentialAppend(t *testing.T) {
 	ctx := context.Background()
 	runID := uuid.New()
 
-	// Append events sequentially from multiple "sources"
 	const numSources = 5
 	const eventsPerSource = 10
 
+	var wg sync.WaitGroup
+	errs := make(chan error, numSources*eventsPerSource)
 	for i := 0; i < numSources; i++ {
-		for j := 0; j < eventsPerSource; j++ {
-			evt := domain.NewLogEvent(runID, "info", fmt.Sprintf("source %d event %d", i, j))
-			if err := store.Append(ctx, runID, evt); err != nil {
-				t.Fatalf("append failed: %v", err)
+		source := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < eventsPerSource; j++ {
+				evt := domain.NewLogEvent(runID, "info", fmt.Sprintf("source %d event %d", source, j))
+				if err := store.Append(ctx, runID, evt); err != nil {
+					errs <- err
+				}
 			}
-		}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("append failed: %v", err)
 	}
 
 	// Verify all events were stored

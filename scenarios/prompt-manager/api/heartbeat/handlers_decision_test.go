@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
-
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"

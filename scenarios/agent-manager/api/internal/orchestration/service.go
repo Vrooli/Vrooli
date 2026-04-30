@@ -1389,12 +1389,9 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		} else {
 			userEvent = domain.NewMessageEvent(run.ID, "user", userMessage)
 		}
-		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
+		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
 			// Log but don't fail
 			_ = err
-		}
-		if o.broadcaster != nil {
-			o.broadcaster.BroadcastEvent(userEvent)
 		}
 	}
 
@@ -1991,12 +1988,6 @@ func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*S
 }
 
 func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
-	// Use the robust terminator if available (Phase 2)
-	if o.terminator != nil {
-		return o.terminator.StopRunWithRetry(ctx, id)
-	}
-
-	// Fallback to simple implementation
 	run, err := o.GetRun(ctx, id)
 	if err != nil {
 		return err
@@ -2004,6 +1995,26 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 
 	if allowed, reason := domain.CanStopRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "stop", reason)
+	}
+
+	if o.terminator != nil {
+		result, err := o.terminator.Terminate(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !result.Success {
+			return result.Error
+		}
+
+		endedAt := time.Now()
+		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+			Run:       run,
+			NewStatus: domain.RunStatusCancelled,
+			Phase:     domain.RunPhaseCompleted,
+			Reason:    "Run stopped by request",
+			EndedAt:   &endedAt,
+		})
+		return err
 	}
 
 	// Get the runner type from resolved config or profile
@@ -2025,12 +2036,15 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		}
 	}
 
-	// Update status
-	now := time.Now()
-	run.Status = domain.RunStatusCancelled
-	run.EndedAt = &now
-	run.UpdatedAt = now
-	return o.runs.Update(ctx, run)
+	endedAt := time.Now()
+	_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+		Run:       run,
+		NewStatus: domain.RunStatusCancelled,
+		Phase:     domain.RunPhaseCompleted,
+		Reason:    "Run stopped by request",
+		EndedAt:   &endedAt,
+	})
+	return err
 }
 
 func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error) {
@@ -2089,33 +2103,16 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, runner.ErrContinuationNotSupported
 	}
 
-	// Update run status to running and reset heartbeat so the reconciler
-	// doesn't immediately consider this run stale based on the previous
-	// run's last heartbeat (which could be hours old).
-	previousStatus := run.Status
 	now := time.Now()
-	run.Status = domain.RunStatusRunning
-	run.Phase = domain.RunPhaseExecuting
-	run.ProgressPercent = domain.PhaseToProgress(domain.RunPhaseExecuting)
-	run.LastHeartbeat = &now
-	run.UpdatedAt = now
-	if err := o.runs.Update(ctx, run); err != nil {
+	run, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+		Run:           run,
+		NewStatus:     domain.RunStatusRunning,
+		Phase:         domain.RunPhaseExecuting,
+		Reason:        "Continuation requested",
+		LastHeartbeat: &now,
+	})
+	if err != nil {
 		return nil, err
-	}
-
-	if o.events != nil {
-		statusEvent := domain.NewStatusEvent(
-			run.ID,
-			string(previousStatus),
-			string(domain.RunStatusRunning),
-			"Continuation requested",
-		)
-		if err := o.events.Append(ctx, run.ID, statusEvent); err == nil && o.broadcaster != nil {
-			o.broadcaster.BroadcastEvent(statusEvent)
-		}
-	}
-	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(run)
 	}
 
 	// Emit user message event (with attachment metadata if present, resolved later)
@@ -2144,11 +2141,8 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		} else {
 			userEvent = domain.NewMessageEvent(run.ID, "user", req.Message)
 		}
-		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
+		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
 			_ = err
-		}
-		if o.broadcaster != nil {
-			o.broadcaster.BroadcastEvent(userEvent)
 		}
 	}
 
@@ -2261,11 +2255,8 @@ func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, ev
 	}
 
 	deleteEvent := domain.NewMessageDeletedEvent(runID, targetID)
-	if err := o.events.Append(ctx, runID, deleteEvent); err != nil {
+	if err := o.appendAndBroadcastEvents(ctx, runID, deleteEvent); err != nil {
 		return nil, err
-	}
-	if o.broadcaster != nil {
-		o.broadcaster.BroadcastEvent(deleteEvent)
 	}
 	return deleteEvent, nil
 }
@@ -2406,61 +2397,53 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	// Execute continuation with per-turn timeout
 	result, err := r.Continue(execCtx, continueReq)
 
-	// Update run based on result
 	now := time.Now()
-	previousStatus := run.Status
-	run.UpdatedAt = now
+	transition := RunStatusTransitionInput{
+		Run:     run,
+		EndedAt: &now,
+		Reason:  "Continuation completed",
+	}
 
 	if execCtx.Err() == context.DeadlineExceeded {
 		// Continuation timed out — mark as failed but preserve session ID
 		// so the user can continue again with a fresh timeout.
-		run.Status = domain.RunStatusFailed
-		run.EndedAt = &now
-		run.ErrorMsg = fmt.Sprintf("continuation exceeded timeout of %d minutes", timeoutMinutes)
+		transition.NewStatus = domain.RunStatusFailed
+		transition.Phase = domain.RunPhaseCompleted
+		transition.ErrorMsg = fmt.Sprintf("continuation exceeded timeout of %d minutes", timeoutMinutes)
+		run.ErrorMsg = transition.ErrorMsg
 		if result != nil && result.SessionID != "" {
 			run.SessionID = result.SessionID
 		}
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_timeout", run.ErrorMsg, true)
-			_ = o.events.Append(ctx, run.ID, errorEvent)
-			if o.broadcaster != nil {
-				o.broadcaster.BroadcastEvent(errorEvent)
-			}
+			_ = o.appendAndBroadcastEvents(ctx, run.ID, errorEvent)
 		}
 	} else if err != nil {
-		run.Status = domain.RunStatusFailed
-		run.EndedAt = &now
-		run.ErrorMsg = err.Error()
+		transition.NewStatus = domain.RunStatusFailed
+		transition.Phase = domain.RunPhaseCompleted
+		transition.ErrorMsg = err.Error()
+		run.ErrorMsg = transition.ErrorMsg
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", err.Error(), false)
-			_ = o.events.Append(ctx, run.ID, errorEvent)
-			if o.broadcaster != nil {
-				o.broadcaster.BroadcastEvent(errorEvent)
-			}
+			_ = o.appendAndBroadcastEvents(ctx, run.ID, errorEvent)
 		}
 	} else if result != nil && !result.Success {
-		run.Status = domain.RunStatusFailed
-		run.EndedAt = &now
-		run.ErrorMsg = result.ErrorMessage
-		run.ExitCode = &result.ExitCode
+		transition.NewStatus = domain.RunStatusFailed
+		transition.Phase = domain.RunPhaseCompleted
+		transition.ErrorMsg = result.ErrorMessage
+		transition.ExitCode = &result.ExitCode
+		run.ErrorMsg = transition.ErrorMsg
 		if o.events != nil && result.ErrorMessage != "" {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", result.ErrorMessage, false)
-			_ = o.events.Append(ctx, run.ID, errorEvent)
-			if o.broadcaster != nil {
-				o.broadcaster.BroadcastEvent(errorEvent)
-			}
+			_ = o.appendAndBroadcastEvents(ctx, run.ID, errorEvent)
 		}
 	} else if result != nil {
-		run.Status = domain.RunStatusComplete
-		run.EndedAt = &now
-
-		// Update summary if available
-		if result.Summary != nil {
-			run.Summary = result.Summary
-		}
+		transition.NewStatus = domain.RunStatusComplete
+		transition.Phase = domain.RunPhaseCompleted
+		transition.Summary = result.Summary
 	} else {
-		run.Status = domain.RunStatusComplete
-		run.EndedAt = &now
+		transition.NewStatus = domain.RunStatusComplete
+		transition.Phase = domain.RunPhaseCompleted
 	}
 
 	// Always preserve session ID from the result for further continuation,
@@ -2470,27 +2453,11 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.SessionID = result.SessionID
 	}
 
-	// Persist updated run
-	if err := o.runs.Update(ctx, run); err != nil {
-		// Log but can't do much else
-		_ = err
-	}
-
-	if o.events != nil && previousStatus != run.Status {
-		statusEvent := domain.NewStatusEvent(
-			run.ID,
-			string(previousStatus),
-			string(run.Status),
-			"Continuation completed",
+	if _, err := o.applyRunStatusTransition(ctx, transition); err != nil {
+		obs.Component("continuation").Error("continuation status transition failed",
+			obs.KeyRunID, run.ID.String(),
+			obs.KeyError, err.Error(),
 		)
-		if err := o.events.Append(ctx, run.ID, statusEvent); err == nil && o.broadcaster != nil {
-			o.broadcaster.BroadcastEvent(statusEvent)
-		}
-	}
-
-	// Broadcast status update
-	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(run)
 	}
 }
 
@@ -3268,6 +3235,34 @@ func stripANSI(s string) string {
 // existing orchestration call sites compiling without per-site rewrites.
 type EventBroadcaster = phases.EventBroadcaster
 
+func appendAndBroadcastEvents(ctx context.Context, store event.Store, broadcaster EventBroadcaster, runID uuid.UUID, events ...*domain.RunEvent) error {
+	persistable := make([]*domain.RunEvent, 0, len(events))
+	for _, evt := range events {
+		if evt != nil {
+			persistable = append(persistable, evt)
+		}
+	}
+	if len(persistable) == 0 {
+		return nil
+	}
+	if store == nil {
+		return fmt.Errorf("event store is required before broadcasting run events")
+	}
+	if err := store.Append(ctx, runID, persistable...); err != nil {
+		return err
+	}
+	if broadcaster != nil {
+		for _, evt := range persistable {
+			broadcaster.BroadcastEvent(evt)
+		}
+	}
+	return nil
+}
+
+func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
+	return appendAndBroadcastEvents(ctx, o.events, o.broadcaster, runID, events...)
+}
+
 // eventStoreAdapter adapts event.Store to runner.EventSink
 type eventStoreAdapter struct {
 	store        event.Store
@@ -3303,23 +3298,16 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 	// Validate event and log warnings for missing data
 	domain.ValidateEvent(evt)
 
-	// Store the event
-	if b.store != nil {
-		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {
-			// Log but don't fail - broadcasting is more important for UX
-			obs.Component("broadcast-sink").Warn("event store append failed",
-				obs.KeyRunID, b.runID.String(),
-				obs.KeyError, err.Error(),
-			)
-		} else {
-			b.lastSequence = evt.Sequence
-		}
+	if err := appendAndBroadcastEvents(context.Background(), b.store, b.broadcaster, b.runID, evt); err != nil {
+		obs.Component("broadcast-sink").Warn("event store append failed",
+			obs.KeyRunID, b.runID.String(),
+			obs.KeyError, err.Error(),
+		)
+		return err
 	}
+	b.lastSequence = evt.Sequence
 
-	// Broadcast the event via WebSocket
 	if b.broadcaster != nil {
-		b.broadcaster.BroadcastEvent(evt)
-
 		// Also emit progress events for status changes
 		if data, ok := evt.Data.(*domain.StatusEventData); ok {
 			b.broadcaster.BroadcastProgress(b.runID, domain.RunPhase(data.NewStatus), 0, data.Reason)

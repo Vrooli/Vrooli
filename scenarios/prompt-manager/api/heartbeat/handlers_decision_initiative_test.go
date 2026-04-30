@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/store"
 	"strings"
 	"testing"
-
-	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
 )
@@ -266,8 +265,8 @@ func TestDecisionUpdate_AutoCreateStatusManualRecovery(t *testing.T) {
 
 func TestValidateInitiativeMetadata_NameRegex(t *testing.T) {
 	for _, c := range []struct {
-		name    string
-		ok      bool
+		name string
+		ok   bool
 	}{
 		{"web-console-readiness", true},
 		{"abc", true},

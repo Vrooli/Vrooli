@@ -529,7 +529,7 @@ func (e *RunExecutor) createEventSink() runner.EventSink {
 	}
 	var underlying runner.EventSink
 	switch {
-	case e.broadcaster != nil:
+	case e.events != nil && e.broadcaster != nil:
 		underlying = &broadcastingEventSink{
 			store:       e.events,
 			runID:       e.run.ID,

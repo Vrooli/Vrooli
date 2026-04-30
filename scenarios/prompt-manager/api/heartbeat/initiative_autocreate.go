@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"prompt-manager/store"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-	"prompt-manager/store"
 )
 
 // initiativeNameRegex enforces kebab-case (lowercase letters, digits, hyphens),
@@ -167,7 +167,7 @@ func resolvedInitiativeTitle(d *store.DecisionEntry, m *store.DecisionInitiative
 
 // shellEscape minimally quotes a string for inclusion in a copy-pasteable
 // shell command. Wraps in single quotes and escapes any embedded single
-// quotes via the standard `'\''` trick. Empty strings render as ''.
+// quotes via the standard `'\”` trick. Empty strings render as ”.
 func shellEscape(s string) string {
 	if s == "" {
 		return "''"

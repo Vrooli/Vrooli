@@ -493,11 +493,11 @@ const DecisionContextInitiativeProposal = "initiative-proposal"
 // initiative. Immutable once the decision has been accepted.
 // Contract: see docs/reference/decision-initiative-proposal-contract.md.
 type DecisionInitiativeMetadata struct {
-	Name           string   `json:"name"`                       // initiative name (kebab-case)
-	Priority       int      `json:"priority,omitempty"`         // 0 (unset) or 1-10
-	DependsOn      []string `json:"depends_on,omitempty"`       // initiative name refs
-	TargetScenario string   `json:"target_scenario,omitempty"`  // e.g. "swarm-manager"
-	Title          string   `json:"title,omitempty"`            // optional override; default = decision topic
+	Name           string   `json:"name"`                      // initiative name (kebab-case)
+	Priority       int      `json:"priority,omitempty"`        // 0 (unset) or 1-10
+	DependsOn      []string `json:"depends_on,omitempty"`      // initiative name refs
+	TargetScenario string   `json:"target_scenario,omitempty"` // e.g. "swarm-manager"
+	Title          string   `json:"title,omitempty"`           // optional override; default = decision topic
 }
 
 // DecisionEntry represents a recorded decision in the team's decision log.

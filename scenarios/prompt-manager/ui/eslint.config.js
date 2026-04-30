@@ -9,10 +9,8 @@ import globals from "globals";
  * ESLint flat config for prompt-manager UI
  *
  * STABILITY CRITICAL RULES (DO NOT REMOVE):
- * - react-hooks/rules-of-hooks: Prevents hook ordering crashes
- * - react-hooks/exhaustive-deps: Prevents stale closure bugs
- * - @typescript-eslint/no-non-null-assertion: Prevents hidden null bugs
- * - @typescript-eslint/no-unsafe-* rules: Prevents operations on 'any' types
+ * The rules below preserve hook ordering, dependency freshness, null safety,
+ * checked value access, and module initialization ordering.
  *
  * See react-stability skill Section 0 for rationale.
  */

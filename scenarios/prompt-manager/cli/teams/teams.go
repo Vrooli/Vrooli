@@ -187,19 +187,19 @@ type DecisionOption struct {
 
 // DecisionEntry represents a decision log entry.
 type DecisionEntry struct {
-	ID          string           `json:"id"`
-	At          string           `json:"at"`
-	By          string           `json:"by"`
-	Decision    string           `json:"decision"`
-	Rationale   string           `json:"rationale"`
-	Context     string           `json:"context,omitempty"`
-	Supersedes  string           `json:"supersedes,omitempty"`
-	Status      string           `json:"status,omitempty"`
-	Topic       string           `json:"topic,omitempty"`
-	Description string           `json:"description,omitempty"`
-	Options     []DecisionOption `json:"options,omitempty"`
-	Selected    string           `json:"selected,omitempty"`
-	Freeform    string           `json:"freeform,omitempty"`
+	ID                      string                      `json:"id"`
+	At                      string                      `json:"at"`
+	By                      string                      `json:"by"`
+	Decision                string                      `json:"decision"`
+	Rationale               string                      `json:"rationale"`
+	Context                 string                      `json:"context,omitempty"`
+	Supersedes              string                      `json:"supersedes,omitempty"`
+	Status                  string                      `json:"status,omitempty"`
+	Topic                   string                      `json:"topic,omitempty"`
+	Description             string                      `json:"description,omitempty"`
+	Options                 []DecisionOption            `json:"options,omitempty"`
+	Selected                string                      `json:"selected,omitempty"`
+	Freeform                string                      `json:"freeform,omitempty"`
 	Notes                   string                      `json:"notes,omitempty"`
 	Modifications           *DecisionModifications      `json:"modifications,omitempty"`
 	RevisitAfter            *string                     `json:"revisit_after,omitempty"`

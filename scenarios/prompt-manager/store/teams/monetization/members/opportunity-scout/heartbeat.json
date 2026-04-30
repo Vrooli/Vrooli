@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "0 15 * * 1,4",
   "lastExecution": {
-    "startedAt": "2026-04-27T19:00:00Z",
-    "endedAt": "2026-04-27T19:03:10Z",
-    "status": "completed",
-    "runId": "d4fc2308-4d92-441a-b90a-77c17e752e05",
-    "logPath": "../store/teams/monetization/members/opportunity-scout/logs/2026-04-27T19-00-00Z.log"
+    "startedAt": "2026-04-30T19:00:00Z",
+    "endedAt": "2026-04-30T19:00:05Z",
+    "status": "failed",
+    "runId": "cb794149-d914-4d58-ad45-f130ed1dd1ed",
+    "logPath": "../store/teams/monetization/members/opportunity-scout/logs/2026-04-30T19-00-00Z.log",
+    "error": "2026-04-30T19:00:03.365439Z ERROR codex_core::session: failed to record rollout items: thread 019ddfc3-2201-7813-800a-6c227e1fefbb not found\n"
   },
-  "revision": 8,
+  "revision": 13,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-27T19:03:10Z"
+  "updatedAt": "2026-04-30T19:00:05Z"
 }

@@ -186,19 +186,27 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		return nil
 	}
 
-	// Use a transaction for consistency
-	tx, err := s.db.BeginTxx(ctx, nil)
+	conn, err := s.db.DB.Conn(ctx)
 	if err != nil {
-		return dbError("begin_transaction", err)
+		return dbError("get_connection", err)
 	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return dbError("begin_immediate_transaction", err)
+	}
+
+	committed := false
 	defer func() {
-		_ = tx.Rollback()
+		if !committed {
+			_, _ = conn.ExecContext(context.Background(), "ROLLBACK")
+		}
 	}()
 
 	// Get the next sequence number
 	var maxSeq int64
 	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`
-	if err := tx.GetContext(ctx, &maxSeq, query, runID); err != nil {
+	if err := conn.QueryRowContext(ctx, query, runID).Scan(&maxSeq); err != nil {
 		return dbError("get_max_sequence", err)
 	}
 
@@ -224,7 +232,7 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
 			VALUES (?, ?, ?, ?, ?, ?)`
 
-		if _, err := tx.ExecContext(ctx, insertQuery,
+		if _, err := conn.ExecContext(ctx, insertQuery,
 			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), sqliteTime(evt.Timestamp), data); err != nil {
 			return dbError("insert_event", err)
 		}
@@ -234,9 +242,10 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		storedEvents = append(storedEvents, &copy)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
 		return dbError("commit_transaction", err)
 	}
+	committed = true
 
 	// Notify subscribers after successful commit
 	s.notifySubscribers(runID, storedEvents)
