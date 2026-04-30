@@ -1149,6 +1149,22 @@ func TestStopRun_Success(t *testing.T) {
 	if rr.Code != http.StatusOK && rr.Code != http.StatusNotFound && rr.Code != http.StatusConflict {
 		t.Errorf("expected status 200, 404, or 409, got %d: %s", rr.Code, rr.Body.String())
 	}
+	if rr.Code == http.StatusOK {
+		var stopResp apipb.StopRunResponse
+		decodeProtoJSON(t, rr.Body.Bytes(), &stopResp)
+		if stopResp.Status == "" {
+			t.Fatalf("expected stop response status")
+		}
+		if stopResp.Run == nil {
+			t.Fatalf("expected hydrated run in stop response")
+		}
+		if stopResp.Run.Id != createdRun.Id {
+			t.Fatalf("expected response run ID %s, got %s", createdRun.Id, stopResp.Run.Id)
+		}
+		if stopResp.Run.Actions == nil {
+			t.Fatalf("expected hydrated run actions in stop response")
+		}
+	}
 }
 
 // TestStopRun_InvalidUUID tests stopping with invalid run ID.
@@ -1329,6 +1345,22 @@ func TestGetRunEvents_Success(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected initial user prompt event with content %q", prompt)
+	}
+
+	firstSequence := response.Events[0].Sequence
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/runs/%s/events?after_sequence=%d", createdRun.Id, firstSequence), nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected after_sequence status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var afterResponse apipb.GetRunEventsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &afterResponse)
+	for _, evt := range afterResponse.Events {
+		if evt.Sequence <= firstSequence {
+			t.Fatalf("after_sequence returned sequence %d <= %d", evt.Sequence, firstSequence)
+		}
 	}
 }
 

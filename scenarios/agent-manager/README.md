@@ -58,7 +58,7 @@ The architecture is built around **deliberate boundaries (seams)** that enable t
 | **Policy** | Abstract policy decisions | `policy.Evaluator` |
 | **Repository** | Abstract persistence | `*Repository` interfaces |
 
-See [docs/SEAMS.md](docs/SEAMS.md) for detailed documentation of architectural boundaries.
+See [docs/internal/SEAMS.md](docs/internal/SEAMS.md) for detailed documentation of architectural boundaries.
 
 ### Data Flow
 
@@ -150,8 +150,8 @@ Note: Claude Code often uses one turn for tool use and another for tool results.
 
 - [PRD.md](./PRD.md) - Product requirements and operational targets
 - [docs/RESEARCH.md](./docs/RESEARCH.md) - Research and architecture decisions
-- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred ideas
-- [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
+- [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred ideas
+- [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log
 - [requirements/README.md](./requirements/README.md) - Requirements registry
 
 ## Related Scenarios

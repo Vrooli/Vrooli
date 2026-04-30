@@ -267,7 +267,35 @@ type Collector interface {
 - Runners produce events without knowing how they're stored
 
 **Implementations:**
-- `SQLiteStore` - SQLite-backed event storage with streaming support (implemented, `adapters/event/sqlite.go`)
+- `SQLiteStore` - SQLite-backed event storage with streaming support (implemented, `adapters/event/sqlite.go`). Appends use an immediate SQLite transaction before sequence allocation so concurrent writers for the same run cannot race on `MAX(sequence)`.
+- `orchestration.appendAndBroadcastEvents` - shared durable delivery helper. It appends first, then broadcasts the persisted event with assigned ID/sequence. Durable event paths must go through this helper or a sink that delegates to it; broadcasting an event that failed to append is a contract violation.
+- `orchestration.runEventSink` / `broadcastingEventSink` - runner-facing event sink creation. The sink chooses append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
+
+**Realtime UI seam:**
+- `ui/src/lib/webSocketProtocol.ts` owns WebSocket wire parsing/building.
+- `ui/src/lib/webSocketSubscriptions.ts` owns durable subscription intent and replay after reconnect.
+- `ui/src/lib/runEventStore.ts` is the pure reducer for run snapshots, run events, per-run last sequence, dedupe, reconnect intent, and REST gap-fill reconciliation.
+- `ui/src/hooks/useRunEventStore.ts` is the React integration seam. `App.tsx` dispatches `run_status`, `run_event`, and `task_status` messages into this store; `RunsPage.tsx` reads selected-run snapshots/events from it instead of maintaining a parallel timeline state machine.
+
+---
+
+### 3b. Run Lifecycle Transitions (`orchestration/run_lifecycle.go`)
+
+**Purpose:** Keep status mutation, durable status events, run-status broadcasts, and action hydration consistent across stop, continue, and continuation terminal paths.
+
+**Boundary:**
+```go
+type RunStatusTransitionInput struct {
+    Run       *domain.Run
+    NewStatus domain.RunStatus
+    Phase     domain.RunPhase
+    Reason    string
+    EndedAt   *time.Time
+    // plus optional error, exit-code, heartbeat, progress, and summary fields
+}
+```
+
+`applyRunStatusTransition` updates the run, persists it, appends a durable status event when the status changed, broadcasts that event, hydrates `run.actions`, broadcasts `run_status`, and returns the hydrated run. Mutating endpoints should return that hydrated run when the proto response has room for it.
 
 ---
 
@@ -1060,15 +1088,15 @@ surfaced as `env: …/claude: No such file or directory` at exec time
 now surfaces on the run timeline as a typed, retryable code with a
 useful message.
 
-[CODE: `internal/adapters/sandbox/sandbox_launcher.go::translateCommandToNamespace`] •
-[CODE: `internal/adapters/sandbox/sandbox_launcher.go::NamespaceLayout`] •
-[CODE: `internal/adapters/sandbox/sandbox_launcher.go::ErrCommandHomeOverlayUnavailable`] •
-[CODE: `internal/orchestration/run_executor.go::emitGenericFailureEvent`]
+[CODE: api/internal/adapters/sandbox/sandbox_launcher.go#translateCommandToNamespace] •
+[CODE: api/internal/adapters/sandbox/sandbox_launcher.go#NamespaceLayout] •
+[CODE: api/internal/adapters/sandbox/sandbox_launcher.go#ErrCommandHomeOverlayUnavailable] •
+[CODE: api/internal/orchestration/run_executor.go#emitGenericFailureEvent]
 
 ---
 
 ## Related Documentation
 
-- [PRD.md](../PRD.md) - Product requirements and operational targets
-- [README.md](../README.md) - Overview and quick start
-- [requirements/README.md](../requirements/README.md) - Detailed requirements by module
+- [PRD.md](../../PRD.md) - Product requirements and operational targets
+- [README.md](../../README.md) - Overview and quick start
+- [requirements/README.md](../../requirements/README.md) - Detailed requirements by module

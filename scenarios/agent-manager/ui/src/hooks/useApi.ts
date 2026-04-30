@@ -854,8 +854,13 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
   );
 
   const getRunEvents = useCallback(
-    async (id: string): Promise<RunEvent[]> => {
-      const data = await apiRequest<unknown>("/runs/" + id + "/events");
+    async (id: string, options?: { afterSequence?: bigint }): Promise<RunEvent[]> => {
+      const params = new URLSearchParams();
+      if (options?.afterSequence !== undefined) {
+        params.set("after_sequence", options.afterSequence.toString());
+      }
+      const query = params.size > 0 ? `?${params.toString()}` : "";
+      const data = await apiRequest<unknown>("/runs/" + id + "/events" + query);
       const message = parseProto(GetRunEventsResponseSchema, data);
       return message.events ?? [];
     },

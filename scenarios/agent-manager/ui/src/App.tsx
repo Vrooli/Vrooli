@@ -1,9 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks, useRunStatusCounts } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
-import { RunStatus } from "./types";
-import type { Run } from "./types";
+import { useRunEventStore } from "./hooks/useRunEventStore";
+import type { Run, RunEvent } from "./types";
 import { useIsMobile } from "./hooks/useViewportSize";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppHeader } from "./components/layout/AppHeader";
@@ -42,6 +42,17 @@ export default function App() {
   const runners = useRunners({ enabled: needsRunnerData });
   const modelRegistry = useModelRegistry({ enabled: needsRunnerData });
   const isMobile = useIsMobile();
+  const runEventStore = useRunEventStore();
+  const reconciliationInFlightRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    runEventStore.actions.runsSnapshotLoaded(runs.data || []);
+  }, [runs.data, runEventStore.actions]);
+
+  const mergedRuns = useMemo(() => {
+    const snapshots = runEventStore.state.runsById;
+    return (runs.data || []).map((run) => ({ ...run, ...(snapshots[run.id] ?? {}) } as Run));
+  }, [runs.data, runEventStore.state.runsById]);
 
   // Derive active section from current path
   const getActiveSection = useCallback((): NavSection => {
@@ -55,36 +66,6 @@ export default function App() {
 
   const activeSection = getActiveSection();
 
-  // WebSocket connection for real-time updates
-  // Use a ref to break the circular dependency: handleWebSocketMessage → ws → handleWebSocketMessage
-  const subscribeAllRef = useRef<() => void>(() => {});
-
-  // Track runs that reached terminal state to skip redundant refetches
-  const terminalRunIdsRef = useRef<Set<string>>(new Set());
-
-  // Debounce run refetches to coalesce rapid-fire WS updates (300ms)
-  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedRunRefetch = useCallback(() => {
-    if (refetchTimerRef.current !== null) {
-      clearTimeout(refetchTimerRef.current);
-    }
-    refetchTimerRef.current = setTimeout(() => {
-      refetchTimerRef.current = null;
-      runs.refetch();
-    }, 300);
-  }, [runs]);
-
-  // Clean up debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (refetchTimerRef.current !== null) {
-        clearTimeout(refetchTimerRef.current);
-      }
-    };
-  }, []);
-
-  const TERMINAL_STATUSES = useRef([RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED]);
-
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
       if (import.meta.env.DEV) {
@@ -94,13 +75,19 @@ export default function App() {
       switch (message.type) {
         case "run_status": {
           const statusUpdate = message.payload as Partial<Run>;
-          const isTerminal = statusUpdate.status !== undefined &&
-            TERMINAL_STATUSES.current.includes(statusUpdate.status);
-          if (isTerminal && message.runId) {
-            terminalRunIdsRef.current.add(message.runId);
+          if (statusUpdate.id) {
+            runEventStore.actions.runStatusReceived({ ...statusUpdate, id: statusUpdate.id });
+            void runs.getRun(statusUpdate.id)
+              .then((run) => {
+                runEventStore.actions.runSnapshotLoaded(run);
+              })
+              .catch((err) => {
+                console.error(`Failed to hydrate run status update for ${statusUpdate.id}:`, err);
+              });
           }
-          debouncedRunRefetch();
-          // Refetch tasks if this run references a task we don't have yet
+          if (isDashboardRoute) {
+            runStatusCounts.refetch();
+          }
           if (
             needsTaskData &&
             statusUpdate.taskId &&
@@ -112,32 +99,65 @@ export default function App() {
           break;
         }
         case "run_event":
-          // Skip refetch if run already reached terminal state
-          if (message.runId && terminalRunIdsRef.current.has(message.runId)) {
-            break;
-          }
-          debouncedRunRefetch();
+          runEventStore.actions.runEventReceived(message.payload as RunEvent);
           break;
         case "task_status":
+          runEventStore.actions.taskStatusReceived(message.payload as { id: string });
           if (needsTaskData) {
             tasks.refetch();
           }
           break;
-        case "connected":
-          // Clear terminal cache on reconnect (state may have changed)
-          terminalRunIdsRef.current.clear();
-          subscribeAllRef.current();
-          break;
       }
     },
-    [debouncedRunRefetch, needsTaskData, tasks]
+    [isDashboardRoute, needsTaskData, runEventStore.actions, runStatusCounts, runs, tasks]
   );
 
   const ws = useWebSocket({
     enabled: true,
     onMessage: handleWebSocketMessage,
+    onStatusChange: (status) => {
+      if (status === "connected") {
+        runEventStore.actions.connected();
+        return;
+      }
+      if (status === "disconnected" || status === "error") {
+        runEventStore.actions.disconnected();
+      }
+    },
   });
-  subscribeAllRef.current = ws.subscribeAll;
+  const { subscribeAll, unsubscribeAll } = ws;
+  const getRunEvents = runs.getRunEvents;
+
+  useEffect(() => {
+    runEventStore.actions.subscribeAll();
+    subscribeAll();
+    return () => {
+      runEventStore.actions.unsubscribeAll();
+      unsubscribeAll();
+    };
+  }, [runEventStore.actions, subscribeAll, unsubscribeAll]);
+
+  useEffect(() => {
+    for (const intent of runEventStore.reconciliationIntents) {
+      if (reconciliationInFlightRef.current.has(intent.runId)) {
+        continue;
+      }
+      reconciliationInFlightRef.current.add(intent.runId);
+      void (async () => {
+        try {
+          const events = await getRunEvents(intent.runId, {
+            afterSequence: intent.afterSequence,
+          });
+          runEventStore.actions.eventsGapFilled(intent.runId, events);
+        } catch (err) {
+          console.error(`Failed to reconcile run events for ${intent.runId}:`, err);
+          runEventStore.actions.clearReconciliationIntent(intent.runId);
+        } finally {
+          reconciliationInFlightRef.current.delete(intent.runId);
+        }
+      })();
+    }
+  }, [runEventStore.reconciliationIntents, runEventStore.actions, getRunEvents]);
 
   const handleSectionChange = useCallback(
     (section: NavSection) => {
@@ -234,7 +254,7 @@ export default function App() {
           className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "pb-16" : ""}`}
         >
           <ErrorBoundary section="Application">
-          <Routes>
+            <Routes>
             <Route
               path="/"
               element={
@@ -242,7 +262,7 @@ export default function App() {
                   <Suspense fallback={pageFallback}>
                     <DashboardPage
                       health={health.data}
-                      runs={runs.data || []}
+                      runs={mergedRuns}
                       statusCounts={runStatusCounts.data}
                       onRefresh={() => {
                         health.refetch();
@@ -306,7 +326,7 @@ export default function App() {
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Runs">
                     <RunsPage
-                      runs={runs.data || []}
+                      runs={mergedRuns}
                       tasks={tasks.data || []}
                       profiles={profiles.data || []}
                       loading={runs.loading}
@@ -327,10 +347,9 @@ export default function App() {
                       onContinueRun={runs.continueRun}
                       onDeleteRunMessage={runs.deleteRunMessage}
                       onRefresh={runs.refetch}
+                      runEventStore={runEventStore}
                       wsSubscribe={ws.subscribe}
                       wsUnsubscribe={ws.unsubscribe}
-                      wsAddMessageHandler={ws.addMessageHandler}
-                      wsRemoveMessageHandler={ws.removeMessageHandler}
                     />
                   </ErrorBoundary>
                 </Suspense>
@@ -348,7 +367,7 @@ export default function App() {
             />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+            </Routes>
           </ErrorBoundary>
         </main>
 

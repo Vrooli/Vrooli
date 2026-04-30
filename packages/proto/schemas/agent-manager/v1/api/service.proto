@@ -765,6 +765,9 @@ message StopRunRequest {
 message StopRunResponse {
   // Status after stopping.
   string status = 1;
+
+  // Updated run after stopping, including hydrated action flags.
+  Run run = 2;
 }
 
 // StopRunByTagRequest stops a run by tag.
@@ -780,6 +783,9 @@ message StopRunByTagResponse {
 
   // Tag that was stopped.
   string tag = 2;
+
+  // Updated run after stopping, including hydrated action flags.
+  Run run = 3;
 }
 
 // StopAllRunsRequest stops multiple runs.

@@ -43,7 +43,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
-import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum } from "../types";
+import { ModelPreset, RunMode, SandboxMode, RunnerType as RunnerTypeEnum } from "../types";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -610,7 +610,7 @@ export function QuickRunDialog({
                                       {profile.model}
                                     </Badge>
                                   )}
-                                  {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== 0 && (
+                                  {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
                                     <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
                                   )}
                                   {profile.sandboxConfig?.manualReview && (
@@ -970,7 +970,7 @@ export function QuickRunDialog({
                               {profile.model && (
                                 <Badge variant="outline">{profile.model}</Badge>
                               )}
-                              {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== 0 && (
+                              {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
                                 <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
                               )}
                               {profile.sandboxConfig?.manualReview && (

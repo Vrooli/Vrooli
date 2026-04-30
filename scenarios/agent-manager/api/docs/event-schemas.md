@@ -26,6 +26,16 @@ All events share a common envelope:
 | timestamp | datetime | When the event occurred |
 | data | object | Event-specific payload |
 
+## Durability and Ordering Contract
+
+Persisted run events are the source of truth. WebSocket delivery is an optimization for live clients.
+
+- Durable events are appended before they are broadcast to subscribers.
+- SQLite sequence allocation is protected by a write transaction, so one run's events receive unique contiguous sequence numbers even under concurrent appenders.
+- `sequence` is the canonical ordering field within a run. Clients should use timestamp only as a defensive tie-breaker for malformed data.
+- `GET /api/v1/runs/{id}/events?after_sequence=N` is the canonical gap-fill API and returns events with `sequence > N`.
+- Clients should dedupe by event ID first and sequence second when merging REST gap-fill with live WebSocket delivery.
+
 ## Event Types
 
 ### tool_call

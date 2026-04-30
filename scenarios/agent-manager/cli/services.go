@@ -333,8 +333,17 @@ func (s *RunService) Create(req *apipb.CreateRunRequest) ([]byte, *domainpb.Run,
 }
 
 // Stop stops a running execution.
-func (s *RunService) Stop(id string) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/"+id+"/stop", nil, nil)
+func (s *RunService) Stop(id string) ([]byte, *apipb.StopRunResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/stop", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.StopRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
 }
 
 // GetByTag retrieves a run by its custom tag.
@@ -352,8 +361,17 @@ func (s *RunService) GetByTag(tag string) ([]byte, *domainpb.Run, error) {
 }
 
 // StopByTag stops a run identified by its custom tag.
-func (s *RunService) StopByTag(tag string) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/tag/"+tag+"/stop", nil, nil)
+func (s *RunService) StopByTag(tag string) ([]byte, *apipb.StopRunByTagResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/tag/"+tag+"/stop", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.StopRunByTagResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
 }
 
 // StopAll stops all running runs, optionally filtered by tag prefix.
@@ -416,10 +434,13 @@ func (s *RunService) GetDiff(id string) ([]byte, *domainpb.RunDiff, error) {
 }
 
 // GetEvents retrieves events for a run.
-func (s *RunService) GetEvents(id string, limit int) ([]byte, []*domainpb.RunEvent, error) {
+func (s *RunService) GetEvents(id string, limit int, afterSequence *int64) ([]byte, []*domainpb.RunEvent, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if afterSequence != nil {
+		query.Set("after_sequence", fmt.Sprintf("%d", *afterSequence))
 	}
 
 	body, err := s.api.Get("/api/v1/runs/"+id+"/events", query)

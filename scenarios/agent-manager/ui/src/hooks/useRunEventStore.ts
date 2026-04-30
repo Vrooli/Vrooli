@@ -41,3 +41,4 @@ export function useRunEventStore() {
   };
 }
 
+export type UseRunEventStoreReturn = ReturnType<typeof useRunEventStore>;

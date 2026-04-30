@@ -356,7 +356,7 @@ internal/domain/
 
 ## Related Documentation
 
-- [SEAMS.md](SEAMS.md) - Architectural boundaries and interfaces
-- [FAILURE_TOPOGRAPHY.md](FAILURE_TOPOGRAPHY.md) - Failure mode analysis
-- [PROBLEMS.md](PROBLEMS.md) - Known issues and deferred work
-- [RESEARCH.md](RESEARCH.md) - Architecture decisions and research
+- [SEAMS.md](../internal/SEAMS.md) - Architectural boundaries and interfaces
+- [FAILURE_TOPOGRAPHY.md](../FAILURE_TOPOGRAPHY.md) - Failure mode analysis
+- [PROBLEMS.md](../internal/PROBLEMS.md) - Known issues and deferred work
+- [RESEARCH.md](../RESEARCH.md) - Architecture decisions and research

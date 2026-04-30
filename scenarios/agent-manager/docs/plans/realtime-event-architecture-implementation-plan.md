@@ -401,12 +401,13 @@ Manual validation:
 - [x] Phase 2 stop/continue status transition tests pass.
 - [x] Phase 3 WebSocket protocol/subscription tests pass.
 - [x] Phase 4 store reducer tests pass.
-- [ ] Phase 5 UI type-check and unit tests pass.
-- [ ] Phase 6 continuation tests pass.
-- [ ] `vrooli scenario test agent-manager` passes.
-- [ ] Docs updated and references point to live files.
-- [ ] No direct scenario execution used; lifecycle commands only.
-- [ ] `git diff` reviewed for unrelated changes before handoff.
+- [x] Phase 5 UI type-check and unit tests pass.
+- [x] Phase 6 continuation tests pass.
+- [x] Phase 7 API/CLI interoperability tests pass.
+- [x] Phase 8 docs updated and references point to live files.
+- [x] `vrooli scenario test agent-manager` passes.
+- [x] No direct scenario execution used; lifecycle commands only.
+- [x] `git diff` reviewed for unrelated changes before handoff.
 
 ## 11. Risks and Mitigations
 

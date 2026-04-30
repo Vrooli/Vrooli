@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -260,11 +261,20 @@ func TestOrchestrator_ReconcileScenarioProfiles_AllSeededScenariosDryRun(t *test
 			if err != nil {
 				t.Fatalf("ReconcileScenarioProfiles dry-run failed: %v", err)
 			}
-			if result.Failed != 0 || len(result.Results) != 1 {
-				t.Fatalf("expected one valid dry-run result and no failures, got %+v", result)
+			if result.Failed != 0 || len(result.Results) == 0 {
+				t.Fatalf("expected valid dry-run results and no failures, got %+v", result)
 			}
-			if result.Results[0].ProfileKey != scenario+"/default" {
-				t.Fatalf("profile key = %q, want %q", result.Results[0].ProfileKey, scenario+"/default")
+			foundDefault := false
+			for _, profileResult := range result.Results {
+				if !strings.HasPrefix(profileResult.ProfileKey, scenario+"/") {
+					t.Fatalf("profile key = %q, want prefix %q", profileResult.ProfileKey, scenario+"/")
+				}
+				if profileResult.ProfileKey == scenario+"/default" {
+					foundDefault = true
+				}
+			}
+			if !foundDefault {
+				t.Fatalf("expected default profile for %s, got %+v", scenario, result.Results)
 			}
 		})
 	}

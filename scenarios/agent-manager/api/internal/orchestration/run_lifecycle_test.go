@@ -2,6 +2,7 @@ package orchestration_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -243,6 +244,137 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 	}
 	if broadcasts[1].Actions == nil || !broadcasts[1].Actions.CanContinue {
 		t.Fatalf("expected terminal broadcast actions to allow continuation")
+	}
+}
+
+func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	continueDone := make(chan error, 1)
+	var captured runner.ContinueRequest
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsMessages:     true,
+		SupportsStreaming:    true,
+		SupportsCancellation: true,
+		SupportsContinuation: true,
+		MaxTurns:             100,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		defer close(continueDone)
+		captured = req
+		if req.EventSink == nil {
+			continueDone <- errors.New("expected continuation event sink")
+			return nil, errors.New("expected continuation event sink")
+		}
+		if err := req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "assistant", "continued from protected sandbox")); err != nil {
+			continueDone <- err
+			return nil, err
+		}
+		continueDone <- nil
+		return &runner.ExecuteResult{
+			Success:   true,
+			ExitCode:  0,
+			SessionID: "sess-protected-after-continue",
+		}, nil
+	}
+
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:          "protected-continue-profile",
+		ProfileKey:    "protected-continue-" + uuid.New().String()[:8],
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:       "protected continue task",
+		Description: "continuation should preserve protected launcher inputs",
+		ScopePath:   "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	sandboxID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeSandboxed,
+		SandboxID:      &sandboxID,
+		Status:         domain.RunStatusComplete,
+		Phase:          domain.RunPhaseCompleted,
+		SessionID:      "sess-protected-before-continue",
+		StartedAt:      &now,
+		EndedAt:        &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    domain.RunnerTypeClaudeCode,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		},
+		ApprovalState: domain.ApprovalStateNone,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+		RunID:   runID,
+		Message: "please continue in protected mode",
+	}); err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+
+	select {
+	case err := <-continueDone:
+		if err != nil {
+			t.Fatalf("continuation runner: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("continuation runner was never called")
+	}
+
+	if captured.ResolvedConfig == nil {
+		t.Fatal("expected continuation request to carry resolved config")
+	}
+	if captured.ResolvedConfig.SandboxConfig == nil || captured.ResolvedConfig.SandboxConfig.Mode != domain.SandboxModeProtected {
+		t.Fatalf("expected protected sandbox config, got %#v", captured.ResolvedConfig.SandboxConfig)
+	}
+	if captured.SandboxID == nil || *captured.SandboxID != sandboxID {
+		t.Fatalf("expected sandbox ID %s, got %v", sandboxID, captured.SandboxID)
+	}
+
+	statusEvents := waitForStatusEvents(t, ctx, eventStore, runID, 2)
+	first := statusEvents[0].Data.(*domain.StatusEventData)
+	second := statusEvents[1].Data.(*domain.StatusEventData)
+	if first.NewStatus != string(domain.RunStatusRunning) || second.NewStatus != string(domain.RunStatusComplete) {
+		t.Fatalf("unexpected continuation status events %s then %s", first.NewStatus, second.NewStatus)
+	}
+
+	messageEvents, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeMessage},
+	})
+	if err != nil {
+		t.Fatalf("get message events: %v", err)
+	}
+	if len(messageEvents) != 2 {
+		t.Fatalf("expected user and assistant message events, got %d", len(messageEvents))
 	}
 }
 

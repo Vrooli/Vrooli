@@ -100,6 +100,73 @@ goroutine starts → SendHeartbeat (immediate)
 
 **Test:** `internal/orchestration/run_executor_test.go::TestRunExecutor_Execute_*` exercises heartbeat-on-execute. Reconciler tests pin the staleness detection.
 
+## Continuation turn lifecycle
+
+`ContinueRun` is a separate temporal flow from initial execution because it resumes an existing runner session instead of recreating the workspace and acquiring a fresh sandbox. It is aligned with `RunExecutor` through shared primitives:
+
+1. `applyRunStatusTransition` moves the run from terminal status to `running`, persists the run, appends a durable status event, and broadcasts hydrated actions.
+2. `runEventSink` creates the same durable event-sink shape used by dispatcher lifecycle events: append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
+3. `executeContinuation` derives `Execution.DefaultTimeout` and `Heartbeat.RunHeartbeatInterval` from the same lever set as `RunExecutor`.
+4. `phases.RunHeartbeatLoop` sends continuation heartbeats until the runner returns, then the terminal `applyRunStatusTransition` records the completed or failed status.
+
+```
+ContinueRun
+   ↓
+status transition: terminal → running
+   ↓
+emit user message event
+   ↓
+runner.Continue(ctx with Execution.DefaultTimeout)
+   ├─ heartbeat loop @ Heartbeat.RunHeartbeatInterval
+   ├─ runner EventSink.Emit → durable event stream
+   └─ ContinueRequest carries ResolvedConfig + SandboxID
+   ↓
+status transition: running → complete|failed
+```
+
+**Levers:** `Execution.DefaultTimeout` caps each continuation turn. `Heartbeat.RunHeartbeatInterval` controls continuation heartbeats.
+
+**Tests:**
+- `internal/orchestration/continuation_timeout_test.go::TestContinuation_HasPerTurnTimeout`
+- `internal/orchestration/run_lifecycle_test.go::TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents`
+- `internal/orchestration/run_lifecycle_test.go::TestContinueRun_EmitsRunningAndTerminalStatusTransitions`
+
+## WebSocket reconnect and gap-fill
+
+The UI treats WebSocket as a delivery optimization over the durable run-event store. The selected run's last observed sequence is the resume cursor.
+
+```
+App mounts
+   ↓
+useWebSocket connects
+   ↓
+subscription intent replay
+   ├─ subscribe_all if requested
+   └─ subscribe run_id for every desired selected-run subscription
+   ↓
+live messages
+   ├─ run_status → RunEventStore run snapshot
+   ├─ run_event  → RunEventStore ordered event append + dedupe
+   └─ task_status → task refresh path
+
+socket disconnect/reconnect
+   ↓
+RunEventStore records reconnect generation
+   ↓
+selected run emits reconciliation intent
+   ↓
+GET /api/v1/runs/{id}/events?after_sequence=<lastSequence>
+   ↓
+eventsGapFilled merges missing durable events without duplicates
+```
+
+Terminal run statuses use the same `after_sequence` reconciliation path; fixed sleeps are not part of the contract. `GetRunEvents.after_sequence` returns events with `sequence > after_sequence`, so clients can safely pass their last displayed sequence.
+
+**Tests:**
+- `ui/tests/lib/webSocketSubscriptions.test.ts` pins subscription intent replay.
+- `ui/tests/lib/runEventStore.test.ts` pins ordered append, dedupe, reconnect intent, and gap-fill merge behavior.
+- `api/internal/handlers/handlers_test.go::TestGetRunEvents_Success` pins the REST `after_sequence` filter.
+
 ## Recovery tail cadence
 
 When a run is recovered with `allowTail=true` and the runner process is alive, `Reconciler.startTailer` opens a goroutine that polls the transcript file every `Recovery.TranscriptTailInterval` and forwards new lines through the recovery EventSink.

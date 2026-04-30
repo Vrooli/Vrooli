@@ -47,6 +47,36 @@
 
 ---
 
+# React Coherence Update - 2026-04-30
+
+## Completed In Realtime Event Architecture Pass
+
+1. Introduced a focused reducer-backed run event store:
+   - Pure state machine: `ui/src/lib/runEventStore.ts`
+   - React seam: `ui/src/hooks/useRunEventStore.ts`
+   - Unit coverage: `ui/tests/lib/runEventStore.test.ts`
+
+2. Removed split realtime ownership between `App.tsx` and `RunsPage.tsx`:
+   - `App.tsx` owns the WebSocket message ingress and dispatches `run_status`, `run_event`, and `task_status` into the store.
+   - `RunsPage.tsx` consumes store snapshots/events for the selected run.
+   - Local selected-run event arrays, run overrides, reconnect handlers, and terminal `setTimeout` reconciliation were removed.
+
+3. Made WebSocket subscriptions durable across reconnect:
+   - `ui/src/lib/webSocketProtocol.ts` isolates wire parsing/building.
+   - `ui/src/lib/webSocketSubscriptions.ts` tracks desired subscriptions and replays them on reconnect.
+   - `useWebSocket.ts` no longer exposes ad hoc imperative message-handler registration.
+
+## Coherence Boundary
+
+Run timeline rendering remains pure display logic over normalized events in `ui/src/lib/runTimeline.ts` and `ui/src/components/RunTimeline.tsx`. Realtime ordering, dedupe, gap-fill, and terminal reconciliation belong in the store, not in page or component-local effects.
+
+## Validation
+
+- `pnpm --dir scenarios/agent-manager/ui run type-check`
+- `pnpm --dir scenarios/agent-manager/ui run test:unit`
+
+---
+
 # React Coherence Update - 2026-02-07
 
 ## Completed This Pass

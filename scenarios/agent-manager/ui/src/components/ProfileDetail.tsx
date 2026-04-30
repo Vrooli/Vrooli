@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { networkAccessLabel, runnerTypeLabel, sandboxModeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
-import { ModelPreset } from "../types";
+import { ModelPreset, SandboxMode } from "../types";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
 
 const durationToMinutes = (duration: Duration | undefined): number => {
@@ -74,7 +74,7 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
         {profile.model && profile.model.trim() !== "" && (
           <Badge variant="outline">{profile.model}</Badge>
         )}
-        {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== 0 && (
+        {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
           <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
         )}
         {profile.sandboxConfig?.manualReview && (

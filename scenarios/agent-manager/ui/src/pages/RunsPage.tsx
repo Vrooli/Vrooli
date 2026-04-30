@@ -40,7 +40,7 @@ import type {
   Task,
 } from "../types";
 import { ApprovalState, RunStatus } from "../types";
-import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
+import type { UseRunEventStoreReturn } from "../hooks/useRunEventStore";
 import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { ResumeFromFailureModal } from "../components/ResumeFromFailureModal";
@@ -62,7 +62,7 @@ interface RunsPageProps {
   onDeleteRun: (id: string) => Promise<void>;
   onRetryRun: (run: Run) => Promise<Run>;
   onGetRun: (id: string) => Promise<Run>;
-  onGetEvents: (id: string) => Promise<RunEvent[]>;
+  onGetEvents: (id: string, options?: { afterSequence?: bigint }) => Promise<RunEvent[]>;
   onGetDiff: (id: string) => Promise<RunDiff>;
   onGetTask: (id: string) => Promise<Task>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
@@ -87,10 +87,9 @@ interface RunsPageProps {
   onContinueRun: (id: string, message: string, attachmentIds?: string[]) => Promise<Run>;
   onDeleteRunMessage: (runId: string, eventId: string) => Promise<void>;
   onRefresh: () => void;
+  runEventStore: UseRunEventStoreReturn;
   wsSubscribe: (runId: string) => void;
   wsUnsubscribe: (runId: string) => void;
-  wsAddMessageHandler: (handler: MessageHandler) => void;
-  wsRemoveMessageHandler: (handler: MessageHandler) => void;
 }
 
 const STATUS_FILTER_OPTIONS = [
@@ -132,10 +131,9 @@ export function RunsPage({
   onContinueRun,
   onDeleteRunMessage,
   onRefresh,
+  runEventStore,
   wsSubscribe,
   wsUnsubscribe,
-  wsAddMessageHandler,
-  wsRemoveMessageHandler,
 }: RunsPageProps) {
   const { runId } = useParams<{ runId?: string }>();
   const [searchParams] = useSearchParams();
@@ -143,7 +141,6 @@ export function RunsPage({
   const { isDesktop } = useViewportSize();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const isDeselectingRef = useRef(false);
-  const [events, setEvents] = useState<RunEvent[]>([]);
   const [diff, setDiff] = useState<RunDiff | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
@@ -152,7 +149,6 @@ export function RunsPage({
   const [deleteConfirmRun, setDeleteConfirmRun] = useState<Run | null>(null);
   const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
   const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
-  const [runOverrides, setRunOverrides] = useState<Record<string, Run>>({});
   const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
   const {
@@ -203,16 +199,16 @@ export function RunsPage({
     [profiles]
   );
 
-  const resolvedRuns = useMemo(
-    () => runs.map((run) => runOverrides[run.id] ?? run),
-    [runs, runOverrides]
-  );
+  const resolvedRuns = useMemo(() => {
+    const snapshots = runEventStore.state.runsById;
+    return runs.map((run) => ({ ...run, ...(snapshots[run.id] ?? {}) } as Run));
+  }, [runs, runEventStore.state.runsById]);
 
   const syncRunDetails = useCallback(
     async (runId: string) => {
       try {
         const latest = await onGetRun(runId);
-        setRunOverrides((prev) => ({ ...prev, [runId]: latest }));
+        runEventStore.actions.runSnapshotLoaded(latest);
         setSelectedRun((prev) => (prev && prev.id === runId ? { ...prev, ...latest } : prev));
 
         if (!getTaskById(latest.taskId)) {
@@ -223,158 +219,65 @@ export function RunsPage({
         console.error("Failed to sync run details:", err);
       }
     },
-    [getTaskById, onGetRun, onGetTask]
+    [getTaskById, onGetRun, onGetTask, runEventStore.actions]
   );
 
   // Extract IDs as stable primitives to avoid unnecessary effect re-runs
   const selectedRunId = selectedRun?.id ?? null;
   const applyInvestigationRunId = applyInvestigationRun?.id ?? null;
+  const events = selectedRunId ? runEventStore.getRunEvents(selectedRunId) : [];
 
   // Subscribe to WebSocket events for the selected run
   useEffect(() => {
     if (!selectedRunId) return;
+    runEventStore.actions.subscribeRun(selectedRunId);
     wsSubscribe(selectedRunId);
     return () => {
+      runEventStore.actions.unsubscribeRun(selectedRunId);
       wsUnsubscribe(selectedRunId);
     };
-  }, [selectedRunId, wsSubscribe, wsUnsubscribe]);
+  }, [selectedRunId, runEventStore.actions, wsSubscribe, wsUnsubscribe]);
 
   // Subscribe to WebSocket events for the investigation run when Apply modal is open
   // This ensures we get updates when recommendation extraction completes
   useEffect(() => {
     if (!applyInvestigationRunId || !applyModalOpen) return;
+    runEventStore.actions.subscribeRun(applyInvestigationRunId);
     wsSubscribe(applyInvestigationRunId);
     return () => {
+      runEventStore.actions.unsubscribeRun(applyInvestigationRunId);
       wsUnsubscribe(applyInvestigationRunId);
     };
-  }, [applyInvestigationRunId, applyModalOpen, wsSubscribe, wsUnsubscribe]);
+  }, [applyInvestigationRunId, applyModalOpen, runEventStore.actions, wsSubscribe, wsUnsubscribe]);
 
-  // Track whether WS has connected at least once, so we can distinguish
-  // reconnections (which need an event refetch) from the initial connection.
-  const wsHasConnectedRef = useRef(false);
-
-  // Handle WebSocket messages for real-time updates
   useEffect(() => {
-    const handleMessage: MessageHandler = (message: WebSocketMessage) => {
-      // On WS reconnect, refetch events for the selected run to catch any
-      // events missed during the disconnect (e.g. user switched browser tabs
-      // and the WS timed out). Skip on initial connection since loadRunDetails
-      // already fetches events.
-      if (message.type === "connected") {
-        if (wsHasConnectedRef.current && selectedRunId) {
-          const runIdToReconcile = selectedRunId;
-          (async () => {
-            try {
-              // Refetch the run itself (status may have changed during disconnect)
-              const latestRun = await onGetRun(runIdToReconcile);
-              setSelectedRun((prev) => (prev && prev.id === runIdToReconcile ? { ...prev, ...latestRun } : prev));
-              setRunOverrides((prev) => ({ ...prev, [runIdToReconcile]: latestRun }));
+    if (!selectedRunId) return;
+    const snapshot = runEventStore.state.runsById[selectedRunId];
+    if (snapshot) {
+      setSelectedRun((prev) => (prev && prev.id === selectedRunId ? { ...prev, ...snapshot } as Run : prev));
+    }
+  }, [selectedRunId, runEventStore.state.runsById]);
 
-              // Refetch all events to fill any gaps
-              const freshEvents = await onGetEvents(runIdToReconcile);
-              if (freshEvents?.length) {
-                setEvents((prev) => {
-                  const knownIds = new Set(freshEvents.map((e) => e.id));
-                  const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
-                  const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
-                  return [...freshEvents, ...extras];
-                });
-              }
-            } catch (err) {
-              console.error("Failed to reconcile events after WS reconnect:", err);
-            }
-          })();
-        }
-        wsHasConnectedRef.current = true;
-        return;
-      }
-
-      // Handle messages for selectedRun
-      if (selectedRunId && message.runId === selectedRunId) {
-        switch (message.type) {
-          case "run_event": {
-            const newEvent = message.payload as RunEvent;
-            setEvents((prev) => {
-              if (prev.some((e) => e.id === newEvent.id || e.sequence === newEvent.sequence)) {
-                return prev;
-              }
-              return [...prev, newEvent];
-            });
-            break;
-          }
-          case "run_status": {
-            const statusUpdate = message.payload as Partial<Run>;
-            setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
-            const runId = statusUpdate.id;
-            if (runId) {
-              setRunOverrides((prev) => {
-                const existing = prev[runId];
-                if (!existing) return prev;
-                return { ...prev, [runId]: { ...existing, ...statusUpdate } as Run };
-              });
-            }
-            // When run reaches terminal state, refetch events after a short delay
-            // to catch any in-flight messages (subscription cleanup handles unsubscribe)
-            const isTerminal = statusUpdate.status !== undefined &&
-              [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
-            if (isTerminal && selectedRunId) {
-              const runIdToRefetch = selectedRunId;
-              setTimeout(() => {
-                void (async () => {
-                  try {
-                    const freshEvents = await onGetEvents(runIdToRefetch);
-                    if (!freshEvents?.length) return;
-                    // Merge REST events with any WS-received events to avoid losing in-flight messages
-                    setEvents((prev) => {
-                      const knownIds = new Set(freshEvents.map((e) => e.id));
-                      const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
-                      // Keep WS-only events that the REST response hasn't caught yet
-                      const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
-                      return [...freshEvents, ...extras];
-                    });
-                  } catch (err) {
-                    console.error("Failed to refetch events on completion:", err);
-                  }
-                })();
-              }, 500);
-            }
-            break;
-          }
-        }
-      }
-
-      // Handle messages for applyInvestigationRun (for recommendation extraction updates)
-      if (applyInvestigationRunId && message.runId === applyInvestigationRunId) {
-        if (message.type === "run_status") {
-          const statusUpdate = message.payload as Partial<Run>;
-          setApplyInvestigationRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
-          // Unsubscribe once investigation run reaches terminal state
-          const isTerminal = statusUpdate.status !== undefined &&
-            [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
-          if (isTerminal) {
-            wsUnsubscribe(applyInvestigationRunId);
-          }
-        }
-      }
-    };
-
-    wsAddMessageHandler(handleMessage);
-    return () => {
-      wsRemoveMessageHandler(handleMessage);
-    };
-  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe, onGetEvents, onGetRun]);
+  useEffect(() => {
+    if (!applyInvestigationRunId) return;
+    const snapshot = runEventStore.state.runsById[applyInvestigationRunId];
+    if (snapshot) {
+      setApplyInvestigationRun((prev) => (prev ? { ...prev, ...snapshot } as Run : prev));
+    }
+  }, [applyInvestigationRunId, runEventStore.state.runsById]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {
       setSelectedRun(run);
-      setEvents([]);
       setDiff(null);
+      runEventStore.actions.runSnapshotLoaded(run);
+      runEventStore.actions.subscribeRun(run.id);
       void syncRunDetails(run.id);
 
       setEventsLoading(true);
       try {
         const evts = await onGetEvents(run.id);
-        setEvents(evts || []);
+        runEventStore.actions.eventsGapFilled(run.id, evts || []);
       } catch (err) {
         console.error("Failed to load events:", err);
       } finally {
@@ -397,7 +300,7 @@ export function RunsPage({
         }
       }
     },
-    [onGetEvents, onGetDiff, syncRunDetails]
+    [onGetEvents, onGetDiff, runEventStore.actions, syncRunDetails]
   );
 
   // Sync selectedRun with the runs list when it updates
@@ -409,15 +312,13 @@ export function RunsPage({
     }
   }, [resolvedRuns, selectedRun]);
 
-  // Sync applyInvestigationRun with the runs list when it updates
-  // This ensures the modal sees WebSocket updates (e.g., recommendation extraction status)
   useEffect(() => {
     if (!applyInvestigationRun) return;
-    const updatedRun = runs.find((r) => r.id === applyInvestigationRun.id);
+    const updatedRun = resolvedRuns.find((r) => r.id === applyInvestigationRun.id);
     if (updatedRun && updatedRun !== applyInvestigationRun) {
       setApplyInvestigationRun(updatedRun);
     }
-  }, [runs, applyInvestigationRun]);
+  }, [resolvedRuns, applyInvestigationRun]);
 
   // Clear deselecting guard only after the router has actually processed
   // the navigation (runId becomes undefined). This prevents the URL-sync
@@ -499,6 +400,7 @@ export function RunsPage({
 
   const handleRetry = async (run: Run) => {
     const newRun = await onRetryRun(run);
+    runEventStore.actions.runSnapshotLoaded(newRun);
     loadRunDetails(newRun);
     return newRun;
   };
@@ -527,6 +429,7 @@ export function RunsPage({
       setInvestigateModalOpen(false);
       clearSelection();
       setSelectionMode(false);
+      runEventStore.actions.runSnapshotLoaded(created);
       navigate(`/runs/${created.id}`);
     } catch (err) {
       setInvestigateError((err as Error).message);
@@ -561,6 +464,7 @@ export function RunsPage({
       );
       setApplyModalOpen(false);
       setApplyInvestigationRun(null);
+      runEventStore.actions.runSnapshotLoaded(created);
       navigate(`/runs/${created.id}`);
     } catch (err) {
       setApplyError((err as Error).message);
@@ -587,6 +491,7 @@ export function RunsPage({
       );
       setResumeModalOpen(false);
       setResumeTargetRun(null);
+      runEventStore.actions.runSnapshotLoaded(created);
       onRefresh();
       navigate(`/runs/${created.id}`);
     } catch (err) {
@@ -842,15 +747,19 @@ export function RunsPage({
             onStop={async (r) => handleStop(r.id)}
             onDelete={handleDeleteRequest}
             onContinue={async (message, attachmentIds) => {
-              await onContinueRun(selectedRun.id, message, attachmentIds);
-              // Reload events to show the new messages
-              const newEvents = await onGetEvents(selectedRun.id);
-              setEvents(newEvents);
+              const updatedRun = await onContinueRun(selectedRun.id, message, attachmentIds);
+              runEventStore.actions.runSnapshotLoaded(updatedRun);
+              const newEvents = await onGetEvents(selectedRun.id, {
+                afterSequence: runEventStore.state.lastSequenceByRunId[selectedRun.id],
+              });
+              runEventStore.actions.eventsGapFilled(selectedRun.id, newEvents);
             }}
             onDeleteMessage={async (eventId) => {
               await onDeleteRunMessage(selectedRun.id, eventId);
-              const newEvents = await onGetEvents(selectedRun.id);
-              setEvents(newEvents);
+              const newEvents = await onGetEvents(selectedRun.id, {
+                afterSequence: runEventStore.state.lastSequenceByRunId[selectedRun.id],
+              });
+              runEventStore.actions.eventsGapFilled(selectedRun.id, newEvents);
             }}
             deleteLoading={deleteLoading}
             onMobileHeaderLeft={setMobileHeaderLeft}

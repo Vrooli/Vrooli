@@ -66,6 +66,15 @@
 
 ## Resolved Incidents
 
+### R-002: Split realtime state caused stale run timelines and action flags (2026-04-30)
+**Symptom**: `App.tsx` and `RunsPage.tsx` both consumed WebSocket messages and reconciled run events independently. Fixes to one path left another stale path behind, especially around reconnects, terminal status updates, and stop/continue action flags.
+**Root causes**:
+1. WebSocket subscriptions were sent only when the socket was open, so desired subscriptions could be lost across reconnect.
+2. Selected-run events, run snapshots, last sequence, terminal reconciliation, and action hydration lived in component-local state instead of one reducer.
+3. Backend append/broadcast and stop/continue status mutation paths had duplicate sequencing and hydration logic.
+**Fix**: The realtime event architecture pass introduced durable append-before-broadcast, a shared status transition helper, durable WebSocket subscription intent, and a single UI run event store with REST `after_sequence` gap-fill.
+**Validation**: Backend event/lifecycle tests, UI type-check/unit tests, and targeted handler/CLI tests were run during the pass. Full scenario validation remains the final rollout gate.
+
 ### R-001: Silent launch failure after protected-sandbox cutover (2026-04-28)
 **Symptom**: swarm-manager initiative-feedback runs landed in `RUN_STATUS_NEEDS_REVIEW` after ~134ms with 0 assistant messages and exit code 0. The runner never produced output; the run looked complete.
 **Root causes** (four stacked defects):

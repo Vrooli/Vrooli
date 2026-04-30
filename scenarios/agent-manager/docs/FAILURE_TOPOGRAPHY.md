@@ -390,4 +390,4 @@ Approvals that succeeded but state update failed:
 - [errors.go](../api/internal/domain/errors.go) - Error type definitions
 - [decisions.go](../api/internal/domain/decisions.go) - State machine logic
 - [run_executor.go](../api/internal/orchestration/run_executor.go) - Execution flow
-- [SEAMS.md](./SEAMS.md) - Architectural boundaries
+- [SEAMS.md](./internal/SEAMS.md) - Architectural boundaries

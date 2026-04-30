@@ -2163,24 +2163,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		}
 	}
 
-	// Create event sink for the continuation
-	var eventSink runner.EventSink
-	if o.events != nil {
-		if o.broadcaster != nil {
-			eventSink = &broadcastingEventSink{
-				store:       o.events,
-				runID:       run.ID,
-				broadcaster: o.broadcaster,
-			}
-		} else {
-			eventSink = &eventStoreAdapter{
-				store: o.events,
-				runID: run.ID,
-			}
-		}
-	} else {
-		eventSink = &noOpEventSink{}
-	}
+	eventSink := o.runEventSink(run.ID)
 
 	// Resolve attachments
 	var attachments []runner.Attachment
@@ -2261,31 +2244,6 @@ func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, ev
 	return deleteEvent, nil
 }
 
-// continuationHeartbeat sends periodic heartbeats for a continuation so the
-// reconciler doesn't consider the run stale while it's actively executing.
-func (o *Orchestrator) continuationHeartbeat(ctx context.Context, run *domain.Run, stop <-chan struct{}) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-stop:
-			return
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			now := time.Now()
-			run.LastHeartbeat = &now
-			run.UpdatedAt = now
-			if err := o.runs.Update(ctx, run); err != nil {
-				obs.Component("heartbeat").Error("continuation heartbeat failed",
-					obs.KeyRunID, run.ID.String(),
-					obs.KeyError, err.Error(),
-				)
-			}
-		}
-	}
-}
-
 func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run, workDir string) (*runner.TranscriptConfig, func(), error) {
 	if run == nil || run.ResolvedConfig == nil {
 		return nil, nil, nil
@@ -2361,22 +2319,31 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		defer cleanupTranscript()
 	}
 
-	// Apply per-turn timeout to continuation
-	timeoutMinutes := 30 // default
-	if o.orchestrationSettings != nil {
-		s := o.orchestrationSettings.Get()
-		if s.RunExecution.RunTimeoutMinutes > 0 {
-			timeoutMinutes = s.RunExecution.RunTimeoutMinutes
-		}
-	}
-	execCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+	levers := o.runLevers()
+	timeout := levers.Execution.DefaultTimeout
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Start heartbeat loop so the reconciler doesn't kill us during execution.
 	// Heartbeat uses the parent ctx so it survives after execCtx deadline fires.
 	heartbeatStop := make(chan struct{})
-	go o.continuationHeartbeat(ctx, run, heartbeatStop)
-	defer close(heartbeatStop)
+	heartbeatDone := make(chan struct{})
+	go phases.RunHeartbeatLoop(ctx, phases.HeartbeatLoopInput{
+		Deps: phases.Deps{
+			Runs:        o.runs,
+			Events:      o.events,
+			Broadcaster: o.broadcaster,
+			Levers:      levers,
+		},
+		Run:    run,
+		Levers: levers,
+		Stop:   heartbeatStop,
+		Done:   heartbeatDone,
+	})
+	defer func() {
+		close(heartbeatStop)
+		<-heartbeatDone
+	}()
 
 	// Build continue request — pass the run's ResolvedConfig and SandboxID
 	// so launcherSelector.PickFor routes the continuation through the same
@@ -2409,7 +2376,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		// so the user can continue again with a fresh timeout.
 		transition.NewStatus = domain.RunStatusFailed
 		transition.Phase = domain.RunPhaseCompleted
-		transition.ErrorMsg = fmt.Sprintf("continuation exceeded timeout of %d minutes", timeoutMinutes)
+		transition.ErrorMsg = fmt.Sprintf("continuation exceeded timeout of %s", timeout)
 		run.ErrorMsg = transition.ErrorMsg
 		if result != nil && result.SessionID != "" {
 			run.SessionID = result.SessionID
@@ -2534,8 +2501,15 @@ func (o *Orchestrator) executorLevers() (agentconfig.Levers, bool) {
 	if o.orchestrationSettings == nil {
 		return agentconfig.Levers{}, false
 	}
-	s := o.orchestrationSettings.Get()
+	return o.runLevers(), true
+}
+
+func (o *Orchestrator) runLevers() agentconfig.Levers {
 	levers := agentconfig.DefaultLevers()
+	if o.orchestrationSettings == nil {
+		return levers
+	}
+	s := o.orchestrationSettings.Get()
 	if s.RunExecution.RunTimeoutMinutes > 0 {
 		levers.Execution.DefaultTimeout = time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute
 	}
@@ -2545,7 +2519,7 @@ func (o *Orchestrator) executorLevers() (agentconfig.Levers, bool) {
 	if s.HealthDetection.StaleThresholdSeconds > 0 {
 		levers.Heartbeat.StaleThreshold = time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second
 	}
-	return levers, true
+	return levers
 }
 
 // -----------------------------------------------------------------------------
@@ -3328,6 +3302,21 @@ func (b *broadcastingEventSink) LastSequence() int64 {
 	return b.lastSequence
 }
 
+func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
+	switch {
+	case o.events != nil && o.broadcaster != nil:
+		return &broadcastingEventSink{
+			store:       o.events,
+			runID:       runID,
+			broadcaster: o.broadcaster,
+		}
+	case o.events != nil:
+		return &eventStoreAdapter{store: o.events, runID: runID}
+	default:
+		return &noOpEventSink{}
+	}
+}
+
 // runnerTypeOrEmpty returns the runner type from a run's resolved
 // config, or "" when no resolved config is set yet (e.g. during
 // pre-spawn validation). Used for lifecycle event tagging.
@@ -3348,18 +3337,7 @@ func runnerTypeOrEmpty(run *domain.Run) domain.RunnerType {
 // store wired (defaults to the noOp sink so dispatcher.Enqueue still
 // emits its log line).
 func (o *Orchestrator) dispatcherSink(runID uuid.UUID) obs.Sink {
-	switch {
-	case o.broadcaster != nil:
-		return &broadcastingEventSink{
-			store:       o.events,
-			runID:       runID,
-			broadcaster: o.broadcaster,
-		}
-	case o.events != nil:
-		return &eventStoreAdapter{store: o.events, runID: runID}
-	default:
-		return &noOpEventSink{}
-	}
+	return o.runEventSink(runID)
 }
 
 // noOpEventSink discards events

@@ -1868,7 +1868,16 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, &apipb.StopRunResponse{Status: "stopped"})
+	run, err := h.svc.GetRun(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.StopRunResponse{
+		Status: "stopped",
+		Run:    protoconv.RunToProto(run),
+	})
 }
 
 // ContinueRun continues an existing run's conversation with a follow-up message.
@@ -2097,7 +2106,17 @@ func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, &apipb.StopRunByTagResponse{Status: "stopped", Tag: tag})
+	run, err := h.svc.GetRunByTag(r.Context(), tag)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.StopRunByTagResponse{
+		Status: "stopped",
+		Tag:    tag,
+		Run:    protoconv.RunToProto(run),
+	})
 }
 
 // StopAllRuns stops all running runs, optionally filtered by tag prefix.

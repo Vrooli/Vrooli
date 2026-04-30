@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
 
@@ -90,7 +92,7 @@ Subcommands:
   approve <id>                Approve run changes
   reject <id>                 Reject run changes
   diff <id>                   Show sandbox diff
-  events <id>                 Get run events (--follow for streaming)
+  events <id>                 Get run events (--after-sequence for gap-fill, --follow for streaming)
 
 Filters (for 'list'):
   --task-id         Filter by task ID
@@ -112,6 +114,7 @@ Examples:
   agent-manager run investigate --run-ids id1,id2 --depth standard
   agent-manager run apply-investigation abc123
   agent-manager run extract-recommendations abc123
+  agent-manager run events xyz789 --after-sequence 42 --limit 100
   agent-manager run events xyz789 --follow`)
 	return nil
 }
@@ -380,7 +383,7 @@ func (a *App) runStop(args []string) error {
 		return fmt.Errorf("usage: agent-manager run stop <id>")
 	}
 
-	body, err := a.services.Runs.Stop(id)
+	body, resp, err := a.services.Runs.Stop(id)
 	if err != nil {
 		return err
 	}
@@ -390,8 +393,23 @@ func (a *App) runStop(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Stopped run: %s\n", id)
-	return nil
+	changes := []string{fmt.Sprintf("run_id=%s", id)}
+	nextCommandID := id
+	if resp != nil && resp.Run != nil {
+		nextCommandID = resp.Run.Id
+		changes = append(changes,
+			fmt.Sprintf("status=%s", formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_")),
+			fmt.Sprintf("phase=%s", formatEnumValue(resp.Run.Phase, "RUN_PHASE_", "_")),
+		)
+	} else if resp != nil && resp.Status != "" {
+		changes = append(changes, fmt.Sprintf("status=%s", resp.Status))
+	}
+
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{"Run stop requested"},
+		Changes:     changes,
+		NextCommand: []string{fmt.Sprintf("agent-manager run get %s", nextCommandID)},
+	})
 }
 
 // =============================================================================
@@ -466,7 +484,7 @@ func (a *App) runStopByTag(args []string) error {
 		return fmt.Errorf("usage: agent-manager run stop-by-tag <tag>")
 	}
 
-	body, err := a.services.Runs.StopByTag(tag)
+	body, resp, err := a.services.Runs.StopByTag(tag)
 	if err != nil {
 		return err
 	}
@@ -476,8 +494,24 @@ func (a *App) runStopByTag(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Stopped run with tag: %s\n", tag)
-	return nil
+	changes := []string{fmt.Sprintf("tag=%s", tag)}
+	nextCommand := fmt.Sprintf("agent-manager run get-by-tag %s", tag)
+	if resp != nil && resp.Run != nil {
+		changes = append(changes,
+			fmt.Sprintf("run_id=%s", resp.Run.Id),
+			fmt.Sprintf("status=%s", formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_")),
+			fmt.Sprintf("phase=%s", formatEnumValue(resp.Run.Phase, "RUN_PHASE_", "_")),
+		)
+		nextCommand = fmt.Sprintf("agent-manager run get %s", resp.Run.Id)
+	} else if resp != nil && resp.Status != "" {
+		changes = append(changes, fmt.Sprintf("status=%s", resp.Status))
+	}
+
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{"Run stop requested"},
+		Changes:     changes,
+		NextCommand: []string{nextCommand},
+	})
 }
 
 // =============================================================================
@@ -687,6 +721,7 @@ func (a *App) runEvents(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	follow := fs.Bool("follow", false, "Stream events in real-time (WebSocket)")
 	limit := fs.Int("limit", 0, "Maximum number of events to return")
+	afterSequence := fs.Int64("after-sequence", -1, "Only return events with sequence greater than this value")
 
 	// Parse with positional ID first
 	var id string
@@ -700,14 +735,18 @@ func (a *App) runEvents(args []string) error {
 	}
 
 	if id == "" {
-		return fmt.Errorf("usage: agent-manager run events <id> [--follow]")
+		return fmt.Errorf("usage: agent-manager run events <id> [--follow] [--after-sequence N] [--limit N]")
 	}
 
 	if *follow {
 		return a.streamEvents(id)
 	}
 
-	body, events, err := a.services.Runs.GetEvents(id, *limit)
+	var after *int64
+	if *afterSequence >= 0 {
+		after = afterSequence
+	}
+	body, events, err := a.services.Runs.GetEvents(id, *limit, after)
 	if err != nil {
 		return err
 	}

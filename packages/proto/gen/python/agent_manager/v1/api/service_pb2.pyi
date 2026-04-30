@@ -454,10 +454,12 @@ class StopRunRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ...) -> None: ...
 
 class StopRunResponse(_message.Message):
-    __slots__ = ("status",)
+    __slots__ = ("status", "run")
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
     status: str
-    def __init__(self, status: _Optional[str] = ...) -> None: ...
+    run: _run_pb2.Run
+    def __init__(self, status: _Optional[str] = ..., run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
 class StopRunByTagRequest(_message.Message):
     __slots__ = ("tag",)
@@ -466,12 +468,14 @@ class StopRunByTagRequest(_message.Message):
     def __init__(self, tag: _Optional[str] = ...) -> None: ...
 
 class StopRunByTagResponse(_message.Message):
-    __slots__ = ("status", "tag")
+    __slots__ = ("status", "tag", "run")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
     status: str
     tag: str
-    def __init__(self, status: _Optional[str] = ..., tag: _Optional[str] = ...) -> None: ...
+    run: _run_pb2.Run
+    def __init__(self, status: _Optional[str] = ..., tag: _Optional[str] = ..., run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
 class StopAllRunsRequest(_message.Message):
     __slots__ = ("tag_prefix", "force")

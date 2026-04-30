@@ -17,8 +17,6 @@ export type ConnectionStatus =
   | "disconnected"
   | "error";
 
-export type MessageHandler = (message: WebSocketMessage) => void;
-
 interface UseWebSocketOptions {
   enabled?: boolean;
   reconnectInterval?: number;
@@ -36,8 +34,6 @@ interface UseWebSocketReturn {
   subscribeAll: () => void;
   unsubscribeAll: () => void;
   reconnect: () => void;
-  addMessageHandler: (handler: MessageHandler) => void;
-  removeMessageHandler: (handler: MessageHandler) => void;
 }
 
 export function useWebSocket(
@@ -60,7 +56,6 @@ export function useWebSocket(
   const reconnectAttemptsRef = useRef(0);
   const onMessageRef = useRef(onMessage);
   const onStatusChangeRef = useRef(onStatusChange);
-  const messageHandlersRef = useRef<Set<MessageHandler>>(new Set());
 
   if (subscriptionManagerRef.current === null) {
     subscriptionManagerRef.current = createWebSocketSubscriptionManager({
@@ -79,14 +74,6 @@ export function useWebSocket(
   useEffect(() => {
     onStatusChangeRef.current = onStatusChange;
   }, [onStatusChange]);
-
-  const addMessageHandler = useCallback((handler: MessageHandler) => {
-    messageHandlersRef.current.add(handler);
-  }, []);
-
-  const removeMessageHandler = useCallback((handler: MessageHandler) => {
-    messageHandlersRef.current.delete(handler);
-  }, []);
 
   // Resolve WebSocket URL
   const wsUrl = resolveWsBase({
@@ -129,14 +116,6 @@ export function useWebSocket(
             return;
           }
           onMessageRef.current?.(normalized);
-          // Call all registered message handlers
-          messageHandlersRef.current.forEach((handler) => {
-            try {
-              handler(normalized);
-            } catch (handlerErr) {
-              console.error("[WebSocket] Handler error:", handlerErr);
-            }
-          });
         } catch (err) {
           console.error("[WebSocket] Failed to parse message:", err);
         }
@@ -252,7 +231,5 @@ export function useWebSocket(
     subscribeAll,
     unsubscribeAll,
     reconnect,
-    addMessageHandler,
-    removeMessageHandler,
   };
 }

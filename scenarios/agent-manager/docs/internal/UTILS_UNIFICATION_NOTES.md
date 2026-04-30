@@ -1,7 +1,7 @@
 # Utils Unification Notes
 
 ## Last Updated
-2026-02-07
+2026-04-30
 
 ## Summary
 Consolidated repeated UI display utilities and fully migrated date/time + currency formatting onto shared modules in `agent-manager` to reduce drift across dashboard, stats, run detail, and pricing surfaces. Shared logic now lives in `ui/src/lib/display.ts`, `ui/src/lib/dateTime.ts`, and `ui/src/lib/currency.ts`.
@@ -34,3 +34,13 @@ Consolidated repeated UI display utilities and fully migrated date/time + curren
 - Date/time and currency compatibility wrappers were removed from legacy formatter modules (`ui/src/lib/utils.ts`, `ui/src/features/stats/utils/formatters.ts`) after full callsite migration.
 - Shared `Intl` formatter instances are now cached in `ui/src/lib/dateTime.ts` and `ui/src/lib/currency.ts` to reduce repeated constructor overhead.
 - Added lightweight UI utility unit tests using Node test runner (`ui/tests/lib/*.test.ts`) with `pnpm test`.
+
+## Realtime Utility Consolidation - 2026-04-30
+
+The realtime pass added three intentionally scoped utilities instead of keeping protocol, subscription, and reducer logic inside React components:
+
+- `ui/src/lib/webSocketProtocol.ts` - proto WebSocket parse/build helpers.
+- `ui/src/lib/webSocketSubscriptions.ts` - desired subscription state and replay command derivation.
+- `ui/src/lib/runEventStore.ts` - pure run snapshot/event reducer with sequence tracking, dedupe, gap-fill merge, and reconciliation intent decisions.
+
+These utilities are framework-light or pure TypeScript, so they can be tested without a browser WebSocket or React renderer. `useWebSocket.ts` and `useRunEventStore.ts` are now the framework adapters over those utilities.
