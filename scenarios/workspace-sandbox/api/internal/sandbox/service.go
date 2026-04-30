@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
+	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
@@ -116,6 +117,21 @@ type ServiceAPI interface {
 	// GetProvenanceByRun returns pending applied changes grouped by
 	// agent-manager run ID.
 	GetProvenanceByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
+
+	// GetArchive returns the durable diff archive for a terminal-status
+	// sandbox, or (nil, nil) when no archive exists. Used by the Phase 3
+	// endpoint resolver to serve closed-sandbox diffs.
+	GetArchive(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error)
+
+	// FetchArchiveFile returns the raw content of one file within an
+	// archive, by its path. Returns blobstore.ErrNotFound when no entry
+	// matches.
+	FetchArchiveFile(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error)
+
+	// ListHistory returns archive metadata rows matching filter, plus
+	// the total matching count for pagination. Used by the History tab
+	// in the workspace-sandbox UI.
+	ListHistory(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error)
 }
 
 // Compile-time guarantee that Service implements ServiceAPI.
@@ -127,12 +143,14 @@ var _ ServiceAPI = (*Service)(nil)
 // distributed across service_*.go files by responsibility; the struct
 // itself only declares fields here.
 type Service struct {
-	repo    repository.Repository
-	driver  driver.Driver
-	config  ServiceConfig
-	clock   clock.Clock
-	audit   audit.Emitter
-	starter process.Starter
+	repo        repository.Repository
+	archiveRepo repository.ArchiveRepository
+	blobs       blobstore.BlobStore
+	driver      driver.Driver
+	config      ServiceConfig
+	clock       clock.Clock
+	audit       audit.Emitter
+	starter     process.Starter
 
 	// Policies — volatile decision points wired via ServiceOption.
 	attributionPolicy policy.AttributionPolicy
@@ -240,6 +258,20 @@ func WithProcFS(p ProcFS) ServiceOption {
 func WithGitOps(g diff.GitOperations) ServiceOption {
 	return func(s *Service) {
 		s.gitOps = g
+	}
+}
+
+// WithArchive wires the diff-archive seam. Both arguments must be set
+// together: the archive repository persists metadata transactionally
+// with the sandbox status flip; the blob store persists per-file content
+// addressed by SHA-256. When both are nil, snapshotDiff is a no-op and
+// terminal transitions proceed without archiving — used by tests that
+// don't exercise the archive path. Production always wires both via
+// main.go.
+func WithArchive(archiveRepo repository.ArchiveRepository, blobs blobstore.BlobStore) ServiceOption {
+	return func(s *Service) {
+		s.archiveRepo = archiveRepo
+		s.blobs = blobs
 	}
 }
 

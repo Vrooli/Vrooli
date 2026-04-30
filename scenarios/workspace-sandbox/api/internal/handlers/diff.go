@@ -2,19 +2,37 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/types"
 )
 
-// GetDiff handles getting sandbox diff.
+// GetDiff is the single front-door for both live and archived sandbox
+// diffs.
+//
+// Resolution by sandbox status:
+//   - Active or Stopped → serve from the live overlay via Service.GetDiff.
+//   - Approved, Rejected, or Deleted → serve from the durable archive
+//     via Service.GetArchive. The response carries ArchiveState so the
+//     UI can render an explicit "no diff captured" state for archives
+//     that were intentionally skipped (Error → Deleted).
+//   - Creating → 200 with empty diff and ArchiveState="not_captured"
+//     (the sandbox has no upper dir yet; this is not an error).
+//   - Error → fall through to live path; live GetDiff handles the
+//     missing-upper case by returning an empty diff. After Error has
+//     transitioned to Deleted, the archive path serves the row.
+//
 // Query parameters:
-//   - mode: View mode - "diff" (default), "full_diff", or "source"
+//   - mode: View mode — "diff" (default), "full_diff", or "source".
+//     full_diff and source require live overlay paths and are rejected
+//     with 400 for archived sandboxes (no merged dir to read from).
 func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
@@ -22,66 +40,138 @@ func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse mode parameter (default to "diff")
 	mode := types.ViewMode(r.URL.Query().Get("mode"))
 	if mode == "" {
 		mode = types.ViewModeDiff
 	}
-
-	// Validate mode
 	switch mode {
 	case types.ViewModeDiff, types.ViewModeFullDiff, types.ViewModeSource:
-		// Valid modes
 	default:
 		h.JSONError(w, "invalid mode parameter: must be 'diff', 'full_diff', or 'source'", http.StatusBadRequest)
 		return
 	}
 
-	diffResult, err := h.Service.GetDiff(r.Context(), id)
+	sandbox, err := h.Service.Get(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}
 
-	// Set the requested mode
-	diffResult.Mode = mode
-
-	// For full_diff or source modes, fetch file contents
-	if mode == types.ViewModeFullDiff || mode == types.ViewModeSource {
-		// Get the sandbox to access upper/lower directories
-		sandbox, err := h.Service.Get(r.Context(), id)
-		if err != nil {
-			h.HandleDomainError(w, err)
+	// Archive-bearing terminal states: serve from the durable archive.
+	switch sandbox.Status {
+	case types.StatusApproved, types.StatusRejected, types.StatusDeleted:
+		if mode != types.ViewModeDiff {
+			h.JSONError(w,
+				"view modes 'full_diff' and 'source' require a live overlay; this sandbox has been archived",
+				http.StatusBadRequest)
 			return
 		}
+		archived, err := h.Service.GetArchive(r.Context(), id)
+		if h.HandleDomainError(w, err) {
+			return
+		}
+		if archived == nil {
+			// Status is terminal but no archive row exists. This is
+			// only possible for sandboxes that crossed terminal before
+			// the archive seam was wired (legacy data). Return a
+			// not_captured marker rather than 404 so the UI renders
+			// "no diff captured" instead of a hard error.
+			archived = &types.DiffResult{
+				SandboxID:    id,
+				Files:        []*types.FileChange{},
+				Generated:    sandbox.UpdatedAt,
+				ArchiveState: types.ArchiveStateNotCaptured,
+			}
+		}
+		archived.Mode = mode
+		h.JSONSuccess(w, archived)
+		return
+	}
 
+	// Pre-overlay states: nothing to diff yet. Live response with an
+	// empty Files list; ArchiveState stays empty (this is not an archive
+	// — there's just no data to show yet).
+	if sandbox.Status == types.StatusCreating {
+		h.JSONSuccess(w, &types.DiffResult{
+			SandboxID: id,
+			Files:     []*types.FileChange{},
+			Generated: sandbox.CreatedAt,
+			Mode:      mode,
+		})
+		return
+	}
+
+	// Active / Stopped / Error: live path. ArchiveState stays empty
+	// (zero value) to signal "live overlay" to consumers. The
+	// Error-with-missing-upper case yields an empty diff, also with
+	// ArchiveState empty — clients render it as "no diff" rather than
+	// "archived no_capture", which would be misleading.
+	diffResult, err := h.Service.GetDiff(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+	diffResult.Mode = mode
+
+	if mode == types.ViewModeFullDiff || mode == types.ViewModeSource {
 		diffResult.FileContents = make(map[string]types.FileViewData)
-
 		for _, file := range diffResult.Files {
 			content, err := diff.GetFileContent(sandbox.UpperDir, sandbox.LowerDir, file.FilePath, file.ChangeType)
 			if err != nil {
-				// Log error but continue - partial content is better than failure
 				continue
 			}
-
 			if content == "" {
-				// Skip binary files or empty files
 				continue
 			}
-
-			fileData := types.FileViewData{
-				FullContent: content,
-			}
-
-			// For full_diff mode, also build annotated lines
+			fileData := types.FileViewData{FullContent: content}
 			if mode == types.ViewModeFullDiff {
 				fileData.AnnotatedLines = diff.BuildAnnotatedLines(content, diffResult.UnifiedDiff, file.FilePath)
 			}
-
 			diffResult.FileContents[file.FilePath] = fileData
 		}
 	}
 
 	h.JSONSuccess(w, diffResult)
+}
+
+// GetDiffFile serves the raw content of one file in an archive,
+// addressed by its path within the archive's index.
+//
+// Used by DiffViewer for on-demand per-file expansion: the list
+// response from GetDiff returns metadata only; this endpoint streams
+// the underlying blob bytes when the user expands a file. Live-overlay
+// diffs do not use this endpoint — full_diff/source mode embeds content
+// in the GetDiff response.
+//
+// Returns 404 when the sandbox has no archive, the path doesn't match
+// any archived entry, or the entry has no associated blob (e.g. a
+// directory entry, or a file whose content was not captured).
+func (h *Handlers) GetDiffFile(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		h.JSONError(w, "path query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	content, err := h.Service.FetchArchiveFile(r.Context(), id, path)
+	if errors.Is(err, blobstore.ErrNotFound) {
+		h.JSONError(w, "no archived blob for this path", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.JSONError(w, "failed to fetch archive blob: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if _, err := w.Write(content); err != nil {
+		// Best-effort; the response is already started so JSONError
+		// would just produce malformed output.
+		return
+	}
 }
 
 // Approve handles approving sandbox changes.

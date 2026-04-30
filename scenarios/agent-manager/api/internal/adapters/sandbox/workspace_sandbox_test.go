@@ -206,6 +206,98 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	if strings.Contains(result.UnifiedDiff, "diff --git a/tmp b/tmp") {
 		t.Errorf("expected directory-only diff entry to be filtered out")
 	}
+	// Pin the live-response contract: workspace-sandbox omits archiveState
+	// for live diffs (Active/Stopped/Creating/Error). An empty (zero-value)
+	// ArchiveState distinguishes a live response from an archived one in
+	// downstream UI/CLI rendering.
+	if result.ArchiveState != "" {
+		t.Errorf("ArchiveState = %q, want empty for live diff response", result.ArchiveState)
+	}
+}
+
+// TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete pins the
+// archive-state contract: when workspace-sandbox serves a closed-run
+// diff from the durable archive, the response carries
+// `archiveState: "complete"`. The adapter must decode this onto
+// DiffResult.ArchiveState verbatim — the field is what
+// agent-manager UI uses to render archived diffs differently from
+// generic empty responses.
+func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
+	sandboxID := uuid.New()
+	fileID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"sandboxId": sandboxID.String(),
+			"files": []map[string]interface{}{
+				{
+					"id":           fileID.String(),
+					"filePath":     "src/main.go",
+					"changeType":   "modified",
+					"fileSize":     1024,
+					"linesAdded":   3,
+					"linesRemoved": 1,
+				},
+			},
+			"unifiedDiff": "diff --git a/src/main.go b/src/main.go\n@@ -1 +1 @@\n+x\n",
+			"generated":   "2026-04-30T00:00:00Z",
+			"stats": map[string]interface{}{
+				"filesChanged":  1,
+				"filesModified": 1,
+				"linesAdded":    3,
+				"linesRemoved":  1,
+				"totalBytes":    int64(1024),
+			},
+			"archiveState": "complete",
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	result, err := provider.GetDiff(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("GetDiff: %v", err)
+	}
+	if result.ArchiveState != sandbox.ArchiveStateComplete {
+		t.Errorf("ArchiveState = %q, want %q", result.ArchiveState, sandbox.ArchiveStateComplete)
+	}
+	if len(result.Files) != 1 {
+		t.Errorf("expected 1 file, got %d", len(result.Files))
+	}
+}
+
+// TestWorkspaceSandboxProvider_GetDiff_ArchiveStateNotCaptured pins the
+// taxonomy distinction the UI relies on: when workspace-sandbox returns
+// `archiveState: "not_captured"` (e.g. Error → Deleted, no usable
+// overlay at terminal-transition), the adapter surfaces the marker
+// alongside an empty Files list. The UI then renders an explicit
+// "no diff captured" state instead of a generic empty diff.
+func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateNotCaptured(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"sandboxId":    sandboxID.String(),
+			"files":        []map[string]interface{}{},
+			"unifiedDiff":  "",
+			"generated":    "2026-04-30T00:00:00Z",
+			"stats":        map[string]interface{}{"filesChanged": 0},
+			"archiveState": "not_captured",
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	result, err := provider.GetDiff(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("GetDiff: %v", err)
+	}
+	if result.ArchiveState != sandbox.ArchiveStateNotCaptured {
+		t.Errorf("ArchiveState = %q, want %q", result.ArchiveState, sandbox.ArchiveStateNotCaptured)
+	}
+	if len(result.Files) != 0 {
+		t.Errorf("not_captured archives must have empty Files; got %d", len(result.Files))
+	}
 }
 
 // TestWorkspaceSandboxProvider_GetDiff_Empty verifies that an empty sandbox

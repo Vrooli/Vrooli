@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -19,9 +20,10 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Description: "Review, approve, reject, and rebase sandbox changes",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "diff", Description: "Show sandbox changes", Run: func(args []string) error { return runDiff(deps, args) }},
+			{Name: "diff", Description: "Show sandbox changes (live or archived)", Run: func(args []string) error { return runDiff(deps, args) }},
 			{Name: "approve", Description: "Apply sandbox changes", Run: func(args []string) error { return runApprove(deps, args) }},
 			{Name: "reject", Description: "Discard sandbox changes", Run: func(args []string) error { return runReject(deps, args) }},
+			{Name: "history", Description: "List archived (terminal-state) sandboxes", Run: func(args []string) error { return runHistory(deps, args) }},
 			{Name: "conflicts", Description: "Check for repo conflicts", Run: func(args []string) error { return runConflicts(deps, args) }},
 			{Name: "rebase", Description: "Refresh a sandbox against the current repo", Run: func(args []string) error { return runRebase(deps, args) }},
 		},
@@ -65,15 +67,30 @@ func runDiff(deps support.Dependencies, args []string) error {
 		return nil
 	}
 
+	summary := []string{
+		"Sandbox ID: " + diff.SandboxID,
+	}
+	switch diff.ArchiveState {
+	case "":
+		summary = append(summary, "Source: live overlay")
+	case "complete":
+		summary = append(summary, "Source: archive (snapshot taken at terminal transition)")
+	case "not_captured":
+		summary = append(summary,
+			"Source: archive",
+			"Archive state: not_captured (no diff was captured for this sandbox; "+
+				"typically Error → Deleted)",
+		)
+	}
+	summary = append(summary,
+		fmt.Sprintf("Added: %d", diff.Stats.FilesAdded),
+		fmt.Sprintf("Modified: %d", diff.Stats.FilesModified),
+		fmt.Sprintf("Deleted: %d", diff.Stats.FilesDeleted),
+		fmt.Sprintf("Total files changed: %d", diff.Stats.FilesChanged),
+		fmt.Sprintf("Lines: +%d -%d", diff.Stats.LinesAdded, diff.Stats.LinesRemoved),
+	)
 	report := cliapp.ListReport{
-		Summary: []string{
-			"Sandbox ID: " + diff.SandboxID,
-			fmt.Sprintf("Added: %d", diff.Stats.FilesAdded),
-			fmt.Sprintf("Modified: %d", diff.Stats.FilesModified),
-			fmt.Sprintf("Deleted: %d", diff.Stats.FilesDeleted),
-			fmt.Sprintf("Total files changed: %d", diff.Stats.FilesChanged),
-			fmt.Sprintf("Lines: +%d -%d", diff.Stats.LinesAdded, diff.Stats.LinesRemoved),
-		},
+		Summary:        summary,
 		Results:        renderDiffRows(diff.Files),
 		RetrievalHints: []string{support.CLIName + " change approve " + diff.SandboxID, support.CLIName + " change reject " + diff.SandboxID},
 	}
@@ -324,6 +341,106 @@ func runRebase(deps support.Dependencies, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func runHistory(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("change history", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	status := fs.String("status", "", "Filter by sandbox_status (comma-separated subset of approved,rejected,deleted)")
+	owner := fs.String("owner", "", "Filter by owner (exact match)")
+	projectRoot := fs.String("project-root", "", "Filter by project root (exact match)")
+	runID := fs.String("run-id", "", "Filter by agent-manager run id (exact match)")
+	search := fs.String("search", "", "Free-text substring across owner / run id / sandbox id")
+	from := fs.String("since", "", "Filter to archives at or after this RFC3339 timestamp")
+	to := fs.String("until", "", "Filter to archives at or before this RFC3339 timestamp")
+	sortBy := fs.String("sort-by", "", "Sort column: snapshot_at (default) or total_blob_bytes")
+	sortAsc := fs.Bool("asc", false, "Sort ascending instead of the default descending")
+	limit := fs.Int("limit", 0, "Maximum results to return (0 = server default)")
+	offset := fs.Int("offset", 0, "Pagination offset")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if *owner != "" {
+		query.Set("owner", *owner)
+	}
+	if *projectRoot != "" {
+		query.Set("projectRoot", *projectRoot)
+	}
+	if *runID != "" {
+		query.Set("agentManagerRunId", *runID)
+	}
+	if *search != "" {
+		query.Set("search", *search)
+	}
+	if *from != "" {
+		query.Set("snapshotAtFrom", *from)
+	}
+	if *to != "" {
+		query.Set("snapshotAtTo", *to)
+	}
+	if *sortBy != "" {
+		query.Set("sortBy", *sortBy)
+	}
+	if !*sortAsc {
+		query.Set("sortDesc", "true")
+	}
+	if *limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", *limit))
+	}
+	if *offset > 0 {
+		query.Set("offset", fmt.Sprintf("%d", *offset))
+	}
+	// Status is repeatable: comma-separated input → multiple status= keys.
+	if *status != "" {
+		for _, s := range strings.Split(*status, ",") {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				continue
+			}
+			query.Add("status", s)
+		}
+	}
+
+	body, err := deps.ScenarioApp().Get("/sandboxes/history", query)
+	if err != nil {
+		return err
+	}
+
+	var resp support.HistoryResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	rows := make([]string, 0, len(resp.Archives))
+	for _, a := range resp.Archives {
+		marker := ""
+		if a.ArchiveState == "not_captured" {
+			marker = " [no diff captured]"
+		}
+		rows = append(rows, fmt.Sprintf("%s %s  %s  files=%d  bytes=%d  %s%s",
+			a.SnapshotAt.Format("2006-01-02 15:04:05"),
+			a.SandboxStatus,
+			a.SandboxID,
+			a.Stats.FilesChanged,
+			a.TotalBlobBytes,
+			a.Owner,
+			marker,
+		))
+	}
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Total: %d", resp.TotalCount),
+			fmt.Sprintf("Returned: %d", len(resp.Archives)),
+		},
+		Results:        rows,
+		RetrievalHints: []string{support.CLIName + " change diff <sandbox-id>"},
+	}
+	if *jsonOut {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 func renderDiffRows(files []support.DiffFile) []string {

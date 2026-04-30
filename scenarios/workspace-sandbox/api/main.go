@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 
 	"workspace-sandbox/internal/audit"
+	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
@@ -197,6 +198,23 @@ func NewServer() (*Server, error) {
 
 	// Initialize repository and service
 	repo := repository.NewSandboxRepository(db, clk)
+	archiveRepo := repository.NewArchiveRepository(db, clk)
+
+	// Diff-archive blob store. Resolves under api-core/storage's
+	// ClassData root, sharing the same data tree as the SQLite database
+	// so archive metadata + content travel together for backup/restore.
+	blobsResolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blobstore resolver: %w", err)
+	}
+	blobs, err := blobstore.New(blobsResolver)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize blobstore: %w", err)
+	}
+
 	// Audit emitter — single seam for sandbox audit-log writes (Round
 	// 4 Phase 6). Wraps repo.LogAuditEvent and stamps EventTime via the
 	// shared clock so reconcilers, GC, and the Service all share a
@@ -221,13 +239,32 @@ func NewServer() (*Server, error) {
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
 		sandbox.WithMetrics(metricsCollector),
+		sandbox.WithArchive(archiveRepo, blobs),
 	)
 	healCfg := sandbox.HealConfig{
 		IdleGracePeriod:        cfg.Lifecycle.AutoHealIdleGrace,
 		MaxConsecutiveFailures: cfg.Lifecycle.AutoHealMaxRetries,
 		BaseBackoff:            cfg.Lifecycle.AutoHealBaseBackoff,
 	}
-	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, healCfg)
+
+	// Diff-archive retention store. Seeds from the env-derived defaults
+	// so first-boot retention matches Default()/LoadFromEnv; subsequent
+	// runtime PUTs to /config/retention persist to a JSON file under
+	// ClassConfig that takes over as the source of truth on next boot.
+	retentionStore, err := config.NewFileRetentionStore(cfg.Retention)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize retention store: %w", err)
+	}
+	retentionProvider := func() sandbox.RetentionPolicy {
+		rc := retentionStore.Get()
+		return sandbox.RetentionPolicy{
+			MaxArchiveAgeDays:     rc.MaxArchiveAgeDays,
+			MaxArchiveSizeBytes:   rc.MaxArchiveSizeBytes,
+			MaxArchivesPerProject: rc.MaxArchivesPerProject,
+		}
+	}
+
+	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, healCfg, retentionProvider)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
@@ -286,6 +323,7 @@ func NewServer() (*Server, error) {
 		ProfileStore:    profileStore,
 		InUserNamespace: inUserNS,
 		Reconcilers:     lifecycleRecon,
+		RetentionStore:  retentionStore,
 		Clock:           clk,
 		Mounter:         mounter,
 		Starter:         starter,

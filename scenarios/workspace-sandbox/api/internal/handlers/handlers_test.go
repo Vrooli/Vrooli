@@ -349,6 +349,11 @@ func TestStopSandboxSuccess(t *testing.T) {
 func TestGetDiffSuccess(t *testing.T) {
 	testID := uuid.New()
 	svc := &sandboxiface.FakeService{
+		// GetDiff dispatches on sandbox status; an Active sandbox routes
+		// to the live diff path.
+		GetFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+			return &types.Sandbox{ID: id, Status: types.StatusActive, UpdatedAt: time.Now()}, nil
+		},
 		GetDiffFn: func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
 			return &types.DiffResult{
 				SandboxID:   testID,

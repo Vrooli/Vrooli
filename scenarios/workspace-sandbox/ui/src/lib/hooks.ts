@@ -28,7 +28,12 @@ import {
   deleteProfile,
   fetchCommitPreview,
   commitPending,
+  listHistory,
+  fetchRetentionConfig,
+  updateRetentionConfig,
   type ListFilter,
+  type HistoryFilter,
+  type RetentionUpdate,
   type CreateRequest,
   type ApprovalRequest,
   type ExecRequest,
@@ -53,6 +58,8 @@ export const queryKeys = {
   executionConfig: ["executionConfig"] as const,
   profiles: ["profiles"] as const,
   commitPreview: (projectRoot?: string) => ["commitPreview", projectRoot] as const,
+  history: (filter?: HistoryFilter) => ["history", filter] as const,
+  retentionConfig: ["retentionConfig"] as const,
 };
 
 const isTestEnv = import.meta.env.MODE === "test";
@@ -394,6 +401,36 @@ export function useCommitPreview(projectRoot?: string) {
   return useQuery({
     queryKey: queryKeys.commitPreview(projectRoot),
     queryFn: () => fetchCommitPreview(projectRoot),
+  });
+}
+
+// List archived sandboxes for the History tab. Pass `enabled: false`
+// from non-History tabs so we don't pay for an unused fetch.
+export function useHistory(filter?: HistoryFilter, options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  return useQuery({
+    queryKey: queryKeys.history(filter),
+    queryFn: () => listHistory(filter),
+    enabled,
+    refetchInterval: isTestEnv ? false : 30000,
+  });
+}
+
+// Diff-archive retention configuration.
+export function useRetentionConfig() {
+  return useQuery({
+    queryKey: queryKeys.retentionConfig,
+    queryFn: fetchRetentionConfig,
+  });
+}
+
+export function useUpdateRetentionConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (update: RetentionUpdate) => updateRetentionConfig(update),
+    onSuccess: (cfg) => {
+      queryClient.setQueryData(queryKeys.retentionConfig, cfg);
+    },
   });
 }
 

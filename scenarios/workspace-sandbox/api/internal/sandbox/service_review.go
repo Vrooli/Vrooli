@@ -390,9 +390,13 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
 
-	sandbox.Status = types.StatusRejected
-	if err := s.repo.Update(ctx, sandbox); err != nil {
-		return nil, fmt.Errorf("failed to update sandbox: %w", err)
+	captured := types.CanGenerateDiff(sandbox.Status) == nil
+	if err := s.snapshotAndTransition(ctx, sandbox, types.StatusRejected, captured, nil); err != nil {
+		s.logAuditEvent(ctx, sandbox, "snapshot_failed", actor, "", map[string]interface{}{
+			"phase": "reject",
+			"error": err.Error(),
+		})
+		return nil, fmt.Errorf("failed to snapshot+reject sandbox: %w", err)
 	}
 
 	s.logAuditEvent(ctx, sandbox, "rejected", actor, "", nil)
@@ -452,6 +456,14 @@ func (s *Service) preflightConflicts(ctx context.Context, sandbox *types.Sandbox
 // returns the ApprovalResult. [OT-P1-002] Partial Approval Workflow:
 // partial = applied files cleaned up from upper, sandbox stays open;
 // full = sandbox transitions to StatusApproved + lifecycle terminal.
+//
+// On the full-approval branch, the diff archive is captured
+// transactionally with the status flip (see service_archive.go). If
+// the snapshot fails, the sandbox stays in its pre-terminal state and
+// the failure is returned to the caller via *ApprovalResult.ErrorMsg —
+// the patch was already applied to the canonical repo, so the caller
+// must not re-apply, but the sandbox remains visible/inspectable for
+// retry of the snapshot or operator intervention.
 func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest, commitHash string, changes []*types.FileChange, totalChanges int) *types.ApprovalResult {
 	remainingChanges := totalChanges - len(changes)
 	isPartial := remainingChanges > 0
@@ -478,10 +490,24 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 			"mode":           req.Mode,
 		})
 	} else {
-		sandbox.Status = types.StatusApproved
-		sandbox.ApprovedAt = &now
-		if err := s.repo.Update(ctx, sandbox); err != nil {
-			fmt.Printf("warning: failed to update sandbox after approval: %v\n", err)
+		captured := types.CanGenerateDiff(sandbox.Status) == nil
+		if err := s.snapshotAndTransition(ctx, sandbox, types.StatusApproved, captured, func(sb *types.Sandbox) {
+			sb.ApprovedAt = &now
+		}); err != nil {
+			s.logAuditEvent(ctx, sandbox, "snapshot_failed", req.Actor, "", map[string]interface{}{
+				"phase":      "approve",
+				"error":      err.Error(),
+				"commitHash": commitHash,
+			})
+			return &types.ApprovalResult{
+				Success:    false,
+				Applied:    len(changes),
+				Failed:     0,
+				Remaining:  remainingChanges,
+				CommitHash: commitHash,
+				ErrorMsg:   fmt.Sprintf("apply succeeded but archive snapshot failed: %v", err),
+				AppliedAt:  now,
+			}
 		}
 
 		s.logAuditEvent(ctx, sandbox, "approved", req.Actor, "", map[string]interface{}{

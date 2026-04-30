@@ -468,6 +468,167 @@ type DiffResult struct {
 	// View mode support for full_diff and source modes
 	Mode         ViewMode                `json:"mode,omitempty"`         // Requested view mode
 	FileContents map[string]FileViewData `json:"fileContents,omitempty"` // Per-file content, keyed by file path
+
+	// ArchiveState distinguishes archive-sourced responses from live
+	// responses. Empty (zero value) means the diff was served from the
+	// live overlay; the value is only set when the response originated
+	// from a durable archive captured at terminal-status transition.
+	//
+	//   - empty       → live overlay (Active or Stopped sandbox; or
+	//                   Creating with no overlay yet; or Error with a
+	//                   missing upper dir). The diff Files list reflects
+	//                   real-time data (or is empty for the no-overlay
+	//                   cases).
+	//   - "complete"  → archive row exists and per-file blobs are durable
+	//                   on disk. Files list is the snapshot taken at
+	//                   terminal transition.
+	//   - "not_captured" → archive row exists but no blobs were written
+	//                   (e.g. Error → Deleted transitions deliberately
+	//                   skip blob capture). Files list is empty.
+	//
+	// Consumers (agent-manager adapter, UI components, CLI) can therefore
+	// render three distinct states without inference: live data, archived
+	// snapshot, or "no diff captured". See
+	// docs/internal/ARCHIVE_DESIGN.md §3.
+	ArchiveState ArchiveState `json:"archiveState,omitempty"`
+}
+
+// ArchiveState is the durability state of a diff snapshot. Two values
+// only — see docs/internal/ARCHIVE_DESIGN.md §3 for the full taxonomy.
+type ArchiveState string
+
+const (
+	// ArchiveStateComplete indicates the response came from a durable
+	// archive row whose per-file blobs are present on disk. Live diffs
+	// leave ArchiveState empty (zero value) rather than using this.
+	ArchiveStateComplete ArchiveState = "complete"
+
+	// ArchiveStateNotCaptured indicates the snapshot was deliberately
+	// skipped at terminal transition (e.g. Error → Deleted). The
+	// archive metadata row exists for History UI rendering; no blobs
+	// exist on disk; the diff Files list is empty.
+	ArchiveStateNotCaptured ArchiveState = "not_captured"
+)
+
+// IsValid reports whether s is one of the recognized ArchiveState values.
+func (s ArchiveState) IsValid() bool {
+	switch s {
+	case ArchiveStateComplete, ArchiveStateNotCaptured:
+		return true
+	default:
+		return false
+	}
+}
+
+// DiffArchive is a durable record of a sandbox's diff at the moment it
+// transitioned to a terminal status (Approved, Rejected, or Deleted).
+// One row per sandbox; written transactionally with the status flip.
+//
+// Storage shape: metadata in SQLite (sandbox_diff_archives), content
+// in per-sandbox content-addressed blobs on disk (api-core/storage
+// ClassData). See docs/internal/ARCHIVE_DESIGN.md.
+type DiffArchive struct {
+	// SandboxID is the primary key — one archive per sandbox.
+	SandboxID uuid.UUID `json:"sandboxId"`
+
+	// SnapshotAt is the wall-clock time the snapshot was committed.
+	SnapshotAt time.Time `json:"snapshotAt"`
+
+	// ArchiveState distinguishes captured-with-content from deliberately
+	// not-captured rows.
+	ArchiveState ArchiveState `json:"archiveState"`
+
+	// SandboxStatus is the terminal status the sandbox transitioned to
+	// when the snapshot was taken — one of Approved, Rejected, Deleted.
+	// Denormalized so retention queries can filter by status without
+	// joining sandboxes.
+	SandboxStatus Status `json:"sandboxStatus"`
+
+	// Files is the per-file index. Empty when ArchiveState is
+	// NotCaptured. Each entry references a content blob by SHA-256;
+	// callers fetch the blob through the blobstore on demand.
+	Files []ArchivedFileEntry `json:"files"`
+
+	// Stats is the aggregate diff stats at snapshot time, identical in
+	// shape to DiffResult.Stats.
+	Stats DiffStats `json:"stats"`
+
+	// UnifiedDiffSHA256 is the content-address of the unified-diff
+	// text blob for this archive. Empty when NotCaptured.
+	UnifiedDiffSHA256 string `json:"unifiedDiffSha256,omitempty"`
+
+	// TotalBlobBytes is the sum of on-disk (gzipped) sizes of every
+	// blob this archive owns. Used by retention to enforce size budgets.
+	TotalBlobBytes int64 `json:"totalBlobBytes"`
+
+	// ProjectRoot is denormalized from the sandbox at snapshot time so
+	// retention can scope by project without rejoining sandboxes.
+	ProjectRoot string `json:"projectRoot"`
+
+	// Owner is denormalized for History tab filtering.
+	Owner string `json:"owner,omitempty"`
+
+	// AgentManagerRunID is denormalized for fast lookup of "find the
+	// archive for this run" without joining applied_changes.
+	AgentManagerRunID string `json:"agentManagerRunId,omitempty"`
+}
+
+// ArchivedFileEntry describes one file in a DiffArchive index. The
+// per-file content is stored as a separate blob keyed by BlobSHA256;
+// callers fetch the blob through the blobstore.
+type ArchivedFileEntry struct {
+	Path           string         `json:"path"`
+	ChangeType     ChangeType     `json:"changeType"`
+	Size           int64          `json:"size"`
+	FileMode       int            `json:"fileMode,omitempty"`
+	ApprovalStatus ApprovalStatus `json:"approvalStatus,omitempty"`
+
+	// BlobSHA256 is the content-address of this file's blob in the
+	// blobstore. Empty for change types that have no content (e.g.
+	// some "deleted" entries where the prior content was not
+	// retained, or empty added files).
+	BlobSHA256 string `json:"blobSha256,omitempty"`
+}
+
+// ArchiveListFilter selects archives for the history listing
+// endpoint. All fields are optional; zero values mean "no filter."
+type ArchiveListFilter struct {
+	// Statuses is a subset of {Approved, Rejected, Deleted}. Empty
+	// means all three.
+	Statuses []Status `json:"statuses,omitempty"`
+
+	// ProjectRoot, Owner, AgentManagerRunID are exact-match filters.
+	ProjectRoot       string `json:"projectRoot,omitempty"`
+	Owner             string `json:"owner,omitempty"`
+	AgentManagerRunID string `json:"agentManagerRunId,omitempty"`
+
+	// Search is a free-text substring matched against owner,
+	// agent_manager_run_id, and sandbox_id. Case-sensitive (SQLite
+	// LIKE without COLLATE NOCASE) for predictable behavior.
+	Search string `json:"search,omitempty"`
+
+	// SnapshotAtFrom / SnapshotAtTo bound the snapshot_at column.
+	// Zero values disable the respective bound.
+	SnapshotAtFrom time.Time `json:"snapshotAtFrom,omitempty"`
+	SnapshotAtTo   time.Time `json:"snapshotAtTo,omitempty"`
+
+	// SortBy selects the order column. Allowed values:
+	//   "snapshot_at"     (default)
+	//   "total_blob_bytes"
+	// Anything else is rejected at the repository layer.
+	SortBy string `json:"sortBy,omitempty"`
+
+	// SortDesc toggles descending order. Default is descending for
+	// snapshot_at (newest first) — repository normalizes.
+	SortDesc bool `json:"sortDesc,omitempty"`
+
+	// Limit caps the result set. The repository clamps to a sane
+	// upper bound; 0 means "use the default."
+	Limit int `json:"limit,omitempty"`
+
+	// Offset is the page offset. Page-based for now; cursor-based
+	// pagination is a follow-up if the listing becomes large.
+	Offset int `json:"offset,omitempty"`
 }
 
 // DiffStats summarizes the aggregate impact of a sandbox diff.

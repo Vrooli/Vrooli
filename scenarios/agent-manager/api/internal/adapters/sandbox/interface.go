@@ -178,7 +178,30 @@ type DiffResult struct {
 	UnifiedDiff string       `json:"unifiedDiff"`
 	Generated   time.Time    `json:"generated"`
 	Stats       DiffStats    `json:"stats"`
+
+	// ArchiveState distinguishes archive-sourced responses from live
+	// responses. Empty (zero value) means the diff was served from the
+	// live overlay; non-empty values only appear when the response came
+	// from a durable archive captured at terminal-status transition.
+	//   - empty          → live overlay
+	//   - "complete"     → archived snapshot with content blobs
+	//   - "not_captured" → archived row, no blobs (e.g. Error → Deleted)
+	ArchiveState ArchiveState `json:"archiveState,omitempty"`
 }
+
+// ArchiveState mirrors workspace-sandbox's ArchiveState taxonomy.
+type ArchiveState string
+
+const (
+	// ArchiveStateComplete: archived snapshot with content blobs durable
+	// on disk. Live diffs leave ArchiveState empty rather than using
+	// this value.
+	ArchiveStateComplete ArchiveState = "complete"
+	// ArchiveStateNotCaptured: terminal-state sandbox whose snapshot was
+	// deliberately skipped (e.g. Error → Deleted). UI renders "no diff
+	// captured" rather than treating an empty file list as a bug.
+	ArchiveStateNotCaptured ArchiveState = "not_captured"
+)
 
 // FileChange represents a single file modification.
 type FileChange struct {

@@ -111,6 +111,12 @@ type TxRepository interface {
 	Repository
 	Commit() error
 	Rollback() error
+
+	// Tx exposes the underlying *sql.Tx so multi-table operations can ride
+	// the same transaction as a sandbox status flip (notably the diff
+	// archive insert in service_archive.go). Mocks may return nil — the
+	// archive repository falls back to its own *sql.DB when tx is nil.
+	Tx() *sql.Tx
 }
 
 // dbExec abstracts *sql.DB and *sql.Tx so the same query helpers can serve
@@ -160,6 +166,7 @@ type TxSandboxRepository struct {
 
 func (r *TxSandboxRepository) Commit() error   { return r.tx.Commit() }
 func (r *TxSandboxRepository) Rollback() error { return r.tx.Rollback() }
+func (r *TxSandboxRepository) Tx() *sql.Tx     { return r.tx }
 
 func (r *SandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

@@ -650,9 +650,10 @@ func (r *wsSandboxResponse) toSandbox() *Sandbox {
 }
 
 type wsDiffResponse struct {
-	Files       []wsFileChange `json:"files"`
-	UnifiedDiff string         `json:"unifiedDiff"`
-	Stats       wsDiffStats    `json:"stats"`
+	Files        []wsFileChange `json:"files"`
+	UnifiedDiff  string         `json:"unifiedDiff"`
+	Stats        wsDiffStats    `json:"stats"`
+	ArchiveState string         `json:"archiveState,omitempty"`
 }
 
 type wsFileChange struct {
@@ -704,6 +705,7 @@ func (r *wsDiffResponse) toDiffResult(sandboxID uuid.UUID) *DiffResult {
 			LinesRemoved:  r.Stats.LinesRemoved,
 			TotalBytes:    r.Stats.TotalBytes,
 		},
+		ArchiveState: ArchiveState(r.ArchiveState),
 	}
 }
 

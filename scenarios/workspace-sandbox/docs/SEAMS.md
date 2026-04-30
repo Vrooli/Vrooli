@@ -934,16 +934,85 @@ single `Reconciler` interface (`Name()` + `Run(ctx) ReconcileReport`)
 and a `Runner` that drives a slice in registration order. Order is
 data, not code.
 
-The four periodic reconcilers (`lifecycle`, `heal`, `orphan`,
-`daemon-reaper`) and the one startup-only (`manual-review-expiry`) all
-implement the interface. Per-reconciler metrics (last-run-at,
-items-processed, items-failed) fall out for free, surfaced via
-`Runner.Metrics()` and the new `POST /admin/reconcilers/{name}`
-endpoint that fires one on demand.
+The five periodic reconcilers (`lifecycle`, `heal`, `orphan`,
+`daemon-reaper`, `archive-retention`) and the one startup-only
+(`manual-review-expiry`) all implement the interface. Per-reconciler
+metrics (last-run-at, items-processed, items-failed) fall out for
+free, surfaced via `Runner.Metrics()` and the
+`POST /admin/reconcilers/{name}` endpoint that fires one on demand.
 
 [CODE: `internal/sandbox/reconciler.go::Reconciler` /
 `internal/sandbox/reconciler.go::Runner` /
+`internal/sandbox/reconciler_archive.go::ArchiveRetentionReconciler` /
 `internal/handlers/reconcilers.go`]
+
+### Diff-archive snapshot seam
+
+When a sandbox transitions to a terminal status (Approved, Rejected,
+Deleted), `Service.snapshotAndTransition`
+(`internal/sandbox/service_archive.go`) writes a durable archive of
+the diff *before* the status flip and rides both writes — archive
+`INSERT` and sandbox `UPDATE` — on a single SQL transaction. This
+makes the transition atomic: a terminal-status sandbox without an
+archive row, or an archive without its parent sandbox row, is
+impossible by construction.
+
+The snapshot reuses the existing live diff path (`Service.GetDiff`)
+verbatim — there is no parallel diff generator. Per-file content and
+the unified-diff text are stored as content-addressed gzipped blobs in
+the workspace-sandbox `BlobStore`
+(`internal/blobstore/blobstore.go`); the archive row holds the
+metadata + a list of blob references in `files_json`.
+
+When the sandbox cannot produce a diff (Error path) the archive row is
+inserted with `archive_state="not_captured"` and no blobs. The /diff
+endpoint serves these rows transparently and the UI renders an
+explicit "no diff captured" state.
+
+[CODE: `internal/sandbox/service_archive.go::snapshotAndTransition` /
+`internal/repository/archive_repo.go` /
+`internal/blobstore/blobstore.go` / `docs/internal/ARCHIVE_DESIGN.md`]
+
+### Diff endpoint resolution seam
+
+`GET /api/v1/sandboxes/{id}/diff` is the single front door for both
+live overlays and durable archives. The handler dispatches on sandbox
+status: Active/Stopped/Error → live path; Approved/Rejected/Deleted →
+archive path. Callers (agent-manager, workspace-sandbox UI, CLI)
+never need to know whether the sandbox is still mounted.
+`GET /api/v1/sandboxes/{id}/diff/file?path=...` streams the per-file
+archive blob.
+
+`GET /api/v1/sandboxes/history` lists terminal-state archives with
+filtering (status, project_root, owner, run_id, free-text search,
+date range), pagination, and sort. Used by the UI's History tab.
+
+[CODE: `internal/handlers/diff.go::GetDiff` /
+`internal/handlers/diff.go::GetDiffFile` /
+`internal/handlers/history.go::ListHistory`]
+
+### Archive-retention seam
+
+The `archive-retention` reconciler enforces three independent levers
+— age, total disk budget, per-project cap — over the
+`sandbox_diff_archives` table and its on-disk blob tree. Eviction
+deletes blobs first, then the metadata row, so a half-deleted archive
+("row gone, blobs leaked") is impossible. Blob delete failures leave
+the row in place and are retried on the next pass.
+
+Levers are sourced through `RetentionPolicyProvider`, a closure that
+reads from `config.RetentionStore` (a `retention.json` file under
+ClassConfig). `PUT /api/v1/config/retention` persists runtime updates
+through the store; the reconciler picks them up on the next tick
+without any restart or rewiring. First-boot defaults flow from
+`Config.Default()` and may be overridden by
+`WORKSPACE_SANDBOX_RETENTION_*` env vars.
+
+[CODE:
+`internal/sandbox/service_archive.go::ReconcileArchiveRetention` /
+`internal/sandbox/reconciler_archive.go::ArchiveRetentionReconciler` /
+`internal/config/retention_store.go::FileRetentionStore` /
+`internal/handlers/config_retention.go`]
 
 ### Home-overlay decision unification
 

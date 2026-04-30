@@ -41,6 +41,9 @@ type FakeService struct {
 	CommitPendingFn      func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
 	MarkCommittedFn      func(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error)
 	GetProvenanceByRunFn func(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
+	GetArchiveFn         func(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error)
+	FetchArchiveFileFn   func(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error)
+	ListHistoryFn        func(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error)
 }
 
 // NewFakeService returns a fresh FakeService with all function pointers
@@ -199,6 +202,27 @@ func (m *FakeService) GetProvenanceByRun(ctx context.Context, projectRoot string
 		return m.GetProvenanceByRunFn(ctx, projectRoot)
 	}
 	return nil, nil
+}
+
+func (m *FakeService) GetArchive(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error) {
+	if m.GetArchiveFn != nil {
+		return m.GetArchiveFn(ctx, sandboxID)
+	}
+	return nil, nil
+}
+
+func (m *FakeService) FetchArchiveFile(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error) {
+	if m.FetchArchiveFileFn != nil {
+		return m.FetchArchiveFileFn(ctx, sandboxID, path)
+	}
+	return nil, nil
+}
+
+func (m *FakeService) ListHistory(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error) {
+	if m.ListHistoryFn != nil {
+		return m.ListHistoryFn(ctx, filter)
+	}
+	return nil, 0, nil
 }
 
 var _ sandbox.ServiceAPI = (*FakeService)(nil)

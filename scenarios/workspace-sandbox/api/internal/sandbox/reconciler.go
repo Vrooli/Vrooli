@@ -402,12 +402,20 @@ func (r *ManualReviewExpiryReconciler) Run(ctx context.Context) ReconcileReport 
 //  4. DaemonReaper: kills fuse-overlayfs daemons whose owning sandbox
 //     is no longer in the repo. Independent of dir orphans (a daemon
 //     can outlive its dir).
+//  5. ArchiveRetention: evicts diff archives that exceed retention
+//     levers (age, size, per-project cap). Independent of every other
+//     reconciler — touches sandbox_diff_archives + the blobstore tree
+//     only, never the live sandbox state.
 //
 // ManualReviewExpiry runs once at startup only.
 //
 // The heal tracker is wired with the durable repo (Phase 6) and its
 // durable rows are loaded at boot before the first reconciler tick.
-func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCfg HealConfig) *Runner {
+//
+// retention may be nil — in which case the archive-retention
+// reconciler is omitted. Production wiring always passes a non-nil
+// provider that reads from the retention store.
+func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCfg HealConfig, retention RetentionPolicyProvider) *Runner {
 	tracker := newHealTracker().withRepo(svc.repo)
 	if err := tracker.loadFromRepo(context.Background()); err != nil {
 		// Cache stays empty; future writes still upsert into the table.
@@ -418,6 +426,9 @@ func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCf
 		NewHealReconciler(svc, tracker, healCfg),
 		NewOrphanReconciler(svc),
 		NewDaemonReaperReconciler(svc),
+	}
+	if retention != nil {
+		periodic = append(periodic, NewArchiveRetentionReconciler(svc, retention))
 	}
 	var startupOnly []Reconciler
 	if manualReviewTTL > 0 {
@@ -436,6 +447,7 @@ var (
 	_ Reconciler = (*OrphanReconciler)(nil)
 	_ Reconciler = (*DaemonReaperReconciler)(nil)
 	_ Reconciler = (*ManualReviewExpiryReconciler)(nil)
+	_ Reconciler = (*ArchiveRetentionReconciler)(nil)
 )
 
 // _ types is a doc-only alias to keep the types import live when the

@@ -82,14 +82,17 @@ func TestEnsureSchema_IdempotentReinit(t *testing.T) {
 	}
 }
 
-func TestEnsureSchema_RefusesOlderVersionThanExpected(t *testing.T) {
+func TestEnsureSchema_WalksForwardThroughRegisteredVersions(t *testing.T) {
 	if repository.ExpectedSchemaVersion < 2 {
-		t.Skip("requires ExpectedSchemaVersion >= 2 to simulate forward-only drift")
+		t.Skip("requires ExpectedSchemaVersion >= 2 to exercise forward walk")
 	}
 	db := openRawSQLite(t)
 	clk := clock.System{}
 
-	// Apply DDL only, then stamp an older version manually.
+	// Simulate a pre-existing DB at version (expected-1): apply DDL,
+	// stamp the older version manually, then call EnsureSchema. The
+	// new behavior is to walk forward through the registered
+	// migrations to ExpectedSchemaVersion and replace the version row.
 	if _, err := db.Exec(repository.SchemaSQL); err != nil {
 		t.Fatalf("apply schema: %v", err)
 	}
@@ -99,12 +102,23 @@ func TestEnsureSchema_RefusesOlderVersionThanExpected(t *testing.T) {
 		t.Fatalf("seed older version: %v", err)
 	}
 
-	err := repository.EnsureSchema(context.Background(), db, clk)
-	if err == nil {
-		t.Fatal("expected error for older schema version, got nil")
+	if err := repository.EnsureSchema(context.Background(), db, clk); err != nil {
+		t.Fatalf("EnsureSchema: %v", err)
 	}
-	if !strings.Contains(err.Error(), "forward-only migration missing") {
-		t.Errorf("error = %v, want it to mention forward-only migration", err)
+
+	var rows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_version`).Scan(&rows); err != nil {
+		t.Fatalf("count rows: %v", err)
+	}
+	if rows != 1 {
+		t.Errorf("schema_version row count = %d, want 1 (single-row contract)", rows)
+	}
+	var v int
+	if err := db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&v); err != nil {
+		t.Fatalf("read version: %v", err)
+	}
+	if v != repository.ExpectedSchemaVersion {
+		t.Errorf("version = %d, want %d", v, repository.ExpectedSchemaVersion)
 	}
 }
 

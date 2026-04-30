@@ -32,6 +32,31 @@ type DiffResponse struct {
 	UnifiedDiff string     `json:"unifiedDiff"`
 	Stats       DiffStats  `json:"stats"`
 	Files       []DiffFile `json:"files"`
+	// ArchiveState distinguishes archived diffs from live ones; one of
+	// "complete" or "not_captured", or empty for older API versions.
+	ArchiveState string `json:"archiveState,omitempty"`
+}
+
+// HistoryArchive is the wire shape for one row from
+// /api/v1/sandboxes/history.
+type HistoryArchive struct {
+	SandboxID         string    `json:"sandboxId"`
+	SnapshotAt        time.Time `json:"snapshotAt"`
+	ArchiveState      string    `json:"archiveState"`
+	SandboxStatus     string    `json:"sandboxStatus"`
+	ProjectRoot       string    `json:"projectRoot"`
+	Owner             string    `json:"owner,omitempty"`
+	AgentManagerRunID string    `json:"agentManagerRunId,omitempty"`
+	TotalBlobBytes    int64     `json:"totalBlobBytes"`
+	Stats             DiffStats `json:"stats"`
+}
+
+// HistoryResponse is the wire shape for /api/v1/sandboxes/history.
+type HistoryResponse struct {
+	Archives   []HistoryArchive `json:"archives"`
+	TotalCount int              `json:"totalCount"`
+	Limit      int              `json:"limit"`
+	Offset     int              `json:"offset"`
 }
 
 // DiffStats mirrors workspace-sandbox api/internal/types.DiffStats.

@@ -22,7 +22,13 @@ var SchemaSQL string
 // databases (no schema_version row) are treated as the same canonical
 // state because the prior schema is a strict subset of the current one
 // — we only ever add columns/tables, never drop or rename in-place.
-const ExpectedSchemaVersion = 1
+//
+// Round 5 (2026-04-29): bumped to version 2. Adds the
+// sandbox_diff_archives table and its indexes (see schema.sql) for
+// durable diff snapshots taken at terminal status transitions. Pure
+// additive change — the new table is created via IF NOT EXISTS, no
+// existing tables are altered.
+const ExpectedSchemaVersion = 2
 
 // EnsureSchema applies the embedded schema and records the schema
 // version. It is the single startup entry point for all DDL: legacy
@@ -69,23 +75,90 @@ func EnsureSchema(ctx context.Context, db *sql.DB, clk clock.Clock) error {
 		return fmt.Errorf("read schema version: %w", err)
 	}
 
-	switch {
-	case current == 0:
-		if err := writeSchemaVersion(ctx, db, ExpectedSchemaVersion, clk.Now()); err != nil {
-			return fmt.Errorf("write schema version: %w", err)
-		}
-	case current < ExpectedSchemaVersion:
-		return fmt.Errorf(
-			"schema_version %d < expected %d: forward-only migration missing — refusing to start",
-			current, ExpectedSchemaVersion,
-		)
-	case current > ExpectedSchemaVersion:
+	if current > ExpectedSchemaVersion {
 		return fmt.Errorf(
 			"schema_version %d > expected %d: binary is older than database — refusing to start",
 			current, ExpectedSchemaVersion,
 		)
 	}
 
+	if current == ExpectedSchemaVersion {
+		return nil
+	}
+
+	// Walk forward through every required version step. Each migrator
+	// is responsible for any DDL its version needs *beyond* what the
+	// embedded schema.sql already applies — the embedded schema is
+	// always applied first via IF NOT EXISTS, so pure-additive table
+	// creates are no-ops here and the migrator only needs to bump the
+	// recorded version. The schema_version table holds exactly one
+	// row at the latest applied version (matching the existing single-
+	// row contract); writeSchemaVersion at the end of the walk records
+	// the final value.
+	for v := current + 1; v <= ExpectedSchemaVersion; v++ {
+		mig, ok := migrations[v]
+		if !ok {
+			return fmt.Errorf(
+				"schema_version %d → %d: forward-only migration missing — refusing to start",
+				current, v,
+			)
+		}
+		if err := mig(ctx, db); err != nil {
+			return fmt.Errorf("migrate schema to v%d: %w", v, err)
+		}
+	}
+
+	if err := stampSchemaVersion(ctx, db, ExpectedSchemaVersion, clk.Now()); err != nil {
+		return fmt.Errorf("stamp schema_version: %w", err)
+	}
+	return nil
+}
+
+// stampSchemaVersion replaces the schema_version table contents with
+// a single row pinned to version. Idempotent: re-stamping the same
+// version is a no-op (the existing row's applied_at remains, since
+// we only write when the table is empty or the version differs).
+func stampSchemaVersion(ctx context.Context, db *sql.DB, version int, t time.Time) error {
+	current, err := readSchemaVersion(ctx, db)
+	if err != nil {
+		return err
+	}
+	if current == version {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM schema_version`); err != nil {
+		return fmt.Errorf("clear schema_version: %w", err)
+	}
+	return writeSchemaVersion(ctx, db, version, t)
+}
+
+// migrations registers each forward-only step keyed by the target
+// version. EnsureSchema invokes them in order from current+1 up to
+// ExpectedSchemaVersion. Each migrator runs *after* the embedded
+// schema.sql has already been applied, so it should only contain the
+// extra DDL that schema.sql can't express idempotently (renames,
+// data backfills, etc.). For pure additive changes the migrator may
+// be a no-op — the version row itself records the bump.
+var migrations = map[int]func(context.Context, *sql.DB) error{
+	1: migrateToV1,
+	2: migrateToV2,
+}
+
+// migrateToV1 marks an empty database as v1. The legacy column
+// migrations (migrateDriverColumn, migrateHomeOverlayStateColumn)
+// already ran before this point in EnsureSchema, so the schema is
+// guaranteed up-to-date.
+func migrateToV1(_ context.Context, _ *sql.DB) error {
+	return nil
+}
+
+// migrateToV2 brings the DB up to schema version 2, which adds the
+// sandbox_diff_archives table for durable diff snapshots taken at
+// terminal status transitions. The table is purely additive and is
+// created by the embedded schema.sql via IF NOT EXISTS, so this
+// migrator is a no-op — but it must exist so the version walker
+// recognizes v1 → v2 as a registered step rather than an unknown bump.
+func migrateToV2(_ context.Context, _ *sql.DB) error {
 	return nil
 }
 

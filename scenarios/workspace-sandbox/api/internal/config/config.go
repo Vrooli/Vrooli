@@ -56,6 +56,9 @@ type Config struct {
 
 	// Integration settings for external scenario sync.
 	Integration IntegrationConfig
+
+	// Retention controls the diff-archive retention reconciler.
+	Retention RetentionConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -348,6 +351,55 @@ type DatabaseConfig struct {
 	Path string
 }
 
+// RetentionConfig controls how long diff archives (sandbox_diff_archives
+// rows + their on-disk blobs) are kept before the archive-retention
+// reconciler evicts them. The three levers compose: any archive that
+// trips ANY of them is eligible for eviction. Zero values disable a
+// lever (subject to the per-field rules below).
+//
+// Snapshot rules and their reason:
+//
+//   - MaxArchiveAgeDays: archives whose snapshot_at is older than now -
+//     MaxAge are unconditionally evicted. 0 disables age-based eviction.
+//
+//   - MaxArchiveSizeBytes: when the sum of total_blob_bytes across all
+//     archives exceeds this budget, the oldest archives are evicted
+//     until the running total falls below the budget. 0 disables
+//     size-based eviction. Counted across ALL archives — not per
+//     project — because the disk is the shared resource.
+//
+//   - MaxArchivesPerProject: when more than this many archives exist
+//     for a given project_root, the oldest within that project are
+//     evicted to bring the count to the cap. 0 disables the cap.
+//
+// Defaults (90 days, 10 GiB total, no per-project cap) are conservative:
+// the goal is to make Git Control Tower's audit story durable without
+// turning a forgotten dev box into a disk-full incident.
+//
+// Persistence: defaults flow from Default() and may be overridden by
+// the documented WORKSPACE_SANDBOX_RETENTION_MAX_AGE_DAYS,
+// WORKSPACE_SANDBOX_RETENTION_MAX_SIZE_BYTES, and
+// WORKSPACE_SANDBOX_RETENTION_MAX_PER_PROJECT env vars at startup. The
+// PUT /config/retention endpoint persists runtime updates to a JSON
+// file under ClassConfig so they survive restart; on next boot the
+// file is the source of truth and overrides env-derived defaults.
+type RetentionConfig struct {
+	// MaxArchiveAgeDays evicts archives older than this many days.
+	// Default: 90. 0 disables age-based eviction.
+	MaxArchiveAgeDays int `json:"maxArchiveAgeDays"`
+
+	// MaxArchiveSizeBytes is the total disk budget for all archive
+	// blobs combined (the sum of total_blob_bytes across rows). When
+	// the sum exceeds this, the oldest archives are evicted oldest-
+	// first. Default: 10 GiB (10737418240). 0 disables size eviction.
+	MaxArchiveSizeBytes int64 `json:"maxArchiveSizeBytes"`
+
+	// MaxArchivesPerProject caps how many archives may exist per
+	// project_root. Excess archives within a project are evicted
+	// oldest-first. Default: 0 (no cap).
+	MaxArchivesPerProject int `json:"maxArchivesPerProject"`
+}
+
 // IntegrationConfig controls cross-scenario callbacks.
 type IntegrationConfig struct {
 	// AgentManagerURL is the base URL for agent-manager API (optional).
@@ -509,6 +561,11 @@ func Default() Config {
 			AgentManagerSyncEnabled: true,
 			AgentManagerSyncTimeout: 5 * time.Second,
 		},
+		Retention: RetentionConfig{
+			MaxArchiveAgeDays:     90,
+			MaxArchiveSizeBytes:   10 * 1024 * 1024 * 1024, // 10 GiB
+			MaxArchivesPerProject: 0,                       // 0 = unlimited
+		},
 	}
 }
 
@@ -636,6 +693,11 @@ func LoadFromEnv() (Config, error) {
 	// Database config (SQLite path; falls back to api-core/storage resolver
 	// when unset).
 	cfg.Database.Path = os.Getenv("SQLITE_PATH")
+
+	// Retention config (diff-archive retention reconciler).
+	cfg.Retention.MaxArchiveAgeDays = envInt("WORKSPACE_SANDBOX_RETENTION_MAX_AGE_DAYS", cfg.Retention.MaxArchiveAgeDays)
+	cfg.Retention.MaxArchiveSizeBytes = envInt64("WORKSPACE_SANDBOX_RETENTION_MAX_SIZE_BYTES", cfg.Retention.MaxArchiveSizeBytes)
+	cfg.Retention.MaxArchivesPerProject = envInt("WORKSPACE_SANDBOX_RETENTION_MAX_PER_PROJECT", cfg.Retention.MaxArchivesPerProject)
 
 	if len(errs) > 0 {
 		return cfg, fmt.Errorf("missing required environment variables: %s", strings.Join(errs, ", "))
@@ -798,6 +860,19 @@ func (c *Config) Validate() error {
 		errs = append(errs, "integration.agentManagerSyncTimeout must be >= 0")
 	}
 
+	// --- Retention ---
+	// Each lever is independently optional (0 disables). Negatives are
+	// always invalid because they have no meaningful interpretation.
+	if c.Retention.MaxArchiveAgeDays < 0 {
+		errs = append(errs, "retention.maxArchiveAgeDays must be >= 0 (0 disables age-based eviction)")
+	}
+	if c.Retention.MaxArchiveSizeBytes < 0 {
+		errs = append(errs, "retention.maxArchiveSizeBytes must be >= 0 (0 disables size-based eviction)")
+	}
+	if c.Retention.MaxArchivesPerProject < 0 {
+		errs = append(errs, "retention.maxArchivesPerProject must be >= 0 (0 disables the per-project cap)")
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration validation failed: %s", strings.Join(errs, "; "))
 	}
@@ -818,6 +893,15 @@ func requireEnv(key string, errs *[]string) string {
 func envInt(key string, defaultVal int) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return defaultVal
+}
+
+func envInt64(key string, defaultVal int64) int64 {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
 			return i
 		}
 	}

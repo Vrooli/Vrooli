@@ -124,8 +124,16 @@ func TestDelete_Daemon_Lifecycle_AllowsRemountSameID(t *testing.T) {
 	if err := svc.Delete(context.Background(), id); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
-	if _, ok := repo.Sandboxes[id]; ok {
-		t.Errorf("Delete should remove the sandbox row from the repo, but %s still present", id)
+	// Soft-delete: row stays, status flips to Deleted. The slot is
+	// reusable because the daemon was killed (next assertion); the
+	// remount is reusable because Create's reserved-path conflict logic
+	// already filters out status=Deleted rows.
+	got, ok := repo.Sandboxes[id]
+	if !ok {
+		t.Fatalf("Delete should retain the sandbox row (soft-delete) but %s missing", id)
+	}
+	if got.Status != types.StatusDeleted {
+		t.Errorf("Delete should set status=deleted, got %s", got.Status)
 	}
 
 	// Wait for the helper to actually exit before declaring the slot

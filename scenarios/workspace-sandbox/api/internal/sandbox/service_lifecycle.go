@@ -219,6 +219,16 @@ func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, erro
 //
 // Idempotent: calling Delete on an already-deleted sandbox returns
 // success without error.
+//
+// Snapshot policy: Delete captures a diff archive only when no archive
+// already exists for this sandbox. The archive's content is captured
+// when the sandbox can still produce a diff (Active/Stopped); otherwise
+// it is recorded with archive_state="not_captured" so the History UI
+// can render an explicit "no diff captured" state. When called via the
+// auto-Delete-on-Approve/Reject lifecycle path, the archive was already
+// inserted by Approve/Reject — Delete leaves it untouched and only
+// flips the sandbox status to Deleted (the archive remains keyed at the
+// terminal status it captured).
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
@@ -230,6 +240,51 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 
 	if sandbox.Status == types.StatusDeleted {
 		return nil
+	}
+
+	// Snapshot before teardown if we're deleting a sandbox that doesn't
+	// already have an archive. CanGenerateDiff captures the Active/
+	// Stopped/etc. policy; Error sandboxes and missing-overlay paths get
+	// a not_captured row.
+	needsSnapshot := true
+	if s.archiveRepo != nil {
+		existing, getErr := s.archiveRepo.Get(ctx, id)
+		if getErr != nil {
+			return fmt.Errorf("failed to check existing archive: %w", getErr)
+		}
+		if existing != nil {
+			needsSnapshot = false
+		}
+	}
+
+	deletedAt := s.clock.Now()
+	if needsSnapshot {
+		// Error sandboxes get a not_captured archive row even though
+		// CanGenerateDiff would technically allow a snapshot — the
+		// overlay is typically broken in ways that produce misleading
+		// diffs. Creating sandboxes have no upper dir at all. Both
+		// surface as "no diff captured" in the UI.
+		captured := types.CanGenerateDiff(sandbox.Status) == nil &&
+			sandbox.Status != types.StatusError
+		if err := s.snapshotAndTransition(ctx, sandbox, types.StatusDeleted, captured, func(sb *types.Sandbox) {
+			sb.DeletedAt = &deletedAt
+		}); err != nil {
+			s.logAuditEvent(ctx, sandbox, "snapshot_failed", "", "system", map[string]interface{}{
+				"phase": "delete",
+				"error": err.Error(),
+			})
+			return fmt.Errorf("failed to snapshot+delete sandbox: %w", err)
+		}
+	} else {
+		// Archive already exists from a prior Approve/Reject; this
+		// Delete is the lifecycle cleanup that follows. Just flip the
+		// sandbox status to Deleted (no re-snapshot, no archive
+		// mutation — the archive is immutable post-creation).
+		sandbox.Status = types.StatusDeleted
+		sandbox.DeletedAt = &deletedAt
+		if err := s.repo.Update(ctx, sandbox); err != nil {
+			return fmt.Errorf("failed to update sandbox to deleted: %w", err)
+		}
 	}
 
 	// Run pre-teardown hooks before cleanup, so external systems can
@@ -245,13 +300,6 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	// (e.g. the userspace daemon that survives Unmount on some kernels).
 	// Background reaper stays as a safety net for API-crash paths.
 	s.killDaemonsForSandbox(ctx, id)
-
-	if err := s.repo.Delete(ctx, id); err != nil {
-		if err.Error() == "sandbox not found or already deleted" {
-			return nil
-		}
-		return fmt.Errorf("failed to delete sandbox: %w", err)
-	}
 
 	s.logAuditEvent(ctx, sandbox, "deleted", "", "", nil)
 

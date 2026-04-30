@@ -412,9 +412,18 @@ func TestService_Delete_Success(t *testing.T) {
 		t.Fatalf("Delete() error = %v", err)
 	}
 
-	// Verify sandbox was removed
-	if _, ok := repo.Sandboxes[id]; ok {
-		t.Error("Delete() should remove sandbox from repository")
+	// Soft-delete: the sandbox row remains so the diff archive (Phase 2)
+	// keeps a foreign-key target and the audit log keeps the row to
+	// reference. Status flips to Deleted; deleted_at is stamped.
+	got, ok := repo.Sandboxes[id]
+	if !ok {
+		t.Fatal("Delete() should retain sandbox row (soft-delete)")
+	}
+	if got.Status != types.StatusDeleted {
+		t.Errorf("Delete() status = %s, want %s", got.Status, types.StatusDeleted)
+	}
+	if got.DeletedAt == nil {
+		t.Error("Delete() should stamp DeletedAt")
 	}
 }
 

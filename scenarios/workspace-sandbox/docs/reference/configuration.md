@@ -514,3 +514,45 @@ Per-request deadline for outbound agent-manager sync.
 
 - Range: `>= 0`
 - Audience: operators
+
+## Diff-archive retention
+
+Diff archives (`sandbox_diff_archives` rows + their on-disk content
+blobs) outlive the sandboxes they were captured from. The retention
+reconciler enforces three independent levers; any archive matching ANY
+active lever is evicted oldest-first. The reconciler runs on the same
+cadence as the lifecycle reconciler (`WORKSPACE_SANDBOX_GC_INTERVAL`)
+and can also be triggered on demand via
+`POST /api/v1/admin/reconcilers/archive-retention`.
+
+Env vars seed the initial values on first boot. Subsequent runtime
+updates via `PUT /api/v1/config/retention` persist to a JSON file under
+`ClassConfig` (`retention.json`) and take precedence on the next boot.
+
+### `WORKSPACE_SANDBOX_RETENTION_MAX_AGE_DAYS` (int, default `90`)
+Archives older than this many days are evicted unconditionally. Set
+to `0` to disable age-based eviction.
+
+- Range: `>= 0`
+- Audience: operators
+- Related: `WORKSPACE_SANDBOX_RETENTION_MAX_SIZE_BYTES`,
+  `WORKSPACE_SANDBOX_RETENTION_MAX_PER_PROJECT`,
+  `/api/v1/config/retention`,
+  `/api/v1/admin/reconcilers/archive-retention`
+
+### `WORKSPACE_SANDBOX_RETENTION_MAX_SIZE_BYTES` (int64, default `10737418240` — 10 GiB)
+Total disk budget for archive blobs across all archives. When the sum
+of `total_blob_bytes` exceeds this, the oldest archives are evicted
+oldest-first until the running total falls under budget. Set to `0`
+to disable size-based eviction.
+
+- Range: `>= 0`
+- Audience: operators
+
+### `WORKSPACE_SANDBOX_RETENTION_MAX_PER_PROJECT` (int, default `0` = unlimited)
+Caps how many archives may exist per `project_root`. Excess archives
+within a project are evicted oldest-first to bring the count to the
+cap. Set to `0` to disable the per-project cap.
+
+- Range: `>= 0`
+- Audience: operators

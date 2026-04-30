@@ -3,34 +3,46 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 
-// Mock the API functions
-vi.mock('./lib/api', () => ({
-  fetchHealth: vi.fn().mockResolvedValue({
-    status: 'healthy',
-    service: 'Workspace Sandbox API',
-    version: '1.0.0',
-    readiness: true,
-    timestamp: new Date().toISOString(),
-    dependencies: { database: 'connected', driver: 'available' },
-  }),
-  listSandboxes: vi.fn().mockResolvedValue({
-    sandboxes: [],
-    totalCount: 0,
-    limit: 100,
-    offset: 0,
-  }),
-  computeStats: vi.fn().mockReturnValue({
-    total: 0,
-    active: 0,
-    stopped: 0,
-    approved: 0,
-    rejected: 0,
-    error: 0,
-    totalSizeBytes: 0,
-  }),
-  formatBytes: vi.fn((bytes: number) => `${bytes}B`),
-  formatRelativeTime: vi.fn(() => 'just now'),
-}));
+// Mock the API functions. We use importOriginal so all type-level
+// constants (ACTIVE_STATUSES, isHistoryStatus, etc.) keep their real
+// values; only network-touching functions are stubbed.
+vi.mock('./lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./lib/api')>();
+  return {
+    ...actual,
+    fetchHealth: vi.fn().mockResolvedValue({
+      status: 'healthy',
+      service: 'Workspace Sandbox API',
+      version: '1.0.0',
+      readiness: true,
+      timestamp: new Date().toISOString(),
+      dependencies: { database: 'connected', driver: 'available' },
+    }),
+    listSandboxes: vi.fn().mockResolvedValue({
+      sandboxes: [],
+      totalCount: 0,
+      limit: 100,
+      offset: 0,
+    }),
+    listHistory: vi.fn().mockResolvedValue({
+      archives: [],
+      totalCount: 0,
+      limit: 100,
+      offset: 0,
+    }),
+    computeStats: vi.fn().mockReturnValue({
+      total: 0,
+      active: 0,
+      stopped: 0,
+      approved: 0,
+      rejected: 0,
+      error: 0,
+      totalSizeBytes: 0,
+    }),
+    formatBytes: vi.fn((bytes: number) => `${bytes}B`),
+    formatRelativeTime: vi.fn(() => 'just now'),
+  };
+});
 
 const createQueryClient = () =>
   new QueryClient({

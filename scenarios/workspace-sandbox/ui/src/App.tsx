@@ -3,8 +3,10 @@ import { MousePointerClick, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
-import { SandboxList } from "./components/SandboxList";
+import { Sidebar } from "./components/sidebar/Sidebar";
+import { useSidebarState } from "./components/sidebar/useSidebarState";
 import { SandboxDetail } from "./components/SandboxDetail";
+import { ClosedSandboxDetail } from "./components/ClosedSandboxDetail";
 import { DiffViewer } from "./components/DiffViewer";
 import { FileTree } from "./components/FileTree";
 import { CreateSandboxDialog } from "./components/CreateSandboxDialog";
@@ -31,7 +33,14 @@ import {
   useStartProcess,
   queryKeys,
 } from "./lib/hooks";
-import { computeStats, type Sandbox, type CreateRequest, type ViewMode } from "./lib/api";
+import {
+  computeStats,
+  isHistoryStatus,
+  type CreateRequest,
+  type DiffArchive,
+  type Sandbox,
+  type ViewMode,
+} from "./lib/api";
 import { SELECTORS } from "./consts/selectors";
 
 /**
@@ -61,10 +70,26 @@ export default function App() {
 
   // Local state
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null);
+  // When the user clicks an archive row, we keep the raw archive payload
+  // so ClosedSandboxDetail can render its archive-specific metadata
+  // (snapshotAt, totalBlobBytes, archive_state, runId, …) that isn't on
+  // the Sandbox shape.
+  const [selectedArchive, setSelectedArchive] = useState<DiffArchive | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
+
+  // Sidebar tab/filter/sort state. Lifted to App so we can imperatively
+  // switch tabs on terminal-status transitions ("selection moved to
+  // History" UX) and so the SettingsDialog can clear the History
+  // search after retention changes archive contents.
+  const [sidebarState, sidebarDispatch] = useSidebarState();
+  const [transitionToast, setTransitionToast] = useState<{
+    id: number;
+    message: string;
+  } | null>(null);
+  const lastSelectedStatus = useRef<Sandbox["status"] | null>(null);
 
   // Review mode state (lifted from SandboxDetail for sidebar coordination)
   const [isReviewMode, setIsReviewMode] = useState(false);
@@ -183,10 +208,22 @@ export default function App() {
 
   const handleSelectSandbox = useCallback((sandbox: Sandbox) => {
     setSelectedSandbox(sandbox);
+    setSelectedArchive(null);
     if (isMobile) {
       setMobileActivePanel("details");
     }
   }, [isMobile]);
+
+  const handleSelectArchive = useCallback(
+    (archive: DiffArchive, asSandbox: Sandbox) => {
+      setSelectedSandbox(asSandbox);
+      setSelectedArchive(archive);
+      if (isMobile) {
+        setMobileActivePanel("details");
+      }
+    },
+    [isMobile],
+  );
 
   const handleCreate = useCallback(
     (req: CreateRequest) => {
@@ -340,10 +377,19 @@ export default function App() {
     if (!selectedSandbox) return;
     deleteMutation.mutate(selectedSandbox.id, {
       onSuccess: () => {
-        setSelectedSandbox(null);
+        // Preserve the selection: the sandbox transitions to status =
+        // "deleted" with a durable archive row, and the transition
+        // effect moves the sidebar to the History tab. The user keeps
+        // the same row selected and continues seeing the archived
+        // diff via the existing /diff endpoint.
+        queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+        if (selectedSandbox.id) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(selectedSandbox.id) });
+          queryClient.invalidateQueries({ queryKey: queryKeys.diff(selectedSandbox.id) });
+        }
       },
     });
-  }, [selectedSandbox, deleteMutation]);
+  }, [selectedSandbox, deleteMutation, queryClient]);
 
   const handleDiscardFile = useCallback(
     (fileId: string) => {
@@ -515,6 +561,38 @@ export default function App() {
   // Use the list version if available (more up-to-date)
   const currentSandbox = selectedFromList || selectedSandbox;
 
+  // Selection-on-transition UX: when the selected sandbox transitions
+  // from an active-tab status to a history-tab status, point the
+  // sidebar at History and surface a transient toast. The selection
+  // itself is preserved so the right panel keeps showing the same
+  // sandbox (now via ClosedSandboxDetail).
+  useEffect(() => {
+    const status = currentSandbox?.status;
+    if (!status) {
+      lastSelectedStatus.current = null;
+      return;
+    }
+    const prev = lastSelectedStatus.current;
+    lastSelectedStatus.current = status;
+    if (!prev || prev === status) return;
+    if (!isHistoryStatus(prev) && isHistoryStatus(status)) {
+      sidebarDispatch({ type: "SET_TAB", tab: "history" });
+      const verb = status === "approved" ? "approved" : status === "rejected" ? "rejected" : "deleted";
+      setTransitionToast({
+        id: Date.now(),
+        message: `Sandbox ${verb} — moved to History`,
+      });
+    }
+  }, [currentSandbox?.status, sidebarDispatch]);
+
+  // Auto-dismiss the toast after a short window. The id-based dependency
+  // makes successive transitions reset the timer cleanly.
+  useEffect(() => {
+    if (!transitionToast) return;
+    const handle = window.setTimeout(() => setTransitionToast(null), 4000);
+    return () => window.clearTimeout(handle);
+  }, [transitionToast]);
+
   // Extract existing reserved paths from active sandboxes for conflict detection
   const existingReservedPaths = useMemo(() => {
     const paths = new Set<string>();
@@ -617,6 +695,20 @@ export default function App() {
         />
       )}
 
+      {/* Selection-on-transition toast */}
+      {transitionToast && (
+        <div
+          key={transitionToast.id}
+          className={`fixed left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-emerald-950/90 border border-emerald-700 text-emerald-100 text-sm max-w-md z-50 shadow-lg ${
+            isMobile ? "bottom-24" : "bottom-4"
+          }`}
+          role="status"
+          data-testid="sidebar-transition-toast"
+        >
+          {transitionToast.message}
+        </div>
+      )}
+
       {/* Error Toast */}
       {(createMutation.error ||
         deleteMutation.error ||
@@ -670,24 +762,33 @@ export default function App() {
         <main className="flex-1 min-h-0 overflow-hidden pb-16">
           {mobileActivePanel === "sandboxes" && (
             <div className="h-full overflow-y-auto">
-              <SandboxList
+              <Sidebar
                 sandboxes={sandboxes}
                 selectedId={currentSandbox?.id}
-                onSelect={handleSelectSandbox}
                 isLoading={sandboxesQuery.isLoading}
+                onSelectActive={handleSelectSandbox}
+                onSelectHistory={handleSelectArchive}
                 onRestartSandbox={handleRestartSandbox}
                 onRestartUnhealthy={handleRestartUnhealthy}
                 restartingIds={restartingIds}
+                state={sidebarState}
+                dispatch={sidebarDispatch}
               />
             </div>
           )}
 
           {mobileActivePanel === "details" && (
             <div className="h-full overflow-y-auto">
-              <SandboxDetail
-                {...sandboxDetailProps}
-                hideDiffViewer
-              />
+              {selectedArchive && currentSandbox ? (
+                <ClosedSandboxDetail
+                  archive={selectedArchive}
+                  diff={diffQuery.data}
+                  isDiffLoading={diffQuery.isLoading}
+                  diffError={diffQuery.error}
+                />
+              ) : (
+                <SandboxDetail {...sandboxDetailProps} hideDiffViewer />
+              )}
             </div>
           )}
 
@@ -824,14 +925,17 @@ export default function App() {
               onExitReview={handleExitReviewMode}
             />
           ) : (
-            <SandboxList
+            <Sidebar
               sandboxes={sandboxes}
               selectedId={currentSandbox?.id}
-              onSelect={handleSelectSandbox}
               isLoading={sandboxesQuery.isLoading}
+              onSelectActive={handleSelectSandbox}
+              onSelectHistory={handleSelectArchive}
               onRestartSandbox={handleRestartSandbox}
               onRestartUnhealthy={handleRestartUnhealthy}
               restartingIds={restartingIds}
+              state={sidebarState}
+              dispatch={sidebarDispatch}
             />
           )}
         </div>
@@ -844,7 +948,16 @@ export default function App() {
 
         {/* Detail Panel - Right Panel */}
         <div className="flex-1 min-w-0 overflow-hidden">
-          <SandboxDetail {...sandboxDetailProps} />
+          {selectedArchive && currentSandbox ? (
+            <ClosedSandboxDetail
+              archive={selectedArchive}
+              diff={diffQuery.data}
+              isDiffLoading={diffQuery.isLoading}
+              diffError={diffQuery.error}
+            />
+          ) : (
+            <SandboxDetail {...sandboxDetailProps} />
+          )}
         </div>
       </div>
 

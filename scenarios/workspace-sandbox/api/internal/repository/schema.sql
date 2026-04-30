@@ -162,3 +162,54 @@ CREATE TABLE IF NOT EXISTS schema_version (
     version    INTEGER NOT NULL PRIMARY KEY,
     applied_at TEXT NOT NULL
 );
+
+-- sandbox_diff_archives: durable diff snapshot taken at terminal status
+-- transitions (Approved, Rejected, Deleted). One row per sandbox; the
+-- row exists if and only if the sandbox has reached a terminal status.
+--
+-- Atomicity: the row is inserted inside the same SQL transaction that
+-- flips the sandbox's status to its terminal value. Per-file content
+-- blobs and the unified-diff blob are written to disk via
+-- internal/blobstore (api-core/storage ClassData) BEFORE the
+-- transaction commits. Snapshot failure aborts the transition; a
+-- terminal-status sandbox without an archive row is impossible by
+-- construction.
+--
+-- archive_state taxonomy:
+--   - 'complete'      : blobs are present on disk; serve from archive.
+--   - 'not_captured'  : snapshot deliberately skipped (Error→Deleted,
+--                       or CanGenerateDiff was false at snapshot time);
+--                       no blobs exist; UI renders "no diff captured".
+-- No 'pending' state — we never commit a row that promises content we
+-- have not yet written.
+--
+-- files_json shape:    [{"path":..., "changeType":..., "size":...,
+--                        "blobSha256":..., "fileMode":...,
+--                        "approvalStatus":...}, ...]
+-- stats_json shape:    DiffStats serialized as JSON.
+-- unified_diff_path:   gzipped blob path (relative to the storage class
+--                      root); NULL when archive_state='not_captured'.
+--
+-- See docs/internal/ARCHIVE_DESIGN.md for the full contract.
+--
+-- Round 5 (2026-04-29): introduced as schema version 2.
+CREATE TABLE IF NOT EXISTS sandbox_diff_archives (
+    sandbox_id            TEXT PRIMARY KEY REFERENCES sandboxes(id) ON DELETE CASCADE,
+    snapshot_at           TEXT NOT NULL,
+    archive_state         TEXT NOT NULL,
+    files_json            TEXT NOT NULL DEFAULT '[]',
+    stats_json            TEXT NOT NULL DEFAULT '{}',
+    unified_diff_path     TEXT,
+    total_blob_bytes      INTEGER NOT NULL DEFAULT 0,
+    project_root          TEXT NOT NULL,
+    owner                 TEXT,
+    agent_manager_run_id  TEXT,
+    sandbox_status        TEXT NOT NULL,
+    CHECK (archive_state IN ('complete', 'not_captured')),
+    CHECK (sandbox_status IN ('approved', 'rejected', 'deleted'))
+);
+CREATE INDEX IF NOT EXISTS idx_archives_snapshot_at      ON sandbox_diff_archives(snapshot_at);
+CREATE INDEX IF NOT EXISTS idx_archives_project_root     ON sandbox_diff_archives(project_root);
+CREATE INDEX IF NOT EXISTS idx_archives_run_id           ON sandbox_diff_archives(agent_manager_run_id) WHERE agent_manager_run_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_archives_status           ON sandbox_diff_archives(sandbox_status);
+CREATE INDEX IF NOT EXISTS idx_archives_owner            ON sandbox_diff_archives(owner) WHERE owner IS NOT NULL;

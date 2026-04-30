@@ -43,17 +43,18 @@ type Handlers struct {
 	Service         sandbox.ServiceAPI // Service interface for testability
 	DriverSlot      *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
 	DB              Pinger
-	Config          config.Config       // Unified configuration for accessing levers
-	StatsGetter     StatsGetter         // For retrieving sandbox statistics
-	ProcessTracker  *process.Tracker    // For tracking sandbox processes (OT-P0-008)
-	ProcessLogger   *process.Logger     // For capturing process logs (Phase 2)
-	GCService       GCService           // For garbage collection operations (OT-P1-003)
-	ProfileStore    config.ProfileStore // For isolation profile storage (admin write paths)
-	InUserNamespace bool                // Whether API is running in a user namespace
-	Reconcilers     *sandbox.Runner     // Periodic reconciler dispatcher (Phase 2 Round 3)
-	Clock           clock.Clock         // Wall-clock seam (Round 4 Phase 2). Required.
-	Mounter         fsmount.Mounter     // Mount/unmount seam (Round 4 Phase 7). Required.
-	Starter         process.Starter     // Process exec seam (Round 4 Phase 7). Required.
+	Config          config.Config         // Unified configuration for accessing levers
+	StatsGetter     StatsGetter           // For retrieving sandbox statistics
+	ProcessTracker  *process.Tracker      // For tracking sandbox processes (OT-P0-008)
+	ProcessLogger   *process.Logger       // For capturing process logs (Phase 2)
+	GCService       GCService             // For garbage collection operations (OT-P1-003)
+	ProfileStore    config.ProfileStore   // For isolation profile storage (admin write paths)
+	InUserNamespace bool                  // Whether API is running in a user namespace
+	Reconcilers     *sandbox.Runner       // Periodic reconciler dispatcher (Phase 2 Round 3)
+	RetentionStore  config.RetentionStore // Diff-archive retention config (Phase 4)
+	Clock           clock.Clock           // Wall-clock seam (Round 4 Phase 2). Required.
+	Mounter         fsmount.Mounter       // Mount/unmount seam (Round 4 Phase 7). Required.
+	Starter         process.Starter       // Process exec seam (Round 4 Phase 7). Required.
 
 	// profileSnapshot holds the immutable {ID → profile} snapshot used
 	// by every Resolve in the request path. Loaded once at startup
@@ -264,15 +265,21 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api := router.PathPrefix("/api/v1").Subrouter()
 
 	// --- Sandbox CRUD ---
+	// /sandboxes/history must be registered BEFORE /sandboxes/{id} so
+	// gorilla/mux matches the literal path before the UUID variable.
 	api.HandleFunc("/sandboxes", h.CreateSandbox).Methods("POST")
 	api.HandleFunc("/sandboxes", h.ListSandboxes).Methods("GET")
+	api.HandleFunc("/sandboxes/history", h.ListHistory).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}", h.GetSandbox).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}", h.DeleteSandbox).Methods("DELETE")
 	api.HandleFunc("/sandboxes/{id}/stop", h.StopSandbox).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/start", h.StartSandbox).Methods("POST")
 
 	// --- Workflow: Diff and Approval ---
+	// Closed-sandbox archives are served through GetDiff (status-driven
+	// resolution); GetDiffFile streams individual archived blobs.
 	api.HandleFunc("/sandboxes/{id}/diff", h.GetDiff).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/diff/file", h.GetDiffFile).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/approve", h.Approve).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/apply-at-run-end", h.ApplyAtRunEnd).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/reject", h.Reject).Methods("POST")
@@ -327,6 +334,10 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/config/profiles/{id}", h.GetProfile).Methods("GET")
 	api.HandleFunc("/config/profiles/{id}", h.SaveProfile).Methods("PUT")
 	api.HandleFunc("/config/profiles/{id}", h.DeleteProfile).Methods("DELETE")
+
+	// --- Config: Diff-archive retention (Phase 4) ---
+	api.HandleFunc("/config/retention", h.GetRetention).Methods("GET")
+	api.HandleFunc("/config/retention", h.UpdateRetention).Methods("PUT")
 
 	// --- Admin: Garbage Collection (OT-P1-003) ---
 	api.HandleFunc("/gc", h.GC).Methods("POST")

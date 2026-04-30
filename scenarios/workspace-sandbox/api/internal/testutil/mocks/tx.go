@@ -1,6 +1,8 @@
 package mocks
 
 import (
+	"database/sql"
+
 	"workspace-sandbox/internal/repository"
 )
 
@@ -39,5 +41,10 @@ func (t *FakeTxRepository) Rollback() error {
 	t.RolledBack = true
 	return nil
 }
+
+// Tx returns nil for the in-memory fake. The archive repository's Insert
+// handles a nil tx by falling back to its own *sql.DB; production tests
+// for snapshotDiff use the real SQLite seam, not this fake.
+func (t *FakeTxRepository) Tx() *sql.Tx { return nil }
 
 var _ repository.TxRepository = (*FakeTxRepository)(nil)
