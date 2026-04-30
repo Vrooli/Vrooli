@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"log/slog"
 	"strings"
 
@@ -21,7 +22,7 @@ import (
 
 func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *graph.Materializer) {
 	if s.initStore == nil || s.initiativeService == nil || s.backlogHandler == nil {
-		return
+		log.Fatalf("operating-mode: required initiative/backlog services are not registered")
 	}
 	applier, err := s.buildProposalApplier(materializer)
 	if err != nil {
@@ -54,14 +55,13 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 			if !ok {
 				return operatingmode.PromptCatalogEntry{}, false
 			}
-			return operatingmode.PromptCatalogEntry{SkillID: entry.SkillID}, true
+			return operatingmode.PromptCatalogEntry{CatalogID: entry.ID, SkillID: entry.SkillID}, true
 		},
 		Events:       s.emitter,
 		ScenarioRoot: scenarioRoot,
 	})
 	if err != nil {
-		slog.Warn("operating-mode: failed to build Service", "err", err)
-		return
+		log.Fatalf("operating-mode: failed to build Service: %v", err)
 	}
 	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
 }
@@ -225,7 +225,7 @@ type operatingModeUpdater struct {
 
 func (u operatingModeUpdater) UpdateInitiativeMode(name, mode string) (operatingmode.InitiativeSnapshot, error) {
 	if u.service == nil {
-		return operatingmode.InitiativeSnapshot{}, nil
+		return operatingmode.InitiativeSnapshot{}, fmt.Errorf("operating-mode initiative updater is not configured")
 	}
 	updated, err := u.service.SetModeLifecycle(name, mode)
 	if err != nil {

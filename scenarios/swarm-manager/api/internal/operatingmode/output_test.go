@@ -31,3 +31,33 @@ func TestParsePhaseResultValidatesProgressDecision(t *testing.T) {
 		t.Fatal("ParsePhaseResult ok = true, want false on invalid envelope")
 	}
 }
+
+func TestParsePhaseResultDetailedStatuses(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   PhaseResultParseStatus
+		err    bool
+	}{
+		{name: "empty output", output: "  ", want: PhaseResultParseNoOutput},
+		{name: "plain prose", output: "done but not structured", want: PhaseResultParseNoStructuredResult},
+		{name: "empty envelope", output: `{"operating_mode_result":{}}`, want: PhaseResultParseEmpty},
+		{name: "malformed envelope", output: `{"operating_mode_result":{"progress":{"decision":"sideways"}}}`, want: PhaseResultParseMalformed, err: true},
+		{name: "valid envelope", output: `{"operating_mode_result":{"verdict":"accepted"}}`, want: PhaseResultParseValid},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, err := ParsePhaseResultDetailed(tt.output)
+			if tt.err && err == nil {
+				t.Fatal("ParsePhaseResultDetailed error = nil, want error")
+			}
+			if !tt.err && err != nil {
+				t.Fatalf("ParsePhaseResultDetailed returned error: %v", err)
+			}
+			if parsed.Status != tt.want {
+				t.Fatalf("status = %q, want %q", parsed.Status, tt.want)
+			}
+		})
+	}
+}

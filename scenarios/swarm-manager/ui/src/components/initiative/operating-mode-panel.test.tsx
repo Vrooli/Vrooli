@@ -161,6 +161,42 @@ describe("OperatingModePanel", () => {
     expect(onInitiativeUpdated).toHaveBeenCalled();
   });
 
+  it("disables sync actions and explains when a completed round is missing its run ID", async () => {
+    vi.mocked(initiativeModeService.workspace).mockResolvedValue({
+      initiativeName: "mode-initiative",
+      mode: "holistic-loop",
+      definition: {
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        scopeKind: "initiative",
+        runStrategy: "operator_gated_loop",
+        terminal: ["review"],
+        transitions: {},
+        phases: [],
+      },
+      artifacts: [],
+      rounds: [{
+        round: 2,
+        mode: "holistic-loop",
+        scopeKind: "initiative",
+        scopeId: "mode-initiative",
+        phase: "execute",
+        runStrategy: "operator_gated_loop",
+        agentProfileKey: "swarm-manager/deep-work",
+        generatedAt: "2026-04-30T00:00:00Z",
+        status: "completed",
+        payload: {
+          backlog_sync_plan: { completed_items: ["execute/item-1"] },
+        },
+      }],
+    });
+
+    renderPanel();
+
+    expect(await screen.findByText(/missing an AgentManager run ID/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("initiative-mode-complete-items")).not.toBeInTheDocument();
+  });
+
   it("applies selected proposal mutations from a round backlog sync plan", async () => {
     vi.mocked(initiativeModeService.workspace).mockResolvedValue({
       initiativeName: "mode-initiative",

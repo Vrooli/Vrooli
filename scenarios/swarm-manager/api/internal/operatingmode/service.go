@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -115,7 +116,8 @@ type AgentSpawner interface {
 }
 
 type PromptCatalogEntry struct {
-	SkillID string
+	CatalogID string
+	SkillID   string
 }
 
 type PromptCatalogResolver func(mode, phase string) (PromptCatalogEntry, bool)
@@ -267,6 +269,9 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Initiatives == nil {
 		return nil, errors.New("operatingmode: InitiativeReader is required")
 	}
+	if err := ValidatePromptCatalog(cfg.PromptCatalog); err != nil {
+		return nil, err
+	}
 	clk := cfg.Clock
 	if clk == nil {
 		clk = time.Now
@@ -293,4 +298,38 @@ func NewService(cfg Config) (*Service, error) {
 		clock:         clk,
 		requestedBy:   requestedBy,
 	}, nil
+}
+
+func (s *Service) ResolveRoundActionMode(initiativeName, rawMode string) (Mode, error) {
+	trimmed := strings.TrimSpace(rawMode)
+	if trimmed != "" {
+		return requireRoundActionMode(Mode(trimmed))
+	}
+	if s.initiatives == nil {
+		return "", errors.New("operatingmode: InitiativeReader is required")
+	}
+	init, err := s.initiatives.LoadInitiative(strings.TrimSpace(initiativeName))
+	if err != nil {
+		return "", err
+	}
+	mode, err := requireRoundActionMode(Mode(init.Mode))
+	if err != nil {
+		return "", fmt.Errorf("round actions require an explicit non-default mode or an initiative currently using one: %w", err)
+	}
+	return mode, nil
+}
+
+func requireRoundActionMode(mode Mode) (Mode, error) {
+	raw := strings.TrimSpace(string(mode))
+	if raw == "" {
+		return "", errors.New("mode is required for operating-mode round actions")
+	}
+	def, err := DefinitionFor(Mode(raw))
+	if err != nil {
+		return "", err
+	}
+	if def.Mode == ModeItemLevel {
+		return "", errors.New("item-level mode round actions are owned by the existing backlog execution flow")
+	}
+	return def.Mode, nil
 }

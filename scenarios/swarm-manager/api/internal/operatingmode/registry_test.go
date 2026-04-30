@@ -1,6 +1,9 @@
 package operatingmode
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRegistryDefinesRequiredModes(t *testing.T) {
 	for _, mode := range []Mode{ModeItemLevel, ModeHolisticLoop, ModePhasedPlanDrain} {
@@ -66,17 +69,147 @@ func TestRequiredProfileKeysReturnsScenarioOwnedRegistryProfiles(t *testing.T) {
 	}
 }
 
-func TestRequiredProfileKeysRejectsNonScenarioOwnedProfile(t *testing.T) {
-	original := registry[ModeHolisticLoop]
-	modified := original
-	modified.Profile.DefaultProfileKey = "other-scenario/deep-work"
-	registry[ModeHolisticLoop] = modified
-	t.Cleanup(func() {
-		registry[ModeHolisticLoop] = original
-	})
+func TestValidateRegistryAcceptsCurrentRegistry(t *testing.T) {
+	if err := ValidateRegistry(); err != nil {
+		t.Fatalf("ValidateRegistry returned error: %v", err)
+	}
+}
 
-	if _, err := RequiredProfileKeys(); err == nil {
-		t.Fatal("expected non-scenario-owned profile key to fail")
+func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(map[Mode]Definition)
+		want   string
+	}{
+		{
+			name: "invalid transition",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.PhaseGraph.Transitions["investigate"] = []Phase{"missing"}
+				defs[ModeHolisticLoop] = def
+			},
+			want: "references unregistered phase",
+		},
+		{
+			name: "artifact outside root",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				phase := def.PhaseGraph.Phases["investigate"]
+				phase.OutputArtifacts = []ArtifactDefinition{{Path: "elsewhere/findings.md", Required: true}}
+				phase.OutputContract.RequiredArtifacts = phase.OutputArtifacts
+				def.PhaseGraph.Phases["investigate"] = phase
+				defs[ModeHolisticLoop] = def
+			},
+			want: "outside mode root",
+		},
+		{
+			name: "non owned profile",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.Profile.DefaultProfileKey = "other-scenario/deep-work"
+				defs[ModeHolisticLoop] = def
+			},
+			want: "non-scenario-owned",
+		},
+		{
+			name: "missing prompt skill",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				phase := def.PhaseGraph.Phases["investigate"]
+				phase.SkillID = ""
+				def.PhaseGraph.Phases["investigate"] = phase
+				defs[ModeHolisticLoop] = def
+			},
+			want: "prompt catalog ID and skill ID are required",
+		},
+		{
+			name: "profile mismatch",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.Profile.PhaseProfiles["investigate"] = ProfileAnalysis
+				defs[ModeHolisticLoop] = def
+			},
+			want: "profile mismatch",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defs := cloneRegistryForTest()
+			tt.mutate(defs)
+			err := validateDefinitions(defs)
+			if err == nil {
+				t.Fatalf("validateDefinitions error = nil, want %q", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("validateDefinitions error = %v, want contains %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidatePromptCatalogRejectsRegistryMismatches(t *testing.T) {
+	validResolver := func(mode, phase string) (PromptCatalogEntry, bool) {
+		def, err := DefinitionFor(Mode(mode))
+		if err != nil {
+			return PromptCatalogEntry{}, false
+		}
+		phaseDef, err := def.PhaseDefinition(Phase(phase))
+		if err != nil {
+			return PromptCatalogEntry{}, false
+		}
+		return PromptCatalogEntry{CatalogID: phaseDef.CatalogID, SkillID: phaseDef.SkillID}, true
+	}
+	if err := ValidatePromptCatalog(validResolver); err != nil {
+		t.Fatalf("ValidatePromptCatalog(valid) returned error: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		resolve PromptCatalogResolver
+		want    string
+	}{
+		{
+			name:    "nil resolver",
+			resolve: nil,
+			want:    "resolver is required",
+		},
+		{
+			name: "missing entry",
+			resolve: func(string, string) (PromptCatalogEntry, bool) {
+				return PromptCatalogEntry{}, false
+			},
+			want: "missing entry",
+		},
+		{
+			name: "catalog id mismatch",
+			resolve: func(mode, phase string) (PromptCatalogEntry, bool) {
+				entry, ok := validResolver(mode, phase)
+				entry.CatalogID = "wrong"
+				return entry, ok
+			},
+			want: "ID mismatch",
+		},
+		{
+			name: "skill mismatch",
+			resolve: func(mode, phase string) (PromptCatalogEntry, bool) {
+				entry, ok := validResolver(mode, phase)
+				entry.SkillID = "wrong"
+				return entry, ok
+			},
+			want: "skill mismatch",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePromptCatalog(tt.resolve)
+			if err == nil {
+				t.Fatalf("ValidatePromptCatalog error = nil, want %q", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("ValidatePromptCatalog error = %v, want contains %q", err, tt.want)
+			}
+		})
 	}
 }
 
@@ -121,4 +254,42 @@ func TestUnknownModeFailsClosed(t *testing.T) {
 	if _, err := DefinitionFor("not-a-mode"); err == nil {
 		t.Fatal("DefinitionFor accepted unknown mode")
 	}
+}
+
+func cloneRegistryForTest() map[Mode]Definition {
+	out := make(map[Mode]Definition, len(registry))
+	for mode, def := range registry {
+		def.PhaseGraph.Terminal = append([]Phase(nil), def.PhaseGraph.Terminal...)
+		def.PhaseGraph.Transitions = clonePhaseTransitions(def.PhaseGraph.Transitions)
+		def.PhaseGraph.Phases = clonePhaseDefinitions(def.PhaseGraph.Phases)
+		def.Profile.PhaseProfiles = clonePhaseProfiles(def.Profile.PhaseProfiles)
+		out[mode] = def
+	}
+	return out
+}
+
+func clonePhaseTransitions(in map[Phase][]Phase) map[Phase][]Phase {
+	out := make(map[Phase][]Phase, len(in))
+	for phase, next := range in {
+		out[phase] = append([]Phase(nil), next...)
+	}
+	return out
+}
+
+func clonePhaseDefinitions(in map[Phase]PhaseDefinition) map[Phase]PhaseDefinition {
+	out := make(map[Phase]PhaseDefinition, len(in))
+	for phase, def := range in {
+		def.OutputArtifacts = append([]ArtifactDefinition(nil), def.OutputArtifacts...)
+		def.OutputContract.RequiredArtifacts = append([]ArtifactDefinition(nil), def.OutputContract.RequiredArtifacts...)
+		out[phase] = def
+	}
+	return out
+}
+
+func clonePhaseProfiles(in map[Phase]string) map[Phase]string {
+	out := make(map[Phase]string, len(in))
+	for phase, profile := range in {
+		out[phase] = profile
+	}
+	return out
 }

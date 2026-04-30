@@ -9,6 +9,21 @@ import (
 
 const resultEnvelopeKey = "operating_mode_result"
 
+type PhaseResultParseStatus string
+
+const (
+	PhaseResultParseNoOutput           PhaseResultParseStatus = "no_output"
+	PhaseResultParseNoStructuredResult PhaseResultParseStatus = "no_structured_result"
+	PhaseResultParseMalformed          PhaseResultParseStatus = "malformed_structured_result"
+	PhaseResultParseEmpty              PhaseResultParseStatus = "empty_structured_result"
+	PhaseResultParseValid              PhaseResultParseStatus = "valid_structured_result"
+)
+
+type ParsedPhaseResult struct {
+	Result PhaseResult
+	Status PhaseResultParseStatus
+}
+
 type PhaseResult struct {
 	Artifacts    []ArtifactResult `json:"artifacts,omitempty"`
 	Handoff      *Handoff         `json:"handoff,omitempty"`
@@ -37,52 +52,78 @@ type BacklogSyncPlan struct {
 var fencedJSONBlockRE = regexp.MustCompile("(?s)```(?:json)?\\s*(\\{.*?\\})\\s*```")
 
 func ParsePhaseResult(output string) (PhaseResult, bool, error) {
+	parsed, err := ParsePhaseResultDetailed(output)
+	if err != nil {
+		return PhaseResult{}, false, err
+	}
+	if parsed.Status != PhaseResultParseValid {
+		return parsed.Result, false, nil
+	}
+	return parsed.Result, true, nil
+}
+
+func ParsePhaseResultDetailed(output string) (ParsedPhaseResult, error) {
 	trimmed := strings.TrimSpace(output)
 	if trimmed == "" {
-		return PhaseResult{}, false, nil
+		return ParsedPhaseResult{Status: PhaseResultParseNoOutput}, nil
 	}
-	candidates := []string{trimmed}
+	candidates := []phaseResultCandidate{{body: trimmed, structuredHint: strings.Contains(trimmed, resultEnvelopeKey)}}
 	for _, match := range fencedJSONBlockRE.FindAllStringSubmatch(trimmed, -1) {
 		if len(match) > 1 {
-			candidates = append(candidates, strings.TrimSpace(match[1]))
+			body := strings.TrimSpace(match[1])
+			candidates = append(candidates, phaseResultCandidate{body: body, structuredHint: true})
 		}
 	}
 	var lastErr error
 	for _, candidate := range candidates {
-		result, ok, err := parsePhaseResultCandidate(candidate)
+		result, status, err := parsePhaseResultCandidate(candidate)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		if ok {
-			return result, true, nil
+		switch status {
+		case PhaseResultParseValid, PhaseResultParseEmpty:
+			return ParsedPhaseResult{Result: result, Status: status}, nil
+		case PhaseResultParseMalformed:
+			return ParsedPhaseResult{Status: status}, fmt.Errorf("parse %s: malformed structured result", resultEnvelopeKey)
 		}
 	}
 	if lastErr != nil {
-		return PhaseResult{}, false, lastErr
+		return ParsedPhaseResult{Status: PhaseResultParseMalformed}, lastErr
 	}
-	return PhaseResult{}, false, nil
+	return ParsedPhaseResult{Status: PhaseResultParseNoStructuredResult}, nil
 }
 
-func parsePhaseResultCandidate(candidate string) (PhaseResult, bool, error) {
+type phaseResultCandidate struct {
+	body           string
+	structuredHint bool
+}
+
+func parsePhaseResultCandidate(candidate phaseResultCandidate) (PhaseResult, PhaseResultParseStatus, error) {
 	var raw map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(candidate), &raw); err != nil {
-		return PhaseResult{}, false, nil
+	if err := json.Unmarshal([]byte(candidate.body), &raw); err != nil {
+		if candidate.structuredHint {
+			return PhaseResult{}, PhaseResultParseMalformed, err
+		}
+		return PhaseResult{}, PhaseResultParseNoStructuredResult, nil
 	}
 	payload, ok := raw[resultEnvelopeKey]
 	if !ok {
-		payload = []byte(candidate)
+		return PhaseResult{}, PhaseResultParseNoStructuredResult, nil
 	}
 	var result PhaseResult
 	if err := json.Unmarshal(payload, &result); err != nil {
-		return PhaseResult{}, true, fmt.Errorf("parse %s: %w", resultEnvelopeKey, err)
+		return PhaseResult{}, PhaseResultParseMalformed, fmt.Errorf("parse %s: %w", resultEnvelopeKey, err)
 	}
 	if result.Progress != nil {
 		if err := result.Progress.Validate(); err != nil {
-			return PhaseResult{}, true, err
+			return PhaseResult{}, PhaseResultParseMalformed, err
 		}
 	}
-	return result, hasPhaseResultContent(result), nil
+	if !hasPhaseResultContent(result) {
+		return result, PhaseResultParseEmpty, nil
+	}
+	return result, PhaseResultParseValid, nil
 }
 
 func hasPhaseResultContent(result PhaseResult) bool {

@@ -9,6 +9,7 @@ package operatingmode
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -90,7 +91,16 @@ type PhaseDefinition struct {
 	ProfileKey       string
 	WritesRepo       bool
 	OutputArtifacts  []ArtifactDefinition
+	OutputContract   PhaseOutputContract
 	RequiresCriteria bool
+}
+
+type PhaseOutputContract struct {
+	RequiresStructuredResult bool
+	RequiredArtifacts        []ArtifactDefinition
+	RequiresProgress         bool
+	RequiresVerdict          bool
+	RequiresHandoff          bool
 }
 
 type RunStrategyPolicy struct {
@@ -246,14 +256,19 @@ func holisticPhase(phase Phase, profile string, writesRepo bool, artifacts []Art
 		"review":      agentactivity.PurposeHolisticLoopReview,
 	}
 	return PhaseDefinition{
-		Phase:            phase,
-		ActivityPurpose:  string(purposes[phase]),
-		LockPurpose:      string(purposes[phase]),
-		CatalogID:        "swarm-manager-holistic-loop-" + string(phase),
-		SkillID:          "swarm-manager-holistic-loop-" + string(phase),
-		ProfileKey:       profile,
-		WritesRepo:       writesRepo,
-		OutputArtifacts:  artifacts,
+		Phase:           phase,
+		ActivityPurpose: string(purposes[phase]),
+		LockPurpose:     string(purposes[phase]),
+		CatalogID:       "swarm-manager-holistic-loop-" + string(phase),
+		SkillID:         "swarm-manager-holistic-loop-" + string(phase),
+		ProfileKey:      profile,
+		WritesRepo:      writesRepo,
+		OutputArtifacts: artifacts,
+		OutputContract: PhaseOutputContract{
+			RequiresStructuredResult: true,
+			RequiredArtifacts:        requiredArtifacts(artifacts),
+			RequiresVerdict:          phase == "review",
+		},
 		RequiresCriteria: phase == "review",
 	}
 }
@@ -270,16 +285,33 @@ func phasedPhase(phase Phase, profile string, writesRepo bool, artifacts []Artif
 		"review":            agentactivity.PurposePhasedPlanReview,
 	}
 	return PhaseDefinition{
-		Phase:            phase,
-		ActivityPurpose:  string(purposes[phase]),
-		LockPurpose:      string(purposes[phase]),
-		CatalogID:        "swarm-manager-phased-plan-" + skillPhase,
-		SkillID:          "swarm-manager-phased-plan-" + skillPhase,
-		ProfileKey:       profile,
-		WritesRepo:       writesRepo,
-		OutputArtifacts:  artifacts,
+		Phase:           phase,
+		ActivityPurpose: string(purposes[phase]),
+		LockPurpose:     string(purposes[phase]),
+		CatalogID:       "swarm-manager-phased-plan-" + skillPhase,
+		SkillID:         "swarm-manager-phased-plan-" + skillPhase,
+		ProfileKey:      profile,
+		WritesRepo:      writesRepo,
+		OutputArtifacts: artifacts,
+		OutputContract: PhaseOutputContract{
+			RequiresStructuredResult: true,
+			RequiredArtifacts:        requiredArtifacts(artifacts),
+			RequiresProgress:         phase == "classify_progress",
+			RequiresVerdict:          phase == "review",
+			RequiresHandoff:          phase == "execute_next",
+		},
 		RequiresCriteria: phase == "review",
 	}
+}
+
+func requiredArtifacts(artifacts []ArtifactDefinition) []ArtifactDefinition {
+	required := make([]ArtifactDefinition, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		if artifact.Required {
+			required = append(required, artifact)
+		}
+	}
+	return required
 }
 
 func DefaultMode() Mode {
@@ -334,11 +366,178 @@ func ModeList() string {
 	return strings.Join(parts, ", ")
 }
 
+func ValidateRegistry() error {
+	return validateDefinitions(registry)
+}
+
+func ValidatePromptCatalog(resolve PromptCatalogResolver) error {
+	if resolve == nil {
+		return fmt.Errorf("operating-mode prompt catalog resolver is required")
+	}
+	for mode, def := range registry {
+		if mode == ModeItemLevel {
+			continue
+		}
+		for phase, phaseDef := range def.PhaseGraph.Phases {
+			entry, ok := resolve(string(mode), string(phase))
+			if !ok {
+				return fmt.Errorf("prompt catalog missing entry for mode %q phase %q", mode, phase)
+			}
+			if strings.TrimSpace(entry.CatalogID) != phaseDef.CatalogID {
+				return fmt.Errorf("prompt catalog ID mismatch for mode %q phase %q: registry=%q catalog=%q", mode, phase, phaseDef.CatalogID, entry.CatalogID)
+			}
+			if strings.TrimSpace(entry.SkillID) != phaseDef.SkillID {
+				return fmt.Errorf("prompt catalog skill mismatch for mode %q phase %q: registry=%q catalog=%q", mode, phase, phaseDef.SkillID, entry.SkillID)
+			}
+		}
+	}
+	return nil
+}
+
+func validateDefinitions(defs map[Mode]Definition) error {
+	for mode, def := range defs {
+		if def.Mode != mode {
+			return fmt.Errorf("registry key %q contains definition for mode %q", mode, def.Mode)
+		}
+		if strings.TrimSpace(def.Label) == "" {
+			return fmt.Errorf("mode %q label is required", mode)
+		}
+		if def.Scope.Kind == "" {
+			return fmt.Errorf("mode %q scope kind is required", mode)
+		}
+		if def.RunStrategy.Kind == "" {
+			return fmt.Errorf("mode %q run strategy is required", mode)
+		}
+		if strings.TrimSpace(def.Metrics.EventSource) == "" {
+			return fmt.Errorf("mode %q metrics event source is required", mode)
+		}
+		if strings.TrimSpace(def.UI.WorkspaceTabID) == "" {
+			return fmt.Errorf("mode %q UI workspace tab is required", mode)
+		}
+		if err := validateDefinitionProfiles(mode, def); err != nil {
+			return err
+		}
+		if mode == ModeItemLevel {
+			continue
+		}
+		if err := validateInitiativeModeDefinition(def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateDefinitionProfiles(mode Mode, def Definition) error {
+	if err := collectProfileKey(map[string]struct{}{}, mode, def.Profile.DefaultProfileKey); err != nil {
+		return err
+	}
+	for phase, key := range def.Profile.PhaseProfiles {
+		if err := collectProfileKey(map[string]struct{}{}, mode, key); err != nil {
+			return fmt.Errorf("mode %q phase %q profile policy: %w", mode, phase, err)
+		}
+	}
+	return nil
+}
+
+func validateInitiativeModeDefinition(def Definition) error {
+	if def.PhaseGraph.StartPhase == "" {
+		return fmt.Errorf("mode %q start phase is required", def.Mode)
+	}
+	if len(def.PhaseGraph.Phases) == 0 {
+		return fmt.Errorf("mode %q phases are required", def.Mode)
+	}
+	if _, ok := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]; !ok {
+		return fmt.Errorf("mode %q start phase %q is not registered", def.Mode, def.PhaseGraph.StartPhase)
+	}
+	if len(def.PhaseGraph.Terminal) == 0 {
+		return fmt.Errorf("mode %q terminal phases are required", def.Mode)
+	}
+	if strings.TrimSpace(def.Artifact.Root) == "" || strings.TrimSpace(def.Artifact.RoundRoot) == "" {
+		return fmt.Errorf("mode %q artifact root and round root are required", def.Mode)
+	}
+	if strings.TrimSpace(def.Prompt.CatalogPrefix) == "" {
+		return fmt.Errorf("mode %q prompt catalog prefix is required", def.Mode)
+	}
+	if !def.Lock.InitiativeExclusive {
+		return fmt.Errorf("mode %q must use initiative-exclusive locking", def.Mode)
+	}
+	for _, terminal := range def.PhaseGraph.Terminal {
+		if _, ok := def.PhaseGraph.Phases[terminal]; !ok {
+			return fmt.Errorf("mode %q terminal phase %q is not registered", def.Mode, terminal)
+		}
+	}
+	for from, nextPhases := range def.PhaseGraph.Transitions {
+		if _, ok := def.PhaseGraph.Phases[from]; !ok {
+			return fmt.Errorf("mode %q transition source %q is not registered", def.Mode, from)
+		}
+		for _, to := range nextPhases {
+			if _, ok := def.PhaseGraph.Phases[to]; !ok {
+				return fmt.Errorf("mode %q transition %q -> %q references unregistered phase", def.Mode, from, to)
+			}
+		}
+	}
+	for phase, phaseDef := range def.PhaseGraph.Phases {
+		if phaseDef.Phase != phase {
+			return fmt.Errorf("mode %q phase map key %q contains phase %q", def.Mode, phase, phaseDef.Phase)
+		}
+		if strings.TrimSpace(phaseDef.CatalogID) == "" || strings.TrimSpace(phaseDef.SkillID) == "" {
+			return fmt.Errorf("mode %q phase %q prompt catalog ID and skill ID are required", def.Mode, phase)
+		}
+		if got := def.Profile.PhaseProfiles[phase]; got != phaseDef.ProfileKey {
+			return fmt.Errorf("mode %q phase %q profile mismatch: policy=%q phase=%q", def.Mode, phase, got, phaseDef.ProfileKey)
+		}
+		if err := collectProfileKey(map[string]struct{}{}, def.Mode, phaseDef.ProfileKey); err != nil {
+			return fmt.Errorf("mode %q phase %q: %w", def.Mode, phase, err)
+		}
+		if err := validatePhaseArtifactPolicy(def, phaseDef); err != nil {
+			return err
+		}
+		if err := validatePhaseOutputContract(phaseDef); err != nil {
+			return fmt.Errorf("mode %q phase %q: %w", def.Mode, phase, err)
+		}
+	}
+	return nil
+}
+
+func validatePhaseArtifactPolicy(def Definition, phaseDef PhaseDefinition) error {
+	for _, artifact := range phaseDef.OutputArtifacts {
+		if _, err := cleanModeRelativePath(def, artifact.Path); err != nil {
+			return fmt.Errorf("mode %q phase %q artifact %q: %w", def.Mode, phaseDef.Phase, artifact.Path, err)
+		}
+	}
+	return nil
+}
+
+func validatePhaseOutputContract(phaseDef PhaseDefinition) error {
+	contract := phaseDef.OutputContract
+	if !contract.RequiresStructuredResult {
+		return fmt.Errorf("output contract must require structured results")
+	}
+	declared := map[string]ArtifactDefinition{}
+	for _, artifact := range phaseDef.OutputArtifacts {
+		declared[filepath.ToSlash(filepath.Clean(artifact.Path))] = artifact
+	}
+	for _, artifact := range contract.RequiredArtifacts {
+		path := filepath.ToSlash(filepath.Clean(strings.TrimSpace(artifact.Path)))
+		declaredArtifact, ok := declared[path]
+		if path == "." || !ok {
+			return fmt.Errorf("required contract artifact %q is not declared as a phase output", artifact.Path)
+		}
+		if !declaredArtifact.Required {
+			return fmt.Errorf("required contract artifact %q is not marked required in phase outputs", artifact.Path)
+		}
+	}
+	return nil
+}
+
 // RequiredProfileKeys returns every AgentManager profile key referenced by the
 // operating-mode registry. Profile JSON remains the source of profile defaults;
 // the registry only declares which scenario-owned keys must exist before the
 // API serves traffic.
 func RequiredProfileKeys() ([]string, error) {
+	if err := ValidateRegistry(); err != nil {
+		return nil, err
+	}
 	keys := map[string]struct{}{}
 	for mode, def := range registry {
 		if err := collectProfileKey(keys, mode, def.Profile.DefaultProfileKey); err != nil {

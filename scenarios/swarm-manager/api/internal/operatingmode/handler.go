@@ -137,7 +137,10 @@ func (h *Handler) RefreshRound(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	mode := modeFromQuery(r)
+	mode, ok := h.resolveRoundActionMode(w, r, name, "", "[operating-mode] refresh round")
+	if !ok {
+		return
+	}
 	round, err := h.service.RefreshRound(r.Context(), name, mode, roundNumber)
 	if err != nil {
 		mapOperatingModeError(w, "[operating-mode] refresh round", err)
@@ -153,7 +156,10 @@ func (h *Handler) CancelRound(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	mode := modeFromQuery(r)
+	mode, ok := h.resolveRoundActionMode(w, r, name, "", "[operating-mode] cancel round")
+	if !ok {
+		return
+	}
 	round, err := h.service.CancelRound(r.Context(), name, mode, roundNumber)
 	if err != nil {
 		mapOperatingModeError(w, "[operating-mode] cancel round", err)
@@ -178,9 +184,9 @@ func (h *Handler) CompleteItems(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[operating-mode] complete items", apierr.BadRequest("run_id is required"))
 		return
 	}
-	mode := NormalizeMode(body.Mode)
-	if body.Mode == "" {
-		mode = modeFromQuery(r)
+	mode, ok := h.resolveRoundActionMode(w, r, name, body.Mode, "[operating-mode] complete items")
+	if !ok {
+		return
 	}
 	result, err := h.service.CompleteItems(r.Context(), CompleteItemsRequest{
 		InitiativeName: name,
@@ -213,9 +219,9 @@ func (h *Handler) ApplyBacklogSync(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[operating-mode] apply backlog sync", apierr.BadRequest("run_id is required"))
 		return
 	}
-	mode := NormalizeMode(body.Mode)
-	if body.Mode == "" {
-		mode = modeFromQuery(r)
+	mode, ok := h.resolveRoundActionMode(w, r, name, body.Mode, "[operating-mode] apply backlog sync")
+	if !ok {
+		return
 	}
 	result, err := h.service.ApplyBacklogSync(r.Context(), ApplyBacklogSyncRequest{
 		InitiativeName:      name,
@@ -249,8 +255,17 @@ func parseRoundRoute(w http.ResponseWriter, r *http.Request, ctx string) (string
 	return name, round, true
 }
 
-func modeFromQuery(r *http.Request) Mode {
-	return NormalizeMode(r.URL.Query().Get("mode"))
+func (h *Handler) resolveRoundActionMode(w http.ResponseWriter, r *http.Request, initiativeName, bodyMode, ctx string) (Mode, bool) {
+	rawMode := strings.TrimSpace(bodyMode)
+	if rawMode == "" {
+		rawMode = strings.TrimSpace(r.URL.Query().Get("mode"))
+	}
+	mode, err := h.service.ResolveRoundActionMode(initiativeName, rawMode)
+	if err != nil {
+		mapOperatingModeError(w, ctx, err)
+		return "", false
+	}
+	return mode, true
 }
 
 func mapOperatingModeError(w http.ResponseWriter, ctx string, err error) {
@@ -275,7 +290,8 @@ func mapOperatingModeError(w http.ResponseWriter, ctx string, err error) {
 		strings.Contains(err.Error(), "run_id"), strings.Contains(err.Error(), "item_refs"),
 		strings.Contains(err.Error(), "must be kind/name"), strings.Contains(err.Error(), "is not a member"),
 		strings.Contains(err.Error(), "does not allow"), strings.Contains(err.Error(), "no backlog_sync"),
-		strings.Contains(err.Error(), "proposal"):
+		strings.Contains(err.Error(), "proposal"), strings.Contains(err.Error(), "mode is required"),
+		strings.Contains(err.Error(), "round actions require"):
 		apierr.MapError(w, ctx, apierr.BadRequest("%s", err.Error()))
 	case errors.Is(err, agentmanager.ErrNotAvailable):
 		apierr.MapError(w, ctx, apierr.Unavailable("agent-manager is not available"))

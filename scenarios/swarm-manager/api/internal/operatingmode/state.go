@@ -168,7 +168,7 @@ func allowedNextPhases(def Definition, rounds []RoundEnvelope) map[Phase]bool {
 func loopNextPhases(def Definition, last RoundEnvelope) []Phase {
 	from := Phase(last.Phase)
 	if def.Mode == ModeHolisticLoop && from == "execute" {
-		if replan, _ := last.Payload["replan_needed"].(bool); replan {
+		if RoundPayload(last.Payload).ReplanNeeded() {
 			return []Phase{"investigate"}
 		}
 		return []Phase{"review"}
@@ -198,20 +198,7 @@ func sequentialNextPhases(def Definition, last RoundEnvelope) []Phase {
 }
 
 func roundProgress(round RoundEnvelope) (ProgressState, bool) {
-	if round.Payload == nil {
-		return ProgressState{}, false
-	}
-	switch progress := round.Payload["progress"].(type) {
-	case ProgressState:
-		return progress, true
-	case map[string]any:
-		decision, _ := progress["decision"].(string)
-		state := ProgressState{Decision: ProgressDecision(strings.TrimSpace(decision))}
-		if state.Validate() == nil {
-			return state, true
-		}
-	}
-	return ProgressState{}, false
+	return RoundPayload(round.Payload).Progress()
 }
 
 func validateRunStrategy(def Definition, rounds []RoundEnvelope, phase Phase) string {

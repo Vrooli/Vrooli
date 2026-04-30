@@ -65,23 +65,18 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	if req.Override {
 		s.preemptLockHolder(ctx, init.Name)
 		if err := s.lock.AcquireOverride(init.Name, holder); err != nil {
+			s.persistPhaseStartFailure(round, err, "lock_failed_at")
 			return RoundEnvelope{}, fmt.Errorf("override lock: %w", err)
 		}
 	} else if err := s.lock.Acquire(init.Name, holder); err != nil {
+		s.persistPhaseStartFailure(round, err, "lock_failed_at")
 		return RoundEnvelope{}, err
 	}
 
 	prompt, err := s.buildPrompt(ctx, ctxData, round, req.Note)
 	if err != nil {
 		_ = s.lock.Release(init.Name, provisionalRunID)
-		round.Status = RoundStatusFailed
-		round.Error = err.Error()
-		round.Payload = ensurePayload(round.Payload)
-		round.Payload["prompt_failed_at"] = s.clock().UTC().Format(time.RFC3339)
-		if saveErr := s.store.SaveRound(round); saveErr != nil {
-			slog.Warn("operating mode: persist prompt failure failed", "err", saveErr, "initiative", init.Name, "round", round.Round)
-		}
-		s.emitPhaseFailed(round, err.Error())
+		round = s.persistPhaseStartFailure(round, err, "prompt_failed_at")
 		slog.Warn("operating mode prompt rendering failed; phase start aborted",
 			"err", err, "initiative", init.Name, "mode", def.Mode, "phase", phaseDef.Phase)
 		return round, fmt.Errorf("render operating-mode prompt: %w", err)
@@ -129,11 +124,7 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	result, err := s.spawnInitiative(ctx, spawnReq)
 	if err != nil {
 		_ = s.lock.Release(init.Name, provisionalRunID)
-		round.Status = RoundStatusFailed
-		round.Error = err.Error()
-		round.Payload["spawn_failed_at"] = s.clock().UTC().Format(time.RFC3339)
-		_ = s.store.SaveRound(round)
-		s.emitPhaseFailed(round, err.Error())
+		round = s.persistPhaseStartFailure(round, err, "spawn_failed_at")
 		return round, fmt.Errorf("spawn operating-mode phase: %w", err)
 	}
 
@@ -146,9 +137,31 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	if err := s.lock.AcquireOverride(init.Name, holder); err != nil {
 		slog.Warn("operating mode: lock run-id swap failed", "err", err, "initiative", init.Name, "run_id", round.RunID)
 		_ = s.lock.Release(init.Name, provisionalRunID)
+		if s.agent != nil {
+			if stopErr := s.agent.StopRun(ctx, round.RunID); stopErr != nil {
+				slog.Warn("operating mode: stop run after lock swap failure failed", "err", stopErr, "initiative", init.Name, "run_id", round.RunID)
+			}
+		}
+		round = s.persistPhaseStartFailure(round, err, "lock_swap_failed_at")
+		return round, fmt.Errorf("swap operating-mode lock holder: %w", err)
 	}
 	s.emitPhaseStarted(round)
 	return round, nil
+}
+
+func (s *Service) persistPhaseStartFailure(round RoundEnvelope, err error, timestampKey string) RoundEnvelope {
+	round.Status = RoundStatusFailed
+	if err != nil {
+		round.Error = err.Error()
+	}
+	if strings.TrimSpace(timestampKey) != "" {
+		MutableRoundPayload(&round).setString(timestampKey, s.clock().UTC().Format(time.RFC3339))
+	}
+	if saveErr := s.store.SaveRound(round); saveErr != nil {
+		slog.Warn("operating mode: persist phase start failure failed", "err", saveErr, "initiative", round.InitiativeName, "round", round.Round)
+	}
+	s.emitPhaseFailed(round, round.Error)
+	return round
 }
 
 func (s *Service) resolvePhase(initiativeName, phase string) (InitiativeSnapshot, Definition, PhaseDefinition, error) {

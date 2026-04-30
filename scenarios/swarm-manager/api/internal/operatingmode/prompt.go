@@ -20,6 +20,9 @@ func (s *Service) buildPrompt(ctx context.Context, data phaseContext, round Roun
 	if !ok {
 		return "", fmt.Errorf("prompt catalog missing entry for mode %q phase %q", data.def.Mode, data.phaseDef.Phase)
 	}
+	if strings.TrimSpace(entry.CatalogID) != data.phaseDef.CatalogID {
+		return "", fmt.Errorf("prompt catalog ID mismatch for mode %q phase %q: registry=%q catalog=%q", data.def.Mode, data.phaseDef.Phase, data.phaseDef.CatalogID, entry.CatalogID)
+	}
 	if strings.TrimSpace(entry.SkillID) != skillID {
 		return "", fmt.Errorf("prompt catalog skill mismatch for mode %q phase %q: registry=%q catalog=%q", data.def.Mode, data.phaseDef.Phase, skillID, entry.SkillID)
 	}

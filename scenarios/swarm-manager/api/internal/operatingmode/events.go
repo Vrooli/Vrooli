@@ -35,14 +35,11 @@ func (s *Service) emitParsedPhaseSignals(round RoundEnvelope) {
 	if s.events == nil || round.Payload == nil {
 		return
 	}
-	if replan, _ := round.Payload["replan_needed"].(bool); replan {
+	payload := RoundPayload(round.Payload)
+	if payload.ReplanNeeded() {
 		s.events.EmitOperatingModeReplanNeeded(round.ScopeID, phasePayload(round, "completed", ""))
 	}
-	if _, ok := round.Payload["progress"].(ProgressState); ok {
-		s.emitBacklogSynced(round, 0, 0, 0)
-		return
-	}
-	if _, ok := round.Payload["progress"].(map[string]any); ok {
+	if _, ok := payload.Progress(); ok {
 		s.emitBacklogSynced(round, 0, 0, 0)
 	}
 }
@@ -55,6 +52,10 @@ func (s *Service) emitBacklogSyncedWithSource(round RoundEnvelope, completed, cr
 	if s.events == nil {
 		return
 	}
+	s.events.EmitOperatingModeBacklogSynced(round.ScopeID, backlogSyncPayload(round, completed, created, updated, source, itemRefs))
+}
+
+func backlogSyncPayload(round RoundEnvelope, completed, created, updated int, source BacklogMutationSource, itemRefs []string) eventlog.OperatingModeBacklogSyncPayload {
 	payload := eventlog.OperatingModeBacklogSyncPayload{
 		Mode:                  round.Mode,
 		ScopeKind:             round.ScopeKind,
@@ -83,7 +84,7 @@ func (s *Service) emitBacklogSyncedWithSource(round RoundEnvelope, completed, cr
 			RequestedBy:    source.RequestedBy,
 		}
 	}
-	s.events.EmitOperatingModeBacklogSynced(round.ScopeID, payload)
+	return payload
 }
 
 func phasePayload(round RoundEnvelope, status, reason string) eventlog.OperatingModePhasePayload {
@@ -103,10 +104,11 @@ func phasePayload(round RoundEnvelope, status, reason string) eventlog.Operating
 	if reason != "" {
 		payload.Verdict = reason
 	} else if round.Payload != nil {
-		if verdict, _ := round.Payload["verdict"].(string); strings.TrimSpace(verdict) != "" {
-			payload.Verdict = strings.TrimSpace(verdict)
+		roundPayload := RoundPayload(round.Payload)
+		if verdict := roundPayload.Verdict(); verdict != "" {
+			payload.Verdict = verdict
 		}
-		if replan, _ := round.Payload["replan_needed"].(bool); replan {
+		if roundPayload.ReplanNeeded() {
 			payload.ReplanNeeded = true
 		}
 	}
@@ -131,7 +133,7 @@ func roundDuration(round RoundEnvelope) float64 {
 	if round.GeneratedAt == "" || round.Payload == nil {
 		return 0
 	}
-	finished, _ := round.Payload["finished_at"].(string)
+	finished := RoundPayload(round.Payload).FinishedAt()
 	if finished == "" {
 		return 0
 	}

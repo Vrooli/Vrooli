@@ -17,7 +17,10 @@ func (s *Service) CompleteItems(ctx context.Context, req CompleteItemsRequest) (
 	if name == "" {
 		return BacklogSyncResult{}, fmt.Errorf("initiative name is required")
 	}
-	mode := NormalizeMode(req.Mode)
+	mode, err := requireRoundActionMode(Mode(req.Mode))
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
 	round, err := s.store.LoadRound(name, mode, req.Round)
 	if err != nil {
 		return BacklogSyncResult{}, err
@@ -83,8 +86,7 @@ func (s *Service) CompleteItems(ctx context.Context, req CompleteItemsRequest) (
 		CompletedItems: completed,
 		Noop:           len(completed) == 0,
 	}
-	round.Payload = ensurePayload(round.Payload)
-	round.Payload["backlog_sync"] = result
+	MutableRoundPayload(&round).SetBacklogSync(result)
 	if err := s.store.SaveRound(round); err != nil {
 		return BacklogSyncResult{}, err
 	}
@@ -100,7 +102,10 @@ func (s *Service) ApplyBacklogSync(ctx context.Context, req ApplyBacklogSyncRequ
 	if name == "" {
 		return BacklogSyncResult{}, fmt.Errorf("initiative name is required")
 	}
-	mode := NormalizeMode(req.Mode)
+	mode, err := requireRoundActionMode(Mode(req.Mode))
+	if err != nil {
+		return BacklogSyncResult{}, err
+	}
 	round, err := s.store.LoadRound(name, mode, req.Round)
 	if err != nil {
 		return BacklogSyncResult{}, err
@@ -153,9 +158,9 @@ func (s *Service) ApplyBacklogSync(ctx context.Context, req ApplyBacklogSyncRequ
 		ProposalResult: result,
 		Noop:           result == nil || result.Applied == 0,
 	}
-	round.Payload = ensurePayload(round.Payload)
-	round.Payload["backlog_sync"] = syncResult
-	round.Payload["backlog_sync_applied_at"] = now
+	payload := MutableRoundPayload(&round)
+	payload.SetBacklogSync(syncResult)
+	payload.SetBacklogSyncAppliedAt(now)
 	if err := s.store.SaveRound(round); err != nil {
 		return BacklogSyncResult{}, err
 	}
@@ -203,22 +208,7 @@ func hasBacklogSyncCapability(policy BacklogSyncPolicy, want BacklogSyncCapabili
 }
 
 func backlogSyncPlanFromRound(round RoundEnvelope) (BacklogSyncPlan, error) {
-	if round.Payload == nil {
-		return BacklogSyncPlan{}, fmt.Errorf("round %03d has no backlog_sync_plan", round.Round)
-	}
-	raw, ok := round.Payload["backlog_sync_plan"]
-	if !ok {
-		return BacklogSyncPlan{}, fmt.Errorf("round %03d has no backlog_sync_plan", round.Round)
-	}
-	data, err := json.Marshal(raw)
-	if err != nil {
-		return BacklogSyncPlan{}, fmt.Errorf("marshal backlog_sync_plan: %w", err)
-	}
-	var plan BacklogSyncPlan
-	if err := json.Unmarshal(data, &plan); err != nil {
-		return BacklogSyncPlan{}, fmt.Errorf("parse backlog_sync_plan: %w", err)
-	}
-	return plan, nil
+	return RoundPayload(round.Payload).BacklogSyncPlan(round.Round)
 }
 
 func parseBacklogRef(ref string) (kind, name, clean string, err error) {

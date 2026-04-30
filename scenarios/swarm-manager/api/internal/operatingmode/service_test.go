@@ -107,9 +107,13 @@ type fakeAgent struct {
 	spawned []agentmanager.InitiativeSpawnRequest
 	states  map[string]agentmanager.RunState
 	stopped []string
+	err     error
 }
 
 func (f *fakeAgent) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
+	if f.err != nil {
+		return agentmanager.RunResult{}, f.err
+	}
 	f.spawned = append(f.spawned, req)
 	runID := fmt.Sprintf("run-%d", len(f.spawned))
 	return agentmanager.RunResult{RunID: runID, TaskID: "task-" + runID}, nil
@@ -356,10 +360,71 @@ func TestStartPhaseFailsClosedWhenPromptRenderFails(t *testing.T) {
 	}
 }
 
+func TestStartPhaseLockConflictLeavesNoActiveReservedRound(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+	if err := svc.lock.Acquire("init-a", initiativelock.Holder{
+		RunID:   "run-existing",
+		Purpose: "holistic_loop_investigate",
+	}); err != nil {
+		t.Fatalf("seed lock: %v", err)
+	}
+
+	_, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err == nil {
+		t.Fatal("StartPhase lock conflict error = nil, want error")
+	}
+	if len(agent.spawned) != 0 {
+		t.Fatalf("spawned = %d, want no spawn when lock is held", len(agent.spawned))
+	}
+	rounds, listErr := svc.store.ListRounds("init-a", ModeHolisticLoop)
+	if listErr != nil {
+		t.Fatalf("ListRounds: %v", listErr)
+	}
+	for _, round := range rounds {
+		if isRoundActive(round) {
+			t.Fatalf("round = %+v, want no active round after lock conflict", round)
+		}
+	}
+}
+
+func TestStartPhaseSpawnFailurePersistsFailedRoundAndReleasesLock(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{err: errors.New("agent-manager unavailable")}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err == nil || !strings.Contains(err.Error(), "spawn operating-mode phase") {
+		t.Fatalf("StartPhase error = %v, want spawn failure", err)
+	}
+	loaded, loadErr := svc.store.LoadRound("init-a", ModeHolisticLoop, round.Round)
+	if loadErr != nil {
+		t.Fatalf("LoadRound: %v", loadErr)
+	}
+	if loaded.Status != RoundStatusFailed || !strings.Contains(loaded.Error, "agent-manager unavailable") {
+		t.Fatalf("round = %+v, want failed spawn round", loaded)
+	}
+	holder, inspectErr := svc.lock.Inspect("init-a")
+	if inspectErr != nil {
+		t.Fatalf("Inspect lock: %v", inspectErr)
+	}
+	if holder != nil {
+		t.Fatalf("lock holder = %+v, want nil after spawn failure", holder)
+	}
+}
+
 func TestWorkspaceRefreshesCompletedRoundAndReleasesLock(t *testing.T) {
 	root := t.TempDir()
+	summary := `{"operating_mode_result":{"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"# Findings"}],"handoff":{"summary":"investigated"}}}`
 	agent := &fakeAgent{states: map[string]agentmanager.RunState{
-		"run-1": {RunID: "run-1", Status: "complete", Summary: "done", FinishedAt: "2026-04-30T12:05:00Z"},
+		"run-1": {RunID: "run-1", Status: "complete", Summary: summary, FinishedAt: "2026-04-30T12:05:00Z"},
 	}}
 	svc := newTestService(t, root, agent, &fakePrompts{})
 
@@ -390,6 +455,119 @@ func TestWorkspaceRefreshesCompletedRoundAndReleasesLock(t *testing.T) {
 	}
 	if holder != nil {
 		t.Fatalf("lock holder = %+v, want nil after completed refresh", holder)
+	}
+}
+
+func TestRefreshRoundFailsWhenStructuredResultMissing(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{states: map[string]agentmanager.RunState{
+		"run-1": {RunID: "run-1", Status: "complete", Summary: "plain human summary", FinishedAt: "2026-04-30T12:05:00Z"},
+	}}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "requires a structured operating_mode_result payload") {
+		t.Fatalf("refreshed = %+v, want failed structured-result contract", refreshed)
+	}
+}
+
+func TestRefreshRoundFailsWhenRequiredArtifactMissing(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{states: map[string]agentmanager.RunState{
+		"run-1": {RunID: "run-1", Status: "complete", Summary: `{"operating_mode_result":{"handoff":{"summary":"investigated"}}}`, FinishedAt: "2026-04-30T12:05:00Z"},
+	}}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, `requires artifact "modes/holistic-loop/findings.md"`) {
+		t.Fatalf("refreshed = %+v, want failed artifact contract", refreshed)
+	}
+}
+
+func TestRefreshRoundStagesArtifactsBeforeApplyingResult(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{states: map[string]agentmanager.RunState{
+		"run-1": {
+			RunID:      "run-1",
+			Status:     "complete",
+			Summary:    `{"operating_mode_result":{"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"# Findings"},{"path":"../outside.md","content":"bad"}],"handoff":{"summary":"investigated"}}}`,
+			FinishedAt: "2026-04-30T12:05:00Z",
+		},
+	}}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "artifact path must be relative to initiative") {
+		t.Fatalf("refreshed = %+v, want failed artifact staging contract", refreshed)
+	}
+	if _, err := svc.store.ReadArtifact("init-a", ModeHolisticLoop, "modes/holistic-loop/findings.md"); !errors.Is(err, ErrArtifactNotFound) {
+		t.Fatalf("ReadArtifact error = %v, want ErrArtifactNotFound because writes are staged", err)
+	}
+}
+
+func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		agent: &fakeAgent{states: map[string]agentmanager.RunState{
+			"run-1": {RunID: "run-1", Status: "complete", Summary: `{"operating_mode_result":{"handoff":{"summary":"classified"}}}`, FinishedAt: "2026-04-30T12:05:00Z"},
+		}},
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-phased": {
+				Name:               "init-phased",
+				Title:              "Init Phased",
+				Description:        "Test phased initiative",
+				Mode:               string(ModePhasedPlanDrain),
+				Items:              []string{"execute/do-thing"},
+				AcceptanceCriteria: []string{"works end to end"},
+			},
+		}},
+	})
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-phased",
+		Phase:          "classify_progress",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-phased", ModePhasedPlanDrain, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "requires a valid progress decision") {
+		t.Fatalf("refreshed = %+v, want failed progress contract", refreshed)
 	}
 }
 
@@ -497,7 +675,7 @@ func TestApplyBacklogSyncAppliesProposalThroughProposalBoundary(t *testing.T) {
 	svc := newTestServiceWithOptions(t, root, serviceOptions{
 		reconciler: reconciler,
 	})
-	summary := `{"operating_mode_result":{"backlog_sync":{"proposal":{"form":"mutation_list","mutations":[{"id":"m1","op":"add_item","item":{"kind":"fix","name":"follow-up","title":"Follow up"}}]}}}}`
+	summary := `{"operating_mode_result":{"verdict":"accepted","backlog_sync":{"proposal":{"form":"mutation_list","mutations":[{"id":"m1","op":"add_item","item":{"kind":"fix","name":"follow-up","title":"Follow up"}}]}}}}`
 	agent := svc.agent.(*fakeAgent)
 	agent.states["run-1"] = agentmanager.RunState{RunID: "run-1", Status: "complete", Summary: summary, FinishedAt: "2026-04-30T12:05:00Z"}
 	saveCompletedRound(t, svc, "init-a", ModeHolisticLoop, "investigate", nil)
@@ -747,7 +925,7 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 			if !ok {
 				return PromptCatalogEntry{}, false
 			}
-			return PromptCatalogEntry{SkillID: phaseDef.SkillID}, true
+			return PromptCatalogEntry{CatalogID: phaseDef.CatalogID, SkillID: phaseDef.SkillID}, true
 		},
 		ScenarioRoot: root,
 		Clock:        store.Clock,

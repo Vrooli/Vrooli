@@ -142,9 +142,23 @@ Backlog item terminal statuses (`completed`, `failed`, `needs_followup`) form a 
 
 **Eligible parent statuses:** `completed`, `failed`, `canceled`, `needs_fixup`. Calling Retry on `pending`, `starting`, `running`, `validating`, or `needs_review` returns 400 — the parent must reach a stable state before retry.
 
+### Initiative Operating Mode Invariants
+
+Non-default initiative operating modes are strict orchestration flows. They are not a UI convenience layer over item-level execution.
+
+| Invariant | Enforced by | Why it matters |
+|-----------|-------------|----------------|
+| Generic initiative metadata updates cannot change mode | `api/internal/initiatives` update validation and operating-mode switch routes | Mode changes have cancellation, lock, event, and workspace side effects that must stay in one lifecycle boundary |
+| Round actions never silently default to `item-level` | `api/internal/operatingmode` handler/service mode resolution | Prevents operators and clients from applying non-default round controls to the wrong execution model |
+| Completed rounds must satisfy the registered phase output contract | `api/internal/operatingmode` registry, parser, artifact applier, and refresher | Stats, phase transitions, and artifact state cannot treat malformed or incomplete agent output as success |
+| A failed phase start leaves no active reserved/running round unless a real AgentManager run owns the lock | `api/internal/operatingmode/phase_runner.go` | Prevents stale rounds from blocking future initiative progress |
+| Backlog sync mutations are run-id validated and source-attributed | `api/internal/operatingmode/backlog_reconciler.go` | Keeps direct backlog edits out of agent output and preserves audit metadata on backlog/status/proposal events |
+| UI round cards render parsed view models instead of raw payload decisions | `ui/src/components/initiative/operating-mode/round-view-model.ts` and `round-card.tsx` | Prevents payload-schema drift across React components and makes sync-action rules testable without rendering |
+
 ### Audit Trail
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude (Phase 19) | Initial idempotency invariants documentation; made DELETE idempotent (204 instead of 404); added replay safety tests |
 | 2026-04-25 | Retry-as-new-attempt rewrite | Documented terminal-state writer pair (review-decide forward, reopenForRetry backward); replaced in-place `execution.Retry` with new-attempt semantics; added `RetryLatestForBacklog` and `POST /api/v1/backlog/{kind}/{name}/retry` route |
+| 2026-04-30 | Operating-mode hardening | Documented non-default operating-mode lifecycle, output-contract, round-action, backlog-sync, and UI view-model invariants |

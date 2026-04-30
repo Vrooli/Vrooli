@@ -91,6 +91,9 @@ func NewServer() *Server {
 // Tests should use this with t.TempDir() to avoid touching production data.
 func NewServerWithRoot(scenarioRoot string) *Server {
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
+	if err := operatingmode.ValidateRegistry(); err != nil {
+		log.Fatalf("invalid operating-mode registry: %v", err)
+	}
 	requiredProfileKeys, err := operatingmode.RequiredProfileKeys()
 	if err != nil {
 		log.Fatalf("invalid operating-mode profile policy: %v", err)

@@ -331,6 +331,64 @@ New execution record created with ParentExecutionID linking to original
 
 **Timing**: Review polling runs on the same 2s tick as the main `refreshRunningLocked` loop. Follow-up is synchronous from the user's perspective (request returns the new execution record).
 
+### Initiative Operating Mode Phase Lifecycle
+
+**Location**: `api/internal/operatingmode/phase_runner.go`, `round_refresher.go`, `artifact_applier.go`; UI read model in `ui/src/components/initiative/operating-mode/round-view-model.ts`.
+
+Non-default initiative modes are operator-gated asynchronous phases. The backend is authoritative for phase order and action availability; the UI must render `startable`, `reason`, and round view-model state rather than inferring phase sequence locally.
+
+```
+Operator starts phase
+    ↓
+Load initiative + registry definition
+    ↓
+Acquire initiative operating-mode lock
+    ↓
+Reserve audit round
+    ↓
+Render exact registered prompt-manager skill
+    ↓
+Spawn AgentManager run
+    ↓
+Swap provisional lock holder to real run ID
+    ↓
+Round status = agent_running
+```
+
+Failure ordering is deliberately fail-closed:
+
+```
+Lock conflict
+    → no active round is created
+
+Prompt render failure / spawn failure / run-ID lock swap failure
+    → failed audit round is persisted where useful
+    → lock is released or stale provisional holder is cleared
+    → future starts are not blocked by reserved/running ghosts
+```
+
+Terminal refresh:
+
+```
+Refresh round
+    ↓
+Fetch AgentManager run state
+    ↓ completed
+Parse operating_mode_result with explicit parse state
+    ↓
+Validate phase output contract
+    ↓
+Stage artifact/payload mutations
+    ↓ valid
+Write artifacts + persist completed round + emit phase_completed
+
+Any parse/contract/staging failure
+    → persist failed round + emit phase_failed
+    → do not emit phase_completed
+```
+
+Backlog reconciliation is a separate operator action after a completed round. `complete-items` and `apply-backlog-sync` require a non-default mode and matching run ID. The UI computes pending/applied sync state through the round view-model so a previously applied sync cannot continue exposing stale completion/apply actions.
+
 ### Future Work
 
 1. **Add request cancellation test** - Verify unmount cancels in-flight requests

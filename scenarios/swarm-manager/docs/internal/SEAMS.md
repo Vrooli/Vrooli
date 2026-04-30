@@ -242,6 +242,7 @@ back into one service file.
 - **Artifact and round persistence**: `operatingmode.Store` owns mode-scoped paths under each initiative (`modes/<mode>/...`), current-state artifact reads/writes, and append-only round envelopes at `modes/<mode>/rounds/round-NNN.json`. Runner and handler code should use this store rather than constructing paths directly.
 - **Round envelope contract**: Round JSON records mode, phase, scope, run strategy, selected `agent_profile_key`, run ID, status, readiness, artifact updates, handoffs, and phase payload. Sequential modes preserve handoffs in round JSON so future runs have durable context.
 - **Classification/readiness helpers**: Holistic readiness and phased-plan progress classification are parsed/validated in `operatingmode`; UI and runner code should not duplicate accepted dimension or decision enums.
+- **UI round view-model rule**: The UI service owns wire normalization and `ui/src/components/initiative/operating-mode/round-view-model.ts` owns operating-mode round payload interpretation for cards. React components must not reach into `round.payload` for backlog-sync plans, applied-sync state, mutation defaults, or action availability; they render the view model and call service callbacks.
 
 **Code boundary map:**
 
@@ -258,6 +259,9 @@ back into one service file.
 | [CODE: api/internal/operatingmode/backlog_reconciler.go] | Run-id-validated item completion and proposal-backed backlog sync |
 | [CODE: api/internal/operatingmode/workspace.go] | Workspace read model and phase action projection |
 | [CODE: api/internal/operatingmode/events.go] | Typed operating-mode event emission helpers |
+| [CODE: ui/src/components/initiative/operating-mode/round-view-model.ts] | UI-side operating-mode round payload parsing, action availability, proposal defaults, and mutation summaries |
+| [CODE: ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx] | Focused backlog proposal selection/apply control for round cards |
+| [CODE: ui/src/components/initiative/operating-mode/round-card.tsx] | Presentation shell for round status, summary, handoffs, timestamps, and delegated action slots |
 | [CODE: api/routes_operating_mode.go] | HTTP adapters between route wiring and narrow operating-mode interfaces |
 | [CODE: ui/src/components/initiative/operating-mode-panel.tsx] | Composition-only operating-mode panel |
 | [CODE: ui/src/components/initiative/operating-mode/use-operating-mode-workspace.ts] | React Query workspace orchestration and mutations |
@@ -1697,3 +1701,5 @@ phase starts through feedback or item-level execution.
 | Mode handler | `api/internal/operatingmode/handler.go` | Thin HTTP layer for workspace read, mode switch, phase start, round refresh, round cancel, and complete-items under `/api/v1/initiatives/{name}/operating-mode/...`. | Service-backed route compile coverage |
 | Dependency adapters | `api/routes_operating_mode.go` | Keeps `operatingmode` from importing `initiatives` or `backlog`, avoiding cycles with the existing initiative metadata and prompt-catalog tests. | `go test . -run '^$'` |
 | Prompt skills | `prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-*` and `swarm-manager-phased-plan-*` | Prompt-manager runtime skills for the eight registered mode phases. Each skill asks for a structured final result envelope so the runner can persist artifacts and handoffs; phase start fails closed if the exact registered skill cannot be rendered. | `prompt-manager skill read ...` |
+| Round view model | `ui/src/components/initiative/operating-mode/round-view-model.ts` | Pure TypeScript parser/decision boundary for round payload fields, pending completion refs, proposal mutations, applied sync state, default selected mutation IDs, and disabled action reasons. | `round-view-model.test.ts` |
+| Backlog sync action component | `ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx` | Owns proposal mutation selection state and the apply button. It receives a normalized proposal and does not parse raw payloads. | `operating-mode-panel.test.tsx` |
