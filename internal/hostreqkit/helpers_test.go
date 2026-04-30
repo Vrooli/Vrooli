@@ -568,17 +568,17 @@ func TestInstallManagedContentTempFileFailure(t *testing.T) {
 	}
 }
 
-func TestRunHealthCheckNil(t *testing.T) {
-	passed, detail := RunHealthCheck(nil)
+func TestRunVerificationCheckNil(t *testing.T) {
+	passed, detail := RunVerificationCheck(nil)
 	if !passed {
-		t.Fatal("nil health check should pass")
+		t.Fatal("nil verification should pass")
 	}
 	if detail != "" {
 		t.Fatalf("detail = %q, want empty", detail)
 	}
 }
 
-func TestRunHealthCheckFilesPass(t *testing.T) {
+func TestRunVerificationCheckFilesPass(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -586,16 +586,16 @@ func TestRunHealthCheckFilesPass(t *testing.T) {
 		return []byte("content"), nil
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Files: []string{"/etc/sysctl.d/99-test.conf", "/etc/systemd/test.conf"},
 	}
-	passed, detail := RunHealthCheck(hc)
+	passed, detail := RunVerificationCheck(hc)
 	if !passed {
 		t.Fatalf("expected pass, got detail: %s", detail)
 	}
 }
 
-func TestRunHealthCheckFilesMissing(t *testing.T) {
+func TestRunVerificationCheckFilesMissing(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -606,10 +606,10 @@ func TestRunHealthCheckFilesMissing(t *testing.T) {
 		return nil, os.ErrNotExist
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Files: []string{"/etc/exists.conf", "/etc/missing.conf"},
 	}
-	passed, detail := RunHealthCheck(hc)
+	passed, detail := RunVerificationCheck(hc)
 	if passed {
 		t.Fatal("expected failure for missing file")
 	}
@@ -618,7 +618,7 @@ func TestRunHealthCheckFilesMissing(t *testing.T) {
 	}
 }
 
-func TestRunHealthCheckCommandPass(t *testing.T) {
+func TestRunVerificationCheckCommandPass(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -626,11 +626,11 @@ func TestRunHealthCheckCommandPass(t *testing.T) {
 		return []byte("ok\n"), nil
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Command: "docker",
 		Args:    []string{"info"},
 	}
-	passed, detail := RunHealthCheck(hc)
+	passed, detail := RunVerificationCheck(hc)
 	if !passed {
 		t.Fatalf("expected pass, got detail: %s", detail)
 	}
@@ -639,7 +639,7 @@ func TestRunHealthCheckCommandPass(t *testing.T) {
 	}
 }
 
-func TestRunHealthCheckCommandFail(t *testing.T) {
+func TestRunVerificationCheckCommandFail(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -647,11 +647,11 @@ func TestRunHealthCheckCommandFail(t *testing.T) {
 		return []byte("Cannot connect to the Docker daemon\n"), errors.New("exit status 1")
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Command: "docker",
 		Args:    []string{"info"},
 	}
-	passed, detail := RunHealthCheck(hc)
+	passed, detail := RunVerificationCheck(hc)
 	if passed {
 		t.Fatal("expected failure")
 	}
@@ -663,7 +663,7 @@ func TestRunHealthCheckCommandFail(t *testing.T) {
 	}
 }
 
-func TestRunHealthCheckCommandFailNoOutput(t *testing.T) {
+func TestRunVerificationCheckCommandFailNoOutput(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -671,10 +671,10 @@ func TestRunHealthCheckCommandFailNoOutput(t *testing.T) {
 		return nil, errors.New("command not found")
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Command: "missing-tool",
 	}
-	passed, detail := RunHealthCheck(hc)
+	passed, detail := RunVerificationCheck(hc)
 	if passed {
 		t.Fatal("expected failure")
 	}
@@ -683,7 +683,7 @@ func TestRunHealthCheckCommandFailNoOutput(t *testing.T) {
 	}
 }
 
-func TestRunHealthCheckFilesAndCommand(t *testing.T) {
+func TestRunVerificationCheckFilesAndCommand(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -694,18 +694,18 @@ func TestRunHealthCheckFilesAndCommand(t *testing.T) {
 		return []byte("healthy\n"), nil
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Files:   []string{"/etc/test.conf"},
 		Command: "check",
 		Args:    []string{"--status"},
 	}
-	passed, detail := RunHealthCheck(hc)
+	passed, detail := RunVerificationCheck(hc)
 	if !passed {
 		t.Fatalf("expected pass, got: %s", detail)
 	}
 }
 
-func TestRunHealthCheckFilesFailShortCircuitsCommand(t *testing.T) {
+func TestRunVerificationCheckFilesFailShortCircuitsCommand(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
@@ -718,11 +718,11 @@ func TestRunHealthCheckFilesFailShortCircuitsCommand(t *testing.T) {
 		return nil, nil
 	}
 
-	hc := &HealthCheck{
+	hc := &VerificationCheck{
 		Files:   []string{"/etc/missing.conf"},
 		Command: "check",
 	}
-	passed, _ := RunHealthCheck(hc)
+	passed, _ := RunVerificationCheck(hc)
 	if passed {
 		t.Fatal("expected failure")
 	}

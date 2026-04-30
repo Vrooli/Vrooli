@@ -1,33 +1,33 @@
 package hostreqkit
 
 type ToolManifest struct {
-	Schema         string            `json:"$schema,omitempty"`
-	Name           string            `json:"name"`
-	Description    string            `json:"description"`
-	Commands       []string          `json:"commands"`
-	VersionArgs    []string          `json:"versionArgs"`
-	DefaultPackage string            `json:"defaultPackage,omitempty"`
-	Packages       map[string]string `json:"packages,omitempty"`
-	InstallHint    string            `json:"installHint,omitempty"`
-	Platforms      []string          `json:"platforms,omitempty"`
-	Handler        string            `json:"handler,omitempty"`
-	HealthCheck    *HealthCheck      `json:"healthCheck,omitempty"`
-	Version        string            `json:"version,omitempty"`
-	Notes          string            `json:"notes,omitempty"`
+	Schema            string             `json:"$schema,omitempty"`
+	Name              string             `json:"name"`
+	Description       string             `json:"description"`
+	Commands          []string           `json:"commands"`
+	VersionArgs       []string           `json:"versionArgs"`
+	DefaultPackage    string             `json:"defaultPackage,omitempty"`
+	Packages          map[string]string  `json:"packages,omitempty"`
+	InstallHint       string             `json:"installHint,omitempty"`
+	Platforms         []string           `json:"platforms,omitempty"`
+	Handler           string             `json:"handler,omitempty"`
+	VerificationCheck *VerificationCheck `json:"verificationCheck,omitempty"`
+	Version           string             `json:"version,omitempty"`
+	Notes             string             `json:"notes,omitempty"`
 }
 
 type SafeguardManifest struct {
-	Schema      string       `json:"$schema,omitempty"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Platforms   []string     `json:"platforms,omitempty"`
-	Handler     string       `json:"handler"`
-	HealthCheck *HealthCheck `json:"healthCheck,omitempty"`
-	Version     string       `json:"version,omitempty"`
-	Notes       string       `json:"notes,omitempty"`
+	Schema            string             `json:"$schema,omitempty"`
+	Name              string             `json:"name"`
+	Description       string             `json:"description"`
+	Platforms         []string           `json:"platforms,omitempty"`
+	Handler           string             `json:"handler"`
+	VerificationCheck *VerificationCheck `json:"verificationCheck,omitempty"`
+	Version           string             `json:"version,omitempty"`
+	Notes             string             `json:"notes,omitempty"`
 }
 
-type HealthCheck struct {
+type VerificationCheck struct {
 	Command        string   `json:"command,omitempty"`
 	Args           []string `json:"args,omitempty"`
 	ExpectExitCode *int     `json:"expectExitCode,omitempty"`

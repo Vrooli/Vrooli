@@ -162,25 +162,25 @@ func InstallManagedContent(path, content, sudoMode string, opts EnsureOptions) e
 	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "0644", tempPath, path}, opts)
 }
 
-// RunHealthCheck runs the health check defined in a manifest and returns
-// whether it passed plus a human-readable detail string on failure.
-func RunHealthCheck(hc *HealthCheck) (bool, string) {
-	if hc == nil {
+// RunVerificationCheck runs the post-action verification defined in a manifest
+// and returns whether it passed plus a human-readable detail string on failure.
+func RunVerificationCheck(vc *VerificationCheck) (bool, string) {
+	if vc == nil {
 		return true, ""
 	}
-	for _, path := range hc.Files {
+	for _, path := range vc.Files {
 		if _, err := ReadFileFn(path); err != nil {
-			return false, fmt.Sprintf("health check: required file missing: %s", path)
+			return false, fmt.Sprintf("verification: required file missing: %s", path)
 		}
 	}
-	if hc.Command != "" {
-		output, err := CombinedOutputFn(hc.Command, hc.Args...)
+	if vc.Command != "" {
+		output, err := CombinedOutputFn(vc.Command, vc.Args...)
 		if err != nil {
 			detail := FirstLine(strings.TrimSpace(string(output)))
 			if detail == "" {
 				detail = err.Error()
 			}
-			return false, fmt.Sprintf("health check failed: %s: %s", hc.Command, detail)
+			return false, fmt.Sprintf("verification failed: %s: %s", vc.Command, detail)
 		}
 	}
 	return true, ""

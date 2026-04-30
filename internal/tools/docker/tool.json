@@ -14,7 +14,7 @@
   },
   "installHint": "Install Docker Engine or Docker Desktop",
   "platforms": ["linux", "macos", "windows"],
-  "healthCheck": {
+  "verificationCheck": {
     "command": "docker",
     "args": ["info"],
     "expectExitCode": 0

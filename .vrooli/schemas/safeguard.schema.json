@@ -35,8 +35,9 @@
       "default": "low",
       "description": "Operator-facing risk indicator. 'low' = no system state changes outside Vrooli's tree (probes, reads); 'medium' = writes config files outside Vrooli's tree or modifies networking rules; 'high' = modifies kernel parameters or requires root in ways that broadly affect host behavior. Used by onboarding to surface risk before opt-in."
     },
-    "healthCheck": {
-      "$ref": "#/$defs/healthCheck"
+    "verificationCheck": {
+      "$ref": "common.schema.json#/definitions/verificationCheck",
+      "description": "Optional verification that the safeguard's apply step took effect."
     },
     "version": {
       "type": "string",
@@ -45,33 +46,6 @@
     "notes": {
       "type": "string",
       "description": "Freeform annotation for maintainers (not shown to users during install)"
-    }
-  },
-  "$defs": {
-    "healthCheck": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Optional health check to verify the safeguard is applied",
-      "properties": {
-        "command": {
-          "type": "string",
-          "description": "Command to run for the health check"
-        },
-        "args": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Arguments for the health check command"
-        },
-        "expectExitCode": {
-          "type": "integer",
-          "description": "Expected exit code (default 0)"
-        },
-        "files": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Files that must exist and match expected content for the safeguard to be considered applied"
-        }
-      }
     }
   }
 }

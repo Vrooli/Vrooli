@@ -68,8 +68,9 @@
       "type": "string",
       "description": "Name of a custom Go handler. When set, the generic package-install logic is bypassed."
     },
-    "healthCheck": {
-      "$ref": "#/$defs/healthCheck"
+    "verificationCheck": {
+      "$ref": "common.schema.json#/definitions/verificationCheck",
+      "description": "Optional post-install verification. If absent, command presence on PATH is sufficient."
     },
     "version": {
       "type": "string",
@@ -78,37 +79,6 @@
     "notes": {
       "type": "string",
       "description": "Freeform annotation for maintainers (not shown to users during install)"
-    }
-  },
-  "$defs": {
-    "healthCheck": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Optional post-install health check. If absent, command presence on PATH is sufficient.",
-      "properties": {
-        "command": {
-          "type": "string",
-          "description": "Command to run for the health check"
-        },
-        "args": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Arguments for the health check command"
-        },
-        "expectExitCode": {
-          "type": "integer",
-          "description": "Expected exit code (default 0)"
-        },
-        "files": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Files that must exist for the check to pass"
-        }
-      }
     }
   }
 }

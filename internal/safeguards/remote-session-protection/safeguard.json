@@ -5,7 +5,7 @@
   "handler": "remote_session_protection",
   "platforms": ["linux"],
   "risk": "high",
-  "healthCheck": {
+  "verificationCheck": {
     "files": [
       "/etc/sysctl.d/99-vrooli-remote-session-protection.conf",
       "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf",

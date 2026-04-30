@@ -89,6 +89,31 @@
       "$ref": "#/definitions/secretReference",
       "description": "Alias for secretReference (backward compatibility)"
     },
+    "verificationCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One-shot post-action verification probe. Used after installing a host tool or applying a host safeguard to confirm the action took effect. Distinct from runtime health monitoring (which runs continuously on an interval): a verificationCheck runs once and answers 'did the install or apply succeed?'.",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run for the verification."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arguments for the verification command."
+        },
+        "expectExitCode": {
+          "type": "integer",
+          "description": "Expected exit code (default 0)."
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files that must exist for the verification to pass. Combined with `command`: file checks run first, then the command."
+        }
+      }
+    },
     "secretDescriptor": {
       "type": "object",
       "description": "Operator-facing metadata for a secret value the user supplies. Distinct from secretReference (which describes where a secret is stored): a secretDescriptor describes what the secret is and how the operator obtains it, surfaced in onboarding and admin UIs. Replaces the older deploymentTierSecret type for new code paths.",

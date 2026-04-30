@@ -5,7 +5,7 @@
   "handler": "dns_resolution",
   "platforms": ["linux"],
   "risk": "medium",
-  "healthCheck": {
+  "verificationCheck": {
     "files": ["/etc/systemd/resolved.conf.d/99-vrooli-dns.conf"]
   }
 }

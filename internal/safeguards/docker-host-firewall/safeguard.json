@@ -5,7 +5,7 @@
   "handler": "docker_host_firewall",
   "platforms": ["linux"],
   "risk": "medium",
-  "healthCheck": {
+  "verificationCheck": {
     "command": "iptables",
     "args": ["-n", "-L", "VROOLI-DOCKER"],
     "expectExitCode": 0

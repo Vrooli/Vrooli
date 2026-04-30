@@ -1,404 +1,836 @@
-# Plan B: Initiative-Level Operating Mode Implementation
+# Plan B: Initiative Execution Mode Framework + Initiative-Level Mode
 
 ## 1. Purpose
 
-Implement initiative-level execution mode in swarm-manager — a second first-class operating mode that complements (does not replace) the existing backlog-item-level mode. The conceptual framing for both modes lives in [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](../../scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md); read it before this plan.
+Implement initiative-level execution as Swarm Manager's second first-class execution mode **and** introduce the reusable mode framework needed to support future execution modes without another large architectural rewrite.
 
-In short: when backlog items are wrong as the unit of execution — most visibly when they are coupled by a shared substrate (the 2026-04-27 sandboxing trap is the canonical example), but also when they are likely to shift mid-flight, mis-scoped, or only validatable as a system — executing them item-by-item leaves the system in inconsistent intermediate states or thrashes the item graph. The structured `investigate → plan → execute → review` loop that successfully completed those initiatives outside the harness is the second mode — async-reviewable just like backlog-item mode, but operating on the initiative as the unit of work. This plan adds it as a first-class capability:
+The concrete product feature is initiative-level mode: a holistic `investigate -> plan -> execute -> review -> replan` loop for initiatives whose member backlog items are the wrong unit of execution or validation. The architectural feature is a mode-aware initiative execution layer: mode metadata, phase definitions, artifact conventions, prompt routing, locking, agent activity tracking, and UI workspace routing are all expressed through explicit seams rather than scattered `if mode == "initiative-level"` branches.
 
-- Mode metadata on initiatives (`item-level` default, `initiative-level` opt-in).
-- An investigation phase as a first-class step (no analog at backlog-item scale).
-- An initiative-level workshop round model that produces `initiative-plan.md`.
-- An execute → review → replan loop at initiative scope, with item-level follow-ups for residual small work.
-- Mode-switch operations (item-level ↔ initiative-level), including in-flight cancellation.
-- A new initiative-level review skill (acceptance-oriented), distinct from the existing decision-oriented `swarm-manager-initiative-review`.
+This plan replaces the older Plan B framing by making the extensibility goal explicit. It remains a companion to Plan A (`docs/plans/swarm-manager-initiative-feedback-ux.md`), which has already been implemented and improves rescoping inside backlog-item-level mode.
 
-Plan A (`docs/plans/swarm-manager-initiative-feedback-ux.md`) is a companion that improves rescoping inside item-level mode. Plan B is independent of Plan A; either can land first. They do not conflict.
+The target is not merely "add one more mode." The target is:
+
+- `item-level` remains the default mode and existing backlog-item execution behavior remains intact.
+- `initiative-level` becomes the first non-default mode implemented through a reusable framework.
+- Adding a future third mode should primarily mean registering a mode definition, phase definitions, skills, artifacts, UI workspace sections, and tests — not rediscovering locks, activity tracking, prompt routing, round persistence, or lifecycle control.
 
 ## 2. Required Reading
 
+Run this command before implementing:
+
 ```bash
-prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement
-prompt-manager skill read implementation-plan-authoring
-prompt-manager skill read swarm-manager-initiative-feedback
-prompt-manager skill read swarm-manager-initiative-review
-prompt-manager skill read swarm-manager-initiative-context
+prompt-manager skill read implementation-plan-authoring documentation-health intent-clarification boundary-of-responsibility-enforcement seam-discovery-and-enforcement interoperability-steer api-steer decision-boundary-extraction react-coherence
 ```
 
-Required file reads:
+Also read:
 
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` — load-bearing framing, including all open questions this plan resolves.
-- `scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md` — staging-and-review framing this plan builds on.
-- `scenarios/swarm-manager/docs/guides/workshop-workflow.md` — backlog-item-level workshop loop (initiative-level loop is parallel but distinct; read for shape contrast).
-- `scenarios/swarm-manager/api/internal/initiatives/model.go` — current Initiative model (no mode field; this plan adds one).
-- `scenarios/swarm-manager/api/internal/initiatives/service.go` and `handler.go` — current CRUD + rollup; new endpoints land here.
-- `scenarios/swarm-manager/api/internal/initiativereview/service.go` and `doc.go` — existing decision-oriented review service; provides patterns for the new acceptance-oriented review.
-- `scenarios/swarm-manager/api/internal/feedback/service.go` and `routes_feedback.go` — feedback service patterns: spawn / lock / poll / cancel / state-builder; the initiative-level mode reuses these primitives.
-- `scenarios/swarm-manager/api/internal/workshop/workshop.go` — readiness model and round I/O (item-level); initiative-level mode mirrors the round-file shape.
-- `scenarios/swarm-manager/api/internal/initiativelock/lock.go` — single-agent-per-initiative lock; reused for initiative-level mode.
-- `scenarios/swarm-manager/api/internal/agentactivity/service.go` — activity tracking surface; new `OwnerInitiative` purposes are added here.
-- `scenarios/swarm-manager/ui/src/types/domain.ts` and `types/feedback.ts` — current type surface to extend.
+- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` — conceptual distinction between backlog-item-level and initiative-level mode.
+- `scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md` — Swarm Manager's staging/review mental model and current seams.
+- `scenarios/swarm-manager/docs/guides/workshop-workflow.md` — item-level workshop loop to contrast with initiative-level phases.
+- `scenarios/swarm-manager/docs/internal/SEAMS.md` — current internal seam inventory; update it as part of this work.
+- `scenarios/swarm-manager/api/internal/initiatives/model.go` — initiative metadata and statuses.
+- `scenarios/swarm-manager/api/internal/initiatives/service.go` and `handler.go` — initiative CRUD and route registration.
+- `scenarios/swarm-manager/api/internal/initiativelock/lock.go` — existing single-agent-per-initiative lock used by feedback/review.
+- `scenarios/swarm-manager/api/internal/feedback/service.go` and `routes_feedback.go` — reusable spawn/poll/cancel/state-builder patterns.
+- `scenarios/swarm-manager/api/internal/initiativereview/` — current decision-oriented initiative review, intentionally distinct from initiative-level acceptance review.
+- `scenarios/swarm-manager/api/internal/workshop/workshop.go` — readiness scoring and round I/O patterns.
+- `scenarios/swarm-manager/api/internal/agentactivity/types.go` and `service.go` — tracked AgentManager usage.
+- `scenarios/swarm-manager/api/internal/promptcatalog/catalog.go` — prompt/skill catalog and `ResolveInitiativeSkill`.
+- `scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx` — current initiative detail route and tab layout.
+- `scenarios/swarm-manager/ui/src/services/initiative-service.ts` — UI service seam for initiative API calls.
+- `scenarios/swarm-manager/ui/src/types/initiative.ts` — UI initiative type surface.
+- `scenarios/swarm-manager/ui/src/consts/selectors.ts` — selector registry for new UI affordances.
 
 ## 3. Problem Statement
 
-### The empirical cue
+Swarm Manager currently assumes backlog items are the unit of execution and validation. That assumption is valuable when items are right-sized, independent, stable, and reviewable in isolation. It fails when the work is coupled across items, when partial intermediate states break the system, when the right item shape shifts during execution, or when success can only be judged at initiative/system scope.
 
-On 2026-04-27, two initiatives (`agent-sandbox-audit-foundation`, 10/10 items; `protected-agent-sandboxing`, 7/7 items) completed via operator-direct execution outside the swarm-manager harness. The reason was *not* size: it was *coupling*. Every item in both initiatives modified how agent runs route through the workspace sandbox. Completing item N changed routing behavior in a way that broke the next item's execution, because each item is run as itself an agent execution that uses the very routing being changed. Swarm-manager-managed execution stalled mid-initiative; the operator stepped out and used a coding agent directly to:
+The 2026-04-27 sandboxing initiatives were the empirical cue. Both initiatives changed the shared substrate used by agent executions. Completing one backlog item changed the runtime path that subsequent Swarm Manager item executions depended on, leaving the harness unstable. The successful workaround was a holistic loop outside Swarm Manager:
 
-1. Investigate the actual current state across both initiatives.
-2. Generate a consolidated plan covering large chunks of remaining work.
-3. Execute against the plan in waves.
-4. Re-investigate, revise the plan, repeat.
+1. Investigate current code and initiative state.
+2. Produce a consolidated initiative-level plan.
+3. Execute in waves against that plan.
+4. Re-investigate and replan as ground truth changed.
+5. Review whether the system as a whole satisfied the initiative.
 
-This pattern succeeded. The ad-hoc nature is the problem: there is no support for it inside swarm-manager, no audit trail consistent with the rest of the system, no provenance for the resulting changes. "Operator stepped outside the harness" is treated as a workaround when it should be a first-class mode.
+That should not be an escape hatch. It should be a first-class Swarm Manager execution mode with the same persistence, auditability, async operator cadence, and lifecycle control as item-level mode.
 
-### What the existing primitives can't express
-
-- **Coupled-item execution.** The workshop loop is per-item; it does not refine cross-item plans. The execution flow operates one item at a time. The review flow ratifies one item at a time. There is no surface for "investigate this initiative as a whole and plan against the system."
-- **Investigation as a step.** Workshop's first round is a refinement step over a one-item spec, not a system-state investigation. There is no `findings.md` deliverable, no mechanism for the agent to report "current code state diverges from item descriptions in these ways."
-- **Replan as a first-class loop step.** Workshop has rounds; rounds *refine* a single item's plan. There is no "execute partial → discover something → revise the whole plan" loop at the initiative scope.
-- **Mode-aware locks and budgets.** The single-agent-per-initiative lock exists (`initiativelock.Lock`) but only for feedback rounds. Initiative-level executions need the same exclusivity but for a longer-running, more expensive run.
-- **Acceptance at the initiative scope.** Backlog items have `acceptance_allow`/`acceptance_deny` globs. Initiatives have only a `Status` field. There is no way to say "this initiative is done when the system as a whole satisfies these criteria."
-
-### What "won't" work
-
-- *Just merge the items into one big item.* Loses tracking, partial cancellation, dependency model, and per-item history.
-- *Just iterate the workshop loop more times.* Workshop is per-item; no amount of iteration produces an initiative-level plan.
-- *Just write a longer skill prompt.* The skill itself is fine; the missing pieces are persisted artifacts, lifecycle, mode metadata, and review semantics.
+The second problem is architectural. If initiative-level mode is implemented as one-off endpoints and scattered mode checks, the next mode will force another broad refactor. This feature should establish the extensibility seam now.
 
 ## 4. Scope
 
-### In scope
+### In Scope
 
-- Add `Mode` field to `Initiative` model with values `"item-level"` (default) and `"initiative-level"`.
-- Add `AcceptanceCriteria []string` field to `Initiative` model (free-form, no glob model in this plan).
-- Add API endpoints for initiative-level mode lifecycle: switch mode, kick off investigation, kick off plan-round, kick off execute-round, kick off review, mark initiative complete.
-- Add an `initiative-plan.md` deliverable convention at the initiative folder; add a `findings.md` deliverable updated by each investigation pass.
-- Add an `initiative-rounds/` subdirectory at the initiative folder mirroring backlog `workshop/round-N.json` shape, with rounds tagged by phase (`investigate` | `plan` | `execute` | `review` | `replan`).
-- Add three new prompt-manager skills:
-  - `swarm-manager-initiative-investigate` — produces `findings.md`.
-  - `swarm-manager-initiative-plan` — produces/updates `initiative-plan.md`.
-  - `swarm-manager-initiative-execution-review` — acceptance-oriented review against `AcceptanceCriteria`.
-- Reuse the existing `swarm-manager-initiative-feedback` skill for replanning loops triggered by feedback (Plan A's improvements compose; not required).
-- Reuse `proposals.Applier` for any item-graph mutations the initiative-level plan emits (e.g., adding a follow-up item discovered during execution).
-- Add a 7-dimension readiness model for initiative-level rounds: the existing 5 (`problem_clarity`, `scope_defined`, `approach_solid`, `testable`, `risk_awareness`) plus two new ones (`coupling_understood`, `system_acceptance_defined`).
-- Mode-switch protocol with explicit operator confirmation for cancelling in-flight per-item executions on the way into initiative-level mode.
-- UI: an Initiative detail page mode-switch control; an "Initiative Workspace" view that surfaces findings, plan, rounds, execution history, and review state distinct from the per-item Backlog detail view.
-- Single-agent-per-initiative lock semantics extended to cover all initiative-level rounds (investigate / plan / execute / review).
-- Activity tracking: new `agentactivity.Purpose` values for each initiative-level round phase.
-- Tests: Go unit + integration for service / handler / lock; Vitest/RTL for UI; skill simulation for each new skill.
-- Docs updates: `EXECUTION-MODES.md` is the framing; `docs/guides/initiative-level-mode.md` is the operator-facing how-to (new).
+- Add explicit initiative `Mode` metadata with values:
+  - `item-level` — default, existing behavior.
+  - `initiative-level` — holistic initiative execution mode.
+- Add `AcceptanceCriteria []string` to initiatives for initiative-level acceptance review.
+- Introduce a backend **initiative mode framework**:
+  - mode registry
+  - phase definitions
+  - phase transition validation
+  - artifact conventions
+  - shared phase runner
+  - shared prompt context builder
+  - shared round persistence
+  - shared lock and activity tracking integration
+- Implement initiative-level mode through that framework:
+  - phases: `investigate`, `plan`, `execute`, `review`
+  - replan represented as another plan pass after execute signals `replan_needed`
+  - artifacts: `findings.md`, `initiative-plan.md`, `initiative-rounds/round-N.json`
+  - readiness: existing five dimensions plus `coupling_understood` and `system_acceptance_defined`
+- Add mode-switch API/CLI/UI behavior, including explicit cancellation of in-flight item-level executions when entering initiative-level mode.
+- Add a mode-aware Initiative Workspace UI tab/section for initiative-level artifacts, rounds, execution status, acceptance criteria, and review verdicts.
+- Add prompt-manager skills:
+  - `swarm-manager-initiative-investigate`
+  - `swarm-manager-initiative-plan`
+  - `swarm-manager-initiative-execute`
+  - `swarm-manager-initiative-execution-review`
+- Extend `promptcatalog` and `agentactivity` around mode/phase purposes.
+- Keep existing decision-oriented `swarm-manager-initiative-review` intact and separate.
+- Update docs:
+  - `EXECUTION-MODES.md`
+  - `docs/guides/initiative-level-mode.md`
+  - `docs/reference/api-endpoints.md`
+  - `docs/reference/cli-commands.md`
+  - `docs/internal/SEAMS.md`
+  - `docs/manifest.json`
+- Automated tests for backend, UI, skills, and cross-scenario validation.
 
-### Out of scope
+### Out of Scope
 
-- **Plan A's `merge_items` op.** Independent; either can land first.
-- **Workshop schema changes for backlog items.** Item-level workshop is unchanged.
-- **Backwards compatibility for old initiatives without `Mode`.** Greenfield: missing field defaults to `item-level` at load time; never write the default to disk.
-- **Cross-initiative coordination.** This plan handles single-initiative initiative-level runs only. Multi-initiative execution remains a future concern.
-- **Cost-budget enforcement.** UI shows a "this is a long-running mode" hint before kickoff (see Phase 5); no hard budget gate is implemented.
-- **Auto-mode-detection.** No heuristic decides for the operator whether to switch modes; the operator chooses.
-- **Tech-tree integration.** Out of scope; framework doc references a future tech-tree-designer scenario but this plan doesn't touch that.
+- Plan A's feedback UX / `merge_items` work. It is already implemented and should not be reworked here.
+- Auto-detecting which mode an initiative should use.
+- Cross-initiative execution.
+- Tech-tree integration.
+- Hard cost-budget enforcement.
+- Rewriting backlog item workshop schemas.
+- Reusing the decision-oriented initiative review as acceptance review.
+- Direct writes by initiative-level execute agents to backlog `spec.json` files.
+- New mode types beyond `initiative-level`; this plan creates the framework but only ships one new mode.
 
 ## 5. Current Technical Context
 
-### Initiative model (`api/internal/initiatives/model.go`)
+### Initiative Metadata
 
-```go
-type Initiative struct {
-    Name        string
-    Title       string
-    Description string
-    Status      string   // "active" | "completed" | future statuses
-    Items       []string // "kind/name" refs
-    // (other metadata — priority, depends_on, note, archived_at)
-}
-```
+`api/internal/initiatives/model.go` currently stores initiative name, title, description, status, priority, dependency refs, item refs, timestamps, notes, and archive state. Status is already richer than the old plan assumed: `active`, `in_review`, `review_pending`, `completed`, `failed`, and `needs_followup`.
 
-No mode, no acceptance criteria. The `Status` field uses `active`/`completed`/`archived` semantics validated by `ValidateStatus` and is user-settable through a small enum.
+Plan B adds:
 
-### Initiative storage (`api/internal/initiatives/store.go`)
+- `Mode string`
+- `AcceptanceCriteria []string`
 
-Filesystem-first. Each initiative is `<root>/initiatives/<name>/initiative.json` with related files in the same directory (orchestration-summary.md is conventional but not required). Plan B's `initiative-plan.md`, `findings.md`, and `initiative-rounds/round-N.json` files live in the same directory.
+Mode is orthogonal to status. Status answers lifecycle/result state; mode answers which execution machinery owns the initiative right now.
 
-### Existing review (`api/internal/initiativereview/service.go`)
+### Initiative Service and Handler
 
-Decision-oriented: handles "which member items need decide actions, who's blocked, what's the operator queue" — an aggregator over per-item review state. **It is not an acceptance-of-initiative-as-a-whole flow.** This plan introduces a separate flow for that.
+`api/internal/initiatives/service.go` owns CRUD, rollup aggregation, item membership, and event dispatch. `handler.go` registers the initiative routes. This package is the correct place for metadata updates and thin HTTP wrappers, but not for all phase orchestration logic.
 
-### Existing feedback flow (`api/internal/feedback/service.go`, `routes_feedback.go`)
+The new mode/phase orchestration should live in a dedicated package to prevent `initiatives.Service` from becoming a god object.
 
-Single-agent-per-initiative lock via `initiativelock.Lock`. Spawn → poll → render proposal → operator decides. The lock primitive, the spawn adapter, and the poller are all reusable; they do not assume "feedback" semantics specifically.
+### Existing Lock
 
-### Existing workshop (`api/internal/workshop/workshop.go`)
+`api/internal/initiativelock/lock.go` already implements a single-agent-per-initiative lock using `.feedback-lock`. Despite the historical filename, the lock now stores generic holder metadata with `RunID`, `Purpose`, `RoundNumber`, and initiative name. The plan should not introduce a parallel lock. It should make the current lock vocabulary explicitly mode/phase-aware while preserving the file name unless there is a strong reason to migrate.
 
-Per-item readiness scoring and round I/O. Round files are `<item-dir>/workshop/round-N.json`. Plan B reuses the round JSON shape (questions / proposals / info items / readiness scores) but extends the readiness dimension list and tags rounds by phase.
+### Existing Feedback Flow
 
-### Activity tracking (`api/internal/agentactivity/`)
+`api/internal/feedback/service.go` has the reusable lifecycle shape:
 
-`OwnerType` includes `OwnerBacklog` and `OwnerInitiative`. `Purpose` includes `PurposeFeedback`, `PurposeFeedbackContinue`, `PurposeInitiativeReview`, plus backlog-item purposes. Plan B adds new initiative purposes.
+- reserve round directory
+- persist round
+- acquire initiative lock
+- spawn/continue an initiative-scoped agent
+- poll run state
+- persist agent output
+- apply validated proposals
 
-### Skill catalog (`api/internal/promptcatalog/`)
+`api/routes_feedback.go` has useful adapters:
 
-`ResolveInitiativeSkill(purpose)` is the existing seam for purpose→skill mapping at the initiative scope. Plan B's three new skills are registered through this catalog.
+- prompt/context collection
+- agentactivity-backed initiative spawn
+- promptcatalog skill resolution
+- graph/current-state builder
+- active item run detection
+- run cancellation
+
+These patterns should be extracted or mirrored behind reusable interfaces. Do not copy large chunks into a new initiative-level package.
+
+### Current Initiative Review
+
+`api/internal/initiativereview/` is decision-oriented. It asks whether completed member items collectively justify a terminal initiative decision and may propose follow-up mutations. Initiative-level acceptance review is different: it evaluates the system against `AcceptanceCriteria`, `initiative-plan.md`, execute rounds, and current code state. These flows must remain separate.
+
+### Prompt Catalog
+
+`api/internal/promptcatalog/catalog.go` currently has `initiative-feedback` and `initiative-review`, with `ResolveInitiativeSkill(purpose)` hardcoded for `"feedback"`, `"feedback_continue"`, and `"review"`.
+
+This is a decision boundary that should be extracted: future modes should not require another switch statement that only understands two initiative purposes. The catalog should resolve by explicit mode+phase or by registered purpose values.
+
+### Agent Activity
+
+`api/internal/agentactivity/` is the canonical tracked AgentManager seam. It already supports `OwnerInitiative`, `PurposeFeedback`, `PurposeFeedbackContinue`, and `PurposeInitiativeReview`. This plan adds mode-phase purposes and requires initiative-level spawns to flow through `agentactivity.Service.SpawnInitiative`.
+
+### UI
+
+`ui/src/pages/InitiativeDetailsPage.tsx` currently owns the initiative details route and tabs: `info`, `feedback`, `review`, and `files`. It already has several local concerns. Initiative-level mode should not turn this page into a monolith. Add a mode-aware workspace as extracted components/hooks/services.
+
+`ui/src/services/initiative-service.ts` is the right API seam for mode switching and acceptance criteria. If phase operations grow, add an initiative mode service module rather than overloading the base CRUD service.
 
 ## 6. Target End State
 
 After this plan lands:
 
-- An initiative can be switched to initiative-level mode via a CLI command and a UI control, with an operator-confirmed cancel-in-flight gate.
-- Initiative-level mode flow is fully runnable end-to-end: investigate → plan → execute → review, with replan as an explicit loop step.
-- Each phase produces durable on-disk artifacts (`findings.md`, `initiative-plan.md`, `initiative-rounds/round-N.json`) under the initiative folder.
-- All four phases' agent runs are tracked via `agentactivity` with explicit purposes.
-- Single-agent-per-initiative is enforced across both feedback and initiative-level rounds (the lock is unified).
-- Acceptance criteria can be set on an initiative (CLI + UI) and are the contract the review phase validates against.
-- The 7-dimension readiness model is implemented for initiative-level rounds.
-- Member backlog items in initiative-level mode are tracked but not independently executed; their status is updated by the initiative-level execution agent as plan milestones land.
-- A new `swarm-manager-initiative-execution-review` skill produces a structured acceptance verdict; the existing `swarm-manager-initiative-review` (decision-oriented) is unchanged.
-- A user guide at `scenarios/swarm-manager/docs/guides/initiative-level-mode.md` explains the operator-facing flow with examples.
-- All new behavior is covered by automated tests.
-- `vrooli scenario restart swarm-manager` succeeds; `make test` passes.
+- Swarm Manager has a small, explicit initiative execution mode framework.
+- `item-level` is represented as the default mode, not as an absence of mode.
+- `initiative-level` is implemented as a mode definition with registered phases and artifacts.
+- Initiatives can be switched between item-level and initiative-level modes through API, CLI, and UI.
+- Entering initiative-level mode requires explicit cancellation confirmation if member items have active item-level executions.
+- Initiative-level phases run end-to-end:
+  - `investigate` produces/updates `findings.md`
+  - `plan` produces/updates `initiative-plan.md`
+  - `execute` edits the repo according to `initiative-plan.md`, journals an execute round, and marks member items complete through a run-id-validated API
+  - `review` produces an acceptance verdict against `AcceptanceCriteria`
+- Initiative-level rounds are durable under `initiative-rounds/round-N.json`.
+- Single-agent-per-initiative is enforced across feedback, decision review, and initiative-level phases.
+- Agent activity records show mode and phase in purpose/metadata.
+- The UI exposes a Mode chip, mode-switch flow, acceptance criteria editor, and Initiative Workspace.
+- The codebase has clear seams so future modes can register behavior without large-scale duplication.
 
-## 7. Implementation Strategy
+## 7. Architecture and Responsibility Boundaries
 
-Phases are ordered for incremental safety: model + storage first, then primitives, then phases, then UI, then docs. Each phase ships a passing test set before the next begins.
+### Core Owns
 
-### Phase 1 — Model and storage
+Swarm Manager core owns these concerns for every mode:
 
-1. **`api/internal/initiatives/model.go`**
-   - Add `Mode string` and `AcceptanceCriteria []string` to `Initiative`.
-   - Constants: `ModeItemLevel = "item-level"`, `ModeInitiativeLevel = "initiative-level"`.
-   - `ValidateMode(mode string) error` — accepts both modes; empty string maps to `item-level` at load time but is rejected on write.
-   - Add `Mode` and `AcceptanceCriteria` to `CreateRequest` and `UpdateRequest` patches.
-   - Default-on-load: `(*Initiative) Normalize()` sets `Mode` to `item-level` if empty.
-2. **`api/internal/initiatives/validation.go`**
-   - Reject `Mode` values outside the constants.
-   - Reject mode changes on archived initiatives.
-3. **`api/internal/initiatives/store.go`**
-   - No structural store change; `initiative.json` gains the new fields via JSON marshal.
-   - On read: call `Normalize()` so callers always see a populated `Mode`.
-4. **Tests**
-   - `model_test.go` (new or extend existing): validate normalization, validation, marshal/unmarshal.
-   - `store_test.go`: round-trip an initiative with `Mode` and `AcceptanceCriteria`.
+- initiative metadata and membership
+- mode selection and mode switching
+- locks
+- activity records
+- API/CLI routing
+- common agent spawn/poll/cancel plumbing
+- artifact persistence primitives
+- graph/item proposal application
+- UI service infrastructure and route composition
 
-### Phase 2 — Lock unification
+### Modes Own
 
-1. **`api/internal/initiativelock/lock.go`**
-   - The lock already exists for feedback. Add a `Holder` enum to distinguish `feedback` / `investigate` / `plan` / `execute` / `review`. The lock fundamentally remains "one agent per initiative at a time"; the holder field is for diagnostics and override prompts.
-   - Add `Acquire(initiativeName, holder Holder) (token, error)` and `Release(initiativeName, token)`.
-2. **`api/routes_feedback.go`**
-   - Existing feedback acquires the lock with `holder=feedback`. No semantic change; just pass the new holder constant.
-3. **Tests**
-   - `lock_test.go`: holder field is recorded; concurrent attempts collide regardless of holder.
+Each mode owns:
 
-### Phase 3 — Investigation phase
+- unit of execution and validation
+- supported phases
+- phase transition rules
+- artifact names and schemas
+- prompt skills and prompt variables
+- readiness dimensions
+- review semantics
+- completion semantics
+- how member backlog items are interpreted
 
-1. **Skill: `swarm-manager-initiative-investigate`**
-   - Inputs (rendered from prompt-manager): initiative metadata, current item graph, current `findings.md` if present, current `initiative-plan.md` if present, prior investigation rounds.
-   - Output: structured `findings.md` with sections: `## Current State`, `## Drift Detected`, `## Acceptance-Criterion Status`, `## Open Questions`. Plus a JSON envelope (in a fenced block) summarizing key findings into an `initiative-rounds/round-N.json` entry of phase=`investigate`.
-   - Hard rules: read-only on code; never proposes mutations; never edits item files.
-2. **API: `POST /api/v1/initiatives/{name}/investigate`**
-   - Server-side: acquire lock; spawn the investigate skill via the existing feedback spawner pattern (rename or generalize the spawner adapter as `initiativeAgentSpawner` if needed); track via `agentactivity` with `Purpose = PurposeInitiativeInvestigate`.
-   - On agent completion: persist `findings.md` and append to `initiative-rounds/round-N.json` with `phase = "investigate"`.
-3. **CLI: `swarm-manager initiative investigate <name>`**
-   - Calls the API; tails the agent output; reports the findings file path.
-4. **Tests**
-   - Unit: handler returns 409 if not in `initiative-level` mode; 423 if lock held; 200 with run-id otherwise.
-   - Integration: end-to-end spawn + completion + persistence.
+For `item-level`, member backlog items are execution units. For `initiative-level`, member backlog items are tracking and scope markers; the initiative is the execution/validation unit.
 
-### Phase 4 — Plan phase
+### Package Boundary
 
-1. **Skill: `swarm-manager-initiative-plan`**
-   - Inputs: same as investigate, plus the latest `findings.md`.
-   - Output: `initiative-plan.md` (overwrites prior version) — implementation-grade plan covering the work the initiative needs to do as a whole. JSON envelope: `initiative-rounds/round-N.json` with `phase = "plan"` carrying the 7-dimension readiness scores.
-   - The plan skill follows the structure documented by `implementation-plan-authoring` but at initiative scope.
-2. **Readiness model (`api/internal/workshop/initiative_readiness.go` or extend existing)**
-   - 7 dimensions: 5 existing + `coupling_understood` (do we know which items are coupled and how) + `system_acceptance_defined` (are the initiative's acceptance criteria stated and testable).
-   - Boost formula reuses the item-level shape but with `N=2` always (initiative-level is always cautious).
-3. **API: `POST /api/v1/initiatives/{name}/plan`**
-   - Spawns the plan skill; persists output; appends round.
-4. **CLI: `swarm-manager initiative plan <name>`**
-5. **Tests**
-   - Round persistence; readiness scoring; lock contention; reject when not in `initiative-level` mode.
+Add a new backend package:
 
-### Phase 5 — Execute phase
+```text
+api/internal/initiativemode/
+```
 
-1. **Skill: `swarm-manager-initiative-execute`**
-   - Inputs: the latest `initiative-plan.md`, current member items, current item graph, prior execute rounds.
-   - Output: real changes to repo files (the agent edits code per the plan). Also updates member item statuses as plan milestones land — completing an item must call back through the swarm-manager API rather than mutating spec.json directly. JSON envelope round-N.json with `phase = "execute"` summarizing what the run completed and what remains.
-   - Hard rule: the agent reports `replan_needed: bool` in the round envelope when execution discovered something material to the plan.
-2. **API: `POST /api/v1/initiatives/{name}/execute`**
-   - Long-running spawn (mirrors backlog execution paths). Tracked via `agentactivity` with `Purpose = PurposeInitiativeExecute`.
-   - On `replan_needed=true`: surface in the rollup status so the UI shows "ready to replan" rather than "ready to review".
-3. **API: `POST /api/v1/initiatives/{name}/items/{item-ref}/complete`** (new helper)
-   - Used by the execute agent to mark a member item completed when its plan milestone lands. Validates the caller is the active execute agent (matching run-id). Greenfield: no auth bypass for tests beyond a documented test seam.
-4. **CLI: `swarm-manager initiative execute <name>`**
-5. **UI cost-hint modal**
-   - Before kickoff, modal displays: "Initiative-level execute runs can take many minutes and consume significant tokens. Continue?"
-   - Acknowledge persists for 24h per browser to avoid friction.
-6. **Tests**
-   - Item-completion endpoint requires matching run-id; rejects stale.
-   - Replan signal surfaces in rollup.
+This package should own mode definitions, phase definitions, mode-phase service orchestration, artifact storage helpers, and round schemas. It should depend on narrow interfaces for initiatives, backlog, agent activity, prompt rendering, graph/current state, execution cancellation, and locks.
 
-### Phase 6 — Review phase
+`api/internal/initiatives/` remains CRUD + rollup + membership. It should not own phase runner logic.
 
-1. **Skill: `swarm-manager-initiative-execution-review`**
-   - Inputs: initiative metadata, `AcceptanceCriteria`, latest `initiative-plan.md`, all execute rounds, current item graph, current code state (read-only).
-   - Output: `accept` | `request_replan` | `request_changes` verdict plus a structured rationale per acceptance criterion. JSON envelope `initiative-rounds/round-N.json` with `phase = "review"`.
-   - Hard rule: never edits files; only emits a verdict.
-2. **API: `POST /api/v1/initiatives/{name}/review`**
-   - Spawns the review skill; persists round.
-   - On `accept`: requires explicit operator confirmation via `POST /api/v1/initiatives/{name}/complete` before transitioning the initiative `Status` to `completed`. The agent never auto-completes.
-3. **CLI: `swarm-manager initiative review <name>`** and `swarm-manager initiative complete <name>`.
-4. **Tests**
-   - Verdict shape; auto-complete rejection (status remains `active` until explicit complete).
+`api/internal/feedback/` remains feedback rounds/proposals. Shared code can be extracted into `initiativemode` or a small internal helper if both packages need it.
 
-### Phase 7 — Replan loop
+## 8. Mode Framework Contract
 
-The loop is implicit: an `execute` round with `replan_needed=true` directs the operator to run another `plan` (or `investigate` → `plan`) round. No new endpoint is required; the rollup status surfaces "ready to replan" and the UI offers the corresponding action.
+Implement a mode framework with concepts like these. Exact names may vary, but the responsibility split must hold.
 
-### Phase 8 — Mode switch
+```go
+type Mode string
+type Phase string
 
-1. **API: `POST /api/v1/initiatives/{name}/mode`**
-   - Body: `{ "mode": "initiative-level", "cancel_in_flight": true }`.
-   - On switch to initiative-level: enumerate member items in `in_progress`; if any exist and `cancel_in_flight=true`, cancel each via `executionCancellerAdapter.CancelForBacklog`; if `cancel_in_flight=false`, return 409 with the list of in-flight items.
-   - On switch to item-level (drain-back): permitted only when no initiative-level run is active; clears `Mode` back to `item-level`. `findings.md`, `initiative-plan.md`, and rounds are preserved as historical record.
-2. **CLI: `swarm-manager initiative mode set <name> <item-level|initiative-level> [--cancel-in-flight]`**
-3. **UI**
-   - Initiative detail page shows current mode in the header.
-   - Mode-switch action in the page menu opens a confirmation modal listing in-flight items if any.
-4. **Tests**
-   - 409 path when in-flight items exist and flag absent; success path with cancellation.
+const (
+    ModeItemLevel       Mode = "item-level"
+    ModeInitiativeLevel Mode = "initiative-level"
+)
 
-### Phase 9 — Activity tracking and prompt catalog
+const (
+    PhaseInvestigate Phase = "investigate"
+    PhasePlan        Phase = "plan"
+    PhaseExecute     Phase = "execute"
+    PhaseReview      Phase = "review"
+)
 
-1. **`agentactivity.Purpose` constants**: `PurposeInitiativeInvestigate`, `PurposeInitiativePlan`, `PurposeInitiativeExecute`, `PurposeInitiativeExecutionReview`. Existing `PurposeInitiativeReview` (decision-oriented) is unchanged.
-2. **`promptcatalog.ResolveInitiativeSkill`**: extend to map each new purpose to its skill ID.
-3. **Tests**: catalog round-trip; activity record contains correct purpose for each run.
+type Definition struct {
+    Mode              Mode
+    Label             string
+    DefaultPhase      Phase
+    Phases            []PhaseDefinition
+    ArtifactPolicy    ArtifactPolicy
+    ReadinessPolicy   ReadinessPolicy
+    TransitionPolicy  TransitionPolicy
+}
 
-### Phase 10 — UI
+type PhaseDefinition struct {
+    Phase             Phase
+    ActivityPurpose   agentactivity.Purpose
+    LockPurpose       string
+    CatalogID         string
+    SkillID           string
+    WritesRepo        bool
+    OutputArtifacts   []string
+    RequiresCriteria  bool
+}
+```
 
-1. **Initiative detail page**: add a Mode header chip, mode-switch menu action, and conditional "Initiative Workspace" tab visible only when `Mode = initiative-level`.
-2. **Initiative Workspace**: tabs/sections for Findings (renders `findings.md`), Plan (renders `initiative-plan.md` with edit button that submits to the plan-skill via a feedback-style flow), Rounds (round timeline), Execute (status of in-flight execute run + replan-needed banner), Review (verdict + acceptance criteria checkbox state).
-3. **Acceptance criteria editor**: add/edit/remove free-form criteria on the initiative.
-4. **Cost-hint modal** (Phase 5).
-5. **Tests**
-   - Mode chip renders correct value.
-   - Workspace tab visibility gated on mode.
-   - Acceptance criteria editor wires through to the API.
+Minimum required behavior:
 
-### Phase 11 — Docs
+- A registry validates mode values and returns definitions.
+- Phase start uses `(mode, phase)` to resolve skills, lock purpose, activity purpose, and artifact policy.
+- Unknown modes/phases fail closed.
+- `item-level` can be registered even if its phase model is mostly a bridge to existing backlog behavior.
+- `initiative-level` is not hardcoded in generic services except as a registered definition.
 
-1. **`scenarios/swarm-manager/docs/guides/initiative-level-mode.md`** — operator-facing how-to: when to switch modes, walkthrough of investigate / plan / execute / review, examples, anti-patterns.
-2. **`scenarios/swarm-manager/docs/manifest.json`** — register the new guide.
-3. **`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`** — replace the "Open questions" section's items with cross-references to where each is resolved (this plan, mostly), preserving the historical context but pointing to the answers.
-4. **`scenarios/swarm-manager/docs/reference/api-endpoints.md`** — register every new endpoint.
-5. **`scenarios/swarm-manager/docs/reference/cli-commands.md`** — register every new CLI command.
+Do not over-engineer plugin loading or dynamic runtime registration. A static Go registry is enough. The important part is that decisions have one home.
 
-### Phase 12 — Restart and validation
+## 9. Implementation Strategy
 
-`vrooli scenario restart swarm-manager` and full `make test` from `scenarios/swarm-manager/`. Plan must leave the scenario healthy.
+### Phase 0 — Codebase Reconnaissance and Seam Notes
 
-## 8. Contract Decisions
+Before edits:
 
-This section locks decisions for every open question raised in `EXECUTION-MODES.md`.
+1. Run the required skill-read command from §2.
+2. Inspect current implementations named in §2.
+3. Update or add a section in `scenarios/swarm-manager/docs/internal/SEAMS.md` describing the intended Initiative Mode Boundary.
 
-1. **Workshop schema at initiative scale**: 7 dimensions = 5 existing + `coupling_understood` + `system_acceptance_defined`. Boost divisor `N=2`. Round file shape mirrors backlog `workshop/round-N.json` with an added `phase` field.
-2. **Plan artifact location**: `<initiative-folder>/initiative-plan.md`. Distinct from per-item `plan.md` to avoid collision and to make the deliverable greppable across initiatives.
-3. **Investigation deliverable**: `<initiative-folder>/findings.md`, regenerated each investigation pass. Prior versions are preserved via the round-file's embedded summary (we do not maintain a `findings-1.md`, `findings-2.md` chain).
-4. **Item status propagation**: the execute agent calls `POST /api/v1/initiatives/{name}/items/{item-ref}/complete` when a plan milestone covers an item. The endpoint validates the caller's run-id matches the active execute run. The operator does *not* mark items completed; the agent does, with audit.
-5. **Mode metadata storage**: explicit `Mode` field on `Initiative`. Default `item-level`; written explicitly on every save (no inference from artifact presence).
-6. **Mode-switch protocol on entering initiative-level mode**: in-flight per-item executions are cancelled with explicit operator confirmation (`cancel_in_flight=true`). Without the flag, the switch returns 409. Drain-back to item-level is permitted only when no initiative-level run is active.
-7. **Review reuse vs. new**: new skill `swarm-manager-initiative-execution-review`, distinct from existing `swarm-manager-initiative-review`. Existing review is decision-oriented (which items need decide actions); new review is acceptance-oriented (does the system meet the initiative's acceptance criteria).
-8. **Acceptance-criterion model**: free-form `AcceptanceCriteria []string` on the initiative. No glob model in this plan. Future work may add structure if criteria become hard to evaluate.
-9. **Parallel-agent boundary**: single-agent-per-initiative across all initiative-level rounds and feedback rounds. Rationale: the on-disk artifacts (`findings.md`, `initiative-plan.md`, `initiative-rounds/round-N.json`) have a single writer at a time; concurrent agents would race on these files and produce inconsistent state. The lock is a contention guard, not a presence assumption; the holder field is for diagnostics.
-10. **Cost / budget surfacing**: UI cost-hint modal before any execute-round kickoff. No hard budget gate. Acknowledgement persists 24h per browser.
+This phase prevents the implementation from drifting back into scattered logic.
 
-Wire shapes (JSON envelopes inside agent replies) for each new round phase mirror the existing workshop round JSON: `{ round, phase, generated_at, readiness, items, plan_updates }` with `phase` ∈ `"investigate" | "plan" | "execute" | "review"`. Each phase has phase-specific item types it may emit; the validator enforces the schema per phase.
+### Phase 1 — Initiative Model and Storage
 
-## 9. Testing Plan
+Files:
 
-All verification is automated.
+- `api/internal/initiatives/model.go`
+- `api/internal/initiatives/service.go`
+- `api/internal/initiatives/store.go`
+- `api/internal/initiatives/*_test.go`
+- `ui/src/types/initiative.ts`
+- proto/type mapping files if initiative types are proto-backed in this repo version
 
-### Go (`scenarios/swarm-manager/api/`)
+Tasks:
 
-- `initiatives/model_test.go`: Mode normalization, validation, marshal/unmarshal of new fields.
-- `initiatives/handler_test.go`: each new endpoint — investigate / plan / execute / review / mode / items/complete — returns correct status codes for happy and error paths.
-- `initiatives/service_test.go`: state transitions, lock interactions.
-- `initiativelock/lock_test.go`: holder field; concurrency invariants.
-- `agentactivity` purpose round-trip tests.
-- `promptcatalog/catalog_test.go`: new purpose → skill resolutions.
-- E2E: `e2e_initiative_mode_test.go` — full investigate → plan → execute → review → complete flow against a test initiative on a temp filesystem.
+1. Add `Mode string` and `AcceptanceCriteria []string` to `Initiative`.
+2. Add constants `ModeItemLevel = "item-level"` and `ModeInitiativeLevel = "initiative-level"` or import equivalents from `initiativemode` without creating a cycle.
+3. Add `Normalize()` so missing mode loads as `item-level`.
+4. Add `ValidateMode`.
+5. Extend create/update requests.
+6. Reject mode changes on archived initiatives.
+7. Keep mode changes out of generic PATCH if the dedicated mode-switch endpoint is present; generic update may set acceptance criteria but mode switching should use the lifecycle endpoint.
+8. Tests for normalization, validation, marshal/unmarshal, and store round-trip.
 
-### TypeScript (`scenarios/swarm-manager/ui/`)
+Contract:
 
-- `feedback-dialog.test.tsx`: regression-only (no behavior change in feedback dialog).
-- New tests for mode-switch modal, Initiative Workspace tab visibility, acceptance criteria editor, cost-hint modal.
-- Type-check pass.
+- Missing mode on disk is accepted and normalized to `item-level`.
+- Invalid mode is rejected.
+- Default mode is visible to callers after load.
 
-### Skills
+### Phase 2 — Initiative Mode Registry and Decisions
 
-- `prompt-manager skill simulate` against each new skill with synthetic inputs verifies the skill produces the expected JSON envelope shape.
-- `prompt-manager skill list --filter swarm-manager-initiative-` enumerates the four initiative-level skills (existing review + three new).
+Files:
 
-### Cross-scenario
+- `api/internal/initiativemode/definition.go`
+- `api/internal/initiativemode/registry.go`
+- `api/internal/initiativemode/transition.go`
+- `api/internal/initiativemode/*_test.go`
+- `api/internal/promptcatalog/catalog.go`
+- `api/internal/promptcatalog/catalog_test.go`
+- `api/internal/agentactivity/types.go`
+- `api/internal/agentactivity/service_test.go`
 
-- `vrooli scenario restart swarm-manager` succeeds.
-- `vrooli scenario test swarm-manager` passes.
-- Adjacent scenarios (`prompt-manager`, `agent-manager`) baseline pass (no regressions).
+Tasks:
 
-## 10. Rollout/Validation Checklist
+1. Add the `initiativemode` package.
+2. Register `item-level` and `initiative-level`.
+3. Define initiative-level phases and their activity/lock/catalog/skill metadata.
+4. Add activity purposes:
+   - `initiative_investigate`
+   - `initiative_plan`
+   - `initiative_execute`
+   - `initiative_execution_review`
+5. Replace or extend `promptcatalog.ResolveInitiativeSkill(purpose)` with a resolver that supports mode+phase, while preserving existing feedback/review lookups.
+6. Add tests that prove all registered initiative-level phases resolve to catalog entries and activity purposes.
 
-- [ ] Initiative model has `Mode` and `AcceptanceCriteria`; round-trips through the store.
-- [ ] Lock primitive has `Holder` and is reused by feedback + all four initiative-level phases.
-- [ ] Three new skills present in prompt-manager catalog and resolvable via `ResolveInitiativeSkill`.
-- [ ] New `agentactivity.Purpose` values present and used.
-- [ ] All four phase APIs (investigate / plan / execute / review) return correct status codes.
-- [ ] Mode-switch API enforces in-flight cancellation gate.
-- [ ] Item-completion endpoint enforces run-id validation.
-- [ ] UI exposes Mode chip, mode-switch modal, Initiative Workspace tab (gated on mode), acceptance criteria editor, cost-hint modal.
-- [ ] `findings.md`, `initiative-plan.md`, `initiative-rounds/round-N.json` produced and persisted under the initiative folder.
-- [ ] Operator-facing user guide written and registered in manifest.
-- [ ] `EXECUTION-MODES.md` open-questions section updated to point to resolutions.
-- [ ] `make test` passes; `vrooli scenario restart swarm-manager` succeeds; adjacent scenarios baseline pass.
+Contract:
 
-## 11. Risks and Mitigations
+- Mode/phase decisions live in one package.
+- Prompt catalog does not grow an unbounded hardcoded switch.
+- Unknown mode/phase combinations return a typed validation error.
+
+### Phase 3 — Lock and Activity Unification
+
+Files:
+
+- `api/internal/initiativelock/lock.go`
+- `api/internal/feedback/service.go`
+- `api/internal/initiativereview/service.go`
+- `api/internal/initiativemode/service.go`
+- tests for all three callers
+
+Tasks:
+
+1. Keep `.feedback-lock` unless a migration is deliberately chosen; document that it is the initiative agent lock.
+2. Add lock purpose constants:
+   - `feedback`
+   - `feedback_continue`
+   - `initiative_review`
+   - `initiative_investigate`
+   - `initiative_plan`
+   - `initiative_execute`
+   - `initiative_execution_review`
+3. Ensure feedback and decision-review use the same lock API as initiative mode phases.
+4. Add tests proving different holder purposes still conflict on the same initiative.
+5. Ensure lock holder metadata is enough for UI override/cancellation prompts.
+
+Contract:
+
+- Only one active initiative-scoped agent can hold the initiative lock.
+- Purpose is diagnostic/routing metadata, not a separate lock namespace.
+
+### Phase 4 — Shared Phase Runner
+
+Files:
+
+- `api/internal/initiativemode/service.go`
+- `api/internal/initiativemode/artifacts.go`
+- `api/internal/initiativemode/rounds.go`
+- `api/internal/initiativemode/context.go`
+- `api/internal/initiativemode/poller.go`
+- `api/routes_initiative_mode.go` or equivalent server wiring
+
+Tasks:
+
+1. Implement `StartPhase(ctx, StartPhaseRequest)`.
+2. Load initiative and validate mode supports phase.
+3. Validate transition/state rules.
+4. Acquire initiative lock with phase lock purpose.
+5. Build prompt context:
+   - initiative metadata
+   - acceptance criteria
+   - member item summaries
+   - member item deliverables where useful
+   - current graph/current materialized state
+   - prior initiative-level rounds
+   - current `findings.md` / `initiative-plan.md`
+6. Resolve skill through mode+phase definition.
+7. Spawn through `agentactivity.Service.SpawnInitiative`.
+8. Persist provisional round with `agent_thinking` or equivalent status.
+9. Poll run state and persist terminal output.
+10. Extract phase artifacts from agent output and write them atomically.
+11. Release lock on terminal state.
+
+Contract:
+
+- Phase endpoints are thin wrappers over the shared runner.
+- The runner does not contain phase-specific prompt prose.
+- Phase-specific parsing/validation is delegated by phase definition.
+
+### Phase 5 — Artifact and Round Model
+
+Files:
+
+- `api/internal/initiativemode/artifacts.go`
+- `api/internal/initiativemode/rounds.go`
+- `api/internal/initiativemode/readiness.go`
+- `scenarios/swarm-manager/docs/internal/SEAMS.md`
+
+Tasks:
+
+1. Add initiative artifact paths:
+   - `<initiative>/findings.md`
+   - `<initiative>/initiative-plan.md`
+   - `<initiative>/initiative-rounds/round-N.json`
+2. Define a common round envelope:
+   - `round`
+   - `phase`
+   - `mode`
+   - `generated_at`
+   - `run_id`
+   - `status`
+   - `readiness`
+   - `items`
+   - `artifact_updates`
+   - phase-specific payload
+3. Add readiness policy for initiative-level:
+   - `problem_clarity`
+   - `scope_defined`
+   - `approach_solid`
+   - `testable`
+   - `risk_awareness`
+   - `coupling_understood`
+   - `system_acceptance_defined`
+4. Use boost divisor `N=2` for initiative-level readiness.
+5. Add unit tests for round numbering, atomic writes, malformed JSON rejection, and readiness scoring.
+
+Contract:
+
+- Round files are append-only evidence.
+- `findings.md` and `initiative-plan.md` are current-state artifacts; prior versions are preserved by round summaries, not by numbered markdown files.
+
+### Phase 6 — Initiative-Level Skills
+
+Files:
+
+- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-investigate/SKILL.md`
+- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-plan/SKILL.md`
+- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-execute/SKILL.md`
+- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-execution-review/SKILL.md`
+- prompt catalog tests/simulations
+
+Skill contracts:
+
+1. `investigate`
+   - read-only on code
+   - writes `findings.md` content
+   - emits `phase=investigate` round envelope
+   - never edits backlog items or repo files
+2. `plan`
+   - reads latest findings, graph, item deliverables, and acceptance criteria
+   - writes `initiative-plan.md`
+   - emits 7-dimension readiness
+3. `execute`
+   - edits repo files according to `initiative-plan.md`
+   - emits completed milestones and `replan_needed`
+   - marks member items complete only through the documented API
+   - never writes per-item `plan.md`
+4. `execution-review`
+   - read-only on code
+   - evaluates `AcceptanceCriteria`
+   - emits verdict: `accept`, `request_replan`, or `request_changes`
+   - never completes the initiative automatically
+
+Tests:
+
+- `prompt-manager skill read`/simulate for each skill.
+- Token budget checks for typical initiative context.
+- JSON envelope shape validation.
+
+### Phase 7 — Phase APIs
+
+Files:
+
+- `api/internal/initiativemode/handler.go`
+- `api/routes_initiative_mode.go`
+- `ui/src/lib/api-endpoints.ts`
+- `docs/reference/api-endpoints.md`
+
+Endpoints:
+
+- `GET /api/v1/initiatives/{name}/mode`
+- `POST /api/v1/initiatives/{name}/mode`
+- `GET /api/v1/initiatives/{name}/workspace`
+- `POST /api/v1/initiatives/{name}/phases/{phase}`
+- Optional stable aliases:
+  - `POST /api/v1/initiatives/{name}/investigate`
+  - `POST /api/v1/initiatives/{name}/plan`
+  - `POST /api/v1/initiatives/{name}/execute`
+  - `POST /api/v1/initiatives/{name}/review`
+- `POST /api/v1/initiatives/{name}/items/{item-ref}/complete`
+- `POST /api/v1/initiatives/{name}/complete`
+
+Preferred internal routing:
+
+- Stable aliases call the generic phase handler.
+- The generic phase handler calls `initiativemode.Service.StartPhase`.
+
+Status contracts:
+
+- `400` invalid mode/phase/body.
+- `404` initiative not found.
+- `409` mode/transition conflict or in-flight item executions without cancellation confirmation.
+- `423` initiative lock held.
+- `202` phase run accepted/spawned.
+
+### Phase 8 — Mode Switch Protocol
+
+Tasks:
+
+1. Implement `POST /api/v1/initiatives/{name}/mode`.
+2. Body:
+
+   ```json
+   {
+     "mode": "initiative-level",
+     "cancel_in_flight": true
+   }
+   ```
+
+3. Entering initiative-level:
+   - enumerate active member item-level executions/activities
+   - if any exist and `cancel_in_flight=false`, return `409` with blockers
+   - if `cancel_in_flight=true`, cancel them through execution/activity services
+   - set mode
+4. Returning to item-level:
+   - reject if an initiative-level phase is active
+   - preserve initiative-level artifacts as history
+   - set mode to `item-level`
+5. Reject mode changes on archived initiatives.
+
+Contract:
+
+- Mode switch is not a generic metadata PATCH.
+- No silent cancellation.
+- No artifact deletion on drain-back.
+
+### Phase 9 — Execute Phase and Item Completion API
+
+Tasks:
+
+1. Add run-id-validated item completion endpoint.
+2. The active execute run ID must match the caller-provided run ID or authenticated agent context.
+3. Mark member item complete only if it belongs to the initiative.
+4. Journal completion in the execute round.
+5. Surface `replan_needed=true` in workspace state.
+
+Contract:
+
+- Initiative-level execute agent may update repo files.
+- It may not mutate backlog specs directly.
+- Item completion is audited and mediated by API.
+
+### Phase 10 — CLI
+
+Files:
+
+- `scenarios/swarm-manager/cli` sources (`cli/app.go` or current command package)
+- `docs/reference/cli-commands.md`
+
+Commands:
+
+```bash
+swarm-manager initiative mode set <name> <item-level|initiative-level> [--cancel-in-flight]
+swarm-manager initiative investigate <name>
+swarm-manager initiative plan <name>
+swarm-manager initiative execute <name>
+swarm-manager initiative review <name>
+swarm-manager initiative complete <name>
+```
+
+CLI commands should call the API rather than duplicating filesystem writes.
+
+### Phase 11 — UI Service and Types
+
+Files:
+
+- `ui/src/types/initiative.ts`
+- `ui/src/types/initiative-mode.ts` (new if useful)
+- `ui/src/services/initiative-service.ts`
+- `ui/src/services/initiative-mode-service.ts` (preferred for phase operations)
+- `ui/src/lib/api-endpoints.ts`
+- service tests
+
+Tasks:
+
+1. Add `mode` and `acceptanceCriteria` to initiative normalization.
+2. Add mode-switch and phase-start methods.
+3. Add workspace fetch method.
+4. Add type-safe models for phases, rounds, artifacts, review verdicts, and blockers.
+5. Tests for snake_case to camelCase normalization.
+
+### Phase 12 — Initiative Workspace UI
+
+Files:
+
+- `ui/src/pages/InitiativeDetailsPage.tsx`
+- `ui/src/components/initiative/initiative-mode-chip.tsx`
+- `ui/src/components/initiative/initiative-mode-switch-dialog.tsx`
+- `ui/src/components/initiative/initiative-workspace.tsx`
+- `ui/src/components/initiative/initiative-acceptance-criteria-editor.tsx`
+- `ui/src/components/initiative/initiative-phase-controls.tsx`
+- `ui/src/components/initiative/initiative-round-timeline.tsx`
+- `ui/src/consts/selectors.ts`
+
+Tasks:
+
+1. Add a compact Mode chip in the initiative header.
+2. Add a mode-switch action with in-flight blocker/cancellation confirmation.
+3. Add an Initiative Workspace tab visible when `mode === "initiative-level"`.
+4. Workspace sections:
+   - Findings
+   - Initiative Plan
+   - Rounds
+   - Execute state / replan-needed banner
+   - Acceptance Criteria
+   - Acceptance Review verdict
+5. Keep `InitiativeDetailsPage.tsx` as route composition; put new behavior in extracted components/hooks.
+6. Add stable selectors for new affordances.
+7. Add cost-hint modal before execute; acknowledgement persists for 24h.
+
+React coherence constraints:
+
+- Server data uses React Query or existing service/store patterns.
+- Local UI state stays local unless reused across surfaces.
+- No second modal framework.
+- No duplicate file workspace implementation; reuse existing initiative file service.
+
+### Phase 13 — Docs
+
+Files:
+
+- `scenarios/swarm-manager/docs/guides/initiative-level-mode.md`
+- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
+- `scenarios/swarm-manager/docs/reference/api-endpoints.md`
+- `scenarios/swarm-manager/docs/reference/cli-commands.md`
+- `scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `scenarios/swarm-manager/docs/manifest.json`
+
+Tasks:
+
+1. Add operator guide for when and how to use initiative-level mode.
+2. Update `EXECUTION-MODES.md` open questions to point to resolved decisions.
+3. Register new API and CLI contracts.
+4. Register new docs in manifest.
+5. Add `[CODE: ...]` references to the new mode framework files once implemented.
+
+### Phase 14 — Validation and Restart
+
+Run targeted tests as each phase lands, then full scenario validation:
+
+```bash
+cd scenarios/swarm-manager/api && go test ./internal/initiatives/... ./internal/initiativemode/... ./internal/initiativelock/... ./internal/agentactivity/... ./internal/promptcatalog/... -timeout 300s
+cd scenarios/swarm-manager/ui && npm test -- InitiativeDetailsPage initiative-service initiative-mode
+cd scenarios/swarm-manager/ui && npm run typecheck
+cd scenarios/swarm-manager && make test
+vrooli scenario restart swarm-manager
+vrooli scenario test swarm-manager
+vrooli scenario test prompt-manager
+vrooli scenario test agent-manager
+```
+
+Use longer timeouts where needed; full scenario tests can take several minutes.
+
+## 10. Contract Decisions
+
+1. **Mode is explicit metadata.** `mode` lives on the initiative and defaults to `item-level` on load.
+2. **Mode switch is a lifecycle operation.** Use the dedicated endpoint/CLI; do not rely on generic PATCH for mode transitions.
+3. **Status and mode are separate.** `status` says lifecycle/result; `mode` says execution machinery.
+4. **Static mode registry.** No dynamic plugin system in this plan.
+5. **Phase runner is shared.** Endpoint aliases are allowed, but internals route through a common phase service.
+6. **Initiative-level artifacts are current-state files plus round evidence.** Markdown files hold latest state; round JSON preserves history.
+7. **Single initiative agent lock.** Feedback, decision-review, and initiative-level phases all contend on the same lock.
+8. **Member items remain scope markers in initiative-level mode.** They are not independently executed while the initiative-level mode is active.
+9. **Execute agent marks item completion through API only.** No direct spec mutation.
+10. **Acceptance review is distinct.** `swarm-manager-initiative-execution-review` is not `swarm-manager-initiative-review`.
+11. **Operator completes explicitly.** A review verdict of `accept` enables completion but does not auto-complete the initiative.
+12. **Replan is a loop state, not a separate endpoint.** Execute can signal `replan_needed`; operator runs plan/investigate again.
+13. **Cost hint is UI-only.** No hard budget gate in this plan.
+
+## 11. Testing Plan
+
+### Backend Unit Tests
+
+- Initiative model normalization and validation.
+- Mode registry rejects unknown modes/phases.
+- Prompt catalog resolves every mode+phase.
+- Agent activity accepts new purposes.
+- Lock conflicts across different purposes.
+- Phase runner validates mode/phase, lock contention, and transition rules.
+- Artifact writes are atomic and round numbering is stable.
+- Readiness scoring for seven dimensions.
+- Mode switch rejects in-flight items without `cancel_in_flight`.
+- Mode switch cancels in-flight items with explicit confirmation.
+- Item completion endpoint rejects wrong run IDs and non-member refs.
+
+### Backend Integration / E2E
+
+- Full mode switch -> investigate -> plan -> execute -> review -> complete flow against a temp filesystem and stub AgentManager.
+- Execute with `replan_needed=true` surfaces replan state.
+- Drain-back to item-level is blocked while a phase is active and succeeds after completion.
+- Existing feedback and decision-review still lock correctly.
+
+### UI Tests
+
+- Initiative service normalizes `mode` and `acceptance_criteria`.
+- Mode chip renders.
+- Mode-switch dialog lists blockers and sends `cancel_in_flight`.
+- Workspace tab is visible only in initiative-level mode.
+- Acceptance criteria editor updates via service.
+- Phase controls call the correct service methods.
+- Cost-hint modal appears before execute and respects 24h acknowledgement.
+- Existing feedback/review/files tabs still render.
+
+### Skill Tests
+
+- Each new skill renders through prompt-manager.
+- Each new skill emits the expected JSON envelope in simulation.
+- Prompt token budgets stay within documented limits.
+
+### Docs / Cross-Scenario
+
+- New docs registered in manifest.
+- API/CLI reference includes new endpoints/commands.
+- `make test` and `vrooli scenario test swarm-manager` pass.
+- Adjacent `prompt-manager` and `agent-manager` scenarios pass baseline tests.
+
+## 12. Rollout / Validation Checklist
+
+- [ ] `Initiative.Mode` and `AcceptanceCriteria` exist and round-trip.
+- [ ] `initiativemode` registry exists with `item-level` and `initiative-level`.
+- [ ] Mode/phase definitions include activity purpose, lock purpose, skill/catalog identity, and artifact policy.
+- [ ] Prompt catalog resolves mode+phase skills.
+- [ ] Agent activity supports initiative-level purposes.
+- [ ] Shared phase runner starts, tracks, polls, persists, and releases locks.
+- [ ] Initiative-level artifacts persist under the initiative folder.
+- [ ] Mode-switch endpoint enforces cancellation gate.
+- [ ] Item completion endpoint enforces active execute run ID.
+- [ ] UI has Mode chip, mode-switch dialog, Initiative Workspace, acceptance criteria editor, phase controls, and cost hint.
+- [ ] New skills are present and simulate successfully.
+- [ ] Docs and manifest are updated.
+- [ ] `make test` passes in `scenarios/swarm-manager`.
+- [ ] `vrooli scenario restart swarm-manager` succeeds.
+- [ ] `vrooli scenario test swarm-manager`, `prompt-manager`, and `agent-manager` pass.
+
+## 13. Risks and Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Initiative-level execute runs leave member items in a half-completed state if the agent crashes | Medium | High | Item completion is the agent's last act per milestone; round-N.json journals plan milestones the agent intended to land. On resume, the next execute round reads the journal to know what's actually done in code. |
-| Operator switches modes mid-flight and loses work-in-progress on per-item executions | Medium | High | Mode-switch requires explicit `cancel_in_flight=true` flag; the UI modal lists every in-flight item and what will be cancelled. No silent loss. |
-| 7-dimension readiness model is more theatre than signal | Low | Medium | Review against actual usage at 1 month + 3 months. The two new dimensions have falsifiable definitions (`coupling_understood` requires a written list of coupled items in `findings.md`; `system_acceptance_defined` requires non-empty `AcceptanceCriteria`). |
-| `initiative-plan.md` and per-item `plan.md` diverge over time | Medium | Medium | Plan skill is required to read all member items' `plan.md` and explicitly note where it supersedes. Drift is surfaced in `findings.md` during the next investigate round. |
-| Cost-hint modal becomes annoying and gets dismissed permanently | Medium | Low | 24h acknowledgement; modal text is short. Not a blocking gate. |
-| Two scenarios on the same machine race for the initiative lock | Low | Medium | Lock is filesystem-based; single-machine deployments are the only supported topology today. |
-| Replan loop never terminates (each execute round triggers another replan) | Low | High | Acceptance criteria are the termination contract. Review skill must produce `accept` to complete the initiative; if review repeatedly produces `request_replan`, the operator can escalate to manual completion (which still requires the explicit `complete` action — operator override is logged). |
-| New skills' prompts grow too long and exceed context budget | Medium | Medium | Each skill has a token-budget assertion in its simulate test. CI fails the test if the rendered prompt exceeds 12k tokens for typical inputs. |
-| Mode-switch lands but no operator ever uses initiative-level mode | Low | Low | The framework doc captures the empirical cue; the user guide makes the use case clear. If unused for 60 days post-merge, revisit at a vision walk. Acceptable cost. |
+|---|---:|---:|---|
+| Framework work becomes over-abstract and delays delivery | Medium | High | Keep registry static and concrete. Implement only the abstractions needed by item-level + initiative-level. |
+| Implementation still scatters `initiative-level` checks | Medium | High | Require mode/phase decisions to live in `initiativemode`; add tests around registry and transition rules. |
+| Phase runner duplicates feedback service behavior | Medium | Medium | Extract reusable patterns or use narrow adapters; do not copy large blocks without consolidating common concerns. |
+| Lock filename `.feedback-lock` confuses future agents | Medium | Low | Document it in `initiativelock` comments and `SEAMS.md` as the initiative agent lock; rename only if migration cost is justified. |
+| Initiative-level execute crashes after partial item completion | Medium | High | Journal execute rounds and require next execute/investigate to read code state plus round history. |
+| Agent directly edits item specs | Medium | High | Skill hard rule plus API-only completion endpoint; tests assert completion endpoint contract. |
+| UI page becomes too large | Medium | Medium | Extract workspace components and service hooks; keep route component as composition. |
+| Existing decision-review semantics regress | Low | High | Keep acceptance review separate; add regression tests for `initiativereview`. |
+| Prompt catalog grows confusing purpose names | Medium | Medium | Centralize names in mode definitions and activity constants; catalog tests cover each purpose. |
+| Future modes still require large edits | Medium | High | Definition of Done requires an explicit future-mode extension note and `SEAMS.md` update. |
 
-## 12. Non-goals and Prohibited Patterns
+## 14. Non-Goals and Prohibited Patterns
 
-- **No mode auto-detection.** Mode is operator-chosen.
-- **No silent in-flight cancellation.** Always require explicit confirmation.
-- **No backwards-compatibility shim for missing `Mode`.** Greenfield: load-time normalization is one line; no migration tool.
-- **No reuse of `swarm-manager-initiative-review` for acceptance review.** Two distinct skills.
-- **No per-item `plan.md` writes by the initiative-level execute agent.** It updates only `initiative-plan.md` and item status (via the API endpoint). Per-item plans are historical.
-- **No agent-driven status mutation outside the documented API.** Direct spec.json writes from the execute agent are prohibited; the run-id-validated endpoint is the only path.
-- **No coupling between Plan A and Plan B.** Either can land first; neither is required for the other.
-- **No multi-initiative orchestration.** Single-initiative scope.
-- **No tech-tree integration.** Defer until the tech-tree-designer scenario exists.
-- **No hidden "preview" mode that runs investigation without persistence.** All rounds persist; investigation is cheap and the audit trail is load-bearing.
+- No hidden "only two modes forever" assumptions.
+- No broad `if mode == "initiative-level"` branching across handlers, UI pages, and services.
+- No direct spec writes from initiative-level agents.
+- No silent cancellation of item-level executions.
+- No separate initiative lock implementation.
+- No reuse of decision-oriented initiative review for acceptance review.
+- No dynamic plugin architecture.
+- No cross-initiative execution.
+- No per-item workshop schema changes.
+- No deleting initiative-level artifacts when switching back to item-level.
+- No unregistered docs.
+- No UI selectors outside `selectors.ts`.
 
-## 13. Definition of Done
+## 15. Definition of Done
 
-The plan is done when **all** of the following hold:
+This plan is complete when:
 
-1. Initiative model carries `Mode` and `AcceptanceCriteria`; load/save round-trips correctly.
-2. All four phase APIs (investigate / plan / execute / review) plus the mode-switch and item-completion endpoints are implemented, return the documented status codes, and have automated tests covering happy and error paths.
-3. The single-agent-per-initiative lock is unified across feedback and the four initiative-level phases.
-4. The three new skills (`swarm-manager-initiative-investigate`, `swarm-manager-initiative-plan`, `swarm-manager-initiative-execution-review`) are committed, resolvable via `ResolveInitiativeSkill`, and pass their simulate tests.
-5. UI exposes mode chip, mode-switch modal with in-flight enumeration, Initiative Workspace tab, acceptance criteria editor, and cost-hint modal; all are covered by automated tests.
-6. The operator-facing guide at `docs/guides/initiative-level-mode.md` is written and registered in the docs manifest.
-7. `EXECUTION-MODES.md` open-questions section is updated to point to in-plan resolutions.
-8. `cd scenarios/swarm-manager && make test` exits 0.
-9. `vrooli scenario restart swarm-manager` succeeds; runtime mode-switch flow demonstrates the new affordances end-to-end.
-10. Adjacent scenarios pass `vrooli scenario test`.
-11. Every check in the Rollout/Validation Checklist is satisfied by an automated test or a CLI exit code — no manual verification.
+1. The repo contains a tested `initiativemode` framework with a static registry for `item-level` and `initiative-level`.
+2. Initiative metadata includes `Mode` and `AcceptanceCriteria`, with load normalization and validation.
+3. Mode switching is implemented as a lifecycle operation with explicit in-flight cancellation behavior.
+4. Initiative-level phases run through a shared phase runner and produce durable artifacts/rounds.
+5. New prompt-manager skills exist and are catalog-resolvable.
+6. Agent activity and locks represent initiative-level phases cleanly.
+7. Initiative-level execute can mark member items complete only through the run-id-validated API.
+8. Initiative-level acceptance review is separate from decision-oriented initiative review.
+9. The UI exposes mode-aware controls and workspace components without bloating `InitiativeDetailsPage.tsx`.
+10. Docs, API reference, CLI reference, manifest, and `SEAMS.md` are updated.
+11. All targeted backend, UI, skill, scenario, and adjacent-scenario tests pass.
+12. A future agent can read this plan plus `SEAMS.md` and understand how to add another mode without reconstructing this conversation.
