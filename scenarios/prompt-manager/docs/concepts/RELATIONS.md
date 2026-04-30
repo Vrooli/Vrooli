@@ -134,5 +134,5 @@ For performance, relations are indexed in `store/indexes/`:
 
 ## Related Documentation
 
-- [SWARM-MODEL.md](SWARM-MODEL.md) - Overall three-domain architecture
+- [SWARM-MODEL.md](SWARM-MODEL.md) - Overall swarm architecture and proposed Action execution layer
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Storage layer details

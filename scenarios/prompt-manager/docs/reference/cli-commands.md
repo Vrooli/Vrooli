@@ -27,6 +27,8 @@ go build -o prompt-manager .
 | `prompt-manager tag` | Manage tags |
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
+| `prompt-manager discover` | Discover relevant skills via topic + AI search |
+| `prompt-manager action` | Proposed: manage and run typed executable Actions |
 | `prompt-manager graph` | Relationship graph analysis |
 | `prompt-manager metadata` | Fetch URL metadata |
 | `prompt-manager status` | Check API health |
@@ -921,6 +923,69 @@ prompt-manager search "debugging" --folder=core
 ```bash
 prompt-manager search "react coherence" --output=combined --format=markdown
 ```
+
+### prompt-manager discover
+
+[CODE: cli/discover/discover.go]
+
+Discover relevant skills using topic search plus AI search with a complexity budget.
+
+```bash
+prompt-manager discover "concept1" "concept2" [--complexity minor|moderate|major|architectural] [--limit=N] [--json]
+```
+
+**Planned Action integration:** once Actions are implemented, `discover` should support mixed capability discovery:
+
+```bash
+prompt-manager discover "take screenshot of scenario UI" --type all
+prompt-manager discover "take screenshot of scenario UI" --type action
+prompt-manager discover "debugging methodology" --type skill
+```
+
+`--type all` should return both skills and Actions. Agents should prefer exact Action matches for deterministic execution and use skills when the work requires judgment.
+
+---
+
+## Actions (Proposed)
+
+Actions are proposed typed wrappers over exactly one Vrooli-controlled CLI command. The command surface below is a planned contract, not currently implemented. See [DOC: docs/concepts/ACTIONS.md].
+
+### prompt-manager action list
+
+List Actions with optional status, pack, tag, or owner filters.
+
+```bash
+prompt-manager action list [--pack=core|local|drafts] [--status=active|draft|archived] [--owner=...] [--json]
+```
+
+### prompt-manager action show
+
+Show an Action contract, including input schema, output schema, command target, permissions, examples, and validation status.
+
+```bash
+prompt-manager action show <id> [--json]
+```
+
+### prompt-manager action validate
+
+Validate that an Action contract is well-formed and points to an allowed Vrooli-controlled command.
+
+```bash
+prompt-manager action validate <id> [--json]
+```
+
+Validation should reject shell pipelines, command separators, raw external tools, missing input/output schemas, and undeclared permissions.
+
+### prompt-manager action run
+
+Run an Action with typed input.
+
+```bash
+prompt-manager action run <id> --input='{"key":"value"}' [--json]
+prompt-manager action run <id> --input-file=payload.json [--json]
+```
+
+The Action runtime should resolve the contract through the API and execute one argv-shaped command. Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
 
 ---
 

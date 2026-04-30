@@ -584,6 +584,125 @@ Cancel an in-progress reindex operation.
 
 ---
 
+## Actions (Proposed)
+
+Actions are proposed typed wrappers over exactly one Vrooli-controlled CLI command. The endpoints below are planned contracts, not currently implemented. See [DOC: docs/concepts/ACTIONS.md].
+
+### GET /api/v1/actions
+
+List Actions with optional filtering.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pack` | string | Filter by pack: `core`, `local`, `drafts` |
+| `status` | string | Filter by status: `active`, `draft`, `archived` |
+| `owner` | string | Filter by owning scenario/resource/project |
+| `tag` | string | Filter by tag |
+
+**Response:**
+```json
+[
+  {
+    "id": "scenario.ui.screenshot",
+    "name": "Take Scenario Screenshot",
+    "description": "Capture a screenshot of a running scenario UI.",
+    "status": "active",
+    "owner": {
+      "type": "scenario",
+      "id": "prompt-manager"
+    },
+    "pack": "core",
+    "updatedAt": "2026-04-30T00:00:00Z"
+  }
+]
+```
+
+### GET /api/v1/actions/{id}
+
+Get a single Action contract by ID.
+
+**Response:** Full Action metadata including input schema, output schema, command target, permissions, examples, and validation metadata.
+
+### POST /api/v1/actions
+
+Create a new Action contract.
+
+**Notes:**
+- The API must reject command strings that require shell interpretation.
+- The command target must be a Vrooli-controlled CLI command.
+- Creation should validate input/output schemas and permission declarations.
+
+### PUT /api/v1/actions/{id}
+
+Update an existing Action contract. Updates should create version history once Action history is implemented.
+
+### DELETE /api/v1/actions/{id}
+
+Archive or delete an Action according to pack/status policy. Core Actions should follow the same protection posture as core skills.
+
+### POST /api/v1/actions/{id}/validate
+
+Validate an Action contract without running its target operation.
+
+**Response:**
+```json
+{
+  "valid": true,
+  "actionId": "scenario.ui.screenshot",
+  "checks": [
+    {
+      "name": "command-target",
+      "status": "pass",
+      "message": "Command target is Vrooli-controlled."
+    }
+  ]
+}
+```
+
+### POST /api/v1/actions/{id}/run
+
+Run an Action with typed input.
+
+**Request Body:**
+```json
+{
+  "input": {
+    "scenario": "prompt-manager",
+    "viewport": "desktop"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "actionId": "scenario.ui.screenshot",
+  "status": "completed",
+  "output": {
+    "imagePath": "/tmp/prompt-manager-screenshot.png"
+  }
+}
+```
+
+Execution should use the argv-shaped command contract from `action.json`. Branching and implementation logic belong in the owning CLI, not the Action runtime.
+
+### POST /api/v1/discover
+
+The existing discovery endpoint currently returns skill results. Planned Action integration should allow mixed results:
+
+```json
+{
+  "queries": ["take screenshot of scenario UI"],
+  "types": ["skill", "action"],
+  "limit": 10
+}
+```
+
+Mixed responses should include a result type discriminator so agents can prefer exact Actions for deterministic operations and skills for judgment-heavy work.
+
+---
+
 ## Sync
 
 ### GET /api/v1/skills/sync

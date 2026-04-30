@@ -14,6 +14,12 @@
           "title": "Quick Start",
           "description": "Get running in 5 minutes",
           "audience": ["users", "developers"]
+        },
+        {
+          "path": "README.md",
+          "title": "Documentation Overview",
+          "description": "Map of prompt-manager documentation and core concepts",
+          "audience": ["users", "developers"]
         }
       ]
     },
@@ -27,6 +33,24 @@
           "title": "Architecture Overview",
           "description": "System design, data flow, and component relationships",
           "audience": ["developers"]
+        },
+        {
+          "path": "concepts/SWARM-MODEL.md",
+          "title": "Swarm Coordination Model",
+          "description": "How skills, agents, teams, and proposed Actions work together",
+          "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/ACTIONS.md",
+          "title": "Actions",
+          "description": "Proposed executable wrapper entity for deterministic Vrooli-controlled CLI operations",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "concepts/MEMORY-PROMOTION.md",
+          "title": "Memory Promotion",
+          "description": "Ontology and decision tree for promoting notebook observations into durable forms",
+          "audience": ["developers", "operators"]
         },
         {
           "path": "concepts/3D-WORLD-ARCHITECTURE.md",
@@ -112,6 +136,18 @@
           "title": "Heartbeat CLI",
           "description": "CLI commands for heartbeat management",
           "audience": ["users", "developers"]
+        },
+        {
+          "path": "reference/decision-initiative-proposal-contract.md",
+          "title": "Decision Initiative Proposal Contract",
+          "description": "Contract for decisions that create swarm-manager initiatives",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/decision-modifications-contract.md",
+          "title": "Decision Modifications Contract",
+          "description": "Contract for recording accepted modifications on decisions",
+          "audience": ["developers", "operators"]
         }
       ]
     },
@@ -138,6 +174,12 @@
           "title": "Team Coordination Greenfield Redesign",
           "description": "Greenfield implementation plan for decoupling runtime, coordination, and concurrency in Prompt Manager teams",
           "audience": ["developers"]
+        },
+        {
+          "path": "plans/action-entity-and-memory-promotion-rfc.md",
+          "title": "Action Entity and Memory Promotion RFC",
+          "description": "Proposed ontology and rollout framing for Actions and notebook promotion",
+          "audience": ["developers", "operators"]
         }
       ]
     },

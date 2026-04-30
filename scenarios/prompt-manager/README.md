@@ -1,6 +1,6 @@
 # Prompt Manager
 
-**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and markdown-based skill references with 3D world visualization.
+**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and markdown-based skill references with 3D world visualization. Prompt-manager also documents a proposed **Actions** layer for typed executable wrappers over Vrooli-controlled CLI operations.
 
 ## Features
 
@@ -11,6 +11,7 @@
 - **Multiple Interfaces**: Web UI, REST API, and command-line tool
 - **Text-Only Skills**: Agents and teams reference skills directly in markdown
 - **Relations**: Team-member memberships
+- **Actions (Proposed)**: Typed execution wrappers that let agents discover and run deterministic Vrooli-controlled CLI operations
 
 ## Quick Start
 
@@ -38,8 +39,8 @@
 ┌─────────────────────────────────────────────────────────┐
 │                    prompt-manager                        │
 ├─────────────┬─────────────┬─────────────┬───────────────┤
-│   Skills    │   Agents    │   Teams     │   Relations   │
-│  (packs)    │  (souls)    │  (roles)    │ (memberships) │
+│   Skills    │   Agents    │   Teams     │   Actions*    │
+│ (judgment)  │  (souls)    │  (roles)    │ (execution)   │
 └─────────────┴─────────────┴─────────────┴───────────────┘
                             │
             ┌───────────────┼───────────────┐
@@ -47,6 +48,8 @@
       File Store      PostgreSQL       Qdrant
       (entities)      (metrics)       (vectors)
 ```
+
+`*` Actions are proposed and documented before implementation. See `docs/concepts/ACTIONS.md`.
 
 ### Components
 
@@ -71,6 +74,8 @@ store/
 ├── relations/          # Team-member mappings
 └── indexes/            # Generated lookup indexes
 ```
+
+The planned Actions store will follow the same per-entity, schema-validated posture as skills, agents, and teams once implemented.
 
 ## API Endpoints
 

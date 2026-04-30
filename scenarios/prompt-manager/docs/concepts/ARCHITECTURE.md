@@ -19,8 +19,8 @@ This document describes the overall architecture of the prompt-manager scenario,
 ┌─────────────────────────────────────────────────────────────────┐
 │                        API Server (Go)                          │
 │  ┌──────────┬──────────┬──────────┬──────────┬──────────────┐  │
-│  │  skills/ │  tags/   │  agents/ │ testing/ │   search/    │  │
-│  │  domain  │  domain  │  domain  │  domain  │   domain     │  │
+│  │  skills/ │  tags/   │  agents/ │ actions* │   search/    │  │
+│  │  domain  │  domain  │  domain  │ domain   │   domain     │  │
 │  └────┬─────┴────┬─────┴────┬─────┴────┬─────┴──────┬───────┘  │
 │       │          │          │          │            │          │
 │  ┌────┴──────────┴──────────┴──────────┴────────────┴───────┐  │
@@ -58,6 +58,7 @@ api/
 │   └── query.go     # Filtering/search logic
 │
 ├── agents/          # Agent management with appearance, SOUL.md + other .md files, capabilities
+├── actions/         # Proposed: typed wrappers over Vrooli-controlled CLI commands
 ├── teams/           # Team management with roles, members, org charts
 ├── tags/            # Tag categorization
 ├── store/           # Storage layer (per-entity files)
@@ -103,6 +104,7 @@ type Handlers struct {
 | Agents | File system (`agent.json` per agent) | Normalized entity structure |
 | Teams | File system (`team.json` per team) | Normalized entity structure |
 | Relations | File system (`relations/` directory) | Agent-skill and team-member mappings |
+| Actions (proposed) | File system (`action.json` per action) | Typed execution contracts over Vrooli-controlled CLIs |
 
 ### New Storage Layout (v2.0)
 
@@ -130,6 +132,15 @@ store/
 │       ├── team.json
 │       ├── roles.json
 │       └── org-chart.json
+├── actions/                    # Proposed
+│   ├── _pack-order.json
+│   └── packs/
+│       ├── core/
+│       │   └── scenario-ui-screenshot/
+│       │       ├── action.json
+│       │       └── history.jsonl
+│       ├── local/
+│       └── drafts/
 ├── relations/
 │   └── team-member/
 │       └── team-id--agent-1.json
@@ -140,6 +151,7 @@ store/
 └── schemas/                    # JSON Schemas for validation
     ├── skill.schema.json
     ├── agent.schema.json
+    ├── action.schema.json       # Proposed
     └── team.schema.json
 ```
 
@@ -149,8 +161,24 @@ store/
 - Normalized relations in separate directory
 - Generated indexes for fast lookups
 - Schemas for runtime validation
+- Proposed Actions use the same per-entity pattern while keeping execution logic in Vrooli-controlled CLIs
 
 See [STORE-MIGRATION.md](STORE-MIGRATION.md) for migration details.
+
+## Entity Ontology
+
+Prompt-manager's current implemented entities are skills, agents, teams, relations, topics, variants, and experiments. The proposed Action entity adds an execution layer without changing the responsibility of skills:
+
+```text
+Truth lives in the Plan of Record.
+Judgment lives in Skills.
+Execution lives in Actions.
+Implementation lives in CLIs.
+Unbuilt work lives in the Backlog.
+Raw learning starts in Notebooks.
+```
+
+Actions are not arbitrary code. They are typed contracts that call exactly one Vrooli-controlled CLI command. Branching, retries, resource access, and implementation details remain in the owning CLI. See [Actions](ACTIONS.md) and [Memory Promotion](MEMORY-PROMOTION.md).
 
 ## CLI Architecture
 
@@ -160,6 +188,7 @@ The CLI is an API-first client with a small amount of contract-aware flag resolu
 cli/
 ├── app.go           # Command registration
 ├── skills/          # skill list|show|add|update|delete|...
+├── actions/         # Proposed: action list|show|validate|run
 ├── tags/            # tag list|create
 ├── agents/          # agent list|show|create|update|delete
 ├── testing/         # test run|history
@@ -173,6 +202,8 @@ cli/
 ```
 
 **Design Principle:** Every CLI command maps 1:1 to an API endpoint. No business logic in CLI.
+
+The proposed Action CLI follows the same principle. `prompt-manager action run <id>` should resolve an Action contract through the API and execute one controlled command; it should not contain business logic or shell recipes.
 
 ## UI Architecture
 
@@ -200,6 +231,7 @@ The editor exposes **Editor / Preview** view modes so users can inspect markdown
 | State Type | Owner | Storage |
 |------------|-------|---------|
 | Skills, Agents, Teams | API | File system (store/) |
+| Actions (proposed) | API | File system (store/actions/) |
 | Tags, Metrics, Test Results | API | PostgreSQL |
 | Relations (team-member) | API | File system (store/relations/) |
 | Favorites | UI | localStorage |
@@ -239,7 +271,7 @@ See [SEAMS.md](../internal/SEAMS.md) for detailed testing seam documentation.
 - [CLI Reference](../reference/cli-commands.md) - Command documentation
 
 ### Core Concepts
-- [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture
+- [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture and proposed Action layer
 - [Relations](RELATIONS.md) - Team-member relations
 - [SOUL System](PERSONA-SYSTEM.md) - Agent personality via SOUL.md (plus optional agent .md files)
 - [Capability Matching](CAPABILITY-MATCHING.md) - Skill-to-agent matching

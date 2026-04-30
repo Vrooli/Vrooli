@@ -2,6 +2,8 @@
 
 The relationship graph maps how teams, agents, skills, and CLI tools connect to each other. It scans store files for references, builds a directed graph, and exposes analytical queries that surface structural problems like orphaned skills, empty teams, or circular dependencies.
 
+The proposed Action entity extends this model with a typed execution node between agents/skills and CLI tools. Until Actions are implemented, Action nodes and edges are planned graph concepts rather than current scanner output.
+
 ## Why It Exists
 
 As the number of skills, agents, and teams grows, it becomes difficult to answer questions like:
@@ -22,6 +24,7 @@ The graph automates these answers by scanning markdown content for references an
 | `team` | Organizational unit grouping agents | Team store (`store/teams/`) |
 | `agent` | AI entity that performs work | Agent store (`store/agents/`) |
 | `skill` | Reusable prompt/capability | Skill store (`store/skills/packs/`) |
+| `action` | Proposed typed executable wrapper | Action store (`store/actions/packs/`) |
 | `cli` | CLI tool referenced in skill content | Extracted from `code-usage` edges |
 
 CLI nodes are synthetic — they are created when a `code-usage` edge points to a target that doesn't exist as a skill, agent, or team.
@@ -36,6 +39,10 @@ CLI nodes are synthetic — they are created when a `code-usage` edge points to 
 | `path-ref` | agent/skill → skill | Skill referenced via filesystem path (`store/skills/packs/...`) | Regex scan |
 | `default-scope` | skill → skill | Skill declares another as its `DefaultScope` | skill.json field |
 | `code-usage` | skill/agent → cli | Node references a CLI tool in its content | CLIDetector |
+| `action-use` | agent/skill → action | Planned: node references or invokes an Action | Action references / discover usage |
+| `action-command` | action → cli | Planned: Action wraps one Vrooli-controlled CLI command | action.json command target |
+
+Future graph health should prefer `action-command` edges over repeated `code-usage` edges when a deterministic operation has graduated into an Action. Skills remain healthy when they preserve judgment and point to Actions for execution.
 
 ## How the Graph Is Built
 
@@ -196,5 +203,5 @@ The frontend renders the graph using React Flow with Dagre hierarchical layout.
 
 - [API Reference — Graph Endpoints](../reference/api-endpoints.md#graph)
 - [CLI Reference — Graph Commands](../reference/cli-commands.md#graph)
-- [Swarm Model](SWARM-MODEL.md) — The three-domain architecture that the graph visualizes
+- [Swarm Model](SWARM-MODEL.md) — The swarm architecture and proposed Action execution layer that the graph visualizes
 - [Testing Seams](../internal/SEAMS.md#graph-seams) — Graph testing boundaries

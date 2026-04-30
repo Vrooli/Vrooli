@@ -110,6 +110,16 @@ This layered approach means:
 - **Team Inbox**: "Pending messages to act on or reply to"
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
 
+### Planned Action Discovery Guidance
+
+Actions are proposed as typed executable wrappers over Vrooli-controlled CLI commands. Once implemented, heartbeat prompts should include a compact runtime rule:
+
+```text
+Before manual operational work, use `prompt-manager discover "<what you need>" --type all`; prefer an exact Action over prose instructions when the task is deterministic.
+```
+
+This keeps judgment in skills and execution in Actions without bloating every heartbeat prompt. See [Actions](ACTIONS.md) and [Memory Promotion](MEMORY-PROMOTION.md).
+
 ## Prompt Pipeline UI
 
 The Team Members heartbeat UI exposes a **Prompt Pipeline** view that mirrors the exact prompt assembly order (Agent Files → Responsibilities → Relationships → Inbox → Heartbeat Task). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts. The UI loads the assembled prompt through `/prompt-preview` and renders each section so operators can see precisely what will run on the next heartbeat.

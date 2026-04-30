@@ -3,6 +3,8 @@
 ## 🎯 Overview
 Prompt Manager is a **Skills + Agents + Teams** management system that stores, organizes, and orchestrates reusable skills for AI interactions. It provides a 3D world visualization for agent coordination, pack-based skill organization (core/local/drafts), and team structures with roles and org charts. Agents and teams reference skills directly in their markdown files (SOUL.md, RESPONSIBILITIES.md, TEAM.md), keeping behavior human-readable and flexible while enabling agent swarms to coordinate through shared context.
 
+Prompt Manager's next ontology expansion is the proposed **Action** entity: a typed, discoverable wrapper over exactly one Vrooli-controlled CLI command. Actions move deterministic execution out of prose skills while leaving judgment in skills and implementation in CLIs. See `docs/concepts/ACTIONS.md` and `docs/concepts/MEMORY-PROMOTION.md`.
+
 ## 🧭 Scope & Priorities
 
 ### 🔴 P0 – Must ship for viability
@@ -30,6 +32,8 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 - Collaboration features
 - Advanced analytics dashboard
 - Version history for skills (complete)
+- Action entity for typed executable wrappers over Vrooli-controlled CLI commands
+- Memory promotion workflow for graduating notebook observations into Plan of Record, Skills, Actions, CLIs, or backlog
 
 ## 🧱 Tech Direction Snapshot
 - **API:** Go with versioned REST endpoints and health checks.
@@ -37,6 +41,7 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 - **Search:** Text search first, optional semantic search via Qdrant + Ollama embeddings.
 - **UI:** React + TypeScript + React Three Fiber for 3D world visualization + Zustand for state management.
 - **CLI:** Cross-platform commands for listing, searching, and managing skills, agents, and teams.
+- **Actions (proposed):** File-backed executable contracts with API, CLI, UI, and AI-search integration.
 
 ## 🎨 UX & Branding
 - Clean, productivity-focused UI with fast search, clear hierarchy, and minimal friction for skill editing.
@@ -89,7 +94,7 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 
 ### Core Capability
 **What permanent capability does this scenario add to Vrooli?**
-Provides a **Skills + Agents + Teams** management system that orchestrates reusable AI behaviors. Skills define capabilities (debugging, testing, etc.), Agents are autonomous entities with SOUL.md personality and capabilities that reference skills in markdown, and Teams coordinate multiple agents through roles, shared docs, and team context. This creates the foundation for **agent swarms** - coordinated groups of agents that can work autonomously on complex tasks.
+Provides a **Skills + Agents + Teams** management system that orchestrates reusable AI behaviors. Skills define reusable judgment and guidance, Agents are autonomous entities with SOUL.md personality and capabilities that reference skills in markdown, and Teams coordinate multiple agents through roles, shared docs, and team context. The proposed Action layer adds typed execution wrappers over Vrooli-controlled CLIs. Together these create the foundation for **agent swarms** - coordinated groups of agents that can work autonomously on complex tasks.
 
 ### Intelligence Amplification
 **How does this capability make future agents smarter?**
@@ -98,6 +103,7 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
 - **SOUL.md Management**: Agents have a single personality source defined in SOUL.md
 - **Capability Matching**: Skills declare required capabilities; agents declare provided capabilities
 - **Semantic Search**: Find relevant skills across all packs using vector embeddings
+- **Action Discovery (proposed)**: Find exact deterministic operations through the same discovery surface used for skills
 - **3D Visualization**: Monitor and coordinate agent swarms through an interactive 3D world
 
 ### Recursive Value
@@ -137,6 +143,8 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
   - [ ] Collaboration features
   - [ ] Advanced analytics dashboard
   - [x] Version history for skills (COMPLETE: Full implementation with API endpoints, automatic versioning, CLI commands)
+  - [ ] Action entity for typed CLI-backed execution
+  - [ ] Memory promotion documentation and workflow adoption
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -286,6 +294,26 @@ primary_entities:
         status: string            # active, inactive
       }
 
+  - name: Action (proposed)
+    storage: file-system (store/actions/packs/{pack}/{id}/)
+    schema: |
+      {
+        id: string
+        name: string
+        description: string
+        status: string            # active, draft, archived
+        owner: {type, id}         # scenario, resource, or project
+        command:
+          argv: string[]          # one Vrooli-controlled command
+        inputs: object            # typed input schema
+        outputs: object           # typed output schema
+        permissions: object       # declared before execution
+        examples: object[]
+        validation: object
+        createdAt: timestamp
+        updatedAt: timestamp
+      }
+
   - name: SkillEmbedding
     storage: qdrant (optional)
     schema: |
@@ -319,6 +347,15 @@ endpoints:
     GET /api/v1/agents/{id}: Get agent details
     PUT /api/v1/agents/{id}: Update agent
     DELETE /api/v1/agents/{id}: Delete agent
+
+  actions (proposed):
+    GET /api/v1/actions: List actions
+    POST /api/v1/actions: Create action
+    GET /api/v1/actions/{id}: Get action contract
+    PUT /api/v1/actions/{id}: Update action
+    DELETE /api/v1/actions/{id}: Archive or delete action
+    POST /api/v1/actions/{id}/validate: Validate action contract
+    POST /api/v1/actions/{id}/run: Run action with typed input
 
   teams:
     GET /api/v1/teams: List all teams

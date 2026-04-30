@@ -74,6 +74,12 @@ store/
 │       ├── team.json
 │       ├── roles.json
 │       └── org-chart.json
+├── actions/                    # Proposed
+│   ├── _pack-order.json
+│   └── packs/
+│       ├── core/
+│       ├── local/
+│       └── drafts/
 ├── relations/
 │   └── team-member/
 │       └── team-id__agent-1.json
@@ -84,6 +90,7 @@ store/
 └── schemas/                    # JSON Schemas for validation
     ├── skill.schema.json
     ├── agent.schema.json
+    ├── action.schema.json       # Proposed
     └── team.schema.json
 ```
 
@@ -119,6 +126,34 @@ store/
   "updatedAt": "2024-01-20T14:30:00Z"
 }
 ```
+
+### action.json Format (Proposed)
+
+Actions are proposed typed wrappers over one Vrooli-controlled CLI command. The future schema should be documented in detail in [DOC: docs/concepts/ACTIONS.md].
+
+```json
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "scenario.ui.screenshot",
+  "name": "Take Scenario Screenshot",
+  "description": "Capture a screenshot of a running scenario UI.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "prompt-manager"
+  },
+  "command": {
+    "argv": ["vrooli", "scenario", "screenshot", "{{scenario}}"]
+  },
+  "inputs": {},
+  "outputs": {},
+  "permissions": {},
+  "examples": []
+}
+```
+
+Action commands should be argv-shaped and should not require shell parsing, pipelines, command separators, or embedded conditional logic.
 
 ### team.json Format
 
