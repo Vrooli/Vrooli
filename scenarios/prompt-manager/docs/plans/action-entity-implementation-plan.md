@@ -8,6 +8,8 @@ Fully implement the prompt-manager Action entity described in [DOC: docs/concept
 
 This plan covers the implementation mechanism only: schema, file-backed storage, API, CLI, AI search/discovery, UI, graph integration, validation, execution safety, tests, and documentation updates. The separate adoption plan should later update meta-optimization prompts, skills, decision contexts, notebook promotion behavior, and seed rollout policy.
 
+Important dependency: executable Action validation depends on the operation-contract foundation in [DOC: docs/plans/operation-contract-drift-prevention-plan.md]. Do not reduce command validation to trusted first-token checks while that foundation is in progress. Draft Actions may be stored with unresolved or owner-only command certainty, but active runnable Actions should wait for the shared command catalog / controlled-command resolver described in that plan.
+
 ## Required Reading
 
 Run these before implementing any phase:
@@ -19,6 +21,7 @@ prompt-manager skill read implementation-plan-authoring documentation-health api
 Also read the prompt-manager Action docs:
 
 ```bash
+sed -n '1,260p' scenarios/prompt-manager/docs/plans/operation-contract-drift-prevention-plan.md
 sed -n '1,260p' scenarios/prompt-manager/docs/concepts/ACTIONS.md
 sed -n '1,180p' scenarios/prompt-manager/docs/concepts/MEMORY-PROMOTION.md
 sed -n '587,710p' scenarios/prompt-manager/docs/reference/api-endpoints.md
@@ -216,7 +219,7 @@ Implement a strict schema based on [DOC: docs/concepts/ACTIONS.md]:
     }
   ],
   "validation": {
-    "argv": ["prompt-manager", "action", "validate", "scenario.ui.screenshot"]
+    "mode": "contract"
   }
 }
 ```
@@ -228,15 +231,22 @@ Recommended additional fields:
 - `createdAt`, `updatedAt`, `revision`: same file-store posture as other entities
 - `execution`: optional timeout, working directory policy, output capture policy
 
+Do not model validation as a self-referential command such as `prompt-manager action validate <same-id>`. If an owning CLI needs a command-specific validation hook, model it separately from prompt-manager's contract validation and reject hooks that recursively invoke Action validation for the same Action.
+
 ### Command Boundary
 
 Command contracts are argv-shaped, never shell-shaped.
 
-Allowed first command tokens:
+This boundary should be implemented through the shared operation/command catalog and controlled-command resolver from [DOC: docs/plans/operation-contract-drift-prevention-plan.md] when available. Until that plan lands, keep Action command validation conservative: allow draft persistence for owner-known commands if useful, but do not mark an Action active/runnable unless the command path, arguments, permissions, run surface, and output mode are contract-backed.
 
-- `vrooli`
-- `prompt-manager`
-- Vrooli-owned scenario/resource CLIs only when the allowed-command registry explicitly recognizes them
+Allowed command ownership is dynamic and must be validated through a reusable resolver, not a hard-coded static list. The resolver should compose checks for:
+
+- project lifecycle commands such as `vrooli ...`
+- the prompt-manager CLI such as `prompt-manager ...`
+- scenario-owned CLIs where `argv[0]` matches a discovered scenario slug/folder name and the scenario contract marks that CLI as owned by Vrooli
+- resource-owned CLIs where resource metadata exposes a Vrooli-owned wrapper command
+
+Do not merely allow any command whose first token is `vrooli` or `prompt-manager`. The validation service must classify the command target, subcommand, permission class, mutability, and execution eligibility through one central command-ownership resolver. Reuse existing scenario health or CLI-detection seams where they already determine whether a command belongs to a scenario, but keep Action validation behind an explicit `IsControlledCommand`-style API rather than duplicating detection logic.
 
 Rejected forms:
 
@@ -248,6 +258,32 @@ Rejected forms:
 - commands with path separators in argv[0]
 
 If a target requires an external tool, create or improve a Vrooli-controlled CLI first.
+
+### Input Validation Boundary
+
+Action execution is argv-only, so shell metacharacters inside rendered input values are not shell-executed by themselves. The runtime still must validate inputs by declared type before rendering placeholders:
+
+- `string`: max length, optional regex, optional enum, no multiline values unless explicitly allowed
+- `number`/`integer`: numeric bounds when declared
+- `boolean`: strict boolean parsing
+- `file`/`path`: no path traversal, no absolute paths unless explicitly allowed, and permission declaration required
+- entity references such as scenario/team/action IDs: validate against the relevant entity ID shape and, where practical, existence
+
+Reject shell metacharacters in static command tokens and in command strings that would imply shell interpretation. For placeholder values, rely on declared input type constraints plus per-field regex/enum/path policy so valid values are not rejected just because they contain punctuation that would only be dangerous in a shell.
+
+### Execution Governance
+
+Running an Action through the API turns prompt-manager into a controlled command broker. The first implementation must include explicit governance:
+
+- default timeout and per-Action timeout maximum
+- concurrency limits for Action runs, at least process-wide
+- stdout/stderr byte caps with truncation flags in the response
+- structured run audit history recording action ID, argv after rendering, caller context when available, status, exit code, duration, timestamps, and validation outcome
+- permission enforcement before execution, not just permission display
+- clear distinction between read-only, filesystem-write, localhost-network, external-network, and destructive/mutating actions
+- optional API/UI run eligibility so high-risk Actions can remain discoverable but not runnable from every surface
+
+Store enough execution history to debug failures without storing unbounded logs or secrets.
 
 ### Execution Semantics
 
@@ -261,6 +297,8 @@ Action execution should:
 - capture stdout, stderr, exit code, duration, and structured output if declared
 - fail closed when validation fails
 - enforce timeout
+- enforce permission and concurrency policy
+- append a bounded audit/history entry
 - return a typed result envelope
 
 Initial output envelope:
@@ -313,24 +351,26 @@ Deliverables:
 - Implement Action CRUD request/response models.
 - Implement validation service for:
   - schema fields
-  - command target allowlist
+  - dynamic command ownership resolver
   - placeholder/input consistency
   - input type/default/enum checks
   - output declaration sanity
   - permission declaration completeness
-  - validation argv safety
+  - validation hook safety, including no self-recursive Action validation
 - Implement `POST /api/v1/actions/{id}/validate` logic without executing target operations.
 
 Implementation notes:
 
-- Keep command validation in one reusable package, e.g. `api/actions/command_validation.go`.
+- Keep command validation in one reusable package, e.g. `api/actions/command_validation.go`, backed by an explicit controlled-command resolver that can consult project, scenario, and resource command metadata.
 - Action handlers should depend on interfaces, not concrete stores, following [CODE: api/skills/handlers.go].
 - Validation response should be structured enough for CLI and UI to show individual checks.
 
 Acceptance:
 
 - Unit tests cover every rejected command form listed in this plan.
-- Valid Vrooli-controlled commands pass validation.
+- Valid project, prompt-manager, scenario-owned, and resource-owned commands pass validation when their ownership source recognizes them.
+- Commands with only a trusted first token but an unsafe or unknown subcommand fail validation.
+- Self-recursive validation hooks fail validation.
 - Validation errors are deterministic, specific, and usable by CLI/UI.
 
 ### Phase 3 - API Routes and Mutation Hooks
@@ -374,6 +414,8 @@ Implementation notes:
 - Never concatenate argv into a shell string.
 - Resolve working directory deliberately. Prefer repo root for project-level commands and let CLIs resolve scenario paths themselves.
 - Cap stdout/stderr length to avoid huge API responses; return truncation flags if truncation occurs.
+- Enforce run concurrency and permission policy before starting a process.
+- Write bounded audit/history entries for success, failure, timeout, and validation rejection.
 - If an Action declares JSON output, parse stdout into `output`; otherwise return stdout/stderr and leave `output` empty.
 
 Acceptance:
@@ -381,6 +423,8 @@ Acceptance:
 - Tests prove shell metacharacters are treated as invalid, not executed.
 - Tests prove timeout cancellation.
 - Tests prove declared defaults are applied.
+- Tests prove permissions and run eligibility are enforced before execution.
+- Tests prove audit/history entries are written without storing unbounded output.
 - A safe fixture command can run end to end in tests without external resources.
 
 ### Phase 5 - CLI Action Group
@@ -421,6 +465,8 @@ Deliverables:
 
 Implementation notes:
 
+- Treat Action as greenfield, but treat existing discover API/CLI behavior as compatibility-preserving. Existing skill-only clients should not need response parsing changes when `types`/`--type` is omitted.
+- Implement Action indexing/search first, then mixed discover after skill-only compatibility tests are locked.
 - Mixed discover results need a discriminator:
   - `type: "skill"` or `type: "action"`
   - `id`, `name`, `description`, `score`, `source`, `contentChars`
@@ -431,6 +477,7 @@ Implementation notes:
 Acceptance:
 
 - Existing `prompt-manager discover "debugging" --json` remains skill-compatible.
+- Existing human-readable `prompt-manager discover "debugging"` output remains skill-compatible when `--type` is omitted.
 - `prompt-manager discover "list team decisions" --type action --json` returns only Actions.
 - `--type all` can return mixed results with type discriminators.
 - Search gracefully degrades when Qdrant/Ollama are unavailable.
@@ -452,11 +499,13 @@ Deliverables:
 
 Implementation notes:
 
+- Prevent graph identity collisions by using namespaced graph node IDs such as `action:<action-id>` and `cli:<command-target>`, or by updating graph APIs/storage to key by `(type, id)` everywhere. Do not add raw Action IDs to the graph if they can collide with skill/team/agent/CLI IDs.
 - Do not overfit scanner regexes. Prefer structured Action store data for Action nodes.
 - Action references in prose can be best-effort, but Action contracts are authoritative.
 
 Acceptance:
 
+- Tests prove an Action and Skill with the same raw ID do not collide in graph nodes, edges, lookups, or health scores.
 - `prompt-manager graph regenerate` includes Action nodes.
 - Graph popovers/API node details can show Action type and validation health.
 
@@ -545,15 +594,16 @@ Deliverables:
 
 - Add a tiny set of core Action fixtures only after validation/execution works.
 - Prefer low-risk prompt-manager/project commands:
-  - `team.decisions.list` wrapping `prompt-manager team decision-list <team> --status={{status}}`
   - `scenario.status.show` wrapping `vrooli scenario status {{scenario}}`
   - `scenario.test.run` wrapping `vrooli scenario test {{scenario}}`
+  - `team.decisions.list` wrapping a prompt-manager team decision-list command only after that CLI command exists
 - Each seed Action must have examples and validation.
 
 Implementation notes:
 
 - Do not seed Actions for commands that do not exist.
 - Do not create scenario screenshot seed unless a controlled screenshot CLI exists.
+- Treat `team.decisions.list` as a future seed candidate unless `prompt-manager team decision-list` exists at implementation time.
 - Keep seed set small; broad adoption belongs to the later adoption plan.
 
 Acceptance:
@@ -603,8 +653,8 @@ Manual API smoke checks after restart:
 
 ```bash
 prompt-manager action list --json
-prompt-manager action show team.decisions.list --json
-prompt-manager action validate team.decisions.list --json
+prompt-manager action show scenario.status.show --json
+prompt-manager action validate scenario.status.show --json
 prompt-manager discover "list pending team decisions" --type all --json
 ```
 
@@ -620,7 +670,9 @@ prompt-manager action run scenario.status.show --input='{"scenario":"prompt-mana
 - [ ] FileActionStore supports pack precedence and dotted IDs.
 - [ ] API CRUD endpoints implemented and tested.
 - [ ] Validation rejects shell and raw external commands.
+- [ ] Validation uses a dynamic controlled-command resolver for project, prompt-manager, scenario, and resource commands.
 - [ ] Execution uses argv without shell interpretation.
+- [ ] Execution enforces timeout, concurrency, permissions, output caps, and audit/history recording.
 - [ ] CLI action group implemented and tested.
 - [ ] AI search indexes Actions.
 - [ ] Discover supports `--type skill|action|all`.
@@ -634,10 +686,13 @@ prompt-manager action run scenario.status.show --input='{"scenario":"prompt-mana
 
 | Risk | Mitigation |
 |------|------------|
-| Action runtime becomes arbitrary shell execution | Enforce argv-only commands, no shell, allowlist first token, reject metacharacters, test failures explicitly |
+| Action runtime becomes arbitrary shell execution | Enforce argv-only commands, no shell, controlled-command ownership checks, static command token validation, and explicit rejection tests |
+| Trusted first tokens accidentally allow unsafe subcommands | Validate through a dynamic controlled-command resolver that classifies ownership, subcommand, mutability, permissions, and execution eligibility |
+| API run endpoint becomes an ungoverned command broker | Enforce timeout, concurrency, permission, output cap, and audit/history policy before process execution |
 | Logic leaks into Action JSON | Keep Action schema declarative; branching belongs in owning CLI |
 | Validation duplicated across API/CLI/UI | Centralize validation in API/domain service; CLI/UI display validation results |
 | Discover breaks existing skill workflows | Make `--type` optional and default to current skill-compatible behavior until mixed discovery is fully tested |
+| Graph nodes collide across entity types | Namespace graph node IDs or key graph APIs by `(type, id)` and test same raw ID across Action and Skill |
 | Qdrant collection coupling gets messy | Use separate Action collection and shared indexing helpers where practical |
 | UI adds a large parallel editor with drift | Reuse shared form primitives and Zod schemas, but keep Action-specific domain components |
 | Graph scanner relies on fragile prose parsing | Use structured Action store for Action nodes; only prose references are best-effort |
@@ -655,8 +710,11 @@ Do not:
 - support pipelines, command separators, or conditional syntax in Action contracts
 - encode branching/routing logic in `action.json`
 - create a generic script runner
+- validate command ownership through only a hard-coded first-token allowlist
+- define validation hooks that recursively call `prompt-manager action validate <same-id>`
 - add broad adoption prompt changes in this implementation plan
 - seed many Actions before validation, search, and UI are solid
+- seed Actions for commands that do not exist
 - leave docs saying Actions are only proposed once the implementation is done
 
 ## Definition of Done
@@ -665,7 +723,9 @@ This work is done when:
 
 - Action is a first-class prompt-manager entity across store, API, CLI, UI, search, graph, and docs.
 - Every Action wraps exactly one validated Vrooli-controlled argv command.
+- Controlled-command validation works for project, prompt-manager, scenario-owned, and resource-owned commands without hard-coding the scenario list in the plan.
 - Invalid command forms are rejected by tests and by runtime validation.
+- Runtime execution is governed by timeout, concurrency, permission, output cap, and audit/history policy.
 - `prompt-manager action list/show/validate/run` works against the API.
 - `prompt-manager discover --type all` can return mixed Skill and Action results with a type discriminator.
 - The UI provides professional Action management and execution surfaces.
