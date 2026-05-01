@@ -9,11 +9,12 @@
 
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { Activity, Square, Loader2, Crosshair, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useRunningAgents, type TeamGroup } from '@/hooks/useRunningAgents'
 import { useAgentPositionStore } from '@/stores/agentPositionStore'
 import { useCameraStore } from '@/stores/cameraStore'
-import { useSelectionStore } from '@/stores/selectionStore'
+import { runDetailPath } from '@/app/routes/route-paths'
 
 interface RunningAgentsPopoverProps {
   onNavigateToMember: (teamId: string, agentId: string) => void
@@ -33,6 +34,7 @@ export function RunningAgentsPopover({
   stoppingIds: stoppingIdsProp,
   className,
 }: RunningAgentsPopoverProps) {
+  const navigate = useNavigate()
   // Fallback to self-polling only if no data provided
   const hasExternalData = groupedByTeamProp !== undefined
   const fallback = useRunningAgents({ enabled: !hasExternalData })
@@ -182,7 +184,7 @@ export function RunningAgentsPopover({
                           title="Open run detail view"
                           onClick={(e) => {
                             e.stopPropagation()
-                            useSelectionStore.getState().setSelectedRunId(agent.runId)
+                            navigate(runDetailPath(agent.runId))
                             setIsOpen(false)
                           }}
                         >

@@ -29,10 +29,10 @@ import {
 } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import { Network, Braces } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useGraphStore, selectFilteredNodes, selectEffectiveHealthScores, type GraphLayoutMode } from '@/stores/graphStore'
 import { useShallow } from 'zustand/react/shallow'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
@@ -40,6 +40,7 @@ import { GraphNodePopover } from './GraphNodePopover'
 import { collectNeighborhood } from './graphNeighborhood'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
+import { agentDetailPath, skillDetailPath, teamDetailPath } from '@/app/routes/route-paths'
 import type { GraphNode as GraphNodeType, GraphEdge as GraphEdgeType, HealthScore } from '@/lib/schemas'
 
 const GraphJsonView = lazy(() => import('./GraphJsonView').then((m) => ({ default: m.GraphJsonView })))
@@ -210,6 +211,7 @@ interface SelectedNodeState {
 }
 
 function GraphViewInner({ className }: GraphViewInnerProps) {
+  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const resolvedTheme = useResolvedTheme()
   const { fitView, setViewport, getViewport, flowToScreenPosition } = useReactFlow()
@@ -240,11 +242,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   // by identity so the result is stable when the underlying data hasn't changed.
   const filteredNodes = useGraphStore(useShallow(selectFilteredNodes))
   const effectiveHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
-
-  // Selection store for navigation
-  const setSelectedSkillId = useSelectionStore((s) => s.setSelectedSkillId)
-  const setSelectedAgentId = useSelectionStore((s) => s.setSelectedAgentId)
-  const setSelectedTeamId = useSelectionStore((s) => s.setSelectedTeamId)
 
   // Fetch on mount
   useEffect(() => {
@@ -643,12 +640,12 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const navigateToEditor = useCallback(() => {
     if (!selectedNode) return
     const { node: n } = selectedNode
-    if (n.type === 'skill') setSelectedSkillId(n.id)
-    else if (n.type === 'agent') setSelectedAgentId(n.id)
-    else if (n.type === 'team') setSelectedTeamId(n.id)
+    if (n.type === 'skill') navigate(skillDetailPath(n.id))
+    else if (n.type === 'agent') navigate(agentDetailPath(n.id))
+    else if (n.type === 'team') navigate(teamDetailPath(n.id))
     selectedNodeRef.current = null
     setSelectedNode(null)
-  }, [selectedNode, setSelectedSkillId, setSelectedAgentId, setSelectedTeamId])
+  }, [navigate, selectedNode])
 
   // Ensure selected node remains tracked while panning/zooming.
   const onMove = useCallback<OnMove>(() => {

@@ -157,20 +157,16 @@ export function useFPSMonitor(
       const s = useSelectionStore.getState()
       return JSON.stringify({
         skills: s.selectedSkillIds,
-        team: s.selectedTeamId,
-        agent: s.selectedAgentId,
       })
     })()
 
     const unsubscribe = useSelectionStore.subscribe((state) => {
       const nextSignature = JSON.stringify({
         skills: state.selectedSkillIds,
-        team: state.selectedTeamId,
-        agent: state.selectedAgentId,
       })
       if (nextSignature !== previousSignature) {
         previousSignature = nextSignature
-        const summary = `Selection: skills=${state.selectedSkillIds.length}, team=${state.selectedTeamId ?? 'none'}, agent=${state.selectedAgentId ?? 'none'}`
+        const summary = `Selection: skills=${state.selectedSkillIds.length}`
         usePerformanceStore.getState().recordTraceMarker('selection-change', summary)
       }
     })

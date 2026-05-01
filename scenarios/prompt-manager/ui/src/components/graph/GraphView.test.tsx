@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import type { GraphResponse } from '@/lib/schemas'
 
 // ============================================================================
@@ -175,6 +176,14 @@ import { useGraphStore } from '@/stores/graphStore'
 import { GraphView } from './GraphView'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
+function renderGraphView() {
+  return render(
+    <MemoryRouter>
+      <GraphView />
+    </MemoryRouter>
+  )
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -224,14 +233,14 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
 
-    render(<GraphView />)
+    renderGraphView()
 
     // Should show loading initially
     expect(screen.getByText('Loading graph...')).toBeInTheDocument()
 
     // Wait for graph to load
     await waitFor(() => {
-      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+      expect(screen.getByTestId('edge-count')).toHaveTextContent('3 edges')
     })
 
     // Should show nodes
@@ -250,7 +259,7 @@ describe('GraphView', () => {
       graph: { nodes: [], edges: [], healthScores: [] },
     })
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByText('No graph data available')).toBeInTheDocument()
@@ -261,7 +270,7 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockRejectedValue(new Error('Network error'))
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByText('Failed to load graph')).toBeInTheDocument()
@@ -274,7 +283,7 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(null as unknown as GraphResponse)
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByText('No graph data available')).toBeInTheDocument()
@@ -285,7 +294,7 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -308,7 +317,7 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -324,7 +333,7 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -349,7 +358,7 @@ describe('GraphView', () => {
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
     useGraphStore.setState({ viewport: { x: 120, y: 80, zoom: 0.75 } })
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(mockSetViewport).toHaveBeenCalledWith({ x: 120, y: 80, zoom: 0.75 }, { duration: 0 })
@@ -361,7 +370,7 @@ describe('GraphView', () => {
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
     mockFlowToScreenPosition.mockReturnValue({ x: 2000, y: -500 })
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -387,7 +396,7 @@ describe('GraphView', () => {
       queryDisplayMode: 'hide-others',
     })
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -409,7 +418,7 @@ describe('GraphView', () => {
       queryDisplayMode: 'dim-others',
     })
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -427,7 +436,7 @@ describe('GraphView', () => {
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
     vi.mocked(useIsMobile).mockReturnValue(true)
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -440,7 +449,7 @@ describe('GraphView', () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
 
-    render(<GraphView />)
+    renderGraphView()
 
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
@@ -475,7 +484,7 @@ describe('GraphView', () => {
     async function setupGraph() {
       const mockGetGraph = vi.mocked(getGraph)
       mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
-      render(<GraphView />)
+      renderGraphView()
       await waitFor(() => {
         expect(screen.getByTestId('react-flow')).toBeInTheDocument()
       })

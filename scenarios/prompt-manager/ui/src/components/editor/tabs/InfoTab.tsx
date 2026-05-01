@@ -11,11 +11,12 @@
 
 import { useState, useEffect } from 'react'
 import { Clock, Hash, Activity, Folder, Tag, Server, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { AgentTeamMembership } from '@/lib/schemas'
 import { getAgentTeams } from '@/services/agentService'
-import { useSelectionStore } from '@/stores/selectionStore'
+import { teamDetailPath } from '@/app/routes/route-paths'
 
 // Extended agent type with optional v1 fields for display purposes
 interface AgentWithLegacyFields extends Agent {
@@ -34,8 +35,8 @@ interface InfoTabProps {
  * Info display tab component.
  */
 export function InfoTab({ agent }: InfoTabProps) {
+  const navigate = useNavigate()
   const [memberships, setMemberships] = useState<AgentTeamMembership[]>([])
-  const setSelectedTeamId = useSelectionStore((s) => s.setSelectedTeamId)
 
   useEffect(() => {
     let cancelled = false
@@ -233,7 +234,7 @@ export function InfoTab({ agent }: InfoTabProps) {
                   <button
                     type="button"
                     className="text-sm font-medium text-primary hover:underline cursor-pointer"
-                    onClick={() => setSelectedTeamId(membership.teamId)}
+                    onClick={() => navigate(teamDetailPath(membership.teamId))}
                   >
                     {membership.teamDisplayName}
                   </button>

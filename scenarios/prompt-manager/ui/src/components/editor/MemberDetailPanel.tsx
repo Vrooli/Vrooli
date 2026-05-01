@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, PanelRightClose, Clock, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
@@ -22,8 +23,8 @@ import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
 import { MemberPromptPreview } from './MemberPromptPreview'
 import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { ToastAction } from '@/components/ui/toast'
+import { runDetailPath } from '@/app/routes/route-paths'
 
 // ============================================================================
 // Types
@@ -96,6 +97,7 @@ export function MemberDetailPanel({
   onNavigateToAgentFiles,
   className,
 }: MemberDetailPanelProps) {
+  const navigate = useNavigate()
   // Running agent state from shared store
   const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
 
@@ -292,7 +294,7 @@ export function MemberDetailPanel({
         action: runId ? (
           <ToastAction
             altText="Open run"
-            onClick={() => useSelectionStore.getState().setSelectedRunId(runId)}
+            onClick={() => navigate(runDetailPath(runId))}
           >
             Open Run
           </ToastAction>
@@ -559,7 +561,7 @@ export function MemberDetailPanel({
               isRunning={!!runningAgent}
               runDuration={runningAgent?.duration}
               runningRunId={runningAgent?.runId}
-              onOpenRun={(runId) => useSelectionStore.getState().setSelectedRunId(runId)}
+              onOpenRun={(runId) => navigate(runDetailPath(runId))}
             />
 
             <section>
@@ -610,7 +612,7 @@ export function MemberDetailPanel({
                             type="button"
                             className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                             title="Open full run view"
-                            onClick={() => useSelectionStore.getState().setSelectedRunId(entry.runId ?? '')}
+                            onClick={() => navigate(runDetailPath(entry.runId ?? ''))}
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>

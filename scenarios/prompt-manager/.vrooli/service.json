@@ -145,7 +145,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "test-genie execute prompt-manager --preset comprehensive",
+          "run": "vrooli scenario start prompt-manager && test-genie execute prompt-manager --preset comprehensive",
           "description": "Run all test phases via test-genie"
         }
       ]

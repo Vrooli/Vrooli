@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ViewOverlay } from './ViewOverlay'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
@@ -24,10 +23,9 @@ describe('ViewOverlay', () => {
   })
 
   it('opens settings and help as independent floating panels on desktop', () => {
-    useSelectionStore.setState({ graphViewActive: true })
-
     const { container } = render(
       <ViewOverlay
+        homeView="graph"
         leftPanelContent={<div>Left Panel</div>}
         settingsContent={<div>Settings Body</div>}
         settingsTitle="Graph Settings"
@@ -89,7 +87,6 @@ describe('ViewOverlay', () => {
   })
 
   it('shows FPS in floating panel when enabled in world view', () => {
-    useSelectionStore.setState({ graphViewActive: false })
     usePerformanceStore.getState().setConfig({ showOverlay: true })
 
     render(
@@ -104,11 +101,11 @@ describe('ViewOverlay', () => {
   })
 
   it('does not show FPS panel in graph view even if enabled', () => {
-    useSelectionStore.setState({ graphViewActive: true })
     usePerformanceStore.getState().setConfig({ showOverlay: true })
 
     render(
       <ViewOverlay
+        homeView="graph"
         settingsContent={<div>Settings Body</div>}
         helpContent={<div>Help Body</div>}
       />,

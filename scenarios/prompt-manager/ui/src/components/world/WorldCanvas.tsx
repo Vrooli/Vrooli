@@ -87,6 +87,7 @@ function generateAgentPosition(agentId: string, index: number, total: number): [
 interface WorldCanvasProps {
   skills: Skill[]
   onSelectSkill?: (skillId: string) => void
+  onSelectTeam?: (teamId: string) => void
   onDisplaySkills?: (combined: string, format: DisplayFormat) => void
   agentType?: string
   className?: string
@@ -95,6 +96,7 @@ interface WorldCanvasProps {
 export function WorldCanvas({
   skills,
   onSelectSkill: _onSelectSkill,
+  onSelectTeam,
   onDisplaySkills,
   agentType = 'geometric',
   className,
@@ -127,7 +129,6 @@ export function WorldCanvas({
   // Selection state from centralized Zustand store
   const selectedSkillIds = useSelectionStore((state) => state.selectedSkillIds)
   const setSelectedSkillIds = useSelectionStore((state) => state.setSelectedSkillIds)
-  const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
   // Camera store for agent zoom
   const cameraMode = useCameraStore((state) => state.mode)
@@ -293,8 +294,8 @@ export function WorldCanvas({
 
   // Handle team overlay click - navigate to team editor
   const handleTeamClick = useCallback((teamId: string) => {
-    setSelectedTeamId(teamId)
-  }, [setSelectedTeamId])
+    onSelectTeam?.(teamId)
+  }, [onSelectTeam])
 
   // Handle seating an agent
   const handleSitAgent = useCallback((agentId: string, furnitureId: string, seatIndex: number) => {

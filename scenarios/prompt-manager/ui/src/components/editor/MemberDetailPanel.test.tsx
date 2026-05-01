@@ -4,7 +4,12 @@ import type React from 'react'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import type { TeamDetails, TeamMember } from '@/types/team'
 import * as heartbeatService from '@/services/heartbeatService'
-import { useSelectionStore } from '@/stores/selectionStore'
+
+const navigateMock = vi.fn()
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => navigateMock,
+}))
 
 const toastMock = vi.fn()
 
@@ -37,7 +42,6 @@ vi.mock('@/services/heartbeatService', async () => {
 describe('MemberDetailPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useSelectionStore.getState().clearAllSelection()
 
     vi.mocked(heartbeatService.getResponsibilities).mockResolvedValue('')
     vi.mocked(heartbeatService.getHeartbeatInstructions).mockResolvedValue('')
@@ -91,6 +95,6 @@ describe('MemberDetailPanel', () => {
     render(toastArg.action)
     fireEvent.click(screen.getByRole('button', { name: 'Open Run' }))
 
-    expect(useSelectionStore.getState().selectedRunId).toBe('run-new-1')
+    expect(navigateMock).toHaveBeenCalledWith('/runs/run-new-1')
   })
 })

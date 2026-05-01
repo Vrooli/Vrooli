@@ -21,7 +21,6 @@
 import { useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, MessageSquare, GitBranch, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
@@ -80,7 +79,9 @@ interface SkillEditorPanelProps {
   onSaveAll: () => void
   onDiscard: () => void
   onDelete: () => void
+  onClose?: () => void
   onSelectSkill?: (skillId: string) => void
+  onSelectTeam?: (teamId: string) => void
   onDisplaySkills?: (combined: string, format: DisplayFormat) => void
 
   // Loading states
@@ -102,6 +103,8 @@ interface SkillEditorPanelProps {
   /** Notification counts for mobile hamburger badge */
   pendingDecisionCount?: number
   runningAgentCount?: number
+  homeView?: 'world' | 'graph'
+  onHomeViewChange?: (view: 'world' | 'graph') => void
 
   className?: string
 }
@@ -127,7 +130,9 @@ export function SkillEditorPanel({
   onSaveAll,
   onDiscard,
   onDelete,
+  onClose,
   onSelectSkill,
+  onSelectTeam,
   onDisplaySkills,
   isSaving,
   isDeleting,
@@ -140,6 +145,8 @@ export function SkillEditorPanel({
   onOpenMobileSidebar,
   pendingDecisionCount,
   runningAgentCount,
+  homeView = 'world',
+  onHomeViewChange,
   className,
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -150,20 +157,15 @@ export function SkillEditorPanel({
   const moreButtonAnchorRef = useRef<HTMLSpanElement>(null)
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
-  // Access the selection store for closing the editor
-  const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
-
-  // Handle close - return to skill tree view
   const handleClose = () => {
     if (onOpenSidebar) {
       onOpenSidebar()
       return
     }
-    setSelectedSkillId(null)
+    onClose?.()
   }
 
-  // Graph view toggle
-  const graphViewActive = useSelectionStore((state) => state.graphViewActive)
+  const graphViewActive = homeView === 'graph'
 
   // Show 3D world or graph view when no skill selected
   if (!currentSkill) {
@@ -178,6 +180,7 @@ export function SkillEditorPanel({
             <WorldCanvas
               skills={allSkills}
               onSelectSkill={onSelectSkill}
+              onSelectTeam={onSelectTeam}
               onDisplaySkills={onDisplaySkills}
             />
           </PanelErrorBoundary>
@@ -186,6 +189,8 @@ export function SkillEditorPanel({
           onOpenMobileSidebar={onOpenMobileSidebar}
           pendingDecisionCount={pendingDecisionCount}
           runningAgentCount={runningAgentCount}
+          homeView={homeView}
+          onHomeViewChange={onHomeViewChange}
           leftPanelContent={graphViewActive ? (
             <>
               <PanelErrorBoundary panelName="Graph Queries">

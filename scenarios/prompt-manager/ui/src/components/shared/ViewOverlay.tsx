@@ -11,7 +11,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { selectors } from '@/constants/selectors'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -31,6 +30,8 @@ interface ViewOverlayProps {
   settingsTitle?: string
   helpContent: ReactNode
   helpTitle?: string
+  homeView?: 'world' | 'graph'
+  onHomeViewChange?: (view: 'world' | 'graph') => void
 }
 
 export function ViewOverlay({
@@ -42,13 +43,14 @@ export function ViewOverlay({
   settingsTitle = 'Settings',
   helpContent,
   helpTitle = 'Help',
+  homeView = 'world',
+  onHomeViewChange,
 }: ViewOverlayProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [activeMobilePanel, setActiveMobilePanel] = useState<'stats' | 'left' | 'agents' | null>(null)
 
-  const graphViewActive = useSelectionStore((s) => s.graphViewActive)
-  const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
+  const graphViewActive = homeView === 'graph'
   const isMobile = useIsMobile()
   const showPerformanceOverlay = usePerformanceStore((state) => state.config.showOverlay)
 
@@ -160,7 +162,7 @@ export function ViewOverlay({
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setGraphViewActive(!graphViewActive)}
+            onClick={() => onHomeViewChange?.(graphViewActive ? 'world' : 'graph')}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={graphViewActive ? 'Switch to World View' : 'Switch to Graph View'}
             data-testid={selectors.viewOverlay.viewToggle}

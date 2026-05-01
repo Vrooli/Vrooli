@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { RunInfoTab } from './RunInfoTab'
 import { getRunDetails, retryRun } from '@/services/heartbeatService'
 
@@ -46,7 +47,11 @@ describe('RunInfoTab', () => {
   })
 
   it('shows Retry in error section and triggers retry endpoint', async () => {
-    render(<RunInfoTab runId="run-failed-1" />)
+    render(
+      <MemoryRouter>
+        <RunInfoTab runId="run-failed-1" />
+      </MemoryRouter>
+    )
 
     await screen.findByText('intermittent upstream error')
 

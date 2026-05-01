@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { TeamDashboardTab } from './TeamDashboardTab'
 import type { TeamDetails } from '@/types/team'
 import {
@@ -59,9 +60,17 @@ describe('TeamDashboardTab', () => {
     })
   })
 
+  function renderDashboard(team: TeamDetails, onUpdate: (updates: unknown) => Promise<void>) {
+    return render(
+      <MemoryRouter>
+        <TeamDashboardTab team={team} onUpdate={onUpdate} />
+      </MemoryRouter>
+    )
+  }
+
   it('promotes multi-process teams to leader-led serialized execution when switching to single-process runtime', () => {
     const onUpdate = vi.fn().mockResolvedValue(undefined)
-    render(<TeamDashboardTab team={baseTeam} onUpdate={onUpdate} />)
+    renderDashboard(baseTeam, onUpdate)
 
     fireEvent.click(screen.getByRole('button', { name: 'Single-Process' }))
 
@@ -74,7 +83,7 @@ describe('TeamDashboardTab', () => {
 
   it('applies the peer preset from the coordination controls', () => {
     const onUpdate = vi.fn().mockResolvedValue(undefined)
-    render(<TeamDashboardTab team={baseTeam} onUpdate={onUpdate} />)
+    renderDashboard(baseTeam, onUpdate)
 
     fireEvent.click(screen.getByRole('button', { name: 'Peer' }))
 
@@ -104,7 +113,7 @@ describe('TeamDashboardTab', () => {
       execution: { queuePolicy: 'bounded-parallel', maxConcurrentRuns: 4 },
     } satisfies TeamDetails
 
-    render(<TeamDashboardTab team={team} onUpdate={onUpdate} />)
+    renderDashboard(team, onUpdate)
 
     fireEvent.click(screen.getByRole('button', { name: 'Serialized' }))
 
@@ -115,7 +124,7 @@ describe('TeamDashboardTab', () => {
 
   it('updates bounded parallel concurrency from the numeric control', () => {
     const onUpdate = vi.fn().mockResolvedValue(undefined)
-    render(<TeamDashboardTab team={baseTeam} onUpdate={onUpdate} />)
+    renderDashboard(baseTeam, onUpdate)
 
     fireEvent.change(screen.getByLabelText('Max Concurrent Runs'), { target: { value: '5' } })
 

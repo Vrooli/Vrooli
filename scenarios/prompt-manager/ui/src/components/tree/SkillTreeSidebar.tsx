@@ -58,9 +58,7 @@ import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeSer
 import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeService'
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { useShallow } from 'zustand/react/shallow'
 
 const CONTENT_SNIPPET_LENGTH = 120
 const CONTENT_SEARCH_MIN_CHARS = 2
@@ -356,14 +354,19 @@ interface SkillTreeSidebarProps {
   onSelectSkillFromMenu?: (skillId: string) => void
   /** Callback to select/open an agent from unsaved menu */
   onSelectAgentFromMenu?: (agentId: string) => void
+  selectedAgentId?: string | null
   /** Callback to select/open a team from sidebar (wraps selection + sidebar close on mobile) */
   onSelectTeamFromMenu?: (teamId: string) => void
+  selectedTeamId?: string | null
   /** Callback to select/open a run from sidebar (wraps selection + sidebar close on mobile) */
   onSelectRunFromMenu?: (runId: string) => void
+  selectedRunId?: string | null
   /** Callback to select/open a topic from sidebar (wraps selection + sidebar close on mobile) */
   onSelectTopicFromMenu?: (topicId: string) => void
+  selectedTopicId?: string | null
   /** Callback to select/open an Action from sidebar (wraps selection + sidebar close on mobile) */
   onSelectActionFromMenu?: (actionId: string) => void
+  selectedActionId?: string | null
   /** Callback to save a specific skill */
   onSaveSkill?: (skillId: string) => Promise<void>
   /** Callback to discard changes for a specific skill */
@@ -388,6 +391,8 @@ interface SkillTreeSidebarProps {
   pendingDecisionsData?: UsePendingDecisionsResult
   /** Callback to navigate to a team's decision log */
   onNavigateToDecision?: (teamId: string) => void
+  /** Callback to open the topic discovery wizard route */
+  onOpenTopicWizard?: () => void
   // Agent context menu callbacks
   /** Called when user requests to duplicate an agent via context menu */
   onDuplicateAgent?: (agentId: string) => void
@@ -467,10 +472,15 @@ export function SkillTreeSidebar({
   onActiveTabChange,
   onSelectSkillFromMenu,
   onSelectAgentFromMenu,
+  selectedAgentId = null,
   onSelectTeamFromMenu,
+  selectedTeamId = null,
   onSelectRunFromMenu,
+  selectedRunId = null,
   onSelectTopicFromMenu,
+  selectedTopicId = null,
   onSelectActionFromMenu,
+  selectedActionId = null,
   onSaveSkill,
   onDiscardSkill,
   onSaveAgent,
@@ -483,6 +493,7 @@ export function SkillTreeSidebar({
   runningAgentsData,
   pendingDecisionsData,
   onNavigateToDecision,
+  onOpenTopicWizard,
   onDuplicateAgent,
   onCustomizeAgent,
   onPreviewPrompt,
@@ -508,33 +519,6 @@ export function SkillTreeSidebar({
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
   }, [])
-
-  // Consolidate selection subscriptions to reduce selector churn during sidebar updates.
-  const {
-    selectedAgentId,
-    setSelectedAgentId,
-    selectedTeamId,
-    setSelectedTeamId,
-    selectedRunId,
-    setSelectedRunId,
-    selectedTopicId,
-    setSelectedTopicId,
-    selectedActionId,
-    setSelectedActionId,
-    setTopicWizardActive,
-  } = useSelectionStore(useShallow((state) => ({
-    selectedAgentId: state.selectedAgentId,
-    setSelectedAgentId: state.setSelectedAgentId,
-    selectedTeamId: state.selectedTeamId,
-    setSelectedTeamId: state.setSelectedTeamId,
-    selectedRunId: state.selectedRunId,
-    setSelectedRunId: state.setSelectedRunId,
-    selectedTopicId: state.selectedTopicId,
-    setSelectedTopicId: state.setSelectedTopicId,
-    selectedActionId: state.selectedActionId,
-    setSelectedActionId: state.setSelectedActionId,
-    setTopicWizardActive: state.setTopicWizardActive,
-  })))
 
   // Active tab state
   const [activeTab, setActiveTab] = useState(initialActiveTab)
@@ -1004,23 +988,18 @@ export function SkillTreeSidebar({
   const handleAIResultNavigate = useCallback((id: string, type?: 'skill' | 'action') => {
     if (type === 'action') {
       if (onSelectActionFromMenu) onSelectActionFromMenu(id)
-      else setSelectedActionId(id)
     } else if (activeTab === 'skills') {
       onSelectItem(id)
     } else if (activeTab === 'agents') {
       if (onSelectAgentFromMenu) onSelectAgentFromMenu(id)
-      else setSelectedAgentId(id)
     } else if (activeTab === 'teams') {
       if (onSelectTeamFromMenu) onSelectTeamFromMenu(id)
-      else setSelectedTeamId(id)
     } else if (activeTab === 'topics') {
       if (onSelectTopicFromMenu) onSelectTopicFromMenu(id)
-      else setSelectedTopicId(id)
     } else if (activeTab === 'actions') {
       if (onSelectActionFromMenu) onSelectActionFromMenu(id)
-      else setSelectedActionId(id)
     }
-  }, [activeTab, onSelectItem, onSelectAgentFromMenu, setSelectedAgentId, onSelectTeamFromMenu, setSelectedTeamId, onSelectTopicFromMenu, setSelectedTopicId, onSelectActionFromMenu, setSelectedActionId])
+  }, [activeTab, onSelectItem, onSelectAgentFromMenu, onSelectTeamFromMenu, onSelectTopicFromMenu, onSelectActionFromMenu])
 
   // Helper: toggle selection from AI results
   const handleAIResultToggle = useCallback((id: string, _contentChars?: number) => {
@@ -1898,7 +1877,7 @@ export function SkillTreeSidebar({
           ) : (
             <AgentListPanel
               selectedAgentId={selectedAgentId}
-              onSelectAgent={onSelectAgentFromMenu ?? setSelectedAgentId}
+              onSelectAgent={onSelectAgentFromMenu ?? (() => {})}
               searchQuery={agentSearchQuery}
               onDuplicateAgent={onDuplicateAgent}
               onCustomizeAgent={onCustomizeAgent}
@@ -1986,7 +1965,7 @@ export function SkillTreeSidebar({
           ) : (
             <TeamListPanel
               selectedTeamId={selectedTeamId}
-              onSelectTeam={onSelectTeamFromMenu ?? setSelectedTeamId}
+              onSelectTeam={onSelectTeamFromMenu ?? (() => {})}
               searchQuery={teamSearchQuery}
               onToggleTeamEnabled={onToggleTeamEnabled}
               className="flex-1"
@@ -2018,7 +1997,7 @@ export function SkillTreeSidebar({
         <Tabs.Content value="runs" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           <RunListPanel
             selectedRunId={selectedRunId}
-            onSelectRun={onSelectRunFromMenu ?? setSelectedRunId}
+            onSelectRun={onSelectRunFromMenu ?? (() => {})}
             searchQuery={runSearchQuery}
             className="flex-1"
           />
@@ -2090,7 +2069,7 @@ export function SkillTreeSidebar({
                   onDetailModeChange={setTopicDetailMode}
                 />
                 <button
-                  onClick={() => setTopicWizardActive(true)}
+                  onClick={onOpenTopicWizard}
                   className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                   title="Discover skills through topics"
                 >
@@ -2102,7 +2081,7 @@ export function SkillTreeSidebar({
                 <TopicTreeView
                   topics={filteredTopics}
                   selectedTopicId={selectedTopicId}
-                  onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  onSelectTopic={onSelectTopicFromMenu ?? (() => {})}
                   className="flex-1"
                   detailMode={topicDetailMode}
                   isSelectMode={combineMode && combineEntityType === 'topics'}
@@ -2112,7 +2091,7 @@ export function SkillTreeSidebar({
               ) : topicViewMode === 'list' ? (
                 <TopicListPanel
                   selectedTopicId={selectedTopicId}
-                  onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  onSelectTopic={onSelectTopicFromMenu ?? (() => {})}
                   searchQuery={topicSearchQuery}
                   className="flex-1"
                   detailMode={topicDetailMode}
@@ -2124,7 +2103,7 @@ export function SkillTreeSidebar({
                 <TopicCardView
                   topics={filteredTopics}
                   selectedTopicId={selectedTopicId}
-                  onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  onSelectTopic={onSelectTopicFromMenu ?? (() => {})}
                   detailMode={topicDetailMode}
                   className="flex-1"
                   isSelectMode={combineMode && combineEntityType === 'topics'}
@@ -2156,7 +2135,7 @@ export function SkillTreeSidebar({
         <Tabs.Content value="actions" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           <ActionListPanel
             selectedActionId={selectedActionId}
-            onSelectAction={onSelectActionFromMenu ?? setSelectedActionId}
+            onSelectAction={onSelectActionFromMenu ?? (() => {})}
             searchQuery={actionSearchQuery}
             className="flex-1"
           />

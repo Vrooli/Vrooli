@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Clock, Cpu, Target, ExternalLink, ChevronDown } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import type {
   TeamDetails,
   TeamRole,
@@ -31,7 +32,7 @@ import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig, TeamLogEntry } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
-import { useSelectionStore } from '@/stores/selectionStore'
+import { runDetailPath } from '@/app/routes/route-paths'
 import { formatRelativeTime, formatRelativePastTime, formatDate, formatDuration } from '@/lib/timeUtils'
 import { formatScheduleSummary } from '@/lib/scheduleUtils'
 import {
@@ -72,6 +73,7 @@ export function TeamDashboardTab({
   onHealthChange,
   onLastActiveChange,
 }: TeamDashboardTabProps) {
+  const navigate = useNavigate()
   // --- Heartbeat polling state ---
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
@@ -998,7 +1000,7 @@ export function TeamDashboardTab({
                     onClick={() => {
                       const stem = entry.filename.replace(/\.[^.]+$/, '')
                       if (stem) {
-                        useSelectionStore.getState().setSelectedRunId(stem)
+                        navigate(runDetailPath(stem))
                       }
                     }}
                   >

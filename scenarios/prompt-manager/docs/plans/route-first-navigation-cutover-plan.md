@@ -50,7 +50,7 @@ In scope:
 - Add route-first app structure to prompt-manager UI.
 - Promote world, graph, and all entity detail editors to real routes.
 - Move URL parsing/building into route helper utilities.
-- Convert sidebar/home/entity selection callbacks to `navigate(...)`.
+- Convert sidebar, home, and entity selection callbacks to `navigate(...)`.
 - Replace editor close buttons and Escape behavior with route back semantics.
 - Preserve existing editor behavior, dirty-state storage, mobile sidebar behavior, and deep-linkable tab/highlight state through route params/search params.
 - Add tests covering route path helpers, back behavior, route rendering, and deletion of old query-state behavior.
@@ -350,4 +350,3 @@ Regression tests to delete or rewrite:
 - Old `useUrlState` query-navigation code and tests are gone.
 - No dead compatibility code remains.
 - All planned checks pass, or any failure is documented with exact command output and owner-visible next action.
-
