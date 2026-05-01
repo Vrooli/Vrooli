@@ -81,6 +81,49 @@ func TestRenderMemberIncludesResolvedPolicy(t *testing.T) {
 	}
 }
 
+func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
+	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
+		ID:  "canon",
+		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+		Paths: []PathRef{
+			{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+		},
+		WritePolicy:    "operator-curated-via-decisions",
+		Consumers:      []string{"monetization"},
+		UseFor:         "monetization strategy, catalog, pricing, and channels",
+		Required:       boolPtr(false),
+		OptionalReason: "test fixture",
+	}}
+
+	rendered, err := RenderMember(contract, RenderInput{
+		TeamID:       "team-1",
+		TeamName:     "Team One",
+		DecisionMode: DecisionModeApproval,
+		MemberID:     "agent-1",
+	})
+	if err != nil {
+		t.Fatalf("RenderMember: %v", err)
+	}
+	for _, want := range []string{
+		"Plan of record authorities:",
+		"- docs/monetization/README.md",
+		"Policy: operator-curated-via-decisions",
+		"Consumers: monetization",
+		"Use for: monetization strategy, catalog, pricing, and channels",
+		"Coverage: 3 declared files; start at the hub and follow its file map to the relevant spoke.",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered contract missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, "docs/monetization/CATALOG.md") {
+		t.Fatalf("rendered contract should not dump plan-of-record spokes:\n%s", rendered)
+	}
+}
+
 func TestValidateAcceptsFinalTeamWorkingStateKinds(t *testing.T) {
 	for _, kind := range TeamWorkingStateKindIDs() {
 		contract := Minimal(DecisionModeApproval, "agent-1")

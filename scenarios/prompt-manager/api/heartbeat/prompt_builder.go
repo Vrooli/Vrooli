@@ -52,9 +52,10 @@ func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildReques
 		return "", err
 	}
 
-	// Reassemble into the original flat string format.
+	// Reassemble structured sections into the flat prompt format used by
+	// heartbeat executors and prompt preview endpoints.
 	// Adjacent agent-file sections are merged into a single block prefixed
-	// with "# Agent Files (Markdown)\n\n" for exact backward compatibility.
+	// with "# Agent Files (Markdown)\n\n".
 	var parts []string
 	for i := 0; i < len(sections); i++ {
 		if sections[i].Kind == "agent-file" {
@@ -516,11 +517,32 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 	if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0 {
 		policy.CanWriteDecision = false
 	}
-	sort.Strings(policy.AllowedWriteLabels)
-	sort.Strings(policy.ForbiddenWriteLabels)
+	policy.AllowedWriteLabels = sortedUniqueStrings(policy.AllowedWriteLabels)
+	policy.ForbiddenWriteLabels = sortedUniqueStrings(policy.ForbiddenWriteLabels)
 	sort.Strings(policy.RequiredKnowledgeTopics)
 	sort.Strings(policy.CanWriteWorkingStatePaths)
 	return policy
+}
+
+func sortedUniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID string, storeDir string) string {
@@ -541,7 +563,40 @@ func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID strin
 		}
 	}
 	if path := normalizedWritePath(ref, team, agentID, storeDir); path != "" {
+		if label := describeKnownWritePath(path, team, agentID, storeDir); label != "" {
+			return label
+		}
 		return "`" + path + "`"
+	}
+	return ""
+}
+
+func describeKnownWritePath(path string, team *store.Team, agentID string, storeDir string) string {
+	switch {
+	case strings.HasSuffix(path, "/decisions.jsonl"):
+		return "decision proposals"
+	case strings.HasSuffix(path, "/knowledge.jsonl"):
+		return "knowledge observations and friction signals"
+	case strings.HasSuffix(path, "/tasks.json"):
+		return "team task board updates"
+	}
+	if team == nil || team.OperatingContract == nil {
+		return ""
+	}
+	for _, doc := range team.OperatingContract.Documents.SharedState {
+		normalized, err := teamcontract.NormalizePath(doc.Path, teamcontract.ValidationInput{
+			TeamID:       team.ID,
+			DecisionMode: team.DecisionMode,
+			StoreDir:     storeDir,
+		}, agentID)
+		if err != nil || normalized != path {
+			continue
+		}
+		meta, ok := teamcontract.TeamWorkingStateKindMetadata(doc.Kind)
+		if !ok {
+			return fmt.Sprintf("team working state `%s`", path)
+		}
+		return fmt.Sprintf("team working state `%s` (%s)", path, strings.ToLower(meta.Label))
 	}
 	return ""
 }

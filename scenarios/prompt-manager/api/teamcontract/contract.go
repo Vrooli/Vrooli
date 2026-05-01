@@ -734,12 +734,22 @@ func writeStringList(b *strings.Builder, title string, values []string) {
 func renderDocuments(b *strings.Builder, contract *OperatingContract, input RenderInput) {
 	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
 	if len(contract.Documents.PlanOfRecord) > 0 {
-		b.WriteString("Plan of record docs:\n")
+		b.WriteString("Plan of record authorities:\n")
 		for _, doc := range contract.Documents.PlanOfRecord {
-			for _, ref := range doc.Paths {
-				if p, err := NormalizePath(ref, validationInput, input.MemberID); err == nil {
-					b.WriteString("- " + p + "\n")
-				}
+			hub, err := planOfRecordHubPath(doc, validationInput, input.MemberID)
+			if err != nil {
+				continue
+			}
+			b.WriteString("- " + hub + "\n")
+			b.WriteString(fmt.Sprintf("  Policy: %s\n", doc.WritePolicy))
+			if consumers := storageConsumerLine(doc.Consumers, doc.Rationale); consumers != "" {
+				b.WriteString(fmt.Sprintf("  Consumers: %s\n", consumers))
+			}
+			if useFor := storageUseForLine(doc); useFor != "" {
+				b.WriteString(fmt.Sprintf("  Use for: %s\n", useFor))
+			}
+			if len(doc.Paths) > 1 {
+				b.WriteString(fmt.Sprintf("  Coverage: %d declared files; start at the hub and follow its file map to the relevant spoke.\n", len(doc.Paths)))
 			}
 		}
 		b.WriteString("\n")

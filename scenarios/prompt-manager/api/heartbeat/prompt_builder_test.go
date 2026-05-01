@@ -4,6 +4,8 @@ import (
 	"context"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +57,46 @@ func promptHeadingIndex(prompt, heading string) int {
 		return 0
 	}
 	return strings.Index(prompt, "\n"+heading+"\n")
+}
+
+func promptSectionContent(sections []PromptSection, kind string) string {
+	for _, section := range sections {
+		if section.Kind == kind {
+			return section.Content
+		}
+	}
+	return ""
+}
+
+func joinedPromptSections(sections []PromptSection) string {
+	var b strings.Builder
+	for _, section := range sections {
+		b.WriteString(section.Content)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func distinctSectionKinds(sections []PromptSection) []string {
+	kinds := make([]string, 0, len(sections))
+	seen := make(map[string]bool, len(sections))
+	for _, section := range sections {
+		if seen[section.Kind] {
+			continue
+		}
+		seen[section.Kind] = true
+		kinds = append(kinds, section.Kind)
+	}
+	return kinds
+}
+
+func sectionKindIndex(kinds []string, kind string) int {
+	for i, candidate := range kinds {
+		if candidate == kind {
+			return i
+		}
+	}
+	return -1
 }
 
 func TestPromptBuilderTeamContext(t *testing.T) {
@@ -129,14 +171,14 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 
 	agentIndex := promptHeadingIndex(prompt, "# Agent Files (Markdown)")
 	teamDocIndex := promptHeadingIndex(prompt, "# Team Charter (shared/TEAM.md)")
-	briefIndex := promptHeadingIndex(prompt, "# Active Task Brief")
+	briefIndex := promptHeadingIndex(prompt, promptHeadingActiveTaskBrief)
 	contractIndex := promptHeadingIndex(prompt, "# Resolved Operating Contract")
 	respIndex := promptHeadingIndex(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
 	orgIndex := promptHeadingIndex(prompt, "# Team Org Context")
 	storageIndex := promptHeadingIndex(prompt, "# Storage Map")
 	inboxIndex := promptHeadingIndex(prompt, "# Team Inbox")
-	taskIndex := promptHeadingIndex(prompt, "# Heartbeat Task (HEARTBEAT.md)")
-	reminderIndex := promptHeadingIndex(prompt, "# Task Reminder")
+	taskIndex := promptHeadingIndex(prompt, promptHeadingHeartbeatTask)
+	reminderIndex := promptHeadingIndex(prompt, promptHeadingTaskReminder)
 
 	if agentIndex == -1 || teamDocIndex == -1 || briefIndex == -1 || contractIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 || reminderIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
@@ -157,7 +199,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 
 	for _, want := range []string{
 		"# Storage Map",
-		"# Active Task Brief",
+		promptHeadingActiveTaskBrief,
 		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
 		"## Write Surface",
 		"## Required Memory",
@@ -172,7 +214,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"Primitive availability for this member:",
 		"- decisions: `write-allowed`",
 		"## Available Storage Commands",
-		"# Task Reminder",
+		promptHeadingTaskReminder,
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing storage map content %q", want)
@@ -458,7 +500,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 	// Verify all expected kinds in correct order
 	expectedKinds := []string{
 		"agent-file",
-		"active-task-brief",
+		promptSectionKindActiveTaskBrief,
 		"team-operating-contract",
 		"team-responsibilities",
 		"team-org-context",
@@ -466,17 +508,10 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 		"team-storage-map",
 		"team-inbox",
 		"heartbeat-task",
-		"task-reminder",
+		promptSectionKindTaskReminder,
 	}
 
-	kindOrder := make([]string, 0, len(sections))
-	seen := make(map[string]bool)
-	for _, s := range sections {
-		if !seen[s.Kind] {
-			kindOrder = append(kindOrder, s.Kind)
-			seen[s.Kind] = true
-		}
-	}
+	kindOrder := distinctSectionKinds(sections)
 
 	if len(kindOrder) != len(expectedKinds) {
 		t.Fatalf("expected %d distinct kinds, got %d: %v", len(expectedKinds), len(kindOrder), kindOrder)
@@ -602,13 +637,13 @@ func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"# Active Task Brief",
+		promptHeadingActiveTaskBrief,
 		"Decision writes: not allowed for this member. Review decisions when useful; do not create them.",
 		"Primitive availability for this member:",
 		"- decisions: `review-only`",
 		"- task board: `review-only`",
 		"- Decision writes are not allowed for this member.",
-		"# Task Reminder",
+		promptHeadingTaskReminder,
 		"do not create decisions",
 	} {
 		if !strings.Contains(prompt, want) {
@@ -625,6 +660,197 @@ func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 	} {
 		if strings.Contains(prompt, forbidden) {
 			t.Fatalf("bundled prompt contains forbidden text %q", forbidden)
+		}
+	}
+}
+
+func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
+	ctx := context.Background()
+	fileStore := store.NewFileStore("../../store")
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	builder := NewPromptBuilder(teamStore, agentStore)
+
+	teams, err := teamStore.List(ctx)
+	if err != nil {
+		t.Fatalf("list teams: %v", err)
+	}
+	sort.Slice(teams, func(i, j int) bool {
+		return teams[i].ID < teams[j].ID
+	})
+
+	for _, team := range teams {
+		team := team
+		if !team.Enabled || team.OperatingContract == nil {
+			continue
+		}
+		t.Run(team.ID, func(t *testing.T) {
+			members, err := teamStore.GetMembers(ctx, team.ID)
+			if err != nil {
+				t.Fatalf("list members: %v", err)
+			}
+			sort.Slice(members, func(i, j int) bool {
+				return members[i].AgentID < members[j].AgentID
+			})
+			for _, relation := range members {
+				relation := relation
+				if relation.Status != "" && relation.Status != store.MemberStatusActive {
+					continue
+				}
+				t.Run(relation.AgentID, func(t *testing.T) {
+					member, ok := team.OperatingContract.Members[relation.AgentID]
+					if !ok {
+						t.Fatalf("missing operating contract member")
+					}
+					sections, err := builder.BuildStructured(ctx, PromptBuildRequest{
+						TeamID:  team.ID,
+						AgentID: relation.AgentID,
+					})
+					if err != nil {
+						t.Fatalf("build structured prompt: %v", err)
+					}
+
+					kinds := distinctSectionKinds(sections)
+					activeIndex := sectionKindIndex(kinds, promptSectionKindActiveTaskBrief)
+					contractIndex := sectionKindIndex(kinds, "team-operating-contract")
+					taskIndex := sectionKindIndex(kinds, "heartbeat-task")
+					reminderIndex := sectionKindIndex(kinds, promptSectionKindTaskReminder)
+					if activeIndex == -1 {
+						t.Fatalf("missing %s section: %v", promptSectionKindActiveTaskBrief, kinds)
+					}
+					if contractIndex == -1 || activeIndex > contractIndex {
+						t.Fatalf("active task brief must appear before operating contract: %v", kinds)
+					}
+					if taskIndex == -1 || reminderIndex == -1 || taskIndex > reminderIndex {
+						t.Fatalf("heartbeat task must be followed by task reminder: %v", kinds)
+					}
+					if sections[len(sections)-1].Kind != promptSectionKindTaskReminder {
+						t.Fatalf("final section = %q, want %q", sections[len(sections)-1].Kind, promptSectionKindTaskReminder)
+					}
+
+					prompt := joinedPromptSections(sections)
+					for _, forbidden := range []string{
+						"# Execution Brief",
+						"execution-brief",
+						"Always available:",
+						"Exact paths: see",
+						"Plan of record docs:",
+					} {
+						if strings.Contains(prompt, forbidden) {
+							t.Fatalf("prompt contains legacy phrase %q", forbidden)
+						}
+					}
+					if strings.Contains(prompt, "docs under `") {
+						t.Fatalf("prompt contains grouped plan-of-record count wording")
+					}
+					if strings.Contains(prompt, "## Available Storage Commands") && !strings.Contains(prompt, "Primitive availability for this member:") {
+						t.Fatalf("storage commands rendered without member primitive availability")
+					}
+					assertMemberWriteCommandsMatchContract(t, prompt, team.ID, member)
+				})
+			}
+		})
+	}
+}
+
+func assertMemberWriteCommandsMatchContract(t *testing.T, prompt, teamID string, member teamcontract.MemberContract) {
+	t.Helper()
+	if !memberCanWriteDecision(member) && strings.Contains(prompt, "team decision-add "+teamID) {
+		t.Fatalf("decision-add rendered for a member that cannot create decisions")
+	}
+	if !memberCanWriteKindOrPath(member, "knowledge", "knowledge.jsonl") && strings.Contains(prompt, "team knowledge-add "+teamID) {
+		t.Fatalf("knowledge-add rendered for a member that cannot write knowledge")
+	}
+	if !memberCanWriteKindOrPath(member, "task", "tasks.json") {
+		for _, forbidden := range []string{"team task-add " + teamID, "team task-update " + teamID} {
+			if strings.Contains(prompt, forbidden) {
+				t.Fatalf("%s rendered for a member that cannot mutate the task board", forbidden)
+			}
+		}
+	}
+}
+
+func memberCanWriteDecision(member teamcontract.MemberContract) bool {
+	if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0 {
+		return false
+	}
+	return memberCanWriteKindOrPath(member, "decision", "decisions.jsonl")
+}
+
+func memberCanWriteKindOrPath(member teamcontract.MemberContract, kind, pathSuffix string) bool {
+	if writeRefsContainKind(member.ForbiddenWrites, kind) {
+		return false
+	}
+	for _, ref := range member.AllowedWrites {
+		if ref.Kind == kind {
+			return true
+		}
+		if ref.Kind == "" && strings.HasSuffix(ref.Path, pathSuffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {
+	ctx := context.Background()
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	team := newIndependentTestTeam("team-1", "Team One")
+	optional := false
+	team.OperatingContract.Documents.SharedState = append(team.OperatingContract.Documents.SharedState, teamcontract.SharedStateDocument{
+		ID:             "ledger",
+		Path:           teamcontract.PathRef{Base: teamcontract.BaseTeamShared, Path: "ledger.jsonl", Required: &optional, OptionalReason: "test fixture"},
+		Kind:           teamcontract.TeamWorkingStateKindAppendOnlyEventLog,
+		Required:       false,
+		OptionalReason: "test fixture",
+	})
+	member := team.OperatingContract.Members["agent-1"]
+	member.AllowedWrites = []teamcontract.WriteRef{
+		{Base: teamcontract.BaseTeamShared, Path: "knowledge.jsonl"},
+		{Base: teamcontract.BaseTeamShared, Path: "decisions.jsonl"},
+		{Base: teamcontract.BaseTeamShared, Path: "ledger.jsonl"},
+		{Kind: "handoff"},
+	}
+	team.OperatingContract.Members["agent-1"] = member
+	if err := teamStore.Create(ctx, team); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "# Heartbeat: Test\n\nDo work."); err != nil {
+		t.Fatalf("set heartbeat: %v", err)
+	}
+
+	builder := NewPromptBuilder(teamStore, agentStore)
+	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-1"})
+	if err != nil {
+		t.Fatalf("BuildStructured: %v", err)
+	}
+	brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
+	if brief == "" {
+		t.Fatalf("active task brief not found")
+	}
+	for _, want := range []string{
+		"- decision proposals",
+		"- knowledge observations and friction signals",
+		"- team working state `scenarios/prompt-manager/store/teams/team-1/shared/ledger.jsonl` (append-only event log)",
+		"- final `## HANDOFF` continuity",
+	} {
+		if !strings.Contains(brief, want) {
+			t.Fatalf("active task brief missing %q:\n%s", want, brief)
+		}
+	}
+	for _, tooRaw := range []string{
+		"`scenarios/prompt-manager/store/teams/team-1/shared/decisions.jsonl`",
+		"`scenarios/prompt-manager/store/teams/team-1/shared/knowledge.jsonl`",
+	} {
+		if strings.Contains(brief, tooRaw) {
+			t.Fatalf("active task brief should use semantic label instead of raw path %q:\n%s", tooRaw, brief)
 		}
 	}
 }
@@ -691,7 +917,7 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	// All sections except heartbeat should be present
 	for _, section := range []string{
 		"# Agent Files (Markdown)",
-		"# Active Task Brief",
+		promptHeadingActiveTaskBrief,
 		"# Team Responsibilities (RESPONSIBILITIES.md)",
 		"# Team Org Context",
 		"# Team Coordination",
