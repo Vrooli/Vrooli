@@ -14,6 +14,7 @@ interface MemberPromptPipelineSectionProps {
 
 type PipelineSectionKey =
   | 'agent-files'
+  | 'operating-contract'
   | 'responsibilities'
   | 'relationships'
   | 'inbox'
@@ -47,6 +48,13 @@ const PIPELINE_SECTIONS: PipelineSectionDefinition[] = [
     emptyMessage: 'No agent markdown files were included.',
   },
   {
+    key: 'operating-contract',
+    title: 'Operating Contract',
+    headers: ['Resolved Operating Contract'],
+    description: 'Resolved team/member policy generated from team.json.',
+    emptyMessage: 'No resolved operating contract was included.',
+  },
+  {
     key: 'responsibilities',
     title: 'Responsibilities',
     headers: ['Team Responsibilities (RESPONSIBILITIES.md)'],
@@ -56,9 +64,9 @@ const PIPELINE_SECTIONS: PipelineSectionDefinition[] = [
   {
     key: 'relationships',
     title: 'Relationships',
-    headers: ['Team Relationships'],
-    description: 'Reporting lines plus coordination commands.',
-    emptyMessage: 'No relationship context is available yet.',
+    headers: ['Team Org Context', 'Team Coordination', 'Durable State'],
+    description: 'Org context, coordination commands, and durable state guidance.',
+    emptyMessage: 'No coordination context is available yet.',
   },
   {
     key: 'inbox',

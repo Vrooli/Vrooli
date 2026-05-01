@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 	"time"
 )
 
@@ -192,17 +193,18 @@ type AgentRuntime struct {
 // Team represents a team entity from team.json
 type Team struct {
 	BaseEntity
-	ID           string                  `json:"id"`
-	DisplayName  string                  `json:"displayName"`
-	Mission      string                  `json:"mission,omitempty"`
-	Enabled      bool                    `json:"enabled"`
-	EnabledSet   bool                    `json:"-"`
-	Runtime      teamconfig.Runtime      `json:"runtime"`
-	Coordination teamconfig.Coordination `json:"coordination"`
-	Execution    teamconfig.Execution    `json:"execution"`
-	DecisionMode string                  `json:"decisionMode,omitempty"` // "yolo" or "approval"
-	Shared       *TeamShared             `json:"shared,omitempty"`
-	Retention    *RetentionConfig        `json:"retention,omitempty"`
+	ID                string                          `json:"id"`
+	DisplayName       string                          `json:"displayName"`
+	Mission           string                          `json:"mission,omitempty"`
+	Enabled           bool                            `json:"enabled"`
+	EnabledSet        bool                            `json:"-"`
+	Runtime           teamconfig.Runtime              `json:"runtime"`
+	Coordination      teamconfig.Coordination         `json:"coordination"`
+	Execution         teamconfig.Execution            `json:"execution"`
+	DecisionMode      string                          `json:"decisionMode,omitempty"` // "yolo" or "approval"
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
+	Shared            *TeamShared                     `json:"shared,omitempty"`
+	Retention         *RetentionConfig                `json:"retention,omitempty"`
 	Timestamps
 }
 

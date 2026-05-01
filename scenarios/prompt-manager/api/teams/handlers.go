@@ -178,13 +178,14 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	team := &store.Team{
-		ID:           id,
-		DisplayName:  req.DisplayName,
-		Mission:      req.Mission,
-		Runtime:      req.Runtime,
-		Coordination: req.Coordination,
-		Execution:    req.Execution,
-		DecisionMode: req.DecisionMode,
+		ID:                id,
+		DisplayName:       req.DisplayName,
+		Mission:           req.Mission,
+		Runtime:           req.Runtime,
+		Coordination:      req.Coordination,
+		Execution:         req.Execution,
+		DecisionMode:      req.DecisionMode,
+		OperatingContract: req.OperatingContract,
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -252,6 +253,9 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if req.DecisionMode != nil {
 		updates.DecisionMode = *req.DecisionMode
 	}
+	if req.OperatingContract != nil {
+		updates.OperatingContract = req.OperatingContract
+	}
 
 	current, err := h.teamStore.Get(ctx, id)
 	if err != nil {
@@ -283,6 +287,12 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if updates.DecisionMode != "" {
 		merged.DecisionMode = updates.DecisionMode
+	}
+	if updates.OperatingContract != nil {
+		merged.OperatingContract = updates.OperatingContract
+	}
+	if updates.DecisionMode != "" && merged.OperatingContract != nil {
+		merged.OperatingContract.Governance.DecisionMode = updates.DecisionMode
 	}
 	if err := teamconfig.Validate(merged.Contract()); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -1024,17 +1034,18 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 	}
 
 	return Response{
-		ID:           t.ID,
-		DisplayName:  t.DisplayName,
-		Mission:      t.Mission,
-		Enabled:      t.Enabled,
-		Runtime:      t.Runtime,
-		Coordination: t.Coordination,
-		Execution:    t.Execution,
-		DecisionMode: t.DecisionMode,
-		MemberCount:  memberCount,
-		CreatedAt:    t.CreatedAt,
-		UpdatedAt:    t.UpdatedAt,
+		ID:                t.ID,
+		DisplayName:       t.DisplayName,
+		Mission:           t.Mission,
+		Enabled:           t.Enabled,
+		Runtime:           t.Runtime,
+		Coordination:      t.Coordination,
+		Execution:         t.Execution,
+		DecisionMode:      t.DecisionMode,
+		OperatingContract: t.OperatingContract,
+		MemberCount:       memberCount,
+		CreatedAt:         t.CreatedAt,
+		UpdatedAt:         t.UpdatedAt,
 	}
 }
 

@@ -33,5 +33,541 @@
   },
   "revision": 5,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-22T11:17:41Z"
+  "updatedAt": "2026-04-22T11:17:41Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "approval",
+      "teamPendingCeiling": {
+        "value": 12,
+        "readOnlyWhenAtOrAbove": true,
+        "rationale": "Tuned for a roughly 3/day operator review rate."
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      },
+      "staleDecisionPolicy": {
+        "afterHeartbeats": 14,
+        "ownerMemberId": "meta-contrarian",
+        "requiredOutcomes": [
+          "supersede",
+          "reject",
+          "still-relevant-note"
+        ]
+      }
+    },
+    "documents": {
+      "planOfRecord": [],
+      "notebooks": [
+        {
+          "id": "meta-optimization-notebook",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/CONVERSION_PLAYBOOK.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/DEPRECATION_POLICY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/REFERENCE_SCENARIOS.md"
+            }
+          ],
+          "posture": "debt",
+          "writePolicy": "append-any-member",
+          "curatorMemberId": "debt-curator",
+          "promotionContext": "meta-self-improvement"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "agent-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "AGENT_AUDIT.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "deprecation-queue-md",
+          "path": {
+            "base": "team-shared",
+            "path": "DEPRECATION_QUEUE.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "programmatic-conversion-queue-md",
+          "path": {
+            "base": "team-shared",
+            "path": "PROGRAMMATIC_CONVERSION_QUEUE.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "run-lessons-md",
+          "path": {
+            "base": "team-shared",
+            "path": "RUN_LESSONS.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "skill-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "SKILL_AUDIT.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "team-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM_AUDIT.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "toolchain-scan-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TOOLCHAIN_SCAN.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "decisions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          "kind": "decision-stream",
+          "required": true
+        },
+        {
+          "id": "handoff-history-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "handoff-history.jsonl"
+          },
+          "kind": "handoff-history",
+          "required": true
+        },
+        {
+          "id": "knowledge-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          "kind": "knowledge-log",
+          "required": true
+        }
+      ]
+    },
+    "decisionContexts": {
+      "skill-conversion-candidate": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Skill conversion proposal."
+      },
+      "skill-improvement": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Concrete edit to a high-usage skill."
+      },
+      "skill-deprecation": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Archive or retire an unused skill."
+      },
+      "agent-improvement": {
+        "ownerMemberIds": [
+          "team-agent-optimizer"
+        ],
+        "description": "Agent file or role improvement proposal."
+      },
+      "agent-deprecation": {
+        "ownerMemberIds": [
+          "team-agent-optimizer"
+        ],
+        "description": "Archive a dormant agent."
+      },
+      "team-structure-change": {
+        "ownerMemberIds": [
+          "team-agent-optimizer"
+        ],
+        "description": "Role, membership, or coordination change."
+      },
+      "team-deprecation": {
+        "ownerMemberIds": [
+          "team-agent-optimizer"
+        ],
+        "description": "Archive a dormant team."
+      },
+      "toolchain-violation": {
+        "ownerMemberIds": [
+          "toolchain-validator"
+        ],
+        "description": "Toolchain or manual fallback violation."
+      },
+      "run-lesson": {
+        "ownerMemberIds": [
+          "run-introspector"
+        ],
+        "description": "Run-derived process lesson."
+      },
+      "capability-gap": {
+        "ownerMemberIds": [
+          "toolchain-validator",
+          "run-introspector"
+        ],
+        "externalAuthorizedRaisers": [
+          "marketing-crew"
+        ],
+        "description": "Missing capability the system should have."
+      },
+      "decision-rejection-proposed": {
+        "ownerMemberIds": [
+          "meta-contrarian"
+        ],
+        "description": "Decision rejection recommendation."
+      },
+      "framework-update": {
+        "ownerMemberIds": [
+          "meta-contrarian"
+        ],
+        "description": "Failure-mode framework update."
+      },
+      "meta-self-improvement": {
+        "ownerMemberIds": [
+          "debt-curator"
+        ],
+        "description": "Notebook/debt promotion or retirement."
+      }
+    },
+    "knowledgeTopics": {
+      "skill-audit-YYYY-MM-DD": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "skill-visited/<skill-id>": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "team-audit-YYYY-MM-DD": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "agent-audit-YYYY-MM-DD": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "team-visited/<team-id>": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "agent-visited/<agent-id>": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "run-lessons-YYYY-MM-DD": {
+        "ownerMemberId": "run-introspector",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "toolchain-scan-YYYY-MM-DD": {
+        "ownerMemberId": "toolchain-validator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "debt-scan-YYYY-MM-DD": {
+        "ownerMemberId": "debt-curator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "challenge-note/<decision-id>": {
+        "ownerMemberId": "meta-contrarian",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "toolchain-validator": {
+        "lane": "Validate whether agents are using programmatic toolchains instead of manual fallback work.",
+        "ownedDecisionContexts": [
+          "toolchain-violation",
+          "capability-gap"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "toolchain-scan-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "skill-optimizer": {
+        "lane": "Convert repeated lessons into skill improvements, conversions, or deprecations.",
+        "ownedDecisionContexts": [
+          "skill-conversion-candidate",
+          "skill-improvement",
+          "skill-deprecation"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "skill-audit-YYYY-MM-DD",
+          "skill-visited/<skill-id>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "team-agent-optimizer": {
+        "lane": "Improve or retire agent and team structures based on observed performance.",
+        "ownedDecisionContexts": [
+          "agent-improvement",
+          "agent-deprecation",
+          "team-structure-change",
+          "team-deprecation"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "team-audit-YYYY-MM-DD",
+          "agent-audit-YYYY-MM-DD",
+          "team-visited/<team-id>",
+          "agent-visited/<agent-id>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "run-introspector": {
+        "lane": "Extract durable lessons from recent agent runs and identify capability gaps.",
+        "ownedDecisionContexts": [
+          "run-lesson",
+          "capability-gap"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "run-lessons-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "meta-contrarian": {
+        "lane": "Challenge stale, weak, or excessive pending decisions.",
+        "ownedDecisionContexts": [
+          "decision-rejection-proposed",
+          "framework-update"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "challenge-note/<decision-id>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "decision-rejection-proposed": 2,
+          "framework-update": 1
+        }
+      },
+      "debt-curator": {
+        "lane": "Promote or retire mature meta-optimization notebook debt.",
+        "ownedDecisionContexts": [
+          "meta-self-improvement"
+        ],
+        "newDecisionCapPerHeartbeat": 1,
+        "pendingOwnedDecisionCap": 2,
+        "requiredKnowledgeTopics": [
+          "debt-scan-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/meta-optimization/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/agents/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/teams/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Propose only. Never implement.",
+          "Do not synthesize other members' proposals into strategy.",
+          "Route accepted implementation to the owning lane."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "promotabilityCriteria": [
+            "repeated >=3 separate entries",
+            "stabilized >=7 heartbeats without revision or contradiction",
+            "permanent solution now possible"
+          ],
+          "promotionDirections": [
+            "skill",
+            "team-structure-change",
+            "capability-gap",
+            "retirement"
+          ],
+          "maxCandidatesSelected": 1
+        }
+      }
+    }
+  }
 }

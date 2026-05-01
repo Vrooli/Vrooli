@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 )
 
 func newIndependentTestTeam(id, displayName string) *store.Team {
@@ -31,7 +32,8 @@ func newIndependentTestTeam(id, displayName string) *store.Team {
 			QueuePolicy:       teamconfig.QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode: teamconfig.DecisionModeYolo,
+		DecisionMode:      teamconfig.DecisionModeYolo,
+		OperatingContract: teamcontract.Minimal(teamconfig.DecisionModeYolo, "agent-1", "agent-2", "lead", "dev-1", "director", "strategist"),
 	}
 }
 

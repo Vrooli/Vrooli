@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 	"sort"
 	"strings"
 	"time"
@@ -29,6 +30,11 @@ func NewFileTeamStore(storeDir string, relationStore RelationStore) *FileTeamSto
 // teamsDir returns the path to the teams directory
 func (s *FileTeamStore) teamsDir() string {
 	return filepath.Join(s.storeDir, "teams")
+}
+
+// StoreDir returns the root prompt-manager store directory used by this file store.
+func (s *FileTeamStore) StoreDir() string {
+	return s.storeDir
 }
 
 // TeamFileEntry represents a file or directory within a team's shared folder.
@@ -69,6 +75,12 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 		return fmt.Errorf("team already exists: %s", team.ID)
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
+		return err
+	}
+	if team.OperatingContract != nil {
+		team.OperatingContract.Governance.DecisionMode = team.DecisionMode
+	}
+	if err := s.validateOperatingContract(context.Background(), team); err != nil {
 		return err
 	}
 
@@ -147,6 +159,12 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.DecisionMode != "" {
 		team.DecisionMode = updates.DecisionMode
 	}
+	if updates.OperatingContract != nil {
+		team.OperatingContract = updates.OperatingContract
+	}
+	if updates.DecisionMode != "" && team.OperatingContract != nil {
+		team.OperatingContract.Governance.DecisionMode = updates.DecisionMode
+	}
 	if updates.Shared != nil {
 		team.Shared = updates.Shared
 	}
@@ -154,6 +172,9 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 		team.Retention = updates.Retention
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
+		return err
+	}
+	if err := s.validateOperatingContract(ctx, team); err != nil {
 		return err
 	}
 
@@ -275,7 +296,33 @@ func (s *FileTeamStore) loadTeam(teamID string) (*Team, error) {
 	if err := teamconfig.Validate(team.Contract()); err != nil {
 		return nil, err
 	}
+	if err := s.validateOperatingContract(context.Background(), team); err != nil {
+		return nil, err
+	}
 	return team, nil
+}
+
+func (s *FileTeamStore) validateOperatingContract(ctx context.Context, team *Team) error {
+	if team == nil {
+		return fmt.Errorf("team is required")
+	}
+	var memberIDs []string
+	if s.relationStore != nil {
+		members, err := s.relationStore.ListTeamMembers(ctx, team.ID)
+		if err == nil {
+			for _, member := range members {
+				if member.Status == "" || member.Status == MemberStatusActive {
+					memberIDs = append(memberIDs, member.AgentID)
+				}
+			}
+		}
+	}
+	return teamcontract.Validate(team.OperatingContract, teamcontract.ValidationInput{
+		TeamID:       team.ID,
+		DecisionMode: team.DecisionMode,
+		MemberIDs:    memberIDs,
+		StoreDir:     s.storeDir,
+	})
 }
 
 // memberDir returns the path to a member's directory within a team

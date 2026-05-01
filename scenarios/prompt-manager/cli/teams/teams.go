@@ -13,6 +13,7 @@ import (
 	"os"
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 	"strconv"
 	"strings"
 	"time"
@@ -23,17 +24,18 @@ import (
 
 // Team represents a team from the API (brief response)
 type Team struct {
-	ID           string       `json:"id"`
-	DisplayName  string       `json:"displayName"`
-	Mission      string       `json:"mission,omitempty"`
-	Enabled      bool         `json:"enabled"`
-	Runtime      Runtime      `json:"runtime"`
-	Coordination Coordination `json:"coordination"`
-	Execution    Execution    `json:"execution"`
-	DecisionMode string       `json:"decisionMode,omitempty"`
-	MemberCount  int          `json:"memberCount"`
-	CreatedAt    string       `json:"createdAt"`
-	UpdatedAt    string       `json:"updatedAt"`
+	ID                string                          `json:"id"`
+	DisplayName       string                          `json:"displayName"`
+	Mission           string                          `json:"mission,omitempty"`
+	Enabled           bool                            `json:"enabled"`
+	Runtime           Runtime                         `json:"runtime"`
+	Coordination      Coordination                    `json:"coordination"`
+	Execution         Execution                       `json:"execution"`
+	DecisionMode      string                          `json:"decisionMode,omitempty"`
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
+	MemberCount       int                             `json:"memberCount"`
+	CreatedAt         string                          `json:"createdAt"`
+	UpdatedAt         string                          `json:"updatedAt"`
 }
 
 // TeamDetails represents full team details
@@ -279,24 +281,26 @@ type AddKnowledgeRequest struct {
 
 // CreateTeamRequest is the request body for creating a team
 type CreateTeamRequest struct {
-	ID           string       `json:"id,omitempty"`
-	DisplayName  string       `json:"displayName"`
-	Mission      string       `json:"mission,omitempty"`
-	Runtime      Runtime      `json:"runtime"`
-	Coordination Coordination `json:"coordination"`
-	Execution    Execution    `json:"execution"`
-	DecisionMode string       `json:"decisionMode,omitempty"`
+	ID                string                          `json:"id,omitempty"`
+	DisplayName       string                          `json:"displayName"`
+	Mission           string                          `json:"mission,omitempty"`
+	Runtime           Runtime                         `json:"runtime"`
+	Coordination      Coordination                    `json:"coordination"`
+	Execution         Execution                       `json:"execution"`
+	DecisionMode      string                          `json:"decisionMode,omitempty"`
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 }
 
 // UpdateTeamRequest is the request body for updating a team
 type UpdateTeamRequest struct {
-	DisplayName  *string       `json:"displayName,omitempty"`
-	Mission      *string       `json:"mission,omitempty"`
-	Enabled      *bool         `json:"enabled,omitempty"`
-	Runtime      *Runtime      `json:"runtime,omitempty"`
-	Coordination *Coordination `json:"coordination,omitempty"`
-	Execution    *Execution    `json:"execution,omitempty"`
-	DecisionMode *string       `json:"decisionMode,omitempty"`
+	DisplayName       *string                         `json:"displayName,omitempty"`
+	Mission           *string                         `json:"mission,omitempty"`
+	Enabled           *bool                           `json:"enabled,omitempty"`
+	Runtime           *Runtime                        `json:"runtime,omitempty"`
+	Coordination      *Coordination                   `json:"coordination,omitempty"`
+	Execution         *Execution                      `json:"execution,omitempty"`
+	DecisionMode      *string                         `json:"decisionMode,omitempty"`
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract,omitempty"`
 }
 
 type teamConfigFlagSet struct {
@@ -640,6 +644,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdTriggerTeam(ctx, subArgs)
 	case "member-context":
 		return cmdMemberContext(ctx, subArgs)
+	case "operating-contract":
+		return cmdOperatingContract(ctx, subArgs)
+	case "validate-contract":
+		return cmdValidateContract(ctx, subArgs)
 	case "search", "find":
 		return cmdSearch(ctx, subArgs)
 	case "handoff-latest":
@@ -727,6 +735,8 @@ Member Document Commands:
 
 Context Commands:
   member-context <team-id> <agent-id>         Get full member context prompt
+  operating-contract <team-id>                Print the team's stored operating contract
+  validate-contract <team-id>                 Validate the team's operating contract
 
 Handoff Commands:
   handoff-latest <team-id> <agent-id>   Show latest handoff for a member
@@ -1019,6 +1029,56 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Updated team: %s [%s]\n", team.DisplayName, team.ID)
+	return nil
+}
+
+func cmdOperatingContract(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("operating-contract", flag.ContinueOnError)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team operating-contract <team-id>")
+	}
+
+	var team TeamDetails
+	if err := ctx.Get(fmt.Sprintf("/teams/%s", fs.Arg(0)), &team); err != nil {
+		return fmt.Errorf("failed to get team: %w", err)
+	}
+	if team.OperatingContract == nil {
+		return fmt.Errorf("team %q does not have an operating contract", team.ID)
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(team.OperatingContract)
+}
+
+func cmdValidateContract(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("validate-contract", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team validate-contract <team-id> [--json]")
+	}
+
+	var team TeamDetails
+	if err := ctx.Get(fmt.Sprintf("/teams/%s", fs.Arg(0)), &team); err != nil {
+		return fmt.Errorf("contract validation failed: %w", err)
+	}
+	if team.OperatingContract == nil {
+		return fmt.Errorf("contract validation failed: team %q does not have an operating contract", team.ID)
+	}
+
+	if *jsonOut {
+		resp := map[string]any{"teamId": team.ID, "valid": true}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	fmt.Printf("Operating contract valid: %s\n", team.ID)
 	return nil
 }
 

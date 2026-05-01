@@ -1,0 +1,683 @@
+package teamcontract
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+const (
+	SchemaVersion = 1
+
+	BaseRepoRoot   = "repo-root"
+	BaseTeamRoot   = "team-root"
+	BaseTeamShared = "team-shared"
+	BaseTeamMember = "team-member"
+	BaseAgentRoot  = "agent-root"
+
+	DecisionModeYolo     = "yolo"
+	DecisionModeApproval = "approval"
+)
+
+type OperatingContract struct {
+	SchemaVersion   int                        `json:"schemaVersion"`
+	Governance      Governance                 `json:"governance"`
+	Documents       Documents                  `json:"documents"`
+	DecisionContext map[string]DecisionContext `json:"decisionContexts"`
+	KnowledgeTopics map[string]KnowledgeTopic  `json:"knowledgeTopics"`
+	Members         map[string]MemberContract  `json:"members"`
+}
+
+type Governance struct {
+	DecisionMode        string               `json:"decisionMode"`
+	TeamPendingCeiling  TeamPendingCeiling   `json:"teamPendingCeiling"`
+	Supersession        SupersessionPolicy   `json:"supersession"`
+	StaleDecisionPolicy *StaleDecisionPolicy `json:"staleDecisionPolicy,omitempty"`
+}
+
+type TeamPendingCeiling struct {
+	Value                 int    `json:"value"`
+	ReadOnlyWhenAtOrAbove bool   `json:"readOnlyWhenAtOrAbove"`
+	Rationale             string `json:"rationale,omitempty"`
+}
+
+type SupersessionPolicy struct {
+	RequiredBeforeNewDecision    bool `json:"requiredBeforeNewDecision"`
+	AllowedInReadOnlyMode        bool `json:"allowedInReadOnlyMode"`
+	ReplacementMustSetSupersedes bool `json:"replacementMustSetSupersedes"`
+}
+
+type StaleDecisionPolicy struct {
+	AfterHeartbeats  int      `json:"afterHeartbeats"`
+	OwnerMemberID    string   `json:"ownerMemberId"`
+	RequiredOutcomes []string `json:"requiredOutcomes"`
+}
+
+type Documents struct {
+	PlanOfRecord []PlanOfRecordDocument `json:"planOfRecord"`
+	Notebooks    []NotebookDocument     `json:"notebooks"`
+	SharedState  []SharedStateDocument  `json:"sharedState"`
+}
+
+type PlanOfRecordDocument struct {
+	ID             string    `json:"id"`
+	Paths          []PathRef `json:"paths"`
+	WritePolicy    string    `json:"writePolicy"`
+	Consumers      []string  `json:"consumers,omitempty"`
+	Rationale      string    `json:"rationale,omitempty"`
+	Required       *bool     `json:"required,omitempty"`
+	OptionalReason string    `json:"optionalReason,omitempty"`
+}
+
+type NotebookDocument struct {
+	ID               string    `json:"id"`
+	Paths            []PathRef `json:"paths"`
+	Posture          string    `json:"posture,omitempty"`
+	WritePolicy      string    `json:"writePolicy"`
+	CuratorMemberID  string    `json:"curatorMemberId"`
+	PromotionContext string    `json:"promotionContext"`
+	Required         *bool     `json:"required,omitempty"`
+	OptionalReason   string    `json:"optionalReason,omitempty"`
+}
+
+type SharedStateDocument struct {
+	ID             string  `json:"id"`
+	Path           PathRef `json:"path"`
+	OwnerMemberID  string  `json:"ownerMemberId,omitempty"`
+	Kind           string  `json:"kind"`
+	Required       bool    `json:"required"`
+	OptionalReason string  `json:"optionalReason,omitempty"`
+}
+
+type DecisionContext struct {
+	OwnerMemberIDs            []string `json:"ownerMemberIds,omitempty"`
+	Description               string   `json:"description,omitempty"`
+	ExternalAuthorizedRaisers []string `json:"externalAuthorizedRaisers,omitempty"`
+}
+
+type KnowledgeTopic struct {
+	OwnerMemberID      string `json:"ownerMemberId"`
+	SupersedesPrevious bool   `json:"supersedesPrevious"`
+	Retention          string `json:"retention,omitempty"`
+}
+
+type MemberContract struct {
+	Lane                       string           `json:"lane"`
+	OwnedDecisionContexts      []string         `json:"ownedDecisionContexts"`
+	NewDecisionCapPerHeartbeat *int             `json:"newDecisionCapPerHeartbeat,omitempty"`
+	NewDecisionCapsByContext   map[string]int   `json:"newDecisionCapsByContext,omitempty"`
+	PendingOwnedDecisionCap    *int             `json:"pendingOwnedDecisionCap,omitempty"`
+	RequiredKnowledgeTopics    []string         `json:"requiredKnowledgeTopics,omitempty"`
+	AllowedWrites              []WriteRef       `json:"allowedWrites,omitempty"`
+	ForbiddenWrites            []WriteRef       `json:"forbiddenWrites,omitempty"`
+	SafetyCriticalRules        []string         `json:"safetyCriticalRules,omitempty"`
+	ReadOnlyModeBehavior       ReadOnlyBehavior `json:"readOnlyModeBehavior"`
+	TaskParameters             map[string]any   `json:"taskParameters,omitempty"`
+}
+
+type ReadOnlyBehavior struct {
+	SkipNewDecisions     bool `json:"skipNewDecisions"`
+	StillWriteKnowledge  bool `json:"stillWriteKnowledge"`
+	StillRunSupersession bool `json:"stillRunSupersession"`
+	StillWriteHandoff    bool `json:"stillWriteHandoff"`
+}
+
+type PathRef struct {
+	Base           string `json:"base,omitempty"`
+	Path           string `json:"path,omitempty"`
+	MemberID       string `json:"memberId,omitempty"`
+	AgentID        string `json:"agentId,omitempty"`
+	Required       *bool  `json:"required,omitempty"`
+	OptionalReason string `json:"optionalReason,omitempty"`
+}
+
+type WriteRef struct {
+	Base           string `json:"base,omitempty"`
+	Path           string `json:"path,omitempty"`
+	Kind           string `json:"kind,omitempty"`
+	MemberID       string `json:"memberId,omitempty"`
+	AgentID        string `json:"agentId,omitempty"`
+	Required       *bool  `json:"required,omitempty"`
+	OptionalReason string `json:"optionalReason,omitempty"`
+}
+
+type ValidationInput struct {
+	TeamID       string
+	DecisionMode string
+	MemberIDs    []string
+	StoreDir     string
+	RepoRoot     string
+}
+
+type RenderInput struct {
+	TeamID       string
+	TeamName     string
+	DecisionMode string
+	MemberID     string
+	StoreDir     string
+	RepoRoot     string
+}
+
+func Minimal(decisionMode string, memberIDs ...string) *OperatingContract {
+	if decisionMode == "" {
+		decisionMode = DecisionModeYolo
+	}
+	contextID := "general"
+	topicID := "heartbeat-note"
+	members := make(map[string]MemberContract, len(memberIDs))
+	for _, memberID := range memberIDs {
+		if strings.TrimSpace(memberID) == "" {
+			continue
+		}
+		cap := 1
+		pendingCap := 3
+		members[memberID] = MemberContract{
+			Lane:                       "Apply the team mission within this member's assigned scope.",
+			OwnedDecisionContexts:      []string{contextID},
+			NewDecisionCapPerHeartbeat: &cap,
+			PendingOwnedDecisionCap:    &pendingCap,
+			RequiredKnowledgeTopics:    []string{topicID},
+			AllowedWrites:              []WriteRef{{Kind: "knowledge"}, {Kind: "decision"}, {Kind: "handoff"}},
+			ReadOnlyModeBehavior: ReadOnlyBehavior{
+				SkipNewDecisions:     true,
+				StillWriteKnowledge:  true,
+				StillRunSupersession: true,
+				StillWriteHandoff:    true,
+			},
+		}
+	}
+	return &OperatingContract{
+		SchemaVersion: SchemaVersion,
+		Governance: Governance{
+			DecisionMode:       decisionMode,
+			TeamPendingCeiling: TeamPendingCeiling{Value: 12, ReadOnlyWhenAtOrAbove: true},
+			Supersession: SupersessionPolicy{
+				RequiredBeforeNewDecision:    true,
+				AllowedInReadOnlyMode:        true,
+				ReplacementMustSetSupersedes: true,
+			},
+		},
+		Documents: Documents{},
+		DecisionContext: map[string]DecisionContext{
+			contextID: {OwnerMemberIDs: compactMemberIDs(memberIDs), Description: "General team decision proposals."},
+		},
+		KnowledgeTopics: map[string]KnowledgeTopic{
+			topicID: {OwnerMemberID: firstMemberID(memberIDs), SupersedesPrevious: false, Retention: "append-only"},
+		},
+		Members: members,
+	}
+}
+
+func compactMemberIDs(memberIDs []string) []string {
+	out := make([]string, 0, len(memberIDs))
+	seen := map[string]struct{}{}
+	for _, id := range memberIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return []string{"unassigned"}
+	}
+	return out
+}
+
+func firstMemberID(memberIDs []string) string {
+	for _, id := range memberIDs {
+		if strings.TrimSpace(id) != "" {
+			return strings.TrimSpace(id)
+		}
+	}
+	return "unassigned"
+}
+
+func Validate(contract *OperatingContract, input ValidationInput) error {
+	if contract == nil {
+		return fmt.Errorf("operatingContract is required")
+	}
+	if contract.SchemaVersion != SchemaVersion {
+		return fmt.Errorf("operatingContract.schemaVersion must equal %d", SchemaVersion)
+	}
+	if strings.TrimSpace(contract.Governance.DecisionMode) == "" {
+		return fmt.Errorf("operatingContract.governance.decisionMode is required")
+	}
+	if input.DecisionMode != "" && contract.Governance.DecisionMode != input.DecisionMode {
+		return fmt.Errorf("operatingContract.governance.decisionMode %q must match team decisionMode %q", contract.Governance.DecisionMode, input.DecisionMode)
+	}
+	if contract.Governance.DecisionMode != DecisionModeYolo && contract.Governance.DecisionMode != DecisionModeApproval {
+		return fmt.Errorf("operatingContract.governance.decisionMode must be 'yolo' or 'approval'")
+	}
+	if contract.Governance.TeamPendingCeiling.Value < 0 {
+		return fmt.Errorf("operatingContract.governance.teamPendingCeiling.value must be non-negative")
+	}
+	if contract.DecisionContext == nil {
+		return fmt.Errorf("operatingContract.decisionContexts is required")
+	}
+	if contract.KnowledgeTopics == nil {
+		return fmt.Errorf("operatingContract.knowledgeTopics is required")
+	}
+	if contract.Members == nil {
+		return fmt.Errorf("operatingContract.members is required")
+	}
+	for _, memberID := range input.MemberIDs {
+		memberID = strings.TrimSpace(memberID)
+		if memberID == "" {
+			continue
+		}
+		if _, ok := contract.Members[memberID]; !ok {
+			return fmt.Errorf("operatingContract.members missing active member %q", memberID)
+		}
+	}
+
+	for id, member := range contract.Members {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("operatingContract.members contains an empty member id")
+		}
+		if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat < 0 {
+			return fmt.Errorf("operatingContract.members.%s.newDecisionCapPerHeartbeat must be non-negative", id)
+		}
+		if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap < 0 {
+			return fmt.Errorf("operatingContract.members.%s.pendingOwnedDecisionCap must be non-negative", id)
+		}
+		for contextID, cap := range member.NewDecisionCapsByContext {
+			if cap < 0 {
+				return fmt.Errorf("operatingContract.members.%s.newDecisionCapsByContext.%s must be non-negative", id, contextID)
+			}
+			if _, ok := contract.DecisionContext[contextID]; !ok {
+				return fmt.Errorf("operatingContract.members.%s.newDecisionCapsByContext.%s is not declared in decisionContexts", id, contextID)
+			}
+		}
+		for _, contextID := range member.OwnedDecisionContexts {
+			if _, ok := contract.DecisionContext[contextID]; !ok {
+				return fmt.Errorf("operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
+			}
+		}
+		for _, topicID := range member.RequiredKnowledgeTopics {
+			if _, ok := contract.KnowledgeTopics[topicID]; !ok {
+				return fmt.Errorf("operatingContract.members.%s.requiredKnowledgeTopics contains undeclared topic %q", id, topicID)
+			}
+		}
+		if err := validateWriteRefs(member.AllowedWrites, input, id, "allowedWrites"); err != nil {
+			return err
+		}
+		if err := validateWriteRefs(member.ForbiddenWrites, input, id, "forbiddenWrites"); err != nil {
+			return err
+		}
+	}
+	for contextID, dc := range contract.DecisionContext {
+		if len(dc.OwnerMemberIDs) == 0 && len(dc.ExternalAuthorizedRaisers) == 0 {
+			return fmt.Errorf("operatingContract.decisionContexts.%s requires ownerMemberIds or externalAuthorizedRaisers", contextID)
+		}
+		for _, ownerID := range dc.OwnerMemberIDs {
+			if _, ok := contract.Members[ownerID]; !ok {
+				return fmt.Errorf("operatingContract.decisionContexts.%s owner %q is not a contract member", contextID, ownerID)
+			}
+		}
+	}
+	if policy := contract.Governance.StaleDecisionPolicy; policy != nil {
+		if policy.AfterHeartbeats < 1 {
+			return fmt.Errorf("operatingContract.governance.staleDecisionPolicy.afterHeartbeats must be at least 1")
+		}
+		if _, ok := contract.Members[policy.OwnerMemberID]; !ok {
+			return fmt.Errorf("operatingContract.governance.staleDecisionPolicy.ownerMemberId %q is not a contract member", policy.OwnerMemberID)
+		}
+		if len(policy.RequiredOutcomes) == 0 {
+			return fmt.Errorf("operatingContract.governance.staleDecisionPolicy.requiredOutcomes is required")
+		}
+	}
+	return validateDocuments(contract, input)
+}
+
+func RenderMember(contract *OperatingContract, input RenderInput) (string, error) {
+	if err := Validate(contract, ValidationInput{
+		TeamID: input.TeamID, DecisionMode: input.DecisionMode, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
+	}); err != nil {
+		return "", err
+	}
+	member, ok := contract.Members[input.MemberID]
+	if !ok {
+		return "", fmt.Errorf("operatingContract.members missing active member %q", input.MemberID)
+	}
+
+	teamName := input.TeamName
+	if teamName == "" {
+		teamName = input.TeamID
+	}
+
+	var b strings.Builder
+	b.WriteString("# Resolved Operating Contract\n\n")
+	b.WriteString(fmt.Sprintf("Team: %s\n", input.TeamID))
+	b.WriteString(fmt.Sprintf("Team name: %s\n", teamName))
+	b.WriteString(fmt.Sprintf("Decision mode: %s\n", contract.Governance.DecisionMode))
+	b.WriteString(fmt.Sprintf("Pending decision ceiling: %d\n", contract.Governance.TeamPendingCeiling.Value))
+	if contract.Governance.TeamPendingCeiling.ReadOnlyWhenAtOrAbove {
+		b.WriteString(fmt.Sprintf("When pending decisions are >= %d:\n", contract.Governance.TeamPendingCeiling.Value))
+		if member.ReadOnlyModeBehavior.SkipNewDecisions {
+			b.WriteString("- skip new decision creation\n")
+		}
+		if member.ReadOnlyModeBehavior.StillWriteKnowledge {
+			b.WriteString("- still write required knowledge snapshots\n")
+		}
+		if member.ReadOnlyModeBehavior.StillRunSupersession {
+			b.WriteString("- still perform supersession when it shrinks the queue\n")
+		}
+		if member.ReadOnlyModeBehavior.StillWriteHandoff {
+			b.WriteString("- still write HANDOFF\n")
+		}
+	}
+	if policy := contract.Governance.StaleDecisionPolicy; policy != nil && policy.OwnerMemberID == input.MemberID {
+		b.WriteString(fmt.Sprintf("Stale decision scan: review pending decisions older than %d heartbeats; outcomes: %s.\n", policy.AfterHeartbeats, strings.Join(policy.RequiredOutcomes, ", ")))
+	}
+	b.WriteString("\n## Your Member Contract\n\n")
+	b.WriteString(fmt.Sprintf("Agent ID: %s\n", input.MemberID))
+	if member.Lane != "" {
+		b.WriteString(fmt.Sprintf("Lane: %s\n", member.Lane))
+	}
+	writeStringList(&b, "Owned decision contexts", member.OwnedDecisionContexts)
+	b.WriteString("\nDecision caps:\n")
+	if member.NewDecisionCapPerHeartbeat != nil {
+		b.WriteString(fmt.Sprintf("- max new decisions this heartbeat: %d\n", *member.NewDecisionCapPerHeartbeat))
+	}
+	if len(member.NewDecisionCapsByContext) > 0 {
+		keys := sortedKeys(member.NewDecisionCapsByContext)
+		for _, contextID := range keys {
+			b.WriteString(fmt.Sprintf("- %s: max %d new decisions this heartbeat\n", contextID, member.NewDecisionCapsByContext[contextID]))
+		}
+	}
+	if member.PendingOwnedDecisionCap != nil {
+		b.WriteString(fmt.Sprintf("- skip new decisions when %d+ owned-context decisions are already pending\n", *member.PendingOwnedDecisionCap))
+	}
+	b.WriteString("\nRequired knowledge topics:\n")
+	for _, topicID := range member.RequiredKnowledgeTopics {
+		topic := contract.KnowledgeTopics[topicID]
+		if topic.SupersedesPrevious {
+			b.WriteString(fmt.Sprintf("- %s; supersedes prior matching topic\n", topicID))
+		} else {
+			b.WriteString(fmt.Sprintf("- %s; append-only, do not set supersedes\n", topicID))
+		}
+	}
+	b.WriteString("\n## Document Authority\n\n")
+	renderDocuments(&b, contract, input)
+	b.WriteString("\n## Write Rules\n\n")
+	renderWriteRefs(&b, "Allowed writes", member.AllowedWrites, input)
+	renderWriteRefs(&b, "Forbidden writes", member.ForbiddenWrites, input)
+	writeStringList(&b, "Safety-critical rules", member.SafetyCriticalRules)
+	if len(member.TaskParameters) > 0 {
+		b.WriteString("\nTask parameters:\n")
+		for _, key := range sortedAnyKeys(member.TaskParameters) {
+			b.WriteString(fmt.Sprintf("- %s: %v\n", key, member.TaskParameters[key]))
+		}
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n", nil
+}
+
+func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (string, error) {
+	base := strings.TrimSpace(ref.Base)
+	path := strings.TrimSpace(ref.Path)
+	if base == "" {
+		return "", fmt.Errorf("path base is required")
+	}
+	if path == "" {
+		return "", fmt.Errorf("path is required")
+	}
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("path %q must be relative", path)
+	}
+	clean := filepath.ToSlash(filepath.Clean(path))
+	if clean == "." || clean == "" || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
+		return "", fmt.Errorf("path %q must not escape its base", path)
+	}
+	memberID := ref.MemberID
+	if memberID == "" {
+		memberID = activeMemberID
+	}
+	agentID := ref.AgentID
+	if agentID == "" {
+		agentID = activeMemberID
+	}
+	switch base {
+	case BaseRepoRoot:
+		return clean, nil
+	case BaseTeamRoot:
+		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/teams", input.TeamID, clean)), nil
+	case BaseTeamShared:
+		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/teams", input.TeamID, "shared", clean)), nil
+	case BaseTeamMember:
+		if memberID == "" {
+			return "", fmt.Errorf("team-member path %q requires memberId or active member context", path)
+		}
+		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/teams", input.TeamID, "members", memberID, clean)), nil
+	case BaseAgentRoot:
+		if agentID == "" {
+			return "", fmt.Errorf("agent-root path %q requires agentId or active member context", path)
+		}
+		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/agents", agentID, clean)), nil
+	default:
+		return "", fmt.Errorf("unsupported path base %q", base)
+	}
+}
+
+func validateDocuments(contract *OperatingContract, input ValidationInput) error {
+	for _, doc := range contract.Documents.PlanOfRecord {
+		if strings.TrimSpace(doc.ID) == "" {
+			return fmt.Errorf("operatingContract.documents.planOfRecord contains a document without id")
+		}
+		if strings.TrimSpace(doc.WritePolicy) == "" {
+			return fmt.Errorf("operatingContract.documents.planOfRecord.%s.writePolicy is required", doc.ID)
+		}
+		if len(doc.Consumers) == 0 && strings.TrimSpace(doc.Rationale) == "" {
+			return fmt.Errorf("operatingContract.documents.planOfRecord.%s requires consumers or rationale", doc.ID)
+		}
+		if err := validatePathRefs(doc.Paths, docRequired(doc.Required), doc.OptionalReason, input, "", "planOfRecord."+doc.ID); err != nil {
+			return err
+		}
+	}
+	for _, doc := range contract.Documents.Notebooks {
+		if strings.TrimSpace(doc.ID) == "" {
+			return fmt.Errorf("operatingContract.documents.notebooks contains a document without id")
+		}
+		if strings.TrimSpace(doc.CuratorMemberID) == "" || strings.TrimSpace(doc.PromotionContext) == "" {
+			return fmt.Errorf("operatingContract.documents.notebooks.%s requires curatorMemberId and promotionContext", doc.ID)
+		}
+		if _, ok := contract.Members[doc.CuratorMemberID]; !ok {
+			return fmt.Errorf("operatingContract.documents.notebooks.%s curatorMemberId %q is not a contract member", doc.ID, doc.CuratorMemberID)
+		}
+		if _, ok := contract.DecisionContext[doc.PromotionContext]; !ok {
+			return fmt.Errorf("operatingContract.documents.notebooks.%s promotionContext %q is not declared", doc.ID, doc.PromotionContext)
+		}
+		if err := validatePathRefs(doc.Paths, docRequired(doc.Required), doc.OptionalReason, input, "", "notebooks."+doc.ID); err != nil {
+			return err
+		}
+	}
+	for _, doc := range contract.Documents.SharedState {
+		if strings.TrimSpace(doc.ID) == "" {
+			return fmt.Errorf("operatingContract.documents.sharedState contains a document without id")
+		}
+		if doc.OwnerMemberID != "" {
+			if _, ok := contract.Members[doc.OwnerMemberID]; !ok {
+				return fmt.Errorf("operatingContract.documents.sharedState.%s ownerMemberId %q is not a contract member", doc.ID, doc.OwnerMemberID)
+			}
+		}
+		if err := validatePathRefs([]PathRef{doc.Path}, doc.Required, doc.OptionalReason, input, "", "sharedState."+doc.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePathRefs(paths []PathRef, required bool, optionalReason string, input ValidationInput, activeMemberID, field string) error {
+	if len(paths) == 0 {
+		return fmt.Errorf("operatingContract.documents.%s requires at least one path", field)
+	}
+	if !required && strings.TrimSpace(optionalReason) == "" {
+		return fmt.Errorf("operatingContract.documents.%s optional paths require optionalReason", field)
+	}
+	for _, ref := range paths {
+		normalized, err := NormalizePath(ref, input, activeMemberID)
+		if err != nil {
+			return fmt.Errorf("operatingContract.documents.%s: %w", field, err)
+		}
+		if required {
+			if err := validateExists(normalized, input); err != nil {
+				return fmt.Errorf("operatingContract.documents.%s: %w", field, err)
+			}
+		}
+	}
+	return nil
+}
+
+func validateWriteRefs(refs []WriteRef, input ValidationInput, activeMemberID, field string) error {
+	for _, ref := range refs {
+		if ref.Kind != "" {
+			switch ref.Kind {
+			case "handoff", "decision", "knowledge", "task", "inbox-message":
+				continue
+			default:
+				return fmt.Errorf("operatingContract.members.%s contains unsupported write kind %q", field, ref.Kind)
+			}
+		}
+		_, err := NormalizePath(PathRef{Base: ref.Base, Path: ref.Path, MemberID: ref.MemberID, AgentID: ref.AgentID}, input, activeMemberID)
+		if err != nil {
+			return fmt.Errorf("operatingContract.members.%s: %w", field, err)
+		}
+	}
+	return nil
+}
+
+func validateExists(repoRelative string, input ValidationInput) error {
+	root := strings.TrimSpace(input.RepoRoot)
+	if root == "" {
+		root = deriveRepoRoot(input.StoreDir)
+	}
+	if root == "" {
+		return nil
+	}
+	full := filepath.Join(root, filepath.FromSlash(repoRelative))
+	cleanRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	cleanFull, err := filepath.Abs(full)
+	if err != nil {
+		return err
+	}
+	if cleanFull != cleanRoot && !strings.HasPrefix(cleanFull, cleanRoot+string(os.PathSeparator)) {
+		return fmt.Errorf("normalized path %q escapes repo root", repoRelative)
+	}
+	if _, err := os.Stat(cleanFull); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("required path %q does not exist", repoRelative)
+		}
+		return fmt.Errorf("stat required path %q: %w", repoRelative, err)
+	}
+	return nil
+}
+
+func deriveRepoRoot(storeDir string) string {
+	if storeDir == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(storeDir)
+	if err != nil {
+		return ""
+	}
+	if filepath.Base(abs) == "store" && filepath.Base(filepath.Dir(abs)) == "prompt-manager" {
+		return filepath.Dir(filepath.Dir(filepath.Dir(abs)))
+	}
+	return ""
+}
+
+func docRequired(v *bool) bool {
+	return v == nil || *v
+}
+
+func writeStringList(b *strings.Builder, title string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+	b.WriteString("\n" + title + ":\n")
+	for _, value := range values {
+		b.WriteString("- " + value + "\n")
+	}
+}
+
+func renderDocuments(b *strings.Builder, contract *OperatingContract, input RenderInput) {
+	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
+	if len(contract.Documents.PlanOfRecord) > 0 {
+		b.WriteString("Plan of record docs:\n")
+		for _, doc := range contract.Documents.PlanOfRecord {
+			for _, ref := range doc.Paths {
+				if p, err := NormalizePath(ref, validationInput, input.MemberID); err == nil {
+					b.WriteString("- " + p + "\n")
+				}
+			}
+		}
+		b.WriteString("\n")
+	}
+	if len(contract.Documents.Notebooks) > 0 {
+		b.WriteString("Notebook docs:\n")
+		for _, doc := range contract.Documents.Notebooks {
+			for _, ref := range doc.Paths {
+				if p, err := NormalizePath(ref, validationInput, input.MemberID); err == nil {
+					b.WriteString("- " + p + "\n")
+				}
+			}
+		}
+		b.WriteString("\nNotebook rules:\n")
+		for _, doc := range contract.Documents.Notebooks {
+			b.WriteString(fmt.Sprintf("- %s: writePolicy=%s, curator=%s, promotionContext=%s\n", doc.ID, doc.WritePolicy, doc.CuratorMemberID, doc.PromotionContext))
+		}
+		b.WriteString("\n")
+	}
+	if len(contract.Documents.SharedState) > 0 {
+		b.WriteString("Shared state:\n")
+		for _, doc := range contract.Documents.SharedState {
+			if p, err := NormalizePath(doc.Path, validationInput, input.MemberID); err == nil {
+				b.WriteString("- " + p + "\n")
+			}
+		}
+	}
+}
+
+func renderWriteRefs(b *strings.Builder, title string, refs []WriteRef, input RenderInput) {
+	if len(refs) == 0 {
+		return
+	}
+	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
+	b.WriteString(title + ":\n")
+	for _, ref := range refs {
+		if ref.Kind != "" {
+			b.WriteString("- " + ref.Kind + "\n")
+			continue
+		}
+		if p, err := NormalizePath(PathRef{Base: ref.Base, Path: ref.Path, MemberID: ref.MemberID, AgentID: ref.AgentID}, validationInput, input.MemberID); err == nil {
+			b.WriteString("- " + p + "\n")
+		}
+	}
+}
+
+func sortedKeys(m map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func sortedAnyKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}

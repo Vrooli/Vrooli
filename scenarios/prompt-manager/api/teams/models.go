@@ -3,7 +3,10 @@
 // DOC: docs/reference/api-endpoints.md#teams
 package teams
 
-import "prompt-manager/teamconfig"
+import (
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
+)
 
 type (
 	RuntimeDTO                  = teamconfig.Runtime
@@ -14,17 +17,18 @@ type (
 
 // Response is the API response for a team.
 type Response struct {
-	ID           string          `json:"id"`
-	DisplayName  string          `json:"displayName"`
-	Mission      string          `json:"mission,omitempty"`
-	Enabled      bool            `json:"enabled"`
-	Runtime      RuntimeDTO      `json:"runtime"`
-	Coordination CoordinationDTO `json:"coordination"`
-	Execution    ExecutionDTO    `json:"execution"`
-	DecisionMode string          `json:"decisionMode,omitempty"`
-	MemberCount  int             `json:"memberCount"`
-	CreatedAt    string          `json:"createdAt"`
-	UpdatedAt    string          `json:"updatedAt"`
+	ID                string                          `json:"id"`
+	DisplayName       string                          `json:"displayName"`
+	Mission           string                          `json:"mission,omitempty"`
+	Enabled           bool                            `json:"enabled"`
+	Runtime           RuntimeDTO                      `json:"runtime"`
+	Coordination      CoordinationDTO                 `json:"coordination"`
+	Execution         ExecutionDTO                    `json:"execution"`
+	DecisionMode      string                          `json:"decisionMode,omitempty"`
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
+	MemberCount       int                             `json:"memberCount"`
+	CreatedAt         string                          `json:"createdAt"`
+	UpdatedAt         string                          `json:"updatedAt"`
 }
 
 // TeamDetailsResponse includes full team details.
@@ -74,24 +78,26 @@ type SendTeamMessageRequest struct {
 
 // CreateRequest is the request body for creating a team.
 type CreateRequest struct {
-	ID           string          `json:"id,omitempty"`
-	DisplayName  string          `json:"displayName"`
-	Mission      string          `json:"mission,omitempty"`
-	Runtime      RuntimeDTO      `json:"runtime"`
-	Coordination CoordinationDTO `json:"coordination"`
-	Execution    ExecutionDTO    `json:"execution"`
-	DecisionMode string          `json:"decisionMode,omitempty"`
+	ID                string                          `json:"id,omitempty"`
+	DisplayName       string                          `json:"displayName"`
+	Mission           string                          `json:"mission,omitempty"`
+	Runtime           RuntimeDTO                      `json:"runtime"`
+	Coordination      CoordinationDTO                 `json:"coordination"`
+	Execution         ExecutionDTO                    `json:"execution"`
+	DecisionMode      string                          `json:"decisionMode,omitempty"`
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 }
 
 // UpdateRequest is the request body for updating a team.
 type UpdateRequest struct {
-	DisplayName  *string          `json:"displayName,omitempty"`
-	Mission      *string          `json:"mission,omitempty"`
-	Enabled      *bool            `json:"enabled,omitempty"`
-	Runtime      *RuntimeDTO      `json:"runtime,omitempty"`
-	Coordination *CoordinationDTO `json:"coordination,omitempty"`
-	Execution    *ExecutionDTO    `json:"execution,omitempty"`
-	DecisionMode *string          `json:"decisionMode,omitempty"`
+	DisplayName       *string                         `json:"displayName,omitempty"`
+	Mission           *string                         `json:"mission,omitempty"`
+	Enabled           *bool                           `json:"enabled,omitempty"`
+	Runtime           *RuntimeDTO                     `json:"runtime,omitempty"`
+	Coordination      *CoordinationDTO                `json:"coordination,omitempty"`
+	Execution         *ExecutionDTO                   `json:"execution,omitempty"`
+	DecisionMode      *string                         `json:"decisionMode,omitempty"`
+	OperatingContract *teamcontract.OperatingContract `json:"operatingContract,omitempty"`
 }
 
 // AddMemberRequest is the request body for adding a member to a team.

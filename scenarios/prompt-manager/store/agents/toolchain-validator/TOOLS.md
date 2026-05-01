@@ -1,25 +1,22 @@
 # TOOLS
 
 ## Tool Access
-`prompt-manager skill read <skill-id>`
+- `development-toolchain-validator validate <reference>`
+- `development-toolchain-validator report --conflicts`
+- `development-toolchain-validator report --drift`
+- `development-toolchain-validator report --maturity`
+- `development-toolchain-validator report --tool-baselines`
+- `scenario-auditor scan <reference> --summary`
+- `test-genie run <reference>`
+- `tidiness-manager scan <reference>`
+- `prompt-manager team decision-list meta-optimization ...`
+- `prompt-manager team knowledge-list meta-optimization ...`
 
 ## Primary Skills
-- **scenario-readiness-review** — when reading the gold-star reference's state
-- **documentation-health** — durable scan snapshots
-
-## Primary Surfaces
-- `development-toolchain-validator validate <reference>` (when installed)
-- `development-toolchain-validator report --conflicts | --drift | --maturity | --tool-baselines` (when installed)
-- `scenario-auditor scan <reference> --summary` (fallback)
-- `test-genie run <reference>` (fallback)
-- `tidiness-manager scan <reference>` (fallback)
-- `prompt-manager team decision-list meta-optimization --status=pending --context=toolchain-violation`
-- `prompt-manager team decision-list meta-optimization --status=pending --context=capability-gap`
-- `prompt-manager team knowledge-list meta-optimization`
-- `shared/TOOLCHAIN_SCAN.md`
+- **scenario-readiness-review** - reading the gold-star reference state
+- **documentation-health** - durable scan snapshots
 
 ## Usage Rules
-- Do not edit tool code. Flag tool issues; ecosystem-manager repairs.
-- Do not modify the gold-star reference. If it's drifting, that's a `toolchain-violation`, not a fix.
-- Cap decisions at 2 per heartbeat.
-- Preserve tool output fidelity — do not re-interpret severities.
+- Do not edit tool code.
+- Do not modify the gold-star reference.
+- Preserve tool output fidelity; do not reinterpret severities.

@@ -85,30 +85,46 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 │ 1. Agent .md files (from store/agents/{agent})  │
 │    Personality + operating notes                │
 ├─────────────────────────────────────────────────┤
-│ 2. RESPONSIBILITIES.md (from team members/)     │
+│ 2. Team Charter (shared/TEAM.md)                │
+│    Mission and strategic context                │
+├─────────────────────────────────────────────────┤
+│ 3. Resolved Operating Contract                  │
+│    Generated member policy from team.json       │
+├─────────────────────────────────────────────────┤
+│ 4. RESPONSIBILITIES.md (from team members/)     │
 │    Role-specific instructions for this team     │
 ├─────────────────────────────────────────────────┤
-│ 3. Team Relationships                           │
+│ 5. Team Org Context                             │
 │    Reporting lines + coordination commands       │
 ├─────────────────────────────────────────────────┤
-│ 4. Coordination Skill Reference                 │
+│ 6. Coordination Skill Reference                 │
 │    Spawn-mode-specific guidance (multi/single)  │
 ├─────────────────────────────────────────────────┤
-│ 5. Team Inbox                                   │
+│ 7. Durable State                                │
+│    Task, decision, knowledge, and handoff rules  │
+├─────────────────────────────────────────────────┤
+│ 8. Team Inbox                                   │
 │    Pending messages from other team members      │
 ├─────────────────────────────────────────────────┤
-│ 6. HEARTBEAT.md (from team members/)            │
+│ 9. HEARTBEAT.md (from team members/)            │
 │    The specific task to execute now             │
 └─────────────────────────────────────────────────┘
 ```
 
 This layered approach means:
 - **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
+- **Team Charter**: "Why this team exists" (human-readable mission and strategic context)
+- **Resolved Operating Contract**: "What policy applies to me" (generated from `team.json.operatingContract`)
 - **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
-- **Team Relationships**: "Who I report to + who I direct" (coordination rules + CLI commands for messaging)
+- **Team Org Context**: "Who I report to + who I direct" (when enabled by team policy)
 - **Coordination Skill**: Mode-specific guidance (see [Coordination Skills](SWARM-MODEL.md#coordination-skills))
+- **Durable State**: task board, decision log, knowledge log, and handoff guidance
 - **Team Inbox**: "Pending messages to act on or reply to"
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
+
+Every team must define `operatingContract` in `team.json`. The prompt builder fails rather than inferring missing contract policy from `TEAM.md`, `RESPONSIBILITIES.md`, `HEARTBEAT.md`, or agent files. Contract-owned policy includes decision contexts, numeric caps, read-only behavior, supersession rules, knowledge topics, source documents, and write surfaces.
+
+The rendered contract uses repo-root-relative paths only. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
 
 ### Action Discovery Guidance
 
@@ -122,7 +138,7 @@ This keeps judgment in skills and execution in Actions without bloating every he
 
 ## Prompt Pipeline UI
 
-The Team Members heartbeat UI exposes a **Prompt Pipeline** view that mirrors the exact prompt assembly order (Agent Files → Responsibilities → Relationships → Inbox → Heartbeat Task). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts. The UI loads the assembled prompt through `/prompt-preview` and renders each section so operators can see precisely what will run on the next heartbeat.
+The Team Members heartbeat UI exposes a **Prompt Pipeline** view that mirrors the exact prompt assembly order (Agent Files → Operating Contract → Responsibilities → Coordination Context → Inbox → Heartbeat Task). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts. The UI loads the assembled prompt through `/prompt-preview` and renders each section so operators can see precisely what will run on the next heartbeat.
 
 - [CODE: ui/src/components/editor/MemberDetailPanel.tsx] - Shared member detail panel pipeline
 - [CODE: ui/src/components/editor/TeamEditorPanel.tsx] - Members layout wiring (graph + list)

@@ -33,5 +33,196 @@
   },
   "revision": 2,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-08T10:25:03Z"
+  "updatedAt": "2026-04-08T10:25:03Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "yolo",
+      "teamPendingCeiling": {
+        "value": 20,
+        "readOnlyWhenAtOrAbove": false,
+        "rationale": "Scenario QA is currently disabled and creates backlog artifacts rather than operator approval decisions."
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      }
+    },
+    "documents": {
+      "planOfRecord": [],
+      "notebooks": [],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "decisions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          "kind": "decision-stream",
+          "required": true
+        },
+        {
+          "id": "handoff-history-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "handoff-history.jsonl"
+          },
+          "kind": "handoff-history",
+          "required": true
+        },
+        {
+          "id": "knowledge-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          "kind": "knowledge-log",
+          "required": true
+        }
+      ]
+    },
+    "decisionContexts": {
+      "preemptive-qa-backlog": {
+        "ownerMemberIds": [
+          "programmatic-qa-runner"
+        ],
+        "description": "GCT-driven QA findings converted into Swarm Manager fix/chore/execute backlog items."
+      },
+      "deep-audit-backlog": {
+        "ownerMemberIds": [
+          "quality-auditor"
+        ],
+        "description": "Judgment-based structural audit findings converted into Swarm Manager execute backlog items."
+      }
+    },
+    "knowledgeTopics": {
+      "reviewed-scenario/<scenario-id>": {
+        "ownerMemberId": "programmatic-qa-runner",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "dependency-wiring": {
+        "ownerMemberId": "programmatic-qa-runner",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "deep-audit/<scenario-id>/<skill-id>": {
+        "ownerMemberId": "quality-auditor",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "programmatic-qa-runner": {
+        "lane": "Run GCT-driven readiness reviews and create evidence-rich Swarm Manager backlog items for failing scenarios.",
+        "ownedDecisionContexts": [
+          "preemptive-qa-backlog"
+        ],
+        "pendingOwnedDecisionCap": 6,
+        "requiredKnowledgeTopics": [
+          "reviewed-scenario/<scenario-id>",
+          "dependency-wiring"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "task"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "decision"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not modify target scenario code directly.",
+          "Do not create backlog items for planned scenarios whose directory does not exist."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 3,
+        "taskParameters": {
+          "reviewQueueLimit": 3,
+          "cooldownRespected": true,
+          "descriptionMustBeSelfContained": true
+        }
+      },
+      "quality-auditor": {
+        "lane": "Perform deep structural audits using steer skills and create execute backlog items with draft plans when findings are material.",
+        "ownedDecisionContexts": [
+          "deep-audit-backlog"
+        ],
+        "pendingOwnedDecisionCap": 6,
+        "requiredKnowledgeTopics": [
+          "deep-audit/<scenario-id>/<skill-id>"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "task"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "decision"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not modify target scenario code directly.",
+          "Do not repeat a scenario/skill deep audit within seven days."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 1,
+        "taskParameters": {
+          "recencyWindowDays": 7,
+          "skillRotation": [
+            "screaming-architecture-audit",
+            "boundary-of-responsibility-enforcement",
+            "seam-discovery-and-enforcement",
+            "invariant-discovery-and-enforcement",
+            "cognitive-load-reduction",
+            "decision-boundary-extraction",
+            "code-cleanup"
+          ]
+        }
+      }
+    }
+  }
 }

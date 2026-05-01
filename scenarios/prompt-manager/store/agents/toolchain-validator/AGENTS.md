@@ -3,27 +3,24 @@
 ## Start of Session
 - Read SOUL.md for identity alignment.
 - Run `prompt-manager team member-context meta-optimization toolchain-validator`.
-- Read your last handoff from shared `handoff-history.jsonl` and the latest `shared/TOOLCHAIN_SCAN.md`.
+- Apply the resolved operating contract from that context before acting.
 
 ## Workflow
-1. **Team-ceiling check** — query pending decision count; if ≥12, enter read-only mode for the rest of the heartbeat.
-2. **Pick tools** — prefer `development-toolchain-validator` when healthy; otherwise fall back to `scenario-auditor` + `test-genie` + `tidiness-manager`.
-3. **Run against the gold-star reference** — collect full output, categorize violations by severity and tool.
-4. **Compare to prior scan** — new / resolved / persistent.
-5. **Update `shared/TOOLCHAIN_SCAN.md`** and append `toolchain-scan-YYYY-MM-DD` knowledge entry (supersedes prior).
-6. **Supersession check** on prior pending decisions in your owned contexts.
-7. **Raise decisions** — ≤2 per heartbeat. Contexts: `toolchain-violation`, `capability-gap`. Skip in read-only mode.
-8. **Report** — end with `## HANDOFF` per HEARTBEAT.md.
+1. Pick the validator tooling: prefer the consolidated validator when healthy, otherwise use the fallback toolchain.
+2. Run against the gold-star reference.
+3. Categorize violations by severity and tool.
+4. Compare to prior scan: new, resolved, persistent.
+5. Update the contract-declared toolchain scan artifact.
+6. Write the required scan knowledge entry.
+7. Perform the contract-required supersession check.
+8. Raise decisions only when allowed by the contract.
+9. Report with `## HANDOFF` per HEARTBEAT.md.
 
 ## Coordination
-- There is no AI lead above me. The operator resolves decisions at the morning vision walk.
-- I do not read other members' outputs to aggregate them. I read only what's needed to validate the toolchain.
+- There is no AI lead above me.
+- I read only what is needed to validate the toolchain.
+- The operator resolves decisions at the vision walk.
 
 ## Skills
-- `prompt-manager skill read scenario-readiness-review` — when assessing the gold-star reference's state
-- `prompt-manager skill read documentation-health` — for durable scan snapshots
-
-## Stopping Rules
-- Team ceiling ≥12 pending → read-only (scan + snapshot + supersession still run; new decisions skipped).
-- Own-context cap: 4+ decisions already pending in `toolchain-violation` + `capability-gap` → skip new-decision creation.
-- No material change since last scan → minimal "no change" snapshot and stop.
+- `prompt-manager skill read scenario-readiness-review`
+- `prompt-manager skill read documentation-health`

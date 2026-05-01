@@ -13,6 +13,7 @@
     "coordination",
     "execution",
     "decisionMode",
+    "operatingContract",
     "revision",
     "createdAt",
     "updatedAt"
@@ -128,6 +129,20 @@
       "type": "string",
       "enum": ["yolo", "approval"],
       "description": "Decision approval mode: yolo (agents can self-approve) or approval (requires human review)"
+    },
+    "operatingContract": {
+      "type": "object",
+      "description": "Structured source of truth for durable team/member operating policy rendered into heartbeat prompts.",
+      "required": ["schemaVersion", "governance", "documents", "decisionContexts", "knowledgeTopics", "members"],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "governance": { "type": "object" },
+        "documents": { "type": "object" },
+        "decisionContexts": { "type": "object" },
+        "knowledgeTopics": { "type": "object" },
+        "members": { "type": "object" }
+      },
+      "additionalProperties": true
     },
     "shared": {
       "type": "object",

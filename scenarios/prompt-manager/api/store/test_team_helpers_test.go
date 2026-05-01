@@ -1,6 +1,9 @@
 package store
 
-import "prompt-manager/teamconfig"
+import (
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
+)
 
 func newIndependentTestTeam(id, displayName string) *Team {
 	return &Team{
@@ -28,6 +31,7 @@ func newIndependentTestTeam(id, displayName string) *Team {
 			QueuePolicy:       teamconfig.QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode: teamconfig.DecisionModeYolo,
+		DecisionMode:      teamconfig.DecisionModeYolo,
+		OperatingContract: teamcontract.Minimal(teamconfig.DecisionModeYolo, "agent-1", "agent-2", "lead", "dev-1"),
 	}
 }

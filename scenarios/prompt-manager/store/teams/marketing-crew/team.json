@@ -33,5 +33,832 @@
   },
   "revision": 6,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-23T16:16:49Z"
+  "updatedAt": "2026-04-23T16:16:49Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "approval",
+      "teamPendingCeiling": {
+        "value": 12,
+        "readOnlyWhenAtOrAbove": true,
+        "rationale": "Tuned for a roughly 3/day operator review rate at the morning vision walk."
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      },
+      "staleDecisionPolicy": {
+        "afterHeartbeats": 14,
+        "ownerMemberId": "marketing-contrarian",
+        "requiredOutcomes": [
+          "supersede",
+          "reject",
+          "still-relevant-note"
+        ]
+      }
+    },
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "marketing-canon",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/STRATEGY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/AUDIENCES.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/CAMPAIGNS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/CHANNELS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/BRAND.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/ASSETS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/IMAGE_STYLE.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "marketing-crew",
+            "director-swarm",
+            "monetization"
+          ],
+          "rationale": "Canonical external voice, audience, channel, campaign, and brand state."
+        },
+        {
+          "id": "marketing-post-types",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/post-types/README.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "marketing-crew"
+          ],
+          "rationale": "Post-type activation discipline and index; individual post-type docs live below this folder."
+        },
+        {
+          "id": "marketing-strategies",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategies/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategies/ai-ugc-personas.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategies/funnel-patterns.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategies/hook-library.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "marketing-crew"
+          ],
+          "rationale": "Reusable strategy canon for hooks, funnel patterns, and AI-UGC rules."
+        },
+        {
+          "id": "narrative-canon",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/PITCH.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/NARRATIVE.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/FAQ.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/PRESS_KIT.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/PITCH_DECK.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "marketing-crew",
+            "director-swarm",
+            "monetization"
+          ],
+          "rationale": "Cross-team project-identity canon curated through brand-guideline-update decisions."
+        },
+        {
+          "id": "monetization-facts",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/CATALOG.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/PRICING.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/TIERS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/scenario-sku-map.json"
+            }
+          ],
+          "writePolicy": "read-only",
+          "consumers": [
+            "marketing-crew"
+          ],
+          "rationale": "Read-only SKU, pricing, tier, and scenario mapping facts for marketing claims."
+        }
+      ],
+      "notebooks": [
+        {
+          "id": "marketing-working-notebook",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/notebook/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/notebook/VIDEO_WORKAROUNDS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/notebook/POSTING_WORKAROUNDS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/notebook/CAMPAIGN_LESSONS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/notebook/DEV_LOG_CRAFT.md"
+            }
+          ],
+          "posture": "debt",
+          "writePolicy": "append-any-member",
+          "curatorMemberId": "brand-manager",
+          "promotionContext": "notebook-promotion"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "audience-scans-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "audience-scans.jsonl"
+          },
+          "kind": "append-only-log",
+          "required": true,
+          "ownerMemberId": "researcher"
+        },
+        {
+          "id": "campaign-drafts-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "campaign-drafts.jsonl"
+          },
+          "kind": "append-only-log",
+          "required": true
+        },
+        {
+          "id": "decisions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          "kind": "decision-stream",
+          "required": true
+        },
+        {
+          "id": "handoff-history-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "handoff-history.jsonl"
+          },
+          "kind": "handoff-history",
+          "required": true
+        },
+        {
+          "id": "knowledge-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          "kind": "knowledge-log",
+          "required": true
+        },
+        {
+          "id": "publish-log-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "publish-log.jsonl"
+          },
+          "kind": "append-only-log",
+          "required": true,
+          "ownerMemberId": "publisher"
+        },
+        {
+          "id": "published-improvements-log-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "published-improvements-log.jsonl"
+          },
+          "kind": "append-only-log",
+          "required": true,
+          "ownerMemberId": "publisher"
+        },
+        {
+          "id": "published-scenario-mentions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "published-scenario-mentions.jsonl"
+          },
+          "kind": "append-only-log",
+          "required": true,
+          "ownerMemberId": "publisher"
+        },
+        {
+          "id": "coverage-business",
+          "path": {
+            "base": "team-shared",
+            "path": "coverage/business.json"
+          },
+          "kind": "operator-state",
+          "required": true,
+          "ownerMemberId": "publisher"
+        },
+        {
+          "id": "coverage-oss-platform",
+          "path": {
+            "base": "team-shared",
+            "path": "coverage/oss-platform.json"
+          },
+          "kind": "operator-state",
+          "required": true,
+          "ownerMemberId": "publisher"
+        }
+      ]
+    },
+    "decisionContexts": {
+      "content-publish-proposal": {
+        "ownerMemberIds": [
+          "subscription-advertiser",
+          "oss-advertiser",
+          "publisher"
+        ],
+        "description": "Draft artifact or platform-variant pack ready for operator publish decision."
+      },
+      "campaign-launch-proposal": {
+        "ownerMemberIds": [
+          "brand-manager"
+        ],
+        "description": "Multi-artifact campaign with theme, timing, channel mix, and acquisition/retention hypothesis."
+      },
+      "brand-guideline-update": {
+        "ownerMemberIds": [
+          "brand-manager"
+        ],
+        "description": "Plan-of-record edit proposal across marketing or narrative canon."
+      },
+      "audience-update": {
+        "ownerMemberIds": [
+          "researcher"
+        ],
+        "description": "Persona or audience canon revision backed by converging observations."
+      },
+      "channel-update": {
+        "ownerMemberIds": [
+          "publisher"
+        ],
+        "description": "Operational per-platform rule change based on publishing friction."
+      },
+      "channel-strategy-update": {
+        "ownerMemberIds": [
+          "researcher"
+        ],
+        "description": "Strategic channel priority or activation update."
+      },
+      "post-type-proposal": {
+        "ownerMemberIds": [
+          "researcher"
+        ],
+        "description": "New post-type doc plus paired skill proposal backed by format-trend scans."
+      },
+      "hook-candidate-promotion": {
+        "ownerMemberIds": [
+          "researcher"
+        ],
+        "description": "Promote observed stable hooks into hook-library canon."
+      },
+      "coverage-gap": {
+        "ownerMemberIds": [
+          "subscription-advertiser",
+          "oss-advertiser",
+          "publisher"
+        ],
+        "description": "Deployed or imminent SKU/app has stale or missing marketing coverage."
+      },
+      "notebook-promotion": {
+        "ownerMemberIds": [
+          "brand-manager"
+        ],
+        "description": "Promote stable notebook debt into permanent structure."
+      },
+      "notebook-retirement": {
+        "ownerMemberIds": [
+          "brand-manager"
+        ],
+        "description": "Retire notebook debt obsoleted by shipped capability."
+      },
+      "capability-gap": {
+        "ownerMemberIds": [
+          "subscription-advertiser",
+          "oss-advertiser",
+          "publisher",
+          "researcher"
+        ],
+        "externalAuthorizedRaisers": [
+          "meta-optimization"
+        ],
+        "description": "Missing scenario, skill, or tool capability blocks marketing work; consumed by director-swarm."
+      },
+      "decision-rejection-proposed": {
+        "ownerMemberIds": [
+          "marketing-contrarian"
+        ],
+        "description": "Contrarian recommends rejecting or revising a pending marketing proposal."
+      },
+      "framework-update": {
+        "ownerMemberIds": [
+          "marketing-contrarian"
+        ],
+        "description": "Marketing failure-mode framework needs a concrete update."
+      }
+    },
+    "knowledgeTopics": {
+      "brand-snapshot-YYYY-MM-DD": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "subscription-ad-run-YYYY-MM-DD": {
+        "ownerMemberId": "subscription-advertiser",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "oss-ad-run-YYYY-MM-DD": {
+        "ownerMemberId": "oss-advertiser",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "coverage-snapshot-YYYY-MM-DD": {
+        "ownerMemberId": "publisher",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "audience-scan-YYYY-MM-DD": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "monetization-benchmark-adjacent/<topic>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "challenge-note/<decision-id>": {
+        "ownerMemberId": "marketing-contrarian",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "aging-scan-note/<decision-id>": {
+        "ownerMemberId": "marketing-contrarian",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "decision-application/<decision-id>": {
+        "ownerMemberId": "publisher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "brand-manager": {
+        "lane": "Steward marketing and narrative canon, curate the marketing notebook, and propose campaigns only when signal warrants.",
+        "ownedDecisionContexts": [
+          "campaign-launch-proposal",
+          "brand-guideline-update",
+          "notebook-promotion",
+          "notebook-retirement"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "brand-snapshot-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/narrative/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not review individual drafts before publisher; advertisers produce first-class drafts independently.",
+          "Do not edit plan-of-record or notebook entries directly; propose promotions, retirements, or canon edits."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "campaign-launch-proposal": 1,
+          "brand-guideline-update": 1,
+          "notebook-promotion": 2,
+          "notebook-retirement": 2
+        },
+        "taskParameters": {
+          "narrativeCanonTriggers": [
+            "accepted decision changes positioning",
+            "new SKU ships or launch window opens",
+            "systematic drift across >=3 recent drafts",
+            "notebook entry reaches promotion threshold",
+            "operator-flagged drift"
+          ]
+        }
+      },
+      "subscription-advertiser": {
+        "lane": "Generate subscription SKU marketing drafts and coverage-gap/capability-gap proposals without editing canon or publishing.",
+        "ownedDecisionContexts": [
+          "content-publish-proposal",
+          "coverage-gap",
+          "capability-gap"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "subscription-ad-run-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "campaign-drafts.jsonl"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/notebook/"
+          },
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never frame subscriptions as paywalling core features.",
+          "Never auto-publish.",
+          "Missing tooling becomes capability-gap plus notebook note."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "content-publish-proposal": 2,
+          "coverage-gap": 2,
+          "capability-gap": 1
+        }
+      },
+      "oss-advertiser": {
+        "lane": "Generate builder-in-public and OSS narrative drafts from Vrooli activity and x-dev-log evidence.",
+        "ownedDecisionContexts": [
+          "content-publish-proposal",
+          "coverage-gap",
+          "capability-gap"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "oss-ad-run-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "campaign-drafts.jsonl"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/notebook/"
+          },
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Frame OSS self-host as deliberate brand credibility, not revenue leak.",
+          "Do not market subscription features.",
+          "If data-source scenarios are unhealthy, raise capability-gap instead of shipping partial claims."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "content-publish-proposal": 2,
+          "coverage-gap": 1,
+          "capability-gap": 1
+        }
+      },
+      "publisher": {
+        "lane": "Execute approved publish proposals, polish platform variants, maintain publish logs and coverage state, and raise scheduling gaps.",
+        "ownedDecisionContexts": [
+          "content-publish-proposal",
+          "channel-update",
+          "capability-gap"
+        ],
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "coverage-snapshot-YYYY-MM-DD",
+          "decision-application/<decision-id>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "publish-log.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "published-scenario-mentions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "published-improvements-log.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "coverage/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/notebook/"
+          },
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never auto-publish without an accepted content-publish-proposal.",
+          "Never drop honesty flags during polish.",
+          "Do not rewrite advertiser voice beyond platform fit and correctness."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "content-publish-proposal": 2,
+          "channel-update": 1,
+          "capability-gap": 1
+        }
+      },
+      "researcher": {
+        "lane": "Scan audience, competitor, trend, craft, format, hook, and benchmark-adjacent signals before proposing canon updates.",
+        "ownedDecisionContexts": [
+          "audience-update",
+          "channel-strategy-update",
+          "post-type-proposal",
+          "hook-candidate-promotion",
+          "capability-gap"
+        ],
+        "pendingOwnedDecisionCap": 2,
+        "requiredKnowledgeTopics": [
+          "audience-scan-YYYY-MM-DD",
+          "monetization-benchmark-adjacent/<topic>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "audience-scans.jsonl"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md"
+          },
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never draft content or create publish proposals.",
+          "Never hallucinate engagement numbers.",
+          "Audience and post-type proposals require at least three converging scans."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "audience-update": 1,
+          "channel-strategy-update": 1,
+          "post-type-proposal": 1,
+          "hook-candidate-promotion": 1,
+          "capability-gap": 1
+        }
+      },
+      "marketing-contrarian": {
+        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale decision hygiene.",
+        "ownedDecisionContexts": [
+          "decision-rejection-proposed",
+          "framework-update"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "challenge-note/<decision-id>",
+          "aging-scan-note/<decision-id>"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/narrative/"
+          },
+          {
+            "base": "team-shared",
+            "path": "campaign-drafts.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "publish-log.jsonl"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never generate positive-action decisions.",
+          "Do not invent new failure modes inside a challenge; propose framework-update instead.",
+          "Do not relitigate resolved decisions."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapsByContext": {
+          "decision-rejection-proposed": 2,
+          "framework-update": 1
+        },
+        "taskParameters": {
+          "failureModeFrameworkSource": "docs/marketing/STRATEGY.md#anti-patterns",
+          "reviewPostTypeV1Status": true
+        }
+      }
+    }
+  }
 }

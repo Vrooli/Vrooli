@@ -33,5 +33,428 @@
   },
   "revision": 1,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-04-28T00:00:00Z"
+  "updatedAt": "2026-04-28T00:00:00Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "approval",
+      "teamPendingCeiling": {
+        "value": 12,
+        "readOnlyWhenAtOrAbove": true,
+        "rationale": "Keeps infra-health decisions sized for operator review at the morning vision walk."
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      },
+      "staleDecisionPolicy": {
+        "afterHeartbeats": 7,
+        "ownerMemberId": "infra-contrarian",
+        "requiredOutcomes": [
+          "supersede",
+          "reject",
+          "still-relevant-note"
+        ]
+      }
+    },
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "infra-health-index",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/README.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "rationale": "Index and organizing principle for infrastructure health canon."
+        },
+        {
+          "id": "reliability-targets",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/RELIABILITY_TARGETS.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "rationale": "Reliability targets for critical platform components."
+        },
+        {
+          "id": "instrumentation-roadmap",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/INSTRUMENTATION_ROADMAP.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "rationale": "Missing stats and observability surfaces that block stronger findings."
+        },
+        {
+          "id": "cross-platform-ledger",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/CROSS_PLATFORM_LEDGER.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "rationale": "Internal-code cross-platform assumptions and target tiers."
+        }
+      ],
+      "notebooks": [],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "decisions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          "kind": "decision-stream",
+          "required": true
+        },
+        {
+          "id": "knowledge-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          "kind": "knowledge-log",
+          "required": true
+        },
+        {
+          "id": "handoff-history-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "handoff-history.jsonl"
+          },
+          "kind": "handoff-history",
+          "required": true
+        },
+        {
+          "id": "runtime-lessons",
+          "path": {
+            "base": "team-shared",
+            "path": "RUNTIME_LESSONS.md"
+          },
+          "ownerMemberId": "runtime-health-scanner",
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "platform-audit",
+          "path": {
+            "base": "team-shared",
+            "path": "PLATFORM_AUDIT.md"
+          },
+          "ownerMemberId": "platform-code-auditor",
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "aging-scan",
+          "path": {
+            "base": "team-shared",
+            "path": "AGING_SCAN.md"
+          },
+          "ownerMemberId": "infra-contrarian",
+          "kind": "rolling-artifact",
+          "required": true
+        }
+      ]
+    },
+    "decisionContexts": {
+      "runtime-health-finding": {
+        "ownerMemberIds": [
+          "runtime-health-scanner"
+        ],
+        "description": "Runtime pattern warrants operator-routed action."
+      },
+      "platform-code-finding": {
+        "ownerMemberIds": [
+          "platform-code-auditor"
+        ],
+        "description": "Internal Vrooli platform code has an actionable quality or reliability finding."
+      },
+      "cross-platform-debt": {
+        "ownerMemberIds": [
+          "platform-code-auditor"
+        ],
+        "description": "Internal code contains a platform assumption that belongs in the cross-platform ledger."
+      },
+      "instrumentation-gap": {
+        "ownerMemberIds": [
+          "runtime-health-scanner",
+          "platform-code-auditor"
+        ],
+        "description": "Missing stat or signal blocked a finding or audit."
+      },
+      "capability-gap": {
+        "ownerMemberIds": [
+          "runtime-health-scanner",
+          "platform-code-auditor"
+        ],
+        "externalAuthorizedRaisers": [
+          "director-swarm"
+        ],
+        "description": "Missing CLI verb, scenario, or tool capability blocks infra-health work."
+      },
+      "reliability-target-update": {
+        "ownerMemberIds": [
+          "runtime-health-scanner"
+        ],
+        "description": "Reliability target should change based on observed baseline evidence."
+      },
+      "decision-rejection-proposed": {
+        "ownerMemberIds": [
+          "infra-contrarian"
+        ],
+        "description": "Contrarian recommends rejecting or revising a pending infra-health decision."
+      },
+      "framework-meta": {
+        "ownerMemberIds": [
+          "infra-contrarian"
+        ],
+        "description": "Team rubric, triage ladder, or decision discipline needs an update."
+      }
+    },
+    "knowledgeTopics": {
+      "runtime-health-YYYY-MM-DD": {
+        "ownerMemberId": "runtime-health-scanner",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "platform-audit-YYYY-MM-DD": {
+        "ownerMemberId": "platform-code-auditor",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "infra-contrarian-YYYY-MM-DD": {
+        "ownerMemberId": "infra-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "challenge-note/<decision-id>": {
+        "ownerMemberId": "infra-contrarian",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "runtime-health-scanner": {
+        "lane": "Find aggregate runtime-health patterns across autoheal, system-monitor, and lifecycle history; produce one concrete finding at a time.",
+        "ownedDecisionContexts": [
+          "runtime-health-finding",
+          "instrumentation-gap",
+          "capability-gap",
+          "reliability-target-update"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "runtime-health-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "RUNTIME_LESSONS.md"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/infra-health/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Pick one signal per heartbeat; depth over breadth.",
+          "Never edit platform, autoheal, or system-monitor code."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "triageLadder": [
+            "repeat failures",
+            "heal-loops",
+            "slow-restart trends",
+            "investigation clusters",
+            "quiet-day shortcut"
+          ]
+        }
+      },
+      "platform-code-auditor": {
+        "lane": "Audit one slice of internal Vrooli platform code per heartbeat and route concrete findings through decisions.",
+        "ownedDecisionContexts": [
+          "platform-code-finding",
+          "cross-platform-debt",
+          "instrumentation-gap",
+          "capability-gap"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "platform-audit-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "PLATFORM_AUDIT.md"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/infra-health/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never edit internal platform code directly.",
+          "Do not audit scenario code; scenario-qa owns that lane."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "sliceRotation": [
+            "cli-core",
+            "cli-scenario-lifecycle",
+            "cli-setup",
+            "lifecycle-internals",
+            "infra-scripts",
+            "harness",
+            "repo-contract"
+          ],
+          "dimensions": [
+            "architecture",
+            "security",
+            "test coverage",
+            "documentation",
+            "cross-platform readiness",
+            "signal and feedback surface",
+            "instrumentation gaps"
+          ]
+        }
+      },
+      "infra-contrarian": {
+        "lane": "Challenge infra-health decisions against the team failure-mode rubric and run the stale decision scan.",
+        "ownedDecisionContexts": [
+          "decision-rejection-proposed",
+          "framework-meta"
+        ],
+        "newDecisionCapsByContext": {
+          "decision-rejection-proposed": 2,
+          "framework-meta": 1
+        },
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "infra-contrarian-YYYY-MM-DD",
+          "challenge-note/<decision-id>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "AGING_SCAN.md"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/infra-health/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not generate runtime or platform findings.",
+          "Do not edit code or plan-of-record docs.",
+          "Do not synthesize other members into a leader-style brief."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "reviewCapPerHeartbeat": 5,
+          "frameworkMetaCadence": "at most one per calendar month",
+          "failureModes": [
+            "alarm noise",
+            "polishing",
+            "premature cross-platform",
+            "instrumentation sprawl",
+            "target drift",
+            "scope creep",
+            "measurement gap"
+          ]
+        }
+      }
+    }
+  }
 }

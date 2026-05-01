@@ -1121,11 +1121,34 @@ Create a new team.
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 2
   },
-  "decisionMode": "approval"
+  "decisionMode": "approval",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "approval",
+      "teamPendingCeiling": {
+        "value": 12,
+        "readOnlyWhenAtOrAbove": true
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      }
+    },
+    "documents": {
+      "planOfRecord": [],
+      "notebooks": [],
+      "sharedState": []
+    },
+    "decisionContexts": {},
+    "knowledgeTopics": {},
+    "members": {}
+  }
 }
 ```
 
-**Required Fields:** `displayName`, `runtime`, `coordination`, `execution`
+**Required Fields:** `displayName`, `runtime`, `coordination`, `execution`, `operatingContract`
 
 **Optional Fields:** `id` (auto-generated from displayName), `mission`, `decisionMode`
 
@@ -1136,6 +1159,8 @@ Create a new team.
 **execution.queuePolicy Values:** `serialized`, `bounded-parallel`
 
 **decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
+
+**operatingContract:** Required structured source of truth for team/member operating policy. `operatingContract.governance.decisionMode` must match `decisionMode`. Heartbeat prompts render a member-specific `Resolved Operating Contract` section from this object and fail if required policy is missing or invalid.
 
 **Response:** Created team object with `201 Created`.
 

@@ -485,6 +485,8 @@ prompt-manager team create "Director Swarm" --runtime-mode=single-process --coor
 
 When you choose `--runtime-mode=single-process`, the CLI resolves the team onto the leader-led serialized preset before sending the request.
 
+Teams are stored with a required `operatingContract`. The default create flow seeds an empty contract for teams with no members; production teams should replace it with member policies before enabling heartbeats.
+
 ### prompt-manager team update
 
 Update an existing team.
@@ -506,6 +508,26 @@ prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|fal
 | Capability override flags | Update prompt and coordination capabilities individually |
 | `--decision-mode` | Change decision policy |
 | `--json` | Output as JSON |
+
+### prompt-manager team operating-contract
+
+Print the stored operating contract for a team.
+
+```bash
+prompt-manager team operating-contract <team-id>
+```
+
+The output is the `team.json.operatingContract` object. Heartbeat prompts render a member-specific resolved view from this contract.
+
+### prompt-manager team validate-contract
+
+Validate the team's operating contract through the API load path.
+
+```bash
+prompt-manager team validate-contract <team-id> [--json]
+```
+
+Invalid contracts fail with the same validation errors used by team loading and heartbeat prompt building.
 
 Enabled leader-led teams require `coordination.leadAgentId` to reference an active team member. The API will reject updates that would enable an invalid lead configuration.
 

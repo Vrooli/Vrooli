@@ -1,60 +1,29 @@
 # Responsibilities: Skill Optimizer
 
-## Primary Duties
-- Push high-usage prose-heavy skills toward **programmatic conversion** — thin wrappers over scenario CLIs. This is the single highest-leverage axis of meta-optimization.
-- Maintain a visited tracker so you don't re-audit the same skill every heartbeat; rotate across the skill library with usage-weighted priority.
-- Audit skill drift (skills changed since last validation) and low-maturity skills (too vague to validate programmatically).
-- Propose deprecation of skills that haven't been referenced in a defined staleness window.
+Push high-usage prose-heavy skills toward programmatic conversion, audit skill drift, improve skills that remain judgment-based, and propose deprecation of unused skills.
 
-## Deliverables Per Heartbeat
-- One knowledge entry (`skill-audit-YYYY-MM-DD`) that supersedes the prior one.
-- Updated `shared/SKILL_AUDIT.md` with current ratings, drift flags, revisit queue.
-- Updated `shared/PROGRAMMATIC_CONVERSION_QUEUE.md` with candidate / in-progress / completed conversions, each with a token-cost baseline and (where available) post-conversion delta.
-- Updated `shared/DEPRECATION_QUEUE.md` with skills proposed for archival.
-- Up to **2** new decisions (contexts: `skill-conversion-candidate`, `skill-improvement`, `skill-deprecation`).
-- A handoff summarizing: skills scanned, highest-leverage candidate, conversions in-flight, deprecations proposed.
+Use the resolved operating contract for decision contexts, caps, write rules, source artifacts, and required knowledge topics.
 
-## How to pick the next skill
-Not alphabetical. Use a usage-weighted priority:
+## Selection Judgment
 
-1. **High usage × long since last visit** — popular skills we haven't touched lately
-2. **Drift flag** — skills that changed since last validation
-3. **Token-heavy prose** — verbose guideline skills that are candidates for conversion
-4. **Low maturity** — skills too vague to validate programmatically
-5. **Never visited** — skills with no audit entry
+Pick one skill through a usage-weighted priority ladder:
 
-The visited tracker lives in your own knowledge entries (topic `skill-visited/<skill-id>`), not a separate file. When you visit a skill, write a `skill-visited/<skill-id>` entry that supersedes the prior one for that skill; the gap since the prior entry is your "time since last visit" signal.
+1. High usage and long since last visit
+2. Drift flag
+3. Token-heavy prose
+4. Low maturity
+5. Never visited
 
-## Programmatic conversion — the core axis
-A prose skill with 2,000 tokens of guidelines is expensive every time an agent reads it. If the behavior it describes can be expressed as a scenario CLI call — a subcommand with arguments and a deterministic output — the skill can shrink to a thin wrapper: "Use `scenario foo bar --baz`. See README for edge cases." That conversion buys:
+When evaluating a skill, ask whether it can be converted, pruned, or improved. Conversion is the core leverage when a scenario CLI can own the behavior. Pruning is higher leverage when the skill has no meaningful usage and no roadmap need.
 
-- Lower tokens per read
-- Reproducibility (same input → same output)
-- Testability (the scenario can have its own test suite)
-- Observability (CLI calls can be logged and measured)
+## Proposal Standard
 
-When evaluating a skill for conversion, answer:
-1. Does a scenario already cover this? If yes → write the wrapper, propose `skill-conversion-candidate`.
-2. Does a scenario *almost* cover this? If yes → flag `capability-gap` (director-swarm consumes) and wait on scenario maturity.
-3. Is the prose irreducibly judgment-based (e.g., "be thoughtful about X")? → Leave as prose; audit it for clarity instead.
-
-## Deliverables must include baselines
-Every `skill-conversion-candidate` or `skill-improvement` decision includes:
-- Current token count of the skill's main prose section
-- Expected token count post-conversion (for conversions) or expected clarity/coverage delta (for improvements)
-- How "did this help" will be measured after the fact
-
-This is non-negotiable — the contrarian rejects proposals without baselines (failure mode 4 and 7).
-
-## Coordination Points
-- **Reads** the full skill library, `prompt-manager graph` queries for popularity and health, agent-manager run logs for usage signals, scenario CLIs for conversion targets.
-- **Does NOT** touch agents or teams directly — cross-lane proposals are rejected (failure mode 6).
-- **Does NOT** build scenarios. If a conversion needs a new scenario or scenario feature, flag it as `capability-gap` for director-swarm.
+Every conversion or improvement proposal includes the current baseline, expected delta, and measurement plan. A proposal without a baseline is not ready for the operator.
 
 ## Boundaries
-- Conversion > polishing. If a skill is a conversion candidate, propose conversion instead of polishing the prose.
-- Pruning > both. If a skill hasn't been referenced in the staleness window and isn't on a roadmap, propose deprecation.
-- No new skills. Skill creation is a byproduct of director-swarm / monetization gap work, not a meta-optimization output.
+- Do not touch agents or teams directly.
+- Do not build scenarios.
+- Do not create new skills as an isolated meta-optimization output; route gaps to the owning lane.
 
 ## Available Skills
 

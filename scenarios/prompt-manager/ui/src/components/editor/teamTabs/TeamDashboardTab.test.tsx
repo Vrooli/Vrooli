@@ -4,6 +4,7 @@ import { TeamDashboardTab } from './TeamDashboardTab'
 import type { TeamDetails } from '@/types/team'
 import {
   buildBoundedParallelExecution,
+  buildDefaultCreateTeamRequest,
   buildIndependentCoordination,
   buildLeaderLedCoordination,
 } from '@/lib/schemas'
@@ -35,6 +36,7 @@ const baseTeam: TeamDetails = {
   coordination: buildIndependentCoordination(),
   execution: buildBoundedParallelExecution(2),
   decisionMode: 'yolo',
+  operatingContract: buildDefaultCreateTeamRequest('Scenario QA').operatingContract,
   memberCount: 2,
   roles: [],
   members: [

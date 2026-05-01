@@ -418,6 +418,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 	// Verify all expected kinds in correct order
 	expectedKinds := []string{
 		"agent-file",
+		"team-operating-contract",
 		"team-responsibilities",
 		"team-org-context",
 		"team-coordination",

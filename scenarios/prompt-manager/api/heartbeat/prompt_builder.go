@@ -6,6 +6,7 @@ import (
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 	"sort"
 	"strings"
 )
@@ -149,6 +150,23 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 				Content:    "# Team Charter (shared/TEAM.md)\n\n" + teamDoc,
 			})
 		}
+
+		operatingContract, err := teamcontract.RenderMember(team.OperatingContract, teamcontract.RenderInput{
+			TeamID:       team.ID,
+			TeamName:     team.DisplayName,
+			DecisionMode: team.DecisionMode,
+			MemberID:     agentID,
+			StoreDir:     b.teamStore.StoreDir(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		sections = append(sections, PromptSection{
+			Kind:       "team-operating-contract",
+			Label:      "Resolved Operating Contract",
+			SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract", teamID),
+			Content:    operatingContract,
+		})
 
 		// 2. Team member RESPONSIBILITIES.md
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)

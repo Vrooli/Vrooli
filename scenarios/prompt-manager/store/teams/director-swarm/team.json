@@ -33,5 +33,376 @@
   },
   "revision": 13,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-22T11:17:21Z"
+  "updatedAt": "2026-04-22T11:17:21Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "approval",
+      "teamPendingCeiling": {
+        "value": 12,
+        "readOnlyWhenAtOrAbove": true,
+        "rationale": "Keeps operator-reviewed director decisions from stacking faster than the morning vision walk can resolve them."
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      }
+    },
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "portfolio-philosophy",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/PORTFOLIO_PHILOSOPHY.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "director-swarm",
+            "monetization",
+            "meta-optimization"
+          ],
+          "rationale": "Canonical portfolio ranking criteria and initiative/backlog-item threshold."
+        },
+        {
+          "id": "roadmap",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/ROADMAP.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "director-swarm",
+            "monetization",
+            "meta-optimization"
+          ],
+          "rationale": "Thematic initiative roadmap; Swarm Manager remains authoritative for live status."
+        },
+        {
+          "id": "outcomes-charter",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/OUTCOMES_CHARTER.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "director-swarm"
+          ],
+          "rationale": "Outcome categories and Command Center gap-closure contract."
+        },
+        {
+          "id": "project-vision",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "VISION.md"
+            }
+          ],
+          "writePolicy": "read-only",
+          "consumers": [
+            "director-swarm",
+            "marketing-crew",
+            "monetization"
+          ],
+          "rationale": "Operator-authored project manifesto; agents flag drift only."
+        },
+        {
+          "id": "architecture-reference",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/concepts/ARCHITECTURE.md"
+            }
+          ],
+          "writePolicy": "read-only",
+          "consumers": [
+            "director-swarm",
+            "marketing-crew",
+            "monetization",
+            "meta-optimization"
+          ],
+          "rationale": "Canonical technical reference; agents flag drift only."
+        }
+      ],
+      "notebooks": [],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "decisions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          "kind": "decision-stream",
+          "required": true
+        },
+        {
+          "id": "handoff-history-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "handoff-history.jsonl"
+          },
+          "kind": "handoff-history",
+          "required": true
+        },
+        {
+          "id": "knowledge-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          "kind": "knowledge-log",
+          "required": true
+        },
+        {
+          "id": "tasks-json",
+          "path": {
+            "base": "team-shared",
+            "path": "tasks.json"
+          },
+          "kind": "task-board",
+          "required": true
+        }
+      ]
+    },
+    "decisionContexts": {
+      "initiative-portfolio": {
+        "ownerMemberIds": [
+          "portfolio-manager"
+        ],
+        "description": "Rank initiatives as active now, track, or defer."
+      },
+      "initiative-supplement": {
+        "ownerMemberIds": [
+          "portfolio-manager"
+        ],
+        "description": "Proposed supporting backlog work under existing initiatives."
+      },
+      "initiative-proposal": {
+        "ownerMemberIds": [
+          "portfolio-manager"
+        ],
+        "description": "Candidate new initiatives for operator approval."
+      },
+      "initiative-readiness": {
+        "ownerMemberIds": [
+          "portfolio-manager"
+        ],
+        "description": "Judgment about whether backlog items are detailed enough to execute."
+      },
+      "outcome-gap": {
+        "ownerMemberIds": [
+          "outcome-strategist"
+        ],
+        "description": "Approval to build missing Command Center data pipelines."
+      },
+      "outcome-direction": {
+        "ownerMemberIds": [
+          "outcome-strategist"
+        ],
+        "description": "Outcome-driven recommendation that would change portfolio emphasis."
+      },
+      "vision-update": {
+        "ownerMemberIds": [
+          "vision-walk-prep"
+        ],
+        "externalAuthorizedRaisers": [
+          "operator"
+        ],
+        "description": "Operator-authored vision or architecture canon drift signal; prep surfaces only."
+      }
+    },
+    "knowledgeTopics": {
+      "decision-application/<decision-id>": {
+        "ownerMemberId": "portfolio-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "portfolio-snapshot-YYYY-MM-DD": {
+        "ownerMemberId": "portfolio-manager",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "outcome-snapshot-YYYY-MM-DD": {
+        "ownerMemberId": "outcome-strategist",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "vision-walk/<date>/<slug>": {
+        "ownerMemberId": "vision-walk-prep",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "portfolio-manager": {
+        "lane": "Keep Swarm Manager initiative flow healthy; apply accepted portfolio decisions and propose bounded corrections.",
+        "ownedDecisionContexts": [
+          "initiative-portfolio",
+          "initiative-supplement",
+          "initiative-proposal",
+          "initiative-readiness"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "decision-application/<decision-id>",
+          "portfolio-snapshot-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          },
+          {
+            "kind": "task"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/director-swarm/"
+          },
+          {
+            "base": "repo-root",
+            "path": "VISION.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Human approval is required before creating Swarm Manager backlog items unless an accepted decision explicitly authorizes the exact proposal.",
+          "Do not deploy teams, trigger external execution, or make code changes."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 3,
+        "taskParameters": {
+          "requiredScenarioCoverageCheck": "Run swarm-manager initiatives context before proposing scenario-scoped initiatives.",
+          "acceptedDecisionMarkerTopic": "decision-application/<decision-id>"
+        }
+      },
+      "outcome-strategist": {
+        "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs.",
+        "ownedDecisionContexts": [
+          "outcome-gap",
+          "outcome-direction"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "outcome-snapshot-YYYY-MM-DD",
+          "decision-application/<decision-id>"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "task"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/director-swarm/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Stay blocked until Command Center exposes stable outcome surfaces.",
+          "Recommend; do not authorize portfolio changes."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 3
+      },
+      "vision-walk-prep": {
+        "lane": "Compile a read-only morning briefing across portfolio, monetization, marketing, meta-optimization, infra-health, and life-audit signals.",
+        "ownedDecisionContexts": [
+          "vision-update"
+        ],
+        "pendingOwnedDecisionCap": 0,
+        "requiredKnowledgeTopics": [
+          "vision-walk/<date>/<slug>"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "task"
+          },
+          {
+            "base": "repo-root",
+            "path": "VISION.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Strictly read-only: do not create decisions, modify backlog items, trigger side effects, or choose answers for the operator."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 0,
+        "taskParameters": {
+          "maxSummariesPerPhase": 3,
+          "preserveWalkCheckpoint": true,
+          "capabilityGapConsumer": "director-swarm"
+        }
+      }
+    }
+  }
 }

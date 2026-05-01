@@ -33,5 +33,747 @@
   },
   "revision": 2,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-22T11:17:33Z"
+  "updatedAt": "2026-04-22T11:17:33Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {
+      "decisionMode": "approval",
+      "teamPendingCeiling": {
+        "value": 12,
+        "readOnlyWhenAtOrAbove": true,
+        "rationale": "Tuned for a roughly 3/day operator review rate; prevents the monetization queue from outpacing the morning vision walk."
+      },
+      "supersession": {
+        "requiredBeforeNewDecision": true,
+        "allowedInReadOnlyMode": true,
+        "replacementMustSetSupersedes": true
+      },
+      "staleDecisionPolicy": {
+        "afterHeartbeats": 14,
+        "ownerMemberId": "contrarian",
+        "requiredOutcomes": [
+          "supersede",
+          "reject",
+          "still-relevant-note"
+        ]
+      }
+    },
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "monetization-strategy",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/STRATEGY.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "marketing-crew"
+          ],
+          "rationale": "Positioning principles, OSS/subscription framing, agent-surface expansion, and services discipline."
+        },
+        {
+          "id": "monetization-catalog",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/CATALOG.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalog/base/business.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalog/base/lifestyle.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalog/addons/elder-care.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalog/addons/family-with-kids.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalog/addons/property-services.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/scenario-sku-map.json"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "director-swarm",
+            "marketing-crew",
+            "landing-page-business-suite"
+          ],
+          "rationale": "Canonical SKU, add-on, scenario-role, and bundle graph."
+        },
+        {
+          "id": "monetization-tiers-pricing",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/TIERS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/PRICING.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "landing-page-business-suite",
+            "scenario-to-cloud"
+          ],
+          "rationale": "Delivery tier and price matrix used by product, cloud packaging, and pricing surfaces."
+        },
+        {
+          "id": "monetization-financial-model",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/FINANCIAL_MODEL.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "director-swarm"
+          ],
+          "rationale": "Cost, runway, default-alive, services-capacity, and model-assumption source of truth."
+        },
+        {
+          "id": "monetization-funnel",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/FUNNEL.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "marketing-crew"
+          ],
+          "rationale": "AARRR-style funnel targets, bottleneck vocabulary, and retention framing."
+        },
+        {
+          "id": "monetization-revenue-lines",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/REVENUE_LINES.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "director-swarm"
+          ],
+          "rationale": "Subscription and services-line discipline, productization targets, and sunset rules."
+        },
+        {
+          "id": "monetization-telemetry-roadmap",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/TELEMETRY_ROADMAP.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "scenario-qa",
+            "director-swarm"
+          ],
+          "rationale": "Metric-to-capability gap map for pending telemetry labels."
+        },
+        {
+          "id": "monetization-benchmarks",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/BENCHMARKS.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "marketing-crew"
+          ],
+          "rationale": "Curated market benchmarks proposed by market-validator and accepted by the operator."
+        },
+        {
+          "id": "monetization-input-guidance",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/HOW_TO_GATHER_INPUTS.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization"
+          ],
+          "rationale": "Per-field guidance paired with operator-inputs.json."
+        },
+        {
+          "id": "monetization-channels",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/CHANNELS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/channels/app-stores.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/channels/community-content.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/channels/in-product-expansion.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/channels/oss-discovery.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/channels/skill-registries.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/channels/web-seo.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "monetization",
+            "marketing-crew"
+          ],
+          "rationale": "Discovery-channel map, activation triggers, telemetry requirements, and trust prerequisites."
+        }
+      ],
+      "notebooks": [],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "rolling-artifact",
+          "required": true
+        },
+        {
+          "id": "decisions-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          "kind": "decision-stream",
+          "required": true
+        },
+        {
+          "id": "knowledge-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          "kind": "knowledge-log",
+          "required": true
+        },
+        {
+          "id": "handoff-history-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "handoff-history.jsonl"
+          },
+          "kind": "handoff-history",
+          "required": true
+        },
+        {
+          "id": "ledger-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "ledger.jsonl"
+          },
+          "ownerMemberId": "financial-tracker",
+          "kind": "append-only-log",
+          "required": true
+        },
+        {
+          "id": "market-scans-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "market-scans.jsonl"
+          },
+          "ownerMemberId": "market-validator",
+          "kind": "append-only-log",
+          "required": true
+        },
+        {
+          "id": "operator-inputs-json",
+          "path": {
+            "base": "team-shared",
+            "path": "operator-inputs.json"
+          },
+          "ownerMemberId": "financial-tracker",
+          "kind": "operator-state",
+          "required": true
+        },
+        {
+          "id": "opportunities-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "opportunities.jsonl"
+          },
+          "ownerMemberId": "opportunity-scout",
+          "kind": "append-only-log",
+          "required": true
+        }
+      ]
+    },
+    "decisionContexts": {
+      "catalog-promotion": {
+        "ownerMemberIds": [
+          "catalog-strategist",
+          "opportunity-scout"
+        ],
+        "description": "Scenario, SKU, add-on, services line, or candidate deserves operator promotion review."
+      },
+      "catalog-mapping-update": {
+        "ownerMemberIds": [
+          "catalog-strategist"
+        ],
+        "description": "scenario-sku-map.json or scenario role mapping should change."
+      },
+      "channel-activation": {
+        "ownerMemberIds": [
+          "catalog-strategist",
+          "opportunity-scout"
+        ],
+        "description": "Candidate discovery channel activation trigger has fired and telemetry/prereqs are present."
+      },
+      "channel-attribution-gap": {
+        "ownerMemberIds": [
+          "financial-tracker"
+        ],
+        "description": "Active or pilot channel lacks attribution telemetry required for monetization decisions."
+      },
+      "sku-retirement": {
+        "ownerMemberIds": [
+          "catalog-strategist"
+        ],
+        "description": "SKU, add-on, tier, or services line should retire because it no longer coheres or missed its target."
+      },
+      "services-activation": {
+        "ownerMemberIds": [
+          "catalog-strategist",
+          "opportunity-scout"
+        ],
+        "description": "Candidate services line trigger has fired and deserves operator activation review."
+      },
+      "services-conversion": {
+        "ownerMemberIds": [
+          "catalog-strategist"
+        ],
+        "description": "Services engagement should convert into subscription or productized offering."
+      },
+      "services-sunset": {
+        "ownerMemberIds": [
+          "catalog-strategist"
+        ],
+        "description": "Services line missed its productization target or sunset date."
+      },
+      "pricing-decision": {
+        "ownerMemberIds": [
+          "financial-tracker",
+          "market-validator"
+        ],
+        "description": "Price setting or adjustment for a specific SKU, tier, bundle, or revenue line."
+      },
+      "financial-model-assumption-update": {
+        "ownerMemberIds": [
+          "financial-tracker",
+          "market-validator"
+        ],
+        "description": "Load-bearing financial or market assumption needs revision."
+      },
+      "runway-warning": {
+        "ownerMemberIds": [
+          "financial-tracker"
+        ],
+        "description": "Material runway or default-alive gap change requires operator attention."
+      },
+      "services-trap-warning": {
+        "ownerMemberIds": [
+          "financial-tracker"
+        ],
+        "description": "Services time, services/subscription ratio, or services discipline exceeded guardrails."
+      },
+      "benchmark-update": {
+        "ownerMemberIds": [
+          "market-validator"
+        ],
+        "description": "New or refreshed benchmark should update BENCHMARKS.md."
+      },
+      "funnel-bottleneck": {
+        "ownerMemberIds": [
+          "financial-tracker"
+        ],
+        "description": "Telemetry identifies a funnel stage as the current bottleneck."
+      },
+      "retention-concern": {
+        "ownerMemberIds": [
+          "financial-tracker"
+        ],
+        "description": "Measured retention metric is materially worse than target."
+      },
+      "decision-rejection-proposed": {
+        "ownerMemberIds": [
+          "contrarian"
+        ],
+        "description": "Contrarian recommends rejecting or revising a pending proposal after concrete failure-mode hits."
+      },
+      "framework-update": {
+        "ownerMemberIds": [
+          "contrarian"
+        ],
+        "description": "Contrarian found a recurring flaw not covered by the current failure-mode framework."
+      }
+    },
+    "knowledgeTopics": {
+      "catalog-snapshot-YYYY-MM-DD": {
+        "ownerMemberId": "catalog-strategist",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "ledger-snapshot-YYYY-MM-DD": {
+        "ownerMemberId": "financial-tracker",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "scout-scan-YYYY-MM-DD": {
+        "ownerMemberId": "opportunity-scout",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "market-scan-YYYY-MM-DD": {
+        "ownerMemberId": "market-validator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "challenge-note/<decision-id>": {
+        "ownerMemberId": "contrarian",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "decision-application/<decision-id>": {
+        "ownerMemberId": "catalog-strategist",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "catalog-strategist": {
+        "lane": "Maintain the SKU, discovery-channel, delivery-tier, services-line, and scenario-role graph; propose promotions, mappings, retirements, and services lifecycle changes when triggers fire.",
+        "ownedDecisionContexts": [
+          "catalog-promotion",
+          "catalog-mapping-update",
+          "channel-activation",
+          "sku-retirement",
+          "services-activation",
+          "services-conversion",
+          "services-sunset"
+        ],
+        "newDecisionCapPerHeartbeat": 3,
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "catalog-snapshot-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not edit canonical docs under docs/monetization directly; propose changes via decisions.",
+          "Do not aggregate other members into a synthetic monetization brief."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "activeBaseBundle": "business",
+          "headlinerCriteria": [
+            "strong standalone appeal",
+            "deployable today"
+          ],
+          "tier4Policy": "north-star; do not plan without explicit operator initiation"
+        }
+      },
+      "opportunity-scout": {
+        "lane": "Generate candidate SKUs, add-ons, services lines, and discovery channels; classify them, attach explicit revisit triggers, and maintain the candidate pool.",
+        "ownedDecisionContexts": [
+          "catalog-promotion",
+          "channel-activation",
+          "services-activation"
+        ],
+        "newDecisionCapPerHeartbeat": 3,
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "scout-scan-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "opportunities.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Every candidate needs a concrete revisit trigger.",
+          "Every idea needs both acquisition and retention hypotheses.",
+          "Do not nominate Tier 4 hardware work without explicit operator initiation."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "ideasPerHeartbeat": "3-10 when signal supports it; fewer is valid during quiet signal",
+          "destinationRule": [
+            "strong signal plus clear fit -> decision",
+            "plausible speculative idea -> opportunities.jsonl only",
+            "weak or incoherent -> drop"
+          ]
+        }
+      },
+      "financial-tracker": {
+        "lane": "Maintain the monetization ledger, classify operator-provided and telemetry-backed inputs, compute runway/default-alive deltas, and flag financial guardrail changes.",
+        "ownedDecisionContexts": [
+          "runway-warning",
+          "services-trap-warning",
+          "channel-attribution-gap",
+          "pricing-decision",
+          "financial-model-assumption-update",
+          "funnel-bottleneck",
+          "retention-concern"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "ledger-snapshot-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "ledger.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not edit shared/operator-inputs.json; it is operator state.",
+          "Every numeric field must carry an honesty flag.",
+          "Keep channels separate from revenue lines."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "servicesTimeGuardrailPercent": 30,
+          "requiredHonestyFlags": [
+            "fixed",
+            "measured",
+            "estimate",
+            "aspirational",
+            "pending-telemetry",
+            "pending-operator",
+            "stale"
+          ]
+        }
+      },
+      "market-validator": {
+        "lane": "Capture external benchmarks, validate market assumptions, refresh stale comps, and propose benchmark/pricing/model updates for the active tier and bundle.",
+        "ownedDecisionContexts": [
+          "benchmark-update",
+          "pricing-decision",
+          "financial-model-assumption-update"
+        ],
+        "newDecisionCapPerHeartbeat": 2,
+        "pendingOwnedDecisionCap": 3,
+        "requiredKnowledgeTopics": [
+          "market-scan-YYYY-MM-DD"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "market-scans.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Every captured value needs a source, date, and applicability flag.",
+          "Deep research stays scoped to the active tier and bundle."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "activeBaseBundle": "business",
+          "activeDeliveryTier": "Tier 1 with Tier 2 prereq work progressing",
+          "staleBenchmarkAfterMonths": 12
+        }
+      },
+      "contrarian": {
+        "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals.",
+        "ownedDecisionContexts": [
+          "decision-rejection-proposed",
+          "framework-update"
+        ],
+        "pendingOwnedDecisionCap": 3,
+        "newDecisionCapsByContext": {
+          "decision-rejection-proposed": 2,
+          "framework-update": 1
+        },
+        "requiredKnowledgeTopics": [
+          "challenge-note/<decision-id>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not create promotional or positive-action decisions.",
+          "Do not block decisions directly; operator resolves them.",
+          "Do not invent new failure modes on the fly; use framework-update decisions."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "staleDecisionScan": "review pending decisions older than 14 heartbeats every heartbeat",
+          "failureModes": [
+            "catalog sprawl",
+            "premature tier activation",
+            "services trap",
+            "retention-blind acquisition",
+            "hallucinated metrics",
+            "positioning drift",
+            "marketing-default"
+          ],
+          "channelActivationGuardrail": [
+            "activation trigger met",
+            "telemetry present",
+            "channel not confused with revenue line",
+            "trust/safety prerequisites satisfied"
+          ]
+        }
+      }
+    }
+  }
 }

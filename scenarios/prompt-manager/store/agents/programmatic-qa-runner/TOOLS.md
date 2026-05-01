@@ -1,18 +1,13 @@
 # TOOLS
 
 ## Tool Access
-`prompt-manager skill read <skill-id>`
+- `prompt-manager team member-context scenario-qa programmatic-qa-runner`
+- `prompt-manager team decision-list scenario-qa ...`
+- `prompt-manager team knowledge-list scenario-qa ...`
+- `vrooli help`
 
 ## Primary Skills
-- **screaming-architecture-audit** — Architecture alignment assessment.
-- **progress** — Priority ordering for audit findings.
-- **documentation-health** — Documentation quality baseline.
+- `prompt-manager skill read swarm-manager-recommendations`
+- `prompt-manager skill read documentation-health`
 
-## Vrooli Commands
-- `vrooli scenario test <name>` — Run scenario tests to assess pass rate.
-- `cd scenarios/<name> && make test` — Run tests via Makefile.
-
-## Usage Rules
-- Always provide evidence (file paths, line numbers) for findings.
-- Rate severity: Critical, High, Medium, Low.
-- Distinguish between bugs and quality improvement opportunities.
+Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.
