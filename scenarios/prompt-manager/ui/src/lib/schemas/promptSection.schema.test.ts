@@ -3,14 +3,22 @@ import { PromptSectionSchema } from './agent.schema'
 
 describe('PromptSectionSchema', () => {
   it('accepts current backend section kinds', () => {
-    const section = PromptSectionSchema.parse({
-      kind: 'active-task-brief',
-      label: 'Active Task Brief',
-      content: '# Active Task Brief\n\nYou are running one prompt-manager heartbeat as `agent-1`.',
-    })
+    const sectionKinds = [
+      ['active-task-brief', 'Active Task Brief'],
+      ['team-operating-policy', 'Operating Policy'],
+      ['task-reminder', 'Task Reminder'],
+    ] as const
 
-    expect(section.kind).toBe('active-task-brief')
-    expect(section.sourcePath).toBe('')
+    for (const [kind, label] of sectionKinds) {
+      const section = PromptSectionSchema.parse({
+        kind,
+        label,
+        content: `# ${label}\n\nPrompt section content.`,
+      })
+
+      expect(section.kind).toBe(kind)
+      expect(section.sourcePath).toBe('')
+    }
   })
 
   it('accepts future backend section kinds', () => {

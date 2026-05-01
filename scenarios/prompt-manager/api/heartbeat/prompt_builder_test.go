@@ -4,15 +4,14 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
-
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {
@@ -174,9 +173,9 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	}
 
 	agentIndex := promptHeadingIndex(prompt, "# Agent Files (Markdown)")
-	teamDocIndex := promptHeadingIndex(prompt, "# Team Charter (shared/TEAM.md)")
+	teamCharterIndex := promptHeadingIndex(prompt, "## Team Charter")
 	briefIndex := promptHeadingIndex(prompt, promptHeadingActiveTaskBrief)
-	contractIndex := promptHeadingIndex(prompt, "# Resolved Operating Contract")
+	policyIndex := promptHeadingIndex(prompt, promptHeadingOperatingPolicy)
 	respIndex := promptHeadingIndex(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
 	orgIndex := promptHeadingIndex(prompt, "# Team Org Context")
 	storageIndex := promptHeadingIndex(prompt, "# Storage Map")
@@ -184,7 +183,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	taskIndex := promptHeadingIndex(prompt, promptHeadingHeartbeatTask)
 	reminderIndex := promptHeadingIndex(prompt, promptHeadingTaskReminder)
 
-	if agentIndex == -1 || teamDocIndex == -1 || briefIndex == -1 || contractIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 || reminderIndex == -1 {
+	if agentIndex == -1 || teamCharterIndex == -1 || briefIndex == -1 || policyIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 || reminderIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
@@ -194,21 +193,23 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	if !strings.HasSuffix(strings.TrimSpace(prompt), strings.TrimSpace(buildTaskReminderSection(team, agent.ID, "Ship the update"))) {
 		t.Fatalf("task reminder should be the final prompt section")
 	}
-	if !(briefIndex < inboxIndex && inboxIndex < storageIndex && storageIndex < orgIndex && orgIndex < contractIndex && contractIndex < respIndex && respIndex < teamDocIndex && teamDocIndex < agentIndex && agentIndex < taskIndex && taskIndex < reminderIndex) {
+	if !(briefIndex < inboxIndex && inboxIndex < storageIndex && storageIndex < orgIndex && orgIndex < policyIndex && policyIndex < teamCharterIndex && teamCharterIndex < respIndex && respIndex < agentIndex && agentIndex < taskIndex && taskIndex < reminderIndex) {
 		t.Fatalf("prompt sections are out of order")
-	}
-
-	coordIndex := strings.Index(prompt, "# Team Coordination")
-	if coordIndex == -1 {
-		t.Fatalf("expected coordination skill section in prompt")
-	}
-	if !(orgIndex < coordIndex && coordIndex < contractIndex) {
-		t.Fatalf("coordination skill section should be between org context and operating contract")
 	}
 
 	for _, want := range []string{
 		"# Storage Map",
 		promptHeadingActiveTaskBrief,
+		promptHeadingOperatingPolicy,
+		"## Team Charter",
+		"Source: `teams/team-1/shared/TEAM.md`",
+		"Operate as an initiative portfolio manager.",
+		"## Runtime",
+		"## Coordination",
+		"## Governance",
+		"## Your Member Contract",
+		"## Document Authority",
+		"## Write Rules",
 		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
 		"## Write Surface",
 		"## Required Memory",
@@ -231,6 +232,11 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	}
 	if strings.Contains(prompt, "# Durable State") {
 		t.Fatalf("prompt must not contain legacy durable state heading")
+	}
+	for _, forbidden := range []string{"# Team Coordination", "# Resolved Operating Contract"} {
+		if strings.Contains(prompt, forbidden) {
+			t.Fatalf("prompt must not contain retired heading %q", forbidden)
+		}
 	}
 }
 
@@ -257,8 +263,80 @@ func TestBuildOmitsCoordinationSkillForPlainIndependentTeam(t *testing.T) {
 		t.Fatalf("build prompt: %v", err)
 	}
 
-	if strings.Contains(prompt, "# Team Coordination") || strings.Contains(prompt, "team-coordination-independent") {
+	if !strings.Contains(prompt, promptHeadingOperatingPolicy) {
+		t.Fatalf("expected operating policy in prompt")
+	}
+	if strings.Contains(prompt, "team-coordination-independent") {
 		t.Fatalf("did not expect coordination skill reference for plain independent team")
+	}
+}
+
+func TestOperatingPolicySectionGoldenPlainIndependentTeam(t *testing.T) {
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	builder := NewPromptBuilder(teamStore, agentStore)
+
+	policy, err := builder.buildOperatingPolicySection(newIndependentTestTeam("team-1", "Team One"), "agent-1", "")
+	if err != nil {
+		t.Fatalf("build operating policy: %v", err)
+	}
+
+	want := `# Operating Policy
+
+## Runtime
+
+- Runtime mode: ` + "`multi-process`" + `
+- Queue policy: ` + "`bounded-parallel`" + ` (max concurrent: 2)
+
+## Coordination
+
+- Coordination pattern: ` + "`independent`" + `
+- Messaging mode: ` + "`disabled`" + `
+- Reporting mode: ` + "`none`" + `
+
+Coordination rules:
+- This prompt-manager team already exists. Do not create or import another team.
+- Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.
+- This team does not use agent-to-agent messaging by default. Stay within your own scope unless the heartbeat task tells you otherwise.
+
+## Governance
+
+Decision mode: yolo
+Pending decision ceiling: 12
+When pending decisions are >= 12:
+- skip new decision creation
+- still write required knowledge snapshots
+- still perform supersession when it shrinks the queue
+- still write HANDOFF
+
+## Your Member Contract
+
+Agent ID: agent-1
+Lane: Apply the team mission within this member's assigned scope.
+
+Owned decision contexts:
+- general
+
+Decision caps:
+- max new decisions this heartbeat: 1
+- skip new decisions when 3+ owned-context decisions are already pending
+
+Required knowledge topics:
+- heartbeat-note; append-only, do not set supersedes
+
+## Document Authority
+
+
+## Write Rules
+
+Allowed writes:
+- knowledge
+- decision
+- handoff`
+	if policy != want {
+		t.Fatalf("operating policy golden mismatch\nwant:\n%s\n\ngot:\n%s", want, policy)
 	}
 }
 
@@ -292,6 +370,9 @@ func TestBuildIncludesCoordinationSkillForPeerTeam(t *testing.T) {
 	if !strings.Contains(prompt, "team-coordination-peer") {
 		t.Fatalf("expected peer coordination skill reference in prompt")
 	}
+	if strings.Contains(prompt, "# Team Coordination") {
+		t.Fatalf("did not expect retired team coordination heading")
+	}
 }
 
 func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
@@ -319,6 +400,9 @@ func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 
 	if !strings.Contains(prompt, "team-coordination-leader-led") {
 		t.Fatalf("expected leader-led coordination skill reference in prompt")
+	}
+	if strings.Contains(prompt, "# Team Coordination") {
+		t.Fatalf("did not expect retired team coordination heading")
 	}
 }
 
@@ -544,8 +628,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 		"team-inbox",
 		"team-storage-map",
 		"team-org-context",
-		"team-coordination",
-		"team-operating-contract",
+		promptSectionKindOperatingPolicy,
 		"team-responsibilities",
 		"agent-file",
 		"heartbeat-task",
@@ -802,15 +885,18 @@ func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
 					}
 
 					kinds := distinctSectionKinds(sections)
+					if sectionKindIndex(kinds, "team-shared-charter") != -1 {
+						t.Fatalf("retired team-shared-charter section still rendered: %v", kinds)
+					}
 					activeIndex := sectionKindIndex(kinds, promptSectionKindActiveTaskBrief)
-					contractIndex := sectionKindIndex(kinds, "team-operating-contract")
+					policyIndex := sectionKindIndex(kinds, promptSectionKindOperatingPolicy)
 					taskIndex := sectionKindIndex(kinds, "heartbeat-task")
 					reminderIndex := sectionKindIndex(kinds, promptSectionKindTaskReminder)
 					if activeIndex == -1 {
 						t.Fatalf("missing %s section: %v", promptSectionKindActiveTaskBrief, kinds)
 					}
-					if contractIndex == -1 || activeIndex > contractIndex {
-						t.Fatalf("active task brief must appear before operating contract: %v", kinds)
+					if policyIndex == -1 || activeIndex > policyIndex {
+						t.Fatalf("active task brief must appear before operating policy: %v", kinds)
 					}
 					if taskIndex == -1 || reminderIndex == -1 || taskIndex > reminderIndex {
 						t.Fatalf("heartbeat task must be followed by task reminder: %v", kinds)
@@ -823,6 +909,9 @@ func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
 					for _, forbidden := range []string{
 						"# Execution Brief",
 						"execution-brief",
+						"# Team Coordination",
+						"# Resolved Operating Contract",
+						"team-operating-contract",
 						"Always available:",
 						"Exact paths: see",
 						"Plan of record docs:",
@@ -1011,7 +1100,7 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 		promptHeadingActiveTaskBrief,
 		"# Team Responsibilities (RESPONSIBILITIES.md)",
 		"# Team Org Context",
-		"# Team Coordination",
+		promptHeadingOperatingPolicy,
 		"# Storage Map",
 		"# Team Inbox",
 	} {

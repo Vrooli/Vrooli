@@ -263,7 +263,10 @@ function actionSearchText(action: Action): string {
 
   for (const [name, input] of Object.entries(action.inputs)) {
     chunks.push(name, input.type, input.description, input.pattern, ...input.enum)
-    if (input.default !== undefined) chunks.push(String(input.default))
+    if (input.default !== undefined) {
+      const defaultText = typeof input.default === 'string' ? input.default : JSON.stringify(input.default)
+      if (defaultText) chunks.push(defaultText)
+    }
   }
   for (const [name, output] of Object.entries(action.outputs)) {
     chunks.push(name, output.type, output.description)

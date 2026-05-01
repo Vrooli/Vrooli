@@ -236,7 +236,7 @@ function formatActionFieldsMarkdown(label: 'Inputs' | 'Outputs', fields: Record<
 
 function enabledActionPermissions(action: Action): string[] {
   return Object.entries(action.permissions)
-    .filter(([, enabled]) => enabled === true)
+    .filter(([, enabled]) => enabled)
     .map(([name]) => name)
     .sort()
 }

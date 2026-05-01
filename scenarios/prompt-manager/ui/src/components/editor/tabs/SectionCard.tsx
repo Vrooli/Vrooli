@@ -10,7 +10,6 @@ import {
   ExternalLink,
   FileText,
   GitBranch,
-  Network,
   Heart,
   Inbox,
   Users,
@@ -33,20 +32,15 @@ const KIND_META: Record<
     color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
     badgeLabel: 'Agent file',
   },
-  'team-shared-charter': {
-    icon: FileText,
-    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-    badgeLabel: 'Team',
-  },
   'active-task-brief': {
     icon: Heart,
     color: 'bg-sky-500/15 text-sky-400 border-sky-500/25',
     badgeLabel: 'Brief',
   },
-  'team-operating-contract': {
+  'team-operating-policy': {
     icon: FileText,
     color: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
-    badgeLabel: 'Contract',
+    badgeLabel: 'Policy',
   },
   'team-responsibilities': {
     icon: Users,
@@ -56,11 +50,6 @@ const KIND_META: Record<
   'team-org-context': {
     icon: GitBranch,
     color: 'bg-purple-500/15 text-purple-400 border-purple-500/25',
-    badgeLabel: 'Team',
-  },
-  'team-coordination': {
-    icon: Network,
-    color: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
     badgeLabel: 'Team',
   },
   'team-inbox': {

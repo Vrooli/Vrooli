@@ -57,26 +57,31 @@ func TestNormalizePathRejectsTraversal(t *testing.T) {
 	}
 }
 
-func TestRenderMemberIncludesResolvedPolicy(t *testing.T) {
+func TestRenderMemberPolicyIncludesMemberPolicy(t *testing.T) {
 	contract := Minimal(DecisionModeApproval, "agent-1")
-	rendered, err := RenderMember(contract, RenderInput{
+	rendered, err := RenderMemberPolicy(contract, RenderInput{
 		TeamID:       "team-1",
 		TeamName:     "Team One",
 		DecisionMode: DecisionModeApproval,
 		MemberID:     "agent-1",
 	})
 	if err != nil {
-		t.Fatalf("RenderMember: %v", err)
+		t.Fatalf("RenderMemberPolicy: %v", err)
 	}
 	for _, want := range []string{
-		"# Resolved Operating Contract",
-		"Team: team-1",
+		"## Governance",
+		"## Your Member Contract",
 		"Agent ID: agent-1",
 		"Owned decision contexts:",
 		"Required knowledge topics:",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered contract missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, forbidden := range []string{"# Resolved Operating Contract", "Team: team-1"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("rendered member policy contains retired standalone contract text %q:\n%s", forbidden, rendered)
 		}
 	}
 }
@@ -98,14 +103,14 @@ func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
 		OptionalReason: "test fixture",
 	}}
 
-	rendered, err := RenderMember(contract, RenderInput{
+	rendered, err := RenderMemberPolicy(contract, RenderInput{
 		TeamID:       "team-1",
 		TeamName:     "Team One",
 		DecisionMode: DecisionModeApproval,
 		MemberID:     "agent-1",
 	})
 	if err != nil {
-		t.Fatalf("RenderMember: %v", err)
+		t.Fatalf("RenderMemberPolicy: %v", err)
 	}
 	for _, want := range []string{
 		"Plan of record authorities:",
@@ -306,7 +311,7 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 		t.Fatalf("Validate bundled contract: %v", err)
 	}
 
-	rendered, err := RenderMember(team.OperatingContract, RenderInput{
+	rendered, err := RenderMemberPolicy(team.OperatingContract, RenderInput{
 		TeamID:       "meta-optimization",
 		TeamName:     "Meta Optimization",
 		DecisionMode: team.DecisionMode,
@@ -315,7 +320,7 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 		RepoRoot:     repoRoot,
 	})
 	if err != nil {
-		t.Fatalf("RenderMember bundled contract: %v", err)
+		t.Fatalf("RenderMemberPolicy bundled contract: %v", err)
 	}
 	want := "scenarios/prompt-manager/store/teams/meta-optimization/shared/TEAM_AUDIT.md"
 	if !strings.Contains(rendered, want) {

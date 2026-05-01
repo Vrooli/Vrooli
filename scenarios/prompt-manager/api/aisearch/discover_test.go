@@ -7,12 +7,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
-	"testing"
-
 	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/store"
+	"strings"
+	"testing"
 )
 
 // MockTopicStoreReader implements TopicStoreReader for testing.

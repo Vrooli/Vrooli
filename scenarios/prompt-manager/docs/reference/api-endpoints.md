@@ -1207,7 +1207,7 @@ Create a new team.
 
 **decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
 
-**operatingContract:** Required structured source of truth for team/member operating policy. `operatingContract.governance.decisionMode` must match `decisionMode`. Heartbeat prompts render a member-specific `Resolved Operating Contract` section from this object and fail if required policy is missing or invalid.
+**operatingContract:** Required structured source of truth for team/member operating policy. `operatingContract.governance.decisionMode` must match `decisionMode`. Heartbeat prompts render member-specific contract data inside the generated `Operating Policy` section, alongside top-level runtime, coordination, execution, and decision-mode policy. Prompt rendering fails if required policy is missing or invalid.
 
 **Response:** Created team object with `201 Created`.
 

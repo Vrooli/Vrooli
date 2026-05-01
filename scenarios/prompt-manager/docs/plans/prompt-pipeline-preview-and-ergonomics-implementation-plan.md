@@ -1,5 +1,7 @@
 # Prompt Pipeline Preview and Ergonomics Implementation Plan
 
+> Supersession note: this is a historical implementation plan. The live heartbeat prompt now uses `team-operating-policy` / `Operating Policy`; `team-operating-contract` and the standalone `team-coordination` prompt section are retired.
+
 ## Purpose
 
 Make prompt-manager's heartbeat prompt pipeline easier to inspect, harder to drift, and easier for agents to execute.

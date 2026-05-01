@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
-	"sync"
-	"time"
-
 	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/store"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Service provides AI-powered search with graceful fallback to text search.

@@ -26,23 +26,17 @@ const SECTION_META: Record<string, PipelineSectionMeta> = {
   'agent-file': {
     description: 'SOUL.md and other agent markdown files.',
   },
-  'team-shared-charter': {
-    description: 'Team-level charter and operating model.',
-  },
   'active-task-brief': {
     description: 'Generated orientation for this member and heartbeat prompt.',
   },
-  'team-operating-contract': {
-    description: 'Resolved team/member policy generated from team.json.',
+  'team-operating-policy': {
+    description: 'Generated runtime, coordination, charter, governance, and member policy.',
   },
   'team-responsibilities': {
     description: 'Role-specific instructions for this team member.',
   },
   'team-org-context': {
     description: 'Reporting context for this team member.',
-  },
-  'team-coordination': {
-    description: 'Coordination policy and available teammate interactions.',
   },
   'team-storage-map': {
     description: 'Persistent storage primitives, authority order, and available commands.',

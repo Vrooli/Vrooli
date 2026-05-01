@@ -6,11 +6,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"sort"
-	"strings"
-
 	"prompt-manager/skills"
 	"prompt-manager/store"
+	"sort"
+	"strings"
 )
 
 // IndexSkill indexes a single skill into the vector store.

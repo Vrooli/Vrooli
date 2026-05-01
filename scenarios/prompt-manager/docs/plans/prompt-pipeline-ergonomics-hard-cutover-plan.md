@@ -1,5 +1,7 @@
 # Prompt Pipeline Ergonomics Hard Cutover Plan
 
+> Supersession note: this is a historical implementation plan. The live heartbeat prompt now uses `team-operating-policy` / `Operating Policy`; `team-operating-contract` and the standalone `team-coordination` prompt section are retired.
+
 ## Purpose
 
 Implement a greenfield prompt-pipeline ergonomics cutover for prompt-manager team heartbeats without doing the XML migration yet.

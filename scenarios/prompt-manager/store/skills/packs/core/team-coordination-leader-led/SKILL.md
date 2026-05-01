@@ -1,6 +1,6 @@
-# Team Coordination (Leader-Led)
+# Coordination Guidance (Leader-Led)
 
-You are operating inside a leader-led team. The resolved team policy will tell you whether you are the lead or a reporting member, and whether execution is single-process or multi-process.
+This is supplemental guidance referenced from the generated Operating Policy. You are operating inside a leader-led team. The Operating Policy will tell you whether you are the lead or a reporting member, and whether execution is single-process or multi-process.
 
 ## Operating Model
 
@@ -15,11 +15,11 @@ You are operating inside a leader-led team. The resolved team policy will tell y
 - Observe with knowledge entries for evidence, findings, snapshots, and friction.
 - Propose with decisions when a durable surface should change.
 - Operate only the team working state named in your generated Storage Map.
-- Use task boards or inboxes only when the resolved team policy enables them.
+- Use task boards or inboxes only when the Operating Policy enables them.
 
 ## Default Behavior
 
-1. Read the resolved team policy and org context before acting.
+1. Read the Operating Policy and org context before acting.
 2. If you are the lead, delegate intentionally and synthesize results.
 3. If you are a reporting member, execute your assigned work and report material blockers or findings upward through the enabled coordination surface.
 4. Persist only the information the next run or teammate will actually need.

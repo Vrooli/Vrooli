@@ -1,5 +1,7 @@
 # Team Operating Contract Greenfield Redesign Implementation Plan
 
+> Supersession note: this is a historical implementation plan. The live heartbeat prompt now renders the generated contract body inside `Operating Policy`, not as a standalone `Resolved Operating Contract` section.
+
 Status: draft for workshop refinement.
 
 ## Purpose

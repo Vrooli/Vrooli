@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SkillTreeSidebar } from './SkillTreeSidebar'
 import type { TreeNode } from '@/types/editor'
@@ -108,14 +108,21 @@ function createItemNode(id: string, label: string, itemId: string, depth = 0): T
 }
 
 /** Render helper that wraps with QueryClientProvider (needed when rendering non-skills tabs) */
-function renderWithQuery(ui: React.ReactElement) {
+function render(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const wrap = (element: React.ReactElement) => (
     <QueryClientProvider client={queryClient}>
-      {ui}
+      {element}
     </QueryClientProvider>
   )
+  const result = rtlRender(wrap(ui))
+  return {
+    ...result,
+    rerender: (element: React.ReactElement) => result.rerender(wrap(element)),
+  }
 }
+
+const renderWithQuery = render
 
 describe('SkillTreeSidebar', () => {
   const defaultProps = {

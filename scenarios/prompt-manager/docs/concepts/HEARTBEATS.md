@@ -82,49 +82,58 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ 1. Agent .md files (from store/agents/{agent})  │
-│    Personality + operating notes                │
+│ 1. Active Task Brief                            │
+│    Generated run orientation and write surface  │
 ├─────────────────────────────────────────────────┤
-│ 2. Team Charter (shared/TEAM.md)                │
-│    Mission and strategic context                │
+│ 2. Team Inbox / Previous Handoff                │
+│    Current messages and next-run continuity     │
 ├─────────────────────────────────────────────────┤
-│ 3. Resolved Operating Contract                  │
-│    Generated member policy from team.json       │
-├─────────────────────────────────────────────────┤
-│ 4. RESPONSIBILITIES.md (from team members/)     │
-│    Role-specific instructions for this team     │
-├─────────────────────────────────────────────────┤
-│ 5. Team Org Context                             │
-│    Reporting lines + coordination commands       │
-├─────────────────────────────────────────────────┤
-│ 6. Coordination Skill Reference                 │
-│    Spawn-mode-specific guidance (multi/single)  │
-├─────────────────────────────────────────────────┤
-│ 7. Storage Map                                  │
+│ 3. Storage Map                                  │
 │    Continue/Observe/Propose/Operate guidance    │
 ├─────────────────────────────────────────────────┤
-│ 8. Team Inbox                                   │
-│    Pending messages from other team members      │
+│ 4. Team Org Context                             │
+│    Reporting lines when enabled by team policy  │
 ├─────────────────────────────────────────────────┤
-│ 9. HEARTBEAT.md (from team members/)            │
+│ 5. Operating Policy                             │
+│    Charter, runtime, coordination, governance,  │
+│    member policy, authority, and write rules    │
+├─────────────────────────────────────────────────┤
+│ 6. RESPONSIBILITIES.md (from team members/)     │
+│    Role-specific instructions for this team     │
+├─────────────────────────────────────────────────┤
+│ 7. Agent .md files (from store/agents/{agent})  │
+│    Personality + global operating notes         │
+├─────────────────────────────────────────────────┤
+│ 8. HEARTBEAT.md (from team members/)            │
 │    The specific task to execute now             │
+├─────────────────────────────────────────────────┤
+│ 9. Task Reminder                                │
+│    Generated final anchor for recency           │
 └─────────────────────────────────────────────────┘
 ```
 
 This layered approach means:
-- **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
-- **Team Charter**: "Why this team exists" (human-readable mission and strategic context)
-- **Resolved Operating Contract**: "What policy applies to me" (generated from `team.json.operatingContract`)
-- **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
-- **Team Org Context**: "Who I report to + who I direct" (when enabled by team policy)
-- **Coordination Skill**: Mode-specific guidance (see [Coordination Skills](SWARM-MODEL.md#coordination-skills))
+- **Active Task Brief**: "What run am I in and what can I write" (generated from the member contract and heartbeat task)
+- **Team Inbox / Previous Handoff**: "What current inputs should I account for" (conditional runtime state)
 - **Storage Map**: generated Continue/Observe/Propose/Operate guidance plus team-specific storage surfaces
-- **Team Inbox**: "Pending messages to act on or reply to"
+- **Team Org Context**: "Who I report to + who I direct" (when enabled by team policy)
+- **Operating Policy**: "Why this team exists and what runtime, coordination, governance, and member policy applies to me" (generated from `shared/TEAM.md`, `team.json`, and `team.json.operatingContract`)
+- **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
+- **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
+- **Task Reminder**: generated final focus and output reminder
 
 Every team must define `operatingContract` in `team.json`. The prompt builder fails rather than inferring missing contract policy from `TEAM.md`, `RESPONSIBILITIES.md`, `HEARTBEAT.md`, or agent files. Contract-owned policy includes decision contexts, numeric caps, read-only behavior, supersession rules, knowledge topics, source documents, and write surfaces.
 
-The rendered contract uses repo-root-relative paths only. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
+The generated Operating Policy embeds the lean `shared/TEAM.md` charter before the generated runtime and contract policy. It also includes top-level runtime, coordination, execution, and decision-mode fields from `team.json`. The rendered policy uses repo-root-relative paths only. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
+
+Source ownership:
+- `team.runtime`, `team.coordination`, and `team.execution`: runtime mechanics.
+- `team.operatingContract`: enforceable member/team policy.
+- `shared/TEAM.md`: mission, scope, and team-specific principles.
+- `RESPONSIBILITIES.md`: role-specific application of the policy.
+- `HEARTBEAT.md`: recurring task loop.
+- Agent markdown files: global agent identity and behavior.
 
 ### Action Discovery Guidance
 
@@ -138,7 +147,7 @@ This keeps judgment in skills and execution in Actions without bloating every he
 
 ## Prompt Pipeline UI
 
-The Team Members heartbeat UI exposes a **Prompt Pipeline** view that renders the backend-provided structured prompt order (Agent Files → Team Charter → Active Task Brief → Operating Contract → Responsibilities → Org Context → Coordination → Storage Map → Inbox → Previous Handoff → Heartbeat Task → Task Reminder, omitting sections that are not present for a member). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts.
+The Team Members heartbeat UI exposes a **Prompt Pipeline** view that renders the backend-provided structured prompt order (Active Task Brief → Inbox → Previous Handoff → Storage Map → Org Context → Operating Policy → Responsibilities → Agent Files → Heartbeat Task → Task Reminder, omitting sections that are not present for a member). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts.
 
 The UI loads `/prompt-preview-structured` and renders the returned `sections[]` directly. Backend prompt assembly is the source of truth for section order; the UI does not parse flat markdown to infer pipeline order. `/prompt-preview` remains the exact flat runtime prompt used to audit what a heartbeat receives.
 

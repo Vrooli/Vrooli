@@ -1,5 +1,7 @@
 # Prompt Manager Team Coordination Greenfield Redesign Implementation Plan
 
+> Supersession note: this is a historical implementation plan. Coordination skills still exist as supplemental guidance, but the live heartbeat prompt now references them from inside the generated `Operating Policy` section instead of rendering a standalone `Team Coordination` section.
+
 > Created: 2026-04-09  
 > Status: Draft (ready for implementation)  
 > Scope: `prompt-manager` team model, execution model, prompt assembly, API, CLI, UI, docs, and validation

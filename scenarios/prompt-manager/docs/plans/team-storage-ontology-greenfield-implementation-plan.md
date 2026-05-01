@@ -1,5 +1,7 @@
 # Team Storage Ontology Greenfield Implementation Plan
 
+> Supersession note: this is a historical implementation plan. The live heartbeat prompt no longer renders separate `Team Coordination` or `Resolved Operating Contract` sections; those concerns are consolidated into the generated `Operating Policy` section.
+
 ## Purpose
 
 Implement a greenfield, contract-derived storage ontology for prompt-manager teams so every heartbeat member receives a simple, uniform mental model for persistent state:

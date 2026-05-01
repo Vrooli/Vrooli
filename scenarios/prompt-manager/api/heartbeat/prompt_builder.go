@@ -3,13 +3,12 @@ package heartbeat
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
-
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
+	"sort"
+	"strings"
 )
 
 // PromptBuildRequest defines the inputs for assembling a heartbeat prompt.
@@ -144,14 +143,9 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 	if includeTeam {
 		contract := team.Contract()
 
-		var teamDocSection *PromptSection
+		var teamCharter string
 		if teamDoc, err := b.teamStore.ReadSharedFile(ctx, teamID, "TEAM.md"); err == nil && strings.TrimSpace(teamDoc) != "" {
-			teamDocSection = &PromptSection{
-				Kind:       "team-shared-charter",
-				Label:      "shared/TEAM.md",
-				SourcePath: fmt.Sprintf("teams/%s/shared/TEAM.md", teamID),
-				Content:    "# Team Charter (shared/TEAM.md)\n\n" + teamDoc,
-			}
+			teamCharter = teamDoc
 		}
 
 		var heartbeatInstructions string
@@ -212,29 +206,15 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			}
 		}
 
-		if coordSection := b.buildCoordinationSkillSection(team); coordSection != "" {
-			sections = append(sections, PromptSection{
-				Kind:    "team-coordination",
-				Label:   "Team Coordination",
-				Content: coordSection,
-			})
-		}
-
-		operatingContract, err := teamcontract.RenderMember(team.OperatingContract, teamcontract.RenderInput{
-			TeamID:       team.ID,
-			TeamName:     team.DisplayName,
-			DecisionMode: team.DecisionMode,
-			MemberID:     agentID,
-			StoreDir:     b.teamStore.StoreDir(),
-		})
+		operatingPolicy, err := b.buildOperatingPolicySection(team, agentID, teamCharter)
 		if err != nil {
 			return nil, err
 		}
 		sections = append(sections, PromptSection{
-			Kind:       "team-operating-contract",
-			Label:      "Resolved Operating Contract",
-			SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract", teamID),
-			Content:    operatingContract,
+			Kind:       promptSectionKindOperatingPolicy,
+			Label:      promptSectionLabelOperatingPolicy,
+			SourcePath: fmt.Sprintf("teams/%s/team.json", teamID),
+			Content:    operatingPolicy,
 		})
 
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
@@ -245,10 +225,6 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 				SourcePath: fmt.Sprintf("teams/%s/members/%s/RESPONSIBILITIES.md", teamID, agentID),
 				Content:    "# Team Responsibilities (RESPONSIBILITIES.md)\n\n" + responsibilities,
 			})
-		}
-
-		if teamDocSection != nil {
-			sections = append(sections, *teamDocSection)
 		}
 
 		sections = append(sections, agentSections...)
@@ -692,31 +668,38 @@ func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) [
 	return append(ordered, remaining...)
 }
 
-func (b *PromptBuilder) buildCoordinationSkillSection(team *store.Team) string {
+func (b *PromptBuilder) buildOperatingPolicySection(team *store.Team, agentID string, teamCharter string) (string, error) {
 	if team == nil {
-		return ""
+		return "", nil
 	}
 
 	contract := team.Contract()
-	if contract.Coordination.Pattern == teamconfig.CoordinationPatternIndependent &&
-		!teamconfig.MessagingEnabled(contract) &&
-		!teamconfig.AllowsPeerTriggers(contract) &&
-		team.DecisionMode != "approval" {
-		return ""
-	}
-
-	skillID := teamconfig.CoordinationSkillID(contract)
 	var section strings.Builder
-	section.WriteString("# Team Coordination\n\n")
-	section.WriteString("For team coordination guidance, run:\n```\n")
-	section.WriteString(fmt.Sprintf("prompt-manager skill read %s\n", skillID))
-	section.WriteString("```\n\n")
-	section.WriteString("## Resolved Team Policy\n\n")
+	section.WriteString(promptHeadingOperatingPolicy + "\n\n")
+	if strings.TrimSpace(teamCharter) != "" {
+		section.WriteString("## Team Charter\n\n")
+		section.WriteString(fmt.Sprintf("Source: `teams/%s/shared/TEAM.md`\n\n", team.ID))
+		section.WriteString(strings.TrimSpace(teamCharter))
+		section.WriteString("\n\n")
+	}
+	section.WriteString("## Runtime\n\n")
 	section.WriteString(fmt.Sprintf("- Runtime mode: `%s`\n", team.Runtime.Mode))
+	section.WriteString(fmt.Sprintf("- Queue policy: `%s` (max concurrent: %d)\n", team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns))
+	section.WriteString("\n## Coordination\n\n")
 	section.WriteString(fmt.Sprintf("- Coordination pattern: `%s`\n", team.Coordination.Pattern))
 	section.WriteString(fmt.Sprintf("- Messaging mode: `%s`\n", team.Coordination.MessagingMode))
-	section.WriteString(fmt.Sprintf("- Queue policy: `%s` (max concurrent: %d)\n\n", team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns))
-	section.WriteString("## Runtime Contract\n\n")
+	section.WriteString(fmt.Sprintf("- Reporting mode: `%s`\n", team.Coordination.ReportingMode))
+	if team.Coordination.LeadAgentID != "" {
+		section.WriteString(fmt.Sprintf("- Lead agent: `%s`\n", team.Coordination.LeadAgentID))
+	}
+	section.WriteString("\n")
+	if shouldIncludeCoordinationSkillReference(team) {
+		skillID := teamconfig.CoordinationSkillID(contract)
+		section.WriteString("Coordination guidance:\n```\n")
+		section.WriteString(fmt.Sprintf("prompt-manager skill read %s\n", skillID))
+		section.WriteString("```\n\n")
+	}
+	section.WriteString("Coordination rules:\n")
 	section.WriteString("- This prompt-manager team already exists. Do not create or import another team.\n")
 	section.WriteString("- Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.\n")
 	if teamconfig.MessagingUsesAsyncInbox(contract) {
@@ -732,7 +715,30 @@ func (b *PromptBuilder) buildCoordinationSkillSection(team *store.Team) string {
 	if team.DecisionMode == "approval" {
 		section.WriteString("- This team is in `approval` decision mode. Analyze, prioritize, and log pending decisions, but do not deploy teams, trigger external execution, or create external backlog items unless a human has already accepted that decision.\n")
 	}
-	return section.String()
+
+	memberPolicy, err := teamcontract.RenderMemberPolicy(team.OperatingContract, teamcontract.RenderInput{
+		TeamID:       team.ID,
+		TeamName:     team.DisplayName,
+		DecisionMode: team.DecisionMode,
+		MemberID:     agentID,
+		StoreDir:     b.teamStore.StoreDir(),
+	})
+	if err != nil {
+		return "", err
+	}
+	section.WriteString(memberPolicy)
+	return strings.TrimRight(section.String(), "\n"), nil
+}
+
+func shouldIncludeCoordinationSkillReference(team *store.Team) bool {
+	if team == nil {
+		return false
+	}
+	contract := team.Contract()
+	return contract.Coordination.Pattern != teamconfig.CoordinationPatternIndependent ||
+		teamconfig.MessagingEnabled(contract) ||
+		teamconfig.AllowsPeerTriggers(contract) ||
+		team.DecisionMode == "approval"
 }
 
 func (b *PromptBuilder) buildOrgContextSection(ctx context.Context, team *store.Team, agentID string) string {
@@ -1018,7 +1024,7 @@ func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID
 	}
 
 	// Generate spawn prompt
-	additionalCtx := b.buildCoordinationSkillSection(team)
+	additionalCtx := ""
 	if agentID != "" {
 		if leadContext, err := b.Build(ctx, PromptBuildRequest{
 			TeamID:  teamID,

@@ -1,5 +1,7 @@
 # Heartbeat Middle Context Hard-Cutover Implementation Plan
 
+> Supersession note: this is a historical implementation plan. The live heartbeat prompt no longer renders separate `Team Coordination` or `Resolved Operating Contract` sections; those concerns are consolidated into the generated `Operating Policy` section.
+
 ## Purpose
 
 Hard-cut the prompt-manager heartbeat prompt shape and stored team/agent prompt files to reduce duplicated middle-context doctrine while preserving the intentional task sandwich:

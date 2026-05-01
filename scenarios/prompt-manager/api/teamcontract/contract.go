@@ -427,7 +427,7 @@ func Validate(contract *OperatingContract, input ValidationInput) error {
 	return validateDocuments(contract, input)
 }
 
-func RenderMember(contract *OperatingContract, input RenderInput) (string, error) {
+func RenderMemberPolicy(contract *OperatingContract, input RenderInput) (string, error) {
 	if err := Validate(contract, ValidationInput{
 		TeamID: input.TeamID, DecisionMode: input.DecisionMode, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
 	}); err != nil {
@@ -438,15 +438,13 @@ func RenderMember(contract *OperatingContract, input RenderInput) (string, error
 		return "", fmt.Errorf("operatingContract.members missing active member %q", input.MemberID)
 	}
 
-	teamName := input.TeamName
-	if teamName == "" {
-		teamName = input.TeamID
-	}
-
 	var b strings.Builder
-	b.WriteString("# Resolved Operating Contract\n\n")
-	b.WriteString(fmt.Sprintf("Team: %s\n", input.TeamID))
-	b.WriteString(fmt.Sprintf("Team name: %s\n", teamName))
+	renderMemberPolicyBody(&b, contract, member, input)
+	return strings.TrimRight(b.String(), "\n") + "\n", nil
+}
+
+func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, member MemberContract, input RenderInput) {
+	b.WriteString("\n## Governance\n\n")
 	b.WriteString(fmt.Sprintf("Decision mode: %s\n", contract.Governance.DecisionMode))
 	b.WriteString(fmt.Sprintf("Pending decision ceiling: %d\n", contract.Governance.TeamPendingCeiling.Value))
 	if contract.Governance.TeamPendingCeiling.ReadOnlyWhenAtOrAbove {
@@ -472,7 +470,7 @@ func RenderMember(contract *OperatingContract, input RenderInput) (string, error
 	if member.Lane != "" {
 		b.WriteString(fmt.Sprintf("Lane: %s\n", member.Lane))
 	}
-	writeStringList(&b, "Owned decision contexts", member.OwnedDecisionContexts)
+	writeStringList(b, "Owned decision contexts", member.OwnedDecisionContexts)
 	b.WriteString("\nDecision caps:\n")
 	if member.NewDecisionCapPerHeartbeat != nil {
 		b.WriteString(fmt.Sprintf("- max new decisions this heartbeat: %d\n", *member.NewDecisionCapPerHeartbeat))
@@ -496,18 +494,17 @@ func RenderMember(contract *OperatingContract, input RenderInput) (string, error
 		}
 	}
 	b.WriteString("\n## Document Authority\n\n")
-	renderDocuments(&b, contract, input)
+	renderDocuments(b, contract, input)
 	b.WriteString("\n## Write Rules\n\n")
-	renderWriteRefs(&b, "Allowed writes", member.AllowedWrites, input)
-	renderWriteRefs(&b, "Forbidden writes", member.ForbiddenWrites, input)
-	writeStringList(&b, "Safety-critical rules", member.SafetyCriticalRules)
+	renderWriteRefs(b, "Allowed writes", member.AllowedWrites, input)
+	renderWriteRefs(b, "Forbidden writes", member.ForbiddenWrites, input)
+	writeStringList(b, "Safety-critical rules", member.SafetyCriticalRules)
 	if len(member.TaskParameters) > 0 {
 		b.WriteString("\nTask parameters:\n")
 		for _, key := range sortedAnyKeys(member.TaskParameters) {
 			b.WriteString(fmt.Sprintf("- %s: %v\n", key, member.TaskParameters[key]))
 		}
 	}
-	return strings.TrimRight(b.String(), "\n") + "\n", nil
 }
 
 func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (string, error) {
