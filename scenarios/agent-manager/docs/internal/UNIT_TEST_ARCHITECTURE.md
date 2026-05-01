@@ -7,10 +7,10 @@ This document records the current Agent Manager test architecture and the first 
 ## Current Test Organization
 
 - Go API and CLI tests: 95 `*_test.go` files under `api` and `cli`.
-- UI tests: 10 TypeScript test files outside `node_modules` and `.test-dist`.
+- UI tests: 16 TypeScript test files outside `node_modules` and `.test-dist`.
 - Backend shared utilities currently live in `api/internal/testutil`, which started as a SQLite helper package.
 - UI tests now run through Vitest with jsdom and Testing Library setup configured in `ui/vite.config.ts`.
-- UI test-only helpers live under `ui/tests/testutil` for the current pure TypeScript tests and `ui/src/test-utils` for React component/hook tests. `runEvents.ts` is the canonical fixture factory for reducer/timeline tests.
+- UI test-only helpers live under `ui/tests/testutil` for the current pure TypeScript tests and `ui/src/test-utils` for React component/hook tests. `runEvents.ts`, `runs.ts`, and `stats.ts` are the canonical fixture factories for reducer/timeline/stats tests.
 
 ## Helper And Mocking Status
 
@@ -66,7 +66,12 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 14. Done: Add `ui/tests/testutil/runEvents.ts` and migrate repeated `RunEvent` builders in run event store and timeline tests.
 15. Done: Switch `pnpm test` from `tsc && node --test` to `vitest run`, add jsdom/Testing Library setup, add `src/test-utils/renderWithProviders.tsx`, and add initial `DiffViewer` render coverage.
 16. Next backend slices: review pricing and runner codec doubles for consolidation boundaries. Be careful with same-package tests; moving those fakes into `testutil/mocks` can create import cycles when the fake must import the package under test.
-17. Next UI slices: add first React behavior tests for `RunTimeline`, `QuickRunDialog`, `useWebSocket`, or stats/dashboard components using `src/test-utils`.
+17. Done: Add first `RunTimeline` React behavior tests for filter UI behavior and persisted filter restoration.
+18. Done: Add `QuickRunDialog` React behavior tests for default custom-run submit/reset behavior and persisted task draft restoration.
+19. Done: Add hook-level `useWebSocket` tests for queued subscription replay, reconnect subscription replay, and normalized server message delivery.
+20. Done: Add `KPISummary` React behavior tests for formatted stats metrics, selected-window throughput, loading state, and error state.
+21. Done: Add `ModelUsageBreakdown` and `ToolUsageAnalytics` React behavior tests for chart-to-detail selection, run/model detail rendering, empty states, and error states.
+22. Next UI slices: add React behavior tests for trends and table components such as runner performance, profile activity, and cost/status trend sections using `src/test-utils`.
 
 ## Prohibited Patterns
 

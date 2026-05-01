@@ -224,6 +224,11 @@ Progress:
 - Added `ui/tests/testutil/runEvents.ts` as the current Node-runner fixture factory for `RunEvent` objects.
 - Migrated duplicated `RunEvent`, message, tool-call, and tool-result builders in `runEventStore`, `runTimeline`, and `runTimeline.grouping` tests.
 - After dependency approval, replaced the Node runner with `vitest run`, added jsdom/Testing Library dependencies, configured shared setup in `ui/src/test-utils/setup.ts`, added `renderWithProviders`, and added initial `DiffViewer` render coverage.
+- Added a shared `ui/tests/testutil/runs.ts` run fixture and `RunTimeline` React behavior coverage for filter UI behavior and persisted filter restoration.
+- Added `QuickRunDialog` React behavior coverage for default custom-run submit/reset behavior and persisted task draft restoration.
+- Added `useWebSocket` hook coverage for queued subscription replay on open, subscription replay after reconnect, and normalized server message delivery to `onMessage`.
+- Added a shared `ui/tests/testutil/stats.ts` summary fixture and `KPISummary` React behavior coverage for formatted metrics, selected-window throughput, loading cards, and error cards.
+- Expanded the shared stats fixture with model/tool breakdown responses and added `ModelUsageBreakdown` plus `ToolUsageAnalytics` React behavior coverage for chart-to-detail selection, run/model detail rendering, empty states, and error states.
 
 ### Phase 6: Boundary Coverage and Scenario-Level Gates
 
@@ -274,9 +279,10 @@ For longer comprehensive runs, use the repository timeout guidance; `make test` 
 - [x] UI pure TypeScript tests have a shared `RunEvent` fixture utility for reducer/timeline coverage.
 - [x] UI runner decision is made with dependency approval if needed.
 - [x] React component/hook test setup exists before adding broad UI behavior tests.
+- [x] Initial React behavior tests cover `DiffViewer`, `RunTimeline`, `QuickRunDialog`, `useWebSocket`, `KPISummary`, `ModelUsageBreakdown`, and `ToolUsageAnalytics`.
 - [x] `GOWORK=off go test ./...` passes in `scenarios/agent-manager/api`.
 - [x] `pnpm test` passes in `scenarios/agent-manager/ui`.
-- [ ] `cd scenarios/agent-manager && make test` passes or any environmental blocker is documented with exact output.
+- [x] `cd scenarios/agent-manager && make test` passes or any environmental blocker is documented with exact output.
 
 ## Risks and Mitigations
 

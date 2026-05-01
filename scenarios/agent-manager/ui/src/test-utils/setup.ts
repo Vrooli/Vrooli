@@ -24,6 +24,8 @@ globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
   thresholds: [],
 })) as unknown as typeof IntersectionObserver;
 
+Element.prototype.scrollIntoView = vi.fn();
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({

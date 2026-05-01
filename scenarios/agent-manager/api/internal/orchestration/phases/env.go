@@ -29,8 +29,9 @@
 package phases
 
 import (
-	"agent-manager/internal/domain"
 	"os"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

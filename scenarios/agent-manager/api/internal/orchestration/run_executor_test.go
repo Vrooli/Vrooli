@@ -124,10 +124,6 @@ func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
 	return b.ensure().StatusBroadcasts()
 }
 
-func (b *testBroadcaster) getEventBroadcasts() []*domain.RunEvent {
-	return b.ensure().EventBroadcasts()
-}
-
 // =============================================================================
 // EXECUTOR CREATION TESTS
 // =============================================================================
