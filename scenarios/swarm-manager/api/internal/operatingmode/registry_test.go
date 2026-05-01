@@ -75,6 +75,40 @@ func TestValidateRegistryAcceptsCurrentRegistry(t *testing.T) {
 	}
 }
 
+func TestCatalogDerivesModesFromRegistry(t *testing.T) {
+	svc := newTestService(t, t.TempDir(), &fakeAgent{}, &fakePrompts{})
+	catalog, err := svc.Catalog()
+	if err != nil {
+		t.Fatalf("Catalog returned error: %v", err)
+	}
+	if len(catalog.Modes) != len(Modes()) {
+		t.Fatalf("Catalog mode count = %d, want %d", len(catalog.Modes), len(Modes()))
+	}
+	found := map[string]ModeCatalogEntry{}
+	defaultCount := 0
+	for _, mode := range catalog.Modes {
+		found[mode.Mode] = mode
+		if mode.Default {
+			defaultCount++
+		}
+		if mode.Label == "" || mode.ScopeKind == "" || mode.RunStrategy == "" || mode.WorkspaceTabID == "" {
+			t.Fatalf("catalog mode has missing fields: %+v", mode)
+		}
+	}
+	if defaultCount != 1 || !found[string(ModeItemLevel)].Default {
+		t.Fatalf("default mode state = count %d item-level=%+v", defaultCount, found[string(ModeItemLevel)])
+	}
+	if found[string(ModeItemLevel)].SupportsPhases {
+		t.Fatal("item-level supports phases in catalog")
+	}
+	if got := len(found[string(ModeHolisticLoop)].Phases); got != len(MustDefinition(ModeHolisticLoop).PhaseGraph.Phases) {
+		t.Fatalf("holistic-loop phase count = %d", got)
+	}
+	if got := len(found[string(ModePhasedPlanDrain)].Phases); got != len(MustDefinition(ModePhasedPlanDrain).PhaseGraph.Phases) {
+		t.Fatalf("phased-plan-drain phase count = %d", got)
+	}
+}
+
 func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 	tests := []struct {
 		name   string

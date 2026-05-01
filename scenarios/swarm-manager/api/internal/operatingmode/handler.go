@@ -50,6 +50,7 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/api/v1/operating-modes", h.Catalog).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/workspace", h.Workspace).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/switch", h.SwitchMode).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/phases/{phase}/start", h.StartPhase).Methods("POST")
@@ -57,6 +58,17 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/cancel", h.CancelRound).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/complete-items", h.CompleteItems).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/apply-backlog-sync", h.ApplyBacklogSync).Methods("POST")
+}
+
+func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
+	catalog, err := h.service.Catalog()
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] catalog", err)
+		return
+	}
+	if err := httputil.JSON(w, catalog); err != nil {
+		apierr.MapError(w, "[operating-mode] catalog", apierr.Internal("failed to encode response"))
+	}
 }
 
 func (h *Handler) Workspace(w http.ResponseWriter, r *http.Request) {

@@ -182,6 +182,7 @@ func (a *App) dependencies() support.Dependencies {
 		InitiativesReviewTrigger:        a.cmdInitiativesReviewTrigger,
 		InitiativesReviewDecide:         a.cmdInitiativesReviewDecide,
 		InitiativesReviewDecisions:      a.cmdInitiativesReviewDecisions,
+		InitiativesModeList:             a.cmdInitiativesModeList,
 		InitiativesModeWorkspace:        a.cmdInitiativesModeWorkspace,
 		InitiativesModeSwitch:           a.cmdInitiativesModeSwitch,
 		InitiativesModeStart:            a.cmdInitiativesModeStart,

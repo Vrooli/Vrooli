@@ -122,6 +122,7 @@ export const API_ENDPOINTS = {
     `/initiatives/${name}/operating-mode/rounds/${round}/complete-items?mode=${encodeURIComponent(mode)}`,
   initiativeOperatingModeApplyBacklogSync: (name: string, round: number, mode: string) =>
     `/initiatives/${name}/operating-mode/rounds/${round}/apply-backlog-sync?mode=${encodeURIComponent(mode)}`,
+  operatingModes: "/operating-modes",
   graph: "/graph",
   overview: "/overview",
   stats: "/stats",

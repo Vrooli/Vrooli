@@ -32,6 +32,29 @@ export interface OperatingModeWorkspacePhase {
   next?: boolean;
 }
 
+export interface OperatingModeCatalogPhase {
+  phase: string;
+  profileKey: string;
+  writesRepo: boolean;
+  requiresCriteria?: boolean;
+}
+
+export interface OperatingModeCatalogEntry {
+  mode: InitiativeOperatingMode;
+  label: string;
+  scopeKind: string;
+  runStrategy: string;
+  workspaceTabId: string;
+  default: boolean;
+  switchable: boolean;
+  supportsPhases: boolean;
+  phases: OperatingModeCatalogPhase[];
+}
+
+export interface OperatingModeCatalog {
+  modes: OperatingModeCatalogEntry[];
+}
+
 export interface OperatingModeWorkspaceDefinition {
   mode: InitiativeOperatingMode;
   label: string;

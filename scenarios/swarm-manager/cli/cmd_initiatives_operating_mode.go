@@ -17,6 +17,29 @@ type operatingModeWorkspaceResponse struct {
 	Artifacts      []operatingModeArtifact `json:"artifacts"`
 }
 
+type operatingModeCatalogResponse struct {
+	Modes []operatingModeCatalogEntry `json:"modes"`
+}
+
+type operatingModeCatalogEntry struct {
+	Mode           string                      `json:"mode"`
+	Label          string                      `json:"label"`
+	ScopeKind      string                      `json:"scope_kind"`
+	RunStrategy    string                      `json:"run_strategy"`
+	WorkspaceTabID string                      `json:"workspace_tab_id"`
+	Default        bool                        `json:"default"`
+	Switchable     bool                        `json:"switchable"`
+	SupportsPhases bool                        `json:"supports_phases"`
+	Phases         []operatingModeCatalogPhase `json:"phases,omitempty"`
+}
+
+type operatingModeCatalogPhase struct {
+	Phase            string `json:"phase"`
+	ProfileKey       string `json:"profile_key"`
+	WritesRepo       bool   `json:"writes_repo"`
+	RequiresCriteria bool   `json:"requires_criteria,omitempty"`
+}
+
 type operatingModeDef struct {
 	Label       string                        `json:"label"`
 	ScopeKind   string                        `json:"scope_kind"`
@@ -106,6 +129,54 @@ type operatingModeProposalOutcome struct {
 	Applied    bool   `json:"applied"`
 	Skipped    bool   `json:"skipped,omitempty"`
 	Error      string `json:"error,omitempty"`
+}
+
+func (a *App) cmdInitiativesModeList(args []string) error {
+	fs := flag.NewFlagSet("initiatives mode-list", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.core.Get("/operating-modes", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	resp, err := decodeResponse[operatingModeCatalogResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Operating Modes")
+	if len(resp.Modes) == 0 {
+		fmt.Println("  (none)")
+		return nil
+	}
+	for _, mode := range resp.Modes {
+		defaultMark := ""
+		if mode.Default {
+			defaultMark = " [default]"
+		}
+		fmt.Printf("  - %s%s (%s)\n", mode.Mode, defaultMark, mode.Label)
+		if mode.ScopeKind != "" {
+			fmt.Printf("    scope: %s\n", mode.ScopeKind)
+		}
+		if mode.RunStrategy != "" {
+			fmt.Printf("    strategy: %s\n", mode.RunStrategy)
+		}
+		if len(mode.Phases) > 0 {
+			fmt.Println("    phases:")
+			for _, phase := range mode.Phases {
+				writeAccess := "read-only"
+				if phase.WritesRepo {
+					writeAccess = "writes repo"
+				}
+				fmt.Printf("      - %s (%s, %s)\n", phase.Phase, phase.ProfileKey, writeAccess)
+			}
+		}
+	}
+	return nil
 }
 
 func (a *App) cmdInitiativesModeWorkspace(args []string) error {

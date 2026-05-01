@@ -28,10 +28,7 @@ export type InitiativeStatus =
   | "needs_followup";
 
 /** Initiative operating mode: the execution and validation methodology. */
-export type InitiativeOperatingMode =
-  | "item-level"
-  | "holistic-loop"
-  | "phased-plan-drain";
+export type InitiativeOperatingMode = string;
 
 /**
  * A named grouping of related backlog items.

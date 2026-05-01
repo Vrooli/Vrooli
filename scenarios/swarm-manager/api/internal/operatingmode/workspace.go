@@ -54,6 +54,43 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 	}, nil
 }
 
+func (s *Service) Catalog() (ModeCatalog, error) {
+	if err := ValidateRegistry(); err != nil {
+		return ModeCatalog{}, err
+	}
+	modes := Modes()
+	entries := make([]ModeCatalogEntry, 0, len(modes))
+	for _, mode := range modes {
+		def, err := DefinitionFor(mode)
+		if err != nil {
+			return ModeCatalog{}, err
+		}
+		entry := ModeCatalogEntry{
+			Mode:           string(def.Mode),
+			Label:          def.Label,
+			ScopeKind:      string(def.Scope.Kind),
+			RunStrategy:    string(def.RunStrategy.Kind),
+			WorkspaceTabID: def.UI.WorkspaceTabID,
+			Default:        def.Mode == DefaultMode(),
+			Switchable:     true,
+			SupportsPhases: def.Mode != ModeItemLevel,
+		}
+		if entry.SupportsPhases {
+			for _, phaseName := range orderedPhases(def) {
+				phase := def.PhaseGraph.Phases[phaseName]
+				entry.Phases = append(entry.Phases, ModeCatalogPhase{
+					Phase:            string(phase.Phase),
+					ProfileKey:       phase.ProfileKey,
+					WritesRepo:       phase.WritesRepo,
+					RequiresCriteria: phase.RequiresCriteria,
+				})
+			}
+		}
+		entries = append(entries, entry)
+	}
+	return ModeCatalog{Modes: entries}, nil
+}
+
 func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []string) WorkspaceMode {
 	actions := map[Phase]PhaseAction{}
 	for _, action := range ComputePhaseActions(PhaseStateInput{

@@ -43,6 +43,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("review-decisions", "List past review decisions (--name NAME) [--json]", deps.InitiativesReviewDecisions),
 
 			// Initiative operating modes.
+			support.APICommand("mode-list", "List registered operating modes [--json]", deps.InitiativesModeList),
 			support.APICommand("mode-workspace", "Show operating-mode workspace (--name NAME) [--json]", deps.InitiativesModeWorkspace),
 			support.APICommand("mode-switch", "Switch operating mode (--name NAME --mode MODE [--cancel-active-item-executions] [--requested-by WHO] [--json])", deps.InitiativesModeSwitch),
 			support.APICommand("mode-start", "Start an operating-mode phase (--name NAME --phase PHASE [--note MSG] [--override] [--requested-by WHO] [--json])", deps.InitiativesModeStart),

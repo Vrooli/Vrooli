@@ -4,6 +4,9 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
   OperatingModeArtifactSnapshot,
   OperatingModeBacklogSyncResult,
+  OperatingModeCatalog,
+  OperatingModeCatalogEntry,
+  OperatingModeCatalogPhase,
   OperatingModeRound,
   OperatingModeRoundItem,
   OperatingModeWorkspace,
@@ -65,10 +68,44 @@ function normalizePhase(raw: unknown): OperatingModeWorkspacePhase {
   };
 }
 
+function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
+  const phase = recordValue(raw);
+  return {
+    phase: stringValue(phase.phase),
+    profileKey: stringValue(phase.profile_key ?? phase.profileKey),
+    writesRepo: boolValue(phase.writes_repo ?? phase.writesRepo) ?? false,
+    requiresCriteria: boolValue(phase.requires_criteria ?? phase.requiresCriteria),
+  };
+}
+
+function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
+  const mode = recordValue(raw);
+  const phases = mode.phases;
+  return {
+    mode: stringValue(mode.mode, "item-level"),
+    label: stringValue(mode.label),
+    scopeKind: stringValue(mode.scope_kind ?? mode.scopeKind),
+    runStrategy: stringValue(mode.run_strategy ?? mode.runStrategy),
+    workspaceTabId: stringValue(mode.workspace_tab_id ?? mode.workspaceTabId),
+    default: boolValue(mode.default) ?? false,
+    switchable: boolValue(mode.switchable) ?? false,
+    supportsPhases: boolValue(mode.supports_phases ?? mode.supportsPhases) ?? false,
+    phases: Array.isArray(phases) ? phases.map(normalizeCatalogPhase) : [],
+  };
+}
+
+function normalizeCatalog(raw: unknown): OperatingModeCatalog {
+  const catalog = recordValue(raw);
+  const modes = catalog.modes;
+  return {
+    modes: Array.isArray(modes) ? modes.map(normalizeCatalogEntry) : [],
+  };
+}
+
 function normalizeDefinition(raw: unknown): OperatingModeWorkspaceDefinition {
   const def = recordValue(raw);
   return {
-    mode: stringValue(def.mode, "item-level") as OperatingModeWorkspaceDefinition["mode"],
+    mode: stringValue(def.mode, "item-level"),
     label: stringValue(def.label),
     scopeKind: stringValue(def.scope_kind ?? def.scopeKind),
     phases: Array.isArray(def.phases) ? def.phases.map(normalizePhase) : [],
@@ -83,7 +120,7 @@ function normalizeRound(raw: unknown): OperatingModeRound {
   const artifactUpdates = round.artifact_updates ?? round.artifactUpdates;
   return {
     round: numberValue(round.round, 0) ?? 0,
-    mode: stringValue(round.mode, "item-level") as OperatingModeRound["mode"],
+    mode: stringValue(round.mode, "item-level"),
     scopeKind: stringValue(round.scope_kind ?? round.scopeKind),
     scopeId: stringValue(round.scope_id ?? round.scopeId),
     initiativeName: stringValue(round.initiative_name ?? round.initiativeName, undefined),
@@ -127,7 +164,7 @@ function normalizeWorkspace(raw: unknown): OperatingModeWorkspace {
   const workspace = recordValue(raw);
   return {
     initiativeName: stringValue(workspace.initiative_name ?? workspace.initiativeName),
-    mode: stringValue(workspace.mode, "item-level") as OperatingModeWorkspace["mode"],
+    mode: stringValue(workspace.mode, "item-level"),
     definition: normalizeDefinition(workspace.definition),
     lock: workspace.lock ? recordValue(workspace.lock) : undefined,
     artifacts: Array.isArray(workspace.artifacts) ? workspace.artifacts.map(normalizeArtifact) : [],
@@ -150,8 +187,8 @@ function normalizeSwitchResult(raw: unknown): SwitchOperatingModeResult {
   const canceled = result.canceled_item_executions ?? result.canceledItemExecutions;
   return {
     initiativeName: stringValue(result.initiative_name ?? result.initiativeName),
-    fromMode: stringValue(result.from_mode ?? result.fromMode, "item-level") as InitiativeOperatingMode,
-    toMode: stringValue(result.to_mode ?? result.toMode, "item-level") as InitiativeOperatingMode,
+    fromMode: stringValue(result.from_mode ?? result.fromMode, "item-level"),
+    toMode: stringValue(result.to_mode ?? result.toMode, "item-level"),
     activeItemExecutions: Array.isArray(active) ? active.map(normalizeExecution) : undefined,
     canceledItemExecutions: Array.isArray(canceled) ? canceled.map(normalizeExecution) : undefined,
     requiresCancellation: boolValue(result.requires_cancellation ?? result.requiresCancellation, undefined),
@@ -188,6 +225,7 @@ export interface ApplyOperatingModeBacklogSyncArgs {
 }
 
 export interface IInitiativeModeService {
+  catalog(): Promise<OperatingModeCatalog>;
   workspace(name: string): Promise<OperatingModeWorkspace>;
   switchMode(name: string, args: SwitchOperatingModeArgs): Promise<SwitchOperatingModeResult>;
   startPhase(name: string, phase: string, args?: StartOperatingModePhaseArgs): Promise<OperatingModeRound>;
@@ -204,7 +242,7 @@ function normalizeBacklogSyncResult(raw: unknown): OperatingModeBacklogSyncResul
   const outcomes = proposalResult.outcomes;
   return {
     initiativeName: stringValue(result.initiative_name ?? result.initiativeName),
-    mode: stringValue(result.mode, "item-level") as InitiativeOperatingMode,
+    mode: stringValue(result.mode, "item-level"),
     phase: stringValue(result.phase),
     round: numberValue(result.round, 0) ?? 0,
     runId: stringValue(result.run_id ?? result.runId, undefined),
@@ -242,6 +280,11 @@ export function createInitiativeModeService(
   apiClient: IApiClient = defaultApiClient,
 ): IInitiativeModeService {
   return {
+    async catalog(): Promise<OperatingModeCatalog> {
+      const raw = await apiClient.get<unknown>(API_ENDPOINTS.operatingModes);
+      return normalizeCatalog(raw);
+    },
+
     async workspace(name: string): Promise<OperatingModeWorkspace> {
       const raw = await apiClient.get<unknown>(API_ENDPOINTS.initiativeOperatingModeWorkspace(name));
       return normalizeWorkspace(raw);

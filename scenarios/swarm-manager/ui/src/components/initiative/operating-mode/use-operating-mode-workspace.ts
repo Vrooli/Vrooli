@@ -28,6 +28,10 @@ export function useOperatingModeWorkspace({
     queryKey: ["initiative-operating-mode", initiative.name],
     queryFn: () => initiativeModeService.workspace(initiative.name),
   });
+  const modeCatalogQuery = useQuery({
+    queryKey: ["operating-mode-catalog"],
+    queryFn: () => initiativeModeService.catalog(),
+  });
 
   const invalidateWorkspace = () => {
     void queryClient.invalidateQueries({ queryKey: ["initiative-operating-mode", initiative.name] });
@@ -120,6 +124,7 @@ export function useOperatingModeWorkspace({
     confirmItemCancellation,
     setConfirmItemCancellation,
     workspaceQuery,
+    modeCatalogQuery,
     workspace,
     currentMode,
     switchingAwayFromItemLevel,

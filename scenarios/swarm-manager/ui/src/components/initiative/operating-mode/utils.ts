@@ -1,15 +1,12 @@
 import { formatDisplayText } from "../../../lib/format-utils";
 import type { OperatingModeRound } from "../../../types/operating-mode";
-import type { InitiativeOperatingMode } from "../../../types";
-
-export const OPERATING_MODES: Array<{ value: InitiativeOperatingMode; label: string }> = [
-  { value: "item-level", label: "Item Level" },
-  { value: "holistic-loop", label: "Holistic Loop" },
-  { value: "phased-plan-drain", label: "Phased Plan Drain" },
-];
 
 export function activeRound(rounds: OperatingModeRound[]): OperatingModeRound | undefined {
   return rounds.find((round) => round.status === "reserved" || round.status === "agent_running");
+}
+
+export function modeLabel(mode: string, label?: string): string {
+  return label?.trim() || formatDisplayText(mode.replace(/-/g, " "));
 }
 
 export function phaseLabel(phase: string): string {

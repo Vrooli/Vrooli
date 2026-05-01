@@ -6,6 +6,19 @@ import (
 	"testing"
 )
 
+func TestCmdInitiativesModeList_ReadsCatalog(t *testing.T) {
+	app, _ := newFeedbackTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/operating-modes" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"modes":[{"mode":"item-level","label":"Item Level","scope_kind":"backlog_item","run_strategy":"existing_item_flow","workspace_tab_id":"info","default":true,"switchable":true,"supports_phases":false}]}`))
+	}))
+
+	if err := app.cmdInitiativesModeList([]string{}); err != nil {
+		t.Fatalf("cmdInitiativesModeList returned error: %v", err)
+	}
+}
+
 func TestCmdInitiativesModeWorkspace_ReadsWorkspace(t *testing.T) {
 	var path string
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

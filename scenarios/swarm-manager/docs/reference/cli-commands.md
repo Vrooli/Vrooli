@@ -131,6 +131,13 @@ Only direct upstream and downstream are returned — the endpoint is a one-hop n
 
 ## Initiative Operating Modes
 
+List registered modes from the backend registry catalog:
+
+```bash
+swarm-manager initiatives mode-list
+swarm-manager initiatives mode-list --json
+```
+
 Inspect the mode workspace:
 
 ```bash

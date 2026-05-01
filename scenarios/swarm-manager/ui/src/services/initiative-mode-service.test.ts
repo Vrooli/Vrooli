@@ -78,6 +78,38 @@ describe("Initiative Mode Service", () => {
     expect(workspace.rounds[0]?.items?.[0]?.ref).toBe("execute/item-1");
   });
 
+  it("normalizes operating-mode catalog entries", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      modes: [{
+        mode: "custom-audit-loop",
+        label: "Custom Audit Loop",
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        workspace_tab_id: "operating-mode",
+        default: false,
+        switchable: true,
+        supports_phases: true,
+        phases: [{
+          phase: "audit",
+          profile_key: "swarm-manager/analysis",
+          writes_repo: false,
+          requires_criteria: true,
+        }],
+      }],
+    });
+
+    const catalog = await service.catalog();
+
+    expect(api.get).toHaveBeenCalledWith("/operating-modes");
+    expect(catalog.modes[0]?.mode).toBe("custom-audit-loop");
+    expect(catalog.modes[0]?.scopeKind).toBe("initiative");
+    expect(catalog.modes[0]?.runStrategy).toBe("operator_gated_loop");
+    expect(catalog.modes[0]?.workspaceTabId).toBe("operating-mode");
+    expect(catalog.modes[0]?.supportsPhases).toBe(true);
+    expect(catalog.modes[0]?.phases[0]?.profileKey).toBe("swarm-manager/analysis");
+    expect(catalog.modes[0]?.phases[0]?.requiresCriteria).toBe(true);
+  });
+
   it("starts, refreshes, and cancels rounds through canonical endpoints", async () => {
     vi.mocked(api.post).mockResolvedValue({
       round: 2,

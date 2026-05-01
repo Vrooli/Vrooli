@@ -8,6 +8,7 @@ import type { Initiative } from "../../types";
 
 vi.mock("../../services", () => ({
   initiativeModeService: {
+    catalog: vi.fn(),
     workspace: vi.fn(),
     switchMode: vi.fn(),
     startPhase: vi.fn(),
@@ -40,6 +41,43 @@ describe("OperatingModePanel", () => {
   beforeEach(() => {
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     vi.clearAllMocks();
+    vi.mocked(initiativeModeService.catalog).mockResolvedValue({
+      modes: [
+        {
+          mode: "item-level",
+          label: "Item Level",
+          scopeKind: "backlog_item",
+          runStrategy: "existing_item_flow",
+          workspaceTabId: "info",
+          default: true,
+          switchable: true,
+          supportsPhases: false,
+          phases: [],
+        },
+        {
+          mode: "holistic-loop",
+          label: "Holistic Loop",
+          scopeKind: "initiative",
+          runStrategy: "operator_gated_loop",
+          workspaceTabId: "operating-mode",
+          default: false,
+          switchable: true,
+          supportsPhases: true,
+          phases: [{ phase: "investigate", profileKey: "swarm-manager/deep-work", writesRepo: false }],
+        },
+        {
+          mode: "phased-plan-drain",
+          label: "Phased Plan Drain",
+          scopeKind: "initiative",
+          runStrategy: "sequential_handoff",
+          workspaceTabId: "operating-mode",
+          default: false,
+          switchable: true,
+          supportsPhases: true,
+          phases: [{ phase: "execute_next", profileKey: "swarm-manager/deep-work", writesRepo: true }],
+        },
+      ],
+    });
     vi.mocked(initiativeModeService.workspace).mockResolvedValue({
       initiativeName: "mode-initiative",
       mode: "holistic-loop",
@@ -279,9 +317,7 @@ describe("OperatingModePanel", () => {
     });
 
     renderPanel(onInitiativeUpdated);
-    await waitFor(() => {
-      expect(screen.getByTestId("initiative-mode-select")).toBeInTheDocument();
-    });
+    await screen.findByRole("option", { name: "Phased Plan Drain" });
 
     const user = userEvent.setup();
     await user.selectOptions(screen.getByTestId("initiative-mode-select"), "phased-plan-drain");
@@ -302,6 +338,66 @@ describe("OperatingModePanel", () => {
     expect(onInitiativeUpdated).toHaveBeenCalled();
   });
 
+  it("renders selectable modes from the backend catalog", async () => {
+    vi.mocked(initiativeModeService.catalog).mockResolvedValue({
+      modes: [
+        {
+          mode: "item-level",
+          label: "Item Level",
+          scopeKind: "backlog_item",
+          runStrategy: "existing_item_flow",
+          workspaceTabId: "info",
+          default: true,
+          switchable: true,
+          supportsPhases: false,
+          phases: [],
+        },
+        {
+          mode: "custom-audit-loop",
+          label: "Custom Audit Loop",
+          scopeKind: "initiative",
+          runStrategy: "operator_gated_loop",
+          workspaceTabId: "operating-mode",
+          default: false,
+          switchable: true,
+          supportsPhases: true,
+          phases: [],
+        },
+      ],
+    });
+    vi.mocked(initiativeModeService.switchMode).mockResolvedValue({
+      initiativeName: "mode-initiative",
+      fromMode: "holistic-loop",
+      toMode: "custom-audit-loop",
+    });
+
+    renderPanel();
+    const select = await screen.findByTestId("initiative-mode-select");
+
+    expect(await screen.findByRole("option", { name: "Custom Audit Loop" })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.selectOptions(select, "custom-audit-loop");
+    await user.click(screen.getByTestId("initiative-mode-save"));
+
+    await waitFor(() => {
+      expect(initiativeModeService.switchMode).toHaveBeenCalledWith("mode-initiative", {
+        mode: "custom-audit-loop",
+        cancelActiveItemExecutions: false,
+      });
+    });
+  });
+
+  it("disables mode switching when the backend catalog fails", async () => {
+    vi.mocked(initiativeModeService.catalog).mockRejectedValue(new Error("catalog unavailable"));
+
+    renderPanel();
+
+    const save = await screen.findByTestId("initiative-mode-save");
+    expect(await screen.findByText("catalog unavailable")).toBeInTheDocument();
+    expect(save).toBeDisabled();
+  });
+
   it("requires a second click when switching away from item-level mode", async () => {
     vi.mocked(initiativeModeService.switchMode).mockResolvedValue({
       initiativeName: "mode-initiative",
@@ -317,9 +413,7 @@ describe("OperatingModePanel", () => {
         />
       </QueryClientProvider>,
     );
-    await waitFor(() => {
-      expect(screen.getByTestId("initiative-mode-select")).toBeInTheDocument();
-    });
+    await screen.findByRole("option", { name: "Holistic Loop" });
 
     const user = userEvent.setup();
     await user.selectOptions(screen.getByTestId("initiative-mode-select"), "holistic-loop");

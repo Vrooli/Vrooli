@@ -258,6 +258,29 @@ type WorkspaceMode struct {
 	RunStrategy string              `json:"run_strategy"`
 }
 
+type ModeCatalog struct {
+	Modes []ModeCatalogEntry `json:"modes"`
+}
+
+type ModeCatalogEntry struct {
+	Mode           string             `json:"mode"`
+	Label          string             `json:"label"`
+	ScopeKind      string             `json:"scope_kind"`
+	RunStrategy    string             `json:"run_strategy"`
+	WorkspaceTabID string             `json:"workspace_tab_id"`
+	Default        bool               `json:"default"`
+	Switchable     bool               `json:"switchable"`
+	SupportsPhases bool               `json:"supports_phases"`
+	Phases         []ModeCatalogPhase `json:"phases"`
+}
+
+type ModeCatalogPhase struct {
+	Phase            string `json:"phase"`
+	ProfileKey       string `json:"profile_key"`
+	WritesRepo       bool   `json:"writes_repo"`
+	RequiresCriteria bool   `json:"requires_criteria,omitempty"`
+}
+
 type WorkspacePhase struct {
 	Phase            string               `json:"phase"`
 	ActivityPurpose  string               `json:"activity_purpose"`

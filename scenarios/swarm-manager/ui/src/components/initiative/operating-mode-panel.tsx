@@ -27,6 +27,7 @@ export function OperatingModePanel({
     confirmItemCancellation,
     setConfirmItemCancellation,
     workspaceQuery,
+    modeCatalogQuery,
     workspace,
     currentMode,
     switchingAwayFromItemLevel,
@@ -51,6 +52,9 @@ export function OperatingModePanel({
         switchingAwayFromItemLevel={switchingAwayFromItemLevel}
         isPending={modeMutation.isPending}
         error={modeMutation.error}
+        catalogModes={modeCatalogQuery.data?.modes ?? []}
+        catalogLoading={modeCatalogQuery.isLoading}
+        catalogError={modeCatalogQuery.error}
         onSelectedModeChange={setSelectedMode}
         onConfirmItemCancellationChange={setConfirmItemCancellation}
         onSave={() => modeMutation.mutate(selectedMode)}

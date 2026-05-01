@@ -43,6 +43,30 @@ func TestRoundActionWithoutModeRejectsItemLevelInitiative(t *testing.T) {
 	}
 }
 
+func TestCatalogEndpointReturnsRegisteredModes(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/operating-modes", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	for _, mode := range []string{"item-level", "holistic-loop", "phased-plan-drain"} {
+		if !strings.Contains(rec.Body.String(), mode) {
+			t.Fatalf("catalog response missing %q: %s", mode, rec.Body.String())
+		}
+	}
+	if !strings.Contains(rec.Body.String(), `"supports_phases":true`) {
+		t.Fatalf("catalog response missing phase support metadata: %s", rec.Body.String())
+	}
+}
+
 func TestRoundActionWithoutModeUsesCurrentNonDefaultInitiativeMode(t *testing.T) {
 	root := t.TempDir()
 	mutator := &fakeBacklogMutator{}

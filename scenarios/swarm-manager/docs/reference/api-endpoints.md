@@ -186,6 +186,31 @@ New initiatives always start in `item-level`. The generic create/update
 endpoints reject `mode`; use the operating-mode switch endpoint below for every
 mode change.
 
+## Operating Mode Catalog
+
+`GET /api/v1/operating-modes`
+
+Returns the backend registry's switchable operating modes. UI and CLI selection
+surfaces must use this endpoint instead of maintaining hard-coded mode lists.
+
+```json
+{
+  "modes": [
+    {
+      "mode": "item-level",
+      "label": "Item Level",
+      "scope_kind": "backlog_item",
+      "run_strategy": "existing_item_flow",
+      "workspace_tab_id": "info",
+      "default": true,
+      "switchable": true,
+      "supports_phases": false,
+      "phases": []
+    }
+  ]
+}
+```
+
 ## Initiative Operating Mode Switch
 
 `POST /api/v1/initiatives/{name}/operating-mode/switch`

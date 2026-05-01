@@ -99,6 +99,7 @@ type Dependencies struct {
 	InitiativesReviewDecide    CommandFunc
 	InitiativesReviewDecisions CommandFunc
 	// Initiative operating-mode CLI (see cmd_initiatives_operating_mode.go).
+	InitiativesModeList             CommandFunc
 	InitiativesModeWorkspace        CommandFunc
 	InitiativesModeSwitch           CommandFunc
 	InitiativesModeStart            CommandFunc
