@@ -23,6 +23,7 @@ Use this README first, then choose the file or sub-hub that matches the work:
 | Which post shape should be used? | [`post-types/README.md`](post-types/README.md) |
 | Which reusable writing technique applies? | [`post-techniques/README.md`](post-techniques/README.md) |
 | Which cross-cutting campaign strategy applies? | [`strategies/README.md`](strategies/README.md) |
+| How should external signals become research evidence? | [`research/README.md`](research/README.md) |
 | Which generated-media asset or schema applies? | [`rich-media/README.md`](rich-media/README.md) |
 | Is this unresolved learning rather than canon? | [`notebook/README.md`](notebook/README.md) |
 
@@ -47,13 +48,14 @@ The first file in each sub-folder is a hub. Start there rather than guessing at 
 | [`post-types/README.md`](post-types/README.md) | One file per kind of marketing post Vrooli produces, organized by primary medium under `text/`, `image/`, and `video/`. Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
 | [`post-techniques/README.md`](post-techniques/README.md) | One file per cross-cutting voice/structure technique (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, recommendation-framing, etc.). Techniques are referenced from multiple post-type files rather than duplicated. |
 | [`strategies/README.md`](strategies/README.md) | Cross-cutting marketing strategies that span multiple post-types and aren't pure techniques (AI-UGC personas, hook library, funnel patterns). One file per strategy. |
+| [`research/README.md`](research/README.md) | Research intake, collection, method, and promotion architecture for operator-fed alpha, proactive scans, future bookmark-intelligence-hub exports, and research method evolution. |
 | [`rich-media/README.md`](rich-media/README.md) | Structured-data substrate for AI image and video generation: character / scene / product schemas (JSON), prompt templates (Veo/Seedance-compatible), and ground-truth assets. Drives multi-frame and multi-shot consistency. |
 | [`notebook/`](notebook/) | Working notebook for patterns observed in production. Append-anyone; brand-manager curates promotions to plan-of-record (here, in `post-types/`, in `post-techniques/`, in `strategies/`) or to permanent structure (a skill or scenario). |
 
 ## Write rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE / `strategies/*` / `rich-media/*` *and* the cross-team narrative canon at `docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for per-platform-rule edits to CHANNELS; `channel-strategy-update` (researcher) for channel-priority/strategy edits to CHANNELS; `post-type-proposal` (researcher) for new entries under `post-types/`; `hook-candidate-promotion` (researcher) for additions to `strategies/hook-library.md`.
+- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE / `strategies/*` / `rich-media/*` / `research/*` *and* the cross-team narrative canon at `docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for per-platform-rule edits to CHANNELS; `channel-strategy-update` (researcher) for channel-priority/strategy edits to CHANNELS; `post-type-proposal` (researcher) for new entries under `post-types/`; `hook-candidate-promotion` (researcher) for additions to `strategies/hook-library.md`.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
 
 ## Cross-references

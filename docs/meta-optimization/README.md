@@ -22,7 +22,7 @@ This split avoids the failure mode where members edit each other's notes and the
 
 | File | Purpose | Character |
 |------|---------|-----------|
-| `CONVERSION_PLAYBOOK.md` | Patterns and examples for converting prose skills into thin wrappers over scenario CLIs | Memory — grows as conversions happen |
+| `CONVERSION_PLAYBOOK.md` | Patterns and examples for converting deterministic prose into Vrooli-controlled CLIs and Actions | Memory — grows as conversions happen |
 | `DEPRECATION_POLICY.md` | Staleness windows, roadmap-check procedure, archive path for retiring skills/agents/teams | Doctrine + memory — thresholds are rules; edge cases are memory |
 | `REFERENCE_SCENARIOS.md` | Which scenario is the gold-star validation target, plus secondary references | State — registry of current references |
 

@@ -31,9 +31,9 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 6,
+  "revision": 7,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-23T16:16:49Z",
+  "updatedAt": "2026-05-01T00:00:00Z",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -154,6 +154,26 @@
           ],
           "rationale": "Reusable strategy canon for hooks, funnel patterns, and AI-UGC rules.",
           "useFor": "cross-cutting marketing strategies, hook libraries, funnel patterns, and AI-UGC persona guidance"
+        },
+        {
+          "id": "marketing-research",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/marketing/research/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/research/README.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "marketing-crew",
+            "meta-optimization"
+          ],
+          "rationale": "Research intake, collection, method, and promotion architecture for operator-fed alpha, proactive scans, and future bookmark-intelligence-hub exports.",
+          "useFor": "marketing research routing, alpha extraction, proactive scan discipline, and research method evolution"
         },
         {
           "id": "narrative-canon",
@@ -282,6 +302,16 @@
           "path": {
             "base": "team-shared",
             "path": "audience-scans.jsonl"
+          },
+          "kind": "append-only-event-log",
+          "required": true,
+          "ownerMemberId": "researcher"
+        },
+        {
+          "id": "research-inbox-jsonl",
+          "path": {
+            "base": "team-shared",
+            "path": "research-inbox.jsonl"
           },
           "kind": "append-only-event-log",
           "required": true,
@@ -780,6 +810,10 @@
           {
             "base": "team-shared",
             "path": "audience-scans.jsonl"
+          },
+          {
+            "base": "team-shared",
+            "path": "research-inbox.jsonl"
           },
           {
             "base": "repo-root",

@@ -51,3 +51,4 @@ make stop    # Stop all services
 - **"Unable to reach the API"**: Ensure the scenario is running via `make start` or `vrooli scenario start web-console`
 - **Terminal not responding**: The PTY process may have exited — close the pane and open a new terminal
 - **Port conflicts**: Ports are dynamically allocated; check `vrooli scenario port web-console API_PORT`
+- **Lost panes after a host crash**: See [Session Recovery](guides/SESSION_RECOVERY.md)

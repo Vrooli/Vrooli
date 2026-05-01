@@ -5,13 +5,15 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { AgentSessionAttribution } from "./agent_session_pb";
+import { file_swarm_manager_v1_domain_agent_session } from "./agent_session_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file swarm-manager/v1/domain/initiative.proto.
  */
 export const file_swarm_manager_v1_domain_initiative: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIqoDCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSWwoGc3RhdHVzGAQgASgJQku6SEhyRlIGYWN0aXZlUglpbl9yZXZpZXdSDnJldmlld19wZW5kaW5nUgljb21wbGV0ZWRSBmZhaWxlZFIObmVlZHNfZm9sbG93dXASDQoFaXRlbXMYBSADKAkSDwoHY3JlYXRlZBgGIAEoCRIPCgd1cGRhdGVkGAcgASgJEhEKBG5vdGUYCCABKAlIAIgBARIYCgthcmNoaXZlZF9hdBgJIAEoCUgBiAEBEhAKCHByaW9yaXR5GAogASgFEhIKCmRlcGVuZHNfb24YCyADKAkSQQoEbW9kZRgMIAEoCUIzukgwci5SCml0ZW0tbGV2ZWxSDWhvbGlzdGljLWxvb3BSEXBoYXNlZC1wbGFuLWRyYWluEhsKE2FjY2VwdGFuY2VfY3JpdGVyaWEYDSADKAlCBwoFX25vdGVCDgoMX2FyY2hpdmVkX2F0InwKEEluaXRpYXRpdmVSb2xsdXASDQoFdG90YWwYASABKAUSEQoJY29tcGxldGVkGAIgASgFEhMKC2luX3Byb2dyZXNzGAMgASgFEg4KBmZhaWxlZBgEIAEoBRIPCgdwZW5kaW5nGAUgASgFEhAKCGFyY2hpdmVkGAYgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9pbml0aWF0aXZlLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIv0DCgpJbml0aWF0aXZlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSWwoGc3RhdHVzGAQgASgJQku6SEhyRlIGYWN0aXZlUglpbl9yZXZpZXdSDnJldmlld19wZW5kaW5nUgljb21wbGV0ZWRSBmZhaWxlZFIObmVlZHNfZm9sbG93dXASDQoFaXRlbXMYBSADKAkSDwoHY3JlYXRlZBgGIAEoCRIPCgd1cGRhdGVkGAcgASgJEhEKBG5vdGUYCCABKAlIAIgBARIYCgthcmNoaXZlZF9hdBgJIAEoCUgBiAEBEhAKCHByaW9yaXR5GAogASgFEhIKCmRlcGVuZHNfb24YCyADKAkSQQoEbW9kZRgMIAEoCUIzukgwci5SCml0ZW0tbGV2ZWxSDWhvbGlzdGljLWxvb3BSEXBoYXNlZC1wbGFuLWRyYWluEhsKE2FjY2VwdGFuY2VfY3JpdGVyaWEYDSADKAkSQgoKY3JlYXRlZF9ieRgOIAEoCzIpLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXR0cmlidXRpb25IAogBAUIHCgVfbm90ZUIOCgxfYXJjaGl2ZWRfYXRCDQoLX2NyZWF0ZWRfYnkifAoQSW5pdGlhdGl2ZVJvbGx1cBINCgV0b3RhbBgBIAEoBRIRCgljb21wbGV0ZWQYAiABKAUSEwoLaW5fcHJvZ3Jlc3MYAyABKAUSDgoGZmFpbGVkGAQgASgFEg8KB3BlbmRpbmcYBSABKAUSEAoIYXJjaGl2ZWQYBiABKAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session]);
 
 /**
  * Initiative represents a named grouping of backlog items.
@@ -117,6 +119,13 @@ export type Initiative = Message<"swarm_manager.v1.Initiative"> & {
    * @generated from field: repeated string acceptance_criteria = 13;
    */
   acceptanceCriteria: string[];
+
+  /**
+   * Verified provenance for the actor/session that created this initiative.
+   *
+   * @generated from field: optional swarm_manager.v1.AgentSessionAttribution created_by = 14;
+   */
+  createdBy?: AgentSessionAttribution | undefined;
 };
 
 /**

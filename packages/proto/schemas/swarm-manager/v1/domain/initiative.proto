@@ -3,6 +3,7 @@ syntax = "proto3";
 package swarm_manager.v1;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/agent_session.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -12,7 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //
 // @layer 1
 // @domain initiative
-// @imports none (external only: buf.validate)
+// @imports agent_session
 // @stability beta
 //
 // Initiatives group related backlog items into coherent work streams.
@@ -72,6 +73,9 @@ message Initiative {
 
   // Initiative-scoped acceptance criteria used by non-item-level modes.
   repeated string acceptance_criteria = 13;
+
+  // Verified provenance for the actor/session that created this initiative.
+  optional AgentSessionAttribution created_by = 14;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

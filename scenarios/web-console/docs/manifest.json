@@ -65,6 +65,11 @@
           "path": "guides/CONVERSATION_TRACKING.md",
           "title": "Conversation Tracking",
           "description": "How claude/codex sessions get parsed into the messages feed, which launch paths work, and how attribution stays scoped"
+        },
+        {
+          "path": "guides/SESSION_RECOVERY.md",
+          "title": "Session Recovery",
+          "description": "Recovering persistent panes after API restarts or host crashes, including Codex and Claude resume workflows"
         }
       ]
     },

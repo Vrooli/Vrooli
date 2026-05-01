@@ -1157,13 +1157,13 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
 	"\x04mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\x1a\n" +
 	"\x06run_id\x18\x06 \x01(\tH\x00R\x05runId\x88\x01\x01B\t\n" +
-	"\a_run_id\"\xbd\x06\n" +
+	"\a_run_id\"\xc6\x06\n" +
 	"\x1aGraphAgentActivityNodeData\x12(\n" +
 	"\vactivity_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"activityId\x12L\n" +
+	"activityId\x12U\n" +
 	"\n" +
-	"owner_type\x18\x02 \x01(\tB-\xbaH*r(R\abacklogR\acaptureR\bscenarioR\n" +
-	"initiativeR\townerType\x12\"\n" +
+	"owner_type\x18\x02 \x01(\tB6\xbaH3r1R\abacklogR\acaptureR\bscenarioR\n" +
+	"initiativeR\asessionR\townerType\x12\"\n" +
 	"\n" +
 	"owner_kind\x18\x03 \x01(\tH\x00R\townerKind\x88\x01\x01\x12&\n" +
 	"\n" +

@@ -3,6 +3,7 @@ syntax = "proto3";
 package swarm_manager.v1;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/agent_session.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -12,7 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //
 // @layer 1
 // @domain backlog
-// @imports none (external only: buf.validate)
+// @imports agent_session
 // @stability beta
 //
 // Backlog items capture all work types for Swarm Manager:
@@ -114,6 +115,9 @@ message BacklogItem {
   // paths in acceptance_allow that don't yet exist on disk. Absence means
   // "no declared new paths."
   repeated string creates = 22;
+
+  // Verified provenance for the actor/session that created this item.
+  optional AgentSessionAttribution created_by = 23;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

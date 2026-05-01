@@ -77,7 +77,9 @@ type BacklogItem struct {
 	// acceptance_allow. Used by the workshop validator to allow forward-looking
 	// paths in acceptance_allow that don't yet exist on disk. Absence means
 	// "no declared new paths."
-	Creates       []string `protobuf:"bytes,22,rep,name=creates,proto3" json:"creates,omitempty"`
+	Creates []string `protobuf:"bytes,22,rep,name=creates,proto3" json:"creates,omitempty"`
+	// Verified provenance for the actor/session that created this item.
+	CreatedBy     *AgentSessionAttribution `protobuf:"bytes,23,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -248,6 +250,13 @@ func (x *BacklogItem) GetSuggestedSkills() []string {
 func (x *BacklogItem) GetCreates() []string {
 	if x != nil {
 		return x.Creates
+	}
+	return nil
+}
+
+func (x *BacklogItem) GetCreatedBy() *AgentSessionAttribution {
+	if x != nil {
+		return x.CreatedBy
 	}
 	return nil
 }
@@ -610,7 +619,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xdf\a\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xbd\b\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -636,13 +645,16 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"archivedAt\x88\x01\x01\x125\n" +
 	"\x14plan_validation_json\x18\x14 \x01(\tH\x05R\x12planValidationJson\x88\x01\x01\x12)\n" +
 	"\x10suggested_skills\x18\x15 \x03(\tR\x0fsuggestedSkills\x12\x18\n" +
-	"\acreates\x18\x16 \x03(\tR\acreatesB\r\n" +
+	"\acreates\x18\x16 \x03(\tR\acreates\x12M\n" +
+	"\n" +
+	"created_by\x18\x17 \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x06R\tcreatedBy\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\x0e\n" +
 	"\f_archived_atB\x17\n" +
-	"\x15_plan_validation_jsonJ\x04\b\n" +
+	"\x15_plan_validation_jsonB\r\n" +
+	"\v_created_byJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
@@ -690,21 +702,23 @@ func file_swarm_manager_v1_domain_backlog_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_domain_backlog_proto_goTypes = []any{
-	(*BacklogItem)(nil),          // 0: swarm_manager.v1.BacklogItem
-	(*BacklogFile)(nil),          // 1: swarm_manager.v1.BacklogFile
-	(*ClarificationMessage)(nil), // 2: swarm_manager.v1.ClarificationMessage
-	(*ClarificationImpact)(nil),  // 3: swarm_manager.v1.ClarificationImpact
-	(*ClarificationThread)(nil),  // 4: swarm_manager.v1.ClarificationThread
+	(*BacklogItem)(nil),             // 0: swarm_manager.v1.BacklogItem
+	(*BacklogFile)(nil),             // 1: swarm_manager.v1.BacklogFile
+	(*ClarificationMessage)(nil),    // 2: swarm_manager.v1.ClarificationMessage
+	(*ClarificationImpact)(nil),     // 3: swarm_manager.v1.ClarificationImpact
+	(*ClarificationThread)(nil),     // 4: swarm_manager.v1.ClarificationThread
+	(*AgentSessionAttribution)(nil), // 5: swarm_manager.v1.AgentSessionAttribution
 }
 var file_swarm_manager_v1_domain_backlog_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
-	2, // 1: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
-	3, // 2: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 0: swarm_manager.v1.BacklogItem.created_by:type_name -> swarm_manager.v1.AgentSessionAttribution
+	1, // 1: swarm_manager.v1.BacklogFile.children:type_name -> swarm_manager.v1.BacklogFile
+	2, // 2: swarm_manager.v1.ClarificationThread.messages:type_name -> swarm_manager.v1.ClarificationMessage
+	3, // 3: swarm_manager.v1.ClarificationThread.latest_impact:type_name -> swarm_manager.v1.ClarificationImpact
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_backlog_proto_init() }
@@ -712,6 +726,7 @@ func file_swarm_manager_v1_domain_backlog_proto_init() {
 	if File_swarm_manager_v1_domain_backlog_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_domain_agent_session_proto_init()
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[1].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_backlog_proto_msgTypes[4].OneofWrappers = []any{}

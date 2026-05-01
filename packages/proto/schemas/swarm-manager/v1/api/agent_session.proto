@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/agent_session.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// AGENT SESSION API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports agent_session
+// @stability beta
+//
+// HTTP API contracts for durable Swarm Manager agent sessions.
+//
+// =============================================================================
+
+// ListAgentSessionsRequest filters the session sidebar list.
+message ListAgentSessionsRequest {
+  // Optional session kind filter.
+  // @constraint one of: empty, meta_orchestration, operating_mode_authoring
+  optional string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "",
+      "meta_orchestration",
+      "operating_mode_authoring"
+    ]
+  }];
+
+  // Optional session status filter.
+  // @constraint one of: empty, draft, starting, running, waiting_for_user, proposal_ready, applying, complete, failed, canceled
+  optional string status = 2 [(buf.validate.field).string = {
+    in: [
+      "",
+      "draft",
+      "starting",
+      "running",
+      "waiting_for_user",
+      "proposal_ready",
+      "applying",
+      "complete",
+      "failed",
+      "canceled"
+    ]
+  }];
+
+  // Active sessions only.
+  bool active_only = 3;
+
+  // Maximum number of sessions to return. Zero means server default.
+  optional int32 limit = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+}
+
+// ListAgentSessionsResponse returns sidebar-ready session snapshots.
+message ListAgentSessionsResponse {
+  repeated AgentSession sessions = 1;
+}
+
+// GetAgentSessionRequest fetches one session by ID.
+message GetAgentSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// GetAgentSessionResponse returns a detailed session.
+message GetAgentSessionResponse {
+  AgentSession session = 1;
+}
+
+// CreateAgentSessionRequest starts a new typed session.
+message CreateAgentSessionRequest {
+  // Session kind.
+  // @constraint one of: meta_orchestration, operating_mode_authoring
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "meta_orchestration",
+      "operating_mode_authoring"
+    ]
+  }];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Initial operator prompt.
+  string initial_message = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Optional related initiative name.
+  optional string initiative = 4;
+}
+
+// CreateAgentSessionResponse returns the created session.
+message CreateAgentSessionResponse {
+  AgentSession session = 1;
+}
+
+// ContinueAgentSessionRequest appends a user message and continues the run.
+message ContinueAgentSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  string message = 2 [(buf.validate.field).string.min_len = 1];
+  repeated string attachment_ids = 3;
+}
+
+// ContinueAgentSessionResponse returns the updated session.
+message ContinueAgentSessionResponse {
+  AgentSession session = 1;
+}
+
+// RefreshAgentSessionRequest refreshes session state from Agent Manager.
+message RefreshAgentSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// RefreshAgentSessionResponse returns the refreshed session.
+message RefreshAgentSessionResponse {
+  AgentSession session = 1;
+}
+
+// CancelAgentSessionRequest cancels a running session.
+message CancelAgentSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// CancelAgentSessionResponse returns the canceled session.
+message CancelAgentSessionResponse {
+  AgentSession session = 1;
+}
+
+// ApplyAgentSessionProposalRequest applies an approved proposal.
+message ApplyAgentSessionProposalRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  string proposal_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// ApplyAgentSessionProposalResponse returns updated session state and artifacts.
+message ApplyAgentSessionProposalResponse {
+  AgentSession session = 1;
+  repeated AgentSessionArtifact artifacts = 2;
+}
+
+// ListAgentSessionArtifactsRequest filters artifacts for one session.
+message ListAgentSessionArtifactsRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// ListAgentSessionArtifactsResponse returns artifact links for one session.
+message ListAgentSessionArtifactsResponse {
+  repeated AgentSessionArtifact artifacts = 1;
+}
+
+// GetArtifactsByEntityRequest finds session links for an entity.
+message GetArtifactsByEntityRequest {
+  // Artifact type.
+  // @constraint one of: backlog_item, initiative, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+  string artifact_type = 1 [(buf.validate.field).string = {
+    in: [
+      "backlog_item",
+      "initiative",
+      "operating_mode_proposal",
+      "operating_mode_definition",
+      "capture",
+      "file",
+      "agent_activity"
+    ]
+  }];
+
+  // Stable entity reference, such as execute/my-item or initiative-name.
+  string entity_ref = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// GetArtifactsByEntityResponse returns artifact links for one entity.
+message GetArtifactsByEntityResponse {
+  repeated AgentSessionArtifact artifacts = 1;
+}

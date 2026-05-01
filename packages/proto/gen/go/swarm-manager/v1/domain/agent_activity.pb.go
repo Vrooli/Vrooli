@@ -207,13 +207,13 @@ var File_swarm_manager_v1_domain_agent_activity_proto protoreflect.FileDescripto
 
 const file_swarm_manager_v1_domain_agent_activity_proto_rawDesc = "" +
 	"\n" +
-	",swarm-manager/v1/domain/agent_activity.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xc1\t\n" +
+	",swarm-manager/v1/domain/agent_activity.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xca\t\n" +
 	"\rAgentActivity\x12(\n" +
 	"\vactivity_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"activityId\x12L\n" +
+	"activityId\x12U\n" +
 	"\n" +
-	"owner_type\x18\x02 \x01(\tB-\xbaH*r(R\abacklogR\acaptureR\bscenarioR\n" +
-	"initiativeR\townerType\x12\"\n" +
+	"owner_type\x18\x02 \x01(\tB6\xbaH3r1R\abacklogR\acaptureR\bscenarioR\n" +
+	"initiativeR\asessionR\townerType\x12\"\n" +
 	"\n" +
 	"owner_kind\x18\x03 \x01(\tH\x00R\townerKind\x88\x01\x01\x12&\n" +
 	"\n" +
