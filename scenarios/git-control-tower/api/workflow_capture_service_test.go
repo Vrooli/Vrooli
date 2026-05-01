@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"git-control-tower/internal/testutil/fixtures"
 )
 
 func TestParseWorkflowMetadata(t *testing.T) {
@@ -116,9 +118,9 @@ func TestDiscoverWorkflows_EmptyDir(t *testing.T) {
 func writeWorkflowCaptureRepoFixture(t *testing.T, scenarios ...string) string {
 	t.Helper()
 	root := t.TempDir()
-	writeRepoContractFixture(t, root)
+	fixtures.WriteRepoContract(t, root)
 	for _, scenario := range scenarios {
-		writeServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
+		fixtures.WriteScenarioServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
 	}
 	return root
 }

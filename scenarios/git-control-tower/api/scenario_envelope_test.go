@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"git-control-tower/internal/testutil/fixtures"
+
 	"github.com/gorilla/mux"
 )
 
@@ -179,7 +181,7 @@ func TestParseServiceJSON_InvalidJSON(t *testing.T) {
 
 func TestParseServiceJSON_UsesRepoContractWhenAvailable(t *testing.T) {
 	repoRoot := t.TempDir()
-	writeRepoContractFixture(t, repoRoot)
+	fixtures.WriteRepoContract(t, repoRoot)
 	t.Setenv("VROOLI_ROOT", repoRoot)
 	t.Setenv("VROOLI_SOURCE_ROOT", "")
 
@@ -231,7 +233,7 @@ func setupEnvelopeTestServer(t *testing.T) (*Server, *mux.Router, string) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
-	writeRepoContractFixture(t, tmpDir)
+	fixtures.WriteRepoContract(t, tmpDir)
 	router := mux.NewRouter()
 
 	srv := &Server{
@@ -245,59 +247,10 @@ func setupEnvelopeTestServer(t *testing.T) (*Server, *mux.Router, string) {
 	return srv, router, tmpDir
 }
 
-func writeRepoContractFixture(t *testing.T, root string) {
-	t.Helper()
-
-	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatalf("failed to create repo dir %s: %v", dir, err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.25.0\n"), 0o644); err != nil {
-		t.Fatalf("failed to write go.mod: %v", err)
-	}
-	contract := `{
-  "$schema": "schemas/repo-contract.schema.json",
-  "version": "1.0.0",
-  "platform": {"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
-  "root": {"markers": {"required_dirs": [".vrooli", "scenarios", "resources", "packages", "cmd", "internal"], "required_files": ["go.mod"]}},
-  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "template_dir": "templates", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
-  "scenario": {"required_files": [".vrooli/service.json"], "well_known_paths": {"service": ".vrooli/service.json"}},
-  "resource": {"manifest": "resource.json", "well_known_paths": {"docs": "docs"}},
-  "globs": {"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},
-  "environment": {"variables": {"repo_root": "VROOLI_ROOT", "source_root": "VROOLI_SOURCE_ROOT"}},
-  "sandbox": {"full_repo_scopes": ["", ".", "/"], "scenario_scope_prefix": "scenarios/"},
-  "profiles": {
-    "fixture": {
-      "description": "test fixture profile",
-      "parameters": [],
-      "include": ["scenarios"],
-      "optional_include": ["go.mod"],
-      "exclude": [".git/**"]
-    }
-  }
-}`
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
-		t.Fatalf("failed to write repo contract: %v", err)
-	}
-}
-
-// writeServiceJSON writes a service.json fixture for the given scenario slug.
-func writeServiceJSON(t *testing.T, repoRoot, slug, content string) {
-	t.Helper()
-	dir := filepath.Join(repoRoot, "scenarios", slug, ".vrooli")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("failed to create fixture dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("failed to write fixture: %v", err)
-	}
-}
-
 func TestHandleScenarioEnvelope_Success(t *testing.T) {
 	_, router, tmpDir := setupEnvelopeTestServer(t)
 
-	writeServiceJSON(t, tmpDir, "test-scenario", `{
+	fixtures.WriteScenarioServiceJSON(t, tmpDir, "test-scenario", `{
 		"service": {"name": "test-scenario", "displayName": "Test Scenario", "description": "A test", "tags": ["test"]},
 		"dependencies": {"scenarios": {"test-genie": {"description": "Tests"}}},
 		"lifecycle": {"test": {"steps": [{"name": "run", "run": "make test"}]}}
@@ -342,7 +295,7 @@ func TestHandleScenarioEnvelope_NotFound(t *testing.T) {
 func TestHandleScenarioEnvelope_MalformedJSON(t *testing.T) {
 	_, router, tmpDir := setupEnvelopeTestServer(t)
 
-	writeServiceJSON(t, tmpDir, "broken", "not valid json {{{")
+	fixtures.WriteScenarioServiceJSON(t, tmpDir, "broken", "not valid json {{{")
 
 	req := httptest.NewRequest("GET", "/api/v1/scenarios/broken/envelope", nil)
 	w := httptest.NewRecorder()
@@ -356,7 +309,7 @@ func TestHandleScenarioEnvelope_MalformedJSON(t *testing.T) {
 func TestHandleScenarioEnvelope_CachesResult(t *testing.T) {
 	srv, router, tmpDir := setupEnvelopeTestServer(t)
 
-	writeServiceJSON(t, tmpDir, "cached", `{
+	fixtures.WriteScenarioServiceJSON(t, tmpDir, "cached", `{
 		"service": {"name": "cached", "displayName": "Cached", "description": "d"},
 		"dependencies": {}
 	}`)

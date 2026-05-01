@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
+	testdb "git-control-tower/internal/testutil/db"
 )
 
 // [REQ:GCT-OT-P0-007] SQLite audit logging tests
@@ -14,17 +13,10 @@ import (
 func newTestSQLiteAuditLogger(t *testing.T) *SQLiteAuditLogger {
 	t.Helper()
 
-	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/audit.db")
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
+	db := testdb.OpenSQLiteFile(t, "audit.db")
 	if err := ensureAuditSchema(db); err != nil {
-		db.Close()
 		t.Fatalf("ensure audit schema: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
 	return NewSQLiteAuditLogger(db)
 }
 

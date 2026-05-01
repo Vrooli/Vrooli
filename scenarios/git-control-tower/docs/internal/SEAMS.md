@@ -147,15 +147,33 @@ Cross-scenario clients are the only API layer that should know the concrete HTTP
 
 Test helpers in `internal/testutil/httpx` provide:
 - `NewServer` for route-scoped `httptest.Server` setup with automatic cleanup.
+- `NewHandlerServer` for mux/custom handler tests with the same cleanup behavior.
 - `AssertMethod` for consistent method checks.
 - `DecodeJSON` for typed request-body decoding.
 - `WriteJSON` for status/content-type/encoding consistency.
 - `TestClient` for timeout-safe client construction.
 
 Guardrails:
-- Client tests should use `httpx` helpers instead of repeating `httptest.NewServer`, `json.NewEncoder`, and ad hoc timeout setup.
+- Client and integration tests should use `httpx` helpers instead of repeating `httptest.NewServer`, `json.NewEncoder`, and ad hoc timeout setup.
 - Production code must not import `git-control-tower/internal/testutil/...`; this is enforced by `api/internal/testutil/no_prod_import_test.go`.
 - Handler tests can keep package-local fixtures when they need access to unexported server internals, but shared cross-scenario HTTP behavior belongs in `httpx`.
+
+## API Test Fixture and Persistence Seam
+
+**Locations**:
+- `api/internal/testutil/fixtures/`
+- `api/internal/testutil/db/`
+- `api/scenario_envelope_test.go`
+- `api/visual_capture_service_test.go`
+- `api/audit_logger_test.go`
+- `api/repo_store_test.go`
+
+Tests that need a Vrooli repository layout should use `fixtures.WriteRepoContract` and `fixtures.WriteScenarioServiceJSON`. Tests that need SQLite should use `db.OpenSQLiteMemory` or `db.OpenSQLiteFile`, then run the package-local schema initializer that owns the production schema under test.
+
+Guardrails:
+- Do not recreate repo-contract or scenario `service.json` fixtures inline in package tests.
+- Do not open SQLite handles directly in new tests unless the test is specifically about driver-level behavior.
+- The `db` helpers own temp paths and cleanup; package tests remain responsible for invoking the schema setup they are validating.
 
 ## UI Test Harness Seam
 
@@ -185,4 +203,6 @@ When adding new behavior, verify:
 - Repo registry updates go through `RepoService`/`RepoStore`.
 - Tests can swap in `FakeGitRunner`, `FakeWorkspaceSandboxAPI`, or `SQLiteRepoStore` (memory DB).
 - Cross-scenario HTTP client tests use `api/internal/testutil/httpx`.
+- Repository layout fixtures use `api/internal/testutil/fixtures`.
+- SQLite persistence tests use `api/internal/testutil/db`.
 - UI tests use the shared setup and React Query/fetch/viewport helpers.

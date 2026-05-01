@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"git-control-tower/internal/testutil/fixtures"
 )
 
 // [REQ:GCT-OT-P0-004] Stage/unstage operations
@@ -300,7 +302,7 @@ func TestUnstageFiles_WithRealRepo(t *testing.T) {
 
 func TestExpandScope(t *testing.T) {
 	repoDir := t.TempDir()
-	writeRepoContractFixture(t, repoDir)
+	fixtures.WriteRepoContract(t, repoDir)
 
 	tests := []struct {
 		scope    string

@@ -297,14 +297,14 @@ cd scenarios/git-control-tower/platforms/electron/renderer && go test ./...
 
 ## Rollout Checklist
 
-- [ ] `make test` failures are fixed or intentionally documented.
-- [ ] API `internal/testutil` package exists with no production import leaks.
+- [x] `make test` failures are fixed or intentionally documented.
+- [x] API `internal/testutil` package exists with no production import leaks.
 - [ ] Existing root-level fake files are migrated or reduced to compatibility wrappers for tests only.
-- [ ] HTTP/client tests use shared `httpx` utilities.
-- [ ] UI has `test-setup.ts` wired into Vitest.
-- [ ] App shell and high-risk UI surfaces have focused tests.
-- [ ] Coverage reports show meaningful movement in API, CLI, and UI hotspots.
-- [ ] `docs/internal/SEAMS.md` documents the updated test seams and remaining gaps.
+- [x] HTTP/client tests use shared `httpx` utilities.
+- [x] UI has `test-setup.ts` wired into Vitest.
+- [x] App shell and high-risk UI surfaces have focused tests.
+- [x] Coverage reports show meaningful movement in API, CLI, and UI hotspots.
+- [x] `docs/internal/SEAMS.md` documents the updated test seams and remaining gaps.
 
 ## Risks and Mitigations
 

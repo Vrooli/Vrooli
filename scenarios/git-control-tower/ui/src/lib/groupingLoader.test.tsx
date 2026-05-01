@@ -11,7 +11,6 @@
  * The fix: only set `groupingLoadedKey` inside the branches that actually
  * process data (data available, or done loading with no data).
  */
-import "@testing-library/jest-dom";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";

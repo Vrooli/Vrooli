@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,20 +12,22 @@ import (
 	"testing"
 	"time"
 
+	"git-control-tower/internal/testutil/fixtures"
+	"git-control-tower/internal/testutil/httpx"
+
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/storage"
 )
 
-func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureDeps, *httptest.Server) {
+func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureDeps, string) {
 	t.Helper()
 
-	server := httptest.NewServer(basHandler)
-	t.Cleanup(server.Close)
+	server := httpx.NewHandlerServer(t, basHandler)
 
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
-	writeRepoContractFixture(t, repoDir)
-	writeServiceJSON(t, repoDir, "test-app", `{"service":{"name":"test-app"}}`)
+	fixtures.WriteRepoContract(t, repoDir)
+	fixtures.WriteScenarioServiceJSON(t, repoDir, "test-app", `{"service":{"name":"test-app"}}`)
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		EnvGet:      func(key string) string { return "" },
@@ -38,7 +39,7 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 
 	basClient := &BrowserAutomationClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(server.URL),
 			serviceName: "browser-automation-studio",
 		},
@@ -50,7 +51,7 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 		RepoID:  1,
-	}, server
+	}, server.URL
 }
 
 func TestCaptureScenario_WithLighthousePages(t *testing.T) {
@@ -639,9 +640,9 @@ func TestCheckCaptureStaleness_NoScenarioDir(t *testing.T) {
 
 func mkdirAllVisualCaptureRepo(t *testing.T, root string, scenarios ...string) {
 	t.Helper()
-	writeRepoContractFixture(t, root)
+	fixtures.WriteRepoContract(t, root)
 	for _, scenario := range scenarios {
-		writeServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
+		fixtures.WriteScenarioServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
 	}
 }
 

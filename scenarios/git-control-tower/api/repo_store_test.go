@@ -6,24 +6,16 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
+	testdb "git-control-tower/internal/testutil/db"
 )
 
 func newTestRepoStore(t *testing.T) *SQLiteRepoStore {
 	t.Helper()
-	db, err := sql.Open("sqlite", "file::memory:?cache=shared")
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
+	db := testdb.OpenSQLiteMemory(t)
 	if err := ensureRepoSchema(db); err != nil {
-		db.Close()
 		t.Fatalf("ensure repo schema: %v", err)
 	}
-	store := NewSQLiteRepoStore(db)
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
-	return store
+	return NewSQLiteRepoStore(db)
 }
 
 func TestSQLiteRepoStore_UpsertAndList(t *testing.T) {

@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
+
+	"git-control-tower/internal/testutil/httpx"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -60,8 +61,7 @@ func TestPeriodicCapture_StartStop(t *testing.T) {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	registry := NewCapabilityRegistry(
 		[]CapabilityDef{{
@@ -72,7 +72,7 @@ func TestPeriodicCapture_StartStop(t *testing.T) {
 		map[string]StatusChecker{
 			"browser-automation-studio": &ScenarioChecker{
 				Slug:     "browser-automation-studio",
-				Client:   server.Client(),
+				Client:   httpx.TestClient(),
 				Resolver: discovery.NewStaticResolver(server.URL),
 			},
 		},

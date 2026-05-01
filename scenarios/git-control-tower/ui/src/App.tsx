@@ -26,6 +26,7 @@ import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
+import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
 import {
   useHealth,
   useRepoStatus,
@@ -58,9 +59,6 @@ import {
   queryKeys
 } from "./lib/hooks";
 
-const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
-
-type SelectionEntry = { path: string; staged: boolean };
 type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
 
 function isLayoutSection(value: string): value is LayoutSection {
@@ -77,45 +75,6 @@ function isGroupingRuleLike(value: unknown): value is GroupingRuleLike {
 
 function isPresent<T>(value: T | null): value is T {
   return value !== null;
-}
-
-/** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */
-function computeNextSelection(
-  nextKey: string,
-  lastKey: string | null,
-  mode: "single" | "toggle" | "range",
-  currentSelection: SelectionEntry[],
-  orderedIndexMap: Map<string, number>,
-  orderedKeys: string[],
-  orderedKeyToEntry: Map<string, SelectionEntry>,
-  selectionKey: (entry: SelectionEntry) => string,
-): SelectionEntry[] {
-  const nextEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
-
-  if (mode === "range" && lastKey && orderedIndexMap.has(lastKey) && orderedIndexMap.has(nextKey)) {
-    const start = orderedIndexMap.get(lastKey) ?? 0;
-    const end = orderedIndexMap.get(nextKey) ?? 0;
-    const [from, to] = start < end ? [start, end] : [end, start];
-    return orderedKeys
-      .slice(from, to + 1)
-      .map((key) => orderedKeyToEntry.get(key))
-      .filter((entry): entry is SelectionEntry => Boolean(entry));
-  }
-
-  if (mode === "toggle") {
-    const hasEntry = currentSelection.some((entry) => selectionKey(entry) === nextKey);
-    if (hasEntry) {
-      return currentSelection.filter((entry) => selectionKey(entry) !== nextKey);
-    }
-    return [...currentSelection, nextEntry].sort((a, b) => {
-      const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
-      const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
-      return aIndex - bIndex;
-    });
-  }
-
-  // single
-  return [nextEntry];
 }
 
 export default function App() {
