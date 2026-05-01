@@ -87,6 +87,9 @@ export {
   ActionValidationCheckSchema,
   ActionValidationResponseSchema,
   ActionMutationResponseSchema,
+  ActionRunRequestSchema,
+  ActionRunStatusSchema,
+  ActionRunResponseSchema,
   type ActionStatus,
   type ActionOwner,
   type ActionCommand,
@@ -107,6 +110,9 @@ export {
   type ActionValidationCheck,
   type ActionValidationResponse,
   type ActionMutationResponse,
+  type ActionRunRequest,
+  type ActionRunStatus,
+  type ActionRunResponse,
 } from './action.schema'
 
 // Agent schemas

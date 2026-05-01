@@ -56,10 +56,12 @@ beforeEach(() => {
     updateAction: vi.fn(),
     deleteAction: vi.fn(),
     validateAction: vi.fn(),
+    runAction: vi.fn(),
     isCreating: false,
     isUpdating: false,
     isDeleting: false,
     isValidating: false,
+    isRunning: false,
     refetch: vi.fn(),
   })
 })

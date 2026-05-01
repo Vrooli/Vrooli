@@ -16,6 +16,8 @@ export type {
   UpdateActionRequest,
   ActionValidationResponse,
   ActionMutationResponse,
+  ActionRunRequest,
+  ActionRunResponse,
   Tag,
   SkillTestRequest,
   SkillTestResult,

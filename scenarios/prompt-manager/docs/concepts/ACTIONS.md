@@ -2,7 +2,7 @@
 
 Actions are the executable layer between prompt-manager's judgment-oriented skills and Vrooli-controlled CLI implementations.
 
-Status: partially implemented. Action storage, API CRUD, validation, governed API execution, CLI list/show/create/update/delete/validate, AI indexing, opt-in discovery, graph integration, and UI browse/detail/validate/edit surfaces are implemented. CLI/UI run surfaces remain planned.
+Status: partially implemented. Action storage, API CRUD, validation, governed API execution, CLI list/show/create/update/delete/validate/run, AI indexing, opt-in discovery, graph integration, a minimal `scenario.status.show` seed Action, and UI browse/detail/validate/edit/run surfaces are implemented.
 
 ## Why Actions Exist
 
@@ -151,7 +151,9 @@ The command is intentionally argv-shaped instead of shell-shaped. The Action run
 
 The API runtime can run active Actions only after validation marks the command runnable. It applies typed input defaults, renders placeholders into argv tokens, executes without a shell, enforces timeout and process-wide concurrency limits, caps stdout/stderr, and writes bounded `runs.jsonl` audit entries. `execution.runEligible: false` keeps an Action discoverable and editable while blocking API runs.
 
-CLI and UI run controls are still deferred, so agents should call the API directly only when a trusted workflow has intentionally selected an active runnable Action.
+The CLI exposes `prompt-manager action run` as a thin API client for trusted workflows that intentionally select an active runnable Action. The UI Action editor delegates to the same governed API route for dry-run and run requests, blocks runs while local contract edits are unsaved, and renders the run response envelope.
+
+The first shipped seed Action is `scenario.status.show`, which wraps `vrooli scenario status {{scenario}}` and has API/CLI dry-run coverage plus UI run-panel coverage.
 
 ## Graduation from Skills
 

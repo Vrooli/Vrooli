@@ -1,6 +1,6 @@
 # prompt-manager Documentation
 
-Welcome to the prompt-manager documentation. This scenario provides a **Skills + Agents + Teams** management system for orchestrating AI agent swarms, with a proposed **Actions** layer for deterministic executable operations.
+Welcome to the prompt-manager documentation. This scenario provides a **Skills + Agents + Teams** management system for orchestrating AI agent swarms, with **Actions** for deterministic executable operations.
 
 ## Quick Links
 
@@ -11,14 +11,14 @@ Welcome to the prompt-manager documentation. This scenario provides a **Skills +
 
 ## Core Concepts
 
-The prompt-manager is built on three current primary domains and one proposed execution domain:
+The prompt-manager is built on three coordination domains and one execution domain:
 
 ### Skills + Agents + Teams + Actions
 
 | Concept | Document | Description |
 |---------|----------|-------------|
-| **Swarm Model** | [SWARM-MODEL.md](concepts/SWARM-MODEL.md) | How Skills, Agents, Teams, and the proposed Action layer work together |
-| **Actions** | [ACTIONS.md](concepts/ACTIONS.md) | Proposed executable wrapper entity for deterministic Vrooli-controlled CLI operations |
+| **Swarm Model** | [SWARM-MODEL.md](concepts/SWARM-MODEL.md) | How Skills, Agents, Teams, and Actions work together |
+| **Actions** | [ACTIONS.md](concepts/ACTIONS.md) | Executable wrapper entity for deterministic Vrooli-controlled CLI operations |
 | **Memory Promotion** | [MEMORY-PROMOTION.md](concepts/MEMORY-PROMOTION.md) | How notebook observations graduate into Plan of Record, Skills, Actions, CLIs, or backlog |
 | **Relations** | [RELATIONS.md](concepts/RELATIONS.md) | Team-member junction records |
 | **SOUL System** | [PERSONA-SYSTEM.md](concepts/PERSONA-SYSTEM.md) | Agent personality defined in SOUL.md (+ optional .md files) |

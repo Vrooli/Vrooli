@@ -948,7 +948,7 @@ prompt-manager discover "debugging methodology" --type skill
 
 ## Actions
 
-Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The CLI currently exposes CRUD and validation commands; the governed run API exists, but the CLI run wrapper is intentionally deferred. See [DOC: docs/concepts/ACTIONS.md].
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The CLI exposes CRUD, validation, and governed run commands; execution governance remains owned by the API. See [DOC: docs/concepts/ACTIONS.md].
 
 ### prompt-manager action list
 
@@ -1004,14 +1004,21 @@ Validation should reject shell pipelines, command separators, raw external tools
 
 ### prompt-manager action run
 
-Run an Action with typed input. This command is not implemented yet; use the API run endpoint from trusted workflows until the thin CLI wrapper lands.
+Run an active, runnable Action with typed input through the governed API runtime. The CLI remains a thin API client and does not duplicate validation, permission checks, timeout handling, concurrency throttling, stdout/stderr caps, or audit history.
 
 ```bash
-prompt-manager action run <id> --input='{"key":"value"}' [--json]
-prompt-manager action run <id> --input-file=payload.json [--json]
+prompt-manager action run <id> [--input='{"key":"value"}'|--input-file=payload.json] [--dry-run] [--json]
 ```
 
-The CLI wrapper should remain a thin API client over `POST /api/v1/actions/{id}/run`. Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
+Safe seed dry-run:
+
+```bash
+prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --dry-run --json
+```
+
+Use `--dry-run` to validate inputs and return the rendered argv without starting the process. Non-JSON output prints status, exit code, duration, rendered argv, stdout/stderr snippets, parsed output, and any API error message. `failed`, `timed-out`, `rejected`, and `throttled` responses return a non-zero CLI error after printing the run envelope.
+
+Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
 
 ---
 

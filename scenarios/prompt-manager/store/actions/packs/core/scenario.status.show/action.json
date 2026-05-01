@@ -1,0 +1,61 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "scenario.status.show",
+  "name": "Show Scenario Status",
+  "description": "Show lifecycle status for one Vrooli scenario.",
+  "status": "active",
+  "owner": {
+    "type": "project",
+    "id": "vrooli"
+  },
+  "command": {
+    "argv": [
+      "vrooli",
+      "scenario",
+      "status",
+      "{{scenario}}"
+    ]
+  },
+  "inputs": {
+    "scenario": {
+      "type": "scenario",
+      "required": true,
+      "description": "Scenario ID to inspect."
+    }
+  },
+  "outputs": {
+    "status": {
+      "type": "string",
+      "description": "Human-readable scenario lifecycle status."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Show prompt-manager lifecycle status.",
+      "input": {
+        "scenario": "prompt-manager"
+      }
+    }
+  ],
+  "tags": [
+    "scenario",
+    "status",
+    "lifecycle"
+  ],
+  "execution": {
+    "timeoutSeconds": 15,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-01T00:00:00Z",
+  "updatedAt": "2026-05-01T00:00:00Z"
+}

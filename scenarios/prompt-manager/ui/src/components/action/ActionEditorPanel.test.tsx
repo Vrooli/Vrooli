@@ -26,7 +26,16 @@ function makeAction(overrides: Partial<Action> = {}): Action {
     status: 'active',
     owner: { type: 'scenario', id: 'prompt-manager' },
     command: { argv: ['prompt-manager', 'team', 'decisions', 'list'] },
-    inputs: {},
+    inputs: {
+      team: {
+        type: 'team',
+        description: '',
+        required: true,
+        enum: [],
+        pattern: '',
+        allowMultiline: false,
+      },
+    },
     outputs: {},
     permissions: {
       filesystemRead: false,
@@ -42,7 +51,7 @@ function makeAction(overrides: Partial<Action> = {}): Action {
       secretWrite: false,
       destructive: false,
     },
-    examples: [],
+    examples: [{ description: 'Meta optimization', input: { team: 'meta-optimization' } }],
     tags: ['teams'],
     revision: 1,
     createdAt: '2026-04-30T00:00:00Z',
@@ -69,6 +78,7 @@ const validation: ActionValidationResponse = {
 const updateAction = vi.fn()
 const deleteAction = vi.fn()
 const validateAction = vi.fn()
+const runAction = vi.fn()
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -81,22 +91,25 @@ beforeEach(() => {
     updateAction,
     deleteAction,
     validateAction,
+    runAction,
     isCreating: false,
     isUpdating: false,
     isDeleting: false,
     isValidating: false,
+    isRunning: false,
     refetch: vi.fn(),
   })
 })
 
 describe('ActionEditorPanel', () => {
-  it('renders Action contract details and keeps run unavailable', () => {
+  it('renders Action contract details and exposes governed run controls', () => {
     render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
 
     expect(screen.getByText('List Team Decisions')).toBeDefined()
     expect(screen.getByText('team.decisions.list')).toBeDefined()
     expect(screen.getAllByText('prompt-manager team decisions list').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: 'Run unavailable' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Dry run' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled()
   })
 
   it('shows validation results from the API', async () => {
@@ -133,6 +146,54 @@ describe('ActionEditorPanel', () => {
     expect(updateAction.mock.calls[0]?.[1]).toMatchObject({ name: 'Updated Action' })
   })
 
+  it('runs an Action dry-run through the governed API seam', async () => {
+    runAction.mockResolvedValue({
+      actionId: 'team.decisions.list',
+      status: 'dry-run',
+      durationMs: 2,
+      argv: ['prompt-manager', 'team', 'decisions', 'list', 'meta-optimization'],
+      stdout: '',
+      stderr: '',
+      stdoutTruncated: false,
+      stderrTruncated: false,
+      error: '',
+      validation: { ...validation, runnable: true },
+    })
+
+    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    expect(screen.getByLabelText('Run input JSON')).toHaveValue(JSON.stringify({ team: 'meta-optimization' }, null, 2))
+    fireEvent.click(screen.getByRole('button', { name: 'Dry run' }))
+
+    await waitFor(() => expect(runAction).toHaveBeenCalledWith('team.decisions.list', {
+      input: { team: 'meta-optimization' },
+      dryRun: true,
+    }))
+    expect(await screen.findByText('dry-run')).toBeDefined()
+    expect(screen.getByText((_content, node) =>
+      node?.textContent === 'prompt-manager\nteam\ndecisions\nlist\nmeta-optimization'
+    )).toBeDefined()
+  })
+
+  it('rejects malformed run input before calling the API', async () => {
+    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Run input JSON'), { target: { value: '[]' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+
+    expect(await screen.findByText('Run input must be a JSON object.')).toBeDefined()
+    expect(runAction).not.toHaveBeenCalled()
+  })
+
+  it('disables run controls while contract edits are unsaved', () => {
+    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+
+    fireEvent.change(screen.getAllByLabelText('Name')[0]!, { target: { value: 'Unsaved Action' } })
+
+    expect(screen.getByRole('button', { name: 'Dry run' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled()
+    expect(screen.getByText('Save or discard contract changes before running the persisted Action.')).toBeDefined()
+  })
+
   it('updates the JSON draft from typed contract fields', async () => {
     updateAction.mockResolvedValue({
       action: makeAction({
@@ -154,7 +215,7 @@ describe('ActionEditorPanel', () => {
 
     render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Typed Action' } })
+    fireEvent.change(screen.getAllByLabelText('Name')[0]!, { target: { value: 'Typed Action' } })
     fireEvent.change(screen.getByLabelText(/Argv tokens/), {
       target: { value: 'prompt-manager\nteam\ndecisions\nshow\n{{team}}' },
     })
@@ -162,7 +223,8 @@ describe('ActionEditorPanel', () => {
     const nameFields = screen.getAllByLabelText('Name')
     expect(nameFields.length).toBeGreaterThan(1)
     fireEvent.change(nameFields[1]!, { target: { value: 'team' } })
-    fireEvent.change(screen.getByLabelText(/Type/), { target: { value: 'team' } })
+    const typeFields = screen.getAllByLabelText(/Type/)
+    fireEvent.change(typeFields[typeFields.length - 1]!, { target: { value: 'team' } })
     fireEvent.click(screen.getByLabelText('filesystemWrite'))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 

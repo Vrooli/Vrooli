@@ -151,7 +151,7 @@ store/
 └── schemas/                    # JSON Schemas for validation
     ├── skill.schema.json
     ├── agent.schema.json
-    ├── action.schema.json       # Proposed
+    ├── action.schema.json       # Executable Action contracts
     └── team.schema.json
 ```
 
@@ -161,13 +161,13 @@ store/
 - Normalized relations in separate directory
 - Generated indexes for fast lookups
 - Schemas for runtime validation
-- Proposed Actions use the same per-entity pattern while keeping execution logic in Vrooli-controlled CLIs
+- Actions use the same per-entity pattern while keeping execution logic in Vrooli-controlled CLIs
 
 See [STORE-MIGRATION.md](STORE-MIGRATION.md) for migration details.
 
 ## Entity Ontology
 
-Prompt-manager's current implemented entities are skills, agents, teams, relations, topics, variants, and experiments. The proposed Action entity adds an execution layer without changing the responsibility of skills:
+Prompt-manager's implemented entities are skills, agents, teams, relations, topics, variants, experiments, and Actions. Actions add an execution layer without changing the responsibility of skills:
 
 ```text
 Truth lives in the Plan of Record.
@@ -188,7 +188,7 @@ The CLI is an API-first client with a small amount of contract-aware flag resolu
 cli/
 ├── app.go           # Command registration
 ├── skills/          # skill list|show|add|update|delete|...
-├── actions/         # Proposed: action list|show|validate|run
+├── actions/         # action list|show|create|update|delete|validate|run
 ├── tags/            # tag list|create
 ├── agents/          # agent list|show|create|update|delete
 ├── testing/         # test run|history
@@ -203,7 +203,7 @@ cli/
 
 **Design Principle:** Every CLI command maps 1:1 to an API endpoint. No business logic in CLI.
 
-The proposed Action CLI follows the same principle. `prompt-manager action run <id>` should resolve an Action contract through the API and execute one controlled command; it should not contain business logic or shell recipes.
+The Action CLI follows the same principle. `prompt-manager action run <id>` resolves an Action contract through the API and executes one controlled command through the governed runtime; it does not contain business logic or shell recipes.
 
 ## UI Architecture
 
@@ -271,7 +271,7 @@ See [SEAMS.md](../internal/SEAMS.md) for detailed testing seam documentation.
 - [CLI Reference](../reference/cli-commands.md) - Command documentation
 
 ### Core Concepts
-- [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture and proposed Action layer
+- [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture and Action execution layer
 - [Relations](RELATIONS.md) - Team-member relations
 - [SOUL System](PERSONA-SYSTEM.md) - Agent personality via SOUL.md (plus optional agent .md files)
 - [Capability Matching](CAPABILITY-MATCHING.md) - Skill-to-agent matching

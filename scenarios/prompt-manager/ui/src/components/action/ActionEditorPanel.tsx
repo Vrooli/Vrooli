@@ -1,8 +1,8 @@
 /**
  * ActionEditorPanel - Dense contract inspector/editor for Actions.
  *
- * Execution is intentionally absent until the API/CLI run governance phase is
- * implemented. This panel manages contracts and validation only.
+ * Execution is delegated to the governed Action API. The UI only collects
+ * input JSON and renders the response envelope.
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useActionsData } from '@/hooks/useActionsData'
 import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/hooks/use-toast'
-import type { Action, ActionValidationResponse, UpdateActionRequest } from '@/types'
+import type { Action, ActionRunResponse, ActionValidationResponse, UpdateActionRequest } from '@/types'
 import type { ActionExample, ActionInput, ActionInputType, ActionOutput, ActionOutputType, ActionPermissions, ActionStatus } from '@/lib/schemas'
 
 interface ActionEditorPanelProps {
@@ -54,9 +54,11 @@ export function ActionEditorPanel({
     updateAction,
     deleteAction,
     validateAction,
+    runAction,
     isUpdating,
     isDeleting,
     isValidating,
+    isRunning,
   } = useActionsData()
 
   const action = useMemo(
@@ -67,6 +69,9 @@ export function ActionEditorPanel({
   const [isDirty, setIsDirty] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [validation, setValidation] = useState<ActionValidationResponse | null>(null)
+  const [runInputJson, setRunInputJson] = useState('{}')
+  const [runInputError, setRunInputError] = useState<string | null>(null)
+  const [runResult, setRunResult] = useState<ActionRunResponse | null>(null)
   const [confirmHardDelete, setConfirmHardDelete] = useState(false)
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
   const parsedDraft = useMemo(() => parseDraft(jsonDraft), [jsonDraft])
@@ -77,6 +82,9 @@ export function ActionEditorPanel({
     setIsDirty(false)
     setParseError(null)
     setValidation(null)
+    setRunInputJson(formatRunInput(action))
+    setRunInputError(null)
+    setRunResult(null)
     setConfirmHardDelete(false)
   }, [action])
 
@@ -128,6 +136,20 @@ export function ActionEditorPanel({
     }
     await deleteAction(actionId, hard)
     onClose()
+  }
+
+  const handleRun = async (dryRun: boolean) => {
+    setRunInputError(null)
+    let input: Record<string, unknown>
+    try {
+      input = parseRunInput(runInputJson)
+    } catch (error) {
+      setRunInputError(error instanceof Error ? error.message : 'Invalid input JSON')
+      return
+    }
+    const result = await runAction(actionId, { input, dryRun })
+    setRunResult(result)
+    setValidation(result.validation)
   }
 
   if (isLoading) {
@@ -235,26 +257,23 @@ export function ActionEditorPanel({
           <aside className="min-w-0 space-y-4">
             <SummaryPanel action={action} command={command} />
             <ValidationPanel validation={activeValidation} />
-            <section className="border border-border rounded-md">
-              <div className="px-3 py-2 border-b border-border">
-                <h3 className="text-xs font-semibold text-foreground">Run</h3>
-              </div>
-              <div className="px-3 py-3 space-y-3">
-                <button
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md border border-border text-muted-foreground cursor-not-allowed"
-                  title="Action execution is deferred until run governance is implemented"
-                >
-                  <Play className="h-4 w-4" />
-                  Run unavailable
-                </button>
-                <p className="text-xs text-muted-foreground">
-                  Execution remains disabled until timeout, concurrency, permission enforcement, and audit history are implemented.
-                </p>
-              </div>
-            </section>
+            <RunPanel
+              action={action}
+              inputJson={runInputJson}
+              inputError={runInputError}
+              result={runResult}
+              disabled={isDirty || isRunning}
+              isRunning={isRunning}
+              onInputChange={(value) => {
+                setRunInputJson(value)
+                setRunInputError(null)
+              }}
+              onLoadExample={() => {
+                setRunInputJson(formatRunInput(action))
+                setRunInputError(null)
+              }}
+              onRun={handleRun}
+            />
             <section className="border border-border rounded-md">
               <div className="px-3 py-2 border-b border-border">
                 <h3 className="text-xs font-semibold text-foreground">Lifecycle</h3>
@@ -774,6 +793,144 @@ function ValidationPanel({ validation }: { validation: ActionValidationResponse 
   )
 }
 
+function RunPanel({
+  action,
+  inputJson,
+  inputError,
+  result,
+  disabled,
+  isRunning,
+  onInputChange,
+  onLoadExample,
+  onRun,
+}: {
+  action: Action
+  inputJson: string
+  inputError: string | null
+  result: ActionRunResponse | null
+  disabled: boolean
+  isRunning: boolean
+  onInputChange: (value: string) => void
+  onLoadExample: () => void
+  onRun: (dryRun: boolean) => void
+}) {
+  const hasExample = action.examples.length > 0
+  const runDisabledReason = disabled
+    ? isRunning
+      ? 'Action run is in progress.'
+      : 'Save or discard contract changes before running the persisted Action.'
+    : ''
+
+  return (
+    <section className="border border-border rounded-md" aria-live="polite">
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold text-foreground">Run</h3>
+        {hasExample && (
+          <button
+            type="button"
+            onClick={onLoadExample}
+            className="text-[11px] text-primary hover:underline"
+          >
+            Load example
+          </button>
+        )}
+      </div>
+      <div className="px-3 py-3 space-y-3">
+        <TextAreaField
+          label="Run input JSON"
+          rows={5}
+          mono
+          value={inputJson}
+          onChange={onInputChange}
+        />
+        {inputError && (
+          <p className="text-xs text-destructive break-words">{inputError}</p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onRun(true)}
+            disabled={disabled}
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted',
+              disabled && 'cursor-not-allowed opacity-50'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Dry run
+          </button>
+          <button
+            type="button"
+            onClick={() => onRun(false)}
+            disabled={disabled}
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-foreground hover:bg-primary/20',
+              disabled && 'cursor-not-allowed opacity-50'
+            )}
+          >
+            <Play className="h-4 w-4" />
+            Run
+          </button>
+        </div>
+        {runDisabledReason && (
+          <p className="text-xs text-muted-foreground">{runDisabledReason}</p>
+        )}
+        {action.permissions.destructive && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+            This Action declares destructive permissions. The API still enforces run eligibility and command governance.
+          </p>
+        )}
+        {result && <RunResult result={result} />}
+      </div>
+    </section>
+  )
+}
+
+function RunResult({ result }: { result: ActionRunResponse }) {
+  const success = result.status === 'completed' || result.status === 'dry-run'
+  return (
+    <div className="rounded-md border border-border bg-muted/20">
+      <div className="flex items-center gap-2 border-b border-border px-2.5 py-2">
+        <span className={cn('h-2 w-2 rounded-full', success ? 'bg-emerald-400' : 'bg-destructive')} />
+        <span className="text-xs font-semibold text-foreground">{result.status}</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">{result.durationMs}ms</span>
+      </div>
+      <div className="space-y-2 px-2.5 py-2 text-xs">
+        {result.argv.length > 0 && (
+          <RunBlock label="Argv" value={result.argv.join('\n')} />
+        )}
+        {result.error && <p className="text-destructive break-words">{result.error}</p>}
+        {result.stdout && (
+          <RunBlock
+            label={result.stdoutTruncated ? 'Stdout truncated' : 'Stdout'}
+            value={result.stdout}
+          />
+        )}
+        {result.stderr && (
+          <RunBlock
+            label={result.stderrTruncated ? 'Stderr truncated' : 'Stderr'}
+            value={result.stderr}
+          />
+        )}
+        {result.output && (
+          <RunBlock label="Output" value={JSON.stringify(result.output, null, 2)} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RunBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-medium text-muted-foreground">{label}</p>
+      <pre className="max-h-44 overflow-auto whitespace-pre-wrap rounded-md bg-background px-2 py-2 font-mono text-[11px] leading-5 text-foreground">
+        {value}
+      </pre>
+    </div>
+  )
+}
+
 function HeaderButton({
   label,
   disabled,
@@ -1006,6 +1163,26 @@ function parseDefaultValue(value: string, type: ActionInputType): unknown {
   } catch {
     return value
   }
+}
+
+function formatRunInput(action: Action): string {
+  const exampleInput = action.examples[0]?.input
+  if (exampleInput) return JSON.stringify(exampleInput, null, 2)
+  const input: Record<string, unknown> = {}
+  for (const [name, spec] of Object.entries(action.inputs)) {
+    if (spec.default !== undefined) {
+      input[name] = spec.default
+    }
+  }
+  return JSON.stringify(input, null, 2)
+}
+
+function parseRunInput(json: string): Record<string, unknown> {
+  const parsed = JSON.parse(json) as unknown
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Run input must be a JSON object.')
+  }
+  return parsed as Record<string, unknown>
 }
 
 function defaultInput(): ActionInput {

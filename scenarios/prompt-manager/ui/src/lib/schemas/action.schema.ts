@@ -209,3 +209,34 @@ export const ActionMutationResponseSchema = z.object({
 })
 export type ActionMutationResponse = z.infer<typeof ActionMutationResponseSchema>
 
+export const ActionRunRequestSchema = z.object({
+  input: z.record(z.string(), z.unknown()).optional(),
+  dryRun: z.boolean().optional(),
+})
+export type ActionRunRequest = z.infer<typeof ActionRunRequestSchema>
+
+export const ActionRunStatusSchema = z.enum([
+  'completed',
+  'failed',
+  'timed-out',
+  'rejected',
+  'throttled',
+  'dry-run',
+])
+export type ActionRunStatus = z.infer<typeof ActionRunStatusSchema>
+
+export const ActionRunResponseSchema = z.object({
+  actionId: z.string(),
+  status: ActionRunStatusSchema,
+  exitCode: z.number().nullable().optional(),
+  durationMs: z.number().nullable().optional().transform((val) => val ?? 0),
+  argv: nullableArray(z.string()),
+  stdout: z.string().nullable().optional().transform((val) => val ?? ''),
+  stderr: z.string().nullable().optional().transform((val) => val ?? ''),
+  stdoutTruncated: z.boolean().nullable().optional().transform((val) => val ?? false),
+  stderrTruncated: z.boolean().nullable().optional().transform((val) => val ?? false),
+  output: z.record(z.string(), z.unknown()).nullable().optional(),
+  validation: ActionValidationResponseSchema,
+  error: z.string().nullable().optional().transform((val) => val ?? ''),
+})
+export type ActionRunResponse = z.infer<typeof ActionRunResponseSchema>

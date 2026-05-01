@@ -242,6 +242,104 @@ func TestCmdValidateReturnsErrorForInvalidAction(t *testing.T) {
 	}
 }
 
+func TestCmdRunPostsInputToRunEndpoint(t *testing.T) {
+	exitCode := 0
+	ctx := &fakeContext{response: RunResponse{
+		ActionID:   "team.decisions.list",
+		Status:     "completed",
+		ExitCode:   &exitCode,
+		DurationMs: 12,
+		Stdout:     "ok",
+	}}
+
+	err := cmdRun(ctx, []string{"team.decisions.list", "--input", `{"team":"meta-optimization","limit":3}`})
+	if err != nil {
+		t.Fatalf("cmdRun: %v", err)
+	}
+	if ctx.method != "POST" || ctx.path != "/actions/team.decisions.list/run" {
+		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
+	}
+	req, ok := ctx.payload.(RunRequest)
+	if !ok {
+		t.Fatalf("payload type = %T, want RunRequest", ctx.payload)
+	}
+	if req.DryRun {
+		t.Fatal("dryRun = true, want false")
+	}
+	if req.Input["team"] != "meta-optimization" {
+		t.Fatalf("team input = %v", req.Input["team"])
+	}
+	if req.Input["limit"] != float64(3) {
+		t.Fatalf("limit input = %#v, want JSON number 3", req.Input["limit"])
+	}
+}
+
+func TestCmdRunSupportsInputFileAndDryRun(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "payload.json")
+	if err := os.WriteFile(inputPath, []byte(`{"scenario":"prompt-manager"}`), 0o600); err != nil {
+		t.Fatalf("write input fixture: %v", err)
+	}
+	ctx := &fakeContext{response: RunResponse{
+		ActionID: "scenario.status.show",
+		Status:   "dry-run",
+		Argv:     []string{"vrooli", "scenario", "status", "prompt-manager"},
+	}}
+
+	if err := cmdRun(ctx, []string{"scenario.status.show", "--input-file", inputPath, "--dry-run"}); err != nil {
+		t.Fatalf("cmdRun: %v", err)
+	}
+	if ctx.method != "POST" || ctx.path != "/actions/scenario.status.show/run" {
+		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
+	}
+	req, ok := ctx.payload.(RunRequest)
+	if !ok {
+		t.Fatalf("payload type = %T, want RunRequest", ctx.payload)
+	}
+	if !req.DryRun {
+		t.Fatal("dryRun = false, want true")
+	}
+	if req.Input["scenario"] != "prompt-manager" {
+		t.Fatalf("scenario input = %v", req.Input["scenario"])
+	}
+}
+
+func TestCmdRunRejectsBothInputForms(t *testing.T) {
+	ctx := &fakeContext{}
+	err := cmdRun(ctx, []string{"team.decisions.list", "--input", `{}`, "--input-file", "payload.json"})
+	if err == nil {
+		t.Fatal("expected mutually exclusive input flags to return an error")
+	}
+	if ctx.method != "" {
+		t.Fatalf("expected no API call, got %s %s", ctx.method, ctx.path)
+	}
+}
+
+func TestCmdRunRejectsInvalidInputBeforeAPI(t *testing.T) {
+	ctx := &fakeContext{}
+	err := cmdRun(ctx, []string{"team.decisions.list", "--input", `[]`})
+	if err == nil {
+		t.Fatal("expected non-object input to return an error")
+	}
+	if ctx.method != "" {
+		t.Fatalf("expected no API call, got %s %s", ctx.method, ctx.path)
+	}
+}
+
+func TestCmdRunReturnsErrorForFailedStatus(t *testing.T) {
+	ctx := &fakeContext{response: RunResponse{
+		ActionID: "team.decisions.list",
+		Status:   "failed",
+		Error:    "exit status 2",
+	}}
+	err := cmdRun(ctx, []string{"team.decisions.list"})
+	if err == nil {
+		t.Fatal("expected failed run status to return an error")
+	}
+	if ctx.method != "POST" || ctx.path != "/actions/team.decisions.list/run" {
+		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
+	}
+}
+
 func writeActionFixture(t *testing.T, action Action) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "action.json")

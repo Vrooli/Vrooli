@@ -15,6 +15,8 @@ import type {
   UpdateActionRequest,
   ActionMutationResponse,
   ActionValidationResponse,
+  ActionRunRequest,
+  ActionRunResponse,
 } from '@/types'
 
 const QUERY_KEYS = {
@@ -32,10 +34,12 @@ interface UseActionsDataReturn {
   updateAction: (id: string, updates: UpdateActionRequest) => Promise<ActionMutationResponse>
   deleteAction: (id: string, hard?: boolean) => Promise<void>
   validateAction: (id: string) => Promise<ActionValidationResponse>
+  runAction: (id: string, request: ActionRunRequest) => Promise<ActionRunResponse>
   isCreating: boolean
   isUpdating: boolean
   isDeleting: boolean
   isValidating: boolean
+  isRunning: boolean
   refetch: () => void
 }
 
@@ -80,6 +84,11 @@ export function useActionsData(filters?: ActionFilters): UseActionsDataReturn {
     mutationFn: (id: string) => actionService.validateAction(id),
   })
 
+  const runMutation = useMutation({
+    mutationFn: ({ id, request }: { id: string; request: ActionRunRequest }) =>
+      actionService.runAction(id, request),
+  })
+
   return {
     actions,
     isLoading,
@@ -91,11 +100,13 @@ export function useActionsData(filters?: ActionFilters): UseActionsDataReturn {
     deleteAction: (id: string, hard?: boolean) =>
       deleteMutation.mutateAsync({ id, hard }),
     validateAction: validateMutation.mutateAsync,
+    runAction: (id: string, request: ActionRunRequest) =>
+      runMutation.mutateAsync({ id, request }),
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isValidating: validateMutation.isPending,
+    isRunning: runMutation.isPending,
     refetch: () => void refetch(),
   }
 }
-

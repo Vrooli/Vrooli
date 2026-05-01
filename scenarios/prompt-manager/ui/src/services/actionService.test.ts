@@ -8,6 +8,7 @@ import {
   searchActions,
   updateAction,
   validateAction,
+  runAction,
 } from './actionService'
 import { api } from '@/lib/api'
 import type { Action, CreateActionRequest, UpdateActionRequest } from '@/types'
@@ -20,6 +21,7 @@ vi.mock('@/lib/api', () => ({
     updateAction: vi.fn(),
     deleteAction: vi.fn(),
     validateAction: vi.fn(),
+    runAction: vi.fn(),
   },
 }))
 
@@ -132,6 +134,35 @@ describe('actionService', () => {
     expect(api.validateAction).toHaveBeenCalledWith(action.id)
   })
 
+  it('runs actions through the API seam without invalidating list cache', async () => {
+    const action = createTestAction()
+    vi.mocked(api.runAction).mockResolvedValue({
+      actionId: action.id,
+      status: 'dry-run',
+      durationMs: 1,
+      argv: ['prompt-manager', 'team', 'decision-list', 'meta-optimization', '--json'],
+      stdout: '',
+      stderr: '',
+      stdoutTruncated: false,
+      stderrTruncated: false,
+      error: '',
+      validation: {
+        actionId: action.id,
+        valid: true,
+        runnable: true,
+        status: action.status,
+        checks: [],
+      },
+    })
+
+    await expect(runAction(action.id, { input: { team: 'meta-optimization' }, dryRun: true }))
+      .resolves.toMatchObject({ status: 'dry-run' })
+    expect(api.runAction).toHaveBeenCalledWith(action.id, {
+      input: { team: 'meta-optimization' },
+      dryRun: true,
+    })
+  })
+
   it('searches cached actions by id, owner, command, and tags', async () => {
     const actions = [
       createTestAction(),
@@ -152,4 +183,3 @@ describe('actionService', () => {
     expect(api.getActions).toHaveBeenCalledTimes(1)
   })
 })
-

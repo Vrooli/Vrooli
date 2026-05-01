@@ -355,6 +355,48 @@ func TestServiceValidateIntegerDefaultHonorsBounds(t *testing.T) {
 	}
 }
 
+func TestCoreScenarioStatusSeedValidatesAndDryRuns(t *testing.T) {
+	storeDir, err := filepath.Abs("../../store")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actionStore := store.NewFileActionStore(storeDir)
+	action, err := actionStore.Get(context.Background(), "scenario.status.show")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	service := NewService(actionStore, NewManifestCommandResolver(storeDir))
+	validation := service.Validate(context.Background(), action)
+	if !validation.Valid || !validation.Runnable {
+		t.Fatalf("seed action should validate and be runnable; checks=%#v command=%#v", validation.Checks, validation.Command)
+	}
+	if validation.Command == nil || strings.Join(validation.Command.CommandPath, " ") != "scenario status" {
+		t.Fatalf("unexpected command resolution: %#v", validation.Command)
+	}
+
+	// Use the real seed contract but a fake store for dry-run so the test does
+	// not append run audit history to the checked-in fixture directory.
+	dryRunStore := newFakeActionStore(action)
+	dryRunService := NewService(dryRunStore, NewManifestCommandResolver(storeDir))
+	result, err := dryRunService.Run(context.Background(), "scenario.status.show", RunRequest{
+		Input:  map[string]any{"scenario": "prompt-manager"},
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusDryRun {
+		t.Fatalf("status = %s, want dry-run; error=%s", result.Status, result.Error)
+	}
+	if got, want := strings.Join(result.Argv, " "), "vrooli scenario status prompt-manager"; got != want {
+		t.Fatalf("argv = %q, want %q", got, want)
+	}
+	if len(dryRunStore.runHistory) != 1 || dryRunStore.runHistory[0].Status != string(RunStatusDryRun) {
+		t.Fatalf("expected dry-run audit entry, got %#v", dryRunStore.runHistory)
+	}
+}
+
 func TestServiceRunAppliesDefaultsRendersArgvAndAudits(t *testing.T) {
 	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
 		action.Command.Argv = []string{"prompt-manager", "skill", "read", "{{identifier}}", "--count", "{{count}}"}

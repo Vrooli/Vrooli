@@ -586,7 +586,7 @@ Cancel an in-progress reindex operation.
 
 ## Actions
 
-Actions are typed wrappers over exactly one Vrooli-controlled CLI command. Storage, CRUD, validation, discovery, graph integration, and governed API execution are implemented; CLI/UI run surfaces remain deferred. See [DOC: docs/concepts/ACTIONS.md].
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. Storage, CRUD, validation, discovery, graph integration, governed API execution, the thin CLI run wrapper, and the UI run panel are implemented. See [DOC: docs/concepts/ACTIONS.md].
 
 ### GET /api/v1/actions
 
@@ -699,6 +699,22 @@ Use `"dryRun": true` to validate inputs and return the rendered argv without sta
   "stderrTruncated": false,
   "output": {
     "imagePath": "/tmp/prompt-manager-screenshot.png"
+  }
+}
+```
+
+Safe seed dry-run example:
+
+```json
+{
+  "actionId": "scenario.status.show",
+  "status": "dry-run",
+  "durationMs": 0,
+  "argv": ["vrooli", "scenario", "status", "prompt-manager"],
+  "validation": {
+    "actionId": "scenario.status.show",
+    "valid": true,
+    "runnable": true
   }
 }
 ```

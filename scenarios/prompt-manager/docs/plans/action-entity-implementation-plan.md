@@ -166,7 +166,63 @@ Status: ready for implementation.
   - `jq . scenarios/prompt-manager/cli/parity/coverage.json >/dev/null`
   - `git diff --check`
 
-Next resume point: Continue Phase 4 hardening if desired, then add `prompt-manager action run` as a thin API client and update CLI parity from `audit-pending` to covered. Keep UI run controls disabled until the CLI/API run path has one more integration pass. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands.
+- Completed the second Phase 4 execution-governance slice:
+  - Added `prompt-manager action run <id>` as a thin API client over `POST /api/v1/actions/{id}/run`.
+  - Added inline `--input` and file-backed `--input-file` JSON object parsing, with mutual exclusion and preflight shape validation before the API call.
+  - Added `--dry-run` support so callers can request API validation and rendered argv without process start.
+  - Added text and `--json` output for the run response envelope, while preserving non-zero CLI errors for `failed`, `timed-out`, `rejected`, and `throttled` statuses.
+  - Updated CLI reference, API/concept status text, and CLI/API parity coverage for the run route.
+- Verified with:
+  - `cd scenarios/prompt-manager/cli && go test ./actions ./parity`
+  - `cd scenarios/prompt-manager/cli && go test ./...`
+  - `jq . scenarios/prompt-manager/cli/parity/coverage.json >/dev/null`
+  - `git diff --check`
+
+- Completed the first Phase 11 seed/integration slice:
+  - Added a minimal active core seed Action at `store/actions/packs/core/scenario.status.show/action.json`.
+  - The seed wraps `vrooli scenario status {{scenario}}` with explicit `filesystemRead` and `processStart` permissions, a scenario-typed input, an example payload, and conservative stdout execution policy.
+  - Added an API/domain integration test that loads the real seed contract from the scenario store, validates it with `ManifestCommandResolver`, and exercises API `dryRun` rendering without starting a process or writing audit data into the checked-in fixture directory.
+  - Updated the CLI dry-run test fixture to use the real `scenario.status.show` Action and expected rendered argv.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `cd scenarios/prompt-manager/cli && go test ./actions ./parity`
+  - `cd scenarios/prompt-manager && jq . store/actions/packs/core/scenario.status.show/action.json >/dev/null`
+  - `cd scenarios/prompt-manager && make restart`
+  - `API_PORT=18060 prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --dry-run --json`
+  - `API_PORT=18060 prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --json`
+
+- Completed the fourth Phase 9 UI surfaces slice:
+  - Added Action run request/response schemas to the UI runtime schema layer.
+  - Added `runAction` to the UI API client, cached Action service seam, and `useActionsData` hook.
+  - Replaced the disabled Action run placeholder with a governed run panel in the Action editor.
+  - The run panel supports JSON object input, first-example/default input loading, dry-run, live run, persisted-contract dirty-state blocking, destructive-permission warning text, and response rendering for status, duration, argv, stdout/stderr, parsed output, and API error messages.
+  - Added focused tests for the service/hook run seams, dry-run request wiring, malformed input preflight, and disabled run controls while the local contract draft is unsaved.
+  - Updated Action concept/API docs so UI run controls are no longer described as deferred.
+- Verified with:
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/lib/schemas/action.schema.test.ts src/services/actionService.test.ts src/hooks/useActionsData.test.tsx src/components/action/ActionListPanel.test.tsx src/components/action/ActionEditorPanel.test.tsx`
+
+- Completed a Phase 10 documentation and verification cleanup slice:
+  - Ran the full UI regression and production build after UI Action run enablement.
+  - Updated architecture, swarm, docs README, and relations references that still described Actions as proposed even though storage, API, CLI, search, graph, UI, execution, and the seed Action are now implemented.
+  - Replaced directory/placeholder code-reference markers in this plan with concrete implementation file references so documentation validation no longer reports Action-plan reference warnings.
+  - Updated the rollout checklist to reflect completed Action storage, API, CLI, discovery, graph, UI, docs, and seed coverage.
+  - Restarted prompt-manager through the lifecycle and smoke-tested the seeded `scenario.status.show` Action through both CLI dry-run and live run.
+  - Ran scenario-level validation through `make test`; it still fails in existing broad scenario phases outside the Action implementation slice: lint timeout after 30s, pre-existing broken documentation links, UI smoke iframe readiness timeout, and a BAS playbook start-url issue. Artifact root: `scenarios/prompt-manager/coverage/logs/20260501-015906-54ae534c`.
+- Verified with:
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test`
+  - `cd scenarios/prompt-manager/ui && pnpm run build`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+  - `cd scenarios/prompt-manager/cli && go test ./...`
+  - `cd scenarios/prompt-manager && make restart`
+  - `API_PORT=18060 prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --dry-run --json`
+  - `API_PORT=18060 prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --json`
+  - `cd scenarios/prompt-manager && make status`
+  - `rg "Actions \\(Proposed\\)|planned contract, not currently implemented|purely proposed|proposed Action layer|proposed Action execution layer|proposed execution domain" scenarios/prompt-manager/docs --glob '!**/plans/action-entity-and-memory-promotion-rfc.md' --glob '!**/plans/action-entity-implementation-plan.md'`
+  - `rg "Status: proposed" scenarios/prompt-manager/docs/concepts/ACTIONS.md scenarios/prompt-manager/docs/concepts/ARCHITECTURE.md scenarios/prompt-manager/docs/concepts/SWARM-MODEL.md scenarios/prompt-manager/docs/README.md scenarios/prompt-manager/docs/concepts/RELATIONS.md`
+
+Next resume point: If continuing validation work, address the scenario-level `make test` blockers in order: lint timeout, broken docs links, UI smoke iframe readiness, then BAS playbook start-url. For Action-specific feature work, continue replacing the temporary command resolver with the operation-contract catalog only when that separate foundation lands.
 
 ## Purpose
 
@@ -264,7 +320,7 @@ Relevant existing files and seams:
 - [CODE: cli/domains/domains.go] registers CLI command groups.
 - [CODE: cli/discover/discover.go] currently says discover returns skills only.
 - [CODE: ui/src/lib/api.ts] is the Zod-validated UI API client.
-- [CODE: ui/src/lib/schemas/] contains runtime schemas for API responses.
+- [CODE: ui/src/lib/schemas/action.schema.ts] contains Action runtime schemas for API responses.
 - [CODE: ui/src/services/skillService.ts] and [CODE: ui/src/hooks/useSkillsData.ts] are the closest UI data patterns.
 - [CODE: docs/concepts/ACTIONS.md] is the canonical Action concept contract.
 - [CODE: docs/concepts/CAPABILITY-MATCHING.md] reserves "capability" for matching/requirements, not executable Actions.
@@ -513,7 +569,7 @@ Acceptance:
 
 Deliverables:
 
-- Add [CODE: api/actions/] package.
+- Add [CODE: api/actions/service.go] and related package files.
 - Implement Action CRUD request/response models.
 - Implement validation service for:
   - schema fields
@@ -569,7 +625,7 @@ Acceptance:
 
 Deliverables:
 
-- Implement execution service behind an interface in [CODE: api/actions/].
+- Implement execution service behind an interface in [CODE: api/actions/service.go].
 - Add `POST /api/v1/actions/{id}/run`.
 - Support typed input validation, default application, placeholder rendering, timeout, command execution without shell, and output envelope.
 - Add dry-run or validation-only behavior if the API/CLI contract needs it; do not fake execution.
@@ -742,7 +798,7 @@ Deliverables:
 - Update [DOC: docs/reference/configuration.md] with Action-related env vars/config.
 - Update [DOC: docs/concepts/GRAPH.md] to mark Action graph nodes implemented.
 - Update [DOC: docs/concepts/HEARTBEATS.md] only if discover guidance is implemented.
-- Add [CODE: ...] references for new implementation files.
+- Add concrete `[CODE: path/to/file]` references for new implementation files.
 - Register any new docs in [CODE: docs/manifest.json].
 
 Implementation notes:
@@ -832,21 +888,22 @@ prompt-manager action run scenario.status.show --input='{"scenario":"prompt-mana
 
 ## Rollout and Validation Checklist
 
-- [ ] Action schema added and validated by tests.
-- [ ] FileActionStore supports pack precedence and dotted IDs.
-- [ ] API CRUD endpoints implemented and tested.
-- [ ] Validation rejects shell and raw external commands.
+- [x] Action schema added and validated by tests.
+- [x] FileActionStore supports pack precedence and dotted IDs.
+- [x] API CRUD endpoints implemented and tested.
+- [x] Validation rejects shell and raw external commands.
 - [ ] Validation uses a dynamic controlled-command resolver for project, prompt-manager, scenario, and resource commands.
 - [x] Execution uses argv without shell interpretation.
 - [x] Execution enforces timeout, concurrency, permissions, output caps, and audit/history recording.
-- [ ] CLI action group implemented and tested.
-- [ ] AI search indexes Actions.
-- [ ] Discover supports `--type skill|action|all`.
-- [ ] UI can browse, validate, edit, and run Actions.
-- [ ] Graph contains Action nodes and command edges.
-- [ ] Docs updated from proposed to implemented.
+- [x] CLI action group implemented and tested.
+- [x] AI search indexes Actions.
+- [x] Discover supports `--type skill|action|all`.
+- [x] UI can browse, validate, edit, and run Actions.
+- [x] Graph contains Action nodes and command edges.
+- [x] Docs updated from proposed to implemented.
+- [x] Minimal seed Action validates and supports API/CLI dry-run.
 - [ ] Scenario tests pass through `make test` or `vrooli scenario test prompt-manager`.
-- [ ] Scenario restarts cleanly through lifecycle.
+- [x] Scenario restarts cleanly through lifecycle.
 
 ## Risks and Mitigations
 

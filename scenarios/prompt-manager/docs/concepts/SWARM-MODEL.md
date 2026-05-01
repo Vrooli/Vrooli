@@ -1,12 +1,12 @@
 # Swarm Coordination Model
 
-This document explains the current Skills + Agents + Teams architecture that enables coordinated agent swarms in prompt-manager, plus the proposed Action layer for deterministic execution.
+This document explains the current Skills + Agents + Teams architecture that enables coordinated agent swarms in prompt-manager, plus the implemented Action layer for deterministic execution.
 
 ## Overview
 
 Prompt-manager evolved from a simple skill storage system into a comprehensive **Skills + Agents + Teams** platform. This architecture enables agent swarms - coordinated groups of AI agents that work autonomously on complex tasks by composing skills and collaborating through team structures.
 
-The proposed Action layer adds a fourth concept for execution, not judgment:
+The Action layer adds a fourth concept for execution, not judgment:
 
 ```text
 Truth lives in the Plan of Record.
@@ -41,7 +41,7 @@ Raw learning starts in Notebooks.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-`*` Actions are partially implemented as typed command contracts with API/CLI validation and opt-in discovery. Execution remains governed by the Action runtime plan. See [Actions](ACTIONS.md).
+`*` Actions are typed command contracts with API/CLI/UI validation, opt-in discovery, graph nodes, and governed execution through the Action runtime. See [Actions](ACTIONS.md).
 
 ## The Three Current Domains
 
@@ -197,11 +197,11 @@ Action = what to run
 CLI = how it works
 ```
 
-See [Actions](ACTIONS.md) for the full proposed contract.
+See [Actions](ACTIONS.md) for the full contract.
 
 ## How They Work Together
 
-The current domains connect through **relations** for team membership and **markdown references** for skill usage. The proposed Action layer adds discoverable execution contracts that agents can call after deciding what operation is appropriate.
+The current domains connect through **relations** for team membership and **markdown references** for skill usage. The Action layer adds discoverable execution contracts that agents can call after deciding what operation is appropriate.
 
 ### Flow: Agent Gets Assigned to Team
 

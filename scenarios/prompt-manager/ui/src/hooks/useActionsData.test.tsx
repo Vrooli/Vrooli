@@ -12,6 +12,7 @@ vi.mock('@/services/actionService', () => ({
   updateAction: vi.fn(),
   deleteAction: vi.fn(),
   validateAction: vi.fn(),
+  runAction: vi.fn(),
 }))
 
 const fetchHealthScores = vi.fn()
@@ -108,7 +109,7 @@ describe('useActionsData', () => {
     })
   })
 
-  it('creates, updates, deletes, and validates through the service seam', async () => {
+  it('creates, updates, deletes, validates, and runs through the service seam', async () => {
     const action = createTestAction()
     const validation = {
       actionId: action.id,
@@ -123,6 +124,18 @@ describe('useActionsData', () => {
     vi.mocked(actionService.updateAction).mockResolvedValue({ action, validation })
     vi.mocked(actionService.deleteAction).mockResolvedValue(undefined)
     vi.mocked(actionService.validateAction).mockResolvedValue(validation)
+    vi.mocked(actionService.runAction).mockResolvedValue({
+      actionId: action.id,
+      status: 'dry-run',
+      durationMs: 1,
+      argv: ['prompt-manager', 'team', 'decision-list', 'meta-optimization', '--json'],
+      stdout: '',
+      stderr: '',
+      stdoutTruncated: false,
+      stderrTruncated: false,
+      error: '',
+      validation,
+    })
 
     const { result } = renderHook(() => useActionsData(), {
       wrapper: createWrapper(),
@@ -138,11 +151,17 @@ describe('useActionsData', () => {
     await result.current.updateAction(action.id, updateRequest)
     await result.current.deleteAction(action.id, true)
     await expect(result.current.validateAction(action.id)).resolves.toEqual(validation)
+    await expect(result.current.runAction(action.id, { input: { team: 'meta-optimization' }, dryRun: true }))
+      .resolves.toMatchObject({ status: 'dry-run' })
 
     expect(actionService.createAction).toHaveBeenCalledWith(createRequest)
     expect(actionService.updateAction).toHaveBeenCalledWith(action.id, updateRequest)
     expect(actionService.deleteAction).toHaveBeenCalledWith(action.id, true)
     expect(actionService.validateAction).toHaveBeenCalledWith(action.id)
+    expect(actionService.runAction).toHaveBeenCalledWith(action.id, {
+      input: { team: 'meta-optimization' },
+      dryRun: true,
+    })
   })
 
   it('exposes validation pending state separately from mutations', async () => {
@@ -177,6 +196,52 @@ describe('useActionsData', () => {
 
     await waitFor(() => {
       expect(result.current.isValidating).toBe(false)
+    })
+  })
+
+  it('exposes run pending state separately from mutations', async () => {
+    vi.mocked(actionService.getActions).mockResolvedValue([])
+    let resolveRun: (value: Awaited<ReturnType<typeof actionService.runAction>>) => void = () => {}
+    vi.mocked(actionService.runAction).mockImplementation(
+      () => new Promise((resolve) => { resolveRun = resolve })
+    )
+
+    const { result } = renderHook(() => useActionsData(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    const runPromise = result.current.runAction('team.decisions.list', { input: {}, dryRun: true })
+
+    await waitFor(() => {
+      expect(result.current.isRunning).toBe(true)
+    })
+
+    resolveRun({
+      actionId: 'team.decisions.list',
+      status: 'dry-run',
+      durationMs: 1,
+      argv: ['prompt-manager', 'team', 'decision-list'],
+      stdout: '',
+      stderr: '',
+      stdoutTruncated: false,
+      stderrTruncated: false,
+      error: '',
+      validation: {
+        actionId: 'team.decisions.list',
+        valid: true,
+        runnable: true,
+        status: 'draft',
+        checks: [],
+      },
+    })
+    await runPromise
+
+    await waitFor(() => {
+      expect(result.current.isRunning).toBe(false)
     })
   })
 })

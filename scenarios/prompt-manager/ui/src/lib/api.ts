@@ -32,6 +32,7 @@ import {
   ActionArraySchema,
   ActionMutationResponseSchema,
   ActionValidationResponseSchema,
+  ActionRunResponseSchema,
   TagSchema,
   TagArraySchema,
   SkillTestResultSchema,
@@ -111,6 +112,8 @@ import {
   type UpdateActionRequest,
   type ActionMutationResponse,
   type ActionValidationResponse,
+  type ActionRunRequest,
+  type ActionRunResponse,
   type Tag,
   type SkillTestRequest,
   type SkillTestResult,
@@ -446,6 +449,17 @@ class ApiClient {
       `/actions/${encodeURIComponent(id)}/validate`,
       { method: 'POST' },
       ActionValidationResponseSchema
+    )
+  }
+
+  async runAction(id: string, request: ActionRunRequest): Promise<ActionRunResponse> {
+    return this.request<ActionRunResponse>(
+      `/actions/${encodeURIComponent(id)}/run`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      },
+      ActionRunResponseSchema
     )
   }
 

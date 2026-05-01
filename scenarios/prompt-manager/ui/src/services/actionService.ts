@@ -15,6 +15,8 @@ import type {
   UpdateActionRequest,
   ActionMutationResponse,
   ActionValidationResponse,
+  ActionRunRequest,
+  ActionRunResponse,
 } from '@/types'
 
 const actionsCache = createCacheManager<Action[]>()
@@ -85,6 +87,13 @@ export async function validateAction(id: string): Promise<ActionValidationRespon
   return api.validateAction(id)
 }
 
+export async function runAction(
+  id: string,
+  request: ActionRunRequest
+): Promise<ActionRunResponse> {
+  return api.runAction(id, request)
+}
+
 export async function searchActions(query: string): Promise<Action[]> {
   const cached = actionsCache.getIfValid()
   if (cached) {
@@ -113,4 +122,3 @@ export async function searchActions(query: string): Promise<Action[]> {
     action.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
   )
 }
-
