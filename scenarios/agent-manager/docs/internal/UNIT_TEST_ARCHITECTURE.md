@@ -9,8 +9,8 @@ This document records the current Agent Manager test architecture and the first 
 - Go API and CLI tests: 95 `*_test.go` files under `api` and `cli`.
 - UI tests: 10 TypeScript test files outside `node_modules` and `.test-dist`.
 - Backend shared utilities currently live in `api/internal/testutil`, which started as a SQLite helper package.
-- UI tests currently run through `tsc -p tsconfig.test.json` plus Node's built-in test runner, so the covered surface is mostly pure TypeScript utilities.
-- UI test-only helpers now live under `ui/tests/testutil` while the runner remains Node-based. `runEvents.ts` is the canonical fixture factory for reducer/timeline tests until the UI runner moves to Vitest/jsdom.
+- UI tests now run through Vitest with jsdom and Testing Library setup configured in `ui/vite.config.ts`.
+- UI test-only helpers live under `ui/tests/testutil` for the current pure TypeScript tests and `ui/src/test-utils` for React component/hook tests. `runEvents.ts` is the canonical fixture factory for reducer/timeline tests.
 
 ## Helper And Mocking Status
 
@@ -64,8 +64,9 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 12. Done: Add shared runner launcher/factory fakes and migrate launcher selector tests to an external test package.
 13. Done: Add shared transcript replay runner and model-chain resolver fakes, then migrate recovery, restart-resume, and execute fallback tests.
 14. Done: Add `ui/tests/testutil/runEvents.ts` and migrate repeated `RunEvent` builders in run event store and timeline tests.
-15. Next backend slices: review pricing and runner codec doubles for consolidation boundaries. Be careful with same-package tests; moving those fakes into `testutil/mocks` can create import cycles when the fake must import the package under test.
-16. Later: Modernize UI tests once dependency approval is available for Vitest, jsdom, and Testing Library.
+15. Done: Switch `pnpm test` from `tsc && node --test` to `vitest run`, add jsdom/Testing Library setup, add `src/test-utils/renderWithProviders.tsx`, and add initial `DiffViewer` render coverage.
+16. Next backend slices: review pricing and runner codec doubles for consolidation boundaries. Be careful with same-package tests; moving those fakes into `testutil/mocks` can create import cycles when the fake must import the package under test.
+17. Next UI slices: add first React behavior tests for `RunTimeline`, `QuickRunDialog`, `useWebSocket`, or stats/dashboard components using `src/test-utils`.
 
 ## Prohibited Patterns
 

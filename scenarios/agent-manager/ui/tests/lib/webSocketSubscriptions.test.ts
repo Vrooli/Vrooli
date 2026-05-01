@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { WebSocketClientMessageType } from "../../src/lib/webSocketProtocol.js";
 import { createWebSocketSubscriptionManager } from "../../src/lib/webSocketSubscriptions.js";

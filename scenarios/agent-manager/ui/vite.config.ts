@@ -18,8 +18,21 @@ export default defineConfig(({ mode }) => {
       host: true
     },
     test: {
-      // tests/ directory uses node:test runner — exclude from vitest
-      exclude: ["tests/**", "node_modules/**"]
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/test-utils/setup.ts"],
+      include: ["tests/**/*.test.ts", "src/**/*.test.{ts,tsx}"],
+      coverage: {
+        provider: "v8",
+        reporter: ["json-summary", "json", "text"],
+        reportOnFailure: true,
+        thresholds: {
+          lines: 0,
+          functions: 0,
+          branches: 0,
+          statements: 0
+        }
+      }
     }
   };
 });

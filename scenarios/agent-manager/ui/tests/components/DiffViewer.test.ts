@@ -1,6 +1,11 @@
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
+import { screen } from "@testing-library/react";
+import { createElement } from "react";
+import { DiffViewer } from "../../src/components/DiffViewer.js";
 import { parseHunks } from "../../src/lib/diffHunks.js";
+import { renderWithProviders } from "../../src/test-utils/index.js";
+import type { RunDiff } from "../../src/types.js";
 
 test("parseHunks returns empty array for empty input", () => {
   assert.deepEqual(parseHunks(""), []);
@@ -132,4 +137,27 @@ test("parseHunks ignores diff metadata before the first header", () => {
   const hunks = parseHunks(patch);
   assert.equal(hunks.length, 1);
   assert.equal(hunks[0]?.lines.length, 2);
+});
+
+test("DiffViewer renders file summary and parsed patch content", () => {
+  renderWithProviders(
+    createElement(DiffViewer, {
+      diff: {
+        files: [
+          {
+            path: "src/example.ts",
+            changeType: "modified",
+            additions: 1,
+            deletions: 1,
+            patch: ["@@ -1,1 +1,1 @@", "-old value", "+new value"].join("\n"),
+          },
+        ],
+      } as RunDiff,
+    }),
+  );
+
+  assert.equal(screen.getAllByText("src/example.ts").length, 2);
+  assert.equal(screen.getByText("1 file").textContent, "1 file");
+  assert.equal(screen.getByText("old value").textContent, "old value");
+  assert.equal(screen.getByText("new value").textContent, "new value");
 });

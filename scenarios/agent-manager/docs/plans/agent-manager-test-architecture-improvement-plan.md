@@ -58,8 +58,8 @@ Current Agent Manager evidence:
   - `api/internal/handlers/stats_test.go`: local `stubStatsRepo`.
   - `api/internal/toolregistry/registry_test.go` and `api/internal/handlers/tools_test.go`: duplicated `mockToolProvider`.
 - Existing production seams are good raw material: `runner.Runner`, `sandbox.Provider`, `event.Store`, repository interfaces, `toolregistry.ToolProvider`, `pricing.Provider`, `modelregistry.ModelProber`, and phase `Deps`.
-- UI tests live under `ui/tests/**` and run via `pnpm test`, which expands to `tsc -p tsconfig.test.json` plus `node --test .test-dist/tests/**/*.test.js`.
-- `ui/tsconfig.test.json` explicitly includes selected production utility files and `tests/**/*.test.ts`, which reinforces pure TypeScript utility testing but makes React component/hook tests awkward.
+- UI tests previously lived under `ui/tests/**` and ran via `pnpm test`, which expanded to `tsc -p tsconfig.test.json` plus `node --test .test-dist/tests/**/*.test.js`.
+- UI tests now run through `vitest run` with jsdom and Testing Library setup in `ui/src/test-utils/setup.ts`. The existing pure TypeScript tests remain under `ui/tests/**`; new React behavior tests can be colocated under `ui/src/**/*.test.tsx`.
 
 Workspace Sandbox reference pattern:
 
@@ -223,7 +223,7 @@ Progress:
 
 - Added `ui/tests/testutil/runEvents.ts` as the current Node-runner fixture factory for `RunEvent` objects.
 - Migrated duplicated `RunEvent`, message, tool-call, and tool-result builders in `runEventStore`, `runTimeline`, and `runTimeline.grouping` tests.
-- Kept the current Node runner and package dependencies unchanged because Vitest/jsdom/Testing Library still require explicit dependency approval.
+- After dependency approval, replaced the Node runner with `vitest run`, added jsdom/Testing Library dependencies, configured shared setup in `ui/src/test-utils/setup.ts`, added `renderWithProviders`, and added initial `DiffViewer` render coverage.
 
 ### Phase 6: Boundary Coverage and Scenario-Level Gates
 
@@ -271,9 +271,9 @@ For longer comprehensive runs, use the repository timeout guidance; `make test` 
 - [x] Backend `testutil` package has docs and no-production-import enforcement.
 - [x] Canonical fakes cover sandbox, event store, broadcaster, stats repository, tool provider, tool-execution orchestrator, runner launcher/factory, transcript replay, and model-chain resolver seams.
 - [x] High-duplication tests migrate to canonical fakes and fixtures.
-- [x] UI pure TypeScript tests have a shared `RunEvent` fixture utility for reducer/timeline coverage under the current Node runner.
-- [ ] UI runner decision is made with dependency approval if needed.
-- [ ] React component/hook test setup exists before adding broad UI behavior tests.
+- [x] UI pure TypeScript tests have a shared `RunEvent` fixture utility for reducer/timeline coverage.
+- [x] UI runner decision is made with dependency approval if needed.
+- [x] React component/hook test setup exists before adding broad UI behavior tests.
 - [x] `GOWORK=off go test ./...` passes in `scenarios/agent-manager/api`.
 - [x] `pnpm test` passes in `scenarios/agent-manager/ui`.
 - [ ] `cd scenarios/agent-manager && make test` passes or any environmental blocker is documented with exact output.
