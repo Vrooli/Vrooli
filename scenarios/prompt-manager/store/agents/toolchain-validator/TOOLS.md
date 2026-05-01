@@ -12,10 +12,6 @@
 - `prompt-manager team decision-list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
-## Primary Skills
-- **scenario-readiness-review** - reading the gold-star reference state
-- **documentation-health** - durable scan snapshots
-
 ## Usage Rules
 - Do not edit tool code.
 - Do not modify the gold-star reference.

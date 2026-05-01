@@ -3,12 +3,13 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
-	"sort"
-	"strings"
 )
 
 // PromptBuildRequest defines the inputs for assembling a heartbeat prompt.
@@ -108,8 +109,8 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 	}
 
 	var sections []PromptSection
+	var agentSections []PromptSection
 
-	// 1. Agent markdown files (global personality + notes)
 	agentFiles, err := b.agentStore.ListFiles(ctx, agentID)
 	if err == nil && len(agentFiles) > 0 {
 		var markdownFiles []store.AgentFileEntry
@@ -130,7 +131,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 				if err != nil {
 					continue
 				}
-				sections = append(sections, PromptSection{
+				agentSections = append(agentSections, PromptSection{
 					Kind:       "agent-file",
 					Label:      entry.Path,
 					SourcePath: fmt.Sprintf("agents/%s/%s", agentID, entry.Path),
@@ -143,14 +144,14 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 	if includeTeam {
 		contract := team.Contract()
 
-		// 1.5 Team shared charter / operating model
+		var teamDocSection *PromptSection
 		if teamDoc, err := b.teamStore.ReadSharedFile(ctx, teamID, "TEAM.md"); err == nil && strings.TrimSpace(teamDoc) != "" {
-			sections = append(sections, PromptSection{
+			teamDocSection = &PromptSection{
 				Kind:       "team-shared-charter",
 				Label:      "shared/TEAM.md",
 				SourcePath: fmt.Sprintf("teams/%s/shared/TEAM.md", teamID),
 				Content:    "# Team Charter (shared/TEAM.md)\n\n" + teamDoc,
-			})
+			}
 		}
 
 		var heartbeatInstructions string
@@ -160,12 +161,64 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			}
 		}
 
+		// The heartbeat prompt uses an intentional task sandwich: the active
+		// brief comes first so every later context section is read through the
+		// current job, while the full HEARTBEAT.md and final reminder stay near
+		// the end for recency. Middle sections should not duplicate doctrine
+		// already owned by generated storage, contract, or coordination context.
 		sections = append(sections, PromptSection{
 			Kind:       promptSectionKindActiveTaskBrief,
 			Label:      promptSectionLabelActiveTaskBrief,
 			SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID),
 			Content:    buildActiveTaskBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions, b.teamStore.StoreDir()),
 		})
+
+		if teamconfig.ShouldInjectInbox(contract) {
+			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
+				sections = append(sections, PromptSection{
+					Kind:    "team-inbox",
+					Label:   "Team Inbox",
+					Content: section,
+				})
+			}
+		}
+
+		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
+			sections = append(sections, PromptSection{
+				Kind:       "last-handoff",
+				Label:      "Previous Handoff",
+				SourcePath: fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID),
+				Content:    "# Previous Heartbeat Handoff\n\nThis is what you noted at the end of your last heartbeat:\n\n" + handoff,
+			})
+		}
+
+		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
+			return nil, err
+		} else if section != "" {
+			sections = append(sections, PromptSection{
+				Kind:    "team-storage-map",
+				Label:   "Storage Map",
+				Content: section,
+			})
+		}
+
+		if teamconfig.ShouldShowOrgContext(contract) {
+			if section := b.buildOrgContextSection(ctx, team, agentID); section != "" {
+				sections = append(sections, PromptSection{
+					Kind:    "team-org-context",
+					Label:   "Team Org Context",
+					Content: section,
+				})
+			}
+		}
+
+		if coordSection := b.buildCoordinationSkillSection(team); coordSection != "" {
+			sections = append(sections, PromptSection{
+				Kind:    "team-coordination",
+				Label:   "Team Coordination",
+				Content: coordSection,
+			})
+		}
 
 		operatingContract, err := teamcontract.RenderMember(team.OperatingContract, teamcontract.RenderInput{
 			TeamID:       team.ID,
@@ -184,7 +237,6 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			Content:    operatingContract,
 		})
 
-		// 2. Team member RESPONSIBILITIES.md
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
 			sections = append(sections, PromptSection{
@@ -195,59 +247,12 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
-		// 3. Team org context
-		if teamconfig.ShouldShowOrgContext(contract) {
-			if section := b.buildOrgContextSection(ctx, team, agentID); section != "" {
-				sections = append(sections, PromptSection{
-					Kind:    "team-org-context",
-					Label:   "Team Org Context",
-					Content: section,
-				})
-			}
+		if teamDocSection != nil {
+			sections = append(sections, *teamDocSection)
 		}
 
-		// 3.5 Coordination guidance
-		if coordSection := b.buildCoordinationSkillSection(team); coordSection != "" {
-			sections = append(sections, PromptSection{
-				Kind:    "team-coordination",
-				Label:   "Team Coordination",
-				Content: coordSection,
-			})
-		}
+		sections = append(sections, agentSections...)
 
-		// 4. Storage map and persistence guidance
-		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
-			return nil, err
-		} else if section != "" {
-			sections = append(sections, PromptSection{
-				Kind:    "team-storage-map",
-				Label:   "Storage Map",
-				Content: section,
-			})
-		}
-
-		// 5. Team inbox messages
-		if teamconfig.ShouldInjectInbox(contract) {
-			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
-				sections = append(sections, PromptSection{
-					Kind:    "team-inbox",
-					Label:   "Team Inbox",
-					Content: section,
-				})
-			}
-		}
-
-		// 6. Previous handoff from last heartbeat
-		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
-			sections = append(sections, PromptSection{
-				Kind:       "last-handoff",
-				Label:      "Previous Handoff",
-				SourcePath: fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID),
-				Content:    "# Previous Heartbeat Handoff\n\nThis is what you noted at the end of your last heartbeat:\n\n" + handoff,
-			})
-		}
-
-		// 7. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
 		if includeHeartbeat {
 			if heartbeatInstructions != "" {
 				sections = append(sections, PromptSection{
@@ -271,6 +276,8 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 				Content:    buildTaskReminderSection(team, agentID, heartbeatInstructions),
 			})
 		}
+	} else {
+		sections = append(sections, agentSections...)
 	}
 
 	return sections, nil
@@ -691,6 +698,13 @@ func (b *PromptBuilder) buildCoordinationSkillSection(team *store.Team) string {
 	}
 
 	contract := team.Contract()
+	if contract.Coordination.Pattern == teamconfig.CoordinationPatternIndependent &&
+		!teamconfig.MessagingEnabled(contract) &&
+		!teamconfig.AllowsPeerTriggers(contract) &&
+		team.DecisionMode != "approval" {
+		return ""
+	}
+
 	skillID := teamconfig.CoordinationSkillID(contract)
 	var section strings.Builder
 	section.WriteString("# Team Coordination\n\n")

@@ -7,10 +7,6 @@
 - `prompt-manager team knowledge-list monetization ...`
 - `vrooli help`
 
-## Primary Skills
-- `prompt-manager skill read documentation-health`
-- `prompt-manager skill read scientific-debugging`
-
 ## Usage Rules
 - Every numeric field must carry an honesty flag.
 - Missing data stays pending-telemetry or pending-operator.

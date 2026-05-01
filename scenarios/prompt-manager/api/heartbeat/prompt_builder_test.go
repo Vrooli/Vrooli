@@ -2,13 +2,17 @@ package heartbeat
 
 import (
 	"context"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
+	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {
@@ -184,17 +188,22 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
-	if !(agentIndex < teamDocIndex && teamDocIndex < briefIndex && briefIndex < contractIndex && contractIndex < respIndex && respIndex < orgIndex && orgIndex < storageIndex && storageIndex < inboxIndex && inboxIndex < taskIndex && taskIndex < reminderIndex) {
+	if briefIndex != 0 {
+		t.Fatalf("active task brief should be first, got index %d", briefIndex)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(prompt), strings.TrimSpace(buildTaskReminderSection(team, agent.ID, "Ship the update"))) {
+		t.Fatalf("task reminder should be the final prompt section")
+	}
+	if !(briefIndex < inboxIndex && inboxIndex < storageIndex && storageIndex < orgIndex && orgIndex < contractIndex && contractIndex < respIndex && respIndex < teamDocIndex && teamDocIndex < agentIndex && agentIndex < taskIndex && taskIndex < reminderIndex) {
 		t.Fatalf("prompt sections are out of order")
 	}
 
-	// Verify coordination skill section is present between org context and storage map
 	coordIndex := strings.Index(prompt, "# Team Coordination")
 	if coordIndex == -1 {
 		t.Fatalf("expected coordination skill section in prompt")
 	}
-	if !(orgIndex < coordIndex && coordIndex < storageIndex) {
-		t.Fatalf("coordination skill section should be between org context and storage map")
+	if !(orgIndex < coordIndex && coordIndex < contractIndex) {
+		t.Fatalf("coordination skill section should be between org context and operating contract")
 	}
 
 	for _, want := range []string{
@@ -225,7 +234,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	}
 }
 
-func TestBuildIncludesCoordinationSkillMultiProcess(t *testing.T) {
+func TestBuildOmitsCoordinationSkillForPlainIndependentTeam(t *testing.T) {
 	ctx := context.Background()
 	storeDir := t.TempDir()
 	fileStore := store.NewFileStore(storeDir)
@@ -248,8 +257,40 @@ func TestBuildIncludesCoordinationSkillMultiProcess(t *testing.T) {
 		t.Fatalf("build prompt: %v", err)
 	}
 
-	if !strings.Contains(prompt, "team-coordination-independent") {
-		t.Fatalf("expected independent coordination skill reference in prompt")
+	if strings.Contains(prompt, "# Team Coordination") || strings.Contains(prompt, "team-coordination-independent") {
+		t.Fatalf("did not expect coordination skill reference for plain independent team")
+	}
+}
+
+func TestBuildIncludesCoordinationSkillForPeerTeam(t *testing.T) {
+	ctx := context.Background()
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	team := newIndependentTestTeam("team-mp", "MP Team")
+	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
+	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
+	team.Coordination.Capabilities.InjectInbox = true
+	if err := teamStore.Create(ctx, team); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := teamStore.SetResponsibilities(ctx, "team-mp", "agent-1", "Do work"); err != nil {
+		t.Fatalf("set responsibilities: %v", err)
+	}
+
+	builder := NewPromptBuilder(teamStore, agentStore)
+	prompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-mp"})
+	if err != nil {
+		t.Fatalf("build prompt: %v", err)
+	}
+
+	if !strings.Contains(prompt, "team-coordination-peer") {
+		t.Fatalf("expected peer coordination skill reference in prompt")
 	}
 }
 
@@ -499,14 +540,14 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 
 	// Verify all expected kinds in correct order
 	expectedKinds := []string{
-		"agent-file",
 		promptSectionKindActiveTaskBrief,
-		"team-operating-contract",
-		"team-responsibilities",
+		"team-inbox",
+		"team-storage-map",
 		"team-org-context",
 		"team-coordination",
-		"team-storage-map",
-		"team-inbox",
+		"team-operating-contract",
+		"team-responsibilities",
+		"agent-file",
 		"heartbeat-task",
 		promptSectionKindTaskReminder,
 	}
@@ -617,6 +658,56 @@ func TestBuildStructuredMatchesBuild(t *testing.T) {
 
 	if flatPrompt != reassembled {
 		t.Fatalf("Build() output does not match reassembled structured sections.\n\n--- Build() ---\n%s\n\n--- Reassembled ---\n%s", flatPrompt, reassembled)
+	}
+}
+
+func TestStoredPromptMarkdownExcludesObsoleteMiddleContextDoctrine(t *testing.T) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("resolve test filename")
+	}
+	storeDir := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "store"))
+
+	prohibitedEverywhere := []string{
+		"Read SOUL.md",
+		"Use the member HEARTBEAT.md",
+		"Each member has a",
+		"## Key Skills",
+		"Living Docs Under",
+		"Append observations that do not yet warrant decisions",
+	}
+	prohibitedSharedTeamHeadings := []string{
+		"## Members",
+	}
+
+	err := filepath.WalkDir(storeDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || filepath.Ext(path) != ".md" {
+			return nil
+		}
+		contentBytes, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		content := string(contentBytes)
+		for _, phrase := range prohibitedEverywhere {
+			if strings.Contains(content, phrase) {
+				t.Fatalf("%s contains obsolete prompt text %q", path, phrase)
+			}
+		}
+		if strings.HasSuffix(filepath.ToSlash(path), "/shared/TEAM.md") {
+			for _, phrase := range prohibitedSharedTeamHeadings {
+				if strings.Contains(content, phrase) {
+					t.Fatalf("%s contains obsolete shared team heading %q", path, phrase)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("scan stored prompt markdown: %v", err)
 	}
 }
 

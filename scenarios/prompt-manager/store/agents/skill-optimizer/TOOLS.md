@@ -12,13 +12,6 @@
 - `prompt-manager team decision-list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
-## Primary Skills
-- **skill-authoring-tools** - standards for thin-wrapper skills
-- **skill-validation** - post-edit validation
-- **skill-principles** - universal quality criteria
-- **visited-tracker-tools** - rotation pattern
-- **documentation-health** - durable snapshots
-
 ## Usage Rules
 - Every proposal includes a baseline, expected delta, and measurement plan.
 - Conversion beats polishing when usage justifies it.

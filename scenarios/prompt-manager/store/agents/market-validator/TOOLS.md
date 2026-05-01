@@ -7,11 +7,6 @@
 - `prompt-manager team knowledge-list monetization ...`
 - Browser or web fetch for external sources when available.
 
-## Primary Skills
-- `prompt-manager skill read systematic-exploration`
-- `prompt-manager skill read documentation-health`
-- `prompt-manager skill read scientific-debugging`
-
 ## Usage Rules
 - Every captured value has a source and date.
 - Applicability flags must be honest.

@@ -10,11 +10,6 @@
 - `swarm-manager initiatives get --name <name>`
 - `vrooli help`
 
-## Primary Skills
-- `prompt-manager skill read swarm-manager-backlog-tools`
-- `prompt-manager skill read documentation-health`
-- `prompt-manager skill read systematic-exploration`
-
 ## Usage Rules
 - Every readiness claim needs an honesty flag.
 - Channel-trigger claims cite the relevant evidence.

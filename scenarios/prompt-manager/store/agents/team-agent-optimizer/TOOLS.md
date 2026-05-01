@@ -14,14 +14,6 @@
 - `prompt-manager team decision-list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
-## Primary Skills
-- **skill-authoring-tools** - reference for agent tool-surface proposals
-- **capability-extraction** - distilling methodologies from agent files
-- **team-tool-mapping** - when team structure changes touch scenario tool wiring
-- **team-shared-docs-design** - choosing plan-of-record vs notebook patterns
-- **visited-tracker-tools** - rotation pattern
-- **documentation-health** - durable snapshots
-
 ## Usage Rules
 - Every proposal names the target, evidence, expected delta, and measurement plan.
 - Do not touch skills or scenario code.

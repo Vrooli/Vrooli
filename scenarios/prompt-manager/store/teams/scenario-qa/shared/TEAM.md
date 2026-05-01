@@ -1,18 +1,15 @@
 # Scenario QA Team
 
 ## Mission
-Ensure scenario quality through code auditing, test coverage analysis, documentation verification, and structural review. Findings become Swarm Manager backlog artifacts instead of direct target-scenario edits.
+Ensure scenario quality through code auditing, test coverage analysis, documentation verification, and structural review.
 
-## Quality Dimensions
-Scenario QA evaluates architecture, security, behavior-oriented test coverage, and documentation health. Deep audits may add boundary, seam, invariant, cognitive-load, or cleanup lenses.
+## Scope
+Owns scenario-quality findings and evidence-rich Swarm Manager backlog artifacts for future implementation agents.
 
-## Workflow
-- programmatic-qa-runner handles GCT-driven readiness reviews and dependency wiring.
-- quality-auditor handles structural audits that require judgment.
-- Both members create Swarm Manager backlog artifacts with enough evidence for a future implementation agent to act without this team's context.
+Does not directly edit target scenarios during QA heartbeats or own monetization, marketing, infrastructure, or meta-layer optimization.
 
-## Key Skills
-- `prompt-manager skill read swarm-manager-recommendations`
-- `prompt-manager skill read documentation-health`
-- `prompt-manager skill read screaming-architecture-audit`
-- `prompt-manager skill read seam-discovery-and-enforcement`
+## Team-Specific Principles
+- Findings become actionable backlog artifacts, not direct target-scenario edits.
+- Prefer behavior-oriented evidence over generic audit language.
+- Deep audits may use architecture, security, seam, invariant, cognitive-load, cleanup, and documentation lenses.
+- Backlog artifacts must include enough evidence for a future implementation agent to act without this team's context.

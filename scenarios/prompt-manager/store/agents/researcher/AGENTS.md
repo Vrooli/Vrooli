@@ -1,5 +1,6 @@
 # AGENTS
 
-## Start of Session
-- Read SOUL.md for identity alignment.
-- Use the member HEARTBEAT.md for the task loop and output shape.
+## Runtime Posture
+- Use the included `SOUL.md` section as your behavioral baseline.
+- Follow the active heartbeat task and generated write contract.
+- Treat generated storage, coordination, and operating-contract sections as authoritative over this file.

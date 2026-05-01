@@ -8,11 +8,6 @@
 - `prompt-manager team knowledge-list director-swarm ...`
 - `vrooli help`
 
-## Primary Skills
-- `prompt-manager skill read systematic-exploration`
-- `prompt-manager skill read documentation-health`
-- `prompt-manager skill read interoperability-steer`
-
 ## Usage Rules
 - Every candidate needs a plausible Vrooli capability fit.
 - Every candidate needs a concrete revisit trigger.
