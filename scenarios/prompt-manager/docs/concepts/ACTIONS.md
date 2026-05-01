@@ -2,7 +2,7 @@
 
 Actions are the executable layer between prompt-manager's judgment-oriented skills and Vrooli-controlled CLI implementations.
 
-Status: partially implemented. Action storage, API CRUD, validation, CLI list/show/create/update/delete/validate, AI indexing, opt-in discovery, and graph integration are implemented. Action execution and UI surfaces remain planned.
+Status: partially implemented. Action storage, API CRUD, validation, CLI list/show/create/update/delete/validate, AI indexing, opt-in discovery, graph integration, and UI browse/detail/validate/edit surfaces are implemented. Action execution and run surfaces remain planned.
 
 ## Why Actions Exist
 

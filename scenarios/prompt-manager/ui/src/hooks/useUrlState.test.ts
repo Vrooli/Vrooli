@@ -154,6 +154,7 @@ describe('useUrlState', () => {
         agentId: null,
         teamId: null,
         runId: null,
+        actionId: null,
         settingsOpen: true,
         view: null,
         tab: null,

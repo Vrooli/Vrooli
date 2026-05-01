@@ -14,7 +14,7 @@
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle, Bolt } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
@@ -37,6 +37,7 @@ import { RunListPanel } from '../run/RunListPanel'
 import { TopicListPanel } from '../topic/TopicListPanel'
 import { TopicTreeView } from '../topic/TopicTreeView'
 import { TopicCardView } from '../topic/TopicCardView'
+import { ActionListPanel } from '../action/ActionListPanel'
 import { ViewModeToggle } from '../sidebar/ViewModeToggle'
 import { useTopics } from '@/hooks/useTopicData'
 import { useTeamData } from '@/hooks/useTeamData'
@@ -74,6 +75,7 @@ const TAB_SEARCH_FEATURES = {
   teams:   { contentSearch: false, aiSearch: true, tagFilter: false },
   runs:    { contentSearch: false, aiSearch: false, tagFilter: false },
   topics:  { contentSearch: false, aiSearch: true, tagFilter: false },
+  actions: { contentSearch: false, aiSearch: false, tagFilter: false },
 } as const
 
 /** Map sidebar tab names to CombineEntityType */
@@ -92,6 +94,7 @@ const TAB_SEARCH_PLACEHOLDERS: Record<SearchableTab, string> = {
   teams: 'Search teams...',
   runs: 'Search runs...',
   topics: 'Search topics...',
+  actions: 'Search actions...',
 }
 
 interface ContentMatchGroup {
@@ -359,6 +362,8 @@ interface SkillTreeSidebarProps {
   onSelectRunFromMenu?: (runId: string) => void
   /** Callback to select/open a topic from sidebar (wraps selection + sidebar close on mobile) */
   onSelectTopicFromMenu?: (topicId: string) => void
+  /** Callback to select/open an Action from sidebar (wraps selection + sidebar close on mobile) */
+  onSelectActionFromMenu?: (actionId: string) => void
   /** Callback to save a specific skill */
   onSaveSkill?: (skillId: string) => Promise<void>
   /** Callback to discard changes for a specific skill */
@@ -465,6 +470,7 @@ export function SkillTreeSidebar({
   onSelectTeamFromMenu,
   onSelectRunFromMenu,
   onSelectTopicFromMenu,
+  onSelectActionFromMenu,
   onSaveSkill,
   onDiscardSkill,
   onSaveAgent,
@@ -513,6 +519,8 @@ export function SkillTreeSidebar({
     setSelectedRunId,
     selectedTopicId,
     setSelectedTopicId,
+    selectedActionId,
+    setSelectedActionId,
     setTopicWizardActive,
   } = useSelectionStore(useShallow((state) => ({
     selectedAgentId: state.selectedAgentId,
@@ -523,6 +531,8 @@ export function SkillTreeSidebar({
     setSelectedRunId: state.setSelectedRunId,
     selectedTopicId: state.selectedTopicId,
     setSelectedTopicId: state.setSelectedTopicId,
+    selectedActionId: state.selectedActionId,
+    setSelectedActionId: state.setSelectedActionId,
     setTopicWizardActive: state.setTopicWizardActive,
   })))
 
@@ -534,6 +544,7 @@ export function SkillTreeSidebar({
   const [teamSearchQuery, setTeamSearchQuery] = useState('')
   const [runSearchQuery, setRunSearchQuery] = useState('')
   const [topicSearchQuery, setTopicSearchQuery] = useState('')
+  const [actionSearchQuery, setActionSearchQuery] = useState('')
   const [topicViewMode, setTopicViewMode] = useState<ViewMode>('tree')
   const [topicDetailMode, setTopicDetailMode] = useState<DetailMode>('compact')
   const { topics: allTopics } = useTopics()
@@ -599,6 +610,7 @@ export function SkillTreeSidebar({
     : activeTab === 'agents' ? agentSearchQuery
     : activeTab === 'runs' ? runSearchQuery
     : activeTab === 'topics' ? topicSearchQuery
+    : activeTab === 'actions' ? actionSearchQuery
     : teamSearchQuery
 
   const handleCurrentSearchChange = useCallback((query: string) => {
@@ -606,6 +618,7 @@ export function SkillTreeSidebar({
     else if (activeTab === 'agents') setAgentSearchQuery(query)
     else if (activeTab === 'runs') setRunSearchQuery(query)
     else if (activeTab === 'topics') setTopicSearchQuery(query)
+    else if (activeTab === 'actions') setActionSearchQuery(query)
     else setTeamSearchQuery(query)
   }, [activeTab, onSearchChange])
 
@@ -655,6 +668,7 @@ export function SkillTreeSidebar({
   const [discoverResults, setDiscoverResults] = useState<DiscoverResponse | null>(null)
   const [useDiscover, setUseDiscover] = useState(true)
   const [complexity, setComplexity] = useState<string | undefined>(undefined)
+  const [discoverType, setDiscoverType] = useState<'skill' | 'action' | 'all'>('skill')
   const [budgetConfig, setBudgetConfig] = useState<BudgetConfig | null>(null)
   const [filterConfig, setFilterConfig] = useState<DiscoverFilterConfig | null>(null)
 
@@ -929,7 +943,7 @@ export function SkillTreeSidebar({
       try {
         if (activeTab === 'skills') {
           if (useDiscover) {
-            const result = await api.discover([aiDebouncedQuery], complexity, 10)
+            const result = await api.discover([aiDebouncedQuery], complexity, 10, discoverType)
             if (!cancelled) {
               setDiscoverResults(result)
               setSkillAIResults(null)
@@ -962,7 +976,7 @@ export function SkillTreeSidebar({
 
     void doSearch()
     return () => { cancelled = true }
-  }, [aiDebouncedQuery, searchMode, activeTab, useDiscover, complexity])
+  }, [aiDebouncedQuery, searchMode, activeTab, useDiscover, complexity, discoverType])
 
   // AI search: compute over-budget IDs for discover mode
   const overBudgetIds = useMemo(() => {
@@ -987,8 +1001,11 @@ export function SkillTreeSidebar({
   }, [discoverResults])
 
   // Helper: navigate to entity from AI results
-  const handleAIResultNavigate = useCallback((id: string) => {
-    if (activeTab === 'skills') {
+  const handleAIResultNavigate = useCallback((id: string, type?: 'skill' | 'action') => {
+    if (type === 'action') {
+      if (onSelectActionFromMenu) onSelectActionFromMenu(id)
+      else setSelectedActionId(id)
+    } else if (activeTab === 'skills') {
       onSelectItem(id)
     } else if (activeTab === 'agents') {
       if (onSelectAgentFromMenu) onSelectAgentFromMenu(id)
@@ -999,8 +1016,11 @@ export function SkillTreeSidebar({
     } else if (activeTab === 'topics') {
       if (onSelectTopicFromMenu) onSelectTopicFromMenu(id)
       else setSelectedTopicId(id)
+    } else if (activeTab === 'actions') {
+      if (onSelectActionFromMenu) onSelectActionFromMenu(id)
+      else setSelectedActionId(id)
     }
-  }, [activeTab, onSelectItem, onSelectAgentFromMenu, setSelectedAgentId, onSelectTeamFromMenu, setSelectedTeamId, onSelectTopicFromMenu, setSelectedTopicId])
+  }, [activeTab, onSelectItem, onSelectAgentFromMenu, setSelectedAgentId, onSelectTeamFromMenu, setSelectedTeamId, onSelectTopicFromMenu, setSelectedTopicId, onSelectActionFromMenu, setSelectedActionId])
 
   // Helper: toggle selection from AI results
   const handleAIResultToggle = useCallback((id: string, _contentChars?: number) => {
@@ -1366,6 +1386,8 @@ export function SkillTreeSidebar({
                 onToggleDiscover={setUseDiscover}
                 complexity={complexity}
                 onComplexityChange={setComplexity}
+                discoverType={discoverType}
+                onDiscoverTypeChange={setDiscoverType}
                 budgetChars={discoverResults?.budgetChars}
                 totalContentChars={discoverResults?.totalContentChars}
                 selectedContentChars={selectedContentChars}
@@ -1471,6 +1493,7 @@ export function SkillTreeSidebar({
           <TabTrigger value="teams" icon={<Users className="h-3.5 w-3.5" />} label="Teams" alwaysShowLabel />
           <TabTrigger value="runs" icon={<Activity className="h-3.5 w-3.5" />} label="Runs" alwaysShowLabel />
           <TabTrigger value="topics" icon={<Layers className="h-3.5 w-3.5" />} label="Topics" alwaysShowLabel />
+          <TabTrigger value="actions" icon={<Bolt className="h-3.5 w-3.5" />} label="Actions" alwaysShowLabel />
         </TabList>
 
         {/* Skills Tab */}
@@ -2128,6 +2151,15 @@ export function SkillTreeSidebar({
           )}
           </>
           )}
+        </Tabs.Content>
+
+        <Tabs.Content value="actions" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          <ActionListPanel
+            selectedActionId={selectedActionId}
+            onSelectAction={onSelectActionFromMenu ?? setSelectedActionId}
+            searchQuery={actionSearchQuery}
+            className="flex-1"
+          />
         </Tabs.Content>
       </Tabs.Root>
 

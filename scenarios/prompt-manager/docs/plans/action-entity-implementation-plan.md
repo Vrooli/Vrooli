@@ -119,7 +119,38 @@ Status: ready for implementation.
   - `cd scenarios/prompt-manager/ui && pnpm test`
   - `git diff --check`
 
-Next resume point: Continue Phase 8 with any remaining UI client polish if desired, then start Phase 9 Action UI surfaces: browse/list, detail/editor, validation panel, and mixed discover rendering. Keep run UI/API/CLI deferred until Phase 4 execution governance is fully implemented. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands. Do not wire `POST /api/v1/actions/{id}/run` or `prompt-manager action run` until Phase 4 execution governance is implemented.
+- Completed the first Phase 9 UI surfaces slice:
+  - Added an Actions sidebar tab with searchable Action rows and draft Action creation.
+  - Added Action URL/selection state through `?action=<id>`.
+  - Added an Action detail/editor panel with contract JSON editing, API-backed save, API-backed validation result display, archive/hard-delete controls, summary metadata, and an explicit disabled run panel.
+  - Updated discover controls to request `type: skill|action|all` and updated mixed discover rendering so Action results show an Action badge, status, owner, and navigate to the Action panel.
+  - Added focused UI tests for Action list behavior, Action detail validation/save/delete states, and mixed discover result rendering.
+- Verified with:
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/components/action/ActionListPanel.test.tsx src/components/action/ActionEditorPanel.test.tsx src/components/search/SearchResultsList.test.tsx`
+  - `cd scenarios/prompt-manager/ui && pnpm test`
+  - `git diff --check`
+
+- Completed the second Phase 9 UI surfaces slice:
+  - Added typed Action contract editing on top of the JSON draft for identity, owner, status, tags, command argv tokens, inputs, outputs, permissions, and examples.
+  - Kept JSON as the single draft source of truth: typed field edits patch the JSON draft, and save still goes through the existing API validation path.
+  - Added invalid-JSON fallback behavior so typed fields are disabled until the draft is parseable.
+  - Added focused UI coverage proving typed contract field edits are included in the saved Action payload.
+- Verified with:
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/components/action/ActionEditorPanel.test.tsx`
+
+- Completed the third Phase 9 UI surfaces slice:
+  - Added accessible Action sidebar row labels, selected-row state, and keyboard focus styling.
+  - Added a two-step hard-delete guard in the Action editor while preserving archive as the default lifecycle action.
+  - Marked invalid Action JSON drafts with `aria-invalid`, made validation results announce with polite live-region semantics, and kept the disabled run control explicitly disabled for assistive technology.
+  - Removed nested button semantics from mixed discovery rows by separating row selection from the "go to entity" control.
+  - Added focused tests for the hard-delete guard, Action row labeling, Action discover badges, and select-mode navigation separation.
+- Verified with:
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/components/action/ActionListPanel.test.tsx src/components/action/ActionEditorPanel.test.tsx src/components/search/SearchResultsList.test.tsx`
+
+Next resume point: Continue Phase 9 only if more visual polish is desired, then consider moving to Phase 4 execution governance as a separate bounded slice. Keep run UI/API/CLI deferred until Phase 4 execution governance is fully implemented. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands. Do not wire `POST /api/v1/actions/{id}/run` or `prompt-manager action run` until Phase 4 execution governance is implemented.
 
 ## Purpose
 

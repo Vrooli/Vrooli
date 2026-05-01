@@ -28,6 +28,7 @@ import { AgentEditorPanel } from '../editor/AgentEditorPanel'
 import { TeamEditorPanel } from '../editor/TeamEditorPanel'
 import { RunEditorPanel } from '../editor/RunEditorPanel'
 import { TopicEditorPanel } from '../topic/TopicEditorPanel'
+import { ActionEditorPanel } from '../action/ActionEditorPanel'
 import { TopicSelectionWizard } from '../topic/TopicSelectionWizard'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useAgentData } from '@/hooks/useAgentData'
@@ -139,6 +140,8 @@ export function SkillManagerLayout() {
     setSelectedRunId,
     selectedTopicId,
     setSelectedTopicId,
+    selectedActionId,
+    setSelectedActionId,
     topicWizardActive,
     setTopicWizardActive,
     graphViewActive,
@@ -154,6 +157,8 @@ export function SkillManagerLayout() {
     setSelectedRunId: state.setSelectedRunId,
     selectedTopicId: state.selectedTopicId,
     setSelectedTopicId: state.setSelectedTopicId,
+    selectedActionId: state.selectedActionId,
+    setSelectedActionId: state.setSelectedActionId,
     topicWizardActive: state.topicWizardActive,
     setTopicWizardActive: state.setTopicWizardActive,
     graphViewActive: state.graphViewActive,
@@ -606,6 +611,12 @@ export function SkillManagerLayout() {
       }
       setSelectedRunId(id)
     }, [isDirty, storeCurrentChanges, setSelectedRunId]),
+    onActionIdChange: useCallback((id: string | null) => {
+      if (isDirty) {
+        storeCurrentChanges()
+      }
+      setSelectedActionId(id)
+    }, [isDirty, storeCurrentChanges, setSelectedActionId]),
     onSettingsOpenChange: useCallback((open: boolean) => {
       setShowSettingsDialog(open)
     }, []),
@@ -660,6 +671,15 @@ export function SkillManagerLayout() {
       setPendingSubTab(null)
     }
   }, [selectedRunId, updateUrl])
+
+  // Sync URL when selected Action changes
+  useEffect(() => {
+    updateUrl({ actionId: selectedActionId })
+    if (selectedActionId) {
+      setPendingTab(null)
+      setPendingSubTab(null)
+    }
+  }, [selectedActionId, updateUrl])
 
   // Sync URL when settings dialog state changes
   useEffect(() => {
@@ -1330,7 +1350,8 @@ export function SkillManagerLayout() {
     setSelectedAgentId(null)
     setSelectedTeamId(null)
     setSelectedRunId(null)
-  }, [setSelectedSkillId, setSelectedAgentId, setSelectedTeamId, setSelectedRunId])
+    setSelectedActionId(null)
+  }, [setSelectedSkillId, setSelectedAgentId, setSelectedTeamId, setSelectedRunId, setSelectedActionId])
 
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
@@ -1410,6 +1431,7 @@ export function SkillManagerLayout() {
         onCustomizeAgent={handleCustomizeAgentById}
         onPreviewPrompt={handlePreviewPromptById}
         onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
+        onSelectActionFromMenu={setSelectedActionId}
       />
     </PanelErrorBoundary>
   )
@@ -1476,6 +1498,13 @@ export function SkillManagerLayout() {
               <TopicEditorPanel
                 topicId={selectedTopicId}
                 onClose={() => setSelectedTopicId(null)}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
+                className="h-full"
+              />
+            ) : selectedActionId ? (
+              <ActionEditorPanel
+                actionId={selectedActionId}
+                onClose={() => setSelectedActionId(null)}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 className="h-full"
               />
@@ -1742,6 +1771,10 @@ export function SkillManagerLayout() {
                 }}
                 onSelectTopicFromMenu={(id) => {
                   setSelectedTopicId(id)
+                  setIsMobileSidebarOpen(false)
+                }}
+                onSelectActionFromMenu={(id) => {
+                  setSelectedActionId(id)
                   setIsMobileSidebarOpen(false)
                 }}
                 onSaveSkill={handleSaveSkillById}

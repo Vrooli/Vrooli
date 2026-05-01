@@ -6,6 +6,7 @@
  * - Direct navigation to skills via URL (/?skill=<skillId>)
  * - Direct navigation to agents via URL (/?agent=<agentId>)
  * - Direct navigation to teams via URL (/?team=<teamId>)
+ * - Direct navigation to actions via URL (/?action=<actionId>)
  * - Direct navigation to settings modal (/?settings=true)
  * - Cross-reference highlight navigation (/?hlFile=...&hlLine=...&hlText=...)
  * - Browser back/forward navigation support
@@ -14,6 +15,7 @@
  * - /?skill=<skillId> - Select and open skill for editing
  * - /?agent=<agentId> - Select and open agent for editing
  * - /?team=<teamId> - Select and open team for editing
+ * - /?action=<actionId> - Select and open Action for inspection/editing
  * - /?settings=true - Open settings modal
  * - /?view=world|graph - Select the active view (world or graph)
  * - /?hlFile=<path>&hlLine=<n>&hlText=<text> - Highlight a reference
@@ -30,6 +32,7 @@ export interface UrlState {
   agentId: string | null
   teamId: string | null
   runId: string | null
+  actionId: string | null
   settingsOpen: boolean
   view: ViewMode | null
   tab: string | null
@@ -48,6 +51,8 @@ export interface UseUrlStateOptions {
   onTeamIdChange: (id: string | null) => void
   /** Called when run ID changes from URL navigation */
   onRunIdChange?: (id: string | null) => void
+  /** Called when action ID changes from URL navigation */
+  onActionIdChange?: (id: string | null) => void
   /** Called when settings open state changes from URL navigation */
   onSettingsOpenChange: (open: boolean) => void
   /** Called when tab changes from URL navigation */
@@ -77,6 +82,7 @@ const URL_PARAMS = {
   AGENT: 'agent',
   TEAM: 'team',
   RUN: 'run',
+  ACTION: 'action',
   SETTINGS: 'settings',
   VIEW: 'view',
   TAB: 'tab',
@@ -101,6 +107,7 @@ function parseUrlState(search: string): UrlState {
     agentId: params.get(URL_PARAMS.AGENT),
     teamId: params.get(URL_PARAMS.TEAM),
     runId: params.get(URL_PARAMS.RUN),
+    actionId: params.get(URL_PARAMS.ACTION),
     settingsOpen: params.get(URL_PARAMS.SETTINGS) === 'true',
     view: viewRaw && VALID_VIEWS.has(viewRaw) ? viewRaw : null,
     tab: params.get(URL_PARAMS.TAB),
@@ -131,6 +138,10 @@ function buildUrlSearch(state: UrlState): string {
 
   if (state.runId) {
     params.set(URL_PARAMS.RUN, state.runId)
+  }
+
+  if (state.actionId) {
+    params.set(URL_PARAMS.ACTION, state.actionId)
   }
 
   if (state.settingsOpen) {
@@ -194,6 +205,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     agentId: null,
     teamId: null,
     runId: null,
+    actionId: null,
     settingsOpen: false,
     view: null,
     tab: null,
@@ -214,7 +226,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
    */
   const getInitialState = useCallback((): UrlState => {
     if (typeof window === 'undefined') {
-      return { skillId: null, agentId: null, teamId: null, runId: null, settingsOpen: false, view: null, tab: null, subTab: null, hlFile: null, hlLine: null, hlText: null }
+      return { skillId: null, agentId: null, teamId: null, runId: null, actionId: null, settingsOpen: false, view: null, tab: null, subTab: null, hlFile: null, hlLine: null, hlText: null }
     }
     return parseUrlState(window.location.search)
   }, [])
@@ -237,6 +249,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
       newState.agentId === currentStateRef.current.agentId &&
       newState.teamId === currentStateRef.current.teamId &&
       newState.runId === currentStateRef.current.runId &&
+      newState.actionId === currentStateRef.current.actionId &&
       newState.settingsOpen === currentStateRef.current.settingsOpen &&
       newState.view === currentStateRef.current.view &&
       newState.tab === currentStateRef.current.tab &&
@@ -282,6 +295,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     opts.onAgentIdChange(urlState.agentId)
     opts.onTeamIdChange(urlState.teamId)
     opts.onRunIdChange?.(urlState.runId)
+    opts.onActionIdChange?.(urlState.actionId)
     opts.onSettingsOpenChange(urlState.settingsOpen)
     if (urlState.view) {
       opts.onViewChange?.(urlState.view)
@@ -304,7 +318,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
 
     // Apply initial state (defer to allow component to mount)
     const hlRequest = extractHighlightRequest(initialState)
-    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.runId || initialState.settingsOpen || initialState.view || initialState.tab || initialState.subTab || hlRequest) {
+    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.runId || initialState.actionId || initialState.settingsOpen || initialState.view || initialState.tab || initialState.subTab || hlRequest) {
       // Use setTimeout to ensure this runs after initial render
       setTimeout(() => {
         if (initialState.skillId) {
@@ -318,6 +332,9 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
         }
         if (initialState.runId) {
           options.onRunIdChange?.(initialState.runId)
+        }
+        if (initialState.actionId) {
+          options.onActionIdChange?.(initialState.actionId)
         }
         if (initialState.settingsOpen) {
           onSettingsOpenChange(initialState.settingsOpen)

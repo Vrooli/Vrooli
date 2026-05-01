@@ -5,7 +5,7 @@
  * Used inline in the sidebar for AI search results and in select/copy flows.
  */
 
-import { ExternalLink } from 'lucide-react'
+import { Bolt, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AISearchResult, AIAgentSearchResult, AITeamSearchResult, TopicMatchResult, DiscoverResult } from '@/lib/schemas'
 
@@ -23,7 +23,7 @@ interface SearchResultsListProps {
   isSelectMode: boolean
   selectedIds: Set<string>
   onToggleSelection: (id: string, contentChars?: number) => void
-  onNavigate: (id: string) => void
+  onNavigate: (id: string, type?: DiscoverResult['type']) => void
   // Discover mode (skills only)
   discoverMode?: boolean
   // Budget: ids that exceed budget
@@ -59,18 +59,34 @@ export function SearchResultsList({
           isOverBudget={overBudgetIds?.has(result.id)}
           compact={compact}
           onToggle={() => onToggleSelection(result.id, result.contentChars)}
-          onNavigate={() => onNavigate(result.id)}
+          onNavigate={() => onNavigate(result.id, result.type)}
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground truncate">{result.name}</span>
+              {result.type === 'action' && (
+                <span
+                  className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
+                  aria-label="Action result"
+                >
+                  <Bolt className="h-2.5 w-2.5" />
+                  Action
+                </span>
+              )}
             </div>
             {result.description && (
               <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{result.description}</p>
             )}
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
               <SourceBadge source={result.source} topicId={result.topicId} topicName={result.topicName} topicDepth={result.topicDepth} />
-              <CharsBadge chars={result.contentChars} />
+              {result.type === 'action' ? (
+                <>
+                  {result.status && <TagPill tag={result.status} />}
+                  {result.owner && <TagPill tag={result.owner} />}
+                </>
+              ) : (
+                <CharsBadge chars={result.contentChars} />
+              )}
               {result.tags.slice(0, 5).map((tag) => (
                 <TagPill key={tag} tag={tag} />
               ))}
@@ -245,57 +261,62 @@ function ResultRow({
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={handleClick}
+      <div
         className={cn(
-          'w-full text-left',
+          'flex items-start justify-between gap-3',
           compact ? 'px-3 py-2' : 'px-4 py-3',
           'hover:bg-muted/50 transition-colors',
-          'focus:outline-none focus:bg-muted/50',
           isOverBudget && 'opacity-50',
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          {rank != null && (
-            <span className="text-[10px] font-mono text-muted-foreground w-5 text-right flex-shrink-0 pt-0.5">
-              #{rank}
-            </span>
+        <button
+          type="button"
+          onClick={handleClick}
+          aria-pressed={isSelectMode ? isSelected : undefined}
+          className={cn(
+            'min-w-0 flex-1 text-left',
+            'focus:outline-none focus:bg-muted/50 focus:ring-2 focus:ring-primary/30 rounded-md'
           )}
-          {isSelectMode && (
-            <div className="flex-shrink-0 pt-0.5">
-              <div
-                className={cn(
-                  'h-4 w-4 rounded border transition-colors',
-                  isSelected
-                    ? 'bg-primary border-primary'
-                    : 'border-border bg-background'
-                )}
-              >
-                {isSelected && (
-                  <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
-                    <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
-                  </svg>
-                )}
+        >
+          <div className="flex items-start gap-3">
+            {rank != null && (
+              <span className="text-[10px] font-mono text-muted-foreground w-5 text-right flex-shrink-0 pt-0.5">
+                #{rank}
+              </span>
+            )}
+            {isSelectMode && (
+              <div className="flex-shrink-0 pt-0.5">
+                <div
+                  className={cn(
+                    'h-4 w-4 rounded border transition-colors',
+                    isSelected
+                      ? 'bg-primary border-primary'
+                      : 'border-border bg-background'
+                  )}
+                >
+                  {isSelected && (
+                    <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
+                      <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
+                    </svg>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-          {children}
-          {isSelectMode && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onNavigate()
-              }}
-              className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Go to entity"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </button>
+            )}
+            {children}
+          </div>
+        </button>
+        {isSelectMode && (
+          <button
+            type="button"
+            onClick={onNavigate}
+            className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Go to entity"
+            aria-label="Go to entity"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
     </li>
   )
 }

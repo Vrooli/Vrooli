@@ -39,6 +39,9 @@ interface SelectionStore {
   // Topic selection for editing
   selectedTopicId: string | null
 
+  // Action selection for editing
+  selectedActionId: string | null
+
   // Topic selection wizard active
   topicWizardActive: boolean
 
@@ -57,6 +60,7 @@ interface SelectionStore {
   setSelectedTeamId: (id: string | null) => void
   setSelectedRunId: (id: string | null) => void
   setSelectedTopicId: (id: string | null) => void
+  setSelectedActionId: (id: string | null) => void
   setTopicWizardActive: (v: boolean) => void
   setGraphViewActive: (v: boolean) => void
 }
@@ -68,6 +72,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedTeamId: null,
   selectedRunId: null,
   selectedTopicId: null,
+  selectedActionId: null,
   topicWizardActive: false,
   graphViewActive: loadGraphViewActive(),
 
@@ -82,6 +87,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedTeamId: null,
       selectedRunId: null,
       selectedTopicId: null,
+      selectedActionId: null,
       topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
@@ -152,6 +158,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedTeamId: null,
       selectedRunId: null,
       selectedTopicId: null,
+      selectedActionId: null,
       topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
@@ -166,6 +173,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedTeamId: null,
       selectedRunId: null,
       selectedTopicId: null,
+      selectedActionId: null,
       topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
@@ -180,6 +188,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedAgentId: null,
       selectedRunId: null,
       selectedTopicId: null,
+      selectedActionId: null,
       topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
@@ -194,6 +203,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedAgentId: null,
       selectedTeamId: null,
       selectedTopicId: null,
+      selectedActionId: null,
       topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
@@ -208,6 +218,21 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedAgentId: null,
       selectedTeamId: null,
       selectedRunId: null,
+      selectedActionId: null,
+      topicWizardActive: false,
+    })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+
+  setSelectedActionId: (id) => {
+    set({
+      selectedActionId: id,
+      selectedSkillId: null,
+      selectedSkillIds: [],
+      selectedAgentId: null,
+      selectedTeamId: null,
+      selectedRunId: null,
+      selectedTopicId: null,
       topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
@@ -224,6 +249,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
         selectedTeamId: null,
         selectedRunId: null,
         selectedTopicId: null,
+        selectedActionId: null,
       } : {}),
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
