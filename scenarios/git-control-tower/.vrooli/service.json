@@ -132,7 +132,7 @@
         {
           "description": "Execute phased scenario test suite",
           "name": "run-phased-tests",
-          "run": "test-genie execute git-control-tower --preset comprehensive --skip playbooks"
+          "run": "vrooli scenario start git-control-tower && test-genie execute git-control-tower --preset comprehensive --skip playbooks"
         }
       ]
     },

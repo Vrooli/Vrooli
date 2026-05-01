@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
+	"git-control-tower/internal/testutil/httpx"
 	"github.com/vrooli/api-core/discovery"
 )
 
@@ -23,8 +23,7 @@ func TestBASClient_GetScreenshotData(t *testing.T) {
 		w.Header().Set("Content-Type", "image/png")
 		_, _ = w.Write(pngBytes)
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -54,8 +53,7 @@ func TestBASClient_GetScreenshotData_ServerError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "not found"})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -85,8 +83,7 @@ func TestBASClient_ExecuteAdhocWorkflow(t *testing.T) {
 			Status:      "completed",
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -121,8 +118,7 @@ func TestBASClient_ExecuteAdhocWorkflow_RequiresVideo(t *testing.T) {
 			Status:      "running",
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -160,8 +156,7 @@ func TestBASClient_PollExecutionCompletion(t *testing.T) {
 			Status:      status,
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -195,8 +190,7 @@ func TestBASClient_PollExecutionCompletion_Failed(t *testing.T) {
 			Error:       "step timed out",
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -235,8 +229,7 @@ func TestBASClient_GetScreenshots(t *testing.T) {
 			Total: 2,
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -274,8 +267,7 @@ func TestBASClient_GetRecordedVideos(t *testing.T) {
 			},
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{
@@ -309,8 +301,7 @@ func TestBASClient_GetVideoData(t *testing.T) {
 		w.Header().Set("Content-Type", "video/webm")
 		_, _ = w.Write(videoBytes)
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &BrowserAutomationClient{
 		BaseClient: BaseClient{

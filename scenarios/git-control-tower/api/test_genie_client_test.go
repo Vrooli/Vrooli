@@ -2,50 +2,41 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
+	"git-control-tower/internal/testutil/httpx"
 	"github.com/vrooli/api-core/discovery"
 )
 
 func TestTestGenieClient_ExecuteSuite(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/executions", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		var req TestExecutionRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Errorf("decode request: %v", err)
-		}
-		if req.ScenarioName != "git-control-tower" {
-			t.Errorf("unexpected scenario name: %s", req.ScenarioName)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(TestExecutionResult{
-			ExecutionID:  "exec-001",
-			ScenarioName: req.ScenarioName,
-			Success:      true,
-			StartedAt:    "2026-03-10T12:00:00Z",
-			CompletedAt:  "2026-03-10T12:05:00Z",
-			Phases: []TestPhaseResult{
-				{Name: "build", Status: "passed", DurationSeconds: 30},
-				{Name: "unit", Status: "passed", DurationSeconds: 60},
-			},
-			PhaseSummary: TestPhaseSummary{Total: 2, Passed: 2, DurationSeconds: 90},
-		})
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/executions": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodPost)
+			req := httpx.DecodeJSON[TestExecutionRequest](t, r)
+			if req.ScenarioName != "git-control-tower" {
+				t.Errorf("unexpected scenario name: %s", req.ScenarioName)
+			}
+			httpx.WriteJSON(t, w, http.StatusOK, TestExecutionResult{
+				ExecutionID:  "exec-001",
+				ScenarioName: req.ScenarioName,
+				Success:      true,
+				StartedAt:    "2026-03-10T12:00:00Z",
+				CompletedAt:  "2026-03-10T12:05:00Z",
+				Phases: []TestPhaseResult{
+					{Name: "build", Status: "passed", DurationSeconds: 30},
+					{Name: "unit", Status: "passed", DurationSeconds: 60},
+				},
+				PhaseSummary: TestPhaseSummary{Total: 2, Passed: 2, DurationSeconds: 90},
+			})
+		},
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
 
 	client := &TestGenieClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(server.URL),
 			serviceName: "test-genie",
 		},
@@ -72,17 +63,15 @@ func TestTestGenieClient_ExecuteSuite(t *testing.T) {
 func TestTestGenieClient_ExecuteSuite_ServerError(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/executions", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal failure"})
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/executions": func(w http.ResponseWriter, _ *http.Request) {
+			httpx.WriteJSON(t, w, http.StatusInternalServerError, map[string]string{"error": "internal failure"})
+		},
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
 
 	client := &TestGenieClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(server.URL),
 			serviceName: "test-genie",
 		},
@@ -99,30 +88,26 @@ func TestTestGenieClient_ExecuteSuite_ServerError(t *testing.T) {
 func TestTestGenieClient_ListExecutions(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/executions", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		scenario := r.URL.Query().Get("scenario")
-		if scenario != "git-control-tower" {
-			t.Errorf("expected scenario=git-control-tower, got %s", scenario)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(TestExecutionListResponse{
-			Items: []TestExecutionResult{
-				{ExecutionID: "exec-001", ScenarioName: scenario, Success: true},
-				{ExecutionID: "exec-002", ScenarioName: scenario, Success: false},
-			},
-			Count: 2,
-		})
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/executions": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodGet)
+			scenario := r.URL.Query().Get("scenario")
+			if scenario != "git-control-tower" {
+				t.Errorf("expected scenario=git-control-tower, got %s", scenario)
+			}
+			httpx.WriteJSON(t, w, http.StatusOK, TestExecutionListResponse{
+				Items: []TestExecutionResult{
+					{ExecutionID: "exec-001", ScenarioName: scenario, Success: true},
+					{ExecutionID: "exec-002", ScenarioName: scenario, Success: false},
+				},
+				Count: 2,
+			})
+		},
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
 
 	client := &TestGenieClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(server.URL),
 			serviceName: "test-genie",
 		},
@@ -143,26 +128,22 @@ func TestTestGenieClient_ListExecutions(t *testing.T) {
 func TestTestGenieClient_GetExecution(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/executions/exec-001", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(TestExecutionResult{
-			ExecutionID:  "exec-001",
-			ScenarioName: "git-control-tower",
-			Success:      true,
-			StartedAt:    "2026-03-10T12:00:00Z",
-			PhaseSummary: TestPhaseSummary{Total: 3, Passed: 3, DurationSeconds: 120},
-		})
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/executions/exec-001": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodGet)
+			httpx.WriteJSON(t, w, http.StatusOK, TestExecutionResult{
+				ExecutionID:  "exec-001",
+				ScenarioName: "git-control-tower",
+				Success:      true,
+				StartedAt:    "2026-03-10T12:00:00Z",
+				PhaseSummary: TestPhaseSummary{Total: 3, Passed: 3, DurationSeconds: 120},
+			})
+		},
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
 
 	client := &TestGenieClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(server.URL),
 			serviceName: "test-genie",
 		},

@@ -1,4 +1,5 @@
 import { fetchHealth, fetchBranches, createBranch, fetchGroupingRules } from "./api";
+import { jsonResponse, mockFetchJson, textResponse } from "../test-utils";
 
 // [REQ:GCT-OT-P0-001] Health check endpoint
 
@@ -8,85 +9,42 @@ vi.mock("@vrooli/api-base", () => ({
 }));
 
 test("fetchHealth returns parsed JSON on success", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = vi.fn(async () => {
-    return new Response(JSON.stringify({ status: "healthy", service: "x", timestamp: "t" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
-  }) as unknown as typeof fetch;
+  mockFetchJson({ status: "healthy", service: "x", timestamp: "t" });
 
-  try {
-    const result = await fetchHealth();
-    expect(result.status).toBe("healthy");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  const result = await fetchHealth();
+  expect(result.status).toBe("healthy");
 });
 
 test("fetchHealth throws when API returns non-200", async () => {
-  const originalFetch = globalThis.fetch;
   globalThis.fetch = vi.fn(async () => {
-    return new Response("Service unavailable", { status: 503 });
+    return textResponse("Service unavailable", { status: 503 });
   }) as unknown as typeof fetch;
 
-  try {
-    await expect(fetchHealth()).rejects.toThrow(/Service unavailable|Request failed: 503/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  await expect(fetchHealth()).rejects.toThrow(/Service unavailable|Request failed: 503/);
 });
 
 test("fetchBranches returns parsed JSON on success", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = vi.fn(async () => {
-    return new Response(
-      JSON.stringify({ current: "main", locals: [], remotes: [], timestamp: "t" }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  }) as unknown as typeof fetch;
+  mockFetchJson({ current: "main", locals: [], remotes: [], timestamp: "t" });
 
-  try {
-    const result = await fetchBranches();
-    expect(result.current).toBe("main");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  const result = await fetchBranches();
+  expect(result.current).toBe("main");
 });
 
 test("createBranch returns parsed JSON on success", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = vi.fn(async () => {
-    return new Response(
-      JSON.stringify({ success: true, branch: { name: "feature/test" }, timestamp: "t" }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  }) as unknown as typeof fetch;
+  mockFetchJson({ success: true, branch: { name: "feature/test" }, timestamp: "t" });
 
-  try {
-    const result = await createBranch({ name: "feature/test" });
-    expect(result.success).toBe(true);
-    expect(result.branch?.name).toBe("feature/test");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  const result = await createBranch({ name: "feature/test" });
+  expect(result.success).toBe(true);
+  expect(result.branch?.name).toBe("feature/test");
 });
 
 test("fetchGroupingRules uses cache: no-store to bypass proxy caching", async () => {
-  const originalFetch = globalThis.fetch;
   let capturedInit: RequestInit | undefined;
   globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
     capturedInit = init;
-    return new Response(
-      JSON.stringify({ enabled: true, rules: [] }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ enabled: true, rules: [] });
   }) as unknown as typeof fetch;
 
-  try {
-    await fetchGroupingRules("repo-1");
-    expect(capturedInit?.cache).toBe("no-store");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  await fetchGroupingRules("repo-1");
+  expect(capturedInit?.cache).toBe("no-store");
 });

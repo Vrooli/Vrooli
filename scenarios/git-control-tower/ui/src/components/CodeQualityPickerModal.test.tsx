@@ -1,8 +1,6 @@
-import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   CodeQualityPickerModal,
   SEVERITY_LEVELS,
@@ -10,6 +8,7 @@ import {
   LIMIT_PRESETS,
 } from "./CodeQualityPickerModal";
 import type { TidinessIssue } from "../lib/api";
+import { renderWithQueryClient } from "../test-utils";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -59,15 +58,6 @@ function makeIssueSet() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
-
 const defaultProps = {
   isOpen: true,
   onClose: vi.fn(),
@@ -77,10 +67,7 @@ const defaultProps = {
 };
 
 function renderModal(props = {}) {
-  return render(
-    <CodeQualityPickerModal {...defaultProps} {...props} />,
-    { wrapper: createWrapper() },
-  );
+  return renderWithQueryClient(<CodeQualityPickerModal {...defaultProps} {...props} />);
 }
 
 // ---------------------------------------------------------------------------

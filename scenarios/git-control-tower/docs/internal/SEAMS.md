@@ -137,6 +137,45 @@ Seam guardrails:
 - The `Server.sandbox` field is typed as `WorkspaceSandboxAPI` (interface), not the concrete client.
 - `MarkCommitted` is fire-and-forget; failures must not block the commit response.
 
+## Cross-Scenario HTTP Client Test Seam
+
+**Locations**:
+- `api/*_client.go`
+- `api/internal/testutil/httpx/`
+
+Cross-scenario clients are the only API layer that should know the concrete HTTP shape of neighboring scenarios such as agent-manager, test-genie, scenario-auditor, browser-automation-studio, tidiness-manager, and workspace-sandbox.
+
+Test helpers in `internal/testutil/httpx` provide:
+- `NewServer` for route-scoped `httptest.Server` setup with automatic cleanup.
+- `AssertMethod` for consistent method checks.
+- `DecodeJSON` for typed request-body decoding.
+- `WriteJSON` for status/content-type/encoding consistency.
+- `TestClient` for timeout-safe client construction.
+
+Guardrails:
+- Client tests should use `httpx` helpers instead of repeating `httptest.NewServer`, `json.NewEncoder`, and ad hoc timeout setup.
+- Production code must not import `git-control-tower/internal/testutil/...`; this is enforced by `api/internal/testutil/no_prod_import_test.go`.
+- Handler tests can keep package-local fixtures when they need access to unexported server internals, but shared cross-scenario HTTP behavior belongs in `httpx`.
+
+## UI Test Harness Seam
+
+**Locations**:
+- `ui/src/test-setup.ts`
+- `ui/src/test-utils/`
+- `ui/vite.config.ts`
+
+Vitest loads one shared setup file for all React tests. It owns:
+- central `@testing-library/jest-dom` registration.
+- deterministic `@vrooli/api-base` behavior.
+- global fetch/storage cleanup after each test.
+- shared React Query render helpers through `renderWithQueryClient` and `renderHookWithQueryClient`.
+- fetch and viewport helpers for UI surfaces that vary by API response or breakpoint.
+
+Guardrails:
+- New React Query component/hook tests should use `renderWithQueryClient` or `renderHookWithQueryClient` instead of creating one-off providers.
+- Tests that need API responses should use `mockFetchJson`, `jsonResponse`, or `textResponse` unless they are specifically asserting raw fetch wiring.
+- Mobile/desktop tests should use the viewport helpers instead of mutating globals inline.
+
 ## Verification Checklist
 
 When adding new behavior, verify:
@@ -145,3 +184,5 @@ When adding new behavior, verify:
 - Repo-resolving handlers use `RepoOperation`.
 - Repo registry updates go through `RepoService`/`RepoStore`.
 - Tests can swap in `FakeGitRunner`, `FakeWorkspaceSandboxAPI`, or `SQLiteRepoStore` (memory DB).
+- Cross-scenario HTTP client tests use `api/internal/testutil/httpx`.
+- UI tests use the shared setup and React Query/fetch/viewport helpers.
