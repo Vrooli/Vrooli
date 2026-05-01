@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"prompt-manager/search"
-	"prompt-manager/skills"
-	"prompt-manager/store"
 	"strings"
 	"sync"
 	"time"
+
+	"prompt-manager/search"
+	"prompt-manager/skills"
+	"prompt-manager/store"
 )
 
 // Service provides AI-powered search with graceful fallback to text search.
@@ -548,6 +549,11 @@ func (s *Service) DiscoverTyped(ctx context.Context, queries []string, complexit
 	results := append(topicResults, searchResults...)
 	results = append(results, actionResults...)
 	if len(results) > limit {
+		if includeSkills && includeActions && len(actionResults) > 0 {
+			results = keepDiscoverActionsWithinLimit(topicResults, searchResults, actionResults, limit)
+		}
+	}
+	if len(results) > limit {
 		results = results[:limit]
 	}
 
@@ -666,6 +672,34 @@ func sortDiscoverSearchResults(results []DiscoverResult) {
 			results[j], results[j-1] = results[j-1], results[j]
 		}
 	}
+}
+
+func keepDiscoverActionsWithinLimit(topicResults, searchResults, actionResults []DiscoverResult, limit int) []DiscoverResult {
+	if limit <= 0 {
+		return nil
+	}
+	if len(actionResults) > limit {
+		actionResults = actionResults[:limit]
+	}
+	remaining := limit - len(actionResults)
+	if remaining <= 0 {
+		return append([]DiscoverResult(nil), actionResults...)
+	}
+	out := make([]DiscoverResult, 0, limit)
+	for _, r := range topicResults {
+		if len(out) >= remaining {
+			break
+		}
+		out = append(out, r)
+	}
+	for _, r := range searchResults {
+		if len(out) >= remaining {
+			break
+		}
+		out = append(out, r)
+	}
+	out = append(out, actionResults...)
+	return out
 }
 
 // discoverSkillEntry tracks a skill during discover result accumulation.
@@ -1200,8 +1234,35 @@ func (s *Service) SearchActions(ctx context.Context, query string, limit int) (*
 		return s.fallbackToActionTextSearch(ctx, query, limit)
 	}
 	out := make([]AIActionSearchResult, 0, len(results))
+	seen := make(map[string]int, len(results))
 	for _, r := range results {
-		out = append(out, toAIActionSearchResult(r))
+		result := toAIActionSearchResult(r)
+		if result.ID == "" {
+			continue
+		}
+		out = append(out, result)
+		seen[result.ID] = len(out) - 1
+	}
+	textResp, textErr := s.fallbackToActionTextSearch(ctx, query, limit)
+	if textErr != nil {
+		log.Printf("[aisearch] Action text search augmentation failed for %q: %v", query, textErr)
+	} else {
+		for _, result := range textResp.Results {
+			if idx, ok := seen[result.ID]; ok {
+				if out[idx].Score > result.Score {
+					result.Score = out[idx].Score
+					result.ScorePercent = out[idx].ScorePercent
+				}
+				out[idx] = result
+				continue
+			}
+			out = append(out, result)
+			seen[result.ID] = len(out) - 1
+		}
+	}
+	sortActionResults(out)
+	if len(out) > limit {
+		out = out[:limit]
 	}
 	return &AIActionSearchResponse{Results: out, Total: len(out), Query: query, Method: "ai"}, nil
 }
@@ -1214,7 +1275,7 @@ func (s *Service) fallbackToActionTextSearch(ctx context.Context, query string, 
 	if err != nil {
 		return nil, err
 	}
-	terms := strings.Fields(strings.ToLower(query))
+	terms := actionQueryTerms(query)
 	results := make([]AIActionSearchResult, 0, len(actions))
 	for _, action := range actions {
 		if !actionMatchesTerms(action, terms) {
@@ -1244,10 +1305,16 @@ func toAIActionSearchResult(r SearchResult) AIActionSearchResult {
 		Description:  description,
 		Status:       status,
 		Owner:        owner,
+		Command:      payloadString(r.Payload, "command"),
 		Tags:         stringSlicePayload(r.Payload["tags"]),
 		Score:        r.Score,
 		ScorePercent: int(r.Score * 100),
 	}
+}
+
+func payloadString(payload map[string]interface{}, key string) string {
+	value, _ := payload[key].(string)
+	return value
 }
 
 func stringSlicePayload(raw interface{}) []string {
@@ -1274,6 +1341,7 @@ func actionToSearchResult(action store.Action, score float64) AIActionSearchResu
 		Description:  action.Description,
 		Status:       action.Status,
 		Owner:        strings.Trim(action.Owner.Type+":"+action.Owner.ID, ":"),
+		Command:      strings.Join(action.Command.Argv, " "),
 		Tags:         action.Tags,
 		Score:        score,
 		ScorePercent: int(score * 100),
@@ -1299,6 +1367,25 @@ func actionMatchesTerms(action store.Action, terms []string) bool {
 		}
 	}
 	return true
+}
+
+func actionQueryTerms(query string) []string {
+	rawTerms := strings.Fields(strings.ToLower(query))
+	terms := make([]string, 0, len(rawTerms))
+	stop := map[string]bool{
+		"a": true, "an": true, "and": true, "for": true, "how": true, "i": true,
+		"me": true, "of": true, "please": true, "prompt-manager": true, "prompt": true,
+		"action": true, "actions": true, "execute": true, "manager": true, "run": true,
+		"the": true, "to": true, "using": true, "with": true,
+	}
+	for _, term := range rawTerms {
+		term = strings.Trim(term, " \t\n\r\"'.,:;!?()[]{}")
+		if term == "" || stop[term] {
+			continue
+		}
+		terms = append(terms, term)
+	}
+	return terms
 }
 
 func textActionScore(action store.Action, terms []string) float64 {

@@ -8,7 +8,7 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 2. Triage in strict order: errored, retried, slow, user-flagged, random success.
 3. Pick one run at the first non-empty tier, skipping already-investigated runs.
 4. Investigate the picked run, preferring agent-manager's investigation feature.
-5. Extract the lesson: what happened, what is implicated, target owner, and measurement plan.
+5. Extract the lesson: what happened, what is implicated, whether an existing/new Action would have reduced friction, target owner, and measurement plan.
 6. Mine run execution friction: confusing task setup, failed expectations, retries, slow paths, missing instrumentation, or unclear owner handoffs.
 7. Update the contract-declared run lessons artifact.
 8. Write the run lesson and friction knowledge entries that match what you observed.
@@ -42,6 +42,10 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 - [one-line action]
 - Handoff to: [skill-optimizer | team-agent-optimizer | director-swarm via capability-gap]
 
+### Action opportunity
+- [existing-action-usage | new-action-candidate | cli-backlog | capability-gap | no-action]
+- Evidence: [manual deterministic operation, missing command, or why none applies]
+
 ### Measurement plan
 - [how the outcome will be checked]
 
@@ -58,3 +62,4 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 - **No new runs.** Write a minimal snapshot and stop.
 - **Everything already investigated.** Write a minimal snapshot and stop.
 - **No actionable lesson.** Record what was checked and stop.
+- **No deterministic operation.** Do not force an Action angle when the run lesson is about judgment, coordination, or unclear intent.

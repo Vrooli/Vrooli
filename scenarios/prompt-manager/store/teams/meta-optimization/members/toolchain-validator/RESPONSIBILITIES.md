@@ -12,6 +12,8 @@ The gold-star reference is the yardstick. A violation means one of three things:
 
 Each violation report should preserve severity, tool, evidence, whether it is new or persistent, and why the operator needs to care.
 
+If validation repeatedly requires the same deterministic prompt-manager or Vrooli CLI check, note whether an existing Action should expose it. Toolchain-validator still raises toolchain violations or capability gaps; skill-optimizer owns Action conversion decisions.
+
 ## Boundaries
 - Do not fix tool code.
 - Do not fix the reference scenario.

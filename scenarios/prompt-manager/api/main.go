@@ -12,6 +12,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"prompt-manager/actions"
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
@@ -29,9 +33,6 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -386,6 +387,7 @@ func main() {
 	// AI Search routes
 	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
 	v1.HandleFunc("/search/agents/ai", aiSearchHandlers.SearchAgents).Methods("POST")
+	v1.HandleFunc("/search/actions/ai", aiSearchHandlers.SearchActions).Methods("POST")
 	v1.HandleFunc("/search/teams/ai", aiSearchHandlers.SearchTeams).Methods("POST")
 	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
 	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")

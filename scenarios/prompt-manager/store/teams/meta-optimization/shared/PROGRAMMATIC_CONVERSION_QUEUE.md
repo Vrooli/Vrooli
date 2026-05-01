@@ -1,15 +1,11 @@
-# Programmatic Conversion Queue
+# Programmatic Conversion Queue - Retired
 
-Pipeline of prose-heavy skills being converted into thin wrappers over scenario CLIs. Maintained by `skill-optimizer`.
+This queue has been retired. `ACTION_CONVERSION_QUEUE.md` is the authoritative register for deterministic-operation promotion.
 
-## Candidates
-*(none in flight)*
+The old "thin wrapper over scenario CLI" endpoint is no longer the final conversion target. The current pipeline is:
 
-## In progress
-*(none in flight)*
+```text
+skill prose -> Vrooli-controlled CLI implementation -> Action contract -> skill collapse or retirement when appropriate
+```
 
-## Completed
-*(none yet)*
-
-## Not-yet-converted but adjacent
-- **swarm-manager-backlog-tools** — not a thin-wrapper candidate (it's a reference document covering schemas + authority hierarchy + CLI). Instead tracked as a **trim candidate** in `SKILL_AUDIT.md`: replace the CLI-commands section with pointers to `swarm-manager <group> --help`, keeping only non-obvious usage patterns. Not a full conversion, but same spirit — let the CLI's self-documenting help carry the load instead of duplicating it in prose.
+Historical adjacent note moved forward: `swarm-manager-backlog-tools` remains a trim candidate in `SKILL_AUDIT.md`; it is not an Action candidate until one stable CLI command owns the deterministic operation.

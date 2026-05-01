@@ -12,7 +12,13 @@ Pick one run per heartbeat through this priority ladder:
 4. User-flagged runs
 5. Random successful runs that may reveal an obvious shortcut
 
-Depth beats breadth. A useful lesson names what happened, the specific skill or agent prompt implicated, the proposed owner, and a measurement plan.
+Depth beats breadth. A useful lesson names what happened, the specific skill or agent prompt implicated, whether repeated deterministic work should use or become an Action, the proposed owner, and a measurement plan.
+
+## Action Signal
+
+When a run repeats a deterministic manual operation, search for an existing executable surface with `prompt-manager discover "<operation>" --type all`. If an exact Action exists, hand off usage/adoption evidence. If a stable Vrooli-controlled CLI exists but no Action exposes it, hand off a new Action candidate to skill-optimizer. If no controlled CLI exists, route to capability-gap or CLI-backlog instead.
+
+Known seed Actions: action:scenario.status.show for scenario lifecycle status and action:team.decisions.list for team decision lookup.
 
 ## Boundaries
 - Do not edit skills, agents, or teams. Lessons are observations and handoffs.

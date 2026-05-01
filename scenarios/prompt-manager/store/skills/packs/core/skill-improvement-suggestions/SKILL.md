@@ -28,6 +28,7 @@ Use this skill to reduce execution friction without losing correctness.
 **In scope:**
 - Suggesting new CLI tools that automate manual patterns
 - Proposing improvements to existing tools (general-purpose only)
+- Identifying Action candidates when one Vrooli-controlled CLI command can own deterministic execution
 - Improving skill wording, structure, and clarity
 - Identifying where research could be automated
 
@@ -301,6 +302,7 @@ Handoff note:
 - Skill requires multi-step process that could be one command
 - Information is scattered and must be manually gathered
 - Verification requires manual inspection instead of pass/fail
+- Skill documents one stable command that agents should discover and validate directly
 
 **The transformation test:**
 
@@ -333,6 +335,40 @@ Value delivered:
 
 Why this isn't too situational:
 - [Explain how this benefits multiple skills/scenarios/use cases]
+```
+
+#### **4.1a Action Candidates (Expose Existing CLI Commands)**
+
+**When to suggest:** A Vrooli-controlled CLI command already performs one deterministic operation, but agents must learn it through prose.
+
+Check first:
+- Run `prompt-manager discover "<operation>" --type all` to find existing Actions.
+- If an exact Action exists, suggest improving or referencing it instead of creating a new one.
+- If no CLI command exists, this is a CLI/tool suggestion or backlog item, not an Action candidate.
+
+Suggestion format:
+```
+ACTION CANDIDATE: [action-id]
+
+Existing CLI:
+- [Exact Vrooli-controlled command]
+
+Current prose cost:
+- [Where the skill explains this manually and approximate size/usage]
+
+Action contract:
+- Inputs:
+- Outputs:
+- Permissions:
+- runEligible recommendation:
+
+Validation:
+- [prompt-manager action validate / dry-run evidence, or reason blocked]
+
+Prose retirement:
+- Keep: [judgment/safety text]
+- Collapse: [command prose replaced by Action reference]
+- Delete: [fully superseded operational detail]
 ```
 
 #### **4.2 Tool Improvements (Enhance existing CLI tools)**
@@ -437,10 +473,11 @@ Why this helps:
 ```
 
 **Priority ordering:**
-1. **Tool suggestions** — Highest impact (automates entire workflows)
-2. **Tool improvements** — Medium impact (reduces friction in existing tools)
-3. **Retirement opportunities** — Remove/collapse superseded prose after tool improvements
-4. **Skill wording** — Essential but lower impact (prevents misunderstanding)
+1. **Action candidates** — Highest impact when a stable one-command operation already exists
+2. **Tool suggestions** — Highest impact when the CLI/tool capability does not exist yet
+3. **Tool improvements** — Medium impact (reduces friction in existing tools)
+4. **Retirement opportunities** — Remove/collapse superseded prose after Actions or tool improvements
+5. **Skill wording** — Essential but lower impact (prevents misunderstanding)
 
 ---
 
@@ -521,6 +558,7 @@ Different skill categories need different evaluation focus:
 
 **You may:**
 - Suggest new CLI tools with clear capability specifications
+- Suggest Action candidates with exact CLI targets and validation evidence
 - Suggest general-purpose improvements to existing tools
 - Suggest specific wording/structure changes to skills
 - Prioritize suggestions by expected impact

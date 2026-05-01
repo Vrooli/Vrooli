@@ -87,6 +87,7 @@ Keep this section separate from the primary workflow so the core path stays conc
 
 Promotion rule:
 - If an item in this section is frequent/repetitive, prefer improving CLI output contracts or adding tool capabilities rather than expanding prose further.
+- If one Vrooli-controlled CLI command owns a deterministic operation, prefer exposing it as an Action and referencing that Action instead of documenting command prose inline.
 - If multiple entries share the same root cause, add a short promotion note (what should move to CLI/tooling, or why it should remain manual).
 - Keep this as guidance, not a rigid section template.
 - Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
@@ -114,3 +115,4 @@ You must:
 - Prefer human-first CLI output patterns and avoid parser-dependent workflows by default
 - Keep long-tail failures centralized under `Troubleshooting & Edge Cases` when applicable
 - For recurring troubleshooting patterns, include at least one CLI/tool promotion consideration or a brief rationale for not promoting yet
+- For deterministic one-command operations, include an Action promotion consideration or a brief rationale for keeping the operation in prose

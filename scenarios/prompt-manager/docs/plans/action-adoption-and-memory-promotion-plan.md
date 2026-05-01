@@ -1,6 +1,6 @@
 # Action Adoption and Memory Promotion Plan
 
-Status: ready for implementation.
+Status: implemented; validation in progress.
 
 ## Purpose
 
@@ -52,6 +52,20 @@ sed -n '1,240p' scenarios/prompt-manager/store/teams/meta-optimization/members/m
 sed -n '1,180p' scenarios/prompt-manager/store/teams/meta-optimization/members/meta-contrarian/RESPONSIBILITIES.md
 ```
 
+## Current State Revalidation Notes
+
+Last revalidated: 2026-05-01.
+
+Recent prompt-manager team prompt standardization changed the shape of the work in a few important ways:
+
+- Meta-optimization member prompt files are now limited to `HEARTBEAT.md`, `RESPONSIBILITIES.md`, `heartbeat.json`, and `last-handoff.md`. There are no member-level `TOOLS.md` files to update. Put command guidance in the relevant member markdown and structured operating contract fields instead.
+- Member task parameters are nested under `operatingContract.members.<member-id>.taskParameters`. For example, debt-curator promotion directions currently live at `operatingContract.members.debt-curator.taskParameters.promotionDirections`.
+- Contract-owned data still belongs in `team.json`: decision contexts, member lanes, required knowledge topics, shared artifacts, write rules, read-only behavior, and task parameters.
+- Mixed discovery has improved since the first draft of this plan. `prompt-manager discover "list team decisions" --type all --limit 10 --json` returns the Action `team.decisions.list`. Keep this as a regression test.
+- Source-level discovery now merges Action text-search metadata with vector results and preserves Action results within mixed limits. Restart prompt-manager before treating live CLI output as final.
+- `team.decisions.list` has been promoted to active with `apiRead`; validate and dry-run now pass.
+- `prompt-manager graph health --type action --json` previously reported low inbound discoverability for both seed Actions. Re-run after restart/reindex to confirm new references are reflected.
+
 ## Greenfield Constraint
 
 This is greenfield adoption work. Do not include compatibility shims, legacy wrappers, deprecated aliases, dead code, unused re-exports, renamed `_unused` variables, or migration code for pre-Action adoption patterns.
@@ -75,10 +89,10 @@ Current gaps:
 - `debt-curator` can promote notebook debt to skill, team-structure change, capability-gap, or retirement, but not Action.
 - `run-introspector` captures repeated manual operations but has no explicit route for "this run should have used or created an Action."
 - `meta-contrarian` has no failure modes for unsafe Action proposals, premature Action creation, missing CLI ownership, or Action-without-measurement.
-- Agent tools files do not advertise `prompt-manager action` or mixed `prompt-manager discover --type all`.
+- Member prompt surfaces do not advertise `prompt-manager action` or mixed `prompt-manager discover --type all`; current meta-optimization members do not have separate `TOOLS.md` files.
 - The Action graph already reports low inbound discoverability for seed Actions, proving adoption references are missing.
-- `prompt-manager discover "list team decisions" --type all` currently returned only skills in local testing, even though `team.decisions.list` exists as a draft Action. Adoption must include search validation and fix-or-file behavior.
-- The working notebook `docs/meta-optimization/CONVERSION_PLAYBOOK.md` still frames conversion as a scenario CLI wrapper, not an Action graduation pipeline.
+- Mixed discovery must continue to return both seed Actions for obvious queries; adoption includes regression tests for this behavior.
+- The working notebook `docs/meta-optimization/CONVERSION_PLAYBOOK.md` has been rewritten around the Action graduation pipeline.
 
 The target is not to make every skill become an Action. The target is to keep each durable lesson in the cheapest reliable form that preserves its meaning.
 
@@ -89,7 +103,7 @@ In scope:
 - Meta-optimization team operating contract updates in `store/teams/meta-optimization/team.json`.
 - Meta-optimization member prompt updates for skill-optimizer, debt-curator, run-introspector, toolchain-validator, and meta-contrarian.
 - Meta-optimization shared artifacts and notebook docs.
-- Relevant agent `TOOLS.md` updates for members that need Action discovery or Action proposal commands.
+- Relevant member markdown updates for members that need Action discovery or Action proposal commands.
 - Core skills that govern skill conversion, memory promotion, skill authoring, and plan discovery.
 - Action adoption docs and docs manifest updates.
 - Seed Action selection, validation, activation policy, and health measurement.
@@ -128,18 +142,21 @@ prompt-manager action list --json
 As of this plan:
 
 - `scenario.status.show` is active and runnable.
-- `team.decisions.list` exists as a draft Action.
+- `team.decisions.list` exists as an active Action.
+- `team.decisions.list` is discoverable through `prompt-manager discover "list team decisions" --type all --limit 10 --json`.
+- `scenario.status.show` validates and dry-runs; source-level discovery changes preserve it in mixed results for `show scenario status`.
 
 Meta-optimization contract surfaces:
 
 - [CODE: api/teamcontract/contract.go] defines and renders structured team operating contracts.
 - [CODE: api/teamcontract/contract_test.go] protects contract validity and prevents prompt prose from restating contract-owned policy.
-- [CODE: store/teams/meta-optimization/team.json] is authoritative for decision contexts, caps, knowledge topics, notebook paths, write rules, and member task parameters.
+- [CODE: store/teams/meta-optimization/team.json] is authoritative for decision contexts, caps, knowledge topics, notebook paths, write rules, and member task parameters. Member-specific task parameters live under `operatingContract.members.<member-id>.taskParameters`.
 - [CODE: api/heartbeat/prompt_builder.go] renders the operating contract into heartbeat prompts before member responsibilities.
 
 Important existing constraint:
 
 - The contract tests reject duplicated policy phrases in prompt prose. Keep caps, context ownership, document paths, and write rules in `team.json`; keep member markdown focused on judgment, workflow, and output shape.
+- Current meta-optimization members do not have `TOOLS.md` files. Do not create new tool files unless a schema/renderer already consumes them; use existing member markdown and contract fields.
 
 ## Target End State
 
@@ -217,7 +234,7 @@ If the executing agent judges that deleting the old file is too broad for the ph
 
 ### Promotion Directions
 
-Update debt-curator task parameters from:
+Update debt-curator task parameters at `operatingContract.members.debt-curator.taskParameters.promotionDirections` from:
 
 ```json
 ["skill", "team-structure-change", "capability-gap", "retirement"]
@@ -267,6 +284,7 @@ Deliverables:
   prompt-manager action validate scenario.status.show --json
   prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --dry-run --json
   prompt-manager action validate team.decisions.list --json
+  prompt-manager action run team.decisions.list --input='{"team":"meta-optimization"}' --dry-run --json
   ```
 
 - Record findings in the implementation handoff and in the new `ACTION_AUDIT.md` once Phase 2 creates it.
@@ -286,7 +304,7 @@ Deliverables:
   - add Action knowledge topics
   - add `ACTION_AUDIT.md` and `ACTION_CONVERSION_QUEUE.md` shared-state artifacts
   - update `skill-optimizer` lane, owned contexts, required topics, and allowed writes if needed
-  - update `debt-curator.taskParameters.promotionDirections`
+  - update `operatingContract.members.debt-curator.taskParameters.promotionDirections`
   - update `run-introspector` task parameters to flag repeated manual operations as Action opportunities
   - update `meta-contrarian` task parameters or safety rules with Action review checks
 - Update [CODE: store/teams/meta-optimization/shared/TEAM.md] only for high-level Action-aware mission language; do not duplicate caps or context lists.
@@ -296,6 +314,7 @@ Implementation notes:
 
 - Keep all caps, context ownership, source paths, write rules, and required knowledge topics in `team.json`.
 - Do not restate contract-owned policy in member markdown. Existing tests in [CODE: api/teamcontract/contract_test.go] protect this.
+- Do not create member `TOOLS.md` files as part of this phase unless the prompt-builder has an existing ingestion path for them.
 
 Acceptance:
 
@@ -343,15 +362,15 @@ Deliverables:
 - Update skill-optimizer:
   - `HEARTBEAT.md`: evaluate convert/prune/improve/action in the right order.
   - `RESPONSIBILITIES.md`: define when to create/update/deprecate Actions.
-  - `TOOLS.md`: add `prompt-manager action list/show/validate/run`, `prompt-manager discover --type all`, and Action graph health.
+  - Add command guidance to existing member markdown for `prompt-manager action list/show/validate/run`, `prompt-manager discover --type all`, and Action graph health.
 - Update debt-curator:
   - `HEARTBEAT.md`: apply the memory-promotion classifier and include Action/CLI-backlog/plan-of-record paths.
   - `RESPONSIBILITIES.md`: cite Action as a permanent-structure promotion direction while preserving "propose only."
-  - `TOOLS.md`: add Action discovery/inspection commands.
+  - Add Action discovery/inspection commands to existing member markdown where they support promotion judgment.
 - Update run-introspector:
   - `HEARTBEAT.md`: when a run repeats manual deterministic operations, classify whether the lesson is existing Action usage, new Action candidate, or CLI-backlog/capability-gap.
   - `RESPONSIBILITIES.md`: require run lessons to name Action opportunities when execution evidence supports them.
-  - `TOOLS.md`: add discover/action inspection commands for empirical shortcut detection.
+  - Add discover/action inspection commands for empirical shortcut detection to existing member markdown.
 - Update toolchain-validator:
   - Add Action signal only where relevant: if toolchain validation repeatedly uses deterministic CLI checks, it may raise capability-gap or hand off an Action candidate.
 - Update meta-contrarian:
@@ -375,23 +394,26 @@ Prompt prose does not restate contract-owned policy, and members have clear Acti
 
 Deliverables:
 
-Update only skills that materially govern this workflow. Candidate skills:
+Update only skills that materially govern this workflow. Do not mechanically add Action discovery to every skill in this list. First classify each skill by what it is trying to discover:
 
-- `skill-principles`
-- `skill-authoring-tools`
-- `skill-improvement-suggestions`
-- `capability-extraction`
-- `conversation-friction-analysis`
-- `plan-skill-discovery`
-- `implementation-plan-authoring`
-- `team-shared-docs-design`
+| Skill | Adoption decision | Rationale |
+|---|---|---|
+| `skill-principles` | Update ontology and promotion lifecycle language. | This is the right place to define "Skills = judgment, Actions = execution, CLIs = implementation" as a system principle. |
+| `skill-authoring-tools` | Update conversion guidance. | This skill governs when prose should collapse behind tool/CLI capability; it should know Actions are the executable endpoint when a single command exists. |
+| `skill-improvement-suggestions` | Update recommendation taxonomy. | It should distinguish skill wording, CLI/tool improvement, Action candidate, and Action retirement/collapse recommendations. |
+| `capability-extraction` | Update extraction destination rules. | Deterministic repeated operation should route to CLI implementation and Action, not to a new prose skill. |
+| `conversation-friction-analysis` | Update friction routing only. | Repeated manual deterministic friction can become an Action candidate, while judgment/process friction remains skill or policy work. |
+| `plan-skill-discovery` | Preserve skill-only discovery for implementation-plan required reading. | Its job is to maximize relevant guideline/methodology retrieval within a context budget. Mixing Actions into that result set can crowd out steer/practice skills and corrupt the `readCommand` contract. |
+| `implementation-plan-authoring` | Usually no Action discovery change. | It should keep pointing future agents at required skills and command evidence. Plans may include Action commands as evidence or validation steps when relevant, but Action search is not part of required-reading discovery. |
+| `team-shared-docs-design` | Usually no direct Action change. | It governs plan-of-record vs notebook surfaces. Mention Actions only if clarifying promotion destinations; do not add operational Action lookup guidance unless the doc is specifically about memory promotion. |
 
 Required changes:
 
 - Add the memory-promotion ontology where relevant.
 - Replace CLI-wrapper-only conversion language with Action-aware language.
-- Make `prompt-manager discover --type all` the default when an agent needs to learn how to do deterministic operational work.
-- Keep `prompt-manager discover` skill-only behavior where the task is explicitly skill selection, such as implementation plan required-reading discovery.
+- Make `prompt-manager discover --type all` the default only when an agent needs to learn how to perform deterministic operational work or find an executable operation.
+- Keep `prompt-manager discover` skill-only behavior where the task is guideline, methodology, or required-reading selection, especially implementation plan skill discovery.
+- Do not change `plan-skill-discovery` to use `--type all` unless prompt-manager's discover budgeting and read-command generation are explicitly redesigned to keep Actions out of the skill context budget.
 - Make `prompt-manager action show <id>` the inspect-first command for Action candidates.
 - Make `prompt-manager action run <id> --dry-run` the validation-before-execution pattern when execution is appropriate.
 
@@ -411,6 +433,7 @@ Any remaining CLI-wrapper-only language is either removed or explicitly framed a
 Deliverables:
 
 - Review [CODE: api/heartbeat/prompt_builder.go] and [DOC: docs/concepts/HEARTBEATS.md].
+- Update [DOC: docs/concepts/HEARTBEATS.md] because its current Action discovery guidance still says to inspect Actions rather than run them "until Action execution governance lands"; governed API/CLI Action execution now exists.
 - Add one compact rendered heartbeat guidance line only if it can be done without bloating every prompt:
 
   ```text
@@ -430,7 +453,7 @@ Acceptance:
 
 Deliverables:
 
-- Promote `team.decisions.list` from draft to active only after validation and permission review.
+- Keep `team.decisions.list` active only while validation and permission review remain clean.
 - Seed a small, high-leverage set of core Actions. Suggested candidates:
   - `team.decisions.list`
   - `team.knowledge.list`
@@ -474,6 +497,7 @@ Deliverables:
   prompt-manager discover "run a prompt-manager action" --type all --limit 10 --json
   ```
 
+- Current source-level implementation preserves Action results in mixed discovery and refreshes stale Action metadata from the file store. Preserve `list team decisions`, `show scenario status`, and `run a prompt-manager action` as regression checks.
 - If Actions do not appear:
   - inspect Action indexing/reindex status
   - run `prompt-manager search-reindex` if needed
@@ -623,7 +647,7 @@ Manual validation:
 - [ ] `ACTION_CONVERSION_QUEUE.md` created and old conversion queue retired or replaced.
 - [ ] Conversion playbook updated to Action graduation.
 - [ ] Skill-optimizer, debt-curator, run-introspector, toolchain-validator, and meta-contrarian prompts updated.
-- [ ] Relevant `TOOLS.md` files include Action commands.
+- [ ] Relevant member markdown includes Action commands without creating unconsumed `TOOLS.md` files.
 - [ ] Core skills updated, scoped to workflow-governing skills only.
 - [ ] Mixed discovery returns Actions for seed queries.
 - [ ] Seed Actions validated, dry-run, and graph-referenced.
@@ -664,7 +688,7 @@ Do not:
 This plan is complete when:
 
 - Meta-optimization's structured operating contract has Action-aware contexts, topics, artifacts, and promotion directions.
-- The member prompts and relevant agent tool files tell agents how to discover, propose, validate, and measure Actions without duplicating contract-owned policy.
+- The member prompts and structured contract tell agents how to discover, propose, validate, and measure Actions without duplicating contract-owned policy.
 - Core workflow-governing skills distinguish Plan of Record, Skill, Action, CLI, Backlog, and Notebook correctly.
 - The old conversion queue/playbook no longer treats CLI-wrapper skills as the final conversion state.
 - At least two high-value seed Actions are active, validated, discoverable, and graph-referenced, unless validation proves only one is currently safe.

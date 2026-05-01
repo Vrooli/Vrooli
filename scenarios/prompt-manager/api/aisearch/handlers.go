@@ -159,6 +159,35 @@ func (h *Handlers) SearchAgents(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// SearchActions handles POST /api/v1/search/actions/ai - AI semantic action search.
+func (h *Handlers) SearchActions(w http.ResponseWriter, r *http.Request) {
+	var req AIActionSearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Query == "" {
+		http.Error(w, "Query is required", http.StatusBadRequest)
+		return
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+
+	resp, err := h.service.SearchActions(r.Context(), req.Query, limit)
+	if err != nil {
+		log.Printf("[aisearch] Action search error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 // SearchTeams handles POST /api/v1/search/teams/ai - AI semantic team search.
 func (h *Handlers) SearchTeams(w http.ResponseWriter, r *http.Request) {
 	var req AITeamSearchRequest

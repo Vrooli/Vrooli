@@ -7,14 +7,15 @@
 
 import { Bolt, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { AISearchResult, AIAgentSearchResult, AITeamSearchResult, TopicMatchResult, DiscoverResult } from '@/lib/schemas'
+import type { AISearchResult, AIActionSearchResult, AIAgentSearchResult, AITeamSearchResult, TopicMatchResult, DiscoverResult } from '@/lib/schemas'
 
-type EntityType = 'skills' | 'agents' | 'teams' | 'topics'
+type EntityType = 'skills' | 'agents' | 'teams' | 'topics' | 'actions'
 
 interface SearchResultsListProps {
   entityType: EntityType
   // Results per entity type (only the active one is populated)
   skillResults?: AISearchResult[]
+  actionResults?: AIActionSearchResult[]
   agentResults?: AIAgentSearchResult[]
   teamResults?: AITeamSearchResult[]
   topicResults?: TopicMatchResult[]
@@ -35,6 +36,7 @@ interface SearchResultsListProps {
 export function SearchResultsList({
   entityType,
   skillResults,
+  actionResults,
   agentResults,
   teamResults,
   topicResults,
@@ -157,6 +159,39 @@ export function SearchResultsList({
                 ))}
               </div>
             )}
+          </div>
+          <ScoreBadge scorePercent={result.scorePercent} />
+        </ResultRow>
+      ))}
+
+      {entityType === 'actions' && actionResults?.map((result) => (
+        <ResultRow
+          key={result.id}
+          id={result.id}
+          isSelectMode={isSelectMode}
+          isSelected={selectedIds.has(result.id)}
+          compact={compact}
+          onToggle={() => onToggleSelection(result.id)}
+          onNavigate={() => onNavigate(result.id)}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-foreground truncate">{result.name}</span>
+              <span className="text-xs text-muted-foreground flex-shrink-0">{result.status}</span>
+            </div>
+            {result.description && (
+              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{result.description}</p>
+            )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              {result.owner && <TagPill tag={result.owner} />}
+              {result.command && <TagPill tag={result.command} />}
+              {result.tags.slice(0, 5).map((tag) => (
+                <TagPill key={tag} tag={tag} />
+              ))}
+              {result.tags.length > 5 && (
+                <span className="text-[10px] text-muted-foreground">+{result.tags.length - 5}</span>
+              )}
+            </div>
           </div>
           <ScoreBadge scorePercent={result.scorePercent} />
         </ResultRow>

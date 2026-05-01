@@ -104,6 +104,15 @@ describe('saveCopySets', () => {
     expect(parsed.version).toBe(1)
     expect(parsed.entries).toHaveLength(1)
   })
+
+  it('isolates Action copy sets under the actions namespace', () => {
+    saveCopySets('actions', [makeEntry({ ids: ['team.decisions.list'] })])
+    saveCopySets('skills', [makeEntry({ ids: ['implementation-plan-authoring'] })])
+
+    expect(loadCopySets('actions')[0]?.ids).toEqual(['team.decisions.list'])
+    expect(loadCopySets('skills')[0]?.ids).toEqual(['implementation-plan-authoring'])
+    expect(store['pm.copySets.actions']).toBeDefined()
+  })
 })
 
 describe('recordCopySet', () => {

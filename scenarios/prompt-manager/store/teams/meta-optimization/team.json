@@ -107,10 +107,19 @@
           "required": true
         },
         {
-          "id": "programmatic-conversion-queue-md",
+          "id": "action-audit-md",
           "path": {
             "base": "team-shared",
-            "path": "PROGRAMMATIC_CONVERSION_QUEUE.md"
+            "path": "ACTION_AUDIT.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "action-conversion-queue-md",
+          "path": {
+            "base": "team-shared",
+            "path": "ACTION_CONVERSION_QUEUE.md"
           },
           "kind": "working-register",
           "required": true
@@ -208,6 +217,24 @@
         ],
         "description": "Archive or retire an unused skill."
       },
+      "action-candidate": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Propose a new Action or promote an existing draft Action to active."
+      },
+      "action-improvement": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Improve an existing Action contract, examples, permissions, validation, run eligibility, or discoverability."
+      },
+      "action-deprecation": {
+        "ownerMemberIds": [
+          "skill-optimizer"
+        ],
+        "description": "Archive an Action that is unused, unsafe, obsolete, or superseded."
+      },
       "agent-improvement": {
         "ownerMemberIds": [
           "team-agent-optimizer"
@@ -280,6 +307,16 @@
         "retention": "snapshot"
       },
       "skill-visited/<skill-id>": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "action-audit-YYYY-MM-DD": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "action-visited/<action-id>": {
         "ownerMemberId": "skill-optimizer",
         "supersedesPrevious": true,
         "retention": "visited-tracker"
@@ -381,17 +418,22 @@
         }
       },
       "skill-optimizer": {
-        "lane": "Convert repeated lessons into skill improvements, conversions, or deprecations.",
+        "lane": "Convert repeated lessons into skill improvements, Action candidates, Action improvements, or deprecations.",
         "ownedDecisionContexts": [
           "skill-conversion-candidate",
           "skill-improvement",
-          "skill-deprecation"
+          "skill-deprecation",
+          "action-candidate",
+          "action-improvement",
+          "action-deprecation"
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
           "skill-audit-YYYY-MM-DD",
-          "skill-visited/<skill-id>"
+          "skill-visited/<skill-id>",
+          "action-audit-YYYY-MM-DD",
+          "action-visited/<action-id>"
         ],
         "allowedWrites": [
           {
@@ -413,6 +455,24 @@
           "stillWriteKnowledge": true,
           "stillRunSupersession": true,
           "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "actionProposalRequirements": [
+            "exact Vrooli-controlled CLI command",
+            "owner type and id",
+            "input/output contract summary",
+            "permission declarations",
+            "validation result or blocked reason",
+            "runEligible recommendation",
+            "baseline token/manual-work cost",
+            "expected delta and measurement plan"
+          ],
+          "actionDiscoveryCommands": [
+            "prompt-manager discover \"<what you need>\" --type all",
+            "prompt-manager action show <action-id>",
+            "prompt-manager action validate <action-id>",
+            "prompt-manager action run <action-id> --dry-run"
+          ]
         }
       },
       "team-agent-optimizer": {
@@ -455,7 +515,7 @@
         }
       },
       "run-introspector": {
-        "lane": "Extract durable lessons from recent agent runs and identify capability gaps.",
+        "lane": "Extract durable lessons from recent agent runs, including repeated deterministic operations that should use or become Actions.",
         "ownedDecisionContexts": [
           "run-lesson",
           "capability-gap"
@@ -486,6 +546,21 @@
           "stillWriteKnowledge": true,
           "stillRunSupersession": true,
           "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "actionOpportunitySignals": [
+            "run repeats a deterministic manual CLI sequence",
+            "run searches prose for a command that an Action could expose",
+            "run uses an existing CLI operation that is not discoverable as an Action",
+            "run fails because a missing CLI forces manual fallback"
+          ],
+          "actionOpportunityDisposition": [
+            "existing-action-usage",
+            "new-action-candidate",
+            "cli-backlog",
+            "capability-gap",
+            "no-action"
+          ]
         }
       },
       "meta-contrarian": {
@@ -522,6 +597,16 @@
         "newDecisionCapsByContext": {
           "decision-rejection-proposed": 2,
           "framework-update": 1
+        },
+        "taskParameters": {
+          "actionReviewFailureModes": [
+            "unsafe command boundary",
+            "missing CLI ownership",
+            "premature Action before CLI exists",
+            "Action without baseline or measurement",
+            "Action sprawl when an existing Action could be improved",
+            "proposal-only member implemented permanent structure directly"
+          ]
         }
       },
       "debt-curator": {
@@ -584,7 +669,10 @@
             "permanent solution now possible"
           ],
           "promotionDirections": [
+            "plan-of-record",
             "skill",
+            "action",
+            "cli-backlog",
             "team-structure-change",
             "capability-gap",
             "retirement"

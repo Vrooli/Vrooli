@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-operating-mode-authoring",
+  "name": "Swarm Manager Operating Mode Authoring",
+  "description": "Guide agents through converting an operator-described agent workflow into a static Swarm Manager operating mode with prompt skills, tests, docs, metrics, and audit-safe backlog reconciliation.",
+  "modes": [
+    "tools",
+    "swarm-manager",
+    "authoring"
+  ],
+  "tags": [
+    "swarm-manager",
+    "operating-modes",
+    "skills",
+    "authoring",
+    "workflow"
+  ],
+  "icon": "workflow",
+  "status": "active",
+  "entry": "SKILL.md"
+}

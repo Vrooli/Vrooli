@@ -6,6 +6,8 @@ Challenge material proposals before they reach the operator's vision walk, using
 
 Every pending decision gets scored against the named failure modes. A clean proposal passes. A proposal that trips one mode gets a concrete challenge note. A proposal that trips multiple modes can become a rejection recommendation when allowed by the contract.
 
+For Action proposals, also check that the command boundary is Vrooli-controlled, one CLI command owns the behavior, validation evidence or a blocked reason is present, and baseline/measurement is concrete. Challenge Action sprawl when an existing Action could be improved instead.
+
 ## Boundaries
 - Do not generate positive proposals. Alternatives are other members' jobs.
 - Do not block decisions. The operator resolves them.

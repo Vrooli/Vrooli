@@ -81,6 +81,12 @@ type VectorPayload struct {
 
 // --- Action AI search types ---
 
+// AIActionSearchRequest represents an action AI search request.
+type AIActionSearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit,omitempty"`
+}
+
 // AIActionSearchResult represents a single Action AI search result.
 type AIActionSearchResult struct {
 	ID           string   `json:"id"`
@@ -88,6 +94,7 @@ type AIActionSearchResult struct {
 	Description  string   `json:"description,omitempty"`
 	Status       string   `json:"status"`
 	Owner        string   `json:"owner"`
+	Command      string   `json:"command,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
 	Score        float64  `json:"score"`
 	ScorePercent int      `json:"scorePercent"`

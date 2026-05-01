@@ -63,6 +63,7 @@ import {
   AISearchStatusSchema,
   AIReindexStatusSchema,
   ContentSearchResponseSchema,
+  AIActionSearchResponseSchema,
   AIAgentSearchResponseSchema,
   AITeamSearchResponseSchema,
   DiscoverResponseSchema,
@@ -148,6 +149,7 @@ import {
   type AISearchStatus,
   type AIReindexStatus,
   type ContentSearchResponse,
+  type AIActionSearchResponse,
   type AIAgentSearchResponse,
   type AITeamSearchResponse,
   type DiscoverResponse,
@@ -621,6 +623,17 @@ class ApiClient {
         body: JSON.stringify({ query, limit }),
       },
       AIAgentSearchResponseSchema
+    )
+  }
+
+  async aiSearchActions(query: string, limit = 5): Promise<AIActionSearchResponse> {
+    return this.request<AIActionSearchResponse>(
+      '/search/actions/ai',
+      {
+        method: 'POST',
+        body: JSON.stringify({ query, limit }),
+      },
+      AIActionSearchResponseSchema
     )
   }
 

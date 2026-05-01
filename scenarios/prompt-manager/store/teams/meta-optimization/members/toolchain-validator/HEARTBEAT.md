@@ -9,7 +9,7 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 3. Categorize each violation by severity and tool.
 4. Compare to the prior scan: new, resolved, persistent.
 5. Update the contract-declared toolchain scan artifact.
-6. Mine CLI, validator, test, and toolchain friction: missing commands, unstable output, confusing failures, slow checks, or manual fallback pressure.
+6. Mine CLI, validator, test, and toolchain friction: missing commands, unstable output, confusing failures, slow checks, manual fallback pressure, or repeated deterministic checks that should be discoverable as Actions.
 7. Write the scan and friction knowledge entries that match what you observed.
 8. Perform supersession when it shrinks or clarifies your pending queue.
 9. Propose decisions for concrete violations, capability gaps, or broken validation surfaces.
@@ -43,6 +43,9 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 
 ### Capability gaps noticed
 - [list or "none"]
+
+### Action-adjacent signals
+- [existing Action that should be used | missing Action candidate | CLI-backlog/capability-gap | none]
 
 ### Decisions raised this heartbeat
 - [decision-id - context - one-line summary]

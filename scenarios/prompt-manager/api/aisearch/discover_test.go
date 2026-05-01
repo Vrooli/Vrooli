@@ -7,11 +7,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/store"
-	"strings"
-	"testing"
 )
 
 // MockTopicStoreReader implements TopicStoreReader for testing.
@@ -293,6 +294,104 @@ func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
 	}
 	if resp.ReadCommand != "" {
 		t.Fatalf("read command = %q, want empty for action-only discover", resp.ReadCommand)
+	}
+}
+
+func TestSearchActionsHandler_TextFallback(t *testing.T) {
+	service := &Service{
+		actionStore: &MockActionStore{actions: []store.Action{{
+			ID:          "team.decisions.list",
+			Name:        "List team decisions",
+			Description: "Review recent team decisions",
+			Status:      "active",
+			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
+			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decisions", "list"}},
+			Tags:        []string{"team", "decision"},
+		}}},
+	}
+	handler := NewHandlers(service)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/actions/ai", strings.NewReader(`{"query":"team decisions","limit":5}`))
+	rr := httptest.NewRecorder()
+
+	handler.SearchActions(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	var resp AIActionSearchResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Method != "text" {
+		t.Fatalf("method = %q, want text", resp.Method)
+	}
+	if len(resp.Results) != 1 {
+		t.Fatalf("result count = %d, want 1", len(resp.Results))
+	}
+	got := resp.Results[0]
+	if got.ID != "team.decisions.list" {
+		t.Fatalf("result id = %q, want team.decisions.list", got.ID)
+	}
+	if got.Command != "prompt-manager team decisions list" {
+		t.Fatalf("command = %q, want prompt-manager team decisions list", got.Command)
+	}
+}
+
+func TestDiscoverTyped_AllPreservesActionResultsWithinLimit(t *testing.T) {
+	mockSkills := NewMockSkillStore()
+	for _, id := range []string{"skill-a", "skill-b"} {
+		mockSkills.AddSkill("core", skills.Metadata{
+			ID:          id,
+			Name:        id,
+			Description: "Skill result",
+			File:        id + ".md",
+		}, "skill content")
+	}
+	svc := &Service{
+		skillStore:    mockSkills,
+		searchService: search.NewService(mockSkills),
+		actionStore: &MockActionStore{actions: []store.Action{{
+			ID:          "scenario.status.show",
+			Name:        "Show Scenario Status",
+			Description: "Show lifecycle status for one Vrooli scenario.",
+			Status:      store.StatusActive,
+			Owner:       store.ActionOwner{Type: "project", ID: "vrooli"},
+			Command:     store.ActionCommand{Argv: []string{"vrooli", "scenario", "status", "{{scenario}}"}},
+			Tags:        []string{"scenario", "status", "lifecycle"},
+		}}},
+		reindex: &reindexState{},
+	}
+
+	resp, err := svc.DiscoverTyped(context.Background(), []string{"show scenario status"}, "", 2, "all")
+	if err != nil {
+		t.Fatalf("DiscoverTyped failed: %v", err)
+	}
+	foundAction := false
+	for _, result := range resp.Results {
+		if result.Type == "action" && result.ID == "scenario.status.show" {
+			foundAction = true
+			break
+		}
+	}
+	if !foundAction {
+		t.Fatalf("expected scenario.status.show action to be preserved within mixed limit, got %+v", resp.Results)
+	}
+	if strings.Contains(resp.ReadCommand, "scenario.status.show") {
+		t.Fatalf("read command should not include action IDs: %q", resp.ReadCommand)
+	}
+}
+
+func TestActionQueryTermsDropsGenericActionWords(t *testing.T) {
+	terms := actionQueryTerms("run a prompt-manager action")
+	if len(terms) != 0 {
+		t.Fatalf("terms = %+v, want generic action query to match all actions", terms)
+	}
+	terms = actionQueryTerms("show scenario status")
+	want := []string{"show", "scenario", "status"}
+	if strings.Join(terms, ",") != strings.Join(want, ",") {
+		t.Fatalf("terms = %+v, want %+v", terms, want)
 	}
 }
 

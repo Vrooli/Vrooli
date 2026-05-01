@@ -6,10 +6,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"prompt-manager/skills"
-	"prompt-manager/store"
 	"sort"
 	"strings"
+
+	"prompt-manager/skills"
+	"prompt-manager/store"
 )
 
 // IndexSkill indexes a single skill into the vector store.
@@ -617,6 +618,7 @@ func (s *Service) IndexAction(ctx context.Context, actionID string) error {
 		"description": action.Description,
 		"status":      action.Status,
 		"owner":       strings.Trim(action.Owner.Type+":"+action.Owner.ID, ":"),
+		"command":     strings.Join(action.Command.Argv, " "),
 		"tags":        action.Tags,
 	}
 	if err := s.actionVectorStore.Upsert(ctx, actionPointID(action.ID), vector, payload); err != nil {

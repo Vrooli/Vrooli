@@ -2,7 +2,7 @@
 
 Actions are the executable layer between prompt-manager's judgment-oriented skills and Vrooli-controlled CLI implementations.
 
-Status: partially implemented. Action storage, API CRUD, validation, governed API execution, CLI list/show/create/update/delete/validate/run, AI indexing, opt-in discovery, graph integration, a minimal `scenario.status.show` seed Action, and UI browse/detail/validate/edit/run surfaces are implemented.
+Status: implemented and in adoption. Action storage, API CRUD, validation, governed API execution, CLI list/show/create/update/delete/validate/run, AI indexing, opt-in discovery, graph integration, seed Actions, and UI browse/detail/validate/edit/run surfaces are implemented.
 
 ## Why Actions Exist
 
@@ -153,7 +153,7 @@ The API runtime can run active Actions only after validation marks the command r
 
 The CLI exposes `prompt-manager action run` as a thin API client for trusted workflows that intentionally select an active runnable Action. The UI Action editor delegates to the same governed API route for dry-run and run requests, blocks runs while local contract edits are unsaved, and renders the run response envelope.
 
-The first shipped seed Action is `scenario.status.show`, which wraps `vrooli scenario status {{scenario}}` and has API/CLI dry-run coverage plus UI run-panel coverage.
+The first shipped seed Actions are action:scenario.status.show, which wraps `vrooli scenario status {{scenario}}`, and action:team.decisions.list, which wraps `prompt-manager team decision-list {{team}} --json`. Both are read-oriented Actions with API/CLI validation and dry-run coverage.
 
 ## Graduation from Skills
 

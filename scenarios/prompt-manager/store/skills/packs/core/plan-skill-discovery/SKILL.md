@@ -15,6 +15,8 @@ Use Plan Skill Discovery when:
 - An executing agent needs to know which skills to load
 - An automated workshop agent needs to discover domain-relevant skills for a backlog item
 
+This workflow intentionally uses skill-only discovery. It finds guidelines, methodologies, and required reading for implementation plans. Do not add `--type all` here unless prompt-manager's budget and read-command generation are redesigned so executable Actions cannot crowd out relevant steer/practice skills.
+
 **Do NOT use** for:
 - Routine task execution (skills should already be embedded in the plan)
 - Quick one-step fixes with no planning phase

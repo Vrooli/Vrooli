@@ -239,11 +239,11 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 | Category | What it means |
 |---|---|
-| Skill conversions | Prose-heavy skills being rewritten as thin wrappers over scenario CLIs (lower tokens, reproducible, testable) |
+| Skill/Action conversions | Deterministic prose moving into Vrooli-controlled CLIs and Actions; judgment remains in skills |
 | Agent / team structure | Changes to agent prompts, team coordination patterns, role additions/removals, deprecations |
 | Run lessons | Durable lessons from specific agent-manager runs that warrant a skill/agent change |
 | Toolchain violations | Issues the dev toolchain surfaced against the gold-star reference scenario |
-| Debt promotions | Workarounds in `docs/meta-optimization/` mature enough to become permanent structure (a skill, team-config change, or scenario feature) |
+| Debt promotions | Workarounds in `docs/meta-optimization/` mature enough to become permanent structure (Plan of Record, skill, Action, CLI backlog, team-config change, or scenario feature) |
 | Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject pending decisions |
 
 **Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.

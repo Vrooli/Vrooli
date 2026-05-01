@@ -45,7 +45,9 @@
   "tags": [
     "scenario",
     "status",
-    "lifecycle"
+    "lifecycle",
+    "show",
+    "scenario-status"
   ],
   "execution": {
     "timeoutSeconds": 15,

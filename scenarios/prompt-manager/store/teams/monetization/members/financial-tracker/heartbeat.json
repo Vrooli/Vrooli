@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "0 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-30T18:00:00Z",
-    "endedAt": "2026-04-30T18:00:05Z",
+    "startedAt": "2026-05-01T18:00:00Z",
+    "endedAt": "2026-05-01T18:00:00Z",
     "status": "failed",
-    "runId": "8927882c-1a13-4f4d-8e8d-d8c02b418396",
-    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-04-30T18-00-00Z.log",
-    "error": "2026-04-30T18:00:04.215625Z ERROR codex_core::session: failed to record rollout items: thread 019ddf8c-35e6-7202-a420-41d951c75696 not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 31,
+  "revision": 33,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-30T18:00:05Z"
+  "updatedAt": "2026-05-01T18:00:00Z"
 }

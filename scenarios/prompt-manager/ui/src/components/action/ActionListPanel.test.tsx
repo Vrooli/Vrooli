@@ -103,4 +103,27 @@ describe('ActionListPanel', () => {
     })
     expect(onSelect).toHaveBeenCalledWith('action.draft.1')
   })
+
+  it('toggles Action selection without navigating in select mode', () => {
+    const onSelect = vi.fn()
+    const onToggleSelection = vi.fn()
+
+    render(
+      <ActionListPanel
+        selectedActionId={null}
+        onSelectAction={onSelect}
+        isSelectMode
+        selectedIds={new Set(['team.decisions.list'])}
+        onToggleSelection={onToggleSelection}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'List Team Decisions, active Action owned by scenario:prompt-manager' }))
+    expect(onToggleSelection).toHaveBeenCalledWith('team.decisions.list')
+    expect(onSelect).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to List Team Decisions' }))
+    expect(onSelect).toHaveBeenCalledWith('team.decisions.list')
+    expect(screen.queryByRole('button', { name: 'New Action' })).toBeNull()
+  })
 })

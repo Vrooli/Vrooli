@@ -2,7 +2,7 @@
 
 Memory promotion is the process for moving raw agent discoveries into the right durable form.
 
-Status: proposed. This document defines the ontology prompt-manager should use when teams analyze notebooks, knowledge logs, run lessons, and other accumulated observations.
+Status: adopted for Action-aware meta-optimization. This document defines the ontology prompt-manager uses when teams analyze notebooks, knowledge logs, run lessons, and other accumulated observations.
 
 ## Core Ontology
 

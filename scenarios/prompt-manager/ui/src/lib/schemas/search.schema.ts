@@ -144,6 +144,47 @@ export const ContentSearchResponseSchema = z.object({
 
 export type ContentSearchResponse = z.infer<typeof ContentSearchResponseSchema>
 
+// --- Action AI search ---
+
+/**
+ * AI action search result item.
+ */
+export const AIActionSearchResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional().transform((val) => val ?? ''),
+  status: z.string(),
+  owner: z.string(),
+  command: z.string().nullable().optional().transform((val) => val ?? ''),
+  tags: nullableStringArray,
+  score: z.number(),
+  scorePercent: z.number(),
+})
+
+export type AIActionSearchResult = z.infer<typeof AIActionSearchResultSchema>
+
+/**
+ * AI action search response from the API.
+ */
+export const AIActionSearchResponseSchema = z.object({
+  results: z.array(AIActionSearchResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+  method: SearchMethodSchema,
+})
+
+export type AIActionSearchResponse = z.infer<typeof AIActionSearchResponseSchema>
+
+/**
+ * AI action search request parameters.
+ */
+export const AIActionSearchRequestSchema = z.object({
+  query: z.string(),
+  limit: z.number().optional(),
+})
+
+export type AIActionSearchRequest = z.infer<typeof AIActionSearchRequestSchema>
+
 // --- Agent AI search ---
 
 /**

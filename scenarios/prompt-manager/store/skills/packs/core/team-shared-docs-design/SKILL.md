@@ -71,6 +71,7 @@ Supporting conventions:
 
 - **Separate write rules**, stated explicitly in the team's `TEAM.md`. Plan-of-record = approval-gated; notebook = append-anyone.
 - **Curator owns the promotion path**: a notebook entry has exactly three outcomes — promoted to plan-of-record, promoted to permanent structure (skill / scenario / config), or retired. Never "leave it and forget."
+- **Use the right permanent structure**: truth goes to plan-of-record, judgment goes to skills, deterministic execution goes to Actions, implementation goes to CLIs, missing capability goes to backlog/capability-gap, and unverified learning stays in the notebook.
 - **Cross-references are one-directional:** plan-of-record can reference notebook entries; notebook entries must NOT be cited as authoritative by other teams. If something is authoritative, it should already have been promoted.
 
 ## Traps to avoid

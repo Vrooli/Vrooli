@@ -8,7 +8,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { SearchResultsList } from './SearchResultsList'
-import type { DiscoverResult, AISearchResult } from '@/lib/schemas'
+import type { DiscoverResult, AISearchResult, AIActionSearchResult } from '@/lib/schemas'
 
 function makeDiscoverResult(overrides: Partial<DiscoverResult> = {}): DiscoverResult {
   return {
@@ -37,6 +37,21 @@ function makeSkillResult(overrides: Partial<AISearchResult> = {}): AISearchResul
     modes: ['steer'],
     score: 0.85,
     scorePercent: 85,
+    ...overrides,
+  }
+}
+
+function makeActionResult(overrides: Partial<AIActionSearchResult> = {}): AIActionSearchResult {
+  return {
+    id: 'team.decisions.list',
+    name: 'List Team Decisions',
+    description: 'Review team decisions',
+    status: 'active',
+    owner: 'scenario:prompt-manager',
+    command: 'prompt-manager team decisions list',
+    tags: ['team'],
+    score: 0.9,
+    scorePercent: 90,
     ...overrides,
   }
 }
@@ -281,6 +296,34 @@ describe('SearchResultsList', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Go to entity' }))
       expect(onNavigate).toHaveBeenCalledWith('a', undefined)
+    })
+  })
+
+  describe('Action results', () => {
+    it('renders direct Action AI results and supports selection', () => {
+      const onToggle = vi.fn()
+      const onNavigate = vi.fn()
+
+      render(
+        <SearchResultsList
+          entityType="actions"
+          actionResults={[makeActionResult()]}
+          isSelectMode={true}
+          selectedIds={new Set()}
+          onToggleSelection={onToggle}
+          onNavigate={onNavigate}
+        />
+      )
+
+      expect(screen.getByText('List Team Decisions')).toBeDefined()
+      expect(screen.getByText('scenario:prompt-manager')).toBeDefined()
+      expect(screen.getByText('prompt-manager team decisions list')).toBeDefined()
+
+      fireEvent.click(screen.getByRole('button', { name: /List Team Decisions/ }))
+      expect(onToggle).toHaveBeenCalledWith('team.decisions.list')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to entity' }))
+      expect(onNavigate).toHaveBeenCalledWith('team.decisions.list')
     })
   })
 })

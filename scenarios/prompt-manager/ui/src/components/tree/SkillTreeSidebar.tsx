@@ -21,7 +21,7 @@ import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { Agent } from '@/types/agent'
 import { useCombineStore, type CombineFormat } from '@/stores/combineStore'
-import type { ContentSearchMatch, AISearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
+import type { ContentSearchMatch, AISearchResponse, AIActionSearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
@@ -41,6 +41,7 @@ import { ActionListPanel } from '../action/ActionListPanel'
 import { ViewModeToggle } from '../sidebar/ViewModeToggle'
 import { useTopics } from '@/hooks/useTopicData'
 import { useTeamData } from '@/hooks/useTeamData'
+import { useActionsData } from '@/hooks/useActionsData'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { SearchResultsList } from '../search/SearchResultsList'
@@ -73,7 +74,7 @@ const TAB_SEARCH_FEATURES = {
   teams:   { contentSearch: false, aiSearch: true, tagFilter: false },
   runs:    { contentSearch: false, aiSearch: false, tagFilter: false },
   topics:  { contentSearch: false, aiSearch: true, tagFilter: false },
-  actions: { contentSearch: false, aiSearch: false, tagFilter: false },
+  actions: { contentSearch: false, aiSearch: true, tagFilter: false },
 } as const
 
 /** Map sidebar tab names to CombineEntityType */
@@ -82,6 +83,7 @@ const TAB_TO_ENTITY_TYPE: Record<string, CombineEntityType> = {
   agents: 'agents',
   teams: 'teams',
   topics: 'topics',
+  actions: 'actions',
 }
 
 type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
@@ -533,6 +535,7 @@ export function SkillTreeSidebar({
   const [topicDetailMode, setTopicDetailMode] = useState<DetailMode>('compact')
   const { topics: allTopics } = useTopics()
   const { teams: allTeams } = useTeamData()
+  const { actions: allActions } = useActionsData()
 
   const filteredTopics = useMemo(() => {
     if (!topicSearchQuery) return allTopics
@@ -554,8 +557,9 @@ export function SkillTreeSidebar({
     for (const a of agents) map.set(a.id, a.displayName)
     for (const t of allTeams) map.set(t.id, t.displayName)
     for (const t of allTopics) map.set(t.id, t.name)
+    for (const a of allActions) map.set(a.id, a.name)
     return map
-  }, [skills, agents, allTeams, allTopics])
+  }, [skills, agents, allTeams, allTopics, allActions])
 
   // Build allEntities list for set editor
   const allEntitiesForEditor = useMemo(() => {
@@ -564,8 +568,9 @@ export function SkillTreeSidebar({
     if (entityType === 'agents') return agents.map((a) => ({ id: a.id, name: a.displayName }))
     if (entityType === 'teams') return allTeams.map((t) => ({ id: t.id, name: t.displayName }))
     if (entityType === 'topics') return allTopics.map((t) => ({ id: t.id, name: t.name }))
+    if (entityType === 'actions') return allActions.map((a) => ({ id: a.id, name: a.name }))
     return []
-  }, [activeTab, skills, agents, allTeams, allTopics])
+  }, [activeTab, skills, agents, allTeams, allTopics, allActions])
 
   const handleApplySavedSet = useCallback((ids: string[]) => {
     const entityType = TAB_TO_ENTITY_TYPE[activeTab]
@@ -646,6 +651,7 @@ export function SkillTreeSidebar({
   const [aiLoading, setAILoading] = useState(false)
   const [aiError, setAIError] = useState<string | null>(null)
   const [skillAIResults, setSkillAIResults] = useState<AISearchResponse | null>(null)
+  const [actionAIResults, setActionAIResults] = useState<AIActionSearchResponse | null>(null)
   const [agentAIResults, setAgentAIResults] = useState<AIAgentSearchResponse | null>(null)
   const [teamAIResults, setTeamAIResults] = useState<AITeamSearchResponse | null>(null)
   const [topicAIResults, setTopicAIResults] = useState<TopicMatchResponse | null>(null)
@@ -896,6 +902,7 @@ export function SkillTreeSidebar({
   useEffect(() => {
     if (searchMode !== 'ai') {
       setSkillAIResults(null)
+      setActionAIResults(null)
       setAgentAIResults(null)
       setTeamAIResults(null)
       setTopicAIResults(null)
@@ -910,6 +917,7 @@ export function SkillTreeSidebar({
     if (searchMode !== 'ai') return
     if (!aiDebouncedQuery) {
       setSkillAIResults(null)
+      setActionAIResults(null)
       setAgentAIResults(null)
       setTeamAIResults(null)
       setTopicAIResults(null)
@@ -942,6 +950,9 @@ export function SkillTreeSidebar({
         } else if (activeTab === 'agents') {
           const result = await api.aiSearchAgents(aiDebouncedQuery, 10)
           if (!cancelled) setAgentAIResults(result)
+        } else if (activeTab === 'actions') {
+          const result = await api.aiSearchActions(aiDebouncedQuery, 10)
+          if (!cancelled) setActionAIResults(result)
         } else if (activeTab === 'teams') {
           const result = await api.aiSearchTeams(aiDebouncedQuery, 10)
           if (!cancelled) setTeamAIResults(result)
@@ -1519,12 +1530,14 @@ export function SkillTreeSidebar({
                   const results = activeTab === 'skills'
                     ? (useDiscover ? discoverResults?.results : skillAIResults?.results)
                     : activeTab === 'agents' ? agentAIResults?.results
+                    : activeTab === 'actions' ? actionAIResults?.results
                     : activeTab === 'teams' ? teamAIResults?.results
                     : activeTab === 'topics' ? topicAIResults
                     : undefined
                   const method = activeTab === 'skills'
                     ? (useDiscover ? undefined : skillAIResults?.method)
                     : activeTab === 'agents' ? agentAIResults?.method
+                    : activeTab === 'actions' ? actionAIResults?.method
                     : activeTab === 'teams' ? teamAIResults?.method
                     : undefined
                   const hasResults = results && results.length > 0
@@ -1539,8 +1552,9 @@ export function SkillTreeSidebar({
 
                       {hasResults ? (
                         <SearchResultsList
-                          entityType={(activeTab in TAB_TO_ENTITY_TYPE ? TAB_TO_ENTITY_TYPE[activeTab] : 'skills') as 'skills' | 'agents' | 'teams' | 'topics'}
+                          entityType={TAB_TO_ENTITY_TYPE[activeTab] ?? 'skills'}
                           skillResults={!useDiscover ? skillAIResults?.results : undefined}
+                          actionResults={actionAIResults?.results}
                           discoverResults={useDiscover ? discoverResults?.results : undefined}
                           agentResults={agentAIResults?.results}
                           teamResults={teamAIResults?.results}
@@ -2133,12 +2147,86 @@ export function SkillTreeSidebar({
         </Tabs.Content>
 
         <Tabs.Content value="actions" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <ActionListPanel
-            selectedActionId={selectedActionId}
-            onSelectAction={onSelectActionFromMenu ?? (() => {})}
-            searchQuery={actionSearchQuery}
-            className="flex-1"
-          />
+          {showSavedSets ? (
+            editingSet ? (
+              <SavedSetEditor
+                entry={editingSet}
+                entityType="actions"
+                allEntities={allEntitiesForEditor}
+                onSave={handleSavedSetEditorSave}
+                onCancel={() => setEditingSet(null)}
+              />
+            ) : (
+              <SavedSetsPanel
+                entityType="actions"
+                onApplySet={handleApplySavedSet}
+                onEditSet={setEditingSet}
+                entityLookup={entityLookup}
+                refreshKey={savedSetsRefreshKey}
+              />
+            )
+          ) : (
+          <>
+          {searchMode === 'ai' && actionSearchQuery.trim() ? (
+            <div className="flex-1 overflow-y-auto px-3 py-2">
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 mb-2 animate-spin" />
+                  <p className="text-xs">Searching actions...</p>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <AlertCircle className="h-6 w-6 mb-2 text-destructive" />
+                  <p className="text-xs text-destructive">{aiError}</p>
+                </div>
+              )}
+              {!aiLoading && !aiError && (
+                actionAIResults?.results && actionAIResults.results.length > 0 ? (
+                  <SearchResultsList
+                    entityType="actions"
+                    actionResults={actionAIResults.results}
+                    isSelectMode={combineMode}
+                    selectedIds={combineSelectedIds}
+                    onToggleSelection={handleAIResultToggle}
+                    onNavigate={handleAIResultNavigate}
+                    compact
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Search className="h-8 w-8 mb-2 opacity-60" />
+                    <p className="text-xs">No results found</p>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <ActionListPanel
+              selectedActionId={selectedActionId}
+              onSelectAction={onSelectActionFromMenu ?? (() => {})}
+              searchQuery={actionSearchQuery}
+              className="flex-1"
+              isSelectMode={combineMode && combineEntityType === 'actions'}
+              selectedIds={combineSelectedIds}
+              onToggleSelection={(id) => handleAIResultToggle(id)}
+            />
+          )}
+          {combineMode && combineEntityType === 'actions' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+            <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+              <CombineActionBar
+                selectedCount={combineSelectedIds.size}
+                format={combineFormat}
+                onFormatChange={onCombineFormatChange}
+                onCopy={onCombineCopy}
+                onCancel={onExitCombineMode}
+                isCopying={isCombineCopying}
+                copySuccess={combineCopySuccess}
+                entityLabel="action"
+              />
+            </div>
+          )}
+          </>
+          )}
         </Tabs.Content>
       </Tabs.Root>
 

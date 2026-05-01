@@ -4,7 +4,7 @@
   "id": "team.decisions.list",
   "name": "List Team Decisions",
   "description": "List recent decisions for a prompt-manager team.",
-  "status": "draft",
+  "status": "active",
   "owner": {
     "type": "scenario",
     "id": "prompt-manager"
@@ -31,7 +31,9 @@
       "description": "Decision list response from the prompt-manager CLI."
     }
   },
-  "permissions": {},
+  "permissions": {
+    "apiRead": true
+  },
   "examples": [
     {
       "description": "List recent decisions for director-swarm.",
@@ -42,8 +44,17 @@
   ],
   "tags": [
     "teams",
-    "decisions"
+    "team",
+    "decisions",
+    "decision-list",
+    "decision",
+    "list"
   ],
+  "execution": {
+    "timeoutSeconds": 15,
+    "outputMode": "json",
+    "runEligible": true
+  },
   "validation": {
     "mode": "contract"
   },

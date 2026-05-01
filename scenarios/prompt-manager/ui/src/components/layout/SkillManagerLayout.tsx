@@ -50,7 +50,7 @@ import { useGraphStore, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useCombineStore } from '@/stores/combineStore'
-import { formatAgents, formatTeams, formatTopics } from '@/lib/formatEntities'
+import { formatActions, formatAgents, formatTeams, formatTopics } from '@/lib/formatEntities'
 import { recordCopySet } from '@/lib/copySetStorage'
 import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
@@ -368,7 +368,7 @@ export function SkillManagerLayout() {
             scorePercent: 0,
           }))
           text = formatTeams(results, combineFormat)
-        } else {
+        } else if (combineEntityType === 'topics') {
           const topics = await api.getTopics()
           const selected = topics.filter((t) => combineSelectedIds.has(t.id))
           const results = selected.map((t) => ({
@@ -376,6 +376,10 @@ export function SkillManagerLayout() {
             score: 0,
           }))
           text = formatTopics(results, combineFormat)
+        } else {
+          const actions = await api.getActions()
+          const selected = actions.filter((action) => combineSelectedIds.has(action.id))
+          text = formatActions(selected, combineFormat)
         }
         if (!stale) setPrefetchedContent(text)
       } catch {
@@ -410,7 +414,8 @@ export function SkillManagerLayout() {
     const entityLabel = combineEntityType === 'skills' ? 'skill'
       : combineEntityType === 'agents' ? 'agent'
       : combineEntityType === 'teams' ? 'team'
-      : 'topic'
+      : combineEntityType === 'topics' ? 'topic'
+      : 'action'
 
     if (prefetchedContent === null) {
       toast({

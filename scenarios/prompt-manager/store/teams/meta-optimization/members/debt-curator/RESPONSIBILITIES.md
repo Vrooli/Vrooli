@@ -8,6 +8,19 @@ A candidate is worth proposing only when it has become stable enough that perman
 
 Every proposal must cite the specific notebook or shared-artifact entries it would promote or retire, name the promotion direction, name the owning implementer, and include a measurement plan.
 
+Use this classifier:
+
+```text
+If it says what is true -> Plan of Record.
+If it says how to decide -> Skill.
+If it says what to run -> Action.
+If it says how it works -> CLI implementation.
+If it says what is missing -> Backlog/capability-gap.
+If it is unverified or one-off -> Notebook.
+```
+
+Action promotion is valid only when one Vrooli-controlled CLI command already owns the deterministic operation or a draft Action exists and needs promotion. If the notebook entry describes branching, manual workarounds, or missing command behavior, propose CLI-backlog or capability-gap first.
+
 ## Available Skills
 
 | Skill | Purpose |

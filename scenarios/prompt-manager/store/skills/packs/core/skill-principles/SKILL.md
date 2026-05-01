@@ -104,11 +104,21 @@ Use one lifecycle for all CLI-operational skills:
 
 1. **Interim prose guardrail**: add minimal skill guidance when tools do not yet provide deterministic output contracts.
 2. **Promote to CLI/tool contract**: implement pass/fail signals, next-step guidance, and structured failure hints in the tool.
-3. **Retire superseded prose**: remove or collapse skill instructions now covered by tool output contracts.
+3. **Expose as an Action when execution is one command**: if one Vrooli-controlled CLI command owns the deterministic operation, create or update an Action so agents can discover and validate it without reading prose.
+4. **Retire superseded prose**: remove or collapse skill instructions now covered by tool output contracts or Action references.
+
+Layering rule:
+- Truth lives in Plan of Record.
+- Judgment lives in Skills.
+- Execution lives in Actions.
+- Implementation lives in CLIs.
+- Unbuilt work lives in backlog/capability-gap.
+- Raw learning starts in notebooks.
 
 Retirement criteria:
 - The CLI/tool can return a deterministic status for the workflow decision (`pass/fail` or equivalent).
 - The CLI/tool output contains actionable next steps for common failures.
+- The Action contract is discoverable and validated when the workflow is a single executable operation.
 - Keeping both tool contract and detailed skill prose would duplicate volatile operational logic.
 
 Retention criteria (do not retire):
@@ -117,7 +127,7 @@ Retention criteria (do not retire):
 - Human handoff rules where automation is intentionally impossible.
 
 Output requirement for meta analyses (`skill-validation`, `skill-improvement-suggestions`, `conversation-friction-analysis`):
-- Explicitly classify major workflow instructions as `Keep`, `Collapse to CLI contract`, or `Delete`.
+- Explicitly classify major workflow instructions as `Keep`, `Collapse to Action/CLI contract`, or `Delete`.
 
 ---
 

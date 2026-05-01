@@ -28,6 +28,7 @@ Optional reading:
 - Create/update a single implementation plan file in-repo
 - Preserve problem statement, root causes, constraints, and action plan
 - Include explicit required reading commands for future agents
+- Include Action commands as evidence or validation steps when relevant, while keeping required-reading discovery focused on skills and methodologies
 - Define objective acceptance criteria and test/validation gates
 - Document strict constraints such as greenfield/no-compatibility when requested
 
@@ -139,6 +140,7 @@ Quality checks:
 - A plan detailed enough for handoff to a future agent with no chat context
 - Required-reading command block, including:
   - `prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement`
+- Action validation or discovery commands only when they are directly relevant to the plan's execution path
 
 **May include:**
 - Copy-pastable command snippets
@@ -149,4 +151,3 @@ Quality checks:
 - Placeholder-only sections with no actionable content
 - Contradictory constraints (for example greenfield + migration bridge)
 - Implicit assumptions presented as facts
-

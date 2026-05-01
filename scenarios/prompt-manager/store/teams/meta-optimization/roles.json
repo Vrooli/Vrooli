@@ -11,7 +11,7 @@
     {
       "id": "skill-optimizer",
       "name": "Skill Optimizer",
-      "description": "Identifies high-usage skills and pushes them toward programmatic conversion (prose skill → thin wrapper over scenario CLI). Also audits skill drift and proposes deprecation of unused skills."
+      "description": "Identifies high-usage skills and pushes deterministic execution toward Actions over Vrooli-controlled CLIs. Also audits skill and Action drift and proposes deprecation of unused skills or obsolete Actions."
     },
     {
       "id": "team-agent-optimizer",
