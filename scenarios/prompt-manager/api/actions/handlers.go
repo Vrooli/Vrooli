@@ -3,7 +3,9 @@ package actions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"prompt-manager/store"
 	"strings"
@@ -164,6 +166,36 @@ func (h *Handlers) Validate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeAPIJSON(w, http.StatusOK, result)
+}
+
+func (h *Handlers) Run(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	var req RunRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if !errors.Is(err, io.EOF) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+	}
+	result, err := h.service.Run(r.Context(), id, req)
+	if err != nil {
+		writeActionError(w, err)
+		return
+	}
+	writeRunResponse(w, result)
+}
+
+func writeRunResponse(w http.ResponseWriter, result RunResponse) {
+	status := http.StatusOK
+	switch result.Status {
+	case RunStatusRejected:
+		status = http.StatusUnprocessableEntity
+	case RunStatusThrottled:
+		status = http.StatusTooManyRequests
+	}
+	writeAPIJSON(w, status, result)
 }
 
 func writeAPIJSON(w http.ResponseWriter, status int, payload any) {

@@ -586,7 +586,7 @@ Cancel an in-progress reindex operation.
 
 ## Actions
 
-Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The storage, CRUD, and validation endpoints are implemented; execution remains deferred until Phase 4 governance is complete. See [DOC: docs/concepts/ACTIONS.md].
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. Storage, CRUD, validation, discovery, graph integration, and governed API execution are implemented; CLI/UI run surfaces remain deferred. See [DOC: docs/concepts/ACTIONS.md].
 
 ### GET /api/v1/actions
 
@@ -663,7 +663,16 @@ Validate an Action contract without running its target operation.
 
 ### POST /api/v1/actions/{id}/run
 
-Run an Action with typed input. This endpoint is intentionally not implemented yet.
+Run an active, runnable Action with typed input through the governed argv-only runtime.
+
+Governance enforced before process start:
+- contract validation and controlled-command resolution
+- declared input type/default validation and placeholder rendering
+- command run-surface eligibility
+- per-Action timeout capped by service maximum
+- process-wide concurrency limit
+- stdout/stderr byte caps with truncation flags
+- bounded `runs.jsonl` audit history
 
 **Request Body:**
 ```json
@@ -675,18 +684,28 @@ Run an Action with typed input. This endpoint is intentionally not implemented y
 }
 ```
 
+Use `"dryRun": true` to validate inputs and return the rendered argv without starting the process.
+
 **Response:**
 ```json
 {
   "actionId": "scenario.ui.screenshot",
   "status": "completed",
+  "exitCode": 0,
+  "durationMs": 1234,
+  "stdout": "{\"imagePath\":\"/tmp/prompt-manager-screenshot.png\"}",
+  "stderr": "",
+  "stdoutTruncated": false,
+  "stderrTruncated": false,
   "output": {
     "imagePath": "/tmp/prompt-manager-screenshot.png"
   }
 }
 ```
 
-Execution must use the argv-shaped command contract from `action.json`. Branching and implementation logic belong in the owning CLI, not the Action runtime. Do not add this route until timeout, concurrency, stdout/stderr caps, audit history, permission enforcement, and no-shell argv execution are implemented.
+Execution uses the argv-shaped command contract from `action.json`. Branching and implementation logic belong in the owning CLI, not the Action runtime.
+
+Rejected runs return `422` with status `rejected`. Concurrency saturation returns `429` with status `throttled`. Command failures and timeouts return `200` with status `failed` or `timed-out` so callers can inspect captured output and audit context.
 
 ### POST /api/v1/discover
 

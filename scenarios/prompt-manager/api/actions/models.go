@@ -48,6 +48,37 @@ type MutationResponse struct {
 	Validation ValidationResponse `json:"validation"`
 }
 
+type RunRequest struct {
+	Input  map[string]any `json:"input,omitempty"`
+	DryRun bool           `json:"dryRun,omitempty"`
+}
+
+type RunStatus string
+
+const (
+	RunStatusDryRun    RunStatus = "dry-run"
+	RunStatusCompleted RunStatus = "completed"
+	RunStatusFailed    RunStatus = "failed"
+	RunStatusTimedOut  RunStatus = "timed-out"
+	RunStatusRejected  RunStatus = "rejected"
+	RunStatusThrottled RunStatus = "throttled"
+)
+
+type RunResponse struct {
+	ActionID        string             `json:"actionId"`
+	Status          RunStatus          `json:"status"`
+	ExitCode        *int               `json:"exitCode,omitempty"`
+	DurationMs      int64              `json:"durationMs"`
+	Argv            []string           `json:"argv,omitempty"`
+	Stdout          string             `json:"stdout,omitempty"`
+	Stderr          string             `json:"stderr,omitempty"`
+	StdoutTruncated bool               `json:"stdoutTruncated,omitempty"`
+	StderrTruncated bool               `json:"stderrTruncated,omitempty"`
+	Output          map[string]any     `json:"output,omitempty"`
+	Validation      ValidationResponse `json:"validation"`
+	Error           string             `json:"error,omitempty"`
+}
+
 type CommandCertainty string
 
 const (

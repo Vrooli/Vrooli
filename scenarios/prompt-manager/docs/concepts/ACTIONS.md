@@ -2,7 +2,7 @@
 
 Actions are the executable layer between prompt-manager's judgment-oriented skills and Vrooli-controlled CLI implementations.
 
-Status: partially implemented. Action storage, API CRUD, validation, CLI list/show/create/update/delete/validate, AI indexing, opt-in discovery, graph integration, and UI browse/detail/validate/edit surfaces are implemented. Action execution and run surfaces remain planned.
+Status: partially implemented. Action storage, API CRUD, validation, governed API execution, CLI list/show/create/update/delete/validate, AI indexing, opt-in discovery, graph integration, and UI browse/detail/validate/edit surfaces are implemented. CLI/UI run surfaces remain planned.
 
 ## Why Actions Exist
 
@@ -145,7 +145,13 @@ The `action.json` contract includes at least:
 }
 ```
 
-The command is intentionally argv-shaped instead of shell-shaped. The Action runtime should not interpret pipes, command separators, conditionals, or environment-specific shell syntax.
+The command is intentionally argv-shaped instead of shell-shaped. The Action runtime does not interpret pipes, command separators, conditionals, or environment-specific shell syntax.
+
+## Execution Governance
+
+The API runtime can run active Actions only after validation marks the command runnable. It applies typed input defaults, renders placeholders into argv tokens, executes without a shell, enforces timeout and process-wide concurrency limits, caps stdout/stderr, and writes bounded `runs.jsonl` audit entries. `execution.runEligible: false` keeps an Action discoverable and editable while blocking API runs.
+
+CLI and UI run controls are still deferred, so agents should call the API directly only when a trusted workflow has intentionally selected an active runnable Action.
 
 ## Graduation from Skills
 

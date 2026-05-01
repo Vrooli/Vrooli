@@ -234,6 +234,28 @@ func TestServiceValidateRejectsRecursiveValidationHook(t *testing.T) {
 	}
 }
 
+func TestServiceValidateRejectsSelfRecursiveRunCommand(t *testing.T) {
+	service := NewService(nil, stubResolver{resolution: CommandResolution{
+		Certainty:   CertaintyCommand,
+		Owner:       CommandOwner{Type: "scenario", ID: "prompt-manager"},
+		Target:      "prompt-manager",
+		Permissions: []string{"api:write", "process:start"},
+		RunSurfaces: []string{"action"},
+		Message:     "ok",
+	}})
+	result := service.Validate(context.Background(), validAction(func(action *store.Action) {
+		action.Command.Argv = []string{"prompt-manager", "action", "run", action.ID}
+		action.Inputs = nil
+		action.Permissions = store.ActionPermissions{APIWrite: true, ProcessStart: true}
+	}))
+	if result.Valid {
+		t.Fatalf("expected self-recursive run command to fail")
+	}
+	if !hasFailedCheck(result, "recursive_run") {
+		t.Fatalf("expected recursive_run failure, got %#v", result.Checks)
+	}
+}
+
 func TestServiceValidateRejectsUnsafeValidationHook(t *testing.T) {
 	service := NewService(nil, stubResolver{resolution: CommandResolution{
 		Certainty: CertaintyCommand,
@@ -333,12 +355,219 @@ func TestServiceValidateIntegerDefaultHonorsBounds(t *testing.T) {
 	}
 }
 
+func TestServiceRunAppliesDefaultsRendersArgvAndAudits(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Command.Argv = []string{"prompt-manager", "skill", "read", "{{identifier}}", "--count", "{{count}}"}
+		action.Inputs["count"] = store.ActionInput{Type: "integer", Default: 2}
+	}))
+	runner := &stubRunner{result: CommandRunResult{ExitCode: 0, Stdout: "ok"}}
+	service := NewService(actionStore, runnableResolver())
+	service.runner = runner
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "implementation-plan-authoring"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusCompleted {
+		t.Fatalf("status = %s, error = %s", result.Status, result.Error)
+	}
+	wantArgv := "prompt-manager skill read implementation-plan-authoring --count 2"
+	if strings.Join(runner.argv, " ") != wantArgv {
+		t.Fatalf("argv = %q, want %q", strings.Join(runner.argv, " "), wantArgv)
+	}
+	if len(actionStore.runHistory) != 1 || actionStore.runHistory[0].Status != string(RunStatusCompleted) {
+		t.Fatalf("expected completed audit entry, got %#v", actionStore.runHistory)
+	}
+}
+
+func TestServiceRunRejectsInvalidInputBeforeExecution(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(nil))
+	runner := &stubRunner{result: CommandRunResult{ExitCode: 0}}
+	service := NewService(actionStore, runnableResolver())
+	service.runner = runner
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "bad\nvalue"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusRejected {
+		t.Fatalf("status = %s, want rejected", result.Status)
+	}
+	if runner.called {
+		t.Fatalf("runner should not be called for rejected input")
+	}
+	if len(actionStore.runHistory) != 1 || actionStore.runHistory[0].ValidationValid != true {
+		t.Fatalf("expected rejected audit with validation outcome, got %#v", actionStore.runHistory)
+	}
+}
+
+func TestServiceRunEnforcesFileInputPermissionBeforeExecution(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Command.Argv = []string{"prompt-manager", "skill", "read", "{{source}}"}
+		action.Inputs = map[string]store.ActionInput{"source": {Type: "path", Required: true}}
+		action.Permissions = store.ActionPermissions{APIRead: true}
+	}))
+	runner := &stubRunner{result: CommandRunResult{ExitCode: 0}}
+	service := NewService(actionStore, runnableResolver())
+	service.runner = runner
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"source": "docs/README.md"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusRejected || !strings.Contains(result.Error, "filesystem permission") {
+		t.Fatalf("unexpected file input permission result: %#v", result)
+	}
+	if runner.called {
+		t.Fatalf("runner should not be called when file input permission is missing")
+	}
+}
+
+func TestServiceRunEnforcesEligibilityAndRunSurface(t *testing.T) {
+	notEligible := false
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Execution = &store.ActionExecution{RunEligible: &notEligible}
+	}))
+	service := NewService(actionStore, runnableResolver())
+	service.runner = &stubRunner{result: CommandRunResult{ExitCode: 0}}
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "implementation-plan-authoring"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusRejected || !strings.Contains(result.Error, "disabled") {
+		t.Fatalf("unexpected run eligibility result: %#v", result)
+	}
+
+	actionStore = newFakeActionStore(validAction(nil))
+	service = NewService(actionStore, stubResolver{resolution: CommandResolution{
+		Certainty:   CertaintyCommand,
+		Owner:       CommandOwner{Type: "scenario", ID: "prompt-manager"},
+		Target:      "prompt-manager",
+		Permissions: []string{"api:read"},
+		RunSurfaces: []string{"cli"},
+		Message:     "ok",
+	}})
+	service.runner = &stubRunner{result: CommandRunResult{ExitCode: 0}}
+	result, err = service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "implementation-plan-authoring"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusRejected || !strings.Contains(result.Error, "not eligible") {
+		t.Fatalf("unexpected run surface result: %#v", result)
+	}
+}
+
+func TestServiceRunThrottlesBeforeStartingProcess(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(nil))
+	service := NewService(actionStore, runnableResolver())
+	service.runner = &stubRunner{result: CommandRunResult{ExitCode: 0}}
+	service.runSlots = make(chan struct{}, 1)
+	service.runSlots <- struct{}{}
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "implementation-plan-authoring"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusThrottled {
+		t.Fatalf("status = %s, want throttled", result.Status)
+	}
+}
+
+func TestServiceRunTimeoutCancellation(t *testing.T) {
+	timeoutSeconds := 1
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Execution = &store.ActionExecution{TimeoutSeconds: &timeoutSeconds}
+	}))
+	service := NewService(actionStore, runnableResolver())
+	service.runner = blockingRunner{}
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "implementation-plan-authoring"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusTimedOut {
+		t.Fatalf("status = %s, want timed-out; error=%s", result.Status, result.Error)
+	}
+}
+
+func TestServiceRunParsesJSONOutputAndCapsAudit(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Execution = &store.ActionExecution{OutputMode: "json"}
+	}))
+	service := NewService(actionStore, runnableResolver())
+	service.auditLimit = 8
+	service.runner = &stubRunner{result: CommandRunResult{
+		ExitCode:        0,
+		Stdout:          `{"value":"` + strings.Repeat("x", 20) + `"}`,
+		StdoutTruncated: true,
+	}}
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input: map[string]any{"identifier": "implementation-plan-authoring"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusCompleted || result.Output["value"] == "" {
+		t.Fatalf("unexpected JSON output result: %#v", result)
+	}
+	if len(actionStore.runHistory) != 1 || len(actionStore.runHistory[0].Stdout) > 8 || !actionStore.runHistory[0].StdoutTruncated {
+		t.Fatalf("expected capped audit stdout, got %#v", actionStore.runHistory)
+	}
+}
+
 type stubResolver struct {
 	resolution CommandResolution
 }
 
 func (s stubResolver) ResolveCommand(ctx context.Context, argv []string) (CommandResolution, error) {
 	return s.resolution, nil
+}
+
+func runnableResolver() stubResolver {
+	return stubResolver{resolution: CommandResolution{
+		Certainty:   CertaintyCommand,
+		Owner:       CommandOwner{Type: "scenario", ID: "prompt-manager"},
+		Target:      "prompt-manager",
+		Permissions: []string{"api:read"},
+		RunSurfaces: []string{"action"},
+		Message:     "ok",
+	}}
+}
+
+type stubRunner struct {
+	result CommandRunResult
+	err    error
+	argv   []string
+	called bool
+}
+
+func (r *stubRunner) Run(ctx context.Context, argv []string, workDir string, outputLimit int) (CommandRunResult, error) {
+	r.called = true
+	r.argv = append([]string{}, argv...)
+	return r.result, r.err
+}
+
+type blockingRunner struct{}
+
+func (blockingRunner) Run(ctx context.Context, argv []string, workDir string, outputLimit int) (CommandRunResult, error) {
+	<-ctx.Done()
+	return CommandRunResult{ExitCode: -1}, ctx.Err()
 }
 
 func validAction(mutate func(*store.Action)) *store.Action {

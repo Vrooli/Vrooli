@@ -150,7 +150,23 @@ Status: ready for implementation.
   - `cd scenarios/prompt-manager/ui && pnpm run type-check`
   - `cd scenarios/prompt-manager/ui && pnpm test -- src/components/action/ActionListPanel.test.tsx src/components/action/ActionEditorPanel.test.tsx src/components/search/SearchResultsList.test.tsx`
 
-Next resume point: Continue Phase 9 only if more visual polish is desired, then consider moving to Phase 4 execution governance as a separate bounded slice. Keep run UI/API/CLI deferred until Phase 4 execution governance is fully implemented. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands. Do not wire `POST /api/v1/actions/{id}/run` or `prompt-manager action run` until Phase 4 execution governance is implemented.
+2026-05-01:
+
+- Completed the first Phase 4 execution-governance slice:
+  - Added governed Action run request/response models and `Service.Run`.
+  - Added typed input/default validation, whole-token placeholder rendering, dry-run support, per-Action timeout capped by service maximum, process-wide concurrency throttling, run-surface eligibility checks, and `execution.runEligible` enforcement.
+  - Added a direct `exec.CommandContext` runner with no shell, stdout/stderr caps, truncation flags, JSON output parsing for `execution.outputMode: "json"`, and status envelopes for completed, failed, timed-out, rejected, throttled, and dry-run results.
+  - Added bounded file-backed run audit history at `runs.jsonl` with rendered argv, status, exit code, duration, output snippets, truncation flags, error, and validation outcome.
+  - Wired `POST /api/v1/actions/{id}/run` in the API while leaving CLI/UI run surfaces disabled.
+  - Updated Action concept/API/CLI docs and parity coverage to reflect that only the API run surface exists.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./actions ./store`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+  - `cd scenarios/prompt-manager/cli && go test ./parity`
+  - `jq . scenarios/prompt-manager/cli/parity/coverage.json >/dev/null`
+  - `git diff --check`
+
+Next resume point: Continue Phase 4 hardening if desired, then add `prompt-manager action run` as a thin API client and update CLI parity from `audit-pending` to covered. Keep UI run controls disabled until the CLI/API run path has one more integration pass. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands.
 
 ## Purpose
 
@@ -821,8 +837,8 @@ prompt-manager action run scenario.status.show --input='{"scenario":"prompt-mana
 - [ ] API CRUD endpoints implemented and tested.
 - [ ] Validation rejects shell and raw external commands.
 - [ ] Validation uses a dynamic controlled-command resolver for project, prompt-manager, scenario, and resource commands.
-- [ ] Execution uses argv without shell interpretation.
-- [ ] Execution enforces timeout, concurrency, permissions, output caps, and audit/history recording.
+- [x] Execution uses argv without shell interpretation.
+- [x] Execution enforces timeout, concurrency, permissions, output caps, and audit/history recording.
 - [ ] CLI action group implemented and tested.
 - [ ] AI search indexes Actions.
 - [ ] Discover supports `--type skill|action|all`.

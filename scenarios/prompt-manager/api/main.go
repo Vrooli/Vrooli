@@ -331,6 +331,7 @@ func main() {
 	v1.HandleFunc("/actions", actionHandlers.List).Methods("GET")
 	v1.HandleFunc("/actions", actionHandlers.Create).Methods("POST")
 	v1.HandleFunc("/actions/{id}/validate", actionHandlers.Validate).Methods("POST")
+	v1.HandleFunc("/actions/{id}/run", actionHandlers.Run).Methods("POST")
 	v1.HandleFunc("/actions/{id}", actionHandlers.Get).Methods("GET")
 	v1.HandleFunc("/actions/{id}", actionHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/actions/{id}", actionHandlers.Delete).Methods("DELETE")

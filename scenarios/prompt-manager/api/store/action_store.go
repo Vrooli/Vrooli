@@ -11,6 +11,7 @@ import (
 )
 
 const maxActionIDLength = 96
+const maxActionRunHistoryEntries = 100
 
 var (
 	actionIDRegex          = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$`)
@@ -373,6 +374,23 @@ func (s *FileActionStore) Delete(ctx context.Context, id string) error {
 	return DeleteDirectory(filepath.Join(s.packsDir(), action.Pack, id))
 }
 
+// AppendRunHistory appends a bounded Action execution audit entry.
+func (s *FileActionStore) AppendRunHistory(ctx context.Context, id string, entry ActionRunHistoryEntry) error {
+	action, err := s.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if entry.ActionID == "" {
+		entry.ActionID = id
+	}
+	actionDir := filepath.Join(s.packsDir(), action.Pack, id)
+	path := filepath.Join(actionDir, "runs.jsonl")
+	if err := AppendJSONL(path, entry); err != nil {
+		return fmt.Errorf("writing action run history: %w", err)
+	}
+	return trimJSONLLines(path, maxActionRunHistoryEntries)
+}
+
 func (s *FileActionStore) validatePack(pack string) error {
 	packs, err := s.getActivePacks()
 	if err != nil {
@@ -402,6 +420,26 @@ func (s *FileActionStore) appendHistory(actionDir string, revision int, action, 
 		return fmt.Errorf("writing history: %w", err)
 	}
 	return nil
+}
+
+func trimJSONLLines(path string, maxLines int) error {
+	if maxLines <= 0 {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := strings.TrimRight(string(data), "\n")
+	if text == "" {
+		return nil
+	}
+	lines := strings.Split(text, "\n")
+	if len(lines) <= maxLines {
+		return nil
+	}
+	lines = lines[len(lines)-maxLines:]
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
 }
 
 func applyActionUpdates(action, updates *Action) {

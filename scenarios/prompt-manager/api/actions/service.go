@@ -1,13 +1,26 @@
 package actions
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"prompt-manager/store"
+)
+
+const (
+	defaultRunTimeoutSeconds = 30
+	maxRunTimeoutSeconds     = 300
+	defaultStdoutStderrCap   = 64 * 1024
+	auditStdoutStderrCap     = 4 * 1024
+	defaultMaxConcurrentRuns = 2
 )
 
 type ActionStore interface {
@@ -19,13 +32,44 @@ type ActionStore interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type ActionRunAuditor interface {
+	AppendRunHistory(ctx context.Context, id string, entry store.ActionRunHistoryEntry) error
+}
+
+type CommandRunner interface {
+	Run(ctx context.Context, argv []string, workDir string, outputLimit int) (CommandRunResult, error)
+}
+
+type CommandRunResult struct {
+	ExitCode        int
+	Stdout          string
+	Stderr          string
+	StdoutTruncated bool
+	StderrTruncated bool
+}
+
 type Service struct {
-	store    ActionStore
-	resolver ControlledCommandResolver
+	store          ActionStore
+	resolver       ControlledCommandResolver
+	runner         CommandRunner
+	runSlots       chan struct{}
+	defaultTimeout time.Duration
+	maxTimeout     time.Duration
+	outputLimit    int
+	auditLimit     int
 }
 
 func NewService(store ActionStore, resolver ControlledCommandResolver) *Service {
-	return &Service{store: store, resolver: resolver}
+	return &Service{
+		store:          store,
+		resolver:       resolver,
+		runner:         execCommandRunner{},
+		runSlots:       make(chan struct{}, defaultMaxConcurrentRuns),
+		defaultTimeout: time.Duration(defaultRunTimeoutSeconds) * time.Second,
+		maxTimeout:     time.Duration(maxRunTimeoutSeconds) * time.Second,
+		outputLimit:    defaultStdoutStderrCap,
+		auditLimit:     auditStdoutStderrCap,
+	}
 }
 
 func (s *Service) List(ctx context.Context, filters ListFilters) ([]store.Action, error) {
@@ -115,6 +159,116 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.store.Delete(ctx, id)
 }
 
+func (s *Service) Run(ctx context.Context, id string, req RunRequest) (RunResponse, error) {
+	started := time.Now().UTC()
+	response := RunResponse{ActionID: id}
+
+	action, err := s.store.Get(ctx, id)
+	if err != nil {
+		return response, err
+	}
+	response.ActionID = action.ID
+
+	validation := s.Validate(ctx, action)
+	response.Validation = validation
+	if !validation.Runnable {
+		response.Status = RunStatusRejected
+		response.Error = "action is not runnable"
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+	if action.Execution != nil && action.Execution.RunEligible != nil && !*action.Execution.RunEligible {
+		response.Status = RunStatusRejected
+		response.Error = "action execution is disabled by run eligibility policy"
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+	if validation.Command != nil && len(validation.Command.RunSurfaces) > 0 && !slices.Contains(validation.Command.RunSurfaces, "action") {
+		response.Status = RunStatusRejected
+		response.Error = "resolved command is not eligible for action runs"
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+
+	values, err := validateRunInput(action, req.Input)
+	if err != nil {
+		response.Status = RunStatusRejected
+		response.Error = err.Error()
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+	argv, err := renderActionArgv(action, values)
+	if err != nil {
+		response.Status = RunStatusRejected
+		response.Error = err.Error()
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+	response.Argv = argv
+	if req.DryRun {
+		response.Status = RunStatusDryRun
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+
+	select {
+	case s.runSlots <- struct{}{}:
+		defer func() { <-s.runSlots }()
+	default:
+		response.Status = RunStatusThrottled
+		response.Error = "action run concurrency limit reached"
+		response.DurationMs = time.Since(started).Milliseconds()
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+
+	timeout := s.actionTimeout(action)
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	result, err := s.runner.Run(runCtx, argv, "", s.outputLimit)
+	exitCode := result.ExitCode
+	response.ExitCode = &exitCode
+	response.Stdout = result.Stdout
+	response.Stderr = result.Stderr
+	response.StdoutTruncated = result.StdoutTruncated
+	response.StderrTruncated = result.StderrTruncated
+	response.DurationMs = time.Since(started).Milliseconds()
+	if runCtx.Err() == context.DeadlineExceeded {
+		response.Status = RunStatusTimedOut
+		response.Error = "action run timed out"
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+	if err != nil || result.ExitCode != 0 {
+		response.Status = RunStatusFailed
+		if err != nil {
+			response.Error = err.Error()
+		}
+		s.appendRunAudit(ctx, action.ID, started, response)
+		return response, nil
+	}
+	if action.Execution != nil && action.Execution.OutputMode == "json" && strings.TrimSpace(response.Stdout) != "" {
+		var output map[string]any
+		if err := json.Unmarshal([]byte(response.Stdout), &output); err != nil {
+			response.Status = RunStatusFailed
+			response.Error = "failed to parse JSON action output: " + err.Error()
+			s.appendRunAudit(ctx, action.ID, started, response)
+			return response, nil
+		}
+		response.Output = output
+	}
+	response.Status = RunStatusCompleted
+	s.appendRunAudit(ctx, action.ID, started, response)
+	return response, nil
+}
+
 func (s *Service) ValidateByID(ctx context.Context, id string) (ValidationResponse, error) {
 	action, err := s.store.Get(ctx, id)
 	if err != nil {
@@ -123,6 +277,45 @@ func (s *Service) ValidateByID(ctx context.Context, id string) (ValidationRespon
 	result := s.Validate(ctx, action)
 	result.Action = action
 	return result, nil
+}
+
+func (s *Service) actionTimeout(action *store.Action) time.Duration {
+	timeout := s.defaultTimeout
+	if action.Execution != nil && action.Execution.TimeoutSeconds != nil {
+		seconds := *action.Execution.TimeoutSeconds
+		if seconds > 0 {
+			timeout = time.Duration(seconds) * time.Second
+		}
+	}
+	if timeout > s.maxTimeout {
+		return s.maxTimeout
+	}
+	return timeout
+}
+
+func (s *Service) appendRunAudit(ctx context.Context, actionID string, started time.Time, response RunResponse) {
+	auditor, ok := s.store.(ActionRunAuditor)
+	if !ok {
+		return
+	}
+	finished := time.Now().UTC()
+	stdout, stdoutTruncated := truncateString(response.Stdout, s.auditLimit)
+	stderr, stderrTruncated := truncateString(response.Stderr, s.auditLimit)
+	_ = auditor.AppendRunHistory(ctx, actionID, store.ActionRunHistoryEntry{
+		ActionID:        actionID,
+		StartedAt:       started,
+		FinishedAt:      finished,
+		DurationMs:      response.DurationMs,
+		Status:          string(response.Status),
+		Argv:            response.Argv,
+		ExitCode:        response.ExitCode,
+		Stdout:          stdout,
+		Stderr:          stderr,
+		StdoutTruncated: response.StdoutTruncated || stdoutTruncated,
+		StderrTruncated: response.StderrTruncated || stderrTruncated,
+		Error:           response.Error,
+		ValidationValid: response.Validation.Valid,
+	})
 }
 
 func (s *Service) Validate(ctx context.Context, action *store.Action) ValidationResponse {
@@ -175,6 +368,7 @@ func (s *Service) Validate(ctx context.Context, action *store.Action) Validation
 	checkPlaceholders(action, add)
 	checkInputDefaults(action, add)
 	checkOutputPermissions(action, add)
+	checkRecursiveRun(action, add)
 	checkValidationHook(ctx, action, s.resolver, add)
 
 	result.Valid = true
@@ -420,6 +614,164 @@ func checkValidationHook(ctx context.Context, action *store.Action, resolver Con
 	}
 }
 
+func checkRecursiveRun(action *store.Action, add func(string, CheckStatus, string, string)) {
+	if isSelfRecursiveActionRun(action.Command.Argv, action.ID) {
+		add("recursive_run", CheckFailed, "command.argv", "action command must not recursively run the same action")
+		return
+	}
+	add("recursive_run", CheckPassed, "command.argv", "action command is not self-recursive")
+}
+
+func validateRunInput(action *store.Action, input map[string]any) (map[string]string, error) {
+	values := map[string]string{}
+	for name, spec := range action.Inputs {
+		value, ok := input[name]
+		if !ok {
+			if spec.Default != nil {
+				value = spec.Default
+				ok = true
+			} else if spec.Required {
+				return nil, fmt.Errorf("missing required input: %s", name)
+			}
+		}
+		if !ok {
+			continue
+		}
+		if (spec.Type == "file" || spec.Type == "path") && !action.Permissions.FilesystemRead && !action.Permissions.FilesystemWrite {
+			return nil, fmt.Errorf("input %s requires filesystem permission declaration", name)
+		}
+		rendered, err := validateAndRenderInput(name, spec, value)
+		if err != nil {
+			return nil, err
+		}
+		values[name] = rendered
+	}
+	for name := range input {
+		if _, ok := action.Inputs[name]; !ok {
+			return nil, fmt.Errorf("unknown input: %s", name)
+		}
+	}
+	return values, nil
+}
+
+func validateAndRenderInput(name string, spec store.ActionInput, value any) (string, error) {
+	switch spec.Type {
+	case "string":
+		text, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("input %s must be a string", name)
+		}
+		if err := validateStringInput(name, spec, text); err != nil {
+			return "", err
+		}
+		return text, nil
+	case "file", "path":
+		text, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("input %s must be a string path", name)
+		}
+		if err := validateStringInput(name, spec, text); err != nil {
+			return "", err
+		}
+		if strings.HasPrefix(text, "/") || strings.Contains(text, "\x00") || strings.Contains(text, "..") {
+			return "", fmt.Errorf("input %s must be a relative path without traversal", name)
+		}
+		return text, nil
+	case "scenario", "team", "action":
+		text, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("input %s must be a string identifier", name)
+		}
+		if err := validateStringInput(name, spec, text); err != nil {
+			return "", err
+		}
+		if spec.Type == "action" {
+			if !store.IsValidActionID(text) {
+				return "", fmt.Errorf("input %s must be a valid action ID", name)
+			}
+		} else if !entityRefRegex.MatchString(text) {
+			return "", fmt.Errorf("input %s must be a valid %s ID", name, spec.Type)
+		}
+		return text, nil
+	case "number":
+		number, ok := numericDefault(value)
+		if !ok {
+			return "", fmt.Errorf("input %s must be numeric", name)
+		}
+		if spec.Min != nil && number < *spec.Min {
+			return "", fmt.Errorf("input %s is less than min", name)
+		}
+		if spec.Max != nil && number > *spec.Max {
+			return "", fmt.Errorf("input %s is greater than max", name)
+		}
+		return fmt.Sprintf("%g", number), nil
+	case "integer":
+		number, ok := numericDefault(value)
+		if !ok || number != float64(int64(number)) {
+			return "", fmt.Errorf("input %s must be an integer", name)
+		}
+		if spec.Min != nil && number < *spec.Min {
+			return "", fmt.Errorf("input %s is less than min", name)
+		}
+		if spec.Max != nil && number > *spec.Max {
+			return "", fmt.Errorf("input %s is greater than max", name)
+		}
+		return fmt.Sprintf("%d", int64(number)), nil
+	case "boolean":
+		boolean, ok := value.(bool)
+		if !ok {
+			return "", fmt.Errorf("input %s must be boolean", name)
+		}
+		if boolean {
+			return "true", nil
+		}
+		return "false", nil
+	default:
+		return "", fmt.Errorf("input %s has unsupported type: %s", name, spec.Type)
+	}
+}
+
+var entityRefRegex = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$`)
+
+func validateStringInput(name string, spec store.ActionInput, value string) error {
+	if spec.MaxLength != nil && len(value) > *spec.MaxLength {
+		return fmt.Errorf("input %s exceeds maxLength", name)
+	}
+	if !spec.AllowMultiline && strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("input %s must be single-line", name)
+	}
+	if len(spec.Enum) > 0 && !slices.Contains(spec.Enum, value) {
+		return fmt.Errorf("input %s is not in enum", name)
+	}
+	if spec.Pattern != "" {
+		matched, err := regexp.MatchString(spec.Pattern, value)
+		if err != nil {
+			return err
+		}
+		if !matched {
+			return fmt.Errorf("input %s does not match pattern", name)
+		}
+	}
+	return nil
+}
+
+func renderActionArgv(action *store.Action, values map[string]string) ([]string, error) {
+	argv := make([]string, 0, len(action.Command.Argv))
+	for _, token := range action.Command.Argv {
+		match := regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9]*)\}\}$`).FindStringSubmatch(token)
+		if len(match) != 2 {
+			argv = append(argv, token)
+			continue
+		}
+		value, ok := values[match[1]]
+		if !ok {
+			return nil, fmt.Errorf("missing rendered input for placeholder: %s", match[1])
+		}
+		argv = append(argv, value)
+	}
+	return argv, nil
+}
+
 func isSelfRecursiveValidationHook(argv []string, actionID string) bool {
 	if len(argv) < 4 || argv[0] != "prompt-manager" {
 		return false
@@ -431,6 +783,87 @@ func isSelfRecursiveValidationHook(argv []string, actionID string) bool {
 		return false
 	}
 	return argv[3] == actionID
+}
+
+func isSelfRecursiveActionRun(argv []string, actionID string) bool {
+	if len(argv) < 4 || argv[0] != "prompt-manager" {
+		return false
+	}
+	if argv[1] != "action" && argv[1] != "actions" {
+		return false
+	}
+	if argv[2] != "run" {
+		return false
+	}
+	return argv[3] == actionID
+}
+
+type execCommandRunner struct{}
+
+func (execCommandRunner) Run(ctx context.Context, argv []string, workDir string, outputLimit int) (CommandRunResult, error) {
+	if len(argv) == 0 {
+		return CommandRunResult{ExitCode: -1}, fmt.Errorf("command argv is empty")
+	}
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
+	stdout := &cappedBuffer{limit: outputLimit}
+	stderr := &cappedBuffer{limit: outputLimit}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	err := cmd.Run()
+	exitCode := 0
+	if err != nil {
+		exitCode = -1
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode = exitErr.ExitCode()
+		}
+	}
+	return CommandRunResult{
+		ExitCode:        exitCode,
+		Stdout:          stdout.String(),
+		Stderr:          stderr.String(),
+		StdoutTruncated: stdout.truncated,
+		StderrTruncated: stderr.truncated,
+	}, err
+}
+
+type cappedBuffer struct {
+	buffer    bytes.Buffer
+	limit     int
+	truncated bool
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	if b.limit <= 0 {
+		b.truncated = b.truncated || len(p) > 0
+		return len(p), nil
+	}
+	remaining := b.limit - b.buffer.Len()
+	if remaining <= 0 {
+		b.truncated = true
+		return len(p), nil
+	}
+	if len(p) > remaining {
+		_, _ = b.buffer.Write(p[:remaining])
+		b.truncated = true
+		return len(p), nil
+	}
+	_, _ = b.buffer.Write(p)
+	return len(p), nil
+}
+
+func (b *cappedBuffer) String() string {
+	return b.buffer.String()
+}
+
+func truncateString(value string, limit int) (string, bool) {
+	if limit <= 0 || len(value) <= limit {
+		return value, false
+	}
+	return value[:limit], true
 }
 
 func permissionsToSet(permissions store.ActionPermissions) map[string]bool {

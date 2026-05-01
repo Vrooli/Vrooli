@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func setupActionStore(t *testing.T) (*FileActionStore, string) {
@@ -298,6 +299,38 @@ func TestActionStore_DuplicateCreateRejected(t *testing.T) {
 	}
 	if err := store.Create(ctx, "core", testAction("skill.health.audit")); err == nil {
 		t.Fatal("duplicate Action ID across active packs should fail")
+	}
+}
+
+func TestActionStore_RunHistoryIsBounded(t *testing.T) {
+	store, storeDir := setupActionStore(t)
+	ctx := context.Background()
+	action := testAction("team.decisions.list")
+	if err := store.Create(ctx, "local", action); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < maxActionRunHistoryEntries+5; i++ {
+		if err := store.AppendRunHistory(ctx, action.ID, ActionRunHistoryEntry{
+			ActionID:        action.ID,
+			StartedAt:       time.Now().UTC(),
+			FinishedAt:      time.Now().UTC(),
+			Status:          "completed",
+			Stdout:          strings.Repeat("x", 12),
+			ValidationValid: true,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	path := filepath.Join(storeDir, "actions", "packs", "local", action.ID, "runs.jsonl")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != maxActionRunHistoryEntries {
+		t.Fatalf("history entries = %d, want %d", len(lines), maxActionRunHistoryEntries)
 	}
 }
 

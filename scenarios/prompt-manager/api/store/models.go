@@ -116,6 +116,23 @@ type ActionValidation struct {
 	Argv []string `json:"argv,omitempty"`
 }
 
+// ActionRunHistoryEntry records a bounded audit entry for Action execution.
+type ActionRunHistoryEntry struct {
+	ActionID        string    `json:"actionId"`
+	StartedAt       time.Time `json:"startedAt"`
+	FinishedAt      time.Time `json:"finishedAt"`
+	DurationMs      int64     `json:"durationMs"`
+	Status          string    `json:"status"`
+	Argv            []string  `json:"argv,omitempty"`
+	ExitCode        *int      `json:"exitCode,omitempty"`
+	Stdout          string    `json:"stdout,omitempty"`
+	Stderr          string    `json:"stderr,omitempty"`
+	StdoutTruncated bool      `json:"stdoutTruncated,omitempty"`
+	StderrTruncated bool      `json:"stderrTruncated,omitempty"`
+	Error           string    `json:"error,omitempty"`
+	ValidationValid bool      `json:"validationValid"`
+}
+
 // Agent represents an agent entity from agent.json
 type Agent struct {
 	BaseEntity

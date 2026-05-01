@@ -59,6 +59,48 @@ func TestValidateHandlerReturnsUnprocessableForInvalidAction(t *testing.T) {
 	}
 }
 
+func TestRunHandler(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(nil))
+	service := NewService(actionStore, runnableResolver())
+	service.runner = &stubRunner{result: CommandRunResult{ExitCode: 0, Stdout: "ok"}}
+	handler := NewHandlers(service)
+
+	body := bytes.NewBufferString(`{"input":{"identifier":"implementation-plan-authoring"}}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.decisions.list/run", body)
+	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	rr := httptest.NewRecorder()
+
+	handler.Run(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	var result RunResponse
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusCompleted || result.Stdout != "ok" {
+		t.Fatalf("unexpected run result: %#v", result)
+	}
+}
+
+func TestRunHandlerReturnsUnprocessableForRejectedRun(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Status = store.StatusDraft
+	}))
+	handler := NewHandlers(NewService(actionStore, runnableResolver()))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.decisions.list/run", bytes.NewBufferString(`{}`))
+	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	rr := httptest.NewRecorder()
+
+	handler.Run(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestActionCRUDHandlers(t *testing.T) {
 	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
 		action.ID = "team.decisions.list"
@@ -179,8 +221,9 @@ func TestActionHandlersReturnNotFoundAndInvalidJSON(t *testing.T) {
 }
 
 type fakeActionStore struct {
-	actions map[string]*store.Action
-	err     error
+	actions    map[string]*store.Action
+	runHistory []store.ActionRunHistoryEntry
+	err        error
 }
 
 func newFakeActionStore(actions ...*store.Action) *fakeActionStore {
@@ -258,6 +301,14 @@ func (s *fakeActionStore) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("action not found: %s", id)
 	}
 	delete(s.actions, id)
+	return nil
+}
+
+func (s *fakeActionStore) AppendRunHistory(ctx context.Context, id string, entry store.ActionRunHistoryEntry) error {
+	if _, ok := s.actions[id]; !ok {
+		return fmt.Errorf("action not found: %s", id)
+	}
+	s.runHistory = append(s.runHistory, entry)
 	return nil
 }
 

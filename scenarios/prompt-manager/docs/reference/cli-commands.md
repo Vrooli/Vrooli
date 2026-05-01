@@ -948,7 +948,7 @@ prompt-manager discover "debugging methodology" --type skill
 
 ## Actions
 
-Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The CLI currently exposes CRUD and validation commands; execution is intentionally deferred until Action run governance is implemented. See [DOC: docs/concepts/ACTIONS.md].
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The CLI currently exposes CRUD and validation commands; the governed run API exists, but the CLI run wrapper is intentionally deferred. See [DOC: docs/concepts/ACTIONS.md].
 
 ### prompt-manager action list
 
@@ -1004,14 +1004,14 @@ Validation should reject shell pipelines, command separators, raw external tools
 
 ### prompt-manager action run
 
-Run an Action with typed input. This command is not implemented yet.
+Run an Action with typed input. This command is not implemented yet; use the API run endpoint from trusted workflows until the thin CLI wrapper lands.
 
 ```bash
 prompt-manager action run <id> --input='{"key":"value"}' [--json]
 prompt-manager action run <id> --input-file=payload.json [--json]
 ```
 
-The future Action runtime must resolve the contract through the API and execute one argv-shaped command. Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
+The CLI wrapper should remain a thin API client over `POST /api/v1/actions/{id}/run`. Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
 
 ---
 
