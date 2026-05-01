@@ -24,9 +24,11 @@ The backend registry lives at [CODE: api/internal/operatingmode/registry.go]. It
 
 Initiative metadata stores `mode` and `acceptance_criteria`; historical records normalize blank mode to `item-level`. New initiatives always start in `item-level`, and mode changes only occur through the operating-mode switch endpoint. Mode changes emit `initiative.mode_changed` events so stats and audit surfaces can observe adoption.
 
-Mode phases are also registered in the prompt catalog by `(mode, phase)`, with stable Agent Activity purposes and AgentManager profile keys supplied by the operating-mode definition. API startup validates that every profile key referenced by the registry was returned by AgentManager scenario profile reconciliation, and every registry-owned key must stay in the `swarm-manager/` namespace. The backend computes phase action state from the registered graph and completed round history; UI controls render that state rather than deciding sequencing locally. Phase start fails closed when the prompt catalog entry is missing, mismatched, unavailable from prompt-manager, or renders empty content, so repo-writing initiative agents never run with generic fallback prose. The event log has typed operating-mode phase, replan, and backlog-sync events; operating-mode backlog mutations also carry structured source metadata on the affected backlog event so history can reconstruct the initiating mode, phase, round, run, and requester. The stats surface includes a Modes tab for mode usage, phase runs, profile usage, replan/acceptance rates, and backlog reconciliation counts. Replan rate is counted from completed execute-phase payloads only; `operating_mode.replan_needed` remains a timeline signal and does not increment the metric a second time.
+Mode phases are also registered in the prompt catalog by `(mode, phase)`, with stable registry-authored activity purpose tokens and AgentManager profile keys supplied by the operating-mode definition. API startup validates that every profile key referenced by the registry was returned by AgentManager scenario profile reconciliation, and every registry-owned key must stay in the `swarm-manager/` namespace. The backend computes phase action state from the registered graph, transition rules, and completed round history; UI controls render that state rather than deciding sequencing locally. Phase start fails closed when the prompt catalog entry is missing, mismatched, unavailable from prompt-manager, or renders empty content, so repo-writing initiative agents never run with generic fallback prose. The event log has typed operating-mode phase, replan, and backlog-sync events; operating-mode backlog mutations also carry structured source metadata on the affected backlog event so history can reconstruct the initiating mode, phase, round, run, and requester. The stats surface includes a Modes tab for mode usage, phase runs, profile usage, replan/acceptance rates, and backlog reconciliation counts. Replan and acceptance rates are counted from registry-declared phase metrics policy; `operating_mode.replan_needed` remains a timeline signal and does not increment the metric a second time.
 
 Operator-facing mode catalogs are derived from the same backend registry through `GET /api/v1/operating-modes`. UI and CLI mode selectors must consume that read model instead of carrying parallel built-in mode option lists.
+
+Future static modes should follow [DOC: ../internal/OPERATING-MODE-AUTHORING.md]. Mode definitions own transitions, result bindings, output contracts, prompt metadata, metrics semantics, and capabilities; shared framework code should not gain mode-specific behavior branches for a new methodology.
 
 ## Why this distinction exists
 
@@ -199,7 +201,10 @@ The modes solve different problems for different work shapes. Both are necessary
 - [`docs/guides/phased-plan-drain-mode.md`](../guides/phased-plan-drain-mode.md) — Operator workflow for phased-plan-drain mode.
 - [`docs/plans/swarm-manager-initiative-feedback-ux.md`](../../../../docs/plans/swarm-manager-initiative-feedback-ux.md) — Plan A: rescoping affordances inside backlog-item mode (companion, not replacement).
 - [`docs/plans/swarm-manager-initiative-operating-mode-implementation.md`](../../../../docs/plans/swarm-manager-initiative-operating-mode-implementation.md) — Original implementation plan for initiative-level operating modes.
-- [CODE: api/internal/operatingmode/registry.go] — static mode definitions.
+- [CODE: api/internal/operatingmode/registry.go] — registry core, validation, and mode lookup.
+- [CODE: api/internal/operatingmode/mode_holistic_loop.go] — holistic-loop mode definition.
+- [CODE: api/internal/operatingmode/mode_phased_plan_drain.go] — phased-plan-drain mode definition.
+- [DOC: ../internal/OPERATING-MODE-AUTHORING.md] — internal guide for adding future static modes.
 - [CODE: api/internal/operatingmode/state.go] — backend phase action state.
 - [CODE: api/internal/operatingmode/backlog_reconciler.go] — audited backlog reconciliation.
 - [CODE: api/internal/initiatives/service.go] — initiative metadata and lifecycle-only mode update seam.
@@ -207,4 +212,5 @@ The modes solve different problems for different work shapes. Both are necessary
 ## Changelog
 
 - **2026-04-30** — Added mode-aware prompt catalog resolution, stable phase activity purposes, typed operating-mode event/stat contracts, and the first Modes stats UI surface.
+- **2026-05-01** — Documented the registry-owned authoring architecture: mode definitions own transition rules, result bindings, prompt metadata, metrics semantics, capabilities, and phase purpose tokens.
 - **2026-04-28** — Initial document. Authored during walk #5 explicit divergence after the 2026-04-27 sandboxing trap surfaced "items are the right unit of execution and validation" as a load-bearing assumption that doesn't hold for coupled or shifting work.

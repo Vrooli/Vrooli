@@ -147,6 +147,12 @@
           "internal": true
         },
         {
+          "path": "internal/OPERATING-MODE-AUTHORING.md",
+          "title": "Operating Mode Authoring",
+          "description": "Authoring contract for adding static operating modes without framework branches",
+          "internal": true
+        },
+        {
           "path": "internal/ERROR-SEMANTICS.md",
           "title": "Error Semantics",
           "description": "Error classes and recovery paths",

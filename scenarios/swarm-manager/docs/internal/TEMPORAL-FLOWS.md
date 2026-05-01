@@ -188,6 +188,49 @@ retryDelay: (attemptIndex: number) =>
 
 **Note**: No explicit cap on delay beyond retry count. With `retryCount: 2`, max total wait is ~7 seconds (1s + 2s + 4s) before error.
 
+### Operating Mode Phase Lifecycle
+
+Initiative-scoped operating modes are asynchronous phase runs coordinated by the API. The registry decides which phase can start next; the runner coordinates prompt rendering, locks, AgentManager spawn, and terminal refresh.
+
+```
+Operator starts phase
+  -> API resolves initiative mode and phase definition
+  -> phase action state is computed from completed rounds and transition rules
+  -> initiative lock is acquired with the registry-authored lock purpose
+  -> round is reserved under modes/<mode>/rounds/round-NNN.json
+  -> prompt catalog entry and prompt-manager skill are validated
+  -> AgentManager run is spawned with the registry profile key
+  -> reserved round is promoted to agent_running with run_id
+  -> refresh polls AgentManager for terminal state
+  -> completed output is parsed as operating_mode_result
+  -> output contract, progress/verdict/handoff requirements, and required artifacts are enforced
+  -> declared artifacts and result bindings are written
+  -> operating-mode events are emitted
+  -> lock is released
+  -> next startable phases are recomputed from transition rules
+```
+
+Failure ordering is also intentional:
+
+- If prompt rendering or AgentManager spawn fails before a real run owns the lock, the reserved round is marked failed and the lock is released.
+- Failed or canceled rounds do not advance the phase graph.
+- Active reserved/running rounds block all new phase starts for the initiative.
+- Conditional routing is evaluated only from completed round payloads.
+
+Temporal behavior that varies by mode belongs in the registry:
+
+| Timing decision | Source |
+|-----------------|--------|
+| Start phase | `PhaseGraph.StartPhase` |
+| Terminal phases | `PhaseGraph.Terminal` |
+| Ordinary next phases | `PhaseGraph.Transitions` |
+| Output-dependent next phases | `PhaseGraph.TransitionRules` |
+| Required artifacts/progress/verdict/handoff before advancing | `PhaseOutputContract` |
+| Derived artifact writes during refresh | `ResultBindings` |
+| Replan and acceptance metric sampling | `MetricsPolicy` |
+
+UI and CLI callers should not duplicate this timing logic. They read workspace phase actions and capabilities from the API.
+
 ### Recommended Polling Pattern (Future)
 
 For features requiring real-time updates, use:

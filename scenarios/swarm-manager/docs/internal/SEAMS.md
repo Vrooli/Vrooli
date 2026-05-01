@@ -229,38 +229,47 @@ responsibility so methodology declarations, phase-state decisions, runner
 orchestration, audit reconciliation, and workspace read models do not collapse
 back into one service file.
 
-- **Registry ownership**: Mode values, scope kind, phase graph, run strategy, prompt/catalog IDs, profile keys, artifact roots, backlog-sync policy, metrics source, lock policy, and UI workspace IDs live in one package.
-- **Current modes**: `item-level`, `holistic-loop`, and `phased-plan-drain` are registered. `item-level` bridges to existing backlog execution; the two initiative-scoped modes define phase/profile policy and use backend-enforced phase actions.
-- **Catalog rule**: `GET /api/v1/operating-modes` is the read-only registry catalog for operator-facing mode selection. UI and CLI selection surfaces consume that endpoint instead of maintaining hard-coded mode option lists.
-- **Validation rule**: Unknown modes and invalid phase starts fail closed. Phase start validation is derived from the registry phase graph plus completed round state; failed/canceled rounds do not advance the graph and active rounds block all new starts.
+- **Registry ownership**: Mode values, scope kind, phase graph, transition rules, run strategy, prompt/catalog IDs, profile keys, artifact roots, result bindings, backlog-sync policy, metrics semantics, lock policy, and UI workspace IDs live in one package.
+- **Authoring boundary**: Static mode definitions are focused files such as `mode_holistic_loop.go` and `mode_phased_plan_drain.go`. Initiative-scoped modes use the definition builder for repeated policy. Adding a mode should not require mode-specific branches in shared lifecycle, stats, UI, CLI, prompt catalog, artifact, activity, or lock code. See [DOC: internal/OPERATING-MODE-AUTHORING.md].
+- **Current modes**: `item-level`, `holistic-loop`, and `phased-plan-drain` are registered. `item-level` bridges to existing backlog execution; the two initiative-scoped modes define phase/profile/transition/artifact/metrics policy and use backend-enforced phase actions.
+- **Catalog rule**: `GET /api/v1/operating-modes` is the read-only registry catalog for operator-facing mode selection. UI and CLI selection surfaces consume that endpoint and its backend-declared capabilities instead of maintaining hard-coded mode option lists.
+- **Validation rule**: Unknown modes and invalid phase starts fail closed. Phase start validation is derived from the registry phase graph, transition rules, and completed round state; failed/canceled rounds do not advance the graph and active rounds block all new starts.
 - **Profile policy**: Registry references stable scenario-owned AgentManager profile keys such as `swarm-manager/deep-work` and `swarm-manager/analysis`; runner code must not inline model/tool policy. API startup passes the registry's required profile keys into AgentManager reconciliation and fails startup when any referenced key is missing or outside the `swarm-manager/` namespace.
-- **Activity purpose policy**: Initiative mode phases use stable `agentactivity.Purpose` values such as `holistic_loop_execute` and `phased_plan_classify_progress`; phase runners should not invent free-form purpose strings.
+- **Activity purpose policy**: Initiative mode phases declare stable lowercase snake-case activity and lock purpose tokens in the mode definition. Shared `agentactivity` and `initiativelock` packages must not learn a new constant for every mode phase.
 - **Prompt rule**: Operating-mode phase prompts are fail-closed. `operatingmode.Service` validates the registry's `(mode, phase)` skill against the prompt catalog resolver and requires prompt-manager to render non-empty content. A prompt catalog miss, skill mismatch, prompt-manager error, or empty render marks the reserved round failed, releases the lock, and returns an error before any AgentManager spawn.
+- **Prompt catalog rule**: Operating-mode prompt catalog entries are generated from registry phase metadata, then consumed by `promptcatalog`. Drift in catalog ID, skill ID, mode, phase, or output paths fails validation.
 - **Lock seam rule**: `operatingmode.Service` depends on a narrow initiative-lock interface rather than the concrete file lock. The production adapter is still `initiativelock.Lock`, but tests can inject lock failures at specific lifecycle moments such as the provisional-to-run-ID ownership swap.
 - **Audit rule**: Mode changes are emitted as `initiative.mode_changed` events. Phase runners emit typed `operating_mode.phase_*`, `operating_mode.replan_needed`, and `operating_mode.backlog_synced` events rather than relying on file scans or agentactivity inference.
 - **Switch rule**: External callers switch modes through `POST /api/v1/initiatives/{name}/operating-mode/switch`, not generic initiative metadata update. The switch service is the lifecycle boundary that detects active item-level executions, requires explicit cancellation confirmation before entering a non-default initiative mode, and rejects switching out of non-default modes while a mode round is active.
 - **Backlog reconciliation rule**: Non-default modes may mark member items complete through the run-id-validated `complete-items` endpoint. The service passes a typed backlog mutation source (`entrypoint`, initiative, mode, phase, round, run ID, requested-by) to the adapter; the event log records that source on both the `backlog.status_changed` event and the `operating_mode.backlog_synced` summary. Create/update/follow-up reconciliation must flow through `apply-backlog-sync`, which adapts the round's `backlog_sync.proposal` to the existing `proposals.Applier` and carries equivalent mode/phase/run metadata through `proposals.Source`; `operatingmode` depends only on a narrow reconciler interface to avoid importing the proposal/graph/initiative stack directly.
-- **Stats rule**: Mode stats derive from the durable event log. Profile usage, phase counts, replan/acceptance rates, phase durations, and backlog-sync counts are all sourced from operating-mode event payloads. Replan rate uses completed execute-phase payloads as the single counter source; `operating_mode.replan_needed` stays available for timeline observability without double-counting the numerator.
-- **Artifact and round persistence**: `operatingmode.Store` owns mode-scoped paths under each initiative (`modes/<mode>/...`), current-state artifact reads/writes, and append-only round envelopes at `modes/<mode>/rounds/round-NNN.json`. Runner and handler code should use this store rather than constructing paths directly.
+- **Stats rule**: Mode stats derive from the durable event log and registry metrics policy. Profile usage, phase counts, replan/acceptance rates, phase durations, and backlog-sync counts are all sourced from operating-mode event payloads. Replan and acceptance sample phases are opt-in mode policy rather than hardcoded phase names; `operating_mode.replan_needed` stays available for timeline observability without double-counting the numerator.
+- **Artifact and round persistence**: `operatingmode.Store` owns mode-scoped paths under each initiative (`modes/<mode>/...`), current-state artifact reads/writes, and append-only round envelopes at `modes/<mode>/rounds/round-NNN.json`. Runner and handler code should use this store rather than constructing paths directly. Derived artifact writes belong in phase `ResultBindings`, not in mode-specific artifact applier branches.
 - **Round envelope contract**: Round JSON records mode, phase, scope, run strategy, selected `agent_profile_key`, run ID, status, readiness, artifact updates, handoffs, and phase payload. Sequential modes preserve handoffs in round JSON so future runs have durable context.
 - **Classification/readiness helpers**: Holistic readiness and phased-plan progress classification are parsed/validated in `operatingmode`; UI and runner code should not duplicate accepted dimension or decision enums.
+- **Capability rule**: The backend declares capabilities on catalog and workspace responses. UI and CLI rendering must use those capabilities and phase actions instead of inferring support from mode names or local phase-shape guesses.
 - **UI round view-model rule**: The UI service owns wire normalization and `ui/src/components/initiative/operating-mode/round-view-model.ts` owns operating-mode round payload interpretation for cards. React components must not reach into `round.payload` for backlog-sync plans, applied-sync state, mutation defaults, or action availability; they render the view model and call service callbacks.
 
 **Code boundary map:**
 
 | File | Responsibility |
 |------|----------------|
-| [CODE: api/internal/operatingmode/registry.go] | Static mode definitions, profile policy, phase graph, artifact policy, prompt IDs |
-| [CODE: api/internal/operatingmode/state.go] | Backend-authoritative phase actions and run-strategy validation |
+| [CODE: api/internal/operatingmode/registry.go] | Registry core types, validation, lookup, prompt catalog validation, profile key collection |
+| [CODE: api/internal/operatingmode/definition_builder.go] | Initiative-mode definition helper for repeated authoring policy |
+| [CODE: api/internal/operatingmode/mode_item_level.go] | Default item-level mode definition |
+| [CODE: api/internal/operatingmode/mode_holistic_loop.go] | Holistic-loop mode definition |
+| [CODE: api/internal/operatingmode/mode_phased_plan_drain.go] | Phased-plan-drain mode definition |
+| [CODE: api/internal/operatingmode/prompt_catalog_entries.go] | Generated operating-mode prompt catalog metadata |
+| [CODE: api/internal/operatingmode/state.go] | Backend-authoritative phase actions and transition-rule evaluation |
 | [CODE: api/internal/operatingmode/service.go] | Public service contracts, request/response models, dependency wiring, initiative-lock seam |
 | [CODE: api/internal/operatingmode/switcher.go] | Lifecycle-only mode switch boundary and active-run conflicts |
 | [CODE: api/internal/operatingmode/phase_runner.go] | Phase start orchestration, lock acquisition, AgentManager spawn |
 | [CODE: api/internal/operatingmode/prompt.go] | Prompt catalog validation and fail-closed prompt rendering |
 | [CODE: api/internal/operatingmode/round_refresher.go] | AgentManager state polling, terminal round persistence, cancellation |
-| [CODE: api/internal/operatingmode/artifact_applier.go] | Structured result parsing and artifact writes |
+| [CODE: api/internal/operatingmode/artifact_applier.go] | Structured result parsing, contract enforcement, and declared artifact/result-binding writes |
 | [CODE: api/internal/operatingmode/backlog_reconciler.go] | Run-id-validated item completion and proposal-backed backlog sync |
 | [CODE: api/internal/operatingmode/workspace.go] | Workspace read model and phase action projection |
 | [CODE: api/internal/operatingmode/events.go] | Typed operating-mode event emission helpers |
+| [CODE: api/internal/operatingmode/synthetic_mode_test.go] | Test-only non-production authoring harness |
 | [CODE: ui/src/components/initiative/operating-mode/round-view-model.ts] | UI-side operating-mode round payload parsing, action availability, proposal defaults, and mutation summaries |
 | [CODE: ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx] | Focused backlog proposal selection/apply control for round cards |
 | [CODE: ui/src/components/initiative/operating-mode/round-card.tsx] | Presentation shell for round status, summary, handoffs, timestamps, and delegated action slots |
@@ -270,9 +279,13 @@ back into one service file.
 
 **Decision boundaries:**
 
-- To change sequencing, update the registry and state machine together. Do not
+- To change sequencing, update the mode definition's transitions and transition rules. Do not
   put mode-specific phase ordering in handlers, CLI commands, or React
   components.
+- To add derived artifacts, update the phase's result bindings. Do not add mode
+  branches to the artifact applier.
+- To change replan or acceptance metric semantics, update `MetricsPolicy` through
+  the phase definition. Do not add phase-name checks to stats aggregation.
 - To change an initiative's mode, call the operating-mode switch service. Public
   initiative create/update request types intentionally do not expose `mode`.
 - To reconcile backlog from a mode round, use `complete-items` or
@@ -282,7 +295,7 @@ back into one service file.
   files. The registry only references required profile keys and startup fails
   when those keys are absent.
 
-**Testing at the seam**: `api/internal/operatingmode/*_test.go` locks required modes, default normalization, unknown-mode rejection, phase profile mappings, stable activity/lock purposes, mode-scoped path resolution, round numbering, malformed JSON rejection, handoff/profile preservation, artifact root validation, readiness scoring, progress classification validation, and lifecycle cleanup when lock acquisition or run-ID lock ownership fails.
+**Testing at the seam**: `api/internal/operatingmode/*_test.go` locks required modes, default normalization, unknown-mode rejection, phase profile mappings, stable registry-authored activity/lock purposes, mode-scoped path resolution, round numbering, malformed JSON rejection, handoff/profile preservation, artifact root validation, transition-rule routing, result-binding writes, registry-driven metrics semantics, backend-declared capabilities, prompt catalog generation, readiness scoring, progress classification validation, and lifecycle cleanup when lock acquisition or run-ID lock ownership fails. The synthetic mode harness proves new non-production methodology behavior can run through framework paths without shared control-flow edits.
 
 ### Backlog Import Boundary
 

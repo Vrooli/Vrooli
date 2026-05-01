@@ -445,9 +445,7 @@ func ResolveSpecSyncSkill() (Entry, bool) {
 
 func catalogEntries() []Entry {
 	result := make([]Entry, 0, len(staticEntries)+len(operatingmode.PromptCatalogEntries()))
-	for _, entry := range staticEntries {
-		result = append(result, entry)
-	}
+	result = append(result, staticEntries...)
 	for _, entry := range operatingmode.PromptCatalogEntries() {
 		result = append(result, Entry{
 			ID:          entry.CatalogID,

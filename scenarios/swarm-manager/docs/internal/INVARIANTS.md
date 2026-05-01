@@ -155,6 +155,22 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | Backlog sync mutations are run-id validated and source-attributed | `api/internal/operatingmode/backlog_reconciler.go` | Keeps direct backlog edits out of agent output and preserves audit metadata on backlog/status/proposal events |
 | UI round cards render parsed view models instead of raw payload decisions | `ui/src/components/initiative/operating-mode/round-view-model.ts` and `round-card.tsx` | Prevents payload-schema drift across React components and makes sync-action rules testable without rendering |
 
+### Operating Mode Authoring Invariants
+
+Operating-mode methodology behavior must stay registry-owned so new modes remain easy to add and safe to validate.
+
+| Invariant | Enforced by | Why it matters |
+|-----------|-------------|----------------|
+| Concrete mode behavior lives in focused mode definition files | `api/internal/operatingmode/mode_*.go` and `ValidateRegistry` | Makes the authoring surface obvious for future agents and prevents hidden cross-package mode facts |
+| Initiative mode definitions use registry policies for transitions, artifacts, metrics, prompts, profiles, backlog sync, locks, and capabilities | `api/internal/operatingmode/definition_builder.go`, `registry.go`, `state.go`, `artifact_applier.go`, `workspace.go` | Keeps shared framework code generic instead of accumulating mode-specific branches |
+| Transition routing is declared through `PhaseGraph.Transitions` and `TransitionRules` | `api/internal/operatingmode/state.go` and registry validation | Prevents handlers, UI, CLI, or stats from becoming alternate state machines |
+| Derived artifact writes are declared through phase `ResultBindings` | `api/internal/operatingmode/artifact_applier.go` and registry validation | Ensures new mode artifacts can be added without hardcoded mode/path branches |
+| Prompt catalog entries for operating-mode phases are generated from registry metadata | `api/internal/operatingmode/prompt_catalog_entries.go` and `ValidatePromptCatalog` | Prevents catalog ID, skill ID, mode, phase, and output path drift |
+| Replan and acceptance metrics are opt-in registry semantics | `api/internal/operatingmode.MetricsPolicy` and `api/internal/stats/engine.go` | Lets new modes define meaningful statistics without phase-name assumptions |
+| UI and CLI consume backend-declared capabilities | `api/internal/operatingmode/workspace.go`, UI service normalization, and CLI output structs | Keeps presentation code out of business-rule inference |
+| New phase purposes do not require shared activity or lock constants | Registry purpose token validation and initiative-owned activity validation | Lets a mode author add phases without editing unrelated shared packages |
+| A synthetic non-production mode exercises authoring seams | `api/internal/operatingmode/synthetic_mode_test.go` | Catches accidental regressions toward production-mode hardcoding |
+
 ### Audit Trail
 
 | Date | Author | Change |
@@ -162,3 +178,4 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | 2026-01-28 | Claude (Phase 19) | Initial idempotency invariants documentation; made DELETE idempotent (204 instead of 404); added replay safety tests |
 | 2026-04-25 | Retry-as-new-attempt rewrite | Documented terminal-state writer pair (review-decide forward, reopenForRetry backward); replaced in-place `execution.Retry` with new-attempt semantics; added `RetryLatestForBacklog` and `POST /api/v1/backlog/{kind}/{name}/retry` route |
 | 2026-04-30 | Operating-mode hardening | Documented non-default operating-mode lifecycle, output-contract, round-action, backlog-sync, and UI view-model invariants |
+| 2026-05-01 | Operating-mode authoring architecture | Documented registry-owned authoring invariants for definitions, transitions, result bindings, prompt catalog, metrics, capabilities, purposes, and synthetic-mode coverage |
