@@ -243,6 +243,36 @@ func (e *Emitter) EmitOperatingModeBacklogSynced(scopeID string, payload Operati
 	e.emit(EntityInitiative, scopeID, EventOperatingModeBacklogSynced, payload)
 }
 
+// --- Agent session events ---
+
+func (e *Emitter) EmitAgentSessionCreated(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionCreated, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionStarted(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionStarted, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionContinued(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionContinued, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionCompleted(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionCompleted, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionFailed(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionFailed, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionCanceled(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionCanceled, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionArtifactLinked(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionArtifactLinked, "agent_session", sessionID, payload)
+}
+
 // --- Decision/workshop events ---
 
 func (e *Emitter) EmitWorkshopRoundCompleted(entityID string, payload WorkshopRoundPayload) {

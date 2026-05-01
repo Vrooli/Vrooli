@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -70,6 +71,55 @@ func TestMiddleware_ValidToken_AgentProvenance(t *testing.T) {
 	}
 }
 
+func TestSessionMiddleware_EnrichesVerifiedAgentProvenance(t *testing.T) {
+	var got Provenance
+	base := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = FromContext(r.Context())
+	})
+	handler := Middleware(&stubVerifier{
+		result: &cliutil.VerifyResult{
+			Valid: true,
+			Claims: &cliutil.VerifiedClaims{
+				RunID:      "run-123",
+				TaskID:     "task-456",
+				ProfileKey: "swarm-manager/default",
+			},
+		},
+	})(SessionMiddleware(stubSessionResolver{
+		ref: SessionReference{
+			SessionID:   "sess_123",
+			SessionKind: "meta_orchestration",
+			Source:      "session/sess_123",
+		},
+		ok: true,
+	})(base))
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set(headerAgentIdentityToken, "valid-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if got.SessionID != "sess_123" || got.SessionKind != "meta_orchestration" || got.Source != "session/sess_123" {
+		t.Fatalf("session provenance = %+v", got)
+	}
+}
+
+func TestSessionMiddleware_FailsOpenWhenLookupMisses(t *testing.T) {
+	original := Provenance{Type: TypeAgent, RunID: "run-123", TaskID: "task-456", ProfileKey: "swarm-manager/default"}
+	var got Provenance
+	handler := SessionMiddleware(stubSessionResolver{})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = FromContext(r.Context())
+	}))
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req.WithContext(NewContext(req.Context(), original)))
+
+	if got != original {
+		t.Fatalf("provenance = %+v, want %+v", got, original)
+	}
+}
+
 func TestMiddleware_InvalidToken_FallsBackToOperator(t *testing.T) {
 	verifier := &stubVerifier{
 		result: &cliutil.VerifyResult{
@@ -94,6 +144,16 @@ func TestMiddleware_InvalidToken_FallsBackToOperator(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rec.Code)
 	}
+}
+
+type stubSessionResolver struct {
+	ref SessionReference
+	ok  bool
+	err error
+}
+
+func (s stubSessionResolver) ResolveSessionForRun(context.Context, string) (SessionReference, bool, error) {
+	return s.ref, s.ok, s.err
 }
 
 func TestMiddleware_VerificationError_FallsBackToOperator(t *testing.T) {

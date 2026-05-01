@@ -28,6 +28,7 @@ func (a *backlogAssignerAdapter) Get(name string) (*backlog.InitiativeSnapshot, 
 		Priority:    result.Initiative.Priority,
 		DependsOn:   append([]string(nil), result.Initiative.DependsOn...),
 		Items:       append([]string(nil), result.Initiative.Items...),
+		CreatedBy:   result.Initiative.CreatedBy,
 	}, nil
 }
 
@@ -39,6 +40,7 @@ func (a *backlogAssignerAdapter) Create(spec backlog.InitiativeSpec) error {
 		Status:      spec.Status,
 		Priority:    spec.Priority,
 		DependsOn:   append([]string(nil), spec.DependsOn...),
+		CreatedBy:   spec.CreatedBy,
 	})
 	return err
 }
@@ -68,6 +70,7 @@ func (a *backlogAssignerAdapter) Replace(snapshot backlog.InitiativeSnapshot) er
 		Priority:    snapshot.Priority,
 		DependsOn:   append([]string(nil), snapshot.DependsOn...),
 		Items:       append([]string(nil), snapshot.Items...),
+		CreatedBy:   snapshot.CreatedBy,
 	})
 }
 

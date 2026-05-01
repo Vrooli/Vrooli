@@ -3,7 +3,7 @@
  */
 
 import { cn } from "../../../../lib/utils";
-import { useCaptureStore } from "../../../../stores";
+import { selectActiveAgentSessions, useAgentSessionStore, useCaptureStore } from "../../../../stores";
 import { SIDEBAR_TABS, TAB_LABELS, type SidebarTab } from "./types";
 
 interface SidebarTabsProps {
@@ -14,6 +14,7 @@ interface SidebarTabsProps {
 export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
   const captures = useCaptureStore((s) => s.captures);
   const pendingCount = captures.filter((c) => c.status === "classified").length;
+  const activeSessionCount = useAgentSessionStore(selectActiveAgentSessions).length;
 
   return (
     <div className="flex overflow-x-auto border-b border-slate-200/20 scrollbar-none" role="tablist">
@@ -36,6 +37,11 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
           {tab === "captures" && pendingCount > 0 && (
             <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500/30 px-1 text-[10px] font-semibold text-violet-300">
               {pendingCount}
+            </span>
+          )}
+          {tab === "sessions" && activeSessionCount > 0 && (
+            <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-500/25 px-1 text-[10px] font-semibold text-cyan-300">
+              {activeSessionCount}
             </span>
           )}
         </button>

@@ -1,6 +1,7 @@
 # TOOLS
 
 ## Tool Access
+- `prompt-manager skill read team-member-capability-architecture-audit`
 - `prompt-manager skill read <skill-id>`
 - `prompt-manager graph health --type agent`
 - `prompt-manager graph health --type team`

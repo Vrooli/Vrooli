@@ -66,6 +66,7 @@ type Handler struct {
 	activityChecker     AgentActivityChecker
 	promptClient        promptmanager.Client
 	initiativeAssigner  InitiativeAssigner
+	sessionArtifacts    sessionArtifactRecorder
 	executionQueuer     ExecutionQueuer
 	policyProvider      execution.PolicyProvider
 	governanceProvider  execution.GovernanceProvider
@@ -155,6 +156,13 @@ func (h *Handler) SetEventDispatcher(d dispatch.Invalidator) {
 // SetEventLogger injects an optional event logger for analytics tracking.
 func (h *Handler) SetEventLogger(l EventLogger) {
 	h.eventLogger = l
+}
+
+// SetAgentSessionArtifactRecorder wires durable session artifact attribution
+// into backlog mutation chokepoints. Non-session requests are ignored by the
+// recorder path because they carry no session_id in verified provenance.
+func (h *Handler) SetAgentSessionArtifactRecorder(r sessionArtifactRecorder) {
+	h.sessionArtifacts = r
 }
 
 // SetItemTerminalHandler wires a callback invoked after the review-decide

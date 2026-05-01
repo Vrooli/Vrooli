@@ -2,16 +2,32 @@ package initiatives
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/identity"
 
 	"github.com/gorilla/mux"
 )
+
+type fakeSessionArtifacts struct {
+	artifacts []agentsessions.Artifact
+	err       error
+}
+
+func (r *fakeSessionArtifacts) AttachArtifact(_ context.Context, artifact agentsessions.Artifact) (agentsessions.Artifact, error) {
+	if r.err != nil {
+		return agentsessions.Artifact{}, r.err
+	}
+	r.artifacts = append(r.artifacts, artifact)
+	return artifact, nil
+}
 
 func setupTestHandler(t *testing.T) *Handler {
 	t.Helper()
@@ -80,6 +96,86 @@ func TestHandler_CreateAndList(t *testing.T) {
 	}
 	if len(listResp.Items) != 1 {
 		t.Fatalf("expected 1 initiative, got %d", len(listResp.Items))
+	}
+}
+
+func TestHandler_Create_StampsCreatedByFromRequestProvenance(t *testing.T) {
+	h := setupTestHandler(t)
+	prov := identity.Provenance{
+		Type:       identity.TypeAgent,
+		RunID:      "run-init-1",
+		TaskID:     "task-init-1",
+		ProfileKey: "swarm-manager/default",
+	}
+	req := requestWithVars("POST", "/api/v1/initiatives", CreateRequest{
+		Name:  "agent-init",
+		Title: "Agent Initiative",
+	}, nil)
+	req = req.WithContext(identity.NewContext(req.Context(), prov))
+
+	rec := httptest.NewRecorder()
+	h.Create(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp InitiativeWithRollup
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if resp.Initiative.CreatedBy == nil {
+		t.Fatal("expected created_by provenance")
+	}
+	if *resp.Initiative.CreatedBy != prov {
+		t.Fatalf("created_by = %+v, want %+v", resp.Initiative.CreatedBy, prov)
+	}
+
+	loaded, err := h.service.store.Load("agent-init")
+	if err != nil {
+		t.Fatalf("load created initiative: %v", err)
+	}
+	if loaded.CreatedBy == nil {
+		t.Fatal("expected persisted created_by provenance")
+	}
+	if *loaded.CreatedBy != prov {
+		t.Fatalf("persisted created_by = %+v, want %+v", loaded.CreatedBy, prov)
+	}
+}
+
+func TestHandler_Create_SessionProvenanceRecordsArtifact(t *testing.T) {
+	h := setupTestHandler(t)
+	recorder := &fakeSessionArtifacts{}
+	h.SetAgentSessionArtifactRecorder(recorder)
+	prov := identity.Provenance{
+		Type:        identity.TypeAgent,
+		RunID:       "run-init-session",
+		TaskID:      "task-init-session",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_init",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_init",
+	}
+	req := requestWithVars("POST", "/api/v1/initiatives", CreateRequest{
+		Name:  "session-init",
+		Title: "Session Initiative",
+	}, nil)
+	req = req.WithContext(identity.NewContext(req.Context(), prov))
+
+	rec := httptest.NewRecorder()
+	h.Create(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if len(recorder.artifacts) != 1 {
+		t.Fatalf("artifacts = %d, want 1", len(recorder.artifacts))
+	}
+	got := recorder.artifacts[0]
+	if got.SessionID != "sess_init" || got.ArtifactType != agentsessions.ArtifactInitiative || got.EntityRef != "session-init" {
+		t.Fatalf("unexpected artifact: %+v", got)
+	}
+	if got.Action != agentsessions.ArtifactActionCreated || got.MutationSource != "http.initiatives.create" || got.RunID != "run-init-session" {
+		t.Fatalf("unexpected artifact attribution fields: %+v", got)
 	}
 }
 

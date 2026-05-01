@@ -3,10 +3,11 @@
  */
 
 import { useState } from "react";
+import type { Dispatch } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, X } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import type { SidebarAction } from "./useSidebarState";
-import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SidebarTab, SortConfig, SortDirection, SortField, ValidationStatusFilter } from "./types";
+import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField, ValidationStatusFilter } from "./types";
 import { DEFAULT_SORT } from "./types";
 
 interface FilterBarProps {
@@ -15,8 +16,9 @@ interface FilterBarProps {
   captureFilters: CaptureFilters;
   initiativeFilters: InitiativeFilters;
   executionFilters: ExecutionFilters;
+  sessionFilters: SessionFilters;
   sort: SortConfig;
-  dispatch: React.Dispatch<SidebarAction>;
+  dispatch: Dispatch<SidebarAction>;
 }
 
 // ============================================================================
@@ -51,7 +53,7 @@ const SORT_OPTIONS: { field: SortField; label: string }[] = [
   { field: "alphabetical", label: "A-Z" },
 ];
 
-function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarTab; dispatch: React.Dispatch<SidebarAction> }) {
+function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarTab; dispatch: Dispatch<SidebarAction> }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {SORT_OPTIONS.map((opt) => (
@@ -98,12 +100,17 @@ const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
 const INITIATIVE_STATUSES = ["active", "completed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
 const EXECUTION_MODES = ["manual", "yolo"] as const;
+const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_ready", "applying", "complete", "failed", "canceled"] as const;
+const SESSION_KINDS = [
+  { value: "meta_orchestration", label: "Plan work" },
+  { value: "operating_mode_authoring", label: "Author modes" },
+] as const;
 
 function toggleInArray<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
 
-function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <>
       <div>
@@ -163,7 +170,7 @@ function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; di
   );
 }
 
-function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <div>
       <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
@@ -181,7 +188,7 @@ function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; di
   );
 }
 
-function InitiativeFilterChips({ filters, dispatch }: { filters: InitiativeFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function InitiativeFilterChips({ filters, dispatch }: { filters: InitiativeFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <>
       <div>
@@ -212,7 +219,7 @@ function InitiativeFilterChips({ filters, dispatch }: { filters: InitiativeFilte
   );
 }
 
-function ExecutionFilterChips({ filters, dispatch }: { filters: ExecutionFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function ExecutionFilterChips({ filters, dispatch }: { filters: ExecutionFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <>
       <div>
@@ -245,11 +252,73 @@ function ExecutionFilterChips({ filters, dispatch }: { filters: ExecutionFilters
   );
 }
 
+function SessionFilterChips({ filters, dispatch }: { filters: SessionFilters; dispatch: Dispatch<SidebarAction> }) {
+  return (
+    <>
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
+        <div className="flex flex-wrap gap-1">
+          {SESSION_STATUSES.map((s) => (
+            <Chip
+              key={s}
+              label={s.replace(/_/g, " ")}
+              active={filters.statuses.includes(s)}
+              onClick={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { statuses: toggleInArray(filters.statuses, s) } })}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Kind</p>
+        <div className="flex flex-wrap gap-1">
+          {SESSION_KINDS.map((kind) => (
+            <Chip
+              key={kind.value}
+              label={kind.label}
+              active={filters.kinds.includes(kind.value)}
+              onClick={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { kinds: toggleInArray(filters.kinds, kind.value) } })}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={filters.activeOnly}
+            onChange={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { activeOnly: !filters.activeOnly } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Active only</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={filters.hasProposals}
+            onChange={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { hasProposals: !filters.hasProposals } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Has proposals</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={filters.hasAppliedArtifacts}
+            onChange={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { hasAppliedArtifacts: !filters.hasAppliedArtifacts } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Has applied artifacts</span>
+        </label>
+      </div>
+    </>
+  );
+}
+
 // ============================================================================
 // FilterBar
 // ============================================================================
 
-function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, initiatives: InitiativeFilters, executions: ExecutionFilters, sort: SortConfig): boolean {
+function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, initiatives: InitiativeFilters, executions: ExecutionFilters, sessions: SessionFilters, sort: SortConfig): boolean {
   const defaultSort = DEFAULT_SORT[tab];
   const sortChanged = sort.field !== defaultSort.field || sort.direction !== defaultSort.direction;
 
@@ -259,15 +328,16 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
     case "captures": return captures.statuses.length > 0 || sortChanged;
     case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
+    case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
   }
 }
 
-export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sort, dispatch }: FilterBarProps) {
+export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
 
   if (activeTab === "activity") return null;
 
-  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sort);
+  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sessionFilters, sort);
 
   return (
     <div className="border-b border-slate-200/20">
@@ -303,6 +373,7 @@ export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativ
           {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
           {activeTab === "initiatives" && <InitiativeFilterChips filters={initiativeFilters} dispatch={dispatch} />}
           {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
+          {activeTab === "sessions" && <SessionFilterChips filters={sessionFilters} dispatch={dispatch} />}
         </div>
       )}
     </div>

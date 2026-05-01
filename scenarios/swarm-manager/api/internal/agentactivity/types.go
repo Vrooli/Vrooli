@@ -27,25 +27,28 @@ const (
 	OwnerCapture    OwnerType = "capture"
 	OwnerScenario   OwnerType = "scenario"
 	OwnerInitiative OwnerType = "initiative"
+	OwnerSession    OwnerType = "session"
 )
 
 type Purpose string
 
 const (
-	PurposeInitialize       Purpose = "initialize"
-	PurposeWorkshop         Purpose = "workshop"
-	PurposeFinalize         Purpose = "finalize"
-	PurposeResearch         Purpose = "research"
-	PurposeProcess          Purpose = "process"
-	PurposeFixup            Purpose = "fixup"
-	PurposeFollowUp         Purpose = "followup"
-	PurposeSpecSync         Purpose = "spec_sync"
-	PurposeClassify         Purpose = "classify"
-	PurposeClarify          Purpose = "clarify"
-	PurposeReview           Purpose = "review"
-	PurposeFeedback         Purpose = "feedback"
-	PurposeFeedbackContinue Purpose = "feedback_continue"
-	PurposeInitiativeReview Purpose = "initiative_review"
+	PurposeInitialize             Purpose = "initialize"
+	PurposeWorkshop               Purpose = "workshop"
+	PurposeFinalize               Purpose = "finalize"
+	PurposeResearch               Purpose = "research"
+	PurposeProcess                Purpose = "process"
+	PurposeFixup                  Purpose = "fixup"
+	PurposeFollowUp               Purpose = "followup"
+	PurposeSpecSync               Purpose = "spec_sync"
+	PurposeClassify               Purpose = "classify"
+	PurposeClarify                Purpose = "clarify"
+	PurposeReview                 Purpose = "review"
+	PurposeFeedback               Purpose = "feedback"
+	PurposeFeedbackContinue       Purpose = "feedback_continue"
+	PurposeInitiativeReview       Purpose = "initiative_review"
+	PurposeMetaOrchestration      Purpose = "meta_orchestration"
+	PurposeOperatingModeAuthoring Purpose = "operating_mode_authoring"
 )
 
 type InteractionType string
@@ -124,15 +127,15 @@ func (s Spec) normalized() (Spec, error) {
 	}
 
 	switch s.OwnerType {
-	case OwnerBacklog, OwnerCapture, OwnerScenario, OwnerInitiative:
+	case OwnerBacklog, OwnerCapture, OwnerScenario, OwnerInitiative, OwnerSession:
 	default:
-		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, or initiative")
+		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, initiative, or session")
 	}
 
 	if !isValidPurpose(s.Purpose) {
 		return Spec{}, fmt.Errorf("purpose must be a snake-case token")
 	}
-	if s.OwnerType != OwnerInitiative && !isKnownPurpose(s.Purpose) {
+	if s.OwnerType != OwnerInitiative && s.OwnerType != OwnerSession && !isKnownPurpose(s.Purpose) {
 		return Spec{}, fmt.Errorf("purpose %q is not registered for owner_type %q", s.Purpose, s.OwnerType)
 	}
 
@@ -176,7 +179,8 @@ func isKnownPurpose(purpose Purpose) bool {
 	switch purpose {
 	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
 		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview,
-		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview:
+		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview,
+		PurposeMetaOrchestration, PurposeOperatingModeAuthoring:
 		return true
 	default:
 		return false
@@ -210,6 +214,10 @@ type contextKey struct{}
 
 func WithSpec(ctx context.Context, spec Spec) context.Context {
 	return context.WithValue(ctx, contextKey{}, spec)
+}
+
+func SpecFromContext(ctx context.Context) (Spec, error) {
+	return specFromContext(ctx)
 }
 
 func specFromContext(ctx context.Context) (Spec, error) {

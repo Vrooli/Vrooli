@@ -12,7 +12,7 @@ import {
 } from "./proto-contracts";
 
 export interface ListAgentActivitiesFilters {
-  ownerType?: "backlog" | "capture" | "scenario";
+  ownerType?: AgentActivity["ownerType"];
   ownerKind?: string;
   ownerName?: string;
   executionId?: string;

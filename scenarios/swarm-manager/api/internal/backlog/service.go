@@ -1,12 +1,19 @@
 package backlog
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"swarm-manager/internal/agentsessions"
 )
+
+type sessionArtifactRecorder interface {
+	AttachArtifact(context.Context, agentsessions.Artifact) (agentsessions.Artifact, error)
+}
 
 // Source identifies who or what triggered a backlog mutation. The Service
 // uses Source to drive policy decisions (workshop auto-trigger fires only
@@ -34,7 +41,8 @@ const (
 // to Service.Create. Source is required; the other fields are populated
 // by sources that carry meaningful provenance.
 type CreationContext struct {
-	Source Source
+	Context context.Context
+	Source  Source
 
 	// DecidedBy is a free-form actor label (user identity, agent name).
 	// Currently advisory — the eventlog ActorID is derived from
@@ -85,6 +93,12 @@ type CreationContext struct {
 	// invalidation across an entire mutation set rather than firing
 	// one re-projection per add_item.
 	SkipGraphInvalidation bool
+
+	// SkipSessionArtifact lets callers with their own transaction boundary
+	// defer session artifact recording until all related mutations have
+	// succeeded. Batch create uses this to avoid artifact links to rolled-back
+	// entities.
+	SkipSessionArtifact bool
 }
 
 // CreationStore is the persistence surface Service.Create uses. Satisfied
@@ -148,6 +162,7 @@ type Service struct {
 	store        CreationStore
 	assigner     ItemAttacher
 	events       CreationEventEmitter
+	artifacts    sessionArtifactRecorder
 	workshop     WorkshopTrigger
 	invalidator  GraphInvalidator
 	cycleChecker CycleChecker
@@ -169,6 +184,7 @@ type ServiceConfig struct {
 	Store        CreationStore
 	Assigner     ItemAttacher
 	Events       CreationEventEmitter
+	Artifacts    sessionArtifactRecorder
 	Workshop     WorkshopTrigger
 	Invalidator  GraphInvalidator
 	CycleChecker CycleChecker
@@ -184,6 +200,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		store:        cfg.Store,
 		assigner:     cfg.Assigner,
 		events:       cfg.Events,
+		artifacts:    cfg.Artifacts,
 		workshop:     cfg.Workshop,
 		invalidator:  cfg.Invalidator,
 		cycleChecker: cfg.CycleChecker,
@@ -264,6 +281,18 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 		}
 	}
 
+	if err := s.recordBacklogCreatedArtifact(cc, item); err != nil {
+		if attachName := strings.TrimSpace(item.Initiative); attachName != "" && s.assigner != nil && !cc.SkipInitiativeAttach {
+			if detacher, ok := s.assigner.(interface {
+				ForgetItem(initiativeName, ref string) error
+			}); ok {
+				_ = detacher.ForgetItem(attachName, string(item.Kind)+"/"+item.Name)
+			}
+		}
+		_ = os.RemoveAll(itemDir)
+		return fmt.Errorf("record session artifact: %w", err)
+	}
+
 	if s.events != nil {
 		actorType, actorID := actorForSource(cc)
 		s.events.EmitBacklogCreatedFromSource(
@@ -289,6 +318,32 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 	}
 
 	return nil
+}
+
+func (s *Service) recordBacklogCreatedArtifact(cc CreationContext, item BacklogItem) error {
+	if cc.SkipSessionArtifact || s.artifacts == nil || item.CreatedBy == nil || strings.TrimSpace(item.CreatedBy.SessionID) == "" {
+		return nil
+	}
+	ctx := cc.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	source := strings.TrimSpace(cc.Entrypoint)
+	if source == "" {
+		source = string(cc.Source)
+	}
+	attr := agentsessions.AttributionFromProvenance(*item.CreatedBy)
+	_, err := s.artifacts.AttachArtifact(ctx, agentsessions.Artifact{
+		SessionID:      item.CreatedBy.SessionID,
+		ArtifactType:   agentsessions.ArtifactBacklogItem,
+		Action:         agentsessions.ArtifactActionCreated,
+		EntityRef:      string(item.Kind) + "/" + item.Name,
+		Title:          item.Title,
+		RunID:          item.CreatedBy.RunID,
+		MutationSource: source,
+		Attribution:    &attr,
+	})
+	return err
 }
 
 func writePendingFiles(itemDir string, files []PendingBacklogFile) error {

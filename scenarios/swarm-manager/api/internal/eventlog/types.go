@@ -14,11 +14,12 @@ import (
 type EntityType string
 
 const (
-	EntityBacklogItem EntityType = "backlog_item"
-	EntityInitiative  EntityType = "initiative"
-	EntityExecution   EntityType = "execution"
-	EntityQueue       EntityType = "queue"
-	EntityCapture     EntityType = "capture"
+	EntityBacklogItem  EntityType = "backlog_item"
+	EntityInitiative   EntityType = "initiative"
+	EntityExecution    EntityType = "execution"
+	EntityQueue        EntityType = "queue"
+	EntityCapture      EntityType = "capture"
+	EntityAgentSession EntityType = "agent_session"
 )
 
 // EventType identifies what happened to an entity.
@@ -112,6 +113,17 @@ const (
 	EventOperatingModePhaseCanceled  EventType = "operating_mode.phase_canceled"
 	EventOperatingModeReplanNeeded   EventType = "operating_mode.replan_needed"
 	EventOperatingModeBacklogSynced  EventType = "operating_mode.backlog_synced"
+)
+
+// Agent session events.
+const (
+	EventAgentSessionCreated        EventType = "agent_session.created"
+	EventAgentSessionStarted        EventType = "agent_session.started"
+	EventAgentSessionContinued      EventType = "agent_session.continued"
+	EventAgentSessionCompleted      EventType = "agent_session.completed"
+	EventAgentSessionFailed         EventType = "agent_session.failed"
+	EventAgentSessionCanceled       EventType = "agent_session.canceled"
+	EventAgentSessionArtifactLinked EventType = "agent_session.artifact_linked"
 )
 
 // EntitySystem is used for events that are not tied to a domain entity.

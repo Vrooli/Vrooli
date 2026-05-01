@@ -23,6 +23,7 @@ import (
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/aisearch"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
@@ -55,6 +56,7 @@ type Server struct {
 	router              *mux.Router
 	agentSvc            *agentmanager.AgentService
 	agentActivitySvc    *agentactivity.Service
+	agentSessionSvc     *agentsessions.Service
 	settingsStore       *settings.Store
 	backlogHandler      *backlog.Handler
 	capturesHandler     *captures.Handler
@@ -140,6 +142,8 @@ func (s *Server) setupRoutes() {
 	s.registerSettingsRoutes(scenarioRoot)      // Must be before backlog/execution (they depend on settings store)
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
+	s.registerAgentSessionRoutes(scenarioRoot)
+	s.router.Use(identity.SessionMiddleware(s.agentSessionSvc))
 
 	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
@@ -218,6 +222,8 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.requireTrackedAgentService(), nil)
 	backlogHandler.SetPolicyProvider(settings.NewPolicyAdapter(s.settingsStore))
 	backlogHandler.SetGovernanceProvider(settings.NewGovernanceAdapter(s.settingsStore))
+	backlogHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
+	s.agentSessionSvc.SetBacklogBatchApplier(backlogHandler)
 	backlogHandler.RegisterRoutes(s.router)
 	backlogHandler.StartWorkshopTicker()
 	s.backlogHandler = backlogHandler
@@ -229,6 +235,7 @@ func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *b
 	s.initStore = initStore
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
 	initHandler := initiatives.NewHandler(initService)
+	initHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
 	initHandler.RegisterRoutes(s.router)
 	s.initiativeService = initService
 
@@ -284,6 +291,21 @@ func (s *Server) registerAgentActivityRoutes(_ string) {
 func (s *Server) registerAgentManagerRoutes() {
 	agentManagerHandler := agentmanager.NewHandler(s.agentSvc)
 	agentManagerHandler.RegisterRoutes(s.router)
+}
+
+func (s *Server) registerAgentSessionRoutes(scenarioRoot string) {
+	svc, err := agentsessions.NewService(agentsessions.ServiceConfig{
+		Store:       agentsessions.NewFileStore(scenarioRoot),
+		Spawner:     s.requireTrackedAgentService(),
+		EventLogger: s.emitter,
+		ProjectRoot: filepath.Dir(filepath.Dir(scenarioRoot)),
+		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	s.agentSessionSvc = svc
+	agentsessions.NewHandler(svc).RegisterRoutes(s.router)
 }
 
 func (s *Server) registerQueueRoutes(_ string) {

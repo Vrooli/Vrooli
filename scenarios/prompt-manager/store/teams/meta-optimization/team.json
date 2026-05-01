@@ -274,7 +274,8 @@
       "capability-gap": {
         "ownerMemberIds": [
           "toolchain-validator",
-          "run-introspector"
+          "run-introspector",
+          "team-agent-optimizer"
         ],
         "externalAuthorizedRaisers": [
           "marketing-crew"
@@ -476,12 +477,13 @@
         }
       },
       "team-agent-optimizer": {
-        "lane": "Improve or retire agent and team structures based on observed performance.",
+        "lane": "Improve or retire agent and team structures based on observed performance, including capability architecture gaps across identity, ownership, docs, skills, intake, collection, analysis, promotion, and feedback loops.",
         "ownedDecisionContexts": [
           "agent-improvement",
           "agent-deprecation",
           "team-structure-change",
-          "team-deprecation"
+          "team-deprecation",
+          "capability-gap"
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,

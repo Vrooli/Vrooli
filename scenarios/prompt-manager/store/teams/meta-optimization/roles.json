@@ -16,7 +16,7 @@
     {
       "id": "team-agent-optimizer",
       "name": "Team & Agent Optimizer",
-      "description": "Audits team structures and agent files together (they co-evolve). Maintains team-audit and agent-audit artifacts, proposes structural/prompt changes, and proposes deprecation of unused agents or empty teams."
+      "description": "Audits team structures and agent files together (they co-evolve). Maintains team-audit and agent-audit artifacts, proposes structural/prompt changes, detects capability architecture gaps across docs, skills, intake, collection, analysis, and promotion/routing, and proposes deprecation of unused agents or empty teams."
     },
     {
       "id": "run-introspector",

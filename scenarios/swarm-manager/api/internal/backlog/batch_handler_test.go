@@ -2,6 +2,7 @@ package backlog
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentsessions"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 )
 
@@ -64,6 +67,7 @@ func (m *mockInitiativeAssigner) Create(spec InitiativeSpec) error {
 		Priority:    spec.Priority,
 		DependsOn:   append([]string(nil), spec.DependsOn...),
 		Items:       nil,
+		CreatedBy:   spec.CreatedBy,
 	}
 	return nil
 }
@@ -214,6 +218,172 @@ func TestBatchCreate_Success(t *testing.T) {
 	// No initiative was requested.
 	if len(ia.snapshots) != 0 {
 		t.Errorf("expected no initiatives created, got %d", len(ia.snapshots))
+	}
+}
+
+func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
+	h, rootDir, _ := setupBatchTestHandler(t)
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "agent-batch-a", Title: "Agent Batch A", Kind: "idea", Initiative: "agent-batch-init"},
+			{Name: "agent-batch-b", Title: "Agent Batch B", Kind: "execute"},
+		},
+		Initiatives: []batchCreateInitiative{
+			{Name: "agent-batch-init", Title: "Agent Batch Initiative"},
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	prov := identity.Provenance{
+		Type:       identity.TypeAgent,
+		RunID:      "run-batch-1",
+		TaskID:     "task-batch-1",
+		ProfileKey: "swarm-manager/default",
+	}
+	req := httptest.NewRequest("POST", "/api/v1/backlog/batch", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(identity.NewContext(req.Context(), prov))
+	w := httptest.NewRecorder()
+
+	h.BatchCreate(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	for _, tc := range []struct {
+		kind BacklogKind
+		dir  string
+		name string
+	}{
+		{kind: KindIdea, dir: "ideas", name: "agent-batch-a"},
+		{kind: KindExecute, dir: "execute", name: "agent-batch-b"},
+	} {
+		saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
+		if saved.CreatedBy == nil {
+			t.Fatalf("%s/%s missing created_by", tc.kind, tc.name)
+		}
+		if *saved.CreatedBy != prov {
+			t.Fatalf("%s/%s created_by = %+v, want %+v", tc.kind, tc.name, saved.CreatedBy, prov)
+		}
+	}
+	snapshot := h.initiativeAssigner.(*mockInitiativeAssigner).snapshots["agent-batch-init"]
+	if snapshot.CreatedBy == nil {
+		t.Fatal("batch-created initiative missing created_by")
+	}
+	if *snapshot.CreatedBy != prov {
+		t.Fatalf("batch-created initiative created_by = %+v, want %+v", snapshot.CreatedBy, prov)
+	}
+}
+
+func TestBatchCreate_SessionProvenanceRecordsItemAndInitiativeArtifacts(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+	recorder := &fakeSessionArtifacts{}
+	h.SetAgentSessionArtifactRecorder(recorder)
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "session-batch-a", Title: "Session Batch A", Kind: "idea", Initiative: "session-batch-init"},
+			{Name: "session-batch-b", Title: "Session Batch B", Kind: "execute", Initiative: "session-batch-init"},
+		},
+		Initiatives: []batchCreateInitiative{
+			{Name: "session-batch-init", Title: "Session Batch Initiative"},
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+	prov := identity.Provenance{
+		Type:        identity.TypeAgent,
+		RunID:       "run-batch-session",
+		TaskID:      "task-batch-session",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_batch",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_batch",
+	}
+	req := httptest.NewRequest("POST", "/api/v1/backlog/batch", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(identity.NewContext(req.Context(), prov))
+	w := httptest.NewRecorder()
+
+	h.BatchCreate(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	if len(recorder.artifacts) != 3 {
+		t.Fatalf("artifacts = %d, want 3: %+v", len(recorder.artifacts), recorder.artifacts)
+	}
+	refs := map[string]agentsessions.ArtifactType{}
+	for _, artifact := range recorder.artifacts {
+		refs[artifact.EntityRef] = artifact.ArtifactType
+		if artifact.SessionID != "sess_batch" || artifact.RunID != "run-batch-session" {
+			t.Fatalf("unexpected artifact provenance: %+v", artifact)
+		}
+	}
+	if refs["idea/session-batch-a"] != agentsessions.ArtifactBacklogItem {
+		t.Fatalf("missing backlog artifact for session-batch-a: %+v", refs)
+	}
+	if refs["execute/session-batch-b"] != agentsessions.ArtifactBacklogItem {
+		t.Fatalf("missing backlog artifact for session-batch-b: %+v", refs)
+	}
+	if refs["session-batch-init"] != agentsessions.ArtifactInitiative {
+		t.Fatalf("missing initiative artifact: %+v", refs)
+	}
+}
+
+func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+	recorder := &fakeSessionArtifacts{}
+	h.SetAgentSessionArtifactRecorder(recorder)
+
+	payload := `{
+		"items": [
+			{"name": "session-apply-a", "title": "Session Apply A", "kind": "idea", "initiative": "session-apply-init"},
+			{"name": "session-apply-b", "title": "Session Apply B", "kind": "execute", "initiative": "session-apply-init"}
+		],
+		"initiatives": [
+			{"name": "session-apply-init", "title": "Session Apply Initiative"}
+		]
+	}`
+	prov := identity.Provenance{
+		Type:        identity.TypeAgent,
+		RunID:       "run-session-apply",
+		TaskID:      "task-session-apply",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_apply",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_apply",
+	}
+
+	artifacts, err := h.ApplyAgentSessionBacklogBatchImport(identity.NewContext(context.Background(), prov), payload, prov)
+	if err != nil {
+		t.Fatalf("ApplyAgentSessionBacklogBatchImport() error = %v", err)
+	}
+	if len(artifacts) != 3 {
+		t.Fatalf("artifacts = %d, want 3: %+v", len(artifacts), artifacts)
+	}
+	for _, tc := range []struct {
+		kind BacklogKind
+		dir  string
+		name string
+	}{
+		{kind: KindIdea, dir: "ideas", name: "session-apply-a"},
+		{kind: KindExecute, dir: "execute", name: "session-apply-b"},
+	} {
+		saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
+		if saved.CreatedBy == nil || saved.CreatedBy.SessionID != "sess_apply" || saved.CreatedBy.RunID != "run-session-apply" {
+			t.Fatalf("%s/%s created_by = %+v", tc.kind, tc.name, saved.CreatedBy)
+		}
+	}
+	if got := ia.snapshots["session-apply-init"].CreatedBy; got == nil || got.SessionID != "sess_apply" {
+		t.Fatalf("initiative created_by = %+v", got)
+	}
+	for _, artifact := range recorder.artifacts {
+		if artifact.MutationSource != "agent_sessions.apply.backlog_batch_import" {
+			t.Fatalf("artifact mutation source = %q", artifact.MutationSource)
+		}
 	}
 }
 

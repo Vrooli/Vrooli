@@ -61,6 +61,7 @@ func (h *Handler) createMultipart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.creationService().CreateWithFiles(item, files, CreationContext{
+		Context:    r.Context(),
 		Source:     SourceHumanHTTP,
 		Entrypoint: "http.create.multipart",
 	}); err != nil {

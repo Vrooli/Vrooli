@@ -73,6 +73,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.creationService().Create(item, CreationContext{
+		Context:    r.Context(),
 		Source:     SourceHumanHTTP,
 		Entrypoint: "http.create",
 	}); err != nil {
@@ -230,6 +231,9 @@ func (h *Handler) creationService() *Service {
 	}
 	if h.eventLogger != nil {
 		cfg.Events = h.eventLogger
+	}
+	if h.sessionArtifacts != nil {
+		cfg.Artifacts = h.sessionArtifacts
 	}
 	svc, err := NewService(cfg)
 	if err != nil {

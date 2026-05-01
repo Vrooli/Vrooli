@@ -60,3 +60,20 @@ export {
 export {
   graphResponseSchema,
 } from "./graph-contracts";
+
+export {
+  listAgentSessionsResponseSchema,
+  getAgentSessionResponseSchema,
+  createAgentSessionResponseSchema,
+  continueAgentSessionResponseSchema,
+  refreshAgentSessionResponseSchema,
+  cancelAgentSessionResponseSchema,
+  applyAgentSessionProposalResponseSchema,
+  listAgentSessionArtifactsResponseSchema,
+  getArtifactsByEntityResponseSchema,
+  mapProtoAgentSession,
+  mapProtoAgentSessionMessage,
+  mapProtoAgentSessionProposal,
+  mapProtoAgentSessionArtifact,
+  mapProtoAgentSessionAttribution,
+} from "./agent-session-contracts";

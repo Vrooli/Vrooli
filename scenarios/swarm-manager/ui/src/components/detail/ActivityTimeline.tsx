@@ -42,6 +42,11 @@ const ACTIVITY_PURPOSE_COLORS: Record<AgentActivityPurpose, string> = {
   classify: "bg-pink-500",
   clarify: "bg-teal-500",
   review: "bg-sky-500",
+  feedback: "bg-lime-500",
+  feedback_continue: "bg-yellow-500",
+  initiative_review: "bg-purple-500",
+  meta_orchestration: "bg-fuchsia-500",
+  operating_mode_authoring: "bg-rose-500",
 };
 
 const ACTIVITY_STATUS_COLORS: Record<string, string> = {

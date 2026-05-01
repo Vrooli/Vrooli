@@ -34,6 +34,7 @@ var (
 	ErrCircuitBroken      = errors.New("circuit breaker tripped")
 	ErrSessionExpired     = errors.New("session expired")
 	ErrAtCapacity         = errors.New("concurrency limit reached")
+	ErrNotImplemented     = errors.New("not implemented")
 )
 
 // DomainError wraps a sentinel error with an HTTP status code and a

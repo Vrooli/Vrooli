@@ -1,0 +1,114 @@
+package agentsessions
+
+import (
+	"errors"
+	"path/filepath"
+	"testing"
+)
+
+func TestFileStorePersistsSessionLogsAndArtifacts(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	session := validStoredSession("sess_store")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if err := store.AppendMessage(session.ID, Message{
+		ID:        "msg-1",
+		Role:      MessageRoleUser,
+		Content:   "hello",
+		CreatedAt: testTimestamp,
+	}); err != nil {
+		t.Fatalf("AppendMessage() error = %v", err)
+	}
+	if err := store.SaveProposal(session.ID, Proposal{
+		ID:          "prop-1",
+		Kind:        ProposalBacklogBatchImport,
+		Status:      ProposalStatusReady,
+		Summary:     "Batch import",
+		PayloadJSON: `{"items":[]}`,
+		CreatedAt:   testTimestamp,
+		UpdatedAt:   testTimestamp,
+	}); err != nil {
+		t.Fatalf("SaveProposal() error = %v", err)
+	}
+	if err := store.AppendArtifact(session.ID, Artifact{
+		ID:           "art-1",
+		SessionID:    session.ID,
+		ArtifactType: ArtifactInitiative,
+		Action:       ArtifactActionProposed,
+		EntityRef:    "quality-gates",
+		Title:        "Quality Gates",
+		CreatedAt:    testTimestamp,
+	}); err != nil {
+		t.Fatalf("AppendArtifact() error = %v", err)
+	}
+
+	loaded, err := store.LoadSession(session.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if len(loaded.Messages) != 1 || len(loaded.Proposals) != 1 || len(loaded.Artifacts) != 1 {
+		t.Fatalf("loaded counts = messages:%d proposals:%d artifacts:%d", len(loaded.Messages), len(loaded.Proposals), len(loaded.Artifacts))
+	}
+	if loaded.Status != StatusProposalReady {
+		t.Fatalf("status = %q, want proposal_ready", loaded.Status)
+	}
+
+	artifacts, err := store.ListArtifactsByEntity(ArtifactInitiative, "quality-gates")
+	if err != nil {
+		t.Fatalf("ListArtifactsByEntity() error = %v", err)
+	}
+	if len(artifacts) != 1 || artifacts[0].ID != "art-1" {
+		t.Fatalf("unexpected artifacts: %+v", artifacts)
+	}
+}
+
+func TestFileStoreListFiltersAndLimit(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	first := validStoredSession("sess_first")
+	first.UpdatedAt = "2026-05-01T12:00:00Z"
+	second := validStoredSession("sess_second")
+	second.Kind = KindOperatingModeAuthoring
+	second.SkillID = SkillOperatingModeAuthoring
+	second.Status = StatusComplete
+	second.UpdatedAt = "2026-05-01T13:00:00Z"
+	for _, session := range []Session{first, second} {
+		if err := store.CreateSession(session); err != nil {
+			t.Fatalf("CreateSession(%s) error = %v", session.ID, err)
+		}
+	}
+
+	active, err := store.ListSessions(ListFilters{ActiveOnly: true})
+	if err != nil {
+		t.Fatalf("ListSessions(active) error = %v", err)
+	}
+	if len(active) != 1 || active[0].ID != first.ID {
+		t.Fatalf("active sessions = %+v", active)
+	}
+
+	limited, err := store.ListSessions(ListFilters{Limit: 1})
+	if err != nil {
+		t.Fatalf("ListSessions(limit) error = %v", err)
+	}
+	if len(limited) != 1 || limited[0].ID != second.ID {
+		t.Fatalf("limited sessions = %+v", limited)
+	}
+}
+
+func TestFileStoreLoadMissingReturnsNotFound(t *testing.T) {
+	store := NewFileStore(filepath.Join(t.TempDir(), "missing-root"))
+	if _, err := store.LoadSession("sess_missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LoadSession() error = %v, want ErrNotFound", err)
+	}
+}
+
+func validStoredSession(id string) Session {
+	session := validSession()
+	session.ID = id
+	session.Status = StatusRunning
+	session.Messages = nil
+	session.Proposals = nil
+	session.Artifacts = nil
+	session.CreatedBy = &Attribution{Type: AttributionOperator}
+	return session
+}

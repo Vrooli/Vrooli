@@ -1,12 +1,15 @@
 package backlog
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 
+	"swarm-manager/internal/agentsessions"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 )
 
@@ -82,17 +85,40 @@ func (i *fakeInvalidator) ScheduleAll() {
 	i.calls++
 }
 
+type fakeSessionArtifacts struct {
+	mu        sync.Mutex
+	artifacts []agentsessions.Artifact
+	err       error
+}
+
+func (r *fakeSessionArtifacts) AttachArtifact(_ context.Context, artifact agentsessions.Artifact) (agentsessions.Artifact, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.err != nil {
+		return agentsessions.Artifact{}, r.err
+	}
+	if artifact.ID == "" {
+		artifact.ID = "art_test"
+	}
+	if artifact.CreatedAt == "" {
+		artifact.CreatedAt = "2026-04-23T00:00:00Z"
+	}
+	r.artifacts = append(r.artifacts, artifact)
+	return artifact, nil
+}
+
 // serviceTestEnv bundles a temp-dir-backed FileStore and the four
 // optional collaborators so each test can reach into them and assert
 // the side-effect set.
 type serviceTestEnv struct {
-	root     string
-	store    *FileStore
-	att      *fakeAttacher
-	events   *fakeEvents
-	workshop *fakeWorkshop
-	inv      *fakeInvalidator
-	svc      *Service
+	root      string
+	store     *FileStore
+	att       *fakeAttacher
+	events    *fakeEvents
+	workshop  *fakeWorkshop
+	inv       *fakeInvalidator
+	artifacts *fakeSessionArtifacts
+	svc       *Service
 }
 
 func newServiceTestEnv(t *testing.T) *serviceTestEnv {
@@ -103,17 +129,19 @@ func newServiceTestEnv(t *testing.T) *serviceTestEnv {
 	}
 	store := NewFileStore(root)
 	env := &serviceTestEnv{
-		root:     root,
-		store:    store,
-		att:      &fakeAttacher{},
-		events:   &fakeEvents{},
-		workshop: &fakeWorkshop{},
-		inv:      &fakeInvalidator{},
+		root:      root,
+		store:     store,
+		att:       &fakeAttacher{},
+		events:    &fakeEvents{},
+		workshop:  &fakeWorkshop{},
+		inv:       &fakeInvalidator{},
+		artifacts: &fakeSessionArtifacts{},
 	}
 	svc, err := NewService(ServiceConfig{
 		Store:       store,
 		Assigner:    env.att,
 		Events:      env.events,
+		Artifacts:   env.artifacts,
 		Workshop:    env.workshop,
 		Invalidator: env.inv,
 	})
@@ -122,6 +150,57 @@ func newServiceTestEnv(t *testing.T) *serviceTestEnv {
 	}
 	env.svc = svc
 	return env
+}
+
+func TestService_Create_SessionProvenanceRecordsArtifactBeforeEvents(t *testing.T) {
+	env := newServiceTestEnv(t)
+	item := sampleItem("session-created")
+	item.CreatedBy = &identity.Provenance{
+		Type:        identity.TypeAgent,
+		RunID:       "run-session-1",
+		TaskID:      "task-session-1",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_123",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_123",
+	}
+
+	if err := env.svc.Create(item, CreationContext{Source: SourceHumanHTTP, Entrypoint: "http.create"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if len(env.artifacts.artifacts) != 1 {
+		t.Fatalf("session artifacts = %d, want 1", len(env.artifacts.artifacts))
+	}
+	got := env.artifacts.artifacts[0]
+	if got.SessionID != "sess_123" || got.ArtifactType != agentsessions.ArtifactBacklogItem || got.EntityRef != "execute/session-created" {
+		t.Fatalf("unexpected artifact: %+v", got)
+	}
+	if got.Action != agentsessions.ArtifactActionCreated || got.MutationSource != "http.create" || got.RunID != "run-session-1" {
+		t.Fatalf("unexpected artifact attribution fields: %+v", got)
+	}
+}
+
+func TestService_Create_ArtifactFailureRollsBackItem(t *testing.T) {
+	env := newServiceTestEnv(t)
+	env.artifacts.err = errors.New("artifact store failed")
+	item := sampleItem("artifact-rollback")
+	item.CreatedBy = &identity.Provenance{
+		Type:      identity.TypeAgent,
+		RunID:     "run-session-2",
+		SessionID: "sess_rollback",
+	}
+
+	err := env.svc.Create(item, CreationContext{Source: SourceHumanHTTP})
+	if err == nil || !contains(err.Error(), "record session artifact") {
+		t.Fatalf("expected artifact failure, got %v", err)
+	}
+	if _, statErr := os.Stat(env.store.ItemDir(KindExecute, "artifact-rollback")); !os.IsNotExist(statErr) {
+		t.Fatalf("item dir still exists after rollback: %v", statErr)
+	}
+	if len(env.events.calls) != 0 {
+		t.Fatalf("events fired before artifact rollback: %+v", env.events.calls)
+	}
 }
 
 func sampleItem(name string) BacklogItem {

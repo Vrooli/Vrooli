@@ -4,13 +4,22 @@
  * Shared type definitions for the multi-tab sidebar.
  */
 
-import type { BacklogKind, BacklogStatus, CaptureStatus, ExecutionMode, ExecutionStatus, InitiativeStatus } from "../../../../types";
+import type {
+  AgentSessionKind,
+  AgentSessionStatus,
+  BacklogKind,
+  BacklogStatus,
+  CaptureStatus,
+  ExecutionMode,
+  ExecutionStatus,
+  InitiativeStatus,
+} from "../../../../types";
 
 // ============================================================================
 // Tab Definitions
 // ============================================================================
 
-export const SIDEBAR_TABS = ["activity", "backlog", "captures", "initiatives", "executions"] as const;
+export const SIDEBAR_TABS = ["activity", "backlog", "captures", "initiatives", "executions", "sessions"] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const TAB_LABELS: Record<SidebarTab, string> = {
@@ -19,6 +28,7 @@ export const TAB_LABELS: Record<SidebarTab, string> = {
   captures: "Captures",
   initiatives: "Initiatives",
   executions: "Executions",
+  sessions: "Sessions",
 };
 
 // ============================================================================
@@ -39,6 +49,7 @@ export const DEFAULT_SORT: Record<SidebarTab, SortConfig> = {
   captures: { field: "recency", direction: "desc" },
   initiatives: { field: "alphabetical", direction: "asc" },
   executions: { field: "recency", direction: "desc" },
+  sessions: { field: "recency", direction: "desc" },
 };
 
 // ============================================================================
@@ -70,12 +81,21 @@ export interface ExecutionFilters {
   modes: ExecutionMode[];
 }
 
+export interface SessionFilters {
+  statuses: AgentSessionStatus[];
+  kinds: AgentSessionKind[];
+  activeOnly: boolean;
+  hasProposals: boolean;
+  hasAppliedArtifacts: boolean;
+}
+
 export interface TabFilters {
   activity: Record<string, never>;
   backlog: BacklogFilters;
   captures: CaptureFilters;
   initiatives: InitiativeFilters;
   executions: ExecutionFilters;
+  sessions: SessionFilters;
 }
 
 export const DEFAULT_FILTERS: TabFilters = {
@@ -84,4 +104,5 @@ export const DEFAULT_FILTERS: TabFilters = {
   captures: { statuses: [] },
   initiatives: { statuses: [], showArchived: false },
   executions: { statuses: [], modes: [] },
+  sessions: { statuses: [], kinds: [], activeOnly: false, hasProposals: false, hasAppliedArtifacts: false },
 };

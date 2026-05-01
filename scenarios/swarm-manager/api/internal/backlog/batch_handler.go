@@ -3,6 +3,9 @@
 package backlog
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,9 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/identity"
 )
 
 // InitiativeAssigner abstracts initiative operations needed by batch create,
@@ -55,6 +60,7 @@ type InitiativeSpec struct {
 	Status      string
 	Priority    int
 	DependsOn   []string
+	CreatedBy   *identity.Provenance
 }
 
 // InitiativeSnapshot captures the full persisted state of an initiative.
@@ -66,6 +72,7 @@ type InitiativeSnapshot struct {
 	Priority    int
 	DependsOn   []string
 	Items       []string
+	CreatedBy   *identity.Provenance
 }
 
 // SetInitiativeAssigner injects the initiative assigner for batch operations.
@@ -134,6 +141,12 @@ type batchCreateResponse struct {
 	Warnings    []string                      `json:"warnings,omitempty"`
 }
 
+type batchApplyResult struct {
+	items       []BacklogItem
+	initiatives []batchCreateInitiativeResult
+	artifacts   []agentsessions.Artifact
+}
+
 // validatedItem pairs a validated BacklogItem with its parsed kind.
 type validatedItem struct {
 	item BacklogItem
@@ -162,32 +175,78 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	result, err := h.applyBatchCreateRequest(r.Context(), req, identity.FromContext(r.Context()), true, "http.batch_create")
+	if err != nil {
+		apierr.MapError(w, "[backlog] batch-create", err)
+		return
+	}
+
+	resp := batchCreateResponse{
+		Items:       result.items,
+		Initiatives: result.initiatives,
+		Count:       len(result.items),
+		Preview:     req.Preview,
+	}
+	status := http.StatusCreated
+	if req.Preview {
+		status = http.StatusOK
+	}
+	if err := httputil.JSONWithStatus(w, status, resp); err != nil {
+		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) ApplyAgentSessionBacklogBatchImport(ctx context.Context, payloadJSON string, prov identity.Provenance) ([]agentsessions.Artifact, error) {
+	var req batchCreateRequest
+	decoder := json.NewDecoder(bytes.NewReader([]byte(payloadJSON)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		return nil, apierr.BadRequest("invalid backlog batch proposal payload: %s", httputil.TruncateErrorMessage(err, 240))
+	}
+	req.Preview = false
+	result, err := h.applyBatchCreateRequest(ctx, req, prov, false, "agent_sessions.apply.backlog_batch_import")
+	if err != nil {
+		return nil, err
+	}
+	return result.artifacts, nil
+}
+
+func (h *Handler) applyBatchCreateRequest(
+	ctx context.Context,
+	req batchCreateRequest,
+	prov identity.Provenance,
+	triggerAutoWorkshop bool,
+	mutationSource string,
+) (batchApplyResult, error) {
+	if len(req.Items) == 0 {
+		return batchApplyResult{}, apierr.BadRequest("at least one item is required")
+	}
+	const maxBatchSize = 100
+	if len(req.Items) > maxBatchSize {
+		return batchApplyResult{}, apierr.BadRequest("batch size %d exceeds maximum of %d", len(req.Items), maxBatchSize)
+	}
+
 	providedInitiatives, err := h.validateBatchInitiatives(req.Initiatives)
 	if err != nil {
-		apierr.MapError(w, "[backlog] batch-create", apierr.BadRequest("%s", err.Error()))
-		return
+		return batchApplyResult{}, apierr.BadRequest("%s", err.Error())
 	}
 
 	validated, batchNames, referencedInitiatives, err := h.validateBatchItems(req.Items, providedInitiatives)
 	if err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
 	initiativePlans, initiativeResults, err := h.planInitiativeChanges(referencedInitiatives, providedInitiatives)
 	if err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
 	if err := h.validateBatchDependencies(validated, batchNames); err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
 	if err := h.checkBatchDependencyCycles(validated); err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
 	if req.Preview {
@@ -195,50 +254,41 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		for _, v := range validated {
 			previewItems = append(previewItems, v.item)
 		}
-		resp := batchCreateResponse{
-			Items:       previewItems,
-			Initiatives: initiativeResults,
-			Count:       len(validated),
-			Preview:     true,
-		}
-		if err := httputil.JSON(w, resp); err != nil {
-			apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
-		}
-		return
+		return batchApplyResult{items: previewItems, initiatives: initiativeResults}, nil
 	}
+
+	stampBatchItemProvenance(validated, prov)
+	stampInitiativePlanProvenance(initiativePlans, prov)
 
 	appliedInitiatives, err := h.applyInitiativeChanges(initiativePlans)
 	if err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
-	createdItems, err := h.createBatchItems(validated, appliedInitiatives)
+	createdItems, err := h.createBatchItems(ctx, validated, appliedInitiatives)
 	if err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
 	if err := h.assignItemsToInitiatives(createdItems, appliedInitiatives); err != nil {
-		apierr.MapError(w, "[backlog] batch-create", err)
-		return
+		return batchApplyResult{}, err
 	}
 
-	for _, item := range createdItems {
-		h.maybeAutoWorkshop(item, false)
+	artifacts, err := h.recordBatchSessionArtifacts(ctx, createdItems, appliedInitiatives, prov, mutationSource)
+	if err != nil {
+		return batchApplyResult{}, apierr.Internal("failed to record session artifacts")
+	}
+
+	if triggerAutoWorkshop {
+		for _, item := range createdItems {
+			h.maybeAutoWorkshop(item, false)
+		}
 	}
 
 	slog.Info("batch-created items", "count", len(createdItems))
 	h.invalidateAllGraphLenses()
 
-	resp := batchCreateResponse{
-		Items:       createdItems,
-		Initiatives: initiativeResults,
-		Count:       len(createdItems),
-	}
-	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		apierr.MapError(w, "[backlog] batch-create", apierr.Internal("failed to encode response"))
-	}
+	return batchApplyResult{items: createdItems, initiatives: initiativeResults, artifacts: artifacts}, nil
 }
 
 // validateBatchInitiatives validates and normalizes initiative metadata from
@@ -421,6 +471,21 @@ func (h *Handler) validateSingleBatchItem(
 	return validatedItem{item: item, kind: kind}, nil
 }
 
+func stampBatchItemProvenance(validated []validatedItem, prov identity.Provenance) {
+	for i := range validated {
+		validated[i].item.CreatedBy = &prov
+	}
+}
+
+func stampInitiativePlanProvenance(plans map[string]resolvedInitiativePlan, prov identity.Provenance) {
+	for name, plan := range plans {
+		if plan.action == "create" && plan.spec.CreatedBy == nil {
+			plan.spec.CreatedBy = &prov
+			plans[name] = plan
+		}
+	}
+}
+
 // planInitiativeChanges resolves what initiative operations are needed and
 // returns both the execution plans and preview results.
 func (h *Handler) planInitiativeChanges(
@@ -521,13 +586,14 @@ func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan
 // AddItems for one initiative.json write per initiative instead of N
 // from per-item RememberItem. SkipWorkshopTrigger and SkipGraphInvalidation
 // defer those side effects to the end of the batch where they fire once.
-func (h *Handler) createBatchItems(validated []validatedItem, appliedInitiatives []resolvedInitiativePlan) ([]BacklogItem, error) {
+func (h *Handler) createBatchItems(ctx context.Context, validated []validatedItem, appliedInitiatives []resolvedInitiativePlan) ([]BacklogItem, error) {
 	createdDirs := make([]string, 0, len(validated))
 	createdItems := make([]BacklogItem, 0, len(validated))
 	svc := h.creationService()
 
 	for _, v := range validated {
 		err := svc.Create(v.item, CreationContext{
+			Context:               ctx,
 			Source:                SourceBatch,
 			Entrypoint:            "http.batch_create",
 			SkipDuplicateCheck:    true,
@@ -535,6 +601,7 @@ func (h *Handler) createBatchItems(validated []validatedItem, appliedInitiatives
 			SkipInitiativeAttach:  true,
 			SkipWorkshopTrigger:   true,
 			SkipGraphInvalidation: true,
+			SkipSessionArtifact:   true,
 		})
 		if err != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
@@ -563,4 +630,49 @@ func (h *Handler) assignItemsToInitiatives(createdItems []BacklogItem, appliedIn
 		}
 	}
 	return nil
+}
+
+func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []BacklogItem, applied []resolvedInitiativePlan, prov identity.Provenance, mutationSource string) ([]agentsessions.Artifact, error) {
+	if h.sessionArtifacts == nil || strings.TrimSpace(prov.SessionID) == "" {
+		return nil, nil
+	}
+	attr := agentsessions.AttributionFromProvenance(prov)
+	artifacts := make([]agentsessions.Artifact, 0, len(items)+len(applied))
+	for _, item := range items {
+		artifact, err := h.sessionArtifacts.AttachArtifact(ctx, agentsessions.Artifact{
+			SessionID:      prov.SessionID,
+			ArtifactType:   agentsessions.ArtifactBacklogItem,
+			Action:         agentsessions.ArtifactActionCreated,
+			EntityRef:      string(item.Kind) + "/" + item.Name,
+			Title:          item.Title,
+			RunID:          prov.RunID,
+			MutationSource: mutationSource,
+			Attribution:    &attr,
+		})
+		if err != nil {
+			return nil, err
+		}
+		artifacts = append(artifacts, artifact)
+	}
+	for _, plan := range applied {
+		action := agentsessions.ArtifactActionUpdated
+		if plan.action == "create" {
+			action = agentsessions.ArtifactActionCreated
+		}
+		artifact, err := h.sessionArtifacts.AttachArtifact(ctx, agentsessions.Artifact{
+			SessionID:      prov.SessionID,
+			ArtifactType:   agentsessions.ArtifactInitiative,
+			Action:         action,
+			EntityRef:      plan.spec.Name,
+			Title:          plan.spec.Title,
+			RunID:          prov.RunID,
+			MutationSource: mutationSource,
+			Attribution:    &attr,
+		})
+		if err != nil {
+			return nil, err
+		}
+		artifacts = append(artifacts, artifact)
+	}
+	return artifacts, nil
 }

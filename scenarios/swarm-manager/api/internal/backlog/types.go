@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/identity"
 
@@ -264,6 +265,10 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if len(item.SuggestedSkills) > 0 {
 		result.SuggestedSkills = item.SuggestedSkills
+	}
+	if item.CreatedBy != nil {
+		attr := agentsessions.AttributionFromProvenance(*item.CreatedBy)
+		result.CreatedBy = agentsessions.AttributionToProto(attr)
 	}
 	if item.ArchivedAt != nil {
 		result.ArchivedAt = item.ArchivedAt

@@ -9,6 +9,15 @@ export {
   selectLatestActivityForBacklog,
 } from "./agent-activities-store";
 export { useCaptureStore, captureStoreInitialState } from "./capture-store";
+export {
+  artifactEntityKey,
+  isActiveAgentSession,
+  resetAgentSessionStoreService,
+  selectActiveAgentSessions,
+  setAgentSessionStoreService,
+  useAgentSessionStore,
+  agentSessionStoreInitialState,
+} from "./agent-session-store";
 export { useInitiativeStore, initiativeStoreInitialState } from "./initiative-store";
 export { useRecentlyViewedStore, type RecentlyViewedItem } from "./recently-viewed-store";
 export { useBacklogDetailUIStore } from "./backlog-detail-ui-store";

@@ -22,6 +22,7 @@ import { BacklogTab } from "./BacklogTab";
 import { CapturesTab } from "./CapturesTab";
 import { InitiativesTab } from "./InitiativesTab";
 import { ExecutionsTab } from "./ExecutionsTab";
+import { SessionsTab } from "./SessionsTab";
 import type { FeedItem } from "../../../../lib/feed";
 
 interface SidebarProps {
@@ -32,6 +33,7 @@ interface SidebarProps {
   onViewBacklog: (nodeId: string) => void;
   onGoHome: () => void;
   onOpenCommandPost?: () => void;
+  onOpenAgentSession?: (sessionId: string) => void;
   desktopWidth?: number;
   resizeHandleProps?: HTMLAttributes<HTMLDivElement>;
 }
@@ -44,6 +46,7 @@ export function Sidebar({
   onViewBacklog,
   onGoHome,
   onOpenCommandPost,
+  onOpenAgentSession,
   desktopWidth,
   resizeHandleProps,
 }: SidebarProps) {
@@ -127,6 +130,7 @@ export function Sidebar({
             captureFilters={state.filters.captures}
             initiativeFilters={state.filters.initiatives}
             executionFilters={state.filters.executions}
+            sessionFilters={state.filters.sessions}
             sort={state.sorts[activeTab]}
             dispatch={dispatch}
           />
@@ -171,6 +175,14 @@ export function Sidebar({
                   filters={state.filters.executions}
                   sort={state.sorts.executions}
                   onItemClick={onItemClick}
+                />
+              )}
+              {activeTab === "sessions" && (
+                <SessionsTab
+                  searchQuery={debouncedSearch}
+                  filters={state.filters.sessions}
+                  sort={state.sorts.sessions}
+                  onOpenSession={onOpenAgentSession}
                 />
               )}
             </>

@@ -3,7 +3,10 @@
 // request context and is consumed by downstream handlers for attribution.
 package identity
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // ProvenanceType distinguishes operator from agent attribution.
 const (
@@ -13,15 +16,27 @@ const (
 
 // Provenance identifies who initiated a request.
 type Provenance struct {
-	Type       string `json:"type"`
-	RunID      string `json:"run_id,omitempty"`
-	TaskID     string `json:"task_id,omitempty"`
-	ProfileKey string `json:"profile_key,omitempty"`
+	Type        string `json:"type"`
+	RunID       string `json:"run_id,omitempty"`
+	TaskID      string `json:"task_id,omitempty"`
+	ProfileKey  string `json:"profile_key,omitempty"`
+	SessionID   string `json:"session_id,omitempty"`
+	SessionKind string `json:"session_kind,omitempty"`
+	Source      string `json:"source,omitempty"`
 }
 
 // IsAgent returns true if this provenance represents an agent identity.
 func (p Provenance) IsAgent() bool {
 	return p.Type == TypeAgent
+}
+
+// WithSession returns provenance enriched with the owning Swarm Manager
+// session. Session data is derived server-side from the verified run ID.
+func (p Provenance) WithSession(ref SessionReference) Provenance {
+	p.SessionID = strings.TrimSpace(ref.SessionID)
+	p.SessionKind = strings.TrimSpace(ref.SessionKind)
+	p.Source = strings.TrimSpace(ref.Source)
+	return p
 }
 
 // FormatStartedBy returns a string suitable for the execution started_by field.

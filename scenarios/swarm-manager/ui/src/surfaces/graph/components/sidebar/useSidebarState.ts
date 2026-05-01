@@ -15,6 +15,7 @@ import {
   type CaptureFilters,
   type ExecutionFilters,
   type InitiativeFilters,
+  type SessionFilters,
   type SidebarTab,
   type SortConfig,
   type TabFilters,
@@ -109,6 +110,13 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
           statuses: restoreArray(filters.executions?.statuses),
           modes: restoreArray(filters.executions?.modes),
         },
+        sessions: {
+          statuses: restoreArray(filters.sessions?.statuses),
+          kinds: restoreArray(filters.sessions?.kinds),
+          activeOnly: filters.sessions?.activeOnly === true,
+          hasProposals: filters.sessions?.hasProposals === true,
+          hasAppliedArtifacts: filters.sessions?.hasAppliedArtifacts === true,
+        },
       },
       sorts: {
         activity: restoreSort(sorts.activity, DEFAULT_SORT.activity),
@@ -116,6 +124,7 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
         captures: restoreSort(sorts.captures, DEFAULT_SORT.captures),
         initiatives: restoreSort(sorts.initiatives, DEFAULT_SORT.initiatives),
         executions: restoreSort(sorts.executions, DEFAULT_SORT.executions),
+        sessions: restoreSort(sorts.sessions, DEFAULT_SORT.sessions),
       },
     };
   } catch {
@@ -144,6 +153,7 @@ type SidebarAction =
   | { type: "SET_CAPTURE_FILTERS"; filters: Partial<CaptureFilters> }
   | { type: "SET_INITIATIVE_FILTERS"; filters: Partial<InitiativeFilters> }
   | { type: "SET_EXECUTION_FILTERS"; filters: Partial<ExecutionFilters> }
+  | { type: "SET_SESSION_FILTERS"; filters: Partial<SessionFilters> }
   | { type: "SET_SORT"; tab: SidebarTab; sort: Partial<SortConfig> }
   | { type: "CLEAR_FILTERS"; tab: SidebarTab }
   | { type: "RESTORE_FROM_URL"; tab: SidebarTab; filters: Record<string, unknown>; sort: Record<string, unknown> };
@@ -198,6 +208,15 @@ export function sidebarReducer(state: SidebarState, action: SidebarAction): Side
         filters: {
           ...state.filters,
           executions: { ...state.filters.executions, ...action.filters },
+        },
+      };
+
+    case "SET_SESSION_FILTERS":
+      return {
+        ...state,
+        filters: {
+          ...state.filters,
+          sessions: { ...state.filters.sessions, ...action.filters },
         },
       };
 

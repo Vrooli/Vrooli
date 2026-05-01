@@ -34,6 +34,10 @@ type initiativeSpawner interface {
 	SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error)
 }
 
+type sessionSpawner interface {
+	SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error)
+}
+
 type runContinuer interface {
 	ContinueRun(ctx context.Context, runID string, message string) error
 }
@@ -56,6 +60,7 @@ type Service struct {
 	continuer         runContinuer
 	differ            runDiffer
 	initiativeSpawner initiativeSpawner
+	sessionSpawner    sessionSpawner
 	eventDispatcher   dispatch.NodeDispatcher
 	mu                sync.Mutex
 }
@@ -73,6 +78,9 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if spawner, ok := cfg.AgentService.(initiativeSpawner); ok {
 		svc.initiativeSpawner = spawner
+	}
+	if spawner, ok := cfg.AgentService.(sessionSpawner); ok {
+		svc.sessionSpawner = spawner
 	}
 	return svc
 }
@@ -126,6 +134,17 @@ func (s *Service) SpawnInitiative(ctx context.Context, req agentmanager.Initiati
 		return agentmanager.RunResult{}, fmt.Errorf("SpawnInitiative requires owner_type=initiative")
 	}
 	return s.spawnInitiativeTracked(ctx, spec, req)
+}
+
+func (s *Service) SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error) {
+	spec, err := specFromContext(ctx)
+	if err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	if spec.OwnerType != OwnerSession {
+		return agentmanager.RunResult{}, fmt.Errorf("SpawnSession requires owner_type=session")
+	}
+	return s.spawnSessionTracked(ctx, spec, req)
 }
 
 func (s *Service) ContinueRun(ctx context.Context, runID string, message string) error {
@@ -454,6 +473,89 @@ func (s *Service) spawnInitiativeTracked(
 	s.mu.Unlock()
 
 	runResult, spawnErr := s.initiativeSpawner.SpawnInitiative(ctx, req)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	records, err = s.store.Load()
+	if err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	idx := indexByID(records, record.ActivityID)
+	if idx < 0 {
+		return agentmanager.RunResult{}, fmt.Errorf("agent activity disappeared during spawn")
+	}
+
+	updated := records[idx]
+	updated.UpdatedAt = nowRFC3339()
+	if spawnErr != nil {
+		updated.Status = StatusFailed
+		updated.FailureReason = spawnErr.Error()
+		updated.FinishedAt = updated.UpdatedAt
+		records[idx] = updated
+		if err := s.store.Save(records); err != nil {
+			return agentmanager.RunResult{}, err
+		}
+		s.dispatchStatusUpdate(updated)
+		return agentmanager.RunResult{}, spawnErr
+	}
+
+	updated.TaskID = strings.TrimSpace(runResult.TaskID)
+	updated.RunID = strings.TrimSpace(runResult.RunID)
+	updated.Status = StatusStarting
+	updated.StartedAt = updated.UpdatedAt
+	records[idx] = updated
+	if err := s.store.Save(records); err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	s.dispatchStatusUpdate(updated)
+	return runResult, nil
+}
+
+func (s *Service) spawnSessionTracked(
+	ctx context.Context,
+	spec Spec,
+	req agentmanager.SessionSpawnRequest,
+) (agentmanager.RunResult, error) {
+	if s.sessionSpawner == nil {
+		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
+	}
+	if s.agentService == nil || !s.agentService.IsEnabled() {
+		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
+	}
+
+	s.mu.Lock()
+	records, err := s.store.Load()
+	if err != nil {
+		s.mu.Unlock()
+		return agentmanager.RunResult{}, err
+	}
+
+	now := nowRFC3339()
+	record := Record{
+		ActivityID:      idgen.Generate(),
+		OwnerType:       spec.OwnerType,
+		OwnerKind:       spec.OwnerKind,
+		OwnerName:       spec.OwnerName,
+		OwnerTitle:      spec.OwnerTitle,
+		ExecutionID:     spec.ExecutionID,
+		Purpose:         spec.Purpose,
+		InteractionType: InteractionSpawn,
+		Status:          StatusPending,
+		RequestedAt:     now,
+		RequestedBy:     spec.RequestedBy,
+		Metadata:        metadataWithProfileKey(spec.Metadata, req.ProfileKey),
+		UpdatedAt:       now,
+	}
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		s.mu.Unlock()
+		return agentmanager.RunResult{}, err
+	}
+	s.dispatchStatusUpdate(record)
+	s.mu.Unlock()
+
+	runResult, spawnErr := s.sessionSpawner.SpawnSession(ctx, req)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

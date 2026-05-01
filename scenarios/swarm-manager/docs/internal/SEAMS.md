@@ -123,6 +123,49 @@ const service = createBacklogService(mockClient);
 
 **Testing at the seam**: `service_test.go` covers spawn, continue, refresh, and stop transitions against a stub AgentManager seam without filesystem-global state. `handler_test.go` locks the HTTP contract for listing, filtering, and fetching tracked activities.
 
+### Agent Identity and Provenance Boundary
+
+Agent identity is the canonical attribution seam for API mutations performed by
+Agent Manager runs.
+
+- **Runner env contract**: Agent Manager injects `VROOLI_AGENT_IDENTITY_TOKEN`
+  into spawned agent processes. It also injects
+  `VROOLI_AGENT_MANAGER_API_BASE`, resolved from the current Agent Manager API
+  environment, so cli-core consumers can verify tokens without caller-managed
+  setup.
+- **CLI forwarding rule**: Swarm Manager CLI detects
+  `VROOLI_AGENT_IDENTITY_TOKEN` through cli-core and forwards it as
+  `X-Agent-Identity-Token` on every API request. Domain commands must not add
+  separate `--created-by`, `--run-id`, or `--session-id` flags for normal
+  identity propagation.
+- **API verification rule**: Swarm Manager API middleware verifies
+  `X-Agent-Identity-Token` through Agent Manager's
+  `/api/v1/identity/verify` endpoint and stores `identity.Provenance` in the
+  request context. Verification is fail-open: missing, invalid, or unreachable
+  identity verification yields explicit operator provenance, never a rejected
+  mutation.
+- **Mutation stamping rule**: Mutation handlers and services read provenance
+  from request context and persist it as durable `created_by` metadata where the
+  domain supports attribution. Single backlog create, batch backlog create, and
+  initiative create are locked by regression tests. Agent Sessions extend this
+  same provenance shape with session fields instead of replacing the identity
+  standard.
+- **Session enrichment rule**: After identity verification, Swarm Manager uses
+  the server-owned Agent Session resolver to map verified `run_id` values to
+  durable session ownership. If a match exists, `identity.Provenance` is
+  enriched with `session_id`, `session_kind`, and `source=session/<id>`. The
+  lookup is fail-open and server-derived; agents do not pass these fields in
+  prompts, JSON, or CLI flags.
+- **Session artifact rule**: When enriched provenance includes `session_id`,
+  backend mutation chokepoints record durable Agent Session artifact links.
+  Single backlog create, batch backlog create, and direct initiative create
+  write artifact records through the Agent Sessions service before success is
+  returned. The UI must read these records instead of inferring session links
+  from display strings or Agent Manager tags.
+- **Batch rule**: Batch writes stamp every created backlog item with the same
+  verified request provenance. Initiative metadata created through batch
+  operations receives provenance through the initiative assigner adapter.
+
 ### API-to-Integration Seam
 
 ```go
@@ -1718,3 +1761,18 @@ phase starts through feedback or item-level execution.
 | Prompt skills | `prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-*` and `swarm-manager-phased-plan-*` | Prompt-manager runtime skills for the eight registered mode phases. Each skill asks for a structured final result envelope so the runner can persist artifacts and handoffs; phase start fails closed if the exact registered skill cannot be rendered. | `prompt-manager skill read ...` |
 | Round view model | `ui/src/components/initiative/operating-mode/round-view-model.ts` | Pure TypeScript parser/decision boundary for round payload fields, pending completion refs, proposal mutations, applied sync state, default selected mutation IDs, and disabled action reasons. | `round-view-model.test.ts` |
 | Backlog sync action component | `ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx` | Owns proposal mutation selection state and the apply button. It receives a normalized proposal and does not parse raw payloads. | `operating-mode-panel.test.tsx` |
+
+### Agent Session Boundary (added 2026-05-01)
+
+Durable conversational workflows now have their own backend seam instead of
+being modeled as capture, backlog, or initiative subtypes.
+
+| Boundary | Location | Behavior | Test |
+|----------|----------|----------|------|
+| Session store | `api/internal/agentsessions/store.go` | Persists `agent-sessions/sess_*/session.json` snapshots plus append-only `messages.jsonl` and `artifacts.jsonl`, with proposal JSON files under `proposals/`. Lists are hydrated from those logs and sortable/filterable for the sidebar. | `agentsessions/store_test.go` |
+| Session service | `api/internal/agentsessions/service.go` | Owns create/list/get/continue/refresh/cancel/proposal/artifact operations. Spawns and continues runs through Agent Activity with `owner_type=session`, injects session environment variables, maps Agent Manager run status to session lifecycle state, persists run summaries as assistant transcript messages, and resolves `run_id -> session` for provenance enrichment. | `agentsessions/service_test.go` |
+| Session HTTP API | `api/internal/agentsessions/handler.go` | Thin proto-JSON HTTP boundary for `/api/v1/agent-sessions` and `/api/v1/artifacts/by-entity`. Proposal apply is intentionally left for the dedicated proposal workflow phase. | `agentsessions/handler_test.go` |
+| Agent Activity session owner | `api/internal/agentactivity/types.go`, `api/internal/agentactivity/service.go` | Adds `OwnerSession` and session purposes so session-owned Agent Manager work is not mislabeled as initiative or backlog work. | `agentactivity` package tests plus `agentsessions/service_test.go` |
+| Agent Manager session spawn | `api/internal/agentmanager/service.go` | Adds `SessionSpawnRequest` and `SpawnSession` as a narrow concrete service method. The broad `agentmanager.Service` handler interface does not include it, preventing unrelated test doubles and consumers from depending on session spawning. | `agentmanager` package tests |
+| Session lifecycle events | `api/internal/eventlog/types.go`, `api/internal/eventlog/emitter.go` | Emits `agent_session.*` events through the existing eventlog pipeline so later stats work can aggregate session adoption and outcomes from events rather than UI state. | `eventlog` package tests |
+| Session provenance resolver | `api/internal/identity/session.go`, `api/main.go` | Enriches verified agent provenance with session metadata by resolving request `run_id` through the Agent Session service. Missing or failed lookups preserve the original provenance and never reject a request. | `identity/middleware_test.go`, `agentsessions/service_test.go` |

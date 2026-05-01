@@ -14,7 +14,10 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestCreate_Success(t *testing.T) {
@@ -53,6 +56,51 @@ func TestCreate_Success(t *testing.T) {
 
 	specPath := filepath.Join(rootDir, "ideas", "new-test-idea", "spec.json")
 	testutil.AssertFileExists(t, specPath)
+}
+
+func TestCreate_StoresAgentProvenanceFromIdentityMiddleware(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":  "agent-created-item",
+		"title": "Agent Created Item",
+		"kind":  "idea",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Agent-Identity-Token", "valid-token")
+	w := httptest.NewRecorder()
+
+	handler := identity.Middleware(identity.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		if token != "valid-token" {
+			t.Fatalf("token = %q, want valid-token", token)
+		}
+		return &cliutil.VerifyResult{
+			Valid: true,
+			Claims: &cliutil.VerifiedClaims{
+				RunID:      "run-agent-1",
+				TaskID:     "task-agent-1",
+				ProfileKey: "swarm-manager/default",
+			},
+		}, nil
+	}))(http.HandlerFunc(h.Create))
+
+	handler.ServeHTTP(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "agent-created-item", "spec.json"))
+	if saved.CreatedBy == nil {
+		t.Fatal("expected created_by provenance")
+	}
+	if saved.CreatedBy.Type != identity.TypeAgent {
+		t.Fatalf("created_by.type = %q, want %q", saved.CreatedBy.Type, identity.TypeAgent)
+	}
+	if saved.CreatedBy.RunID != "run-agent-1" || saved.CreatedBy.TaskID != "task-agent-1" || saved.CreatedBy.ProfileKey != "swarm-manager/default" {
+		t.Fatalf("unexpected created_by provenance: %+v", saved.CreatedBy)
+	}
 }
 
 func TestCreate_RejectsUnknownField(t *testing.T) {

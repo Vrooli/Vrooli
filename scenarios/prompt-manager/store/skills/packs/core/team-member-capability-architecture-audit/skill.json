@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "team-member-capability-architecture-audit",
+  "name": "Team Member Capability Architecture Audit",
+  "description": "Audit a team member's capability architecture: identity, ownership, plan-of-record, skills, intake, collection, analysis, promotion, and feedback loops.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "meta-optimization",
+    "agents",
+    "teams",
+    "capability-architecture",
+    "audit"
+  ],
+  "icon": "network",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-01T00:00:00Z",
+  "updatedAt": "2026-05-01T00:00:00Z"
+}

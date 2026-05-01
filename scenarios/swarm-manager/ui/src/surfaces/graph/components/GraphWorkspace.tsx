@@ -11,11 +11,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquarePlus } from "lucide-react";
 import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { settingsService } from "../../../services";
-import { useAgentActivitiesStore } from "../../../stores";
+import { useAgentActivitiesStore, useAgentSessionStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
@@ -23,8 +22,6 @@ import { buildActivityNodeId } from "../lib/node-id-parser";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
-import { FloatingActionButton } from "../../../components/ui/floating-action-button";
-
 import { GraphCanvas } from "./GraphCanvas";
 import { CapturePanel } from "./CapturePanel";
 import { useCommandPostBadgeCount } from "../../../hooks/useCommandPostBadgeCount";
@@ -38,6 +35,7 @@ import { NodeInspectorPanel } from "./NodeInspectorPanel";
 import { GraphHelpPanel } from "./GraphHelpPanel";
 import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
 import { GraphWorkspaceHUD } from "./GraphWorkspaceHUD";
+import { GraphActionLauncher } from "./GraphActionLauncher";
 import { commandPostPath, detailPathFromNodeId } from "../../../app/routes/route-paths";
 import { useAppShell } from "../../../app/shell/AppShellContext";
 
@@ -47,6 +45,7 @@ export function GraphWorkspace() {
   const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showCapturePanel, setShowCapturePanel] = useState(false);
+  const [launcherError, setLauncherError] = useState<string | null>(null);
 
   const commandPostBadgeCount = useCommandPostBadgeCount();
   const { openSidebar } = useAppShell();
@@ -56,6 +55,8 @@ export function GraphWorkspace() {
 
   const agentActivities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
+  const createSession = useAgentSessionStore((s) => s.createSession);
+  const isCreatingSession = useAgentSessionStore((s) => s.isMutating);
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
 
   const lens = useGraphDataStore((s) => s.lens);
@@ -134,6 +135,26 @@ export function GraphWorkspace() {
     [handleLensChange, handleSidebarItemClick],
   );
 
+  const handleCreateAgentSession = useCallback(
+    async (kind: "meta_orchestration" | "operating_mode_authoring") => {
+      setLauncherError(null);
+      setShowCapturePanel(false);
+      const isAuthoring = kind === "operating_mode_authoring";
+      try {
+        await createSession({
+          kind,
+          title: isAuthoring ? "Author operating mode" : "Plan work with agent",
+          initialMessage: isAuthoring
+            ? "Help me draft a proposal for a new Swarm Manager operating mode. Walk through the operating-mode authoring workflow and keep the output proposal-first."
+            : "Help me plan and organize project work in Swarm Manager. Use the meta-orchestration workflow to understand context, propose initiatives and backlog items, and wait for approval before applying changes.",
+        });
+      } catch (error) {
+        setLauncherError(error instanceof Error ? error.message : "Unable to start agent session.");
+      }
+    },
+    [createSession],
+  );
+
   return (
     <SpatialNavProvider controllerRef={spatialNav}>
     <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
@@ -172,11 +193,15 @@ export function GraphWorkspace() {
         <NodeInspectorPanel />
         <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
 
-        <FloatingActionButton
-          icon={<MessageSquarePlus className="h-5 w-5" />}
-          label="New capture"
-          onClick={() => setShowCapturePanel((prev) => !prev)}
-          data-testid="capture-fab"
+        <GraphActionLauncher
+          isBusy={isCreatingSession}
+          error={launcherError}
+          onQuickCapture={() => {
+            setLauncherError(null);
+            setShowCapturePanel((prev) => !prev);
+          }}
+          onPlanWork={() => void handleCreateAgentSession("meta_orchestration")}
+          onAuthorOperatingMode={() => void handleCreateAgentSession("operating_mode_authoring")}
         />
 
         <CapturePanel isOpen={showCapturePanel} onClose={() => setShowCapturePanel(false)} />

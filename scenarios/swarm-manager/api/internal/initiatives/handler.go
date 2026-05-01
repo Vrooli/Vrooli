@@ -1,26 +1,40 @@
 package initiatives
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/identity"
 
 	"github.com/gorilla/mux"
 )
 
 // Handler provides HTTP handlers for initiative operations.
 type Handler struct {
-	service *Service
+	service          *Service
+	sessionArtifacts sessionArtifactRecorder
+}
+
+type sessionArtifactRecorder interface {
+	AttachArtifact(context.Context, agentsessions.Artifact) (agentsessions.Artifact, error)
 }
 
 // NewHandler creates an initiative Handler backed by the given service.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
+}
+
+// SetAgentSessionArtifactRecorder wires durable session artifact attribution
+// into direct initiative mutation endpoints.
+func (h *Handler) SetAgentSessionArtifactRecorder(r sessionArtifactRecorder) {
+	h.sessionArtifacts = r
 }
 
 // RegisterRoutes registers initiative API routes on the given router.
@@ -133,6 +147,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be %s", UserSettableInitiativeStatusList()))
 		return
 	}
+	prov := identity.FromContext(r.Context())
+	req.CreatedBy = &prov
 	init, err := h.service.Create(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
@@ -147,6 +163,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to create initiative"))
 		return
 	}
+	if err := h.recordInitiativeCreatedArtifact(r.Context(), init, prov); err != nil {
+		_ = h.service.Delete(init.Name)
+		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to record session artifact"))
+		return
+	}
 
 	rollup, scenarios := h.service.aggregateInitiativeData(init)
 	if rollup == nil {
@@ -157,6 +178,24 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to encode response"))
 	}
+}
+
+func (h *Handler) recordInitiativeCreatedArtifact(ctx context.Context, init *Initiative, prov identity.Provenance) error {
+	if h.sessionArtifacts == nil || init == nil || strings.TrimSpace(prov.SessionID) == "" {
+		return nil
+	}
+	attr := agentsessions.AttributionFromProvenance(prov)
+	_, err := h.sessionArtifacts.AttachArtifact(ctx, agentsessions.Artifact{
+		SessionID:      prov.SessionID,
+		ArtifactType:   agentsessions.ArtifactInitiative,
+		Action:         agentsessions.ArtifactActionCreated,
+		EntityRef:      init.Name,
+		Title:          init.Title,
+		RunID:          prov.RunID,
+		MutationSource: "http.initiatives.create",
+		Attribution:    &attr,
+	})
+	return err
 }
 
 // Get returns a single initiative with rollup status.

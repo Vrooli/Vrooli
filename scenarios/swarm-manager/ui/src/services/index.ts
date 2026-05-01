@@ -34,6 +34,16 @@ export type { IAgentManagerService, AgentRunDetails } from "./agent-manager-serv
 export { agentActivityService, createAgentActivityService } from "./agent-activity-service";
 export type { IAgentActivityService, ListAgentActivitiesFilters } from "./agent-activity-service";
 
+// Agent Sessions
+export { agentSessionService, createAgentSessionService } from "./agent-session-service";
+export type {
+  ApplyAgentSessionProposalResult,
+  CreateAgentSessionArgs,
+  ContinueAgentSessionArgs,
+  IAgentSessionService,
+  ListAgentSessionsFilters,
+} from "./agent-session-service";
+
 // Execution
 export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";

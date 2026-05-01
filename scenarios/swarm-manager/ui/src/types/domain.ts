@@ -18,6 +18,7 @@ export * from "./review";
 export * from "./archive";
 export * from "./scenario";
 export * from "./agent";
+export * from "./agent-session";
 export * from "./execution";
 export * from "./settings";
 export * from "./summary";

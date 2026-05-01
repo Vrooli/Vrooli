@@ -2,24 +2,28 @@
 // initiative groupings of backlog items.
 package initiatives
 
-import "swarm-manager/internal/operatingmode"
+import (
+	"swarm-manager/internal/identity"
+	"swarm-manager/internal/operatingmode"
+)
 
 // Initiative represents a named grouping of backlog items into a coherent
 // work stream. Stored as individual JSON files under .vrooli/initiatives/.
 type Initiative struct {
-	Name               string   `json:"name"`
-	Title              string   `json:"title"`
-	Description        string   `json:"description,omitempty"`
-	Status             string   `json:"status"`               // lifecycle/result state
-	Mode               string   `json:"mode,omitempty"`       // item-level, holistic-loop, phased-plan-drain
-	Priority           int      `json:"priority,omitempty"`   // 1-10, optional (0 = unprioritized)
-	DependsOn          []string `json:"depends_on,omitempty"` // initiative name refs
-	Items              []string `json:"items"`                // "kind/name" references
-	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
-	Created            string   `json:"created"`
-	Updated            string   `json:"updated"`
-	Note               string   `json:"note,omitempty"`
-	ArchivedAt         *string  `json:"archived_at,omitempty"`
+	Name               string               `json:"name"`
+	Title              string               `json:"title"`
+	Description        string               `json:"description,omitempty"`
+	Status             string               `json:"status"`               // lifecycle/result state
+	Mode               string               `json:"mode,omitempty"`       // item-level, holistic-loop, phased-plan-drain
+	Priority           int                  `json:"priority,omitempty"`   // 1-10, optional (0 = unprioritized)
+	DependsOn          []string             `json:"depends_on,omitempty"` // initiative name refs
+	Items              []string             `json:"items"`                // "kind/name" references
+	AcceptanceCriteria []string             `json:"acceptance_criteria,omitempty"`
+	Created            string               `json:"created"`
+	Updated            string               `json:"updated"`
+	CreatedBy          *identity.Provenance `json:"created_by,omitempty"`
+	Note               string               `json:"note,omitempty"`
+	ArchivedAt         *string              `json:"archived_at,omitempty"`
 }
 
 // RollupStatus provides aggregated status counts for an initiative's items.
@@ -42,14 +46,15 @@ type InitiativeWithRollup struct {
 
 // CreateRequest holds validated fields for creating a new initiative.
 type CreateRequest struct {
-	Name               string   `json:"name"`
-	Title              string   `json:"title"`
-	Description        string   `json:"description,omitempty"`
-	Status             string   `json:"status,omitempty"`
-	Priority           int      `json:"priority,omitempty"`
-	DependsOn          []string `json:"depends_on,omitempty"`
-	Items              []string `json:"items,omitempty"`
-	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
+	Name               string               `json:"name"`
+	Title              string               `json:"title"`
+	Description        string               `json:"description,omitempty"`
+	Status             string               `json:"status,omitempty"`
+	Priority           int                  `json:"priority,omitempty"`
+	DependsOn          []string             `json:"depends_on,omitempty"`
+	Items              []string             `json:"items,omitempty"`
+	AcceptanceCriteria []string             `json:"acceptance_criteria,omitempty"`
+	CreatedBy          *identity.Provenance `json:"-"`
 }
 
 // UpdateRequest holds validated fields for updating an existing initiative.

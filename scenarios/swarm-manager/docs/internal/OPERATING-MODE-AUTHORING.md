@@ -4,6 +4,12 @@
 
 This guide is the source material for future agents and for a future `mode-authoring` skill. It explains where operating-mode behavior belongs, what files should usually change, and which framework files should stay untouched when adding a new methodology.
 
+## Agent-Assisted Authoring
+
+Prompt Manager provides the `swarm-manager-operating-mode-authoring` skill for turning an operator-described methodology into a static Swarm Manager operating mode proposal or implementation. Use that skill when the operator describes a repeated agent workflow such as "generate a plan, let successive agents drain phases, classify progress, then review" and wants to decide whether it should become a first-class Swarm Manager mode.
+
+The skill is intentionally an authoring workflow, not a runtime plugin mechanism. It should first produce a mode proposal that identifies scope, phases, transitions, artifacts, output contracts, backlog reconciliation policy, metrics semantics, prompt skills, tests, and docs. It should implement code only when explicitly asked to proceed after the proposal is accepted.
+
 ## Authoring Rule
 
 Adding a new static operating mode should mostly require:

@@ -58,6 +58,11 @@ const PURPOSE_LABELS: Record<AgentActivityPurpose, string> = {
   classify: "Classifying",
   clarify: "Clarifying",
   review: "Reviewing",
+  feedback: "Reviewing feedback",
+  feedback_continue: "Continuing feedback",
+  initiative_review: "Reviewing initiative",
+  meta_orchestration: "Planning work",
+  operating_mode_authoring: "Authoring mode",
 };
 
 export function getAgentActivityLabel(purpose: AgentActivityPurpose | undefined | null): string {

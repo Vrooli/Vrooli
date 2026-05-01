@@ -17,6 +17,7 @@ describe("useSidebarState", () => {
       result.current[1]({ type: "SET_SEARCH", query: "routing" });
       result.current[1]({ type: "SET_SEARCH_MODE", mode: "ai" });
       result.current[1]({ type: "SET_BACKLOG_FILTERS", filters: { kinds: ["fix"], showArchived: true } });
+      result.current[1]({ type: "SET_SESSION_FILTERS", filters: { kinds: ["meta_orchestration"], activeOnly: true } });
       result.current[1]({ type: "SET_SORT", tab: "backlog", sort: { field: "alphabetical", direction: "desc" } });
     });
 
@@ -30,6 +31,10 @@ describe("useSidebarState", () => {
           kinds: ["fix"],
           showArchived: true,
         },
+        sessions: {
+          kinds: ["meta_orchestration"],
+          activeOnly: true,
+        },
       },
       sorts: {
         backlog: {
@@ -42,7 +47,7 @@ describe("useSidebarState", () => {
 
   it("restores persisted state on mount", () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      activeTab: "executions",
+      activeTab: "sessions",
       searchQuery: "review",
       searchMode: "plain",
       filters: {
@@ -50,9 +55,16 @@ describe("useSidebarState", () => {
           statuses: ["running"],
           modes: ["review"],
         },
+        sessions: {
+          statuses: ["proposal_ready"],
+          kinds: ["operating_mode_authoring"],
+          activeOnly: true,
+          hasProposals: true,
+          hasAppliedArtifacts: true,
+        },
       },
       sorts: {
-        executions: {
+        sessions: {
           field: "recency",
           direction: "asc",
         },
@@ -62,17 +74,20 @@ describe("useSidebarState", () => {
     const { result } = renderHook(() => useSidebarState());
 
     expect(result.current[0]).toMatchObject({
-      activeTab: "executions",
+      activeTab: "sessions",
       searchQuery: "review",
       searchMode: "plain",
       filters: {
-        executions: {
-          statuses: ["running"],
-          modes: ["review"],
+        sessions: {
+          statuses: ["proposal_ready"],
+          kinds: ["operating_mode_authoring"],
+          activeOnly: true,
+          hasProposals: true,
+          hasAppliedArtifacts: true,
         },
       },
       sorts: {
-        executions: {
+        sessions: {
           field: "recency",
           direction: "asc",
         },

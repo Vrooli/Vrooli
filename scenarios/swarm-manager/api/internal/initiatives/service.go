@@ -149,6 +149,7 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 		AcceptanceCriteria: normalizeStringList(req.AcceptanceCriteria),
 		Created:            now,
 		Updated:            now,
+		CreatedBy:          req.CreatedBy,
 	}
 	if err := s.store.Save(init); err != nil {
 		return nil, fmt.Errorf("save initiative: %w", err)

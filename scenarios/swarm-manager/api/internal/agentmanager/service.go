@@ -236,6 +236,22 @@ type InitiativeSpawnRequest struct {
 	ProfileKey         string
 }
 
+// SessionSpawnRequest describes a durable Swarm Manager-owned conversational
+// workflow run. These runs are not scoped to a backlog item or initiative.
+type SessionSpawnRequest struct {
+	SessionID          string
+	Kind               string
+	Title              string
+	Description        string
+	Prompt             string
+	ScopePath          string
+	ProjectRoot        string
+	CreatedBy          string
+	Environment        map[string]string
+	ContextAttachments []*domainpb.ContextAttachment
+	ProfileKey         string
+}
+
 // BacklogSpawnRequest describes a request to spawn a backlog agent.
 type BacklogSpawnRequest struct {
 	Kind               string
@@ -350,6 +366,79 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 	}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		runReq.Prompt = &prompt
+	}
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	baseURL, _ := s.ResolveURL(ctx)
+
+	return RunResult{
+		TaskID:    createdTask.Id,
+		RunID:     run.Id,
+		BaseURL:   baseURL,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+// SpawnSession creates a general Swarm Manager session task/run in
+// agent-manager.
+func (s *AgentService) SpawnSession(ctx context.Context, req SessionSpawnRequest) (RunResult, error) {
+	if !s.enabled {
+		return RunResult{}, ErrNotAvailable
+	}
+	if err := s.ensureProfilesReconciled(ctx); err != nil {
+		return RunResult{}, err
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = buildSessionTitle(req.Kind, req.SessionID)
+	}
+
+	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, nil, nil)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	createdBy := strings.TrimSpace(req.CreatedBy)
+	if createdBy == "" {
+		createdBy = "swarm-manager"
+	}
+
+	task := &domainpb.Task{
+		Title:              title,
+		Description:        truncateDescription(strings.TrimSpace(req.Description)),
+		ScopePath:          scopePath,
+		ProjectRoot:        projectRoot,
+		CreatedBy:          createdBy,
+		ContextAttachments: req.ContextAttachments,
+	}
+
+	createdTask, err := s.client.CreateTask(ctx, task)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	tag := buildSessionTag(req.Kind, req.SessionID)
+	profileRef, err := s.profileRefFor(req.ProfileKey)
+	if err != nil {
+		return RunResult{}, err
+	}
+	runReq := &apipb.CreateRunRequest{
+		ConversationId: freshConversationID(),
+		TaskId:         createdTask.Id,
+		ProfileRef:     profileRef,
+		Tag:            &tag,
+		Force:          true,
+	}
+	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
+		runReq.Prompt = &prompt
+	}
+	if len(req.Environment) > 0 {
+		runReq.Environment = req.Environment
 	}
 
 	run, err := s.client.CreateRun(ctx, runReq)
@@ -690,6 +779,34 @@ func buildInitiativeTitle(name, purpose string, round int) string {
 		return "Review: " + label
 	}
 	return "Initiative: " + label
+}
+
+func buildSessionTag(kind, sessionID string) string {
+	kind = strings.TrimSpace(kind)
+	sessionID = strings.TrimSpace(sessionID)
+	if kind == "" {
+		kind = "session"
+	}
+	tag := fmt.Sprintf("swarm-manager:session:%s", kind)
+	if sessionID != "" {
+		tag = fmt.Sprintf("%s:%s", tag, sessionID)
+	}
+	return tag
+}
+
+func buildSessionTitle(kind, sessionID string) string {
+	label := strings.TrimSpace(sessionID)
+	if label == "" {
+		label = "session"
+	}
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "meta_orchestration":
+		return "Meta-orchestration: " + label
+	case "operating_mode_authoring":
+		return "Operating mode authoring: " + label
+	default:
+		return "Agent session: " + label
+	}
 }
 
 func buildBacklogTag(kind, name, purpose string) string {
