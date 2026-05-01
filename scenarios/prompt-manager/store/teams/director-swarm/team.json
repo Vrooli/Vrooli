@@ -52,40 +52,24 @@
     "documents": {
       "planOfRecord": [
         {
-          "id": "portfolio-philosophy",
+          "id": "director-swarm-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/director-swarm/README.md"
+          },
           "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/README.md"
+            },
             {
               "base": "repo-root",
               "path": "docs/director-swarm/PORTFOLIO_PHILOSOPHY.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "director-swarm",
-            "monetization",
-            "meta-optimization"
-          ],
-          "rationale": "Canonical portfolio ranking criteria and initiative/backlog-item threshold."
-        },
-        {
-          "id": "roadmap",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/director-swarm/ROADMAP.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "director-swarm",
-            "monetization",
-            "meta-optimization"
-          ],
-          "rationale": "Thematic initiative roadmap; Swarm Manager remains authoritative for live status."
-        },
-        {
-          "id": "outcomes-charter",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/director-swarm/OUTCOMES_CHARTER.md"
@@ -95,7 +79,8 @@
           "consumers": [
             "director-swarm"
           ],
-          "rationale": "Outcome categories and Command Center gap-closure contract."
+          "rationale": "Canonical director-swarm portfolio philosophy, roadmap, and outcome discipline.",
+          "useFor": "portfolio ranking criteria, initiative roadmap interpretation, outcome categories, and morning-walk decision context"
         },
         {
           "id": "project-vision",
@@ -111,7 +96,8 @@
             "marketing-crew",
             "monetization"
           ],
-          "rationale": "Operator-authored project manifesto; agents flag drift only."
+          "rationale": "Operator-authored project manifesto; agents flag drift only.",
+          "useFor": "operator-authored north-star vision; agents may flag drift but do not author it"
         },
         {
           "id": "architecture-reference",
@@ -128,7 +114,8 @@
             "monetization",
             "meta-optimization"
           ],
-          "rationale": "Canonical technical reference; agents flag drift only."
+          "rationale": "Canonical technical reference; currently sketch-level; agents flag drift only.",
+          "useFor": "canonical technical reference for how Vrooli works, currently sketch-level rather than exhaustive"
         }
       ],
       "notebooks": [],

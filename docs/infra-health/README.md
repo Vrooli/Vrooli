@@ -2,6 +2,10 @@
 
 Plan-of-record for the platform's own health — Vrooli's internal code, lifecycle, and runtime reliability. Owned by the `infra-health` team in prompt-manager; authored and curated by the human operator.
 
+## Start here for agents
+
+Use this hub first, then follow the table below to the relevant spoke. Do not treat the presence of an observed problem as permission to edit these docs directly; capture evidence in team working state and propose durable updates through decisions.
+
 ## Organizing principle
 
 Three orthogonal lenses, one file each:
@@ -11,6 +15,15 @@ Three orthogonal lenses, one file each:
 3. **WHERE the platform isn't yet portable** — [cross-platform ledger](CROSS_PLATFORM_LEDGER.md), Linux-only assumptions tracked against tier-2+ deployment.
 
 The team that authors these is leaderless: `runtime-health-scanner` watches the runtime, `platform-code-auditor` audits internal code, `infra-contrarian` challenges. Findings flow into the morning vision walk (Phase 5.7); approved decisions update these docs.
+
+## Consumers
+
+| Consumer | Use case |
+|---|---|
+| `runtime-health-scanner` | Compare observed service/process behavior against reliability targets; propose instrumentation gaps when evidence is missing. |
+| `platform-code-auditor` | Audit internal code and lifecycle assumptions against portability and instrumentation requirements. |
+| `infra-contrarian` | Challenge whether reliability, instrumentation, and portability findings are material enough to promote. |
+| `director-swarm` | Pull infrastructure risks into morning vision walk decisions and portfolio sequencing. |
 
 ## Files
 

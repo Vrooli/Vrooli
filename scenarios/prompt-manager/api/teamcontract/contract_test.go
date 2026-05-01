@@ -2,7 +2,6 @@ package teamcontract
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,6 +123,7 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		Paths:       []PathRef{{Base: BaseRepoRoot, Path: "docs/strategy.md", Required: boolPtr(false), OptionalReason: "test fixture"}},
 		WritePolicy: "operator-curated-via-decisions",
 		Consumers:   []string{"team-1", "team-2"},
+		UseFor:      "durable strategy canon",
 	}}
 	contract.Documents.Notebooks = []NotebookDocument{{
 		ID:               "notebook",
@@ -154,6 +154,8 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		"- `docs/strategy.md`",
 		"Policy: `operator-curated-via-decisions`",
 		"Consumers: `team-1, team-2`",
+		"Use for: durable strategy canon",
+		"Navigation: start at the hub and follow its file map to the relevant spoke.",
 		"Notebook, append unresolved learning:",
 		"Curator: `agent-1`",
 		"Promotion context: `general`",
@@ -161,7 +163,11 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		"Team working state:",
 		"Kind: `append-only-event-log`",
 		"Use for: structured historical events or observations owned by the team",
-		"Always available:",
+		"Primitive availability for this member:",
+		"- decisions: `write-allowed`",
+		"- knowledge: `write-allowed`",
+		"- handoff: `allowed`",
+		"- task board: `review-only`",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered storage missing %q:\n%s", want, rendered)
@@ -172,60 +178,61 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 	}
 }
 
-func TestRenderTeamStorageGroupsLargePlanOfRecordLists(t *testing.T) {
+func TestValidateRequiresHubForMultiPathPlanOfRecord(t *testing.T) {
 	contract := Minimal(DecisionModeApproval, "agent-1")
-	for i := 0; i < 9; i++ {
-		contract.Documents.PlanOfRecord = append(contract.Documents.PlanOfRecord, PlanOfRecordDocument{
-			ID:          fmt.Sprintf("doc-%d", i),
-			Paths:       []PathRef{{Base: BaseRepoRoot, Path: fmt.Sprintf("docs/monetization/doc-%02d.md", i), Required: boolPtr(false), OptionalReason: "test fixture"}},
-			WritePolicy: "operator-curated-via-decisions",
-			Consumers:   []string{"monetization"},
-		})
+	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
+		ID: "canon",
+		Paths: []PathRef{
+			{Base: BaseRepoRoot, Path: "docs/canon/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/canon/spoke.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+		},
+		WritePolicy: "operator-curated-via-decisions",
+		Consumers:   []string{"team-1"},
+		Required:    boolPtr(false),
+	}}
+
+	err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval})
+	if err == nil || !strings.Contains(err.Error(), "hub is required") {
+		t.Fatalf("expected missing hub error, got %v", err)
 	}
+}
+
+func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
+	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
+		ID:  "canon",
+		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+		Paths: []PathRef{
+			{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+		},
+		WritePolicy:    "operator-curated-via-decisions",
+		Consumers:      []string{"monetization"},
+		UseFor:         "monetization strategy, catalog, pricing, and channels",
+		Required:       boolPtr(false),
+		OptionalReason: "test fixture",
+	}}
 
 	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
 	if err != nil {
 		t.Fatalf("RenderTeamStorage: %v", err)
 	}
 	for _, want := range []string{
-		"- 9 docs under `docs/monetization/`",
+		"- `docs/monetization/README.md`",
 		"Policy: `operator-curated-via-decisions`",
 		"Consumers: `monetization`",
-		"Exact paths: see `## Document Authority` above.",
+		"Use for: monetization strategy, catalog, pricing, and channels",
+		"Navigation: start at the hub and follow its file map to the relevant spoke.",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered storage missing %q:\n%s", want, rendered)
 		}
 	}
-	if strings.Contains(rendered, "`docs/monetization/doc-00.md`") {
-		t.Fatalf("large plan-of-record list should be grouped, got exact path:\n%s", rendered)
-	}
-}
-
-func TestRenderTeamStorageSplitsLargePlanOfRecordListsByPolicy(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
-	for i := 0; i < 9; i++ {
-		policy := "operator-curated-via-decisions"
-		if i%2 == 0 {
-			policy = "read-only"
+	for _, legacy := range []string{"docs under", "Exact paths: see `## Document Authority` above.", "`docs/monetization/CATALOG.md`"} {
+		if strings.Contains(rendered, legacy) {
+			t.Fatalf("rendered storage contains legacy path-list wording %q:\n%s", legacy, rendered)
 		}
-		contract.Documents.PlanOfRecord = append(contract.Documents.PlanOfRecord, PlanOfRecordDocument{
-			ID:          fmt.Sprintf("doc-%d", i),
-			Paths:       []PathRef{{Base: BaseRepoRoot, Path: fmt.Sprintf("docs/marketing/doc-%02d.md", i), Required: boolPtr(false), OptionalReason: "test fixture"}},
-			WritePolicy: policy,
-			Consumers:   []string{"marketing"},
-		})
-	}
-
-	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
-	if err != nil {
-		t.Fatalf("RenderTeamStorage: %v", err)
-	}
-	if !strings.Contains(rendered, "- 5 docs under `docs/marketing/`") || !strings.Contains(rendered, "- 4 docs under `docs/marketing/`") {
-		t.Fatalf("expected separate grouped rows by policy:\n%s", rendered)
-	}
-	if strings.Count(rendered, "Policy: `read-only`") != 1 || strings.Count(rendered, "Policy: `operator-curated-via-decisions`") != 1 {
-		t.Fatalf("expected one group per policy:\n%s", rendered)
 	}
 }
 

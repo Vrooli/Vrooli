@@ -38,7 +38,7 @@ const KIND_META: Record<
     color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
     badgeLabel: 'Team',
   },
-  'execution-brief': {
+  'active-task-brief': {
     icon: Heart,
     color: 'bg-sky-500/15 text-sky-400 border-sky-500/25',
     badgeLabel: 'Brief',
@@ -82,6 +82,11 @@ const KIND_META: Record<
     icon: Heart,
     color: 'bg-red-500/15 text-red-400 border-red-500/25',
     badgeLabel: 'Team',
+  },
+  'task-reminder': {
+    icon: Heart,
+    color: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
+    badgeLabel: 'Reminder',
   },
 }
 

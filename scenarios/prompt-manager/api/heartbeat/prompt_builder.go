@@ -160,10 +160,10 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		}
 
 		sections = append(sections, PromptSection{
-			Kind:       "execution-brief",
-			Label:      "Execution Brief",
+			Kind:       promptSectionKindActiveTaskBrief,
+			Label:      promptSectionLabelActiveTaskBrief,
 			SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID),
-			Content:    buildExecutionBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions),
+			Content:    buildActiveTaskBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions, b.teamStore.StoreDir()),
 		})
 
 		operatingContract, err := teamcontract.RenderMember(team.OperatingContract, teamcontract.RenderInput{
@@ -253,7 +253,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 					Kind:       "heartbeat-task",
 					Label:      "HEARTBEAT.md",
 					SourcePath: fmt.Sprintf("teams/%s/members/%s/HEARTBEAT.md", teamID, agentID),
-					Content:    "# Heartbeat Task (HEARTBEAT.md)\n\n" + heartbeatInstructions,
+					Content:    promptHeadingHeartbeatTask + "\n\n" + heartbeatInstructions,
 				})
 			} else {
 				// No heartbeat instructions - use default task
@@ -263,6 +263,12 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 					Content: "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.",
 				})
 			}
+			sections = append(sections, PromptSection{
+				Kind:       promptSectionKindTaskReminder,
+				Label:      promptSectionLabelTaskReminder,
+				SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID),
+				Content:    buildTaskReminderSection(team, agentID, heartbeatInstructions),
+			})
 		}
 	}
 
@@ -274,10 +280,24 @@ func (b *PromptBuilder) BuildStructured(ctx context.Context, req PromptBuildRequ
 	return b.buildSectionList(ctx, req, true)
 }
 
-func buildExecutionBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string) string {
+type memberStoragePolicy struct {
+	CanWriteDecision          bool
+	CanWriteKnowledge         bool
+	RequiresHandoff           bool
+	CanWriteTask              bool
+	CanWriteWorkingStatePaths []string
+	AllowedWriteLabels        []string
+	ForbiddenWriteLabels      []string
+	RequiredKnowledgeTopics   []string
+	DecisionCapPerHeartbeat   *int
+	PendingOwnedDecisionCap   *int
+}
+
+func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string, storeDir string) string {
 	teamID := ""
 	teamName := ""
 	lane := ""
+	policy := memberStoragePolicy{}
 	if team != nil {
 		teamID = team.ID
 		teamName = team.DisplayName
@@ -288,30 +308,130 @@ func buildExecutionBriefSection(team *store.Team, agentID string, includeHeartbe
 			if member, ok := team.OperatingContract.Members[agentID]; ok {
 				lane = strings.TrimSpace(member.Lane)
 			}
+			policy = buildMemberStoragePolicy(team, agentID, storeDir)
 		}
 	}
 	if lane == "" {
 		lane = "Apply the team mission within this member's assigned scope."
 	}
+	task := firstHeartbeatTaskHeading(heartbeatInstructions)
+	if task == "" {
+		task = lane
+	}
 
 	var section strings.Builder
-	section.WriteString("# Execution Brief\n\n")
-	section.WriteString(fmt.Sprintf("Member: `%s`\n", agentID))
-	section.WriteString(fmt.Sprintf("Team: `%s`", teamID))
+	section.WriteString(promptHeadingActiveTaskBrief + "\n\n")
+	section.WriteString(fmt.Sprintf("You are running one prompt-manager heartbeat as `%s` on `%s`", agentID, teamID))
 	if teamName != "" && teamName != teamID {
-		section.WriteString(fmt.Sprintf(" (%s)", teamName))
+		section.WriteString(fmt.Sprintf(" (`%s`)", teamName))
 	}
-	section.WriteString("\n")
-	section.WriteString(fmt.Sprintf("Lane: %s\n", lane))
+	section.WriteString(".\n\n")
+	section.WriteString("## Mission This Run\n\n")
+	section.WriteString(lane + "\n\n")
+	section.WriteString("## Primary Task\n\n")
 	if includeHeartbeat {
-		if task := firstHeartbeatTaskHeading(heartbeatInstructions); task != "" {
-			section.WriteString(fmt.Sprintf("Task: %s\n", task))
-		}
-		section.WriteString("\nThis heartbeat's concrete task is defined at the end of this prompt in `# Heartbeat Task (HEARTBEAT.md)`.\n\n")
+		section.WriteString(task + "\n\n")
+		section.WriteString("The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`. Use this brief to stay oriented while reading the context pack.\n\n")
 	} else {
-		section.WriteString("\nThe active heartbeat task is intentionally omitted from member context.\n\n")
+		section.WriteString("The active heartbeat task is intentionally omitted from member context.\n\n")
 	}
-	section.WriteString("Use the sections below as operating context. If a section conflicts with the heartbeat task, follow the authority order in `# Storage Map`.")
+	section.WriteString("## Write Surface\n\n")
+	if len(policy.AllowedWriteLabels) == 0 {
+		section.WriteString("Allowed: none declared\n\n")
+	} else {
+		section.WriteString("Allowed:\n")
+		for _, label := range policy.AllowedWriteLabels {
+			section.WriteString("- " + label + "\n")
+		}
+		section.WriteString("\n")
+	}
+	if len(policy.ForbiddenWriteLabels) == 0 {
+		section.WriteString("Forbidden: none declared\n\n")
+	} else {
+		section.WriteString("Forbidden:\n")
+		for _, label := range policy.ForbiddenWriteLabels {
+			section.WriteString("- " + label + "\n")
+		}
+		section.WriteString("\n")
+	}
+	section.WriteString("## Required Memory\n\n")
+	if len(policy.RequiredKnowledgeTopics) == 0 {
+		section.WriteString("Knowledge topics: none declared\n\n")
+	} else {
+		section.WriteString("Knowledge topics:\n")
+		for _, topic := range policy.RequiredKnowledgeTopics {
+			section.WriteString("- `" + topic + "`\n")
+		}
+		section.WriteString("\n")
+	}
+	section.WriteString("Handoff:\n")
+	if policy.RequiresHandoff {
+		section.WriteString("- End with `## HANDOFF` as the final response section when the team requires handoff persistence.\n\n")
+	} else {
+		section.WriteString("- No required handoff declared for this member.\n\n")
+	}
+	if policy.CanWriteDecision {
+		section.WriteString("Decision cap: ")
+		if policy.DecisionCapPerHeartbeat != nil {
+			section.WriteString(fmt.Sprintf("%d new decisions this heartbeat", *policy.DecisionCapPerHeartbeat))
+		} else {
+			section.WriteString("no explicit per-heartbeat cap")
+		}
+		if policy.PendingOwnedDecisionCap != nil {
+			section.WriteString(fmt.Sprintf("; skip new decisions when %d owned-context decisions are already pending", *policy.PendingOwnedDecisionCap))
+		}
+		section.WriteString(".\n\n")
+	} else {
+		section.WriteString("Decision writes: not allowed for this member. Review decisions when useful; do not create them.\n\n")
+	}
+	section.WriteString("## Operating Rule\n\n")
+	section.WriteString("If context sections disagree, follow the authority order in `# Storage Map`. If the heartbeat task conflicts with lower-priority context, follow the heartbeat task unless it violates the operator instruction or your write rules.")
+	return section.String()
+}
+
+func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstructions string) string {
+	teamID := ""
+	lane := "Apply the team mission within this member's assigned scope."
+	policy := memberStoragePolicy{}
+	if team != nil {
+		teamID = team.ID
+		if team.OperatingContract != nil {
+			if member, ok := team.OperatingContract.Members[agentID]; ok && strings.TrimSpace(member.Lane) != "" {
+				lane = strings.TrimSpace(member.Lane)
+			}
+			policy = buildMemberStoragePolicy(team, agentID, "")
+		}
+	}
+	focus := firstHeartbeatTaskHeading(heartbeatInstructions)
+	if focus == "" {
+		focus = lane
+	}
+
+	var section strings.Builder
+	section.WriteString(promptHeadingTaskReminder + "\n\n")
+	section.WriteString(fmt.Sprintf("Run this heartbeat as `%s` on `%s`.\n\n", agentID, teamID))
+	section.WriteString(fmt.Sprintf("Focus on: %s.\n\n", focus))
+	section.WriteString("Do now:\n")
+	section.WriteString("1. Follow the task loop in `HEARTBEAT.md`.\n")
+	section.WriteString("2. Use only the write surfaces allowed in `# Active Task Brief`.\n")
+	itemThree := "3. Record observations, friction"
+	if policy.CanWriteDecision {
+		itemThree += ", decisions"
+	}
+	if len(policy.CanWriteWorkingStatePaths) > 0 {
+		itemThree += ", working-state updates"
+	}
+	if policy.RequiresHandoff {
+		itemThree += ", and handoff"
+	}
+	itemThree += " according to `# Storage Map`"
+	if !policy.CanWriteDecision {
+		itemThree += "; do not create decisions"
+	}
+	section.WriteString(itemThree + ".\n")
+	if policy.RequiresHandoff {
+		section.WriteString("4. End with `## HANDOFF` when required, then stop.")
+	}
 	return section.String()
 }
 
@@ -328,6 +448,131 @@ func firstHeartbeatTaskHeading(markdown string) string {
 		return title
 	}
 	return ""
+}
+
+func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string) memberStoragePolicy {
+	if team == nil || team.OperatingContract == nil {
+		return memberStoragePolicy{}
+	}
+	member, ok := team.OperatingContract.Members[agentID]
+	if !ok {
+		return memberStoragePolicy{}
+	}
+	policy := memberStoragePolicy{
+		RequiresHandoff:         teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
+		RequiredKnowledgeTopics: append([]string(nil), member.RequiredKnowledgeTopics...),
+		DecisionCapPerHeartbeat: member.NewDecisionCapPerHeartbeat,
+		PendingOwnedDecisionCap: member.PendingOwnedDecisionCap,
+	}
+	for _, ref := range member.AllowedWrites {
+		label := describeWriteRef(ref, team, agentID, storeDir)
+		if label != "" {
+			policy.AllowedWriteLabels = append(policy.AllowedWriteLabels, label)
+		}
+		if ref.Kind != "" {
+			switch ref.Kind {
+			case "decision":
+				policy.CanWriteDecision = true
+			case "knowledge":
+				policy.CanWriteKnowledge = true
+			case "handoff":
+				policy.RequiresHandoff = teamconfig.RequiresHandoff(team.Contract())
+			case "task":
+				policy.CanWriteTask = true
+			}
+			continue
+		}
+		normalized := normalizedWritePath(ref, team, agentID, storeDir)
+		switch {
+		case strings.HasSuffix(normalized, "/decisions.jsonl"):
+			policy.CanWriteDecision = true
+		case strings.HasSuffix(normalized, "/knowledge.jsonl"):
+			policy.CanWriteKnowledge = true
+		default:
+			if normalized != "" {
+				policy.CanWriteWorkingStatePaths = append(policy.CanWriteWorkingStatePaths, normalized)
+			}
+		}
+	}
+	for _, ref := range member.ForbiddenWrites {
+		label := describeWriteRef(ref, team, agentID, storeDir)
+		if label != "" {
+			policy.ForbiddenWriteLabels = append(policy.ForbiddenWriteLabels, label)
+		}
+		if ref.Kind == "" {
+			continue
+		}
+		switch ref.Kind {
+		case "decision":
+			policy.CanWriteDecision = false
+		case "knowledge":
+			policy.CanWriteKnowledge = false
+		case "handoff":
+			policy.RequiresHandoff = false
+		case "task":
+			policy.CanWriteTask = false
+		}
+	}
+	if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0 {
+		policy.CanWriteDecision = false
+	}
+	sort.Strings(policy.AllowedWriteLabels)
+	sort.Strings(policy.ForbiddenWriteLabels)
+	sort.Strings(policy.RequiredKnowledgeTopics)
+	sort.Strings(policy.CanWriteWorkingStatePaths)
+	return policy
+}
+
+func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID string, storeDir string) string {
+	if ref.Kind != "" {
+		switch ref.Kind {
+		case "decision":
+			return "decision proposals"
+		case "knowledge":
+			return "knowledge observations and friction signals"
+		case "handoff":
+			return "final `## HANDOFF` continuity"
+		case "task":
+			return "team task board updates"
+		case "inbox-message":
+			return "async inbox messages"
+		default:
+			return ref.Kind
+		}
+	}
+	if path := normalizedWritePath(ref, team, agentID, storeDir); path != "" {
+		return "`" + path + "`"
+	}
+	return ""
+}
+
+func normalizedWritePath(ref teamcontract.WriteRef, team *store.Team, agentID string, storeDir string) string {
+	if team == nil {
+		return ""
+	}
+	path, err := teamcontract.NormalizePath(teamcontract.PathRef{
+		Base:     ref.Base,
+		Path:     ref.Path,
+		MemberID: ref.MemberID,
+		AgentID:  ref.AgentID,
+	}, teamcontract.ValidationInput{
+		TeamID:       team.ID,
+		DecisionMode: team.DecisionMode,
+		StoreDir:     storeDir,
+	}, agentID)
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+func writeRefsContainKind(refs []teamcontract.WriteRef, kind string) bool {
+	for _, ref := range refs {
+		if ref.Kind == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) []store.AgentFileEntry {
@@ -554,11 +799,12 @@ When sources disagree, prefer:
 `)
 
 	teamStorage, err := teamcontract.RenderTeamStorage(team.OperatingContract, teamcontract.RenderInput{
-		TeamID:       team.ID,
-		TeamName:     team.DisplayName,
-		DecisionMode: team.DecisionMode,
-		MemberID:     agentID,
-		StoreDir:     b.teamStore.StoreDir(),
+		TeamID:         team.ID,
+		TeamName:       team.DisplayName,
+		DecisionMode:   team.DecisionMode,
+		MemberID:       agentID,
+		StoreDir:       b.teamStore.StoreDir(),
+		RequireHandoff: teamconfig.RequiresHandoff(team.Contract()),
 	})
 	if err != nil {
 		return "", err
@@ -566,7 +812,7 @@ When sources disagree, prefer:
 	section.WriteString("\n")
 	section.WriteString(teamStorage)
 
-	commandSection := b.buildAvailableStorageCommandsSection(team)
+	commandSection := b.buildAvailableStorageCommandsSection(team, agentID)
 	if commandSection != "" {
 		section.WriteString("\n")
 		section.WriteString(commandSection)
@@ -575,12 +821,13 @@ When sources disagree, prefer:
 	return strings.TrimRight(section.String(), "\n"), nil
 }
 
-func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team) string {
+func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, agentID string) string {
 	if team == nil {
 		return ""
 	}
 
 	contract := team.Contract()
+	policy := buildMemberStoragePolicy(team, agentID, b.teamStore.StoreDir())
 	var lines []string
 
 	if teamconfig.MessagingUsesAsyncInbox(contract) {
@@ -597,8 +844,12 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team) s
 		lines = append(lines, "### Task Board")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Review current work: `prompt-manager team task-list %s`", team.ID))
-		lines = append(lines, fmt.Sprintf("- Add a task: `prompt-manager team task-add %s --by=<agent-id> --title \"...\"`", team.ID))
-		lines = append(lines, fmt.Sprintf("- Update a task: `prompt-manager team task-update %s <task-id> --status=in-progress`", team.ID))
+		if policy.CanWriteTask {
+			lines = append(lines, fmt.Sprintf("- Add a task: `prompt-manager team task-add %s --by=<agent-id> --title \"...\"`", team.ID))
+			lines = append(lines, fmt.Sprintf("- Update a task: `prompt-manager team task-update %s <task-id> --status=in-progress`", team.ID))
+		} else {
+			lines = append(lines, "- Task writes are not allowed for this member.")
+		}
 		lines = append(lines, "")
 	}
 
@@ -606,7 +857,11 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team) s
 		lines = append(lines, "### Decision Log")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Review decisions: `prompt-manager team decision-list %s`", team.ID))
-		lines = append(lines, fmt.Sprintf("- Record a pending decision: `prompt-manager team decision-add %s --by=<agent-id> --decision \"...\" --rationale \"...\"`", team.ID))
+		if policy.CanWriteDecision {
+			lines = append(lines, fmt.Sprintf("- Record a pending decision: `prompt-manager team decision-add %s --by=<agent-id> --decision \"...\" --rationale \"...\"`", team.ID))
+		} else {
+			lines = append(lines, "- Decision writes are not allowed for this member.")
+		}
 		lines = append(lines, "")
 	}
 
@@ -614,7 +869,11 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team) s
 		lines = append(lines, "### Knowledge Log")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Review team knowledge: `prompt-manager team knowledge-list %s`", team.ID))
-		lines = append(lines, fmt.Sprintf("- Record durable knowledge: `prompt-manager team knowledge-add %s --by=<agent-id> --topic \"...\" --content \"...\"`", team.ID))
+		if policy.CanWriteKnowledge {
+			lines = append(lines, fmt.Sprintf("- Record durable knowledge: `prompt-manager team knowledge-add %s --by=<agent-id> --topic \"...\" --content \"...\"`", team.ID))
+		} else {
+			lines = append(lines, "- Knowledge writes are not allowed for this member.")
+		}
 		lines = append(lines, "")
 	}
 

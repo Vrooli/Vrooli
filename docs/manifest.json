@@ -210,6 +210,43 @@
       ]
     },
     {
+      "id": "team-plans",
+      "title": "Team Plans",
+      "icon": "network",
+      "documents": [
+        {
+          "path": "director-swarm/README.md",
+          "title": "Director Swarm",
+          "description": "Portfolio direction, initiative sequencing, and outcome discipline"
+        },
+        {
+          "path": "infra-health/README.md",
+          "title": "Infra Health",
+          "description": "Reliability, instrumentation, and portability plan of record"
+        },
+        {
+          "path": "marketing/README.md",
+          "title": "Marketing",
+          "description": "External voice, campaigns, channels, and brand canon"
+        },
+        {
+          "path": "meta-optimization/README.md",
+          "title": "Meta Optimization",
+          "description": "Working notebook for agent, team, skill, and toolchain improvement patterns"
+        },
+        {
+          "path": "monetization/README.md",
+          "title": "Monetization",
+          "description": "Strategy, catalog, pricing, revenue lines, channels, and financial model"
+        },
+        {
+          "path": "narrative/README.md",
+          "title": "Narrative",
+          "description": "Project identity canon for pitch, story, FAQ, press kit, and pitch deck"
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -243,7 +280,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference", "operations", "systems", "strategy"],
+    "primary": ["getting-started", "concepts", "guides", "reference", "operations", "systems", "strategy", "team-plans"],
     "secondary": ["internal"]
   }
 }

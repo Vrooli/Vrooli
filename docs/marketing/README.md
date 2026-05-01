@@ -9,6 +9,23 @@ There is a companion working notebook under [`notebook/`](notebook/README.md). T
 
 See [`scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md) for the pattern definition. See [`scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md) for the team's live operating rules.
 
+## Start here for agents
+
+Use this README first, then choose the file or sub-hub that matches the work:
+
+| Question | Start with |
+|---|---|
+| What should Vrooli sound like? | [`STRATEGY.md`](STRATEGY.md) |
+| Who is the audience? | [`AUDIENCES.md`](AUDIENCES.md) |
+| Which campaign is active? | [`CAMPAIGNS.md`](CAMPAIGNS.md) |
+| What are the publishing rules for a platform? | [`CHANNELS.md`](CHANNELS.md) |
+| Which brand or visual rule applies? | [`BRAND.md`](BRAND.md), [`ASSETS.md`](ASSETS.md), or [`IMAGE_STYLE.md`](IMAGE_STYLE.md) |
+| Which post shape should be used? | [`post-types/README.md`](post-types/README.md) |
+| Which reusable writing technique applies? | [`post-techniques/README.md`](post-techniques/README.md) |
+| Which cross-cutting campaign strategy applies? | [`strategies/README.md`](strategies/README.md) |
+| Which generated-media asset or schema applies? | [`rich-media/README.md`](rich-media/README.md) |
+| Is this unresolved learning rather than canon? | [`notebook/README.md`](notebook/README.md) |
+
 ## Files in this folder
 
 | File | Purpose |
@@ -23,12 +40,14 @@ See [`scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/S
 
 ## Sub-folders
 
+The first file in each sub-folder is a hub. Start there rather than guessing at individual spokes.
+
 | Folder | Purpose |
 |--------|---------|
-| [`post-types/`](post-types/) | One file per kind of marketing post Vrooli produces, organized by primary medium under `text/`, `image/`, and `video/`. Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
-| [`post-techniques/`](post-techniques/) | One file per cross-cutting voice/structure technique (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, recommendation-framing, …). Techniques are referenced from multiple post-type files rather than duplicated. |
-| [`strategies/`](strategies/) | Cross-cutting marketing strategies that span multiple post-types and aren't pure techniques (AI-UGC personas, hook library, funnel patterns). One file per strategy. |
-| [`rich-media/`](rich-media/) | Structured-data substrate for AI image and video generation: character / scene / product schemas (JSON), prompt templates (Veo/Seedance-compatible), and ground-truth assets. Drives multi-frame and multi-shot consistency. |
+| [`post-types/README.md`](post-types/README.md) | One file per kind of marketing post Vrooli produces, organized by primary medium under `text/`, `image/`, and `video/`. Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
+| [`post-techniques/README.md`](post-techniques/README.md) | One file per cross-cutting voice/structure technique (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, recommendation-framing, etc.). Techniques are referenced from multiple post-type files rather than duplicated. |
+| [`strategies/README.md`](strategies/README.md) | Cross-cutting marketing strategies that span multiple post-types and aren't pure techniques (AI-UGC personas, hook library, funnel patterns). One file per strategy. |
+| [`rich-media/README.md`](rich-media/README.md) | Structured-data substrate for AI image and video generation: character / scene / product schemas (JSON), prompt templates (Veo/Seedance-compatible), and ground-truth assets. Drives multi-frame and multi-shot consistency. |
 | [`notebook/`](notebook/) | Working notebook for patterns observed in production. Append-anyone; brand-manager curates promotions to plan-of-record (here, in `post-types/`, in `post-techniques/`, in `strategies/`) or to permanent structure (a skill or scenario). |
 
 ## Write rules

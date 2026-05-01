@@ -1050,10 +1050,10 @@ Preview the same heartbeat prompt as ordered structured sections. This is the pr
   "teamId": "engineering",
   "sections": [
     {
-      "kind": "execution-brief",
-      "label": "Execution Brief",
+      "kind": "active-task-brief",
+      "label": "Active Task Brief",
       "sourcePath": "teams/engineering/team.json#operatingContract.members.agent-1",
-      "content": "# Execution Brief\n\n..."
+      "content": "# Active Task Brief\n\n..."
     }
   ]
 }

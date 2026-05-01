@@ -62,6 +62,10 @@
       "planOfRecord": [
         {
           "id": "marketing-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/marketing/README.md"
+          },
           "paths": [
             {
               "base": "repo-root",
@@ -102,7 +106,8 @@
             "director-swarm",
             "monetization"
           ],
-          "rationale": "Canonical external voice, audience, channel, campaign, and brand state."
+          "rationale": "Canonical external voice, audience, channel, campaign, and brand state.",
+          "useFor": "marketing strategy, audiences, campaigns, channels, brand, assets, and image-style guidance"
         },
         {
           "id": "marketing-post-types",
@@ -116,10 +121,15 @@
           "consumers": [
             "marketing-crew"
           ],
-          "rationale": "Post-type activation discipline and index; individual post-type docs live below this folder."
+          "rationale": "Post-type activation discipline and index; individual post-type docs live below this folder.",
+          "useFor": "post-type activation discipline and navigation to individual post-type spokes"
         },
         {
           "id": "marketing-strategies",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/marketing/strategies/README.md"
+          },
           "paths": [
             {
               "base": "repo-root",
@@ -142,10 +152,15 @@
           "consumers": [
             "marketing-crew"
           ],
-          "rationale": "Reusable strategy canon for hooks, funnel patterns, and AI-UGC rules."
+          "rationale": "Reusable strategy canon for hooks, funnel patterns, and AI-UGC rules.",
+          "useFor": "cross-cutting marketing strategies, hook libraries, funnel patterns, and AI-UGC persona guidance"
         },
         {
           "id": "narrative-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/narrative/README.md"
+          },
           "paths": [
             {
               "base": "repo-root",
@@ -178,11 +193,20 @@
             "director-swarm",
             "monetization"
           ],
-          "rationale": "Cross-team project-identity canon curated through brand-guideline-update decisions."
+          "rationale": "Cross-team project-identity canon curated through brand-guideline-update decisions.",
+          "useFor": "canonical pitch, narrative, FAQ, press kit, and pitch-deck project identity"
         },
         {
           "id": "monetization-facts",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/monetization/README.md"
+          },
           "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/README.md"
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/CATALOG.md"
@@ -204,7 +228,8 @@
           "consumers": [
             "marketing-crew"
           ],
-          "rationale": "Read-only SKU, pricing, tier, and scenario mapping facts for marketing claims."
+          "rationale": "Read-only SKU, pricing, tier, and scenario mapping facts for marketing claims.",
+          "useFor": "read-only SKU, pricing, delivery-tier, and scenario mapping facts for marketing claims"
         }
       ],
       "notebooks": [

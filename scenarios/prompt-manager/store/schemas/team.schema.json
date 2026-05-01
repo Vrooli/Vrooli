@@ -140,6 +140,23 @@
         "documents": {
           "type": "object",
           "properties": {
+            "planOfRecord": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "hub": {
+                    "type": "object",
+                    "description": "Hub/index path agents should read first for this plan-of-record surface. Required by API validation when more than one path is declared."
+                  },
+                  "useFor": {
+                    "type": "string",
+                    "description": "Agent-facing summary of when to use this plan-of-record surface."
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
             "sharedState": {
               "type": "array",
               "items": {

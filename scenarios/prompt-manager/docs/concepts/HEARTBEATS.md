@@ -138,7 +138,7 @@ This keeps judgment in skills and execution in Actions without bloating every he
 
 ## Prompt Pipeline UI
 
-The Team Members heartbeat UI exposes a **Prompt Pipeline** view that renders the backend-provided structured prompt order (Agent Files → Team Charter → Execution Brief → Operating Contract → Responsibilities → Org Context → Coordination → Storage Map → Inbox → Previous Handoff → Heartbeat Task, omitting sections that are not present for a member). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts.
+The Team Members heartbeat UI exposes a **Prompt Pipeline** view that renders the backend-provided structured prompt order (Agent Files → Team Charter → Active Task Brief → Operating Contract → Responsibilities → Org Context → Coordination → Storage Map → Inbox → Previous Handoff → Heartbeat Task → Task Reminder, omitting sections that are not present for a member). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts.
 
 The UI loads `/prompt-preview-structured` and renders the returned `sections[]` directly. Backend prompt assembly is the source of truth for section order; the UI does not parse flat markdown to infer pipeline order. `/prompt-preview` remains the exact flat runtime prompt used to audit what a heartbeat receives.
 

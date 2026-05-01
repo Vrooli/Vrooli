@@ -29,7 +29,7 @@ const SECTION_META: Record<string, PipelineSectionMeta> = {
   'team-shared-charter': {
     description: 'Team-level charter and operating model.',
   },
-  'execution-brief': {
+  'active-task-brief': {
     description: 'Generated orientation for this member and heartbeat prompt.',
   },
   'team-operating-contract': {
@@ -55,6 +55,9 @@ const SECTION_META: Record<string, PipelineSectionMeta> = {
   },
   'heartbeat-task': {
     description: 'The exact task this member will execute on each heartbeat.',
+  },
+  'task-reminder': {
+    description: 'Generated final anchor for the heartbeat task and write rules.',
   },
 }
 

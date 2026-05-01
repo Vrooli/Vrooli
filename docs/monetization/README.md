@@ -2,6 +2,23 @@
 
 Durable monetization strategy, catalog, and operational framework for Vrooli. Owned by the `monetization` team in prompt-manager; authored and curated by the human operator.
 
+## Start here for agents
+
+Use this hub first for monetization canon. Choose the next file by the question you are answering:
+
+| Question | Start with |
+|---|---|
+| What is the monetization posture or strategic rule? | [STRATEGY.md](STRATEGY.md) |
+| What exactly can be sold or bundled? | [CATALOG.md](CATALOG.md) |
+| Which delivery tier or deployment mode matters? | [TIERS.md](TIERS.md) |
+| What price should a surface cite? | [PRICING.md](PRICING.md) |
+| What revenue line is being evaluated or productized? | [REVENUE_LINES.md](REVENUE_LINES.md) |
+| Which acquisition or distribution channel applies? | [CHANNELS.md](CHANNELS.md) |
+| Which funnel stage or metric is blocked? | [FUNNEL.md](FUNNEL.md) or [TELEMETRY_ROADMAP.md](TELEMETRY_ROADMAP.md) |
+| What assumptions drive runway or default-alive analysis? | [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) |
+| What market benchmark is accepted canon? | [BENCHMARKS.md](BENCHMARKS.md) |
+| What operator input should be requested or interpreted? | [HOW_TO_GATHER_INPUTS.md](HOW_TO_GATHER_INPUTS.md) |
+
 ## Organizing principle
 
 Monetization is described across **five orthogonal axes**:

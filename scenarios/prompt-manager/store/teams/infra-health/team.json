@@ -61,53 +61,24 @@
     "documents": {
       "planOfRecord": [
         {
-          "id": "infra-health-index",
+          "id": "infra-health-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/infra-health/README.md"
+          },
           "paths": [
             {
               "base": "repo-root",
               "path": "docs/infra-health/README.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "infra-health",
-            "director-swarm"
-          ],
-          "rationale": "Index and organizing principle for infrastructure health canon."
-        },
-        {
-          "id": "reliability-targets",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/infra-health/RELIABILITY_TARGETS.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "infra-health",
-            "director-swarm"
-          ],
-          "rationale": "Reliability targets for critical platform components."
-        },
-        {
-          "id": "instrumentation-roadmap",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/infra-health/INSTRUMENTATION_ROADMAP.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "infra-health",
-            "director-swarm"
-          ],
-          "rationale": "Missing stats and observability surfaces that block stronger findings."
-        },
-        {
-          "id": "cross-platform-ledger",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/infra-health/CROSS_PLATFORM_LEDGER.md"
@@ -118,7 +89,8 @@
             "infra-health",
             "director-swarm"
           ],
-          "rationale": "Internal-code cross-platform assumptions and target tiers."
+          "rationale": "Plan-of-record for reliability targets, instrumentation gaps, and cross-platform assumptions.",
+          "useFor": "runtime reliability targets, instrumentation roadmap, cross-platform portability ledger, and director-swarm morning-walk infrastructure decisions"
         }
       ],
       "notebooks": [],

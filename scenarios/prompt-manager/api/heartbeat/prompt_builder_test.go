@@ -129,19 +129,20 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 
 	agentIndex := promptHeadingIndex(prompt, "# Agent Files (Markdown)")
 	teamDocIndex := promptHeadingIndex(prompt, "# Team Charter (shared/TEAM.md)")
-	briefIndex := promptHeadingIndex(prompt, "# Execution Brief")
+	briefIndex := promptHeadingIndex(prompt, "# Active Task Brief")
 	contractIndex := promptHeadingIndex(prompt, "# Resolved Operating Contract")
 	respIndex := promptHeadingIndex(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
 	orgIndex := promptHeadingIndex(prompt, "# Team Org Context")
 	storageIndex := promptHeadingIndex(prompt, "# Storage Map")
 	inboxIndex := promptHeadingIndex(prompt, "# Team Inbox")
 	taskIndex := promptHeadingIndex(prompt, "# Heartbeat Task (HEARTBEAT.md)")
+	reminderIndex := promptHeadingIndex(prompt, "# Task Reminder")
 
-	if agentIndex == -1 || teamDocIndex == -1 || briefIndex == -1 || contractIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
+	if agentIndex == -1 || teamDocIndex == -1 || briefIndex == -1 || contractIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 || reminderIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
-	if !(agentIndex < teamDocIndex && teamDocIndex < briefIndex && briefIndex < contractIndex && contractIndex < respIndex && respIndex < orgIndex && orgIndex < storageIndex && storageIndex < inboxIndex && inboxIndex < taskIndex) {
+	if !(agentIndex < teamDocIndex && teamDocIndex < briefIndex && briefIndex < contractIndex && contractIndex < respIndex && respIndex < orgIndex && orgIndex < storageIndex && storageIndex < inboxIndex && inboxIndex < taskIndex && taskIndex < reminderIndex) {
 		t.Fatalf("prompt sections are out of order")
 	}
 
@@ -156,7 +157,10 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 
 	for _, want := range []string{
 		"# Storage Map",
-		"This heartbeat's concrete task is defined at the end of this prompt in `# Heartbeat Task (HEARTBEAT.md)`.",
+		"# Active Task Brief",
+		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
+		"## Write Surface",
+		"## Required Memory",
 		"## Continue",
 		"Use your final `## HANDOFF` for short-term continuity.",
 		"## Observe",
@@ -165,9 +169,10 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"## Operate",
 		"## Authority Order",
 		"## Your Team Storage",
-		"Always available:",
-		"- decisions: propose reviewable changes",
+		"Primitive availability for this member:",
+		"- decisions: `write-allowed`",
 		"## Available Storage Commands",
+		"# Task Reminder",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing storage map content %q", want)
@@ -453,7 +458,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 	// Verify all expected kinds in correct order
 	expectedKinds := []string{
 		"agent-file",
-		"execution-brief",
+		"active-task-brief",
 		"team-operating-contract",
 		"team-responsibilities",
 		"team-org-context",
@@ -461,6 +466,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 		"team-storage-map",
 		"team-inbox",
 		"heartbeat-task",
+		"task-reminder",
 	}
 
 	kindOrder := make([]string, 0, len(sections))
@@ -579,6 +585,50 @@ func TestBuildStructuredMatchesBuild(t *testing.T) {
 	}
 }
 
+func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
+	ctx := context.Background()
+	fileStore := store.NewFileStore("../../store")
+	builder := NewPromptBuilder(
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
+	)
+
+	prompt, err := builder.Build(ctx, PromptBuildRequest{
+		TeamID:  "director-swarm",
+		AgentID: "vision-walk-prep",
+	})
+	if err != nil {
+		t.Fatalf("build bundled vision-walk-prep prompt: %v", err)
+	}
+
+	for _, want := range []string{
+		"# Active Task Brief",
+		"Decision writes: not allowed for this member. Review decisions when useful; do not create them.",
+		"Primitive availability for this member:",
+		"- decisions: `review-only`",
+		"- task board: `review-only`",
+		"- Decision writes are not allowed for this member.",
+		"# Task Reminder",
+		"do not create decisions",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("bundled prompt missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"# Execution Brief",
+		"execution-brief",
+		"Always available:",
+		"team decision-add director-swarm",
+		"team task-add director-swarm",
+		"team task-update director-swarm",
+	} {
+		if strings.Contains(prompt, forbidden) {
+			t.Fatalf("bundled prompt contains forbidden text %q", forbidden)
+		}
+	}
+}
+
 func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	ctx := context.Background()
 	storeDir := t.TempDir()
@@ -641,7 +691,7 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	// All sections except heartbeat should be present
 	for _, section := range []string{
 		"# Agent Files (Markdown)",
-		"# Execution Brief",
+		"# Active Task Brief",
 		"# Team Responsibilities (RESPONSIBILITIES.md)",
 		"# Team Org Context",
 		"# Team Coordination",

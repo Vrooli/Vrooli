@@ -29,8 +29,6 @@ const (
 	TeamWorkingStateKindRollingSnapshot    = "rolling-snapshot"
 	TeamWorkingStateKindAppendOnlyEventLog = "append-only-event-log"
 	TeamWorkingStateKindOperatorInput      = "operator-input"
-
-	teamStoragePlanOfRecordExactLimit = 8
 )
 
 type TeamWorkingStateKind struct {
@@ -153,10 +151,12 @@ type Documents struct {
 
 type PlanOfRecordDocument struct {
 	ID             string    `json:"id"`
+	Hub            *PathRef  `json:"hub,omitempty"`
 	Paths          []PathRef `json:"paths"`
 	WritePolicy    string    `json:"writePolicy"`
 	Consumers      []string  `json:"consumers,omitempty"`
 	Rationale      string    `json:"rationale,omitempty"`
+	UseFor         string    `json:"useFor,omitempty"`
 	Required       *bool     `json:"required,omitempty"`
 	OptionalReason string    `json:"optionalReason,omitempty"`
 }
@@ -242,12 +242,13 @@ type ValidationInput struct {
 }
 
 type RenderInput struct {
-	TeamID       string
-	TeamName     string
-	DecisionMode string
-	MemberID     string
-	StoreDir     string
-	RepoRoot     string
+	TeamID         string
+	TeamName       string
+	DecisionMode   string
+	MemberID       string
+	StoreDir       string
+	RepoRoot       string
+	RequireHandoff bool
 }
 
 func Minimal(decisionMode string, memberIDs ...string) *OperatingContract {
@@ -566,8 +567,19 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 		if len(doc.Consumers) == 0 && strings.TrimSpace(doc.Rationale) == "" {
 			return fmt.Errorf("operatingContract.documents.planOfRecord.%s requires consumers or rationale", doc.ID)
 		}
+		if len(doc.Paths) > 1 && doc.Hub == nil {
+			return fmt.Errorf("operatingContract.documents.planOfRecord.%s.hub is required when multiple paths are declared", doc.ID)
+		}
 		if err := validatePathRefs(doc.Paths, docRequired(doc.Required), doc.OptionalReason, input, "", "planOfRecord."+doc.ID); err != nil {
 			return err
+		}
+		if doc.Hub != nil {
+			if err := validatePathRefs([]PathRef{*doc.Hub}, docRequired(doc.Required), doc.OptionalReason, input, "", "planOfRecord."+doc.ID+".hub"); err != nil {
+				return err
+			}
+			if !planOfRecordHubInPaths(doc, input) {
+				return fmt.Errorf("operatingContract.documents.planOfRecord.%s.hub must also be listed in paths", doc.ID)
+			}
 		}
 	}
 	for _, doc := range contract.Documents.Notebooks {
@@ -604,6 +616,23 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 		}
 	}
 	return nil
+}
+
+func planOfRecordHubInPaths(doc PlanOfRecordDocument, input ValidationInput) bool {
+	if doc.Hub == nil {
+		return true
+	}
+	hubPath, err := NormalizePath(*doc.Hub, input, "")
+	if err != nil {
+		return false
+	}
+	for _, ref := range doc.Paths {
+		path, err := NormalizePath(ref, input, "")
+		if err == nil && path == hubPath {
+			return true
+		}
+	}
+	return false
 }
 
 func validatePathRefs(paths []PathRef, required bool, optionalReason string, input ValidationInput, activeMemberID, field string) error {
@@ -753,15 +782,7 @@ func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, 
 
 	if len(contract.Documents.PlanOfRecord) > 0 {
 		b.WriteString("Plan of record, read/propose only:\n")
-		planItems, err := storagePlanOfRecordItems(contract.Documents.PlanOfRecord, validationInput, input.MemberID)
-		if err != nil {
-			return "", err
-		}
-		if len(planItems) <= teamStoragePlanOfRecordExactLimit {
-			renderStoragePlanOfRecordExact(&b, planItems)
-		} else {
-			renderStoragePlanOfRecordGrouped(&b, planItems)
-		}
+		renderStoragePlanOfRecordHubs(&b, contract.Documents.PlanOfRecord, validationInput, input.MemberID)
 		b.WriteString("\n")
 	}
 
@@ -809,129 +830,128 @@ func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, 
 		b.WriteString("\n")
 	}
 
-	b.WriteString("Always available:\n")
-	b.WriteString("- decisions: propose reviewable changes\n")
-	b.WriteString("- knowledge: record structured observations and friction signals\n")
-	b.WriteString("- handoff: preserve next-run continuity\n")
+	member := contract.Members[input.MemberID]
+	b.WriteString("Primitive availability for this member:\n")
+	b.WriteString("- decisions: " + primitiveDecisionAvailability(member) + "\n")
+	b.WriteString("- knowledge: " + primitiveKnowledgeAvailability(member) + "\n")
+	b.WriteString("- handoff: " + primitiveHandoffAvailability(member, input.RequireHandoff) + "\n")
+	b.WriteString("- task board: " + primitiveTaskAvailability(member) + "\n")
 	return strings.TrimRight(b.String(), "\n") + "\n", nil
 }
 
-type storagePlanOfRecordItem struct {
-	Path      string
-	Policy    string
-	Consumers string
+func primitiveDecisionAvailability(member MemberContract) string {
+	if writeRefsContainKind(member.ForbiddenWrites, "decision") || (member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0) {
+		return "`review-only` - review pending decisions when useful; do not create decisions from this heartbeat"
+	}
+	if writeRefsContainKind(member.AllowedWrites, "decision") || writeRefsContainPathSuffix(member.AllowedWrites, "decisions.jsonl") {
+		return "`write-allowed` - propose reviewable changes within your owned contexts and caps"
+	}
+	return "`unavailable` - no decision surface is declared for this member"
 }
 
-type storagePlanOfRecordGroup struct {
-	Prefix    string
-	Policy    string
-	Consumers string
-	Count     int
+func primitiveKnowledgeAvailability(member MemberContract) string {
+	if writeRefsContainKind(member.ForbiddenWrites, "knowledge") {
+		return "`unavailable` - do not write team knowledge from this heartbeat"
+	}
+	if writeRefsContainKind(member.AllowedWrites, "knowledge") || writeRefsContainPathSuffix(member.AllowedWrites, "knowledge.jsonl") {
+		return "`write-allowed` - record structured observations and friction signals using required topics"
+	}
+	return "`unavailable` - no knowledge surface is declared for this member"
 }
 
-func storagePlanOfRecordItems(docs []PlanOfRecordDocument, input ValidationInput, activeMemberID string) ([]storagePlanOfRecordItem, error) {
-	var items []storagePlanOfRecordItem
+func primitiveHandoffAvailability(member MemberContract, requireHandoff bool) string {
+	if writeRefsContainKind(member.ForbiddenWrites, "handoff") {
+		return "`unavailable` - do not write a persistent handoff"
+	}
+	if writeRefsContainKind(member.AllowedWrites, "handoff") {
+		if requireHandoff {
+			return "`required` - preserve next-run continuity with final ## HANDOFF"
+		}
+		return "`allowed` - preserve next-run continuity when useful"
+	}
+	return "`unavailable` - no handoff surface is declared for this member"
+}
+
+func primitiveTaskAvailability(member MemberContract) string {
+	if writeRefsContainKind(member.ForbiddenWrites, "task") {
+		return "`review-only` - review task board context when useful; do not update tasks"
+	}
+	if writeRefsContainKind(member.AllowedWrites, "task") {
+		return "`write-allowed` - maintain live team work only when your task asks for it"
+	}
+	return "`review-only` - review task board context when useful; no task write surface is declared"
+}
+
+func writeRefsContainKind(refs []WriteRef, kind string) bool {
+	for _, ref := range refs {
+		if ref.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func writeRefsContainPathSuffix(refs []WriteRef, suffix string) bool {
+	for _, ref := range refs {
+		if ref.Kind == "" && strings.HasSuffix(filepath.ToSlash(strings.TrimSpace(ref.Path)), suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func renderStoragePlanOfRecordHubs(b *strings.Builder, docs []PlanOfRecordDocument, input ValidationInput, activeMemberID string) {
+	rows := make([]storagePlanOfRecordRow, 0, len(docs))
 	for _, doc := range docs {
-		consumerLine := storageConsumerLine(doc.Consumers, doc.Rationale)
-		for _, ref := range doc.Paths {
-			p, err := NormalizePath(ref, input, activeMemberID)
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, storagePlanOfRecordItem{
-				Path:      p,
-				Policy:    doc.WritePolicy,
-				Consumers: consumerLine,
-			})
-		}
-	}
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Path < items[j].Path
-	})
-	return items, nil
-}
-
-func renderStoragePlanOfRecordExact(b *strings.Builder, items []storagePlanOfRecordItem) {
-	for _, item := range items {
-		b.WriteString(fmt.Sprintf("- `%s`\n", item.Path))
-		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", item.Policy))
-		if item.Consumers != "" {
-			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", item.Consumers))
-		}
-	}
-}
-
-func renderStoragePlanOfRecordGrouped(b *strings.Builder, items []storagePlanOfRecordItem) {
-	groups := make(map[string]*storagePlanOfRecordGroup)
-	var exact []storagePlanOfRecordItem
-	for _, item := range items {
-		prefix := stableStoragePrefix(item.Path)
-		if prefix == "" {
-			exact = append(exact, item)
+		hub, err := planOfRecordHubPath(doc, input, activeMemberID)
+		if err != nil {
 			continue
 		}
-		key := prefix + "\x00" + item.Policy + "\x00" + item.Consumers
-		group, ok := groups[key]
-		if !ok {
-			group = &storagePlanOfRecordGroup{
-				Prefix:    prefix,
-				Policy:    item.Policy,
-				Consumers: item.Consumers,
-			}
-			groups[key] = group
-		}
-		group.Count++
+		rows = append(rows, storagePlanOfRecordRow{
+			Hub:       hub,
+			Policy:    doc.WritePolicy,
+			Consumers: storageConsumerLine(doc.Consumers, doc.Rationale),
+			UseFor:    storageUseForLine(doc),
+		})
 	}
-
-	for _, item := range exact {
-		b.WriteString(fmt.Sprintf("- `%s`\n", item.Path))
-		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", item.Policy))
-		if item.Consumers != "" {
-			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", item.Consumers))
+	for _, row := range rows {
+		b.WriteString(fmt.Sprintf("- `%s`\n", row.Hub))
+		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", row.Policy))
+		if row.Consumers != "" {
+			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", row.Consumers))
 		}
-	}
-
-	groupList := make([]storagePlanOfRecordGroup, 0, len(groups))
-	for _, group := range groups {
-		groupList = append(groupList, *group)
-	}
-	sort.Slice(groupList, func(i, j int) bool {
-		if groupList[i].Prefix != groupList[j].Prefix {
-			return groupList[i].Prefix < groupList[j].Prefix
+		if row.UseFor != "" {
+			b.WriteString(fmt.Sprintf("  Use for: %s\n", row.UseFor))
 		}
-		if groupList[i].Policy != groupList[j].Policy {
-			return groupList[i].Policy < groupList[j].Policy
-		}
-		return groupList[i].Consumers < groupList[j].Consumers
-	})
-
-	for _, group := range groupList {
-		unit := "docs"
-		if group.Count == 1 {
-			unit = "doc"
-		}
-		b.WriteString(fmt.Sprintf("- %d %s under `%s`\n", group.Count, unit, group.Prefix))
-		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", group.Policy))
-		if group.Consumers != "" {
-			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", group.Consumers))
-		}
-		b.WriteString("  Exact paths: see `## Document Authority` above.\n")
+		b.WriteString("  Navigation: start at the hub and follow its file map to the relevant spoke.\n")
 	}
 }
 
-func stableStoragePrefix(path string) string {
-	path = filepath.ToSlash(strings.TrimSpace(path))
-	if path == "" || !strings.Contains(path, "/") {
-		return ""
+type storagePlanOfRecordRow struct {
+	Hub       string
+	Policy    string
+	Consumers string
+	UseFor    string
+}
+
+func planOfRecordHubPath(doc PlanOfRecordDocument, input ValidationInput, activeMemberID string) (string, error) {
+	if doc.Hub != nil {
+		return NormalizePath(*doc.Hub, input, activeMemberID)
 	}
-	parts := strings.Split(path, "/")
-	if len(parts) >= 2 && parts[0] == "docs" {
-		return parts[0] + "/" + parts[1] + "/"
+	if len(doc.Paths) == 0 {
+		return "", fmt.Errorf("plan-of-record document %q has no paths", doc.ID)
 	}
-	if len(parts) >= 2 {
-		return parts[0] + "/"
+	return NormalizePath(doc.Paths[0], input, activeMemberID)
+}
+
+func storageUseForLine(doc PlanOfRecordDocument) string {
+	if useFor := strings.TrimSpace(doc.UseFor); useFor != "" {
+		return useFor
 	}
-	return ""
+	if rationale := strings.TrimSpace(doc.Rationale); rationale != "" {
+		return rationale
+	}
+	return storageConsumerLine(doc.Consumers, "")
 }
 
 func storageConsumerLine(consumers []string, rationale string) string {

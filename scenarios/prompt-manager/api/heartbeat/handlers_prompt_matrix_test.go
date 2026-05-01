@@ -80,8 +80,8 @@ func TestPreviewPromptMatrixHandler(t *testing.T) {
 		if entry.Error != "" {
 			t.Fatalf("unexpected error for agent %s: %s", entry.AgentID, entry.Error)
 		}
-		if !hasPromptSectionKind(entry.Sections, "execution-brief") {
-			t.Fatalf("expected execution-brief section for agent %s", entry.AgentID)
+		if !hasPromptSectionKind(entry.Sections, promptSectionKindActiveTaskBrief) {
+			t.Fatalf("expected active task brief section for agent %s", entry.AgentID)
 		}
 	}
 }

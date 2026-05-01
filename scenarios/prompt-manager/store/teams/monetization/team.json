@@ -61,23 +61,20 @@
     "documents": {
       "planOfRecord": [
         {
-          "id": "monetization-strategy",
+          "id": "monetization-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/monetization/README.md"
+          },
           "paths": [
             {
               "base": "repo-root",
+              "path": "docs/monetization/README.md"
+            },
+            {
+              "base": "repo-root",
               "path": "docs/monetization/STRATEGY.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "marketing-crew"
-          ],
-          "rationale": "Positioning principles, OSS/subscription framing, agent-surface expansion, and services discipline."
-        },
-        {
-          "id": "monetization-catalog",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/CATALOG.md"
@@ -105,20 +102,7 @@
             {
               "base": "repo-root",
               "path": "docs/monetization/scenario-sku-map.json"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "director-swarm",
-            "marketing-crew",
-            "landing-page-business-suite"
-          ],
-          "rationale": "Canonical SKU, add-on, scenario-role, and bundle graph."
-        },
-        {
-          "id": "monetization-tiers-pricing",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/TIERS.md"
@@ -126,109 +110,31 @@
             {
               "base": "repo-root",
               "path": "docs/monetization/PRICING.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "landing-page-business-suite",
-            "scenario-to-cloud"
-          ],
-          "rationale": "Delivery tier and price matrix used by product, cloud packaging, and pricing surfaces."
-        },
-        {
-          "id": "monetization-financial-model",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/FINANCIAL_MODEL.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "director-swarm"
-          ],
-          "rationale": "Cost, runway, default-alive, services-capacity, and model-assumption source of truth."
-        },
-        {
-          "id": "monetization-funnel",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/FUNNEL.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "marketing-crew"
-          ],
-          "rationale": "AARRR-style funnel targets, bottleneck vocabulary, and retention framing."
-        },
-        {
-          "id": "monetization-revenue-lines",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/REVENUE_LINES.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "director-swarm"
-          ],
-          "rationale": "Subscription and services-line discipline, productization targets, and sunset rules."
-        },
-        {
-          "id": "monetization-telemetry-roadmap",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/TELEMETRY_ROADMAP.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "scenario-qa",
-            "director-swarm"
-          ],
-          "rationale": "Metric-to-capability gap map for pending telemetry labels."
-        },
-        {
-          "id": "monetization-benchmarks",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/BENCHMARKS.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization",
-            "marketing-crew"
-          ],
-          "rationale": "Curated market benchmarks proposed by market-validator and accepted by the operator."
-        },
-        {
-          "id": "monetization-input-guidance",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/HOW_TO_GATHER_INPUTS.md"
-            }
-          ],
-          "writePolicy": "operator-curated-via-decisions",
-          "consumers": [
-            "monetization"
-          ],
-          "rationale": "Per-field guidance paired with operator-inputs.json."
-        },
-        {
-          "id": "monetization-channels",
-          "paths": [
+            },
             {
               "base": "repo-root",
               "path": "docs/monetization/CHANNELS.md"
@@ -261,9 +167,14 @@
           "writePolicy": "operator-curated-via-decisions",
           "consumers": [
             "monetization",
-            "marketing-crew"
+            "director-swarm",
+            "marketing-crew",
+            "landing-page-business-suite",
+            "scenario-to-cloud",
+            "scenario-qa"
           ],
-          "rationale": "Discovery-channel map, activation triggers, telemetry requirements, and trust prerequisites."
+          "rationale": "Canonical monetization strategy, catalog, delivery tiers, pricing, channels, funnel, revenue lines, telemetry, benchmarks, and operator-input guidance.",
+          "useFor": "monetization strategy, SKU catalog, tiers, pricing, financial model, funnel, revenue lines, channels, telemetry roadmap, benchmarks, and operator-input guidance"
         }
       ],
       "notebooks": [],

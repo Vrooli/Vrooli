@@ -9,6 +9,18 @@ Cross-team consumers:
 - `landing-page-business-suite` (and other public-facing scenarios) embed PITCH and NARRATIVE content directly.
 - The operator references all of these when explaining the project externally — to family, partners, journalists, customers.
 
+## Start here for agents
+
+Choose the spoke by the communication question:
+
+| Question | Start with |
+|---|---|
+| What is the shortest approved pitch? | [`PITCH.md`](PITCH.md) |
+| What is the deeper story arc? | [`NARRATIVE.md`](NARRATIVE.md) |
+| How should a common objection be answered? | [`FAQ.md`](FAQ.md) |
+| What should a journalist or publication receive? | [`PRESS_KIT.md`](PRESS_KIT.md) |
+| What is the investor-style slide sequence? | [`PITCH_DECK.md`](PITCH_DECK.md) |
+
 ## Files
 
 | File | Purpose |
