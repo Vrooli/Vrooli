@@ -29,7 +29,7 @@
 - **`docs/monetization/BENCHMARKS.md`** is market-validator's curated list — check before I cross-post to avoid duplicates.
 
 ## Marketing-craft sources
-The `marketing-craft` and `format-trend` scopes pull from external content describing how marketing actually works in 2026. Apply [STRATEGY.md's source-material discipline](../../../../../docs/marketing/STRATEGY.md#source-material-discipline): mine the *structural pattern*, never the *tone*. Seed source clusters:
+The `marketing-craft` and `format-trend` scopes pull from external content describing how marketing actually works in 2026. Apply [STRATEGY.md's source-material discipline](../../../../../../../docs/marketing/STRATEGY.md#source-material-discipline): mine the *structural pattern*, never the *tone*. Seed source clusters:
 
 - Marketing operator newsletters and blogs (substack/medium operators of subscription products, OSS framework maintainers writing about distribution).
 - Viral platform-native content (TikTok hooks, X dunks, YouTube Shorts that broke through) — observed for *structure*, never copied for *voice*.

@@ -43,9 +43,9 @@
 
 ## Post-Type Plan-of-Record
 
-When producing a draft of a recognized post type, read the type's strategic canon under [`docs/marketing/post-types/`](../../../../../../../docs/marketing/post-types/) for purpose, audience, conversion goal, asset requirements, and contrarian failure modes. Currently authored:
+When producing a draft of a recognized post type, read the type's strategic canon in [`docs/marketing/post-types/README.md`](../../../../../../../docs/marketing/post-types/README.md) for purpose, audience, conversion goal, asset requirements, and contrarian failure modes. Currently authored:
 
 - `post-types/text/scenario-spotlight.md` — pitching one scenario as an end-user tool/app/product; paired with `x-scenario-spotlight` skill.
 - `post-types/text/dev-log.md` — project-wide progress narrative; primary author is `oss-advertiser`, but consume the canon when authoring scenario-spotlights for context.
 - (`post-types/text/oss-framework.md` is future, pending the third reference post.)
-- See also `post-types/image/` (single-image-ad, slideshow-listicle, slideshow-tips-then-plug, infographic) and `post-types/video/` (narrative-talking-head, day-in-life-ugc, problem-agitate-solve, demo-recording, comparison-reel, slideshow-voiceover) for image-medium and video-medium post types — primary author for these is subscription-advertiser. When a draft uses persona voice, also read [`docs/marketing/strategies/ai-ugc-personas.md`](../../../../../../../docs/marketing/strategies/ai-ugc-personas.md) and reference the relevant character entry under [`docs/marketing/rich-media/characters/`](../../../../../../../docs/marketing/rich-media/characters/).
+- See also `post-types/image/` (single-image-ad, slideshow-listicle, slideshow-tips-then-plug, infographic) and `post-types/video/` (narrative-talking-head, day-in-life-ugc, problem-agitate-solve, demo-recording, comparison-reel, slideshow-voiceover) for image-medium and video-medium post types — primary author for these is subscription-advertiser. When a draft uses persona voice, also read [`docs/marketing/strategies/ai-ugc-personas.md`](../../../../../../../docs/marketing/strategies/ai-ugc-personas.md) and reference the relevant character entry under [`docs/marketing/rich-media/characters/README.md`](../../../../../../../docs/marketing/rich-media/characters/README.md).

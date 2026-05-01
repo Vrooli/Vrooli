@@ -42,7 +42,7 @@
 
 ## Post-Type Plan-of-Record
 
-When producing a draft of a recognized post type, read the type's strategic canon under [`docs/marketing/post-types/`](../../../../../../../docs/marketing/post-types/) for purpose, audience, conversion goal, asset requirements, and contrarian failure modes. Currently authored:
+When producing a draft of a recognized post type, read the type's strategic canon in [`docs/marketing/post-types/README.md`](../../../../../../../docs/marketing/post-types/README.md) for purpose, audience, conversion goal, asset requirements, and contrarian failure modes. Currently authored:
 
 - `post-types/text/dev-log.md` — project-wide progress narrative; paired with `x-dev-log` skill (primary).
 - `post-types/text/scenario-spotlight.md` — pitching one scenario as an end-user tool/app/product (paired with `x-scenario-spotlight`; primary author is `subscription-advertiser`, but oss-advertiser may co-author when the spotlight is dev-tooling for a developer audience).

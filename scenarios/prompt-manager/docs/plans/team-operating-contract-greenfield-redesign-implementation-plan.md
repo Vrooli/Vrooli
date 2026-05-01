@@ -180,9 +180,250 @@ Validation requirements:
 - Optional paths must be explicitly marked optional with a reason.
 - Paths must not escape the repo root after normalization.
 
-### 3. Proposed Contract Shape
+### 3. Normative V1 Schema
 
-Representative shape:
+The first implementation must treat this as the normative V1 contract shape. Field names may be adjusted during implementation only if all schema examples, Go structs, TypeScript schemas, tests, and docs are updated in the same change.
+
+Top-level `Team` additions:
+
+```json
+{
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {},
+    "decisionContexts": {},
+    "knowledgeTopics": {},
+    "members": {}
+  }
+}
+```
+
+Required top-level fields:
+
+| Field | Required | Notes |
+|---|---:|---|
+| `schemaVersion` | yes | integer, initially `1` |
+| `governance` | yes | team-level decision and freshness policy |
+| `documents` | yes | declared plan-of-record, notebook, and shared-state surfaces |
+| `decisionContexts` | yes | all contexts the team may create or consume |
+| `knowledgeTopics` | yes | topic families and supersession behavior |
+| `members` | yes | one entry per active team member |
+
+#### Governance
+
+```json
+{
+  "decisionMode": "approval",
+  "teamPendingCeiling": {
+    "value": 12,
+    "readOnlyWhenAtOrAbove": true,
+    "rationale": "Tuned for a roughly 3/day operator review rate."
+  },
+  "supersession": {
+    "requiredBeforeNewDecision": true,
+    "allowedInReadOnlyMode": true,
+    "replacementMustSetSupersedes": true
+  },
+  "staleDecisionPolicy": {
+    "afterHeartbeats": 14,
+    "ownerMemberId": "meta-contrarian",
+    "requiredOutcomes": ["supersede", "reject", "still-relevant-note"]
+  }
+}
+```
+
+Required fields:
+
+- `decisionMode`: must equal the persisted team `decisionMode`; do not allow divergence.
+- `teamPendingCeiling.value`: non-negative integer.
+- `teamPendingCeiling.readOnlyWhenAtOrAbove`: boolean.
+- `supersession.requiredBeforeNewDecision`: boolean.
+- `supersession.allowedInReadOnlyMode`: boolean.
+- `supersession.replacementMustSetSupersedes`: boolean.
+- `staleDecisionPolicy`: optional only for teams without an aging scan. When present, `afterHeartbeats`, `ownerMemberId`, and `requiredOutcomes` are required.
+
+#### PathRef
+
+All document and write surfaces use `PathRef`.
+
+```json
+{
+  "base": "repo-root",
+  "path": "docs/meta-optimization/README.md"
+}
+```
+
+Allowed `base` values:
+
+| Base | Meaning | Rendered prompt path |
+|---|---|---|
+| `repo-root` | path is already relative to repo root | `path` unchanged after clean/validation |
+| `team-root` | path is relative to `scenarios/prompt-manager/store/teams/<team-id>/` | normalized to repo-root path |
+| `team-shared` | path is relative to `scenarios/prompt-manager/store/teams/<team-id>/shared/` | normalized to repo-root path |
+| `team-member` | path is relative to `scenarios/prompt-manager/store/teams/<team-id>/members/<member-id>/` | normalized to repo-root path; requires `memberId` or active member context |
+| `agent-root` | path is relative to `scenarios/prompt-manager/store/agents/<agent-id>/` | normalized to repo-root path; requires `agentId` or active member context |
+
+Path validation:
+
+- `path` must be clean, non-empty, and relative.
+- `path` must not contain `..` after cleaning.
+- Rendered output must always be repo-root relative.
+- Required paths must exist.
+- Optional paths require `required: false` and `optionalReason`.
+
+#### Documents
+
+```json
+{
+  "planOfRecord": [
+    {
+      "id": "monetization-catalog",
+      "paths": [{ "base": "repo-root", "path": "docs/monetization/CATALOG.md" }],
+      "writePolicy": "operator-curated-via-decisions",
+      "consumers": ["monetization", "marketing-crew"],
+      "rationale": "Canonical SKU graph consumed by monetization and marketing."
+    }
+  ],
+  "notebooks": [
+    {
+      "id": "meta-optimization-notebook",
+      "paths": [{ "base": "repo-root", "path": "docs/meta-optimization/README.md" }],
+      "posture": "debt",
+      "writePolicy": "append-any-member",
+      "curatorMemberId": "debt-curator",
+      "promotionContext": "meta-self-improvement"
+    }
+  ],
+  "sharedState": [
+    {
+      "id": "run-lessons",
+      "path": { "base": "team-shared", "path": "RUN_LESSONS.md" },
+      "ownerMemberId": "run-introspector",
+      "kind": "rolling-artifact",
+      "required": true
+    }
+  ]
+}
+```
+
+Allowed document/write-policy enums:
+
+- `operator-curated-via-decisions`
+- `append-any-member`
+- `owner-member-writes`
+- `read-only`
+
+Allowed shared-state `kind` values:
+
+- `rolling-artifact`
+- `append-only-log`
+- `decision-stream`
+- `knowledge-log`
+- `handoff-history`
+- `task-board`
+- `operator-state`
+
+#### Decision Contexts
+
+```json
+{
+  "skill-improvement": {
+    "ownerMemberIds": ["skill-optimizer"],
+    "description": "Concrete edit to a high-usage skill.",
+    "externalAuthorizedRaisers": []
+  },
+  "capability-gap": {
+    "ownerMemberIds": ["toolchain-validator", "run-introspector"],
+    "description": "Missing capability the system should have.",
+    "externalAuthorizedRaisers": ["marketing-crew"]
+  }
+}
+```
+
+Rules:
+
+- Every context mentioned in `members[*].ownedDecisionContexts` must exist here.
+- Every context must have at least one `ownerMemberIds` entry unless it is explicitly external-only.
+- Cross-team raisers must be represented in `externalAuthorizedRaisers`; do not bury cross-team authority in prose.
+
+#### Knowledge Topics
+
+```json
+{
+  "skill-audit-YYYY-MM-DD": {
+    "ownerMemberId": "skill-optimizer",
+    "supersedesPrevious": true,
+    "retention": "snapshot"
+  },
+  "challenge-note/<decision-id>": {
+    "ownerMemberId": "meta-contrarian",
+    "supersedesPrevious": false,
+    "retention": "append-only"
+  }
+}
+```
+
+Allowed `retention` values:
+
+- `snapshot`
+- `append-only`
+- `visited-tracker`
+- `operator-authored`
+
+Rules:
+
+- If `supersedesPrevious` is true, rendered prompts must tell the member to include `supersedes`.
+- If false, rendered prompts must tell the member not to include `supersedes`.
+
+#### Members
+
+```json
+{
+  "debt-curator": {
+    "lane": "Promote or retire mature meta-optimization notebook debt.",
+    "ownedDecisionContexts": ["meta-self-improvement"],
+    "newDecisionCapPerHeartbeat": 1,
+    "pendingOwnedDecisionCap": 2,
+    "requiredKnowledgeTopics": ["debt-scan-YYYY-MM-DD"],
+    "allowedWrites": [
+      { "base": "team-shared", "path": "knowledge.jsonl" },
+      { "base": "team-shared", "path": "decisions.jsonl" },
+      { "kind": "handoff" }
+    ],
+    "forbiddenWrites": [
+      { "base": "repo-root", "path": "docs/meta-optimization/" }
+    ],
+    "safetyCriticalRules": ["Propose only. Never implement."],
+    "readOnlyModeBehavior": {
+      "skipNewDecisions": true,
+      "stillWriteKnowledge": true,
+      "stillRunSupersession": true,
+      "stillWriteHandoff": true
+    }
+  }
+}
+```
+
+Rules:
+
+- One member entry is required for every active team member.
+- Member IDs must match real `store/relations/team-member` agent IDs.
+- `ownedDecisionContexts` must be declared at team level.
+- `requiredKnowledgeTopics` must exist in `knowledgeTopics`.
+- `allowedWrites` and `forbiddenWrites` may contain `PathRef` entries or special entries with `kind`.
+
+Allowed special write `kind` values:
+
+- `handoff`
+- `decision`
+- `knowledge`
+- `task`
+- `inbox-message`
+
+### 4. Proposed Contract Shape
+
+Representative persisted shape using the V1 schema:
 
 ```json
 {
@@ -282,7 +523,7 @@ Representative shape:
 
 This shape is intentionally explicit rather than clever. It should be optimized for validation and prompt rendering, not for minimizing JSON bytes.
 
-### 4. What Moves Into Contract
+### 5. What Moves Into Contract
 
 Move these policy classes into the operating contract:
 
@@ -304,7 +545,7 @@ Move these policy classes into the operating contract:
 - safety-critical rules that need deliberate short repetition,
 - generated output-section requirements where they are common enough to validate.
 
-### 5. What Remains Prose
+### 6. What Remains Prose
 
 Keep prose for:
 
@@ -317,7 +558,7 @@ Keep prose for:
 
 If a statement contains a numeric cap, a decision context list, a writable path list, a forbidden path list, a stale threshold, or a team-level decision rule, it is contract-owned by default.
 
-### 6. Decision Discipline Preservation
+### 7. Decision Discipline Preservation
 
 This redesign must preserve decision behavior. It only changes the source of truth and prompt rendering.
 
@@ -466,6 +707,326 @@ Apply the resolved operating contract above.
 ### Decision raised
 ### Knowledge entry written
 ```
+
+## Worked Reference Migration - Meta Optimization / Debt Curator
+
+This section is a concrete reference example. Implementers should use it to prove the schema and prose-collapse rules before migrating the remaining teams.
+
+### Extracted Team Inventory
+
+Source files inspected:
+
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/TEAM.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/members/*/{RESPONSIBILITIES.md,HEARTBEAT.md}`
+- `scenarios/prompt-manager/store/agents/{toolchain-validator,skill-optimizer,team-agent-optimizer,run-introspector,meta-contrarian,debt-curator}/{SOUL.md,AGENTS.md,TOOLS.md}`
+- `docs/meta-optimization/*`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/*`
+
+Team-level governance to preserve:
+
+| Policy | Current value | Contract destination |
+|---|---|---|
+| decision mode | `approval` | `governance.decisionMode` |
+| pending ceiling | `12` | `governance.teamPendingCeiling.value` |
+| read-only trigger | pending count `>= 12` | `governance.teamPendingCeiling.readOnlyWhenAtOrAbove` |
+| supersession required | yes before new pending decisions | `governance.supersession.requiredBeforeNewDecision` |
+| supersession allowed in read-only | yes, because it shrinks queue | `governance.supersession.allowedInReadOnlyMode` |
+| stale threshold | `14` heartbeats | `governance.staleDecisionPolicy.afterHeartbeats` |
+| stale owner | `meta-contrarian` actual agent ID | `governance.staleDecisionPolicy.ownerMemberId` |
+
+Decision contexts:
+
+| Context | Owner member IDs | Notes |
+|---|---|---|
+| `skill-conversion-candidate` | `skill-optimizer` | conversion proposal |
+| `skill-improvement` | `skill-optimizer` | skill edit proposal |
+| `skill-deprecation` | `skill-optimizer` | archive unused skill |
+| `agent-improvement` | `team-agent-optimizer` | agent file edit proposal |
+| `agent-deprecation` | `team-agent-optimizer` | archive unused agent |
+| `team-structure-change` | `team-agent-optimizer` | role/member/coordination change |
+| `team-deprecation` | `team-agent-optimizer` | archive dormant team |
+| `toolchain-violation` | `toolchain-validator` | DTV/manual fallback finding |
+| `run-lesson` | `run-introspector` | run-derived lesson |
+| `capability-gap` | `toolchain-validator`, `run-introspector` | external authorized raiser: `marketing-crew` |
+| `decision-rejection-proposed` | `meta-contrarian` | rejection recommendation |
+| `framework-update` | `meta-contrarian` | failure-mode framework change |
+| `meta-self-improvement` | `debt-curator` | notebook/debt promotion or retirement |
+
+Per-member caps:
+
+| Member | New decision cap per heartbeat | Pending owned-context cap | Owned contexts |
+|---|---:|---:|---|
+| `toolchain-validator` | 2 | 4 | `toolchain-violation`, `capability-gap` |
+| `skill-optimizer` | 2 | 4 | `skill-conversion-candidate`, `skill-improvement`, `skill-deprecation` |
+| `team-agent-optimizer` | 2 | 4 | `agent-improvement`, `agent-deprecation`, `team-structure-change`, `team-deprecation` |
+| `run-introspector` | 2 | 4 | `run-lesson`, `capability-gap` |
+| `meta-contrarian` | 2 `decision-rejection-proposed` plus 1 `framework-update` | 3 | `decision-rejection-proposed`, `framework-update` |
+| `debt-curator` | 1 | 2 | `meta-self-improvement` |
+
+If a member has multiple per-context caps, V1 should support either:
+
+```json
+"newDecisionCapsByContext": {
+  "decision-rejection-proposed": 2,
+  "framework-update": 1
+}
+```
+
+or one scalar `newDecisionCapPerHeartbeat` plus an explicit `capNotes` string rendered to the prompt. Prefer `newDecisionCapsByContext` for `meta-contrarian` to avoid prose-only behavior.
+
+Knowledge topic families:
+
+| Topic family | Owner | Supersession |
+|---|---|---|
+| `skill-audit-YYYY-MM-DD` | `skill-optimizer` | supersedes previous |
+| `skill-visited/<skill-id>` | `skill-optimizer` | supersedes previous for same skill |
+| `team-audit-YYYY-MM-DD` | `team-agent-optimizer` | supersedes previous |
+| `agent-audit-YYYY-MM-DD` | `team-agent-optimizer` | supersedes previous |
+| `team-visited/<team-id>` | `team-agent-optimizer` | supersedes previous for same team |
+| `agent-visited/<agent-id>` | `team-agent-optimizer` | supersedes previous for same agent |
+| `run-lessons-YYYY-MM-DD` | `run-introspector` | supersedes previous |
+| `toolchain-scan-YYYY-MM-DD` | `toolchain-validator` | supersedes previous |
+| `debt-scan-YYYY-MM-DD` | `debt-curator` | supersedes previous |
+| `challenge-note/<decision-id>` | `meta-contrarian` | append-only, no supersedes |
+
+Notebook docs:
+
+- `docs/meta-optimization/README.md`
+- `docs/meta-optimization/CONVERSION_PLAYBOOK.md`
+- `docs/meta-optimization/DEPRECATION_POLICY.md`
+- `docs/meta-optimization/REFERENCE_SCENARIOS.md`
+
+Shared-state artifacts:
+
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/TEAM.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/knowledge.jsonl`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/handoff-history.jsonl`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/SKILL_AUDIT.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/PROGRAMMATIC_CONVERSION_QUEUE.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/DEPRECATION_QUEUE.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/AGENT_AUDIT.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`
+- `scenarios/prompt-manager/store/teams/meta-optimization/shared/TOOLCHAIN_SCAN.md`
+
+Current drift found during investigation:
+
+- `shared/TEAM.md` references `TEAM_AUDIT.md`, but `scenarios/prompt-manager/store/teams/meta-optimization/shared/TEAM_AUDIT.md` is not present.
+- The charter prose names `contrarian`, while the actual member ID in files and relations is `meta-contrarian`.
+
+The implementation must not preserve these as silent inconsistencies. The hard migration must either:
+
+1. create/restore the missing required artifact and declare it in the contract, or
+2. remove/adjust the stale reference and mark the artifact optional with `optionalReason`, if it is intentionally absent.
+
+Likewise, the contract must use actual agent IDs (`meta-contrarian`) and any human-facing alias must be non-authoritative.
+
+### Debt Curator Contract Example
+
+The `debt-curator` member contract should preserve these behaviors from current files:
+
+- Applies meta-optimization pressure inward.
+- Scans `docs/meta-optimization/` plus relevant shared artifacts.
+- Promotes mature notebook/doc debt into permanent structure or proposes retirement.
+- Proposes only; never implements.
+- Raises at most one `meta-self-improvement` decision per heartbeat.
+- Skips new decisions at team queue capacity or when two owned decisions are pending.
+- Still scans, writes `debt-scan-YYYY-MM-DD`, performs supersession, and writes handoff in read-only mode.
+- Writes `debt-scan-YYYY-MM-DD` with supersession.
+- Uses promotability criteria: repeated >=3 entries, stabilized >=7 heartbeats, or permanent solution now possible.
+- Uses four promotion directions: skill, team-structure change, capability gap, or retirement.
+
+Representative member contract:
+
+```json
+{
+  "lane": "Promote or retire mature meta-optimization notebook debt.",
+  "ownedDecisionContexts": ["meta-self-improvement"],
+  "newDecisionCapPerHeartbeat": 1,
+  "pendingOwnedDecisionCap": 2,
+  "requiredKnowledgeTopics": ["debt-scan-YYYY-MM-DD"],
+  "allowedWrites": [
+    { "base": "team-shared", "path": "knowledge.jsonl" },
+    { "base": "team-shared", "path": "decisions.jsonl" },
+    { "kind": "handoff" }
+  ],
+  "forbiddenWrites": [
+    { "base": "repo-root", "path": "docs/meta-optimization/" },
+    { "base": "repo-root", "path": "scenarios/prompt-manager/store/skills/" },
+    { "base": "repo-root", "path": "scenarios/prompt-manager/store/agents/" },
+    { "base": "repo-root", "path": "scenarios/prompt-manager/store/teams/" }
+  ],
+  "safetyCriticalRules": [
+    "Propose only. Never implement.",
+    "Do not synthesize other members' proposals into strategy.",
+    "Route accepted implementation to the owning lane."
+  ],
+  "readOnlyModeBehavior": {
+    "skipNewDecisions": true,
+    "stillWriteKnowledge": true,
+    "stillRunSupersession": true,
+    "stillWriteHandoff": true
+  },
+  "taskParameters": {
+    "promotabilityCriteria": [
+      "repeated >=3 separate entries",
+      "stabilized >=7 heartbeats without revision or contradiction",
+      "permanent solution now possible"
+    ],
+    "promotionDirections": [
+      "skill",
+      "team-structure-change",
+      "capability-gap",
+      "retirement"
+    ],
+    "maxCandidatesSelected": 1
+  }
+}
+```
+
+If `taskParameters` feels too member-specific for V1, keep it in `HEARTBEAT.md` prose. Do not leave caps, paths, decision contexts, or write rules in prose.
+
+### Debt Curator File Collapse Example
+
+Current duplicated sources:
+
+- `SOUL.md`: identity plus never-implement and no-direct-doc-write boundaries.
+- `AGENTS.md`: start workflow, team ceiling, cap, doc scan list, decision cap, supersession, skills.
+- `TOOLS.md`: skill list, doc/shared-artifact inventory, usage rules, cap.
+- `RESPONSIBILITIES.md`: duties, deliverables, promotability criteria, promotion directions, write boundaries.
+- `HEARTBEAT.md`: doc/source lists, required loop, caps, output shape.
+
+Target after cutover:
+
+`SOUL.md` keeps identity and temperament:
+
+```markdown
+# SOUL
+
+I point meta-optimization's evolutionary pressure inward. I look for notebook and shared-artifact debt that has matured into permanent structure or can be retired.
+
+I communicate narrowly: one high-leverage candidate, concrete source citations, and clear routing to the owning implementer.
+```
+
+`AGENTS.md` becomes a start convention:
+
+```markdown
+# AGENTS
+
+## Start of Session
+- Read SOUL.md for identity alignment.
+- Run `prompt-manager team member-context meta-optimization debt-curator`.
+- Apply the resolved operating contract from that context before acting.
+```
+
+`TOOLS.md` keeps stable affordances, not path inventory:
+
+```markdown
+# TOOLS
+
+## Tool Access
+- `prompt-manager skill read <skill-id>`
+- `prompt-manager team decision-list meta-optimization ...`
+- `prompt-manager team knowledge-list meta-optimization ...`
+- `vrooli help`
+
+## Primary Skills
+- `prompt-manager skill read capability-extraction`
+- `prompt-manager skill read scientific-debugging`
+- `prompt-manager skill read documentation-health`
+- `prompt-manager skill read team-shared-docs-design`
+```
+
+`RESPONSIBILITIES.md` keeps lane and reasoning nuance:
+
+```markdown
+# Responsibilities: Debt Curator
+
+Apply the team's evolutionary-pressure principles to the team's own notebook and shared-artifact debt.
+
+Use the resolved operating contract for decision contexts, caps, write rules, source documents, and required knowledge topics.
+
+## Promotion Judgment
+
+A candidate is worth proposing only when it has become stable enough that permanent structure would reduce future cognitive load. Premature promotion is churn.
+```
+
+`HEARTBEAT.md` becomes task loop and output shape:
+
+```markdown
+# Heartbeat: Debt Curator
+
+Apply the resolved operating contract above.
+
+## Task Loop
+
+1. Scan declared notebook docs and shared artifacts.
+2. Evaluate promotion and retirement candidates.
+3. Pick at most one highest-leverage candidate.
+4. Write the required debt-scan knowledge entry.
+5. Raise a decision only when the candidate is ripe and allowed by the contract.
+6. End with HANDOFF.
+
+## Handoff Shape
+
+### Docs scanned
+### Entries reviewed this heartbeat
+### Promotion candidates
+### Retirement candidates
+### Decision raised this heartbeat
+### Knowledge entries written
+```
+
+### Prose-Collapse Checklist
+
+Apply this mechanically to every team and member file during migration.
+
+Move to contract:
+
+- numeric caps (`12`, `14`, `2 per heartbeat`, `4+ pending`, etc.),
+- decision context lists,
+- owned context lists,
+- stale threshold rules,
+- team read-only mode behavior,
+- supersession-before-stacking behavior,
+- knowledge topic families and whether they supersede,
+- plan-of-record and notebook file inventories,
+- shared-state artifact inventories,
+- allowed write paths,
+- forbidden write paths,
+- team/member authority rules that can be stated as structured fields.
+
+Keep in prose:
+
+- why the role exists,
+- qualitative judgment criteria that are not stable fields,
+- examples that teach the reasoning shape,
+- output section headings that are genuinely member-specific,
+- short safety-critical reminders listed in `safetyCriticalRules`.
+
+Delete from prose:
+
+- duplicate file inventories after they are declared in contract,
+- duplicate caps after they are declared in contract,
+- duplicate context lists after they are declared in contract,
+- stale aliases that do not match actual member IDs,
+- references to files that do not exist unless the contract marks them optional.
+
+Replace with stable pointer:
+
+```markdown
+Use the resolved operating contract for decision contexts, caps, source documents, write rules, and required knowledge topics.
+```
+
+### Pre-Implementation Readiness Gate
+
+Do not start code implementation until these planning artifacts are complete:
+
+1. V1 schema fields are accepted as normative or explicitly revised.
+2. Meta-optimization inventory is reconciled, including the `TEAM_AUDIT.md` missing-file question and `contrarian`/`meta-contrarian` naming mismatch.
+3. One rendered prompt example for `meta-optimization/debt-curator` is approved.
+4. Prose-collapse checklist is accepted.
+5. The implementation owner has confirmed whether `taskParameters` belongs in V1 or remains member prose for first cutover.
 
 ## Implementation Strategy
 

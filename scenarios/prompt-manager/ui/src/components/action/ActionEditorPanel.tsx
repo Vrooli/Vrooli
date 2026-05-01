@@ -612,7 +612,7 @@ function PermissionFields({
           >
             <input
               type="checkbox"
-              checked={Boolean(draft.permissions[permission])}
+              checked={draft.permissions[permission]}
               onChange={(event) => onPatch((current) => ({
                 ...current,
                 permissions: { ...current.permissions, [permission]: event.target.checked },
@@ -812,7 +812,7 @@ function RunPanel({
   isRunning: boolean
   onInputChange: (value: string) => void
   onLoadExample: () => void
-  onRun: (dryRun: boolean) => void
+  onRun: (dryRun: boolean) => Promise<void>
 }) {
   const hasExample = action.examples.length > 0
   const runDisabledReason = disabled
@@ -849,7 +849,7 @@ function RunPanel({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => onRun(true)}
+            onClick={() => void onRun(true)}
             disabled={disabled}
             className={cn(
               'flex items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted',
@@ -861,7 +861,7 @@ function RunPanel({
           </button>
           <button
             type="button"
-            onClick={() => onRun(false)}
+            onClick={() => void onRun(false)}
             disabled={disabled}
             className={cn(
               'flex items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-foreground hover:bg-primary/20',

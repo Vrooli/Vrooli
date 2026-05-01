@@ -222,7 +222,30 @@ Status: ready for implementation.
   - `rg "Actions \\(Proposed\\)|planned contract, not currently implemented|purely proposed|proposed Action layer|proposed Action execution layer|proposed execution domain" scenarios/prompt-manager/docs --glob '!**/plans/action-entity-and-memory-promotion-rfc.md' --glob '!**/plans/action-entity-implementation-plan.md'`
   - `rg "Status: proposed" scenarios/prompt-manager/docs/concepts/ACTIONS.md scenarios/prompt-manager/docs/concepts/ARCHITECTURE.md scenarios/prompt-manager/docs/concepts/SWARM-MODEL.md scenarios/prompt-manager/docs/README.md scenarios/prompt-manager/docs/concepts/RELATIONS.md`
 
-Next resume point: If continuing validation work, address the scenario-level `make test` blockers in order: lint timeout, broken docs links, UI smoke iframe readiness, then BAS playbook start-url. For Action-specific feature work, continue replacing the temporary command resolver with the operation-contract catalog only when that separate foundation lands.
+- Continued scenario-level validation cleanup:
+  - Cleared current `make lint` failures introduced by the Action implementation by applying `gofumpt`/`golangci-lint --fix` formatting, replacing a redundant resolver struct literal with a type conversion, and fixing Action editor UI lint issues.
+  - Cleared hard docs validation failures by replacing stale/broken repo links in prompt-manager PRD/team/skill docs and removing machine-specific absolute home-directory references from meta-optimization run lessons.
+  - Restored the Skill editor "More actions" button to use the canonical `selectors.editor.actionsMenu` selector so BAS workflows and UI code share the registry contract again.
+  - Made the `skill-save-discard` BAS playbook idempotent by stripping prior `BAS-<timestamp>` suffixes before generating the next temporary saved name; this prevents repeated playbook runs from growing the skill name past validation limits.
+  - Verified the lint phase and docs phase through `test-genie execute prompt-manager lint --json` and `test-genie execute prompt-manager docs --json`; docs now pass with warnings only.
+  - Rebuilt and restarted prompt-manager through the lifecycle after UI selector changes.
+  - Verified isolated `smoke` and `playbooks` phases: `test-genie execute prompt-manager smoke --json` passed, and `test-genie execute prompt-manager playbooks --json` passed with all 6/6 BAS workflows green.
+  - Re-ran comprehensive `cd scenarios/prompt-manager && make test`; it still fails only in the full-preset orchestration path because the prompt-manager UI process is unavailable by the smoke/playbooks phases (`net::ERR_CONNECTION_REFUSED` at `http://localhost:21235/`). This does not reproduce when the scenario is healthy and smoke/playbooks are run directly.
+- Verified with:
+  - `cd scenarios/prompt-manager && make lint`
+  - `test-genie execute prompt-manager lint --json`
+  - `test-genie execute prompt-manager docs --json`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/components/action/ActionEditorPanel.test.tsx`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/components/editor/SkillEditorPanel.test.tsx src/components/action/ActionEditorPanel.test.tsx`
+  - `cd scenarios/prompt-manager && make build`
+  - `cd scenarios/prompt-manager && make restart`
+  - `test-genie execute prompt-manager smoke --json`
+  - `test-genie execute prompt-manager playbooks --json`
+  - `cd scenarios/prompt-manager && make test`
+
+Next resume point: If continuing validation work, debug why `test-genie execute prompt-manager --preset comprehensive` loses the prompt-manager UI process before smoke/playbooks, even though `make restart`, isolated smoke, and isolated playbooks pass. Artifact root for the latest comprehensive failure: `scenarios/prompt-manager/coverage/logs/20260501-022859-c9dd11cd`. For Action-specific feature work, continue replacing the temporary command resolver with the operation-contract catalog only when that separate foundation lands.
 
 ## Purpose
 

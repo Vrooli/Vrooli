@@ -7,12 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"prompt-manager/store"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
-
-	"prompt-manager/store"
 )
 
 const (

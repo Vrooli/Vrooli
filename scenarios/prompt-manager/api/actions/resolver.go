@@ -36,12 +36,9 @@ func (r *ManifestCommandResolver) ResolveCommand(ctx context.Context, argv []str
 		if owner, ok := r.manifestOwner(ctx, target); ok {
 			return CommandResolution{
 				Certainty: CertaintyOwnerOnly,
-				Owner: CommandOwner{
-					Type: owner.Type,
-					ID:   owner.ID,
-				},
-				Target:  target,
-				Message: "binary is Vrooli-owned, but command path is not yet cataloged",
+				Owner:     CommandOwner(owner),
+				Target:    target,
+				Message:   "binary is Vrooli-owned, but command path is not yet cataloged",
 			}, nil
 		}
 		return CommandResolution{Certainty: CertaintyNone, Target: target, Message: "command target is not Vrooli-controlled"}, nil

@@ -776,7 +776,7 @@ stop:
 - [Vrooli Lifecycle System](../../docs/scenarios/DEPLOYMENT.md)
 - [File-Based Store Architecture](docs/concepts/ARCHITECTURE.md)
 - [3D World Architecture](docs/concepts/3D-WORLD-ARCHITECTURE.md)
-- [Health Check Schema](../../cli/commands/scenario/schemas/health-ui.schema.json)
+- [Scenario lifecycle health configuration](.vrooli/service.json)
 
 ### Related Scenarios
 - **ecosystem-manager**: Uses skills for scenario generation

@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"prompt-manager/store"
 	"strings"
 	"testing"
-
-	"prompt-manager/store"
 )
 
 func TestServiceValidateRejectsUnsafeCommands(t *testing.T) {

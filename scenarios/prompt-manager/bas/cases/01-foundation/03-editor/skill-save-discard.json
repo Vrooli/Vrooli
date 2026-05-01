@@ -140,7 +140,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const base = window.__basOriginalSkillName || document.querySelector('[data-testid=\"skill-editor-name-display\"]')?.textContent?.trim() || 'Skill'; const updated = `${base} BAS-${Date.now()}`; window.__basUpdatedSkillName = updated; return updated; })()",
+      "expression": "(() => { const rawBase = window.__basOriginalSkillName || document.querySelector('[data-testid=\"skill-editor-name-display\"]')?.textContent?.trim() || 'Skill'; const base = rawBase.replace(/\\s+BAS-\\d+(?:\\s+\\(discard\\))?/g, '').trim() || 'Skill'; const updated = `${base} BAS-${Date.now()}`; window.__basUpdatedSkillName = updated; return updated; })()",
           "store_result": "updatedSkillName"
         },
         "metadata": {

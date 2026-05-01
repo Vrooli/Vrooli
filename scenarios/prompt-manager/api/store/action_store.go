@@ -10,8 +10,10 @@ import (
 	"time"
 )
 
-const maxActionIDLength = 96
-const maxActionRunHistoryEntries = 100
+const (
+	maxActionIDLength          = 96
+	maxActionRunHistoryEntries = 100
+)
 
 var (
 	actionIDRegex          = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$`)

@@ -352,7 +352,7 @@ export function SkillEditorPanel({
                   showChevron={false}
                   align="right"
                   className="h-8 w-8 p-0 rounded-lg"
-                  testId="skill-more-menu"
+                  testId={selectors.editor.actionsMenu}
                 >
                   <DropdownItem
                     onClick={() => setFilePathOpen(true)}

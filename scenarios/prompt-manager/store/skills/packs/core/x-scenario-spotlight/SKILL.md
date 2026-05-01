@@ -2,7 +2,7 @@
 
 Generate a scenario-spotlight draft pitching **one Vrooli scenario** as a useful tool / app / product to its target user. Asset-led. Conversion-rung-aware. Contrarian-checked against type-level failure modes before handoff.
 
-> **Status:** v1 (thin). The strategic canon — purpose, audience model, conversion goal, asset requirements, failure modes — lives in [`docs/marketing/post-types/text/scenario-spotlight.md`](../../../../../../docs/marketing/post-types/text/scenario-spotlight.md). This skill is the executable spec; that file is the reasoning.
+> **Status:** v1 (thin). The strategic canon — purpose, audience model, conversion goal, asset requirements, failure modes — lives in [`docs/marketing/post-types/text/scenario-spotlight.md`](../../../../../../../docs/marketing/post-types/text/scenario-spotlight.md). This skill is the executable spec; that file is the reasoning.
 
 ---
 
@@ -196,8 +196,8 @@ If you observe a recurring pattern across runs (e.g., "audience X responds bette
 
 ### **9. Cross-References**
 
-- Strategic canon: [`docs/marketing/post-types/text/scenario-spotlight.md`](../../../../../../docs/marketing/post-types/text/scenario-spotlight.md).
-- Voice canon: [`docs/marketing/STRATEGY.md`](../../../../../../docs/marketing/STRATEGY.md).
+- Strategic canon: [`docs/marketing/post-types/text/scenario-spotlight.md`](../../../../../../../docs/marketing/post-types/text/scenario-spotlight.md).
+- Voice canon: [`docs/marketing/STRATEGY.md`](../../../../../../../docs/marketing/STRATEGY.md).
 - Sibling post-type skill: `x-dev-log` (project-wide narrative — for contrast).
-- Asset substrate: [Browser Automation Studio scenario](../../../../../../scenarios/bas/) — known constraint: BAS `recordVideo` gray-bar requires CDP workaround (see BAS scenario docs).
+- Asset substrate: [Browser Automation Studio scenario](../../../../../../../scenarios/browser-automation-studio/README.md) — known constraint: BAS `recordVideo` gray-bar requires CDP workaround (see BAS scenario docs).
 - Publishing plumbing (planned): `social-media-scheduler` scenario, initiative-proposal `dec-1777312920606447957`.

@@ -1,6 +1,11 @@
 {
-  "generatedAt": "2026-04-22T02:52:55Z",
+  "generatedAt": "2026-05-01T02:28:48Z",
   "items": [
+    {
+      "id": "agent-26",
+      "displayName": "Agent 26",
+      "status": "active"
+    },
     {
       "id": "brand-manager",
       "displayName": "Brand Manager",
@@ -24,6 +29,11 @@
     {
       "id": "financial-tracker",
       "displayName": "Financial Tracker",
+      "status": "active"
+    },
+    {
+      "id": "infra-contrarian",
+      "displayName": "Infra Contrarian",
       "status": "active"
     },
     {
@@ -57,6 +67,11 @@
       "status": "active"
     },
     {
+      "id": "platform-code-auditor",
+      "displayName": "Platform Code Auditor",
+      "status": "active"
+    },
+    {
       "id": "portfolio-manager",
       "displayName": "Portfolio Manager",
       "status": "active"
@@ -84,6 +99,11 @@
     {
       "id": "run-introspector",
       "displayName": "Run Introspector",
+      "status": "active"
+    },
+    {
+      "id": "runtime-health-scanner",
+      "displayName": "Runtime Health Scanner",
       "status": "active"
     },
     {

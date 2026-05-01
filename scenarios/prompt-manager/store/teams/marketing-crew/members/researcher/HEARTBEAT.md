@@ -37,7 +37,7 @@ You scan for audience, competitor, trend, marketing-craft, format-trend, and hoo
 
 6. **Propose `post-type-proposal` decisions.** For convergence candidates from step 2 with ≥3 converging `format-trend`-scope scans AND no existing `post-types/<medium>/<slug>.md` covers the format:
    - Check supersession: is there a pending `post-type-proposal` for this format? If yes, supersede.
-   - Raise `post-type-proposal` with body: proposed slug, medium (text/image/video), supporting scan ids, sketch of strategic canon (purpose, audience, conversion goal, asset weight), **proposed paired skill name (`x-<slug>`)**, and either a skill-authoring window commitment OR an explicit `v0-stub-only` flag. Per [`post-types/README.md`](../../../../../../docs/marketing/post-types/README.md#doc--skill-discipline-mandatory): every post type ships as `doc + paired skill`; v0-stub types are not usable for production drafts until activated.
+   - Raise `post-type-proposal` with body: proposed slug, medium (text/image/video), supporting scan ids, sketch of strategic canon (purpose, audience, conversion goal, asset weight), **proposed paired skill name (`x-<slug>`)**, and either a skill-authoring window commitment OR an explicit `v0-stub-only` flag. Per [`post-types/README.md`](../../../../../../../docs/marketing/post-types/README.md#doc--skill-discipline-mandatory): every post type ships as `doc + paired skill`; v0-stub types are not usable for production drafts until activated.
    - Cap: 1 per heartbeat.
 
 7. **Propose `hook-candidate-promotion` decisions.** Periodically (when ≥5 stable `hook-candidate` scans accumulate beyond the current `hook-library.md` content):

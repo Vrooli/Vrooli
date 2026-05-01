@@ -150,7 +150,7 @@ Relative to repo root:
 - [`docs/monetization/CATALOG.md`](../../../../../../docs/monetization/CATALOG.md) — SKU index + lifecycle + guardrails
 - [`docs/monetization/catalog/base/business.md`](../../../../../../docs/monetization/catalog/base/business.md) — business bundle detail
 - [`docs/monetization/catalog/base/lifestyle.md`](../../../../../../docs/monetization/catalog/base/lifestyle.md) — lifestyle bundle detail
-- [`docs/monetization/catalog/addons/`](../../../../../../docs/monetization/catalog/addons/) — add-on candidate files
+- [`docs/monetization/catalog/addons/elder-care.md`](../../../../../../docs/monetization/catalog/addons/elder-care.md) — add-on candidate files
 - [`docs/monetization/TIERS.md`](../../../../../../docs/monetization/TIERS.md) — delivery tiers
 - [`docs/monetization/PRICING.md`](../../../../../../docs/monetization/PRICING.md) — tier × bundle matrix
 - [`docs/monetization/FINANCIAL_MODEL.md`](../../../../../../docs/monetization/FINANCIAL_MODEL.md) — cost structure, runway math, default-alive

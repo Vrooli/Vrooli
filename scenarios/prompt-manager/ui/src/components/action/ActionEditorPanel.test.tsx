@@ -187,7 +187,11 @@ describe('ActionEditorPanel', () => {
   it('disables run controls while contract edits are unsaved', () => {
     render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getAllByLabelText('Name')[0]!, { target: { value: 'Unsaved Action' } })
+    const [nameField] = screen.getAllByLabelText('Name')
+    if (!nameField) {
+      throw new Error('expected name field')
+    }
+    fireEvent.change(nameField, { target: { value: 'Unsaved Action' } })
 
     expect(screen.getByRole('button', { name: 'Dry run' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled()
@@ -215,16 +219,28 @@ describe('ActionEditorPanel', () => {
 
     render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getAllByLabelText('Name')[0]!, { target: { value: 'Typed Action' } })
+    const [nameField] = screen.getAllByLabelText('Name')
+    if (!nameField) {
+      throw new Error('expected name field')
+    }
+    fireEvent.change(nameField, { target: { value: 'Typed Action' } })
     fireEvent.change(screen.getByLabelText(/Argv tokens/), {
       target: { value: 'prompt-manager\nteam\ndecisions\nshow\n{{team}}' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Add input' }))
     const nameFields = screen.getAllByLabelText('Name')
     expect(nameFields.length).toBeGreaterThan(1)
-    fireEvent.change(nameFields[1]!, { target: { value: 'team' } })
+    const inputNameField = nameFields[1]
+    if (!inputNameField) {
+      throw new Error('expected input name field')
+    }
+    fireEvent.change(inputNameField, { target: { value: 'team' } })
     const typeFields = screen.getAllByLabelText(/Type/)
-    fireEvent.change(typeFields[typeFields.length - 1]!, { target: { value: 'team' } })
+    const inputTypeField = typeFields[typeFields.length - 1]
+    if (!inputTypeField) {
+      throw new Error('expected input type field')
+    }
+    fireEvent.change(inputTypeField, { target: { value: 'team' } })
     fireEvent.click(screen.getByLabelText('filesystemWrite'))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 

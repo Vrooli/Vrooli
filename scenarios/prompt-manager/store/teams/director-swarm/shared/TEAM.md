@@ -79,8 +79,8 @@ Director-swarm declares ownership over the project's foundational manifesto and 
 For changes to `VISION.md` or `docs/concepts/ARCHITECTURE.md`, use the `vision-update` decision context. Operator-raised primarily; `vision-walk-prep` may surface drift but does not propose substantive changes. Cross-team consumers — `marketing-crew` (especially `brand-manager` member who pulls deepest narrative from `VISION.md` for the bracketed deep-vision section), monetization, LPBS — may read but never edit.
 
 ### Cross-references
-- [`docs/narrative/`](../../../../../../docs/narrative/) — cross-team project-identity canon (PITCH, NARRATIVE, FAQ, PRESS_KIT, PITCH_DECK). Curated by `marketing-crew/brand-manager` member via `brand-guideline-update`. Director-swarm reads — particularly `vision-walk-prep` for vision-arc alignment.
-- [`docs/marketing/`](../../../../../../docs/marketing/) — marketing canon (voice, audiences, channels, campaigns, brand assets, image style). Curated by `marketing-crew`.
+- [`docs/narrative/`](../../../../../../docs/narrative/README.md) — cross-team project-identity canon (PITCH, NARRATIVE, FAQ, PRESS_KIT, PITCH_DECK). Curated by `marketing-crew/brand-manager` member via `brand-guideline-update`. Director-swarm reads — particularly `vision-walk-prep` for vision-arc alignment.
+- [`docs/marketing/`](../../../../../../docs/marketing/README.md) — marketing canon (voice, audiences, channels, campaigns, brand assets, image style). Curated by `marketing-crew`.
 
 ## Key Skills
 - `prompt-manager skill read swarm-manager-backlog-tools`

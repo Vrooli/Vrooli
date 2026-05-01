@@ -328,7 +328,7 @@ describe('SkillEditorPanel', () => {
           isDirty={true}
         />
       )
-      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
       expect(screen.getByTestId('skill-more-file-path')).toBeInTheDocument()
       expect(screen.getByText('Discard changes')).toBeInTheDocument()
       expect(screen.getByText('Delete skill')).toBeInTheDocument()
@@ -345,7 +345,7 @@ describe('SkillEditorPanel', () => {
           onDiscard={onDiscard}
         />
       )
-      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
       fireEvent.click(screen.getByText('Discard changes'))
       expect(onDiscard).toHaveBeenCalled()
     })
@@ -361,7 +361,7 @@ describe('SkillEditorPanel', () => {
           onDiscard={onDiscard}
         />
       )
-      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
       const item = screen.getByText('Discard changes').closest('button')
       expect(item).toBeDisabled()
     })
@@ -376,7 +376,7 @@ describe('SkillEditorPanel', () => {
           onDelete={onDelete}
         />
       )
-      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
       fireEvent.click(screen.getByText('Delete skill'))
       expect(onDelete).toHaveBeenCalled()
     })
@@ -390,14 +390,14 @@ describe('SkillEditorPanel', () => {
           isDeleting={true}
         />
       )
-      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
       expect(screen.getByText(/Deleting/)).toBeInTheDocument()
     })
 
     it('opens the file path popover when File path item is clicked', () => {
       const skill = createTestSkill()
       render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
-      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
       fireEvent.click(screen.getByTestId('skill-more-file-path'))
       // The FilePathMenu popover contains a Filename label
       expect(screen.getByText('Filename')).toBeInTheDocument()
