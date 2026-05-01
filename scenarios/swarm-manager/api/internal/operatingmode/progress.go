@@ -35,7 +35,11 @@ func ParseProgressState(data []byte) (ProgressState, error) {
 }
 
 func (s ProgressState) Validate() error {
-	switch ProgressDecision(strings.TrimSpace(string(s.Decision))) {
+	return s.Decision.Validate()
+}
+
+func (d ProgressDecision) Validate() error {
+	switch ProgressDecision(strings.TrimSpace(string(d))) {
 	case ProgressContinue, ProgressBlocked, ProgressReplan, ProgressComplete:
 		return nil
 	default:

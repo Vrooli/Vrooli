@@ -39,12 +39,24 @@ export interface OperatingModeCatalogPhase {
   requiresCriteria?: boolean;
 }
 
+export interface OperatingModeCapabilities {
+  supportsPhases: boolean;
+  canStartPhases: boolean;
+  canCompleteItems: boolean;
+  canApplyBacklogSyncProposals: boolean;
+  requiresAcceptanceCriteria: boolean;
+  supportsArtifacts: boolean;
+  supportsHandoffs: boolean;
+  usesItemExecutionFlow: boolean;
+}
+
 export interface OperatingModeCatalogEntry {
   mode: InitiativeOperatingMode;
   label: string;
   scopeKind: string;
   runStrategy: string;
   workspaceTabId: string;
+  capabilities: OperatingModeCapabilities;
   default: boolean;
   switchable: boolean;
   supportsPhases: boolean;
@@ -59,6 +71,7 @@ export interface OperatingModeWorkspaceDefinition {
   mode: InitiativeOperatingMode;
   label: string;
   scopeKind: string;
+  capabilities: OperatingModeCapabilities;
   phases: OperatingModeWorkspacePhase[];
   terminal: string[];
   transitions: Record<string, string[]>;

@@ -65,15 +65,17 @@ func (s *Service) Catalog() (ModeCatalog, error) {
 		if err != nil {
 			return ModeCatalog{}, err
 		}
+		capabilities := modeCapabilities(def)
 		entry := ModeCatalogEntry{
 			Mode:           string(def.Mode),
 			Label:          def.Label,
 			ScopeKind:      string(def.Scope.Kind),
 			RunStrategy:    string(def.RunStrategy.Kind),
 			WorkspaceTabID: def.UI.WorkspaceTabID,
+			Capabilities:   capabilities,
 			Default:        def.Mode == DefaultMode(),
 			Switchable:     true,
-			SupportsPhases: def.Mode != ModeItemLevel,
+			SupportsPhases: capabilities.SupportsPhases,
 		}
 		if entry.SupportsPhases {
 			for _, phaseName := range orderedPhases(def) {
@@ -130,12 +132,35 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 		}
 	}
 	return WorkspaceMode{
-		Mode:        string(def.Mode),
-		Label:       def.Label,
-		ScopeKind:   string(def.Scope.Kind),
-		Phases:      phases,
-		Terminal:    terminal,
-		Transitions: transitions,
-		RunStrategy: string(def.RunStrategy.Kind),
+		Mode:         string(def.Mode),
+		Label:        def.Label,
+		ScopeKind:    string(def.Scope.Kind),
+		Capabilities: modeCapabilities(def),
+		Phases:       phases,
+		Terminal:     terminal,
+		Transitions:  transitions,
+		RunStrategy:  string(def.RunStrategy.Kind),
 	}
+}
+
+func modeCapabilities(def Definition) ModeCapabilities {
+	capabilities := ModeCapabilities{
+		SupportsPhases:        len(def.PhaseGraph.Phases) > 0,
+		UsesItemExecutionFlow: def.RunStrategy.Kind == RunStrategyExistingItemFlow,
+	}
+	capabilities.CanStartPhases = capabilities.SupportsPhases
+	capabilities.CanCompleteItems = hasBacklogSyncCapability(def.BacklogSync, BacklogSyncMarkComplete)
+	capabilities.CanApplyBacklogSyncProposals = hasBacklogSyncCapability(def.BacklogSync, BacklogSyncProposeMutations)
+	for _, phase := range def.PhaseGraph.Phases {
+		if phase.RequiresCriteria {
+			capabilities.RequiresAcceptanceCriteria = true
+		}
+		if len(phase.OutputArtifacts) > 0 || len(phase.ResultBindings) > 0 {
+			capabilities.SupportsArtifacts = true
+		}
+		if phase.OutputContract.RequiresHandoff {
+			capabilities.SupportsHandoffs = true
+		}
+	}
+	return capabilities
 }

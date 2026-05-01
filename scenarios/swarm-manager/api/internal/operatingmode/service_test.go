@@ -286,6 +286,13 @@ func TestWorkspaceExposesBackendPhaseActions(t *testing.T) {
 	if actions["execute"].Startable || !strings.Contains(actions["execute"].Reason, "investigate") {
 		t.Fatalf("execute action = %+v, want disabled with transition reason", actions["execute"])
 	}
+	capabilities := workspace.Definition.Capabilities
+	if !capabilities.CanStartPhases || !capabilities.CanCompleteItems || !capabilities.CanApplyBacklogSyncProposals {
+		t.Fatalf("workspace capabilities = %+v, want phase and backlog sync actions", capabilities)
+	}
+	if !capabilities.RequiresAcceptanceCriteria || !capabilities.SupportsArtifacts {
+		t.Fatalf("workspace capabilities = %+v, want criteria and artifact support", capabilities)
+	}
 }
 
 func TestStartPhaseUsesReplanSignalForHolisticExecuteNextPhase(t *testing.T) {
@@ -648,6 +655,64 @@ func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
 	}
 }
 
+func TestRefreshRoundAppliesProgressResultBinding(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		agent: &fakeAgent{states: map[string]agentmanager.RunState{
+			"run-1": {
+				RunID:      "run-1",
+				Status:     "complete",
+				Summary:    `{"operating_mode_result":{"progress":{"decision":"continue","completed_phases":["phase-1"],"current_phase":"phase-2","rationale":"keep going"}}}`,
+				FinishedAt: "2026-04-30T12:05:00Z",
+			},
+		}},
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-phased": {
+				Name:               "init-phased",
+				Title:              "Init Phased",
+				Description:        "Test phased initiative",
+				Mode:               string(ModePhasedPlanDrain),
+				Items:              []string{"execute/do-thing"},
+				AcceptanceCriteria: []string{"works end to end"},
+			},
+		}},
+	})
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "prepare_plan", nil)
+	saveCompletedRoundWithHandoff(t, svc, "init-phased", ModePhasedPlanDrain, "execute_next", nil)
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-phased",
+		Phase:          "classify_progress",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-phased", ModePhasedPlanDrain, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusCompleted {
+		t.Fatalf("refreshed status = %q, want completed: %+v", refreshed.Status, refreshed)
+	}
+	if len(refreshed.ArtifactUpdates) != 1 || refreshed.ArtifactUpdates[0].Path != "modes/phased-plan-drain/progress.json" {
+		t.Fatalf("artifact updates = %+v", refreshed.ArtifactUpdates)
+	}
+	if !refreshed.ArtifactUpdates[0].Required || refreshed.ArtifactUpdates[0].ContentType != "application/json" {
+		t.Fatalf("progress artifact metadata = %+v", refreshed.ArtifactUpdates[0])
+	}
+	artifact, err := svc.store.ReadArtifact("init-phased", ModePhasedPlanDrain, "modes/phased-plan-drain/progress.json")
+	if err != nil {
+		t.Fatalf("ReadArtifact: %v", err)
+	}
+	state, err := ParseProgressState([]byte(artifact.Content))
+	if err != nil {
+		t.Fatalf("ParseProgressState: %v\n%s", err, artifact.Content)
+	}
+	if state.Decision != ProgressContinue || state.UpdatedAt == "" {
+		t.Fatalf("progress state = %+v", state)
+	}
+}
+
 func TestRefreshRoundAppliesStructuredPhaseResult(t *testing.T) {
 	root := t.TempDir()
 	summary := "done\n```json\n{\"operating_mode_result\":{\"artifacts\":[{\"path\":\"modes/holistic-loop/findings.md\",\"content\":\"# Findings\\nCurrent state.\"}],\"handoff\":{\"summary\":\"investigated\"},\"verdict\":\"accepted\",\"replan_needed\":true}}\n```"
@@ -1001,15 +1066,7 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		Agent:          agent,
 		PromptClient:   prompts,
 		PromptCatalog: func(mode, phase string) (PromptCatalogEntry, bool) {
-			def, err := DefinitionFor(Mode(mode))
-			if err != nil {
-				return PromptCatalogEntry{}, false
-			}
-			phaseDef, ok := def.PhaseGraph.Phases[Phase(phase)]
-			if !ok {
-				return PromptCatalogEntry{}, false
-			}
-			return PromptCatalogEntry{CatalogID: phaseDef.CatalogID, SkillID: phaseDef.SkillID}, true
+			return ExpectedPromptCatalogEntry(mode, phase)
 		},
 		ScenarioRoot: root,
 		Clock:        store.Clock,

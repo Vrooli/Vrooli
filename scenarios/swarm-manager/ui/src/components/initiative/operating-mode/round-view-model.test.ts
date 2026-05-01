@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 import {
   backlogSyncActionUnavailableReason,
   buildRoundViewModel,
@@ -25,6 +25,17 @@ function round(overrides: Partial<OperatingModeRound> = {}): OperatingModeRound 
     ...overrides,
   };
 }
+
+const syncCapableMode: OperatingModeCapabilities = {
+  supportsPhases: true,
+  canStartPhases: true,
+  canCompleteItems: true,
+  canApplyBacklogSyncProposals: true,
+  requiresAcceptanceCriteria: true,
+  supportsArtifacts: true,
+  supportsHandoffs: false,
+  usesItemExecutionFlow: false,
+};
 
 describe("round view model", () => {
   it("extracts pending completed item refs from snake_case and camelCase plans", () => {
@@ -88,9 +99,9 @@ describe("round view model", () => {
       payload: { backlog_sync_plan: { completed_items: ["execute/a"] } },
     });
 
-    expect(buildRoundViewModel(missingRun).canCompleteItems).toBe(false);
-    expect(backlogSyncActionUnavailableReason(missingRun)).toMatch(/missing an AgentManager run ID/i);
-    expect(canApplyBacklogProposal(missingRun, new Set(["m1"]))).toBe(false);
+    expect(buildRoundViewModel(missingRun, syncCapableMode).canCompleteItems).toBe(false);
+    expect(backlogSyncActionUnavailableReason(missingRun, syncCapableMode)).toMatch(/missing an AgentManager run ID/i);
+    expect(canApplyBacklogProposal(missingRun, new Set(["m1"]), syncCapableMode)).toBe(false);
   });
 
   it("builds default proposal selection and action flags for completed rounds", () => {
@@ -108,11 +119,34 @@ describe("round view model", () => {
           },
         },
       },
-    }));
+    }), syncCapableMode);
 
     expect(view.summary).toBe("Execution complete");
     expect(view.canCompleteItems).toBe(true);
     expect(view.defaultSelectedMutationIds).toEqual(["m1", "m2"]);
+  });
+
+  it("disables backlog actions when the backend does not declare that capability", () => {
+    const unsupportedMode = {
+      ...syncCapableMode,
+      canCompleteItems: false,
+      canApplyBacklogSyncProposals: false,
+    };
+    const candidate = round({
+      payload: {
+        backlog_sync_plan: {
+          completed_items: ["execute/a"],
+          proposal: {
+            form: "mutation_list",
+            mutations: [{ id: "m1", op: "add_item" }],
+          },
+        },
+      },
+    });
+
+    expect(buildRoundViewModel(candidate, unsupportedMode).canCompleteItems).toBe(false);
+    expect(canApplyBacklogProposal(candidate, new Set(["m1"]), unsupportedMode)).toBe(false);
+    expect(backlogSyncActionUnavailableReason(candidate, unsupportedMode)).toMatch(/does not support backlog sync/i);
   });
 
   it("summarizes mutation details without requiring React rendering", () => {

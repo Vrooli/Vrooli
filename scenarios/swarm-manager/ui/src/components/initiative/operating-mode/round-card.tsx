@@ -3,13 +3,14 @@ import { CheckSquare, RefreshCw, Square } from "lucide-react";
 import { Button } from "../../ui/button";
 import { formatRelativeTime } from "../../../lib";
 import { selectors } from "../../../consts/selectors";
-import type { OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 import { BacklogSyncActions } from "./backlog-sync-actions";
 import { buildRoundViewModel } from "./round-view-model";
 import { phaseLabel, statusClasses } from "./utils";
 
 export function RoundCard({
   round,
+  capabilities,
   onRefresh,
   onCancel,
   onCompleteItems,
@@ -17,13 +18,14 @@ export function RoundCard({
   busy,
 }: {
   round: OperatingModeRound;
+  capabilities: OperatingModeCapabilities;
   onRefresh: (round: OperatingModeRound) => void;
   onCancel: (round: OperatingModeRound) => void;
   onCompleteItems: (round: OperatingModeRound, itemRefs: string[]) => void;
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
   busy: boolean;
 }) {
-  const view = useMemo(() => buildRoundViewModel(round), [round]);
+  const view = useMemo(() => buildRoundViewModel(round, capabilities), [round, capabilities]);
 
   return (
     <div
@@ -92,6 +94,7 @@ export function RoundCard({
         <BacklogSyncActions
           round={round}
           proposal={view.proposal}
+          capabilities={capabilities}
           busy={busy}
           onApplyBacklogSync={onApplyBacklogSync}
         />

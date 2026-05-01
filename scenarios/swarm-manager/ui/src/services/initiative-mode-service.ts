@@ -7,6 +7,7 @@ import type {
   OperatingModeCatalog,
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
+  OperatingModeCapabilities,
   OperatingModeRound,
   OperatingModeRoundItem,
   OperatingModeWorkspace,
@@ -78,18 +79,34 @@ function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
   };
 }
 
+function normalizeCapabilities(raw: unknown, fallbackSupportsPhases = false): OperatingModeCapabilities {
+  const capabilities = recordValue(raw);
+  return {
+    supportsPhases: boolValue(capabilities.supports_phases ?? capabilities.supportsPhases) ?? fallbackSupportsPhases,
+    canStartPhases: boolValue(capabilities.can_start_phases ?? capabilities.canStartPhases) ?? false,
+    canCompleteItems: boolValue(capabilities.can_complete_items ?? capabilities.canCompleteItems) ?? false,
+    canApplyBacklogSyncProposals: boolValue(capabilities.can_apply_backlog_sync_proposals ?? capabilities.canApplyBacklogSyncProposals) ?? false,
+    requiresAcceptanceCriteria: boolValue(capabilities.requires_acceptance_criteria ?? capabilities.requiresAcceptanceCriteria) ?? false,
+    supportsArtifacts: boolValue(capabilities.supports_artifacts ?? capabilities.supportsArtifacts) ?? false,
+    supportsHandoffs: boolValue(capabilities.supports_handoffs ?? capabilities.supportsHandoffs) ?? false,
+    usesItemExecutionFlow: boolValue(capabilities.uses_item_execution_flow ?? capabilities.usesItemExecutionFlow) ?? false,
+  };
+}
+
 function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
   const mode = recordValue(raw);
   const phases = mode.phases;
+  const supportsPhases = boolValue(mode.supports_phases ?? mode.supportsPhases) ?? false;
   return {
     mode: stringValue(mode.mode, "item-level"),
     label: stringValue(mode.label),
     scopeKind: stringValue(mode.scope_kind ?? mode.scopeKind),
     runStrategy: stringValue(mode.run_strategy ?? mode.runStrategy),
     workspaceTabId: stringValue(mode.workspace_tab_id ?? mode.workspaceTabId),
+    capabilities: normalizeCapabilities(mode.capabilities, supportsPhases),
     default: boolValue(mode.default) ?? false,
     switchable: boolValue(mode.switchable) ?? false,
-    supportsPhases: boolValue(mode.supports_phases ?? mode.supportsPhases) ?? false,
+    supportsPhases,
     phases: Array.isArray(phases) ? phases.map(normalizeCatalogPhase) : [],
   };
 }
@@ -108,6 +125,7 @@ function normalizeDefinition(raw: unknown): OperatingModeWorkspaceDefinition {
     mode: stringValue(def.mode, "item-level"),
     label: stringValue(def.label),
     scopeKind: stringValue(def.scope_kind ?? def.scopeKind),
+    capabilities: normalizeCapabilities(def.capabilities, Array.isArray(def.phases) && def.phases.length > 0),
     phases: Array.isArray(def.phases) ? def.phases.map(normalizePhase) : [],
     terminal: stringArray(def.terminal),
     transitions: recordValue(def.transitions) as Record<string, string[]>,

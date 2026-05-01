@@ -101,6 +101,25 @@ func TestCatalogDerivesModesFromRegistry(t *testing.T) {
 	if found[string(ModeItemLevel)].SupportsPhases {
 		t.Fatal("item-level supports phases in catalog")
 	}
+	if !found[string(ModeItemLevel)].Capabilities.UsesItemExecutionFlow {
+		t.Fatal("item-level catalog capabilities should declare item execution flow")
+	}
+	if found[string(ModeItemLevel)].Capabilities.CanStartPhases {
+		t.Fatal("item-level catalog capabilities should not allow phase starts")
+	}
+	holisticCapabilities := found[string(ModeHolisticLoop)].Capabilities
+	if !holisticCapabilities.SupportsPhases || !holisticCapabilities.CanStartPhases {
+		t.Fatalf("holistic-loop phase capabilities = %+v, want phase support", holisticCapabilities)
+	}
+	if !holisticCapabilities.CanCompleteItems || !holisticCapabilities.CanApplyBacklogSyncProposals {
+		t.Fatalf("holistic-loop backlog capabilities = %+v, want sync support", holisticCapabilities)
+	}
+	if !holisticCapabilities.RequiresAcceptanceCriteria || !holisticCapabilities.SupportsArtifacts {
+		t.Fatalf("holistic-loop workspace capabilities = %+v, want criteria and artifacts", holisticCapabilities)
+	}
+	if !found[string(ModePhasedPlanDrain)].Capabilities.SupportsHandoffs {
+		t.Fatal("phased-plan-drain catalog capabilities should declare handoff support")
+	}
 	if got := len(found[string(ModeHolisticLoop)].Phases); got != len(MustDefinition(ModeHolisticLoop).PhaseGraph.Phases) {
 		t.Fatalf("holistic-loop phase count = %d", got)
 	}
@@ -157,6 +176,28 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 			want: "prompt catalog ID and skill ID are required",
 		},
 		{
+			name: "invalid activity purpose",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				phase := def.PhaseGraph.Phases["investigate"]
+				phase.ActivityPurpose = "Invalid-Purpose"
+				def.PhaseGraph.Phases["investigate"] = phase
+				defs[ModeHolisticLoop] = def
+			},
+			want: "activity purpose must be a lowercase snake-case token",
+		},
+		{
+			name: "invalid lock purpose",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				phase := def.PhaseGraph.Phases["investigate"]
+				phase.LockPurpose = "Invalid-Purpose"
+				def.PhaseGraph.Phases["investigate"] = phase
+				defs[ModeHolisticLoop] = def
+			},
+			want: "lock purpose must be a lowercase snake-case token",
+		},
+		{
 			name: "profile mismatch",
 			mutate: func(defs map[Mode]Definition) {
 				def := defs[ModeHolisticLoop]
@@ -164,6 +205,84 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 				defs[ModeHolisticLoop] = def
 			},
 			want: "profile mismatch",
+		},
+		{
+			name: "transition rule undeclared next phase",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.PhaseGraph.TransitionRules["execute"] = []TransitionRule{
+					{
+						When: TransitionCondition{Kind: TransitionConditionAlways},
+						Next: []Phase{"plan"},
+					},
+				}
+				defs[ModeHolisticLoop] = def
+			},
+			want: "is not declared in phase graph transitions",
+		},
+		{
+			name: "transition rule missing payload key",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.PhaseGraph.TransitionRules["execute"] = []TransitionRule{
+					{When: TransitionCondition{Kind: TransitionConditionPayloadBool}},
+				}
+				defs[ModeHolisticLoop] = def
+			},
+			want: "payload bool condition requires a payload key",
+		},
+		{
+			name: "unknown result binding kind",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModePhasedPlanDrain]
+				phase := def.PhaseGraph.Phases["classify_progress"]
+				phase.ResultBindings = []ResultBinding{{
+					Kind:     "mystery",
+					Artifact: requiredOutputArtifact("modes/phased-plan-drain/progress.json", "application/json"),
+				}}
+				def.PhaseGraph.Phases["classify_progress"] = phase
+				defs[ModePhasedPlanDrain] = def
+			},
+			want: "unknown kind",
+		},
+		{
+			name: "result binding artifact must be declared output",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModePhasedPlanDrain]
+				phase := def.PhaseGraph.Phases["classify_progress"]
+				phase.OutputArtifacts = nil
+				phase.OutputContract.RequiredArtifacts = nil
+				def.PhaseGraph.Phases["classify_progress"] = phase
+				defs[ModePhasedPlanDrain] = def
+			},
+			want: "is not declared as a phase output",
+		},
+		{
+			name: "replan metrics phase must exist",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.Metrics.ReplanSamplePhases = []Phase{"missing"}
+				defs[ModeHolisticLoop] = def
+			},
+			want: "metrics replan phase",
+		},
+		{
+			name: "acceptance metrics phase must require verdict",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.Metrics.AcceptanceSamplePhases = []Phase{"execute"}
+				defs[ModeHolisticLoop] = def
+			},
+			want: "must require a verdict",
+		},
+		{
+			name: "acceptance metrics require accepted verdicts",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.Metrics.AcceptedVerdicts = nil
+				defs[ModeHolisticLoop] = def
+			},
+			want: "requires accepted verdict values",
 		},
 	}
 
@@ -184,15 +303,7 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 
 func TestValidatePromptCatalogRejectsRegistryMismatches(t *testing.T) {
 	validResolver := func(mode, phase string) (PromptCatalogEntry, bool) {
-		def, err := DefinitionFor(Mode(mode))
-		if err != nil {
-			return PromptCatalogEntry{}, false
-		}
-		phaseDef, err := def.PhaseDefinition(Phase(phase))
-		if err != nil {
-			return PromptCatalogEntry{}, false
-		}
-		return PromptCatalogEntry{CatalogID: phaseDef.CatalogID, SkillID: phaseDef.SkillID}, true
+		return ExpectedPromptCatalogEntry(mode, phase)
 	}
 	if err := ValidatePromptCatalog(validResolver); err != nil {
 		t.Fatalf("ValidatePromptCatalog(valid) returned error: %v", err)
@@ -232,6 +343,15 @@ func TestValidatePromptCatalogRejectsRegistryMismatches(t *testing.T) {
 				return entry, ok
 			},
 			want: "skill mismatch",
+		},
+		{
+			name: "output paths mismatch",
+			resolve: func(mode, phase string) (PromptCatalogEntry, bool) {
+				entry, ok := validResolver(mode, phase)
+				entry.OutputPaths = []string{"wrong"}
+				return entry, ok
+			},
+			want: "output paths mismatch",
 		},
 	}
 	for _, tt := range tests {
@@ -281,6 +401,112 @@ func TestInitiativeModePhasesCarryStableActivityPurposes(t *testing.T) {
 	}
 }
 
+func TestBuildInitiativeModeDerivesCommonAuthoringPolicy(t *testing.T) {
+	terminal := []Phase{"review"}
+	transitions := map[Phase][]Phase{
+		"draft":  {"review"},
+		"review": {"draft"},
+	}
+	transitionRules := map[Phase][]TransitionRule{
+		"draft": {
+			{
+				When: TransitionCondition{Kind: TransitionConditionAlways},
+				Next: []Phase{"review"},
+			},
+		},
+	}
+	def := buildInitiativeMode(initiativeModeSpec{
+		Mode:                "synthetic",
+		Label:               "Synthetic",
+		RunStrategy:         RunStrategySinglePhaseRun,
+		ArtifactRoot:        "modes/synthetic",
+		PromptCatalogPrefix: "swarm-manager-synthetic",
+		DefaultProfileKey:   ProfileDeepWork,
+		StartPhase:          "draft",
+		Terminal:            terminal,
+		Transitions:         transitions,
+		TransitionRules:     transitionRules,
+		Phases: []initiativePhaseSpec{
+			{
+				Phase:          "draft",
+				Purpose:        "synthetic_draft",
+				ProfileKey:     ProfileDeepWork,
+				ResultBindings: []ResultBinding{progressResultArtifact("modes/synthetic/draft-progress.json")},
+				Metrics:        PhaseMetricsSpec{CountsReplanSample: true},
+			},
+			{
+				Phase:            "review",
+				Purpose:          "synthetic_review",
+				PromptSuffix:     "final-review",
+				ProfileKey:       ProfileAnalysis,
+				RequiresVerdict:  true,
+				RequiresCriteria: true,
+				Metrics:          PhaseMetricsSpec{CountsAcceptanceSample: true},
+			},
+		},
+	})
+
+	if def.Scope.Kind != ScopeInitiative {
+		t.Fatalf("scope = %q, want %q", def.Scope.Kind, ScopeInitiative)
+	}
+	if def.Artifact.RoundRoot != "modes/synthetic/rounds" {
+		t.Fatalf("round root = %q", def.Artifact.RoundRoot)
+	}
+	if !def.BacklogSync.RequiresRunID || !def.BacklogSync.RequiresMembership || def.BacklogSync.EventSource != "synthetic" {
+		t.Fatalf("backlog policy not derived from mode: %+v", def.BacklogSync)
+	}
+	if def.Metrics.EventSource != "synthetic" {
+		t.Fatalf("metrics event source = %q, want synthetic", def.Metrics.EventSource)
+	}
+	if !def.Lock.InitiativeExclusive || def.UI.WorkspaceTabID != "operating-mode" {
+		t.Fatalf("lock/UI policy not derived: lock=%+v ui=%+v", def.Lock, def.UI)
+	}
+
+	draft := def.PhaseGraph.Phases["draft"]
+	if draft.CatalogID != "swarm-manager-synthetic-draft" || draft.SkillID != draft.CatalogID {
+		t.Fatalf("draft prompt IDs = %q/%q", draft.CatalogID, draft.SkillID)
+	}
+	if draft.LockPurpose != draft.ActivityPurpose {
+		t.Fatalf("draft lock purpose = %q, want activity purpose %q", draft.LockPurpose, draft.ActivityPurpose)
+	}
+	if got := len(draft.OutputContract.RequiredArtifacts); got != 1 {
+		t.Fatalf("draft required artifacts = %d, want 1", got)
+	}
+	if got := len(draft.ResultBindings); got != 1 {
+		t.Fatalf("draft result bindings = %d, want 1", got)
+	}
+	if draft.OutputArtifacts[0].Path != "modes/synthetic/draft-progress.json" {
+		t.Fatalf("draft output artifacts = %+v", draft.OutputArtifacts)
+	}
+
+	review := def.PhaseGraph.Phases["review"]
+	if review.CatalogID != "swarm-manager-synthetic-final-review" {
+		t.Fatalf("review catalog ID = %q", review.CatalogID)
+	}
+	if !review.OutputContract.RequiresVerdict || !review.RequiresCriteria {
+		t.Fatalf("review contract did not preserve review requirements: %+v criteria=%v", review.OutputContract, review.RequiresCriteria)
+	}
+	if got := def.Profile.PhaseProfiles["review"]; got != ProfileAnalysis {
+		t.Fatalf("review profile policy = %q, want %q", got, ProfileAnalysis)
+	}
+	if !def.Metrics.CountsReplanSample("draft") || def.Metrics.CountsReplanSample("review") {
+		t.Fatalf("replan metrics policy = %+v", def.Metrics)
+	}
+	if !def.Metrics.CountsAcceptanceSample("review") || def.Metrics.CountsAcceptanceSample("draft") {
+		t.Fatalf("acceptance metrics policy = %+v", def.Metrics)
+	}
+	if !def.Metrics.IsAcceptedVerdict("ACCEPTED") || def.Metrics.IsAcceptedVerdict("request_changes") {
+		t.Fatalf("accepted verdict policy = %+v", def.Metrics)
+	}
+
+	terminal[0] = "mutated"
+	transitions["draft"][0] = "mutated"
+	transitionRules["draft"][0].Next[0] = "mutated"
+	if def.PhaseGraph.Terminal[0] != "review" || def.PhaseGraph.Transitions["draft"][0] != "review" || def.PhaseGraph.TransitionRules["draft"][0].Next[0] != "review" {
+		t.Fatalf("builder did not isolate graph slices: terminal=%v transitions=%v rules=%v", def.PhaseGraph.Terminal, def.PhaseGraph.Transitions, def.PhaseGraph.TransitionRules)
+	}
+}
+
 func TestUnknownModeFailsClosed(t *testing.T) {
 	if ValidateMode("not-a-mode") {
 		t.Fatal("ValidateMode accepted unknown mode")
@@ -295,8 +521,10 @@ func cloneRegistryForTest() map[Mode]Definition {
 	for mode, def := range registry {
 		def.PhaseGraph.Terminal = append([]Phase(nil), def.PhaseGraph.Terminal...)
 		def.PhaseGraph.Transitions = clonePhaseTransitions(def.PhaseGraph.Transitions)
+		def.PhaseGraph.TransitionRules = clonePhaseTransitionRules(def.PhaseGraph.TransitionRules)
 		def.PhaseGraph.Phases = clonePhaseDefinitions(def.PhaseGraph.Phases)
 		def.Profile.PhaseProfiles = clonePhaseProfiles(def.Profile.PhaseProfiles)
+		def.Metrics = cloneMetricsPolicy(def.Metrics)
 		out[mode] = def
 	}
 	return out
@@ -310,10 +538,19 @@ func clonePhaseTransitions(in map[Phase][]Phase) map[Phase][]Phase {
 	return out
 }
 
+func clonePhaseTransitionRules(in map[Phase][]TransitionRule) map[Phase][]TransitionRule {
+	out := make(map[Phase][]TransitionRule, len(in))
+	for phase, rules := range in {
+		out[phase] = cloneTransitionRules(rules)
+	}
+	return out
+}
+
 func clonePhaseDefinitions(in map[Phase]PhaseDefinition) map[Phase]PhaseDefinition {
 	out := make(map[Phase]PhaseDefinition, len(in))
 	for phase, def := range in {
 		def.OutputArtifacts = append([]ArtifactDefinition(nil), def.OutputArtifacts...)
+		def.ResultBindings = cloneResultBindings(def.ResultBindings)
 		def.OutputContract.RequiredArtifacts = append([]ArtifactDefinition(nil), def.OutputContract.RequiredArtifacts...)
 		out[phase] = def
 	}
@@ -326,4 +563,11 @@ func clonePhaseProfiles(in map[Phase]string) map[Phase]string {
 		out[phase] = profile
 	}
 	return out
+}
+
+func cloneMetricsPolicy(in MetricsPolicy) MetricsPolicy {
+	in.ReplanSamplePhases = append([]Phase(nil), in.ReplanSamplePhases...)
+	in.AcceptanceSamplePhases = append([]Phase(nil), in.AcceptanceSamplePhases...)
+	in.AcceptedVerdicts = append([]string(nil), in.AcceptedVerdicts...)
+	return in
 }

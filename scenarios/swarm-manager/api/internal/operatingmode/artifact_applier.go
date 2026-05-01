@@ -42,19 +42,13 @@ func (s *Service) applyPhaseResult(round *RoundEnvelope, output string) error {
 	if result.Progress != nil {
 		result.Progress.UpdatedAt = defaultString(result.Progress.UpdatedAt, now)
 		payload.SetProgress(*result.Progress)
-		if round.Mode == string(ModePhasedPlanDrain) {
-			data, err := json.MarshalIndent(result.Progress, "", "  ")
-			if err != nil {
-				return err
-			}
-			clean, err := cleanModeRelativePath(def, "modes/phased-plan-drain/progress.json")
-			if err != nil {
-				return err
-			}
-			writes = append(writes, stagedArtifactWrite{Path: clean, Content: data})
-			staged.ArtifactUpdates = append(staged.ArtifactUpdates, ArtifactUpdate{Path: clean, ContentType: "application/json", Required: true, UpdatedAt: now, Source: string(resultEnvelopeKey)})
-		}
 	}
+	bindingWrites, bindingUpdates, err := resultBindingArtifacts(def, phaseDef, result, now)
+	if err != nil {
+		return err
+	}
+	writes = append(writes, bindingWrites...)
+	staged.ArtifactUpdates = append(staged.ArtifactUpdates, bindingUpdates...)
 	for _, artifact := range result.Artifacts {
 		path := strings.TrimSpace(artifact.Path)
 		if path == "" {
@@ -101,6 +95,39 @@ func (s *Service) applyPhaseResult(round *RoundEnvelope, output string) error {
 type stagedArtifactWrite struct {
 	Path    string
 	Content []byte
+}
+
+func resultBindingArtifacts(def Definition, phaseDef PhaseDefinition, result PhaseResult, updatedAt string) ([]stagedArtifactWrite, []ArtifactUpdate, error) {
+	writes := make([]stagedArtifactWrite, 0, len(phaseDef.ResultBindings))
+	updates := make([]ArtifactUpdate, 0, len(phaseDef.ResultBindings))
+	for _, binding := range phaseDef.ResultBindings {
+		switch binding.Kind {
+		case ResultBindingProgressArtifact:
+			if result.Progress == nil {
+				continue
+			}
+			content, err := json.MarshalIndent(result.Progress, "", "  ")
+			if err != nil {
+				return nil, nil, err
+			}
+			clean, err := cleanModeRelativePath(def, binding.Artifact.Path)
+			if err != nil {
+				return nil, nil, err
+			}
+			declaration := artifactDeclaration(def, clean)
+			writes = append(writes, stagedArtifactWrite{Path: clean, Content: content})
+			updates = append(updates, ArtifactUpdate{
+				Path:        clean,
+				ContentType: defaultString(binding.Artifact.ContentType, declaration.ContentType),
+				Required:    binding.Artifact.Required || declaration.Required,
+				UpdatedAt:   updatedAt,
+				Source:      string(resultEnvelopeKey),
+			})
+		default:
+			return nil, nil, fmt.Errorf("phase %q has unsupported result binding %q", phaseDef.Phase, binding.Kind)
+		}
+	}
+	return writes, updates, nil
 }
 
 func validateParseStatus(phaseDef PhaseDefinition, status PhaseResultParseStatus) error {

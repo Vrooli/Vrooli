@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OperatingModePanel } from "./operating-mode-panel";
 import { initiativeModeService, initiativeService } from "../../services";
 import type { Initiative } from "../../types";
+import type { OperatingModeCapabilities } from "../../types/operating-mode";
 
 vi.mock("../../services", () => ({
   initiativeModeService: {
@@ -24,6 +25,26 @@ vi.mock("../../services", () => ({
 
 describe("OperatingModePanel", () => {
   let queryClient: QueryClient;
+  const itemExecutionCapabilities: OperatingModeCapabilities = {
+    supportsPhases: false,
+    canStartPhases: false,
+    canCompleteItems: false,
+    canApplyBacklogSyncProposals: false,
+    requiresAcceptanceCriteria: false,
+    supportsArtifacts: false,
+    supportsHandoffs: false,
+    usesItemExecutionFlow: true,
+  };
+  const initiativeModeCapabilities: OperatingModeCapabilities = {
+    supportsPhases: true,
+    canStartPhases: true,
+    canCompleteItems: true,
+    canApplyBacklogSyncProposals: true,
+    requiresAcceptanceCriteria: true,
+    supportsArtifacts: true,
+    supportsHandoffs: false,
+    usesItemExecutionFlow: false,
+  };
   const initiative: Initiative = {
     name: "mode-initiative",
     title: "Mode Initiative",
@@ -49,6 +70,7 @@ describe("OperatingModePanel", () => {
           scopeKind: "backlog_item",
           runStrategy: "existing_item_flow",
           workspaceTabId: "info",
+          capabilities: itemExecutionCapabilities,
           default: true,
           switchable: true,
           supportsPhases: false,
@@ -60,6 +82,7 @@ describe("OperatingModePanel", () => {
           scopeKind: "initiative",
           runStrategy: "operator_gated_loop",
           workspaceTabId: "operating-mode",
+          capabilities: initiativeModeCapabilities,
           default: false,
           switchable: true,
           supportsPhases: true,
@@ -71,6 +94,7 @@ describe("OperatingModePanel", () => {
           scopeKind: "initiative",
           runStrategy: "sequential_handoff",
           workspaceTabId: "operating-mode",
+          capabilities: { ...initiativeModeCapabilities, supportsHandoffs: true },
           default: false,
           switchable: true,
           supportsPhases: true,
@@ -85,6 +109,7 @@ describe("OperatingModePanel", () => {
         mode: "holistic-loop",
         label: "Holistic Loop",
         scopeKind: "initiative",
+        capabilities: initiativeModeCapabilities,
         runStrategy: "operator_gated_loop",
         terminal: ["review"],
         transitions: { investigate: ["plan"] },
@@ -207,6 +232,7 @@ describe("OperatingModePanel", () => {
         mode: "holistic-loop",
         label: "Holistic Loop",
         scopeKind: "initiative",
+        capabilities: initiativeModeCapabilities,
         runStrategy: "operator_gated_loop",
         terminal: ["review"],
         transitions: {},
@@ -243,6 +269,7 @@ describe("OperatingModePanel", () => {
         mode: "holistic-loop",
         label: "Holistic Loop",
         scopeKind: "initiative",
+        capabilities: initiativeModeCapabilities,
         runStrategy: "operator_gated_loop",
         terminal: ["review"],
         transitions: {},
@@ -347,6 +374,7 @@ describe("OperatingModePanel", () => {
           scopeKind: "backlog_item",
           runStrategy: "existing_item_flow",
           workspaceTabId: "info",
+          capabilities: itemExecutionCapabilities,
           default: true,
           switchable: true,
           supportsPhases: false,
@@ -358,6 +386,7 @@ describe("OperatingModePanel", () => {
           scopeKind: "initiative",
           runStrategy: "operator_gated_loop",
           workspaceTabId: "operating-mode",
+          capabilities: initiativeModeCapabilities,
           default: false,
           switchable: true,
           supportsPhases: true,

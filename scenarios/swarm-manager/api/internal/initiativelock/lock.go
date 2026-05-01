@@ -81,21 +81,14 @@ const (
 	DefaultLockMaxAge = 2 * time.Hour
 )
 
-// Canonical initiative-agent lock purposes. The file name remains
-// `.feedback-lock` for disk compatibility, but these purpose values describe
-// every initiative-scoped agent that contends on the same mutex.
+// Canonical initiative-agent lock purposes owned by this package. Operating
+// mode phase purposes are authored by the operating-mode registry and stored
+// here as diagnostic strings; they do not need lock-package constants because
+// all initiative-scoped agents contend on the same mutex.
 const (
-	PurposeFeedback                   = "feedback"
-	PurposeFeedbackContinue           = "feedback_continue"
-	PurposeInitiativeReview           = "initiative_review"
-	PurposeHolisticLoopInvestigate    = "holistic_loop_investigate"
-	PurposeHolisticLoopPlan           = "holistic_loop_plan"
-	PurposeHolisticLoopExecute        = "holistic_loop_execute"
-	PurposeHolisticLoopReview         = "holistic_loop_review"
-	PurposePhasedPlanPrepare          = "phased_plan_prepare"
-	PurposePhasedPlanExecuteNext      = "phased_plan_execute_next"
-	PurposePhasedPlanClassifyProgress = "phased_plan_classify_progress"
-	PurposePhasedPlanReview           = "phased_plan_review"
+	PurposeFeedback         = "feedback"
+	PurposeFeedbackContinue = "feedback_continue"
+	PurposeInitiativeReview = "initiative_review"
 )
 
 func (l *Lock) path(initiativeName string) string {

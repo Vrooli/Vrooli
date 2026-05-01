@@ -88,7 +88,7 @@ export function ModeSwitchControl({
       </div>
       {confirmItemCancellation && (
         <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
-          Switching from item-level mode can cancel active member item executions. Click Confirm Switch to cancel any active item executions and change modes.
+          Switching from the item execution flow can cancel active member item executions. Click Confirm Switch to cancel any active item executions and change modes.
         </p>
       )}
       {Boolean(catalogError) && (

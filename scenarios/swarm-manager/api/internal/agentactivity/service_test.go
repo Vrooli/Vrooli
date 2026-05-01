@@ -668,21 +668,27 @@ func TestSpec_RejectsUnknownOwnerType(t *testing.T) {
 	}
 }
 
-func TestSpec_AcceptsOperatingModePurposes(t *testing.T) {
+func TestSpec_AcceptsRegistryAuthoredInitiativePurpose(t *testing.T) {
 	t.Parallel()
-	purposes := []Purpose{
-		PurposeHolisticLoopInvestigate,
-		PurposeHolisticLoopPlan,
-		PurposeHolisticLoopExecute,
-		PurposeHolisticLoopReview,
-		PurposePhasedPlanPrepare,
-		PurposePhasedPlanExecuteNext,
-		PurposePhasedPlanClassifyProgress,
-		PurposePhasedPlanReview,
+	purpose := Purpose("new_mode_execute_phase")
+	if _, err := (Spec{OwnerType: OwnerInitiative, OwnerName: "init-a", Purpose: purpose}).normalized(); err != nil {
+		t.Fatalf("purpose %q rejected: %v", purpose, err)
 	}
-	for _, purpose := range purposes {
-		if _, err := (Spec{OwnerType: OwnerInitiative, OwnerName: "init-a", Purpose: purpose}).normalized(); err != nil {
-			t.Fatalf("purpose %q rejected: %v", purpose, err)
+}
+
+func TestSpec_RejectsUnknownPurposeForNonInitiativeOwner(t *testing.T) {
+	t.Parallel()
+	purpose := Purpose("new_mode_execute_phase")
+	if _, err := (Spec{OwnerType: OwnerBacklog, OwnerKind: "execute", OwnerName: "task-a", Purpose: purpose}).normalized(); err == nil {
+		t.Fatalf("purpose %q accepted for backlog owner", purpose)
+	}
+}
+
+func TestSpec_RejectsMalformedPurpose(t *testing.T) {
+	t.Parallel()
+	for _, purpose := range []Purpose{"", "has-dash", "has space"} {
+		if _, err := (Spec{OwnerType: OwnerInitiative, OwnerName: "init-a", Purpose: purpose}).normalized(); err == nil {
+			t.Fatalf("purpose %q accepted", purpose)
 		}
 	}
 }

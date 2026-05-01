@@ -7,6 +7,8 @@ package promptcatalog
 
 import (
 	"strings"
+
+	"swarm-manager/internal/operatingmode"
 )
 
 type Group string
@@ -56,7 +58,7 @@ type Entry struct {
 	ExperimentID      string     `json:"experiment_id,omitempty"`
 }
 
-var entries = []Entry{
+var staticEntries = []Entry{
 	{
 		ID:           "capture-classify",
 		Title:        "Capture Classification",
@@ -342,130 +344,6 @@ var entries = []Entry{
 		Purpose:    "Assess whether the initiative delivered its goal and propose follow-up mutations if needed.",
 	},
 	{
-		ID:         "swarm-manager-holistic-loop-investigate",
-		Title:      "Holistic Loop Investigate",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts holistic-loop investigate phase",
-		SkillID:    "swarm-manager-holistic-loop-investigate",
-		Modes:      []string{"holistic-loop"},
-		Operations: []string{"investigate"},
-		Purpose:    "Investigate initiative-wide code, backlog, and system state and produce holistic findings.",
-		OutputPaths: []string{
-			"modes/holistic-loop/findings.md",
-			"modes/holistic-loop/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-holistic-loop-plan",
-		Title:      "Holistic Loop Plan",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts holistic-loop plan phase",
-		SkillID:    "swarm-manager-holistic-loop-plan",
-		Modes:      []string{"holistic-loop"},
-		Operations: []string{"plan"},
-		Purpose:    "Produce or update the initiative-wide implementation plan and readiness assessment.",
-		OutputPaths: []string{
-			"modes/holistic-loop/initiative-plan.md",
-			"modes/holistic-loop/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-holistic-loop-execute",
-		Title:      "Holistic Loop Execute",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts holistic-loop execute phase",
-		SkillID:    "swarm-manager-holistic-loop-execute",
-		Modes:      []string{"holistic-loop"},
-		Operations: []string{"execute"},
-		Purpose:    "Execute against the initiative-wide plan and report whether replanning is needed.",
-		OutputPaths: []string{
-			"modes/holistic-loop/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-holistic-loop-review",
-		Title:      "Holistic Loop Acceptance Review",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts holistic-loop review phase",
-		SkillID:    "swarm-manager-holistic-loop-review",
-		Modes:      []string{"holistic-loop"},
-		Operations: []string{"review"},
-		Purpose:    "Evaluate holistic-loop results against acceptance criteria and produce an acceptance verdict.",
-		OutputPaths: []string{
-			"modes/holistic-loop/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-phased-plan-prepare",
-		Title:      "Phased Plan Prepare",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts phased-plan-drain prepare phase",
-		SkillID:    "swarm-manager-phased-plan-prepare",
-		Modes:      []string{"phased-plan-drain"},
-		Operations: []string{"prepare_plan"},
-		Purpose:    "Create or update the stable phased plan used by sequential handoff execution.",
-		OutputPaths: []string{
-			"modes/phased-plan-drain/phased-plan.md",
-			"modes/phased-plan-drain/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-phased-plan-execute-next",
-		Title:      "Phased Plan Execute Next",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts phased-plan-drain execute-next phase",
-		SkillID:    "swarm-manager-phased-plan-execute-next",
-		Modes:      []string{"phased-plan-drain"},
-		Operations: []string{"execute_next"},
-		Purpose:    "Execute the earliest contiguous phase block that can be completed professionally and emit a final handoff.",
-		OutputPaths: []string{
-			"modes/phased-plan-drain/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-phased-plan-classify-progress",
-		Title:      "Phased Plan Classify Progress",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts phased-plan-drain classify-progress phase",
-		SkillID:    "swarm-manager-phased-plan-classify-progress",
-		Modes:      []string{"phased-plan-drain"},
-		Operations: []string{"classify_progress"},
-		Purpose:    "Classify phased-plan progress and record backlog reconciliation intent.",
-		OutputPaths: []string{
-			"modes/phased-plan-drain/progress.json",
-			"modes/phased-plan-drain/rounds/round-NNN.json",
-		},
-	},
-	{
-		ID:         "swarm-manager-phased-plan-review",
-		Title:      "Phased Plan Acceptance Review",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "Operator starts phased-plan-drain review phase",
-		SkillID:    "swarm-manager-phased-plan-review",
-		Modes:      []string{"phased-plan-drain"},
-		Operations: []string{"review"},
-		Purpose:    "Evaluate phased-plan-drain results, handoffs, and progress against acceptance criteria.",
-		OutputPaths: []string{
-			"modes/phased-plan-drain/rounds/round-NNN.json",
-		},
-	},
-	{
 		ID:         "support-initiative-context",
 		Title:      "Initiative Context Reference",
 		Group:      GroupSupport,
@@ -478,6 +356,7 @@ var entries = []Entry{
 }
 
 func Entries() []Entry {
+	entries := catalogEntries()
 	result := make([]Entry, 0, len(entries))
 	for _, entry := range entries {
 		result = append(result, cloneEntry(entry))
@@ -486,6 +365,7 @@ func Entries() []Entry {
 }
 
 func SkillEntries() []Entry {
+	entries := catalogEntries()
 	result := make([]Entry, 0, len(entries))
 	seen := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
@@ -503,7 +383,7 @@ func SkillEntries() []Entry {
 
 func Lookup(id string) (Entry, bool) {
 	normalized := strings.TrimSpace(id)
-	for _, entry := range entries {
+	for _, entry := range catalogEntries() {
 		if entry.ID == normalized {
 			return cloneEntry(entry), true
 		}
@@ -514,7 +394,7 @@ func Lookup(id string) (Entry, bool) {
 func ResolveBacklogSkill(mode, kind string) (Entry, bool) {
 	normalizedMode := strings.ToLower(strings.TrimSpace(mode))
 	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
-	for _, entry := range entries {
+	for _, entry := range catalogEntries() {
 		if entry.Group != GroupBacklog || entry.SourceType != SourceSkill || entry.UsageType != UsageDirectRuntime {
 			continue
 		}
@@ -547,7 +427,7 @@ func ResolveInitiativeSkill(purpose string) (Entry, bool) {
 func ResolveInitiativeModeSkill(mode, phase string) (Entry, bool) {
 	normalizedMode := strings.ToLower(strings.TrimSpace(mode))
 	normalizedPhase := strings.ToLower(strings.TrimSpace(phase))
-	for _, entry := range entries {
+	for _, entry := range catalogEntries() {
 		if entry.Group != GroupInitiative || entry.SourceType != SourceSkill || entry.UsageType != UsageDirectRuntime {
 			continue
 		}
@@ -561,4 +441,27 @@ func ResolveInitiativeModeSkill(mode, phase string) (Entry, bool) {
 
 func ResolveSpecSyncSkill() (Entry, bool) {
 	return Lookup("archive-spec-sync")
+}
+
+func catalogEntries() []Entry {
+	result := make([]Entry, 0, len(staticEntries)+len(operatingmode.PromptCatalogEntries()))
+	for _, entry := range staticEntries {
+		result = append(result, entry)
+	}
+	for _, entry := range operatingmode.PromptCatalogEntries() {
+		result = append(result, Entry{
+			ID:          entry.CatalogID,
+			Title:       entry.Title,
+			Group:       GroupInitiative,
+			UsageType:   UsageDirectRuntime,
+			SourceType:  SourceSkill,
+			Trigger:     entry.Trigger,
+			SkillID:     entry.SkillID,
+			Modes:       []string{entry.Mode},
+			Operations:  []string{entry.Phase},
+			Purpose:     entry.Purpose,
+			OutputPaths: append([]string{}, entry.OutputPaths...),
+		})
+	}
+	return result
 }

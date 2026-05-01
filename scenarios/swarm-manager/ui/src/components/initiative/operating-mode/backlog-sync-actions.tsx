@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, GitBranch } from "lucide-react";
 import { selectors } from "../../../consts/selectors";
-import type { OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 import { Button } from "../../ui/button";
 import { phaseLabel } from "./utils";
 import {
@@ -14,11 +14,13 @@ import {
 export function BacklogSyncActions({
   round,
   proposal,
+  capabilities,
   busy,
   onApplyBacklogSync,
 }: {
   round: OperatingModeRound;
   proposal: OperatingModeBacklogProposal;
+  capabilities: OperatingModeCapabilities;
   busy: boolean;
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
 }) {
@@ -29,7 +31,7 @@ export function BacklogSyncActions({
   useEffect(() => {
     setSelectedMutationIds(new Set(proposalMutationIds));
   }, [proposalMutationIds]);
-  const canApplyProposal = canApplyBacklogProposal(round, selectedMutationIds);
+  const canApplyProposal = canApplyBacklogProposal(round, selectedMutationIds, capabilities);
   const toggleMutation = (id: string) => {
     setSelectedMutationIds((previous) => {
       const next = new Set(previous);

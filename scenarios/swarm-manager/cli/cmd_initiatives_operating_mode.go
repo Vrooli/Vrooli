@@ -27,10 +27,22 @@ type operatingModeCatalogEntry struct {
 	ScopeKind      string                      `json:"scope_kind"`
 	RunStrategy    string                      `json:"run_strategy"`
 	WorkspaceTabID string                      `json:"workspace_tab_id"`
+	Capabilities   operatingModeCapabilities   `json:"capabilities"`
 	Default        bool                        `json:"default"`
 	Switchable     bool                        `json:"switchable"`
 	SupportsPhases bool                        `json:"supports_phases"`
 	Phases         []operatingModeCatalogPhase `json:"phases,omitempty"`
+}
+
+type operatingModeCapabilities struct {
+	SupportsPhases               bool `json:"supports_phases"`
+	CanStartPhases               bool `json:"can_start_phases"`
+	CanCompleteItems             bool `json:"can_complete_items"`
+	CanApplyBacklogSyncProposals bool `json:"can_apply_backlog_sync_proposals"`
+	RequiresAcceptanceCriteria   bool `json:"requires_acceptance_criteria"`
+	SupportsArtifacts            bool `json:"supports_artifacts"`
+	SupportsHandoffs             bool `json:"supports_handoffs"`
+	UsesItemExecutionFlow        bool `json:"uses_item_execution_flow"`
 }
 
 type operatingModeCatalogPhase struct {
@@ -41,11 +53,12 @@ type operatingModeCatalogPhase struct {
 }
 
 type operatingModeDef struct {
-	Label       string                        `json:"label"`
-	ScopeKind   string                        `json:"scope_kind"`
-	RunStrategy string                        `json:"run_strategy"`
-	Phases      []operatingModeWorkspacePhase `json:"phases"`
-	Transitions map[string][]string           `json:"transitions,omitempty"`
+	Label        string                        `json:"label"`
+	ScopeKind    string                        `json:"scope_kind"`
+	RunStrategy  string                        `json:"run_strategy"`
+	Capabilities operatingModeCapabilities     `json:"capabilities"`
+	Phases       []operatingModeWorkspacePhase `json:"phases"`
+	Transitions  map[string][]string           `json:"transitions,omitempty"`
 }
 
 type operatingModeWorkspacePhase struct {
@@ -131,6 +144,41 @@ type operatingModeProposalOutcome struct {
 	Error      string `json:"error,omitempty"`
 }
 
+func printOperatingModeCapabilities(header, prefix string, capabilities operatingModeCapabilities) {
+	labels := make([]string, 0, 8)
+	if capabilities.SupportsPhases {
+		labels = append(labels, "phases")
+	}
+	if capabilities.CanStartPhases {
+		labels = append(labels, "start phases")
+	}
+	if capabilities.CanCompleteItems {
+		labels = append(labels, "complete items")
+	}
+	if capabilities.CanApplyBacklogSyncProposals {
+		labels = append(labels, "apply backlog proposals")
+	}
+	if capabilities.RequiresAcceptanceCriteria {
+		labels = append(labels, "acceptance criteria")
+	}
+	if capabilities.SupportsArtifacts {
+		labels = append(labels, "artifacts")
+	}
+	if capabilities.SupportsHandoffs {
+		labels = append(labels, "handoffs")
+	}
+	if capabilities.UsesItemExecutionFlow {
+		labels = append(labels, "item execution flow")
+	}
+	if len(labels) == 0 {
+		return
+	}
+	fmt.Println(header)
+	for _, label := range labels {
+		fmt.Println(prefix + label)
+	}
+}
+
 func (a *App) cmdInitiativesModeList(args []string) error {
 	fs := flag.NewFlagSet("initiatives mode-list", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -165,6 +213,7 @@ func (a *App) cmdInitiativesModeList(args []string) error {
 		if mode.RunStrategy != "" {
 			fmt.Printf("    strategy: %s\n", mode.RunStrategy)
 		}
+		printOperatingModeCapabilities("    capabilities:", "      - ", mode.Capabilities)
 		if len(mode.Phases) > 0 {
 			fmt.Println("    phases:")
 			for _, phase := range mode.Phases {
@@ -212,6 +261,7 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 	if resp.Definition.RunStrategy != "" {
 		fmt.Printf("  Strategy:   %s\n", resp.Definition.RunStrategy)
 	}
+	printOperatingModeCapabilities("  Capabilities:", "    - ", resp.Definition.Capabilities)
 	printSection("Phases")
 	if len(resp.Definition.Phases) == 0 {
 		fmt.Println("  (none)")

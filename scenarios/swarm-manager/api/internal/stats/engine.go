@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
 	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/workshop"
 )
 
@@ -225,20 +225,6 @@ type decisionKindCounters struct {
 	itemsFreeformChosen    int
 }
 
-const (
-	operatingModeVerdictAccept   = "accept"
-	operatingModeVerdictAccepted = "accepted"
-)
-
-func isOperatingModeAcceptedVerdict(verdict string) bool {
-	switch strings.ToLower(strings.TrimSpace(verdict)) {
-	case operatingModeVerdictAccept, operatingModeVerdictAccepted:
-		return true
-	default:
-		return false
-	}
-}
-
 func (s *aggregateState) recordModePhaseStarted(p eventlog.OperatingModePhasePayload) {
 	if p.Mode == "" || p.Phase == "" {
 		return
@@ -273,19 +259,36 @@ func (s *aggregateState) recordModePhaseTerminal(p eventlog.OperatingModePhasePa
 		incrementNested(s.modeDurationCounts, p.Mode, p.Phase, 1)
 	}
 	if outcome == "completed" {
-		if p.Phase == "execute" || p.Phase == "execute_next" {
-			s.modeReplanDenominator[p.Mode]++
-			if p.ReplanNeeded {
-				s.modeReplanNumerator[p.Mode]++
-			}
+		policy, ok := operatingModeMetricsPolicy(p.Mode)
+		if !ok {
+			return
 		}
-		if p.Phase == "review" && p.Verdict != "" {
-			s.modeAcceptanceDenom[p.Mode]++
-			if isOperatingModeAcceptedVerdict(p.Verdict) {
-				s.modeAcceptanceNumerator[p.Mode]++
-			}
+		s.recordOperatingModePolicyMetrics(p, policy)
+	}
+}
+
+func (s *aggregateState) recordOperatingModePolicyMetrics(p eventlog.OperatingModePhasePayload, policy operatingmode.MetricsPolicy) {
+	phase := operatingmode.Phase(p.Phase)
+	if policy.CountsReplanSample(phase) {
+		s.modeReplanDenominator[p.Mode]++
+		if p.ReplanNeeded {
+			s.modeReplanNumerator[p.Mode]++
 		}
 	}
+	if policy.CountsAcceptanceSample(phase) && p.Verdict != "" {
+		s.modeAcceptanceDenom[p.Mode]++
+		if policy.IsAcceptedVerdict(p.Verdict) {
+			s.modeAcceptanceNumerator[p.Mode]++
+		}
+	}
+}
+
+func operatingModeMetricsPolicy(mode string) (operatingmode.MetricsPolicy, bool) {
+	def, err := operatingmode.DefinitionFor(operatingmode.Mode(mode))
+	if err != nil {
+		return operatingmode.MetricsPolicy{}, false
+	}
+	return def.Metrics, true
 }
 
 func incrementNested(m map[string]map[string]int, outer, inner string, delta int) {

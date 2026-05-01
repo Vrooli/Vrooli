@@ -67,7 +67,7 @@ func TestLock_Acquire_DifferentPurposesStillConflict(t *testing.T) {
 	if err := lock.Acquire("i", Holder{RunID: "a", Purpose: PurposeFeedback}); err != nil {
 		t.Fatal(err)
 	}
-	err := lock.Acquire("i", Holder{RunID: "b", Purpose: PurposeHolisticLoopExecute})
+	err := lock.Acquire("i", Holder{RunID: "b", Purpose: "new_mode_execute_phase"})
 	if !errors.Is(err, ErrLocked) {
 		t.Fatalf("expected ErrLocked across different purposes, got %v", err)
 	}

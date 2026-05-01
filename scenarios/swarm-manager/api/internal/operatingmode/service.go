@@ -115,11 +115,6 @@ type AgentSpawner interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
-type PromptCatalogEntry struct {
-	CatalogID string
-	SkillID   string
-}
-
 type PromptCatalogResolver func(mode, phase string) (PromptCatalogEntry, bool)
 
 // InitiativeLock is the narrow initiative-agent lock seam used by operating
@@ -249,13 +244,25 @@ type Workspace struct {
 }
 
 type WorkspaceMode struct {
-	Mode        string              `json:"mode"`
-	Label       string              `json:"label"`
-	ScopeKind   string              `json:"scope_kind"`
-	Phases      []WorkspacePhase    `json:"phases"`
-	Terminal    []string            `json:"terminal"`
-	Transitions map[string][]string `json:"transitions"`
-	RunStrategy string              `json:"run_strategy"`
+	Mode         string              `json:"mode"`
+	Label        string              `json:"label"`
+	ScopeKind    string              `json:"scope_kind"`
+	Capabilities ModeCapabilities    `json:"capabilities"`
+	Phases       []WorkspacePhase    `json:"phases"`
+	Terminal     []string            `json:"terminal"`
+	Transitions  map[string][]string `json:"transitions"`
+	RunStrategy  string              `json:"run_strategy"`
+}
+
+type ModeCapabilities struct {
+	SupportsPhases               bool `json:"supports_phases"`
+	CanStartPhases               bool `json:"can_start_phases"`
+	CanCompleteItems             bool `json:"can_complete_items"`
+	CanApplyBacklogSyncProposals bool `json:"can_apply_backlog_sync_proposals"`
+	RequiresAcceptanceCriteria   bool `json:"requires_acceptance_criteria"`
+	SupportsArtifacts            bool `json:"supports_artifacts"`
+	SupportsHandoffs             bool `json:"supports_handoffs"`
+	UsesItemExecutionFlow        bool `json:"uses_item_execution_flow"`
 }
 
 type ModeCatalog struct {
@@ -268,6 +275,7 @@ type ModeCatalogEntry struct {
 	ScopeKind      string             `json:"scope_kind"`
 	RunStrategy    string             `json:"run_strategy"`
 	WorkspaceTabID string             `json:"workspace_tab_id"`
+	Capabilities   ModeCapabilities   `json:"capabilities"`
 	Default        bool               `json:"default"`
 	Switchable     bool               `json:"switchable"`
 	SupportsPhases bool               `json:"supports_phases"`

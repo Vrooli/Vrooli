@@ -105,14 +105,18 @@ export function useOperatingModeWorkspace({
 
   const workspace = workspaceQuery.data;
   const currentMode = initiative.mode ?? "item-level";
-  const switchingAwayFromItemLevel = currentMode === "item-level" && selectedMode !== "item-level";
+  const catalogModes = modeCatalogQuery.data?.modes ?? [];
+  const currentModeEntry = catalogModes.find((mode) => mode.mode === currentMode);
+  const selectedModeEntry = catalogModes.find((mode) => mode.mode === selectedMode);
+  const switchingAwayFromItemExecutionFlow = Boolean(currentModeEntry?.capabilities.usesItemExecutionFlow) &&
+    !selectedModeEntry?.capabilities.usesItemExecutionFlow;
   const runningRound = useMemo(() => activeRound(workspace?.rounds ?? []), [workspace?.rounds]);
   const phaseBusy = startMutation.isPending ||
     refreshMutation.isPending ||
     cancelMutation.isPending ||
     completeItemsMutation.isPending ||
     applyBacklogSyncMutation.isPending;
-  const canRunPhases = currentMode !== "item-level" && Boolean(workspace) && !runningRound;
+  const canRunPhases = Boolean(workspace?.definition.capabilities.canStartPhases) && !runningRound;
 
   return {
     selectedMode,
@@ -127,7 +131,7 @@ export function useOperatingModeWorkspace({
     modeCatalogQuery,
     workspace,
     currentMode,
-    switchingAwayFromItemLevel,
+    switchingAwayFromItemLevel: switchingAwayFromItemExecutionFlow,
     runningRound,
     phaseBusy,
     canRunPhases,

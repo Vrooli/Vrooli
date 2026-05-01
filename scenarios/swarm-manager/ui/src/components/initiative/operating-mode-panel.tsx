@@ -76,13 +76,13 @@ export function OperatingModePanel({
         />
       )}
 
-      {workspace && currentMode === "item-level" && (
+      {workspace && !workspace.definition.capabilities.supportsPhases && (
         <div className="rounded-lg border border-slate-800/80 bg-slate-900/55 p-4 text-sm text-slate-400">
-          Item-level mode uses the existing backlog item execution and review flow. Switch to a non-default mode to run initiative-scoped phases.
+          This mode uses the existing backlog item execution and review flow. Switch to a phase-capable mode to run initiative-scoped phases.
         </div>
       )}
 
-      {workspace && currentMode !== "item-level" && (
+      {workspace && workspace.definition.capabilities.supportsPhases && (
         <>
           <PhaseControls
             workspace={workspace}
@@ -101,6 +101,7 @@ export function OperatingModePanel({
 
           <RoundTimeline
             rounds={workspace.rounds}
+            capabilities={workspace.definition.capabilities}
             busy={phaseBusy}
             onRefresh={(target) => refreshMutation.mutate(target)}
             onCancel={(target) => cancelMutation.mutate(target)}

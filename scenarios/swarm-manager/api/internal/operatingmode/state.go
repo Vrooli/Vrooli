@@ -148,53 +148,41 @@ func allowedNextPhases(def Definition, rounds []RoundEnvelope) map[Phase]bool {
 		return allowed
 	}
 
-	switch def.RunStrategy.Kind {
-	case RunStrategyOperatorGatedLoop:
-		for _, phase := range loopNextPhases(def, *last) {
-			allowed[phase] = true
-		}
-	case RunStrategySequentialHandoff:
-		for _, phase := range sequentialNextPhases(def, *last) {
-			allowed[phase] = true
-		}
-	default:
-		for _, phase := range def.PhaseGraph.Transitions[Phase(last.Phase)] {
-			allowed[phase] = true
-		}
+	for _, phase := range nextPhasesForCompletedRound(def, *last) {
+		allowed[phase] = true
 	}
 	return allowed
 }
 
-func loopNextPhases(def Definition, last RoundEnvelope) []Phase {
+func nextPhasesForCompletedRound(def Definition, last RoundEnvelope) []Phase {
 	from := Phase(last.Phase)
-	if def.Mode == ModeHolisticLoop && from == "execute" {
-		if RoundPayload(last.Payload).ReplanNeeded() {
-			return []Phase{"investigate"}
+	if rules := def.PhaseGraph.TransitionRules[from]; len(rules) > 0 {
+		payload := RoundPayload(last.Payload)
+		for _, rule := range rules {
+			if rule.When.Matches(payload) {
+				return append([]Phase(nil), rule.Next...)
+			}
 		}
-		return []Phase{"review"}
+		return nil
 	}
 	return append([]Phase(nil), def.PhaseGraph.Transitions[from]...)
 }
 
-func sequentialNextPhases(def Definition, last RoundEnvelope) []Phase {
-	from := Phase(last.Phase)
-	if def.Mode == ModePhasedPlanDrain && from == "classify_progress" {
-		progress, ok := roundProgress(last)
-		if !ok {
-			return nil
-		}
-		switch progress.Decision {
-		case ProgressContinue:
-			return []Phase{"execute_next"}
-		case ProgressReplan:
-			return []Phase{"prepare_plan"}
-		case ProgressComplete:
-			return []Phase{"review"}
-		case ProgressBlocked:
-			return nil
-		}
+func (condition TransitionCondition) Matches(payload RoundPayloadView) bool {
+	switch condition.Kind {
+	case TransitionConditionAlways:
+		return true
+	case TransitionConditionPayloadBool:
+		raw, ok := payload.get(condition.PayloadKey)
+		value, isBool := raw.(bool)
+		return ok && isBool && value == condition.BoolValue
+	case TransitionConditionProgressDecision:
+		progress, ok := payload.Progress()
+		decision := ProgressDecision(strings.TrimSpace(string(progress.Decision)))
+		return ok && decision == condition.ProgressDecision
+	default:
+		return false
 	}
-	return append([]Phase(nil), def.PhaseGraph.Transitions[from]...)
 }
 
 func roundProgress(round RoundEnvelope) (ProgressState, bool) {
@@ -212,9 +200,6 @@ func validateRunStrategy(def Definition, rounds []RoundEnvelope, phase Phase) st
 		last := lastCompletedRound(rounds)
 		if last == nil {
 			return "no completed handoff round exists"
-		}
-		if phase == "review" {
-			return ""
 		}
 		if hasDurableHandoffContext(*last) {
 			return ""
@@ -243,6 +228,9 @@ func phaseNotAllowedReason(def Definition, rounds []RoundEnvelope, phase Phase) 
 	}
 	if _, ok := def.PhaseGraph.Transitions[Phase(last.Phase)]; !ok {
 		return fmt.Sprintf("phase %q has no registered transition to %q", last.Phase, phase)
+	}
+	if len(def.PhaseGraph.TransitionRules[Phase(last.Phase)]) > 0 {
+		return fmt.Sprintf("last completed phase %q result does not transition to %q", last.Phase, phase)
 	}
 	return fmt.Sprintf("last completed phase %q does not transition to %q", last.Phase, phase)
 }

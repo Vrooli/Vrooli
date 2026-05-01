@@ -105,6 +105,13 @@ func TestResolveInitiativeModeSkill(t *testing.T) {
 			if entry.SkillID != phaseDef.SkillID {
 				t.Fatalf("%s/%s skill = %q, want %q", mode, phase, entry.SkillID, phaseDef.SkillID)
 			}
+			expected, ok := operatingmode.ExpectedPromptCatalogEntry(string(mode), string(phase))
+			if !ok {
+				t.Fatalf("ExpectedPromptCatalogEntry(%q, %q) missed", mode, phase)
+			}
+			if !sameStrings(entry.OutputPaths, expected.OutputPaths) {
+				t.Fatalf("%s/%s output paths = %v, want %v", mode, phase, entry.OutputPaths, expected.OutputPaths)
+			}
 		}
 	}
 
@@ -114,6 +121,36 @@ func TestResolveInitiativeModeSkill(t *testing.T) {
 	if _, ok := ResolveInitiativeModeSkill("holistic-loop", "unknown"); ok {
 		t.Fatal("unknown phase should miss")
 	}
+}
+
+func TestInitiativeModePromptCatalogEntriesComeFromRegistry(t *testing.T) {
+	for _, expected := range operatingmode.PromptCatalogEntries() {
+		entry, ok := ResolveInitiativeModeSkill(expected.Mode, expected.Phase)
+		if !ok {
+			t.Fatalf("ResolveInitiativeModeSkill(%q, %q) missed generated entry", expected.Mode, expected.Phase)
+		}
+		if entry.ID != expected.CatalogID || entry.SkillID != expected.SkillID {
+			t.Fatalf("%s/%s prompt IDs = %q/%q, want %q/%q", expected.Mode, expected.Phase, entry.ID, entry.SkillID, expected.CatalogID, expected.SkillID)
+		}
+		if entry.Title != expected.Title || entry.Trigger != expected.Trigger || entry.Purpose != expected.Purpose {
+			t.Fatalf("%s/%s prompt metadata drifted: got title=%q trigger=%q purpose=%q", expected.Mode, expected.Phase, entry.Title, entry.Trigger, entry.Purpose)
+		}
+		if !sameStrings(entry.OutputPaths, expected.OutputPaths) {
+			t.Fatalf("%s/%s output paths = %v, want %v", expected.Mode, expected.Phase, entry.OutputPaths, expected.OutputPaths)
+		}
+	}
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestVariableKeysForSkill(t *testing.T) {

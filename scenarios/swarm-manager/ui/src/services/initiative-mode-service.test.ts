@@ -26,6 +26,16 @@ describe("Initiative Mode Service", () => {
         label: "Holistic Loop",
         scope_kind: "initiative",
         run_strategy: "operator_gated_loop",
+        capabilities: {
+          supports_phases: true,
+          can_start_phases: true,
+          can_complete_items: true,
+          can_apply_backlog_sync_proposals: true,
+          requires_acceptance_criteria: true,
+          supports_artifacts: true,
+          supports_handoffs: false,
+          uses_item_execution_flow: false,
+        },
         phases: [{
           phase: "investigate",
           activity_purpose: "holistic_loop_investigate",
@@ -71,6 +81,8 @@ describe("Initiative Mode Service", () => {
     expect(workspace.initiativeName).toBe("initiative-a");
     expect(workspace.definition.scopeKind).toBe("initiative");
     expect(workspace.definition.runStrategy).toBe("operator_gated_loop");
+    expect(workspace.definition.capabilities.canStartPhases).toBe(true);
+    expect(workspace.definition.capabilities.canApplyBacklogSyncProposals).toBe(true);
     expect(workspace.definition.phases[0]?.profileKey).toBe("swarm-manager/deep-work");
     expect(workspace.artifacts[0]?.updatedAt).toBe("2026-04-30T00:00:00Z");
     expect(workspace.artifacts[0]?.sizeBytes).toBe(42);
@@ -86,6 +98,16 @@ describe("Initiative Mode Service", () => {
         scope_kind: "initiative",
         run_strategy: "operator_gated_loop",
         workspace_tab_id: "operating-mode",
+        capabilities: {
+          supports_phases: true,
+          can_start_phases: true,
+          can_complete_items: true,
+          can_apply_backlog_sync_proposals: true,
+          requires_acceptance_criteria: true,
+          supports_artifacts: true,
+          supports_handoffs: true,
+          uses_item_execution_flow: false,
+        },
         default: false,
         switchable: true,
         supports_phases: true,
@@ -106,6 +128,8 @@ describe("Initiative Mode Service", () => {
     expect(catalog.modes[0]?.runStrategy).toBe("operator_gated_loop");
     expect(catalog.modes[0]?.workspaceTabId).toBe("operating-mode");
     expect(catalog.modes[0]?.supportsPhases).toBe(true);
+    expect(catalog.modes[0]?.capabilities.supportsHandoffs).toBe(true);
+    expect(catalog.modes[0]?.capabilities.canStartPhases).toBe(true);
     expect(catalog.modes[0]?.phases[0]?.profileKey).toBe("swarm-manager/analysis");
     expect(catalog.modes[0]?.phases[0]?.requiresCriteria).toBe(true);
   });

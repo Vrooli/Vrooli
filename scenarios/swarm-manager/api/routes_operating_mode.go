@@ -55,7 +55,13 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 			if !ok {
 				return operatingmode.PromptCatalogEntry{}, false
 			}
-			return operatingmode.PromptCatalogEntry{CatalogID: entry.ID, SkillID: entry.SkillID}, true
+			return operatingmode.PromptCatalogEntry{
+				CatalogID:   entry.ID,
+				SkillID:     entry.SkillID,
+				Mode:        firstCatalogValue(entry.Modes),
+				Phase:       firstCatalogValue(entry.Operations),
+				OutputPaths: append([]string{}, entry.OutputPaths...),
+			}, true
 		},
 		Events:       s.emitter,
 		ScenarioRoot: scenarioRoot,
@@ -64,6 +70,13 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		log.Fatalf("operating-mode: failed to build Service: %v", err)
 	}
 	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
+}
+
+func firstCatalogValue(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 type operatingModeProposalReconciler struct {

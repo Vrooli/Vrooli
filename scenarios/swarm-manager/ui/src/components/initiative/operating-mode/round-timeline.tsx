@@ -1,8 +1,9 @@
-import type { OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 import { RoundCard } from "./round-card";
 
 export function RoundTimeline({
   rounds,
+  capabilities,
   busy,
   onRefresh,
   onCancel,
@@ -10,6 +11,7 @@ export function RoundTimeline({
   onApplyBacklogSync,
 }: {
   rounds: OperatingModeRound[];
+  capabilities: OperatingModeCapabilities;
   busy: boolean;
   onRefresh: (round: OperatingModeRound) => void;
   onCancel: (round: OperatingModeRound) => void;
@@ -26,6 +28,7 @@ export function RoundTimeline({
           <RoundCard
             key={`${round.mode}-${round.round}`}
             round={round}
+            capabilities={capabilities}
             busy={busy}
             onRefresh={onRefresh}
             onCancel={onCancel}

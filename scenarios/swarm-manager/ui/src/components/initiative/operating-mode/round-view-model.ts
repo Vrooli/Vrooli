@@ -1,6 +1,7 @@
 import type { ProposalMutation } from "../../../types/feedback";
 import type {
   OperatingModeBacklogSyncResult,
+  OperatingModeCapabilities,
   OperatingModeRound,
 } from "../../../types/operating-mode";
 
@@ -98,14 +99,22 @@ export function selectedMutationDefaults(proposal: OperatingModeBacklogProposal 
 export function canApplyBacklogProposal(
   round: OperatingModeRound,
   selectedMutationIds: ReadonlySet<string>,
+  capabilities: OperatingModeCapabilities,
 ): boolean {
-  return round.status === "completed" &&
+  return capabilities.canApplyBacklogSyncProposals &&
+    round.status === "completed" &&
     Boolean(round.runId) &&
     selectedMutationIds.size > 0 &&
     Boolean(pendingBacklogProposal(round)?.mutations.length);
 }
 
-export function backlogSyncActionUnavailableReason(round: OperatingModeRound): string | undefined {
+export function backlogSyncActionUnavailableReason(
+  round: OperatingModeRound,
+  capabilities: OperatingModeCapabilities,
+): string | undefined {
+  if (!capabilities.canCompleteItems && !capabilities.canApplyBacklogSyncProposals) {
+    return "This mode does not support backlog sync actions.";
+  }
   if (round.status !== "completed") {
     return "Round must be completed before backlog sync actions are available.";
   }
@@ -144,10 +153,10 @@ export function mutationSummary(mutation: ProposalMutation): string {
   return bits.join(" | ");
 }
 
-export function buildRoundViewModel(round: OperatingModeRound): RoundViewModel {
+export function buildRoundViewModel(round: OperatingModeRound, capabilities: OperatingModeCapabilities): RoundViewModel {
   const proposal = pendingBacklogProposal(round);
   const completedItems = pendingCompletedItems(round);
-  const unavailableReason = backlogSyncActionUnavailableReason(round);
+  const unavailableReason = backlogSyncActionUnavailableReason(round, capabilities);
   return {
     isActive: round.status === "reserved" || round.status === "agent_running",
     summary: typeof round.payload?.agent_summary === "string" ? round.payload.agent_summary : "",
@@ -155,7 +164,7 @@ export function buildRoundViewModel(round: OperatingModeRound): RoundViewModel {
     proposal,
     appliedSync: appliedBacklogSync(round),
     defaultSelectedMutationIds: selectedMutationDefaults(proposal),
-    canCompleteItems: round.status === "completed" && Boolean(round.runId) && completedItems.length > 0,
+    canCompleteItems: capabilities.canCompleteItems && round.status === "completed" && Boolean(round.runId) && completedItems.length > 0,
     syncActionUnavailableReason: unavailableReason,
   };
 }

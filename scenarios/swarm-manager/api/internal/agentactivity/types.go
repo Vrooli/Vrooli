@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"swarm-manager/internal/identity"
 )
@@ -45,16 +46,6 @@ const (
 	PurposeFeedback         Purpose = "feedback"
 	PurposeFeedbackContinue Purpose = "feedback_continue"
 	PurposeInitiativeReview Purpose = "initiative_review"
-
-	PurposeHolisticLoopInvestigate Purpose = "holistic_loop_investigate"
-	PurposeHolisticLoopPlan        Purpose = "holistic_loop_plan"
-	PurposeHolisticLoopExecute     Purpose = "holistic_loop_execute"
-	PurposeHolisticLoopReview      Purpose = "holistic_loop_review"
-
-	PurposePhasedPlanPrepare          Purpose = "phased_plan_prepare"
-	PurposePhasedPlanExecuteNext      Purpose = "phased_plan_execute_next"
-	PurposePhasedPlanClassifyProgress Purpose = "phased_plan_classify_progress"
-	PurposePhasedPlanReview           Purpose = "phased_plan_review"
 )
 
 type InteractionType string
@@ -138,14 +129,11 @@ func (s Spec) normalized() (Spec, error) {
 		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, or initiative")
 	}
 
-	switch s.Purpose {
-	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
-		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview,
-		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview,
-		PurposeHolisticLoopInvestigate, PurposeHolisticLoopPlan, PurposeHolisticLoopExecute, PurposeHolisticLoopReview,
-		PurposePhasedPlanPrepare, PurposePhasedPlanExecuteNext, PurposePhasedPlanClassifyProgress, PurposePhasedPlanReview:
-	default:
-		return Spec{}, fmt.Errorf("purpose is required")
+	if !isValidPurpose(s.Purpose) {
+		return Spec{}, fmt.Errorf("purpose must be a snake-case token")
+	}
+	if s.OwnerType != OwnerInitiative && !isKnownPurpose(s.Purpose) {
+		return Spec{}, fmt.Errorf("purpose %q is not registered for owner_type %q", s.Purpose, s.OwnerType)
 	}
 
 	if s.OwnerName == "" {
@@ -168,6 +156,31 @@ func (s Spec) normalized() (Spec, error) {
 	}
 	s.Metadata = copied
 	return s, nil
+}
+
+func isValidPurpose(purpose Purpose) bool {
+	value := string(purpose)
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if unicode.IsLower(r) || unicode.IsDigit(r) || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isKnownPurpose(purpose Purpose) bool {
+	switch purpose {
+	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
+		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview,
+		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview:
+		return true
+	default:
+		return false
+	}
 }
 
 func isActiveStatus(status Status) bool {
