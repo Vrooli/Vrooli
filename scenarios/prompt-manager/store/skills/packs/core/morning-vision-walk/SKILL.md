@@ -293,44 +293,62 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 ---
 
-### **Phase 6: Chore Audit / Life Audit**
+### **Phase 6: Outside-Vrooli Signals**
 
 **Entry criteria:** All decision phases complete. Transition to generative/creative mode.
 
 **Actions:**
 1. Using the prep deliverable's Life Audit section, reference any previous chore discussions for continuity.
-2. Ask: "What have you been doing outside of Vrooli in the past day or so? Any tools you used, tasks you did manually, things that felt like friction?"
+2. Ask both prompts, leaving room for the user to answer either:
+   - "What have you been doing outside of Vrooli in the past day or so? Any tools you used, tasks you did manually, things that felt like friction?"
+   - "Any posts, bookmarks, workflows, skills, launches, competitor moves, marketing examples, or market patterns you saved or noticed?"
 3. **Listen first.** Let the user talk through their day without interrupting.
-4. For each item mentioned, briefly note:
+4. Classify each item as one of two signal families:
+   - **Life/tool friction:** chores, manual tasks, personal workflows, tools used outside Vrooli, or adoption gaps.
+   - **Alpha extraction:** external posts, saved bookmarks, social threads, workflows, skills, marketing examples, lead-generation ideas, competitor moves, monetization facts, or market patterns.
+5. For life/tool friction, briefly note:
    - Is there already a scenario that could handle this? If so, that's a gap in adoption, not capability.
    - Is there no scenario for this? That's a capability gap — a candidate for a new scenario.
-5. Play back what you heard: "So it sounds like [X, Y, Z] are areas where Vrooli isn't helping yet."
-6. Present any suggested prompts from the prep deliverable that the user didn't already cover.
+6. For alpha extraction, preserve enough raw context for downstream agents:
+   - source URL or platform if known
+   - the user's raw note about why it seemed interesting
+   - likely signal type: `workflow`, `skill`, `audience-pain`, `competitor`, `hook`, `channel-format`, `funnel`, `benchmark`, `capability-gap`, or `unknown`
+   - likely owner if obvious; otherwise leave it for Phase 8 routing
+7. Play back what you heard:
+   - "So it sounds like [X, Y, Z] are areas where Vrooli isn't helping yet."
+   - "And these external signals seem worth routing for follow-up: [A, B, C]."
+8. Present any suggested prompts from the prep deliverable that the user didn't already cover.
 
-**The frame to maintain:** Every non-recreational activity done outside Vrooli is an opportunity. Not an accusation — an opportunity. The tone should be curious and constructive, like a partner noticing patterns, not a manager auditing time.
+**The frame to maintain:** Every non-recreational activity done outside Vrooli is an opportunity. External alpha is not evidence by itself; it is source material for the right downstream agent. The tone should be curious and constructive, like a partner noticing patterns, not a manager auditing time.
+
+**Bookmark-intelligence-hub posture:** When the operator talks about saved posts or bookmarks, assume the future durable collection layer is bookmark-intelligence-hub. Do not invent platform-specific intake workflows during the walk. Capture the signal and route it; later agents can consume bookmark-intelligence-hub CLI exports when that scenario exists.
 
 **Exit criteria:**
-- [ ] User has discussed their recent activities outside Vrooli
-- [ ] Capability gaps have been identified and acknowledged
+- [ ] User has discussed recent activities, frictions, or external signals outside Vrooli
+- [ ] Capability gaps and alpha signals have been identified and acknowledged
 
 ---
 
 ### **Phase 7: Big Picture Ideation**
 
-**Entry criteria:** Chore audit has surfaced some raw material.
+**Entry criteria:** Outside-Vrooli Signals has surfaced some raw material.
 
 **Actions:**
-1. Take the capability gaps from Phase 6 and explore them:
+1. Take the life/tool friction and capability gaps from Phase 6 and explore them:
    - What could be built now given current Vrooli capabilities?
    - What would require prerequisite scenarios first?
    - Which bundle would this fit into (dev bundle, Life OS, or a future bundle)?
    - Does this unlock compound value (does building X make Y and Z possible)?
-2. If the user naturally gravitates toward a specific idea, follow them deeper — use the idea-workshop convergence patterns (listen, synthesize, sharpen, converge).
-3. If no strong ideas emerge from chores, use the prep deliverable's Big Picture Context to suggest:
+2. Take the alpha extraction signals and explore only enough to route them well:
+   - Is this a marketing research signal, monetization signal, meta-optimization signal, product/scenario idea, or unclear strategic note?
+   - Is the next step research, skill/action/scenario proposal, backlog item, or just preserving the source?
+   - What raw context must be preserved so the downstream agent does not have to reconstruct the conversation?
+3. If the user naturally gravitates toward a specific idea, follow them deeper — use the idea-workshop convergence patterns (listen, synthesize, sharpen, converge).
+4. If no strong ideas emerge from outside-Vrooli signals, use the prep deliverable's Big Picture Context to suggest:
    - Stalled initiatives that might benefit from fresh thinking
    - Unexplored areas of the bundle roadmap
    - Cross-cutting patterns noticed across recent work
-4. **Tech tree integration (future):** When the tech-tree-designer scenario is available, use it here to map ideas onto the hierarchy, assess feasibility based on prerequisite nodes, and identify frontier opportunities. Until then, do this assessment conversationally.
+5. **Tech tree integration (future):** When the tech-tree-designer scenario is available, use it here to map ideas onto the hierarchy, assess feasibility based on prerequisite nodes, and identify frontier opportunities. Until then, do this assessment conversationally.
 
 **Convergence patterns (from idea-workshop):**
 
@@ -358,8 +376,28 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - Decisions already executed in Phases 3-5 (just confirm these are done)
    - Feedback from Phase 2 that needs follow-up
    - Ideas from Phases 6-7 that the user wants to pursue
-2. For each actionable idea, ask: "Should we create a backlog item for this, start an initiative, or just note it for later?"
-3. For items to create, use the swarm-manager CLI:
+   - Alpha extraction signals that should be routed for downstream research or optimization
+2. For each actionable item, ask: "Should this become a backlog item, research inbox entry, team knowledge note, or just a note for later?"
+3. Route alpha extraction signals to the narrowest existing intake surface:
+
+| Signal | Preferred destination |
+|---|---|
+| Marketing audience, channel, hook, post-type, workflow, competitor, funnel, or skill opportunity | Append to `scenarios/prompt-manager/store/teams/marketing-crew/shared/research-inbox.jsonl`. |
+| Monetization pricing, market category, revenue-line, packaging, or benchmark signal | `prompt-manager team knowledge-add monetization --topic "vision-walk/alpha/<topic>" ...` if monetization is active; otherwise director-swarm knowledge fallback. |
+| Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
+| Product/scenario idea ready for execution pipeline | Swarm-manager backlog item. |
+| Unclear strategic residue or no owner exists yet | Director-swarm knowledge fallback. |
+| Missing source collection, automation, CLI, or scenario blocks follow-up | Capability-gap decision or backlog item for the owning team. |
+
+Research inbox JSONL entries should preserve raw source context. Use this shape:
+
+```json
+{"id":"research-<timestamp-or-short-id>","at":"<ISO-8601>","source":"operator-vision-walk","source_url":"<url-if-known>","raw_note":"<operator wording and why it mattered>","initial_type":"workflow|skill|audience-pain|competitor|hook|channel-format|funnel|benchmark|capability-gap|unknown","status":"new","suggested_method":"<optional>"}
+```
+
+When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that scenario's CLI/export path instead of manually creating platform-specific intake records. Until then, preserving the source URL and raw note in the research inbox is acceptable.
+
+4. For backlog items, use the swarm-manager CLI:
    ```bash
    swarm-manager backlog create --data '{
      "name": "<kebab-case-name>",
@@ -370,11 +408,11 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
      "description": "<description from discussion>"
    }'
    ```
-4. For ideas that need more refinement before becoming backlog items, note them as knowledge entries for the next vision walk:
+5. For ideas that need more refinement before becoming backlog items and do not fit a team inbox, note them as knowledge entries for the next vision walk:
    ```bash
    prompt-manager team knowledge-add director-swarm --topic "vision-walk/chore-audit/<topic>" --content "<what was discussed and where it left off>"
    ```
-5. Optionally kick off the idea hardening pipeline for created items:
+6. Optionally kick off the idea hardening pipeline for created items:
    ```bash
    swarm-manager backlog research --kind idea --name <name> --data '{"mode":"clarify"}'
    ```
@@ -471,7 +509,8 @@ The walk should feel energizing, not draining. Monitor the user's engagement:
 | **Judging the user's chores** | Kills openness about what they do outside Vrooli | Frame as opportunity, not error |
 | **Skipping phases because nothing's pending** | Misses the structure's value | Briefly note "nothing pending" and move on — the flow matters |
 | **Over-engineering ideas during the walk** | Wrong time for implementation details | Keep at "what and why" level, defer "how" |
-| **Not capturing life audit topics** | Loses continuity between walks | Always write knowledge entries for chore discussions |
+| **Not preserving alpha source context** | Downstream agents must reconstruct why a post, bookmark, or workflow mattered | Capture URL/platform, raw operator note, initial signal type, and likely owner before routing |
+| **Not capturing life audit topics** | Loses continuity between walks | Always write knowledge entries or routed inbox records for outside-Vrooli signals |
 | **Treating this as a status meeting** | It's a strategic sync + creative session | Lead with decisions, but the ideation is the most valuable part |
 
 ---
@@ -496,8 +535,9 @@ When running a Morning Vision Walk, you **must**:
 2. Cover all 12 phases in order — 1, 2, 3, 4, 5, 5.3, 5.5, 5.7, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it; Explicit Divergence may exit the walk early per Section 5 — resume under the checkpoint protocol instead of treating remaining phases as skipped)
 3. Execute decisions the user approves via CLI commands
 4. Create backlog items for actionable ideas via swarm-manager CLI
-5. Write knowledge entries for chore audit topics discussed (for next walk's continuity)
-6. Summarize the session at wrap-up
+5. Route alpha extraction signals to the narrowest existing inbox or knowledge surface, preserving source URL and raw operator note
+6. Write knowledge entries for chore audit topics discussed when they do not fit a narrower intake surface
+7. Summarize the session at wrap-up
 
 You **should** also:
 - Keep the overall session under 35-50 minutes of conversation
