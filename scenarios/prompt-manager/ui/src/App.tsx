@@ -18,8 +18,8 @@ import { SkillManagerLayout } from './components/layout/SkillManagerLayout'
 import { Toaster } from './components/ui/toaster'
 
 function getRouterBasename(): string {
-  const proxyInfo = getProxyInfo()
-  const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath
+	const proxyInfo = getProxyInfo()
+	const proxyPath = proxyInfo ? proxyInfo.primary.path ?? proxyInfo.basePath : undefined
   return proxyPath ? proxyPath.replace(/\/+$/, '') : ''
 }
 

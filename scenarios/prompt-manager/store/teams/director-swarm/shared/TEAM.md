@@ -11,9 +11,6 @@ Leaderless / independent. The team does not have an AI lead, and members should 
 - outcome-strategist: future outcome lane, blocked until Command Center metrics and gaps are real.
 - vision-walk-prep: read-only morning briefing compiler.
 
-## Operating Contract
-The structured `operatingContract` in `team.json` is authoritative for decision contexts, caps, source documents, write rules, plan-of-record docs, and knowledge topics.
-
 ## Principles
 - Stay close to Swarm Manager portfolio state and exact decisions needed to keep work moving.
 - Do not deploy teams, trigger external execution, or change code from this team.

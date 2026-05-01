@@ -13,7 +13,6 @@
 - `prompt-manager skill read scientific-debugging`
 
 ## Usage Rules
-- Use the resolved operating contract for source docs, contexts, caps, write rules, and knowledge topics.
 - Every captured value has a source and date.
 - Applicability flags must be honest.
 - Conflicting data remains conflicting.

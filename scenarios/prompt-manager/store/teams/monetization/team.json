@@ -274,7 +274,7 @@
             "base": "team-shared",
             "path": "TEAM.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "charter",
           "required": true
         },
         {
@@ -283,7 +283,7 @@
             "base": "team-shared",
             "path": "decisions.jsonl"
           },
-          "kind": "decision-stream",
+          "kind": "decision-log",
           "required": true
         },
         {
@@ -301,7 +301,7 @@
             "base": "team-shared",
             "path": "handoff-history.jsonl"
           },
-          "kind": "handoff-history",
+          "kind": "handoff-log",
           "required": true
         },
         {
@@ -311,7 +311,7 @@
             "path": "ledger.jsonl"
           },
           "ownerMemberId": "financial-tracker",
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true
         },
         {
@@ -321,7 +321,7 @@
             "path": "market-scans.jsonl"
           },
           "ownerMemberId": "market-validator",
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true
         },
         {
@@ -331,7 +331,7 @@
             "path": "operator-inputs.json"
           },
           "ownerMemberId": "financial-tracker",
-          "kind": "operator-state",
+          "kind": "operator-input",
           "required": true
         },
         {
@@ -341,7 +341,7 @@
             "path": "opportunities.jsonl"
           },
           "ownerMemberId": "opportunity-scout",
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true
         }
       ]

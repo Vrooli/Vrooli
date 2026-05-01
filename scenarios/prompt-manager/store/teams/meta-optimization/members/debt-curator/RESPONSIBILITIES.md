@@ -2,8 +2,6 @@
 
 Apply the team's evolutionary-pressure principles to the team's own notebook and shared-artifact debt.
 
-Use the resolved operating contract for decision contexts, caps, write rules, source documents, and required knowledge topics.
-
 ## Promotion Judgment
 
 A candidate is worth proposing only when it has become stable enough that permanent structure would reduce future cognitive load. Premature promotion is churn.

@@ -1008,8 +1008,7 @@ Delete an agent.
 
 ### POST /api/v1/prompt-preview
 
-Preview the fully constructed prompt for an agent. Optionally include a team context to
-match heartbeat execution.
+Preview the fully constructed prompt for an agent. When `teamId` is provided, this matches the flat runtime prompt used by heartbeat execution, including `HEARTBEAT.md`.
 
 **Request Body:**
 ```json
@@ -1031,6 +1030,52 @@ match heartbeat execution.
 **Errors:**
 - `400` - Missing agentId or no content available
 - `404` - Agent or team not found
+
+### POST /api/v1/prompt-preview-structured
+
+Preview the same heartbeat prompt as ordered structured sections. This is the preferred UI rendering surface because the backend owns section order.
+
+**Request Body:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering"
+}
+```
+
+**Response:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering",
+  "sections": [
+    {
+      "kind": "execution-brief",
+      "label": "Execution Brief",
+      "sourcePath": "teams/engineering/team.json#operatingContract.members.agent-1",
+      "content": "# Execution Brief\n\n..."
+    }
+  ]
+}
+```
+
+### GET /api/v1/teams/{id}/prompt-matrix
+
+Return structured prompt sections for every active member of a team. Use this for cross-member prompt audits and drift detection.
+
+**Response:**
+```json
+{
+  "teamId": "engineering",
+  "entries": [
+    {
+      "agentId": "agent-1",
+      "displayName": "Agent One",
+      "sections": []
+    }
+  ]
+}
+```
 
 ## Teams
 
@@ -1157,6 +1202,8 @@ Create a new team.
 **coordination.pattern Values:** `independent`, `peer`, `leader-led`
 
 **execution.queuePolicy Values:** `serialized`, `bounded-parallel`
+
+**operatingContract.documents.sharedState:** Internal JSON field for team working state. Use final `kind` values only: `charter`, `task-board`, `decision-log`, `knowledge-log`, `handoff-log`, `working-register`, `rolling-snapshot`, `append-only-event-log`, `operator-input`. Agent-facing prompts render this category as team working state in the Storage Map.
 
 **decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
 

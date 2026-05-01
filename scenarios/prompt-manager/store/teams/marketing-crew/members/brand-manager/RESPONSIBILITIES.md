@@ -1,7 +1,5 @@
 # Responsibilities: Brand Manager
 
-Apply the resolved operating contract for decision contexts, caps, source documents, notebook policy, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Steward marketing and narrative canon through operator-approved decisions.
 - Curate the marketing working notebook by identifying promotion and retirement candidates.

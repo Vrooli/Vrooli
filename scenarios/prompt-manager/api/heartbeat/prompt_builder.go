@@ -32,7 +32,8 @@ func NewPromptBuilder(teamStore *store.FileTeamStore, agentStore *store.FileAgen
 	}
 }
 
-// Build constructs a prompt from agent files, team responsibilities, relationships, inbox, and heartbeat instructions.
+// Build constructs the full runtime heartbeat prompt, including HEARTBEAT.md
+// when team context is provided.
 func (b *PromptBuilder) Build(ctx context.Context, req PromptBuildRequest) (string, error) {
 	return b.buildSections(ctx, req, true)
 }
@@ -151,6 +152,20 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
+		var heartbeatInstructions string
+		if includeHeartbeat {
+			if instructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID); err == nil {
+				heartbeatInstructions = instructions
+			}
+		}
+
+		sections = append(sections, PromptSection{
+			Kind:       "execution-brief",
+			Label:      "Execution Brief",
+			SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID),
+			Content:    buildExecutionBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions),
+		})
+
 		operatingContract, err := teamcontract.RenderMember(team.OperatingContract, teamcontract.RenderInput{
 			TeamID:       team.ID,
 			TeamName:     team.DisplayName,
@@ -199,11 +214,13 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
-		// 4. Durable state guidance
-		if section := b.buildDurableStateSection(team); section != "" {
+		// 4. Storage map and persistence guidance
+		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
+			return nil, err
+		} else if section != "" {
 			sections = append(sections, PromptSection{
-				Kind:    "team-durable-state",
-				Label:   "Durable State",
+				Kind:    "team-storage-map",
+				Label:   "Storage Map",
 				Content: section,
 			})
 		}
@@ -231,8 +248,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 
 		// 7. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
 		if includeHeartbeat {
-			heartbeatInstructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
-			if err == nil && heartbeatInstructions != "" {
+			if heartbeatInstructions != "" {
 				sections = append(sections, PromptSection{
 					Kind:       "heartbeat-task",
 					Label:      "HEARTBEAT.md",
@@ -256,6 +272,62 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 // BuildStructured returns the prompt as a list of structured sections.
 func (b *PromptBuilder) BuildStructured(ctx context.Context, req PromptBuildRequest) ([]PromptSection, error) {
 	return b.buildSectionList(ctx, req, true)
+}
+
+func buildExecutionBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string) string {
+	teamID := ""
+	teamName := ""
+	lane := ""
+	if team != nil {
+		teamID = team.ID
+		teamName = team.DisplayName
+		if teamName == "" {
+			teamName = team.ID
+		}
+		if team.OperatingContract != nil {
+			if member, ok := team.OperatingContract.Members[agentID]; ok {
+				lane = strings.TrimSpace(member.Lane)
+			}
+		}
+	}
+	if lane == "" {
+		lane = "Apply the team mission within this member's assigned scope."
+	}
+
+	var section strings.Builder
+	section.WriteString("# Execution Brief\n\n")
+	section.WriteString(fmt.Sprintf("Member: `%s`\n", agentID))
+	section.WriteString(fmt.Sprintf("Team: `%s`", teamID))
+	if teamName != "" && teamName != teamID {
+		section.WriteString(fmt.Sprintf(" (%s)", teamName))
+	}
+	section.WriteString("\n")
+	section.WriteString(fmt.Sprintf("Lane: %s\n", lane))
+	if includeHeartbeat {
+		if task := firstHeartbeatTaskHeading(heartbeatInstructions); task != "" {
+			section.WriteString(fmt.Sprintf("Task: %s\n", task))
+		}
+		section.WriteString("\nThis heartbeat's concrete task is defined at the end of this prompt in `# Heartbeat Task (HEARTBEAT.md)`.\n\n")
+	} else {
+		section.WriteString("\nThe active heartbeat task is intentionally omitted from member context.\n\n")
+	}
+	section.WriteString("Use the sections below as operating context. If a section conflicts with the heartbeat task, follow the authority order in `# Storage Map`.")
+	return section.String()
+}
+
+func firstHeartbeatTaskHeading(markdown string) string {
+	for _, line := range strings.Split(markdown, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "#") {
+			continue
+		}
+		title := strings.TrimSpace(strings.TrimLeft(line, "#"))
+		if title == "" || strings.EqualFold(title, "Heartbeat") {
+			continue
+		}
+		return title
+	}
+	return ""
 }
 
 func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) []store.AgentFileEntry {
@@ -432,20 +504,87 @@ func (b *PromptBuilder) buildOrgContextSection(ctx context.Context, team *store.
 	return section
 }
 
-func (b *PromptBuilder) buildDurableStateSection(team *store.Team) string {
+func (b *PromptBuilder) buildStorageMapSection(team *store.Team, agentID string) (string, error) {
+	if team == nil {
+		return "", nil
+	}
+
+	var section strings.Builder
+	section.WriteString(`# Storage Map
+
+Use persistent storage only when information should survive this run.
+
+## Continue
+
+Use your final ` + "`## HANDOFF`" + ` for short-term continuity.
+
+Write what your next run needs to know: what changed, what remains open, what to check first, and any blockers. Handoff is not canonical truth. It is next-run memory.
+
+## Observe
+
+Use the knowledge log for structured observations from this heartbeat: evidence, measurements, snapshots, findings, and concrete friction signals.
+
+Use the notebook only for unresolved patterns, workarounds, or rough lessons that are not ready for durable structure. Notebook entries are debt, not authority. The curator later promotes or retires them.
+
+If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction. Mention one-off friction in handoff, write concrete friction to knowledge, append recurring workarounds to the notebook, and raise a decision only when the friction blocks work or points to a missing/broken capability.
+
+## Propose
+
+Use decisions for changes that need review.
+
+Create a decision when something durable should change: plan-of-record docs, skills, actions, CLIs, team config, scenarios, backlog, or another member's operating surface. Include the proposed change, rationale, evidence, and target destination.
+
+## Operate
+
+Use team working state for live team objects you are assigned to maintain.
+
+Working state is team-local operational memory: task boards, ledgers, registers, rolling audits, append-only logs, and operator input files. It is not automatically canonical outside the team. Update only the working-state files named in your operating contract.
+
+## Authority Order
+
+When sources disagree, prefer:
+
+1. Operator instruction in the current run
+2. Accepted plan-of-record docs
+3. Accepted decisions
+4. Team working state
+5. Knowledge log evidence
+6. Notebook entries
+7. Handoff
+`)
+
+	teamStorage, err := teamcontract.RenderTeamStorage(team.OperatingContract, teamcontract.RenderInput{
+		TeamID:       team.ID,
+		TeamName:     team.DisplayName,
+		DecisionMode: team.DecisionMode,
+		MemberID:     agentID,
+		StoreDir:     b.teamStore.StoreDir(),
+	})
+	if err != nil {
+		return "", err
+	}
+	section.WriteString("\n")
+	section.WriteString(teamStorage)
+
+	commandSection := b.buildAvailableStorageCommandsSection(team)
+	if commandSection != "" {
+		section.WriteString("\n")
+		section.WriteString(commandSection)
+	}
+
+	return strings.TrimRight(section.String(), "\n"), nil
+}
+
+func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team) string {
 	if team == nil {
 		return ""
 	}
 
 	contract := team.Contract()
 	var lines []string
-	lines = append(lines, "# Durable State")
-	lines = append(lines, "")
-	lines = append(lines, "Use prompt-manager CLI commands only for state that should survive beyond the current run.")
-	lines = append(lines, "")
 
 	if teamconfig.MessagingUsesAsyncInbox(contract) {
-		lines = append(lines, "## Async Inbox")
+		lines = append(lines, "### Async Inbox")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Send a directive: `prompt-manager team message-send %s <recipient-agent-id> --from=<agent-id> --content \"...\"`", team.ID))
 		lines = append(lines, fmt.Sprintf("- List inbox messages: `prompt-manager team message-list %s <agent-id>`", team.ID))
@@ -455,7 +594,7 @@ func (b *PromptBuilder) buildDurableStateSection(team *store.Team) string {
 	}
 
 	if teamconfig.ShouldShowTaskBoardGuidance(contract) {
-		lines = append(lines, "## Task Board")
+		lines = append(lines, "### Task Board")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Review current work: `prompt-manager team task-list %s`", team.ID))
 		lines = append(lines, fmt.Sprintf("- Add a task: `prompt-manager team task-add %s --by=<agent-id> --title \"...\"`", team.ID))
@@ -464,7 +603,7 @@ func (b *PromptBuilder) buildDurableStateSection(team *store.Team) string {
 	}
 
 	if teamconfig.ShouldShowDecisionLogGuidance(contract) {
-		lines = append(lines, "## Decision Log")
+		lines = append(lines, "### Decision Log")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Review decisions: `prompt-manager team decision-list %s`", team.ID))
 		lines = append(lines, fmt.Sprintf("- Record a pending decision: `prompt-manager team decision-add %s --by=<agent-id> --decision \"...\" --rationale \"...\"`", team.ID))
@@ -472,7 +611,7 @@ func (b *PromptBuilder) buildDurableStateSection(team *store.Team) string {
 	}
 
 	if teamconfig.ShouldShowKnowledgeLogGuidance(contract) {
-		lines = append(lines, "## Knowledge Log")
+		lines = append(lines, "### Knowledge Log")
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Review team knowledge: `prompt-manager team knowledge-list %s`", team.ID))
 		lines = append(lines, fmt.Sprintf("- Record durable knowledge: `prompt-manager team knowledge-add %s --by=<agent-id> --topic \"...\" --content \"...\"`", team.ID))
@@ -480,18 +619,18 @@ func (b *PromptBuilder) buildDurableStateSection(team *store.Team) string {
 	}
 
 	if teamconfig.RequiresHandoff(contract) {
-		lines = append(lines, "## Handoff")
+		lines = append(lines, "### Handoff")
 		lines = append(lines, "")
 		lines = append(lines, "- End your final response with `## HANDOFF` as the last section so prompt-manager can persist continuity automatically.")
 		lines = append(lines, "- After writing the handoff, stop. Do not wait for extra confirmation inside the same run.")
 		lines = append(lines, "")
 	}
 
-	if len(lines) <= 4 {
+	if len(lines) == 0 {
 		return ""
 	}
 
-	return strings.Join(lines, "\n")
+	return "## Available Storage Commands\n\n" + strings.Join(lines, "\n")
 }
 
 // BuildTeamLeadPrompt constructs a prompt for leader-led single-process teams.

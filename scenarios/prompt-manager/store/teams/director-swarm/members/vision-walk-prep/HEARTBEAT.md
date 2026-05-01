@@ -1,7 +1,5 @@
 # Heartbeat: Vision Walk Prep
 
-Apply the resolved operating contract above.
-
 ## Task Loop
 1. Gather retrospective portfolio changes and recent handoffs.
 2. Gather pending portfolio and cross-team decisions.

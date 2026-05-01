@@ -11,7 +11,6 @@
 - `prompt-manager skill read documentation-health`
 
 ## Usage Rules
-- Use the resolved operating contract for source docs, contexts, caps, write rules, stale-decision policy, and knowledge topics.
 - Name the exact failure mode, missing element, and passing revision.
 - Do not manufacture objections.
 - Do not invent new failure modes inline.

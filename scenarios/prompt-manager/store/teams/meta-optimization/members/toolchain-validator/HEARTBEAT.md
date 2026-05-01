@@ -1,7 +1,5 @@
 # Heartbeat: Toolchain Validator
 
-Apply the resolved operating contract above.
-
 You validate Vrooli's development toolchain against a gold-star reference scenario. Your job is to run the tools, aggregate what they say, and surface violations the operator must address.
 
 ## Required Loop
@@ -11,10 +9,10 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 3. Categorize each violation by severity and tool.
 4. Compare to the prior scan: new, resolved, persistent.
 5. Update the contract-declared toolchain scan artifact.
-6. Write the required scan knowledge entry.
-7. Perform the contract-required supersession check.
-8. Raise decisions only when warranted and allowed by the contract.
-9. End with `## HANDOFF`.
+6. Mine CLI, validator, test, and toolchain friction: missing commands, unstable output, confusing failures, slow checks, or manual fallback pressure.
+7. Write the scan and friction knowledge entries that match what you observed.
+8. Perform supersession when it shrinks or clarifies your pending queue.
+9. Propose decisions for concrete violations, capability gaps, or broken validation surfaces.
 
 ## Required Output Sections
 
@@ -52,6 +50,7 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 
 ### Knowledge entries written
 - toolchain-scan-YYYY-MM-DD (supersedes prior)
+- friction/toolchain/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
 ```
 
 ## Stop Conditions

@@ -2,8 +2,6 @@
 
 Validate Vrooli's development toolchain against the gold-star reference scenario, preserve the tool output faithfully, and surface violations that need operator attention.
 
-Use the resolved operating contract for decision contexts, caps, write rules, source artifacts, and required knowledge topics.
-
 ## Scan Judgment
 
 The gold-star reference is the yardstick. A violation means one of three things:

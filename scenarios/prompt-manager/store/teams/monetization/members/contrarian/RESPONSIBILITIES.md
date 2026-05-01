@@ -1,7 +1,5 @@
 # Responsibilities: Contrarian
 
-Apply the resolved operating contract for decision contexts, caps, source documents, write rules, stale-decision policy, and required knowledge topics.
-
 ## Primary Duties
 - Challenge material proposals before the operator's vision walk.
 - Defend against the seven named failure modes plus the channel-activation guardrail.

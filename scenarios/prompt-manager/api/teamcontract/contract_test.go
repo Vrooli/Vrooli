@@ -2,6 +2,7 @@ package teamcontract
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,6 +82,153 @@ func TestRenderMemberIncludesResolvedPolicy(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsFinalTeamWorkingStateKinds(t *testing.T) {
+	for _, kind := range TeamWorkingStateKindIDs() {
+		contract := Minimal(DecisionModeApproval, "agent-1")
+		contract.Documents.SharedState = []SharedStateDocument{{
+			ID:             "state",
+			Path:           PathRef{Base: BaseTeamShared, Path: "state.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			Kind:           kind,
+			Required:       false,
+			OptionalReason: "test fixture",
+		}}
+
+		if err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval}); err != nil {
+			t.Fatalf("Validate kind %q: %v", kind, err)
+		}
+	}
+}
+
+func TestValidateRejectsLegacyTeamWorkingStateKinds(t *testing.T) {
+	for _, kind := range []string{"rolling-artifact", "append-only-log", "operator-state", "decision-stream", "handoff-history", "unknown"} {
+		contract := Minimal(DecisionModeApproval, "agent-1")
+		contract.Documents.SharedState = []SharedStateDocument{{
+			ID:             "state",
+			Path:           PathRef{Base: BaseTeamShared, Path: "state.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			Kind:           kind,
+			Required:       false,
+			OptionalReason: "test fixture",
+		}}
+
+		err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval})
+		if err == nil || !strings.Contains(err.Error(), "team working state kind") {
+			t.Fatalf("expected unsupported kind error for %q, got %v", kind, err)
+		}
+	}
+}
+
+func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
+	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
+		ID:          "strategy",
+		Paths:       []PathRef{{Base: BaseRepoRoot, Path: "docs/strategy.md", Required: boolPtr(false), OptionalReason: "test fixture"}},
+		WritePolicy: "operator-curated-via-decisions",
+		Consumers:   []string{"team-1", "team-2"},
+	}}
+	contract.Documents.Notebooks = []NotebookDocument{{
+		ID:               "notebook",
+		Paths:            []PathRef{{Base: BaseRepoRoot, Path: "docs/notebook.md", Required: boolPtr(false), OptionalReason: "test fixture"}},
+		Posture:          "debt",
+		WritePolicy:      "append-any-member",
+		CuratorMemberID:  "agent-1",
+		PromotionContext: "general",
+		Required:         boolPtr(false),
+		OptionalReason:   "test fixture",
+	}}
+	contract.Documents.SharedState = []SharedStateDocument{{
+		ID:             "events",
+		Path:           PathRef{Base: BaseTeamShared, Path: "events.jsonl", Required: boolPtr(false), OptionalReason: "test fixture"},
+		OwnerMemberID:  "agent-1",
+		Kind:           TeamWorkingStateKindAppendOnlyEventLog,
+		Required:       false,
+		OptionalReason: "test fixture",
+	}}
+
+	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
+	if err != nil {
+		t.Fatalf("RenderTeamStorage: %v", err)
+	}
+	for _, want := range []string{
+		"## Your Team Storage",
+		"Plan of record, read/propose only:",
+		"- `docs/strategy.md`",
+		"Policy: `operator-curated-via-decisions`",
+		"Consumers: `team-1, team-2`",
+		"Notebook, append unresolved learning:",
+		"Curator: `agent-1`",
+		"Promotion context: `general`",
+		"Posture: `debt`",
+		"Team working state:",
+		"Kind: `append-only-event-log`",
+		"Use for: structured historical events or observations owned by the team",
+		"Always available:",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered storage missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, "Shared state") {
+		t.Fatalf("rendered storage must not use legacy shared state wording:\n%s", rendered)
+	}
+}
+
+func TestRenderTeamStorageGroupsLargePlanOfRecordLists(t *testing.T) {
+	contract := Minimal(DecisionModeApproval, "agent-1")
+	for i := 0; i < 9; i++ {
+		contract.Documents.PlanOfRecord = append(contract.Documents.PlanOfRecord, PlanOfRecordDocument{
+			ID:          fmt.Sprintf("doc-%d", i),
+			Paths:       []PathRef{{Base: BaseRepoRoot, Path: fmt.Sprintf("docs/monetization/doc-%02d.md", i), Required: boolPtr(false), OptionalReason: "test fixture"}},
+			WritePolicy: "operator-curated-via-decisions",
+			Consumers:   []string{"monetization"},
+		})
+	}
+
+	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
+	if err != nil {
+		t.Fatalf("RenderTeamStorage: %v", err)
+	}
+	for _, want := range []string{
+		"- 9 docs under `docs/monetization/`",
+		"Policy: `operator-curated-via-decisions`",
+		"Consumers: `monetization`",
+		"Exact paths: see `## Document Authority` above.",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered storage missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, "`docs/monetization/doc-00.md`") {
+		t.Fatalf("large plan-of-record list should be grouped, got exact path:\n%s", rendered)
+	}
+}
+
+func TestRenderTeamStorageSplitsLargePlanOfRecordListsByPolicy(t *testing.T) {
+	contract := Minimal(DecisionModeApproval, "agent-1")
+	for i := 0; i < 9; i++ {
+		policy := "operator-curated-via-decisions"
+		if i%2 == 0 {
+			policy = "read-only"
+		}
+		contract.Documents.PlanOfRecord = append(contract.Documents.PlanOfRecord, PlanOfRecordDocument{
+			ID:          fmt.Sprintf("doc-%d", i),
+			Paths:       []PathRef{{Base: BaseRepoRoot, Path: fmt.Sprintf("docs/marketing/doc-%02d.md", i), Required: boolPtr(false), OptionalReason: "test fixture"}},
+			WritePolicy: policy,
+			Consumers:   []string{"marketing"},
+		})
+	}
+
+	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
+	if err != nil {
+		t.Fatalf("RenderTeamStorage: %v", err)
+	}
+	if !strings.Contains(rendered, "- 5 docs under `docs/marketing/`") || !strings.Contains(rendered, "- 4 docs under `docs/marketing/`") {
+		t.Fatalf("expected separate grouped rows by policy:\n%s", rendered)
+	}
+	if strings.Count(rendered, "Policy: `read-only`") != 1 || strings.Count(rendered, "Policy: `operator-curated-via-decisions`") != 1 {
+		t.Fatalf("expected one group per policy:\n%s", rendered)
+	}
+}
+
 func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *testing.T) {
 	type teamFile struct {
 		DecisionMode      string             `json:"decisionMode"`
@@ -126,6 +274,10 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 	if strings.Contains(rendered, "\n- shared/TEAM_AUDIT.md") {
 		t.Fatalf("rendered contract contains ambiguous TEAM_AUDIT path:\n%s", rendered)
 	}
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 func TestBundledTeamContractsValidate(t *testing.T) {
@@ -183,12 +335,26 @@ func TestBundledPromptProseDoesNotRestateContractPolicy(t *testing.T) {
 		"Decision Contexts",
 		"Decision Queue Discipline",
 		"Shared State",
+		"shared state",
+		"shared-state",
+		"Durable State",
 		"Knowledge supersession",
 		"14 heartbeats",
 		"4+ decisions",
 		"3+ decisions",
 		"max new decisions",
 		"Team queue at capacity",
+		"Apply the resolved operating contract",
+		"The resolved operating contract is authoritative",
+		"Use the resolved operating contract",
+		"resolved operating contract",
+		"source documents, shared state, write rules",
+		"source-document paths",
+		"writable surfaces",
+		"Write the required knowledge",
+		"write required knowledge",
+		"End with HANDOFF",
+		"Raise decisions only",
 	}
 	for _, file := range files {
 		data, err := os.ReadFile(file)

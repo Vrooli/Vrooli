@@ -9,16 +9,17 @@ You are operating inside a leader-led team. The resolved team policy will tell y
 - In single-process runtime mode, coordination happens through the active session and subagent workflow.
 - In multi-process runtime mode, coordination can use durable inbox messaging and persisted team state.
 
-## Durable State
+## Storage Model
 
-- Use the task board to track delegated work and multi-heartbeat progress.
-- Use the decision log to record proposed or accepted decisions and their rationale.
-- Use the knowledge log to capture durable facts, conventions, and discoveries.
-- End the final response with `## HANDOFF` whenever handoff persistence is enabled in the resolved team policy.
+- Continue with handoff when the next run needs continuity.
+- Observe with knowledge entries for evidence, findings, snapshots, and friction.
+- Propose with decisions when a durable surface should change.
+- Operate only the team working state named in your generated Storage Map.
+- Use task boards or inboxes only when the resolved team policy enables them.
 
 ## Default Behavior
 
 1. Read the resolved team policy and org context before acting.
 2. If you are the lead, delegate intentionally and synthesize results.
 3. If you are a reporting member, execute your assigned work and report material blockers or findings upward through the enabled coordination surface.
-4. Persist the state the next run or teammate will actually need.
+4. Persist only the information the next run or teammate will actually need.

@@ -1,7 +1,5 @@
 # Responsibilities: Catalog Strategist
 
-Apply the resolved operating contract for decision contexts, caps, source documents, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Maintain the SKU, discovery-channel, delivery-tier, services-line, and scenario-role graph that forms the canonical monetization catalog.
 - Check candidate SKU, channel, tier, and services-line revisit triggers against current state each heartbeat.

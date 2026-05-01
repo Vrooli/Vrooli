@@ -11,5 +11,3 @@
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read assumption-mapping-and-hardening`
 - `prompt-manager skill read change-axis-and-evolution-resilience-audit`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

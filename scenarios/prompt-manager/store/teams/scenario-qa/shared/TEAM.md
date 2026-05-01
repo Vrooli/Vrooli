@@ -6,9 +6,6 @@ Ensure scenario quality through code auditing, test coverage analysis, documenta
 ## Quality Dimensions
 Scenario QA evaluates architecture, security, behavior-oriented test coverage, and documentation health. Deep audits may add boundary, seam, invariant, cognitive-load, or cleanup lenses.
 
-## Operating Contract
-The structured `operatingContract` in `team.json` is authoritative for decision contexts, caps, source documents, write rules, and required knowledge topics.
-
 ## Workflow
 - programmatic-qa-runner handles GCT-driven readiness reviews and dependency wiring.
 - quality-auditor handles structural audits that require judgment.

@@ -1,7 +1,5 @@
 # Heartbeat: Contrarian
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 For each pending decision or fresh proposal:
 
@@ -13,14 +11,13 @@ For each pending decision or fresh proposal:
 
 ## Task Loop
 1. Fetch pending decisions across the team.
-2. Read recent outputs from the declared shared-state artifacts.
+2. Read recent outputs from the declared team working-state artifacts.
 3. Read pending decisions in your owned contexts.
 4. Score proposals against the failure modes and channel guardrail.
 5. Write challenge-note knowledge entries for concrete hits.
 6. Run the stale-decision scan required by the contract.
 7. Run supersession against your own prior decisions before proposing replacements.
-8. Raise rejection or framework-change decisions only when warranted and allowed by the contract.
-9. End with `## HANDOFF`.
+8. Raise rejection or framework-change decisions only when warranted.
 
 ## Challenge Note Shape
 A good challenge note states:

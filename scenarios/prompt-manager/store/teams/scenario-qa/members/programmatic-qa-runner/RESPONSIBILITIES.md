@@ -1,7 +1,5 @@
 # Responsibilities: Programmatic QA Runner
 
-Apply the resolved operating contract for contexts, caps, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Select priority scenarios for automated readiness review.
 - Run GCT reviews and parse failing dimensions.

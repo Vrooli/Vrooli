@@ -1,7 +1,5 @@
 # Heartbeat: Runtime Health Scanner
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 Single-incident systems can hide repeated patterns. A successful heal can mask a deeper issue; a closed investigation can still be part of a repeated class. Pick one aggregate signal and investigate it deeply.
 
@@ -11,10 +9,9 @@ Single-incident systems can hide repeated patterns. A successful heal can mask a
 3. Pick one signal not already covered by the rolling lessons.
 4. Investigate with existing tooling first; use manual fallback only when necessary.
 5. Update the runtime lessons artifact.
-6. Write the required knowledge snapshot.
+6. Record the runtime-health knowledge snapshot.
 7. Check supersession on owned pending decisions.
-8. Raise decisions only when allowed by the contract and the finding is concrete.
-9. End with HANDOFF.
+8. Propose decisions when the finding is concrete.
 
 ## Handoff Shape
 ### Window inspected

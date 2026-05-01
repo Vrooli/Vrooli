@@ -19,7 +19,83 @@ const (
 
 	DecisionModeYolo     = "yolo"
 	DecisionModeApproval = "approval"
+
+	TeamWorkingStateKindCharter            = "charter"
+	TeamWorkingStateKindTaskBoard          = "task-board"
+	TeamWorkingStateKindDecisionLog        = "decision-log"
+	TeamWorkingStateKindKnowledgeLog       = "knowledge-log"
+	TeamWorkingStateKindHandoffLog         = "handoff-log"
+	TeamWorkingStateKindWorkingRegister    = "working-register"
+	TeamWorkingStateKindRollingSnapshot    = "rolling-snapshot"
+	TeamWorkingStateKindAppendOnlyEventLog = "append-only-event-log"
+	TeamWorkingStateKindOperatorInput      = "operator-input"
+
+	teamStoragePlanOfRecordExactLimit = 8
 )
+
+type TeamWorkingStateKind struct {
+	ID         string
+	Label      string
+	UseText    string
+	UpdateMode string
+}
+
+var teamWorkingStateKinds = map[string]TeamWorkingStateKind{
+	TeamWorkingStateKindCharter: {
+		ID:         TeamWorkingStateKindCharter,
+		Label:      "Charter",
+		UseText:    "team charter and durable team-specific principles",
+		UpdateMode: "operator/team curated",
+	},
+	TeamWorkingStateKindTaskBoard: {
+		ID:         TeamWorkingStateKindTaskBoard,
+		Label:      "Task board",
+		UseText:    "live team tasks and coordination state",
+		UpdateMode: "mutable",
+	},
+	TeamWorkingStateKindDecisionLog: {
+		ID:         TeamWorkingStateKindDecisionLog,
+		Label:      "Decision log",
+		UseText:    "reviewable proposed changes",
+		UpdateMode: "append/update via decision commands",
+	},
+	TeamWorkingStateKindKnowledgeLog: {
+		ID:         TeamWorkingStateKindKnowledgeLog,
+		Label:      "Knowledge log",
+		UseText:    "structured observations, snapshots, and friction signals",
+		UpdateMode: "append/supersede by topic",
+	},
+	TeamWorkingStateKindHandoffLog: {
+		ID:         TeamWorkingStateKindHandoffLog,
+		Label:      "Handoff log",
+		UseText:    "historical handoff archive",
+		UpdateMode: "automatic append",
+	},
+	TeamWorkingStateKindWorkingRegister: {
+		ID:         TeamWorkingStateKindWorkingRegister,
+		Label:      "Working register",
+		UseText:    "current operational list or register",
+		UpdateMode: "append or update rows",
+	},
+	TeamWorkingStateKindRollingSnapshot: {
+		ID:         TeamWorkingStateKindRollingSnapshot,
+		Label:      "Rolling snapshot",
+		UseText:    "current summarized view of recent evidence",
+		UpdateMode: "replace/update section or row",
+	},
+	TeamWorkingStateKindAppendOnlyEventLog: {
+		ID:         TeamWorkingStateKindAppendOnlyEventLog,
+		Label:      "Append-only event log",
+		UseText:    "structured historical events or observations owned by the team",
+		UpdateMode: "append-only",
+	},
+	TeamWorkingStateKindOperatorInput: {
+		ID:         TeamWorkingStateKindOperatorInput,
+		Label:      "Operator input",
+		UseText:    "operator-maintained inputs or state that agents may read and only assigned owners may maintain",
+		UpdateMode: "operator-maintained or assigned owner",
+	},
+}
 
 type OperatingContract struct {
 	SchemaVersion   int                        `json:"schemaVersion"`
@@ -28,6 +104,20 @@ type OperatingContract struct {
 	DecisionContext map[string]DecisionContext `json:"decisionContexts"`
 	KnowledgeTopics map[string]KnowledgeTopic  `json:"knowledgeTopics"`
 	Members         map[string]MemberContract  `json:"members"`
+}
+
+func TeamWorkingStateKindMetadata(kind string) (TeamWorkingStateKind, bool) {
+	meta, ok := teamWorkingStateKinds[strings.TrimSpace(kind)]
+	return meta, ok
+}
+
+func TeamWorkingStateKindIDs() []string {
+	ids := make([]string, 0, len(teamWorkingStateKinds))
+	for id := range teamWorkingStateKinds {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 type Governance struct {
@@ -501,6 +591,9 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 		if strings.TrimSpace(doc.ID) == "" {
 			return fmt.Errorf("operatingContract.documents.sharedState contains a document without id")
 		}
+		if _, ok := TeamWorkingStateKindMetadata(doc.Kind); !ok {
+			return fmt.Errorf("operatingContract.documents.sharedState.%s kind %q is not a supported team working state kind", doc.ID, doc.Kind)
+		}
 		if doc.OwnerMemberID != "" {
 			if _, ok := contract.Members[doc.OwnerMemberID]; !ok {
 				return fmt.Errorf("operatingContract.documents.sharedState.%s ownerMemberId %q is not a contract member", doc.ID, doc.OwnerMemberID)
@@ -638,13 +731,214 @@ func renderDocuments(b *strings.Builder, contract *OperatingContract, input Rend
 		b.WriteString("\n")
 	}
 	if len(contract.Documents.SharedState) > 0 {
-		b.WriteString("Shared state:\n")
+		b.WriteString("Team working state:\n")
 		for _, doc := range contract.Documents.SharedState {
 			if p, err := NormalizePath(doc.Path, validationInput, input.MemberID); err == nil {
 				b.WriteString("- " + p + "\n")
 			}
 		}
 	}
+}
+
+func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, error) {
+	if err := Validate(contract, ValidationInput{
+		TeamID: input.TeamID, DecisionMode: input.DecisionMode, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
+	}); err != nil {
+		return "", err
+	}
+
+	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
+	var b strings.Builder
+	b.WriteString("## Your Team Storage\n\n")
+
+	if len(contract.Documents.PlanOfRecord) > 0 {
+		b.WriteString("Plan of record, read/propose only:\n")
+		planItems, err := storagePlanOfRecordItems(contract.Documents.PlanOfRecord, validationInput, input.MemberID)
+		if err != nil {
+			return "", err
+		}
+		if len(planItems) <= teamStoragePlanOfRecordExactLimit {
+			renderStoragePlanOfRecordExact(&b, planItems)
+		} else {
+			renderStoragePlanOfRecordGrouped(&b, planItems)
+		}
+		b.WriteString("\n")
+	}
+
+	if len(contract.Documents.Notebooks) > 0 {
+		b.WriteString("Notebook, append unresolved learning:\n")
+		for _, doc := range contract.Documents.Notebooks {
+			posture := strings.TrimSpace(doc.Posture)
+			if posture == "" {
+				posture = "debt"
+			}
+			for _, ref := range doc.Paths {
+				p, err := NormalizePath(ref, validationInput, input.MemberID)
+				if err != nil {
+					return "", err
+				}
+				b.WriteString(fmt.Sprintf("- `%s`\n", p))
+				b.WriteString(fmt.Sprintf("  Curator: `%s`\n", doc.CuratorMemberID))
+				b.WriteString(fmt.Sprintf("  Promotion context: `%s`\n", doc.PromotionContext))
+				b.WriteString(fmt.Sprintf("  Posture: `%s`\n", posture))
+			}
+		}
+		b.WriteString("\n")
+	}
+
+	if len(contract.Documents.SharedState) > 0 {
+		b.WriteString("Team working state:\n")
+		for _, doc := range contract.Documents.SharedState {
+			p, err := NormalizePath(doc.Path, validationInput, input.MemberID)
+			if err != nil {
+				return "", err
+			}
+			meta, ok := TeamWorkingStateKindMetadata(doc.Kind)
+			if !ok {
+				return "", fmt.Errorf("operatingContract.documents.sharedState.%s kind %q is not a supported team working state kind", doc.ID, doc.Kind)
+			}
+			owner := strings.TrimSpace(doc.OwnerMemberID)
+			if owner == "" {
+				owner = "team"
+			}
+			b.WriteString(fmt.Sprintf("- `%s`\n", p))
+			b.WriteString(fmt.Sprintf("  Kind: `%s`\n", doc.Kind))
+			b.WriteString(fmt.Sprintf("  Owner: `%s`\n", owner))
+			b.WriteString(fmt.Sprintf("  Use for: %s\n", meta.UseText))
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("Always available:\n")
+	b.WriteString("- decisions: propose reviewable changes\n")
+	b.WriteString("- knowledge: record structured observations and friction signals\n")
+	b.WriteString("- handoff: preserve next-run continuity\n")
+	return strings.TrimRight(b.String(), "\n") + "\n", nil
+}
+
+type storagePlanOfRecordItem struct {
+	Path      string
+	Policy    string
+	Consumers string
+}
+
+type storagePlanOfRecordGroup struct {
+	Prefix    string
+	Policy    string
+	Consumers string
+	Count     int
+}
+
+func storagePlanOfRecordItems(docs []PlanOfRecordDocument, input ValidationInput, activeMemberID string) ([]storagePlanOfRecordItem, error) {
+	var items []storagePlanOfRecordItem
+	for _, doc := range docs {
+		consumerLine := storageConsumerLine(doc.Consumers, doc.Rationale)
+		for _, ref := range doc.Paths {
+			p, err := NormalizePath(ref, input, activeMemberID)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, storagePlanOfRecordItem{
+				Path:      p,
+				Policy:    doc.WritePolicy,
+				Consumers: consumerLine,
+			})
+		}
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Path < items[j].Path
+	})
+	return items, nil
+}
+
+func renderStoragePlanOfRecordExact(b *strings.Builder, items []storagePlanOfRecordItem) {
+	for _, item := range items {
+		b.WriteString(fmt.Sprintf("- `%s`\n", item.Path))
+		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", item.Policy))
+		if item.Consumers != "" {
+			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", item.Consumers))
+		}
+	}
+}
+
+func renderStoragePlanOfRecordGrouped(b *strings.Builder, items []storagePlanOfRecordItem) {
+	groups := make(map[string]*storagePlanOfRecordGroup)
+	var exact []storagePlanOfRecordItem
+	for _, item := range items {
+		prefix := stableStoragePrefix(item.Path)
+		if prefix == "" {
+			exact = append(exact, item)
+			continue
+		}
+		key := prefix + "\x00" + item.Policy + "\x00" + item.Consumers
+		group, ok := groups[key]
+		if !ok {
+			group = &storagePlanOfRecordGroup{
+				Prefix:    prefix,
+				Policy:    item.Policy,
+				Consumers: item.Consumers,
+			}
+			groups[key] = group
+		}
+		group.Count++
+	}
+
+	for _, item := range exact {
+		b.WriteString(fmt.Sprintf("- `%s`\n", item.Path))
+		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", item.Policy))
+		if item.Consumers != "" {
+			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", item.Consumers))
+		}
+	}
+
+	groupList := make([]storagePlanOfRecordGroup, 0, len(groups))
+	for _, group := range groups {
+		groupList = append(groupList, *group)
+	}
+	sort.Slice(groupList, func(i, j int) bool {
+		if groupList[i].Prefix != groupList[j].Prefix {
+			return groupList[i].Prefix < groupList[j].Prefix
+		}
+		if groupList[i].Policy != groupList[j].Policy {
+			return groupList[i].Policy < groupList[j].Policy
+		}
+		return groupList[i].Consumers < groupList[j].Consumers
+	})
+
+	for _, group := range groupList {
+		unit := "docs"
+		if group.Count == 1 {
+			unit = "doc"
+		}
+		b.WriteString(fmt.Sprintf("- %d %s under `%s`\n", group.Count, unit, group.Prefix))
+		b.WriteString(fmt.Sprintf("  Policy: `%s`\n", group.Policy))
+		if group.Consumers != "" {
+			b.WriteString(fmt.Sprintf("  Consumers: `%s`\n", group.Consumers))
+		}
+		b.WriteString("  Exact paths: see `## Document Authority` above.\n")
+	}
+}
+
+func stableStoragePrefix(path string) string {
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	if path == "" || !strings.Contains(path, "/") {
+		return ""
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) >= 2 && parts[0] == "docs" {
+		return parts[0] + "/" + parts[1] + "/"
+	}
+	if len(parts) >= 2 {
+		return parts[0] + "/"
+	}
+	return ""
+}
+
+func storageConsumerLine(consumers []string, rationale string) string {
+	if len(consumers) > 0 {
+		return strings.Join(consumers, ", ")
+	}
+	return strings.TrimSpace(rationale)
 }
 
 func renderWriteRefs(b *strings.Builder, title string, refs []WriteRef, input RenderInput) {

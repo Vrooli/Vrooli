@@ -2,7 +2,7 @@
 
 Rolling team-structure audit owned by `team-agent-optimizer`.
 
-Use the resolved operating contract for the authoritative write rules, knowledge topics, and decision contexts that govern this artifact.
+Use this file for rolling team-structure audit snapshots.
 
 | Team | Last Reviewed | Disposition | Notes |
 |---|---|---|---|

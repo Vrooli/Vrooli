@@ -14,9 +14,6 @@ Leaderless / independent. Each member stays in its lane and emits its own draft,
 - researcher: audience, competitor, channel, hook, format, and benchmark-adjacent scanning.
 - marketing-contrarian: skeptical review and decision-aging hygiene.
 
-## Operating Contract
-The structured `operatingContract` in `team.json` is authoritative for decision contexts, caps, stale-decision policy, read-only behavior, knowledge topic supersession, source documents, notebook policy, shared-state artifacts, and write rules.
-
 ## Principles
 - Subscription means convenience plus integrated gateway, not paywalling core features.
 - OSS self-host is deliberate brand credibility, not a revenue leak.

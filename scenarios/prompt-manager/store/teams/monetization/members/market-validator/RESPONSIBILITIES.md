@@ -1,7 +1,5 @@
 # Responsibilities: Market Validator
 
-Apply the resolved operating contract for decision contexts, caps, source documents, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Ground pricing, retention, churn, activation, and attach-rate targets in external market benchmarks.
 - Track competitor landscape for the active tier and bundle only.

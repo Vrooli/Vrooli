@@ -11,5 +11,3 @@
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read brand-manager`
 - `prompt-manager skill read scientific-debugging`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

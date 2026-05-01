@@ -16,7 +16,6 @@
 - `prompt-manager skill read systematic-exploration`
 
 ## Usage Rules
-- Use the resolved operating contract for source docs, contexts, caps, write rules, and knowledge topics.
 - Every readiness claim needs an honesty flag.
 - Channel-trigger claims cite the relevant evidence.
 - When a `REPLACES-MANUAL` capability lands, update the qualitative step that it replaces.

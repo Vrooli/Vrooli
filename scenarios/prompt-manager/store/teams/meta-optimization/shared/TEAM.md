@@ -40,12 +40,6 @@ Each member has an `AGENTS.md`, `SOUL.md`, `TOOLS.md` under `store/agents/<membe
 8. **No member aggregates others.** Leaderless design is intentional. The meta-contrarian reviews, but does not synthesize.
 9. **Apply the team's principles to itself.** The team's mission is evolutionary pressure; applying that only outward is a contradiction. The `debt-curator` points the same pressure inward: workarounds that members write into `docs/meta-optimization/` are debt, and the debt-curator's job is to see that debt shrinks over time via promotion into permanent structure.
 
-## Operating Contract
-
-The structured `operatingContract` in `team.json` is authoritative for decision contexts, per-member caps, stale-decision policy, read-only behavior, knowledge topic supersession, source documents, shared-state artifacts, and write rules.
-
-Member prompts receive a resolved contract section before their responsibilities. This charter intentionally does not restate contract-owned caps, paths, or context lists.
-
 ## Contrarian Failure-Mode Framework
 
 The meta-contrarian scores every pending decision against seven failure modes. A proposal that trips one gets a challenge note. A proposal that trips multiple gets a rejection recommendation.
@@ -66,7 +60,7 @@ Separate from this team's rolling operational state in `shared/`, the team also 
 
 The folder's posture is **debt, not gospel.** Every entry is prose describing something that should eventually be permanent structure. The `debt-curator` member's job is to see that debt shrinks over time via `meta-self-improvement` decisions.
 
-Use the resolved operating contract for the current notebook file list, write posture, curator, and promotion route. Appending an observation that does not yet warrant a decision is a valid heartbeat output - that is exactly what these docs are for.
+Append observations that do not yet warrant decisions to the notebook. The debt-curator later proposes promotion or retirement.
 
 ## Cross-Team Coordination
 

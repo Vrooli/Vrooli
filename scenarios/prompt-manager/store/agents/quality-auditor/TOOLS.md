@@ -15,5 +15,3 @@
 - `prompt-manager skill read decision-boundary-extraction`
 - `prompt-manager skill read code-cleanup`
 - `prompt-manager skill read documentation-health`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

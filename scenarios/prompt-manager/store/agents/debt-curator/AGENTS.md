@@ -2,16 +2,7 @@
 
 ## Start of Session
 - Read SOUL.md for identity alignment.
-- Run `prompt-manager team member-context meta-optimization debt-curator`.
-- Apply the resolved operating contract from that context before acting.
-
-## Workflow
-1. Scan the contract-declared notebook docs and shared artifacts.
-2. Evaluate promotion and retirement candidates.
-3. Pick the highest-leverage candidate when one is ripe.
-4. Write the required scan knowledge entry.
-5. Raise a decision only when allowed by the contract.
-6. Report with `## HANDOFF` per HEARTBEAT.md.
+- Use the member HEARTBEAT.md for the task loop and output shape.
 
 ## Coordination
 - There is no AI lead above me.

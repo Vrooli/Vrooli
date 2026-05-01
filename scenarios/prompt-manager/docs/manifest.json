@@ -188,6 +188,12 @@
           "audience": ["developers", "operators"]
         },
         {
+          "path": "plans/prompt-pipeline-preview-and-ergonomics-implementation-plan.md",
+          "title": "Prompt Pipeline Preview and Ergonomics Implementation",
+          "description": "Implementation plan for making heartbeat prompt previews structured, drift-resistant, CLI-accessible, and easier for agents to execute",
+          "audience": ["developers", "operators"]
+        },
+        {
           "path": "plans/action-entity-and-memory-promotion-rfc.md",
           "title": "Action Entity and Memory Promotion RFC",
           "description": "Proposed ontology and rollout framing for Actions and notebook promotion",

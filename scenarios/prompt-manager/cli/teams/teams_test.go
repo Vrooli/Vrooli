@@ -1,9 +1,13 @@
 package teams
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"io"
+	"os"
 	"prompt-manager/teamconfig"
+	"strings"
 	"testing"
 )
 
@@ -156,5 +160,115 @@ func TestResolveUpdatedTeamConfigAppliesCapabilityOverrides(t *testing.T) {
 	}
 	if coordination.Capabilities.RequireHandoff {
 		t.Fatal("expected requireHandoff override to be false")
+	}
+}
+
+func captureTeamStdout(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	old := os.Stdout
+	readPipe, writePipe, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdout = writePipe
+	runErr := fn()
+	_ = writePipe.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, readPipe); err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	_ = readPipe.Close()
+	return buf.String(), runErr
+}
+
+func TestCmdPromptPreviewCallsFullPreviewEndpoint(t *testing.T) {
+	fc := &fakeContext{
+		t:        t,
+		response: PromptPreviewResponse{TeamID: "team-a", AgentID: "agent-a", Prompt: "# Heartbeat Task\n\nDo work"},
+	}
+
+	out, err := captureTeamStdout(t, func() error {
+		return cmdPromptPreview(fc, []string{"team-a", "agent-a"})
+	})
+	if err != nil {
+		t.Fatalf("cmdPromptPreview: %v", err)
+	}
+	fc.assertMethodPath(t, "POST", "/prompt-preview")
+	var payload PromptPreviewRequest
+	if err := json.Unmarshal(fc.gotPayload, &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload.TeamID != "team-a" || payload.AgentID != "agent-a" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if !strings.Contains(out, "# Heartbeat Task") {
+		t.Fatalf("expected full prompt output, got:\n%s", out)
+	}
+}
+
+func TestCmdPromptPreviewStructuredFormatsSections(t *testing.T) {
+	fc := &fakeContext{
+		t: t,
+		response: StructuredPromptPreviewResponse{
+			TeamID:  "team-a",
+			AgentID: "agent-a",
+			Sections: []PromptSection{{
+				Kind:    "execution-brief",
+				Label:   "Execution Brief",
+				Content: "# Execution Brief\n\nMember: `agent-a`",
+			}},
+		},
+	}
+
+	out, err := captureTeamStdout(t, func() error {
+		return cmdPromptPreviewStructured(fc, []string{"team-a", "agent-a"})
+	})
+	if err != nil {
+		t.Fatalf("cmdPromptPreviewStructured: %v", err)
+	}
+	fc.assertMethodPath(t, "POST", "/prompt-preview-structured")
+	if !strings.Contains(out, "Kind: execution-brief") || !strings.Contains(out, "# Execution Brief") {
+		t.Fatalf("unexpected structured output:\n%s", out)
+	}
+}
+
+func TestCmdPromptMatrixUsesBackendOrder(t *testing.T) {
+	fc := &fakeContext{
+		t: t,
+		response: TeamPromptMatrixResponse{
+			TeamID: "team-a",
+			Entries: []TeamPromptMatrixEntry{{
+				AgentID:     "agent-a",
+				DisplayName: "Agent A",
+				Sections: []PromptSection{
+					{Kind: "agent-file", Label: "SOUL.md", Content: "abc"},
+					{Kind: "execution-brief", Label: "Execution Brief", Content: "abcdef"},
+				},
+			}},
+		},
+	}
+
+	out, err := captureTeamStdout(t, func() error {
+		return cmdPromptMatrix(fc, []string{"team-a"})
+	})
+	if err != nil {
+		t.Fatalf("cmdPromptMatrix: %v", err)
+	}
+	fc.assertMethodPath(t, "GET", "/teams/team-a/prompt-matrix")
+	header := "Member\tagent-file\texecution-brief"
+	if !strings.Contains(out, header) {
+		t.Fatalf("expected backend-order header %q, got:\n%s", header, out)
+	}
+}
+
+func TestUsageDescribesMemberContextAsTaskless(t *testing.T) {
+	usage := usageText()
+	if !strings.Contains(usage, "Get standing member context without HEARTBEAT.md") {
+		t.Fatalf("member-context help should describe taskless context:\n%s", usage)
+	}
+	if strings.Contains(usage, "Get full"+" member context prompt") {
+		t.Fatalf("usage contains stale member-context wording:\n%s", usage)
 	}
 }

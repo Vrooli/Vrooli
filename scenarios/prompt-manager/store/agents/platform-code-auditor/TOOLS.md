@@ -14,5 +14,3 @@
 - `prompt-manager skill read security`
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read cross-platform-readiness`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

@@ -2,18 +2,7 @@
 
 ## Start of Session
 - Read SOUL.md for identity alignment.
-- Run `prompt-manager team member-context meta-optimization meta-contrarian`.
-- Apply the resolved operating contract from that context before acting.
-
-## Workflow
-1. Fetch pending decisions across the team.
-2. Read recent member outputs and contract-declared shared artifacts.
-3. Score each pending proposal against the failure-mode framework in TEAM.md.
-4. Write challenge notes for failure-mode hits.
-5. Run the stale-decision scan required by the contract.
-6. Perform the contract-required supersession check.
-7. Raise rejection or framework-update decisions only when allowed by the contract.
-8. Report with `## HANDOFF` per HEARTBEAT.md.
+- Use the member HEARTBEAT.md for the task loop and output shape.
 
 ## Coordination
 - There is no AI lead above me.

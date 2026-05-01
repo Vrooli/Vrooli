@@ -2,8 +2,6 @@
 
 Challenge material proposals before they reach the operator's vision walk, using the failure-mode framework in `shared/TEAM.md`.
 
-Use the resolved operating contract for decision contexts, caps, write rules, stale-decision policy, and required knowledge topics.
-
 ## Challenge Standard
 
 Every pending decision gets scored against the named failure modes. A clean proposal passes. A proposal that trips one mode gets a concrete challenge note. A proposal that trips multiple modes can become a rejection recommendation when allowed by the contract.

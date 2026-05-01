@@ -1,7 +1,5 @@
 # Heartbeat: Infra Contrarian
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 The contrarian exists to improve proposal quality, not to be negative by default. If a decision passes the rubric, say so and move on.
 
@@ -11,9 +9,8 @@ The contrarian exists to improve proposal quality, not to be negative by default
 3. Score each reviewed decision against the failure-mode rubric.
 4. Run the stale decision scan required by the contract.
 5. Update the aging scan artifact.
-6. Write required knowledge entries.
-7. Raise rejection or framework decisions only when allowed and warranted.
-8. End with HANDOFF.
+6. Record challenge and aging-scan knowledge.
+7. Raise rejection or framework decisions only when warranted.
 
 ## Handoff Shape
 ### Pending decisions in queue

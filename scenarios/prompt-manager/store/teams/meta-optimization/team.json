@@ -94,7 +94,7 @@
             "base": "team-shared",
             "path": "AGENT_AUDIT.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -103,7 +103,7 @@
             "base": "team-shared",
             "path": "DEPRECATION_QUEUE.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "working-register",
           "required": true
         },
         {
@@ -112,7 +112,7 @@
             "base": "team-shared",
             "path": "PROGRAMMATIC_CONVERSION_QUEUE.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "working-register",
           "required": true
         },
         {
@@ -121,7 +121,7 @@
             "base": "team-shared",
             "path": "RUN_LESSONS.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -130,7 +130,7 @@
             "base": "team-shared",
             "path": "SKILL_AUDIT.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -139,7 +139,7 @@
             "base": "team-shared",
             "path": "TEAM.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "charter",
           "required": true
         },
         {
@@ -148,7 +148,7 @@
             "base": "team-shared",
             "path": "TEAM_AUDIT.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -157,7 +157,7 @@
             "base": "team-shared",
             "path": "TOOLCHAIN_SCAN.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -166,7 +166,7 @@
             "base": "team-shared",
             "path": "decisions.jsonl"
           },
-          "kind": "decision-stream",
+          "kind": "decision-log",
           "required": true
         },
         {
@@ -175,7 +175,7 @@
             "base": "team-shared",
             "path": "handoff-history.jsonl"
           },
-          "kind": "handoff-history",
+          "kind": "handoff-log",
           "required": true
         },
         {
@@ -304,20 +304,40 @@
         "supersedesPrevious": true,
         "retention": "visited-tracker"
       },
+      "friction/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
       "run-lessons-YYYY-MM-DD": {
         "ownerMemberId": "run-introspector",
         "supersedesPrevious": true,
         "retention": "snapshot"
+      },
+      "friction/run-execution/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "run-introspector",
+        "supersedesPrevious": false,
+        "retention": "append-only"
       },
       "toolchain-scan-YYYY-MM-DD": {
         "ownerMemberId": "toolchain-validator",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
+      "friction/toolchain/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "toolchain-validator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
       "debt-scan-YYYY-MM-DD": {
         "ownerMemberId": "debt-curator",
         "supersedesPrevious": true,
         "retention": "snapshot"
+      },
+      "friction/recurring-workaround/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "debt-curator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
       },
       "challenge-note/<decision-id>": {
         "ownerMemberId": "meta-contrarian",
@@ -335,7 +355,8 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "toolchain-scan-YYYY-MM-DD"
+          "toolchain-scan-YYYY-MM-DD",
+          "friction/toolchain/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {
@@ -408,7 +429,8 @@
           "team-audit-YYYY-MM-DD",
           "agent-audit-YYYY-MM-DD",
           "team-visited/<team-id>",
-          "agent-visited/<agent-id>"
+          "agent-visited/<agent-id>",
+          "friction/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {
@@ -441,7 +463,8 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "run-lessons-YYYY-MM-DD"
+          "run-lessons-YYYY-MM-DD",
+          "friction/run-execution/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {
@@ -509,7 +532,8 @@
         "newDecisionCapPerHeartbeat": 1,
         "pendingOwnedDecisionCap": 2,
         "requiredKnowledgeTopics": [
-          "debt-scan-YYYY-MM-DD"
+          "debt-scan-YYYY-MM-DD",
+          "friction/recurring-workaround/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {

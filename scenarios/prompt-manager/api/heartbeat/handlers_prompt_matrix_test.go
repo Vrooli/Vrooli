@@ -80,7 +80,19 @@ func TestPreviewPromptMatrixHandler(t *testing.T) {
 		if entry.Error != "" {
 			t.Fatalf("unexpected error for agent %s: %s", entry.AgentID, entry.Error)
 		}
+		if !hasPromptSectionKind(entry.Sections, "execution-brief") {
+			t.Fatalf("expected execution-brief section for agent %s", entry.AgentID)
+		}
 	}
+}
+
+func hasPromptSectionKind(sections []PromptSection, kind string) bool {
+	for _, section := range sections {
+		if section.Kind == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func TestPreviewPromptMatrixNotFound(t *testing.T) {

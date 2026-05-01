@@ -12,7 +12,6 @@
 - `prompt-manager skill read scientific-debugging`
 
 ## Usage Rules
-- Use the resolved operating contract for source docs, contexts, caps, write rules, and knowledge topics.
 - Every numeric field must carry an honesty flag.
 - Missing data stays pending-telemetry or pending-operator.
 - Track channel attribution separately from revenue-line totals.

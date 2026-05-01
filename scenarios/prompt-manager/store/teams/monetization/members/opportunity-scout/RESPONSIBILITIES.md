@@ -1,7 +1,5 @@
 # Responsibilities: Opportunity Scout
 
-Apply the resolved operating contract for decision contexts, caps, source documents, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Generate candidate ideas for new SKUs, add-ons, services lines, and discovery channels.
 - Classify every idea against the catalog and channel map.

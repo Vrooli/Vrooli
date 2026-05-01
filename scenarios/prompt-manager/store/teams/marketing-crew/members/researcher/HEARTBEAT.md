@@ -1,7 +1,5 @@
 # Heartbeat: Researcher
 
-Apply the resolved operating contract above.
-
 ## Task Loop
 1. Analyze recent scan convergence.
 2. Run a new structured scan across relevant audiences and channels.
@@ -9,9 +7,8 @@ Apply the resolved operating contract above.
 4. Evaluate convergence candidates.
 5. Write cross-team benchmark-adjacent entries when useful.
 6. Check supersession on owned pending decisions.
-7. Raise audience, post-type, hook, channel-strategy, or capability decisions only when allowed by the contract.
-8. Write the required audience-scan knowledge entry.
-9. End with HANDOFF.
+7. Raise audience, post-type, hook, channel-strategy, or capability decisions only when warranted.
+8. Record the audience-scan knowledge entry.
 
 ## Handoff Shape
 ### Scan summary

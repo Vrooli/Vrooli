@@ -2,8 +2,6 @@
 
 Audit team structures and agent files together because they co-evolve. Propose structural team changes, agent-file improvements, and deprecations when evidence supports them.
 
-Use the resolved operating contract for decision contexts, caps, write rules, source artifacts, and required knowledge topics.
-
 ## Selection Judgment
 
 Agent work is the default. Team work becomes appropriate when there are stacking structural decisions, recent structural flux, an untouched team, or an agent change that clearly implies a team follow-up.

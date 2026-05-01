@@ -129,7 +129,7 @@
             "base": "team-shared",
             "path": "TEAM.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "charter",
           "required": true
         },
         {
@@ -138,7 +138,7 @@
             "base": "team-shared",
             "path": "decisions.jsonl"
           },
-          "kind": "decision-stream",
+          "kind": "decision-log",
           "required": true
         },
         {
@@ -156,7 +156,7 @@
             "base": "team-shared",
             "path": "handoff-history.jsonl"
           },
-          "kind": "handoff-history",
+          "kind": "handoff-log",
           "required": true
         },
         {
@@ -166,7 +166,7 @@
             "path": "RUNTIME_LESSONS.md"
           },
           "ownerMemberId": "runtime-health-scanner",
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -176,7 +176,7 @@
             "path": "PLATFORM_AUDIT.md"
           },
           "ownerMemberId": "platform-code-auditor",
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         },
         {
@@ -186,7 +186,7 @@
             "path": "AGING_SCAN.md"
           },
           "ownerMemberId": "infra-contrarian",
-          "kind": "rolling-artifact",
+          "kind": "rolling-snapshot",
           "required": true
         }
       ]

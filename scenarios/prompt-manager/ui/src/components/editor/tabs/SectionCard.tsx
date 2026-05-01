@@ -14,6 +14,7 @@ import {
   Heart,
   Inbox,
   Users,
+  Map,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PromptSection } from '@/lib/schemas'
@@ -37,6 +38,16 @@ const KIND_META: Record<
     color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
     badgeLabel: 'Team',
   },
+  'execution-brief': {
+    icon: Heart,
+    color: 'bg-sky-500/15 text-sky-400 border-sky-500/25',
+    badgeLabel: 'Brief',
+  },
+  'team-operating-contract': {
+    icon: FileText,
+    color: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+    badgeLabel: 'Contract',
+  },
   'team-responsibilities': {
     icon: Users,
     color: 'bg-green-500/15 text-green-400 border-green-500/25',
@@ -57,10 +68,10 @@ const KIND_META: Record<
     color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
     badgeLabel: 'Team',
   },
-  'team-durable-state': {
-    icon: Network,
+  'team-storage-map': {
+    icon: Map,
     color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
-    badgeLabel: 'Team',
+    badgeLabel: 'Storage',
   },
   'last-handoff': {
     icon: GitBranch,

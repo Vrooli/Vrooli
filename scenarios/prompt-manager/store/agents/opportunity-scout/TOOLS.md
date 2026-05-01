@@ -14,7 +14,6 @@
 - `prompt-manager skill read interoperability-steer`
 
 ## Usage Rules
-- Use the resolved operating contract for source docs, contexts, caps, write rules, and knowledge topics.
 - Every candidate needs a plausible Vrooli capability fit.
 - Every candidate needs a concrete revisit trigger.
 - Every candidate needs acquisition and retention hypotheses.

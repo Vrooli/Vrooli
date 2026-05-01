@@ -276,11 +276,35 @@ prompt-manager agent soul agent-1 --file=soul.md
 
 ---
 
-## Member Context
+## Prompt Preview and Member Context
+
+### prompt-manager team prompt-preview
+
+Preview the full runtime heartbeat prompt for a member. This includes the active `HEARTBEAT.md` task and should be used when auditing exactly what a heartbeat run receives.
+
+```bash
+prompt-manager team prompt-preview <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team prompt-preview-structured
+
+Preview the same runtime prompt as backend-ordered sections. This is the CLI equivalent of the UI's prompt pipeline surface.
+
+```bash
+prompt-manager team prompt-preview-structured <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team prompt-matrix
+
+Show prompt section coverage and character counts for every member in a team. Use `--json` to inspect the complete structured prompt matrix.
+
+```bash
+prompt-manager team prompt-matrix <team-id> [--json]
+```
 
 ### prompt-manager team member-context
 
-Get the full context prompt for a team member. This includes agent files, responsibilities, org context, coordination guidance, durable-state guidance, and inbox content when enabled, but excludes HEARTBEAT.md task instructions. Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
+Get standing context for a team member without the active `HEARTBEAT.md` task. This includes agent files, responsibilities, org context, coordination guidance, storage-map guidance, and inbox content when enabled. Use this for external or leader-led bootstrapping that needs taskless context; use `prompt-preview` to audit the full runtime heartbeat prompt.
 
 ```bash
 prompt-manager team member-context <team-id> <agent-id> [--json]

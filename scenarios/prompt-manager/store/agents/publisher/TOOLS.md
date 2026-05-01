@@ -10,5 +10,3 @@
 - `prompt-manager skill read social-media-scheduler`
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read campaign-content-studio`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

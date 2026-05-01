@@ -9,5 +9,3 @@
 ## Primary Skills
 - `prompt-manager skill read swarm-manager-recommendations`
 - `prompt-manager skill read documentation-health`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

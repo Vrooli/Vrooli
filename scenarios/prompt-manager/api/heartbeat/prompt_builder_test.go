@@ -50,6 +50,13 @@ func TestPromptBuilderAgentOnly(t *testing.T) {
 	}
 }
 
+func promptHeadingIndex(prompt, heading string) int {
+	if strings.HasPrefix(prompt, heading+"\n") {
+		return 0
+	}
+	return strings.Index(prompt, "\n"+heading+"\n")
+}
+
 func TestPromptBuilderTeamContext(t *testing.T) {
 	ctx := context.Background()
 	storeDir := t.TempDir()
@@ -120,29 +127,54 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		t.Fatalf("build prompt: %v", err)
 	}
 
-	agentIndex := strings.Index(prompt, "# Agent Files (Markdown)")
-	teamDocIndex := strings.Index(prompt, "# Team Charter (shared/TEAM.md)")
-	respIndex := strings.Index(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
-	orgIndex := strings.Index(prompt, "# Team Org Context")
-	durableIndex := strings.Index(prompt, "# Durable State")
-	inboxIndex := strings.Index(prompt, "# Team Inbox")
-	taskIndex := strings.Index(prompt, "# Heartbeat Task (HEARTBEAT.md)")
+	agentIndex := promptHeadingIndex(prompt, "# Agent Files (Markdown)")
+	teamDocIndex := promptHeadingIndex(prompt, "# Team Charter (shared/TEAM.md)")
+	briefIndex := promptHeadingIndex(prompt, "# Execution Brief")
+	contractIndex := promptHeadingIndex(prompt, "# Resolved Operating Contract")
+	respIndex := promptHeadingIndex(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
+	orgIndex := promptHeadingIndex(prompt, "# Team Org Context")
+	storageIndex := promptHeadingIndex(prompt, "# Storage Map")
+	inboxIndex := promptHeadingIndex(prompt, "# Team Inbox")
+	taskIndex := promptHeadingIndex(prompt, "# Heartbeat Task (HEARTBEAT.md)")
 
-	if agentIndex == -1 || teamDocIndex == -1 || respIndex == -1 || orgIndex == -1 || durableIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
+	if agentIndex == -1 || teamDocIndex == -1 || briefIndex == -1 || contractIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
-	if !(agentIndex < teamDocIndex && teamDocIndex < respIndex && respIndex < orgIndex && orgIndex < durableIndex && durableIndex < inboxIndex && inboxIndex < taskIndex) {
+	if !(agentIndex < teamDocIndex && teamDocIndex < briefIndex && briefIndex < contractIndex && contractIndex < respIndex && respIndex < orgIndex && orgIndex < storageIndex && storageIndex < inboxIndex && inboxIndex < taskIndex) {
 		t.Fatalf("prompt sections are out of order")
 	}
 
-	// Verify coordination skill section is present between org context and durable state
+	// Verify coordination skill section is present between org context and storage map
 	coordIndex := strings.Index(prompt, "# Team Coordination")
 	if coordIndex == -1 {
 		t.Fatalf("expected coordination skill section in prompt")
 	}
-	if !(orgIndex < coordIndex && coordIndex < durableIndex) {
-		t.Fatalf("coordination skill section should be between org context and durable state")
+	if !(orgIndex < coordIndex && coordIndex < storageIndex) {
+		t.Fatalf("coordination skill section should be between org context and storage map")
+	}
+
+	for _, want := range []string{
+		"# Storage Map",
+		"This heartbeat's concrete task is defined at the end of this prompt in `# Heartbeat Task (HEARTBEAT.md)`.",
+		"## Continue",
+		"Use your final `## HANDOFF` for short-term continuity.",
+		"## Observe",
+		"If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction.",
+		"## Propose",
+		"## Operate",
+		"## Authority Order",
+		"## Your Team Storage",
+		"Always available:",
+		"- decisions: propose reviewable changes",
+		"## Available Storage Commands",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing storage map content %q", want)
+		}
+	}
+	if strings.Contains(prompt, "# Durable State") {
+		t.Fatalf("prompt must not contain legacy durable state heading")
 	}
 }
 
@@ -295,6 +327,9 @@ func TestBuildContextOmitsHeartbeatSection(t *testing.T) {
 	if strings.Contains(prompt, "Ship update") {
 		t.Fatalf("BuildContext should not include heartbeat instructions content")
 	}
+	if !strings.Contains(prompt, "The active heartbeat task is intentionally omitted from member context.") {
+		t.Fatalf("BuildContext should explain that heartbeat task is omitted")
+	}
 }
 
 func TestBuildStructuredAgentOnly(t *testing.T) {
@@ -418,11 +453,12 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 	// Verify all expected kinds in correct order
 	expectedKinds := []string{
 		"agent-file",
+		"execution-brief",
 		"team-operating-contract",
 		"team-responsibilities",
 		"team-org-context",
 		"team-coordination",
-		"team-durable-state",
+		"team-storage-map",
 		"team-inbox",
 		"heartbeat-task",
 	}
@@ -605,10 +641,11 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	// All sections except heartbeat should be present
 	for _, section := range []string{
 		"# Agent Files (Markdown)",
+		"# Execution Brief",
 		"# Team Responsibilities (RESPONSIBILITIES.md)",
 		"# Team Org Context",
 		"# Team Coordination",
-		"# Durable State",
+		"# Storage Map",
 		"# Team Inbox",
 	} {
 		if !strings.Contains(prompt, section) {

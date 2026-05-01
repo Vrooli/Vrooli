@@ -68,7 +68,7 @@ The following groups summarize where covered/audit-pending entries cluster. See 
 - **Graph reads** — `graph {show,regenerate,orphans,skillless,empty-teams,unaffiliated,popular,cycles,health,node}`
 - **Topics** — `topic {list,show,create,update,delete,skills}`
 - **Tags** — `tag {list,create}`
-- **Teams core CRUD** — `team {list,show,create,update,delete,add-member,update-member,remove-member,roles,org-list,org-set,org-remove,message-*,heartbeat-list,heartbeat,heartbeat-enable,heartbeat-disable,heartbeat-trigger,heartbeat-logs,trigger,member-context,handoff-latest,handoff-history,responsibilities,heartbeat-instructions,import-cc,export-cc,retention,prune}`
+- **Teams core CRUD** — `team {list,show,create,update,delete,add-member,update-member,remove-member,roles,org-list,org-set,org-remove,message-*,heartbeat-list,heartbeat,heartbeat-enable,heartbeat-disable,heartbeat-trigger,heartbeat-logs,trigger,prompt-preview,prompt-preview-structured,prompt-matrix,member-context,handoff-latest,handoff-history,responsibilities,heartbeat-instructions,import-cc,export-cc,retention,prune}`
 
 ### ⚠️ Gap clusters (audit-pending — follow-up work)
 
@@ -89,13 +89,10 @@ The following groups summarize where covered/audit-pending entries cluster. See 
 - **Exclusive members** (1 route) — `GET /teams/{id}/exclusive-members` — likely UI-only, candidate for `intentionally-absent` after verification
 - **Available CC teams** (1 route) — `GET /teams/import/claude-code/available` — `import-cc` may bundle this; verify
 
-### 🚫 Intentionally absent (5)
+### 🚫 Intentionally absent (2)
 
 - `GET /health` — liveness probe
 - `GET /og-metadata` — server-side landing-page metadata fetch
-- `POST /prompt-preview` — UI-consumed preview API (operators use `team member-context`)
-- `POST /prompt-preview-structured` — UI-consumed structured preview
-- `GET /teams/{id}/prompt-matrix` — cross-member diff for the UI
 
 ---
 

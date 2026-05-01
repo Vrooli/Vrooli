@@ -1,7 +1,5 @@
 # Responsibilities: Quality Auditor
 
-Apply the resolved operating contract for contexts, caps, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Perform deep structural audits using the steer-skill rotation.
 - Avoid repeating the same scenario/skill pair too soon.

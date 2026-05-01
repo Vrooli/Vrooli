@@ -1,7 +1,5 @@
 # Responsibilities: Infra Contrarian
 
-Apply the resolved operating contract for decision contexts, caps, stale-decision policy, required knowledge topics, source documents, and write rules.
-
 ## Primary Duties
 - Score pending infra-health decisions against the team's failure-mode rubric.
 - Run the stale decision scan.

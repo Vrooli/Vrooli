@@ -2,8 +2,6 @@
 
 Push high-usage prose-heavy skills toward programmatic conversion, audit skill drift, improve skills that remain judgment-based, and propose deprecation of unused skills.
 
-Use the resolved operating contract for decision contexts, caps, write rules, source artifacts, and required knowledge topics.
-
 ## Selection Judgment
 
 Pick one skill through a usage-weighted priority ladder:

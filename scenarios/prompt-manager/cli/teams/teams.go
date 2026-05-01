@@ -642,6 +642,12 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdExportCC(ctx, subArgs)
 	case "trigger":
 		return cmdTriggerTeam(ctx, subArgs)
+	case "prompt-preview":
+		return cmdPromptPreview(ctx, subArgs)
+	case "prompt-preview-structured":
+		return cmdPromptPreviewStructured(ctx, subArgs)
+	case "prompt-matrix":
+		return cmdPromptMatrix(ctx, subArgs)
 	case "member-context":
 		return cmdMemberContext(ctx, subArgs)
 	case "operating-contract":
@@ -734,7 +740,10 @@ Member Document Commands:
   heartbeat-instructions <team-id> <agent-id> Get/set HEARTBEAT.md
 
 Context Commands:
-  member-context <team-id> <agent-id>         Get full member context prompt
+  prompt-preview <team-id> <agent-id>         Preview the full runtime heartbeat prompt
+  prompt-preview-structured <team-id> <agent-id> Preview ordered prompt sections
+  prompt-matrix <team-id>                     Show prompt sections for all members
+  member-context <team-id> <agent-id>         Get standing member context without HEARTBEAT.md
   operating-contract <team-id>                Print the team's stored operating contract
   validate-contract <team-id>                 Validate the team's operating contract
 
@@ -2130,6 +2139,192 @@ type MemberContextResponse struct {
 	TeamID  string `json:"teamId"`
 	AgentID string `json:"agentId"`
 	Prompt  string `json:"prompt"`
+}
+
+// PromptPreviewRequest is the request body for previewing a built prompt.
+type PromptPreviewRequest struct {
+	AgentID string `json:"agentId"`
+	TeamID  string `json:"teamId,omitempty"`
+}
+
+// PromptPreviewResponse is the flat full prompt preview response.
+type PromptPreviewResponse struct {
+	TeamID  string `json:"teamId,omitempty"`
+	AgentID string `json:"agentId"`
+	Prompt  string `json:"prompt"`
+}
+
+// PromptSection is one backend-ordered section in a structured prompt preview.
+type PromptSection struct {
+	Kind       string `json:"kind"`
+	Label      string `json:"label"`
+	SourcePath string `json:"sourcePath,omitempty"`
+	Content    string `json:"content"`
+}
+
+// StructuredPromptPreviewResponse is the structured prompt preview response.
+type StructuredPromptPreviewResponse struct {
+	TeamID   string          `json:"teamId,omitempty"`
+	AgentID  string          `json:"agentId"`
+	Sections []PromptSection `json:"sections"`
+}
+
+// TeamPromptMatrixEntry is one member row in the team prompt matrix.
+type TeamPromptMatrixEntry struct {
+	AgentID     string          `json:"agentId"`
+	DisplayName string          `json:"displayName"`
+	Sections    []PromptSection `json:"sections"`
+	Error       string          `json:"error,omitempty"`
+}
+
+// TeamPromptMatrixResponse is the prompt matrix response.
+type TeamPromptMatrixResponse struct {
+	TeamID  string                  `json:"teamId"`
+	Entries []TeamPromptMatrixEntry `json:"entries"`
+}
+
+func cmdPromptPreview(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("prompt-preview", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team prompt-preview <team-id> <agent-id> [--json]")
+	}
+
+	req := PromptPreviewRequest{TeamID: fs.Arg(0), AgentID: fs.Arg(1)}
+	var resp PromptPreviewResponse
+	if err := ctx.Post("/prompt-preview", req, &resp); err != nil {
+		return fmt.Errorf("failed to preview prompt: %w", err)
+	}
+
+	if *jsonOut {
+		return writeJSON(os.Stdout, resp)
+	}
+	fmt.Print(resp.Prompt)
+	return nil
+}
+
+func cmdPromptPreviewStructured(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("prompt-preview-structured", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team prompt-preview-structured <team-id> <agent-id> [--json]")
+	}
+
+	req := PromptPreviewRequest{TeamID: fs.Arg(0), AgentID: fs.Arg(1)}
+	var resp StructuredPromptPreviewResponse
+	if err := ctx.Post("/prompt-preview-structured", req, &resp); err != nil {
+		return fmt.Errorf("failed to preview structured prompt: %w", err)
+	}
+
+	if *jsonOut {
+		return writeJSON(os.Stdout, resp)
+	}
+	formatStructuredPromptPreview(os.Stdout, resp)
+	return nil
+}
+
+func cmdPromptMatrix(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("prompt-matrix", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team prompt-matrix <team-id> [--json]")
+	}
+
+	teamID := fs.Arg(0)
+	var resp TeamPromptMatrixResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/prompt-matrix", teamID), &resp); err != nil {
+		return fmt.Errorf("failed to get prompt matrix: %w", err)
+	}
+
+	if *jsonOut {
+		return writeJSON(os.Stdout, resp)
+	}
+	formatPromptMatrix(os.Stdout, resp)
+	return nil
+}
+
+func formatStructuredPromptPreview(w io.Writer, resp StructuredPromptPreviewResponse) {
+	fmt.Fprintf(w, "Prompt preview: team=%s agent=%s sections=%d\n\n", resp.TeamID, resp.AgentID, len(resp.Sections))
+	for i, section := range resp.Sections {
+		fmt.Fprintf(w, "## %d. %s\n", i+1, section.Label)
+		fmt.Fprintf(w, "Kind: %s\n", section.Kind)
+		if section.SourcePath != "" {
+			fmt.Fprintf(w, "Source: %s\n", section.SourcePath)
+		}
+		fmt.Fprintf(w, "Chars: %d\n\n", len(section.Content))
+		fmt.Fprintln(w, section.Content)
+		if i < len(resp.Sections)-1 {
+			fmt.Fprintln(w, "\n---")
+		}
+	}
+}
+
+func formatPromptMatrix(w io.Writer, resp TeamPromptMatrixResponse) {
+	fmt.Fprintf(w, "Prompt matrix: team=%s members=%d\n", resp.TeamID, len(resp.Entries))
+	if len(resp.Entries) == 0 {
+		return
+	}
+
+	kinds := promptMatrixKinds(resp.Entries)
+	fmt.Fprint(w, "Member")
+	for _, kind := range kinds {
+		fmt.Fprintf(w, "\t%s", kind)
+	}
+	fmt.Fprintln(w)
+
+	for _, entry := range resp.Entries {
+		name := entry.DisplayName
+		if name == "" {
+			name = entry.AgentID
+		}
+		if entry.Error != "" {
+			fmt.Fprintf(w, "%s\tERROR: %s\n", name, entry.Error)
+			continue
+		}
+		sectionsByKind := map[string]int{}
+		for _, section := range entry.Sections {
+			sectionsByKind[section.Kind] += len(section.Content)
+		}
+		fmt.Fprint(w, name)
+		for _, kind := range kinds {
+			if count, ok := sectionsByKind[kind]; ok {
+				fmt.Fprintf(w, "\t%d", count)
+			} else {
+				fmt.Fprint(w, "\t-")
+			}
+		}
+		fmt.Fprintln(w)
+	}
+}
+
+func promptMatrixKinds(entries []TeamPromptMatrixEntry) []string {
+	seen := map[string]struct{}{}
+	var kinds []string
+	for _, entry := range entries {
+		for _, section := range entry.Sections {
+			if _, ok := seen[section.Kind]; ok {
+				continue
+			}
+			seen[section.Kind] = struct{}{}
+			kinds = append(kinds, section.Kind)
+		}
+	}
+	return kinds
+}
+
+func writeJSON(w io.Writer, value interface{}) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(value)
 }
 
 func cmdMemberContext(ctx appctx.Context, args []string) error {

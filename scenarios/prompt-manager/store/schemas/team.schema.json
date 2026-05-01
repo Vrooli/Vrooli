@@ -137,7 +137,35 @@
       "properties": {
         "schemaVersion": { "type": "integer", "const": 1 },
         "governance": { "type": "object" },
-        "documents": { "type": "object" },
+        "documents": {
+          "type": "object",
+          "properties": {
+            "sharedState": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "charter",
+                      "task-board",
+                      "decision-log",
+                      "knowledge-log",
+                      "handoff-log",
+                      "working-register",
+                      "rolling-snapshot",
+                      "append-only-event-log",
+                      "operator-input"
+                    ],
+                    "description": "Internal JSON field for team working state. Agent-facing prompts call this team working state, not shared state."
+                  }
+                }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
         "decisionContexts": { "type": "object" },
         "knowledgeTopics": { "type": "object" },
         "members": { "type": "object" }

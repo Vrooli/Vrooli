@@ -17,8 +17,6 @@ Coordination happens outside the team in the morning vision walk, where the oper
 - **market-validator** — grounds pricing, retention, activation, and market assumptions in external evidence for the active tier and bundle.
 - **contrarian** — challenges pending decisions and fresh proposals against the team's named failure modes.
 
-Use the resolved operating contract for decision contexts, caps, source documents, write rules, knowledge topics, shared-state artifacts, and stale-decision policy.
-
 ## Operating Principles
 1. **Active focus first.** Default attention goes to active SKUs, the active base bundle, and the active delivery tier. Candidate surfaces are revisited only when their triggers fire.
 2. **Triggers beat vibes.** Candidate SKUs, channels, tiers, and services lines need concrete revisit or activation triggers. A candidate without a trigger is not operationally useful.

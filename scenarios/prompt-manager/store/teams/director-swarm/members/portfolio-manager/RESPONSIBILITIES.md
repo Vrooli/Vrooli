@@ -1,7 +1,5 @@
 # Responsibilities: Portfolio Manager
 
-Apply the resolved operating contract for decision contexts, caps, source documents, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Keep the initiative portfolio healthy inside Swarm Manager.
 - Apply accepted portfolio decisions before proposing new work.

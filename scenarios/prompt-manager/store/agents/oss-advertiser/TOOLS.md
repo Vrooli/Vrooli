@@ -12,5 +12,3 @@
 - `prompt-manager skill read seo-optimizer`
 - `prompt-manager skill read video-studio`
 - `prompt-manager skill read documentation-health`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

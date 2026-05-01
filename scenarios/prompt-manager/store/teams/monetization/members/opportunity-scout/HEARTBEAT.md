@@ -1,7 +1,5 @@
 # Heartbeat: Opportunity Scout
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 1. Scan external signal: market trends, competitor moves, and capability arrivals.
 2. Scan internal signal: recent operator vision-walk knowledge and new scenario surfaces.
@@ -16,11 +14,10 @@ Apply the resolved operating contract above.
 2. Read your last handoff, recent vision-walk knowledge, recent monetization knowledge, and recent candidate-pool entries.
 3. Generate candidate ideas only to the extent the signal supports them.
 4. Dedupe against the existing pool; update the interpretation rather than re-adding duplicates.
-5. Append new candidate-pool entries when allowed by the contract.
+5. Append new candidate-pool entries when the idea is distinct and triggerable.
 6. Run supersession against existing owned-context decisions before proposing replacements.
 7. Raise promotion or activation decisions only when the operator should decide now.
-8. Write the required scout-scan knowledge entry.
-9. End with `## HANDOFF`.
+8. Record the scout-scan knowledge entry.
 
 ## Entry Schema For Candidate Pool
 ```json

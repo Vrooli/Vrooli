@@ -239,7 +239,7 @@ GET /teams/{teamId}/execution-status
 
 ### Get Member Context
 
-Get the full context prompt for a team member (excludes HEARTBEAT.md task instructions). Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
+Get standing context for a team member without the active `HEARTBEAT.md` task instructions. Used by leader-led single-process teams or external workflows that need taskless teammate bootstrapping. Use `/prompt-preview` or `/prompt-preview-structured` to audit the full runtime heartbeat prompt.
 
 ```
 GET /teams/{teamId}/members/{agentId}/context

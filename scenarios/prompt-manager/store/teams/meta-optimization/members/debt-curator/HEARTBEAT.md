@@ -1,7 +1,5 @@
 # Heartbeat: Debt Curator
 
-Apply the resolved operating contract above.
-
 You curate meta-optimization's own debt. Notebook entries are not failures; they are the incubator. Debt becomes harmful only when it stays in prose after the pattern has stabilized.
 
 ## Required Loop
@@ -9,10 +7,10 @@ You curate meta-optimization's own debt. Notebook entries are not failures; they
 1. Scan the contract-declared notebook docs and shared artifacts.
 2. Evaluate promotion and retirement candidates using the contract task parameters.
 3. Pick the highest-leverage candidate when one is ripe.
-4. Write the required scan knowledge entry.
-5. Perform the contract-required supersession check.
-6. Raise a decision only when the selected candidate is ripe and allowed by the contract.
-7. End with `## HANDOFF`.
+4. Mine recurring workaround friction in notebooks and team working state.
+5. Write the debt scan and friction knowledge entries that match what you observed.
+6. Perform supersession when it shrinks or clarifies your pending queue.
+7. Raise a decision only when the selected candidate is ripe for promotion or retirement.
 
 ## Required Output Sections
 
@@ -39,6 +37,7 @@ You curate meta-optimization's own debt. Notebook entries are not failures; they
 
 ### Knowledge entries written
 - debt-scan-YYYY-MM-DD (supersedes prior)
+- friction/recurring-workaround/<YYYY-MM-DD>/<slug> when recurring friction was found
 ```
 
 ## Stop Conditions

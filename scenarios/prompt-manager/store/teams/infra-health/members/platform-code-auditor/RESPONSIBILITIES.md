@@ -1,7 +1,5 @@
 # Responsibilities: Platform Code Auditor
 
-Apply the resolved operating contract for decision contexts, caps, required knowledge topics, source documents, and write rules.
-
 ## Primary Duties
 - Audit one internal Vrooli platform slice per heartbeat.
 - Score architecture, security, test coverage, documentation, portability, signal quality, and instrumentation where relevant.

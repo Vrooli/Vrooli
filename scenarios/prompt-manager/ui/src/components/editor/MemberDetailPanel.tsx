@@ -177,7 +177,7 @@ export function MemberDetailPanel({
       }
     }
     void loadData()
-  }, [team.id, member.agentId])
+	}, [team.id, member.agentId, navigate])
 
   // Handle role toggle
   const handleToggleRole = useCallback(
@@ -308,7 +308,7 @@ export function MemberDetailPanel({
       console.error('Failed to trigger heartbeat:', err)
       toast({ title: 'Failed to trigger heartbeat', variant: 'destructive' })
     }
-  }, [team.id, member.agentId])
+  }, [team.id, member.agentId, navigate])
 
   const recentHeartbeats = useMemo(() => {
     const entries: {

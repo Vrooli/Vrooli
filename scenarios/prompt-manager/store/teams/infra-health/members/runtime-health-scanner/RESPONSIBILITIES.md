@@ -1,7 +1,5 @@
 # Responsibilities: Runtime Health Scanner
 
-Apply the resolved operating contract for decision contexts, caps, required knowledge topics, source documents, and write rules.
-
 ## Primary Duties
 - Inspect aggregate runtime health since the previous heartbeat.
 - Use the triage ladder to pick one signal worth deeper investigation.

@@ -1,7 +1,5 @@
 # Heartbeat: Platform Code Auditor
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 Audit one platform slice deeply. The goal is actionable reliability signal, not broad inspection theater. Track grades honestly and choose the finding with the largest practical impact.
 
@@ -10,11 +8,10 @@ Audit one platform slice deeply. The goal is actionable reliability signal, not 
 2. Inspect the slice across the core dimensions and one platform-specific focus.
 3. Identify the top finding, if any.
 4. Update the rolling platform audit artifact.
-5. Write the required knowledge snapshot.
+5. Record the platform-audit knowledge snapshot.
 6. Check supersession on owned pending decisions.
-7. Raise decisions only when allowed by the contract and backed by concrete evidence.
+7. Propose decisions when backed by concrete evidence.
 8. Attach proposed plan-of-record diffs inside decisions when relevant.
-9. End with HANDOFF.
 
 ## Handoff Shape
 ### Slice audited

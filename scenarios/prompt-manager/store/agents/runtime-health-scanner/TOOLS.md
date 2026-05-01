@@ -12,5 +12,3 @@
 - `prompt-manager skill read agent-manager-process-investigation`
 - `prompt-manager skill read capability-extraction`
 - `prompt-manager skill read signal-and-feedback-surface-design`
-
-Use the resolved operating contract for source-document paths, writable surfaces, and capability-gap routing.

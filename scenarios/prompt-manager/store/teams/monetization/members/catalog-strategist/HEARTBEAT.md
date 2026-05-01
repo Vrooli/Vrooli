@@ -1,7 +1,5 @@
 # Heartbeat: Catalog Strategist
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 Each heartbeat, answer these questions in order:
 
@@ -19,9 +17,8 @@ Each heartbeat, answer these questions in order:
 4. Evaluate candidate SKU, channel, tier, and services-line triggers mechanically.
 5. Evaluate scenario role mappings against current reality.
 6. Run supersession against existing owned-context decisions before proposing replacements.
-7. Raise decisions only when warranted and allowed by the contract.
-8. Write the required catalog-snapshot knowledge entry.
-9. End with `## HANDOFF`.
+7. Propose decisions when warranted.
+8. Record the catalog-snapshot knowledge entry.
 
 ## Honesty Flags
 Label readiness and trigger claims:

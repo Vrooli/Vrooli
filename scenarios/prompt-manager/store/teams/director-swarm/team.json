@@ -139,7 +139,7 @@
             "base": "team-shared",
             "path": "TEAM.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "charter",
           "required": true
         },
         {
@@ -148,7 +148,7 @@
             "base": "team-shared",
             "path": "decisions.jsonl"
           },
-          "kind": "decision-stream",
+          "kind": "decision-log",
           "required": true
         },
         {
@@ -157,7 +157,7 @@
             "base": "team-shared",
             "path": "handoff-history.jsonl"
           },
-          "kind": "handoff-history",
+          "kind": "handoff-log",
           "required": true
         },
         {

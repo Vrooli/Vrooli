@@ -1,7 +1,5 @@
 # Responsibilities: Subscription Advertiser
 
-Apply the resolved operating contract for decision contexts, caps, source documents, shared state, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Draft marketing artifacts for subscription SKUs, bundles, and add-ons.
 - Prioritize deployed coverage gaps and committed launch windows.

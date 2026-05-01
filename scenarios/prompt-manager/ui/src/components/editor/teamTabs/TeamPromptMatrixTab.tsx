@@ -14,34 +14,6 @@ import * as agentService from '@/services/agentService'
 import { SectionCard } from '../tabs/SectionCard'
 
 // ---------------------------------------------------------------------------
-// Section kind display order
-// ---------------------------------------------------------------------------
-
-const SECTION_KIND_ORDER = [
-  'agent-file',
-  'team-shared-charter',
-  'team-responsibilities',
-  'team-org-context',
-  'team-coordination',
-  'team-durable-state',
-  'team-inbox',
-  'last-handoff',
-  'heartbeat-task',
-] as const
-
-const SECTION_KIND_LABELS: Record<string, string> = {
-  'agent-file': 'Files',
-  'team-shared-charter': 'Charter',
-  'team-responsibilities': 'Responsibilities',
-  'team-org-context': 'Org',
-  'team-coordination': 'Coordination',
-  'team-durable-state': 'Durable State',
-  'team-inbox': 'Inbox',
-  'last-handoff': 'Handoff',
-  'heartbeat-task': 'Heartbeat',
-}
-
-// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
@@ -88,13 +60,28 @@ export function TeamPromptMatrixTab({
 
   // Determine which section kinds are present across all entries
   const activeKinds = useMemo(() => {
-    const found = new Set<string>()
+    const found: string[] = []
+    const seen = new Set<string>()
     for (const entry of entries) {
       for (const section of entry.sections) {
-        found.add(section.kind)
+        if (seen.has(section.kind)) continue
+        seen.add(section.kind)
+        found.push(section.kind)
       }
     }
-    return SECTION_KIND_ORDER.filter((k) => found.has(k))
+    return found
+  }, [entries])
+
+  const labelsByKind = useMemo(() => {
+    const labels = new Map<string, string>()
+    for (const entry of entries) {
+      for (const section of entry.sections) {
+        if (!labels.has(section.kind)) {
+          labels.set(section.kind, section.label)
+        }
+      }
+    }
+    return labels
   }, [entries])
 
   const totalChars = useMemo(
@@ -181,7 +168,7 @@ export function TeamPromptMatrixTab({
                     key={kind}
                     className="px-3 py-2 text-center text-xs font-medium text-muted-foreground"
                   >
-                    {SECTION_KIND_LABELS[kind] ?? kind}
+                    {labelsByKind.get(kind) ?? kind}
                   </th>
                 )
               })}

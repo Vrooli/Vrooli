@@ -257,7 +257,7 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 
 	// Member spawning
 	b.WriteString("## 3. Spawn Direct Reports\n\n")
-	b.WriteString("Spawn each direct report as a subagent. In your first message to each teammate, instruct them to run:\n\n")
+	b.WriteString("Spawn each direct report as a subagent. In your first message to each teammate, instruct them to load standing context without the active heartbeat task:\n\n")
 	b.WriteString(fmt.Sprintf("`prompt-manager team member-context %s <agent-id>`\n\n", ctx.TeamID))
 	b.WriteString("Then give them a concrete deliverable format for this heartbeat.\n\n")
 	b.WriteString("Direct reports to spawn:\n\n")
@@ -271,7 +271,7 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 	// Coordination
 	b.WriteString("## 4. Coordination\n\n")
 	b.WriteString("- Use your coding agent's built-in subagent messaging for in-session coordination.\n")
-	b.WriteString("- Use `prompt-manager` CLI commands via Bash for durable state: task board, decision log, knowledge log, handoff history, and member context.\n")
+	b.WriteString("- Use `prompt-manager` CLI commands via Bash for persistent storage: task board, decision log, knowledge log, handoff history, and taskless member context.\n")
 	b.WriteString("- Do not use `prompt-manager team message-send` for your in-session subagents unless you intentionally want an asynchronous inbox message for a future heartbeat.\n")
 	b.WriteString("- Monitor teammate status, synthesize their findings, and avoid parallel tool misuse that leaves the run hanging.\n\n")
 

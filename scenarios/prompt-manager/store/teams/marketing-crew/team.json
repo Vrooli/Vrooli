@@ -249,7 +249,7 @@
             "base": "team-shared",
             "path": "TEAM.md"
           },
-          "kind": "rolling-artifact",
+          "kind": "charter",
           "required": true
         },
         {
@@ -258,7 +258,7 @@
             "base": "team-shared",
             "path": "audience-scans.jsonl"
           },
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true,
           "ownerMemberId": "researcher"
         },
@@ -268,7 +268,7 @@
             "base": "team-shared",
             "path": "campaign-drafts.jsonl"
           },
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true
         },
         {
@@ -277,7 +277,7 @@
             "base": "team-shared",
             "path": "decisions.jsonl"
           },
-          "kind": "decision-stream",
+          "kind": "decision-log",
           "required": true
         },
         {
@@ -286,7 +286,7 @@
             "base": "team-shared",
             "path": "handoff-history.jsonl"
           },
-          "kind": "handoff-history",
+          "kind": "handoff-log",
           "required": true
         },
         {
@@ -304,7 +304,7 @@
             "base": "team-shared",
             "path": "publish-log.jsonl"
           },
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true,
           "ownerMemberId": "publisher"
         },
@@ -314,7 +314,7 @@
             "base": "team-shared",
             "path": "published-improvements-log.jsonl"
           },
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true,
           "ownerMemberId": "publisher"
         },
@@ -324,7 +324,7 @@
             "base": "team-shared",
             "path": "published-scenario-mentions.jsonl"
           },
-          "kind": "append-only-log",
+          "kind": "append-only-event-log",
           "required": true,
           "ownerMemberId": "publisher"
         },
@@ -334,7 +334,7 @@
             "base": "team-shared",
             "path": "coverage/business.json"
           },
-          "kind": "operator-state",
+          "kind": "working-register",
           "required": true,
           "ownerMemberId": "publisher"
         },
@@ -344,7 +344,7 @@
             "base": "team-shared",
             "path": "coverage/oss-platform.json"
           },
-          "kind": "operator-state",
+          "kind": "working-register",
           "required": true,
           "ownerMemberId": "publisher"
         }

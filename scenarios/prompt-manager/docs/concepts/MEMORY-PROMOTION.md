@@ -7,12 +7,27 @@ Status: proposed. This document defines the ontology prompt-manager should use w
 ## Core Ontology
 
 ```text
-Notebook = raw observations
+Continue -> handoff
+Observe  -> knowledge, notebook, friction evidence
+Propose  -> decisions
+Operate  -> team working state
+```
+
+Promotion starts after observation. Knowledge log entries hold structured evidence, snapshots, findings, and concrete friction signals from a heartbeat. Notebook entries hold unresolved patterns, workarounds, and rough lessons that are not ready for durable structure. Plan-of-record docs hold accepted durable truth.
+
+Team working state is different: it is team-local operational memory such as task boards, ledgers, registers, rolling audits, append-only logs, and operator input files. It is not automatically canonical outside the team.
+
+The promotion destination ontology is:
+
+```text
+Knowledge = structured observation/evidence memory
+Notebook = unresolved learning debt
 Plan of Record = accepted durable truth
 Skill = reusable judgment/process guidance
 Action = typed executable operation
 CLI = implementation of behavior
 Backlog = unbuilt or broken behavior
+Decision = reviewable proposal to change a durable surface
 ```
 
 The short form:
@@ -23,7 +38,9 @@ If it says how to decide -> Skill.
 If it says what to run -> Action.
 If it says how it works -> CLI implementation.
 If it says what is missing -> Backlog/capability-gap.
-If it is unverified or one-off -> Notebook.
+If it is evidence or a measurement -> Knowledge.
+If it is unverified, recurring, or a workaround -> Notebook.
+If it is missing, broken, confusing, slow, undocumented, or harder than expected -> friction observation.
 ```
 
 This keeps prompt-manager from turning every useful note into prose. It also prevents deterministic operations from staying trapped inside agent instructions after the system can execute them directly.
@@ -32,16 +49,18 @@ This keeps prompt-manager from turning every useful note into prose. It also pre
 
 | Form | Responsibility | Typical owner |
 |------|----------------|---------------|
-| Notebook | Raw findings, unverified observations, workarounds, exploratory notes | Any agent or team |
+| Knowledge | Structured observations, evidence, measurements, snapshots, findings, concrete friction signals | Any agent or team |
+| Notebook | Unresolved patterns, recurring workarounds, rough lessons, learning debt | Any agent or team |
 | Plan of Record | Accepted durable truth, policy, architecture, canonical context | Operator or curator |
 | Skill | Judgment, decision process, methodology, reusable guidance | Skill authoring / optimization lane |
 | Action | Typed execution wrapper over one Vrooli-controlled CLI command | Prompt-manager Action registry |
 | CLI | Implementation, branching, retries, validation, operational behavior | Scenario/resource/project owner |
 | Backlog | Missing or broken behavior that needs implementation | Swarm-manager / owning scenario |
+| Decision | Reviewable proposal to change a durable surface | Owning team/member |
 
 ## Promotion Decision Tree
 
-For each notebook entry:
+For each notebook or knowledge entry:
 
 1. Is it still true and useful?
    - No: retire, archive, or mark obsolete.
@@ -112,6 +131,32 @@ Then classify:
 - Workaround revealed a durable rule -> Plan of Record update
 
 A single workaround can produce more than one output, but the curator should usually promote the highest-leverage next step first and leave breadcrumbs for later work.
+
+## Friction Handling
+
+Friction is an Observe subcase:
+
+```text
+Something expected was missing, broken, confusing, slow, undocumented, misplaced, unstable, or harder than it should have been.
+```
+
+Route friction through the lightest useful durable form:
+
+- Minor or one-off friction goes in the final handoff when it helps the next run.
+- Concrete friction that is not blocking becomes a knowledge topic using `friction/<surface>/<YYYY-MM-DD>/<slug>`.
+- Recurring friction or workarounds go into the notebook when the team has one.
+- Missing or broken capability that blocks work becomes a decision in the relevant capability-gap, bug, instrumentation, CLI, skill, scenario, or team context.
+
+Good friction notes include:
+
+```markdown
+Expected: ...
+Actual: ...
+Surface: ...
+Workaround: ...
+Impact: ...
+Recurrence: one-off | recurring | unknown
+```
 
 ## Promotion Pipeline
 

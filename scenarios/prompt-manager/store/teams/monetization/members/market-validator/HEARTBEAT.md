@@ -1,7 +1,5 @@
 # Heartbeat: Market Validator
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 Pick the highest-leverage market-validation task for this heartbeat:
 
@@ -18,11 +16,10 @@ Do not attempt all of these every heartbeat.
 2. Read your last handoff, recent market scans, and pending decisions in your owned contexts.
 3. Choose the one or two highest-leverage external checks.
 4. Gather evidence from competitor pages, public SaaS benchmark reports, or industry publications.
-5. Append scan entries when allowed by the contract.
+5. Append scan entries when they add distinct evidence.
 6. Run supersession against existing owned-context decisions before proposing replacements.
-7. Raise decisions only when the finding materially changes a benchmark, pricing question, or model assumption.
-8. Write the required market-scan knowledge entry.
-9. End with `## HANDOFF`.
+7. Propose decisions when the finding materially changes a benchmark, pricing question, or model assumption.
+8. Record the market-scan knowledge entry.
 
 ## Entry Schema For Market Scans
 ```json

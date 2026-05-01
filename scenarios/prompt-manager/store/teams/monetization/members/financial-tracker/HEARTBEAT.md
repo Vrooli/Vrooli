@@ -1,7 +1,5 @@
 # Heartbeat: Financial Tracker
 
-Apply the resolved operating contract above.
-
 ## Reasoning Framework
 Each heartbeat, compute and label:
 
@@ -20,10 +18,9 @@ Each heartbeat, compute and label:
 4. Compute the current snapshot with honesty flags.
 5. Identify material deltas and assumption drift.
 6. Run supersession against existing owned-context decisions before proposing replacements.
-7. Append the ledger entry when allowed by the contract.
-8. Raise decisions only when the math materially changes an operator choice.
-9. Write the required ledger-snapshot knowledge entry.
-10. End with `## HANDOFF`.
+7. Append the ledger entry when the snapshot has supported data.
+8. Propose decisions when the math materially changes an operator choice.
+9. Record the ledger-snapshot knowledge entry.
 
 ## Ledger Entry Shape
 ```json

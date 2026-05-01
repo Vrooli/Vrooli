@@ -1,7 +1,5 @@
 # Responsibilities: Financial Tracker
 
-Apply the resolved operating contract for decision contexts, caps, source documents, write rules, and required knowledge topics.
-
 ## Primary Duties
 - Maintain the monetization ledger: cash, costs, revenue, channel attribution, time allocation, runway, and default-alive gap.
 - Emit a structured ledger snapshot each heartbeat.

@@ -2,8 +2,6 @@
 
 Inspect recent agent-manager runs and turn execution evidence into durable lessons.
 
-Use the resolved operating contract for decision contexts, caps, write rules, source documents, and required knowledge topics.
-
 ## Triage Standard
 
 Pick one run per heartbeat through this priority ladder:

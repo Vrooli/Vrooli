@@ -11,9 +11,6 @@ Leaderless / independent. Each member owns a lane and produces its own first-cla
 - platform-code-auditor: audits internal Vrooli platform code and records concrete platform findings.
 - infra-contrarian: challenges pending infra-health decisions and runs queue aging hygiene.
 
-## Operating Contract
-The structured `operatingContract` in `team.json` is authoritative for decision contexts, caps, stale-decision policy, read-only behavior, knowledge topic supersession, source documents, shared-state artifacts, and write rules.
-
 ## Principles
 - Depth over breadth: one load-bearing signal or slice per heartbeat.
 - Findings are routed through decisions; agents do not edit platform code or plan-of-record docs directly.
