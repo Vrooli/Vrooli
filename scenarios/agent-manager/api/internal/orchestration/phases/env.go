@@ -30,8 +30,17 @@ package phases
 
 import (
 	"agent-manager/internal/domain"
+	"os"
 
 	"github.com/google/uuid"
+)
+
+const (
+	envAgentIdentityToken      = "VROOLI_AGENT_IDENTITY_TOKEN"
+	envAgentManagerAPIBase     = "VROOLI_AGENT_MANAGER_API_BASE"
+	envScenarioAPIBase         = "API_BASE_URL"
+	envScenarioAPIPort         = "API_PORT"
+	defaultAgentManagerAPIPort = "18800"
 )
 
 // SandboxEnvInput is the explicit input for SandboxEnvVars.
@@ -61,13 +70,32 @@ func SandboxEnvVars(in SandboxEnvInput) map[string]string {
 	return vars
 }
 
-// IdentityEnvVars returns the VROOLI_AGENT_IDENTITY_TOKEN env var when a
-// non-empty token was generated for this run, or nil otherwise.
+// IdentityEnvVars returns the identity env vars needed by agent processes.
+// The token lets consumers prove which Agent Manager run is acting. The API
+// base lets cli-core verify that token without relying on caller-supplied env.
 func IdentityEnvVars(token string) map[string]string {
 	if token == "" {
 		return nil
 	}
-	return map[string]string{"VROOLI_AGENT_IDENTITY_TOKEN": token}
+	vars := map[string]string{envAgentIdentityToken: token}
+	if baseURL := resolveAgentManagerAPIBaseEnv(); baseURL != "" {
+		vars[envAgentManagerAPIBase] = baseURL
+	}
+	return vars
+}
+
+func resolveAgentManagerAPIBaseEnv() string {
+	if baseURL := os.Getenv(envAgentManagerAPIBase); baseURL != "" {
+		return baseURL
+	}
+	if baseURL := os.Getenv(envScenarioAPIBase); baseURL != "" {
+		return baseURL
+	}
+	port := os.Getenv(envScenarioAPIPort)
+	if port == "" {
+		port = defaultAgentManagerAPIPort
+	}
+	return "http://localhost:" + port
 }
 
 // MergeEnvInput bundles the inputs to MergeEnvVars — the three sources of

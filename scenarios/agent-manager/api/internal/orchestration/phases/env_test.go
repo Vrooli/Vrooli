@@ -64,6 +64,10 @@ func TestSandboxEnvVars_OmitsScopeWhenEmpty(t *testing.T) {
 }
 
 func TestIdentityEnvVars(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "")
+	t.Setenv("API_BASE_URL", "")
+	t.Setenv("API_PORT", "")
+
 	if got := IdentityEnvVars(""); got != nil {
 		t.Errorf("expected nil for empty token, got %v", got)
 	}
@@ -71,13 +75,39 @@ func TestIdentityEnvVars(t *testing.T) {
 	if got["VROOLI_AGENT_IDENTITY_TOKEN"] != "tok-1" {
 		t.Errorf("token not forwarded: %v", got)
 	}
+	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://localhost:18800" {
+		t.Errorf("agent-manager API base = %q, want default base", got["VROOLI_AGENT_MANAGER_API_BASE"])
+	}
+}
+
+func TestIdentityEnvVars_UsesConfiguredAgentManagerBase(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "http://agent-manager.internal:18800")
+	t.Setenv("API_BASE_URL", "http://wrong.example")
+	t.Setenv("API_PORT", "19999")
+
+	got := IdentityEnvVars("tok-1")
+	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://agent-manager.internal:18800" {
+		t.Errorf("agent-manager API base = %q, want configured VROOLI_AGENT_MANAGER_API_BASE", got["VROOLI_AGENT_MANAGER_API_BASE"])
+	}
+}
+
+func TestIdentityEnvVars_FallsBackToScenarioAPIBase(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "")
+	t.Setenv("API_BASE_URL", "http://localhost:19901")
+	t.Setenv("API_PORT", "19999")
+
+	got := IdentityEnvVars("tok-1")
+	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://localhost:19901" {
+		t.Errorf("agent-manager API base = %q, want API_BASE_URL fallback", got["VROOLI_AGENT_MANAGER_API_BASE"])
+	}
 }
 
 func TestMergeEnvVars_SystemOverridesCustom(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "http://agent-manager.internal:18800")
 	got := MergeEnvVars(MergeEnvInput{
-		Custom:   map[string]string{"VROOLI_SANDBOX_ID": "evil", "USER_KEY": "1"},
+		Custom:   map[string]string{"VROOLI_SANDBOX_ID": "evil", "VROOLI_AGENT_MANAGER_API_BASE": "evil", "USER_KEY": "1"},
 		Sandbox:  map[string]string{"VROOLI_SANDBOX_ID": "real"},
-		Identity: map[string]string{"VROOLI_AGENT_IDENTITY_TOKEN": "tok"},
+		Identity: IdentityEnvVars("tok"),
 	})
 	if got["VROOLI_SANDBOX_ID"] != "real" {
 		t.Errorf("custom must not shadow sandbox env: %v", got["VROOLI_SANDBOX_ID"])
@@ -87,6 +117,9 @@ func TestMergeEnvVars_SystemOverridesCustom(t *testing.T) {
 	}
 	if got["VROOLI_AGENT_IDENTITY_TOKEN"] != "tok" {
 		t.Errorf("identity not merged: %v", got)
+	}
+	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://agent-manager.internal:18800" {
+		t.Errorf("custom must not shadow identity API base: %v", got["VROOLI_AGENT_MANAGER_API_BASE"])
 	}
 }
 
