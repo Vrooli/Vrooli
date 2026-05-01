@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 func TestCmdAISearchSearch_RejectsEmptyArgs(t *testing.T) {
@@ -22,7 +23,7 @@ func TestCmdAISearchSearch_RejectsEmptyArgs(t *testing.T) {
 
 func TestCmdAISearchSearch_SendsExpectedPayload(t *testing.T) {
 	var got map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -35,9 +36,7 @@ func TestCmdAISearchSearch_SendsExpectedPayload(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"results":[{"entity":"backlog","id":"alpha","score":0.9,"scorePercent":90,"payload":{"title":"Alpha","status":"ready"}}],"total":1,"query":"retry","entity":"backlog","fallback":"none","latencyMs":12}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -76,11 +75,9 @@ func TestCmdAISearchSearch_SendsExpectedPayload(t *testing.T) {
 }
 
 func TestCmdAISearchStatus_RendersOperational(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"available":true,"ollama":true,"qdrant":true,"indexedBacklog":5,"indexedInitiatives":2,"onDiskBacklog":5,"onDiskInitiatives":2}`))
 	}))
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -92,7 +89,7 @@ func TestCmdAISearchStatus_RendersOperational(t *testing.T) {
 
 func TestCmdAISearchReindex_StartsJob(t *testing.T) {
 	called := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/search/ai/reindex" && r.Method == http.MethodPost {
 			called = true
 			w.WriteHeader(http.StatusAccepted)
@@ -101,8 +98,6 @@ func TestCmdAISearchReindex_StartsJob(t *testing.T) {
 		}
 		t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 	}))
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -116,14 +111,12 @@ func TestCmdAISearchReindex_StartsJob(t *testing.T) {
 }
 
 func TestCmdAISearchReindexStatus_RendersProgress(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/search/ai/reindex/status" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		_, _ = w.Write([]byte(`{"running":false,"indexed":5,"total":5,"finishedAt":"2026-04-20T00:00:00Z"}`))
 	}))
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -135,7 +128,7 @@ func TestCmdAISearchReindexStatus_RendersProgress(t *testing.T) {
 
 func TestCmdAISearchReindex_WaitPollsUntilComplete(t *testing.T) {
 	var statusCalls int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/search/ai/reindex":
 			w.WriteHeader(http.StatusAccepted)
@@ -151,8 +144,6 @@ func TestCmdAISearchReindex_WaitPollsUntilComplete(t *testing.T) {
 			t.Fatalf("unexpected: %s", r.URL.Path)
 		}
 	}))
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -166,11 +157,9 @@ func TestCmdAISearchReindex_WaitPollsUntilComplete(t *testing.T) {
 }
 
 func TestCmdAISearchSearch_FallbackRendersHint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"results":[],"total":0,"query":"x","entity":"both","fallback":"unavailable","latencyMs":1}`))
 	}))
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)

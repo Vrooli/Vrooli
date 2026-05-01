@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 const fixesContextResponse = `{
@@ -24,14 +25,19 @@ const fixesContextResponse = `{
   }
 }`
 
-func newFixesTestServer(t *testing.T) *httptest.Server {
+func newFixesTestApp(t *testing.T) *App {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/scenarios/web-console/context" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		_, _ = w.Write([]byte(fixesContextResponse))
 	}))
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	return app
 }
 
 func TestCmdScenariosFixes_RequiresName(t *testing.T) {
@@ -55,14 +61,7 @@ func TestCmdScenariosFixes_MutuallyExclusiveScopeFlags(t *testing.T) {
 }
 
 func TestCmdScenariosFixes_AllScopeJSONIncludesBothPartitions(t *testing.T) {
-	server := newFixesTestServer(t)
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
-
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
+	app := newFixesTestApp(t)
 
 	stdout := captureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console", "--all", "--json"})
@@ -85,14 +84,7 @@ func TestCmdScenariosFixes_AllScopeJSONIncludesBothPartitions(t *testing.T) {
 }
 
 func TestCmdScenariosFixes_ActiveScopeExcludesArchived(t *testing.T) {
-	server := newFixesTestServer(t)
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
-
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
+	app := newFixesTestApp(t)
 
 	stdout := captureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console", "--active", "--json"})
@@ -112,14 +104,7 @@ func TestCmdScenariosFixes_ActiveScopeExcludesArchived(t *testing.T) {
 }
 
 func TestCmdScenariosFixes_SearchFiltersByTitle(t *testing.T) {
-	server := newFixesTestServer(t)
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
-
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
+	app := newFixesTestApp(t)
 
 	stdout := captureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console", "--all", "--search", "regression", "--json"})
@@ -143,14 +128,7 @@ func TestCmdScenariosFixes_SearchFiltersByTitle(t *testing.T) {
 }
 
 func TestCmdScenariosFixes_HumanOutputRendersHeadings(t *testing.T) {
-	server := newFixesTestServer(t)
-	defer server.Close()
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
-
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
+	app := newFixesTestApp(t)
 
 	stdout := captureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console"})

@@ -5,13 +5,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"swarm-manager/internal/testutil"
+	"swarm-manager/internal/testutil/mocks"
 )
 
 func TestList_EncodeError(t *testing.T) {
 	h, _ := setupTestHandler(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/backlog", nil)
-	writer := &testutil.ErrorWriter{}
+	writer := &mocks.ErrorWriter{}
 
 	h.List(writer, req)
 

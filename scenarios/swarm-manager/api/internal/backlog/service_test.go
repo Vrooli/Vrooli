@@ -11,6 +11,7 @@ import (
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
+	"swarm-manager/internal/testutil/mocks"
 )
 
 // fakeAttacher records RememberItem calls so tests can assert
@@ -74,17 +75,6 @@ func (w *fakeWorkshop) MaybeStartWorkshop(item BacklogItem) {
 	w.calls = append(w.calls, string(item.Kind)+"/"+item.Name)
 }
 
-type fakeInvalidator struct {
-	mu    sync.Mutex
-	calls int
-}
-
-func (i *fakeInvalidator) ScheduleAll() {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	i.calls++
-}
-
 type fakeSessionArtifacts struct {
 	mu        sync.Mutex
 	artifacts []agentsessions.Artifact
@@ -134,7 +124,7 @@ type serviceTestEnv struct {
 	att       *fakeAttacher
 	events    *fakeEvents
 	workshop  *fakeWorkshop
-	inv       *fakeInvalidator
+	inv       *mocks.RecordingScheduler
 	artifacts *fakeSessionArtifacts
 	svc       *Service
 }
@@ -152,7 +142,7 @@ func newServiceTestEnv(t *testing.T) *serviceTestEnv {
 		att:       &fakeAttacher{},
 		events:    &fakeEvents{},
 		workshop:  &fakeWorkshop{},
-		inv:       &fakeInvalidator{},
+		inv:       &mocks.RecordingScheduler{},
 		artifacts: &fakeSessionArtifacts{},
 	}
 	svc, err := NewService(ServiceConfig{
@@ -264,8 +254,8 @@ func TestService_Create_HumanHTTP_TriggersWorkshopAndEmitsUserActor(t *testing.T
 	if got := len(env.att.calls); got != 1 {
 		t.Errorf("RememberItem calls = %d, want 1", got)
 	}
-	if env.inv.calls != 1 {
-		t.Errorf("ScheduleAll calls = %d, want 1", env.inv.calls)
+	if got := env.inv.Count(); got != 1 {
+		t.Errorf("ScheduleAll calls = %d, want 1", got)
 	}
 }
 
@@ -286,8 +276,8 @@ func TestService_Create_Batch_TriggersWorkshopUnlessSkipped(t *testing.T) {
 	if len(env.workshop.calls) != 0 {
 		t.Errorf("SkipWorkshopTrigger ignored: workshop fired %v", env.workshop.calls)
 	}
-	if env.inv.calls != 0 {
-		t.Errorf("SkipGraphInvalidation ignored: ScheduleAll fired %d times", env.inv.calls)
+	if got := env.inv.Count(); got != 0 {
+		t.Errorf("SkipGraphInvalidation ignored: ScheduleAll fired %d times", got)
 	}
 	if len(env.att.calls) != 0 {
 		t.Errorf("SkipInitiativeAttach ignored: RememberItem fired %v", env.att.calls)

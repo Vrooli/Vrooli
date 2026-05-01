@@ -1,0 +1,16 @@
+{
+  "id": "sess_ebebf52a1b3ced65",
+  "title": "Plan work with agent",
+  "kind": "meta_orchestration",
+  "status": "failed",
+  "skill_id": "swarm-manager-meta-orchestrator",
+  "task_id": "842873f9-8cea-48c6-b8f4-c7d6c3f2ae17",
+  "run_id": "3df6695e-5833-4ec7-a993-8835115a4f9d",
+  "profile_key": "swarm-manager/default",
+  "failure_reason": "=== Process Log (stderr) | Sandbox ac9ec67f-e38a-4f13-a18e-45df09f006a0 | Started 2026-05-01T18:33:29-04:00 ===\n\n\n=== Process Exited: code 1 signal 0 oom false | 2026-05-01T18:33:33-04:00 ===",
+  "created_at": "2026-05-01T22:33:29Z",
+  "updated_at": "2026-05-01T22:33:35Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

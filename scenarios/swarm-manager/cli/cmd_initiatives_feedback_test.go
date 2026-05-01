@@ -11,16 +11,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
-// newFeedbackTestApp spins up an httptest server and configures an App to
-// talk to it. Returns the server so tests can close it and inspect handler
-// invocations, plus the App.
+// newFeedbackTestApp spins up an API test server and configures an App to talk to it.
 func newFeedbackTestApp(t *testing.T, handler http.Handler) (*App, *httptest.Server) {
 	t.Helper()
-	server := httptest.NewServer(handler)
-	t.Cleanup(server.Close)
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	server := clitest.NewAPIServer(t, handler)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)

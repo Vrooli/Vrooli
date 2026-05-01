@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,20 +9,8 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/testutil/mocks"
 )
-
-type handlerCreateStubAgentService struct {
-	spawnErr error
-}
-
-func (s *handlerCreateStubAgentService) IsEnabled() bool { return true }
-
-func (s *handlerCreateStubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	if s.spawnErr != nil {
-		return agentmanager.RunResult{}, s.spawnErr
-	}
-	return agentmanager.RunResult{TaskID: "task-test", RunID: "run-test"}, nil
-}
 
 func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	root := t.TempDir()
@@ -38,9 +25,12 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: &handlerCreateStubAgentService{spawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed)},
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		AgentService: &mocks.AgentSpawner{
+			Enabled:  true,
+			SpawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed),
+		},
 	})
 	handler := NewHandlerFromService(service)
 

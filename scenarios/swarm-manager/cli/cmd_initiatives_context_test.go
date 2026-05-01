@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 func TestCmdInitiativesContext_HumanOutput(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -32,9 +33,7 @@ func TestCmdInitiativesContext_HumanOutput(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -47,13 +46,11 @@ func TestCmdInitiativesContext_HumanOutput(t *testing.T) {
 
 func TestCmdInitiativesContext_JSONOutput(t *testing.T) {
 	payload := `{"initiative":{"name":"main","title":"Main","status":"active","items":[]},"rollup":{"total":0},"items":[],"upstream_initiatives":[],"downstream_initiatives":[]}`
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(payload))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -75,7 +72,7 @@ func TestCmdInitiativesContext_RequiresName(t *testing.T) {
 }
 
 func TestCmdInitiativesContext_ScenarioMode_HitsScenarioEndpoint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/scenarios/web-console/context" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -96,9 +93,7 @@ func TestCmdInitiativesContext_ScenarioMode_HitsScenarioEndpoint(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -121,16 +116,14 @@ func TestCmdInitiativesContext_NameAndScenarioMutuallyExclusive(t *testing.T) {
 
 func TestCmdInitiativesContext_ScenarioMode_JSON(t *testing.T) {
 	payload := `{"scenario_name":"x","initiatives":[],"orphan_items":[],"rollup":{"total":0}}`
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/scenarios/x/context" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(payload))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)

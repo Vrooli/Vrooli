@@ -40,6 +40,29 @@ This document captures the architecture seams (integration points, boundaries) a
 
 ## Seam Definitions
 
+### Test Utility Boundary
+
+`api/internal/testutil` and `cli/internal/testutil` are test-only utility
+seams. They own reusable helpers, fakes, fixtures, HTTP harnesses, and assertion
+helpers that make domain tests shorter without leaking test-only dependencies
+into production builds.
+
+- **Import rule**: Only `_test.go` files may import
+  `swarm-manager/internal/testutil`, `swarm-manager/cli/internal/testutil`, or
+  their future subpackages.
+- **Guardrail**: `api/internal/testutil/no_prod_import_test.go` walks
+  production Go files under `api/internal` and fails if any production file
+  imports the API test utility package. `cli/internal/testutil/no_prod_import_test.go`
+  provides the same guard for CLI production files.
+- **Ownership rule**: Shared fakes belong here only when they model stable
+  seams used by multiple packages. Package-specific failure modes should stay
+  local to the package test that needs them.
+- **Growth path**: Expand this package into focused subpackages such as
+  `assertx`, `fixtures`, `fsx`, `httpx`, `mocks`, and `services` as duplicate
+  helpers are migrated. CLI tests should use `cli/internal/testutil` for
+  `httptest.Server` setup, `SWARM_MANAGER_API_BASE` isolation, request capture,
+  and command execution helpers.
+
 ### UI-to-API Seam
 
 The UI-to-API seam has been refactored into multiple layers for better testability:

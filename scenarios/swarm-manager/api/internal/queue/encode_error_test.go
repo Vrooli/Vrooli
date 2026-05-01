@@ -5,13 +5,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"swarm-manager/internal/testutil"
+	"swarm-manager/internal/testutil/mocks"
 )
 
 func TestList_JSONEncodeError(t *testing.T) {
 	handler, _ := setupQueueHandler(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/queue", nil)
-	writer := &testutil.ErrorWriter{}
+	writer := &mocks.ErrorWriter{}
 
 	handler.List(writer, req)
 

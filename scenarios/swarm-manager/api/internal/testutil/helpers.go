@@ -14,14 +14,13 @@
 package testutil
 
 import (
-	"encoding/json"
-	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
-	"google.golang.org/protobuf/encoding/protojson"
+	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil/fsx"
+	"swarm-manager/internal/testutil/httpx"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -29,118 +28,78 @@ import (
 // Creates parent directories if they don't exist.
 func WriteJSONFile(t *testing.T, path string, data any) {
 	t.Helper()
-	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
-		t.Fatalf("Failed to create parent directory %s: %v", parentDir, err)
-	}
-	bytes, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON for %s: %v", path, err)
-	}
-	if err := os.WriteFile(path, bytes, 0o644); err != nil {
-		t.Fatalf("Failed to write file %s: %v", path, err)
-	}
+	fsx.WriteJSONFile(t, path, data)
 }
 
 // WriteFile creates a file at the specified path with the given content.
 // Creates parent directories if they don't exist.
 func WriteFile(t *testing.T, path string, content string) {
 	t.Helper()
-	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
-		t.Fatalf("Failed to create parent directory %s: %v", parentDir, err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("Failed to write file %s: %v", path, err)
-	}
+	fsx.WriteFile(t, path, content)
 }
 
 // MakeDir creates a directory at the specified path.
 func MakeDir(t *testing.T, path string) {
 	t.Helper()
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		t.Fatalf("Failed to create directory %s: %v", path, err)
-	}
+	fsx.MakeDir(t, path)
 }
 
 // AssertStatus checks that the response has the expected HTTP status code.
 func AssertStatus(t *testing.T, rec *httptest.ResponseRecorder, expected int) {
 	t.Helper()
-	if rec.Code != expected {
-		t.Errorf("Expected status %d, got %d: %s", expected, rec.Code, rec.Body.String())
-	}
+	assertx.Status(t, rec, expected)
 }
 
 // AssertStatusOK checks that the response has HTTP 200 status.
 func AssertStatusOK(t *testing.T, rec *httptest.ResponseRecorder) {
 	t.Helper()
-	AssertStatus(t, rec, http.StatusOK)
+	assertx.StatusOK(t, rec)
 }
 
 // AssertStatusCreated checks that the response has HTTP 201 status.
 func AssertStatusCreated(t *testing.T, rec *httptest.ResponseRecorder) {
 	t.Helper()
-	AssertStatus(t, rec, http.StatusCreated)
+	assertx.StatusCreated(t, rec)
 }
 
 // AssertStatusNotFound checks that the response has HTTP 404 status.
 func AssertStatusNotFound(t *testing.T, rec *httptest.ResponseRecorder) {
 	t.Helper()
-	AssertStatus(t, rec, http.StatusNotFound)
+	assertx.StatusNotFound(t, rec)
 }
 
 // AssertStatusBadRequest checks that the response has HTTP 400 status.
 func AssertStatusBadRequest(t *testing.T, rec *httptest.ResponseRecorder) {
 	t.Helper()
-	AssertStatus(t, rec, http.StatusBadRequest)
+	assertx.StatusBadRequest(t, rec)
 }
 
 // DecodeJSON decodes the response body as JSON into the provided value.
 func DecodeJSON[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 	t.Helper()
-	var result T
-	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
-		t.Fatalf("Failed to decode response JSON: %v", err)
-	}
-	return result
+	return httpx.DecodeJSON[T](t, rec)
 }
 
 // DecodeProtoJSON decodes the response body as proto JSON into the provided message.
 func DecodeProtoJSON[T proto.Message](t *testing.T, rec *httptest.ResponseRecorder, msg T) T {
 	t.Helper()
-	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
-	if err := opts.Unmarshal(rec.Body.Bytes(), msg); err != nil {
-		t.Fatalf("Failed to decode proto JSON: %v", err)
-	}
-	return msg
+	return httpx.DecodeProtoJSON(t, rec, msg)
 }
 
 // ReadJSONFile reads and decodes a JSON file into the provided value.
 func ReadJSONFile[T any](t *testing.T, path string) T {
 	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read file %s: %v", path, err)
-	}
-	var result T
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("Failed to decode JSON from %s: %v", path, err)
-	}
-	return result
+	return fsx.ReadJSONFile[T](t, path)
 }
 
 // AssertFileExists checks that a file exists at the specified path.
 func AssertFileExists(t *testing.T, path string) {
 	t.Helper()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Errorf("Expected file to exist: %s", path)
-	}
+	fsx.AssertFileExists(t, path)
 }
 
 // AssertFileNotExists checks that a file does not exist at the specified path.
 func AssertFileNotExists(t *testing.T, path string) {
 	t.Helper()
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Errorf("Expected file to not exist: %s", path)
-	}
+	fsx.AssertFileNotExists(t, path)
 }
