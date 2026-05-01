@@ -13,21 +13,10 @@ import (
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/testutil/mocks/modelchain"
 
 	"github.com/google/uuid"
 )
-
-// stubResolver is a ModelChainResolver backed by a fixed chain.
-type stubResolver struct {
-	chain modelregistry.PresetChain
-}
-
-func (s stubResolver) ResolvePreset(_, _ string) (modelregistry.PresetChain, bool) {
-	if len(s.chain) == 0 {
-		return nil, false
-	}
-	return append(modelregistry.PresetChain(nil), s.chain...), true
-}
 
 // fallbackHarness wires up a per-test fixture for ExecuteWithModelFallback.
 type fallbackHarness struct {
@@ -62,7 +51,7 @@ func newFallbackHarness(t *testing.T, runnerType domain.RunnerType, chain modelr
 		mock:     mock,
 		run:      run,
 		deps:     deps,
-		resolver: stubResolver{chain: chain},
+		resolver: modelchain.NewFakeResolver(chain),
 	}
 }
 

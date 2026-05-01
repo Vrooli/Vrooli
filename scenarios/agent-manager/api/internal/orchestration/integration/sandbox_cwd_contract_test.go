@@ -41,6 +41,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
@@ -100,99 +101,6 @@ func newCapturingMockRunner(rt domain.RunnerType, sink *capturingRunner) *runner
 }
 
 // =============================================================================
-// Fake sandbox provider: returns a known workspace path so the assertion
-// can pin the exact value the codec must see.
-// =============================================================================
-
-type fakeSandboxProvider struct {
-	mu sync.Mutex
-
-	sandboxID     uuid.UUID // ID returned by Create
-	workDir       string    // Sandbox.WorkDir surfaced on Create
-	workspacePath string    // value returned by GetWorkspacePath
-
-	// Recorded for assertions.
-	createCalls  int
-	getPathCalls int
-	deleteCalls  int
-}
-
-func (f *fakeSandboxProvider) Create(_ context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.createCalls++
-	return &sandbox.Sandbox{
-		ID:               f.sandboxID,
-		ScopePath:        req.ScopePath,
-		ProjectRoot:      req.ProjectRoot,
-		Status:           sandbox.SandboxStatusActive,
-		WorkDir:          f.workDir,
-		HomeOverlayState: sandbox.HomeOverlayPresent,
-		CreatedAt:        time.Now(),
-	}, nil
-}
-
-func (f *fakeSandboxProvider) Get(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
-	return &sandbox.Sandbox{
-		ID:               id,
-		Status:           sandbox.SandboxStatusActive,
-		WorkDir:          f.workDir,
-		HomeOverlayState: sandbox.HomeOverlayPresent,
-	}, nil
-}
-
-func (f *fakeSandboxProvider) Delete(_ context.Context, _ uuid.UUID) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.deleteCalls++
-	return nil
-}
-
-func (f *fakeSandboxProvider) GetWorkspacePath(_ context.Context, _ uuid.UUID) (string, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.getPathCalls++
-	return f.workspacePath, nil
-}
-
-func (f *fakeSandboxProvider) GetDiff(_ context.Context, _ uuid.UUID) (*sandbox.DiffResult, error) {
-	return &sandbox.DiffResult{}, nil
-}
-
-func (f *fakeSandboxProvider) Approve(_ context.Context, _ sandbox.ApproveRequest) (*sandbox.ApproveResult, error) {
-	return &sandbox.ApproveResult{Success: true}, nil
-}
-
-func (f *fakeSandboxProvider) Reject(_ context.Context, _ uuid.UUID, _ string) error {
-	return nil
-}
-
-func (f *fakeSandboxProvider) PartialApprove(_ context.Context, _ sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error) {
-	return &sandbox.ApproveResult{Success: true}, nil
-}
-
-func (f *fakeSandboxProvider) ApplyAtRunEnd(_ context.Context, _ sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
-	return &sandbox.ApplyAtRunEndResult{Success: true, AppliedAt: time.Now()}, nil
-}
-
-func (f *fakeSandboxProvider) Stop(_ context.Context, _ uuid.UUID) error  { return nil }
-func (f *fakeSandboxProvider) Start(_ context.Context, _ uuid.UUID) error { return nil }
-
-func (f *fakeSandboxProvider) IsAvailable(_ context.Context) (bool, string) { return true, "" }
-
-func (f *fakeSandboxProvider) ValidatePath(_ context.Context, path string, _ string) (*sandbox.PathValidationResult, error) {
-	return &sandbox.PathValidationResult{Path: path, Valid: true, Exists: true, IsDirectory: true, WithinProjectRoot: true}, nil
-}
-
-func (f *fakeSandboxProvider) ExecProcess(_ context.Context, _ sandbox.ExecProcessRequest) (*sandbox.ExecProcessResult, error) {
-	return &sandbox.ExecProcessResult{ExitCode: 0}, nil
-}
-
-// Compile-time interface check: if sandbox.Provider grows a method, this
-// fails loudly here rather than at the test wiring site.
-var _ sandbox.Provider = (*fakeSandboxProvider)(nil)
-
-// =============================================================================
 // TestSandboxCwdContract — the regression gate
 // =============================================================================
 
@@ -211,10 +119,28 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 	sandboxID := uuid.New()
 	sandboxRoot := t.TempDir()
 	wantWorkspacePath := filepath.Join(sandboxRoot, sandboxID.String(), "merged")
-	provider := &fakeSandboxProvider{
-		sandboxID:     sandboxID,
-		workDir:       filepath.Join(sandboxRoot, sandboxID.String()),
-		workspacePath: wantWorkspacePath,
+	provider := mocks.NewFakeSandboxProvider()
+	provider.CreateFunc = func(_ context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		return &sandbox.Sandbox{
+			ID:               sandboxID,
+			ScopePath:        req.ScopePath,
+			ProjectRoot:      req.ProjectRoot,
+			Status:           sandbox.SandboxStatusActive,
+			WorkDir:          filepath.Join(sandboxRoot, sandboxID.String()),
+			HomeOverlayState: sandbox.HomeOverlayPresent,
+			CreatedAt:        time.Now(),
+		}, nil
+	}
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		return &sandbox.Sandbox{
+			ID:               id,
+			Status:           sandbox.SandboxStatusActive,
+			WorkDir:          filepath.Join(sandboxRoot, sandboxID.String()),
+			HomeOverlayState: sandbox.HomeOverlayPresent,
+		}, nil
+	}
+	provider.GetWorkspacePathFn = func(_ context.Context, _ uuid.UUID) (string, error) {
+		return wantWorkspacePath, nil
 	}
 
 	capture := &capturingRunner{}
@@ -288,14 +214,10 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 			finalRun.RunMode, domain.RunModeSandboxed)
 	}
 
-	provider.mu.Lock()
-	createCalls := provider.createCalls
-	getPathCalls := provider.getPathCalls
-	provider.mu.Unlock()
-	if createCalls == 0 {
+	if len(provider.CreateRequests()) == 0 {
 		t.Fatalf("sandbox.Provider.Create was never called — sandbox bypassed at SetupWorkspace")
 	}
-	if getPathCalls == 0 {
+	if provider.GetWorkspacePathCallCount() == 0 {
 		t.Fatalf("sandbox.Provider.GetWorkspacePath was never called — workspace path not resolved")
 	}
 
@@ -348,10 +270,14 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 
 	projectRoot := t.TempDir()
 
-	provider := &fakeSandboxProvider{
-		sandboxID:     uuid.New(),
-		workDir:       "/should/never/be/used",
-		workspacePath: "/should/never/be/used/merged",
+	provider := mocks.NewFakeSandboxProvider()
+	provider.CreateFunc = func(_ context.Context, _ sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		t.Fatal("sandbox.Provider.Create must not be called for in-place runs")
+		return nil, nil
+	}
+	provider.GetWorkspacePathFn = func(_ context.Context, _ uuid.UUID) (string, error) {
+		t.Fatal("sandbox.Provider.GetWorkspacePath must not be called for in-place runs")
+		return "", nil
 	}
 
 	capture := &capturingRunner{}
@@ -419,10 +345,7 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 			finalRun.RunMode, domain.RunModeInPlace)
 	}
 
-	provider.mu.Lock()
-	createCalls := provider.createCalls
-	provider.mu.Unlock()
-	if createCalls != 0 {
+	if createCalls := len(provider.CreateRequests()); createCalls != 0 {
 		t.Errorf("sandbox.Provider.Create was called %d times for an in-place run; expected 0", createCalls)
 	}
 

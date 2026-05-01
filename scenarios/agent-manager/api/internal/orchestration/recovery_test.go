@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -15,57 +14,10 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
-
-type fakeTranscriptRunner struct {
-	*runner.MockRunner
-}
-
-func newFakeTranscriptRunner(rt domain.RunnerType) *fakeTranscriptRunner {
-	return &fakeTranscriptRunner{MockRunner: runner.NewMockRunner(rt)}
-}
-
-func (f *fakeTranscriptRunner) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	line = strings.TrimSpace(line)
-	switch {
-	case line == "":
-		return runner.TranscriptParseResult{}
-	case strings.HasPrefix(line, "session:"):
-		return runner.TranscriptParseResult{SessionID: strings.TrimPrefix(line, "session:")}
-	case strings.HasPrefix(line, "message:"):
-		return runner.TranscriptParseResult{
-			Events: []*domain.RunEvent{
-				domain.NewMessageEvent(runID, "assistant", strings.TrimPrefix(line, "message:")),
-			},
-		}
-	case strings.HasPrefix(line, "done:"):
-		return runner.TranscriptParseResult{
-			Terminal: &runner.TranscriptTerminal{
-				Success:  true,
-				ExitCode: 0,
-				Summary: &domain.RunSummary{
-					Description: strings.TrimPrefix(line, "done:"),
-				},
-			},
-		}
-	case strings.HasPrefix(line, "fail:"):
-		return runner.TranscriptParseResult{
-			Terminal: &runner.TranscriptTerminal{
-				Success:      false,
-				ExitCode:     1,
-				ErrorMessage: strings.TrimPrefix(line, "fail:"),
-			},
-		}
-	default:
-		return runner.TranscriptParseResult{
-			Events: []*domain.RunEvent{
-				domain.NewLogEvent(runID, "info", line),
-			},
-		}
-	}
-}
 
 func TestRecoverRun_DeadProcessWithTerminalSuccess(t *testing.T) {
 	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
@@ -255,7 +207,7 @@ func newRecoveryTestReconciler(t *testing.T, rt domain.RunnerType) (*Reconciler,
 	t.Cleanup(cleanup)
 
 	registry := runner.NewRegistry()
-	if err := registry.Register(newFakeTranscriptRunner(rt)); err != nil {
+	if err := registry.Register(mocks.NewTranscriptReplayRunner(rt)); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
 

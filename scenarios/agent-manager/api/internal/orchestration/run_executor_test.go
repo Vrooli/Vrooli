@@ -18,50 +18,11 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/fixtures"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
-
-// =============================================================================
-// MOCK BROADCASTER
-// =============================================================================
-
-// testBroadcaster implements orchestration.EventBroadcaster for tests.
-type testBroadcaster struct {
-	mu               sync.Mutex
-	statusBroadcasts []*domain.Run
-	eventBroadcasts  []*domain.RunEvent
-}
-
-func (b *testBroadcaster) BroadcastEvent(event *domain.RunEvent) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.eventBroadcasts = append(b.eventBroadcasts, event)
-}
-
-func (b *testBroadcaster) BroadcastRunStatus(run *domain.Run) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	// Copy status to avoid races with the executor mutating the run
-	snapshot := *run
-	b.statusBroadcasts = append(b.statusBroadcasts, &snapshot)
-}
-
-func (b *testBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
-	// no-op
-}
-
-func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return append([]*domain.Run{}, b.statusBroadcasts...)
-}
-
-func (b *testBroadcaster) getEventBroadcasts() []*domain.RunEvent {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return append([]*domain.RunEvent{}, b.eventBroadcasts...)
-}
 
 // =============================================================================
 // TEST FIXTURES
@@ -75,47 +36,27 @@ type testFixtures struct {
 }
 
 // newTestFixtures creates a consistent set of test fixtures.
-func newTestFixtures() *testFixtures {
-	profileID := uuid.New()
-	taskID := uuid.New()
-	runID := uuid.New()
+func newTestFixtures(t *testing.T) *testFixtures {
+	t.Helper()
+	profile := fixtures.NewAgentProfile(t,
+		fixtures.WithAgentProfileName("test-profile"),
+		fixtures.WithAgentProfileModel("claude-3-opus"),
+	)
+	task := fixtures.NewTask(t,
+		fixtures.WithTaskDescription("A test task for executor tests"),
+	)
 
 	return &testFixtures{
-		profile: &domain.AgentProfile{
-			ID:         profileID,
-			Name:       "test-profile",
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Model:      "claude-3-opus",
-			MaxTurns:   100,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
-		},
-		task: &domain.Task{
-			ID:          taskID,
-			Title:       "Test Task",
-			Description: "A test task for executor tests",
-			ScopePath:   "src/",
-			ProjectRoot: "/project",
-			Status:      domain.TaskStatusQueued,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		run: &domain.Run{
-			ID:             runID,
-			TaskID:         taskID,
-			AgentProfileID: &profileID,
-			Status:         domain.RunStatusPending,
-			Phase:          domain.RunPhaseQueued,
-			RunMode:        domain.RunModeSandboxed,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		},
+		profile: profile,
+		task:    task,
+		run:     fixtures.NewRun(t, task.ID, profile.ID),
 	}
 }
 
 // newInPlaceFixtures creates fixtures for in-place execution.
-func newInPlaceFixtures() *testFixtures {
-	f := newTestFixtures()
+func newInPlaceFixtures(t *testing.T) *testFixtures {
+	t.Helper()
+	f := newTestFixtures(t)
 	f.run.RunMode = domain.RunModeInPlace
 	return f
 }
@@ -152,135 +93,39 @@ func mustRegisterRunnerForExecutor(t *testing.T, registry runner.Registry, r run
 	}
 }
 
-// =============================================================================
-// MOCK SANDBOX PROVIDER
-// =============================================================================
-
-// mockSandboxProvider is a test double for sandbox.Provider.
-type mockSandboxProvider struct {
-	createFunc         func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error)
-	getFunc            func(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error)
-	deleteFunc         func(ctx context.Context, id uuid.UUID) error
-	getWorkspacePathFn func(ctx context.Context, id uuid.UUID) (string, error)
-	getDiffFunc        func(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error)
-	approveFunc        func(ctx context.Context, req sandbox.ApproveRequest) (*sandbox.ApproveResult, error)
-	rejectFunc         func(ctx context.Context, id uuid.UUID, actor string) error
-	partialApproveFunc func(ctx context.Context, req sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error)
-	stopFunc           func(ctx context.Context, id uuid.UUID) error
-	startFunc          func(ctx context.Context, id uuid.UUID) error
-	isAvailableFunc    func(ctx context.Context) (bool, string)
-	applyAtRunEndFunc  func(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error)
+func newMockSandboxProvider() *mocks.FakeSandboxProvider {
+	return mocks.NewFakeSandboxProvider()
 }
 
-func newMockSandboxProvider() *mockSandboxProvider {
-	sandboxID := uuid.New()
-	return &mockSandboxProvider{
-		createFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
-			return &sandbox.Sandbox{
-				ID:          sandboxID,
-				ScopePath:   req.ScopePath,
-				ProjectRoot: req.ProjectRoot,
-				Status:      sandbox.SandboxStatusActive,
-				WorkDir:     "/tmp/sandbox/" + sandboxID.String(),
-				CreatedAt:   time.Now(),
-			}, nil
-		},
-		getWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
-			return "/tmp/sandbox/" + id.String() + "/merged", nil
-		},
+type testBroadcaster struct {
+	*mocks.FakeBroadcaster
+}
+
+func (b *testBroadcaster) ensure() *mocks.FakeBroadcaster {
+	if b.FakeBroadcaster == nil {
+		b.FakeBroadcaster = mocks.NewFakeBroadcaster()
 	}
+	return b.FakeBroadcaster
 }
 
-func (m *mockSandboxProvider) Create(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
-	if m.createFunc != nil {
-		return m.createFunc(ctx, req)
-	}
-	return nil, nil
+func (b *testBroadcaster) BroadcastEvent(event *domain.RunEvent) {
+	b.ensure().BroadcastEvent(event)
 }
 
-func (m *mockSandboxProvider) Get(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
-	if m.getFunc != nil {
-		return m.getFunc(ctx, id)
-	}
-	return nil, nil
+func (b *testBroadcaster) BroadcastRunStatus(run *domain.Run) {
+	b.ensure().BroadcastRunStatus(run)
 }
 
-func (m *mockSandboxProvider) Delete(ctx context.Context, id uuid.UUID) error {
-	if m.deleteFunc != nil {
-		return m.deleteFunc(ctx, id)
-	}
-	return nil
+func (b *testBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
+	b.ensure().BroadcastProgress(runID, phase, percent, action)
 }
 
-func (m *mockSandboxProvider) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error) {
-	if m.getWorkspacePathFn != nil {
-		return m.getWorkspacePathFn(ctx, id)
-	}
-	return "", nil
+func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
+	return b.ensure().StatusBroadcasts()
 }
 
-func (m *mockSandboxProvider) IsAvailable(ctx context.Context) (bool, string) {
-	if m.isAvailableFunc != nil {
-		return m.isAvailableFunc(ctx)
-	}
-	return true, ""
-}
-
-func (m *mockSandboxProvider) GetDiff(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
-	if m.getDiffFunc != nil {
-		return m.getDiffFunc(ctx, id)
-	}
-	return &sandbox.DiffResult{}, nil
-}
-
-func (m *mockSandboxProvider) Approve(ctx context.Context, req sandbox.ApproveRequest) (*sandbox.ApproveResult, error) {
-	if m.approveFunc != nil {
-		return m.approveFunc(ctx, req)
-	}
-	return &sandbox.ApproveResult{Success: true}, nil
-}
-
-func (m *mockSandboxProvider) Reject(ctx context.Context, id uuid.UUID, actor string) error {
-	if m.rejectFunc != nil {
-		return m.rejectFunc(ctx, id, actor)
-	}
-	return nil
-}
-
-func (m *mockSandboxProvider) PartialApprove(ctx context.Context, req sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error) {
-	if m.partialApproveFunc != nil {
-		return m.partialApproveFunc(ctx, req)
-	}
-	return &sandbox.ApproveResult{Success: true}, nil
-}
-
-func (m *mockSandboxProvider) Stop(ctx context.Context, id uuid.UUID) error {
-	if m.stopFunc != nil {
-		return m.stopFunc(ctx, id)
-	}
-	return nil
-}
-
-func (m *mockSandboxProvider) Start(ctx context.Context, id uuid.UUID) error {
-	if m.startFunc != nil {
-		return m.startFunc(ctx, id)
-	}
-	return nil
-}
-
-func (m *mockSandboxProvider) ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error) {
-	return &sandbox.PathValidationResult{Path: path, Valid: true}, nil
-}
-
-func (m *mockSandboxProvider) ApplyAtRunEnd(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
-	if m.applyAtRunEndFunc != nil {
-		return m.applyAtRunEndFunc(ctx, req)
-	}
-	return &sandbox.ApplyAtRunEndResult{Success: true, AppliedAt: time.Now()}, nil
-}
-
-func (m *mockSandboxProvider) ExecProcess(_ context.Context, _ sandbox.ExecProcessRequest) (*sandbox.ExecProcessResult, error) {
-	return &sandbox.ExecProcessResult{ExitCode: 0}, nil
+func (b *testBroadcaster) getEventBroadcasts() []*domain.RunEvent {
+	return b.ensure().EventBroadcasts()
 }
 
 // =============================================================================
@@ -288,7 +133,7 @@ func (m *mockSandboxProvider) ExecProcess(_ context.Context, _ sandbox.ExecProce
 // =============================================================================
 
 func TestNewRunExecutor(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -317,7 +162,7 @@ func TestNewRunExecutor(t *testing.T) {
 }
 
 func TestRunExecutor_WithLevers(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	registry := runner.NewRegistry()
 
@@ -348,7 +193,7 @@ func TestRunExecutor_WithLevers(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -408,7 +253,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -454,7 +299,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -464,8 +309,8 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Mock sandbox provider that fails
-	sandboxProvider := &mockSandboxProvider{
-		createFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+	sandboxProvider := &mocks.FakeSandboxProvider{
+		CreateFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
 			return nil, errors.New("sandbox service unavailable")
 		},
 	}
@@ -508,7 +353,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
-	f := newTestFixtures() // Sandboxed mode requires provider
+	f := newTestFixtures(t) // Sandboxed mode requires provider
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -548,7 +393,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
-	f := newInPlaceFixtures() // Skip sandbox issues
+	f := newInPlaceFixtures(t) // Skip sandbox issues
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -584,7 +429,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -622,7 +467,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -661,7 +506,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -714,7 +559,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -778,7 +623,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -827,7 +672,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -888,7 +733,7 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -946,7 +791,7 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -989,7 +834,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 }
 
 func TestRunExecutor_WithResumeFrom(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	sandboxID := uuid.New()
 	workDir := "/tmp/sandbox/" + sandboxID.String()
 
@@ -1011,20 +856,20 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Mock sandbox that allows retrieval and provides workspace path
-	sandboxProvider := &mockSandboxProvider{
-		createFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+	sandboxProvider := &mocks.FakeSandboxProvider{
+		CreateFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
 			// Should not be called when resuming past sandbox phase
 			t.Error("create should not be called when resuming past sandbox phase")
 			return nil, errors.New("should not create")
 		},
-		getFunc: func(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		GetFunc: func(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
 			return &sandbox.Sandbox{
 				ID:      id,
 				Status:  sandbox.SandboxStatusActive,
 				WorkDir: workDir,
 			}, nil
 		},
-		getWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
+		GetWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
 			return workDir, nil
 		},
 	}
@@ -1067,7 +912,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_EmitsEvents(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1122,7 +967,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 }
 
 func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1168,7 +1013,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1217,7 +1062,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 }
 
 func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1261,7 +1106,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	f.task.ProjectRoot = "" // Missing project root
 
 	repos, eventStore := setupExecutorRepos(t, f)
@@ -1313,7 +1158,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 
-			f := newInPlaceFixtures()
+			f := newInPlaceFixtures(t)
 			f.run.ID = uuid.New() // Unique run ID
 			f.task.ID = uuid.New()
 			f.run.TaskID = f.task.ID
@@ -1370,7 +1215,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 // =============================================================================
 
 func TestMergedEnvVars_CustomOnly(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1391,7 +1236,7 @@ func TestMergedEnvVars_CustomOnly(t *testing.T) {
 }
 
 func TestMergedEnvVars_SandboxOnly(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	f.run.RunMode = domain.RunModeSandboxed
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1412,7 +1257,7 @@ func TestMergedEnvVars_SandboxOnly(t *testing.T) {
 }
 
 func TestMergedEnvVars_SandboxOverridesCustom(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	f.run.RunMode = domain.RunModeSandboxed
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1442,7 +1287,7 @@ func TestMergedEnvVars_SandboxOverridesCustom(t *testing.T) {
 }
 
 func TestMergedEnvVars_BothNil(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1461,7 +1306,7 @@ func TestMergedEnvVars_BothNil(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1473,7 +1318,7 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	broadcaster := &testBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	levers := cfgpkg.DefaultLevers()
 	levers.Execution.DefaultTimeout = 5 * time.Second
@@ -1486,7 +1331,7 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 
 	executor.Execute(context.Background())
 
-	broadcasts := broadcaster.getStatusBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Fatal("expected at least one status broadcast on successful completion")
 	}
@@ -1500,7 +1345,7 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 }
 
 func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1512,7 +1357,7 @@ func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	broadcaster := &testBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	levers := cfgpkg.DefaultLevers()
 	levers.Execution.DefaultTimeout = 5 * time.Second
@@ -1525,7 +1370,7 @@ func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
 
 	executor.Execute(context.Background())
 
-	broadcasts := broadcaster.getStatusBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Fatal("expected at least one status broadcast on failure")
 	}
@@ -1537,7 +1382,7 @@ func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
 }
 
 func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1554,7 +1399,7 @@ func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	broadcaster := &testBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	levers := cfgpkg.DefaultLevers()
 	levers.Execution.DefaultTimeout = 30 * time.Second
@@ -1576,7 +1421,7 @@ func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
 	cancel()
 	<-done
 
-	broadcasts := broadcaster.getStatusBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Fatal("expected at least one status broadcast on cancellation")
 	}
@@ -1589,7 +1434,7 @@ func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
 
 func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
 	// Verify that nil broadcaster doesn't cause a panic
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1625,7 +1470,7 @@ func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
 func TestRunExecutor_InPlace_SkipsApproval(t *testing.T) {
 	// An in-place run should auto-complete because there is no sandbox to
 	// diff against — the approval / apply workflow doesn't apply.
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	f.run.ResolvedConfig = &domain.RunConfig{
 		RunnerType: domain.RunnerTypeClaudeCode,
 	}
@@ -1668,7 +1513,7 @@ func TestRunExecutor_Sandboxed_ManualReviewDefersApply(t *testing.T) {
 	// in NeedsReview/Pending after success is ManualReview=true. The
 	// contract is "auto-apply by default unless operator opts into manual
 	// review".
-	f := newTestFixtures() // sandboxed mode
+	f := newTestFixtures(t) // sandboxed mode
 	manualReviewCfg := domain.DefaultSandboxConfig()
 	manualReviewCfg.ManualReview = true
 	f.run.SandboxConfig = manualReviewCfg
@@ -1715,7 +1560,7 @@ func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
 	// Sandboxed runs with the contract defaults (AutoApply=true,
 	// ManualReview=false) should auto-apply at run end and land in Complete
 	// with ApprovalState=Approved.
-	f := newTestFixtures() // sandboxed mode
+	f := newTestFixtures(t) // sandboxed mode
 	f.run.SandboxConfig = domain.DefaultSandboxConfig()
 	f.run.ResolvedConfig = &domain.RunConfig{
 		RunnerType:    domain.RunnerTypeClaudeCode,
@@ -1743,7 +1588,7 @@ func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
 	// mock returns Applied=0; with the 2026-04-28 fix that path no
 	// longer promotes a failure to Complete, so the test must opt in
 	// to a non-empty apply explicitly.)
-	sandboxProvider.applyAtRunEndFunc = func(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
+	sandboxProvider.ApplyAtRunEndFunc = func(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
 		return &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1, AppliedAt: time.Now()}, nil
 	}
 	levers := cfgpkg.DefaultLevers()
@@ -1772,7 +1617,7 @@ func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
 func TestRunExecutor_InPlace_EmitsSkipApplyEvent(t *testing.T) {
 	// Verify that in-place runs emit a system event explaining the
 	// approval skip, so operators can trace the decision.
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1824,7 +1669,7 @@ func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
 	// (phase changes, completion messages) are broadcast via WebSocket,
 	// not just stored to the database. This ensures real-time UI updates
 	// for post-execution events.
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1836,7 +1681,7 @@ func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	broadcaster := &testBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	levers := cfgpkg.DefaultLevers()
 	levers.Execution.DefaultTimeout = 5 * time.Second
@@ -1849,7 +1694,7 @@ func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
 
 	executor.Execute(context.Background())
 
-	eventBroadcasts := broadcaster.getEventBroadcasts()
+	eventBroadcasts := broadcaster.EventBroadcasts()
 	if len(eventBroadcasts) == 0 {
 		t.Fatal("expected post-runner events to be broadcast via WebSocket")
 	}
@@ -1871,7 +1716,7 @@ func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
 func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
 	// Verify that error events emitted when a runner fails are broadcast
 	// via WebSocket so the UI can show failure details in real-time.
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1883,7 +1728,7 @@ func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	broadcaster := &testBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	levers := cfgpkg.DefaultLevers()
 	levers.Execution.DefaultTimeout = 5 * time.Second
@@ -1896,7 +1741,7 @@ func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
 
 	executor.Execute(context.Background())
 
-	eventBroadcasts := broadcaster.getEventBroadcasts()
+	eventBroadcasts := broadcaster.EventBroadcasts()
 
 	// Verify that an error event was broadcast
 	foundErrorBroadcast := false

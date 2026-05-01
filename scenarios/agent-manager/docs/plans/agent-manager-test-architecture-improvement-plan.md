@@ -150,6 +150,8 @@ Add hand-written fakes with constructors and compile-time interface guards:
 - `mocks.FakeStatsRepository` for `repository.StatsRepository`.
 - `mocks.FakeToolProvider` for `toolregistry.ToolProvider`.
 - `mocks.FakeRunner` only if existing `runner.MockRunner` does not cover the needed assertion/error knobs.
+- `mocks.TranscriptReplayRunner` for transcript recovery tests.
+- `mocks/modelchain.FakeResolver` for model fallback tests.
 
 Initial migration targets:
 
@@ -217,6 +219,12 @@ Acceptance criteria:
 - LocalStorage/WebSocket/window state is reset between tests.
 - Existing 58 Node-test assertions are preserved or migrated with equivalent coverage.
 
+Progress:
+
+- Added `ui/tests/testutil/runEvents.ts` as the current Node-runner fixture factory for `RunEvent` objects.
+- Migrated duplicated `RunEvent`, message, tool-call, and tool-result builders in `runEventStore`, `runTimeline`, and `runTimeline.grouping` tests.
+- Kept the current Node runner and package dependencies unchanged because Vitest/jsdom/Testing Library still require explicit dependency approval.
+
 ### Phase 6: Boundary Coverage and Scenario-Level Gates
 
 Add coverage around decision and responsibility boundaries that are currently high-risk:
@@ -259,14 +267,15 @@ For longer comprehensive runs, use the repository timeout guidance; `make test` 
 
 ## Rollout and Validation Checklist
 
-- [ ] `UNIT_TEST_ARCHITECTURE.md` documents the baseline and target.
-- [ ] Backend `testutil` package has docs and no-production-import enforcement.
-- [ ] Canonical fakes cover sandbox, event store, broadcaster, stats repository, and tool provider.
-- [ ] High-duplication tests migrate to canonical fakes and fixtures.
+- [x] `UNIT_TEST_ARCHITECTURE.md` documents the baseline and target.
+- [x] Backend `testutil` package has docs and no-production-import enforcement.
+- [x] Canonical fakes cover sandbox, event store, broadcaster, stats repository, tool provider, tool-execution orchestrator, runner launcher/factory, transcript replay, and model-chain resolver seams.
+- [x] High-duplication tests migrate to canonical fakes and fixtures.
+- [x] UI pure TypeScript tests have a shared `RunEvent` fixture utility for reducer/timeline coverage under the current Node runner.
 - [ ] UI runner decision is made with dependency approval if needed.
 - [ ] React component/hook test setup exists before adding broad UI behavior tests.
-- [ ] `GOWORK=off go test ./...` passes in `scenarios/agent-manager/api`.
-- [ ] `pnpm test` passes in `scenarios/agent-manager/ui`.
+- [x] `GOWORK=off go test ./...` passes in `scenarios/agent-manager/api`.
+- [x] `pnpm test` passes in `scenarios/agent-manager/ui`.
 - [ ] `cd scenarios/agent-manager && make test` passes or any environmental blocker is documented with exact output.
 
 ## Risks and Mitigations

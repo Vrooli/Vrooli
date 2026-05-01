@@ -5,15 +5,9 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+
+	"agent-manager/internal/testutil/mocks"
 )
-
-type stubProber struct {
-	err error
-}
-
-func (s stubProber) ProbeModel(_ context.Context, _ string) error {
-	return s.err
-}
 
 func TestHealthStore_MarkAndSnapshot(t *testing.T) {
 	hs := NewHealthStore()
@@ -74,9 +68,9 @@ func TestHealthProbe_RunOnce_MarksPerModel(t *testing.T) {
 
 	resolve := func(runnerType string) ModelProber {
 		if runnerType == "codex" {
-			return stubProber{err: errors.New("unknown model")}
+			return mocks.NewFailingModelProber(errors.New("unknown model"))
 		}
-		return stubProber{}
+		return mocks.NewFakeModelProber()
 	}
 
 	probe := NewHealthProbe(store, health, resolve, ProbeConfig{Interval: 0})

@@ -1,36 +1,18 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/testutil/mocks"
 	"agent-manager/internal/toolregistry"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 )
-
-// mockToolProvider is a test double for toolregistry.ToolProvider.
-type mockToolProvider struct {
-	tools      []*toolspb.ToolDefinition
-	categories []*toolspb.ToolCategory
-}
-
-func (m *mockToolProvider) Name() string {
-	return "mock-provider"
-}
-
-func (m *mockToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition {
-	return m.tools
-}
-
-func (m *mockToolProvider) Categories(_ context.Context) []*toolspb.ToolCategory {
-	return m.categories
-}
 
 func setupTestToolsHandler() (*ToolsHandler, *toolregistry.Registry) {
 	registry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
@@ -39,41 +21,40 @@ func setupTestToolsHandler() (*ToolsHandler, *toolregistry.Registry) {
 		ScenarioDescription: "Test scenario for unit tests",
 	})
 
-	provider := &mockToolProvider{
-		tools: []*toolspb.ToolDefinition{
-			{
-				Name:        "test_tool",
-				Description: "A test tool",
-				Category:    "testing",
-				Parameters: &toolspb.ToolParameters{
-					Type:       "object",
-					Properties: map[string]*toolspb.ParameterSchema{},
-				},
-				Metadata: &toolspb.ToolMetadata{
-					EnabledByDefault: true,
-					TimeoutSeconds:   30,
-				},
+	provider := mocks.NewFakeToolProvider("mock-provider")
+	provider.ToolsValue = []*toolspb.ToolDefinition{
+		{
+			Name:        "test_tool",
+			Description: "A test tool",
+			Category:    "testing",
+			Parameters: &toolspb.ToolParameters{
+				Type:       "object",
+				Properties: map[string]*toolspb.ParameterSchema{},
 			},
-			{
-				Name:        "another_tool",
-				Description: "Another test tool",
-				Category:    "testing",
-				Parameters: &toolspb.ToolParameters{
-					Type: "object",
-					Properties: map[string]*toolspb.ParameterSchema{
-						"input": {Type: "string", Description: "Input value"},
-					},
-					Required: []string{"input"},
-				},
-				Metadata: &toolspb.ToolMetadata{
-					EnabledByDefault: true,
-					TimeoutSeconds:   60,
-				},
+			Metadata: &toolspb.ToolMetadata{
+				EnabledByDefault: true,
+				TimeoutSeconds:   30,
 			},
 		},
-		categories: []*toolspb.ToolCategory{
-			{Id: "testing", Name: "Testing", Description: "Tools for testing"},
+		{
+			Name:        "another_tool",
+			Description: "Another test tool",
+			Category:    "testing",
+			Parameters: &toolspb.ToolParameters{
+				Type: "object",
+				Properties: map[string]*toolspb.ParameterSchema{
+					"input": {Type: "string", Description: "Input value"},
+				},
+				Required: []string{"input"},
+			},
+			Metadata: &toolspb.ToolMetadata{
+				EnabledByDefault: true,
+				TimeoutSeconds:   60,
+			},
 		},
+	}
+	provider.CategoriesValue = []*toolspb.ToolCategory{
+		{Id: "testing", Name: "Testing", Description: "Tools for testing"},
 	}
 
 	registry.RegisterProvider(provider)

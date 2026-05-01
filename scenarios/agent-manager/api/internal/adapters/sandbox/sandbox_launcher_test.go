@@ -30,11 +30,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// mockSandbox is an httptest-backed simulator of the workspace-sandbox
+// sandboxTestServer is an httptest-backed simulator of the workspace-sandbox
 // /processes endpoints. It models a single process at a time. Tests can
 // drive the lifecycle by calling appendStdout / appendStderr / markExited
 // to feed bytes into the SSE channels and wind down the streams cleanly.
-type mockSandbox struct {
+type sandboxTestServer struct {
 	mu sync.Mutex
 
 	procPID     int
@@ -77,12 +77,12 @@ type sseChunk struct {
 	data  []byte
 }
 
-func newMockSandbox(initialPID int) *mockSandbox {
-	return &mockSandbox{procPID: initialPID}
+func newSandboxTestServer(initialPID int) *sandboxTestServer {
+	return &sandboxTestServer{procPID: initialPID}
 }
 
 // startServer wires the routes and returns the running test server.
-func (m *mockSandbox) startServer(t *testing.T) *httptest.Server {
+func (m *sandboxTestServer) startServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/sandboxes/", func(w http.ResponseWriter, r *http.Request) {
@@ -99,14 +99,14 @@ func (m *mockSandbox) startServer(t *testing.T) *httptest.Server {
 		case r.Method == "GET" && !strings.Contains(path, "/processes"):
 			m.handleGetSandbox(w, r)
 		default:
-			t.Logf("mockSandbox: unhandled %s %s", r.Method, path)
+			t.Logf("sandboxTestServer: unhandled %s %s", r.Method, path)
 			w.WriteHeader(http.StatusNotFound)
 		}
 	})
 	return httptest.NewServer(mux)
 }
 
-func (m *mockSandbox) handleGetSandbox(w http.ResponseWriter, r *http.Request) {
+func (m *sandboxTestServer) handleGetSandbox(w http.ResponseWriter, r *http.Request) {
 	// Extract sandbox id from /api/v1/sandboxes/<id>.
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/sandboxes/"), "/")
 	id := parts[0]
@@ -128,7 +128,7 @@ func (m *mockSandbox) handleGetSandbox(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (m *mockSandbox) handleStartProcess(w http.ResponseWriter, r *http.Request) {
+func (m *sandboxTestServer) handleStartProcess(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	var parsed map[string]any
 	_ = json.Unmarshal(body, &parsed)
@@ -159,7 +159,7 @@ func (m *mockSandbox) handleStartProcess(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func (m *mockSandbox) handleStdin(w http.ResponseWriter, r *http.Request) {
+func (m *sandboxTestServer) handleStdin(w http.ResponseWriter, r *http.Request) {
 	m.stdinSeen.Store(true)
 	body, _ := io.ReadAll(r.Body)
 	m.mu.Lock()
@@ -176,7 +176,7 @@ func (m *mockSandbox) handleStdin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (m *mockSandbox) handleStreamLogs(w http.ResponseWriter, r *http.Request) {
+func (m *sandboxTestServer) handleStreamLogs(w http.ResponseWriter, r *http.Request) {
 	stream := r.URL.Query().Get("stream")
 	if stream != "stdout" && stream != "stderr" {
 		http.Error(w, "missing stream", http.StatusBadRequest)
@@ -222,7 +222,7 @@ func (m *mockSandbox) handleStreamLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *mockSandbox) handleKillProcess(w http.ResponseWriter, r *http.Request) {
+func (m *sandboxTestServer) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 	m.killSeen.Store(true)
 	m.procRunning.Store(false)
 	// Closing all subscribers terminates their SSE goroutines.
@@ -240,7 +240,7 @@ func (m *mockSandbox) handleKillProcess(w http.ResponseWriter, r *http.Request) 
 }
 
 // appendStdout pushes a chunk to all stdout subscribers.
-func (m *mockSandbox) appendStdout(b []byte) {
+func (m *sandboxTestServer) appendStdout(b []byte) {
 	m.subsMu.Lock()
 	defer m.subsMu.Unlock()
 	for _, ch := range m.stdoutSubs {
@@ -249,7 +249,7 @@ func (m *mockSandbox) appendStdout(b []byte) {
 }
 
 // appendStderr pushes a chunk to all stderr subscribers.
-func (m *mockSandbox) appendStderr(b []byte) {
+func (m *sandboxTestServer) appendStderr(b []byte) {
 	m.subsMu.Lock()
 	defer m.subsMu.Unlock()
 	for _, ch := range m.stderrSubs {
@@ -258,7 +258,7 @@ func (m *mockSandbox) appendStderr(b []byte) {
 }
 
 // markExited sends the exit frame on both streams and closes them.
-func (m *mockSandbox) markExited(info remoteExitInfo) {
+func (m *sandboxTestServer) markExited(info remoteExitInfo) {
 	m.procRunning.Store(false)
 	m.exitInfo = &info
 	payload, _ := json.Marshal(info)
@@ -284,7 +284,7 @@ func (m *mockSandbox) markExited(info remoteExitInfo) {
 // process, push stdout chunks via SSE, mark exited, verify Stdout receives
 // all the bytes and Wait returns nil.
 func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
-	mock := newMockSandbox(99)
+	mock := newSandboxTestServer(99)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -338,7 +338,7 @@ func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
 // reaches the /processes/{pid}/stdin endpoint with close=true (not the
 // old .am-prompts file-staging path).
 func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
-	mock := newMockSandbox(101)
+	mock := newSandboxTestServer(101)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -398,7 +398,7 @@ func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
 // TestSandboxLauncher_KillReturnsThroughDelete verifies Kill issues a
 // DELETE and Wait unblocks promptly.
 func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
-	mock := newMockSandbox(202)
+	mock := newSandboxTestServer(202)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -433,7 +433,7 @@ func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 // TestSandboxLauncher_ContextCancelKills verifies ctx cancellation
 // triggers the SSE streams to close so Wait returns.
 func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
-	mock := newMockSandbox(303)
+	mock := newSandboxTestServer(303)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -464,7 +464,7 @@ func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 // structured 403 (e.g., git allowlist denial) is surfaced as a typed
 // *LaunchBlocked error.
 func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
-	mock := newMockSandbox(404)
+	mock := newSandboxTestServer(404)
 	mock.startProcessCode = http.StatusForbidden
 	mock.startProcessReply = `{"error":"git_verb_blocked","verb":"push","message":"git verb 'push' is not in the allowlist"}`
 	server := mock.startServer(t)
@@ -495,7 +495,7 @@ func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
 // TestSandboxLauncher_StderrStreamPopulates ensures the real /processes
 // stderr stream is wired through to proc.Stderr() (not a closed pipe).
 func TestSandboxLauncher_StderrStreamPopulates(t *testing.T) {
-	mock := newMockSandbox(505)
+	mock := newSandboxTestServer(505)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -549,7 +549,7 @@ func TestSandboxLauncher_StderrStreamPopulates(t *testing.T) {
 // frame results in a *remoteExitError carrying exit code, signal, and
 // OOMKilled flag.
 func TestSandboxLauncher_ExitInfoSurfaces(t *testing.T) {
-	mock := newMockSandbox(606)
+	mock := newSandboxTestServer(606)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -594,7 +594,7 @@ func TestSandboxLauncher_ExitInfoSurfaces(t *testing.T) {
 // frame), the client surfaces ErrSandboxNoExitInfo instead of treating
 // the run as a clean success.
 func TestSandboxLauncher_NoExitInfo_ReportsFailure(t *testing.T) {
-	mock := newMockSandbox(909)
+	mock := newSandboxTestServer(909)
 	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-no-exit/merged"
 	server := mock.startServer(t)
 	defer server.Close()
@@ -668,7 +668,7 @@ func TestSandboxLauncher_LogStreamSurvivesPast30s(t *testing.T) {
 		t.Skip("long-running stream test; skip in -short mode")
 	}
 
-	mock := newMockSandbox(911)
+	mock := newSandboxTestServer(911)
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -833,7 +833,7 @@ func TestResolveWorkingDir(t *testing.T) {
 func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	const host = "/var/lib/workspace-sandbox/sb-test/merged"
 
-	mock := newMockSandbox(707)
+	mock := newSandboxTestServer(707)
 	mock.hostMergedDir = host
 	server := mock.startServer(t)
 	defer server.Close()
@@ -1042,7 +1042,7 @@ func TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent(t *testing.T) {
 func TestSandboxLauncher_LaunchPreservesEnvShimArgs(t *testing.T) {
 	const host = "/var/lib/workspace-sandbox/sb-envshim/merged"
 
-	mock := newMockSandbox(910)
+	mock := newSandboxTestServer(910)
 	mock.hostMergedDir = host
 	server := mock.startServer(t)
 	defer server.Close()
@@ -1109,7 +1109,7 @@ func TestSandboxLauncher_LaunchPreservesEnvShimArgs(t *testing.T) {
 func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
 	const host = "/var/lib/workspace-sandbox/sb-cmd/merged"
 
-	mock := newMockSandbox(909)
+	mock := newSandboxTestServer(909)
 	mock.hostMergedDir = host
 	server := mock.startServer(t)
 	defer server.Close()
@@ -1158,7 +1158,7 @@ func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
 // SandboxNamespacePath is rejected as a contract violation, not silently
 // passed through.
 func TestSandboxLauncher_LaunchRejectsUntranslatableHostPath(t *testing.T) {
-	mock := newMockSandbox(808)
+	mock := newSandboxTestServer(808)
 	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-test/merged"
 	server := mock.startServer(t)
 	defer server.Close()

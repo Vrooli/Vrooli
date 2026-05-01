@@ -24,7 +24,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -34,73 +33,10 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
-
-// =============================================================================
-// Fake runner with transcript-replay parser
-// =============================================================================
-
-// transcriptReplayRunner is a fake runner whose Execute() is never called
-// by these tests; it exists purely to register a TranscriptParser with
-// the runner registry so the recovery path can decode the transcript
-// the test pre-populates on disk.
-//
-// In production, the live agent process writes the transcript via
-// stdout-tee independent of the orchestrator's lifecycle (setsid for host,
-// sandbox supervisor for sandboxed). These tests model only the recovery
-// half of that contract — the orchestrator boots fresh and reads what
-// disk already has — which is the regression-critical path: it's the
-// behavior that lets agent-manager recover its own changes after a
-// restart that ships them.
-type transcriptReplayRunner struct {
-	*runner.MockRunner
-}
-
-func newTranscriptReplayRunner(rt domain.RunnerType) *transcriptReplayRunner {
-	return &transcriptReplayRunner{MockRunner: runner.NewMockRunner(rt)}
-}
-
-func (r *transcriptReplayRunner) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	line = strings.TrimSpace(line)
-	switch {
-	case line == "":
-		return runner.TranscriptParseResult{}
-	case strings.HasPrefix(line, "session:"):
-		return runner.TranscriptParseResult{SessionID: strings.TrimPrefix(line, "session:")}
-	case strings.HasPrefix(line, "message:"):
-		return runner.TranscriptParseResult{
-			Events: []*domain.RunEvent{
-				domain.NewMessageEvent(runID, "assistant", strings.TrimPrefix(line, "message:")),
-			},
-		}
-	case strings.HasPrefix(line, "done:"):
-		return runner.TranscriptParseResult{
-			Terminal: &runner.TranscriptTerminal{
-				Success:  true,
-				ExitCode: 0,
-				Summary: &domain.RunSummary{
-					Description: strings.TrimPrefix(line, "done:"),
-				},
-			},
-		}
-	case strings.HasPrefix(line, "fail:"):
-		return runner.TranscriptParseResult{
-			Terminal: &runner.TranscriptTerminal{
-				Success:      false,
-				ExitCode:     1,
-				ErrorMessage: strings.TrimPrefix(line, "fail:"),
-			},
-		}
-	default:
-		return runner.TranscriptParseResult{
-			Events: []*domain.RunEvent{
-				domain.NewLogEvent(runID, "info", line),
-			},
-		}
-	}
-}
 
 // =============================================================================
 // Helpers for orchestrator instantiation
@@ -142,7 +78,7 @@ func mustCreateRecoveryRun(t *testing.T, repos *database.Repositories, rt domain
 	return run
 }
 
-func newTestReconciler(t *testing.T, repos *database.Repositories, store event.Store, fakeRunner *transcriptReplayRunner) *orchestration.Reconciler {
+func newTestReconciler(t *testing.T, repos *database.Repositories, store event.Store, fakeRunner *mocks.TranscriptReplayRunner) *orchestration.Reconciler {
 	t.Helper()
 
 	registry := runner.NewRegistry()
@@ -201,7 +137,7 @@ func TestRestartResume_TranscriptReplayCompletes(t *testing.T) {
 
 	// Boot the recovery-orchestrator (orchestrator B). Use a no-op
 	// fake runner — recovery uses the transcript parser, not Execute.
-	fakeRunner := newTranscriptReplayRunner(domain.RunnerTypeCodex)
+	fakeRunner := mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)
 	reconciler := newTestReconciler(t, repos, store, fakeRunner)
 
 	if err := reconciler.RecoverInFlightRuns(context.Background()); err != nil {
@@ -276,7 +212,7 @@ func TestRestartResume_DeadProcessNoTerminal(t *testing.T) {
 
 	run := mustCreateRecoveryRun(t, repos, domain.RunnerTypeCodex, transcriptPath)
 
-	fakeRunner := newTranscriptReplayRunner(domain.RunnerTypeCodex)
+	fakeRunner := mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)
 	reconciler := newTestReconciler(t, repos, store, fakeRunner)
 
 	if err := reconciler.RecoverInFlightRuns(context.Background()); err != nil {

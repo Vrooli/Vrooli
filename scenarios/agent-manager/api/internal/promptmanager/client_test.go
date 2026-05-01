@@ -3,26 +3,12 @@ package promptmanager
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"agent-manager/internal/testutil/httpx"
 )
-
-type mockHTTPDoer struct {
-	doFunc func(req *http.Request) (*http.Response, error)
-}
-
-func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
-	return m.doFunc(req)
-}
-
-func makeResponse(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(strings.NewReader(body)),
-	}
-}
 
 func TestNewHTTPClient_Defaults(t *testing.T) {
 	client := NewHTTPClient()
@@ -50,7 +36,7 @@ func TestNewHTTPClientWithResolver_Defaults(t *testing.T) {
 func TestHTTPClient_ReadSkill(t *testing.T) {
 	client := NewHTTPClientWithResolver(
 		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+		httpx.DoerFunc(func(req *http.Request) (*http.Response, error) {
 			if req.Method != http.MethodPost {
 				t.Errorf("expected POST, got %s", req.Method)
 			}
@@ -74,8 +60,8 @@ func TestHTTPClient_ReadSkill(t *testing.T) {
 
 			resp := readResponse{Combined: "rendered prompt content"}
 			body, _ := json.Marshal(resp)
-			return makeResponse(http.StatusOK, string(body)), nil
-		}},
+			return httpx.Response(http.StatusOK, string(body)), nil
+		}),
 	)
 
 	result, err := client.ReadSkill(context.Background(), "test-skill", map[string]string{"ITEM_NAME": "my-item"}, false)
@@ -90,9 +76,9 @@ func TestHTTPClient_ReadSkill(t *testing.T) {
 func TestHTTPClient_ReadSkill_ServerError(t *testing.T) {
 	client := NewHTTPClientWithResolver(
 		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-		&mockHTTPDoer{doFunc: func(_ *http.Request) (*http.Response, error) {
-			return makeResponse(http.StatusInternalServerError, "internal error"), nil
-		}},
+		httpx.DoerFunc(func(_ *http.Request) (*http.Response, error) {
+			return httpx.Response(http.StatusInternalServerError, "internal error"), nil
+		}),
 	)
 
 	_, err := client.ReadSkill(context.Background(), "test-skill", nil, false)

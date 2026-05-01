@@ -8,6 +8,7 @@ import (
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
@@ -97,7 +98,7 @@ func TestExtractRecommendations_ReturnsCachedResult(t *testing.T) {
 
 func TestExtractRecommendations_QueuesPendingExtraction(t *testing.T) {
 	ctx := context.Background()
-	broadcaster := &mockBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	orch, taskID := setupRecommendationOrch(t, WithBroadcaster(broadcaster))
 
@@ -138,7 +139,7 @@ func TestExtractRecommendations_QueuesPendingExtraction(t *testing.T) {
 	}
 
 	// Verify broadcast was sent
-	broadcasts := broadcaster.getBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Error("expected broadcast to be sent")
 	}
@@ -218,7 +219,7 @@ func TestExtractRecommendations_ReturnsFailedWithRawText(t *testing.T) {
 
 func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 	ctx := context.Background()
-	broadcaster := &mockBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	orch, taskID := setupRecommendationOrch(t, WithBroadcaster(broadcaster))
 
@@ -264,7 +265,7 @@ func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 	}
 
 	// Verify broadcast was sent
-	broadcasts := broadcaster.getBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Error("expected broadcast to be sent")
 	}

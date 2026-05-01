@@ -2,7 +2,6 @@ package orchestration
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -12,47 +11,10 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
-
-// mockAllowlistProvider implements AllowlistProvider for testing.
-type mockAllowlistProvider struct {
-	rules []domain.InvestigationTagRule
-}
-
-func (m *mockAllowlistProvider) GetAllowlist(ctx context.Context) []domain.InvestigationTagRule {
-	if m.rules == nil {
-		return domain.DefaultInvestigationTagAllowlist()
-	}
-	return m.rules
-}
-
-// mockBroadcaster implements EventBroadcaster for testing.
-type mockBroadcaster struct {
-	mu         sync.Mutex
-	broadcasts []*domain.Run
-}
-
-func (m *mockBroadcaster) BroadcastEvent(event *domain.RunEvent) {
-	// No-op for testing
-}
-
-func (m *mockBroadcaster) BroadcastRunStatus(run *domain.Run) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.broadcasts = append(m.broadcasts, run)
-}
-
-func (m *mockBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
-	// No-op for testing
-}
-
-func (m *mockBroadcaster) getBroadcasts() []*domain.Run {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return append([]*domain.Run{}, m.broadcasts...)
-}
 
 // setupWorkerRepos creates SQLite-backed repos for recommendation worker tests.
 // Returns the run repository, event store, and a task ID for seeding runs.
@@ -200,7 +162,7 @@ func TestRecommendationWorker_AllowlistFiltering(t *testing.T) {
 			deps := setupWorkerRepos(t)
 			runRepo, eventStore := deps.runRepo, deps.eventStore
 			extractor := recommendation.NewMockExtractor()
-			allowlist := &mockAllowlistProvider{rules: tt.rules}
+			allowlist := mocks.NewFakeAllowlistProvider(tt.rules...)
 
 			worker := NewRecommendationWorker(
 				runRepo,
@@ -252,7 +214,7 @@ func TestRecommendationWorker_ProcessQueue(t *testing.T) {
 		},
 	}
 
-	broadcaster := &mockBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	worker := NewRecommendationWorker(
 		runRepo,
@@ -313,7 +275,7 @@ func TestRecommendationWorker_ProcessQueue(t *testing.T) {
 	}
 
 	// Verify broadcast was sent
-	broadcasts := broadcaster.getBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Error("expected at least one broadcast")
 	}
@@ -421,11 +383,9 @@ func TestRecommendationWorker_SkipsIneligibleRuns(t *testing.T) {
 	}
 
 	// Use a restrictive allowlist
-	allowlist := &mockAllowlistProvider{
-		rules: []domain.InvestigationTagRule{
-			{Pattern: "special-investigation", IsRegex: false, CaseSensitive: false},
-		},
-	}
+	allowlist := mocks.NewFakeAllowlistProvider(
+		domain.InvestigationTagRule{Pattern: "special-investigation", IsRegex: false, CaseSensitive: false},
+	)
 
 	worker := NewRecommendationWorker(
 		runRepo,
@@ -553,7 +513,7 @@ func TestRecommendationWorker_RecoverStaleExtractions(t *testing.T) {
 	deps := setupWorkerRepos(t)
 	runRepo, eventStore, taskID := deps.runRepo, deps.eventStore, deps.taskID
 	extractor := recommendation.NewMockExtractor()
-	broadcaster := &mockBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
 	// Use a very short stale timeout for testing
 	worker := NewRecommendationWorker(
@@ -603,7 +563,7 @@ func TestRecommendationWorker_RecoverStaleExtractions(t *testing.T) {
 	}
 
 	// Verify broadcast was sent
-	broadcasts := broadcaster.getBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Error("expected broadcast for recovered run")
 	}

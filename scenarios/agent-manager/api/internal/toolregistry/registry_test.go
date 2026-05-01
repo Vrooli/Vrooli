@@ -5,28 +5,10 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/testutil/mocks"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
-
-// mockToolProvider is a test double for ToolProvider.
-type mockToolProvider struct {
-	name       string
-	tools      []*toolspb.ToolDefinition
-	categories []*toolspb.ToolCategory
-}
-
-func (m *mockToolProvider) Name() string {
-	return m.name
-}
-
-func (m *mockToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition {
-	return m.tools
-}
-
-func (m *mockToolProvider) Categories(_ context.Context) []*toolspb.ToolCategory {
-	return m.categories
-}
 
 func TestNewRegistry(t *testing.T) {
 	cfg := RegistryConfig{
@@ -52,11 +34,9 @@ func TestRegistry_RegisterProvider(t *testing.T) {
 		ScenarioVersion: "1.0.0",
 	})
 
-	provider := &mockToolProvider{
-		name: "test-provider",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "test_tool", Description: "A test tool"},
-		},
+	provider := mocks.NewFakeToolProvider("test-provider")
+	provider.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "test_tool", Description: "A test tool"},
 	}
 
 	registry.RegisterProvider(provider)
@@ -72,17 +52,13 @@ func TestRegistry_RegisterProvider_Replaces(t *testing.T) {
 		ScenarioVersion: "1.0.0",
 	})
 
-	provider1 := &mockToolProvider{
-		name: "same-name",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "tool_v1", Description: "Version 1"},
-		},
+	provider1 := mocks.NewFakeToolProvider("same-name")
+	provider1.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "tool_v1", Description: "Version 1"},
 	}
-	provider2 := &mockToolProvider{
-		name: "same-name",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "tool_v2", Description: "Version 2"},
-		},
+	provider2 := mocks.NewFakeToolProvider("same-name")
+	provider2.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "tool_v2", Description: "Version 2"},
 	}
 
 	registry.RegisterProvider(provider1)
@@ -105,7 +81,7 @@ func TestRegistry_UnregisterProvider(t *testing.T) {
 		ScenarioVersion: "1.0.0",
 	})
 
-	provider := &mockToolProvider{name: "test-provider"}
+	provider := mocks.NewFakeToolProvider("test-provider")
 	registry.RegisterProvider(provider)
 	registry.UnregisterProvider("test-provider")
 
@@ -122,16 +98,14 @@ func TestRegistry_GetManifest(t *testing.T) {
 	}
 	registry := NewRegistry(cfg)
 
-	provider := &mockToolProvider{
-		name: "test-provider",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "tool_a", Description: "Tool A", Category: "cat1"},
-			{Name: "tool_b", Description: "Tool B", Category: "cat2"},
-		},
-		categories: []*toolspb.ToolCategory{
-			{Id: "cat1", Name: "Category 1"},
-			{Id: "cat2", Name: "Category 2"},
-		},
+	provider := mocks.NewFakeToolProvider("test-provider")
+	provider.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "tool_a", Description: "Tool A", Category: "cat1"},
+		{Name: "tool_b", Description: "Tool B", Category: "cat2"},
+	}
+	provider.CategoriesValue = []*toolspb.ToolCategory{
+		{Id: "cat1", Name: "Category 1"},
+		{Id: "cat2", Name: "Category 2"},
 	}
 	registry.RegisterProvider(provider)
 
@@ -175,23 +149,19 @@ func TestRegistry_GetManifest_MultipleProviders(t *testing.T) {
 		ScenarioVersion: "1.0.0",
 	})
 
-	provider1 := &mockToolProvider{
-		name: "provider-1",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "tool_from_p1", Description: "From provider 1"},
-		},
-		categories: []*toolspb.ToolCategory{
-			{Id: "shared", Name: "From P1"},
-		},
+	provider1 := mocks.NewFakeToolProvider("provider-1")
+	provider1.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "tool_from_p1", Description: "From provider 1"},
 	}
-	provider2 := &mockToolProvider{
-		name: "provider-2",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "tool_from_p2", Description: "From provider 2"},
-		},
-		categories: []*toolspb.ToolCategory{
-			{Id: "shared", Name: "From P2"}, // Overrides P1's category
-		},
+	provider1.CategoriesValue = []*toolspb.ToolCategory{
+		{Id: "shared", Name: "From P1"},
+	}
+	provider2 := mocks.NewFakeToolProvider("provider-2")
+	provider2.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "tool_from_p2", Description: "From provider 2"},
+	}
+	provider2.CategoriesValue = []*toolspb.ToolCategory{
+		{Id: "shared", Name: "From P2"}, // Overrides P1's category
 	}
 
 	registry.RegisterProvider(provider1)
@@ -216,11 +186,9 @@ func TestRegistry_GetTool(t *testing.T) {
 		ScenarioVersion: "1.0.0",
 	})
 
-	provider := &mockToolProvider{
-		name: "test-provider",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "my_tool", Description: "My tool description"},
-		},
+	provider := mocks.NewFakeToolProvider("test-provider")
+	provider.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "my_tool", Description: "My tool description"},
 	}
 	registry.RegisterProvider(provider)
 
@@ -246,13 +214,11 @@ func TestRegistry_ListToolNames(t *testing.T) {
 		ScenarioVersion: "1.0.0",
 	})
 
-	provider := &mockToolProvider{
-		name: "test-provider",
-		tools: []*toolspb.ToolDefinition{
-			{Name: "alpha"},
-			{Name: "beta"},
-			{Name: "gamma"},
-		},
+	provider := mocks.NewFakeToolProvider("test-provider")
+	provider.ToolsValue = []*toolspb.ToolDefinition{
+		{Name: "alpha"},
+		{Name: "beta"},
+		{Name: "gamma"},
 	}
 	registry.RegisterProvider(provider)
 

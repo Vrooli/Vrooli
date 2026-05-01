@@ -8,87 +8,18 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	toolmocks "agent-manager/internal/testutil/mocks/toolexecution"
 
 	"github.com/google/uuid"
 )
 
-// mockOrchestrator implements the Orchestrator interface for testing.
-type mockOrchestrator struct {
-	createTaskFn func(ctx context.Context, task *domain.Task) (*domain.Task, error)
-	createRunFn  func(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error)
-	getRunFn     func(ctx context.Context, id uuid.UUID) (*domain.Run, error)
-	listRunsFn   func(ctx context.Context, opts orchestration.RunListOptions) ([]*domain.Run, error)
-	stopRunFn    func(ctx context.Context, id uuid.UUID) error
-	getRunDiffFn func(ctx context.Context, runID uuid.UUID) (*sandbox.DiffResult, error)
-	approveRunFn func(ctx context.Context, req orchestration.ApproveRequest) (*orchestration.ApproveResult, error)
-}
-
-// Verify mockOrchestrator implements Orchestrator interface
-var _ Orchestrator = (*mockOrchestrator)(nil)
-
-// Orchestrator interface implementation
-func (m *mockOrchestrator) CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error) {
-	if m.createTaskFn != nil {
-		return m.createTaskFn(ctx, task)
-	}
-	task.ID = uuid.New()
-	task.CreatedAt = time.Now()
-	return task, nil
-}
-
-func (m *mockOrchestrator) CreateRun(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
-	if m.createRunFn != nil {
-		return m.createRunFn(ctx, req)
-	}
-	return &domain.Run{
-		ID:        uuid.New(),
-		TaskID:    req.TaskID,
-		Status:    domain.RunStatusPending,
-		Phase:     domain.RunPhaseQueued,
-		CreatedAt: time.Now(),
-	}, nil
-}
-
-func (m *mockOrchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
-	if m.getRunFn != nil {
-		return m.getRunFn(ctx, id)
-	}
-	return nil, &domain.NotFoundError{EntityType: "run", ID: id.String()}
-}
-
-func (m *mockOrchestrator) ListRuns(ctx context.Context, opts orchestration.RunListOptions) ([]*domain.Run, error) {
-	if m.listRunsFn != nil {
-		return m.listRunsFn(ctx, opts)
-	}
-	return []*domain.Run{}, nil
-}
-
-func (m *mockOrchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
-	if m.stopRunFn != nil {
-		return m.stopRunFn(ctx, id)
-	}
-	return nil
-}
-
-func (m *mockOrchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbox.DiffResult, error) {
-	if m.getRunDiffFn != nil {
-		return m.getRunDiffFn(ctx, runID)
-	}
-	return nil, &domain.NotFoundError{EntityType: "run", ID: runID.String()}
-}
-
-func (m *mockOrchestrator) ApproveRun(ctx context.Context, req orchestration.ApproveRequest) (*orchestration.ApproveResult, error) {
-	if m.approveRunFn != nil {
-		return m.approveRunFn(ctx, req)
-	}
-	return &orchestration.ApproveResult{Success: true}, nil
-}
+var _ Orchestrator = (*toolmocks.FakeOrchestrator)(nil)
 
 // --- Tests ---
 
 func TestExecute_UnknownTool(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		Orchestrator: &mockOrchestrator{},
+		Orchestrator: toolmocks.NewFakeOrchestrator(),
 	})
 
 	result, err := executor.Execute(context.Background(), "unknown_tool", nil)
@@ -107,20 +38,19 @@ func TestSpawnCodingAgent_Success(t *testing.T) {
 	taskID := uuid.New()
 	runID := uuid.New()
 
-	mock := &mockOrchestrator{
-		createTaskFn: func(ctx context.Context, task *domain.Task) (*domain.Task, error) {
-			task.ID = taskID
-			task.CreatedAt = time.Now()
-			return task, nil
-		},
-		createRunFn: func(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
-			return &domain.Run{
-				ID:        runID,
-				TaskID:    req.TaskID,
-				Status:    domain.RunStatusPending,
-				CreatedAt: time.Now(),
-			}, nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.CreateTaskFunc = func(ctx context.Context, task *domain.Task) (*domain.Task, error) {
+		task.ID = taskID
+		task.CreatedAt = time.Now()
+		return task, nil
+	}
+	mock.CreateRunFunc = func(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
+		return &domain.Run{
+			ID:        runID,
+			TaskID:    req.TaskID,
+			Status:    domain.RunStatusPending,
+			CreatedAt: time.Now(),
+		}, nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -144,7 +74,7 @@ func TestSpawnCodingAgent_Success(t *testing.T) {
 
 func TestSpawnCodingAgent_MissingTask(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		Orchestrator: &mockOrchestrator{},
+		Orchestrator: toolmocks.NewFakeOrchestrator(),
 	})
 
 	result, err := executor.Execute(context.Background(), "spawn_coding_agent", map[string]interface{}{})
@@ -162,20 +92,19 @@ func TestSpawnCodingAgent_MissingTask(t *testing.T) {
 func TestSpawnCodingAgent_WithContextAttachments(t *testing.T) {
 	var capturedTask *domain.Task
 
-	mock := &mockOrchestrator{
-		createTaskFn: func(ctx context.Context, task *domain.Task) (*domain.Task, error) {
-			capturedTask = task
-			task.ID = uuid.New()
-			return task, nil
-		},
-		createRunFn: func(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
-			return &domain.Run{
-				ID:        uuid.New(),
-				TaskID:    req.TaskID,
-				Status:    domain.RunStatusPending,
-				CreatedAt: time.Now(),
-			}, nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.CreateTaskFunc = func(ctx context.Context, task *domain.Task) (*domain.Task, error) {
+		capturedTask = task
+		task.ID = uuid.New()
+		return task, nil
+	}
+	mock.CreateRunFunc = func(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
+		return &domain.Run{
+			ID:        uuid.New(),
+			TaskID:    req.TaskID,
+			Status:    domain.RunStatusPending,
+			CreatedAt: time.Now(),
+		}, nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -209,17 +138,16 @@ func TestCheckAgentStatus_Success(t *testing.T) {
 	runID := uuid.New()
 	taskID := uuid.New()
 
-	mock := &mockOrchestrator{
-		getRunFn: func(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
-			return &domain.Run{
-				ID:        runID,
-				TaskID:    taskID,
-				Status:    domain.RunStatusRunning,
-				Phase:     domain.RunPhaseExecuting,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}, nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.GetRunFunc = func(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
+		return &domain.Run{
+			ID:        runID,
+			TaskID:    taskID,
+			Status:    domain.RunStatusRunning,
+			Phase:     domain.RunPhaseExecuting,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}, nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -248,10 +176,9 @@ func TestCheckAgentStatus_Success(t *testing.T) {
 }
 
 func TestCheckAgentStatus_NotFound(t *testing.T) {
-	mock := &mockOrchestrator{
-		getRunFn: func(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
-			return nil, &domain.NotFoundError{EntityType: "run", ID: id.String()}
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.GetRunFunc = func(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
+		return nil, &domain.NotFoundError{EntityType: "run", ID: id.String()}
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -272,7 +199,7 @@ func TestCheckAgentStatus_NotFound(t *testing.T) {
 
 func TestCheckAgentStatus_MissingRunID(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		Orchestrator: &mockOrchestrator{},
+		Orchestrator: toolmocks.NewFakeOrchestrator(),
 	})
 
 	result, err := executor.Execute(context.Background(), "check_agent_status", map[string]interface{}{})
@@ -291,14 +218,13 @@ func TestStopAgent_Success(t *testing.T) {
 	runID := uuid.New()
 	stopCalled := false
 
-	mock := &mockOrchestrator{
-		stopRunFn: func(ctx context.Context, id uuid.UUID) error {
-			stopCalled = true
-			if id != runID {
-				t.Errorf("expected run_id %s, got %s", runID.String(), id.String())
-			}
-			return nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.StopRunFunc = func(ctx context.Context, id uuid.UUID) error {
+		stopCalled = true
+		if id != runID {
+			t.Errorf("expected run_id %s, got %s", runID.String(), id.String())
+		}
+		return nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -321,17 +247,16 @@ func TestListActiveAgents_Success(t *testing.T) {
 	runID1 := uuid.New()
 	runID2 := uuid.New()
 
-	mock := &mockOrchestrator{
-		listRunsFn: func(ctx context.Context, opts orchestration.RunListOptions) ([]*domain.Run, error) {
-			// Verify we're filtering by running status
-			if opts.Status == nil || *opts.Status != domain.RunStatusRunning {
-				t.Error("expected filter by running status")
-			}
-			return []*domain.Run{
-				{ID: runID1, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: time.Now()},
-				{ID: runID2, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: time.Now()},
-			}, nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.ListRunsFunc = func(ctx context.Context, opts orchestration.RunListOptions) ([]*domain.Run, error) {
+		// Verify we're filtering by running status
+		if opts.Status == nil || *opts.Status != domain.RunStatusRunning {
+			t.Error("expected filter by running status")
+		}
+		return []*domain.Run{
+			{ID: runID1, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: time.Now()},
+			{ID: runID2, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: time.Now()},
+		}, nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -361,20 +286,19 @@ func TestGetAgentDiff_Success(t *testing.T) {
 	runID := uuid.New()
 	sandboxID := uuid.New()
 
-	mock := &mockOrchestrator{
-		getRunDiffFn: func(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
-			return &sandbox.DiffResult{
-				SandboxID:   sandboxID,
-				UnifiedDiff: "diff --git a/test.go b/test.go\n+new line",
-				Files:       []sandbox.FileChange{},
-				Stats: sandbox.DiffStats{
-					FilesChanged: 1,
-					LinesAdded:   1,
-					LinesRemoved: 0,
-				},
-				Generated: time.Now(),
-			}, nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.GetRunDiffFunc = func(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+		return &sandbox.DiffResult{
+			SandboxID:   sandboxID,
+			UnifiedDiff: "diff --git a/test.go b/test.go\n+new line",
+			Files:       []sandbox.FileChange{},
+			Stats: sandbox.DiffStats{
+				FilesChanged: 1,
+				LinesAdded:   1,
+				LinesRemoved: 0,
+			},
+			Generated: time.Now(),
+		}, nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -401,22 +325,21 @@ func TestGetAgentDiff_Success(t *testing.T) {
 func TestApproveAgentChanges_Success(t *testing.T) {
 	runID := uuid.New()
 
-	mock := &mockOrchestrator{
-		approveRunFn: func(ctx context.Context, req orchestration.ApproveRequest) (*orchestration.ApproveResult, error) {
-			if req.RunID != runID {
-				t.Errorf("expected run_id %s, got %s", runID.String(), req.RunID.String())
-			}
-			if req.Actor != "agent-inbox" {
-				t.Errorf("expected actor 'agent-inbox', got %q", req.Actor)
-			}
-			return &orchestration.ApproveResult{
-				Success:    true,
-				Applied:    3,
-				Remaining:  0,
-				IsPartial:  false,
-				CommitHash: "abc123",
-			}, nil
-		},
+	mock := toolmocks.NewFakeOrchestrator()
+	mock.ApproveRunFunc = func(ctx context.Context, req orchestration.ApproveRequest) (*orchestration.ApproveResult, error) {
+		if req.RunID != runID {
+			t.Errorf("expected run_id %s, got %s", runID.String(), req.RunID.String())
+		}
+		if req.Actor != "agent-inbox" {
+			t.Errorf("expected actor 'agent-inbox', got %q", req.Actor)
+		}
+		return &orchestration.ApproveResult{
+			Success:    true,
+			Applied:    3,
+			Remaining:  0,
+			IsPartial:  false,
+			CommitHash: "abc123",
+		}, nil
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
@@ -442,7 +365,7 @@ func TestApproveAgentChanges_Success(t *testing.T) {
 
 func TestInvalidRunID(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		Orchestrator: &mockOrchestrator{},
+		Orchestrator: toolmocks.NewFakeOrchestrator(),
 	})
 
 	tools := []string{"check_agent_status", "stop_agent", "get_agent_diff", "approve_agent_changes"}
