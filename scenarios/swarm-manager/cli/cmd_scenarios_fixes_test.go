@@ -63,7 +63,7 @@ func TestCmdScenariosFixes_MutuallyExclusiveScopeFlags(t *testing.T) {
 func TestCmdScenariosFixes_AllScopeJSONIncludesBothPartitions(t *testing.T) {
 	app := newFixesTestApp(t)
 
-	stdout := captureStdout(t, func() error {
+	stdout := clitest.CaptureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console", "--all", "--json"})
 	})
 
@@ -86,7 +86,7 @@ func TestCmdScenariosFixes_AllScopeJSONIncludesBothPartitions(t *testing.T) {
 func TestCmdScenariosFixes_ActiveScopeExcludesArchived(t *testing.T) {
 	app := newFixesTestApp(t)
 
-	stdout := captureStdout(t, func() error {
+	stdout := clitest.CaptureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console", "--active", "--json"})
 	})
 
@@ -106,7 +106,7 @@ func TestCmdScenariosFixes_ActiveScopeExcludesArchived(t *testing.T) {
 func TestCmdScenariosFixes_SearchFiltersByTitle(t *testing.T) {
 	app := newFixesTestApp(t)
 
-	stdout := captureStdout(t, func() error {
+	stdout := clitest.CaptureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console", "--all", "--search", "regression", "--json"})
 	})
 
@@ -130,7 +130,7 @@ func TestCmdScenariosFixes_SearchFiltersByTitle(t *testing.T) {
 func TestCmdScenariosFixes_HumanOutputRendersHeadings(t *testing.T) {
 	app := newFixesTestApp(t)
 
-	stdout := captureStdout(t, func() error {
+	stdout := clitest.CaptureStdout(t, func() error {
 		return app.cmdScenariosFixes([]string{"--name", "web-console"})
 	})
 	for _, want := range []string{"Active Fixes", "Archived Fixes", "fix-alpha", "fix-gamma"} {

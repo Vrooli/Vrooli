@@ -4,6 +4,28 @@
 >
 > Historical note: Earlier sections retain Ideas/Recommendations naming from pre-greenfield iterations. Treat those references as archived context, not current architecture.
 
+## Test Harness Update - 2026-05-01
+
+**Current Pattern**: UI tests are beginning to converge on `src/test-utils` for provider and environment setup.
+
+**Created**:
+- `src/test-utils/query.ts`: React Query test client defaults with retries disabled.
+- `src/test-utils/render.tsx`: `renderWithProviders`, `renderHookWithProviders`, and router wrappers with React Router future flags.
+- `src/test-utils/browser.ts`: matchMedia, ResizeObserver, and browser storage helpers.
+- `src/test-utils/stores.ts`: storage reset helper.
+- `src/test-utils/console.ts`: narrow expected-console helper for tests that intentionally assert thrown errors or warnings.
+
+**Migrated First**:
+- `hooks/useStats.test.ts`
+- `hooks/useCaptureContent.test.ts`
+- `hooks/use-url-state.test.tsx`
+
+**Validation**: Focused migrated tests pass, `pnpm exec tsc --noEmit` passes, and full `pnpm test` passes with `1809 passed`.
+
+**Remaining Noise**: Existing hot spots still emit API-base stdout, React `act(...)` warnings, React Router future-flag warnings in tests that do not yet use the shared router wrapper, SettingsDrawer key/DOM nesting warnings, and the expected BacklogDetailContext thrown-hook stack. Do not add global suppression; migrate hot spots through the shared helpers and silence only expected errors locally.
+
+**2026-05-01 Follow-up**: `components/ui/file-preview.test.tsx` now uses the shared QueryClient test factory and no longer skips the fetch-error state test. Because `useFilePreviewState` spreads production `defaultQueryOptions` into the query, the test file locally mocks `defaultQueryOptions.retry` to `false`; future component tests with query-level production defaults should use the same explicit seam or promote this override into the shared render harness once the high-noise files are migrated.
+
 ## State Management
 
 **Current Pattern**: React Query for server state + Zustand stores for shared state.

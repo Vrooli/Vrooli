@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 func TestCmdBacklogReviewDecide_RequiresKindAndName(t *testing.T) {
@@ -64,7 +65,7 @@ func TestCmdBacklogReviewDecide_PostsDecisionPayload(t *testing.T) {
 		t.Run(tc.decision, func(t *testing.T) {
 			var got map[string]any
 			var gotPath string
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != http.MethodPost {
 					t.Fatalf("method: %s", r.Method)
 				}
@@ -75,9 +76,7 @@ func TestCmdBacklogReviewDecide_PostsDecisionPayload(t *testing.T) {
 				}
 				_, _ = w.Write([]byte(`{"decision":"` + tc.decision + `","status":"completed","decided_at":"2026-04-23T00:00:00Z"}`))
 			}))
-			defer server.Close()
 
-			t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 			app, err := NewApp()
 			if err != nil {
 				t.Fatalf("NewApp: %v", err)

@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { createElement } from "react";
 import type { StatsResponse } from "../types/stats";
+import { createQueryWrapper } from "../test-utils";
 
 const mockGetStats = vi.fn<() => Promise<StatsResponse>>();
 
@@ -12,17 +10,6 @@ vi.mock("../services", () => ({
 }));
 
 import { useStats } from "./useStats";
-
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-    },
-  });
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return createElement(QueryClientProvider, { client: queryClient }, children);
-  };
-}
 
 const MOCK_STATS: StatsResponse = {
   generated_at: "2026-03-31T10:00:00Z",
@@ -121,7 +108,7 @@ describe("useStats", () => {
 
   it("fetches stats when enabled", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
-    const { result } = renderHook(() => useStats(true), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useStats(true), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetStats).toHaveBeenCalledTimes(1);
@@ -130,7 +117,7 @@ describe("useStats", () => {
 
   it("does not fetch when disabled", () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
-    const { result } = renderHook(() => useStats(false), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useStats(false), { wrapper: createQueryWrapper() });
 
     expect(result.current.isFetching).toBe(false);
     expect(mockGetStats).not.toHaveBeenCalled();
@@ -138,7 +125,7 @@ describe("useStats", () => {
 
   it("exposes error when fetch fails", async () => {
     mockGetStats.mockRejectedValue(new Error("Server error"));
-    const { result } = renderHook(() => useStats(true), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useStats(true), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe("Server error");

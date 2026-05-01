@@ -4,7 +4,7 @@
 
 Improve the Swarm Manager scenario test architecture using the same direction recently applied to `workspace-sandbox`: shared test utilities, clearer seams, lower warning noise, and stronger coverage around behavior boundaries instead of brittle implementation details.
 
-This is a planning artifact only. It does not implement the changes.
+This started as a planning artifact and now also tracks rollout progress as the test architecture work lands incrementally.
 
 ## Required Reading
 
@@ -357,17 +357,22 @@ rg 'swarm-manager/internal/testutil' scenarios/swarm-manager/api scenarios/swarm
 - [x] First package cluster migrated and reviewed before wider migration.
 - [ ] Fixed sleeps removed or justified.
 - [x] CLI harness introduced and initial high-duplication command tests migrated.
-- [ ] UI test-utils introduced with render/query/browser/store/console helpers.
+- [x] UI test-utils introduced with render/query/browser/store/console helpers.
 - [ ] UI high-noise files migrated.
-- [ ] Skipped UI test resolved.
+- [x] Skipped UI test resolved.
 - [ ] Boundary tests added for provenance, sandbox mode, graph, execution, feedback, and operating mode.
 - [ ] Internal docs updated.
-- [ ] `make test` passes from `scenarios/swarm-manager`.
+- [x] `make test` passes from `scenarios/swarm-manager`.
 
 Progress notes:
 
 - 2026-05-01: API testutil now includes reusable dispatch, scheduler, HTTP error writer, and Agent Manager spawner fakes. Backlog service and execution handler tests have started using the shared fakes.
 - 2026-05-01: CLI API server/env harness now covers `ai-search`, `initiatives context`, `initiatives feedback`, and `scenarios fixes` command tests.
+- 2026-05-01: CLI harness now owns API server/env setup, generic HTTP server cleanup, and stdout capture. Remaining direct `httptest.NewServer` and `SWARM_MANAGER_API_BASE` setup were removed from CLI tests, including the large `app_test.go`, initiative list, backlog review decision, scenarios fixes, and identity transport tests.
+- 2026-05-01: UI `src/test-utils` now has query, render/router, browser, storage, and expected-console helpers. Initial migrations cover `useStats`, `useCaptureContent`, and `use-url-state`; the focused subset, `tsc --noEmit`, and full `pnpm test` pass. Broader hot-spot warning cleanup is still pending.
+- 2026-05-01: Scenario-level `cd scenarios/swarm-manager && make test` completed successfully through the lifecycle-managed `run-tests` phase.
+- 2026-05-01: Removed the last skipped UI test by enabling the FilePreview fetch-error assertion, routing it through shared QueryClient test defaults, and locally disabling production query retries for deterministic error rendering. `rg 'it\.skip|describe\.skip|test\.skip' scenarios/swarm-manager/ui/src --glob '*.{test,spec}.{ts,tsx}'` now returns no matches.
+- 2026-05-01: Replaced fixed sleeps in `api/internal/graph/broker_test.go` with a condition-based broker client-count waiter. Remaining `time.Sleep` usage is concentrated in graph materialization, aisearch fire-and-forget integration, backlog auto-init negative assertion, and initiative feedback/review flows.
 
 ## Risks and Mitigations
 

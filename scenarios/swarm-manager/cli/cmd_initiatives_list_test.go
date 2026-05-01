@@ -1,42 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
-	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
-
-func captureStdout(t *testing.T, fn func() error) string {
-	t.Helper()
-	orig := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	os.Stdout = w
-	defer func() { os.Stdout = orig }()
-
-	runErr := fn()
-
-	_ = w.Close()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		t.Fatalf("copy: %v", err)
-	}
-	if runErr != nil {
-		t.Fatalf("command returned error: %v", runErr)
-	}
-	return buf.String()
-}
 
 func TestCmdInitiativesList_PassesScenarioFlag(t *testing.T) {
 	var seenQuery string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/initiatives" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -45,9 +20,7 @@ func TestCmdInitiativesList_PassesScenarioFlag(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -63,15 +36,13 @@ func TestCmdInitiativesList_PassesScenarioFlag(t *testing.T) {
 
 func TestCmdInitiativesList_PassesScenarioFlagCSV(t *testing.T) {
 	var seenQuery string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenQuery = r.URL.RawQuery
 		resp := ListInitiativesResponse{Items: []InitiativeResponse{}}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -91,15 +62,13 @@ func TestCmdInitiativesList_PassesScenarioFlagCSV(t *testing.T) {
 
 func TestCmdInitiativesList_OmitsScenarioWhenAbsent(t *testing.T) {
 	var seenQuery string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenQuery = r.URL.RawQuery
 		resp := ListInitiativesResponse{Items: []InitiativeResponse{}}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -114,7 +83,7 @@ func TestCmdInitiativesList_OmitsScenarioWhenAbsent(t *testing.T) {
 }
 
 func TestCmdInitiativesList_RendersTargetScenarios(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := ListInitiativesResponse{
 			Items: []InitiativeResponse{
 				{
@@ -130,9 +99,7 @@ func TestCmdInitiativesList_RendersTargetScenarios(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
@@ -144,7 +111,7 @@ func TestCmdInitiativesList_RendersTargetScenarios(t *testing.T) {
 }
 
 func TestCmdInitiativesList_RendersDependsOn(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := ListInitiativesResponse{
 			Items: []InitiativeResponse{
 				{
@@ -165,15 +132,13 @@ func TestCmdInitiativesList_RendersDependsOn(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	out := captureStdout(t, func() error { return app.cmdInitiativesList([]string{}) })
+	out := clitest.CaptureStdout(t, func() error { return app.cmdInitiativesList([]string{}) })
 
 	if !strings.Contains(out, "Depends on: continuous-audio-platform, protected-agent-sandboxing") {
 		t.Errorf("expected depends-on line with both deps in order, got:\n%s", out)
@@ -208,7 +173,7 @@ func TestCmdInitiativesGet_RendersDependsOn(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				resp := InitiativeResponse{
 					Initiative: Initiative{
 						Name: "target", Title: "Target", Status: "active",
@@ -219,15 +184,13 @@ func TestCmdInitiativesGet_RendersDependsOn(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(resp)
 			}))
-			defer server.Close()
 
-			t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 			app, err := NewApp()
 			if err != nil {
 				t.Fatalf("NewApp: %v", err)
 			}
 
-			out := captureStdout(t, func() error { return app.cmdInitiativesGet([]string{"--name", "target"}) })
+			out := clitest.CaptureStdout(t, func() error { return app.cmdInitiativesGet([]string{"--name", "target"}) })
 
 			if tc.wantEmpty {
 				if strings.Contains(out, "Depends on") {

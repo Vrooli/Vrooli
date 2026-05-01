@@ -6,10 +6,23 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { FilePreview } from "./file-preview";
 import { FileServiceProvider } from "../../contexts/FileServiceContext";
 import type { IFileService } from "../../services/file-service-types";
+import { selectors } from "../../consts/selectors";
+import { createTestQueryClient } from "../../test-utils";
+
+vi.mock("../../lib", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib")>();
+  return {
+    ...actual,
+    defaultQueryOptions: {
+      ...actual.defaultQueryOptions,
+      retry: false,
+    },
+  };
+});
 
 function createMockFileService(overrides?: Partial<IFileService>): IFileService {
   return {
@@ -28,15 +41,6 @@ function createMockFileService(overrides?: Partial<IFileService>): IFileService 
     ...overrides,
   };
 }
-
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
 
 const renderWithProviders = (ui: React.ReactElement, fileService?: IFileService) => {
   const queryClient = createTestQueryClient();
@@ -235,7 +239,7 @@ describe("FilePreview", () => {
     expect(image).toHaveAttribute("src", "/api/v1/backlog/idea/test-idea/files/images/logo.png");
   });
 
-  it.skip("shows error state when file fetch fails", async () => {
+  it("shows error state when file fetch fails", async () => {
     const svc = createMockFileService({
       getFileContent: vi.fn().mockRejectedValue(new Error("File not found")),
     });
@@ -250,10 +254,11 @@ describe("FilePreview", () => {
 
     await waitFor(
       () => {
-        expect(screen.getByTestId("error-state")).toBeInTheDocument();
+        expect(screen.getByTestId(selectors.error.container)).toBeInTheDocument();
       },
       { timeout: 3000 }
     );
+    expect(screen.getByTestId(selectors.error.title)).toHaveTextContent("Unable to load file");
   });
 
   it("displays file path in header", async () => {

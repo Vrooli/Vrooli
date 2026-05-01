@@ -6,11 +6,12 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 // [REQ:REQ-P0-009] Test CLI status command functionality
@@ -241,7 +242,7 @@ func TestCmdBacklogCreateWithAttachSendsMultipart(t *testing.T) {
 	var gotItem string
 	var gotManifest string
 	var gotFile string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -279,9 +280,7 @@ func TestCmdBacklogCreateWithAttachSendsMultipart(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"item":{"name":"attached","title":"Attached","kind":"fix","status":"backlog","priority":5}}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	t.Setenv("SWARM_MANAGER_API_TOKEN", "test-token")
 
 	app, err := NewApp()
@@ -530,7 +529,7 @@ func TestCmdBacklogUpdateValidation(t *testing.T) {
 }
 
 func TestCmdBacklogUpdateSendsPatchPayload(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -552,9 +551,7 @@ func TestCmdBacklogUpdateSendsPatchPayload(t *testing.T) {
 
 		_, _ = w.Write([]byte(`{"item":{"name":"my-idea","title":"My Idea","description":"","status":"ready","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -565,7 +562,7 @@ func TestCmdBacklogUpdateSendsPatchPayload(t *testing.T) {
 }
 
 func TestCmdBacklogUpdatePreservesEmptyArrayClears(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -587,9 +584,7 @@ func TestCmdBacklogUpdatePreservesEmptyArrayClears(t *testing.T) {
 
 		_, _ = w.Write([]byte(`{"item":{"name":"my-idea","title":"My Idea","description":"","status":"backlog","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -867,7 +862,7 @@ func TestCmdBacklogPendingQuestionsValidation(t *testing.T) {
 }
 
 func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -885,9 +880,7 @@ func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"items":[{"kind":"idea","name":"alpha","questions":[{"id":"d1","source":"workshop","topic":"Architecture","options":[{"key":"A","label":"Monolith"}]}]}]}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -927,7 +920,7 @@ func TestDecodeResponse(t *testing.T) {
 }
 
 func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/backlog/idea/test/files" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -940,9 +933,7 @@ func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	t.Setenv("SWARM_MANAGER_API_TOKEN", "test-token")
 
 	app, err := NewApp()
@@ -960,7 +951,7 @@ func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
 }
 
 func TestCmdPromptsCatalogRequestsExpectedEndpoint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -969,9 +960,7 @@ func TestCmdPromptsCatalogRequestsExpectedEndpoint(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"items":[{"id":"backlog-workshop","title":"Backlog Workshop","group":"backlog","usage_type":"direct_runtime","source_type":"skill","trigger":"Backlog workshop round","skill_id":"swarm-manager-workshop","backlog_kinds":["idea"],"modes":["workshop"],"purpose":"Run one workshop round.","output_paths":["workshop/round-NNN.json","plan.md"]}]}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -982,7 +971,7 @@ func TestCmdPromptsCatalogRequestsExpectedEndpoint(t *testing.T) {
 }
 
 func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1012,9 +1001,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-workshop","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -1025,7 +1012,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 }
 
 func TestCmdExecutionPromptTraceRequestsExpectedEndpoint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1034,9 +1021,7 @@ func TestCmdExecutionPromptTraceRequestsExpectedEndpoint(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"trace":{"purpose":"p","prompt":"prompt text","used_fallback":false,"captured_at":"2026-01-01T00:00:00Z"}}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -1047,7 +1032,7 @@ func TestCmdExecutionPromptTraceRequestsExpectedEndpoint(t *testing.T) {
 }
 
 func TestCmdScenariosSpecSyncArchiveSendsPreserveFiles(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1076,9 +1061,7 @@ func TestCmdScenariosSpecSyncArchiveSendsPreserveFiles(t *testing.T) {
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = w.Write([]byte(`{"execution_id":"exec-1","status":"queued","message":"ok"}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -1102,7 +1085,7 @@ func TestParseKVCSVValidation(t *testing.T) {
 }
 
 func TestCmdBacklogQueueOmitsModeWhenUnset(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1122,9 +1105,7 @@ func TestCmdBacklogQueueOmitsModeWhenUnset(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"dry_run":true,"queued":false,"message":"ok"}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -1137,7 +1118,7 @@ func TestCmdBacklogQueueOmitsModeWhenUnset(t *testing.T) {
 func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
 	settingsRequested := false
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/settings":
 			settingsRequested = true
@@ -1162,9 +1143,7 @@ func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -1217,7 +1196,7 @@ func TestCmdBacklogFileUploadStdinPreservesApostrophes(t *testing.T) {
 	content := `{"title":"Design the registry as a reusable capability for any scenario's UI components","status":"pending"}`
 
 	var received string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1253,9 +1232,7 @@ func TestCmdBacklogFileUploadStdinPreservesApostrophes(t *testing.T) {
 		// Size field uses json:",string" tag so must be quoted in JSON
 		_, _ = w.Write([]byte(`{"file":{"path":"suggest/suggestions.json","name":"suggestions.json","size":"104"}}`))
 	}))
-	defer server.Close()
 
-	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 	t.Setenv("SWARM_MANAGER_API_TOKEN", "test-token")
 
 	// Replace stdin with a pipe containing our content

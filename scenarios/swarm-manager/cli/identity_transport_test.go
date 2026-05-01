@@ -2,16 +2,16 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 func TestIdentityTransport_InjectsHeader(t *testing.T) {
 	var gotHeader string
-	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	server := clitest.NewHTTPServer(t, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		gotHeader = r.Header.Get(headerAgentIdentityToken)
 	}))
-	defer server.Close()
 
 	client := &http.Client{
 		Transport: &identityTransport{
@@ -37,10 +37,9 @@ func TestIdentityTransport_InjectsHeader(t *testing.T) {
 
 func TestIdentityTransport_NoTokenNoHeader(t *testing.T) {
 	var gotHeader string
-	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	server := clitest.NewHTTPServer(t, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		gotHeader = r.Header.Get(headerAgentIdentityToken)
 	}))
-	defer server.Close()
 
 	client := &http.Client{
 		Transport: &identityTransport{
