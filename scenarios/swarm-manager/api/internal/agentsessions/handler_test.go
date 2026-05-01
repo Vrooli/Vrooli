@@ -2,6 +2,7 @@ package agentsessions
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -109,7 +110,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 		t.Fatalf("refresh messages = %+v", messages)
 	}
 
-	if _, err := svc.AttachArtifact(nil, Artifact{
+	if _, err := svc.AttachArtifact(context.Background(), Artifact{
 		SessionID:    sessionID,
 		ArtifactType: ArtifactInitiative,
 		Action:       ArtifactActionCreated,

@@ -179,40 +179,63 @@ type aggregateState struct {
 	reviewEvidenceVerified int
 	reviewRequestsCreated  int
 	reviewDurations        []float64 // in seconds
+
+	// Native Agent Session tracking.
+	sessionKind                   map[string]string
+	sessionStatus                 map[string]string
+	sessionCreatedAt              map[string]time.Time
+	sessionMessageCount           map[string]int
+	sessionFirstProposalRecorded  map[string]bool
+	sessionFirstProposalSeconds   []float64
+	sessionProposalCreatedByKind  map[string]int
+	sessionProposalAppliedByKind  map[string]int
+	sessionArtifactsCreatedByKind map[string]int
+	sessionArtifactsByType        map[string]int
+	sessionCreatedBacklogItems    int
+	sessionCreatedInitiatives     int
 }
 
 func newAggregateState() *aggregateState {
 	return &aggregateState{
-		now:                     time.Now,
-		currentBacklog:          make(map[string]bool),
-		createdAt:               make(map[string]time.Time),
-		inProgressAt:            make(map[string]time.Time),
-		queuedAt:                make(map[string]time.Time),
-		blockedItems:            make(map[string]time.Time),
-		blockReasons:            make(map[string]int),
-		initiativeItems:         make(map[string]map[string]bool),
-		initiativeInitial:       make(map[string]int),
-		initiativeCreated:       make(map[string]bool),
-		initiativeMode:          make(map[string]string),
-		itemStatus:              make(map[string]string),
-		modePhaseRuns:           make(map[string]map[string]int),
-		modeCompletedScopes:     make(map[string]map[string]bool),
-		modeCompleted:           make(map[string]int),
-		modeFailed:              make(map[string]int),
-		modeCanceled:            make(map[string]int),
-		modeReplanNumerator:     make(map[string]int),
-		modeReplanDenominator:   make(map[string]int),
-		modeAcceptanceNumerator: make(map[string]int),
-		modeAcceptanceDenom:     make(map[string]int),
-		modeDurationSums:        make(map[string]map[string]float64),
-		modeDurationCounts:      make(map[string]map[string]int),
-		modeProfileUsage:        make(map[string]int),
-		modeProfilePhaseRuns:    make(map[string]map[string]int),
-		modeBacklogSync:         make(map[string]*BacklogSyncStats),
-		execHasFixup:            make(map[string]bool),
-		workshopRounds:          make(map[string]int),
-		execOutcome:             make(map[string]string),
-		decisionByKind:          make(map[string]*decisionKindCounters),
+		now:                           time.Now,
+		currentBacklog:                make(map[string]bool),
+		createdAt:                     make(map[string]time.Time),
+		inProgressAt:                  make(map[string]time.Time),
+		queuedAt:                      make(map[string]time.Time),
+		blockedItems:                  make(map[string]time.Time),
+		blockReasons:                  make(map[string]int),
+		initiativeItems:               make(map[string]map[string]bool),
+		initiativeInitial:             make(map[string]int),
+		initiativeCreated:             make(map[string]bool),
+		initiativeMode:                make(map[string]string),
+		itemStatus:                    make(map[string]string),
+		modePhaseRuns:                 make(map[string]map[string]int),
+		modeCompletedScopes:           make(map[string]map[string]bool),
+		modeCompleted:                 make(map[string]int),
+		modeFailed:                    make(map[string]int),
+		modeCanceled:                  make(map[string]int),
+		modeReplanNumerator:           make(map[string]int),
+		modeReplanDenominator:         make(map[string]int),
+		modeAcceptanceNumerator:       make(map[string]int),
+		modeAcceptanceDenom:           make(map[string]int),
+		modeDurationSums:              make(map[string]map[string]float64),
+		modeDurationCounts:            make(map[string]map[string]int),
+		modeProfileUsage:              make(map[string]int),
+		modeProfilePhaseRuns:          make(map[string]map[string]int),
+		modeBacklogSync:               make(map[string]*BacklogSyncStats),
+		execHasFixup:                  make(map[string]bool),
+		workshopRounds:                make(map[string]int),
+		execOutcome:                   make(map[string]string),
+		decisionByKind:                make(map[string]*decisionKindCounters),
+		sessionKind:                   make(map[string]string),
+		sessionStatus:                 make(map[string]string),
+		sessionCreatedAt:              make(map[string]time.Time),
+		sessionMessageCount:           make(map[string]int),
+		sessionFirstProposalRecorded:  make(map[string]bool),
+		sessionProposalCreatedByKind:  make(map[string]int),
+		sessionProposalAppliedByKind:  make(map[string]int),
+		sessionArtifactsCreatedByKind: make(map[string]int),
+		sessionArtifactsByType:        make(map[string]int),
 	}
 }
 
@@ -223,6 +246,22 @@ type decisionKindCounters struct {
 	itemsAnswered          int
 	itemsRecommendedChosen int
 	itemsFreeformChosen    int
+}
+
+type agentSessionStatsPayload struct {
+	SessionKind string `json:"session_kind"`
+	Status      string `json:"status"`
+}
+
+type agentSessionProposalStatsPayload struct {
+	SessionKind  string `json:"session_kind"`
+	ProposalKind string `json:"proposal_kind"`
+}
+
+type agentSessionArtifactStatsPayload struct {
+	SessionKind  string `json:"session_kind"`
+	ArtifactType string `json:"artifact_type"`
+	Action       string `json:"action"`
 }
 
 func (s *aggregateState) recordModePhaseStarted(p eventlog.OperatingModePhasePayload) {
@@ -546,6 +585,96 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 		// a manually-accepted run overrides any earlier "failed" outcome,
 		// without double-counting.
 		s.execOutcome[e.EntityID] = "manually_accepted"
+
+	// --- Native Agent Sessions ---
+	case eventlog.EventAgentSessionCreated:
+		var p agentSessionStatsPayload
+		if unmarshalMeta(e.Metadata, &p) {
+			s.sessionKind[e.EntityID] = p.SessionKind
+			s.sessionStatus[e.EntityID] = p.Status
+		}
+		if s.sessionKind[e.EntityID] == "" {
+			s.sessionKind[e.EntityID] = "unknown"
+		}
+		if s.sessionStatus[e.EntityID] == "" {
+			s.sessionStatus[e.EntityID] = "starting"
+		}
+		s.sessionCreatedAt[e.EntityID] = e.Timestamp
+		s.sessionMessageCount[e.EntityID]++
+
+	case eventlog.EventAgentSessionStarted, eventlog.EventAgentSessionContinued, eventlog.EventAgentSessionCompleted,
+		eventlog.EventAgentSessionFailed, eventlog.EventAgentSessionCanceled:
+		var p agentSessionStatsPayload
+		if unmarshalMeta(e.Metadata, &p) {
+			if p.SessionKind != "" {
+				s.sessionKind[e.EntityID] = p.SessionKind
+			}
+			if p.Status != "" {
+				s.sessionStatus[e.EntityID] = p.Status
+			}
+		}
+		if e.EventType == eventlog.EventAgentSessionContinued {
+			s.sessionMessageCount[e.EntityID]++
+		}
+
+	case eventlog.EventAgentSessionProposalCreated:
+		var p agentSessionProposalStatsPayload
+		if !unmarshalMeta(e.Metadata, &p) {
+			return
+		}
+		kind := p.SessionKind
+		if kind == "" {
+			kind = s.sessionKind[e.EntityID]
+		}
+		if kind == "" {
+			kind = "unknown"
+		}
+		s.sessionProposalCreatedByKind[kind]++
+		if !s.sessionFirstProposalRecorded[e.EntityID] {
+			if createdAt, ok := s.sessionCreatedAt[e.EntityID]; ok {
+				s.sessionFirstProposalSeconds = append(s.sessionFirstProposalSeconds, e.Timestamp.Sub(createdAt).Seconds())
+			}
+			s.sessionFirstProposalRecorded[e.EntityID] = true
+		}
+
+	case eventlog.EventAgentSessionProposalApplied:
+		var p agentSessionProposalStatsPayload
+		if !unmarshalMeta(e.Metadata, &p) {
+			return
+		}
+		kind := p.SessionKind
+		if kind == "" {
+			kind = s.sessionKind[e.EntityID]
+		}
+		if kind == "" {
+			kind = "unknown"
+		}
+		s.sessionProposalAppliedByKind[kind]++
+
+	case eventlog.EventAgentSessionArtifactLinked:
+		var p agentSessionArtifactStatsPayload
+		if !unmarshalMeta(e.Metadata, &p) {
+			return
+		}
+		kind := p.SessionKind
+		if kind == "" {
+			kind = s.sessionKind[e.EntityID]
+		}
+		if kind == "" {
+			kind = "unknown"
+		}
+		if p.ArtifactType != "" {
+			s.sessionArtifactsByType[p.ArtifactType]++
+		}
+		if p.Action == "created" {
+			s.sessionArtifactsCreatedByKind[kind]++
+			switch p.ArtifactType {
+			case "backlog_item":
+				s.sessionCreatedBacklogItems++
+			case "initiative":
+				s.sessionCreatedInitiatives++
+			}
+		}
 
 	// --- Workshop ---
 	case eventlog.EventWorkshopRoundCompleted:

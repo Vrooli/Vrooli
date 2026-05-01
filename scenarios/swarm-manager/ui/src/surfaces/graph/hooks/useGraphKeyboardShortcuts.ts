@@ -7,13 +7,14 @@
  * Ctrl+K: preserved for host switcher
  */
 
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import {
   emitShortcutIntent,
   HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
 } from "@vrooli/iframe-bridge";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
+import { useGlobalKeyDown } from "../../../hooks/useGlobalKeyDown";
 import type { GraphLens } from "../stores/graph-data-store";
 
 function isInputElement(el: HTMLElement): boolean {
@@ -102,8 +103,5 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
     [handlers, cycleLayoutMode, lens, selectedNodeId],
   );
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  useGlobalKeyDown(handleKeyDown);
 }

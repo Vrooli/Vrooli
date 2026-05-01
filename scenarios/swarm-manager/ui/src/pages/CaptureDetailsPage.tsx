@@ -5,7 +5,7 @@
  * classification triage, and metadata.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { Loader2, RefreshCw, Trash2, MessageSquare } from "lucide-react";
@@ -27,6 +27,7 @@ import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { backlogService } from "../services/backlog-service";
 import { useBacklogStore } from "../stores";
 import { useAppBack } from "../app/routes/useAppBack";
+import { useGlobalKeyDown } from "../hooks/useGlobalKeyDown";
 
 export function CaptureDetailsPage() {
   const { captureId } = useParams<{ captureId: string }>();
@@ -124,15 +125,10 @@ export function CaptureDetailsPage() {
     closeDetail();
   }, [closeDetail]);
 
-  // Close lightbox on Escape
-  useEffect(() => {
-    if (!lightboxSrc) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxSrc(null);
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [lightboxSrc]);
+  const handleLightboxKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setLightboxSrc(null);
+  }, []);
+  useGlobalKeyDown(handleLightboxKeyDown, { enabled: lightboxSrc !== null });
 
   if (!captureId) {
     return (

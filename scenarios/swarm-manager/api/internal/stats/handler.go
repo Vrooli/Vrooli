@@ -59,6 +59,9 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		if !requested["dashboard"] {
 			resp.Dashboard = DashboardStats{}
 		}
+		if !requested["session"] && !requested["sessions"] {
+			resp.Session = SessionStats{}
+		}
 	}
 
 	if err := httputil.JSON(w, resp); err != nil {

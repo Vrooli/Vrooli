@@ -204,6 +204,7 @@ func (a *App) dependencies() support.Dependencies {
 		StatsBlocking:                   a.cmdStatsBlocking,
 		StatsInitiatives:                a.cmdStatsInitiatives,
 		StatsAgent:                      a.cmdStatsAgent,
+		StatsSessions:                   a.cmdStatsSessions,
 		StatsSandboxAdoption:            a.cmdStatsSandboxAdoption,
 	}
 }

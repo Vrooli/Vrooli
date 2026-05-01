@@ -131,6 +131,24 @@ const MOCK_STATS: StatsResponse = {
     usage_by_profile: { "swarm-manager/deep-work": 2 },
     phase_runs_by_profile: { "swarm-manager/deep-work": { investigate: 1, execute: 1 } },
   },
+  session: {
+    total_sessions: 3,
+    active_sessions: 1,
+    sessions_by_kind: { meta_orchestration: 2, operating_mode_authoring: 1 },
+    sessions_by_status: { complete: 2, running: 1 },
+    proposal_created_by_kind: { meta_orchestration: 2 },
+    proposal_applied_by_kind: { meta_orchestration: 1 },
+    proposal_apply_rate_by_kind: { meta_orchestration: { rate: 0.5, sample_size: 2 } },
+    artifacts_created_by_kind: { meta_orchestration: 4 },
+    artifacts_by_type: { backlog_item: 3, initiative: 1 },
+    avg_messages_per_session: 2.7,
+    avg_time_to_first_proposal_seconds: 420,
+    first_proposal_sample_size: 2,
+    failed_session_rate: 0,
+    failed_session_sample_size: 2,
+    session_created_backlog_items: 3,
+    session_created_initiatives: 1,
+  },
 };
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -170,7 +188,7 @@ describe("StatsPanel", () => {
     expect(screen.getByText(/Server down/)).toBeInTheDocument();
   });
 
-  it("renders all 7 tab buttons", async () => {
+  it("renders all 8 tab buttons", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
     renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
 
@@ -183,6 +201,7 @@ describe("StatsPanel", () => {
     expect(screen.getByTestId("stats-tab-blocking")).toBeInTheDocument();
     expect(screen.getByTestId("stats-tab-scope")).toBeInTheDocument();
     expect(screen.getByTestId("stats-tab-modes")).toBeInTheDocument();
+    expect(screen.getByTestId("stats-tab-sessions")).toBeInTheDocument();
   });
 
   it("defaults to the dashboard tab", async () => {
@@ -272,6 +291,22 @@ describe("StatsPanel", () => {
       fireEvent.click(screen.getByTestId("stats-tab-blocking"));
 
       expect(screen.getByText("No blocking reasons recorded")).toBeInTheDocument();
+    });
+  });
+
+  describe("Sessions tab", () => {
+    it("displays session adoption, proposal, and artifact metrics", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-sessions"));
+
+      expect(screen.getByTestId("stats-content-sessions")).toBeInTheDocument();
+      expect(screen.getAllByText("Meta Orchestration").length).toBeGreaterThan(0);
+      expect(screen.getByText("Backlog Artifacts")).toBeInTheDocument();
+      expect(screen.getByText("Initiative Artifacts")).toBeInTheDocument();
+      expect(screen.getByText("Backlog Item")).toBeInTheDocument();
     });
   });
 

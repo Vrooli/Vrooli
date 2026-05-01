@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../../../stores";
 import type { AgentSession } from "../../../../types";
-import { applySessionFilters, applySessionSort, SessionsTab } from "./SessionsTab";
+import { SessionsTab } from "./SessionsTab";
+import { applySessionFilters, applySessionSort } from "./session-list-utils";
 import type { SessionFilters, SortConfig } from "./types";
 
 const BASE_FILTERS: SessionFilters = {

@@ -2,6 +2,7 @@ package agentsessions
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -199,6 +200,158 @@ func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing
 	}
 	if len(artifacts) != 1 || artifacts[0].EntityRef != "idea/session-item" {
 		t.Fatalf("artifacts = %+v", artifacts)
+	}
+}
+
+func TestServiceAttachArtifactsPersistsBatchAtomically(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	svc := newTestService(t, &fakeSessionSpawner{})
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindMetaOrchestration,
+		Title:          "Plan",
+		InitialMessage: "Plan.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	artifacts, err := svc.AttachArtifacts(context.Background(), []Artifact{
+		{
+			SessionID:    session.ID,
+			ArtifactType: ArtifactBacklogItem,
+			Action:       ArtifactActionCreated,
+			EntityRef:    "idea/a",
+		},
+		{
+			SessionID:    session.ID,
+			ArtifactType: ArtifactInitiative,
+			Action:       ArtifactActionCreated,
+			EntityRef:    "initiative-a",
+		},
+	})
+	if err != nil {
+		t.Fatalf("AttachArtifacts() error = %v", err)
+	}
+	if len(artifacts) != 2 || artifacts[0].ID == "" || artifacts[1].CreatedAt == "" {
+		t.Fatalf("artifacts = %+v", artifacts)
+	}
+	loaded, err := svc.Get(context.Background(), session.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if len(loaded.Artifacts) != 2 {
+		t.Fatalf("stored artifact count = %d, want 2", len(loaded.Artifacts))
+	}
+}
+
+func TestServiceApplyOperatingModeDraftRecordsProposalArtifact(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	svc := newTestService(t, &fakeSessionSpawner{})
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindOperatingModeAuthoring,
+		Title:          "Author mode",
+		InitialMessage: "Draft a mode.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		ID:          "prop-draft",
+		Kind:        ProposalOperatingModeDraft,
+		Status:      ProposalStatusReady,
+		Summary:     "Draft phased refactor mode.",
+		PayloadJSON: `{"mode_id":"phased-refactor","phases":["plan","execute","review"]}`,
+		CreatedAt:   testTimestamp,
+		UpdatedAt:   testTimestamp,
+	})
+	if err != nil {
+		t.Fatalf("RecordProposal() error = %v", err)
+	}
+
+	applied, artifacts, err := svc.ApplyProposal(context.Background(), session.ID, proposal.ID)
+	if err != nil {
+		t.Fatalf("ApplyProposal() error = %v", err)
+	}
+	if applied.Proposals[0].Status != ProposalStatusApplied {
+		t.Fatalf("proposal status = %q, want applied", applied.Proposals[0].Status)
+	}
+	if len(artifacts) != 1 {
+		t.Fatalf("artifact count = %d, want 1", len(artifacts))
+	}
+	artifact := artifacts[0]
+	if artifact.ArtifactType != ArtifactOperatingModeProposal || artifact.Action != ArtifactActionProposed {
+		t.Fatalf("artifact kind/action = %q/%q", artifact.ArtifactType, artifact.Action)
+	}
+	if artifact.EntityRef != "phased-refactor" || artifact.ProposalID != proposal.ID {
+		t.Fatalf("artifact ref/proposal = %q/%q", artifact.EntityRef, artifact.ProposalID)
+	}
+	if artifact.Attribution == nil || artifact.Attribution.SessionID != session.ID || artifact.Attribution.SessionKind != KindOperatingModeAuthoring {
+		t.Fatalf("artifact attribution = %+v", artifact.Attribution)
+	}
+}
+
+func TestServiceApplyOperatingModeImplementationPlanUsesBatchApplier(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	applier := &fakeBacklogBatchApplier{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetBacklogBatchApplier(applier)
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindOperatingModeAuthoring,
+		Title:          "Author mode",
+		InitialMessage: "Draft a mode.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		ID:      "prop-plan",
+		Kind:    ProposalOperatingModeImplementationPlan,
+		Status:  ProposalStatusReady,
+		Summary: "Create implementation initiative and items.",
+		PayloadJSON: `{
+			"mode_id":"phased-refactor",
+			"backlog_batch_import":{
+				"initiatives":[{"name":"phased-refactor-mode","title":"Phased Refactor Mode"}],
+				"items":[{"name":"implement-mode","title":"Implement mode","kind":"feature","initiative":"phased-refactor-mode"}]
+			}
+		}`,
+		CreatedAt: testTimestamp,
+		UpdatedAt: testTimestamp,
+	})
+	if err != nil {
+		t.Fatalf("RecordProposal() error = %v", err)
+	}
+
+	_, _, err = svc.ApplyProposal(context.Background(), session.ID, proposal.ID)
+	if err != nil {
+		t.Fatalf("ApplyProposal() error = %v", err)
+	}
+	var appliedPayload struct {
+		Initiatives []struct {
+			Name string `json:"name"`
+		} `json:"initiatives"`
+		Items []struct {
+			Name       string `json:"name"`
+			Initiative string `json:"initiative"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(applier.payloadJSON), &appliedPayload); err != nil {
+		t.Fatalf("applier payload is invalid JSON: %v", err)
+	}
+	if len(appliedPayload.Initiatives) != 1 || appliedPayload.Initiatives[0].Name != "phased-refactor-mode" {
+		t.Fatalf("initiatives payload = %+v", appliedPayload.Initiatives)
+	}
+	if len(appliedPayload.Items) != 1 || appliedPayload.Items[0].Name != "implement-mode" || appliedPayload.Items[0].Initiative != "phased-refactor-mode" {
+		t.Fatalf("items payload = %+v", appliedPayload.Items)
+	}
+	if applier.provenance.SessionID != session.ID || applier.provenance.SessionKind != string(KindOperatingModeAuthoring) {
+		t.Fatalf("provenance = %+v", applier.provenance)
 	}
 }
 

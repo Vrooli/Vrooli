@@ -40,6 +40,8 @@ export interface DetailPageHeaderProps {
   lenses: LensOption[];
   /** Entity-specific action buttons (rendered in the metadata row). */
   actions?: ReactNode;
+  /** Optional metadata chips rendered beside the entity/status badges. */
+  metadata?: ReactNode;
   /** Optional tab bar rendered below the LensBar (e.g., backlog tabs). */
   tabBar?: ReactNode;
   /** When provided, the status badge becomes clickable for inline status changes. */
@@ -58,6 +60,7 @@ export function DetailPageHeader({
   nodeId,
   lenses,
   actions,
+  metadata,
   tabBar,
   onStatusChange,
   statusChangePending,
@@ -121,6 +124,12 @@ export function DetailPageHeader({
 
             {subtitle && (
               <p className="min-w-0 truncate text-sm text-slate-400">{subtitle}</p>
+            )}
+
+            {metadata && (
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                {metadata}
+              </div>
             )}
 
             {/* Spacer pushes actions to the right */}

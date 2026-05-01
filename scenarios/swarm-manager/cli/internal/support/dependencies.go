@@ -122,6 +122,7 @@ type Dependencies struct {
 	StatsBlocking        CommandFunc
 	StatsInitiatives     CommandFunc
 	StatsAgent           CommandFunc
+	StatsSessions        CommandFunc
 	StatsSandboxAdoption CommandFunc
 	AISearchStatus       CommandFunc
 	AISearchQuery        CommandFunc

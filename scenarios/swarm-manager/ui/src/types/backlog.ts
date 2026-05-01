@@ -7,6 +7,7 @@ import type {
   BacklogFile as ProtoBacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
 import type { ProtoMessage } from "./shared";
+import type { AgentSessionAttribution } from "./agent-session";
 
 /**
  * Valid lifecycle states for a backlog item.
@@ -39,7 +40,7 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny" | "creates"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny" | "creates" | "createdBy"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -56,6 +57,8 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   acceptanceDeny?: string[];
   /** Glob patterns for paths the work plans to create (forward-looking acceptance). */
   creates?: string[];
+  /** Verified provenance for the actor/session that created this item. */
+  createdBy?: AgentSessionAttribution;
 };
 
 /**

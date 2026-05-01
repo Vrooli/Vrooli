@@ -26,6 +26,7 @@ type StatsResponse struct {
 	Blocking    BlockingStats   `json:"blocking"`
 	Agent       AgentStats      `json:"agent"`
 	Dashboard   DashboardStats  `json:"dashboard"`
+	Session     SessionStats    `json:"session"`
 }
 
 type ThroughputStats struct {
@@ -96,6 +97,25 @@ type DashboardStats struct {
 	EstimatedWeeksRemaining float64         `json:"estimated_weeks_remaining"`
 }
 
+type SessionStats struct {
+	TotalSessions                     int                 `json:"total_sessions"`
+	ActiveSessions                    int                 `json:"active_sessions"`
+	SessionsByKind                    map[string]int      `json:"sessions_by_kind"`
+	SessionsByStatus                  map[string]int      `json:"sessions_by_status"`
+	ProposalCreatedByKind             map[string]int      `json:"proposal_created_by_kind"`
+	ProposalAppliedByKind             map[string]int      `json:"proposal_applied_by_kind"`
+	ProposalApplyRateByKind           map[string]KindRate `json:"proposal_apply_rate_by_kind"`
+	ArtifactsCreatedByKind            map[string]int      `json:"artifacts_created_by_kind"`
+	ArtifactsByType                   map[string]int      `json:"artifacts_by_type"`
+	AverageMessagesPerSession         float64             `json:"avg_messages_per_session"`
+	AverageTimeToFirstProposalSeconds float64             `json:"avg_time_to_first_proposal_seconds"`
+	FirstProposalSampleSize           int                 `json:"first_proposal_sample_size"`
+	FailedSessionRate                 float64             `json:"failed_session_rate"`
+	FailedSessionSampleSize           int                 `json:"failed_session_sample_size"`
+	SessionCreatedBacklogItems        int                 `json:"session_created_backlog_items"`
+	SessionCreatedInitiatives         int                 `json:"session_created_initiatives"`
+}
+
 type VelocityPoint struct {
 	WeekStart string `json:"week_start"`
 	Completed int    `json:"completed"`
@@ -152,6 +172,10 @@ func (a *App) cmdStatsAgent(args []string) error {
 	return a.statsCategoryCommand("agent", args)
 }
 
+func (a *App) cmdStatsSessions(args []string) error {
+	return a.statsCategoryCommand("sessions", args)
+}
+
 func (a *App) statsCategoryCommand(category string, args []string) error {
 	fs := flag.NewFlagSet("stats "+category, flag.ContinueOnError)
 	formatFlag := fs.String("format", "markdown", "Output format: json or markdown")
@@ -185,6 +209,8 @@ func (a *App) statsCategoryCommand(category string, args []string) error {
 		printScopeMarkdown(resp.Scope)
 	case "agent":
 		printAgentMarkdown(resp.Agent)
+	case "sessions":
+		printSessionsMarkdown(resp.Session)
 	default:
 		printStatsSummaryMarkdown(resp)
 	}
@@ -204,6 +230,8 @@ func printStatsSummaryMarkdown(resp StatsResponse) {
 	printBlockingMarkdown(resp.Blocking)
 	fmt.Println()
 	printAgentMarkdown(resp.Agent)
+	fmt.Println()
+	printSessionsMarkdown(resp.Session)
 	fmt.Println()
 	printScopeMarkdown(resp.Scope)
 }
@@ -303,6 +331,67 @@ func printScopeMarkdown(s ScopeStats) {
 		}
 		fmt.Println()
 	}
+}
+
+func printSessionsMarkdown(s SessionStats) {
+	fmt.Println("### Agent Sessions")
+	fmt.Printf("  Sessions: %d | Active: %d\n", s.TotalSessions, s.ActiveSessions)
+	if s.TotalSessions > 0 {
+		fmt.Printf("  Avg messages/session: %.1f\n", s.AverageMessagesPerSession)
+	}
+	if s.FirstProposalSampleSize > 0 {
+		fmt.Printf("  Avg time to first proposal: %s (n=%d)\n",
+			formatDurationSeconds(s.AverageTimeToFirstProposalSeconds), s.FirstProposalSampleSize)
+	}
+	if s.FailedSessionSampleSize > 0 {
+		fmt.Printf("  Failed session rate: %.1f%% (n=%d)\n",
+			s.FailedSessionRate*100, s.FailedSessionSampleSize)
+	}
+	fmt.Printf("  Created artifacts: backlog=%d initiatives=%d\n",
+		s.SessionCreatedBacklogItems, s.SessionCreatedInitiatives)
+	printIntMap("  By kind", s.SessionsByKind)
+	printIntMap("  By status", s.SessionsByStatus)
+	if len(s.ProposalApplyRateByKind) > 0 {
+		kinds := make([]string, 0, len(s.ProposalApplyRateByKind))
+		for kind := range s.ProposalApplyRateByKind {
+			kinds = append(kinds, kind)
+		}
+		sort.Strings(kinds)
+		fmt.Println("  Proposal apply rate:")
+		for _, kind := range kinds {
+			rate := s.ProposalApplyRateByKind[kind]
+			fmt.Printf("    - %s: %.1f%% (n=%d)\n", kind, rate.Rate*100, rate.SampleSize)
+		}
+	}
+	printIntMap("  Artifacts by type", s.ArtifactsByType)
+}
+
+func printIntMap(label string, values map[string]int) {
+	if len(values) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	fmt.Println(label + ":")
+	for _, key := range keys {
+		fmt.Printf("    - %s: %d\n", key, values[key])
+	}
+}
+
+func formatDurationSeconds(seconds float64) string {
+	if seconds <= 0 {
+		return "0m"
+	}
+	if seconds < 60 {
+		return fmt.Sprintf("%.0fs", seconds)
+	}
+	if seconds < 3600 {
+		return fmt.Sprintf("%.0fm", seconds/60)
+	}
+	return fmt.Sprintf("%.1fh", seconds/3600)
 }
 
 // cmdStatsSandboxAdoption scrapes agent-manager's /metrics endpoint and prints

@@ -46,7 +46,8 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | **Initiative** | Lightweight grouping of related backlog items by a shared label plus explicit initiative metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/initiatives/service.go] |
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
 | **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
-| **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, and capture flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
+| **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
+| **Agent Session** | Durable typed conversation for meta-orchestration and operating-mode authoring, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 
 ### Initiatives
@@ -92,7 +93,13 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    WS /ws/graph invalidate/node-update -> silent refresh + runtime node pulse
    ```
 
-6. **UI route navigation**
+6. **Native agent sessions**
+   ```
+   Graph launcher -> agent session -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
+   ```
+   Agent Sessions support longer conversational planning and authoring flows inside Swarm Manager. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
+
+7. **UI route navigation**
    ```
    /graph[/focus|/topology|/operations] -> graph workspace
    /backlog/:kind/:name -> backlog detail
@@ -106,7 +113,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
    Fullscreen operator surfaces are first-class routes inside a shared app shell. The shell owns the global sidebar, so details, Command Post, and Decision Stream all expose a hamburger action for navigation. Page close/back controls use route-aware history with a direct-load fallback to `/graph/topology`; child routes such as Decision Stream replace themselves when returning to their parent to avoid browser-history loops.
 
-7. **Global sidebar shell**
+8. **Global sidebar shell**
    ```
    AppShell -> persisted, resizable desktop sidebar + floating mobile sheet -> routed page outlet
    ```
@@ -144,7 +151,7 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 
 **Navigation:** Accessible via the Operations tab or "View Operations" in the Inspector. Keyboard shortcut: `3`.
 
-7. **Scenario lifecycle control**
+9. **Scenario lifecycle control**
    ```
    List scenarios -> inspect details -> start/stop/restart/delete/archive
    ```
@@ -161,8 +168,8 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 ├─────────────────────────────────────────────────────────────┤
 │ DOMAIN LOGIC LAYER                                           │
 │ Backlog + initiatives + depgraph + overview + scenarios +    │
-│ execution + agentactivity + promptcatalog + settings         │
-│ orchestration                                                │
+│ execution + agentactivity + agentsessions + promptcatalog +  │
+│ settings orchestration                                       │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
 │ agent-manager + prompt-manager + ecosystem-manager + CLI     │
@@ -176,9 +183,9 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | Shared app shell owns global navigation; graph-first workspace is primary (`/graph`), with canonical detail routes for backlog, initiatives, scenarios, executions, captures, Command Post, and Decision Stream |
-| API Gateway | Implemented | Health, graph, backlog (incl. batch), scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
-| Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, overview aggregation, execution scheduling and run control |
+| Presentation | Functional | Shared app shell owns global navigation; graph-first workspace is primary (`/graph`), with canonical detail routes for backlog, initiatives, scenarios, executions, captures, Command Post, and Decision Stream plus a sidebar Sessions tab |
+| API Gateway | Implemented | Health, graph, backlog (incl. batch), agent sessions, scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
+| Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, agent sessions, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/agent-activity/settings/queue JSON persisted on disk |
 

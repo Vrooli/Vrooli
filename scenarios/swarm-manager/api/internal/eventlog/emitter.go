@@ -269,6 +269,14 @@ func (e *Emitter) EmitAgentSessionCanceled(sessionID string, payload any) {
 	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionCanceled, "agent_session", sessionID, payload)
 }
 
+func (e *Emitter) EmitAgentSessionProposalCreated(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionProposalCreated, "agent_session", sessionID, payload)
+}
+
+func (e *Emitter) EmitAgentSessionProposalApplied(sessionID string, payload any) {
+	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionProposalApplied, "agent_session", sessionID, payload)
+}
+
 func (e *Emitter) EmitAgentSessionArtifactLinked(sessionID string, payload any) {
 	e.emitWithActor(EntityAgentSession, sessionID, EventAgentSessionArtifactLinked, "agent_session", sessionID, payload)
 }

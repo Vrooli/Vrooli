@@ -16,6 +16,7 @@ import type {
   BacklogFile as BacklogFileDomain,
 } from "../../types";
 import { BACKLOG_KINDS, BACKLOG_STATUSES } from "../../types";
+import { mapProtoAgentSessionAttribution } from "./agent-session-contracts";
 import { createProtoSchema, isFileType, toFiniteNumber } from "./shared";
 
 const backlogStatusSet = new Set<string>(BACKLOG_STATUSES);
@@ -79,6 +80,7 @@ export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
     ...(protoItem.spawnedFrom ? { spawnedFrom: protoItem.spawnedFrom } : {}),
     ...(protoItem.note ? { note: protoItem.note } : {}),
     ...(protoItem.archivedAt ? { archivedAt: protoItem.archivedAt } : {}),
+    ...(protoItem.createdBy ? { createdBy: mapProtoAgentSessionAttribution(protoItem.createdBy) } : {}),
     suggestedSkills: protoItem.suggestedSkills ?? [],
   };
 }

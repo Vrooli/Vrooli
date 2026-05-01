@@ -107,6 +107,24 @@ func (r *fakeSessionArtifacts) AttachArtifact(_ context.Context, artifact agents
 	return artifact, nil
 }
 
+func (r *fakeSessionArtifacts) AttachArtifacts(_ context.Context, artifacts []agentsessions.Artifact) ([]agentsessions.Artifact, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.err != nil {
+		return nil, r.err
+	}
+	for i := range artifacts {
+		if artifacts[i].ID == "" {
+			artifacts[i].ID = "art_test"
+		}
+		if artifacts[i].CreatedAt == "" {
+			artifacts[i].CreatedAt = "2026-04-23T00:00:00Z"
+		}
+		r.artifacts = append(r.artifacts, artifacts[i])
+	}
+	return artifacts, nil
+}
+
 // serviceTestEnv bundles a temp-dir-backed FileStore and the four
 // optional collaborators so each test can reach into them and assert
 // the side-effect set.

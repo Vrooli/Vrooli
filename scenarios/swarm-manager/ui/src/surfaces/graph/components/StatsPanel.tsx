@@ -27,6 +27,7 @@ import type {
   HistoryWindow,
   ModeStats,
   ScopeStats,
+  SessionStats,
   StatsCategory,
   StatsResponse,
   ThroughputStats,
@@ -45,6 +46,7 @@ const STATS_TABS: { id: StatsCategory; label: string }[] = [
   { id: "blocking", label: "Blocking" },
   { id: "scope", label: "Scope" },
   { id: "modes", label: "Modes" },
+  { id: "sessions", label: "Sessions" },
 ];
 
 // Default min sample threshold used when the response does not include one.
@@ -151,6 +153,8 @@ function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) 
       return <ScopeTab data={data.scope} />;
     case "modes":
       return <ModesTab data={data.mode} />;
+    case "sessions":
+      return <SessionsTab data={data.session} history={data.history} />;
   }
 }
 
@@ -730,6 +734,122 @@ function ModesTab({ data }: { data: ModeStats }) {
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Sessions tab
+// ---------------------------------------------------------------------------
+
+function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWindow }) {
+  const threshold = minSample(history);
+  const kindEntries = Object.entries(data?.sessions_by_kind ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const statusEntries = Object.entries(data?.sessions_by_status ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const proposalEntries = Object.entries(data?.proposal_apply_rate_by_kind ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const artifactEntries = Object.entries(data?.artifacts_by_type ?? {}).sort(([a], [b]) => a.localeCompare(b));
+
+  return (
+    <div className="space-y-4" data-testid="stats-content-sessions">
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard label="Sessions" value={String(data?.total_sessions ?? 0)} subtext={`${data?.active_sessions ?? 0} active`} />
+        <StatsMetricCard
+          label="Messages / Session"
+          value={(data?.avg_messages_per_session ?? 0).toFixed(1)}
+          sampleSize={data?.total_sessions ?? 0}
+          minSample={1}
+          sampleNoun="sessions"
+          insufficientReason="No sessions recorded yet."
+        />
+        <StatsMetricCard
+          label="Failed Sessions"
+          value={formatRate(data?.failed_session_rate ?? 0)}
+          sampleSize={data?.failed_session_sample_size ?? 0}
+          minSample={Math.max(1, threshold)}
+          sampleNoun="terminal sessions"
+          insufficientReason={`Need at least ${threshold} terminal sessions.`}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Backlog Artifacts" value={String(data?.session_created_backlog_items ?? 0)} subtext="created by sessions" />
+        <StatCard label="Initiative Artifacts" value={String(data?.session_created_initiatives ?? 0)} subtext="created by sessions" />
+      </div>
+
+      <StatsMetricCard
+        label="Time to First Proposal"
+        value={formatDurationSeconds(data?.avg_time_to_first_proposal_seconds ?? 0)}
+        sampleSize={data?.first_proposal_sample_size ?? 0}
+        minSample={Math.max(1, threshold)}
+        sampleNoun="sessions with proposals"
+        insufficientReason={`Need at least ${threshold} sessions with proposals.`}
+      />
+
+      <div>
+        <SectionLabel>Sessions By Kind</SectionLabel>
+        {kindEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No agent sessions recorded yet</p>
+        ) : (
+          <KeyValueList entries={kindEntries} />
+        )}
+      </div>
+
+      <div>
+        <SectionLabel>Current Status</SectionLabel>
+        {statusEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No status data yet</p>
+        ) : (
+          <KeyValueList entries={statusEntries} />
+        )}
+      </div>
+
+      <div>
+        <SectionLabel>Proposal Apply Rate</SectionLabel>
+        {proposalEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No proposals recorded yet</p>
+        ) : (
+          <div className="space-y-2">
+            {proposalEntries.map(([kind, rate]) => (
+              <div key={kind} className="text-xs">
+                <div className="mb-1 flex justify-between">
+                  <span className="text-slate-400">{formatModeLabel(kind)}</span>
+                  <span className="text-emerald-300">{formatRate(rate.rate)} <span className="text-slate-500">(n={rate.sample_size})</span></span>
+                </div>
+                <ProgressBar value={rate.rate} max={1} color="bg-emerald-500" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <SectionLabel>Artifacts By Type</SectionLabel>
+        {artifactEntries.length === 0 ? (
+          <p className="text-sm text-slate-500">No session artifacts recorded yet</p>
+        ) : (
+          <KeyValueList entries={artifactEntries} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KeyValueList({ entries }: { entries: [string, number][] }) {
+  return (
+    <ul className="space-y-1">
+      {entries.map(([key, value]) => (
+        <li key={key} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-800/50">
+          <span className="truncate text-slate-300">{formatModeLabel(key)}</span>
+          <span className="ml-2 shrink-0 rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">{value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function formatDurationSeconds(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0m";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${(seconds / 3600).toFixed(1)}h`;
 }
 
 function formatModeLabel(value: string): string {

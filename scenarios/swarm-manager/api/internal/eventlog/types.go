@@ -117,13 +117,15 @@ const (
 
 // Agent session events.
 const (
-	EventAgentSessionCreated        EventType = "agent_session.created"
-	EventAgentSessionStarted        EventType = "agent_session.started"
-	EventAgentSessionContinued      EventType = "agent_session.continued"
-	EventAgentSessionCompleted      EventType = "agent_session.completed"
-	EventAgentSessionFailed         EventType = "agent_session.failed"
-	EventAgentSessionCanceled       EventType = "agent_session.canceled"
-	EventAgentSessionArtifactLinked EventType = "agent_session.artifact_linked"
+	EventAgentSessionCreated         EventType = "agent_session.created"
+	EventAgentSessionStarted         EventType = "agent_session.started"
+	EventAgentSessionContinued       EventType = "agent_session.continued"
+	EventAgentSessionCompleted       EventType = "agent_session.completed"
+	EventAgentSessionFailed          EventType = "agent_session.failed"
+	EventAgentSessionCanceled        EventType = "agent_session.canceled"
+	EventAgentSessionProposalCreated EventType = "agent_session.proposal_created"
+	EventAgentSessionProposalApplied EventType = "agent_session.proposal_applied"
+	EventAgentSessionArtifactLinked  EventType = "agent_session.artifact_linked"
 )
 
 // EntitySystem is used for events that are not tied to a domain entity.

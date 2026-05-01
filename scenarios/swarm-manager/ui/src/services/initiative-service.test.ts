@@ -70,6 +70,41 @@ describe("Initiative Service", () => {
     expect(result).toEqual(mockData);
   });
 
+  it("normalizes snake_case created_by attribution", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue({
+      initiative: {
+        name: "session-created",
+        title: "Session Created",
+        description: "Created from a native session.",
+        status: "active",
+        created: "2026-05-01T12:00:00Z",
+        updated: "2026-05-01T12:00:00Z",
+        created_by: {
+          type: "agent",
+          run_id: "run-1",
+          task_id: "task-1",
+          profile_key: "swarm-manager/default",
+          session_id: "sess_1",
+          session_kind: "meta_orchestration",
+          source: "session/sess_1",
+        },
+      },
+      rollup: { total: 0, completed: 0, in_progress: 0, failed: 0, pending: 0, archived: 0 },
+    });
+
+    const result = await service.get("session-created");
+
+    expect(result.initiative.createdBy).toEqual({
+      type: "agent",
+      runId: "run-1",
+      taskId: "task-1",
+      profileKey: "swarm-manager/default",
+      sessionId: "sess_1",
+      sessionKind: "meta_orchestration",
+      source: "session/sess_1",
+    });
+  });
+
   it("updates acceptance criteria with backend field names", async () => {
     const mockData: InitiativeWithRollup = {
       initiative: {

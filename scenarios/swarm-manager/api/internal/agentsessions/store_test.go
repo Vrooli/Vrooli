@@ -63,6 +63,53 @@ func TestFileStorePersistsSessionLogsAndArtifacts(t *testing.T) {
 	}
 }
 
+func TestFileStoreAppendArtifactsIsAtomicOnValidationFailure(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	session := validStoredSession("sess_atomic")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if err := store.AppendArtifact(session.ID, Artifact{
+		ID:           "art-existing",
+		SessionID:    session.ID,
+		ArtifactType: ArtifactInitiative,
+		Action:       ArtifactActionCreated,
+		EntityRef:    "existing",
+		CreatedAt:    testTimestamp,
+	}); err != nil {
+		t.Fatalf("AppendArtifact() error = %v", err)
+	}
+
+	err := store.AppendArtifacts(session.ID, []Artifact{
+		{
+			ID:           "art-valid",
+			SessionID:    session.ID,
+			ArtifactType: ArtifactBacklogItem,
+			Action:       ArtifactActionCreated,
+			EntityRef:    "idea/valid",
+			CreatedAt:    testTimestamp,
+		},
+		{
+			ID:           "art-invalid",
+			SessionID:    session.ID,
+			ArtifactType: ArtifactBacklogItem,
+			Action:       ArtifactActionCreated,
+			CreatedAt:    testTimestamp,
+		},
+	})
+	if err == nil {
+		t.Fatal("AppendArtifacts() error = nil, want validation failure")
+	}
+
+	loaded, err := store.LoadSession(session.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if len(loaded.Artifacts) != 1 || loaded.Artifacts[0].ID != "art-existing" {
+		t.Fatalf("artifacts after failed append = %+v", loaded.Artifacts)
+	}
+}
+
 func TestFileStoreListFiltersAndLimit(t *testing.T) {
 	store := NewFileStore(t.TempDir())
 	first := validStoredSession("sess_first")

@@ -19,6 +19,7 @@ type StatsResponse struct {
 	Dashboard   DashboardStats  `json:"dashboard"`
 	Review      ReviewStats     `json:"review"`
 	Mode        ModeStats       `json:"mode"`
+	Session     SessionStats    `json:"session"`
 }
 
 // HistoryWindow reports the span of event history the engine has observed. The
@@ -174,4 +175,24 @@ type BacklogSyncStats struct {
 	ItemsCompleted int `json:"items_completed"`
 	ItemsCreated   int `json:"items_created"`
 	ItemsUpdated   int `json:"items_updated"`
+}
+
+// SessionStats tracks native Agent Session adoption and outcomes.
+type SessionStats struct {
+	TotalSessions                     int                 `json:"total_sessions"`
+	ActiveSessions                    int                 `json:"active_sessions"`
+	SessionsByKind                    map[string]int      `json:"sessions_by_kind"`
+	SessionsByStatus                  map[string]int      `json:"sessions_by_status"`
+	ProposalCreatedByKind             map[string]int      `json:"proposal_created_by_kind"`
+	ProposalAppliedByKind             map[string]int      `json:"proposal_applied_by_kind"`
+	ProposalApplyRateByKind           map[string]KindRate `json:"proposal_apply_rate_by_kind"`
+	ArtifactsCreatedByKind            map[string]int      `json:"artifacts_created_by_kind"`
+	ArtifactsByType                   map[string]int      `json:"artifacts_by_type"`
+	AverageMessagesPerSession         float64             `json:"avg_messages_per_session"`
+	AverageTimeToFirstProposalSeconds float64             `json:"avg_time_to_first_proposal_seconds"`
+	FirstProposalSampleSize           int                 `json:"first_proposal_sample_size"`
+	FailedSessionRate                 float64             `json:"failed_session_rate"`
+	FailedSessionSampleSize           int                 `json:"failed_session_sample_size"`
+	SessionCreatedBacklogItems        int                 `json:"session_created_backlog_items"`
+	SessionCreatedInitiatives         int                 `json:"session_created_initiatives"`
 }

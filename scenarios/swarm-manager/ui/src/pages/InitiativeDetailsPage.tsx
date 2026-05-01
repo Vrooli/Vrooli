@@ -19,6 +19,7 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
+import { AttributionChip } from "../components/detail/AttributionChip";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { INITIATIVE_LENSES } from "../components/detail/lens-options";
 import { ErrorState } from "../components/ui/error-state";
@@ -636,6 +637,7 @@ export function InitiativeDetailsPage() {
           status={initiative.status}
           nodeId={nodeId}
           lenses={INITIATIVE_LENSES}
+          metadata={initiative.createdBy ? <AttributionChip attribution={initiative.createdBy} /> : undefined}
           tabBar={tabBar}
           actions={
             <Button

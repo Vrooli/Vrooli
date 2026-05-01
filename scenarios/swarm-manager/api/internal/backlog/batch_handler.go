@@ -276,6 +276,7 @@ func (h *Handler) applyBatchCreateRequest(
 
 	artifacts, err := h.recordBatchSessionArtifacts(ctx, createdItems, appliedInitiatives, prov, mutationSource)
 	if err != nil {
+		rollbackBatchCreate(batchItemDirs(h.store, createdItems), appliedInitiatives, h.initiativeAssigner)
 		return batchApplyResult{}, apierr.Internal("failed to record session artifacts")
 	}
 
@@ -639,7 +640,7 @@ func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []Backl
 	attr := agentsessions.AttributionFromProvenance(prov)
 	artifacts := make([]agentsessions.Artifact, 0, len(items)+len(applied))
 	for _, item := range items {
-		artifact, err := h.sessionArtifacts.AttachArtifact(ctx, agentsessions.Artifact{
+		artifacts = append(artifacts, agentsessions.Artifact{
 			SessionID:      prov.SessionID,
 			ArtifactType:   agentsessions.ArtifactBacklogItem,
 			Action:         agentsessions.ArtifactActionCreated,
@@ -649,17 +650,13 @@ func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []Backl
 			MutationSource: mutationSource,
 			Attribution:    &attr,
 		})
-		if err != nil {
-			return nil, err
-		}
-		artifacts = append(artifacts, artifact)
 	}
 	for _, plan := range applied {
 		action := agentsessions.ArtifactActionUpdated
 		if plan.action == "create" {
 			action = agentsessions.ArtifactActionCreated
 		}
-		artifact, err := h.sessionArtifacts.AttachArtifact(ctx, agentsessions.Artifact{
+		artifacts = append(artifacts, agentsessions.Artifact{
 			SessionID:      prov.SessionID,
 			ArtifactType:   agentsessions.ArtifactInitiative,
 			Action:         action,
@@ -669,10 +666,14 @@ func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []Backl
 			MutationSource: mutationSource,
 			Attribution:    &attr,
 		})
-		if err != nil {
-			return nil, err
-		}
-		artifacts = append(artifacts, artifact)
 	}
-	return artifacts, nil
+	return h.sessionArtifacts.AttachArtifacts(ctx, artifacts)
+}
+
+func batchItemDirs(store Store, items []BacklogItem) []string {
+	dirs := make([]string, 0, len(items))
+	for _, item := range items {
+		dirs = append(dirs, store.ItemDir(item.Kind, item.Name))
+	}
+	return dirs
 }

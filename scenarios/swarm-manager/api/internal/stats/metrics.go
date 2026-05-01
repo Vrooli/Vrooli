@@ -24,6 +24,85 @@ func (s *aggregateState) buildResponse() StatsResponse {
 		Dashboard:   s.buildDashboard(now),
 		Review:      s.buildReview(),
 		Mode:        s.buildMode(),
+		Session:     s.buildSession(),
+	}
+}
+
+func (s *aggregateState) buildSession() SessionStats {
+	byKind := make(map[string]int)
+	byStatus := make(map[string]int)
+	active := 0
+	totalMessages := 0
+	failed := 0
+	terminal := 0
+
+	for sessionID, kind := range s.sessionKind {
+		if kind == "" {
+			kind = "unknown"
+		}
+		byKind[kind]++
+		status := s.sessionStatus[sessionID]
+		if status == "" {
+			status = "unknown"
+		}
+		byStatus[status]++
+		if isActiveSessionStatus(status) {
+			active++
+		}
+		if isTerminalSessionStatus(status) {
+			terminal++
+			if status == "failed" {
+				failed++
+			}
+		}
+		totalMessages += s.sessionMessageCount[sessionID]
+	}
+
+	var avgMessages float64
+	if len(s.sessionKind) > 0 {
+		avgMessages = float64(totalMessages) / float64(len(s.sessionKind))
+	}
+
+	var failedRate float64
+	if terminal > 0 {
+		failedRate = float64(failed) / float64(terminal)
+	}
+
+	return SessionStats{
+		TotalSessions:                     len(s.sessionKind),
+		ActiveSessions:                    active,
+		SessionsByKind:                    byKind,
+		SessionsByStatus:                  byStatus,
+		ProposalCreatedByKind:             cloneIntMap(s.sessionProposalCreatedByKind),
+		ProposalAppliedByKind:             cloneIntMap(s.sessionProposalAppliedByKind),
+		ProposalApplyRateByKind:           buildRateMap(s.sessionProposalAppliedByKind, s.sessionProposalCreatedByKind),
+		ArtifactsCreatedByKind:            cloneIntMap(s.sessionArtifactsCreatedByKind),
+		ArtifactsByType:                   cloneIntMap(s.sessionArtifactsByType),
+		AverageMessagesPerSession:         avgMessages,
+		AverageTimeToFirstProposalSeconds: avgFloat(s.sessionFirstProposalSeconds),
+		FirstProposalSampleSize:           len(s.sessionFirstProposalSeconds),
+		FailedSessionRate:                 failedRate,
+		FailedSessionSampleSize:           terminal,
+		SessionCreatedBacklogItems:        s.sessionCreatedBacklogItems,
+		SessionCreatedInitiatives:         s.sessionCreatedInitiatives,
+	}
+}
+
+func isActiveSessionStatus(status string) bool {
+	switch status {
+	case "starting", "running", "waiting_for_user", "proposal_ready", "applying":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTerminalSessionStatus(status string) bool {
+	switch status {
+	case "complete", "failed", "canceled":
+		return true
+	default:
+		return false
 	}
 }
 

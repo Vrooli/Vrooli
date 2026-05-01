@@ -2,6 +2,7 @@ package agentsessions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -33,6 +34,8 @@ type EventLogger interface {
 	EmitAgentSessionFailed(sessionID string, payload any)
 	EmitAgentSessionCanceled(sessionID string, payload any)
 	EmitAgentSessionCompleted(sessionID string, payload any)
+	EmitAgentSessionProposalCreated(sessionID string, payload any)
+	EmitAgentSessionProposalApplied(sessionID string, payload any)
 	EmitAgentSessionArtifactLinked(sessionID string, payload any)
 }
 
@@ -356,6 +359,30 @@ func (s *Service) AttachArtifact(_ context.Context, artifact Artifact) (Artifact
 	return artifact, nil
 }
 
+func (s *Service) AttachArtifacts(_ context.Context, artifacts []Artifact) ([]Artifact, error) {
+	if len(artifacts) == 0 {
+		return []Artifact{}, nil
+	}
+	for i := range artifacts {
+		if artifacts[i].ID == "" {
+			artifacts[i].ID = "art_" + idgen.Generate()
+		}
+		if artifacts[i].CreatedAt == "" {
+			artifacts[i].CreatedAt = nowRFC3339()
+		}
+		if i > 0 && artifacts[i].SessionID != artifacts[0].SessionID {
+			return nil, apierr.BadRequest("all artifacts must belong to the same session")
+		}
+	}
+	if err := s.store.AppendArtifacts(artifacts[0].SessionID, artifacts); err != nil {
+		return nil, err
+	}
+	for _, artifact := range artifacts {
+		s.emitArtifactLinked(artifact)
+	}
+	return artifacts, nil
+}
+
 func (s *Service) RecordProposal(_ context.Context, sessionID string, proposal Proposal) (Proposal, error) {
 	if proposal.ID == "" {
 		proposal.ID = "prop_" + idgen.Generate()
@@ -368,6 +395,7 @@ func (s *Service) RecordProposal(_ context.Context, sessionID string, proposal P
 	if err := s.store.SaveProposal(sessionID, proposal); err != nil {
 		return Proposal{}, err
 	}
+	s.emitProposalCreated(sessionID, proposal)
 	return proposal, nil
 }
 
@@ -408,10 +436,11 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 		return Session{}, nil, apierr.Conflict("agent session proposal apply requires an attributed agent run")
 	}
 	switch proposal.Kind {
-	case ProposalBacklogBatchImport:
+	case ProposalBacklogBatchImport, ProposalOperatingModeImplementationPlan:
 		if s.backlogBatchApplier == nil {
 			return Session{}, nil, apierr.Unavailable("backlog batch proposal apply is unavailable")
 		}
+	case ProposalOperatingModeDraft:
 	default:
 		return Session{}, nil, apierr.Wrapf(apierr.ErrNotImplemented, http.StatusNotImplemented, "agent session proposal kind %q apply is not implemented yet", string(proposal.Kind))
 	}
@@ -423,9 +452,9 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	}
 
 	var artifacts []Artifact
+	prov := proposalApplyProvenance(session, proposal)
 	switch proposal.Kind {
 	case ProposalBacklogBatchImport:
-		prov := proposalApplyProvenance(session, proposal)
 		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), proposal.PayloadJSON, prov)
 		if err != nil {
 			proposal.Status = ProposalStatusFailed
@@ -437,6 +466,53 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 			_ = s.store.SaveSession(session)
 			return Session{}, nil, err
 		}
+	case ProposalOperatingModeImplementationPlan:
+		payloadJSON, err := backlogBatchPayloadForOperatingModePlan(proposal.PayloadJSON)
+		if err != nil {
+			proposal.Status = ProposalStatusFailed
+			proposal.UpdatedAt = nowRFC3339()
+			session.Status = StatusProposalReady
+			session.FailureReason = err.Error()
+			session.UpdatedAt = proposal.UpdatedAt
+			_ = s.store.SaveProposal(session.ID, proposal)
+			_ = s.store.SaveSession(session)
+			return Session{}, nil, err
+		}
+		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), payloadJSON, prov)
+		if err != nil {
+			proposal.Status = ProposalStatusFailed
+			proposal.UpdatedAt = nowRFC3339()
+			session.Status = StatusProposalReady
+			session.FailureReason = err.Error()
+			session.UpdatedAt = proposal.UpdatedAt
+			_ = s.store.SaveProposal(session.ID, proposal)
+			_ = s.store.SaveSession(session)
+			return Session{}, nil, err
+		}
+	case ProposalOperatingModeDraft:
+		attr := AttributionFromProvenance(prov)
+		artifact, err := s.AttachArtifact(ctx, Artifact{
+			SessionID:      session.ID,
+			ArtifactType:   ArtifactOperatingModeProposal,
+			Action:         ArtifactActionProposed,
+			EntityRef:      operatingModeProposalRef(proposal),
+			Title:          proposal.Summary,
+			ProposalID:     proposal.ID,
+			RunID:          prov.RunID,
+			MutationSource: "agent_sessions.apply.operating_mode_draft",
+			Attribution:    &attr,
+		})
+		if err != nil {
+			proposal.Status = ProposalStatusFailed
+			proposal.UpdatedAt = nowRFC3339()
+			session.Status = StatusProposalReady
+			session.FailureReason = err.Error()
+			session.UpdatedAt = proposal.UpdatedAt
+			_ = s.store.SaveProposal(session.ID, proposal)
+			_ = s.store.SaveSession(session)
+			return Session{}, nil, err
+		}
+		artifacts = append(artifacts, artifact)
 	}
 
 	proposal.Status = ProposalStatusApplied
@@ -450,11 +526,43 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	if err := s.store.SaveSession(session); err != nil {
 		return Session{}, nil, err
 	}
+	s.emitProposalApplied(session, proposal, len(artifacts))
 	applied, err := s.store.LoadSession(session.ID)
 	if err != nil {
 		return Session{}, nil, err
 	}
 	return applied, artifacts, nil
+}
+
+func backlogBatchPayloadForOperatingModePlan(payloadJSON string) (string, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
+		return "", apierr.BadRequest("invalid operating-mode implementation plan payload: %s", err)
+	}
+	for _, field := range []string{"backlog_batch_import", "batch_import", "backlog_batch"} {
+		if raw, ok := payload[field]; ok {
+			if !json.Valid(raw) {
+				return "", apierr.BadRequest("operating-mode implementation plan field %q must be valid JSON", field)
+			}
+			return string(raw), nil
+		}
+	}
+	if _, ok := payload["items"]; ok {
+		return payloadJSON, nil
+	}
+	return "", apierr.BadRequest("operating-mode implementation plan payload must include items or backlog_batch_import")
+}
+
+func operatingModeProposalRef(proposal Proposal) string {
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err == nil {
+		for _, field := range []string{"mode_id", "mode", "id", "name"} {
+			if value, ok := payload[field].(string); ok && strings.TrimSpace(value) != "" {
+				return strings.TrimSpace(value)
+			}
+		}
+	}
+	return proposal.ID
 }
 
 func findProposal(session Session, proposalID string) (Proposal, bool) {
@@ -637,15 +745,44 @@ func (s *Service) emitCompleted(session Session) {
 
 func (s *Service) emitArtifactLinked(artifact Artifact) {
 	if s.eventLogger != nil {
+		sessionKind := ""
+		if artifact.Attribution != nil {
+			sessionKind = string(artifact.Attribution.SessionKind)
+		}
 		s.eventLogger.EmitAgentSessionArtifactLinked(artifact.SessionID, AgentSessionArtifactEventPayload{
 			SessionID:      artifact.SessionID,
-			SessionKind:    "",
+			SessionKind:    sessionKind,
 			ArtifactType:   string(artifact.ArtifactType),
 			Action:         string(artifact.Action),
 			EntityRef:      artifact.EntityRef,
 			ProposalID:     artifact.ProposalID,
 			RunID:          artifact.RunID,
 			MutationSource: artifact.MutationSource,
+		})
+	}
+}
+
+func (s *Service) emitProposalCreated(sessionID string, proposal Proposal) {
+	if s.eventLogger != nil {
+		s.eventLogger.EmitAgentSessionProposalCreated(sessionID, AgentSessionProposalEventPayload{
+			SessionID:    sessionID,
+			SessionKind:  string(sessionKindFromAttribution(proposal.Attribution)),
+			ProposalID:   proposal.ID,
+			ProposalKind: string(proposal.Kind),
+			Status:       string(proposal.Status),
+		})
+	}
+}
+
+func (s *Service) emitProposalApplied(session Session, proposal Proposal, artifactCount int) {
+	if s.eventLogger != nil {
+		s.eventLogger.EmitAgentSessionProposalApplied(session.ID, AgentSessionProposalEventPayload{
+			SessionID:     session.ID,
+			SessionKind:   string(session.Kind),
+			ProposalID:    proposal.ID,
+			ProposalKind:  string(proposal.Kind),
+			Status:        string(proposal.Status),
+			ArtifactCount: artifactCount,
 		})
 	}
 }
@@ -672,6 +809,15 @@ type AgentSessionArtifactEventPayload struct {
 	MutationSource string `json:"mutation_source,omitempty"`
 }
 
+type AgentSessionProposalEventPayload struct {
+	SessionID     string `json:"session_id"`
+	SessionKind   string `json:"session_kind,omitempty"`
+	ProposalID    string `json:"proposal_id"`
+	ProposalKind  string `json:"proposal_kind"`
+	Status        string `json:"status"`
+	ArtifactCount int    `json:"artifact_count,omitempty"`
+}
+
 func eventPayload(session Session) AgentSessionEventPayload {
 	return AgentSessionEventPayload{
 		SessionID:     session.ID,
@@ -683,4 +829,11 @@ func eventPayload(session Session) AgentSessionEventPayload {
 		ProfileKey:    session.ProfileKey,
 		FailureReason: session.FailureReason,
 	}
+}
+
+func sessionKindFromAttribution(attr *Attribution) Kind {
+	if attr == nil {
+		return ""
+	}
+	return attr.SessionKind
 }

@@ -96,6 +96,24 @@ describe("Stats Service", () => {
           usage_by_profile: {},
           phase_runs_by_profile: {},
         },
+        session: {
+          total_sessions: 0,
+          active_sessions: 0,
+          sessions_by_kind: {},
+          sessions_by_status: {},
+          proposal_created_by_kind: {},
+          proposal_applied_by_kind: {},
+          proposal_apply_rate_by_kind: {},
+          artifacts_created_by_kind: {},
+          artifacts_by_type: {},
+          avg_messages_per_session: 0,
+          avg_time_to_first_proposal_seconds: 0,
+          first_proposal_sample_size: 0,
+          failed_session_rate: 0,
+          failed_session_sample_size: 0,
+          session_created_backlog_items: 0,
+          session_created_initiatives: 0,
+        },
       };
       vi.mocked(mockApiClient.get).mockResolvedValue(mockStats);
 

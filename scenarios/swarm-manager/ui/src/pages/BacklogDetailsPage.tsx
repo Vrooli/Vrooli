@@ -51,6 +51,7 @@ import { ValidationReport } from "../components/backlog/validation-report";
 import { useQueryClient } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { AttributionChip } from "../components/detail/AttributionChip";
 import { executionDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
@@ -470,6 +471,7 @@ export function BacklogDetailsPage() {
             status={item?.status}
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
+            metadata={item?.createdBy ? <AttributionChip attribution={item.createdBy} /> : undefined}
             actions={item ? <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} /> : undefined}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}

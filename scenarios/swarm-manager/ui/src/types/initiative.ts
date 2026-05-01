@@ -7,6 +7,7 @@ import type {
   InitiativeRollup as ProtoInitiativeRollup,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/initiative_pb";
 import type { ProtoMessage } from "./shared";
+import type { AgentSessionAttribution } from "./agent-session";
 
 /**
  * Valid lifecycle states for an initiative.
@@ -33,13 +34,15 @@ export type InitiativeOperatingMode = string;
 /**
  * A named grouping of related backlog items.
  */
-export type Initiative = ProtoMessage<ProtoInitiative> & {
+export type Initiative = Omit<ProtoMessage<ProtoInitiative>, "createdBy"> & {
   /** ISO timestamp when the initiative was archived, or undefined if not archived. */
   archivedAt?: string;
   /** Operating mode defaults to item-level for historical records. */
   mode?: InitiativeOperatingMode;
   /** Initiative-level acceptance criteria used by non-item-level modes. */
   acceptanceCriteria?: string[];
+  /** Verified provenance for the actor/session that created this initiative. */
+  createdBy?: AgentSessionAttribution;
 };
 
 /**

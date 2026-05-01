@@ -13,6 +13,7 @@ import (
 
 type sessionArtifactRecorder interface {
 	AttachArtifact(context.Context, agentsessions.Artifact) (agentsessions.Artifact, error)
+	AttachArtifacts(context.Context, []agentsessions.Artifact) ([]agentsessions.Artifact, error)
 }
 
 // Source identifies who or what triggered a backlog mutation. The Service

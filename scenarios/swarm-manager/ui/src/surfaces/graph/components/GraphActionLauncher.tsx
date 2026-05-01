@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { GitPullRequestArrow, MessageSquarePlus, Plus, Workflow } from "lucide-react";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
+import { useGlobalKeyDown } from "../../../hooks/useGlobalKeyDown";
 import { cn } from "../../../lib/utils";
 
 interface GraphActionLauncherProps {
@@ -22,22 +23,21 @@ export function GraphActionLauncher({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  useGlobalKeyDown((event) => {
+    if (event.key === "Escape") setIsOpen(false);
+  }, { enabled: isOpen });
+
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
     const handlePointerDown = (event: PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("pointerdown", handlePointerDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [isOpen]);

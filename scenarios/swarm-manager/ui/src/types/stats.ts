@@ -17,6 +17,7 @@ export interface StatsResponse {
   agent: AgentStats;
   dashboard: DashboardStats;
   mode: ModeStats;
+  session: SessionStats;
 }
 
 /** Span of event-log history observed by the engine. */
@@ -140,6 +141,26 @@ export interface BacklogSyncStats {
   items_updated: number;
 }
 
+/** Native Agent Session adoption and outcome metrics. */
+export interface SessionStats {
+  total_sessions: number;
+  active_sessions: number;
+  sessions_by_kind: Record<string, number>;
+  sessions_by_status: Record<string, number>;
+  proposal_created_by_kind: Record<string, number>;
+  proposal_applied_by_kind: Record<string, number>;
+  proposal_apply_rate_by_kind: Record<string, KindRate>;
+  artifacts_created_by_kind: Record<string, number>;
+  artifacts_by_type: Record<string, number>;
+  avg_messages_per_session: number;
+  avg_time_to_first_proposal_seconds: number;
+  first_proposal_sample_size: number;
+  failed_session_rate: number;
+  failed_session_sample_size: number;
+  session_created_backlog_items: number;
+  session_created_initiatives: number;
+}
+
 /** Completions in a calendar week. */
 export interface VelocityPoint {
   week_start: string;
@@ -147,4 +168,4 @@ export interface VelocityPoint {
 }
 
 /** The stat categories, matching the API's ?category= filter values. */
-export type StatsCategory = "dashboard" | "throughput" | "agent" | "timing" | "blocking" | "scope" | "modes";
+export type StatsCategory = "dashboard" | "throughput" | "agent" | "timing" | "blocking" | "scope" | "modes" | "sessions";

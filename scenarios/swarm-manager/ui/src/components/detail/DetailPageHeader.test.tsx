@@ -70,11 +70,13 @@ describe("DetailPageHeader", () => {
     renderHeader({
       subtitle: "execute/test",
       status: "in_progress",
+      metadata: <span data-testid="custom-metadata">Created by session</span>,
       actions: <button data-testid="custom-action">Run</button>,
     });
 
     expect(screen.getByText("execute/test")).toBeInTheDocument();
     expect(screen.getByTestId("detail-page-header")).toBeInTheDocument();
+    expect(screen.getByTestId("custom-metadata")).toBeInTheDocument();
     expect(screen.getByTestId("custom-action")).toBeInTheDocument();
   });
 

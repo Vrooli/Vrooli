@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useCallback } from "react";
+import { useGlobalKeyDown } from "../../hooks/useGlobalKeyDown";
 
 function isInputElement(el: HTMLElement): boolean {
   return (
@@ -10,17 +11,14 @@ function isInputElement(el: HTMLElement): boolean {
 }
 
 export function useEscapeRouteBack(onBack: () => void, enabled = true): void {
-  useEffect(() => {
-    if (!enabled) return undefined;
-    const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && isInputElement(target)) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onBack();
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, onBack]);
+    }, [onBack]);
+
+  useGlobalKeyDown(handleKeyDown, { enabled });
 }

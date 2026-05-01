@@ -31,6 +31,7 @@ type Store interface {
 	AppendMessage(sessionID string, message Message) error
 	SaveProposal(sessionID string, proposal Proposal) error
 	AppendArtifact(sessionID string, artifact Artifact) error
+	AppendArtifacts(sessionID string, artifacts []Artifact) error
 	ListArtifacts(sessionID string) ([]Artifact, error)
 	ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error)
 }
@@ -183,6 +184,41 @@ func (s *FileStore) AppendArtifact(sessionID string, artifact Artifact) error {
 		return err
 	}
 	session.UpdatedAt = artifact.CreatedAt
+	return s.saveSessionLocked(session)
+}
+
+func (s *FileStore) AppendArtifacts(sessionID string, artifacts []Artifact) error {
+	if len(artifacts) == 0 {
+		return nil
+	}
+	for i := range artifacts {
+		if err := artifacts[i].Validate(); err != nil {
+			return fmt.Errorf("%w: artifacts[%d]: %v", ErrValidation, i, err)
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, err := s.loadSessionLocked(sessionID)
+	if err != nil {
+		return err
+	}
+	for i := range artifacts {
+		if artifacts[i].SessionID != session.ID {
+			return validationError("artifact session_id does not match session")
+		}
+	}
+	path := filepath.Join(s.sessionDir(session.ID), artifactsFileName)
+	existing, err := readJSONL[Artifact](path)
+	if err != nil {
+		return err
+	}
+	next := append(existing, artifacts...)
+	if err := writeJSONLAtomic(path, next); err != nil {
+		return err
+	}
+	session.UpdatedAt = artifacts[len(artifacts)-1].CreatedAt
 	return s.saveSessionLocked(session)
 }
 
@@ -362,6 +398,43 @@ func appendJSONL(path string, value any) error {
 		return err
 	}
 	return file.Sync()
+}
+
+func writeJSONLAtomic[T any](path string, values []T) error {
+	parentDir := filepath.Dir(path)
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+		return err
+	}
+	tempFile, err := os.CreateTemp(parentDir, "tmp-*.jsonl")
+	if err != nil {
+		return err
+	}
+	tempName := tempFile.Name()
+	defer func() {
+		_ = os.Remove(tempName)
+	}()
+	for _, value := range values {
+		data, err := json.Marshal(value)
+		if err != nil {
+			_ = tempFile.Close()
+			return err
+		}
+		if _, err := tempFile.Write(append(data, '\n')); err != nil {
+			_ = tempFile.Close()
+			return err
+		}
+	}
+	if err := tempFile.Sync(); err != nil {
+		_ = tempFile.Close()
+		return err
+	}
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tempName, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tempName, path)
 }
 
 func readJSONL[T any](path string) ([]T, error) {

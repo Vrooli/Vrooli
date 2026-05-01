@@ -387,6 +387,41 @@ func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.
 	}
 }
 
+func TestApplyAgentSessionBacklogBatchImportRollsBackWhenArtifactRecordingFails(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+	recorder := &fakeSessionArtifacts{err: fmt.Errorf("artifact store unavailable")}
+	h.SetAgentSessionArtifactRecorder(recorder)
+
+	payload := `{
+		"items": [
+			{"name": "session-rollback-a", "title": "Session Rollback A", "kind": "idea", "initiative": "session-rollback-init"},
+			{"name": "session-rollback-b", "title": "Session Rollback B", "kind": "execute", "initiative": "session-rollback-init"}
+		],
+		"initiatives": [
+			{"name": "session-rollback-init", "title": "Session Rollback Initiative"}
+		]
+	}`
+	prov := identity.Provenance{
+		Type:        identity.TypeAgent,
+		RunID:       "run-session-rollback",
+		TaskID:      "task-session-rollback",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_rollback",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_rollback",
+	}
+
+	_, err := h.ApplyAgentSessionBacklogBatchImport(identity.NewContext(context.Background(), prov), payload, prov)
+	if err == nil {
+		t.Fatal("ApplyAgentSessionBacklogBatchImport() error = nil, want artifact recording failure")
+	}
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "session-rollback-a", "spec.json"))
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "execute", "session-rollback-b", "spec.json"))
+	if _, ok := ia.snapshots["session-rollback-init"]; ok {
+		t.Fatalf("initiative was not rolled back: %+v", ia.snapshots["session-rollback-init"])
+	}
+}
+
 func TestBatchCreate_WithInitiative(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
 
