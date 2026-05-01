@@ -27,7 +27,7 @@ function nullableArray<T extends z.ZodType>(schema: T) {
 // Enums
 // ============================================================================
 
-export const NodeTypeSchema = z.enum(['team', 'agent', 'skill', 'cli'])
+export const NodeTypeSchema = z.enum(['team', 'agent', 'skill', 'action', 'cli'])
 export type NodeType = z.infer<typeof NodeTypeSchema>
 
 export const EdgeKindSchema = z.enum([
@@ -37,6 +37,8 @@ export const EdgeKindSchema = z.enum([
   'path-ref',
   'membership',
   'code-usage',
+  'action-use',
+  'action-command',
 ])
 export type EdgeKind = z.infer<typeof EdgeKindSchema>
 
@@ -76,6 +78,10 @@ export const EntityHealthWeightsSchema = z.object({
   agentContextLoad: z.number(),
   teamMemberCountBalance: z.number(),
   teamRoleCoverage: z.number(),
+  actionContract: z.number().optional(),
+  actionCommand: z.number().optional(),
+  actionExamples: z.number().optional(),
+  actionOwner: z.number().optional(),
 })
 export type EntityHealthWeights = z.infer<typeof EntityHealthWeightsSchema>
 
@@ -90,6 +96,7 @@ export const GraphHealthConfigSchema = z.object({
   team: EntityHealthWeightsSchema,
   agent: EntityHealthWeightsSchema,
   skill: EntityHealthWeightsSchema,
+  action: EntityHealthWeightsSchema.optional(),
   cli: CLIHealthConfigSchema,
 })
 export type GraphHealthConfig = z.infer<typeof GraphHealthConfigSchema>

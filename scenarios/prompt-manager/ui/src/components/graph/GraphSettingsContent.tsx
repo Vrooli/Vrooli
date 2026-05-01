@@ -9,6 +9,7 @@ import {
   Users,
   Bot,
   Sparkles,
+  PlaySquare,
   Terminal,
   LayoutGrid,
   RefreshCw,
@@ -26,6 +27,7 @@ const ENTITY_META = [
   { key: 'team' as const, label: 'Team', icon: Users },
   { key: 'agent' as const, label: 'Agent', icon: Bot },
   { key: 'skill' as const, label: 'Skill', icon: Sparkles },
+  { key: 'action' as const, label: 'Action', icon: PlaySquare },
 ]
 
 const WEIGHT_FIELDS = [
@@ -49,6 +51,13 @@ const ENTITY_WEIGHT_FIELDS = {
     ...WEIGHT_FIELDS,
     { key: 'skillContentLength' as const, label: 'Content length' },
   ],
+  action: [
+    ...WEIGHT_FIELDS,
+    { key: 'actionContract' as const, label: 'Contract' },
+    { key: 'actionCommand' as const, label: 'Command' },
+    { key: 'actionExamples' as const, label: 'Examples' },
+    { key: 'actionOwner' as const, label: 'Owner' },
+  ],
 }
 
 function GraphDisplaySettings() {
@@ -66,6 +75,7 @@ function GraphDisplaySettings() {
     { key: 'showTeams' as const, label: 'Teams', icon: Users, active: filters.showTeams },
     { key: 'showAgents' as const, label: 'Agents', icon: Bot, active: filters.showAgents },
     { key: 'showSkills' as const, label: 'Skills', icon: Sparkles, active: filters.showSkills },
+    { key: 'showActions' as const, label: 'Actions', icon: PlaySquare, active: filters.showActions ?? true },
     { key: 'showCLIs' as const, label: 'CLIs', icon: Terminal, active: filters.showCLIs },
   ]
 
@@ -308,7 +318,7 @@ function GraphHealthSettings() {
 
       {ENTITY_META.map((entity) => {
         const Icon = entity.icon
-        const weights = config[entity.key]
+        const weights = config[entity.key] ?? config.skill
         return (
           <section key={entity.key} className="rounded-lg border border-border bg-card/40 p-3 space-y-2">
             <div className="flex items-center gap-2 text-foreground">
@@ -318,13 +328,13 @@ function GraphHealthSettings() {
             {ENTITY_WEIGHT_FIELDS[entity.key].map((field) => (
               <label key={field.key} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-muted-foreground">
                 <span>{field.label}</span>
-                <span className="tabular-nums text-foreground">{Math.round(weights[field.key] * 100)}%</span>
+                <span className="tabular-nums text-foreground">{Math.round((weights[field.key] ?? 0) * 100)}%</span>
                 <input
                   type="range"
                   min={0}
                   max={1}
                   step={0.05}
-                  value={weights[field.key]}
+                  value={weights[field.key] ?? 0}
                   onChange={(e) => setEntityWeight(entity.key, field.key, parseFloat(e.target.value))}
                   className="col-span-2 h-1 accent-indigo-500"
                 />

@@ -297,6 +297,9 @@ export type LinkPreviewData = z.infer<typeof LinkPreviewDataSchema>
 export const DiscoverSourceSchema = z.enum(['topic', 'search'])
 export type DiscoverSource = z.infer<typeof DiscoverSourceSchema>
 
+export const DiscoverTypeSchema = z.enum(['skill', 'action'])
+export type DiscoverType = z.infer<typeof DiscoverTypeSchema>
+
 /**
  * Budget status relative to complexity budget.
  */
@@ -307,6 +310,7 @@ export type BudgetStatus = z.infer<typeof BudgetStatusSchema>
  * A single unified discovery result with content size and source tracking.
  */
 export const DiscoverResultSchema = z.object({
+  type: DiscoverTypeSchema.optional(),
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional().transform((val) => val ?? ''),
@@ -319,6 +323,10 @@ export const DiscoverResultSchema = z.object({
   topicId: z.string().optional().default(''),
   topicName: z.string().optional().default(''),
   contentChars: z.number(),
+  status: z.string().optional(),
+  owner: z.string().optional(),
+  showCommand: z.string().optional(),
+  runCommand: z.string().optional(),
 })
 
 export type DiscoverResult = z.infer<typeof DiscoverResultSchema>
@@ -333,6 +341,8 @@ export const DiscoverResponseSchema = z.object({
   method: z.string(), // "ai", "text", or "mixed"
   totalContentChars: z.number(),
   readCommand: z.string(),
+  showCommand: z.string().optional(),
+  runCommand: z.string().optional(),
   budgetChars: z.number().optional(),
   budgetStatus: BudgetStatusSchema.optional(),
   recommendedReadCommand: z.string().optional(),

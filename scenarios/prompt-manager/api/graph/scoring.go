@@ -36,6 +36,10 @@ var factorEvaluators = map[string]func(nodeID string, g Graph) float64{
 	"agent-context-load":        agentContextLoadScore,
 	"team-member-count-balance": teamMemberCountBalanceScore,
 	"team-role-coverage":        teamRoleCoverageScore,
+	"action-contract":           actionContractScore,
+	"action-command":            actionCommandScore,
+	"action-examples":           actionExamplesScore,
+	"action-owner":              actionOwnerScore,
 }
 
 const (
@@ -48,6 +52,10 @@ const (
 	metricTeamMemberCount         = "team-member-count"
 	metricTeamDistinctRoleCount   = "team-distinct-role-count"
 	metricTeamRoleAssignedMembers = "team-members-with-role-count"
+	metricActionContractValid     = "action-contract-valid"
+	metricActionCommandDeclared   = "action-command-declared"
+	metricActionExamples          = "action-examples"
+	metricActionOwnerDeclared     = "action-owner-declared"
 )
 
 type scoreWithDiagnostics struct {
@@ -129,6 +137,10 @@ func ScoreAllWithConfig(g Graph, cfg HealthConfig) []HealthScore {
 				"agent-context-load":        0,
 				"team-member-count-balance": 0,
 				"team-role-coverage":        0,
+				"action-contract":           0,
+				"action-command":            0,
+				"action-examples":           0,
+				"action-owner":              0,
 			},
 		}
 		score, factors, messages := scoreWithWeightsEC(n.ID, g, weights, ec)
@@ -171,7 +183,7 @@ func ApplyCLIHealthPolicyWithConfig(ctx context.Context, g Graph, scores []Healt
 	}
 	usageByNodeID := make(map[string]cliUsageSummary)
 	for _, e := range g.Edges {
-		if e.Kind != EdgeCodeUsage {
+		if e.Kind != EdgeCodeUsage && e.Kind != EdgeActionCommand {
 			continue
 		}
 		targetNode, ok := nodeByID[e.To]
@@ -186,7 +198,7 @@ func ApplyCLIHealthPolicyWithConfig(ctx context.Context, g Graph, scores []Healt
 		if cmd != "" {
 			current.command = cmd
 		}
-		if e.Category == CodeScenarioCLI {
+		if e.Category == CodeScenarioCLI || e.Kind == EdgeActionCommand {
 			current.isScenarioCLI = true
 		}
 		usageByNodeID[e.To] = current
@@ -366,6 +378,8 @@ func weightsForNodeType(nodeType NodeType, cfg HealthConfig) HealthWeights {
 		return cfg.Agent
 	case NodeSkill:
 		return cfg.Skill
+	case NodeAction:
+		return cfg.Action
 	default:
 		// CLI scores are overridden by ApplyCLIHealthPolicyWithConfig, but
 		// we still compute a baseline for consistency.
@@ -487,6 +501,58 @@ func evaluateFactorWithMessages(factorName, nodeID string, g Graph, value float6
 				})
 			}
 		}
+	case "action-contract":
+		if nodeType == NodeAction && value < 1.0 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "action.contract.invalid",
+				Severity:       severityCritical,
+				Factor:         factorName,
+				Summary:        "Action contract did not validate",
+				Detail:         "The Action graph node was present without a valid persisted contract marker.",
+				Recommendation: "Run `prompt-manager action validate <id>` and fix the Action contract before using it.",
+				MetricValue:    value,
+				Target:         "1.00",
+			})
+		}
+	case "action-command":
+		if nodeType == NodeAction && value < 1.0 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "action.command.missing",
+				Severity:       severityCritical,
+				Factor:         factorName,
+				Summary:        "Action command is missing",
+				Detail:         "Actions should wrap exactly one argv-shaped controlled CLI command.",
+				Recommendation: "Declare a static command argv in action.json.",
+				MetricValue:    value,
+				Target:         "1.00",
+			})
+		}
+	case "action-examples":
+		if nodeType == NodeAction && value < 1.0 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "action.examples.missing",
+				Severity:       severityWarning,
+				Factor:         factorName,
+				Summary:        "Action examples are missing",
+				Detail:         "Examples help agents call the Action with valid typed input.",
+				Recommendation: "Add at least one example input payload to action.json.",
+				MetricValue:    value,
+				Target:         "1.00",
+			})
+		}
+	case "action-owner":
+		if nodeType == NodeAction && value < 1.0 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "action.owner.missing",
+				Severity:       severityWarning,
+				Factor:         factorName,
+				Summary:        "Action owner is missing",
+				Detail:         "Actions need an explicit project, scenario, resource, team, or agent owner.",
+				Recommendation: "Declare the owning Vrooli surface in action.json.",
+				MetricValue:    value,
+				Target:         "1.00",
+			})
+		}
 	}
 
 	return diag
@@ -514,6 +580,10 @@ func scoreWithWeightsEC(nodeID string, g Graph, weights HealthWeights, ec edgeCo
 		"agent-context-load":        weights.AgentContextLoad,
 		"team-member-count-balance": weights.TeamMemberCountBalance,
 		"team-role-coverage":        weights.TeamRoleCoverage,
+		"action-contract":           weights.ActionContract,
+		"action-command":            weights.ActionCommand,
+		"action-examples":           weights.ActionExamples,
+		"action-owner":              weights.ActionOwner,
 	}
 
 	factors := make(map[string]float64, len(weightByFactor))
@@ -582,6 +652,10 @@ func scoreWithWeights(nodeID string, g Graph, weights HealthWeights) (float64, m
 		"agent-context-load":        weights.AgentContextLoad,
 		"team-member-count-balance": weights.TeamMemberCountBalance,
 		"team-role-coverage":        weights.TeamRoleCoverage,
+		"action-contract":           weights.ActionContract,
+		"action-command":            weights.ActionCommand,
+		"action-examples":           weights.ActionExamples,
+		"action-owner":              weights.ActionOwner,
 	}
 
 	factors := make(map[string]float64, len(weightByFactor))
@@ -823,6 +897,49 @@ func teamRoleCoverageScore(nodeID string, g Graph) float64 {
 	}
 
 	return (roleVarietyScore * 0.5) + (assignCoverage * 0.5)
+}
+
+func actionContractScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeAction {
+		return 0.5
+	}
+	return binaryMetricScore(g, nodeID, metricActionContractValid)
+}
+
+func actionCommandScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeAction {
+		return 0.5
+	}
+	if binaryMetricScore(g, nodeID, metricActionCommandDeclared) == 1 {
+		return 1
+	}
+	for _, e := range g.Edges {
+		if e.From == nodeID && e.Kind == EdgeActionCommand {
+			return 1
+		}
+	}
+	return 0
+}
+
+func actionExamplesScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeAction {
+		return 0.5
+	}
+	return binaryMetricScore(g, nodeID, metricActionExamples)
+}
+
+func actionOwnerScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeAction {
+		return 0.5
+	}
+	return binaryMetricScore(g, nodeID, metricActionOwnerDeclared)
+}
+
+func binaryMetricScore(g Graph, nodeID, key string) float64 {
+	if metricValue(g, nodeID, key) > 0 {
+		return 1
+	}
+	return 0
 }
 
 // codeUsageScore rewards Vrooli-only tool use and penalizes external tools.

@@ -94,7 +94,32 @@ Status: ready for implementation.
   - `cd scenarios/prompt-manager/cli && go test ./...`
   - `git diff --check`
 
-Next resume point: Continue Phase 6 by polishing mixed discovery response ergonomics and docs/examples, then move to Phase 7 graph integration. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands. Do not wire `POST /api/v1/actions/{id}/run` or `prompt-manager action run` until Phase 4 execution governance is implemented.
+- Completed the first Phase 7 graph integration slice:
+  - Added Action graph node type and `action-use` / `action-command` edge kinds.
+  - Wired Action store data into graph builder/scanner startup wiring.
+  - Action graph node IDs are namespaced as `action:<action-id>` so Actions can coexist with skills, teams, or agents that have the same raw ID.
+  - Added `action-command` edges from Action contracts to CLI nodes and made CLI node extraction include Action command targets.
+  - Added best-effort `action-use` edges for explicit `action:<id>` and `prompt-manager action run <id>` markdown references when the Action exists.
+  - Added Action health factors for contract presence, command declaration, examples, and owner metadata, with default config normalization for existing graph-health configs.
+  - Updated Graph, API, configuration, and Action concept docs for implemented graph behavior.
+- Verified with:
+  - `cd scenarios/prompt-manager/api && go test ./graph`
+  - `cd scenarios/prompt-manager/api && go test ./...`
+
+- Completed the first Phase 8 UI schema/data hooks slice:
+  - Added Action Zod schemas and exported Action runtime types from `ui/src/lib/schemas`, including Action contracts, validation checks, command resolution, and mutation envelopes.
+  - Added Action API client methods for list/get/create/update/delete/validate in `ui/src/lib/api.ts`.
+  - Added cached `actionService` wrappers and `useActionsData` React Query hook with graph health invalidation after mutations.
+  - Updated UI discover schemas for opt-in mixed Skill/Action response fields without changing legacy skill-only requirements.
+  - Updated UI graph schemas and graph settings/preview seams so Action nodes, `action-use`, and `action-command` edges parse and render instead of being rejected by existing graph clients.
+  - Added focused tests for Action schema parsing/rejection, service cache invalidation/search behavior, and hook mutation/validation wiring.
+- Verified with:
+  - `cd scenarios/prompt-manager/ui && pnpm run type-check`
+  - `cd scenarios/prompt-manager/ui && pnpm test -- src/lib/schemas/action.schema.test.ts src/services/actionService.test.ts src/hooks/useActionsData.test.tsx src/components/graph/GraphNode.test.tsx src/components/graph/GraphSettingsContent.test.tsx src/components/search/SearchResultsList.test.tsx`
+  - `cd scenarios/prompt-manager/ui && pnpm test`
+  - `git diff --check`
+
+Next resume point: Continue Phase 8 with any remaining UI client polish if desired, then start Phase 9 Action UI surfaces: browse/list, detail/editor, validation panel, and mixed discover rendering. Keep run UI/API/CLI deferred until Phase 4 execution governance is fully implemented. Phase 2 still needs replacement of the temporary command resolver with the operation-contract catalog when that lands. Do not wire `POST /api/v1/actions/{id}/run` or `prompt-manager action run` until Phase 4 execution governance is implemented.
 
 ## Purpose
 

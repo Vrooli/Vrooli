@@ -1,8 +1,8 @@
 # Relationship Graph
 
-The relationship graph maps how teams, agents, skills, and CLI tools connect to each other. It scans store files for references, builds a directed graph, and exposes analytical queries that surface structural problems like orphaned skills, empty teams, or circular dependencies.
+The relationship graph maps how teams, agents, skills, Actions, and CLI tools connect to each other. It scans store files for references, builds a directed graph, and exposes analytical queries that surface structural problems like orphaned skills, empty teams, or circular dependencies.
 
-The proposed Action entity extends this model with a typed execution node between agents/skills and CLI tools. Until Actions are implemented, Action nodes and edges are planned graph concepts rather than current scanner output.
+Actions extend the model with typed execution nodes between agents/skills and CLI tools. Action nodes use namespaced graph IDs such as `action:scenario.status.show` so they cannot collide with skill, team, or agent IDs.
 
 ## Why It Exists
 
@@ -24,10 +24,10 @@ The graph automates these answers by scanning markdown content for references an
 | `team` | Organizational unit grouping agents | Team store (`store/teams/`) |
 | `agent` | AI entity that performs work | Agent store (`store/agents/`) |
 | `skill` | Reusable prompt/capability | Skill store (`store/skills/packs/`) |
-| `action` | Proposed typed executable wrapper | Action store (`store/actions/packs/`) |
-| `cli` | CLI tool referenced in skill content | Extracted from `code-usage` edges |
+| `action` | Typed executable wrapper over one controlled CLI command | Action store (`store/actions/packs/`) |
+| `cli` | CLI tool referenced in skill content or Action contracts | Extracted from `code-usage` and `action-command` edges |
 
-CLI nodes are synthetic — they are created when a `code-usage` edge points to a target that doesn't exist as a skill, agent, or team.
+CLI nodes are synthetic — they are created when a `code-usage` or `action-command` edge points to a target that doesn't exist as a skill, agent, team, or Action.
 
 ## Edge Types
 
@@ -39,10 +39,10 @@ CLI nodes are synthetic — they are created when a `code-usage` edge points to 
 | `path-ref` | agent/skill → skill | Skill referenced via filesystem path (`store/skills/packs/...`) | Regex scan |
 | `default-scope` | skill → skill | Skill declares another as its `DefaultScope` | skill.json field |
 | `code-usage` | skill/agent → cli | Node references a CLI tool in its content | CLIDetector |
-| `action-use` | agent/skill → action | Planned: node references or invokes an Action | Action references / discover usage |
-| `action-command` | action → cli | Planned: Action wraps one Vrooli-controlled CLI command | action.json command target |
+| `action-use` | agent/team/skill → action | Node explicitly references or invokes an Action | `action:<id>` or `prompt-manager action run <id>` references |
+| `action-command` | action → cli | Action wraps one argv-shaped Vrooli-controlled CLI command | `action.json` command target |
 
-Future graph health should prefer `action-command` edges over repeated `code-usage` edges when a deterministic operation has graduated into an Action. Skills remain healthy when they preserve judgment and point to Actions for execution.
+Graph health can prefer `action-command` edges over repeated `code-usage` edges when a deterministic operation has graduated into an Action. Skills remain healthy when they preserve judgment and point to Actions for execution.
 
 ## How the Graph Is Built
 
@@ -51,13 +51,13 @@ Future graph health should prefer `action-command` edges over repeated `code-usa
 The build pipeline runs in four stages:
 
 ```
-1. Collect nodes     ← Read teams, agents, skills from store directories
+1. Collect nodes     ← Read teams, agents, skills, and Actions from store directories
         │
         ▼
 2. Scan for edges    ← Regex-scan markdown files for references between entities
         │
         ▼
-3. Extract CLI nodes ← Any code-usage edge targeting a non-existent node creates a CLI node
+3. Extract CLI nodes ← Any code-usage/action-command edge targeting a non-existent node creates a CLI node
         │
         ▼
 4. Score nodes       ← Compute weighted health score per node
@@ -67,12 +67,14 @@ The build pipeline runs in four stages:
 
 [CODE: api/graph/scanner.go]
 
-The scanner uses four regex patterns to extract edges from markdown content:
+The scanner uses structured stores plus focused regex patterns to extract edges:
 
 1. **CLI read commands** — `prompt-manager skills read <ids>` produces `cli-read` edges
 2. **Bold-listed IDs** — `**skill-id**` produces `bold-listed` edges
 3. **Filesystem paths** — `store/skills/packs/{pack}/{id}/SKILL.md` produces `path-ref` edges
 4. **Default scope** — `DefaultScope` field in `skill.json` produces `default-scope` edges
+5. **Action references** — `action:<id>` or `prompt-manager action run <id>` produces `action-use` edges when the Action exists
+6. **Action command contracts** — `action.json` command argv produces `action-command` edges from Action nodes to CLI nodes
 
 Edges are deduplicated per `(skillID, edgeKind)` pair to prevent duplicates within the same file.
 
@@ -118,6 +120,10 @@ Team/Agent/Skill nodes receive a composite health score (0.0–1.0) computed as 
 | `agent-context-load` | 0.75 (agent default) | Scores total agent markdown token load (best at <=3500 tokens). |
 | `team-member-count-balance` | 0.75 (team default) | Scores team size against a balanced operating range (3-8 members). |
 | `team-role-coverage` | 0.75 (team default) | Scores role diversity and assignment coverage across team members. |
+| `action-contract` | 1.0 (action default) | Scores whether the Action came from a structurally valid persisted contract. |
+| `action-command` | 1.0 (action default) | Scores whether the Action declares its command and has an `action-command` edge. |
+| `action-examples` | 0.75 (action default) | Scores whether the Action includes at least one example payload. |
+| `action-owner` | 0.75 (action default) | Scores whether the Action declares an explicit owner. |
 
 ```
 score = (factor₁ × weight₁ + factor₂ × weight₂ + ...) / Σ weights
@@ -125,7 +131,7 @@ score = (factor₁ × weight₁ + factor₂ × weight₂ + ...) / Σ weights
 
 ### Configurable Weights (Per Entity Type)
 
-Weights are configurable per `team`, `agent`, and `skill` in:
+Weights are configurable per `team`, `agent`, `skill`, and `action` in:
 
 `store/config/graph-health.json`
 
@@ -203,5 +209,5 @@ The frontend renders the graph using React Flow with Dagre hierarchical layout.
 
 - [API Reference — Graph Endpoints](../reference/api-endpoints.md#graph)
 - [CLI Reference — Graph Commands](../reference/cli-commands.md#graph)
-- [Swarm Model](SWARM-MODEL.md) — The swarm architecture and proposed Action execution layer that the graph visualizes
+- [Swarm Model](SWARM-MODEL.md) — The swarm architecture and Action execution layer that the graph visualizes
 - [Testing Seams](../internal/SEAMS.md#graph-seams) — Graph testing boundaries

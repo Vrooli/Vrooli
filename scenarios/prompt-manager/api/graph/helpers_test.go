@@ -76,6 +76,15 @@ type mockSkillLister struct {
 	contentErr error
 }
 
+type mockActionLister struct {
+	actions []store.Action
+	listErr error
+}
+
+func (m *mockActionLister) List(_ context.Context) ([]store.Action, error) {
+	return m.actions, m.listErr
+}
+
 func (m *mockSkillLister) List(_ context.Context) ([]store.Skill, error) {
 	return m.skills, m.listErr
 }

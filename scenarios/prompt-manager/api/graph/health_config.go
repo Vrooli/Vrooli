@@ -20,6 +20,10 @@ type HealthWeights struct {
 	AgentContextLoad       float64 `json:"agentContextLoad"`
 	TeamMemberCountBalance float64 `json:"teamMemberCountBalance"`
 	TeamRoleCoverage       float64 `json:"teamRoleCoverage"`
+	ActionContract         float64 `json:"actionContract"`
+	ActionCommand          float64 `json:"actionCommand"`
+	ActionExamples         float64 `json:"actionExamples"`
+	ActionOwner            float64 `json:"actionOwner"`
 }
 
 // CLIHealthConfig defines CLI-specific health policy levers.
@@ -31,10 +35,11 @@ type CLIHealthConfig struct {
 
 // HealthConfig defines scoring controls per entity type.
 type HealthConfig struct {
-	Team  HealthWeights   `json:"team"`
-	Agent HealthWeights   `json:"agent"`
-	Skill HealthWeights   `json:"skill"`
-	CLI   CLIHealthConfig `json:"cli"`
+	Team   HealthWeights   `json:"team"`
+	Agent  HealthWeights   `json:"agent"`
+	Skill  HealthWeights   `json:"skill"`
+	Action HealthWeights   `json:"action"`
+	CLI    CLIHealthConfig `json:"cli"`
 }
 
 // HealthConfigProvider reads scoring configuration.
@@ -74,6 +79,7 @@ func (s *HealthConfigStore) Get(_ context.Context) (HealthConfig, error) {
 		return HealthConfig{}, err
 	}
 	cfg := *loaded
+	cfg = withHealthConfigDefaults(cfg)
 	if err := ValidateHealthConfig(cfg); err != nil {
 		return HealthConfig{}, err
 	}
@@ -82,6 +88,7 @@ func (s *HealthConfigStore) Get(_ context.Context) (HealthConfig, error) {
 
 // Put validates and saves config to disk.
 func (s *HealthConfigStore) Put(_ context.Context, cfg HealthConfig) error {
+	cfg = withHealthConfigDefaults(cfg)
 	if err := ValidateHealthConfig(cfg); err != nil {
 		return err
 	}
@@ -122,12 +129,32 @@ func DefaultHealthConfig() HealthConfig {
 			RecentActivity:     defaultWeights.RecentActivity,
 			SkillContentLength: 0.75,
 		},
+		Action: HealthWeights{
+			OutgoingEdges:  defaultWeights.OutgoingEdges,
+			IncomingEdges:  defaultWeights.IncomingEdges,
+			RecentActivity: defaultWeights.RecentActivity,
+			ActionContract: 1.0,
+			ActionCommand:  1.0,
+			ActionExamples: 0.75,
+			ActionOwner:    0.75,
+		},
 		CLI: CLIHealthConfig{
 			NeutralCommands:       []string{"vrooli"},
 			ExternalToolScore:     0.0,
 			ScenarioFallbackScore: 0.0,
 		},
 	}
+}
+
+func withHealthConfigDefaults(cfg HealthConfig) HealthConfig {
+	defaults := DefaultHealthConfig()
+	if healthWeightSum(cfg.Action) <= 0 {
+		cfg.Action = defaults.Action
+	}
+	if len(cfg.CLI.NeutralCommands) == 0 {
+		cfg.CLI.NeutralCommands = defaults.CLI.NeutralCommands
+	}
+	return cfg
 }
 
 // ValidateHealthConfig checks control-surface safety and completeness.
@@ -139,6 +166,7 @@ func ValidateHealthConfig(cfg HealthConfig) error {
 		{name: "team", w: cfg.Team},
 		{name: "agent", w: cfg.Agent},
 		{name: "skill", w: cfg.Skill},
+		{name: "action", w: cfg.Action},
 	} {
 		if err := validateWeights(check.name, check.w); err != nil {
 			return err
@@ -175,9 +203,13 @@ func validateWeights(entity string, w HealthWeights) error {
 		{name: "agentContextLoad", val: w.AgentContextLoad},
 		{name: "teamMemberCountBalance", val: w.TeamMemberCountBalance},
 		{name: "teamRoleCoverage", val: w.TeamRoleCoverage},
+		{name: "actionContract", val: w.ActionContract},
+		{name: "actionCommand", val: w.ActionCommand},
+		{name: "actionExamples", val: w.ActionExamples},
+		{name: "actionOwner", val: w.ActionOwner},
 	}
 
-	weightSum := 0.0
+	weightSum := healthWeightSum(w)
 	for _, v := range values {
 		if v.val < 0 {
 			return fmt.Errorf("%s.%s must be >= 0", entity, v.name)
@@ -185,10 +217,31 @@ func validateWeights(entity string, w HealthWeights) error {
 		if v.val > 1 {
 			return fmt.Errorf("%s.%s must be <= 1", entity, v.name)
 		}
-		weightSum += v.val
 	}
 	if weightSum <= 0 {
 		return fmt.Errorf("%s must have at least one positive weight", entity)
 	}
 	return nil
+}
+
+func healthWeightSum(w HealthWeights) float64 {
+	values := []float64{
+		w.OutgoingEdges,
+		w.IncomingEdges,
+		w.CodeUsage,
+		w.RecentActivity,
+		w.SkillContentLength,
+		w.AgentContextLoad,
+		w.TeamMemberCountBalance,
+		w.TeamRoleCoverage,
+		w.ActionContract,
+		w.ActionCommand,
+		w.ActionExamples,
+		w.ActionOwner,
+	}
+	sum := 0.0
+	for _, val := range values {
+		sum += val
+	}
+	return sum
 }

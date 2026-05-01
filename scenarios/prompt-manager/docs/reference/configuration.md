@@ -75,7 +75,7 @@ store/
 │       ├── team.json
 │       ├── roles.json
 │       └── org-chart.json
-├── actions/                    # Proposed
+├── actions/
 │   ├── _pack-order.json
 │   └── packs/
 │       ├── core/
@@ -91,7 +91,7 @@ store/
 └── schemas/                    # JSON Schemas for validation
     ├── skill.schema.json
     ├── agent.schema.json
-    ├── action.schema.json       # Proposed
+    ├── action.schema.json
     └── team.schema.json
 ```
 
@@ -265,6 +265,20 @@ Schema:
     "agentContextLoad": 0,
     "teamMemberCountBalance": 0,
     "teamRoleCoverage": 0
+  },
+  "action": {
+    "outgoingEdges": 1,
+    "incomingEdges": 1,
+    "codeUsage": 0,
+    "recentActivity": 0.5,
+    "skillContentLength": 0,
+    "agentContextLoad": 0,
+    "teamMemberCountBalance": 0,
+    "teamRoleCoverage": 0,
+    "actionContract": 1,
+    "actionCommand": 1,
+    "actionExamples": 0.75,
+    "actionOwner": 0.75
   },
   "cli": {
     "neutralCommands": ["vrooli"],

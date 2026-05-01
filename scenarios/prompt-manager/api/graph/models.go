@@ -8,22 +8,25 @@ import "time"
 type NodeType string
 
 const (
-	NodeTeam  NodeType = "team"
-	NodeAgent NodeType = "agent"
-	NodeSkill NodeType = "skill"
-	NodeCLI   NodeType = "cli"
+	NodeTeam   NodeType = "team"
+	NodeAgent  NodeType = "agent"
+	NodeSkill  NodeType = "skill"
+	NodeAction NodeType = "action"
+	NodeCLI    NodeType = "cli"
 )
 
 // EdgeKind classifies relationships between nodes.
 type EdgeKind string
 
 const (
-	EdgeCLIRead      EdgeKind = "cli-read"
-	EdgeBoldListed   EdgeKind = "bold-listed"
-	EdgeDefaultScope EdgeKind = "default-scope"
-	EdgePathRef      EdgeKind = "path-ref"
-	EdgeMembership   EdgeKind = "membership"
-	EdgeCodeUsage    EdgeKind = "code-usage"
+	EdgeCLIRead       EdgeKind = "cli-read"
+	EdgeBoldListed    EdgeKind = "bold-listed"
+	EdgeDefaultScope  EdgeKind = "default-scope"
+	EdgePathRef       EdgeKind = "path-ref"
+	EdgeMembership    EdgeKind = "membership"
+	EdgeCodeUsage     EdgeKind = "code-usage"
+	EdgeActionUse     EdgeKind = "action-use"
+	EdgeActionCommand EdgeKind = "action-command"
 )
 
 // Node represents a single entity in the graph.

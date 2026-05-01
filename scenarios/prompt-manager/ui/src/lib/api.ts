@@ -28,6 +28,10 @@ import {
   parseOrThrow,
   SkillSchema,
   SkillArraySchema,
+  ActionSchema,
+  ActionArraySchema,
+  ActionMutationResponseSchema,
+  ActionValidationResponseSchema,
   TagSchema,
   TagArraySchema,
   SkillTestResultSchema,
@@ -102,6 +106,11 @@ import {
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
+  type Action,
+  type CreateActionRequest,
+  type UpdateActionRequest,
+  type ActionMutationResponse,
+  type ActionValidationResponse,
   type Tag,
   type SkillTestRequest,
   type SkillTestResult,
@@ -159,7 +168,7 @@ import {
   type ExportCCResponse,
   type ExclusiveMembersResponse,
 } from '@/lib/schemas'
-import type { SearchFilters, Folder } from '@/types'
+import type { SearchFilters, ActionFilters, Folder } from '@/types'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 export const API_BASE = resolveApiBase({ appendSuffix: true })
@@ -379,6 +388,67 @@ class ApiClient {
     })
   }
 
+  // Action methods - aligned with api/actions/handlers.go
+  async getActions(filters?: ActionFilters): Promise<Action[]> {
+    const params = new URLSearchParams()
+    if (filters?.pack) params.append('pack', filters.pack)
+    if (filters?.status) params.append('status', filters.status)
+    if (filters?.owner) params.append('owner', filters.owner)
+    if (filters?.tag) params.append('tag', filters.tag)
+
+    const queryString = params.toString()
+    return this.request<Action[]>(
+      `/actions${queryString ? `?${queryString}` : ''}`,
+      undefined,
+      ActionArraySchema
+    )
+  }
+
+  async getAction(id: string): Promise<Action> {
+    return this.request<Action>(
+      `/actions/${encodeURIComponent(id)}`,
+      undefined,
+      ActionSchema
+    )
+  }
+
+  async createAction(action: CreateActionRequest): Promise<ActionMutationResponse> {
+    return this.request<ActionMutationResponse>(
+      '/actions',
+      {
+        method: 'POST',
+        body: JSON.stringify(action),
+      },
+      ActionMutationResponseSchema
+    )
+  }
+
+  async updateAction(id: string, updates: UpdateActionRequest): Promise<ActionMutationResponse> {
+    return this.request<ActionMutationResponse>(
+      `/actions/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      },
+      ActionMutationResponseSchema
+    )
+  }
+
+  async deleteAction(id: string, hard = false): Promise<void> {
+    const params = hard ? '?hard=true' : ''
+    await this.requestVoid(`/actions/${encodeURIComponent(id)}${params}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async validateAction(id: string): Promise<ActionValidationResponse> {
+    return this.request<ActionValidationResponse>(
+      `/actions/${encodeURIComponent(id)}/validate`,
+      { method: 'POST' },
+      ActionValidationResponseSchema
+    )
+  }
+
   // Usage tracking
   async recordUsage(id: string): Promise<UsageResponse> {
     return this.request<UsageResponse>(
@@ -552,12 +622,24 @@ class ApiClient {
   }
 
   // Unified discover - topic + skill search with budgeting
-  async discover(queries: string[], complexity?: string, limit = 10): Promise<DiscoverResponse> {
+  async discover(
+    queries: string[],
+    complexity?: string,
+    limit = 10,
+    type?: 'skill' | 'action' | 'all'
+  ): Promise<DiscoverResponse> {
+    const body: {
+      queries: string[]
+      complexity?: string
+      limit: number
+      type?: 'skill' | 'action' | 'all'
+    } = { queries, complexity, limit }
+    if (type) body.type = type
     return this.request<DiscoverResponse>(
       '/discover',
       {
         method: 'POST',
-        body: JSON.stringify({ queries, complexity, limit }),
+        body: JSON.stringify(body),
       },
       DiscoverResponseSchema
     )

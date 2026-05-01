@@ -22,6 +22,11 @@ type skillNodeSource interface {
 	List(ctx context.Context) ([]store.Skill, error)
 }
 
+// actionNodeSource provides Action listing for graph node construction.
+type actionNodeSource interface {
+	List(ctx context.Context) ([]store.Action, error)
+}
+
 // graphScanner scans entities and returns graph edges.
 type graphScanner interface {
 	ScanAll(ctx context.Context) ([]Edge, error)
@@ -32,6 +37,7 @@ type Builder struct {
 	agentStore             agentNodeSource
 	teamStore              teamNodeSource
 	skillStore             skillNodeSource
+	actionStore            actionNodeSource
 	scanner                graphScanner
 	scoreFns               []ScoreFn
 	scenarioHealthProvider ScenarioHealthProvider
@@ -45,14 +51,19 @@ func NewBuilder(
 	skillStore skillNodeSource,
 	scanner graphScanner,
 	scoreFns []ScoreFn,
+	actionStores ...actionNodeSource,
 ) *Builder {
-	return &Builder{
+	b := &Builder{
 		agentStore: agentStore,
 		teamStore:  teamStore,
 		skillStore: skillStore,
 		scanner:    scanner,
 		scoreFns:   scoreFns,
 	}
+	if len(actionStores) > 0 {
+		b.actionStore = actionStores[0]
+	}
+	return b
 }
 
 // SetScenarioHealthProvider configures scenario-level health lookup for CLI nodes.
@@ -115,19 +126,38 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 		})
 	}
 
+	var actions []store.Action
+	if b.actionStore != nil {
+		actions, err = b.actionStore.List(ctx)
+		if err != nil {
+			return g, err
+		}
+		for _, a := range actions {
+			g.Nodes = append(g.Nodes, Node{
+				ID:          actionNodeID(a.ID),
+				Type:        NodeAction,
+				Label:       a.Name,
+				Description: a.Description,
+				Status:      a.Status,
+				Tags:        a.Tags,
+			})
+		}
+	}
+
 	// Scan for edges
 	edges, err := b.scanner.ScanAll(ctx)
 	if err != nil {
 		return g, err
 	}
 	g.Edges = edges
+	g.Edges = append(g.Edges, actionCommandEdges(actions)...)
 
 	// Extract CLI nodes from edges
 	cliNodes := extractCLINodes(g.Edges, g.Nodes)
 	g.Nodes = append(g.Nodes, cliNodes...)
 
 	// Collect raw metrics for entity-specific health factors.
-	g.NodeMetrics = b.collectNodeMetrics(ctx, g, skills, agents, teams)
+	g.NodeMetrics = b.collectNodeMetrics(ctx, g, skills, agents, teams, actions)
 
 	// Compute health scores
 	if len(b.scoreFns) > 0 {
@@ -147,7 +177,7 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 	return g, nil
 }
 
-func (b *Builder) collectNodeMetrics(ctx context.Context, g Graph, skills []store.Skill, agents []store.Agent, teams []store.Team) map[string]NodeMetricSet {
+func (b *Builder) collectNodeMetrics(ctx context.Context, g Graph, skills []store.Skill, agents []store.Agent, teams []store.Team, actions []store.Action) map[string]NodeMetricSet {
 	metrics := make(map[string]NodeMetricSet, len(g.Nodes))
 	for _, n := range g.Nodes {
 		metrics[n.ID] = NodeMetricSet{}
@@ -232,6 +262,23 @@ func (b *Builder) collectNodeMetrics(ctx context.Context, g Graph, skills []stor
 		}
 	}
 
+	for _, action := range actions {
+		nodeID := actionNodeID(action.ID)
+		if _, ok := metrics[nodeID]; !ok {
+			metrics[nodeID] = NodeMetricSet{}
+		}
+		metrics[nodeID][metricActionContractValid] = 1
+		if len(action.Command.Argv) > 0 {
+			metrics[nodeID][metricActionCommandDeclared] = 1
+		}
+		if len(action.Examples) > 0 {
+			metrics[nodeID][metricActionExamples] = 1
+		}
+		if strings.TrimSpace(action.Owner.Type) != "" && strings.TrimSpace(action.Owner.ID) != "" {
+			metrics[nodeID][metricActionOwnerDeclared] = 1
+		}
+	}
+
 	return metrics
 }
 
@@ -250,7 +297,7 @@ func extractCLINodes(edges []Edge, existingNodes []Node) []Node {
 	seen := make(map[string]bool)
 	var nodes []Node
 	for _, e := range edges {
-		if e.Kind == EdgeCodeUsage && !existing[e.To] && !seen[e.To] {
+		if (e.Kind == EdgeCodeUsage || e.Kind == EdgeActionCommand) && !existing[e.To] && !seen[e.To] {
 			seen[e.To] = true
 			label := e.To
 			if len(label) > 4 && label[:4] == "cli:" {
@@ -264,4 +311,39 @@ func extractCLINodes(edges []Edge, existingNodes []Node) []Node {
 		}
 	}
 	return nodes
+}
+
+func actionNodeID(id string) string {
+	return "action:" + id
+}
+
+func actionCommandEdges(actions []store.Action) []Edge {
+	if len(actions) == 0 {
+		return nil
+	}
+	edges := make([]Edge, 0, len(actions))
+	for _, action := range actions {
+		if len(action.Command.Argv) == 0 {
+			continue
+		}
+		command := action.Command.Argv[0]
+		subcommand := ""
+		for _, arg := range action.Command.Argv[1:] {
+			if strings.HasPrefix(arg, "-") {
+				continue
+			}
+			subcommand = arg
+			break
+		}
+		edges = append(edges, Edge{
+			From:       actionNodeID(action.ID),
+			To:         "cli:" + command,
+			Kind:       EdgeActionCommand,
+			Category:   CodeScenarioCLI,
+			Command:    command,
+			Subcommand: subcommand,
+			SourceFile: "action.json",
+		})
+	}
+	return edges
 }

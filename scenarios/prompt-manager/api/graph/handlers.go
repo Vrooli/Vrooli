@@ -306,6 +306,7 @@ func (h *Handlers) PutHealthConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	cfg = withHealthConfigDefaults(cfg)
 	if err := ValidateHealthConfig(cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

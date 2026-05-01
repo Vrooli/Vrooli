@@ -227,6 +227,7 @@ func main() {
 		fileStore.FileSkills(),
 		fileStore.Relations(),
 		cliDetector,
+		fileStore.Actions(),
 	)
 	graphBuilder := graph.NewBuilder(
 		fileStore.Agents().(*store.FileAgentStore),
@@ -234,6 +235,7 @@ func main() {
 		fileStore.FileSkills(),
 		graphScanner,
 		graph.DefaultScoreFns(),
+		fileStore.Actions(),
 	)
 	graphHealthConfigStore := graph.NewHealthConfigStore(absStoreDir)
 	graphBuilder.SetHealthConfigProvider(graphHealthConfigStore)

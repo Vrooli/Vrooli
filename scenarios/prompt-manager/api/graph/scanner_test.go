@@ -119,6 +119,64 @@ func TestScanAll_AgentCodeUsage(t *testing.T) {
 	}
 }
 
+func TestScanAll_ActionUseRefs(t *testing.T) {
+	s := NewScanner(
+		&mockAgentLister{
+			agents: []store.Agent{{ID: "agent-1"}},
+			files: map[string][]store.AgentFileEntry{
+				"agent-1": {{Path: "SOUL.md"}},
+			},
+			contents: map[string]string{
+				"agent-1/SOUL.md": "Use action:scenario.status.show or `prompt-manager action run scenario.status.show`.",
+			},
+		},
+		&mockTeamLister{},
+		&mockSkillLister{},
+		nil,
+		nil,
+		&mockActionLister{actions: []store.Action{{ID: "scenario.status.show"}}},
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected deduped action-use edge, got %d: %+v", len(edges), edges)
+	}
+	if edges[0].From != "agent-1" || edges[0].To != "action:scenario.status.show" || edges[0].Kind != EdgeActionUse {
+		t.Fatalf("unexpected action-use edge: %+v", edges[0])
+	}
+	if edges[0].SourceFile != "SOUL.md" || edges[0].LineNumber != 1 {
+		t.Fatalf("unexpected action-use location: %+v", edges[0])
+	}
+}
+
+func TestScanAll_ActionUseIgnoresUnknownAction(t *testing.T) {
+	s := NewScanner(
+		&mockAgentLister{
+			agents: []store.Agent{{ID: "agent-1"}},
+			files: map[string][]store.AgentFileEntry{
+				"agent-1": {{Path: "SOUL.md"}},
+			},
+			contents: map[string]string{
+				"agent-1/SOUL.md": "Use action:missing.action.",
+			},
+		},
+		&mockTeamLister{},
+		&mockSkillLister{},
+		nil,
+		nil,
+		&mockActionLister{actions: []store.Action{{ID: "scenario.status.show"}}},
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 0 {
+		t.Fatalf("expected no edges for unknown action, got %+v", edges)
+	}
+}
+
 func TestScanAll_AgentNonMdSkipped(t *testing.T) {
 	s := NewScanner(
 		&mockAgentLister{

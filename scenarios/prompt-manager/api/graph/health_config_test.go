@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"prompt-manager/store"
 	"testing"
 )
 
@@ -55,6 +56,24 @@ func TestHealthConfigStore_PutAndGet(t *testing.T) {
 	expectedPath := filepath.Join(dir, "config", "graph-health.json")
 	if !storeFileExists(expectedPath) {
 		t.Fatalf("expected persisted config at %s", expectedPath)
+	}
+}
+
+func TestHealthConfigStore_FillsMissingActionDefaults(t *testing.T) {
+	dir := t.TempDir()
+	s := NewHealthConfigStore(dir)
+	legacy := DefaultHealthConfig()
+	legacy.Action = HealthWeights{}
+	if err := store.SaveJSON(filepath.Join(dir, "config", "graph-health.json"), &legacy); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	loaded, err := s.Get(context.Background())
+	if err != nil {
+		t.Fatalf("get error: %v", err)
+	}
+	if loaded.Action.ActionContract <= 0 || loaded.Action.ActionCommand <= 0 {
+		t.Fatalf("expected action defaults to be filled, got %+v", loaded.Action)
 	}
 }
 

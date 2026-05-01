@@ -11,6 +11,11 @@ export type {
   Skill,
   CreateSkillRequest,
   UpdateSkillRequest,
+  Action,
+  CreateActionRequest,
+  UpdateActionRequest,
+  ActionValidationResponse,
+  ActionMutationResponse,
   Tag,
   SkillTestRequest,
   SkillTestResult,
@@ -42,6 +47,16 @@ export interface SearchFilters {
   tag?: string
   folder?: 'core' | 'local' | 'drafts'
   modes?: string[]
+}
+
+/**
+ * ActionFilters for filtering executable Action contracts.
+ */
+export interface ActionFilters {
+  pack?: 'core' | 'local' | 'drafts'
+  status?: 'active' | 'draft' | 'archived'
+  owner?: string
+  tag?: string
 }
 
 /**

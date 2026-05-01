@@ -103,6 +103,69 @@ func TestBuild_NodesFromSkills(t *testing.T) {
 	}
 }
 
+func TestBuild_NodesFromActionsUseNamespacedIDs(t *testing.T) {
+	b := NewBuilder(
+		&mockAgentNodeSource{},
+		&mockTeamNodeSource{},
+		&mockSkillNodeSource{skills: []store.Skill{
+			{ID: "scenario.status.show", Name: "Skill With Same ID"},
+		}},
+		&mockGraphScanner{},
+		nil,
+		&mockActionLister{actions: []store.Action{
+			{
+				ID:          "scenario.status.show",
+				Name:        "Show Scenario Status",
+				Description: "Show scenario status",
+				Status:      "active",
+				Tags:        []string{"scenario"},
+				Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
+				Command:     store.ActionCommand{Argv: []string{"vrooli", "scenario", "status", "{{scenario}}"}},
+				Examples: []store.ActionExample{{
+					Description: "Prompt manager",
+					Input:       map[string]any{"scenario": "prompt-manager"},
+				}},
+			},
+		}},
+	)
+	g, err := b.Build(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	nodes := map[string]Node{}
+	for _, n := range g.Nodes {
+		nodes[n.ID] = n
+	}
+	if nodes["scenario.status.show"].Type != NodeSkill {
+		t.Fatalf("expected raw ID to remain a skill node, got %+v", nodes["scenario.status.show"])
+	}
+	actionNode, ok := nodes["action:scenario.status.show"]
+	if !ok {
+		t.Fatalf("expected namespaced Action node, got nodes: %+v", nodes)
+	}
+	if actionNode.Type != NodeAction || actionNode.Label != "Show Scenario Status" {
+		t.Fatalf("unexpected action node: %+v", actionNode)
+	}
+
+	var actionCommand *Edge
+	for i := range g.Edges {
+		if g.Edges[i].Kind == EdgeActionCommand {
+			actionCommand = &g.Edges[i]
+			break
+		}
+	}
+	if actionCommand == nil {
+		t.Fatalf("expected action-command edge, got %+v", g.Edges)
+	}
+	if actionCommand.From != "action:scenario.status.show" || actionCommand.To != "cli:vrooli" || actionCommand.Command != "vrooli" || actionCommand.Subcommand != "scenario" {
+		t.Fatalf("unexpected action-command edge: %+v", actionCommand)
+	}
+	if nodes["cli:vrooli"].Type != NodeCLI {
+		t.Fatalf("expected cli:vrooli node from action-command edge, got %+v", nodes["cli:vrooli"])
+	}
+}
+
 func TestBuild_EdgesFromScanner(t *testing.T) {
 	b := NewBuilder(
 		&mockAgentNodeSource{},

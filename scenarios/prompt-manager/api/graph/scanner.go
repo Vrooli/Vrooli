@@ -13,6 +13,12 @@ var (
 	// Matches: prompt-manager skill read <ids> OR prompt-manager skills read <ids>
 	cliReadRE = regexp.MustCompile("prompt-manager\\s+skills?\\s+read\\s+([^\n`]+)")
 
+	// Matches: prompt-manager action run <id> OR prompt-manager actions run <id>.
+	actionRunRE = regexp.MustCompile(`prompt-manager\s+actions?\s+run\s+([a-z][a-z0-9]*(?:[.-][a-z0-9]+)*)`)
+
+	// Matches explicit prose references such as action:scenario.status.show.
+	actionRefRE = regexp.MustCompile(`\baction:([a-z][a-z0-9]*(?:[.-][a-z0-9]+)*)\b`)
+
 	// Matches: **kebab-case-id** (bold-listed in markdown)
 	boldListedRE = regexp.MustCompile(`\*\*([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\*\*`)
 
@@ -50,6 +56,11 @@ type skillLister interface {
 	GetWithContent(ctx context.Context, id string) (*store.Skill, string, error)
 }
 
+// actionLister provides Action metadata for action-use reference extraction.
+type actionLister interface {
+	List(ctx context.Context) ([]store.Action, error)
+}
+
 // codeDetector detects code references in content.
 // The concrete *CLIDetector satisfies this interface.
 type codeDetector interface {
@@ -61,6 +72,7 @@ type Scanner struct {
 	agentStore    agentLister
 	teamStore     teamLister
 	skillStore    skillLister
+	actionStore   actionLister
 	relationStore store.RelationStore
 	cliDetector   codeDetector
 }
@@ -72,14 +84,19 @@ func NewScanner(
 	skillStore skillLister,
 	relationStore store.RelationStore,
 	cliDetector codeDetector,
+	actionStores ...actionLister,
 ) *Scanner {
-	return &Scanner{
+	s := &Scanner{
 		agentStore:    agentStore,
 		teamStore:     teamStore,
 		skillStore:    skillStore,
 		relationStore: relationStore,
 		cliDetector:   cliDetector,
 	}
+	if len(actionStores) > 0 {
+		s.actionStore = actionStores[0]
+	}
+	return s
 }
 
 // ScanAll scans all entities and returns all edges found.
@@ -93,25 +110,36 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
 	for _, sk := range skills {
 		validIDs[sk.ID] = true
 	}
+	validActionIDs := make(map[string]bool)
+	if s.actionStore != nil {
+		actions, err := s.actionStore.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		validActionIDs = make(map[string]bool, len(actions))
+		for _, action := range actions {
+			validActionIDs[action.ID] = true
+		}
+	}
 
 	var edges []Edge
 
 	// Scan agents for skill references
-	agentEdges, err := s.scanAgents(ctx, validIDs)
+	agentEdges, err := s.scanAgents(ctx, validIDs, validActionIDs)
 	if err != nil {
 		return nil, err
 	}
 	edges = append(edges, agentEdges...)
 
 	// Scan teams for skill references
-	teamEdges, err := s.scanTeams(ctx, validIDs)
+	teamEdges, err := s.scanTeams(ctx, validIDs, validActionIDs)
 	if err != nil {
 		return nil, err
 	}
 	edges = append(edges, teamEdges...)
 
 	// Scan skills for cross-references
-	skillEdges := s.scanSkills(skills, validIDs)
+	skillEdges := s.scanSkills(skills, validIDs, validActionIDs)
 	edges = append(edges, skillEdges...)
 
 	// Scan team-agent membership from relations
@@ -125,7 +153,7 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
 }
 
 // scanAgents scans all agent files for skill references and code usage.
-func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool) ([]Edge, error) {
+func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool, validActionIDs map[string]bool) ([]Edge, error) {
 	agents, err := s.agentStore.List(ctx)
 	if err != nil {
 		return nil, err
@@ -157,6 +185,7 @@ func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool) ([]E
 					LineNumber: ext.lineNumber,
 				})
 			}
+			edges = append(edges, extractActionUseEdges(agent.ID, f.Path, content, validActionIDs)...)
 
 			// Code usage edges
 			edges = append(edges, s.codeUsageEdgesFromContent(agent.ID, f.Path, content)...)
@@ -166,7 +195,7 @@ func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool) ([]E
 }
 
 // scanTeams scans all team shared files for skill references and code usage.
-func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool) ([]Edge, error) {
+func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool, validActionIDs map[string]bool) ([]Edge, error) {
 	teams, err := s.teamStore.List(ctx)
 	if err != nil {
 		return nil, err
@@ -198,6 +227,7 @@ func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool) ([]Ed
 					LineNumber: ext.lineNumber,
 				})
 			}
+			edges = append(edges, extractActionUseEdges(team.ID, f.Path, content, validActionIDs)...)
 
 			// Code usage edges
 			edges = append(edges, s.codeUsageEdgesFromContent(team.ID, f.Path, content)...)
@@ -207,7 +237,7 @@ func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool) ([]Ed
 }
 
 // scanSkills scans skill metadata and content for cross-references.
-func (s *Scanner) scanSkills(skills []store.Skill, validIDs map[string]bool) []Edge {
+func (s *Scanner) scanSkills(skills []store.Skill, validIDs map[string]bool, validActionIDs map[string]bool) []Edge {
 	var edges []Edge
 	for _, skill := range skills {
 		// Default scope edge
@@ -239,9 +269,57 @@ func (s *Scanner) scanSkills(skills []store.Skill, validIDs map[string]bool) []E
 				LineNumber: ext.lineNumber,
 			})
 		}
+		edges = append(edges, extractActionUseEdges(skill.ID, "SKILL.md", content, validActionIDs)...)
 
 		// Code usage edges from skill content
 		edges = append(edges, s.codeUsageEdgesFromContent(skill.ID, "SKILL.md", content)...)
+	}
+	return edges
+}
+
+func extractActionUseEdges(sourceID, sourceFile, content string, validActionIDs map[string]bool) []Edge {
+	if len(validActionIDs) == 0 {
+		return nil
+	}
+	lines := strings.Split(content, "\n")
+	seen := make(map[string]bool)
+	var edges []Edge
+	for lineIdx, line := range lines {
+		lineNum := lineIdx + 1
+		for _, match := range actionRunRE.FindAllStringSubmatch(line, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			id := match[1]
+			if !validActionIDs[id] || seen[id] {
+				continue
+			}
+			seen[id] = true
+			edges = append(edges, Edge{
+				From:       sourceID,
+				To:         actionNodeID(id),
+				Kind:       EdgeActionUse,
+				SourceFile: sourceFile,
+				LineNumber: lineNum,
+			})
+		}
+		for _, match := range actionRefRE.FindAllStringSubmatch(line, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			id := match[1]
+			if !validActionIDs[id] || seen[id] {
+				continue
+			}
+			seen[id] = true
+			edges = append(edges, Edge{
+				From:       sourceID,
+				To:         actionNodeID(id),
+				Kind:       EdgeActionUse,
+				SourceFile: sourceFile,
+				LineNumber: lineNum,
+			})
+		}
 	}
 	return edges
 }

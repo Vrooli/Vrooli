@@ -1494,7 +1494,7 @@ Update the object scale configuration.
 
 [CODE: api/graph/handlers.go]
 
-The relationship graph maps connections between teams, agents, skills, and CLI tools. See [Graph Concepts](../concepts/GRAPH.md) for background.
+The relationship graph maps connections between teams, agents, skills, Actions, and CLI tools. See [Graph Concepts](../concepts/GRAPH.md) for background.
 
 ### GET /api/v1/graph
 
@@ -1513,6 +1513,14 @@ Return the full graph index (nodes, edges, health scores).
         "description": "Systematic debugging approach",
         "status": "active",
         "tags": ["debugging"]
+      },
+      {
+        "id": "action:scenario.status.show",
+        "type": "action",
+        "label": "Show Scenario Status",
+        "description": "Show lifecycle status for one scenario",
+        "status": "active",
+        "tags": ["scenario"]
       }
     ],
     "edges": [
@@ -1522,6 +1530,15 @@ Return the full graph index (nodes, edges, health scores).
         "kind": "cli-read",
         "sourceFile": "README.md",
         "lineNumber": 42
+      },
+      {
+        "from": "action:scenario.status.show",
+        "to": "cli:vrooli",
+        "kind": "action-command",
+        "category": "scenario-cli",
+        "command": "vrooli",
+        "subcommand": "scenario",
+        "sourceFile": "action.json"
       }
     ],
     "healthScores": [
@@ -1542,7 +1559,8 @@ Return the full graph index (nodes, edges, health scores).
 
 **Notes:**
 - Lazily generated on first request; cached at `store/indexes/graph.index.json`
-- Auto-invalidated when skills or agents are created, updated, or deleted
+- Auto-invalidated when skills, Actions, or agents are created, updated, or deleted
+- Action graph node IDs are namespaced as `action:<action-id>` to avoid collisions with raw skill/team/agent IDs
 
 ### POST /api/v1/graph/regenerate
 

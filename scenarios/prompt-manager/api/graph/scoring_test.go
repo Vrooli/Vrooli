@@ -268,6 +268,83 @@ func TestScoreAllWithConfig_UsesEntityWeights(t *testing.T) {
 	}
 }
 
+func TestScoreAllWithConfig_ScoresActionHealth(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "action:scenario.status.show", Type: NodeAction},
+			{ID: "action:missing.examples", Type: NodeAction},
+		},
+		Edges: []Edge{
+			{From: "action:scenario.status.show", To: "cli:vrooli", Kind: EdgeActionCommand, Category: CodeScenarioCLI, Command: "vrooli"},
+			{From: "action:missing.examples", To: "cli:vrooli", Kind: EdgeActionCommand, Category: CodeScenarioCLI, Command: "vrooli"},
+		},
+		NodeMetrics: map[string]NodeMetricSet{
+			"action:scenario.status.show": {
+				metricActionContractValid:   1,
+				metricActionCommandDeclared: 1,
+				metricActionExamples:        1,
+				metricActionOwnerDeclared:   1,
+			},
+			"action:missing.examples": {
+				metricActionContractValid:   1,
+				metricActionCommandDeclared: 1,
+				metricActionOwnerDeclared:   1,
+			},
+		},
+	}
+	cfg := DefaultHealthConfig()
+	cfg.Action = HealthWeights{
+		ActionContract: 1,
+		ActionCommand:  1,
+		ActionExamples: 1,
+		ActionOwner:    1,
+	}
+
+	scores := ScoreAllWithConfig(g, cfg)
+	byID := map[string]HealthScore{}
+	for _, hs := range scores {
+		byID[hs.NodeID] = hs
+	}
+
+	if byID["action:scenario.status.show"].Score != 1 {
+		t.Fatalf("expected complete Action score 1, got %+v", byID["action:scenario.status.show"])
+	}
+	missing := byID["action:missing.examples"]
+	if missing.Score >= 1 {
+		t.Fatalf("expected missing examples to reduce score, got %+v", missing)
+	}
+	foundExamplesMessage := false
+	for _, msg := range missing.Messages {
+		if msg.Key == "action.examples.missing" {
+			foundExamplesMessage = true
+			break
+		}
+	}
+	if !foundExamplesMessage {
+		t.Fatalf("expected missing examples diagnostic, got %+v", missing.Messages)
+	}
+}
+
+func TestApplyCLIHealthPolicy_SeesActionCommandAsScenarioCLI(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "cli:prompt-manager", Type: NodeCLI},
+		},
+		Edges: []Edge{
+			{From: "action:team.decisions.list", To: "cli:prompt-manager", Kind: EdgeActionCommand, Category: CodeScenarioCLI, Command: "prompt-manager"},
+		},
+	}
+	got := ApplyCLIHealthPolicy(context.Background(), g, nil, &fakeScenarioProvider{
+		scoreByScenario: map[string]float64{"prompt-manager": 0.8},
+	})
+	if len(got) != 1 {
+		t.Fatalf("expected one score, got %d", len(got))
+	}
+	if got[0].Score != 0.8 {
+		t.Fatalf("expected scenario score from action-command edge, got %+v", got[0])
+	}
+}
+
 func TestApplyCLIHealthPolicyWithConfig_UsesConfiguredExternalScore(t *testing.T) {
 	g := Graph{
 		Nodes: []Node{
