@@ -1,7 +1,7 @@
 {
   "intake": [
     {
-      "prefix": "monetization-inbox/*",
+      "prefix": "opportunity-inbox/*",
       "drained_by_skill": "monetization-opportunity-router",
       "source_team": null
     }

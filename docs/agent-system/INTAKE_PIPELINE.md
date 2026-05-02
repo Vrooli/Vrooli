@@ -56,7 +56,7 @@ Inbox entries live as **team knowledge entries** under a hierarchical topic pref
 <inbox-name>/<signal-type>/<short-slug>
 ```
 
-Examples: `research-inbox/audience/foo`, `monetization-inbox/competitor/bar`. There is no separate JSONL file or notebook markdown — the inbox is a query against team knowledge:
+Examples: `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar`. There is no separate JSONL file or notebook markdown — the inbox is a query against team knowledge:
 
 ```bash
 prompt-manager team knowledge-list <team> --topic-prefix=<inbox-name>/
@@ -158,7 +158,7 @@ The router (or the method skill it delegates to) chooses the smallest useful act
 
 | Condition | Action |
 |---|---|
-| Weak one-off signal | Mention in handoff, or leave as a knowledge entry under `<inbox-name>/<signal-type>/<slug>`. |
+| Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
 | Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor/<slug>`). |
 | Repeated but unresolved pattern | File a `meta-self-improvement` decision proposing a skill / scenario / config change. The "notebook debt" surface is, in the live architecture, this kind of decision — not a markdown file. |
 | Converging evidence meets threshold | Raise the owned decision context (e.g., `audience-update`, `channel-strategy-update`). |

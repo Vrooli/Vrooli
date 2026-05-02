@@ -1,7 +1,7 @@
 {
   "intake": [
     {
-      "prefix": "market-validation-inbox/*",
+      "prefix": "validation-queue/*",
       "drained_by_skill": "market-validation-router",
       "source_team": null
     },

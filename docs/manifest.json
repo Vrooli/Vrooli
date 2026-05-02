@@ -168,6 +168,73 @@
       ]
     },
     {
+      "id": "agent-system",
+      "title": "Agent System",
+      "icon": "brain",
+      "documents": [
+        {
+          "path": "agent-system/README.md",
+          "title": "Agent System Hub",
+          "description": "Plan-of-record for prompt-manager's self-improving agent system"
+        },
+        {
+          "path": "agent-system/PRIMITIVES.md",
+          "title": "Primitives",
+          "description": "Core nouns: skills, agents, teams, plans, decisions, knowledge, inboxes, actions, CLIs"
+        },
+        {
+          "path": "agent-system/LAYERS.md",
+          "title": "Layers",
+          "description": "Canonical rule for where truth, judgment, execution, implementation, and raw learning belong"
+        },
+        {
+          "path": "agent-system/INTAKE_PIPELINE.md",
+          "title": "Intake Pipeline",
+          "description": "Inbox-router-drain pattern and topic-prefix routing conventions"
+        },
+        {
+          "path": "agent-system/TEAM_MEMBER_ARCHITECTURE.md",
+          "title": "Team Member Architecture",
+          "description": "Nine-layer model for evaluating a team member's operating surface"
+        },
+        {
+          "path": "agent-system/PROMOTION_LADDER.md",
+          "title": "Promotion Ladder",
+          "description": "How prose guidance matures into CLI contracts, Actions, and retired prose"
+        },
+        {
+          "path": "agent-system/TEAM_DOCS_PATTERNS.md",
+          "title": "Team Docs Patterns",
+          "description": "Plan-of-record, working-notebook, and inbox/synthesis surface rules"
+        },
+        {
+          "path": "agent-system/SKILL_AUTHORING.md",
+          "title": "Skill Authoring",
+          "description": "Universal quality bars for prompt-manager skills"
+        },
+        {
+          "path": "agent-system/DEPRECATION_POLICY.md",
+          "title": "Deprecation Policy",
+          "description": "Rules for retiring skills, agents, and teams"
+        },
+        {
+          "path": "agent-system/REFERENCE_SCENARIOS.md",
+          "title": "Reference Scenarios",
+          "description": "Gold-star reference scenario registry and rot triage rules"
+        },
+        {
+          "path": "agent-system/_outline.md",
+          "title": "Migration Outline",
+          "description": "Historical migration manifest for the agent-system plan-of-record"
+        },
+        {
+          "path": "agent-system/drafts/topics-schema.md",
+          "title": "Topics Schema Draft",
+          "description": "Implemented draft for per-member topic-flow declarations"
+        }
+      ]
+    },
+    {
       "id": "strategy",
       "title": "Strategy",
       "icon": "flag",
@@ -230,9 +297,9 @@
           "description": "External voice, campaigns, channels, and brand canon"
         },
         {
-          "path": "meta-optimization/README.md",
-          "title": "Meta Optimization",
-          "description": "Working notebook for agent, team, skill, and toolchain improvement patterns"
+          "path": "agent-system/README.md",
+          "title": "Agent System",
+          "description": "Plan-of-record for agent, team, skill, Action, and topic-flow improvement patterns"
         },
         {
           "path": "monetization/README.md",
@@ -269,18 +336,12 @@
           "title": "Seams",
           "description": "Boundaries between project docs and scenario/resource docs",
           "internal": true
-        },
-        {
-          "path": "internal/DOCS_AUDIT.md",
-          "title": "Docs Audit",
-          "description": "Audit and target structure for the project docs tree",
-          "internal": true
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference", "operations", "systems", "strategy", "team-plans"],
+    "primary": ["getting-started", "concepts", "guides", "reference", "operations", "systems", "agent-system", "strategy", "team-plans"],
     "secondary": ["internal"]
   }
 }

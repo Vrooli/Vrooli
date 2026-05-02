@@ -88,7 +88,7 @@ If source items are present, analyze those first. If no source items are present
 
 | Condition | Action |
 |---|---|
-| Weak one-off signal | Mention in handoff, or leave as a knowledge entry under `research-inbox/<signal-type>/<slug>`. |
+| Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `research-inbox/*`. |
 | Concrete sourced observation | Add a `<topic>/*` knowledge entry (e.g. `audience-scan/*`, `competitor/*`); use `audience-scans.jsonl` only for batch scan rows. |
 | Repeated but unresolved pattern | Append notebook debt. |
 | Converging evidence meets threshold | Raise the owned decision context. |

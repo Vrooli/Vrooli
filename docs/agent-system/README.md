@@ -6,26 +6,55 @@ This folder is **canon**. Edits go through approved decisions on the `meta-optim
 
 ## Status
 
-This is the **Phase 0 skeleton**. Files listed below either do not yet exist or contain only placeholders. They will be filled by Phase 1 of the migration plan in `docs/plans/agent-system-migration-implementation-plan.md`, where each canonical paragraph is moved out of an existing skill in a paired atomic commit.
+This is the live plan-of-record for the prompt-manager agent system. The Phase 1 canon migration has landed: the old duplicated doctrine was moved here, fully absorbed skills were deleted, and the PoR coherence test now guards against skills restating this canon.
 
-Until Phase 1 completes, the source-of-truth for each topic remains the skill listed in `_outline.md` under the corresponding row.
+The topic-flow data layer is implemented as per-member `topics.json` files and surfaced through `prompt-manager graph topics`. The schema is still documented under `drafts/topics-schema.md` until the remaining stability gate promotes it to a stable `TOPICS_SCHEMA.md`.
+
+## Mental Model
+
+```text
+Signals and observations
+  -> inbox topics in team knowledge
+  -> router skills drain those inboxes
+  -> outputs become knowledge, decisions, backlog, PoR proposals, skills, Actions, or CLIs
+  -> accepted durable truth lives in Plan of Record
+```
+
+The same layering rule applies everywhere:
+
+```text
+Truth -> Plan of Record
+Judgment -> Skills
+Execution -> Actions
+Implementation -> CLIs
+Missing capability -> backlog or capability-gap
+Raw learning -> inbox topics and short-lived synthesis
+```
+
+For a first read, use this order:
+
+1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, PoR, Action, CLI, Decision, Knowledge entry, Inbox/synthesis.
+2. `LAYERS.md` — the rule for where each kind of guidance belongs.
+3. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
+4. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
+5. `PROMOTION_LADDER.md` — how prose guidance matures into CLI contracts, Actions, and retired prose.
 
 ## Files
 
 | File | Status | Covers |
 |---|---|---|
-| `_outline.md` | authored (Phase 0) | Migration manifest mapping source-skill sections to destination PoR files |
-| `PRIMITIVES.md` | TBD (Phase 1) | What skills, agents, teams, plans, decisions, knowledge, notebooks, actions, CLIs are; how they relate |
-| `LAYERS.md` | TBD (Phase 1) | The layering rule (truth / judgment / execution / implementation / unbuilt / raw learning) — single home for the layer mantra |
-| `PROMOTION_LADDER.md` | TBD (Phase 1) | Lifecycle of a guidance: notebook → skill → CLI → Action; retirement criteria |
-| `TEAM_DOCS_PATTERNS.md` | TBD (Phase 1) | Plan-of-record vs working-notebook patterns, the four axes, both-patterns rules |
-| `TEAM_MEMBER_ARCHITECTURE.md` | TBD (Phase 1) | The 9-layer member capability model (Identity, Ownership, Plan of Record, Skill Surface, Intake, Collection, Analysis Method, Promotion / Routing, Feedback Loop) |
-| `INTAKE_PIPELINE.md` | TBD (Phase 1) | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; topic-prefix conventions |
-| `SKILL_AUTHORING.md` | TBD (Phase 1) | Universal authoring quality bars (intent statement, boundaries, convergence patterns, output expectations, troubleshooting section, anti-gaming) |
-| `DEPRECATION_POLICY.md` | TBD (Phase 1) | Staleness windows, mandatory roadmap check, archive path, who-files-what |
-| `REFERENCE_SCENARIOS.md` | TBD (Phase 1) | Gold-star reference scenario registry, nomination + demotion rules, rot triage |
+| `PRIMITIVES.md` | canon | What skills, agents, teams, plans, decisions, knowledge, inboxes, actions, CLIs are; how they relate |
+| `LAYERS.md` | canon | The layering rule: truth / judgment / execution / implementation / unbuilt / raw learning |
+| `PROMOTION_LADDER.md` | canon | Lifecycle of guidance: prose guardrail → CLI/tool contract → Action → retired prose |
+| `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record vs working-notebook patterns, the four axes, both-patterns rules |
+| `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
+| `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; topic-prefix conventions |
+| `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
+| `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
+| `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry, nomination + demotion rules, rot triage |
+| `_outline.md` | migration record | Historical migration manifest mapping source-skill sections to destination PoR files |
 | `drafts/` | folder | Synthesis-in-flux content not yet promoted to canon. Subject to faster churn; reviewed by meta-optimization before promotion |
-| `drafts/topics-schema.md` | authored (Phase 0) | Human-readable PoR for the `topics.json` data layer — paired with `scenarios/prompt-manager/api/memberflow/schema.go` |
+| `drafts/topics-schema.md` | implemented draft | Human-readable schema for the `topics.json` data layer — paired with `scenarios/prompt-manager/api/memberflow/schema.go` |
 
 ## Editing rules
 
