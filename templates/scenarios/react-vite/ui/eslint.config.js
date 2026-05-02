@@ -83,6 +83,40 @@ export default tseslint.config(
       ],
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
+
+      // ════════════════════════════════════════════════════════════════════════
+      // STRING REGISTRY ENFORCEMENT
+      //
+      // User-facing strings must live in src/consts/strings.ts so that:
+      //   - tests can assert against `strings.x.y` instead of brittle literals,
+      //   - copy edits are one-line changes, not haystack greps,
+      //   - the registry is ready to swap for a `t()` accessor if/when a
+      //     scenario adopts react-i18next for multi-language support.
+      //
+      // If you hit this rule:
+      //   ✅ DO: add the string to src/consts/strings.ts and reference it as
+      //         `{strings.feature.key}` (use `format()` for interpolation).
+      //   ❌ DON'T: disable the rule, or work around it with a template literal
+      //         (`{`Hello ${name}`}`) — that hides the string from the registry.
+      //
+      // The rule deliberately only catches JSX text and JSXExpressionContainer
+      // literals — string attributes (placeholder, aria-label, title, …) are
+      // out of scope for Phase 1. Migrate them when a scenario adopts a real
+      // i18n library.
+      // ════════════════════════════════════════════════════════════════════════
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXText[value=/[a-zA-Z]/]",
+          message:
+            "User-facing strings must live in src/consts/strings.ts. Reference them as `{strings.feature.key}` instead of inlining JSX text.",
+        },
+        {
+          selector: "JSXExpressionContainer > Literal[value=/[a-zA-Z]/]",
+          message:
+            "User-facing strings must live in src/consts/strings.ts. Reference them as `{strings.feature.key}` instead of `{\"...\"}`.",
+        },
+      ],
     },
   },
   {
@@ -94,6 +128,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "react-refresh/only-export-components": "off",
+      // Tests render fixture JSX with inline strings; the registry rule
+      // applies to production components only.
+      "no-restricted-syntax": "off",
     },
   }
 );
