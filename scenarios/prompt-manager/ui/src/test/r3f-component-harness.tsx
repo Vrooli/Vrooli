@@ -272,6 +272,85 @@ export function setupDreiMocks() {
   }
 }
 
+const r3fIntrinsicTags = [
+  'ambientLight',
+  'boxGeometry',
+  'directionalLight',
+  'group',
+  'mesh',
+  'meshBasicMaterial',
+  'meshStandardMaterial',
+  'planeGeometry',
+  'shaderMaterial',
+  'sphereGeometry',
+  'torusGeometry',
+]
+
+function isR3FDOMWarning(args: unknown[]): boolean {
+  const [firstArg] = args
+  if (typeof firstArg !== 'string') {
+    return false
+  }
+
+  const formattedTag = typeof args[1] === 'string' ? args[1] : null
+  if (
+    formattedTag &&
+    r3fIntrinsicTags.includes(formattedTag) &&
+    (
+      firstArg.includes('Warning: <%s /> is using incorrect casing') ||
+      firstArg.includes('Warning: The tag <%s> is unrecognized')
+    )
+  ) {
+    return true
+  }
+
+  if (
+    r3fIntrinsicTags.some((tag) =>
+      firstArg.includes(`Warning: <${tag} /> is using incorrect casing`) ||
+      firstArg.includes(`Warning: The tag <${tag}> is unrecognized`)
+    )
+  ) {
+    return true
+  }
+
+  const isToneMappedWarning =
+    firstArg.includes('Warning: React does not recognize the `%s` prop on a DOM element') &&
+    args[1] === 'toneMapped'
+  const isFogWarning =
+    firstArg.includes('Warning: Received `%s` for a non-boolean attribute `%s`.') &&
+    args[1] === 'false' &&
+    args[2] === 'fog'
+  const isCastShadowWarning =
+    firstArg.includes('Warning: React does not recognize the `%s` prop on a DOM element') &&
+    args[1] === 'castShadow'
+  const isEmissiveIntensityWarning =
+    firstArg.includes('Warning: React does not recognize the `%s` prop on a DOM element') &&
+    args[1] === 'emissiveIntensity'
+
+  return isToneMappedWarning || isFogWarning || isCastShadowWarning || isEmissiveIntensityWarning
+}
+
+/**
+ * Filters React DOM warnings caused by intentionally rendering R3F intrinsic
+ * elements in jsdom. Use only in R3F unit tests that render Three primitives
+ * without a real Canvas reconciler.
+ */
+export function installR3FDOMWarningFilter(): { restore: () => void } {
+  const originalError = console.error
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+    if (isR3FDOMWarning(args)) {
+      return
+    }
+    originalError(...args)
+  })
+
+  return {
+    restore: () => {
+      errorSpy.mockRestore()
+    },
+  }
+}
+
 // =============================================================================
 // TEST HARNESS COMPONENT
 // =============================================================================

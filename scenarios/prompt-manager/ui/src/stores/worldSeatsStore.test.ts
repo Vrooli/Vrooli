@@ -5,7 +5,7 @@
  * and debounced save behavior.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock, type MockInstance } from 'vitest'
 
 // Mock the API module before importing the store (the store auto-fetches on import).
 vi.mock('@/lib/api', () => ({
@@ -19,6 +19,8 @@ vi.mock('@/lib/api', () => ({
 import { useWorldSeatsStore, getSeats } from './worldSeatsStore'
 import { api } from '@/lib/api'
 
+let consoleErrorSpy: MockInstance
+
 function resetStore() {
   useWorldSeatsStore.setState({ seats: {}, loaded: false })
 }
@@ -26,11 +28,13 @@ function resetStore() {
 describe('worldSeatsStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.useFakeTimers()
     resetStore()
   })
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore()
     vi.useRealTimers()
   })
 
@@ -64,6 +68,10 @@ describe('worldSeatsStore', () => {
 
       expect(useWorldSeatsStore.getState().loaded).toBe(true)
       expect(useWorldSeatsStore.getState().seats).toEqual({})
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[worldSeatsStore] Failed to fetch seats:',
+        expect.any(Error)
+      )
     })
   })
 

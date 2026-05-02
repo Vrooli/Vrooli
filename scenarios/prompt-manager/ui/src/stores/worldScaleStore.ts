@@ -66,5 +66,9 @@ export const useWorldScaleStore = create<WorldScaleStore>()((set, get) => ({
   },
 }))
 
-// Auto-fetch on first import so scales are applied before the settings popup opens
-void useWorldScaleStore.getState().fetchScales()
+// Auto-fetch on first import so scales are applied before the settings popup opens.
+// Unit tests call fetchScales explicitly; import-time fetches would otherwise hit
+// the real API before a test can install a seam mock.
+if (import.meta.env.MODE !== 'test') {
+  void useWorldScaleStore.getState().fetchScales()
+}

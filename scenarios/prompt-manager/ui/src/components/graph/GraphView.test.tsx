@@ -178,7 +178,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 
 function renderGraphView() {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <GraphView />
     </MemoryRouter>
   )
@@ -320,10 +320,8 @@ describe('GraphView', () => {
     renderGraphView()
 
     await waitFor(() => {
-      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+      expect(screen.getByTestId('node-team-1')).toHaveTextContent('Test Team')
     })
-
-    expect(screen.getByTestId('node-team-1')).toHaveTextContent('Test Team')
     expect(screen.getByTestId('node-agent-1')).toHaveTextContent('Test Agent')
     expect(screen.getByTestId('node-skill-1')).toHaveTextContent('Test Skill')
     expect(screen.getByTestId('node-cli:test-tool')).toHaveTextContent('Test CLI')
@@ -496,12 +494,18 @@ describe('GraphView', () => {
       return latestReactFlowProps as Record<string, unknown>
     }
 
-    function clickNode(id: string) {
-      getOnNodeClick(getProps())({}, { id, position: { x: 0, y: 0 } })
+    async function clickNode(id: string) {
+      await act(async () => {
+        getOnNodeClick(getProps())({}, { id, position: { x: 0, y: 0 } })
+        await Promise.resolve()
+      })
     }
 
-    function clickPane() {
-      getOnPaneClick(getProps())()
+    async function clickPane() {
+      await act(async () => {
+        getOnPaneClick(getProps())()
+        await Promise.resolve()
+      })
     }
 
     function getOnNodeClick(props: Record<string, unknown>) {
@@ -515,9 +519,7 @@ describe('GraphView', () => {
     it('should set focus highlight when clicking a node with no active query', async () => {
       await setupGraph()
 
-      act(() => {
-        clickNode('team-1')
-      })
+      await clickNode('team-1')
 
       const state = useGraphStore.getState()
       expect(state.highlightSource).toBe('focus')
@@ -531,15 +533,11 @@ describe('GraphView', () => {
       await setupGraph()
 
       // First click: focus
-      act(() => {
-        clickNode('team-1')
-      })
+      await clickNode('team-1')
       expect(useGraphStore.getState().highlightSource).toBe('focus')
 
       // Second click on same node: toggle off (re-read fresh props)
-      act(() => {
-        clickNode('team-1')
-      })
+      await clickNode('team-1')
 
       const state = useGraphStore.getState()
       expect(state.highlightSource).toBe(null)
@@ -550,15 +548,11 @@ describe('GraphView', () => {
       await setupGraph()
 
       // Click team-1
-      act(() => {
-        clickNode('team-1')
-      })
+      await clickNode('team-1')
       expect(useGraphStore.getState().highlightedNodeIds.has('team-1')).toBe(true)
 
       // Click skill-1 (different node, re-read fresh props)
-      act(() => {
-        clickNode('skill-1')
-      })
+      await clickNode('skill-1')
 
       const state = useGraphStore.getState()
       expect(state.highlightSource).toBe('focus')
@@ -569,15 +563,11 @@ describe('GraphView', () => {
       await setupGraph()
 
       // Click a node to focus
-      act(() => {
-        clickNode('agent-1')
-      })
+      await clickNode('agent-1')
       expect(useGraphStore.getState().highlightSource).toBe('focus')
 
       // Click empty pane (re-read fresh props)
-      act(() => {
-        clickPane()
-      })
+      await clickPane()
 
       const state = useGraphStore.getState()
       expect(state.highlightSource).toBe(null)
@@ -594,9 +584,7 @@ describe('GraphView', () => {
       await setupGraph()
 
       // Click a node while query is active
-      act(() => {
-        clickNode('team-1')
-      })
+      await clickNode('team-1')
 
       const state = useGraphStore.getState()
       // Query should still be active (not replaced by focus)
@@ -608,8 +596,9 @@ describe('GraphView', () => {
       await setupGraph()
 
       // Click skill-1 which connects to cli:test-tool
-      act(() => {
+      await act(async () => {
         getOnNodeClick(latestReactFlowProps ?? {})({}, { id: 'skill-1', position: { x: 0, y: 0 } })
+        await Promise.resolve()
       })
 
       const state = useGraphStore.getState()
@@ -624,8 +613,9 @@ describe('GraphView', () => {
       await setupGraph()
 
       // Click team-1 — full neighborhood includes cli:test-tool at depth 3
-      act(() => {
+      await act(async () => {
         getOnNodeClick(latestReactFlowProps ?? {})({}, { id: 'team-1', position: { x: 0, y: 0 } })
+        await Promise.resolve()
       })
 
       // The cli:test-tool node should be selected (not dimmed)
@@ -643,9 +633,7 @@ describe('GraphView', () => {
 
       await setupGraph()
 
-      act(() => {
-        clickPane()
-      })
+      await clickPane()
 
       const state = useGraphStore.getState()
       // Query highlights should remain

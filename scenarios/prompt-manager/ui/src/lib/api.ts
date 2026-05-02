@@ -175,9 +175,19 @@ import {
 } from '@/lib/schemas'
 import type { SearchFilters, ActionFilters, Folder } from '@/types'
 
-// Use @vrooli/api-base for automatic API resolution across all deployment contexts
-export const API_BASE = resolveApiBase({ appendSuffix: true })
-console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
+function resolvePromptManagerApiBase(): string {
+  if (import.meta.env.MODE === 'test') {
+    return 'http://localhost:3000/api/v1'
+  }
+
+  // Use @vrooli/api-base for automatic API resolution across all deployment contexts.
+  return resolveApiBase({ appendSuffix: true })
+}
+
+export const API_BASE = resolvePromptManagerApiBase()
+if (import.meta.env.MODE !== 'test') {
+  console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
+}
 
 /**
  * Static folder definitions.

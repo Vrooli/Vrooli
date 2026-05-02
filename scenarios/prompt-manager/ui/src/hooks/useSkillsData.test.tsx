@@ -9,9 +9,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { waitFor } from '@testing-library/react'
+import { renderHookWithProviders } from '@/test'
 import { useSkillsData } from './useSkillsData'
 import * as skillService from '@/services/skillService'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
@@ -23,6 +22,13 @@ vi.mock('@/services/skillService', () => ({
   updateSkill: vi.fn(),
   updateSkills: vi.fn(),
   deleteSkill: vi.fn(),
+}))
+
+const fetchHealthScores = vi.fn()
+vi.mock('@/stores/graphStore', () => ({
+  useGraphStore: {
+    getState: () => ({ fetchHealthScores }),
+  },
 }))
 
 // Helper to create a test skill
@@ -48,27 +54,6 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   }
 }
 
-// Create a wrapper with QueryClient for each test
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-      mutations: {
-        retry: false,
-      },
-    },
-  })
-
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    )
-  }
-}
-
 describe('useSkillsData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -83,9 +68,7 @@ describe('useSkillsData', () => {
       const mockSkills = [createTestSkill()]
       vi.mocked(skillService.getSkills).mockResolvedValue(mockSkills)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       // Initially loading
       expect(result.current.isLoading).toBe(true)
@@ -101,9 +84,7 @@ describe('useSkillsData', () => {
     it('should return empty array when no skills', async () => {
       vi.mocked(skillService.getSkills).mockResolvedValue([])
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -116,9 +97,7 @@ describe('useSkillsData', () => {
       const error = new Error('Failed to fetch')
       vi.mocked(skillService.getSkills).mockRejectedValue(error)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true)
@@ -131,9 +110,7 @@ describe('useSkillsData', () => {
       const mockSkills = [createTestSkill()]
       vi.mocked(skillService.getSkills).mockResolvedValue(mockSkills)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -154,9 +131,7 @@ describe('useSkillsData', () => {
       const newSkill = createTestSkill({ id: 'new-1', name: 'New Skill' })
       vi.mocked(skillService.createSkill).mockResolvedValue(newSkill)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -182,9 +157,7 @@ describe('useSkillsData', () => {
         () => new Promise((resolve) => { resolveCreate = resolve })
       )
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -217,9 +190,7 @@ describe('useSkillsData', () => {
       const updated = { ...original, name: 'Updated Name' }
       vi.mocked(skillService.updateSkill).mockResolvedValue(updated)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -239,9 +210,7 @@ describe('useSkillsData', () => {
         () => new Promise((resolve) => { resolveUpdate = resolve })
       )
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -274,9 +243,7 @@ describe('useSkillsData', () => {
       ])
       vi.mocked(skillService.updateSkills).mockResolvedValue(updatedResults)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -300,9 +267,7 @@ describe('useSkillsData', () => {
         () => new Promise((resolve) => { resolveUpdate = resolve })
       )
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -331,9 +296,7 @@ describe('useSkillsData', () => {
       vi.mocked(skillService.getSkills).mockResolvedValue([skill])
       vi.mocked(skillService.deleteSkill).mockResolvedValue(undefined)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -351,9 +314,7 @@ describe('useSkillsData', () => {
         () => new Promise((resolve) => { resolveDelete = resolve })
       )
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -380,9 +341,7 @@ describe('useSkillsData', () => {
       const error = new Error('Create failed')
       vi.mocked(skillService.createSkill).mockRejectedValue(error)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -403,9 +362,7 @@ describe('useSkillsData', () => {
       const error = new Error('Update failed')
       vi.mocked(skillService.updateSkill).mockRejectedValue(error)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)
@@ -421,9 +378,7 @@ describe('useSkillsData', () => {
       const error = new Error('Delete failed')
       vi.mocked(skillService.deleteSkill).mockRejectedValue(error)
 
-      const { result } = renderHook(() => useSkillsData(), {
-        wrapper: createWrapper(),
-      })
+      const { result } = renderHookWithProviders(() => useSkillsData())
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false)

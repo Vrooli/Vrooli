@@ -109,6 +109,35 @@ export function compileShaderWithWebGL(
  * @returns Result with success boolean, error messages, and AST if successful
  */
 export function parseGLSL(source: string): GLSLParseResult {
+  const originalError = console.error
+  const originalWarn = console.warn
+  const ignoreKnownDiagnostic = (args: unknown[]) => {
+    const [message] = args
+    return (
+      typeof message === 'string' &&
+      (
+        message.includes('Encountered undefined variable: "gl_Position"') ||
+        message.includes('Encountered undefined variable: "gl_FragColor"') ||
+        message.includes('Encountered undefined variable: "modelMatrix"') ||
+        message.includes('Encountered undefined variable: "modelViewMatrix"') ||
+        message.includes('Encountered undefined variable: "position"') ||
+        message.includes('Encountered undefined variable: "projectionMatrix"')
+      )
+    )
+  }
+  console.error = (...args: unknown[]) => {
+    if (ignoreKnownDiagnostic(args)) {
+      return
+    }
+    originalError(...args)
+  }
+  console.warn = (...args: unknown[]) => {
+    if (ignoreKnownDiagnostic(args)) {
+      return
+    }
+    originalWarn(...args)
+  }
+
   try {
     const ast = parser.parse(source)
     return { success: true, errors: [], ast }
@@ -116,6 +145,9 @@ export function parseGLSL(source: string): GLSLParseResult {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errors = [formatGLSLError(source, errorMessage)]
     return { success: false, errors }
+  } finally {
+    console.error = originalError
+    console.warn = originalWarn
   }
 }
 

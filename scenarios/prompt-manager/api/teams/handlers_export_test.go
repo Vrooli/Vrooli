@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
+	"prompt-manager/internal/testutil/httpx"
 	"prompt-manager/interop"
 	"prompt-manager/store"
-	"testing"
 
 	"github.com/gorilla/mux"
 )
@@ -62,15 +64,12 @@ func TestExportClaudeCode_Success(t *testing.T) {
 func TestExportClaudeCode_TeamNotFound(t *testing.T) {
 	handlers, _, _, _ := setupTestHandlers()
 
-	req := httptest.NewRequest("GET", "/teams/nonexistent/export/claude-code", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/teams/nonexistent/export/claude-code", nil, map[string]string{"id": "nonexistent"})
+	w := httpx.Recorder()
 
 	handlers.ExportClaudeCode(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusNotFound)
 }
 
 func TestExportClaudeCode_WithDocReader(t *testing.T) {

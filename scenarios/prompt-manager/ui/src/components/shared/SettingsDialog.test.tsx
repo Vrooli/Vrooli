@@ -12,6 +12,15 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { SettingsDialog } from './SettingsDialog'
 import { ThemeProvider } from '@/hooks/use-theme'
 
+const pendingAIStatusRequest = new Promise<never>(() => {})
+
+vi.mock('@/services/skillService', () => ({
+  getAISearchStatus: vi.fn(() => pendingAIStatusRequest),
+  getAISearchReindexStatus: vi.fn(() => pendingAIStatusRequest),
+  reindexAISearch: vi.fn(() => pendingAIStatusRequest),
+  cancelAISearchReindex: vi.fn(() => pendingAIStatusRequest),
+}))
+
 // Wrapper component that provides theme context
 function renderWithTheme(ui: React.ReactElement) {
   return render(<ThemeProvider>{ui}</ThemeProvider>)

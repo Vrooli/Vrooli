@@ -21,9 +21,11 @@ import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_D
 import { getAISearchStatus } from '@/services/skillService'
 
 vi.mock('@/services/skillService', () => ({
-  getAISearchStatus: vi.fn().mockResolvedValue({ available: true }),
+  getAISearchStatus: vi.fn().mockResolvedValue({ available: false }),
   searchSkillContent: vi.fn().mockResolvedValue({ matches: [] }),
 }))
+
+const pendingConfig = new Promise<never>(() => {})
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -32,9 +34,9 @@ vi.mock('@/lib/api', () => ({
     aiSearchTeams: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     discover: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     matchTopics: vi.fn().mockResolvedValue([]),
-    getBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
+    getBudgetConfig: vi.fn(() => pendingConfig),
     setBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
-    getDiscoverFilterConfig: vi.fn().mockResolvedValue({ includeDrafts: false, excludeModes: ['scope'], excludeIds: [], excludeTags: [] }),
+    getDiscoverFilterConfig: vi.fn(() => pendingConfig),
     setDiscoverFilterConfig: vi.fn().mockResolvedValue({ includeDrafts: false, excludeModes: ['scope'], excludeIds: [], excludeTags: [] }),
   },
 }))

@@ -1,11 +1,27 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { WorldSettingsContent } from './WorldSettingsContent'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { selectors } from '@/constants/selectors'
 
+const worldScaleState = vi.hoisted(() => ({
+  agent: 1,
+  furniture: 1,
+  decoration: 1,
+  overlay: 1,
+  setScale: vi.fn(),
+  resetAll: vi.fn(),
+}))
+
+vi.mock('@/stores/worldScaleStore', () => ({
+  useWorldScaleStore: vi.fn((selector: (state: typeof worldScaleState) => unknown) =>
+    selector(worldScaleState)
+  ),
+}))
+
 describe('WorldSettingsContent', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     usePerformanceStore.getState().setConfig({
       showOverlay: false,
       showTraceCharts: true,

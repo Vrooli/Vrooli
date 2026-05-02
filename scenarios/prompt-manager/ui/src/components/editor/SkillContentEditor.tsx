@@ -457,14 +457,6 @@ export function SkillContentEditor({
   // Apply search match decorations to Monaco editor
   // Also depends on `value` to re-apply after content changes (e.g., switching skills)
   useEffect(() => {
-    console.log('[SearchHighlight] Effect running:', {
-      hasMonaco: !!monaco,
-      hasEditor: !!editorRef.current,
-      editorReady,
-      editorType,
-      matchCount: searchMatches.length,
-    })
-
     if (!monaco || !editorRef.current || !editorReady) return
     // Only apply when in code mode (not wysiwyg)
     if (editorType !== 'code') return
@@ -499,8 +491,6 @@ export function SkillContentEditor({
           })
         }
       }
-
-      console.log('[SearchHighlight] Applying decorations:', decorations.length)
 
       // Apply decorations using createDecorationsCollection
       if (searchDecorationsRef.current) {

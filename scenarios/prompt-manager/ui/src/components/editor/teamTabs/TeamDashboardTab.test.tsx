@@ -48,21 +48,18 @@ const baseTeam: TeamDetails = {
   updatedAt: '2026-04-09T00:00:00Z',
 }
 
+const pendingBackgroundRequest = new Promise<never>(() => {})
+
 describe('TeamDashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([])
-    vi.mocked(heartbeatService.listTeamLogs).mockResolvedValue({
-      teamId: baseTeam.id,
-      logs: [],
-      total: 0,
-      hasMore: false,
-    })
+    vi.mocked(heartbeatService.listHeartbeats).mockReturnValue(pendingBackgroundRequest)
+    vi.mocked(heartbeatService.listTeamLogs).mockReturnValue(pendingBackgroundRequest)
   })
 
   function renderDashboard(team: TeamDetails, onUpdate: (updates: unknown) => Promise<void>) {
     return render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <TeamDashboardTab team={team} onUpdate={onUpdate} />
       </MemoryRouter>
     )

@@ -8,13 +8,14 @@
  * - Continuous time-based rendering
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { act } from 'react'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import {
   FrameLoopSimulator,
   createMockMesh,
+  installR3FDOMWarningFilter,
   takeStoreSnapshot,
   diffSnapshots,
 } from '@/test'
@@ -154,6 +155,16 @@ function tickFrames(count: number, delta = 1 / 60) {
 // =============================================================================
 // TESTS
 // =============================================================================
+
+let r3fWarningFilter: { restore: () => void }
+
+beforeAll(() => {
+  r3fWarningFilter = installR3FDOMWarningFilter()
+})
+
+afterAll(() => {
+  r3fWarningFilter.restore()
+})
 
 describe('DynamicSky', () => {
   beforeEach(() => {

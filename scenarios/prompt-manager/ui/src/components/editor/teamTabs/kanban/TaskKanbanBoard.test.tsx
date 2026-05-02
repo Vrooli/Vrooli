@@ -10,7 +10,7 @@
  * - Delete triggers confirmation dialog
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { TaskKanbanBoard } from './TaskKanbanBoard'
 import type { TeamTask, TaskBoardResponse } from '@/services/heartbeatService'
@@ -112,12 +112,19 @@ const defaultProps = {
   allAgents: [],
 }
 
+let consoleErrorSpy: MockInstance
+
 describe('TaskKanbanBoard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(heartbeatService.getTaskBoard).mockResolvedValue({ teamId: 'team-1', tasks: mockTasks } satisfies TaskBoardResponse)
     vi.mocked(heartbeatService.addTask).mockResolvedValue({} as TeamTask)
     vi.mocked(heartbeatService.deleteTask).mockResolvedValue()
+  })
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore()
   })
 
   it('renders 4 column headers', async () => {
@@ -157,6 +164,10 @@ describe('TaskKanbanBoard', () => {
       expect(screen.getByText(/Network error/)).toBeInTheDocument()
     })
     expect(screen.getByText('Retry')).toBeInTheDocument()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[TaskKanbanBoard] Failed to load tasks:',
+      expect.any(Error)
+    )
   })
 
   it('shows empty state when no tasks exist', async () => {

@@ -30,6 +30,45 @@
 export { deepClone, deepEqual } from './deep-utils'
 
 // =============================================================================
+// ROUTINE REACT TESTING
+// =============================================================================
+
+export {
+  createTestQueryClient,
+} from './query'
+
+export {
+  createTestWrapper,
+  renderWithProviders,
+  renderHookWithProviders,
+} from './render'
+
+export {
+  createStorageMock,
+  installStorageMock,
+  resetStorageMock,
+} from './storage'
+
+export type {
+  StorageMock,
+} from './storage'
+
+export {
+  setViewport,
+  restoreViewport,
+} from './viewport'
+
+export {
+  installFetchGuard,
+  jsonResponse,
+} from './network'
+
+export type {
+  FetchCall,
+  FetchGuard,
+} from './network'
+
+// =============================================================================
 // THREE.JS MOCK PRIMITIVES (from r3f-test-utils)
 // =============================================================================
 
@@ -94,6 +133,7 @@ export {
   // State management
   resetR3FTestState,
   getGlobalSimulator,
+  installR3FDOMWarningFilter,
   // Assertions
   assertRenderedSuccessfully,
   assertFrameCallbackRegistered,

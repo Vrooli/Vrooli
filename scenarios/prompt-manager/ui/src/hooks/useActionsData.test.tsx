@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { waitFor } from '@testing-library/react'
+import { renderHookWithProviders } from '@/test'
 import { useActionsData } from './useActionsData'
 import * as actionService from '@/services/actionService'
 import type { Action, CreateActionRequest, UpdateActionRequest } from '@/types'
@@ -57,19 +56,6 @@ function createTestAction(overrides: Partial<Action> = {}): Action {
   }
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
-      mutations: { retry: false },
-    },
-  })
-
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  }
-}
-
 describe('useActionsData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -83,9 +69,7 @@ describe('useActionsData', () => {
     const actions = [createTestAction()]
     vi.mocked(actionService.getActions).mockResolvedValue(actions)
 
-    const { result } = renderHook(() => useActionsData(), {
-      wrapper: createWrapper(),
-    })
+    const { result } = renderHookWithProviders(() => useActionsData())
 
     expect(result.current.isLoading).toBe(true)
 
@@ -100,9 +84,7 @@ describe('useActionsData', () => {
   it('passes filters into the query function', async () => {
     vi.mocked(actionService.getActions).mockResolvedValue([])
 
-    renderHook(() => useActionsData({ status: 'draft', tag: 'teams' }), {
-      wrapper: createWrapper(),
-    })
+    renderHookWithProviders(() => useActionsData({ status: 'draft', tag: 'teams' }))
 
     await waitFor(() => {
       expect(actionService.getActions).toHaveBeenCalledWith({ status: 'draft', tag: 'teams' })
@@ -137,9 +119,7 @@ describe('useActionsData', () => {
       validation,
     })
 
-    const { result } = renderHook(() => useActionsData(), {
-      wrapper: createWrapper(),
-    })
+    const { result } = renderHookWithProviders(() => useActionsData())
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -171,9 +151,7 @@ describe('useActionsData', () => {
       () => new Promise((resolve) => { resolveValidation = resolve })
     )
 
-    const { result } = renderHook(() => useActionsData(), {
-      wrapper: createWrapper(),
-    })
+    const { result } = renderHookWithProviders(() => useActionsData())
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -206,9 +184,7 @@ describe('useActionsData', () => {
       () => new Promise((resolve) => { resolveRun = resolve })
     )
 
-    const { result } = renderHook(() => useActionsData(), {
-      wrapper: createWrapper(),
-    })
+    const { result } = renderHookWithProviders(() => useActionsData())
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

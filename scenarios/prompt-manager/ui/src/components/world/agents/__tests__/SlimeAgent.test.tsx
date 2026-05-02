@@ -5,10 +5,11 @@
  * Uses the R3F test harness for mocked Three.js context.
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import {
   R3FTestHarness,
+  installR3FDOMWarningFilter,
   setupR3FMocks,
   setupDreiMocks,
 } from '@/test/r3f-component-harness'
@@ -50,6 +51,16 @@ vi.mock('../../cursorRef', () => ({
 // Now import the component under test
 import { SlimeAgent } from '../SlimeAgent'
 import { AGENT_REGISTRY } from '../../AgentProvider'
+
+let r3fWarningFilter: { restore: () => void }
+
+beforeAll(() => {
+  r3fWarningFilter = installR3FDOMWarningFilter()
+})
+
+afterAll(() => {
+  r3fWarningFilter.restore()
+})
 
 describe('SlimeAgent', () => {
   const defaultProps = {

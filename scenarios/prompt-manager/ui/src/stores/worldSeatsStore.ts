@@ -89,8 +89,11 @@ export const useWorldSeatsStore = create<WorldSeatsStore>()((set, get) => ({
   },
 }))
 
-// Auto-fetch on first import
-void useWorldSeatsStore.getState().fetchSeats()
+// Auto-fetch on first import. Unit tests call fetchSeats explicitly; import-time
+// fetches would otherwise hit the real API before a test can install a seam mock.
+if (import.meta.env.MODE !== 'test') {
+  void useWorldSeatsStore.getState().fetchSeats()
+}
 
 /**
  * Get seats for a furniture type — standalone function (not a hook).

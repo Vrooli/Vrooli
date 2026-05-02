@@ -1,0 +1,20 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "agent-28",
+  "displayName": "Agent 28",
+  "status": "active",
+  "appearance": {
+    "body": "#4f46e5",
+    "head": "#818cf8",
+    "accent": "#c7d2fe"
+  },
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-05-01T23:29:08Z",
+  "updatedAt": "2026-05-01T23:29:08Z"
+}
