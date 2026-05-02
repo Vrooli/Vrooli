@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/testutil/assertx"
 )
 
 // stubBacklogStore lets tests supply items without spinning up a FileStore.
@@ -141,10 +142,16 @@ func TestMaterializeInitiative_SkipsWriteWhenContentUnchanged(t *testing.T) {
 		t.Fatalf("read first write: %v", err)
 	}
 
-	// Bump into the next second so a second write would produce a distinct GeneratedAt.
-	time.Sleep(1100 * time.Millisecond)
-
-	if err := m.MaterializeInitiative(context.Background(), "steady"); err != nil {
+	firstGraph, err := m.ReadGraph("steady")
+	if err != nil {
+		t.Fatalf("read first graph: %v", err)
+	}
+	if firstGraph == nil {
+		t.Fatal("expected first graph to be materialized")
+	}
+	secondGraph := *firstGraph
+	secondGraph.GeneratedAt = "2099-01-01T00:00:00Z"
+	if err := m.writeGraph("steady", secondGraph); err != nil {
 		t.Fatal(err)
 	}
 
@@ -345,15 +352,11 @@ func TestMaterializer_ScheduleAllCoalesces(t *testing.T) {
 	}
 
 	// Wait for materialization to drain. Both graph.json files must exist.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
+	assertx.Eventually(t, 2*time.Second, "both materialized graph files after burst", func() bool {
 		_, err1 := os.Stat(filepath.Join(rootDir, "initiatives", "one", "graph.json"))
 		_, err2 := os.Stat(filepath.Join(rootDir, "initiatives", "two", "graph.json"))
-		if err1 == nil && err2 == nil {
-			break
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
+		return err1 == nil && err2 == nil
+	})
 	if _, err := os.Stat(filepath.Join(rootDir, "initiatives", "one", "graph.json")); err != nil {
 		t.Fatalf("expected initiative one graph.json after burst: %v", err)
 	}
@@ -410,7 +413,8 @@ func TestMaterializer_DispatchHookWiring(t *testing.T) {
 	// materialization — otherwise the hook would over-run on every focus
 	// update.
 	dispatch.DispatchInvalidate(string(LensOperations))
-	// Give a brief window for spurious work to appear.
+	// Fixed sleep intentionally validates the absence of spurious asynchronous
+	// work after a non-topology invalidation.
 	time.Sleep(50 * time.Millisecond)
 	if n := counting.loads.Load(); n != 0 {
 		t.Fatalf("operations-only invalidation triggered %d loads; must be 0", n)
@@ -418,12 +422,10 @@ func TestMaterializer_DispatchHookWiring(t *testing.T) {
 
 	// Topology invalidation must trigger a rebuild.
 	dispatch.DispatchInvalidate(string(LensTopology))
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
+	assertx.Eventually(t, 2*time.Second, "topology invalidation to materialize graph", func() bool {
 		if _, err := os.Stat(filepath.Join(rootDir, "initiatives", "wired", "graph.json")); err == nil {
-			return
+			return true
 		}
-		time.Sleep(25 * time.Millisecond)
-	}
-	t.Fatalf("topology invalidation did not trigger materialization (loads=%d)", counting.loads.Load())
+		return false
+	})
 }

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"swarm-manager/internal/testutil/assertx"
 )
 
 // TestInitiativeReviewTrigger_E2E covers the end-to-end trigger chain:
@@ -88,23 +90,9 @@ func TestInitiativeReviewTrigger_E2E(t *testing.T) {
 	//    goroutine (see routes_initiative_review.go:47), so we don't need
 	//    to poll — but we give a tiny budget in case the service spawns
 	//    async work downstream.
-	initFile := filepath.Join(rootDir, "initiatives", "rev-trigger", "initiative.json")
-	deadline := time.Now().Add(2 * time.Second)
-	var lastStatus string
-	for time.Now().Before(deadline) {
-		raw, readErr := os.ReadFile(initFile)
-		if readErr == nil {
-			var meta map[string]any
-			if json.Unmarshal(raw, &meta) == nil {
-				lastStatus, _ = meta["status"].(string)
-				if lastStatus == "in_review" {
-					return
-				}
-			}
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
-	t.Fatalf("initiative status = %q, want in_review (trigger did not fire or failed)", lastStatus)
+	assertx.Eventually(t, 2*time.Second, "initiative review trigger to set status in_review", func() bool {
+		return initiativeStatusFromDisk(t, rootDir, "rev-trigger") == "in_review"
+	})
 }
 
 // TestInitiativeReviewTrigger_NotReady_DoesNotFlip is the negative case: when
@@ -335,21 +323,22 @@ func TestInitiativeReviewTrigger_FeedbackLockBlocks(t *testing.T) {
 
 func assertInitiativeStatusEventually(t *testing.T, rootDir, name, want string) {
 	t.Helper()
+	assertx.Eventually(t, 2*time.Second, "initiative "+name+" status "+want, func() bool {
+		return initiativeStatusFromDisk(t, rootDir, name) == want
+	})
+}
+
+func initiativeStatusFromDisk(t *testing.T, rootDir, name string) string {
+	t.Helper()
 	initFile := filepath.Join(rootDir, "initiatives", name, "initiative.json")
-	deadline := time.Now().Add(2 * time.Second)
-	var lastStatus string
-	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile(initFile)
-		if err == nil {
-			var meta map[string]any
-			if json.Unmarshal(raw, &meta) == nil {
-				lastStatus, _ = meta["status"].(string)
-				if lastStatus == want {
-					return
-				}
-			}
-		}
-		time.Sleep(25 * time.Millisecond)
+	raw, err := os.ReadFile(initFile)
+	if err != nil {
+		return ""
 	}
-	t.Fatalf("initiative %q status = %q, want %q", name, lastStatus, want)
+	var meta map[string]any
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return ""
+	}
+	status, _ := meta["status"].(string)
+	return status
 }

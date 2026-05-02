@@ -229,6 +229,10 @@ Progress:
 - Added `useWebSocket` hook coverage for queued subscription replay on open, subscription replay after reconnect, and normalized server message delivery to `onMessage`.
 - Added a shared `ui/tests/testutil/stats.ts` summary fixture and `KPISummary` React behavior coverage for formatted metrics, selected-window throughput, loading cards, and error cards.
 - Expanded the shared stats fixture with model/tool breakdown responses and added `ModelUsageBreakdown` plus `ToolUsageAnalytics` React behavior coverage for chart-to-detail selection, run/model detail rendering, empty states, and error states.
+- Expanded the shared stats fixture with runner/profile breakdown responses and added `RunnerPerformanceTable` plus `ProfileActivityTable` React behavior coverage for formatted metrics, visible sorting controls, profile links, empty states, loading states, and error states.
+- Expanded the shared stats fixture with time-series responses and added `RunStatusTrends` plus `CostDurationTrends` React behavior coverage for populated chart series, empty states, loading states, and error states.
+- Expanded the shared stats fixture with error-pattern responses and added `ErrorAnalysisSection` plus `ExportButton` React behavior coverage for error totals, sample-run links, empty/loading/error states, disabled export state, and generated CSV sections.
+- Added a shared `ui/tests/testutil/tasks.ts` task fixture and `useSelectedRunController` hook coverage for REST event gap-fill into `useRunEventStore`, sorted event exposure, and WebSocket subscribe/unsubscribe wiring.
 
 ### Phase 6: Boundary Coverage and Scenario-Level Gates
 
@@ -279,7 +283,7 @@ For longer comprehensive runs, use the repository timeout guidance; `make test` 
 - [x] UI pure TypeScript tests have a shared `RunEvent` fixture utility for reducer/timeline coverage.
 - [x] UI runner decision is made with dependency approval if needed.
 - [x] React component/hook test setup exists before adding broad UI behavior tests.
-- [x] Initial React behavior tests cover `DiffViewer`, `RunTimeline`, `QuickRunDialog`, `useWebSocket`, `KPISummary`, `ModelUsageBreakdown`, and `ToolUsageAnalytics`.
+- [x] Initial React behavior tests cover `DiffViewer`, `RunTimeline`, `QuickRunDialog`, `useWebSocket`, `useSelectedRunController`, `KPISummary`, `ModelUsageBreakdown`, `ToolUsageAnalytics`, `RunnerPerformanceTable`, `ProfileActivityTable`, `RunStatusTrends`, `CostDurationTrends`, `ErrorAnalysisSection`, and `ExportButton`.
 - [x] `GOWORK=off go test ./...` passes in `scenarios/agent-manager/api`.
 - [x] `pnpm test` passes in `scenarios/agent-manager/ui`.
 - [x] `cd scenarios/agent-manager && make test` passes or any environmental blocker is documented with exact output.

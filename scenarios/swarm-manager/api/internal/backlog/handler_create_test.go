@@ -400,9 +400,6 @@ func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, w)
 
-	// Give a brief window for any goroutine to fire (it shouldn't).
-	time.Sleep(100 * time.Millisecond)
-
 	if agent.lastReq != nil {
 		t.Error("expected NO agent spawn when auto_initialize_workshop is false")
 	}

@@ -45,6 +45,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/graph"
+	"swarm-manager/internal/testutil/assertx"
 )
 
 // postJSON posts a JSON body and returns (status, response body). Unlike
@@ -305,20 +306,16 @@ func TestE2EInitiativeFeedback_FullHTTPFlow(t *testing.T) {
 		t.Errorf("apply_result.failed=%d, want 0 (both accepted mutations must succeed)", decideResp.ApplyResult.Failed)
 	}
 
-	// 8. On-disk priorities. Give the apply layer a short moment in case
-	//    any piece is async (it isn't today, but graph.json regeneration
-	//    IS debounced).
-	deadline := time.Now().Add(2 * time.Second)
+	// 8. On-disk priorities. The apply layer is synchronous today, but keep
+	//    this assertion tolerant of the same fire-and-forget invalidation
+	//    path used by graph regeneration.
 	var postAlpha, postBeta, postGamma int
-	for time.Now().Before(deadline) {
+	assertx.Eventually(t, 2*time.Second, "accepted feedback mutations to persist priorities", func() bool {
 		postAlpha = readBacklogPriority(t, rootDir, "execute", "alpha")
 		postBeta = readBacklogPriority(t, rootDir, "execute", "beta")
 		postGamma = readBacklogPriority(t, rootDir, "execute", "gamma")
-		if postAlpha == 9 && postGamma == 7 {
-			break
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
+		return postAlpha == 9 && postGamma == 7
+	})
 	if postAlpha != 9 {
 		t.Errorf("alpha priority=%d, want 9 (m1 must have applied)", postAlpha)
 	}

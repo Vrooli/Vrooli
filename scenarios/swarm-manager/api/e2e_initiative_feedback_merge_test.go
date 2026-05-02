@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"swarm-manager/internal/graph"
 )
@@ -188,32 +187,16 @@ func TestE2EInitiativeFeedback_MergeItemsAppliesAndRetargets(t *testing.T) {
 	// flagged Archived. (The materializer keeps archived items in the
 	// projection with Archived=true so the UI can still surface "this
 	// item was here".)
-	deadline := time.Now().Add(5 * time.Second)
-	var lastSnapshot map[string]bool
-	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile(graphPath)
-		if err != nil {
-			time.Sleep(50 * time.Millisecond)
-			continue
-		}
-		var g graph.MaterializedGraph
-		if err := json.Unmarshal(raw, &g); err != nil {
-			time.Sleep(50 * time.Millisecond)
-			continue
-		}
-		lastSnapshot = make(map[string]bool, len(g.Nodes))
+	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
+		snapshot := make(map[string]bool, len(g.Nodes))
 		for _, n := range g.Nodes {
-			lastSnapshot[n.ID] = n.Archived
+			snapshot[n.ID] = n.Archived
 		}
-		mergedLive, mergedFound := lastSnapshot["execute/alpha-beta"]
-		alphaArchived, alphaFound := lastSnapshot["execute/alpha"]
-		betaArchived, betaFound := lastSnapshot["execute/beta"]
-		if mergedFound && !mergedLive && alphaFound && alphaArchived && betaFound && betaArchived {
-			return
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	t.Fatalf("graph projection did not converge: nodes=%v", lastSnapshot)
+		mergedLive, mergedFound := snapshot["execute/alpha-beta"]
+		alphaArchived, alphaFound := snapshot["execute/alpha"]
+		betaArchived, betaFound := snapshot["execute/beta"]
+		return mergedFound && !mergedLive && alphaFound && alphaArchived && betaFound && betaArchived
+	}, "merge graph projection to converge")
 }
 
 func containsString(xs []string, target string) bool {

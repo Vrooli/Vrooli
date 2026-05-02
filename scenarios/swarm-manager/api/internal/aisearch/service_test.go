@@ -12,6 +12,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/testutil/assertx"
 )
 
 // --- Test doubles ---
@@ -586,23 +587,21 @@ func TestService_StartReindex_RunsAndCompletes(t *testing.T) {
 	if !started {
 		t.Fatal("expected reindex to start")
 	}
-	// Poll briefly for completion.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
+	assertx.Eventually(t, 2*time.Second, "reindex completion", func() bool {
 		st := svc.ReindexStatus()
 		if !st.Running {
 			if st.Indexed != 1 {
 				t.Errorf("expected 1 indexed, got %d", st.Indexed)
 			}
-			return
+			return true
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("reindex did not complete within 2s")
+		return false
+	})
 }
 
 func TestService_StartReindex_SingletonSemantics(t *testing.T) {
 	// Slow ollama so the first reindex is still running when we call again.
+	// This fixed sleep lives in the fake upstream, not the assertion path.
 	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
@@ -628,8 +627,7 @@ func TestService_StartReindex_SingletonSemantics(t *testing.T) {
 		t.Error("expected second start to be rejected while first is running")
 	}
 	// Let the first finish so the test doesn't leak goroutines.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) && svc.ReindexStatus().Running {
-		time.Sleep(10 * time.Millisecond)
-	}
+	assertx.Eventually(t, 2*time.Second, "first singleton reindex cleanup", func() bool {
+		return !svc.ReindexStatus().Running
+	})
 }

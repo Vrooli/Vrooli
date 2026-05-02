@@ -12,21 +12,8 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/testutil/assertx"
 )
-
-// waitFor polls predicate every 10ms until it returns true or timeout expires.
-// Used because index notifications are fire-and-forget goroutines.
-func waitFor(t *testing.T, timeout time.Duration, predicate func() bool) bool {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if predicate() {
-			return true
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	return predicate()
-}
 
 // saveBacklogItem mkdirs the item directory before calling SaveItem, matching
 // what production write-handlers do (see backlog/handler_create.go,
@@ -91,9 +78,9 @@ func TestIntegration_BacklogSave_FiresIndexUpsert(t *testing.T) {
 		Title: "Alpha",
 		Kind:  backlog.KindExecute,
 	})
-	if !waitFor(t, 2*time.Second, func() bool { return atomic.LoadInt32(&qStub.upsertCalls) >= 1 }) {
-		t.Errorf("expected at least one upsert call, got %d", qStub.upsertCalls)
-	}
+	assertx.Eventually(t, 2*time.Second, "backlog save index upsert", func() bool {
+		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
+	})
 }
 
 func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
@@ -111,14 +98,16 @@ func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
 		Kind:  backlog.KindExecute,
 	})
 	// Wait for the initial upsert to land so we don't race it.
-	waitFor(t, 2*time.Second, func() bool { return atomic.LoadInt32(&qStub.upsertCalls) >= 1 })
+	assertx.Eventually(t, 2*time.Second, "initial backlog save index upsert", func() bool {
+		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
+	})
 
 	if err := bStore.DeleteItem(backlog.KindExecute, "alpha"); err != nil {
 		t.Fatalf("DeleteItem: %v", err)
 	}
-	if !waitFor(t, 2*time.Second, func() bool { return atomic.LoadInt32(&qStub.deleteCalls) >= 1 }) {
-		t.Errorf("expected delete call, got %d", qStub.deleteCalls)
-	}
+	assertx.Eventually(t, 2*time.Second, "backlog delete index cleanup", func() bool {
+		return atomic.LoadInt32(&qStub.deleteCalls) >= 1
+	})
 }
 
 func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
@@ -134,9 +123,9 @@ func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
 	if err := iStore.Save(init); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	if !waitFor(t, 2*time.Second, func() bool { return atomic.LoadInt32(&qStub.upsertCalls) >= 1 }) {
-		t.Errorf("expected initiative upsert, got %d", qStub.upsertCalls)
-	}
+	assertx.Eventually(t, 2*time.Second, "initiative save index upsert", func() bool {
+		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
+	})
 }
 
 func TestIntegration_QdrantFailure_DoesNotBreakCRUD(t *testing.T) {
@@ -161,7 +150,9 @@ func TestIntegration_QdrantFailure_DoesNotBreakCRUD(t *testing.T) {
 	if err := iStore.Save(&initiatives.Initiative{Name: "x", Title: "X", Status: "active"}); err != nil {
 		t.Fatalf("initiative Save: %v", err)
 	}
-	// Give the goroutines time to fail in the background.
+	// Fixed sleep intentionally gives fire-and-forget goroutines a short
+	// window to hit the failing Qdrant seam; the assertion is that CRUD did
+	// not observe those asynchronous failures.
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -175,7 +166,8 @@ func TestIntegration_OllamaEmpty_CRUDStillSucceeds(t *testing.T) {
 	_, bStore, _, _ := buildTestService(t, "", qServer.URL)
 
 	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "alpha", Title: "A", Kind: backlog.KindIdea})
-	// No upsert should succeed because the embedder can't embed; but CRUD returned nil.
+	// Fixed sleep intentionally validates no background upsert succeeds when
+	// Ollama is disabled; the positive contract above is that CRUD returned nil.
 	time.Sleep(100 * time.Millisecond)
 	if atomic.LoadInt32(&qStub.upsertCalls) != 0 {
 		t.Errorf("expected 0 upserts (ollama disabled), got %d", qStub.upsertCalls)

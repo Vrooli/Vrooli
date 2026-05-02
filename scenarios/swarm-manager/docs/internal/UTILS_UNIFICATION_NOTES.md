@@ -327,3 +327,11 @@ Remaining consolidation candidates:
 - Local `QueryClientProvider` wrappers in smaller component/hook tests.
 - Remaining raw `MemoryRouter` wrappers in low-level navigation component tests.
 - Local IndexedDB/FileReader mocks in `useIndexedDBAttachments.test.ts`, if another browser-storage test needs the same seam.
+
+## API Test Timing Utilities (2026-05-01)
+
+`api/internal/testutil/assertx.Eventually` is now the canonical helper for tests that observe asynchronous fire-and-forget work. The root `api/internal/testutil.Eventually` wrapper is available for older tests that import the aggregate package.
+
+Use it for positive eventual conditions such as index notifications, graph materialization drains, background reindex completion, and dispatch hook rebuilds. Do not use it to hide absence checks; tests that intentionally validate "nothing happened after a short window" should keep a narrow fixed sleep with a comment naming that real-time contract.
+
+Recent migrations removed local polling loops from AI search integration tests, AI search reindex tests, graph materializer scheduling tests, the root graph materialization integration helper, and the root initiative feedback/review integration helpers. Remaining direct sleeps are limited to the shared `Eventually` polling interval, explicitly commented negative absence checks, and fake upstream latency used to pin singleton semantics.

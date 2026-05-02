@@ -16,6 +16,7 @@ package testutil
 import (
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/testutil/assertx"
 	"swarm-manager/internal/testutil/fsx"
@@ -102,4 +103,10 @@ func AssertFileExists(t *testing.T, path string) {
 func AssertFileNotExists(t *testing.T, path string) {
 	t.Helper()
 	fsx.AssertFileNotExists(t, path)
+}
+
+// Eventually polls predicate until it succeeds or the timeout expires.
+func Eventually(t *testing.T, timeout time.Duration, reason string, predicate func() bool) {
+	t.Helper()
+	assertx.Eventually(t, timeout, reason, predicate)
 }

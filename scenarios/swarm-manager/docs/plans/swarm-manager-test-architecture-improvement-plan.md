@@ -82,7 +82,7 @@ Observed local duplication candidates:
 
 - Local fake/stub/mock types appear across backlog, feedback, execution, graph, initiatives, scenarios, operatingmode, agentactivity, agentmanager, and prompts tests.
 - `httptest.NewServer` appears `79` times across API/CLI tests.
-- `time.Sleep(` appears `24` times in API tests.
+- `time.Sleep(` originally appeared `24` times in API tests. Recent Phase 2 work reduced this by moving shared polling assertions into `api/internal/testutil/assertx.Eventually`; remaining sleeps are concentrated in scenario-level feedback/review integration flows and a few tests that intentionally validate absence or slow-upstream behavior.
 - `testing.T{}` is used in `3` helper self-tests and should be replaced with safer helper validation patterns.
 
 ### CLI
@@ -355,10 +355,10 @@ rg 'swarm-manager/internal/testutil' scenarios/swarm-manager/api scenarios/swarm
 - [x] API no-production-testutil-import guard added.
 - [x] API testutil package split into focused subpackages.
 - [x] First package cluster migrated and reviewed before wider migration.
-- [ ] Fixed sleeps removed or justified.
+- [x] Fixed sleeps removed or justified.
 - [x] CLI harness introduced and initial high-duplication command tests migrated.
 - [x] UI test-utils introduced with render/query/browser/store/console helpers.
-- [ ] UI high-noise files migrated.
+- [x] UI high-noise files migrated.
 - [x] Skipped UI test resolved.
 - [ ] Boundary tests added for provenance, sandbox mode, graph, execution, feedback, and operating mode.
 - [ ] Internal docs updated.
@@ -377,6 +377,8 @@ Progress notes:
 - 2026-05-01: Continued UI hot-spot warning cleanup. `ExecutionPage.test.tsx` now resolves the mount-time store polling promise inside `act` and cleans up before resetting the subscribed store, eliminating its remaining polling-driven warning. `ScenarioDetailsPage.test.tsx` now uses shared render/query/browser helpers, stubs the post-delete graph route, waits for the archive file-load transition, and uses `fireEvent` for the archived-scope toggle; its focused run is warning-free. `feedback-dialog.test.tsx` now uses shared render/query/browser helpers and resolves intentionally held mutation promises inside `act`; its focused run is warning-free.
 - 2026-05-01: Continued UI hot-spot warning cleanup. `feedback-panel.test.tsx` now uses shared query/render/browser helpers and returns a deterministic `lockStatus` value so React Query no longer reports undefined data. `useCapturePolling.test.ts` wraps store resets and timer advancement in `act`, and `clarification-panel.test.tsx` wraps staleness timer advancement plus subscribed store updates in `act`. `follow-up-sheet.test.tsx` now flushes mount effects through a local render helper. `ScenariosPage.test.tsx` now uses the shared render/query router harness and flushes initial query/store effects, eliminating its focused router and `act` warnings. Focused runs for all five files are warning-free.
 - 2026-05-01: Continued UI warning cleanup by migrating `InitiativeDetailsPage.test.tsx` and `BacklogDetailsPage.test.tsx` to shared query/router/browser helpers, adding `initialIndex` support to `renderWithProviders`, and migrating router-wrapper tests in `NotFoundPage`, `DetailPageHeader`, `ExecutionOverviewTab`, `FocusActionsSection`, `DependencyChipList`, `ScenarioResultCards`, `InitiativeDependencyGraph`, and `ScenarioBadge`. `useIndexedDBAttachments.test.ts` now flushes its IndexedDB mount load inside `act`. Focused batches are warning-free, `pnpm exec tsc --noEmit` passes, and full `pnpm test` passes `161` files / `1809` tests with no captured warning output.
+- 2026-05-01: Started Phase 2 timing cleanup beyond the UI suite. Added `api/internal/testutil/assertx.Eventually` plus the backward-compatible `testutil.Eventually` wrapper for fire-and-forget assertions. Migrated AI search index notification tests, AI search reindex completion tests, graph materializer drain assertions, and the root graph materialization integration helper from local polling loops to the shared helper. `api/internal/graph/materialize_test.go` now tests generated-at-only no-op writes directly through the package-private write seam instead of sleeping for the next wall-clock second. The disabled auto-initialize create test no longer sleeps before asserting no spawn occurred. Remaining fixed sleeps are either explicitly commented as absence/slow-upstream checks or live in broader feedback/review integration tests still pending migration.
+- 2026-05-01: Continued Phase 2 timing cleanup in the root feedback/review integration tests. `initiative_review_trigger_test.go` now uses `assertx.Eventually` for positive initiative status transitions, `e2e_initiative_feedback_test.go` uses the shared helper for persisted priority assertions, and `e2e_initiative_feedback_merge_test.go` routes merge graph convergence through the existing `waitForGraph` helper. Remaining `time.Sleep` usages are the shared polling helper itself, explicitly commented negative absence checks, or the slow-upstream fake used to pin singleton reindex semantics.
 
 ## Risks and Mitigations
 

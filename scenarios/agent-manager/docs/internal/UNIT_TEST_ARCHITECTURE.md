@@ -7,10 +7,10 @@ This document records the current Agent Manager test architecture and the first 
 ## Current Test Organization
 
 - Go API and CLI tests: 95 `*_test.go` files under `api` and `cli`.
-- UI tests: 16 TypeScript test files outside `node_modules` and `.test-dist`.
+- UI tests: 22 TypeScript test files outside `node_modules` and `.test-dist`.
 - Backend shared utilities currently live in `api/internal/testutil`, which started as a SQLite helper package.
 - UI tests now run through Vitest with jsdom and Testing Library setup configured in `ui/vite.config.ts`.
-- UI test-only helpers live under `ui/tests/testutil` for the current pure TypeScript tests and `ui/src/test-utils` for React component/hook tests. `runEvents.ts`, `runs.ts`, and `stats.ts` are the canonical fixture factories for reducer/timeline/stats tests.
+- UI test-only helpers live under `ui/tests/testutil` for the current pure TypeScript tests and `ui/src/test-utils` for React component/hook tests. `runEvents.ts`, `runs.ts`, `tasks.ts`, and `stats.ts` are the canonical fixture factories for reducer/timeline/controller/stats tests, including summary, breakdown, time-series, and error-pattern stats responses.
 
 ## Helper And Mocking Status
 
@@ -18,7 +18,7 @@ The API has a meaningful set of interfaces, but some tests still define seam dou
 
 High-value consolidation candidates:
 
-- Pricing and runner codec tests: local same-package seam doubles that need case-by-case review before promotion because shared fakes importing the package under test can create Go import cycles.
+- Pricing and runner codec tests: local same-package seam doubles that need case-by-case review before promotion because shared fakes importing the package under test can create Go import cycles. The pricing service provider double remains local for that reason.
 - Runner core tests intentionally keep very local process/codec fakes because those model private runner-core contracts rather than broad scenario seams.
 
 ## Seam Inventory
@@ -65,13 +65,17 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 13. Done: Add shared transcript replay runner and model-chain resolver fakes, then migrate recovery, restart-resume, and execute fallback tests.
 14. Done: Add `ui/tests/testutil/runEvents.ts` and migrate repeated `RunEvent` builders in run event store and timeline tests.
 15. Done: Switch `pnpm test` from `tsc && node --test` to `vitest run`, add jsdom/Testing Library setup, add `src/test-utils/renderWithProviders.tsx`, and add initial `DiffViewer` render coverage.
-16. Next backend slices: review pricing and runner codec doubles for consolidation boundaries. Be careful with same-package tests; moving those fakes into `testutil/mocks` can create import cycles when the fake must import the package under test.
+16. In progress: Review pricing and runner codec doubles for consolidation boundaries. The pricing service provider double remains local because moving it to `testutil/mocks` would create an import cycle with `package pricing` tests. Be careful with same-package tests; moving those fakes into `testutil/mocks` can create import cycles when the fake must import the package under test.
 17. Done: Add first `RunTimeline` React behavior tests for filter UI behavior and persisted filter restoration.
 18. Done: Add `QuickRunDialog` React behavior tests for default custom-run submit/reset behavior and persisted task draft restoration.
 19. Done: Add hook-level `useWebSocket` tests for queued subscription replay, reconnect subscription replay, and normalized server message delivery.
 20. Done: Add `KPISummary` React behavior tests for formatted stats metrics, selected-window throughput, loading state, and error state.
 21. Done: Add `ModelUsageBreakdown` and `ToolUsageAnalytics` React behavior tests for chart-to-detail selection, run/model detail rendering, empty states, and error states.
-22. Next UI slices: add React behavior tests for trends and table components such as runner performance, profile activity, and cost/status trend sections using `src/test-utils`.
+22. Done: Add `RunnerPerformanceTable` and `ProfileActivityTable` React behavior tests for formatted metrics, visible sorting controls, profile links, loading states, empty states, and error states.
+23. Done: Add `RunStatusTrends` and `CostDurationTrends` React behavior tests for populated chart series, empty states, loading states, and error states using lightweight chart mocks.
+24. Done: Add `ErrorAnalysisSection` and `ExportButton` React behavior tests for error totals, sample-run links, generated CSV content, disabled state, loading states, empty states, and error states.
+25. Done: Add `useSelectedRunController` hook coverage for REST event gap-fill into `useRunEventStore`, including sorted event exposure and WebSocket subscribe/unsubscribe wiring.
+26. Next slices: move to broader boundary coverage from Phase 6, especially realtime event contract symmetry and sandbox mode routing tests.
 
 ## Prohibited Patterns
 

@@ -1,9 +1,11 @@
 import type {
+  ErrorPatternsResponse,
   ModelBreakdownResponse,
   ModelUsageRunsResponse,
   ProfileBreakdownResponse,
   RunnerBreakdownResponse,
   SummaryResponse,
+  TimeSeriesResponse,
   ToolUsageModelsResponse,
   ToolUsageResponse,
   ToolUsageRunsResponse,
@@ -140,6 +142,55 @@ export function makeProfileBreakdownResponse(
         successCount: 1,
         failedCount: 2,
         totalCostUsd: 0.5,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export function makeTimeSeriesResponse(
+  overrides: Partial<TimeSeriesResponse> = {},
+): TimeSeriesResponse {
+  return {
+    bucketDuration: "1h",
+    buckets: [
+      {
+        timestamp: "2026-05-01T12:00:00.000Z",
+        runsStarted: 6,
+        runsCompleted: 4,
+        runsFailed: 1,
+        totalCostUsd: 2.25,
+        avgDurationMs: 45_000,
+      },
+      {
+        timestamp: "2026-05-01T13:00:00.000Z",
+        runsStarted: 8,
+        runsCompleted: 7,
+        runsFailed: 0,
+        totalCostUsd: 4.5,
+        avgDurationMs: 90_000,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export function makeErrorPatternsResponse(
+  overrides: Partial<ErrorPatternsResponse> = {},
+): ErrorPatternsResponse {
+  return {
+    errors: [
+      {
+        errorCode: "workspace-sandbox unavailable while applying patch",
+        count: 12,
+        lastSeen: "2026-05-01T15:30:00.000Z",
+        sampleRunId: "run-error-12345678",
+      },
+      {
+        errorCode: "model exhausted fallback chain",
+        count: 1,
+        lastSeen: "2026-05-01T14:00:00.000Z",
+        sampleRunId: "run-error-87654321",
       },
     ],
     ...overrides,

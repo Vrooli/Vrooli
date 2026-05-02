@@ -344,6 +344,13 @@ Acceptance criteria:
 - Coverage gates do not incentivize shallow tests.
 - Documentation tells future agents where to put fakes, fixtures, and harnesses.
 
+Progress:
+
+- 2026-05-02: Added fixture-package tests for `api/internal/testutil/fixtures` so the shared fixture package has direct contract coverage and no longer appears as an untested code package in standards scans.
+- 2026-05-02: Removed the UI test-mode hardcoded `localhost:3000` API base in favor of relative `/api/v1`; standards now reports no high-severity findings.
+- 2026-05-02: Stabilized `TestTriggerHeartbeat_DirectExecutionFallback` by waiting for the executor completion callback before allowing `t.TempDir()` cleanup.
+- 2026-05-02: Full `make test` reached 10/11 passing phases after the fixes. Unit, playbooks, lint, standards, integration, business, and performance passed; smoke failed only because `ui/src/constants/selectors.manifest.json` had been regenerated after the running bundle started. Restarting prompt-manager via lifecycle and running `vrooli scenario ui-smoke prompt-manager` passed.
+
 ## Contract Decisions
 
 - Shared test helpers are test-only infrastructure; production imports are prohibited.

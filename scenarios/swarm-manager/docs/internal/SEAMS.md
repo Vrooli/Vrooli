@@ -1800,3 +1800,12 @@ being modeled as capture, backlog, or initiative subtypes.
 | Session lifecycle events | `api/internal/eventlog/types.go`, `api/internal/eventlog/emitter.go` | Emits `agent_session.*` lifecycle, proposal, and artifact events through the existing eventlog pipeline so stats aggregate session adoption and outcomes from events rather than UI state. | `eventlog` package tests |
 | Session stats | `api/internal/stats/*`, `ui/src/surfaces/graph/components/StatsPanel.tsx` | Aggregates `SessionStats` from event streams: sessions by kind/status, proposal apply rates, created artifacts, messages per session, time to first proposal, failed-session rate, and session-created backlog/initiative counts. The Stats panel exposes these in a compact Sessions tab. | `stats/handler_test.go`, `StatsPanel.test.tsx` |
 | Session provenance resolver | `api/internal/identity/session.go`, `api/main.go` | Enriches verified agent provenance with session metadata by resolving request `run_id` through the Agent Session service. Missing or failed lookups preserve the original provenance and never reject a request. | `identity/middleware_test.go`, `agentsessions/service_test.go` |
+
+### API Test Async Assertion Seam (added 2026-05-01)
+
+Background indexing, graph invalidation, and reindex jobs intentionally run through fire-and-forget paths in production. Tests should observe those seams through shared eventual assertions instead of copying ad hoc polling loops or sleeping for a fixed duration.
+
+| Boundary | Location | Behavior | Test |
+|----------|----------|----------|------|
+| Eventual async assertion | `api/internal/testutil/assertx.Eventually` and `api/internal/testutil.Eventually` | Polls positive asynchronous conditions with a useful timeout reason. This is the default test seam for background work that should eventually happen. | `aisearch`, `graph`, and root initiative feedback/review integration tests |
+| Absence over time | Local tests with explicit comments | Negative asynchronous assertions may keep a short fixed sleep only when the test is specifically validating that no background work appears during a small real-time window. | `initiative_review_trigger_test.go`, `graph/materialize_test.go`, `aisearch/integration_test.go` |
