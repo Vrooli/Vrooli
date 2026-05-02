@@ -7,41 +7,14 @@ import {
   createClaudeComputerUseClient,
 } from '../../../../src/ai/vision-client/claude-computer-use';
 import { VisionModelError } from '../../../../src/ai/vision-client/types';
+import {
+  fetchJsonResponse,
+  fetchTextResponse,
+  getFetchRequestBodyJson,
+  installFetchMock,
+} from '../../../helpers';
 
-// Mock fetch globally
-const mockFetch = jest.fn<Promise<Response>, [RequestInfo | URL, RequestInit?]>();
-globalThis.fetch = mockFetch as unknown as typeof fetch;
-
-const createJsonResponse = (value: unknown, init?: ResponseInit): Response =>
-  new Response(JSON.stringify(value), {
-    status: init?.status ?? 200,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  });
-
-const createTextResponse = (value: string, status: number): Response =>
-  new Response(value, { status });
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const getRequestBody = (): Record<string, unknown> => {
-  const call = mockFetch.mock.calls[0];
-  if (!call || !call[1]) {
-    throw new Error('Expected fetch to have been called');
-  }
-  const body = call[1].body;
-  if (typeof body !== 'string') {
-    throw new Error('Expected request body to be a JSON string');
-  }
-  const parsed: unknown = JSON.parse(body);
-  if (!isRecord(parsed)) {
-    throw new Error('Expected JSON body to be an object');
-  }
-  return parsed;
-};
+const mockFetch = installFetchMock();
 
 describe('ClaudeComputerUseClient', () => {
   const validConfig = {
@@ -98,7 +71,7 @@ describe('ClaudeComputerUseClient', () => {
   describe('analyze', () => {
     it('parses tool_use actions into browser actions', async () => {
       mockFetch.mockResolvedValueOnce(
-        createJsonResponse({
+        fetchJsonResponse({
           id: 'msg-1',
           type: 'message',
           role: 'assistant',
@@ -129,7 +102,7 @@ describe('ClaudeComputerUseClient', () => {
       expect(result.goalAchieved).toBe(false);
       expect(result.tokensUsed.totalTokens).toBe(15);
 
-      const body = getRequestBody();
+      const body = getFetchRequestBodyJson(mockFetch);
       expect(body.model).toBe('anthropic/claude-sonnet-4-20250514');
       expect(body.tools).toEqual([
         expect.objectContaining({
@@ -143,7 +116,7 @@ describe('ClaudeComputerUseClient', () => {
 
     it('marks goal achieved when reasoning indicates completion', async () => {
       mockFetch.mockResolvedValueOnce(
-        createJsonResponse({
+        fetchJsonResponse({
           id: 'msg-2',
           type: 'message',
           role: 'assistant',
@@ -168,7 +141,7 @@ describe('ClaudeComputerUseClient', () => {
 
     it('defaults to wait when no tool use or completion signal is present', async () => {
       mockFetch.mockResolvedValueOnce(
-        createJsonResponse({
+        fetchJsonResponse({
           id: 'msg-3',
           type: 'message',
           role: 'assistant',
@@ -188,7 +161,7 @@ describe('ClaudeComputerUseClient', () => {
 
     it('includes proper image media types in the request', async () => {
       mockFetch.mockResolvedValueOnce(
-        createJsonResponse({
+        fetchJsonResponse({
           id: 'msg-4',
           type: 'message',
           role: 'assistant',
@@ -209,7 +182,7 @@ describe('ClaudeComputerUseClient', () => {
       const client = new ClaudeComputerUseClient(validConfig);
       await client.analyze(validRequest);
 
-      const body = getRequestBody();
+      const body = getFetchRequestBodyJson(mockFetch);
       const messages = body.messages as Array<{ content: Array<{ type: string; source?: { media_type?: string } }> }>;
       const imageTypes = messages
         .flatMap((message) => message.content)
@@ -223,7 +196,7 @@ describe('ClaudeComputerUseClient', () => {
 
     it('throws on API error responses', async () => {
       mockFetch.mockResolvedValueOnce(
-        createTextResponse(JSON.stringify({ error: { message: 'bad key' } }), 401)
+        fetchTextResponse(JSON.stringify({ error: { message: 'bad key' } }), 401)
       );
 
       const client = new ClaudeComputerUseClient(validConfig);
@@ -236,7 +209,7 @@ describe('ClaudeComputerUseClient', () => {
 
     it('throws on context-too-long errors', async () => {
       mockFetch.mockResolvedValueOnce(
-        createTextResponse(JSON.stringify({ error: { message: 'context length exceeded' } }), 400)
+        fetchTextResponse(JSON.stringify({ error: { message: 'context length exceeded' } }), 400)
       );
 
       const client = new ClaudeComputerUseClient(validConfig);
@@ -249,7 +222,7 @@ describe('ClaudeComputerUseClient', () => {
 
     it('throws when API returns error payload', async () => {
       mockFetch.mockResolvedValueOnce(
-        createJsonResponse({
+        fetchJsonResponse({
           id: 'msg-5',
           type: 'message',
           role: 'assistant',

@@ -183,6 +183,42 @@ Validation for this slice:
 - `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit/utils/metrics-server.test.ts --runInBand --coverage=false` passed.
 - `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit --runInBand --coverage=false` passed: 92 suites and 1179 tests.
 
+Implemented in the driver fetch-helper slice:
+
+- Added `playwright-driver/tests/helpers/fetch-mocks.ts` with canonical global fetch installation, JSON/text response builders, and request-body/header inspection helpers.
+- Migrated vision-client and record-mode callback route tests away from direct `global.fetch` assignment and file-local `new Response` builders:
+  - `tests/unit/ai/vision-client/openrouter.test.ts`
+  - `tests/unit/ai/vision-client/claude-computer-use.test.ts`
+  - `tests/unit/routes/page-events.test.ts`
+  - `tests/unit/routes/recording-pages.test.ts`
+- A unit-test source scan now finds no remaining direct `global.fetch =`, `globalThis.fetch =`, or `new Response` patterns under `playwright-driver/tests/unit`.
+
+Validation for this slice:
+
+- `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit/ai/vision-client/openrouter.test.ts tests/unit/ai/vision-client/claude-computer-use.test.ts tests/unit/routes/page-events.test.ts tests/unit/routes/recording-pages.test.ts --runInBand --coverage=false` passed: 4 suites and 44 tests.
+- `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit --runInBand --coverage=false` passed: 92 suites and 1179 tests.
+
+Implemented in the driver session state-machine coverage slice:
+
+- Added focused contract coverage for `playwright-driver/src/session/state-machine.ts` in `tests/unit/session/state-machine.test.ts`.
+- The test locks the full valid-transition table, closeability contract, fail-safe invalid-transition behavior, strict invalid-transition errors, and phase predicates for operational/busy/terminal/instruction-accepting states.
+
+Validation for this slice:
+
+- `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit/session/state-machine.test.ts --runInBand --coverage=false` passed: 1 suite and 6 tests.
+
+Implemented in the driver record-mode route coverage slice:
+
+- Added focused HTTP contract coverage for `playwright-driver/src/routes/record-mode/recording-validation.ts` in `tests/unit/routes/recording-validation.test.ts`.
+- The validation tests cover selector request validation, selector-result response mapping, replay-preview request validation, default replay option mapping, explicit replay option overrides, and snake_case replay failure responses.
+- Added focused lifecycle coverage for `playwright-driver/src/routes/record-mode/recording-lifecycle.ts` in `tests/unit/routes/recording-lifecycle.test.ts`.
+- The lifecycle tests cover status response mapping, idle status without a pipeline manager, idempotent stop no-ops, active stop cleanup, and session phase reset behavior.
+
+Validation for this slice:
+
+- `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit/routes/recording-validation.test.ts tests/unit/routes/recording-lifecycle.test.ts --runInBand --coverage=false` passed: 2 suites and 9 tests.
+- `cd scenarios/browser-automation-studio/playwright-driver && pnpm jest tests/unit --runInBand --coverage=false` passed: 95 suites and 1194 tests.
+
 Implemented in the API recording fixture slice:
 
 - Added `api/internal/testutil/fixtures` with canonical builders for recording sessions, timeline entries, recording actions, page events, and session profiles.
@@ -409,7 +445,7 @@ Only after phases 2-6:
 2. Set realistic ratchets:
 
    - API: raise warning/error thresholds only if full `go test ./... -coverprofile` confirms stable gains.
-   - Driver: preserve or improve the current 66% line coverage; add file-level attention to recording/session/router low points.
+- Driver: preserve or improve the current 66% line coverage; add file-level attention to recording/session/router low points. `utils/timing`, `utils/metrics-server`, `session/state-machine`, `routes/record-mode/recording-validation`, and `routes/record-mode/recording-lifecycle` now have focused unit coverage.
    - UI: raise from the current 10% line coverage in small increments after the test runner actually covers all intended projects.
 
 3. Add explicit smoke/full distinction if full UI tests are too expensive for default scenario tests.
@@ -453,6 +489,7 @@ cd scenarios/browser-automation-studio && vrooli scenario requirements report br
 - [x] Go production import boundary meta-test exists and passes.
 - [ ] Repeated API mocks and fixtures are migrated or intentionally left local with rationale. Import scan/routines fakes are migrated; tool-execution now uses shared workflow service fakes; recording/session fixtures now exist for service-level tests; persistence recording tests remain local to avoid an import cycle; handler fakes remain local because they are broad stateful harnesses coupled to handler tests. Optional integration skip helpers now cover Playwright, Ollama, MinIO, and FFmpeg gates.
 - [x] Playwright-driver test helpers are documented and split by responsibility.
+- [x] Repeated Playwright-driver fetch/API test setup is centralized. Vision-client and record-mode callback route unit tests now use `tests/helpers/fetch-mocks.ts`; no unit tests directly assign global fetch or construct ad hoc `Response` objects.
 - [x] Driver ts-jest warnings are addressed.
 - [x] Driver logger noise is addressed or explicitly documented.
 - [ ] UI `src/test-utils` has canonical render, mock, store, and fixture helpers. Render, hook, browser mock, fetch mock, workflow fixture, ReactFlow/Monaco shim, and store mock layers exist; project/scenario/workflow/entitlement store tests, `ProjectDetail`, and recording viewport sync tests now use the shared fetch seam; assertion helpers and wider fixture/assertion migration remain.

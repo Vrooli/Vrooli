@@ -46,11 +46,17 @@ The helper boundary is enforced by `tests/unit/boundaries/no-prod-testutil-impor
 |------|------|---------|
 | `playwright-mocks.ts` | Browser object fakes | `Page`, `Browser`, `BrowserContext`, `Frame`, request/response, recording initializer mocks |
 | `http-mocks.ts` | HTTP route harness | Incoming request body streams, response body capture, route assertions |
+| `fetch-mocks.ts` | Fetch/API harness | Global fetch installation, JSON/text responses, request body/header inspection |
 | `instruction-factory.ts` | Action/proto builders | Typed `HandlerInstruction` setup for handler tests |
 | `test-config.ts` | Config fixture | Deterministic driver config with deep partial overrides |
 | `index.ts` | Compatibility barrel | Existing test imports while helpers remain file-scoped by responsibility |
 
 New helpers should be added only for recurring seams. One-off fakes stay local to the test file.
+
+Current route-contract coverage uses this helper boundary for deterministic HTTP tests:
+
+- `tests/unit/routes/recording-validation.test.ts` covers selector validation and replay-preview request/response mapping.
+- `tests/unit/routes/recording-lifecycle.test.ts` covers recording status, idempotent stop, cleanup, and session phase reset behavior.
 
 ## Seam 1: Infrastructure Module (NEW)
 

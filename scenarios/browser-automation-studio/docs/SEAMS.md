@@ -50,7 +50,9 @@ This document catalogs the architectural seams in browser-automation-studio for 
 
 **Status:** Good
 - The import boundary is now covered by the driver unit suite.
-- `tests/helpers/README.md` and `playwright-driver/docs/internal/SEAMS.md` document the current helper responsibilities: Playwright object fakes, HTTP mocks, typed instruction builders, config fixtures, and the compatibility barrel.
+- `tests/helpers/README.md` and `playwright-driver/docs/internal/SEAMS.md` document the current helper responsibilities: Playwright object fakes, HTTP mocks, fetch/API response helpers, typed instruction builders, config fixtures, and the compatibility barrel.
+- `tests/helpers/fetch-mocks.ts` now centralizes global fetch installation, JSON/text response builders, and request inspection for vision-client and record-mode callback route tests. New unit tests should use it instead of assigning `global.fetch` or constructing ad hoc `Response` objects.
+- Record-mode route tests now use the shared HTTP route harness to cover validation and lifecycle contracts without launching a browser. `recording-validation.test.ts` locks selector and replay-preview response mapping; `recording-lifecycle.test.ts` locks status and stop idempotency/cleanup behavior.
 - Session, recording, and telemetry builders should be added only when those seams recur across tests.
 
 ### 3. UI Test Utilities (Enforced)

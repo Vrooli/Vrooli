@@ -6,6 +6,7 @@ This directory is the Playwright-driver testutil layer. It is test-only infrastr
 
 - `playwright-mocks.ts`: Playwright object fakes for `Page`, `Browser`, `BrowserContext`, `Frame`, request/response objects, and recording initialization.
 - `http-mocks.ts`: Node HTTP request/response harnesses for route and body-parser tests.
+- `fetch-mocks.ts`: global `fetch` installation, JSON/text response builders, and request-body/header readers for callback and vision-client tests.
 - `instruction-factory.ts`: typed instruction/action builders. Prefer `createTypedInstruction` for new handler tests; `createTestInstruction` remains for compatibility with legacy plain-params paths.
 - `test-config.ts`: deterministic driver config fixture with deep partial overrides.
 - `index.ts`: compatibility barrel for existing tests.
