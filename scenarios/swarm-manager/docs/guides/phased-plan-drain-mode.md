@@ -57,7 +57,7 @@ Rules:
 - Progress parsing: [CODE: api/internal/operatingmode/progress.go]
 - Round persistence: [CODE: api/internal/operatingmode/rounds.go]
 - Backlog reconciliation audit: [CODE: api/internal/operatingmode/backlog_reconciler.go]
-- Workspace rendering: [CODE: ui/src/components/initiative/operating-mode/phase-controls.tsx]
+- Workspace rendering: [CODE: ui/src/components/initiative/operating-mode/phase-composer.tsx]
 
 ## Validation Checklist
 

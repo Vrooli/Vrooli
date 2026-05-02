@@ -30,8 +30,13 @@ import type {
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
   OperatingModePhaseTransition,
+  OperatingModeRound,
 } from "../../../types/operating-mode";
 import { PhaseNode, type PhaseNodeData, type PhaseNodeType } from "./phase-node";
+
+export interface PhaseStateMap {
+  [phase: string]: { startable?: boolean; reason?: string; isNext?: boolean };
+}
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 76;
@@ -48,15 +53,24 @@ interface PhaseGraphProps {
   entry: OperatingModeCatalogEntry;
   selectedPhaseId?: string | null;
   onSelectPhase?: (phase: string) => void;
+  /** Composer mode adds startable/reason/runCount affordances and disables click on non-startable phases. */
+  mode?: "details" | "composer";
+  /** Round counts per phase. Renders a small badge on each node when provided. */
+  rounds?: OperatingModeRound[];
+  /** Per-phase startable/reason/next data, sourced from the workspace endpoint in composer mode. */
+  phaseStates?: PhaseStateMap;
 }
 
 interface BuildArgs {
   phases: OperatingModeCatalogPhase[];
   transitions: OperatingModePhaseTransition[];
   selectedPhaseId?: string | null;
+  mode?: "details" | "composer";
+  roundsByPhase?: Map<string, number>;
+  phaseStates?: PhaseStateMap;
 }
 
-function buildGraph({ phases, transitions, selectedPhaseId }: BuildArgs): { nodes: PhaseNodeType[]; edges: Edge[] } {
+function buildGraph({ phases, transitions, selectedPhaseId, mode, roundsByPhase, phaseStates }: BuildArgs): { nodes: PhaseNodeType[]; edges: Edge[] } {
   const nodes: PhaseNodeType[] = phases.map((phase) => ({
     id: phase.phase,
     type: "phase",
@@ -68,6 +82,11 @@ function buildGraph({ phases, transitions, selectedPhaseId }: BuildArgs): { node
       isTerminal: !!phase.isTerminal,
       writesRepo: phase.writesRepo,
       selected: selectedPhaseId === phase.phase,
+      mode,
+      startable: phaseStates?.[phase.phase]?.startable,
+      reason: phaseStates?.[phase.phase]?.reason,
+      isNext: phaseStates?.[phase.phase]?.isNext,
+      runCount: roundsByPhase?.get(phase.phase),
     },
   }));
 
@@ -124,11 +143,18 @@ const EDGE_LEGEND: Array<{ color: string; label: string }> = [
   { color: "#22d3ee", label: "progress decision" },
 ];
 
-export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase }: PhaseGraphProps) {
+export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds, phaseStates }: PhaseGraphProps) {
   const transitions = useMemo(() => entry.phaseGraph?.transitions ?? [], [entry.phaseGraph]);
+  const roundsByPhase = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const round of rounds ?? []) {
+      map.set(round.phase, (map.get(round.phase) ?? 0) + 1);
+    }
+    return map;
+  }, [rounds]);
   const { nodes: layoutedNodes, edges: builtEdges } = useMemo(
-    () => buildGraph({ phases: entry.phases, transitions, selectedPhaseId }),
-    [entry.phases, transitions, selectedPhaseId],
+    () => buildGraph({ phases: entry.phases, transitions, selectedPhaseId, mode, roundsByPhase, phaseStates }),
+    [entry.phases, transitions, selectedPhaseId, mode, roundsByPhase, phaseStates],
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<PhaseNodeType>(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(builtEdges);
@@ -173,7 +199,10 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase }: PhaseGraph
             nodeTypes={NODE_TYPES}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onNodeClick={(_, node) => onSelectPhase?.(node.id)}
+            onNodeClick={(_, node) => {
+              if (mode === "composer" && (node.data as PhaseNodeData | undefined)?.startable === false) return;
+              onSelectPhase?.(node.id);
+            }}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable

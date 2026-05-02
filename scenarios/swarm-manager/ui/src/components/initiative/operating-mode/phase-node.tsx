@@ -16,11 +16,20 @@ export interface PhaseNodeData extends Record<string, unknown> {
   isTerminal: boolean;
   writesRepo: boolean;
   selected: boolean;
+  // composer mode extras — undefined when rendered in details mode
+  mode?: "details" | "composer";
+  startable?: boolean;
+  reason?: string;
+  runCount?: number;
+  isNext?: boolean;
 }
 
 export type PhaseNodeType = Node<PhaseNodeData, "phase">;
 
 export function PhaseNode({ data }: NodeProps<PhaseNodeType>) {
+  const isComposer = data.mode === "composer";
+  const isDisabled = isComposer && data.startable === false;
+
   const ringClass = data.selected
     ? "ring-2 ring-cyan-400/80"
     : data.isStart
@@ -34,13 +43,20 @@ export function PhaseNode({ data }: NodeProps<PhaseNodeType>) {
       className={cn(
         "min-w-[140px] rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 text-left shadow-md backdrop-blur-sm",
         ringClass,
+        isDisabled && "opacity-50",
       )}
+      title={isDisabled ? data.reason : undefined}
     >
       <Handle type="target" position={Position.Top} className="!bg-slate-500" />
       <div className="flex items-center gap-2">
         <p className="text-sm font-semibold text-slate-100">{data.title}</p>
         {data.writesRepo && (
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="writes repo" />
+        )}
+        {isComposer && typeof data.runCount === "number" && data.runCount > 0 && (
+          <span className="ml-auto rounded-full bg-slate-700/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-200" aria-label="round count">
+            {data.runCount}
+          </span>
         )}
       </div>
       <code className="mt-0.5 block text-[10px] font-mono text-slate-400">{data.phase}</code>
@@ -53,6 +69,11 @@ export function PhaseNode({ data }: NodeProps<PhaseNodeType>) {
         {data.isTerminal && (
           <span className="rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-medium text-violet-300">
             terminal
+          </span>
+        )}
+        {isComposer && data.isNext && data.startable !== false && (
+          <span className="rounded-full bg-cyan-500/15 px-1.5 py-0.5 text-[9px] font-medium text-cyan-300">
+            next
           </span>
         )}
       </div>

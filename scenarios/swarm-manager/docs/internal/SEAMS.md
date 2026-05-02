@@ -316,6 +316,9 @@ back into one service file.
 - **Classification/readiness helpers**: Holistic readiness and phased-plan progress classification are parsed/validated in `operatingmode`; UI and runner code should not duplicate accepted dimension or decision enums.
 - **Capability rule**: The backend declares capabilities on catalog and workspace responses. UI and CLI rendering must use those capabilities and phase actions instead of inferring support from mode names or local phase-shape guesses.
 - **UI round view-model rule**: The UI service owns wire normalization and `ui/src/components/initiative/operating-mode/round-view-model.ts` owns operating-mode round payload interpretation for cards. React components must not reach into `round.payload` for backlog-sync plans, applied-sync state, mutation defaults, or action availability; they render the view model and call service callbacks.
+- **Operating mode card rule**: The mode-card shape (label, usage badge, description, scope·strategy line) is a single composite — `ui/src/components/initiative/operating-mode/operating-mode-card.tsx`. The sidebar `OperatingModesTab` and the panel's `ModePickerDialog` both consume it. New surfaces that need to render a mode card (linked-initiative cards on the details page, future picker variants) reuse this composite rather than reproducing the shape inline.
+- **Operating mode panel chrome rule**: The runtime control surface in `ui/src/components/initiative/operating-mode-panel.tsx` is composition-only. Each subsection (`OperatingModeHero`, `AcceptanceCriteriaEditor`, `PhaseComposer`, `ArtifactList`, `RoundTimeline`, `ItemLevelEmptyState`, `ModePickerDialog`) is rendered or hidden by **capability flags** from `workspace.definition.capabilities` — no mode-name string checks. Adding a new mode server-side automatically renders the right surfaces if its capabilities are set correctly.
+- **Phase composer envelope rule**: `ui/src/components/initiative/operating-mode/phase-composer-envelope.ts` defines the XML envelope (`<phase_request>` with `<phase>`, `<selection>`, `<requested_actions>`, `<user_note>` blocks) embedded in the `note` string sent to `POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/start`. The wire shape stays a plain string; the envelope wraps the string contents. Skill prompts that consume `OPERATOR_NOTE` parse the envelope opportunistically — empty action and selection blocks signal raw-note-only. Quick-action keys (`continue_from_prior`, `reset_and_reinvestigate`, `focus_on_items`, `skip_unblock`, `tighten_scope`, `expand_scope`) are stable identifiers; do not rename without updating the operating-mode skill.
 
 **Code boundary map:**
 
@@ -342,8 +345,16 @@ back into one service file.
 | [CODE: ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx] | Focused backlog proposal selection/apply control for round cards |
 | [CODE: ui/src/components/initiative/operating-mode/round-card.tsx] | Presentation shell for round status, summary, handoffs, timestamps, and delegated action slots |
 | [CODE: api/routes_operating_mode.go] | HTTP adapters between route wiring and narrow operating-mode interfaces |
-| [CODE: ui/src/components/initiative/operating-mode-panel.tsx] | Composition-only operating-mode panel |
-| [CODE: ui/src/components/initiative/operating-mode/use-operating-mode-workspace.ts] | React Query workspace orchestration and mutations |
+| [CODE: ui/src/components/initiative/operating-mode-panel.tsx] | Composition-only operating-mode panel; capability-gated subsection rendering |
+| [CODE: ui/src/components/initiative/operating-mode/use-operating-mode-workspace.ts] | React Query workspace orchestration, mutations, and phase-composer envelope assembly |
+| [CODE: ui/src/components/initiative/operating-mode/operating-mode-card.tsx] | Shared mode-card composite; sole source of mode-card rendering |
+| [CODE: ui/src/components/initiative/operating-mode/operating-mode-hero.tsx] | Panel hero with current-mode summary and Switch button |
+| [CODE: ui/src/components/initiative/operating-mode/mode-picker-dialog.tsx] | Rich switcher dialog (card grid + compare panel + override ack) |
+| [CODE: ui/src/components/initiative/operating-mode/mode-compare-panel.tsx] | Current-vs-selected capability deltas |
+| [CODE: ui/src/components/initiative/operating-mode/phase-composer.tsx] | Phase chip composer (graph + chip row + item picker + note) |
+| [CODE: ui/src/components/initiative/operating-mode/phase-composer-envelope.ts] | XML envelope contract embedded in the phase-start `note` string |
+| [CODE: ui/src/components/initiative/operating-mode/acceptance-criteria-editor.tsx] | Capability-gated criteria editor with parsed preview and common-criteria chips |
+| [CODE: ui/src/components/initiative/operating-mode/item-level-empty-state.tsx] | Useful empty state for `usesItemExecutionFlow=true` modes |
 
 **Decision boundaries:**
 

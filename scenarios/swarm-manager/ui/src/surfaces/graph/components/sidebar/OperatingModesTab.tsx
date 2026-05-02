@@ -11,6 +11,7 @@ import { Layers } from "lucide-react";
 import { matchesSearch } from "./useSidebarSearch";
 import { initiativeModeService } from "../../../../services";
 import type { OperatingModeCatalogEntry } from "../../../../types/operating-mode";
+import { OperatingModeCard } from "../../../../components/initiative/operating-mode/operating-mode-card";
 
 interface OperatingModesTabProps {
   searchQuery: string;
@@ -62,29 +63,13 @@ export function OperatingModesTab({ searchQuery, onItemClick }: OperatingModesTa
   return (
     <div className="space-y-1.5">
       {filtered.map((mode) => (
-        <button
+        <OperatingModeCard
           key={mode.mode}
-          type="button"
+          mode={mode}
+          compact
           onClick={() => onItemClick(`operatingMode/${mode.mode}`)}
-          className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
           data-testid="sidebar-operating-mode-item"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-100">
-              {mode.label}
-            </p>
-            <span className="shrink-0 rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium text-slate-300">
-              {mode.usageCount} init.
-            </span>
-          </div>
-          {mode.description && (
-            <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">{mode.description}</p>
-          )}
-          <p className="mt-1 text-[11px] text-slate-500">
-            {mode.scopeKind} · {mode.runStrategy}
-            {mode.default ? " · default" : ""}
-          </p>
-        </button>
+        />
       ))}
     </div>
   );

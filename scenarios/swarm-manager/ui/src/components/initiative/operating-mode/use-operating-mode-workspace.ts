@@ -3,7 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { initiativeModeService, initiativeService } from "../../../services";
 import type { Initiative, InitiativeOperatingMode } from "../../../types";
 import type { OperatingModeRound } from "../../../types/operating-mode";
-import { activeRound } from "./utils";
+import { activeRound, parseAcceptanceCriteria, serializeAcceptanceCriteria } from "./utils";
+import {
+  buildPhaseEnvelope,
+  type PhaseQuickActionKey,
+} from "./phase-composer-envelope";
 
 export function useOperatingModeWorkspace({
   initiative,
@@ -13,16 +17,31 @@ export function useOperatingModeWorkspace({
   onInitiativeUpdated: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [selectedMode, setSelectedMode] = useState<InitiativeOperatingMode>(initiative.mode ?? "item-level");
-  const [criteriaText, setCriteriaText] = useState((initiative.acceptanceCriteria ?? []).join("\n"));
-  const [phaseNote, setPhaseNote] = useState("");
-  const [confirmItemCancellation, setConfirmItemCancellation] = useState(false);
+  const [criteriaText, setCriteriaText] = useState(serializeAcceptanceCriteria(initiative.acceptanceCriteria ?? []));
+
+  // Phase composer state. Replaces the prior plain-string `phaseNote` so
+  // chip + item-picker selections compose into the envelope sent as the
+  // server-side `note` field. The composer is envelope-agnostic — it
+  // hands raw note text up via onStart; this hook composes the envelope.
+  const [pendingPhase, setPendingPhase] = useState<string | null>(null);
+  const [selectedActions, setSelectedActions] = useState<Set<PhaseQuickActionKey>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [composerNote, setComposerNote] = useState("");
 
   useEffect(() => {
-    setSelectedMode(initiative.mode ?? "item-level");
-    setCriteriaText((initiative.acceptanceCriteria ?? []).join("\n"));
-    setConfirmItemCancellation(false);
-  }, [initiative.acceptanceCriteria, initiative.mode]);
+    setCriteriaText(serializeAcceptanceCriteria(initiative.acceptanceCriteria ?? []));
+  }, [initiative.acceptanceCriteria]);
+
+  // Reset transient composer state on initiative change so a half-composed
+  // start doesn't bleed into a different initiative.
+  useEffect(() => {
+    setPendingPhase(null);
+    setSelectedActions(new Set());
+    setSelectedItems(new Set());
+    setPickerOpen(false);
+    setComposerNote("");
+  }, [initiative.name, initiative.mode]);
 
   const workspaceQuery = useQuery({
     queryKey: ["initiative-operating-mode", initiative.name],
@@ -38,12 +57,12 @@ export function useOperatingModeWorkspace({
   };
 
   const modeMutation = useMutation({
-    mutationFn: (mode: InitiativeOperatingMode) => initiativeModeService.switchMode(initiative.name, {
-      mode,
-      cancelActiveItemExecutions: confirmItemCancellation,
-    }),
+    mutationFn: ({ mode, cancelActiveItemExecutions }: { mode: InitiativeOperatingMode; cancelActiveItemExecutions: boolean }) =>
+      initiativeModeService.switchMode(initiative.name, {
+        mode,
+        cancelActiveItemExecutions,
+      }),
     onSuccess: () => {
-      setConfirmItemCancellation(false);
       onInitiativeUpdated();
       invalidateWorkspace();
     },
@@ -51,18 +70,30 @@ export function useOperatingModeWorkspace({
 
   const criteriaMutation = useMutation({
     mutationFn: () => initiativeService.updateMetadata(initiative.name, {
-      acceptanceCriteria: criteriaText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
+      acceptanceCriteria: parseAcceptanceCriteria(criteriaText),
     }),
     onSuccess: onInitiativeUpdated,
   });
 
   const startMutation = useMutation({
-    mutationFn: (phase: string) => initiativeModeService.startPhase(initiative.name, phase, { note: phaseNote }),
+    mutationFn: ({ phase, note }: { phase: string; note: string }) => {
+      // Compose the envelope here (not in the composer) so any future wire
+      // changes are centralized. The skill consumes the note text — empty
+      // selection / actions blocks signal "raw note only".
+      const envelope = buildPhaseEnvelope({
+        phase,
+        items: [...selectedItems],
+        actions: [...selectedActions],
+        note,
+      });
+      return initiativeModeService.startPhase(initiative.name, phase, { note: envelope });
+    },
     onSuccess: () => {
-      setPhaseNote("");
+      setComposerNote("");
+      setSelectedActions(new Set());
+      setSelectedItems(new Set());
+      setPickerOpen(false);
+      setPendingPhase(null);
       invalidateWorkspace();
     },
   });
@@ -107,9 +138,6 @@ export function useOperatingModeWorkspace({
   const currentMode = initiative.mode ?? "item-level";
   const catalogModes = modeCatalogQuery.data?.modes ?? [];
   const currentModeEntry = catalogModes.find((mode) => mode.mode === currentMode);
-  const selectedModeEntry = catalogModes.find((mode) => mode.mode === selectedMode);
-  const switchingAwayFromItemExecutionFlow = Boolean(currentModeEntry?.capabilities.usesItemExecutionFlow) &&
-    !selectedModeEntry?.capabilities.usesItemExecutionFlow;
   const runningRound = useMemo(() => activeRound(workspace?.rounds ?? []), [workspace?.rounds]);
   const phaseBusy = startMutation.isPending ||
     refreshMutation.isPending ||
@@ -119,19 +147,24 @@ export function useOperatingModeWorkspace({
   const canRunPhases = Boolean(workspace?.definition.capabilities.canStartPhases) && !runningRound;
 
   return {
-    selectedMode,
-    setSelectedMode,
     criteriaText,
     setCriteriaText,
-    phaseNote,
-    setPhaseNote,
-    confirmItemCancellation,
-    setConfirmItemCancellation,
+    pendingPhase,
+    setPendingPhase,
+    selectedActions,
+    setSelectedActions,
+    selectedItems,
+    setSelectedItems,
+    pickerOpen,
+    setPickerOpen,
+    composerNote,
+    setComposerNote,
     workspaceQuery,
     modeCatalogQuery,
     workspace,
     currentMode,
-    switchingAwayFromItemLevel: switchingAwayFromItemExecutionFlow,
+    currentModeEntry,
+    catalogModes,
     runningRound,
     phaseBusy,
     canRunPhases,

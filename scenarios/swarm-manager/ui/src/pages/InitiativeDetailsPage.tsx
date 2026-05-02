@@ -971,6 +971,7 @@ export function InitiativeDetailsPage() {
         {activeTab === "mode" && (
           <OperatingModePanel
             initiative={initiative}
+            rollup={rollup}
             onInitiativeUpdated={() => {
               void refetch();
               void queryClient.invalidateQueries({ queryKey: ["initiatives"] });

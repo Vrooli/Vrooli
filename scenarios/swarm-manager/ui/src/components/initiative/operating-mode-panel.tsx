@@ -1,36 +1,61 @@
+// DOC: docs/internal/SEAMS.md#operating-mode-panel
+
+import { Activity, FileBox, FileText, History, Workflow } from "lucide-react";
 import { ErrorState } from "../ui/error-state";
 import { PageLoadingState } from "../ui/loading-states";
+import { DetailSection } from "../detail/DetailSection";
 import { selectors } from "../../consts/selectors";
-import type { Initiative } from "../../types";
+import type { Initiative, InitiativeRollup } from "../../types";
+import { useUrlState } from "../../hooks/use-url-state";
 import { AcceptanceCriteriaEditor } from "./operating-mode/acceptance-criteria-editor";
 import { ArtifactList } from "./operating-mode/artifact-list";
-import { ModeSwitchControl } from "./operating-mode/mode-switch-control";
-import { PhaseControls } from "./operating-mode/phase-controls";
+import { ItemLevelEmptyState } from "./operating-mode/item-level-empty-state";
+import { ModePickerDialog } from "./operating-mode/mode-picker-dialog";
+import { OperatingModeHero } from "./operating-mode/operating-mode-hero";
+import { PhaseComposer } from "./operating-mode/phase-composer";
 import { RoundTimeline } from "./operating-mode/round-timeline";
 import { useOperatingModeWorkspace } from "./operating-mode/use-operating-mode-workspace";
 
+type PickerState = "open" | "closed";
+
+const PICKER_PARAM_VALIDATE = (v: string): v is PickerState => v === "open" || v === "closed";
+
 export function OperatingModePanel({
   initiative,
+  rollup,
   onInitiativeUpdated,
 }: {
   initiative: Initiative;
+  rollup?: InitiativeRollup;
   onInitiativeUpdated: () => void;
 }) {
-  const workspaceState = useOperatingModeWorkspace({ initiative, onInitiativeUpdated });
+  const [pickerState, setPickerState] = useUrlState<PickerState>("modePicker", "closed", {
+    validate: PICKER_PARAM_VALIDATE,
+  });
+  const isPickerOpen = pickerState === "open";
+  const openPicker = () => setPickerState("open");
+  const closePicker = () => setPickerState("closed");
+
+  const ws = useOperatingModeWorkspace({ initiative, onInitiativeUpdated });
   const {
-    selectedMode,
-    setSelectedMode,
     criteriaText,
     setCriteriaText,
-    phaseNote,
-    setPhaseNote,
-    confirmItemCancellation,
-    setConfirmItemCancellation,
+    pendingPhase,
+    setPendingPhase,
+    selectedActions,
+    setSelectedActions,
+    selectedItems,
+    setSelectedItems,
+    pickerOpen: itemPickerOpen,
+    setPickerOpen: setItemPickerOpen,
+    composerNote,
+    setComposerNote,
     workspaceQuery,
     modeCatalogQuery,
     workspace,
     currentMode,
-    switchingAwayFromItemLevel,
+    currentModeEntry,
+    catalogModes,
     runningRound,
     phaseBusy,
     canRunPhases,
@@ -41,30 +66,19 @@ export function OperatingModePanel({
     cancelMutation,
     completeItemsMutation,
     applyBacklogSyncMutation,
-  } = workspaceState;
+  } = ws;
+
+  const capabilities = workspace?.definition.capabilities;
+
+  const items = (initiative.items ?? []).map((ref) => ({ ref, title: ref }));
 
   return (
-    <div className="space-y-5" data-testid={selectors.initiativeDetails.modePanel}>
-      <ModeSwitchControl
+    <div className="space-y-2" data-testid={selectors.initiativeDetails.modePanel}>
+      <OperatingModeHero
         currentMode={currentMode}
-        selectedMode={selectedMode}
-        confirmItemCancellation={confirmItemCancellation}
-        switchingAwayFromItemLevel={switchingAwayFromItemLevel}
-        isPending={modeMutation.isPending}
-        error={modeMutation.error}
-        catalogModes={modeCatalogQuery.data?.modes ?? []}
-        catalogLoading={modeCatalogQuery.isLoading}
-        catalogError={modeCatalogQuery.error}
-        onSelectedModeChange={setSelectedMode}
-        onConfirmItemCancellationChange={setConfirmItemCancellation}
-        onSave={() => modeMutation.mutate(selectedMode)}
-      />
-
-      <AcceptanceCriteriaEditor
-        value={criteriaText}
-        isPending={criteriaMutation.isPending}
-        onChange={setCriteriaText}
-        onSave={() => criteriaMutation.mutate()}
+        catalogEntry={currentModeEntry}
+        runningRound={runningRound}
+        onSwitchClick={openPicker}
       />
 
       {workspaceQuery.isLoading && <PageLoadingState label="Loading mode workspace..." />}
@@ -76,40 +90,98 @@ export function OperatingModePanel({
         />
       )}
 
-      {workspace && !workspace.definition.capabilities.supportsPhases && (
-        <div className="rounded-lg border border-slate-800/80 bg-slate-900/55 p-4 text-sm text-slate-400">
-          This mode uses the existing backlog item execution and review flow. Switch to a phase-capable mode to run initiative-scoped phases.
-        </div>
+      {capabilities?.requiresAcceptanceCriteria && (
+        <DetailSection title="Acceptance Criteria" icon={FileText}>
+          <AcceptanceCriteriaEditor
+            value={criteriaText}
+            saved={initiative.acceptanceCriteria ?? []}
+            isPending={criteriaMutation.isPending}
+            onChange={setCriteriaText}
+            onSave={() => criteriaMutation.mutate()}
+          />
+        </DetailSection>
       )}
 
-      {workspace && workspace.definition.capabilities.supportsPhases && (
-        <>
-          <PhaseControls
+      {capabilities?.usesItemExecutionFlow && (
+        <DetailSection title="How Item-Level Works" icon={Workflow} hideDivider>
+          <ItemLevelEmptyState
+            initiative={initiative}
+            rollup={rollup}
+            workspace={workspace}
+            onSwitchClick={openPicker}
+          />
+        </DetailSection>
+      )}
+
+      {capabilities?.supportsPhases && currentModeEntry && workspace && (
+        <DetailSection title="Start a Phase" icon={Activity} hideDivider>
+          <PhaseComposer
+            catalogEntry={currentModeEntry}
             workspace={workspace}
             runningRound={runningRound}
-            phaseNote={phaseNote}
-            canRunPhases={canRunPhases}
+            items={items}
+            pendingPhase={pendingPhase}
+            onPendingPhaseChange={setPendingPhase}
+            selectedActions={selectedActions}
+            onSelectedActionsChange={setSelectedActions}
+            selectedItems={selectedItems}
+            onSelectedItemsChange={setSelectedItems}
+            pickerOpen={itemPickerOpen}
+            onPickerOpenChange={setItemPickerOpen}
+            note={composerNote}
+            onNoteChange={setComposerNote}
             phaseBusy={phaseBusy}
+            canRunPhases={canRunPhases}
             startError={startMutation.error}
-            completeItemsError={completeItemsMutation.error}
-            applyBacklogSyncError={applyBacklogSyncMutation.error}
-            onPhaseNoteChange={setPhaseNote}
-            onStartPhase={(phase) => startMutation.mutate(phase)}
+            onStart={(phase, note) => startMutation.mutate({ phase, note })}
           />
+        </DetailSection>
+      )}
 
+      {capabilities?.supportsArtifacts && capabilities?.supportsPhases && workspace && (
+        <DetailSection title="Artifacts" icon={FileBox}>
           <ArtifactList artifacts={workspace.artifacts} />
+        </DetailSection>
+      )}
 
+      {capabilities?.supportsPhases && workspace && (
+        <DetailSection title="Rounds" icon={History}>
           <RoundTimeline
             rounds={workspace.rounds}
-            capabilities={workspace.definition.capabilities}
+            capabilities={capabilities}
             busy={phaseBusy}
             onRefresh={(target) => refreshMutation.mutate(target)}
             onCancel={(target) => cancelMutation.mutate(target)}
-            onCompleteItems={(target, itemRefs) => completeItemsMutation.mutate({ round: target, itemRefs })}
-            onApplyBacklogSync={(target, mutationIds) => applyBacklogSyncMutation.mutate({ round: target, mutationIds })}
+            onCompleteItems={(target, itemRefs) =>
+              completeItemsMutation.mutate({ round: target, itemRefs })
+            }
+            onApplyBacklogSync={(target, mutationIds) =>
+              applyBacklogSyncMutation.mutate({ round: target, mutationIds })
+            }
           />
-        </>
+        </DetailSection>
       )}
+
+      <ModePickerDialog
+        isOpen={isPickerOpen}
+        onClose={closePicker}
+        currentMode={currentMode}
+        catalog={catalogModes}
+        catalogLoading={modeCatalogQuery.isLoading}
+        catalogError={modeCatalogQuery.error}
+        isMutating={modeMutation.isPending}
+        mutationError={modeMutation.error}
+        onConfirm={(mode, cancelActiveItemExecutions) => {
+          modeMutation.mutate(
+            { mode, cancelActiveItemExecutions },
+            {
+              onSuccess: () => {
+                closePicker();
+              },
+            },
+          );
+        }}
+      />
     </div>
   );
 }

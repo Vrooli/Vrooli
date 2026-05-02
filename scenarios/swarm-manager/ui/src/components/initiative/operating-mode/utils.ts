@@ -1,8 +1,48 @@
 import { formatDisplayText } from "../../../lib/format-utils";
-import type { OperatingModeRound } from "../../../types/operating-mode";
+import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 
 export function activeRound(rounds: OperatingModeRound[]): OperatingModeRound | undefined {
   return rounds.find((round) => round.status === "reserved" || round.status === "agent_running");
+}
+
+// parseAcceptanceCriteria splits a user-edited text blob into the canonical
+// list shape the API expects: trimmed lines with empty entries removed.
+// Lives here (not inline in the workspace hook) so the parsed-preview UI and
+// the save mutation cannot drift apart.
+export function parseAcceptanceCriteria(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+export function serializeAcceptanceCriteria(criteria: string[]): string {
+  return criteria.join("\n");
+}
+
+// capabilityLabel translates a capability flag to operator-facing copy.
+// Used by the mode-compare panel to render deltas. Explicit switch (not a
+// lookup map) so adding a new capability without updating this label fails
+// at type-check time.
+export function capabilityLabel(flag: keyof OperatingModeCapabilities): string {
+  switch (flag) {
+    case "supportsPhases":
+      return "Phase graph";
+    case "canStartPhases":
+      return "Phase start controls";
+    case "canCompleteItems":
+      return "Mark items complete from rounds";
+    case "canApplyBacklogSyncProposals":
+      return "Apply backlog sync proposals";
+    case "requiresAcceptanceCriteria":
+      return "Requires acceptance criteria";
+    case "supportsArtifacts":
+      return "Phase artifacts";
+    case "supportsHandoffs":
+      return "Round handoffs";
+    case "usesItemExecutionFlow":
+      return "Existing item execution flow";
+  }
 }
 
 export function modeLabel(mode: string, label?: string): string {

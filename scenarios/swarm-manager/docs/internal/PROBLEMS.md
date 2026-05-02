@@ -8,7 +8,25 @@ This document tracks known issues, technical debt, and stability concerns for th
 
 No known open issues at this time.
 
+## Deferred — operating-mode panel
+
+The operating-mode panel rework (2026-05-02) explicitly deferred a few API-side improvements that would have polished UX further. They are tracked here so the next iteration sees them:
+
+1. **Optimistic concurrency on mode-switch.** `POST /api/v1/initiatives/{name}/operating-mode/switch` is last-write-wins. Adding an optional `expected_from_mode` field to the request body would let the picker dialog reject stale switches.
+2. **Server-computed switch deltas.** The picker derives capability deltas client-side from before/after catalog entries. Exposing a `preview_deltas` field on `SwitchModeResult` (or a dedicated `POST /switch/preview` endpoint) would let the server be the source of truth for "what will change".
+3. **In-flight item executions on the workspace endpoint.** `ItemLevelEmptyState` shows in-flight count from `InitiativeRollup.inProgress` (already piped through). For modes where the rollup isn't available, a richer `OperatingModeWorkspace.activeItemExecutions[]` field would unblock the same display.
+
 ## Recently Resolved
+
+### Operating Mode Panel Polish (2026-05-02)
+
+**Problem**: The `OperatingModePanel` rendered five inline cards with no `DetailSection` chrome, used a native `<select>` discarding 90% of catalog data, kept Acceptance Criteria visible regardless of `requiresAcceptanceCriteria`, hid phase metadata in `title=""` tooltips, never embedded the existing `<PhaseGraph>`, and showed a single gray sentence for the most-seen state (item-level). Six of eight `OperatingModeCapabilities` flags (`canStartPhases`, `canApplyBacklogSyncProposals`, `requiresAcceptanceCriteria`, `supportsArtifacts`, `supportsHandoffs`, `usesItemExecutionFlow`) were dead in the UI.
+
+**Resolution**: Greenfield rewrite of the panel surface: `OperatingModeHero`, `ModePickerDialog` (rich card grid + compare panel + override ack), `PhaseComposer` (embedded `PhaseGraph` + chip row + collapsible item picker + free-form note → XML envelope), capability-gated `AcceptanceCriteriaEditor` with parsed preview and common-criteria chips, and `ItemLevelEmptyState` with explainer + stats. Extracted shared `OperatingModeCard` composite (sidebar + picker reuse). Deleted `mode-switch-control.tsx` and `phase-controls.tsx`. All eight capability flags now drive UI gating.
+
+**Plan reference**: `~/.claude/plans/i-think-doing-both-cozy-toast.md`.
+
+
 
 ### Backlog Contract Drift Between API, CLI, and Skills (2026-03-26)
 
