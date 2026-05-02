@@ -41,6 +41,9 @@ const CaptureDetailsPage = lazy(() =>
 const SessionDetailsPage = lazy(() =>
   import("./pages/SessionDetailsPage").then((m) => ({ default: m.SessionDetailsPage })),
 );
+const OperatingModeDetailsPage = lazy(() =>
+  import("./pages/OperatingModeDetailsPage").then((m) => ({ default: m.OperatingModeDetailsPage })),
+);
 const CommandPostPage = lazy(() =>
   import("./pages/command-post/CommandPostPage").then((m) => ({ default: m.CommandPostPage })),
 );
@@ -92,6 +95,7 @@ export default function App() {
               <Route path="initiatives/:name" element={<PageErrorBoundary pageName="Initiative Details"><InitiativeDetailsPage /></PageErrorBoundary>} />
               <Route path="captures/:captureId" element={<PageErrorBoundary pageName="Capture Details"><CaptureDetailsPage /></PageErrorBoundary>} />
               <Route path="sessions/:sessionId" element={<PageErrorBoundary pageName="Session Details"><SessionDetailsPage /></PageErrorBoundary>} />
+              <Route path="operating-modes/:mode" element={<PageErrorBoundary pageName="Operating Mode Details"><OperatingModeDetailsPage /></PageErrorBoundary>} />
               <Route path="command-post" element={<PageErrorBoundary pageName="Command Post"><CommandPostPage /></PageErrorBoundary>} />
               <Route path="command-post/decisions" element={<PageErrorBoundary pageName="Decision Stream"><DecisionStreamPage /></PageErrorBoundary>} />
             </Route>

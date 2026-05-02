@@ -190,8 +190,10 @@ mode change.
 
 `GET /api/v1/operating-modes`
 
-Returns the backend registry's switchable operating modes. UI and CLI selection
-surfaces must use this endpoint instead of maintaining hard-coded mode lists.
+Returns the backend registry's switchable operating modes, merged with any
+persisted overlay (label/description) and annotated with current per-mode
+`usage_count`. UI and CLI selection surfaces consume this endpoint instead of
+maintaining hard-coded mode lists.
 
 ```json
 {
@@ -199,6 +201,8 @@ surfaces must use this endpoint instead of maintaining hard-coded mode lists.
     {
       "mode": "item-level",
       "label": "Item Level",
+      "description": "Default mode. Each backlog item flows through the existing item execution pipeline...",
+      "usage_count": 12,
       "scope_kind": "backlog_item",
       "run_strategy": "existing_item_flow",
       "workspace_tab_id": "info",
@@ -209,6 +213,32 @@ surfaces must use this endpoint instead of maintaining hard-coded mode lists.
     }
   ]
 }
+```
+
+`GET /api/v1/operating-modes/{mode}`
+
+Returns one mode's catalog entry plus the list of initiatives currently bound
+to it. Backs the operating-mode details page. Returns `404` for unknown modes.
+
+```json
+{
+  "entry": { "mode": "holistic-loop", "label": "Holistic Loop", "...": "..." },
+  "linked_initiatives": [
+    { "name": "init-a", "title": "Initiative A", "status": "active", "updated": "2026-04-30" }
+  ]
+}
+```
+
+`PATCH /api/v1/operating-modes/{mode}`
+
+Edits user-visible fields (label, description) via the overlay store. Pointer
+semantics: a missing field leaves the existing value unchanged; an empty-string
+`description` clears the override (registry default returns); empty-string
+`label` is rejected with `400`. Mode IDs and structural fields (phases,
+capabilities) are immutable. Returns the same shape as the GET endpoint.
+
+```json
+{ "label": "Holistic Loop (renamed)", "description": "Updated for our team." }
 ```
 
 ## Initiative Operating Mode Switch

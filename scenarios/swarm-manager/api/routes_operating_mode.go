@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"path/filepath"
 	"strings"
 
 	"swarm-manager/internal/backlog"
@@ -30,12 +31,16 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 	}
 	store := operatingmode.NewStore(s.initiativeService.InitDir)
 	lock := &initiativelock.Lock{Dir: s.initiativeService.InitDir}
+	overlayPath := filepath.Join(scenarioRoot, ".vrooli", "operating-modes", "overrides.json")
+	overlay := operatingmode.NewOverlayStore(overlayPath)
 	svc, err := operatingmode.NewService(operatingmode.Config{
-		Store:       store,
-		Lock:        lock,
-		Initiatives: operatingModeInitiativeReader{store: s.initStore},
-		ModeUpdater: operatingModeUpdater{service: s.initiativeService},
-		Backlog:     operatingModeBacklogReader{store: s.backlogHandler.Store()},
+		Store:            store,
+		Overlay:          overlay,
+		Lock:             lock,
+		Initiatives:      operatingModeInitiativeReader{store: s.initStore},
+		InitiativeLister: operatingModeInitiativeLister{store: s.initStore},
+		ModeUpdater:      operatingModeUpdater{service: s.initiativeService},
+		Backlog:          operatingModeBacklogReader{store: s.backlogHandler.Store()},
 		BacklogMutator: operatingModeBacklogMutator{
 			store:  s.backlogHandler.Store(),
 			events: s.emitter,
@@ -211,6 +216,34 @@ func (m operatingModeBacklogMutator) MarkBacklogItemCompleted(_ context.Context,
 		FromStatus: string(prior),
 		ToStatus:   string(backlog.StatusCompleted),
 	}, nil
+}
+
+type operatingModeInitiativeLister struct {
+	store *initiatives.Store
+}
+
+func (l operatingModeInitiativeLister) ListInitiatives() ([]operatingmode.InitiativeSummary, error) {
+	if l.store == nil {
+		return nil, nil
+	}
+	all, err := l.store.LoadAll()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]operatingmode.InitiativeSummary, 0, len(all))
+	for _, init := range all {
+		if init.ArchivedAt != nil {
+			continue
+		}
+		out = append(out, operatingmode.InitiativeSummary{
+			Name:    init.Name,
+			Title:   init.Title,
+			Mode:    init.Mode,
+			Status:  init.Status,
+			Updated: init.Updated,
+		})
+	}
+	return out, nil
 }
 
 type operatingModeInitiativeReader struct {

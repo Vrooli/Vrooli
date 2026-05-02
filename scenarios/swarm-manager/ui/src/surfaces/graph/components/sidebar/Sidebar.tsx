@@ -21,6 +21,7 @@ import { ActivityTab } from "./ActivityTab";
 import { BacklogTab } from "./BacklogTab";
 import { CapturesTab } from "./CapturesTab";
 import { InitiativesTab } from "./InitiativesTab";
+import { OperatingModesTab } from "./OperatingModesTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
 import type { FeedItem } from "../../../../lib/feed";
@@ -166,6 +167,12 @@ export function Sidebar({
                   searchQuery={debouncedSearch}
                   filters={state.filters.initiatives}
                   sort={state.sorts.initiatives}
+                  onItemClick={onItemClick}
+                />
+              )}
+              {activeTab === "operatingModes" && (
+                <OperatingModesTab
+                  searchQuery={debouncedSearch}
                   onItemClick={onItemClick}
                 />
               )}

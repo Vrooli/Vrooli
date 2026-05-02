@@ -4,6 +4,7 @@ func holisticLoopDefinition() Definition {
 	return buildInitiativeMode(initiativeModeSpec{
 		Mode:                ModeHolisticLoop,
 		Label:               "Holistic Loop",
+		Description:         "Investigate → plan → execute → review cycles across the whole initiative. Use when scope is exploratory and the plan must be revised as you learn.",
 		RunStrategy:         RunStrategyOperatorGatedLoop,
 		ArtifactRoot:        "modes/holistic-loop",
 		PromptCatalogPrefix: "swarm-manager-holistic-loop",

@@ -131,6 +131,10 @@ type Dependencies struct {
 	AISearchReindexCan   CommandFunc
 	BacklogSearchAI      CommandFunc
 	InitiativesSearchAI  CommandFunc
+	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).
+	OperatingModeList CommandFunc
+	OperatingModeGet  CommandFunc
+	OperatingModeSet  CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

@@ -8,12 +8,15 @@ import type {
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
   OperatingModeCapabilities,
+  OperatingModeDetail,
+  OperatingModeLinkedInitiative,
   OperatingModeRound,
   OperatingModeRoundItem,
   OperatingModeWorkspace,
   OperatingModeWorkspaceDefinition,
   OperatingModeWorkspacePhase,
   SwitchOperatingModeResult,
+  UpdateOperatingModeArgs,
 } from "../types/operating-mode";
 import type { InitiativeOperatingMode } from "../types";
 
@@ -100,6 +103,8 @@ function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
   return {
     mode: stringValue(mode.mode, "item-level"),
     label: stringValue(mode.label),
+    description: stringValue(mode.description, undefined),
+    usageCount: numberValue(mode.usage_count ?? mode.usageCount, 0) ?? 0,
     scopeKind: stringValue(mode.scope_kind ?? mode.scopeKind),
     runStrategy: stringValue(mode.run_strategy ?? mode.runStrategy),
     workspaceTabId: stringValue(mode.workspace_tab_id ?? mode.workspaceTabId),
@@ -108,6 +113,25 @@ function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
     switchable: boolValue(mode.switchable) ?? false,
     supportsPhases,
     phases: Array.isArray(phases) ? phases.map(normalizeCatalogPhase) : [],
+  };
+}
+
+function normalizeLinkedInitiative(raw: unknown): OperatingModeLinkedInitiative {
+  const item = recordValue(raw);
+  return {
+    name: stringValue(item.name),
+    title: stringValue(item.title),
+    status: stringValue(item.status, undefined),
+    updated: stringValue(item.updated, undefined),
+  };
+}
+
+function normalizeModeDetail(raw: unknown): OperatingModeDetail {
+  const detail = recordValue(raw);
+  const linked = detail.linked_initiatives ?? detail.linkedInitiatives;
+  return {
+    entry: normalizeCatalogEntry(detail.entry),
+    linkedInitiatives: Array.isArray(linked) ? linked.map(normalizeLinkedInitiative) : [],
   };
 }
 
@@ -124,6 +148,7 @@ function normalizeDefinition(raw: unknown): OperatingModeWorkspaceDefinition {
   return {
     mode: stringValue(def.mode, "item-level"),
     label: stringValue(def.label),
+    description: stringValue(def.description, undefined),
     scopeKind: stringValue(def.scope_kind ?? def.scopeKind),
     capabilities: normalizeCapabilities(def.capabilities, Array.isArray(def.phases) && def.phases.length > 0),
     phases: Array.isArray(def.phases) ? def.phases.map(normalizePhase) : [],
@@ -244,6 +269,8 @@ export interface ApplyOperatingModeBacklogSyncArgs {
 
 export interface IInitiativeModeService {
   catalog(): Promise<OperatingModeCatalog>;
+  getMode(mode: string): Promise<OperatingModeDetail>;
+  updateMode(mode: string, args: UpdateOperatingModeArgs): Promise<OperatingModeDetail>;
   workspace(name: string): Promise<OperatingModeWorkspace>;
   switchMode(name: string, args: SwitchOperatingModeArgs): Promise<SwitchOperatingModeResult>;
   startPhase(name: string, phase: string, args?: StartOperatingModePhaseArgs): Promise<OperatingModeRound>;
@@ -301,6 +328,19 @@ export function createInitiativeModeService(
     async catalog(): Promise<OperatingModeCatalog> {
       const raw = await apiClient.get<unknown>(API_ENDPOINTS.operatingModes);
       return normalizeCatalog(raw);
+    },
+
+    async getMode(mode: string): Promise<OperatingModeDetail> {
+      const raw = await apiClient.get<unknown>(API_ENDPOINTS.operatingMode(mode));
+      return normalizeModeDetail(raw);
+    },
+
+    async updateMode(mode: string, args: UpdateOperatingModeArgs): Promise<OperatingModeDetail> {
+      const body: Record<string, unknown> = {};
+      if (args.label !== undefined) body.label = args.label;
+      if (args.description !== undefined) body.description = args.description;
+      const raw = await apiClient.patch<unknown>(API_ENDPOINTS.operatingMode(mode), body);
+      return normalizeModeDetail(raw);
     },
 
     async workspace(name: string): Promise<OperatingModeWorkspace> {

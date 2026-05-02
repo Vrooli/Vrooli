@@ -28,6 +28,22 @@ type InitiativeReader interface {
 	LoadInitiative(name string) (InitiativeSnapshot, error)
 }
 
+// InitiativeLister exposes the minimum fields needed to compute mode usage
+// counts and the linked-initiative list for the operating-mode details page.
+// Wired separately from InitiativeReader so existing test seams don't have
+// to grow when only one of the two is needed.
+type InitiativeLister interface {
+	ListInitiatives() ([]InitiativeSummary, error)
+}
+
+type InitiativeSummary struct {
+	Name    string
+	Title   string
+	Mode    string
+	Status  string
+	Updated string
+}
+
 type InitiativeModeUpdater interface {
 	UpdateInitiativeMode(name, mode string) (InitiativeSnapshot, error)
 }
@@ -130,8 +146,10 @@ type InitiativeLock interface {
 
 type Config struct {
 	Store            *Store
+	Overlay          *OverlayStore
 	Lock             InitiativeLock
 	Initiatives      InitiativeReader
+	InitiativeLister InitiativeLister
 	ModeUpdater      InitiativeModeUpdater
 	Backlog          BacklogReader
 	BacklogMutator   BacklogMutator
@@ -149,8 +167,10 @@ type Config struct {
 
 type Service struct {
 	store         *Store
+	overlay       *OverlayStore
 	lock          InitiativeLock
 	initiatives   InitiativeReader
+	initLister    InitiativeLister
 	modeUpdater   InitiativeModeUpdater
 	backlog       BacklogReader
 	backlogMut    BacklogMutator
@@ -246,6 +266,7 @@ type Workspace struct {
 type WorkspaceMode struct {
 	Mode         string              `json:"mode"`
 	Label        string              `json:"label"`
+	Description  string              `json:"description,omitempty"`
 	ScopeKind    string              `json:"scope_kind"`
 	Capabilities ModeCapabilities    `json:"capabilities"`
 	Phases       []WorkspacePhase    `json:"phases"`
@@ -272,6 +293,8 @@ type ModeCatalog struct {
 type ModeCatalogEntry struct {
 	Mode           string             `json:"mode"`
 	Label          string             `json:"label"`
+	Description    string             `json:"description,omitempty"`
+	UsageCount     int                `json:"usage_count"`
 	ScopeKind      string             `json:"scope_kind"`
 	RunStrategy    string             `json:"run_strategy"`
 	WorkspaceTabID string             `json:"workspace_tab_id"`
@@ -280,6 +303,23 @@ type ModeCatalogEntry struct {
 	Switchable     bool               `json:"switchable"`
 	SupportsPhases bool               `json:"supports_phases"`
 	Phases         []ModeCatalogPhase `json:"phases"`
+}
+
+// InitiativeRef is the compact view of an initiative attached to a mode in
+// the operating-mode details page.
+type InitiativeRef struct {
+	Name    string `json:"name"`
+	Title   string `json:"title"`
+	Status  string `json:"status,omitempty"`
+	Updated string `json:"updated,omitempty"`
+}
+
+// ModeDetail is the response body for GET /api/v1/operating-modes/{mode}.
+// It pairs the catalog entry (already merged with overlay) with the list of
+// initiatives currently bound to the mode.
+type ModeDetail struct {
+	Entry             ModeCatalogEntry `json:"entry"`
+	LinkedInitiatives []InitiativeRef  `json:"linked_initiatives"`
 }
 
 type ModeCatalogPhase struct {
@@ -324,8 +364,10 @@ func NewService(cfg Config) (*Service, error) {
 	}
 	return &Service{
 		store:         cfg.Store,
+		overlay:       cfg.Overlay,
 		lock:          cfg.Lock,
 		initiatives:   cfg.Initiatives,
+		initLister:    cfg.InitiativeLister,
 		modeUpdater:   cfg.ModeUpdater,
 		backlog:       cfg.Backlog,
 		backlogMut:    cfg.BacklogMutator,

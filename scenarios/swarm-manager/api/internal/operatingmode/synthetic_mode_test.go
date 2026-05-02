@@ -168,6 +168,7 @@ func syntheticHarnessDefinition() Definition {
 	return buildInitiativeMode(initiativeModeSpec{
 		Mode:                modeSyntheticHarness,
 		Label:               "Synthetic Harness",
+		Description:         "Synthetic harness used by registry tests; not a production mode.",
 		RunStrategy:         RunStrategyOperatorGatedLoop,
 		ArtifactRoot:        "modes/synthetic-harness",
 		PromptCatalogPrefix: "swarm-manager-synthetic-harness",

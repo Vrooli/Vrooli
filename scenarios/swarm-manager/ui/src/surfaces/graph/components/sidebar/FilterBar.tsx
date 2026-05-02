@@ -329,6 +329,7 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
     case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
     case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
+    case "operatingModes": return sortChanged;
   }
 }
 

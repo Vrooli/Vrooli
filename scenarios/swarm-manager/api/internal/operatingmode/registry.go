@@ -70,6 +70,7 @@ const (
 type Definition struct {
 	Mode        Mode
 	Label       string
+	Description string
 	Scope       ScopePolicy
 	PhaseGraph  PhaseGraph
 	RunStrategy RunStrategyPolicy
@@ -293,6 +294,9 @@ func validateDefinitions(defs map[Mode]Definition) error {
 		}
 		if strings.TrimSpace(def.Label) == "" {
 			return fmt.Errorf("mode %q label is required", mode)
+		}
+		if strings.TrimSpace(def.Description) == "" {
+			return fmt.Errorf("mode %q description is required", mode)
 		}
 		if def.Scope.Kind == "" {
 			return fmt.Errorf("mode %q scope kind is required", mode)

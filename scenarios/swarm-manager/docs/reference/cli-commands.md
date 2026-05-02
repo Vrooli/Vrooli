@@ -129,6 +129,20 @@ Response shape (`--json`):
 
 Only direct upstream and downstream are returned — the endpoint is a one-hop neighborhood view, not a transitive traversal. Use it in place of the global `overview` command when the question is scoped to one initiative.
 
+## Operating Mode Catalog
+
+Top-level `operating-mode` commands operate on the mode catalog itself (not a
+specific initiative). Use these to browse modes, inspect linked initiatives,
+or edit a mode's display label/description (persisted to the overlay file at
+`<scenario>/.vrooli/operating-modes/overrides.json`).
+
+```bash
+swarm-manager operating-mode list                      # list modes with usage counts
+swarm-manager operating-mode get --mode holistic-loop  # full detail incl. linked initiatives
+swarm-manager operating-mode set --mode holistic-loop --label "Loop (renamed)" --description "Custom wording."
+swarm-manager operating-mode set --mode holistic-loop --clear-description
+```
+
 ## Initiative Operating Modes
 
 List registered modes from the backend registry catalog:

@@ -134,6 +134,86 @@ describe("Initiative Mode Service", () => {
     expect(catalog.modes[0]?.phases[0]?.requiresCriteria).toBe(true);
   });
 
+  it("normalizes catalog usage_count and description", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      modes: [{
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        description: "Investigate→plan→execute cycles",
+        usage_count: 3,
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        workspace_tab_id: "operating-mode",
+        capabilities: {},
+        default: false,
+        switchable: true,
+        supports_phases: true,
+        phases: [],
+      }],
+    });
+
+    const catalog = await service.catalog();
+    expect(catalog.modes[0]?.description).toBe("Investigate→plan→execute cycles");
+    expect(catalog.modes[0]?.usageCount).toBe(3);
+  });
+
+  it("fetches mode detail with linked initiatives", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      entry: {
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        description: "desc",
+        usage_count: 2,
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        workspace_tab_id: "operating-mode",
+        capabilities: {},
+        default: false,
+        switchable: true,
+        supports_phases: true,
+        phases: [],
+      },
+      linked_initiatives: [
+        { name: "init-a", title: "Init A", status: "active", updated: "2026-04-30" },
+        { name: "init-b", title: "Init B", status: "active", updated: "2026-04-29" },
+      ],
+    });
+
+    const detail = await service.getMode("holistic-loop");
+    expect(api.get).toHaveBeenCalledWith("/operating-modes/holistic-loop");
+    expect(detail.entry.label).toBe("Holistic Loop");
+    expect(detail.linkedInitiatives).toHaveLength(2);
+    expect(detail.linkedInitiatives[0]?.name).toBe("init-a");
+  });
+
+  it("updates mode via PATCH and normalizes the response", async () => {
+    vi.mocked(api.patch).mockResolvedValue({
+      entry: {
+        mode: "holistic-loop",
+        label: "Renamed",
+        description: "New text",
+        usage_count: 0,
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        workspace_tab_id: "operating-mode",
+        capabilities: {},
+        default: false,
+        switchable: true,
+        supports_phases: true,
+        phases: [],
+      },
+      linked_initiatives: [],
+    });
+
+    const detail = await service.updateMode("holistic-loop", { label: "Renamed", description: "New text" });
+    expect(api.patch).toHaveBeenCalledWith(
+      "/operating-modes/holistic-loop",
+      { label: "Renamed", description: "New text" },
+    );
+    expect(detail.entry.label).toBe("Renamed");
+    expect(detail.entry.description).toBe("New text");
+  });
+
   it("starts, refreshes, and cancels rounds through canonical endpoints", async () => {
     vi.mocked(api.post).mockResolvedValue({
       round: 2,

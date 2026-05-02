@@ -51,6 +51,8 @@ func NewHandler(service *Service) *Handler {
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/operating-modes", h.Catalog).Methods("GET")
+	r.HandleFunc("/api/v1/operating-modes/{mode}", h.GetMode).Methods("GET")
+	r.HandleFunc("/api/v1/operating-modes/{mode}", h.UpdateMode).Methods("PATCH")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/workspace", h.Workspace).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/switch", h.SwitchMode).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/phases/{phase}/start", h.StartPhase).Methods("POST")
@@ -60,6 +62,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/apply-backlog-sync", h.ApplyBacklogSync).Methods("POST")
 }
 
+// DOC: GET /api/v1/operating-modes — list all registered modes with overlay
+// merged in and current usage counts. Backs the sidebar Operating Modes tab.
 func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
 	catalog, err := h.service.Catalog()
 	if err != nil {
@@ -68,6 +72,72 @@ func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
 	}
 	if err := httputil.JSON(w, catalog); err != nil {
 		apierr.MapError(w, "[operating-mode] catalog", apierr.Internal("failed to encode response"))
+	}
+}
+
+// DOC: GET /api/v1/operating-modes/{mode} — single mode detail including the
+// list of initiatives currently bound to it. Backs the operating-mode
+// details page.
+func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
+	rawMode := strings.TrimSpace(mux.Vars(r)["mode"])
+	if rawMode == "" {
+		apierr.MapError(w, "[operating-mode] get mode", apierr.BadRequest("mode is required"))
+		return
+	}
+	if !ValidateMode(rawMode) {
+		apierr.MapError(w, "[operating-mode] get mode", apierr.NotFound("unknown operating mode %q", rawMode))
+		return
+	}
+	detail, err := h.service.GetMode(NormalizeMode(rawMode))
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] get mode", err)
+		return
+	}
+	if err := httputil.JSON(w, detail); err != nil {
+		apierr.MapError(w, "[operating-mode] get mode", apierr.Internal("failed to encode response"))
+	}
+}
+
+type updateModeBody struct {
+	Label       *string `json:"label,omitempty"`
+	Description *string `json:"description,omitempty"`
+}
+
+// DOC: PATCH /api/v1/operating-modes/{mode} — persist user-editable overlay
+// fields (label, description). Pointer semantics: nil leaves field unchanged,
+// "" rejected for label, present-but-empty description allowed (clears the
+// description override).
+func (h *Handler) UpdateMode(w http.ResponseWriter, r *http.Request) {
+	rawMode := strings.TrimSpace(mux.Vars(r)["mode"])
+	if rawMode == "" {
+		apierr.MapError(w, "[operating-mode] update mode", apierr.BadRequest("mode is required"))
+		return
+	}
+	if !ValidateMode(rawMode) {
+		apierr.MapError(w, "[operating-mode] update mode", apierr.NotFound("unknown operating mode %q", rawMode))
+		return
+	}
+	var body updateModeBody
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[operating-mode] update mode", apierr.BadRequest("invalid request body"))
+		return
+	}
+	override := Override{Label: body.Label, Description: body.Description}
+	if !override.HasChanges() {
+		apierr.MapError(w, "[operating-mode] update mode", apierr.BadRequest("at least one of label or description is required"))
+		return
+	}
+	detail, err := h.service.UpdateMode(NormalizeMode(rawMode), override)
+	if err != nil {
+		if strings.Contains(err.Error(), "blank") {
+			apierr.MapError(w, "[operating-mode] update mode", apierr.BadRequest("%s", err.Error()))
+			return
+		}
+		mapOperatingModeError(w, "[operating-mode] update mode", err)
+		return
+	}
+	if err := httputil.JSON(w, detail); err != nil {
+		apierr.MapError(w, "[operating-mode] update mode", apierr.Internal("failed to encode response"))
 	}
 }
 

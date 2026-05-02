@@ -4,6 +4,7 @@ func phasedPlanDrainDefinition() Definition {
 	return buildInitiativeMode(initiativeModeSpec{
 		Mode:                ModePhasedPlanDrain,
 		Label:               "Phased Plan Drain",
+		Description:         "Prepare a stable phased plan, then drain it with sequential handoff runs that classify progress and reconcile the backlog. Use when the work decomposes cleanly upfront.",
 		RunStrategy:         RunStrategySequentialHandoff,
 		ArtifactRoot:        "modes/phased-plan-drain",
 		PromptCatalogPrefix: "swarm-manager-phased-plan",

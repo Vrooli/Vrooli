@@ -26,6 +26,19 @@ func (f fakeInitiatives) LoadInitiative(name string) (InitiativeSnapshot, error)
 	return item, nil
 }
 
+func (f fakeInitiatives) ListInitiatives() ([]InitiativeSummary, error) {
+	out := make([]InitiativeSummary, 0, len(f.items))
+	for _, item := range f.items {
+		out = append(out, InitiativeSummary{
+			Name:   item.Name,
+			Title:  item.Title,
+			Mode:   item.Mode,
+			Status: "active",
+		})
+	}
+	return out, nil
+}
+
 type fakeBacklog struct {
 	items map[string]BacklogItemSnapshot
 }
@@ -992,6 +1005,58 @@ func TestSwitchModeRejectsActiveOperatingModeRound(t *testing.T) {
 	}
 }
 
+func TestInitiativesUsingModeFiltersByMode(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"loop-a": {Name: "loop-a", Title: "Loop A", Mode: string(ModeHolisticLoop)},
+			"loop-b": {Name: "loop-b", Title: "Loop B", Mode: string(ModeHolisticLoop)},
+			"drain":  {Name: "drain", Title: "Drain", Mode: string(ModePhasedPlanDrain)},
+			"item":   {Name: "item", Title: "Item", Mode: string(ModeItemLevel)},
+		}},
+	})
+
+	loops, err := svc.InitiativesUsingMode(ModeHolisticLoop)
+	if err != nil {
+		t.Fatalf("InitiativesUsingMode: %v", err)
+	}
+	if len(loops) != 2 {
+		t.Fatalf("holistic loops: got %d, want 2: %+v", len(loops), loops)
+	}
+	names := map[string]bool{}
+	for _, ref := range loops {
+		names[ref.Name] = true
+	}
+	if !names["loop-a"] || !names["loop-b"] {
+		t.Fatalf("expected loop-a and loop-b in result; got %+v", loops)
+	}
+
+	drains, err := svc.InitiativesUsingMode(ModePhasedPlanDrain)
+	if err != nil {
+		t.Fatalf("InitiativesUsingMode drain: %v", err)
+	}
+	if len(drains) != 1 || drains[0].Name != "drain" {
+		t.Fatalf("drain result mismatch: %+v", drains)
+	}
+
+	items, err := svc.InitiativesUsingMode(ModeItemLevel)
+	if err != nil {
+		t.Fatalf("InitiativesUsingMode item: %v", err)
+	}
+	if len(items) != 1 || items[0].Name != "item" {
+		t.Fatalf("item result mismatch: %+v", items)
+	}
+}
+
+func TestRegistryAllModesHaveDescription(t *testing.T) {
+	for _, mode := range Modes() {
+		def := MustDefinition(mode)
+		if strings.TrimSpace(def.Description) == "" {
+			t.Errorf("mode %q: empty description", mode)
+		}
+	}
+}
+
 func newTestService(t *testing.T, root string, agent *fakeAgent, prompts *fakePrompts) *Service {
 	t.Helper()
 	return newTestServiceWithOptions(t, root, serviceOptions{agent: agent, prompts: prompts})
@@ -1052,11 +1117,14 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 			},
 		}}
 	}
+	overlay := NewOverlayStore(filepath.Join(root, ".vrooli", "operating-modes", "overrides.json"))
 	svc, err := NewService(Config{
-		Store:       store,
-		Lock:        serviceLock,
-		Initiatives: initiatives,
-		ModeUpdater: opts.modeUpdater,
+		Store:            store,
+		Overlay:          overlay,
+		Lock:             serviceLock,
+		Initiatives:      initiatives,
+		InitiativeLister: initiatives,
+		ModeUpdater:      opts.modeUpdater,
 		Backlog: fakeBacklog{items: map[string]BacklogItemSnapshot{
 			"execute/do-thing": {Title: "Do thing", Status: "ready", Priority: 5, Effort: "M"},
 		}},

@@ -65,6 +65,128 @@ func TestCatalogEndpointReturnsRegisteredModes(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"supports_phases":true`) {
 		t.Fatalf("catalog response missing phase support metadata: %s", rec.Body.String())
 	}
+	if !strings.Contains(rec.Body.String(), `"description"`) {
+		t.Fatalf("catalog response missing description field: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"usage_count"`) {
+		t.Fatalf("catalog response missing usage_count field: %s", rec.Body.String())
+	}
+	// init-a is the default fakeInitiatives item bound to holistic-loop, so
+	// the holistic-loop entry should report a non-zero usage count.
+	if !strings.Contains(rec.Body.String(), `"usage_count":1`) {
+		t.Fatalf("expected at least one mode to report usage_count=1: %s", rec.Body.String())
+	}
+}
+
+func TestGetModeReturnsLinkedInitiatives(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"loop-init": {
+				Name:  "loop-init",
+				Title: "Loop Initiative",
+				Mode:  string(ModeHolisticLoop),
+			},
+			"drain-init": {
+				Name:  "drain-init",
+				Title: "Drain Initiative",
+				Mode:  string(ModePhasedPlanDrain),
+			},
+		}},
+	})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/operating-modes/holistic-loop", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "loop-init") {
+		t.Fatalf("response missing linked initiative loop-init: %s", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "drain-init") {
+		t.Fatalf("response should not include initiatives from other modes: %s", rec.Body.String())
+	}
+}
+
+func TestGetModeRejectsUnknown(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/operating-modes/does-not-exist", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+}
+
+func TestPatchModeAppliesOverlay(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	body := bytes.NewBufferString(`{"label":"Renamed Loop","description":"Tighter wording."}`)
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/operating-modes/holistic-loop", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Renamed Loop") {
+		t.Fatalf("response missing updated label: %s", rec.Body.String())
+	}
+
+	// A subsequent GET should reflect the persisted overlay.
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/operating-modes/holistic-loop", nil)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+	if !strings.Contains(getRec.Body.String(), "Renamed Loop") {
+		t.Fatalf("GET after PATCH did not return updated label: %s", getRec.Body.String())
+	}
+}
+
+func TestPatchModeRejectsBlankLabel(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	body := bytes.NewBufferString(`{"label":""}`)
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/operating-modes/holistic-loop", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPatchModeRejectsUnknownMode(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	body := bytes.NewBufferString(`{"label":"x"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/operating-modes/does-not-exist", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
 }
 
 func TestRoundActionWithoutModeUsesCurrentNonDefaultInitiativeMode(t *testing.T) {

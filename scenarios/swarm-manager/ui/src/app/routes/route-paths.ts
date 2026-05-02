@@ -5,7 +5,7 @@ import { parseNodeId } from "../../surfaces/graph/lib/node-id-parser";
 export const GRAPH_LENSES = ["focus", "topology", "operations"] as const satisfies readonly GraphLens[];
 
 export type AppGraphLens = (typeof GRAPH_LENSES)[number];
-export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session";
+export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session" | "operatingMode";
 
 export interface DetailRouteTarget {
   entityType: DetailEntityType;
@@ -73,6 +73,10 @@ export function sessionDetailPath(sessionId: string, query?: QueryParams): strin
   return appendQuery(`/sessions/${enc(sessionId)}`, query);
 }
 
+export function operatingModeDetailPath(mode: string, query?: QueryParams): string {
+  return appendQuery(`/operating-modes/${enc(mode)}`, query);
+}
+
 export function commandPostPath(query?: QueryParams): string {
   return appendQuery("/command-post", query);
 }
@@ -97,10 +101,18 @@ export function detailPath(target: DetailRouteTarget): string | null {
       return target.identifier ? captureDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
     case "session":
       return target.identifier ? sessionDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
+    case "operatingMode":
+      return target.identifier ? operatingModeDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
   }
 }
 
 export function detailPathFromNodeId(nodeId: string): string | null {
+  // Operating-mode node IDs aren't part of the graph entity registry — handle
+  // them before parseNodeId, which only knows about graph entities.
+  if (nodeId.startsWith("operatingMode/")) {
+    const mode = nodeId.slice("operatingMode/".length);
+    return mode ? operatingModeDetailPath(mode) : null;
+  }
   const parsed = parseNodeId(nodeId);
   if (!parsed) return null;
   switch (parsed.entityType) {
@@ -133,6 +145,8 @@ export function routeTargetToNodeId(target: DetailRouteTarget): string | null {
       return target.identifier ? `capture/${target.identifier}` : null;
     case "session":
       return null;
+    case "operatingMode":
+      return target.identifier ? `operatingMode/${target.identifier}` : null;
   }
 }
 

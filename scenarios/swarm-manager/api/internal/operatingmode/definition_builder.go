@@ -5,6 +5,7 @@ import "strings"
 type initiativeModeSpec struct {
 	Mode                Mode
 	Label               string
+	Description         string
 	RunStrategy         RunStrategyKind
 	ArtifactRoot        string
 	PromptCatalogPrefix string
@@ -60,9 +61,10 @@ func buildInitiativeMode(spec initiativeModeSpec) Definition {
 	}
 
 	return Definition{
-		Mode:  spec.Mode,
-		Label: spec.Label,
-		Scope: ScopePolicy{Kind: ScopeInitiative},
+		Mode:        spec.Mode,
+		Label:       spec.Label,
+		Description: spec.Description,
+		Scope:       ScopePolicy{Kind: ScopeInitiative},
 		PhaseGraph: PhaseGraph{
 			StartPhase:      spec.StartPhase,
 			Terminal:        append([]Phase(nil), spec.Terminal...),

@@ -53,6 +53,8 @@ export interface OperatingModeCapabilities {
 export interface OperatingModeCatalogEntry {
   mode: InitiativeOperatingMode;
   label: string;
+  description?: string;
+  usageCount: number;
   scopeKind: string;
   runStrategy: string;
   workspaceTabId: string;
@@ -67,9 +69,27 @@ export interface OperatingModeCatalog {
   modes: OperatingModeCatalogEntry[];
 }
 
+export interface OperatingModeLinkedInitiative {
+  name: string;
+  title: string;
+  status?: string;
+  updated?: string;
+}
+
+export interface OperatingModeDetail {
+  entry: OperatingModeCatalogEntry;
+  linkedInitiatives: OperatingModeLinkedInitiative[];
+}
+
+export interface UpdateOperatingModeArgs {
+  label?: string;
+  description?: string;
+}
+
 export interface OperatingModeWorkspaceDefinition {
   mode: InitiativeOperatingMode;
   label: string;
+  description?: string;
   scopeKind: string;
   capabilities: OperatingModeCapabilities;
   phases: OperatingModeWorkspacePhase[];
