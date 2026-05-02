@@ -21,3 +21,17 @@ export async function withExpectedConsoleMessage<T>(
     spy.mockRestore();
   }
 }
+
+export function withExpectedReactHookError<T>(
+  message: string | RegExp,
+  fn: () => T | Promise<T>,
+): Promise<T> {
+  const escaped = typeof message === "string"
+    ? message.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    : message.source;
+  return withExpectedConsoleMessage(
+    "error",
+    new RegExp(`${escaped}|The above error occurred in the <TestComponent> component`),
+    fn,
+  );
+}

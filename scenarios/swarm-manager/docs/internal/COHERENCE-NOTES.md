@@ -22,9 +22,11 @@
 
 **Validation**: Focused migrated tests pass, `pnpm exec tsc --noEmit` passes, and full `pnpm test` passes with `1809 passed`.
 
-**Remaining Noise**: Existing hot spots still emit API-base stdout, React `act(...)` warnings, React Router future-flag warnings in tests that do not yet use the shared router wrapper, SettingsDrawer key/DOM nesting warnings, and the expected BacklogDetailContext thrown-hook stack. Do not add global suppression; migrate hot spots through the shared helpers and silence only expected errors locally.
+**Remaining Noise**: Existing hot spots still emit React `act(...)` warnings, React Router future-flag warnings in tests that do not yet use the shared router wrapper, and query warnings from tests whose mocked query functions return `undefined`. Do not add broad React/router/query suppression; migrate hot spots through the shared helpers and silence only expected errors locally.
 
 **2026-05-01 Follow-up**: `components/ui/file-preview.test.tsx` now uses the shared QueryClient test factory and no longer skips the fetch-error state test. Because `useFilePreviewState` spreads production `defaultQueryOptions` into the query, the test file locally mocks `defaultQueryOptions.retry` to `false`; future component tests with query-level production defaults should use the same explicit seam or promote this override into the shared render harness once the high-noise files are migrated.
+
+**2026-05-01 Warning Cleanup**: `surfaces/graph/components/SettingsDrawer.tsx` no longer nests the status-group action button inside the accordion button and now keys toggle buttons created through the helper renderer. `SettingsDrawer.test.tsx` uses the shared render harness and asserts that no React `console.error` warnings are emitted. `contexts/BacklogDetailContext.test.tsx` now uses `withExpectedReactHookError` from `src/test-utils/console.ts` for the intentional provider-invariant failure, keeping expected jsdom/React stacks out of normal test output. `pages/ExecutionPage.test.tsx` now uses the shared render/query harness and has dropped its local router future-flag warning, but the page still needs a polling seam to eliminate its `act(...)` warning. `setupTests.ts` filters the known `[api-base]` diagnostic stdout prefix from `@vrooli/api-base`; this is a narrow test-environment filter for library startup diagnostics, not a general console suppression policy.
 
 ## State Management
 
@@ -524,3 +526,15 @@ Execution/activity data was scattered across three disconnected UI surfaces:
 - `ui/src/components/backlog/backlog-dialogs.tsx` (simplified)
 - `ui/src/stores/backlog-detail-ui-store.ts` (cleaned)
 - `ui/src/consts/selectors.ts` (updated)
+
+## UI Test Harness Coherence (2026-05-01)
+
+Hot-spot page and dialog tests should use `src/test-utils` for QueryClient defaults, router future flags, and browser API mocks. `ExecutionPage`, `ScenarioDetailsPage`, `ScenariosPage`, `FeedbackDialog`, and `FeedbackPanel` now follow this pattern and their focused test runs are warning-free.
+
+Important teardown rule: if a component subscribes to a Zustand store, unmount it before resetting that store in test cleanup, or wrap the reset in `act`. Otherwise teardown can create a real unwrapped update warning after assertions have already passed.
+
+Timer rule: when fake timers drive React state, advance them inside `act`. This now covers `useCapturePolling`, `ClarificationPanel` staleness checks, and `FollowUpSheet` mount-effect flushing.
+
+Router rule: tests that need app routing should use `renderWithProviders` or `createRouterWrapper` from `src/test-utils`. Those helpers now support `initialIndex` and set the React Router future flags, so page/detail tests do not need local `MemoryRouter` wrappers. `InitiativeDetailsPage`, `BacklogDetailsPage`, `NotFoundPage`, `DetailPageHeader`, `ExecutionOverviewTab`, `FocusActionsSection`, `DependencyChipList`, `ScenarioResultCards`, `InitiativeDependencyGraph`, and `ScenarioBadge` now follow this pattern.
+
+Async hook rule: mount-time async browser storage loads should be flushed inside `act` before making initial-state assertions. `useIndexedDBAttachments.test.ts` uses a local render helper for this so the expected empty initial attachment state does not race the IndexedDB load microtask.

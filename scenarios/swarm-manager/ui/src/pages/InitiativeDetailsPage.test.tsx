@@ -1,42 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import type { QueryClient } from "@tanstack/react-query";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { InitiativeDetailsPage } from "./InitiativeDetailsPage";
 import { useBacklogStore } from "../stores";
 import { useInitiativeStore } from "../stores/initiative-store";
+import {
+  createTestQueryClient,
+  installMatchMediaMock,
+  installResizeObserverMock,
+  renderWithProviders,
+} from "../test-utils";
 
-// jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-
-  class ResizeObserverMock {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-
-  Object.defineProperty(window, "ResizeObserver", {
-    writable: true,
-    value: ResizeObserverMock,
-  });
-  Object.defineProperty(globalThis, "ResizeObserver", {
-    writable: true,
-    value: ResizeObserverMock,
-  });
+  installMatchMediaMock();
+  installResizeObserverMock();
 });
 
 vi.mock("../config", () => ({
@@ -151,9 +130,7 @@ describe("InitiativeDetailsPage", () => {
   ];
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
+    queryClient = createTestQueryClient();
     vi.clearAllMocks();
 
     useBacklogStore.getState().setItems([
@@ -209,24 +186,24 @@ describe("InitiativeDetailsPage", () => {
   });
 
   const renderPage = () => {
-    return render(
-      <MemoryRouter initialEntries={["/graph", "/initiatives/test-initiative"]} initialIndex={1}>
-        <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route
-              path="/initiatives/:name"
-              element={(
-                <>
-                  <InitiativeDetailsPage />
-                  <LocationProbe />
-                </>
-              )}
-            />
-            <Route path="/graph" element={<LocationProbe />} />
-            <Route path="*" element={<LocationProbe />} />
-          </Routes>
-        </QueryClientProvider>
-      </MemoryRouter>,
+    return renderWithProviders(
+      <Routes>
+        <Route
+          path="/initiatives/:name"
+          element={(
+            <>
+              <InitiativeDetailsPage />
+              <LocationProbe />
+            </>
+          )}
+        />
+        <Route path="/graph" element={<LocationProbe />} />
+        <Route path="*" element={<LocationProbe />} />
+      </Routes>,
+      {
+        queryClient,
+        initialEntries: ["/graph", "/initiatives/test-initiative"],
+      },
     );
   };
 

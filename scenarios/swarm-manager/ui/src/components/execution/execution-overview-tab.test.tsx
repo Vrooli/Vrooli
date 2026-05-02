@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { screen, fireEvent } from "@testing-library/react";
+import { useLocation } from "react-router-dom";
 import { ExecutionOverviewTab } from "./execution-overview-tab";
 import type { ExecutionRecord, Finalization } from "../../types";
 import { selectors } from "../../consts/selectors";
+import { renderWithProviders } from "../../test-utils";
 
 const makeExecution = (overrides?: Partial<ExecutionRecord>): ExecutionRecord => ({
   executionId: "exec-1",
@@ -38,18 +39,16 @@ const noopHandlers = {
 
 describe("ExecutionOverviewTab", () => {
   function renderOverview(execution: ExecutionRecord, overrides?: Partial<Parameters<typeof ExecutionOverviewTab>[0]>) {
-    return render(
-      <MemoryRouter>
-        <ExecutionOverviewTab
-          execution={execution}
-          isActive={false}
-          isTerminal={true}
-          actionBusy={false}
-          postRunBadgeExecution={null}
-          {...noopHandlers}
-          {...overrides}
-        />
-      </MemoryRouter>,
+    return renderWithProviders(
+      <ExecutionOverviewTab
+        execution={execution}
+        isActive={false}
+        isTerminal={true}
+        actionBusy={false}
+        postRunBadgeExecution={null}
+        {...noopHandlers}
+        {...overrides}
+      />,
     );
   }
 
@@ -66,8 +65,8 @@ describe("ExecutionOverviewTab", () => {
   });
 
   it("navigates to backlog when backlog link is clicked", () => {
-    render(
-      <MemoryRouter>
+    renderWithProviders(
+      <>
         <ExecutionOverviewTab
           execution={makeExecution()}
           isActive={false}
@@ -77,7 +76,7 @@ describe("ExecutionOverviewTab", () => {
           {...noopHandlers}
         />
         <LocationProbe />
-      </MemoryRouter>,
+      </>,
     );
 
     fireEvent.click(screen.getByText("fix/test-bug"));
@@ -134,8 +133,8 @@ describe("ExecutionOverviewTab", () => {
   });
 
   it("navigates to parent execution when link is clicked", () => {
-    render(
-      <MemoryRouter>
+    renderWithProviders(
+      <>
         <ExecutionOverviewTab
           execution={makeExecution({ parentExecutionId: "parent-exec-1" })}
           isActive={false}
@@ -145,7 +144,7 @@ describe("ExecutionOverviewTab", () => {
           {...noopHandlers}
         />
         <LocationProbe />
-      </MemoryRouter>,
+      </>,
     );
 
     const link = screen.getByText("parent-exec-1");

@@ -13,6 +13,8 @@ The codebase utility structure is well-organized but had one significant duplica
 
 2026-05-01 follow-up: `components/ui/file-preview.test.tsx` now reuses `createTestQueryClient` and the previously skipped fetch-error assertion is active. This exposed one important boundary: production query options spread directly inside components can override QueryClient test defaults, so tests that need immediate error rendering must explicitly disable the component-level retry seam until the shared harness owns that override centrally.
 
+2026-05-01 warning-cleanup follow-up: `src/test-utils/console.ts` now includes `withExpectedReactHookError` for provider-invariant hook tests. Use it only around tests that intentionally render a throwing hook; ordinary React warnings should be fixed at the component or harness seam. `src/setupTests.ts` filters the known `[api-base]` startup diagnostic prefix so individual tests do not need local `@vrooli/api-base` mocks just to keep stdout readable.
+
 ## Current Utility Architecture
 
 ```
@@ -42,7 +44,7 @@ src/
 │   ├── render.tsx                # render/renderHook wrappers with providers/router
 │   ├── browser.ts                # matchMedia/ResizeObserver and storage helpers
 │   ├── stores.ts                 # storage reset helper
-│   └── console.ts                # narrow expected-console helper
+│   └── console.ts                # narrow expected-console and expected hook-error helpers
 └── components/ui/                # Shared UI components
     ├── button.tsx                # Button with CVA variants
     ├── input.tsx                 # Input with CVA variants
@@ -222,6 +224,8 @@ The codebase properly implements testing seams for utilities:
 4. **ID Generation**: Now testable via `generateUniqueId(prefix)` with deterministic format
 5. **Query Options**: `defaultQueryOptions` references config, making it testable and overridable
 6. **UI Test Utilities**: `src/test-utils` centralizes React Query, router, browser, storage, and expected-console seams for tests only
+7. **Hot-spot Render Harness**: `ExecutionPage`, `ScenarioDetailsPage`, `ScenariosPage`, `FeedbackDialog`, and `FeedbackPanel` tests now use the shared render/query/browser helpers instead of local QueryClient, router, and matchMedia setup
+8. **Act-Safe Timer Harnessing**: Polling and staleness tests wrap timer advancement and subscribed store resets in `act` (`useCapturePolling`, `ClarificationPanel`, `FollowUpSheet`) so warning-free focused runs reflect real React update boundaries
 
 ## Future Consolidation Candidates
 
@@ -305,3 +309,21 @@ The codebase properly implements testing seams for utilities:
 ---
 
 *Last updated: 2026-01-28 (Phase 22: Utils Unification, Iteration 2)*
+
+---
+
+## Test Utility Consolidation (2026-05-01)
+
+The UI test utility layer is now the canonical home for app-level test providers and browser shims:
+
+- `src/test-utils/render.tsx` owns QueryClient + router wrappers, including React Router future flags and `initialIndex` support.
+- `src/test-utils/query.ts` owns retry-free React Query defaults.
+- `src/test-utils/browser.ts` owns `matchMedia`, `ResizeObserver`, and storage helpers.
+- `src/test-utils/console.ts` owns narrow expected-console suppression helpers.
+
+Recent migrations removed local router/query/browser setup from `InitiativeDetailsPage`, `BacklogDetailsPage`, `NotFoundPage`, `DetailPageHeader`, `ExecutionOverviewTab`, `FocusActionsSection`, `DependencyChipList`, `ScenarioResultCards`, `InitiativeDependencyGraph`, and `ScenarioBadge`. Keep future page or routed component tests on these helpers unless the test is intentionally validating a lower-level routing primitive.
+
+Remaining consolidation candidates:
+- Local `QueryClientProvider` wrappers in smaller component/hook tests.
+- Remaining raw `MemoryRouter` wrappers in low-level navigation component tests.
+- Local IndexedDB/FileReader mocks in `useIndexedDBAttachments.test.ts`, if another browser-storage test needs the same seam.

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
+import { act, screen, waitFor, fireEvent } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
 import { ScenariosPage } from "./ScenariosPage";
 import type { Scenario } from "../types";
 import { useScenariosStore } from "../stores";
+import { createTestQueryClient, renderWithProviders } from "../test-utils";
 
 /**
  * Mock the config module for testing.
@@ -87,31 +87,26 @@ describe("ScenariosPage", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
+    queryClient = createTestQueryClient();
     vi.clearAllMocks();
     useScenariosStore.getState().reset();
   });
 
-  const renderPage = () => {
-    return render(
-      <BrowserRouter basename="/">
-        <QueryClientProvider client={queryClient}>
-          <ScenariosPage />
-        </QueryClientProvider>
-      </BrowserRouter>
-    );
+  const renderPage = async () => {
+    const result = renderWithProviders(<ScenariosPage />, {
+      queryClient,
+      initialEntries: ["/scenarios"],
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    return result;
   };
 
   // [REQ:REQ-P0-006] Test scenarios page renders with search and filter controls
-  it("renders the scenarios page with search and filter controls", () => {
+  it("renders the scenarios page with search and filter controls", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue([]);
-    renderPage();
+    await renderPage();
 
     expect(screen.getByTestId("scenarios-page")).toBeInTheDocument();
     expect(screen.getByTestId("scenarios-search")).toBeInTheDocument();
@@ -121,7 +116,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test empty state when no scenarios exist
   it("shows empty state when no scenarios exist", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue([]);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-empty")).toBeInTheDocument();
@@ -133,7 +128,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test scenario cards display correctly
   it("renders scenario cards with correct data", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -148,7 +143,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test scenario count display
   it("displays scenario count", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     // Wait for the list to load (not just the count element which shows 0 during loading)
     await waitFor(() => {
@@ -163,7 +158,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test priority sorting (scenarios should be sorted by priority)
   it("displays scenarios sorted by priority", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -185,7 +180,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test search functionality filters by name
   it("filters scenarios by search term in name", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -207,7 +202,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test search functionality filters by description
   it("filters scenarios by search term in description", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -229,7 +224,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test search is case insensitive
   it("search is case insensitive", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -248,7 +243,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test no results state after filtering
   it("shows no results state when search matches nothing", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -269,7 +264,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test clear filters button works
   it("clear filters button resets search", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -296,7 +291,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test filter dropdown opens
   it("opens filter dropdown when filter button is clicked", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -319,7 +314,7 @@ describe("ScenariosPage", () => {
     vi.mocked(scenariosService.list).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-loading-state")).toBeInTheDocument();
@@ -329,7 +324,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test error state shows ErrorState component
   it("shows error state when API fails", async () => {
     vi.mocked(scenariosService.list).mockRejectedValue(new Error("API error"));
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("error-state")).toBeInTheDocument();
@@ -341,7 +336,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test greenfield badge displays
   it("displays greenfield badge for new scenarios", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();
@@ -354,7 +349,7 @@ describe("ScenariosPage", () => {
   // [REQ:REQ-P0-006] Test filtered count shows "of total" when filtering
   it("shows filtered count with total when filtering", async () => {
     vi.mocked(scenariosService.list).mockResolvedValue(mockScenarios);
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("scenarios-list")).toBeInTheDocument();

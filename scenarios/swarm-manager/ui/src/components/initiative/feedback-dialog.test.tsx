@@ -1,28 +1,16 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
+import { act, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FeedbackDialog } from "./feedback-dialog";
 import type { FeedbackDialogItem } from "./feedback-dialog";
 import { buildEnvelope, pruneActionsForSelection } from "./feedback-dialog-envelope";
 import { FeedbackBusyError, FeedbackLockConflictError } from "../../services/feedback-service";
 import { selectors } from "../../consts/selectors";
 import type { FeedbackRound, LockStatusResponse } from "../../types";
+import { createTestQueryClient, installMatchMediaMock, renderWithProviders } from "../../test-utils";
 
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+  installMatchMediaMock();
 });
 
 vi.mock("../../services/feedback-service", async () => {
@@ -58,17 +46,15 @@ const mockStart = vi.mocked(feedbackService.start);
 const mockLockStatus = vi.mocked(feedbackService.lockStatus);
 
 function renderDialog(props?: Partial<React.ComponentProps<typeof FeedbackDialog>>) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <FeedbackDialog
-        initiativeName="my-initiative"
-        isOpen
-        onClose={vi.fn()}
-        onSubmitted={vi.fn()}
-        {...props}
-      />
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <FeedbackDialog
+      initiativeName="my-initiative"
+      isOpen
+      onClose={vi.fn()}
+      onSubmitted={vi.fn()}
+      {...props}
+    />,
+    { queryClient: createTestQueryClient(), withRouter: false },
   );
 }
 
@@ -161,7 +147,9 @@ describe("FeedbackDialog", () => {
     expect(mockStart).toHaveBeenCalledTimes(1);
 
     // Release the pending submit so React Testing Library doesn't leak the promise.
-    resolvePending(makeRound());
+    await act(async () => {
+      resolvePending(makeRound());
+    });
     await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(1));
   });
 
@@ -315,18 +303,16 @@ const SAMPLE_ITEMS: FeedbackDialogItem[] = [
 ];
 
 function renderWithItems(props?: Partial<React.ComponentProps<typeof FeedbackDialog>>) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <FeedbackDialog
-        initiativeName="my-initiative"
-        isOpen
-        onClose={vi.fn()}
-        onSubmitted={vi.fn()}
-        items={SAMPLE_ITEMS}
-        {...props}
-      />
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <FeedbackDialog
+      initiativeName="my-initiative"
+      isOpen
+      onClose={vi.fn()}
+      onSubmitted={vi.fn()}
+      items={SAMPLE_ITEMS}
+      {...props}
+    />,
+    { queryClient: createTestQueryClient(), withRouter: false },
   );
 }
 
@@ -430,7 +416,9 @@ describe("FeedbackDialog · Quick Actions", () => {
     expect(callArgs.text).toBe("free prose only");
     expect(callArgs.text).not.toContain("<selection");
     expect(callArgs.text).not.toContain("<requested_actions");
-    resolvePending(makeRound());
+    await act(async () => {
+      resolvePending(makeRound());
+    });
   });
 
   it("wraps in XML envelope when items or actions are selected", async () => {
@@ -459,7 +447,9 @@ describe("FeedbackDialog · Quick Actions", () => {
     expect(text).toContain('<action name="identify_missing_work" />');
     expect(text).toContain("<user_note>");
     expect(text).toContain("and add tests");
-    resolvePending(makeRound());
+    await act(async () => {
+      resolvePending(makeRound());
+    });
   });
 
   it("hides quick actions and disables picker when round type is Note", async () => {
@@ -508,7 +498,9 @@ describe("FeedbackDialog · Quick Actions", () => {
     expect(submit).toBeEnabled();
     await userEvent.click(submit);
     await waitFor(() => expect(mockStart).toHaveBeenCalled());
-    resolvePending(makeRound());
+    await act(async () => {
+      resolvePending(makeRound());
+    });
   });
 });
 

@@ -155,6 +155,7 @@ function GraphControlsContent() {
     const Icon = icon;
     return (
       <button
+        key={label}
         type="button"
         onClick={onClick}
         className={cn(
@@ -376,32 +377,30 @@ function StatusGroupAccordion({
 
   return (
     <div className="rounded-lg border border-slate-700/50 bg-slate-900/40">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-3 py-2 text-left"
-      >
-        <span className="flex items-center gap-2">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left"
+          aria-expanded={open}
+        >
           <ChevronRight
             className={cn(
-              "h-3.5 w-3.5 text-slate-400 transition-transform",
+              "h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform",
               open && "rotate-90",
             )}
           />
-          <span className="text-xs font-medium text-slate-200">{group.label}</span>
+          <span className="truncate text-xs font-medium text-slate-200">{group.label}</span>
           <span className="text-[10px] text-slate-500">({nodeCount})</span>
-        </span>
+        </button>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleAll();
-          }}
-          className="text-[10px] font-medium text-slate-500 hover:text-slate-300"
+          onClick={onToggleAll}
+          className="px-3 py-2 text-[10px] font-medium text-slate-500 hover:text-slate-300"
         >
           {allVisible ? "Hide all" : "Show all"}
         </button>
-      </button>
+      </div>
       {open && (
         <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
           {group.statuses.map((status) => (

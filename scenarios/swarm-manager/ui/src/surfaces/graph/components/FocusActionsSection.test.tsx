@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import type { GraphNodeData, BacklogGraphNodeData, ExecutionGraphNodeData, CaptureGraphNodeData } from "../types";
+import {
+  createTestQueryClient,
+  renderWithProviders,
+} from "../../../test-utils";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -53,15 +55,8 @@ import { FocusActionsSection } from "./FocusActionsSection";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <MemoryRouter>
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    </MemoryRouter>,
-  );
+function renderFocusActions(ui: React.ReactElement) {
+  return renderWithProviders(ui, { queryClient: createTestQueryClient() });
 }
 
 function makeBacklogNode(status: string, kind = "execute", name = "test-item"): BacklogGraphNodeData {
@@ -118,7 +113,7 @@ describe("FocusActionsSection", () => {
 
   describe("backlog nodes", () => {
     it("renders Run button for ready backlog item", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("ready")}
           nodeId="backlog:execute/test-item"
@@ -128,7 +123,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("opens RunBacklogModal on Run click", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("ready")}
           nodeId="backlog:execute/test-item"
@@ -139,7 +134,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("does not render CTA for locked item", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("queued")}
           nodeId="backlog:execute/test-item"
@@ -164,7 +159,7 @@ describe("FocusActionsSection", () => {
         },
       });
 
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("backlog")}
           nodeId="backlog:execute/test-item"
@@ -177,7 +172,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("renders Archive button for completed terminal item", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeBacklogNode("completed")}
           nodeId="backlog:execute/test-item"
@@ -189,7 +184,7 @@ describe("FocusActionsSection", () => {
 
   describe("execution nodes", () => {
     it("renders Review button for needs_review execution", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeExecutionNode("needs_review")}
           nodeId="execution:exec-1"
@@ -199,7 +194,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("renders Retry button for failed execution", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeExecutionNode("failed")}
           nodeId="execution:exec-1"
@@ -209,7 +204,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("renders Run Checks button for completed execution", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeExecutionNode("completed")}
           nodeId="execution:exec-1"
@@ -219,7 +214,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("triggers rerun checks for needs_fixup execution", async () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeExecutionNode("needs_fixup")}
           nodeId="execution:exec-1"
@@ -232,7 +227,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("does not render actions for running execution", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeExecutionNode("running")}
           nodeId="execution:exec-1"
@@ -245,7 +240,7 @@ describe("FocusActionsSection", () => {
 
   describe("capture nodes", () => {
     it("renders Classify button for classifying capture", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeCaptureNode("classifying")}
           nodeId="capture:cap-1"
@@ -255,7 +250,7 @@ describe("FocusActionsSection", () => {
     });
 
     it("does not render action for classified capture", () => {
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection
           nodeData={makeCaptureNode("classified")}
           nodeId="capture:cap-1"
@@ -275,7 +270,7 @@ describe("FocusActionsSection", () => {
         status: "running",
       } as GraphNodeData;
 
-      renderWithProviders(
+      renderFocusActions(
         <FocusActionsSection nodeData={nodeData} nodeId="scenario:test" />,
       );
 

@@ -1,25 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
+import { Route, Routes } from "react-router-dom";
 import { ScenarioDetailsPage } from "./ScenarioDetailsPage";
 import { useScenariosStore } from "../stores";
+import { createTestQueryClient, installMatchMediaMock, renderWithProviders } from "../test-utils";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+  installMatchMediaMock();
 });
 
 /**
@@ -82,13 +71,7 @@ describe("ScenarioDetailsPage", () => {
   };
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
+    queryClient = createTestQueryClient();
     vi.clearAllMocks();
     window.localStorage.clear();
     vi.mocked(scenariosService.getFiles).mockResolvedValue([]);
@@ -103,14 +86,15 @@ describe("ScenarioDetailsPage", () => {
   });
 
   const renderPage = (scenarioName = "test-scenario") => {
-    return render(
-      <MemoryRouter initialEntries={[`/scenarios/${scenarioName}`]}>
-        <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
-          </Routes>
-        </QueryClientProvider>
-      </MemoryRouter>
+    return renderWithProviders(
+      <Routes>
+        <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
+        <Route path="/graph/topology" element={<div data-testid="graph-topology-route" />} />
+      </Routes>,
+      {
+        queryClient,
+        initialEntries: [`/scenarios/${scenarioName}`],
+      },
     );
   };
 
@@ -443,6 +427,9 @@ describe("ScenarioDetailsPage", () => {
         expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
       });
       fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      await waitFor(() => {
+        expect(screen.getByText("No files selected for archive.")).toBeInTheDocument();
+      });
 
       const confirmButton = screen.getByTestId("scenario-delete-confirm");
       const confirmInput = screen.getByPlaceholderText("test-scenario");
@@ -926,14 +913,14 @@ describe("ScenarioDetailsPage", () => {
   // Edge cases
   describe("edge cases", () => {
     it("shows error when rendered without name in selection", async () => {
-      render(
-        <MemoryRouter initialEntries={["/graph"]}>
-          <QueryClientProvider client={queryClient}>
-            <Routes>
-              <Route path="/graph" element={<ScenarioDetailsPage />} />
-            </Routes>
-          </QueryClientProvider>
-        </MemoryRouter>
+      renderWithProviders(
+        <Routes>
+          <Route path="/graph" element={<ScenarioDetailsPage />} />
+        </Routes>,
+        {
+          queryClient,
+          initialEntries: ["/graph"],
+        },
       );
 
       await waitFor(() => {
@@ -1081,7 +1068,7 @@ describe("ScenarioDetailsPage", () => {
       });
 
       const archivedToggle = screen.getByTestId("scenario-fix-history-scope-archived");
-      archivedToggle.click();
+      fireEvent.click(archivedToggle);
 
       await waitFor(() => {
         expect(screen.getByText("Old fix")).toBeInTheDocument();

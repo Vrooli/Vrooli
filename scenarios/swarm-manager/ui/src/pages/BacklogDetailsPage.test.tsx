@@ -1,25 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within, cleanup, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { screen, waitFor, fireEvent, within, cleanup, act } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
+import { Route, Routes } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
 import { useBacklogStore, useAgentActivitiesStore, useBacklogDetailUIStore } from "../stores";
+import {
+  createTestQueryClient,
+  installMatchMediaMock,
+  renderWithProviders,
+} from "../test-utils";
 
-// jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+  installMatchMediaMock();
 });
 
 vi.mock("../config", () => ({
@@ -201,13 +193,7 @@ describe("BacklogDetailsPage", () => {
   ];
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
+    queryClient = createTestQueryClient();
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
     useBacklogDetailUIStore.getState().reset();
@@ -232,14 +218,14 @@ describe("BacklogDetailsPage", () => {
 
   const renderPage = (kind = "idea", name = "test-idea", tab?: string) => {
     const search = tab ? `?tab=${tab}` : "";
-    return render(
-      <MemoryRouter initialEntries={[`/backlog/${kind}/${name}${search}`]}>
-        <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} />
-          </Routes>
-        </QueryClientProvider>
-      </MemoryRouter>
+    return renderWithProviders(
+      <Routes>
+        <Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} />
+      </Routes>,
+      {
+        queryClient,
+        initialEntries: [`/backlog/${kind}/${name}${search}`],
+      },
     );
   };
 

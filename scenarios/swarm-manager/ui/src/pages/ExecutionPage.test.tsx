@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { ExecutionPage } from "./ExecutionPage";
 import { useExecutionStore } from "../stores";
+import { createTestQueryClient, renderWithProviders } from "../test-utils";
 
 vi.mock("../services", () => ({
   executionService: {
@@ -21,18 +21,18 @@ vi.mock("../services", () => ({
     getStatus: vi.fn().mockResolvedValue({ available: false }),
   },
   embeddedService: {
-    getExternalUrl: vi.fn().mockResolvedValue(null),
+    getExternalUrl: vi.fn(() => new Promise(() => undefined)),
   },
 }));
 
 vi.mock("../services/gct-service", () => ({
   gctService: {
-    getStatus: vi.fn().mockResolvedValue({ available: false }),
+    getStatus: vi.fn(() => new Promise(() => undefined)),
   },
 }));
 
 import { executionService, promptService } from "../services";
-import type { PromptTrace } from "../types";
+import type { ExecutionRecord, PromptTrace } from "../types";
 
 describe("ExecutionPage", () => {
   let queryClient: QueryClient;
@@ -47,38 +47,51 @@ describe("ExecutionPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useExecutionStore.getState().reset();
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
+    queryClient = createTestQueryClient();
     vi.mocked(promptService.getExecutionPromptTrace).mockResolvedValue(mockPromptTrace);
   });
 
   afterEach(() => {
+    cleanup();
     useExecutionStore.getState().reset();
     queryClient.clear();
   });
 
-  it("renders the execution page with tabs and controls", async () => {
-    vi.mocked(executionService.list).mockResolvedValue([]);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter><ExecutionPage /></MemoryRouter>
-      </QueryClientProvider>,
+  const renderPage = async (executions: ExecutionRecord[] = []) => {
+    let resolveExecutions: (value: ExecutionRecord[]) => void = () => undefined;
+    vi.mocked(executionService.list).mockReturnValue(
+      new Promise((resolve) => {
+        resolveExecutions = resolve;
+      }),
     );
 
-    expect(screen.getByTestId("execution-page")).toBeInTheDocument();
-    expect(screen.getByTestId("execution-tabs")).toBeInTheDocument();
-    expect(screen.getByTestId("execution-search")).toBeInTheDocument();
-    expect(screen.getByTestId("execution-filter")).toBeInTheDocument();
+    let result: ReturnType<typeof renderWithProviders> | undefined;
+    await act(async () => {
+      result = renderWithProviders(<ExecutionPage />, { queryClient });
+    });
+    await act(async () => {
+      resolveExecutions(executions);
+    });
+    if (!result) {
+      throw new Error("ExecutionPage render did not complete.");
+    }
+    return result;
+  };
+
+  it("renders the execution page with tabs and controls", async () => {
+    await renderPage();
 
     await waitFor(() => {
+      expect(screen.getByTestId("execution-page")).toBeInTheDocument();
+      expect(screen.getByTestId("execution-tabs")).toBeInTheDocument();
+      expect(screen.getByTestId("execution-search")).toBeInTheDocument();
+      expect(screen.getByTestId("execution-filter")).toBeInTheDocument();
       expect(screen.getByTestId("execution-empty")).toBeInTheDocument();
     });
   });
 
   it("renders run cards when data exists", async () => {
-    vi.mocked(executionService.list).mockResolvedValue([
+    await renderPage([
       {
         executionId: "exec_123",
         backlogKind: "execute",
@@ -94,18 +107,11 @@ describe("ExecutionPage", () => {
       },
     ]);
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter><ExecutionPage /></MemoryRouter>
-      </QueryClientProvider>,
-    );
-
     await waitFor(() => {
       expect(screen.getByTestId("execution-grid")).toBeInTheDocument();
+      expect(screen.getAllByText("Execute: deploy-health-check").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Running").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Cancel").length).toBeGreaterThanOrEqual(1);
     });
-
-    expect(screen.getAllByText("Execute: deploy-health-check").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Running").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Cancel").length).toBeGreaterThanOrEqual(1);
   });
 });

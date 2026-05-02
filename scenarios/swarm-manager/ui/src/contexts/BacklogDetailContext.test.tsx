@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { withExpectedReactHookError } from "../test-utils";
 import { BacklogDetailProvider, useBacklogDetail, type BacklogDetailContextValue } from "./BacklogDetailContext";
 
 const mockValue: BacklogDetailContextValue = {
@@ -34,9 +35,11 @@ describe("BacklogDetailContext", () => {
     expect(result.current.agentLabel).toBe("Idea Agent");
   });
 
-  it("throws when used outside provider", () => {
-    expect(() => {
-      renderHook(() => useBacklogDetail());
-    }).toThrow("useBacklogDetail must be used within a BacklogDetailProvider");
+  it("throws when used outside provider", async () => {
+    await withExpectedReactHookError("useBacklogDetail must be used within a BacklogDetailProvider", () => {
+      expect(() => {
+        renderHook(() => useBacklogDetail());
+      }).toThrow("useBacklogDetail must be used within a BacklogDetailProvider");
+    });
   });
 });

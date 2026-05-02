@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ArrowUpRight } from "lucide-react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { DependencyChipList } from "./dependency-chip-list";
 import type { ResolvedDependency } from "../../lib/backlog-queue-utils";
 import type { BacklogStatus } from "../../types";
+import { renderWithProviders } from "../../test-utils";
 
 function makeDep(overrides?: Partial<ResolvedDependency>): ResolvedDependency {
   return {
@@ -22,10 +23,8 @@ function renderChips(
   label = "Depends on",
   onStatusChange?: (dep: ResolvedDependency, newStatus: BacklogStatus) => void,
 ) {
-  return render(
-    <MemoryRouter>
-      <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />
-    </MemoryRouter>,
+  return renderWithProviders(
+    <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />,
   );
 }
 
@@ -58,15 +57,15 @@ describe("DependencyChipList", () => {
   });
 
   it("navigates to backlog detail when title is clicked", () => {
-    render(
-      <MemoryRouter>
+    renderWithProviders(
+      <>
         <DependencyChipList
           label="Depends on"
           items={[makeDep({ kind: "fix", name: "broken-thing", title: "Broken" })]}
           icon={ArrowUpRight}
         />
         <LocationProbe />
-      </MemoryRouter>,
+      </>,
     );
     fireEvent.click(screen.getByText("Broken"));
     expect(screen.getByTestId("location-path")).toHaveTextContent("/backlog/fix/broken-thing");

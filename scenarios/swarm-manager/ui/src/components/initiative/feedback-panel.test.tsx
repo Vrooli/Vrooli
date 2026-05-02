@@ -1,28 +1,20 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
+import { screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { FeedbackPanel } from "./feedback-panel";
 import { selectors } from "../../consts/selectors";
-import type { FeedbackRound } from "../../types";
+import type { FeedbackRound, LockStatusResponse } from "../../types";
+import {
+  createTestQueryClient,
+  installMatchMediaMock,
+  installResizeObserverMock,
+  renderWithProviders,
+} from "../../test-utils";
 
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  });
-  // ResizeObserver used by ReactFlow / auto-resize hooks.
-  class ROShim {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-  (globalThis as unknown as { ResizeObserver: typeof ROShim }).ResizeObserver = ROShim;
+  installMatchMediaMock();
+  installResizeObserverMock();
 });
 
 vi.mock("../../services/feedback-service", async () => {
@@ -38,7 +30,7 @@ vi.mock("../../services/feedback-service", async () => {
       continue_: vi.fn(),
       decide: vi.fn(),
       dismiss: vi.fn(),
-      lockStatus: vi.fn(),
+      lockStatus: vi.fn(async () => ({ locked: false }) as LockStatusResponse),
       attachmentUrl: (name: string, round: number, id: string) =>
         `/initiatives/${name}/feedback/${round}/attachments/${id}`,
     },
@@ -59,6 +51,7 @@ const { feedbackService } = await import("../../services/feedback-service");
 const mockList = vi.mocked(feedbackService.list);
 const mockDecide = vi.mocked(feedbackService.decide);
 const mockContinue = vi.mocked(feedbackService.continue_);
+const mockLockStatus = vi.mocked(feedbackService.lockStatus);
 
 function round(overrides: Partial<FeedbackRound> = {}): FeedbackRound {
   return {
@@ -93,11 +86,14 @@ function round(overrides: Partial<FeedbackRound> = {}): FeedbackRound {
 }
 
 function renderPanel(props: Partial<React.ComponentProps<typeof FeedbackPanel>> = {}) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnMount: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <FeedbackPanel initiativeName="init" {...props} />
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <FeedbackPanel initiativeName="init" {...props} />,
+    {
+      queryClient: createTestQueryClient({
+        defaultOptions: { queries: { refetchOnMount: false } },
+      }),
+      withRouter: false,
+    },
   );
 }
 
@@ -105,6 +101,8 @@ beforeEach(() => {
   mockList.mockReset();
   mockDecide.mockReset();
   mockContinue.mockReset();
+  mockLockStatus.mockReset();
+  mockLockStatus.mockResolvedValue({ locked: false });
 });
 afterEach(() => cleanup());
 

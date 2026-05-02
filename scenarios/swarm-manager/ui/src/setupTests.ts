@@ -2,6 +2,14 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { vi } from "vitest";
 
+const originalConsoleLog = console.log.bind(console);
+console.log = (...args: unknown[]) => {
+  if (typeof args[0] === "string" && args[0].startsWith("[api-base]")) {
+    return;
+  }
+  originalConsoleLog(...args);
+};
+
 vi.mock("@monaco-editor/react", () => ({
   __esModule: true,
   default: ({

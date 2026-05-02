@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ScenarioResultCards } from "./scenario-result-cards";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, Finalization, ScenarioFinalization } from "../../types";
+import { renderWithProviders } from "../../test-utils";
 
 function makeScenarioFinalization(
   overrides?: Partial<ScenarioFinalization>,
@@ -52,11 +53,7 @@ const defaultProps = {
 
 describe("ScenarioResultCards", () => {
   function renderCards(execution: ExecutionRecord) {
-    return render(
-      <MemoryRouter>
-        <ScenarioResultCards execution={execution} />
-      </MemoryRouter>,
-    );
+    return renderWithProviders(<ScenarioResultCards execution={execution} />);
   }
 
   function LocationProbe() {
@@ -202,8 +199,8 @@ describe("ScenarioResultCards", () => {
   });
 
   it("clicking scenario name navigates to scenario detail", () => {
-    render(
-      <MemoryRouter>
+    renderWithProviders(
+      <>
         <ScenarioResultCards
           execution={makeExecution({
             finalization: makeFinalization({
@@ -212,7 +209,7 @@ describe("ScenarioResultCards", () => {
           })}
         />
         <LocationProbe />
-      </MemoryRouter>,
+      </>,
     );
     fireEvent.click(screen.getByText("click-me"));
     expect(screen.getByTestId("location-path")).toHaveTextContent("/scenarios/click-me");

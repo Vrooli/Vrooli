@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { Network, Activity } from "lucide-react";
 import { DetailPageHeader, type DetailPageHeaderProps } from "./DetailPageHeader";
 import type { LensOption } from "./lens-options";
+import { installMatchMediaMock, renderWithProviders } from "../../test-utils";
 
 const testLenses: LensOption[] = [
   { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
@@ -12,17 +13,7 @@ const testLenses: LensOption[] = [
 ];
 
 beforeEach(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+  installMatchMediaMock();
 });
 
 function renderHeader(overrides?: Partial<DetailPageHeaderProps>) {
@@ -34,11 +25,10 @@ function renderHeader(overrides?: Partial<DetailPageHeaderProps>) {
     ...overrides,
   };
 
-  return render(
-    <MemoryRouter initialEntries={["/graph", "/backlog/execute/test"]} initialIndex={1}>
-      <DetailPageHeader {...defaults} />
-    </MemoryRouter>,
-  );
+  return renderWithProviders(<DetailPageHeader {...defaults} />, {
+    initialEntries: ["/graph", "/backlog/execute/test"],
+    initialIndex: 1,
+  });
 }
 
 function LocationProbe() {
@@ -89,17 +79,13 @@ describe("DetailPageHeader", () => {
   });
 
   it("does not render LensBar when nodeId is null or lenses are empty", () => {
-    const { rerender } = render(
-      <MemoryRouter>
-        <DetailPageHeader entityType="backlog" title="Test Item" nodeId={null} lenses={testLenses} />
-      </MemoryRouter>,
+    const { rerender } = renderWithProviders(
+      <DetailPageHeader entityType="backlog" title="Test Item" nodeId={null} lenses={testLenses} />,
     );
     expect(screen.queryByTestId("lens-bar")).not.toBeInTheDocument();
 
     rerender(
-      <MemoryRouter>
-        <DetailPageHeader entityType="backlog" title="Test Item" nodeId="backlog-item/execute/test" lenses={[]} />
-      </MemoryRouter>,
+      <DetailPageHeader entityType="backlog" title="Test Item" nodeId="backlog-item/execute/test" lenses={[]} />,
     );
     expect(screen.queryByTestId("lens-bar")).not.toBeInTheDocument();
   });
@@ -111,20 +97,22 @@ describe("DetailPageHeader", () => {
   });
 
   it("uses route back semantics for the nav button", async () => {
-    render(
-      <MemoryRouter initialEntries={["/graph", "/backlog/execute/test"]} initialIndex={1}>
-        <Routes>
-          <Route
-            path="*"
-            element={(
-              <>
-                <DetailPageHeader entityType="backlog" title="Test Item" nodeId={null} lenses={[]} />
-                <LocationProbe />
-              </>
-            )}
-          />
-        </Routes>
-      </MemoryRouter>,
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="*"
+          element={(
+            <>
+              <DetailPageHeader entityType="backlog" title="Test Item" nodeId={null} lenses={[]} />
+              <LocationProbe />
+            </>
+          )}
+        />
+      </Routes>,
+      {
+        initialEntries: ["/graph", "/backlog/execute/test"],
+        initialIndex: 1,
+      },
     );
 
     expect(screen.getByTestId("page-sidebar-button")).toHaveAttribute("aria-label", "Open sidebar");

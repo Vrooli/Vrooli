@@ -1,25 +1,17 @@
-import { describe, it, expect, beforeAll, vi, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
 import { InitiativeDependencyGraph } from "./InitiativeDependencyGraph";
 import type { BacklogStatus } from "../../types";
+import {
+  installMatchMediaMock,
+  installResizeObserverMock,
+  renderWithProviders,
+} from "../../test-utils";
 
 beforeAll(() => {
-  // ReactFlow needs ResizeObserver + getBoundingClientRect.
-  class ROShim {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-  (globalThis as unknown as { ResizeObserver: typeof ROShim }).ResizeObserver = ROShim;
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  });
+  // ReactFlow needs ResizeObserver, and the graph shell checks matchMedia.
+  installResizeObserverMock();
+  installMatchMediaMock();
 });
 
 afterEach(() => cleanup());
@@ -37,31 +29,25 @@ function item(name: string, dependsOn: string[] = [], status: BacklogStatus = "b
 describe("InitiativeDependencyGraph overlay", () => {
   it("renders with no overlay (baseline path)", () => {
     const items = [item("a"), item("b", ["execute/a"])];
-    const { container } = render(
-      <MemoryRouter>
-        <InitiativeDependencyGraph items={items} />
-      </MemoryRouter>,
-    );
+    const { container } = renderWithProviders(<InitiativeDependencyGraph items={items} />);
     // ReactFlow mounts a container div; overlay path still produces output.
     expect(container.firstChild).toBeTruthy();
   });
 
   it("accepts an overlay with added/archived/status changes without crashing", () => {
     const items = [item("a"), item("b", ["execute/a"])];
-    const { container } = render(
-      <MemoryRouter>
-        <InitiativeDependencyGraph
-          items={items}
-          overlay={{
-            addedNodes: [{ id: "execute/new", kind: "execute", name: "new", title: "New" }],
-            addedNodeIds: ["execute/new"],
-            archivedNodeIds: ["execute/a"],
-            statusChanges: { "execute/b": "ready" },
-            addedEdges: [{ from: "execute/new", to: "execute/b" }],
-            removedEdges: [{ from: "execute/a", to: "execute/b" }],
-          }}
-        />
-      </MemoryRouter>,
+    const { container } = renderWithProviders(
+      <InitiativeDependencyGraph
+        items={items}
+        overlay={{
+          addedNodes: [{ id: "execute/new", kind: "execute", name: "new", title: "New" }],
+          addedNodeIds: ["execute/new"],
+          archivedNodeIds: ["execute/a"],
+          statusChanges: { "execute/b": "ready" },
+          addedEdges: [{ from: "execute/new", to: "execute/b" }],
+          removedEdges: [{ from: "execute/a", to: "execute/b" }],
+        }}
+      />,
     );
     expect(container.firstChild).toBeTruthy();
     // With overlay adds, the "No dependencies" placeholder should not render.
@@ -70,15 +56,13 @@ describe("InitiativeDependencyGraph overlay", () => {
 
   it("renders the diff badge label when a status_change is present", () => {
     const items = [item("a"), item("b", ["execute/a"])];
-    const { container } = render(
-      <MemoryRouter>
-        <InitiativeDependencyGraph
-          items={items}
-          overlay={{
-            statusChanges: { "execute/a": "ready" },
-          }}
-        />
-      </MemoryRouter>,
+    const { container } = renderWithProviders(
+      <InitiativeDependencyGraph
+        items={items}
+        overlay={{
+          statusChanges: { "execute/a": "ready" },
+        }}
+      />,
     );
     // ReactFlow renders the custom node content as HTML — the "Status" label
     // should appear in the DOM somewhere under the node markup.

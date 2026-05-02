@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { useClarificationStore } from "../../stores/clarification-store";
 import type { ClarificationThread } from "../../types/domain";
@@ -237,7 +237,9 @@ describe("ClarificationPanel", () => {
 
       render(<ClarificationPanel />);
 
-      await vi.advanceTimersByTimeAsync(91_000);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(91_000);
+      });
       expect(screen.getByTestId("staleness-warning")).toBeInTheDocument();
     });
 
@@ -259,12 +261,16 @@ describe("ClarificationPanel", () => {
 
       const { rerender } = render(<ClarificationPanel />);
 
-      await vi.advanceTimersByTimeAsync(91_000);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(91_000);
+      });
       expect(screen.getByTestId("staleness-warning")).toBeInTheDocument();
 
       // Simulate agent response arriving via polling.
-      useClarificationStore.setState({
-        thread: MOCK_THREAD, // has assistant message — isWaitingForAgent becomes false
+      act(() => {
+        useClarificationStore.setState({
+          thread: MOCK_THREAD, // has assistant message — isWaitingForAgent becomes false
+        });
       });
 
       rerender(<ClarificationPanel />);
