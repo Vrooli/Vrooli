@@ -291,18 +291,19 @@ type ModeCatalog struct {
 }
 
 type ModeCatalogEntry struct {
-	Mode           string             `json:"mode"`
-	Label          string             `json:"label"`
-	Description    string             `json:"description,omitempty"`
-	UsageCount     int                `json:"usage_count"`
-	ScopeKind      string             `json:"scope_kind"`
-	RunStrategy    string             `json:"run_strategy"`
-	WorkspaceTabID string             `json:"workspace_tab_id"`
-	Capabilities   ModeCapabilities   `json:"capabilities"`
-	Default        bool               `json:"default"`
-	Switchable     bool               `json:"switchable"`
-	SupportsPhases bool               `json:"supports_phases"`
-	Phases         []ModeCatalogPhase `json:"phases"`
+	Mode           string                 `json:"mode"`
+	Label          string                 `json:"label"`
+	Description    string                 `json:"description,omitempty"`
+	UsageCount     int                    `json:"usage_count"`
+	ScopeKind      string                 `json:"scope_kind"`
+	RunStrategy    string                 `json:"run_strategy"`
+	WorkspaceTabID string                 `json:"workspace_tab_id"`
+	Capabilities   ModeCapabilities       `json:"capabilities"`
+	Default        bool                   `json:"default"`
+	Switchable     bool                   `json:"switchable"`
+	SupportsPhases bool                   `json:"supports_phases"`
+	Phases         []ModeCatalogPhase     `json:"phases"`
+	PhaseGraph     *ModeCatalogPhaseGraph `json:"phase_graph,omitempty"`
 }
 
 // InitiativeRef is the compact view of an initiative attached to a mode in
@@ -322,11 +323,90 @@ type ModeDetail struct {
 	LinkedInitiatives []InitiativeRef  `json:"linked_initiatives"`
 }
 
+// ModeCatalogPhase is the wire shape for a single phase inside a mode's
+// catalog entry. It is the projection of registry.PhaseDefinition + the
+// phase's role in the mode's phase graph (start / terminal flags + sample
+// flags). Only fields that the UI/CLI render are surfaced; transitions are
+// carried separately on ModeCatalogPhaseGraph.
 type ModeCatalogPhase struct {
-	Phase            string `json:"phase"`
-	ProfileKey       string `json:"profile_key"`
-	WritesRepo       bool   `json:"writes_repo"`
-	RequiresCriteria bool   `json:"requires_criteria,omitempty"`
+	Phase                 string                     `json:"phase"`
+	Title                 string                     `json:"title"`
+	Purpose               string                     `json:"purpose"`
+	Trigger               string                     `json:"trigger"`
+	ProfileKey            string                     `json:"profile_key"`
+	WritesRepo            bool                       `json:"writes_repo"`
+	RequiresCriteria      bool                       `json:"requires_criteria,omitempty"`
+	IsStart               bool                       `json:"is_start,omitempty"`
+	IsTerminal            bool                       `json:"is_terminal,omitempty"`
+	OutputArtifacts       []ArtifactDefinition       `json:"output_artifacts,omitempty"`
+	OutputContract        PhaseOutputContractSummary `json:"output_contract"`
+	CatalogID             string                     `json:"catalog_id"`
+	SkillID               string                     `json:"skill_id"`
+	ActivityPurpose       string                     `json:"activity_purpose"`
+	LockPurpose           string                     `json:"lock_purpose"`
+	ResultBindings        []ResultBinding            `json:"result_bindings,omitempty"`
+	SamplesReplanRate     bool                       `json:"samples_replan_rate,omitempty"`
+	SamplesAcceptanceRate bool                       `json:"samples_acceptance_rate,omitempty"`
+}
+
+// PhaseOutputContractSummary is the flat catalog-side view of the registry's
+// PhaseOutputContract. RequiredArtifacts is collapsed to a count because the
+// per-artifact metadata is already available on the phase's OutputArtifacts.
+type PhaseOutputContractSummary struct {
+	RequiresStructuredResult bool `json:"requires_structured_result"`
+	RequiresProgress         bool `json:"requires_progress"`
+	RequiresVerdict          bool `json:"requires_verdict"`
+	RequiresHandoff          bool `json:"requires_handoff"`
+	RequiredArtifactCount    int  `json:"required_artifact_count"`
+}
+
+// ModeCatalogPhaseGraph carries the mode's phase graph (start / terminal /
+// transitions / accepted verdicts) so the UI can render a DAG without
+// re-deriving state from the workspace endpoint. Omitted for item-level mode.
+type ModeCatalogPhaseGraph struct {
+	StartPhase       string                  `json:"start_phase"`
+	Terminal         []string                `json:"terminal"`
+	Transitions      []ModeCatalogTransition `json:"transitions"`
+	AcceptedVerdicts []string                `json:"accepted_verdicts,omitempty"`
+}
+
+// ModeCatalogTransition is one edge of the phase graph. The label is rendered
+// server-side so CLI and UI emit identical strings (e.g.
+// "on payload.replan_needed=true", "on continue", "always").
+type ModeCatalogTransition struct {
+	From             string `json:"from"`
+	To               string `json:"to"`
+	ConditionKind    string `json:"condition_kind"`
+	Label            string `json:"label"`
+	PayloadKey       string `json:"payload_key,omitempty"`
+	ProgressDecision string `json:"progress_decision,omitempty"`
+}
+
+func summarizeContract(contract PhaseOutputContract) PhaseOutputContractSummary {
+	return PhaseOutputContractSummary{
+		RequiresStructuredResult: contract.RequiresStructuredResult,
+		RequiresProgress:         contract.RequiresProgress,
+		RequiresVerdict:          contract.RequiresVerdict,
+		RequiresHandoff:          contract.RequiresHandoff,
+		RequiredArtifactCount:    len(contract.RequiredArtifacts),
+	}
+}
+
+func transitionLabel(condition TransitionCondition) string {
+	switch condition.Kind {
+	case TransitionConditionAlways:
+		return "always"
+	case TransitionConditionPayloadBool:
+		suffix := "=true"
+		if !condition.BoolValue {
+			suffix = "=false"
+		}
+		return "on payload." + condition.PayloadKey + suffix
+	case TransitionConditionProgressDecision:
+		return "on " + string(condition.ProgressDecision)
+	default:
+		return string(condition.Kind)
+	}
 }
 
 type WorkspacePhase struct {

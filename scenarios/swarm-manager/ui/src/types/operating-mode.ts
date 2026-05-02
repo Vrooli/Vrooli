@@ -32,11 +32,59 @@ export interface OperatingModeWorkspacePhase {
   next?: boolean;
 }
 
+export interface PhaseOutputContractSummary {
+  requiresStructuredResult: boolean;
+  requiresProgress: boolean;
+  requiresVerdict: boolean;
+  requiresHandoff: boolean;
+  requiredArtifactCount: number;
+}
+
+export interface PhaseResultBinding {
+  kind: "progress_artifact";
+  artifact: OperatingModeArtifactDefinition;
+}
+
+export type OperatingModeTransitionConditionKind =
+  | "always"
+  | "payload_bool"
+  | "progress_decision";
+
+export interface OperatingModePhaseTransition {
+  from: string;
+  to: string;
+  conditionKind: OperatingModeTransitionConditionKind;
+  label: string;
+  payloadKey?: string;
+  progressDecision?: string;
+}
+
+export interface OperatingModePhaseGraph {
+  startPhase: string;
+  terminal: string[];
+  transitions: OperatingModePhaseTransition[];
+  acceptedVerdicts: string[];
+}
+
 export interface OperatingModeCatalogPhase {
   phase: string;
+  title: string;
+  purpose: string;
+  trigger: string;
   profileKey: string;
   writesRepo: boolean;
   requiresCriteria?: boolean;
+  isStart?: boolean;
+  isTerminal?: boolean;
+  outputArtifacts?: OperatingModeArtifactDefinition[];
+  outputContract: PhaseOutputContractSummary;
+  catalogId: string;
+  skillId: string;
+  activityPurpose: string;
+  lockPurpose: string;
+  resultBindings?: PhaseResultBinding[];
+  samplesReplanRate?: boolean;
+  samplesAcceptanceRate?: boolean;
 }
 
 export interface OperatingModeCapabilities {
@@ -63,6 +111,7 @@ export interface OperatingModeCatalogEntry {
   switchable: boolean;
   supportsPhases: boolean;
   phases: OperatingModeCatalogPhase[];
+  phaseGraph?: OperatingModePhaseGraph;
 }
 
 export interface OperatingModeCatalog {

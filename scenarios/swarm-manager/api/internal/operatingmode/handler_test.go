@@ -3,6 +3,7 @@ package operatingmode
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -109,6 +110,61 @@ func TestGetModeReturnsLinkedInitiatives(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), "drain-init") {
 		t.Fatalf("response should not include initiatives from other modes: %s", rec.Body.String())
+	}
+
+	// The catalog detail response surfaces the full per-phase shape and the
+	// phase graph block. Spot-check via map[string]any so the assertions read
+	// like the wire contract rather than re-encoding the wire types.
+	var detail map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	entry, ok := detail["entry"].(map[string]any)
+	if !ok {
+		t.Fatalf("entry missing or wrong type: %#v", detail["entry"])
+	}
+	graph, ok := entry["phase_graph"].(map[string]any)
+	if !ok {
+		t.Fatalf("entry.phase_graph missing or wrong type: %#v", entry["phase_graph"])
+	}
+	if graph["start_phase"] != "investigate" {
+		t.Fatalf("phase_graph.start_phase = %v, want investigate", graph["start_phase"])
+	}
+	phases, ok := entry["phases"].([]any)
+	if !ok || len(phases) == 0 {
+		t.Fatalf("entry.phases missing: %#v", entry["phases"])
+	}
+	first, ok := phases[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first phase wrong type: %#v", phases[0])
+	}
+	if first["title"] == nil || first["title"] == "" {
+		t.Fatalf("first phase missing title: %#v", first)
+	}
+	contract, ok := first["output_contract"].(map[string]any)
+	if !ok {
+		t.Fatalf("first phase output_contract missing: %#v", first)
+	}
+	if contract["requires_structured_result"] != true {
+		t.Fatalf("requires_structured_result = %v, want true", contract["requires_structured_result"])
+	}
+	transitions, ok := graph["transitions"].([]any)
+	if !ok || len(transitions) == 0 {
+		t.Fatalf("phase_graph.transitions missing: %#v", graph["transitions"])
+	}
+	foundReplan := false
+	for _, raw := range transitions {
+		edge, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if edge["from"] == "execute" && edge["to"] == "investigate" && edge["label"] == "on payload.replan_needed=true" {
+			foundReplan = true
+			break
+		}
+	}
+	if !foundReplan {
+		t.Fatalf("expected transition execute->investigate (replan) in: %#v", transitions)
 	}
 }
 

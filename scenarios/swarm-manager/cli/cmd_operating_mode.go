@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -18,15 +19,16 @@ type operatingModeListResponse struct {
 }
 
 type operatingModeListEntry struct {
-	Mode           string                      `json:"mode"`
-	Label          string                      `json:"label"`
-	Description    string                      `json:"description,omitempty"`
-	UsageCount     int                         `json:"usage_count"`
-	ScopeKind      string                      `json:"scope_kind"`
-	RunStrategy    string                      `json:"run_strategy"`
-	Default        bool                        `json:"default"`
-	SupportsPhases bool                        `json:"supports_phases"`
-	Phases         []operatingModeCatalogPhase `json:"phases,omitempty"`
+	Mode           string                          `json:"mode"`
+	Label          string                          `json:"label"`
+	Description    string                          `json:"description,omitempty"`
+	UsageCount     int                             `json:"usage_count"`
+	ScopeKind      string                          `json:"scope_kind"`
+	RunStrategy    string                          `json:"run_strategy"`
+	Default        bool                            `json:"default"`
+	SupportsPhases bool                            `json:"supports_phases"`
+	Phases         []operatingModeCatalogPhase     `json:"phases,omitempty"`
+	PhaseGraph     *operatingModeCatalogPhaseGraph `json:"phase_graph,omitempty"`
 }
 
 type operatingModeDetailResponse struct {
@@ -39,6 +41,43 @@ type operatingModeLinkedInitRef struct {
 	Title   string `json:"title"`
 	Status  string `json:"status,omitempty"`
 	Updated string `json:"updated,omitempty"`
+}
+
+// operatingModeCatalogPhaseGraph mirrors api/internal/operatingmode.ModeCatalogPhaseGraph.
+// keep in sync with cmd_initiatives_operating_mode.go.
+type operatingModeCatalogPhaseGraph struct {
+	StartPhase       string                     `json:"start_phase"`
+	Terminal         []string                   `json:"terminal"`
+	Transitions      []operatingModeCatalogEdge `json:"transitions"`
+	AcceptedVerdicts []string                   `json:"accepted_verdicts,omitempty"`
+}
+
+type operatingModeCatalogEdge struct {
+	From             string `json:"from"`
+	To               string `json:"to"`
+	ConditionKind    string `json:"condition_kind"`
+	Label            string `json:"label"`
+	PayloadKey       string `json:"payload_key,omitempty"`
+	ProgressDecision string `json:"progress_decision,omitempty"`
+}
+
+type operatingModeArtifactDef struct {
+	Path        string `json:"path"`
+	ContentType string `json:"content_type,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+}
+
+type operatingModePhaseContractSummary struct {
+	RequiresStructuredResult bool `json:"requires_structured_result"`
+	RequiresProgress         bool `json:"requires_progress"`
+	RequiresVerdict          bool `json:"requires_verdict"`
+	RequiresHandoff          bool `json:"requires_handoff"`
+	RequiredArtifactCount    int  `json:"required_artifact_count"`
+}
+
+type operatingModeResultBinding struct {
+	Kind     string                   `json:"kind"`
+	Artifact operatingModeArtifactDef `json:"artifact"`
 }
 
 func (a *App) cmdOperatingModeList(args []string) error {
@@ -148,6 +187,42 @@ func (a *App) cmdOperatingModeSet(args []string) error {
 	return nil
 }
 
+func humanizeOperatingModeEnum(value string) string {
+	switch value {
+	case "backlog_item":
+		return "Backlog item"
+	case "initiative":
+		return "Initiative"
+	case "existing_item_flow":
+		return "Existing item flow"
+	case "single_phase_run":
+		return "Single phase run"
+	case "sequential_handoff":
+		return "Sequential handoff"
+	case "operator_gated_loop":
+		return "Operator-gated loop"
+	default:
+		return value
+	}
+}
+
+func contractChips(c operatingModePhaseContractSummary) []string {
+	chips := make([]string, 0, 4)
+	if c.RequiresStructuredResult {
+		chips = append(chips, "structured")
+	}
+	if c.RequiresVerdict {
+		chips = append(chips, "verdict")
+	}
+	if c.RequiresHandoff {
+		chips = append(chips, "handoff")
+	}
+	if c.RequiresProgress {
+		chips = append(chips, "progress")
+	}
+	return chips
+}
+
 func printOperatingModeDetail(resp operatingModeDetailResponse) {
 	printSection("Operating Mode")
 	fmt.Printf("  Mode:        %s\n", resp.Entry.Mode)
@@ -155,18 +230,78 @@ func printOperatingModeDetail(resp operatingModeDetailResponse) {
 	if resp.Entry.Description != "" {
 		fmt.Printf("  Description: %s\n", resp.Entry.Description)
 	}
-	fmt.Printf("  Scope:       %s\n", resp.Entry.ScopeKind)
-	fmt.Printf("  Strategy:    %s\n", resp.Entry.RunStrategy)
+	fmt.Printf("  Scope:       %s\n", humanizeOperatingModeEnum(resp.Entry.ScopeKind))
+	fmt.Printf("  Strategy:    %s\n", humanizeOperatingModeEnum(resp.Entry.RunStrategy))
 	fmt.Printf("  Usage:       %d initiative(s)\n", resp.Entry.UsageCount)
 	if len(resp.Entry.Phases) > 0 {
 		fmt.Println("  Phases:")
 		for _, phase := range resp.Entry.Phases {
-			writeAccess := "read-only"
-			if phase.WritesRepo {
-				writeAccess = "writes repo"
+			markers := ""
+			if phase.IsStart {
+				markers += " [start]"
 			}
-			fmt.Printf("    - %s (%s, %s)\n", phase.Phase, phase.ProfileKey, writeAccess)
+			if phase.IsTerminal {
+				markers += " [terminal]"
+			}
+			title := phase.Title
+			if title == "" {
+				title = phase.Phase
+			}
+			fmt.Printf("    - %s  (%s)%s\n", title, phase.Phase, markers)
+			if phase.Purpose != "" {
+				fmt.Printf("      Purpose: %s\n", phase.Purpose)
+			}
+			writeAccess := "no"
+			if phase.WritesRepo {
+				writeAccess = "yes"
+			}
+			fmt.Printf("      Profile: %s    Writes repo: %s", phase.ProfileKey, writeAccess)
+			if phase.RequiresCriteria {
+				fmt.Print("    Requires criteria: yes")
+			}
+			fmt.Println()
+			if chips := contractChips(phase.OutputContract); len(chips) > 0 {
+				fmt.Printf("      Contract: %s\n", strings.Join(chips, "  "))
+			}
+			if len(phase.OutputArtifacts) > 0 {
+				fmt.Println("      Output artifacts:")
+				for _, artifact := range phase.OutputArtifacts {
+					marker := " "
+					if artifact.Required {
+						marker = "*"
+					}
+					fmt.Printf("        %s %s", marker, artifact.Path)
+					if artifact.ContentType != "" {
+						fmt.Printf("  (%s)", artifact.ContentType)
+					}
+					if artifact.Required {
+						fmt.Print("  required")
+					}
+					fmt.Println()
+				}
+			}
+			if phase.CatalogID != "" || phase.SkillID != "" || phase.ActivityPurpose != "" || phase.LockPurpose != "" {
+				fmt.Println("      Internals:")
+				if phase.CatalogID != "" {
+					fmt.Printf("        Catalog ID:       %s\n", phase.CatalogID)
+				}
+				if phase.SkillID != "" {
+					fmt.Printf("        Skill ID:         %s\n", phase.SkillID)
+				}
+				if phase.ActivityPurpose != "" {
+					fmt.Printf("        Activity purpose: %s\n", phase.ActivityPurpose)
+				}
+				if phase.LockPurpose != "" {
+					fmt.Printf("        Lock purpose:     %s\n", phase.LockPurpose)
+				}
+				if phase.Trigger != "" {
+					fmt.Printf("        Trigger:          %s\n", phase.Trigger)
+				}
+			}
 		}
+	}
+	if resp.Entry.PhaseGraph != nil {
+		printPhaseGraph(resp.Entry.PhaseGraph)
 	}
 	printSection("Linked Initiatives")
 	if len(resp.LinkedInitiatives) == 0 {
@@ -183,5 +318,36 @@ func printOperatingModeDetail(resp operatingModeDetailResponse) {
 			statusSuffix = " [" + init.Status + "]"
 		}
 		fmt.Printf("  - %s — %s%s\n", init.Name, title, statusSuffix)
+	}
+}
+
+func printPhaseGraph(graph *operatingModeCatalogPhaseGraph) {
+	fmt.Println("  Phase graph:")
+	if graph.StartPhase != "" {
+		fmt.Printf("    Start:    %s\n", graph.StartPhase)
+	}
+	if len(graph.Terminal) > 0 {
+		fmt.Printf("    Terminal: %s\n", strings.Join(graph.Terminal, ", "))
+	}
+	if len(graph.Transitions) > 0 {
+		fmt.Println("    Transitions:")
+		// Sort transitions by from/to/label for deterministic output.
+		edges := make([]operatingModeCatalogEdge, len(graph.Transitions))
+		copy(edges, graph.Transitions)
+		sort.SliceStable(edges, func(i, j int) bool {
+			if edges[i].From != edges[j].From {
+				return edges[i].From < edges[j].From
+			}
+			if edges[i].To != edges[j].To {
+				return edges[i].To < edges[j].To
+			}
+			return edges[i].Label < edges[j].Label
+		})
+		for _, edge := range edges {
+			fmt.Printf("      %s -> %s (%s)\n", edge.From, edge.To, edge.Label)
+		}
+	}
+	if len(graph.AcceptedVerdicts) > 0 {
+		fmt.Printf("    Accepted verdicts: %s\n", strings.Join(graph.AcceptedVerdicts, ", "))
 	}
 }

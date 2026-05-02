@@ -40,7 +40,7 @@ export function OperatingModesTab({ searchQuery, onItemClick }: OperatingModesTa
   if (error) {
     return (
       <div className="px-2 py-4 text-sm text-red-400">
-        Failed to load operating modes: {(error as Error).message}
+        Failed to load operating modes: {(error).message}
       </div>
     );
   }

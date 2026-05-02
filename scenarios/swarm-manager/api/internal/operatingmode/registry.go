@@ -117,8 +117,8 @@ type PromptCatalogMetadata struct {
 }
 
 type ResultBinding struct {
-	Kind     ResultBindingKind
-	Artifact ArtifactDefinition
+	Kind     ResultBindingKind  `json:"kind"`
+	Artifact ArtifactDefinition `json:"artifact"`
 }
 
 type TransitionRule struct {
@@ -151,9 +151,9 @@ type ArtifactPolicy struct {
 }
 
 type ArtifactDefinition struct {
-	Path        string
-	ContentType string
-	Required    bool
+	Path        string `json:"path"`
+	ContentType string `json:"content_type,omitempty"`
+	Required    bool   `json:"required,omitempty"`
 }
 
 type PromptPolicy struct {

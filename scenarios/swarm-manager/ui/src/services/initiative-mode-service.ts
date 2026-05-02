@@ -2,6 +2,7 @@ import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
+  OperatingModeArtifactDefinition,
   OperatingModeArtifactSnapshot,
   OperatingModeBacklogSyncResult,
   OperatingModeCatalog,
@@ -10,11 +11,16 @@ import type {
   OperatingModeCapabilities,
   OperatingModeDetail,
   OperatingModeLinkedInitiative,
+  OperatingModePhaseGraph,
+  OperatingModePhaseTransition,
   OperatingModeRound,
   OperatingModeRoundItem,
+  OperatingModeTransitionConditionKind,
   OperatingModeWorkspace,
   OperatingModeWorkspaceDefinition,
   OperatingModeWorkspacePhase,
+  PhaseOutputContractSummary,
+  PhaseResultBinding,
   SwitchOperatingModeResult,
   UpdateOperatingModeArgs,
 } from "../types/operating-mode";
@@ -72,13 +78,100 @@ function normalizePhase(raw: unknown): OperatingModeWorkspacePhase {
   };
 }
 
+function normalizeArtifactDefinition(raw: unknown): OperatingModeArtifactDefinition {
+  const item = recordValue(raw);
+  return {
+    path: stringValue(item.path),
+    contentType: stringValue(item.content_type ?? item.contentType, undefined),
+    required: boolValue(item.required, undefined),
+  };
+}
+
+function normalizeContractSummary(raw: unknown): PhaseOutputContractSummary {
+  const contract = recordValue(raw);
+  return {
+    requiresStructuredResult:
+      boolValue(contract.requires_structured_result ?? contract.requiresStructuredResult) ?? false,
+    requiresProgress: boolValue(contract.requires_progress ?? contract.requiresProgress) ?? false,
+    requiresVerdict: boolValue(contract.requires_verdict ?? contract.requiresVerdict) ?? false,
+    requiresHandoff: boolValue(contract.requires_handoff ?? contract.requiresHandoff) ?? false,
+    requiredArtifactCount:
+      numberValue(contract.required_artifact_count ?? contract.requiredArtifactCount, 0) ?? 0,
+  };
+}
+
+function normalizeResultBinding(raw: unknown): PhaseResultBinding {
+  const binding = recordValue(raw);
+  return {
+    kind: "progress_artifact",
+    artifact: normalizeArtifactDefinition(binding.artifact),
+  };
+}
+
+const TRANSITION_KINDS: ReadonlySet<OperatingModeTransitionConditionKind> = new Set([
+  "always",
+  "payload_bool",
+  "progress_decision",
+]);
+
+function normalizeTransitionKind(raw: unknown): OperatingModeTransitionConditionKind {
+  const value = stringValue(raw);
+  return TRANSITION_KINDS.has(value as OperatingModeTransitionConditionKind)
+    ? (value as OperatingModeTransitionConditionKind)
+    : "always";
+}
+
+function normalizeTransition(raw: unknown): OperatingModePhaseTransition {
+  const edge = recordValue(raw);
+  return {
+    from: stringValue(edge.from),
+    to: stringValue(edge.to),
+    conditionKind: normalizeTransitionKind(edge.condition_kind ?? edge.conditionKind),
+    label: stringValue(edge.label),
+    payloadKey: stringValue(edge.payload_key ?? edge.payloadKey, undefined),
+    progressDecision: stringValue(edge.progress_decision ?? edge.progressDecision, undefined),
+  };
+}
+
+function normalizePhaseGraph(raw: unknown): OperatingModePhaseGraph | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const graph = recordValue(raw);
+  const startPhase = stringValue(graph.start_phase ?? graph.startPhase);
+  if (!startPhase) return undefined;
+  const transitions = graph.transitions;
+  return {
+    startPhase,
+    terminal: stringArray(graph.terminal),
+    transitions: Array.isArray(transitions) ? transitions.map(normalizeTransition) : [],
+    acceptedVerdicts: stringArray(graph.accepted_verdicts ?? graph.acceptedVerdicts),
+  };
+}
+
 function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
   const phase = recordValue(raw);
+  const artifacts = phase.output_artifacts ?? phase.outputArtifacts;
+  const bindings = phase.result_bindings ?? phase.resultBindings;
   return {
     phase: stringValue(phase.phase),
+    title: stringValue(phase.title),
+    purpose: stringValue(phase.purpose),
+    trigger: stringValue(phase.trigger),
     profileKey: stringValue(phase.profile_key ?? phase.profileKey),
     writesRepo: boolValue(phase.writes_repo ?? phase.writesRepo) ?? false,
     requiresCriteria: boolValue(phase.requires_criteria ?? phase.requiresCriteria),
+    isStart: boolValue(phase.is_start ?? phase.isStart),
+    isTerminal: boolValue(phase.is_terminal ?? phase.isTerminal),
+    outputArtifacts: Array.isArray(artifacts)
+      ? artifacts.map(normalizeArtifactDefinition)
+      : undefined,
+    outputContract: normalizeContractSummary(phase.output_contract ?? phase.outputContract),
+    catalogId: stringValue(phase.catalog_id ?? phase.catalogId),
+    skillId: stringValue(phase.skill_id ?? phase.skillId),
+    activityPurpose: stringValue(phase.activity_purpose ?? phase.activityPurpose),
+    lockPurpose: stringValue(phase.lock_purpose ?? phase.lockPurpose),
+    resultBindings: Array.isArray(bindings) ? bindings.map(normalizeResultBinding) : undefined,
+    samplesReplanRate: boolValue(phase.samples_replan_rate ?? phase.samplesReplanRate),
+    samplesAcceptanceRate: boolValue(phase.samples_acceptance_rate ?? phase.samplesAcceptanceRate),
   };
 }
 
@@ -113,6 +206,7 @@ function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
     switchable: boolValue(mode.switchable) ?? false,
     supportsPhases,
     phases: Array.isArray(phases) ? phases.map(normalizeCatalogPhase) : [],
+    phaseGraph: normalizePhaseGraph(mode.phase_graph ?? mode.phaseGraph),
   };
 }
 

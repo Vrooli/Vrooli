@@ -5,7 +5,32 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OperatingModePanel } from "./operating-mode-panel";
 import { initiativeModeService, initiativeService } from "../../services";
 import type { Initiative } from "../../types";
-import type { OperatingModeCapabilities } from "../../types/operating-mode";
+import type {
+  OperatingModeCapabilities,
+  OperatingModeCatalogPhase,
+} from "../../types/operating-mode";
+
+function catalogPhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
+  return {
+    title: overrides.phase,
+    purpose: "",
+    trigger: "",
+    profileKey: "swarm-manager/deep-work",
+    writesRepo: false,
+    catalogId: "",
+    skillId: "",
+    activityPurpose: "",
+    lockPurpose: "",
+    outputContract: {
+      requiresStructuredResult: true,
+      requiresProgress: false,
+      requiresVerdict: false,
+      requiresHandoff: false,
+      requiredArtifactCount: 0,
+    },
+    ...overrides,
+  };
+}
 
 vi.mock("../../services", () => ({
   initiativeModeService: {
@@ -88,7 +113,7 @@ describe("OperatingModePanel", () => {
           switchable: true,
           usageCount: 0,
           supportsPhases: true,
-          phases: [{ phase: "investigate", profileKey: "swarm-manager/deep-work", writesRepo: false }],
+          phases: [catalogPhase({ phase: "investigate", profileKey: "swarm-manager/deep-work", writesRepo: false })],
         },
         {
           mode: "phased-plan-drain",
@@ -101,7 +126,7 @@ describe("OperatingModePanel", () => {
           switchable: true,
           usageCount: 0,
           supportsPhases: true,
-          phases: [{ phase: "execute_next", profileKey: "swarm-manager/deep-work", writesRepo: true }],
+          phases: [catalogPhase({ phase: "execute_next", profileKey: "swarm-manager/deep-work", writesRepo: true })],
         },
       ],
     });

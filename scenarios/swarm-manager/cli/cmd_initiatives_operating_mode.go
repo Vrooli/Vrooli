@@ -45,11 +45,28 @@ type operatingModeCapabilities struct {
 	UsesItemExecutionFlow        bool `json:"uses_item_execution_flow"`
 }
 
+// operatingModeCatalogPhase mirrors api/internal/operatingmode.ModeCatalogPhase.
+// Used by both cmd_operating_mode.go (top-level operating-mode commands) and
+// cmd_initiatives_operating_mode.go (per-initiative mode commands).
 type operatingModeCatalogPhase struct {
-	Phase            string `json:"phase"`
-	ProfileKey       string `json:"profile_key"`
-	WritesRepo       bool   `json:"writes_repo"`
-	RequiresCriteria bool   `json:"requires_criteria,omitempty"`
+	Phase                 string                            `json:"phase"`
+	Title                 string                            `json:"title"`
+	Purpose               string                            `json:"purpose"`
+	Trigger               string                            `json:"trigger"`
+	ProfileKey            string                            `json:"profile_key"`
+	WritesRepo            bool                              `json:"writes_repo"`
+	RequiresCriteria      bool                              `json:"requires_criteria,omitempty"`
+	IsStart               bool                              `json:"is_start,omitempty"`
+	IsTerminal            bool                              `json:"is_terminal,omitempty"`
+	OutputArtifacts       []operatingModeArtifactDef        `json:"output_artifacts,omitempty"`
+	OutputContract        operatingModePhaseContractSummary `json:"output_contract"`
+	CatalogID             string                            `json:"catalog_id"`
+	SkillID               string                            `json:"skill_id"`
+	ActivityPurpose       string                            `json:"activity_purpose"`
+	LockPurpose           string                            `json:"lock_purpose"`
+	ResultBindings        []operatingModeResultBinding      `json:"result_bindings,omitempty"`
+	SamplesReplanRate     bool                              `json:"samples_replan_rate,omitempty"`
+	SamplesAcceptanceRate bool                              `json:"samples_acceptance_rate,omitempty"`
 }
 
 type operatingModeDef struct {

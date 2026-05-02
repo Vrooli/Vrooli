@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 )
 
@@ -201,18 +202,91 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 		Switchable:     true,
 		SupportsPhases: capabilities.SupportsPhases,
 	}
-	if entry.SupportsPhases {
-		for _, phaseName := range orderedPhases(def) {
-			phase := def.PhaseGraph.Phases[phaseName]
-			entry.Phases = append(entry.Phases, ModeCatalogPhase{
-				Phase:            string(phase.Phase),
-				ProfileKey:       phase.ProfileKey,
-				WritesRepo:       phase.WritesRepo,
-				RequiresCriteria: phase.RequiresCriteria,
+	if !entry.SupportsPhases {
+		return entry
+	}
+	terminalSet := make(map[Phase]struct{}, len(def.PhaseGraph.Terminal))
+	for _, terminal := range def.PhaseGraph.Terminal {
+		terminalSet[terminal] = struct{}{}
+	}
+	for _, phaseName := range orderedPhases(def) {
+		phase := def.PhaseGraph.Phases[phaseName]
+		_, isTerminal := terminalSet[phaseName]
+		entry.Phases = append(entry.Phases, ModeCatalogPhase{
+			Phase:                 string(phase.Phase),
+			Title:                 phase.PromptCatalog.Title,
+			Purpose:               phase.PromptCatalog.Purpose,
+			Trigger:               phase.PromptCatalog.Trigger,
+			ProfileKey:            phase.ProfileKey,
+			WritesRepo:            phase.WritesRepo,
+			RequiresCriteria:      phase.RequiresCriteria,
+			IsStart:               phaseName == def.PhaseGraph.StartPhase,
+			IsTerminal:            isTerminal,
+			OutputArtifacts:       phase.OutputArtifacts,
+			OutputContract:        summarizeContract(phase.OutputContract),
+			CatalogID:             phase.CatalogID,
+			SkillID:               phase.SkillID,
+			ActivityPurpose:       phase.ActivityPurpose,
+			LockPurpose:           phase.LockPurpose,
+			ResultBindings:        phase.ResultBindings,
+			SamplesReplanRate:     def.Metrics.CountsReplanSample(phaseName),
+			SamplesAcceptanceRate: def.Metrics.CountsAcceptanceSample(phaseName),
+		})
+	}
+	entry.PhaseGraph = buildCatalogPhaseGraph(def)
+	return entry
+}
+
+func buildCatalogPhaseGraph(def Definition) *ModeCatalogPhaseGraph {
+	terminal := make([]string, 0, len(def.PhaseGraph.Terminal))
+	for _, phase := range def.PhaseGraph.Terminal {
+		terminal = append(terminal, string(phase))
+	}
+	transitions := make([]ModeCatalogTransition, 0)
+	for _, from := range orderedPhases(def) {
+		if rules, ok := def.PhaseGraph.TransitionRules[from]; ok {
+			for _, rule := range rules {
+				label := transitionLabel(rule.When)
+				for _, to := range rule.Next {
+					transitions = append(transitions, ModeCatalogTransition{
+						From:             string(from),
+						To:               string(to),
+						ConditionKind:    string(rule.When.Kind),
+						Label:            label,
+						PayloadKey:       rule.When.PayloadKey,
+						ProgressDecision: string(rule.When.ProgressDecision),
+					})
+				}
+			}
+			continue
+		}
+		for _, to := range def.PhaseGraph.Transitions[from] {
+			transitions = append(transitions, ModeCatalogTransition{
+				From:          string(from),
+				To:            string(to),
+				ConditionKind: string(TransitionConditionAlways),
+				Label:         "always",
 			})
 		}
 	}
-	return entry
+	sort.SliceStable(transitions, func(i, j int) bool {
+		if transitions[i].From != transitions[j].From {
+			return transitions[i].From < transitions[j].From
+		}
+		if transitions[i].To != transitions[j].To {
+			return transitions[i].To < transitions[j].To
+		}
+		return transitions[i].Label < transitions[j].Label
+	})
+	graph := &ModeCatalogPhaseGraph{
+		StartPhase:  string(def.PhaseGraph.StartPhase),
+		Terminal:    terminal,
+		Transitions: transitions,
+	}
+	if len(def.Metrics.AcceptedVerdicts) > 0 {
+		graph.AcceptedVerdicts = append([]string(nil), def.Metrics.AcceptedVerdicts...)
+	}
+	return graph
 }
 
 func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []string) WorkspaceMode {

@@ -122,7 +122,7 @@ func (h *Handler) UpdateMode(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[operating-mode] update mode", apierr.BadRequest("invalid request body"))
 		return
 	}
-	override := Override{Label: body.Label, Description: body.Description}
+	override := Override(body)
 	if !override.HasChanges() {
 		apierr.MapError(w, "[operating-mode] update mode", apierr.BadRequest("at least one of label or description is required"))
 		return
