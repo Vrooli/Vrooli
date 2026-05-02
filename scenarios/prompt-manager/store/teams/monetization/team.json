@@ -559,7 +559,7 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "market-scan-YYYY-MM-DD"
+          "monetization/market-scan/<slug>"
         ],
         "allowedWrites": [
           {
@@ -582,7 +582,9 @@
         ],
         "safetyCriticalRules": [
           "Every captured value needs a source, date, and applicability flag.",
-          "Deep research stays scoped to the active tier and bundle."
+          "Deep research stays scoped to the active tier and bundle.",
+          "Validation-queue triage must leave no entry under validation-queue/* — convert (retag to monetization/market-scan/<slug>), raise a decision, or delete.",
+          "The staleness sweep enqueues but never re-fetches or resolves; resolution happens via the router and method skills only."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,

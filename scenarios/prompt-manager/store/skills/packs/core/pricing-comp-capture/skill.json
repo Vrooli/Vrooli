@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "pricing-comp-capture",
+  "name": "Pricing Comp Capture",
+  "description": "Capture a competitor's pricing into a structured market-scan entry. Encodes source priority (company /pricing first, ProductHunt/G2 fallback, archive.org last), what fields to extract, honesty flags for partial or unavailable pricing, and the >15% material-change threshold for raising a benchmark-update decision.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "monetization",
+    "pricing",
+    "validation",
+    "method"
+  ],
+  "icon": "currency-dollar",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-01T00:00:00Z",
+  "updatedAt": "2026-05-01T00:00:00Z"
+}
