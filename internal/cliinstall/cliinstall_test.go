@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -501,7 +502,7 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
 		t.Fatalf("mkdir install dir: %v", err)
 	}
-	if err := os.WriteFile(binaryPath, []byte("installed"), 0o755); err != nil {
+	if err := os.WriteFile(binaryPath, validNativeExecutableHeader(), 0o755); err != nil {
 		t.Fatalf("write installed binary: %v", err)
 	}
 	item, err := manager.DiscoverResourceCLI("postgres")
@@ -521,6 +522,43 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	}
 	if len(installer.calls) != 0 {
 		t.Fatalf("install calls = %d, want 0", len(installer.calls))
+	}
+}
+
+func TestEnsureResourceCLIReinstallsCorruptCurrentBinary(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
+
+	installer := &stubInstaller{}
+	manager := NewManager(fixture.Root, fixture.Home)
+	manager.Installer = installer
+
+	binaryPath := filepath.Join(fixture.Home, ".vrooli", "bin", "resource-postgres")
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
+		t.Fatalf("mkdir install dir: %v", err)
+	}
+	if err := os.WriteFile(binaryPath, []byte{0, 0, 0, 0, 0, 0}, 0o755); err != nil {
+		t.Fatalf("write corrupt installed binary: %v", err)
+	}
+	item, err := manager.DiscoverResourceCLI("postgres")
+	if err != nil {
+		t.Fatalf("DiscoverResourceCLI: %v", err)
+	}
+	fingerprint, err := computeResourceCLIFingerprint(item)
+	if err != nil {
+		t.Fatalf("compute fingerprint: %v", err)
+	}
+	writeInstallMetadataFixture(t, binaryPath+".build.meta", InstallMetadata{
+		Fingerprint: fingerprint,
+	})
+
+	if err := manager.EnsureResourceCLI("postgres"); err != nil {
+		t.Fatalf("EnsureResourceCLI: %v", err)
+	}
+	if len(installer.calls) != 1 {
+		t.Fatalf("install calls = %d, want 1", len(installer.calls))
 	}
 }
 
@@ -778,6 +816,19 @@ func writeInstallMetadataFixture(t *testing.T, path string, meta InstallMetadata
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatalf("write metadata: %v", err)
+	}
+}
+
+func validNativeExecutableHeader() []byte {
+	switch runtime.GOOS {
+	case "linux", "freebsd", "openbsd", "netbsd":
+		return []byte("\x7fELF")
+	case "darwin":
+		return []byte("\xfe\xed\xfa\xcf")
+	case "windows":
+		return []byte("MZ\x00\x00")
+	default:
+		return []byte("\x7fELF")
 	}
 }
 

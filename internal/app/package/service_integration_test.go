@@ -397,6 +397,7 @@ replace github.com/example/proto => ../../../packages/proto
 func TestRefreshRestartsRunningScenario(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
+	testscenario.WriteProjectService(t, fixture.Root, testscenario.ProjectServiceManifest())
 	testresource.WritePortRegistry(t, fixture.Root, nil)
 	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
@@ -455,6 +456,7 @@ func TestRefreshRestartsRunningScenario(t *testing.T) {
 func TestRefreshNoRestartLeavesScenarioStopped(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
+	testscenario.WriteProjectService(t, fixture.Root, testscenario.ProjectServiceManifest())
 	testresource.WritePortRegistry(t, fixture.Root, nil)
 	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",

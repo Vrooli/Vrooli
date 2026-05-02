@@ -17,22 +17,61 @@ Intake -> Collection -> Analysis Method -> Promotion / Routing
 
 ## Intake
 
+Inbox entries live in the marketing-crew team knowledge log under a `research-inbox/<signal-type>/<slug>` topic. There is no separate JSONL file. Concurrency safety, retention, and querying come from the existing `prompt-manager team knowledge-*` CLI.
+
 Work may enter through:
 
-- `scenarios/prompt-manager/store/teams/marketing-crew/shared/research-inbox.jsonl`
+- the inbox view: `prompt-manager team knowledge-list marketing-crew --topic-prefix=research-inbox/`
 - researcher handoff and prior knowledge
 - operator-provided source references during a vision walk
 - proactive baseline scans when inbox signal is empty or stale
 - future bookmark-intelligence-hub CLI exports
 - cross-team requests from director-swarm, monetization, or meta-optimization
 
-Each research item should preserve:
+### Inbox convention
 
-- source and source URL when available
-- raw operator note or source summary
-- initial signal type
-- confidence / honesty flags
-- proposed next method or reason no follow-up is warranted
+The inbox uses hierarchical topics under `research-inbox/`:
+
+```
+research-inbox/<signal-type>/<short-slug>
+```
+
+`signal-type` is one of: `audience`, `hook`, `channel`, `competitor`, `workflow`, `skill`, `format`, `funnel`, `benchmark`, `unknown`. The `team knowledge-list --topic-prefix=` filter (added alongside this convention) makes the hierarchy queryable: list the whole inbox with `--topic-prefix=research-inbox/`, or just one signal type with `--topic-prefix=research-inbox/audience/`.
+
+Adding an inbox entry:
+
+```bash
+prompt-manager team knowledge-add marketing-crew \
+  --by=<source-id> \
+  --topic="research-inbox/<signal-type>/<short-slug>" \
+  --content="<raw operator note + honesty/confidence flags + optional suggested-method>" \
+  --source="<original-url-if-known>"
+```
+
+- `--by` identifies the source (e.g. `vision-walk`, `researcher`, `operator`).
+- `--source` carries the original URL when available.
+
+Each entry must preserve: source URL when available, raw operator note, confidence / honesty flags, and a proposed next method (or a reason no follow-up is warranted). Signal-type lives in the topic, not the content.
+
+### Routing inbox entries
+
+After the router classifies an entry, it must either retag or delete it:
+
+- **Retag** when the entry was promoted to a permanent observation:
+
+  ```bash
+  prompt-manager team knowledge-update marketing-crew <id> --topic="<destination-topic>"
+  ```
+
+  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor/<slug>`, `hook/<slug>`, `monetization-benchmark-adjacent/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, notebook debt, capability-gap), delete the inbox row instead of retagging.
+
+- **Delete** when the entry was weak, duplicate, or otherwise dropped:
+
+  ```bash
+  prompt-manager team knowledge-delete marketing-crew <id>
+  ```
+
+The inbox view (`--topic-prefix=research-inbox/`) is therefore always the unrouted set. Permanent canon never uses any topic under `research-inbox/`; it lives under whichever destination prefix matches the routed surface.
 
 ## Collection
 
@@ -72,8 +111,8 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 
 | Signal | Destination |
 |---|---|
-| Low-signal or one-off item | Handoff or research inbox note. |
-| Concrete observation with source | `knowledge.jsonl` or `audience-scans.jsonl`. |
+| Low-signal or one-off item | Handoff, or `research-inbox/*` knowledge entry. |
+| Concrete observation with source | `audience-scan/*` knowledge entry, or `audience-scans.jsonl` for batch scan rows. |
 | Unresolved repeated pattern | `docs/marketing/notebook/*`. |
 | Audience/persona change with converging evidence | `audience-update` decision. |
 | Channel priority or activation change | `channel-strategy-update` decision. |

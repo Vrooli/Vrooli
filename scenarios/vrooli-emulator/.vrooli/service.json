@@ -235,6 +235,13 @@
       "reason": "Detect visible X11 windows for the process monitor",
       "when": ["setup", "develop"],
       "platforms": ["linux"]
+    },
+    {
+      "name": "ffmpeg",
+      "required": true,
+      "reason": "Capture X11 desktop frames for emulator screenshots and visual evidence",
+      "when": ["setup", "develop", "test"],
+      "platforms": ["linux"]
     }
   ]
 }

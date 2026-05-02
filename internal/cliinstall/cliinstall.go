@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -413,6 +414,13 @@ func (m *Manager) ensure(ctx context.Context, item InstallableCLI) error {
 }
 
 func (m *Manager) installedBinaryCurrent(item InstallableCLI) (bool, error) {
+	runnable, err := installedBinaryLooksRunnable(m.InstalledBinaryPath(item), item)
+	if err != nil {
+		return false, err
+	}
+	if !runnable {
+		return false, nil
+	}
 	meta, ok, err := m.readInstallMetadata(item)
 	if err != nil {
 		return false, err
@@ -425,6 +433,54 @@ func (m *Manager) installedBinaryCurrent(item InstallableCLI) (bool, error) {
 		return false, err
 	}
 	return strings.TrimSpace(meta.Fingerprint) == fingerprint, nil
+}
+
+func installedBinaryLooksRunnable(path string, item InstallableCLI) (bool, error) {
+	if item.CLI == nil || item.CLI.Adapter.Kind != "go_module" {
+		return true, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer file.Close()
+
+	header := make([]byte, 4)
+	n, err := io.ReadFull(file, header)
+	if err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			return false, nil
+		}
+		return false, err
+	}
+	if n < len(header) {
+		return false, nil
+	}
+	switch runtime.GOOS {
+	case "linux", "freebsd", "openbsd", "netbsd":
+		return string(header) == "\x7fELF", nil
+	case "darwin":
+		return isMachOMagic(header), nil
+	case "windows":
+		return header[0] == 'M' && header[1] == 'Z', nil
+	default:
+		return true, nil
+	}
+}
+
+func isMachOMagic(header []byte) bool {
+	if len(header) < 4 {
+		return false
+	}
+	switch string(header[:4]) {
+	case "\xfe\xed\xfa\xce", "\xce\xfa\xed\xfe", "\xfe\xed\xfa\xcf", "\xcf\xfa\xed\xfe", "\xca\xfe\xba\xbe", "\xbe\xba\xfe\xca":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *Manager) readInstallMetadata(item InstallableCLI) (InstallMetadata, bool, error) {

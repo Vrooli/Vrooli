@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/logx"
@@ -265,6 +266,9 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	}
 	if deps.runResourceCLI == nil {
 		deps.runResourceCLI = func(name string, args []string, stdout, stderr io.Writer) error {
+			if err := cliinstall.NewManager(r.Root, r.Home).EnsureResourceCLI(name); err != nil {
+				return fmt.Errorf("ensure resource CLI %s: %w", name, err)
+			}
 			return resources.NewController(r.Root, r.Home).RunResourceCLI(name, args, stdout, stderr)
 		}
 	}
