@@ -308,16 +308,6 @@
           "ownerMemberId": "researcher"
         },
         {
-          "id": "research-inbox-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "research-inbox.jsonl"
-          },
-          "kind": "append-only-event-log",
-          "required": true,
-          "ownerMemberId": "researcher"
-        },
-        {
           "id": "campaign-drafts-jsonl",
           "path": {
             "base": "team-shared",
@@ -810,10 +800,6 @@
           {
             "base": "team-shared",
             "path": "audience-scans.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "research-inbox.jsonl"
           },
           {
             "base": "repo-root",

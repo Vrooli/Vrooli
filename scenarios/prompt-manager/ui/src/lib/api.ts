@@ -177,7 +177,7 @@ import type { SearchFilters, ActionFilters, Folder } from '@/types'
 
 function resolvePromptManagerApiBase(): string {
   if (import.meta.env.MODE === 'test') {
-    return 'http://localhost:3000/api/v1'
+    return '/api/v1'
   }
 
   // Use @vrooli/api-base for automatic API resolution across all deployment contexts.

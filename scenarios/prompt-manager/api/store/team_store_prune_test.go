@@ -291,7 +291,7 @@ func TestPruneSharedState_Knowledge(t *testing.T) {
 		t.Errorf("expected 30 knowledge removed, got %d", result.KnowledgeRemoved)
 	}
 
-	remaining, err := s.GetKnowledge(context.Background(), "team-1", "", 0)
+	remaining, err := s.GetKnowledge(context.Background(), "team-1", "", "", 0)
 	if err != nil {
 		t.Fatalf("GetKnowledge: %v", err)
 	}

@@ -2742,6 +2742,11 @@ func (h *Handlers) GetKnowledge(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	topicFilter := r.URL.Query().Get("topic")
+	topicPrefix := r.URL.Query().Get("topic_prefix")
+	if topicFilter != "" && topicPrefix != "" {
+		http.Error(w, "topic and topic_prefix are mutually exclusive", http.StatusBadRequest)
+		return
+	}
 	last := 20
 	if v := r.URL.Query().Get("last"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -2749,7 +2754,7 @@ func (h *Handlers) GetKnowledge(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, topicFilter, last)
+	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, topicFilter, topicPrefix, last)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -2801,7 +2806,7 @@ func (h *Handlers) UpdateKnowledgeHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Fetch updated entry to return
-	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, "", 0)
+	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, "", "", 0)
 	if err != nil {
 		http.Error(w, "knowledge updated but fetch failed", http.StatusInternalServerError)
 		return

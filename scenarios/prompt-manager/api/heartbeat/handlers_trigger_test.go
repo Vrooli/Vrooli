@@ -231,7 +231,10 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	executor.OnComplete = func(_, _ string) {}
+	completed := make(chan struct{})
+	executor.OnComplete = func(_, _ string) {
+		close(completed)
+	}
 
 	// No teamExecStore — should use direct execution fallback
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
@@ -248,12 +251,18 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 
 	// Direct path should have created task and run
 	mockClient.mu.Lock()
-	defer mockClient.mu.Unlock()
 	if len(mockClient.createTaskCalls) != 1 {
 		t.Errorf("expected 1 CreateTask call, got %d", len(mockClient.createTaskCalls))
 	}
 	if len(mockClient.createRunCalls) != 1 {
 		t.Errorf("expected 1 CreateRun call, got %d", len(mockClient.createRunCalls))
+	}
+	mockClient.mu.Unlock()
+
+	select {
+	case <-completed:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for direct execution completion")
 	}
 }
 

@@ -382,20 +382,23 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 | Signal | Preferred destination |
 |---|---|
-| Marketing audience, channel, hook, post-type, workflow, competitor, funnel, or skill opportunity | Append to `scenarios/prompt-manager/store/teams/marketing-crew/shared/research-inbox.jsonl`. |
+| Marketing audience, channel, hook, post-type, workflow, competitor, funnel, or skill opportunity | `prompt-manager team knowledge-add marketing-crew --by=vision-walk --topic="research-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `audience\|hook\|channel\|competitor\|workflow\|skill\|format\|funnel\|benchmark\|unknown`. |
 | Monetization pricing, market category, revenue-line, packaging, or benchmark signal | `prompt-manager team knowledge-add monetization --topic "vision-walk/alpha/<topic>" ...` if monetization is active; otherwise director-swarm knowledge fallback. |
 | Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
 | Product/scenario idea ready for execution pipeline | Swarm-manager backlog item. |
 | Unclear strategic residue or no owner exists yet | Director-swarm knowledge fallback. |
 | Missing source collection, automation, CLI, or scenario blocks follow-up | Capability-gap decision or backlog item for the owning team. |
 
-Research inbox JSONL entries should preserve raw source context. Use this shape:
+Research-inbox entries are knowledge entries on the `marketing-crew` team under a `research-inbox/<signal-type>/<slug>` topic. The CLI handles concurrency, retention, and listing — do not write JSONL files directly.
 
-```json
-{"id":"research-<timestamp-or-short-id>","at":"<ISO-8601>","source":"operator-vision-walk","source_url":"<url-if-known>","raw_note":"<operator wording and why it mattered>","initial_type":"workflow|skill|audience-pain|competitor|hook|channel-format|funnel|benchmark|capability-gap|unknown","status":"new","suggested_method":"<optional>"}
-```
+- Use `--by=vision-walk` so the source is auditable.
+- Put the operator's raw wording (and why it mattered) into `--content`, plus any honesty/confidence flags.
+- Use `--source` for the original URL when available.
+- Optional next method goes inline at the end of `--content` (e.g. `suggested-method: hook-pattern-mining`).
 
-When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that scenario's CLI/export path instead of manually creating platform-specific intake records. Until then, preserving the source URL and raw note in the research inbox is acceptable.
+The router will retag (or delete) the entry once classified, so the inbox view (`team knowledge-list marketing-crew --topic-prefix=research-inbox/`) is always the unrouted set.
+
+When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that scenario's CLI/export path instead of manually creating platform-specific intake records. Until then, an inbox knowledge entry with source URL and raw note is the right shape.
 
 4. For backlog items, use the swarm-manager CLI:
    ```bash

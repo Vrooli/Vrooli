@@ -3939,20 +3939,27 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 
 func cmdKnowledgeList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("knowledge-list", flag.ContinueOnError)
-	topic := fs.String("topic", "", "Filter by topic")
+	topic := fs.String("topic", "", "Filter by exact topic match")
+	topicPrefix := fs.String("topic-prefix", "", "Filter by topic prefix (e.g. 'research-inbox/')")
 	last := fs.Int("last", 20, "Number of entries to show")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team knowledge-list <team-id> [--topic=<tag>] [--last=N] [--json]")
+		return fmt.Errorf("usage: team knowledge-list <team-id> [--topic=<tag> | --topic-prefix=<prefix>] [--last=N] [--json]")
+	}
+	if *topic != "" && *topicPrefix != "" {
+		return fmt.Errorf("--topic and --topic-prefix are mutually exclusive")
 	}
 	teamID := fs.Arg(0)
 
 	query := fmt.Sprintf("/teams/%s/knowledge?last=%d", teamID, *last)
 	if *topic != "" {
 		query += "&topic=" + url.QueryEscape(*topic)
+	}
+	if *topicPrefix != "" {
+		query += "&topic_prefix=" + url.QueryEscape(*topicPrefix)
 	}
 
 	var resp KnowledgeListResponse

@@ -2,7 +2,7 @@
 
 ## Primary Duties
 - Collect audience, competitor, trend, marketing-craft, format-trend, hook-candidate, and benchmark-adjacent observations.
-- Triage `shared/research-inbox.jsonl` for operator-fed alpha, cross-team research requests, and future bookmark-intelligence-hub exports.
+- Triage the inbox view (`prompt-manager team knowledge-list marketing-crew --topic-prefix=research-inbox/`) for operator-fed alpha, cross-team research requests, and future bookmark-intelligence-hub exports. Every triaged entry must be retagged (via `team knowledge-update`) or deleted (`team knowledge-delete`) — the inbox view is the unrouted set.
 - Maintain a low-volume proactive baseline scan when no higher-priority research input is waiting.
 - Route research signals through `marketing-research-router` before choosing a method, decision, skill proposal, or capability-gap.
 - Append raw observations before proposing interpretation.

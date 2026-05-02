@@ -25,7 +25,7 @@ Do not use this skill to draft marketing content. Do not use it as a replacement
 Read first:
 
 - `docs/marketing/research/README.md`
-- `scenarios/prompt-manager/store/teams/marketing-crew/shared/research-inbox.jsonl`
+- inbox view: `prompt-manager team knowledge-list marketing-crew --topic-prefix=research-inbox/ --json` (filter to a single signal type with `--topic-prefix=research-inbox/<signal-type>/`)
 - `scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/last-handoff.md`
 - recent `audience-scan-*` and `monetization-benchmark-adjacent/*` knowledge entries
 - owned pending decisions for `researcher`
@@ -88,8 +88,8 @@ If source items are present, analyze those first. If no source items are present
 
 | Condition | Action |
 |---|---|
-| Weak one-off signal | Mention in handoff or leave as inbox note. |
-| Concrete sourced observation | Append knowledge or `audience-scans.jsonl`. |
+| Weak one-off signal | Mention in handoff, or leave as a knowledge entry under `research-inbox/<signal-type>/<slug>`. |
+| Concrete sourced observation | Add a `<topic>/*` knowledge entry (e.g. `audience-scan/*`, `competitor/*`); use `audience-scans.jsonl` only for batch scan rows. |
 | Repeated but unresolved pattern | Append notebook debt. |
 | Converging evidence meets threshold | Raise the owned decision context. |
 | Repeatable method has no skill | Propose a skill through the normal meta-optimization path. |
@@ -103,7 +103,19 @@ If source items are present, analyze those first. If no source items are present
    - Label single-snapshot findings `light-interpretation`.
    - If source access is blocked, raise a capability gap instead of pretending the scan happened.
 
-5. **Emit output.** Provide a concise routing summary for the researcher heartbeat.
+5. **Resolve the inbox entry.** Every routed item must leave the inbox view (`team knowledge-list marketing-crew --topic-prefix=research-inbox/`) in one of two ways:
+   - **Promoted** to permanent canon — retag the entry to its destination topic:
+     ```bash
+     prompt-manager team knowledge-update marketing-crew <id> --topic="<destination-topic>"
+     ```
+     e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface (`audience-scan/<slug>`, `competitor/<slug>`, `hook/<slug>`, `monetization-benchmark-adjacent/<slug>`, etc.). If the routed action creates a *new* entry on a different surface (decision, notebook debt, capability-gap), delete the inbox row instead of retagging.
+   - **Dropped** as weak/duplicate/out-of-scope:
+     ```bash
+     prompt-manager team knowledge-delete marketing-crew <id>
+     ```
+   Do not leave entries under any `research-inbox/*` topic after routing — that breaks the unrouted-set invariant.
+
+6. **Emit output.** Provide a concise routing summary for the researcher heartbeat.
 
 ---
 

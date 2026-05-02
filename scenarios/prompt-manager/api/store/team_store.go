@@ -1107,19 +1107,27 @@ func (s *FileTeamStore) AppendKnowledge(_ context.Context, teamID string, entry 
 	return err
 }
 
-// GetKnowledge reads knowledge entries, optionally filtered by topic and limited.
-func (s *FileTeamStore) GetKnowledge(_ context.Context, teamID, topicFilter string, last int) ([]KnowledgeEntry, error) {
+// GetKnowledge reads knowledge entries, optionally filtered by exact topic
+// match, topic prefix match, and limited to the most recent N entries. When
+// both topicFilter and topicPrefix are non-empty, an entry must satisfy both
+// to be returned; in practice upstream layers enforce mutual exclusion so the
+// AND semantics rarely matter.
+func (s *FileTeamStore) GetKnowledge(_ context.Context, teamID, topicFilter, topicPrefix string, last int) ([]KnowledgeEntry, error) {
 	entries, _, err := s.readAllKnowledge(teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	if topicFilter != "" {
+	if topicFilter != "" || topicPrefix != "" {
 		filtered := make([]KnowledgeEntry, 0, len(entries))
 		for _, e := range entries {
-			if e.Topic == topicFilter {
-				filtered = append(filtered, e)
+			if topicFilter != "" && e.Topic != topicFilter {
+				continue
 			}
+			if topicPrefix != "" && !strings.HasPrefix(e.Topic, topicPrefix) {
+				continue
+			}
+			filtered = append(filtered, e)
 		}
 		entries = filtered
 	}
