@@ -9,6 +9,8 @@
     "loading": "Checking API status…",
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
     "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
     "statusLabel": "Status:",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"

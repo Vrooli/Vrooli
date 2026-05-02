@@ -52,7 +52,9 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]:
+    | DynamicSelectorBranch
+    | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,12 +81,12 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,23 +95,32 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isDynamicDefinition = (
+  value: unknown,
+): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as { kind?: unknown }).kind === "dynamic-selector",
+  );
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
-) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+): Record<string, string | number> => {
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
-  for (const key of Object.keys(schema)) {
+  for (const [key, definitionEntry] of Object.entries(schema)) {
     if (!(key in raw)) {
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
-    const definitionEntry = schema[key];
     const value = raw[key];
+    // Defensive: `key in raw` doesn't narrow `raw[key]` under noUncheckedIndexedAccess.
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' is undefined`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -171,7 +182,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -213,8 +224,8 @@ const mergeLiteralAndDynamicNodes = (
 
     if (literalValue && typeof literalValue === "object") {
       merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
+        literalValue,
+        isDynamicDefinition(dynamicValue) ? undefined : dynamicValue,
         nextPath,
       );
       return;
@@ -225,7 +236,7 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue, nextPath);
     }
   });
 
@@ -233,7 +244,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -246,14 +257,25 @@ const createDynamicSelectorFn = (
   };
 };
 
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
+/**
+ * Build a dynamic-selector definition. Exported so unit tests and downstream
+ * tooling can construct registries; scenario authors should still edit the
+ * `dynamicSelectorDefinitions` map at the bottom of this file rather than
+ * calling this from elsewhere in the codebase.
+ */
+export const defineDynamicSelector = <P extends ParamSchema | undefined>(
   definition: Omit<DynamicSelectorDefinition<P>, "kind">,
 ): DynamicSelectorDefinition<P> => ({
   ...definition,
   kind: "dynamic-selector",
 });
 
-const createSelectorRegistry = <
+/**
+ * Compose a typed selectors object plus a manifest from literal + dynamic
+ * trees. Exported for unit tests; production registries are built from the
+ * private `literalSelectors` and `dynamicSelectorDefinitions` maps below.
+ */
+export const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
 >(literalTree: L, dynamicTree: D) => {
@@ -265,27 +287,42 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+// Use `satisfies` rather than `: LiteralSelectorTree` so TypeScript preserves
+// the narrow literal shape. Without this the index signature widens every
+// branch to `T | undefined` under `noUncheckedIndexedAccess` and breaks the
+// `selectors.app.title` ergonomics this registry exists to provide.
+const literalSelectors = {
+  app: {
+    title: "app-title",
+    eyebrow: "app-eyebrow",
+    description: "app-description",
   },
-  */
-};
+  health: {
+    card: "health-card",
+    loading: "health-loading",
+    error: "health-error",
+    statusValue: "health-status-value",
+    serviceValue: "health-service-value",
+    timestampValue: "health-timestamp-value",
+    refreshButton: "health-refresh-button",
+    refreshCount: "health-refresh-count",
+  },
+  locale: {
+    switcher: "locale-switcher",
+    toggleEn: "locale-toggle-en",
+    toggleJa: "locale-toggle-ja",
+  },
+} satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+const dynamicSelectorDefinitions = {
+  locale: {
+    toggle: defineDynamicSelector({
+      description: "Locale toggle button by language code",
+      testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "string" } },
     }),
   },
-  */
-};
+} satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

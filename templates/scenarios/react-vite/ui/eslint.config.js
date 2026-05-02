@@ -128,9 +128,47 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "react-refresh/only-export-components": "off",
-      // Tests render fixture JSX with inline strings; the registry rule
-      // applies to production components only.
-      "no-restricted-syntax": "off",
+
+      // ════════════════════════════════════════════════════════════════════════
+      // TEST STABILITY ENFORCEMENT
+      //
+      // Banning string literals as the first argument to text-based queries
+      // (`getByText("Reload")`) forces tests through one of three load-bearing
+      // patterns:
+      //
+      //   1. `getByTestId(selectors.x.y)`   — copy-independent, structure-
+      //      independent. The default for "find this element."
+      //   2. `getByText(strings.x.y)`       — combined with cimode (default
+      //      via test-setup.ts), `t()` returns the key, so this is a typed,
+      //      copy-independent assertion that the right *key* renders.
+      //   3. `getByText(en.x.y)`            — explicit real-locale tests
+      //      (validating the i18n pipeline end-to-end). MemberExpressions
+      //      pass this rule; only string and template literals are banned.
+      //
+      // Regex matchers (`getByText(/loading/i)`) remain allowed — they're
+      // explicit pattern matchers, not exact-string assertions.
+      //
+      // If you hit this rule:
+      //   ✅ DO: replace with `selectors.x.y` (test ID) or `strings.x.y` (key).
+      //   ❌ DON'T: disable the rule. The whole point is that tests don't
+      //         silently break when copy changes — that's a test failure
+      //         every time copy moves, not a real regression.
+      // ════════════════════════════════════════════════════════════════════════
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(getByText|findByText|queryByText|getAllByText|findAllByText|queryAllByText)$/] > Literal[value=/[a-zA-Z]/]:first-child",
+          message:
+            "Don't pass string literals to *ByText queries. Use getByTestId(selectors.x.y) or getByText(strings.x.y) (with the cimode default) so tests survive copy changes.",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(getByText|findByText|queryByText|getAllByText|findAllByText|queryAllByText)$/] > TemplateLiteral:first-child",
+          message:
+            "Don't pass template literals to *ByText queries. Use getByTestId(selectors.x.y) or getByText(strings.x.y) (with the cimode default) so tests survive copy changes.",
+        },
+      ],
     },
   }
 );

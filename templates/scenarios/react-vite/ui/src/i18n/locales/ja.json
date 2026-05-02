@@ -9,6 +9,7 @@
     "loading": "API のステータスを確認中…",
     "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
     "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
     "statusLabel": "ステータス:",
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
