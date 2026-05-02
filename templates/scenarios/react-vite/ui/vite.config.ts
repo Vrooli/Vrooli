@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
+  plugins: [react(), stringsCodegen()],
   test: {
     globals: true,
     environment: 'jsdom',

@@ -22,6 +22,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 
 ## What You Get
 - **Clean UI scaffold**: Vite + Tailwind + shadcn-style primitives, pnpm-based scripts, Vitest + Testing Library pre-configured, `.env.example` for API URL.
+- **i18n out of the box**: i18next + react-i18next wired up with locale persistence, RTL-ready `<html lang>`/`<html dir>`, an `Intl`-based formatter helper (date/number/currency/relative-time/list), and a typed key registry generated from `en.json` at build time. ESLint forbids inline copy and string-literal `*ByText` queries, so copy edits are one-line catalog changes and tests survive them automatically. See [i18n flow](#i18n-flow).
 - **Go API skeleton**: `go.mod` + `cmd/server` entrypoint ready for feature modules.
 - **CLI manifest contract**: `.vrooli/service.json` declares the CLI command, adapter, install strategies, and freshness inputs.
 - **Lifecycle-ready service.json**: ports aligned with the platform, only Postgres required by default, lifecycle steps that build API/UI and start dev servers.
@@ -78,6 +79,32 @@ API_PORT=$(vrooli scenario port <name> API_PORT)
 UI_PORT=$(vrooli scenario port <name> UI_PORT)
 cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev -- --host --port "$UI_PORT"
 ```
+
+## i18n flow
+
+The template ships with a fully-wired i18n setup so adopters don't have to retrofit one later. The shape:
+
+- **Catalogs** live at `ui/src/i18n/locales/<code>.json`. `en.json` is canonical; every other locale must mirror its key shape (the `locales.test.ts` parity test fails the build if it doesn't, with CLDR plural suffixes stripped before comparison).
+- **Typed key registry**: `ui/src/consts/strings.generated.ts` is produced from `en.json` by `scripts/gen-strings.mjs`. Each leaf is the dotted key path passed to `t()` — `strings.app.title === "app.title"`. The bundled Vite plugin (`scripts/vite-plugin-strings-codegen.mjs`) regenerates this file on every dev start, on HMR of `en.json`, and on every build start. **Don't edit `strings.generated.ts` by hand** — your changes will be overwritten.
+- **Why codegen?** Walking the catalog at module load forces the bundler to ship `en.json` twice (once as i18next's resource, once as registry input). Codegen makes the catalog bundled exactly once. See `ui/src/consts/strings.ts` for the full rationale.
+- **Tests default to `cimode`** (`ui/src/test-setup.ts`), so `t('app.title')` returns the *key* `"app.title"`. Component tests assert against the typed `strings.*` registry — they're copy-independent. Locale-pipeline tests opt back in via `await setLocale("en")` and reference `en.x.y` directly to validate end-to-end behaviour.
+- **ESLint enforcement**:
+  1. JSX text and `{"…"}` literals containing letters are forbidden — use `{t(strings.feature.key)}`.
+  2. `aria-label`, `placeholder`, `title`, `alt`, etc. with string literals are forbidden — same fix.
+  3. `*ByText("literal")` and `*ByText(\`template\`)` in tests are forbidden — use `getByTestId(selectors.x.y)` or `getByText(strings.x.y)`.
+  4. `eslint-plugin-jsx-a11y` (strict) catches lint-time accessibility issues to complement the runtime axe-core check in `*.a11y.test.tsx`.
+
+### Adding a string
+1. Add the key to `ui/src/i18n/locales/en.json` and every other locale in `ui/src/i18n/locales/`.
+2. If `pnpm dev` (or `vitest`) is running, the registry regenerates instantly. Otherwise run `pnpm strings:gen` from `ui/`.
+3. Reference it as `{t(strings.feature.key)}` in JSX. For interpolation use `{{var}}` placeholders in the JSON and `t(strings.feature.key, { var: value })`.
+4. Commit `en.json`, your other-locale files, **and** `strings.generated.ts` together. CI runs `pnpm strings:check` and will fail the PR if the generated file isn't in sync.
+
+### Adding a locale
+1. Drop `ui/src/i18n/locales/<code>.json` next to `en.json` (same shape).
+2. Add the code to `SUPPORTED_LOCALES` and an entry to `LOCALE_CONFIG` in `ui/src/i18n/index.ts` (native label + `dir`).
+3. Import + register the catalog in the `resources` block in the same file.
+4. The language switcher reads `LOCALE_CONFIG` directly — no UI changes needed. The parity test will keep the new locale honest from then on.
 
 ## Iframe Bridge + API Base
 - `src/main.tsx` initializes `@vrooli/iframe-bridge` automatically whenever the UI is rendered inside App Monitor or another host.
