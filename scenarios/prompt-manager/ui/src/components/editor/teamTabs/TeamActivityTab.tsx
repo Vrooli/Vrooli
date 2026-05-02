@@ -56,7 +56,7 @@ export function TeamActivityTab({ teamId, members, allAgents, decisionMode, init
         </TabList>
 
         <div className="flex-1 min-h-0 flex flex-col">
-          <Tabs.Content value="handoffs" className="p-4 data-[state=inactive]:hidden overflow-y-auto">
+          <Tabs.Content value="handoffs" className="flex-1 min-h-0 p-4 data-[state=inactive]:hidden overflow-y-auto">
             <HandoffTimeline teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
 
@@ -64,11 +64,11 @@ export function TeamActivityTab({ teamId, members, allAgents, decisionMode, init
             <TaskKanbanBoard teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
 
-          <Tabs.Content value="decisions" className="p-4 data-[state=inactive]:hidden overflow-y-auto">
+          <Tabs.Content value="decisions" className="flex-1 min-h-0 p-4 data-[state=inactive]:hidden overflow-y-auto">
             <DecisionLogView teamId={teamId} members={members} allAgents={allAgents} decisionMode={decisionMode} />
           </Tabs.Content>
 
-          <Tabs.Content value="knowledge" className="p-4 data-[state=inactive]:hidden overflow-y-auto">
+          <Tabs.Content value="knowledge" className="flex-1 min-h-0 p-4 data-[state=inactive]:hidden overflow-y-auto">
             <KnowledgeLogView teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
         </div>

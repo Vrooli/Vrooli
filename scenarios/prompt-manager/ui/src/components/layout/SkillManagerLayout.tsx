@@ -1370,6 +1370,7 @@ export function SkillManagerLayout() {
         onCustomizeAgent={handleCustomizeAgentById}
         onPreviewPrompt={handlePreviewPromptById}
         onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
+        onGoHome={handleGoToHomeView}
         onSelectActionFromMenu={navigateToAction}
         selectedActionId={selectedActionId}
       />
@@ -1752,6 +1753,10 @@ export function SkillManagerLayout() {
                 onCustomizeAgent={handleCustomizeAgentById}
                 onPreviewPrompt={handlePreviewPromptById}
                 onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
+                onGoHome={() => {
+                  handleGoToHomeView()
+                  setIsMobileSidebarOpen(false)
+                }}
                 hideTopControlsRow={true}
                 className="border-r-0"
               />

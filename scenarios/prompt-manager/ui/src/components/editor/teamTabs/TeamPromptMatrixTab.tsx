@@ -23,6 +23,20 @@ interface TeamPromptMatrixTabProps {
   className?: string
 }
 
+const PROMPT_SIZE_RANGES = [
+  { label: 'Missing', range: '0 chars', tone: 'text-amber-500', icon: <AlertTriangle className="h-3 w-3" /> },
+  { label: 'Healthy', range: '1-12,000 chars', tone: 'text-green-500', icon: <Check className="h-3 w-3" /> },
+  { label: 'Large', range: '12,001-18,000 chars', tone: 'text-amber-500', icon: <AlertTriangle className="h-3 w-3" /> },
+  { label: 'Too large', range: '>18,000 chars', tone: 'text-destructive', icon: <XCircle className="h-3 w-3" /> },
+]
+
+function getPromptSizeStatus(chars: number, count: number): 'missing' | 'healthy' | 'large' | 'too-large' {
+  if (count === 0) return 'missing'
+  if (chars > 18000) return 'too-large'
+  if (chars > 12000) return 'large'
+  return 'healthy'
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -130,13 +144,24 @@ export function TeamPromptMatrixTab({
   return (
     <div className={cn('space-y-3', className)}>
       {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground">
-          {entries.length} member{entries.length !== 1 ? 's' : ''}
-        </span>
+      <div className="flex items-start gap-2">
+        <div>
+          <span className="text-sm font-medium text-foreground">
+            {entries.length} member{entries.length !== 1 ? 's' : ''}
+          </span>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            {PROMPT_SIZE_RANGES.map((item) => (
+              <span key={item.label} className="inline-flex items-center gap-1">
+                <span className={item.tone}>{item.icon}</span>
+                <span>{item.label}:</span>
+                <span className="tabular-nums">{item.range}</span>
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="flex-1" />
         {totalChars > 0 && (
-          <span className="text-[11px] text-muted-foreground tabular-nums">
+          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
             {totalChars.toLocaleString()} total chars
           </span>
         )}
@@ -267,15 +292,26 @@ function MemberRow({
                 <button
                   type="button"
                   onClick={() => onToggleCell(kind)}
+                  data-size-status={getPromptSizeStatus(totalChars, count)}
                   className={cn(
                     'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] tabular-nums transition-colors',
                     isExpanded
                       ? 'bg-primary/15 text-primary'
-                      : 'text-green-500 hover:bg-muted',
+                      : getPromptSizeStatus(totalChars, count) === 'too-large'
+                        ? 'text-destructive hover:bg-muted'
+                        : getPromptSizeStatus(totalChars, count) === 'large'
+                          ? 'text-amber-500 hover:bg-muted'
+                          : 'text-green-500 hover:bg-muted',
                   )}
                   title={`${count} section${count > 1 ? 's' : ''}, ${totalChars.toLocaleString()} chars`}
                 >
-                  <Check className="h-3 w-3" />
+                  {getPromptSizeStatus(totalChars, count) === 'too-large' ? (
+                    <XCircle className="h-3 w-3" />
+                  ) : getPromptSizeStatus(totalChars, count) === 'large' ? (
+                    <AlertTriangle className="h-3 w-3" />
+                  ) : (
+                    <Check className="h-3 w-3" />
+                  )}
                   {totalChars.toLocaleString()}
                 </button>
               ) : (

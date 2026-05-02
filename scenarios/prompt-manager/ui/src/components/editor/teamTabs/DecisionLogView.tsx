@@ -9,13 +9,14 @@
  * - Context grouping with accordion, supersede tracking, context filter
  */
 
-import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle, Star, Clock } from 'lucide-react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle, Star, Clock, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { MarkdownRenderer } from '@/components/markdown'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { DecisionEntry, DecisionModifications, AutoCreateOutcome } from '@/services/heartbeatService'
@@ -88,6 +89,19 @@ function isAcceptedAsProposed(entry: DecisionEntry): boolean {
     return f.includes('accept as proposed')
   }
   return false
+}
+
+function ActivityMarkdown({ content, className }: { content?: string | null; className?: string }) {
+  if (!content) return null
+  return (
+    <MarkdownRenderer
+      content={content}
+      className={cn(
+        'break-words text-xs text-muted-foreground [&_*]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto',
+        className,
+      )}
+    />
+  )
 }
 
 /** Multi-option decision card with lettered choices */
@@ -175,15 +189,12 @@ function MultiOptionCard({
         </div>
       </div>
 
-      {entry.description && (
-        <div className="text-xs text-muted-foreground mt-1.5">
-          {entry.description}
-        </div>
-      )}
+      <ActivityMarkdown content={entry.description} className="mt-1.5" />
 
       {entry.rationale && (
-        <div className="text-xs text-muted-foreground mt-1.5">
-          <span className="font-medium text-foreground/70">Context:</span> {entry.rationale}
+        <div className="mt-1.5">
+          <span className="text-xs font-medium text-foreground/70">Context:</span>
+          <ActivityMarkdown content={entry.rationale} />
         </div>
       )}
 
@@ -357,9 +368,7 @@ function MultiOptionCard({
               <span className="text-emerald-400">Additions:</span> {existingMods.additions.join(', ')}
             </div>
           )}
-          {existingMods.rationale && (
-            <div className="text-[11px] text-muted-foreground">{existingMods.rationale}</div>
-          )}
+          <ActivityMarkdown content={existingMods.rationale} className="text-[11px]" />
         </div>
       )}
 
@@ -442,6 +451,7 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
   const [error, setError] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
   const [contextFilter, setContextFilter] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedContexts, setExpandedContexts] = useState<Set<string>>(new Set(['__all__']))
   const [showAddForm, setShowAddForm] = useState(false)
   const [supersededIds, setSupersededIds] = useState<Set<string>>(new Set())
@@ -501,14 +511,14 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
     return () => clearInterval(interval)
   }, [loadEntries])
 
-  const getAgentName = (agentId: string) => {
+  const getAgentName = useCallback((agentId: string) => {
     const member = members.find(m => m.agentId === agentId)
     return member?.displayName ?? agentId
-  }
+  }, [members])
 
-  const getAgentAppearance = (agentId: string) => {
+  const getAgentAppearance = useCallback((agentId: string) => {
     return allAgents?.find(a => a.id === agentId)?.appearance ?? null
-  }
+  }, [allAgents])
 
   const clearMutationError = () => setMutationError(null)
 
@@ -665,9 +675,33 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
     })
   }
 
+  const filteredEntries = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return entries
+    return entries.filter((entry) => {
+      const optionsText = entry.options
+        ?.map((option) => `${option.key} ${option.label} ${option.rationale}`)
+        .join(' ') ?? ''
+      const agentName = getAgentName(entry.by)
+      return [
+        entry.id,
+        entry.by,
+        agentName,
+        entry.decision,
+        entry.rationale,
+        entry.context,
+        entry.topic,
+        entry.description,
+        entry.freeform,
+        entry.notes,
+        optionsText,
+      ].some((value) => (value ?? '').toLowerCase().includes(query))
+    })
+  }, [entries, searchQuery, getAgentName])
+
   // Group by context
   const grouped = new Map<string, DecisionEntry[]>()
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     const ctx = entry.context || '(untagged)'
     const existing = grouped.get(ctx)
     if (existing) {
@@ -720,6 +754,16 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
             <option key={tag} value={tag}>{tag}</option>
           ))}
         </select>
+        <div className="relative min-w-[180px] flex-1">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search decisions..."
+            className="w-full rounded border border-border bg-background py-1 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
         <button
           onClick={() => { setShowAddForm(!showAddForm); clearMutationError() }}
           className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-muted transition-colors"
@@ -896,6 +940,8 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
       {/* Grouped decisions */}
       {entries.length === 0 ? (
         <div className="text-sm text-muted-foreground text-center py-8">No decisions logged yet.</div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-8">No matching decisions.</div>
       ) : (
         Array.from(grouped.entries()).map(([ctx, decisions]) => {
           const isExpanded = expandedContexts.has(ctx) || expandedContexts.has('__all__')
@@ -921,7 +967,7 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
                       <div
                         key={entry.id}
                         className={cn(
-                          'px-3 py-3 transition-colors',
+                          'min-w-0 overflow-hidden px-3 py-3 transition-colors',
                           isSuperseded && 'opacity-50',
                           isAccepted && 'border-l-4 border-emerald-500',
                           isRejected && 'border-l-4 border-red-500',
@@ -1000,9 +1046,9 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
                           <>
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex min-w-0 items-center gap-2 flex-wrap">
                                   <span className={cn(
-                                    'text-sm font-medium',
+                                    'break-words text-sm font-medium',
                                     isSuperseded && 'line-through text-muted-foreground',
                                     isRejected && 'line-through text-muted-foreground'
                                   )}>
@@ -1016,15 +1062,16 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <AgentColorBadge appearance={getAgentAppearance(entry.by)} size="xs" />
-                                <span className="text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
+                                <span className="max-w-[12rem] truncate text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
                               </div>
                             </div>
 
                             <div className={cn(
-                              'text-xs text-muted-foreground mt-1.5',
+                              'mt-1.5',
                               isRejected && 'line-through'
                             )}>
-                              <span className="font-medium text-foreground/70">Rationale:</span> {entry.rationale}
+                              <span className="text-xs font-medium text-foreground/70">Rationale:</span>
+                              <ActivityMarkdown content={entry.rationale} />
                             </div>
 
                             {entry.supersedes && (

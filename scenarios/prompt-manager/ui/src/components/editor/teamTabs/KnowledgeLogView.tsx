@@ -8,13 +8,14 @@
  * - 30-second auto-refresh
  */
 
-import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronDown, Loader2, Pencil, X, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { Plus, ChevronDown, Loader2, Pencil, X, Trash2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { MarkdownRenderer } from '@/components/markdown'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { KnowledgeEntry } from '@/services/heartbeatService'
@@ -31,6 +32,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   const [error, setError] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
   const [topicFilter, setTopicFilter] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['__all__']))
   const [showAddForm, setShowAddForm] = useState(false)
   const [supersededIds, setSupersededIds] = useState<Set<string>>(new Set())
@@ -82,14 +84,14 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     return () => clearInterval(interval)
   }, [loadEntries])
 
-  const getAgentName = (agentId: string) => {
+  const getAgentName = useCallback((agentId: string) => {
     const member = members.find(m => m.agentId === agentId)
     return member?.displayName ?? agentId
-  }
+  }, [members])
 
-  const getAgentAppearance = (agentId: string) => {
+  const getAgentAppearance = useCallback((agentId: string) => {
     return allAgents?.find(a => a.id === agentId)?.appearance ?? null
-  }
+  }, [allAgents])
 
   const clearMutationError = () => setMutationError(null)
 
@@ -180,9 +182,26 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     })
   }
 
+  const filteredEntries = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return entries
+    return entries.filter((entry) => {
+      const agentName = getAgentName(entry.by)
+      return [
+        entry.id,
+        entry.by,
+        agentName,
+        entry.topic,
+        entry.content,
+        entry.source,
+        entry.supersedes,
+      ].some((value) => (value ?? '').toLowerCase().includes(query))
+    })
+  }, [entries, searchQuery, getAgentName])
+
   // Group by topic
   const grouped = new Map<string, KnowledgeEntry[]>()
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     const t = entry.topic || '(untagged)'
     const existing = grouped.get(t)
     if (existing) {
@@ -225,6 +244,16 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
             <option key={tag} value={tag}>{tag}</option>
           ))}
         </select>
+        <div className="relative min-w-[180px] flex-1">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search knowledge..."
+            className="w-full rounded border border-border bg-background py-1 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
         <button
           onClick={() => { setShowAddForm(!showAddForm); clearMutationError() }}
           className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-muted transition-colors"
@@ -338,6 +367,8 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
       {/* Grouped entries */}
       {entries.length === 0 ? (
         <div className="text-sm text-muted-foreground text-center py-8">No knowledge entries yet.</div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-8">No matching knowledge entries.</div>
       ) : (
         Array.from(grouped.entries()).map(([topic, topicEntries]) => {
           const isExpanded = expandedTopics.has(topic) || expandedTopics.has('__all__')
@@ -360,7 +391,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                       <div
                         key={entry.id}
                         className={cn(
-                          'px-3 py-3 transition-colors',
+                          'min-w-0 overflow-hidden px-3 py-3 transition-colors',
                           isSuperseded && 'opacity-50'
                         )}
                       >
@@ -423,9 +454,10 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                           <>
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm text-foreground whitespace-pre-wrap">
-                                  {entry.content}
-                                </div>
+                                <MarkdownRenderer
+                                  content={entry.content}
+                                  className="break-words text-sm text-foreground [&_*]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto"
+                                />
                                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                   {entry.at ? formatRelativePastTime(new Date(entry.at)) : ''}
                                   {entry.source && (
@@ -435,7 +467,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <AgentColorBadge appearance={getAgentAppearance(entry.by)} size="xs" />
-                                <span className="text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
+                                <span className="max-w-[12rem] truncate text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
                               </div>
                             </div>
 

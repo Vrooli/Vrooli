@@ -263,10 +263,22 @@ describe('SkillEditorPanel', () => {
   })
 
   describe('header cleanup', () => {
-    it('renders the draft status chip on all viewport widths', () => {
+    it('hides the published status chip and shows draft status only when draft', () => {
       const skill = createTestSkill()
       render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
-      expect(screen.getByTestId('draft-status-chip')).toBeInTheDocument()
+      expect(screen.queryByTestId('draft-status-chip')).not.toBeInTheDocument()
+    })
+
+    it('renders the draft status chip for draft skills', () => {
+      const skill = createTestSkill({ draft: true })
+      render(
+        <SkillEditorPanel
+          {...defaultProps}
+          currentSkill={skill}
+          formState={createFormState({ draft: true })}
+        />
+      )
+      expect(screen.getByTestId('draft-status-chip')).toHaveTextContent('Draft')
     })
 
     it('does not render the legacy row-1 Skill actions ellipsis', () => {
@@ -319,7 +331,7 @@ describe('SkillEditorPanel', () => {
   })
 
   describe('More overflow menu', () => {
-    it('exposes File path, Discard changes, and Delete skill items', () => {
+    it('exposes chat, Discard changes, and Delete skill items', () => {
       const skill = createTestSkill()
       render(
         <SkillEditorPanel
@@ -329,7 +341,7 @@ describe('SkillEditorPanel', () => {
         />
       )
       fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
-      expect(screen.getByTestId('skill-more-file-path')).toBeInTheDocument()
+      expect(screen.getByText('Start agent chat')).toBeInTheDocument()
       expect(screen.getByText('Discard changes')).toBeInTheDocument()
       expect(screen.getByText('Delete skill')).toBeInTheDocument()
     })
@@ -394,11 +406,10 @@ describe('SkillEditorPanel', () => {
       expect(screen.getByText(/Deleting/)).toBeInTheDocument()
     })
 
-    it('opens the file path popover when File path item is clicked', () => {
+    it('opens the file path popover from the header button', () => {
       const skill = createTestSkill()
       render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
-      fireEvent.click(screen.getByTestId('skill-editor-actions-menu'))
-      fireEvent.click(screen.getByTestId('skill-more-file-path'))
+      fireEvent.click(screen.getByRole('button', { name: 'Open file path menu for test-1.md' }))
       // The FilePathMenu popover contains a Filename label
       expect(screen.getByText('Filename')).toBeInTheDocument()
     })

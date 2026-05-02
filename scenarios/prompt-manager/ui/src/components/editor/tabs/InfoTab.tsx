@@ -16,7 +16,9 @@ import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { AgentTeamMembership } from '@/lib/schemas'
 import { getAgentTeams } from '@/services/agentService'
-import { teamDetailPath } from '@/app/routes/route-paths'
+import * as heartbeatService from '@/services/heartbeatService'
+import type { HeartbeatConfig } from '@/services/heartbeatService'
+import { runDetailPath, teamDetailPath } from '@/app/routes/route-paths'
 
 // Extended agent type with optional v1 fields for display purposes
 interface AgentWithLegacyFields extends Agent {
@@ -37,11 +39,24 @@ interface InfoTabProps {
 export function InfoTab({ agent }: InfoTabProps) {
   const navigate = useNavigate()
   const [memberships, setMemberships] = useState<AgentTeamMembership[]>([])
+  const [heartbeatByTeam, setHeartbeatByTeam] = useState<Map<string, HeartbeatConfig | null>>(new Map())
 
   useEffect(() => {
     let cancelled = false
-    void getAgentTeams(agent.id).then((result) => {
-      if (!cancelled) setMemberships(result)
+    void getAgentTeams(agent.id).then(async (result) => {
+      if (cancelled) return
+      setMemberships(result)
+      const entries = await Promise.all(
+        result.map(async (membership) => {
+          try {
+            const config = await heartbeatService.getHeartbeat(membership.teamId, agent.id)
+            return [membership.teamId, config] as const
+          } catch {
+            return [membership.teamId, null] as const
+          }
+        })
+      )
+      setHeartbeatByTeam(new Map(entries))
     })
     return () => { cancelled = true }
   }, [agent.id])
@@ -227,29 +242,71 @@ export function InfoTab({ agent }: InfoTabProps) {
             {memberships.map((membership) => (
               <li
                 key={membership.teamId}
-                className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                className="min-w-0 p-2 bg-muted rounded-lg"
               >
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <button
-                    type="button"
-                    className="text-sm font-medium text-primary hover:underline cursor-pointer"
-                    onClick={() => navigate(teamDetailPath(membership.teamId))}
-                  >
-                    {membership.teamDisplayName}
-                  </button>
-                  {membership.roles.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      ({membership.roles.join(', ')})
-                    </span>
-                  )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <button
+                      type="button"
+                      className="truncate text-sm font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => navigate(teamDetailPath(membership.teamId))}
+                    >
+                      {membership.teamDisplayName}
+                    </button>
+                    {membership.roles.length > 0 && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        ({membership.roles.join(', ')})
+                      </span>
+                    )}
+                  </div>
+                  <StatusBadge status={membership.status} />
                 </div>
-                <StatusBadge status={membership.status} />
+                <MembershipRuns
+                  config={heartbeatByTeam.get(membership.teamId)}
+                  onOpenRun={(runId) => navigate(runDetailPath(runId))}
+                />
               </li>
             ))}
           </ul>
         </section>
       )}
+    </div>
+  )
+}
+
+function MembershipRuns({
+  config,
+  onOpenRun,
+}: {
+  config: HeartbeatConfig | null | undefined
+  onOpenRun: (runId: string) => void
+}) {
+  const last = config?.lastExecution
+
+  if (config === undefined) {
+    return <div className="mt-2 text-xs text-muted-foreground">Loading runs...</div>
+  }
+
+  if (!last?.runId) {
+    return <div className="mt-2 text-xs text-muted-foreground">No recent runs for this membership.</div>
+  }
+  const runId = last.runId
+
+  return (
+    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 rounded-md bg-background/60 px-2 py-1.5 text-xs">
+      <Activity className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <button
+        type="button"
+        onClick={() => onOpenRun(runId)}
+        className="font-medium text-primary hover:underline"
+      >
+        Last run
+      </button>
+      <StatusBadge status={last.status} />
+      <span className="truncate text-muted-foreground">
+        {last.startedAt ? new Date(last.startedAt).toLocaleString() : runId}
+      </span>
     </div>
   )
 }
@@ -284,6 +341,11 @@ interface StatusBadgeProps {
 function StatusBadge({ status }: StatusBadgeProps) {
   const statusStyles: Record<string, string> = {
     active: 'bg-green-500/20 text-green-500',
+    completed: 'bg-green-500/20 text-green-500',
+    running: 'bg-amber-500/20 text-amber-500',
+    pending: 'bg-blue-500/20 text-blue-500',
+    failed: 'bg-red-500/20 text-red-500',
+    cancelled: 'bg-slate-500/20 text-slate-400',
     inactive: 'bg-slate-500/20 text-slate-400',
     suspended: 'bg-yellow-500/20 text-yellow-500',
   }

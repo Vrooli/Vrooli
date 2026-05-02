@@ -18,7 +18,7 @@
  * - Empty state with 3D world visualization
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, MessageSquare, GitBranch, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -153,8 +153,6 @@ export function SkillEditorPanel({
   const [showChatDialog, setShowChatDialog] = useState(false)
   const [lineageOpen, setLineageOpen] = useState(false)
   const [lineageTab, setLineageTab] = useState<LineageTab>('history')
-  const [filePathOpen, setFilePathOpen] = useState(false)
-  const moreButtonAnchorRef = useRef<HTMLSpanElement>(null)
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   const handleClose = () => {
@@ -293,13 +291,15 @@ export function SkillEditorPanel({
               className="flex-1 min-w-0"
             />
 
-            {/* Draft/published status chip */}
-            <DraftStatusChip
-              isDraft={formState.draft}
-              onChange={(v) => onFieldChange('draft', v)}
-              isLoading={isLoadingContent}
-              className="flex-shrink-0"
-            />
+            {/* Draft status is shown only when it needs attention. Published is the default. */}
+            {formState.draft && (
+              <DraftStatusChip
+                isDraft={formState.draft}
+                onChange={(v) => onFieldChange('draft', v)}
+                isLoading={isLoadingContent}
+                className="flex-shrink-0"
+              />
+            )}
 
             {/* Default scope selector - only show for steer skills */}
             {formState.modes.includes('steer') && (
@@ -318,16 +318,17 @@ export function SkillEditorPanel({
               className="flex-shrink-0"
             />
 
-            {/* Start agent chat */}
-            <button
-              type="button"
-              onClick={() => setShowChatDialog(true)}
-              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              aria-label="Start agent chat"
-              title="Start agent chat with this skill"
-            >
-              <MessageSquare className="h-4 w-4" />
-            </button>
+            <FilePathMenu
+              file={formState.file}
+              modes={formState.modes}
+              folder={formState.folder}
+              onFileChange={(v) => onFieldChange('file', v)}
+              onFolderChange={(v) => onFieldChange('folder', v)}
+              skillDir={currentSkill.skillDir ?? undefined}
+              contentPath={currentSkill.contentPath ?? undefined}
+              triggerIcon={<FolderOpen className="h-4 w-4 text-muted-foreground" />}
+              className="flex-shrink-0"
+            />
 
             {/* Lineage button: opens tabbed panel with history, variants, experiments */}
             <button
@@ -348,9 +349,8 @@ export function SkillEditorPanel({
               <span className="hidden sm:inline">Lineage</span>
             </button>
 
-            {/* More overflow menu: file path, discard, delete */}
+            {/* More overflow menu: chat, discard, delete */}
             <span className="relative flex-shrink-0">
-              <span ref={moreButtonAnchorRef} className="block">
                 <ToolbarDropdown
                   icon={<MoreHorizontal className="h-4 w-4" />}
                   label="More actions"
@@ -360,10 +360,9 @@ export function SkillEditorPanel({
                   testId={selectors.editor.actionsMenu}
                 >
                   <DropdownItem
-                    onClick={() => setFilePathOpen(true)}
-                    icon={<FolderOpen className="h-4 w-4" />}
-                    label="File path…"
-                    testId="skill-more-file-path"
+                    onClick={() => setShowChatDialog(true)}
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    label="Start agent chat"
                   />
                   <DropdownItem
                     onClick={onDiscard}
@@ -379,21 +378,6 @@ export function SkillEditorPanel({
                     label={isDeleting ? 'Deleting…' : 'Delete skill'}
                   />
                 </ToolbarDropdown>
-              </span>
-              {/* Controlled file-path popover anchored to the More button */}
-              <FilePathMenu
-                file={formState.file}
-                modes={formState.modes}
-                folder={formState.folder}
-                onFileChange={(v) => onFieldChange('file', v)}
-                onFolderChange={(v) => onFieldChange('folder', v)}
-                skillDir={currentSkill.skillDir ?? undefined}
-                contentPath={currentSkill.contentPath ?? undefined}
-                open={filePathOpen}
-                onOpenChange={setFilePathOpen}
-                hideTrigger
-                anchorRef={moreButtonAnchorRef}
-              />
             </span>
           </div>
         </div>

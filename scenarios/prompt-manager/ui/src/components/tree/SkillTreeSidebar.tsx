@@ -14,7 +14,7 @@
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle, Bolt } from 'lucide-react'
+import { Home, PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle, Bolt } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
@@ -405,6 +405,8 @@ interface SkillTreeSidebarProps {
   // Team context menu callbacks
   /** Called when user toggles team enabled/disabled via context menu */
   onToggleTeamEnabled?: (teamId: string) => void
+  /** Navigate back to the primary home/graph surface */
+  onGoHome?: () => void
   /** Hide the top controls row (running/unsaved/settings/collapse) */
   hideTopControlsRow?: boolean
   className?: string
@@ -500,6 +502,7 @@ export function SkillTreeSidebar({
   onCustomizeAgent,
   onPreviewPrompt,
   onToggleTeamEnabled,
+  onGoHome,
   hideTopControlsRow = false,
   className = '',
 }: SkillTreeSidebarProps) {
@@ -1117,6 +1120,17 @@ export function SkillTreeSidebar({
         )}
       >
         <div className="flex flex-col items-center py-3 gap-3">
+          {onGoHome && (
+            <button
+              type="button"
+              onClick={onGoHome}
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Go home"
+              aria-label="Go home"
+            >
+              <Home className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -1156,7 +1170,7 @@ export function SkillTreeSidebar({
   return (
     <div
       className={cn(
-        'flex flex-col h-full border-r border-border w-full bg-card/50',
+        'flex flex-col h-full overflow-hidden border-r border-border w-full bg-card/50',
         className
       )}
       data-testid={selectors.sidebar.container}
@@ -1165,7 +1179,7 @@ export function SkillTreeSidebar({
       <div className="flex-shrink-0 border-b border-border">
         {/* Top bar with settings and collapse */}
         {!hideTopControlsRow && (
-          <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
             <div className="flex items-center gap-1">
               {combineMode ? (
                 <div className="flex items-center gap-2">
@@ -1176,6 +1190,17 @@ export function SkillTreeSidebar({
                 </div>
               ) : (
                 <>
+                  {onGoHome && (
+                    <button
+                      type="button"
+                      onClick={onGoHome}
+                      className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      title="Go home"
+                      aria-label="Go home"
+                    >
+                      <Home className="h-4 w-4" />
+                    </button>
+                  )}
                   {onNavigateToRunningAgent && (
                     <RunningAgentsPopover
                       onNavigateToMember={onNavigateToRunningAgent}
@@ -1246,7 +1271,7 @@ export function SkillTreeSidebar({
       <Tabs.Root
         value={activeTab}
         onValueChange={handleTabChange}
-        className="flex flex-col flex-1 min-h-0"
+        className="flex flex-col flex-1 min-h-0 overflow-hidden"
       >
         {/* Search -- above tabs, visible for all entity types */}
         <div className="flex-shrink-0 px-3 py-2">
@@ -1271,8 +1296,8 @@ export function SkillTreeSidebar({
 
           {/* Search mode toggle + Select button */}
           {(tabFeatures?.contentSearch || tabFeatures?.aiSearch || activeTab in TAB_TO_ENTITY_TYPE) && (
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 mt-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
                 {(tabFeatures?.contentSearch || tabFeatures?.aiSearch) && (
                   <button
                     type="button"
@@ -1323,7 +1348,7 @@ export function SkillTreeSidebar({
               </div>
               {/* Select (combine) toggle + Saved Sets — available on all entity tabs */}
               {activeTab in TAB_TO_ENTITY_TYPE && (onEnterCombineMode || onEnterSelectMode) && (
-                <div className="flex items-center gap-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-1">
                   {combineMode && (
                     <button
                       type="button"
