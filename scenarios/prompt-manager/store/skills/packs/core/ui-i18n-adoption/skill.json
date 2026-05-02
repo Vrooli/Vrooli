@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "ui-i18n-adoption",
+  "name": "UI i18n Adoption",
+  "description": "Adopt multi-language support in a scenario UI by wiring i18next through the existing strings.ts registry, with RTL/locale-formatting hooks pre-wired so adding new locales is a config change",
+  "modes": [
+    "steer",
+    "react",
+    "ux"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "languages",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "revision": 1,
+  "createdAt": "2026-05-02T03:51:50Z",
+  "updatedAt": "2026-05-02T03:51:50Z"
+}
