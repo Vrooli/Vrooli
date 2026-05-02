@@ -328,6 +328,10 @@ Implementation note: Agent tab workflow coverage now exercises the unavailable d
 
 Implementation note: Scenario Review quality/rules coverage now exercises changed-file quality matching, first-scan triggering, standards check start/persist behavior, completed violation rendering, expansion details, and agent-context attachment. This pass also fixed `CodeQualityTab` changed-file derivation so `RepoFileStats` category maps are flattened into scenario-relative paths before filtering tidiness issues.
 
+Implementation note: settings tab coverage now directly exercises the remaining weak tab surfaces: grouping rule edits and prefix normalization, `.gitignore` health move/dismiss/reset flows, HTTPS credential save/test/protocol-switch behavior, and SSH key copy/test/save/generate behavior. These tests use the shared React Query render helper and assert repo-scoped API forwarding at the tab seam instead of relying on the full settings modal shell.
+
+Implementation note: Scenario Review overview coverage now exercises the cross-hook overview seam directly: scenario status and external link resolution, server readiness, change summary aggregation, visual staleness/fallback guidance, latest test status, tidiness score/staleness, agent-context attachment routing, dependency-unavailable guidance, and unified review run job-state rendering. UI statement coverage moved from `47.35%` to `48.80%`; `ScenarioReviewPanelOverview.tsx` is now `93.35%`.
+
 ## Risks and Mitigations
 
 - Risk: moving fakes out of the root package could require exported interfaces or constructors that production does not need.
