@@ -29,11 +29,6 @@
       "description": "Service category used in service.json",
       "default": "ai_tools"
     },
-    "DATABASE_NAME": {
-      "flag": "database",
-      "description": "Default Postgres database/schema name",
-      "default": "{{SCENARIO_ID}}"
-    },
     "AUTHOR": {
       "flag": "author",
       "description": "Initial progress log author",

@@ -15,19 +15,31 @@
  *    end-to-end i18n pipeline (catalogs → DOM, persistence, html attrs)
  *    using raw catalog references — these tests *should* update when the
  *    canonical English copy changes, because that's what they verify.
+ *
+ * Render and mock plumbing comes from `@/test-utils`:
+ *   - `renderWithProviders` wraps the tree in QueryClient + i18n
+ *   - `makeHealthResponse(overrides?)` produces stable typed test data
+ *
+ * The `vi.mock("./lib/api", ...)` call below is intentionally inline
+ * (not wrapped in a helper). Vitest hoists `vi.mock` to before all
+ * imports run; a helper imported from `@/test-utils` would be in the
+ * temporal dead zone at hoist time. `makeHealthResponse()` is fine
+ * because it's invoked from inside the factory closure, which runs
+ * when vitest resolves the mock — after imports are initialised.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-vi.mock("./lib/api", () => ({
-  fetchHealth: vi.fn().mockResolvedValue({
-    status: "ok",
-    service: "test-service",
-    timestamp: "2026-05-01T00:00:00Z",
-  }),
-}));
+import { makeHealthResponse, renderWithProviders } from "./test-utils";
+
+vi.mock("./lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/api")>();
+  return {
+    ...actual,
+    fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
+  };
+});
 
 import App from "./App";
 import { selectors } from "./consts/selectors";
@@ -38,17 +50,6 @@ import en from "./i18n/locales/en.json";
 import ja from "./i18n/locales/ja.json";
 import { interp } from "./test-setup";
 
-const renderApp = () => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <App />
-    </QueryClientProvider>,
-  );
-};
-
 describe("App rendering (cimode — copy-independent)", () => {
   // No beforeEach — the setup file already puts us in cimode.
 
@@ -57,24 +58,24 @@ describe("App rendering (cimode — copy-independent)", () => {
   });
 
   it("renders the title element via its test id", () => {
-    renderApp();
+    renderWithProviders(<App />);
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
   it("renders translation keys for the app surface (cimode echoes keys)", async () => {
-    renderApp();
+    renderWithProviders(<App />);
     expect(await screen.findByText(strings.app.eyebrow)).toBeInTheDocument();
     expect(screen.getByText(strings.app.description)).toBeInTheDocument();
     expect(screen.getByText(strings.health.title)).toBeInTheDocument();
   });
 
   it("exposes the refresh button regardless of label copy", () => {
-    renderApp();
+    renderWithProviders(<App />);
     expect(screen.getByTestId(selectors.health.refreshButton)).toBeInTheDocument();
   });
 
   it("renders the locale switcher with toggles for every supported locale", () => {
-    renderApp();
+    renderWithProviders(<App />);
     expect(screen.getByTestId(selectors.locale.switcher)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.locale.toggle({ code: "en" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.locale.toggle({ code: "ja" }))).toBeInTheDocument();
@@ -82,7 +83,7 @@ describe("App rendering (cimode — copy-independent)", () => {
 
   it("shows the refresh count element only after a click", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
 
     const refreshButton = await screen.findByTestId(selectors.health.refreshButton);
     expect(screen.queryByTestId(selectors.health.refreshCount)).not.toBeInTheDocument();
@@ -110,7 +111,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
   });
 
   it("renders English copy by default and reflects it on <html>", async () => {
-    renderApp();
+    renderWithProviders(<App />);
     expect(await screen.findByText(en.app.eyebrow)).toBeInTheDocument();
     expect(screen.getByText(en.app.description)).toBeInTheDocument();
     expect(
@@ -122,7 +123,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("switches to Japanese when the 日本語 toggle is clicked", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
     await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
 
     await waitFor(() => {
@@ -141,7 +142,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
     // on `languageChanged`, and the document's `dir` should flip. Without this
     // assertion the `rtl` branch of the type would be unexercised.
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
     await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
 
     await waitFor(() => {
@@ -155,7 +156,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
     // Direction is a stateful attribute; an rtl→ltr round-trip catches the
     // failure mode where `applyDocumentLocale` only ever sets `dir` once.
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
     await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
@@ -169,7 +170,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("persists the chosen locale to localStorage so returning visits restore it", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
     await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
 
     await waitFor(() => {
@@ -179,7 +180,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("marks the active locale's toggle as pressed", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
 
     expect(screen.getByTestId(selectors.locale.toggle({ code: "en" }))).toHaveAttribute(
       "aria-pressed",
@@ -197,7 +198,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("renders pluralized refresh count in real English (singular at 1)", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
 
     await user.click(screen.getByTestId(selectors.health.refreshButton));
     await waitFor(() => {
@@ -209,7 +210,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("renders pluralized refresh count in real English (plural at 3)", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
 
     const button = screen.getByTestId(selectors.health.refreshButton);
     await user.click(button);
@@ -228,7 +229,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
   // worked example of CLDR plurals beyond the simple singular/plural split
   // demoed by refreshCount. The three tests below cover each branch.
   it("renders zero-form plural at count=0 (notifications.summary_zero)", async () => {
-    renderApp();
+    renderWithProviders(<App />);
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.notifications.summary)).toHaveTextContent(
@@ -239,7 +240,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("renders one-form plural at count=1 (notifications.summary_one)", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
 
     await user.click(screen.getByTestId(selectors.health.refreshButton));
 
@@ -252,7 +253,7 @@ describe("App locale switching (real locales — end-to-end)", () => {
 
   it("renders other-form plural at count=5 (notifications.summary base)", async () => {
     const user = userEvent.setup();
-    renderApp();
+    renderWithProviders(<App />);
 
     const button = screen.getByTestId(selectors.health.refreshButton);
     for (let i = 0; i < 5; i++) {

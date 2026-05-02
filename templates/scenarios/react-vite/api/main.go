@@ -2,83 +2,107 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"fmt"
 	"log"
-	"net/http"
-	"time"
+	"os"
+	"path/filepath"
+	"strings"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/server"
+	"{{SCENARIO_ID}}/internal/store"
 )
 
-// Server wires the HTTP router and database connection
-type Server struct {
-	db     *sql.DB
-	router *mux.Router
-}
-
-// NewServer initializes database and routes
-func NewServer(db *sql.DB) *Server {
-	srv := &Server{
-		db:     db,
-		router: mux.NewRouter(),
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
 	}
-	srv.setupRoutes()
-	return srv
-}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
+	}
 
-func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	// Uses api-core/health for standardized response format
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(s.db), health.Critical).
-		Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-}
-
-// Handler returns the HTTP handler with recovery middleware
-func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
-}
-
-
-// loggingMiddleware prints simple request logs
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "{{SCENARIO_ID}}"},
+		storage.ClassData,
+		"{{SCENARIO_ID}}.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve {{SCENARIO_ID}} db path: %w", err)
+	}
+	return sqliteFileDSN(path)
+}
+
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "{{SCENARIO_ID}}",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "{{SCENARIO_ID}}"}) {
+		return
 	}
 
-	// Connect to database with automatic retry and backoff
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
+	}
+
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: database.DriverPostgres,
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	srv := NewServer(db)
+	if err := store.EnsureSchema(context.Background(), db); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
 
-	// Start server with graceful shutdown (port from API_PORT env var)
-	if err := server.Run(server.Config{
+	srv := server.New(server.Deps{
+		Pinger:  db,
+		Clock:   clock.System{},
+		Service: "{{SCENARIO_ID}}-api",
+		Version: "1.0.0",
+	})
+
+	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {

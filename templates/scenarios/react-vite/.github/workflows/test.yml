@@ -1,0 +1,175 @@
+# {{SCENARIO_DISPLAY_NAME}} — full-stack test gates
+#
+# Runs every gate that `vrooli scenario test {{SCENARIO_ID}}` runs locally,
+# in three parallel jobs:
+#
+#   - `ui`  — strings audit, type-check, lint, vitest with coverage gates,
+#             production bundle.
+#   - `api` — go vet, build (default + CGO_ENABLED=0 cross-platform sanity),
+#             go test -race.
+#   - `cli` — same Go gates as api, scoped to the cli/ module. The CLI is
+#             a separate Go module with its own go.mod, so it gets its own
+#             setup-go cache key and runs independently.
+#
+# This file is shipped from the react-vite template into every generated
+# scenario. When scenarios live inside the Vrooli monorepo it is dormant —
+# GitHub Actions only activates workflows from the repo root's .github/.
+# When a scenario is extracted to its own repo (the long-term standalone-
+# deployment path) this file becomes the active CI gate immediately. Until
+# then, it doubles as authoritative documentation of "the bar to ship."
+#
+# IMPORTANT: keep the gate list in sync with `packages/cli-core/cmd/scenario_test.go`
+# (the canonical local runner) and with the test-genie skill. If a gate is
+# added there, mirror it here so a scenario that passes locally also passes
+# in CI.
+
+name: Tests
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master, dev]
+
+# Default to read-only — no job in this workflow needs to write to the
+# repo, push images, or comment on PRs. If a future job legitimately needs
+# write access (e.g., publishing coverage to a gist), grant it on that job
+# explicitly rather than widening the workflow-wide grant.
+permissions:
+  contents: read
+
+jobs:
+  ui:
+    name: UI tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          # Pinned to the major declared in ui/package.json `packageManager`.
+          # Bumping here without bumping there causes pnpm to refuse the
+          # frozen lockfile install — keep them in lockstep.
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        with:
+          node-version: "20.x"
+          cache: "pnpm"
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        # `--ignore-workspace` is critical: scenarios are installed as
+        # standalone projects inside the Vrooli pnpm workspace. Without
+        # this flag, pnpm tries to wire workspace links that don't exist
+        # in a standalone checkout and fails.
+        run: pnpm install --frozen-lockfile --ignore-workspace
+
+      - name: Strings catalog audit
+        # Fails when src/consts/strings.generated.ts has drifted from
+        # src/i18n/locales/en.json — i.e., codegen wasn't re-run.
+        run: pnpm strings:check
+
+      - name: Type-check
+        run: pnpm type-check
+
+      - name: Lint
+        # Includes the `strings/no-unused-keys` and `no-restricted-imports`
+        # (test-utils quarantine) gates declared in eslint.config.js.
+        run: pnpm lint
+
+      - name: Tests with coverage
+        # Coverage thresholds live in vite.config.ts — vitest exits non-zero
+        # when any of {lines, branches, functions, statements} drops below
+        # the configured floor. Tightening thresholds happens there, not here.
+        run: pnpm test:coverage
+
+      - name: Production build
+        run: pnpm build
+
+  api:
+    name: API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          # Pull version from go.mod so the matrix never drifts from the
+          # source-of-truth declaration. Bumping go.mod auto-bumps CI.
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Build (CGO disabled — cross-platform sanity)
+        # api/internal/testutil/db/sqlite.go uses modernc.org/sqlite, the
+        # pure-Go SQLite driver. This step proves no production path silently
+        # picked up a CGO dependency — the cross-platform-readiness gate.
+        env:
+          CGO_ENABLED: "0"
+        run: go build ./...
+
+      - name: Tests (race detector)
+        # `-race` is non-negotiable: test fakes (FakeClock, FakePinger) carry
+        # mutexes / atomics, and middleware concurrency is the most common
+        # site of regressions when scenarios add cross-cutting behaviour.
+        run: go test -race ./...
+
+  cli:
+    name: CLI tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          # The CLI is its own Go module — separate go.mod from the API.
+          # Pull the version from cli/go.mod so the CLI tracks its own
+          # source-of-truth, not the API's.
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Build (CGO disabled — cross-platform sanity)
+        # The CLI ships as a single static binary on every platform we
+        # target. CGO_ENABLED=0 here proves no transitive dep silently
+        # introduced a C dependency that would break Windows or musl
+        # cross-builds.
+        env:
+          CGO_ENABLED: "0"
+        run: go build ./...
+
+      - name: Tests (race detector)
+        # The CLI's testutil package wires real httptest servers and
+        # captures os.Stdout under t.Cleanup; the race detector keeps
+        # those concurrency-sensitive helpers honest.
+        run: go test -race ./...

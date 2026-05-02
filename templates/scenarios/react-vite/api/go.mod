@@ -6,8 +6,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
-	github.com/lib/pq v1.10.9
+	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
+	modernc.org/sqlite v1.50.0
 )
 
 replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core

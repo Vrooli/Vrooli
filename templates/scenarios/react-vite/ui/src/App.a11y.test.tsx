@@ -15,36 +15,31 @@
  * `expect(results.violations).toEqual([])` — readable failure output
  * because vitest prints the array contents on failure.
  *
+ * Render and mock plumbing comes from `@/test-utils` for parity with the
+ * canonical `App.test.tsx`. Diverging patterns between sibling test files
+ * is the failure mode the test-utils package exists to prevent — when a
+ * second a11y test is added, it inherits exactly the shape of this one.
+ *
  * Add new a11y test files per high-traffic surface as the scenario grows.
  * One axe run per surface is enough; full-page scans are expensive.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
 
-vi.mock("./lib/api", () => ({
-  fetchHealth: vi.fn().mockResolvedValue({
-    status: "ok",
-    service: "test-service",
-    timestamp: "2026-05-01T00:00:00Z",
-  }),
-}));
+import { makeHealthResponse, renderWithProviders } from "./test-utils";
+
+vi.mock("./lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/api")>();
+  return {
+    ...actual,
+    fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
+  };
+});
 
 import App from "./App";
 import { selectors } from "./consts/selectors";
 import { setLocale } from "./i18n";
-
-const renderApp = () => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <App />
-    </QueryClientProvider>,
-  );
-};
 
 describe("App accessibility", () => {
   beforeEach(async () => {
@@ -56,7 +51,7 @@ describe("App accessibility", () => {
   });
 
   it("renders without axe violations in English", async () => {
-    const { container } = renderApp();
+    const { container } = renderWithProviders(<App />);
     // Wait for React Query to resolve so we scan the post-loading DOM.
     await waitFor(() => {
       expect(screen.getByTestId(selectors.health.statusValue)).toBeInTheDocument();

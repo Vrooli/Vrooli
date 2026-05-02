@@ -162,6 +162,51 @@ export default tseslint.config(
             "User-facing string attributes must go through the i18n registry. Use `aria-label={t(strings.feature.key)}` (etc.) instead of a string literal.",
         },
       ],
+
+      // ════════════════════════════════════════════════════════════════════════
+      // TEST-UTILS QUARANTINE (mirrors api/internal/testutil/no_prod_import_test.go)
+      //
+      // src/test-utils/ is test-only scaffolding — fakes that mutate process-wide
+      // state, factories with arbitrary defaults, render helpers that wire mock
+      // providers. None of it should ever ship in a production bundle.
+      //
+      // Without this guardrail, a single accidental `import { makeHealthResponse }
+      // from "@/test-utils"` in production code drags the whole tree (including
+      // any future test-only deps) into the build. The Go side enforces this at
+      // the AST level via no_prod_import_test.go; this is its TS counterpart.
+      //
+      // The patterns cover both relative paths (`./test-utils`, `../../test-utils`,
+      // including deeper imports like `@/test-utils/factories`) and the `@/`
+      // alias. The override block below for *.test.{ts,tsx} / *.spec.{ts,tsx}
+      // turns the rule off so tests can — and should — import freely from here.
+      //
+      // If you hit this rule:
+      //   ✅ DO: confirm the import is in a test file (`*.test.{ts,tsx}` /
+      //         `*.spec.{ts,tsx}`). If yes, it's already exempt — your filename
+      //         may not match the override pattern.
+      //   ✅ DO: if you genuinely need a helper in production code, move it out
+      //         of test-utils into an appropriate src/ location.
+      //   ❌ DON'T: disable the rule for a "one-off" production import. There
+      //         is no path back from a test-utils leak — every future build
+      //         carries it.
+      // ════════════════════════════════════════════════════════════════════════
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+              ],
+              message:
+                "Production code must not import from src/test-utils/ — these helpers are test-only. Move shared helpers out of test-utils, or move the importing file to *.test.{ts,tsx}.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
@@ -173,6 +218,10 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "react-refresh/only-export-components": "off",
+      // Tests are the consumers of src/test-utils/ — the production-side ban
+      // (in the main config block) is precisely what makes this directory
+      // safe to put fakes, factories, and provider plumbing in.
+      "no-restricted-imports": "off",
 
       // ════════════════════════════════════════════════════════════════════════
       // TEST STABILITY ENFORCEMENT

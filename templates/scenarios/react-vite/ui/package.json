@@ -12,6 +12,7 @@
     "lint:fix": "eslint . --fix",
     "type-check": "pnpm strings:check && tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check"
   },

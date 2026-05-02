@@ -25,13 +25,13 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 - **i18n out of the box**: i18next + react-i18next wired up with locale persistence, RTL-ready `<html lang>`/`<html dir>`, an `Intl`-based formatter helper (date/number/currency/relative-time/list), and a typed key registry generated from `en.json` at build time. ESLint forbids inline copy and string-literal `*ByText` queries, so copy edits are one-line catalog changes and tests survive them automatically. See [i18n flow](#i18n-flow).
 - **Go API skeleton**: `go.mod` + `cmd/server` entrypoint ready for feature modules.
 - **CLI manifest contract**: `.vrooli/service.json` declares the CLI command, adapter, install strategies, and freshness inputs.
-- **Lifecycle-ready service.json**: ports aligned with the platform, only Postgres required by default, lifecycle steps that build API/UI and start dev servers.
+- **Lifecycle-ready service.json**: ports aligned with the platform, no external resource required by default (storage is local SQLite), lifecycle steps that build API/UI and start dev servers.
 - **Iframe-ready UI**: Automatically initializes `@vrooli/iframe-bridge` so App Monitor and other hosts can embed the scenario without extra work.
 - **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API + WebSocket URLs across localhost/dev/proxy contexts.
 - **Requirements seed**: `requirements/index.json` + `requirements/modules/foundation.json` show how operational targets trace to technical requirements.
 - **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
 - **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
-- **Database placeholder**: `initialization/storage/postgres/seed.sql` to remind agents where to place migrations/seeds without shipping fake data.
+- **SQLite storage**: API uses `api-core/database` with the `sqlite` driver and `api-core/storage` for filesystem-safe paths — no external DB process required. The schema lives at `api/internal/store/schema.sql` (embedded into the binary, applied at startup via `store.EnsureSchema`).
 
 ## Setup Workflow
 ```bash
@@ -64,7 +64,7 @@ The lifecycle exports everything automatically when you run `vrooli scenario run
 | `API_PORT` | `15000-19999` | Port assigned to the Go API server |
 | `UI_PORT`  | `20000-24999` | Port assigned to the Vite dev server / production UI |
 | `WS_PORT`  | `25000-29999` | WebSocket channel for live updates |
-| `DATABASE_URL` *or* `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | PostgreSQL connection details |
+| `SQLITE_PATH` | — | Optional override for the SQLite file path. Defaults to `api-core/storage` resolver under the scenario data dir. |
 | `N8N_BASE_URL` | Base URL for workflow automation calls |
 | `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
 | `API_TOKEN` | Shared secret the CLI/API uses for authentication |
@@ -133,7 +133,7 @@ The template ships with a fully-wired i18n setup so adopters don't have to retro
 ## Customize Safely
 1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.
 2. **Append progress entries** to `docs/PROGRESS.md` whenever you land work.
-3. **Add resources** in `.vrooli/service.json` only when needed; Postgres is the sole default.
+3. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
 4. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
 
 ## pnpm Everywhere

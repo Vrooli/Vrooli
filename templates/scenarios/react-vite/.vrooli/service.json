@@ -196,15 +196,10 @@
       ]
     }
   },
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/{{SCENARIO_ID}}.db"
+  },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "{{DATABASE_NAME}}"
-      }
-    }
+    "resources": {}
   }
 }

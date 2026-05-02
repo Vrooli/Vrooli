@@ -27,12 +27,12 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: [React, Go, etc.]
-- Data + storage expectations: [postgres, redis, qdrant]
+- Data + storage expectations: [sqlite]
 - Integration strategy: [shared workflows > resource CLI > direct API]
 - Non-goals / guardrails: [What this scenario will not do]
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: [postgres, redis, scenario-auditor]
+- Required resources: [scenario-auditor]
 - Scenario dependencies: [name other scenarios leveraged]
 - Operational risks: [Key flags]
 - Launch sequencing: [Steps or milestones to hit GA]
