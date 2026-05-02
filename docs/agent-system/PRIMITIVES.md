@@ -107,6 +107,8 @@ Decisions are the system's **commit log for plans, not for code.** When a member
 
 Decision contexts a member owns are declared in its `topics.json` under `decisions_owned`; contexts whose acceptance changes a member's behavior are declared under `decisions_consumed`.
 
+The full taxonomy of contexts, the lifecycle (proposed → accepted → executed → superseded → stale), the routing policy after acceptance (direct-write vs swarm-manager), and the cross-cutting rules (capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure) live in `DECISIONS.md`. This file is concerned only with the bare definition.
+
 ---
 
 ## Knowledge entry
@@ -124,7 +126,7 @@ Knowledge entries are the fine-grained granularity for evidence and observations
 
 Unbuilt work. A backlog item names something to build (typically tracked in `swarm-manager`); a `capability-gap` decision names a missing capability that blocks an existing member's work — typically a missing CLI command, action, scenario, or source-of-truth.
 
-The distinction: backlog is "we plan to build X." Capability-gap is "we are blocked because X does not exist."
+The distinction: backlog is "we plan to build X." Capability-gap is "we are blocked because X does not exist." `DECISIONS.md` covers the criteria for choosing between filing a capability-gap, a `meta-self-improvement` decision, or a backlog item, and how director-swarm consumes accepted capability-gaps.
 
 ---
 

@@ -12,12 +12,49 @@ The topic-flow data layer is implemented as per-member `topics.json` files and s
 
 ## Mental Model
 
-```text
-Signals and observations
-  -> inbox topics in team knowledge
-  -> router skills drain those inboxes
-  -> outputs become knowledge, decisions, backlog, PoR proposals, skills, Actions, or CLIs
-  -> accepted durable truth lives in Plan of Record
+The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; accepted decisions either land directly or route through swarm-manager for execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
+
+```mermaid
+flowchart TB
+    subgraph PROD[Producers]
+      VW[Vision Walk<br/>operator alpha]
+      EXT[Cross-team output]
+      BASE[Baseline scans]
+    end
+
+    PROD -->|knowledge-add to<br/>&lt;inbox&gt;/&lt;type&gt;/&lt;slug&gt;| INBOX[(Team inbox topics)]
+    INBOX --> ROUTER{Router skill}
+
+    ROUTER -->|stale / not-actionable| DROP((drop))
+    ROUTER -->|low-signal valid| OBS[Knowledge observation<br/>under canonical prefix]
+    ROUTER -->|capability exists| RUN[Run existing<br/>skill or action]
+    ROUTER -->|trivial automation| NEWACT[Create + run<br/>new action]
+    ROUTER -->|judgment / blast radius| DEC[File decision<br/>with context]
+    ROUTER -->|blocked: missing capability| GAP[File capability-gap]
+
+    RUN --> OBS
+    NEWACT --> OBS
+
+    DEC --> ACCEPT{Accepted?}
+    ACCEPT -->|no / superseded| ARCH((archive))
+    ACCEPT -->|yes — direct-write eligible| DW[Direct write<br/>+ execution record]
+    ACCEPT -->|yes — execution work| WORK[Swarm-manager:<br/>backlog item or initiative]
+
+    GAP --> DSWARM[Director-swarm<br/>Phase 3 review]
+    DSWARM -->|scope clear| WORK
+    DSWARM -->|scope unclear| RES[Research backlog item]
+    RES -.scope narrows.-> WORK
+
+    WORK --> EXECW{Execution output}
+    EXECW --> OUT1[Scenario / CLI verb]
+    EXECW --> OUT2[Skill / Action]
+    EXECW --> OUT3[Infra change]
+    EXECW --> OUT4[POR spoke]
+
+    DW & OUT1 & OUT2 & OUT3 & OUT4 --> AUDIT{{Meta-optimization audit<br/>9-layer rubric}}
+    AUDIT -->|smell| DEC
+    AUDIT -->|missing capability| GAP
+    AUDIT -.observable improvement.-> INBOX
 ```
 
 The same layering rule applies everywhere:
@@ -35,9 +72,11 @@ For a first read, use this order:
 
 1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, PoR, Action, CLI, Decision, Knowledge entry, Inbox/synthesis.
 2. `LAYERS.md` — the rule for where each kind of guidance belongs.
-3. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
-4. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
-5. `PROMOTION_LADDER.md` — how prose guidance matures into CLI contracts, Actions, and retired prose.
+3. `TEAM_DOCS_PATTERNS.md` — when a team owns a plan-of-record (and the hub-and-spokes shape) vs. a working notebook.
+4. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
+5. `DECISIONS.md` — what happens after the router files a decision: contexts, lifecycle, direct-write vs swarm-manager, action graduation, stale-decision policy.
+6. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
+7. `PROMOTION_LADDER.md` — how prose guidance matures (or doesn't) into CLI contracts, Actions, and retired prose.
 
 ## Files
 
@@ -49,6 +88,7 @@ For a first read, use this order:
 | `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record vs working-notebook patterns, the four axes, both-patterns rules |
 | `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
 | `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; topic-prefix conventions |
+| `DECISIONS.md` | canon | Decision contexts, lifecycle, direct-write vs swarm-manager routing, capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure |
 | `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry, nomination + demotion rules, rot triage |

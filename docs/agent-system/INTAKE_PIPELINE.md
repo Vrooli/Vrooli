@@ -1,6 +1,6 @@
 # Intake Pipeline
 
-The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, and `PROMOTION_LADDER.md`.
+The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision).
 
 This is the live model. The historical "hot buffer / living notebook / permanent structure" three-tier framing is retired in favor of this one.
 
@@ -160,11 +160,15 @@ The router (or the method skill it delegates to) chooses the smallest useful act
 |---|---|
 | Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
 | Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor/<slug>`). |
+| Capability already exists for this signal | Run the existing skill or Action; route the output as a knowledge observation. |
+| Trivial automation, no LLM judgment needed | Create + run a new Action (no decision required — see `DECISIONS.md` §4). |
 | Repeated but unresolved pattern | File a `meta-self-improvement` decision proposing a skill / scenario / config change. The "notebook debt" surface is, in the live architecture, this kind of decision — not a markdown file. |
 | Converging evidence meets threshold | Raise the owned decision context (e.g., `audience-update`, `channel-strategy-update`). |
 | Repeatable method has no skill | Propose a skill through the meta-optimization path (`skill-optimizer`). |
-| Collection requires missing source/tool/scenario | Raise `capability-gap`. |
-| Signal belongs to another domain | Write to that domain's prefix or hand off as cross-team flow. |
+| Collection requires missing source/tool/scenario | Raise `capability-gap` (see `DECISIONS.md` §5 for the capability-gap-vs-decision criteria). |
+| Signal belongs to another domain | Write to that domain's prefix or hand off as cross-team flow (cross-team output ownership rules in `DECISIONS.md` §9). |
+
+The router's execute-directly vs file-decision threshold (and what governs each routing-outcome row above) is defined in `DECISIONS.md` §4. This table names what each row *is*; that file names *when* the router is allowed to take each row vs escalate.
 
 Each member declares structurally what it produces:
 

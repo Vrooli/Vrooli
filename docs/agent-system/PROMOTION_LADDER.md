@@ -1,8 +1,41 @@
 # Promotion Ladder
 
-Lifecycle of a piece of guidance from raw observation to retired prose. Cites `LAYERS.md` for where each layer lives, and `INTAKE_PIPELINE.md` for how observations enter the system.
+Lifecycle of a piece of guidance from raw observation to retired prose. Cites `LAYERS.md` for where each layer lives, `INTAKE_PIPELINE.md` for how observations enter the system, and `DECISIONS.md` for the `action-candidate` graduation gate.
 
 This is canon. Skills and team docs cite this file rather than restating the lifecycle.
+
+---
+
+## Stability unlocks compression
+
+The principle behind the ladder: **as a workflow stabilizes, the prose that describes it compresses into deterministic structure**. A new pattern starts as prose because nothing else has caught up; a stable pattern can graduate into a CLI command, then into an Action that wraps that CLI, and the original prose can retire.
+
+The trigger is *stability of the routing rule*, not age. A router skill whose classification logic settles into a small fixed table is a compression candidate. A router still in the "what does this signal even mean" phase is not, no matter how old it is. The intake pipeline (`INTAKE_PIPELINE.md`) produces the stability signal; the promotion ladder is what consumes it.
+
+### The maturity ladder
+
+Most skills do not march end-to-end down the ladder. Many compress to a steady state at step 1 or 2 because LLM judgment is genuinely needed for some of their work. The dotted self-loops below mark those steady states.
+
+```mermaid
+flowchart LR
+    P0[Step 0<br/>Prose skill<br/>LLM does everything]
+    P1[Step 1<br/>Thin wrapper<br/>over scenario CLI<br/>+ small LLM judgment]
+    P2[Step 2<br/>Single CLI call<br/>with optional<br/>LLM framing]
+    P3[Step 3<br/>Pure Action<br/>deterministic,<br/>no LLM]
+    P4[Step 4<br/>Original skill retired]
+
+    P0 -->|patterns stabilize<br/>across many runs| P1
+    P1 -->|most logic now<br/>in CLI / scenario| P2
+    P2 -->|action-candidate<br/>decision accepted| P3
+    P3 -->|original prose<br/>obsolete| P4
+
+    P1 -.LLM still needed<br/>for inputs / synthesis.-> P1
+    P2 -.partial automation<br/>steady state.-> P2
+```
+
+A skill that classifies fuzzy text (e.g., `marketing-research-router`) will likely never reach step 3 — classification of nuanced human signals is an LLM job. That is fine; the ladder is not a glide path to retirement, it is a tool for recognizing which steps a given skill *can* take.
+
+For the operator-approval gate at step 3 → step 4 (the only step where prose actually retires), see §"Action graduation gate" in `DECISIONS.md`.
 
 ---
 
