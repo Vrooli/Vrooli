@@ -3,7 +3,7 @@ package heartbeat
 import (
 	"errors"
 	"net/http"
-	"net/http/httptest"
+	"prompt-manager/internal/testutil/httpx"
 	"strings"
 	"testing"
 )
@@ -12,14 +12,12 @@ func TestCreateInvestigationRunSetsErrorHopHeaderOnUpstreamFailure(t *testing.T)
 	mockClient := newMockAgentClient().WithCreateInvestigationRunError(errors.New("upstream failed"))
 	handlers := NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/runs/investigate", strings.NewReader(`{"run_ids":["run-1"],"depth":"standard"}`))
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodPost, "/runs/investigate", strings.NewReader(`{"run_ids":["run-1"],"depth":"standard"}`), nil)
+	w := httpx.Recorder()
 
 	handlers.CreateInvestigationRun(w, req)
 
-	if w.Code != http.StatusBadGateway {
-		t.Fatalf("expected 502, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusBadGateway)
 	if got := w.Header().Get("X-Vrooli-Error-Hop"); got != "prompt-manager-api->agent-manager" {
 		t.Fatalf("expected hop header prompt-manager-api->agent-manager, got %q", got)
 	}
@@ -29,14 +27,12 @@ func TestCreateInvestigationApplyRunSetsErrorHopHeaderOnUpstreamFailure(t *testi
 	mockClient := newMockAgentClient().WithCreateInvestigationApplyError(errors.New("upstream failed"))
 	handlers := NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/runs/investigation-apply", strings.NewReader(`{"investigation_run_id":"run-1"}`))
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodPost, "/runs/investigation-apply", strings.NewReader(`{"investigation_run_id":"run-1"}`), nil)
+	w := httpx.Recorder()
 
 	handlers.CreateInvestigationApplyRun(w, req)
 
-	if w.Code != http.StatusBadGateway {
-		t.Fatalf("expected 502, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusBadGateway)
 	if got := w.Header().Get("X-Vrooli-Error-Hop"); got != "prompt-manager-api->agent-manager" {
 		t.Fatalf("expected hop header prompt-manager-api->agent-manager, got %q", got)
 	}

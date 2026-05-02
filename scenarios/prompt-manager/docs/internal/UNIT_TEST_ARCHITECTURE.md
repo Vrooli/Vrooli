@@ -55,6 +55,8 @@ The canonical shared test package is `scenarios/prompt-manager/api/internal/test
 
 Production code must not import `prompt-manager/internal/testutil/...`. Tests may import it directly, except tests in the `store` package should avoid fixture imports that create an import cycle back through `prompt-manager/store`.
 
+`httpx` is now used by handler tests in `agents`, `teams`, and `heartbeat`. New handler tests should use it for recorder construction, JSON requests, route variables, response decoding, and status assertions instead of repeating raw `httptest` and mux setup.
+
 ## Shared CLI Test Utilities
 
 The canonical shared CLI test package is `scenarios/prompt-manager/cli/internal/testutil`.
@@ -86,13 +88,37 @@ UI tests should prefer `@/test` for provider setup and browser API mocks. Tests 
 
 Persisted world stores skip import-time auto-fetches in Vitest and expose explicit fetch actions for tests. Component tests that mount settings, world, or AI status panels should mock service seams directly instead of allowing `localhost` API requests. Tests that intentionally cover error logging should spy on `console.error`/`console.warn` and assert the logged contract instead of emitting expected failures into the shared test output.
 
+## Decision Boundary Coverage
+
+High-risk behavior should be covered where the decision is made, not only through UI or scenario workflows. Current examples include heartbeat decision/defer/pending behavior, graph health and scoring, AI search fallback paths, and `/skills/read` experiment-aware variant selection.
+
+The `/skills/read` variant-selection tests protect three contracts: running experiments may override the returned content with a selected variant, control selections keep the original skill content, and non-running experiments fail before returning content. These tests use deterministic experiment weights instead of random assertions.
+
+## Requirement Traceability
+
+Use requirement IDs from `requirements/*/module.json` in test names, comments, or this table when a test protects a business-critical contract. Prefer file-level mapping here when a package already has several focused tests for the same requirement.
+
+| Requirement | Coverage Point |
+|-------------|----------------|
+| `REQ-P0-001` REST API for Skill CRUD | `api/skills/handlers_test.go` covers create conflict/default ID behavior, read resolution, strict missing handling, variable extraction/substitution, sync variables, and experiment-aware read selection. |
+| `REQ-P0-003` Pack-based Skill Structure | `api/skills/handlers_test.go` covers folder/file resolution paths; `api/store/*_test.go` covers file-backed stores and pack/folder persistence. |
+| `REQ-P0-004` Full-text Search Implementation | `api/search/*_test.go`, `api/aisearch/aisearch_test.go`, and CLI `search` tests cover text search and AI fallback behavior. |
+| `REQ-P0-005` CLI Basic Operations | `cli/internal/testutil` plus command tests in `skills`, `search`, `discover`, `graph`, `topics`, `agents`, `members`, `testing`, `experiments`, and `tags` cover request contracts, validation-before-API, and user-facing output. |
+| `REQ-P1-001` Qdrant Vector Search | `api/aisearch/*_test.go` covers embedder/vector-store success, error fallback, entity search, and reindex behavior. |
+| `REQ-P1-005` Tag Management System | `api/tags/handlers_test.go` and `cli/tags/tags_test.go` cover API and CLI tag behavior. |
+| `REQ-P2-001` Import/Export System | `api/teams/handlers_export_test.go`, `api/teams/handlers_import_test.go`, and BAS export/import-adjacent team flows cover team payload import/export contracts. |
+| `REQ-P0-016` REST API for Agent CRUD | `api/agents/handlers_test.go`, `cli/agents/agents_test.go`, and agent-related BAS workflows cover API and CLI agent contracts. |
+| `REQ-P0-018` REST API for Team CRUD | `api/teams/*_test.go`, `api/heartbeat/*team*test.go`, and BAS team/member workflows cover team API contracts and runtime usage. |
+| `REQ-P1-023` Team-Member Relations API | `api/teams/handlers_cleanup_test.go`, heartbeat member-context tests, and member CLI tests cover relation cleanup, context inclusion, and CLI request behavior. |
+| `REQ-P2-027` 3D World Canvas | `ui/src/test` R3F harness users and BAS world UI workflows cover core render contracts without accidental network calls. |
+
 ## Issues Found
 1. Inline mock definitions in API tests outside the graph package (example: `scenarios/prompt-manager/api/teams/handlers_test.go`).
-2. Some CLI packages still carry package-local fake contexts that should be migrated to `cli/internal/testutil`.
+2. The priority low-coverage CLI domains now use the shared harness for contract coverage, but future CLI tests should continue replacing one-off fakes when they touch the API context seam.
 3. Some UI component tests still carry local provider wrappers and warning-prone R3F setup.
 4. Some package-local API helpers remain where direct shared-fixture imports would create an import cycle.
 
 ## Priority Improvements
 1. Fill out `scenarios/prompt-manager/api/internal/testutil/httpx`, `mocks`, and `assertx` while migrating package-local handlers.
-2. Continue migrating CLI command tests to `scenarios/prompt-manager/cli/internal/testutil`, prioritizing the remaining low-coverage domains after the initial `skills`, `search`, `discover`, `graph`, and `topics` slices.
+2. Add deeper CLI edge-case coverage only where it protects a command contract; the initial low-coverage priority pass now covers `skills`, `search`, `discover`, `graph`, `topics`, `agents`, `members`, `testing`, `experiments`, and `tags`.
 3. Continue migrating UI component tests to `@/test`, prioritizing tests with local provider wrappers, accidental fetches, or noisy R3F warnings.

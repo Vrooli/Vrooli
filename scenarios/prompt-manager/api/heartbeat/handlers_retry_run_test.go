@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
+	"prompt-manager/internal/testutil/httpx"
 	"prompt-manager/store"
 	"testing"
-
-	"github.com/gorilla/mux"
 )
 
 func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
@@ -40,15 +38,12 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/runs/run-failed/retry", nil)
-	req = mux.SetURLVars(req, map[string]string{"runId": "run-failed"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodPost, "/runs/run-failed/retry", nil, map[string]string{"runId": "run-failed"})
+	w := httpx.Recorder()
 
 	handlers.RetryRun(w, req)
 
-	if w.Code != http.StatusAccepted {
-		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusAccepted)
 
 	var resp TriggerHeartbeatResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
@@ -75,13 +70,10 @@ func TestRetryRun_RejectsNonHeartbeatRun(t *testing.T) {
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/runs/run-1/retry", nil)
-	req = mux.SetURLVars(req, map[string]string{"runId": "run-1"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodPost, "/runs/run-1/retry", nil, map[string]string{"runId": "run-1"})
+	w := httpx.Recorder()
 
 	handlers.RetryRun(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusBadRequest)
 }

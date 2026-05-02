@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	pmstore "prompt-manager/store"
 )
 
 // MockStore implements SkillStore for testing.
@@ -668,6 +670,143 @@ func TestRead_NoVariablesInContent(t *testing.T) {
 	}
 }
 
+func TestRead_ExperimentVariantSelectionOverridesSkillContent(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics, "/test/store")
+	experiments := newMockExperimentStore()
+	variants := newMockVariantStore()
+	handlers.SetExperimentStores(experiments, variants, newMockPackSkillStore())
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill", "Original {{NAME}}")
+	addMockVariant(variants, "test-skill", "variant-a", "Treatment", "Variant {{NAME}} plus {{EXTRA}}")
+	experiments.experiments["exp-running"] = &pmstore.Experiment{
+		ID:      "exp-running",
+		SkillID: "test-skill",
+		Status:  pmstore.ExperimentStatusRunning,
+		Arms: []pmstore.ExperimentArm{
+			{VariantID: pmstore.ControlVariantID, Weight: 0},
+			{VariantID: "variant-a", Weight: 1},
+		},
+	}
+
+	req := ReadRequest{
+		Identifiers:  []string{"test-skill"},
+		ExperimentID: "exp-running",
+		Variables:    map[string]string{"NAME": "Ada"},
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+	if resp.SelectedVariantID != "variant-a" {
+		t.Fatalf("expected selected variant variant-a, got %q", resp.SelectedVariantID)
+	}
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+	if resp.Skills[0].Content != "Variant Ada plus {{EXTRA}}" {
+		t.Fatalf("expected variant content with known substitutions, got %q", resp.Skills[0].Content)
+	}
+	if got := variableNames(resp.Skills[0].Variables); strings.Join(got, ",") != "EXTRA,NAME" {
+		t.Fatalf("expected variant variables EXTRA,NAME, got %v", got)
+	}
+}
+
+func TestRead_ExperimentControlSelectionKeepsOriginalSkillContent(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics, "/test/store")
+	experiments := newMockExperimentStore()
+	variants := newMockVariantStore()
+	handlers.SetExperimentStores(experiments, variants, newMockPackSkillStore())
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill", "Original {{NAME}}")
+	addMockVariant(variants, "test-skill", "variant-a", "Treatment", "Variant {{NAME}}")
+	experiments.experiments["exp-running"] = &pmstore.Experiment{
+		ID:      "exp-running",
+		SkillID: "test-skill",
+		Status:  pmstore.ExperimentStatusRunning,
+		Arms: []pmstore.ExperimentArm{
+			{VariantID: pmstore.ControlVariantID, Weight: 1},
+			{VariantID: "variant-a", Weight: 0},
+		},
+	}
+
+	req := ReadRequest{
+		Identifiers:  []string{"test-skill"},
+		ExperimentID: "exp-running",
+		Variables:    map[string]string{"NAME": "Ada"},
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+	if resp.SelectedVariantID != pmstore.ControlVariantID {
+		t.Fatalf("expected control selection, got %q", resp.SelectedVariantID)
+	}
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+	if resp.Skills[0].Content != "Original Ada" {
+		t.Fatalf("expected original skill content after substitution, got %q", resp.Skills[0].Content)
+	}
+}
+
+func TestRead_ExperimentSelectionRejectsNonRunningExperiment(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics, "/test/store")
+	experiments := newMockExperimentStore()
+	variants := newMockVariantStore()
+	handlers.SetExperimentStores(experiments, variants, newMockPackSkillStore())
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill", "Original content")
+	experiments.experiments["exp-draft"] = &pmstore.Experiment{
+		ID:      "exp-draft",
+		SkillID: "test-skill",
+		Status:  pmstore.ExperimentStatusDraft,
+		Arms: []pmstore.ExperimentArm{
+			{VariantID: pmstore.ControlVariantID, Weight: 1},
+			{VariantID: "variant-a", Weight: 0},
+		},
+	}
+
+	req := ReadRequest{
+		Identifiers:  []string{"test-skill"},
+		ExperimentID: "exp-draft",
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("read: expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "is not running") {
+		t.Fatalf("expected non-running experiment error, got %q", w.Body.String())
+	}
+}
+
 func TestSync_IncludesVariables(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
@@ -709,4 +848,24 @@ func TestSync_IncludesVariables(t *testing.T) {
 	if vars[0].Name != "CONFIG" || vars[1].Name != "TARGET" {
 		t.Errorf("expected variables CONFIG and TARGET, got %+v", vars)
 	}
+}
+
+func addMockVariant(store *mockVariantStore, skillID, variantID, name, content string) {
+	if _, ok := store.variants[skillID]; !ok {
+		store.variants[skillID] = make(map[string]*pmstore.Variant)
+	}
+	store.variants[skillID][variantID] = &pmstore.Variant{
+		ID:      variantID,
+		SkillID: skillID,
+		Name:    name,
+	}
+	store.contents[skillID+"/"+variantID] = content
+}
+
+func variableNames(variables []Variable) []string {
+	names := make([]string, len(variables))
+	for i, variable := range variables {
+		names[i] = variable.Name
+	}
+	return names
 }

@@ -4,14 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"prompt-manager/internal/testutil/httpx"
 	"prompt-manager/interop"
 	"prompt-manager/store"
-
-	"github.com/gorilla/mux"
 )
 
 func TestExportClaudeCode_Success(t *testing.T) {
@@ -37,15 +34,12 @@ func TestExportClaudeCode_Success(t *testing.T) {
 	_ = relationStore.SetTeamMember(context.TODO(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive})
 	_ = relationStore.SetTeamMember(context.TODO(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-2", Status: store.MemberStatusActive})
 
-	req := httptest.NewRequest("GET", "/teams/team-1/export/claude-code", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/teams/team-1/export/claude-code", nil, map[string]string{"id": "team-1"})
+	w := httpx.Recorder()
 
 	handlers.ExportClaudeCode(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusOK)
 
 	var config interop.ToolTeamConfig
 	if err := json.NewDecoder(w.Body).Decode(&config); err != nil {
@@ -96,15 +90,12 @@ func TestExportClaudeCode_WithDocReader(t *testing.T) {
 		"writer": "Review pending docs",
 	}
 
-	req := httptest.NewRequest("GET", "/teams/team-docs/export/claude-code", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-docs"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/teams/team-docs/export/claude-code", nil, map[string]string{"id": "team-docs"})
+	w := httpx.Recorder()
 
 	handlers.ExportClaudeCode(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusOK)
 
 	// The export handler should have picked up doc reader and included data.
 	// We can't directly check the snapshot contents from the response,
@@ -129,15 +120,12 @@ func TestExportClaudeCode_NoMembers(t *testing.T) {
 	teamStore.roles["empty-team"] = &store.TeamRoles{TeamID: "empty-team", Roles: []store.Role{}}
 	teamStore.orgChart["empty-team"] = &store.OrgChart{TeamID: "empty-team", Edges: []store.OrgEdge{}}
 
-	req := httptest.NewRequest("GET", "/teams/empty-team/export/claude-code", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "empty-team"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/teams/empty-team/export/claude-code", nil, map[string]string{"id": "empty-team"})
+	w := httpx.Recorder()
 
 	handlers.ExportClaudeCode(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
+	httpx.AssertStatus(t, w, http.StatusOK)
 
 	var config interop.ToolTeamConfig
 	if err := json.NewDecoder(w.Body).Decode(&config); err != nil {

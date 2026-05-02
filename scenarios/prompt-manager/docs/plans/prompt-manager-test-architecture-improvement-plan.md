@@ -188,6 +188,8 @@ Progress:
 - 2026-05-01: Added canonical team fixtures with functional options in `api/internal/testutil/fixtures`.
 - 2026-05-01: Reduced heartbeat and teams duplicate team helpers to thin wrappers over shared fixtures, preserving their existing enabled/default-role drift explicitly through options.
 - 2026-05-01: Added initial `httpx` helpers for request construction, mux vars, JSON request bodies, response decoding, and status assertions.
+- 2026-05-02: Adopted `api/internal/testutil/httpx` in three handler-test areas: `agents`, `teams` export, and heartbeat retry/investigation handlers. The migration replaced package-local `httptest`/mux/status boilerplate while preserving existing assertions.
+- 2026-05-02: Verified the touched API packages with `cd scenarios/prompt-manager/api && go test ./agents ./teams ./heartbeat`.
 
 ### Phase 3: CLI Harness and Contract Coverage
 
@@ -229,6 +231,8 @@ Progress:
 - 2026-05-02: Added behavior-focused `graph` CLI tests for summary output, missing node ID validation-before-API, popular-node API-error surfacing, and health type-filter request sequencing.
 - 2026-05-02: Added behavior-focused `topics` CLI tests for list output, create validation-before-API, topic search request payload construction, accumulated skill output, and delete API-error surfacing.
 - 2026-05-02: Verified the full prompt-manager CLI suite with `cd scenarios/prompt-manager/cli && go test ./...`.
+- 2026-05-02: Added shared-harness CLI tests for the remaining low-coverage priority domains: `agents`, `members`, `tags`, `testing`, and `experiments`. These cover list/run/create success paths, validation-before-API paths, request payload construction, AI-search fallback sequencing, and API-error surfacing.
+- 2026-05-02: Re-verified the full prompt-manager CLI suite with `cd scenarios/prompt-manager/cli && go test ./...`.
 
 ### Phase 4: UI Shared Test Harness
 
@@ -295,6 +299,10 @@ Acceptance criteria:
 - Failure messages identify the broken contract, not just a generic diff.
 - High-risk decision behavior is covered at the service/domain layer before UI or integration tests.
 
+Progress:
+
+- 2026-05-02: Added `/skills/read` experiment-selection decision tests covering three contracts: a running experiment can select a variant and override returned skill content, a control-arm selection keeps original skill content, and non-running experiments are rejected before returning content. The tests use deterministic 0/1 weights so they protect read-time variant behavior without random flake risk.
+
 ### Phase 6: Requirement Traceability and BAS Alignment
 
 Use the requirement modules in `scenarios/prompt-manager/requirements/` as the coverage map.
@@ -316,6 +324,10 @@ Acceptance criteria:
 
 - Requirement-to-test mapping is visible from test names/comments or documentation.
 - BAS remains focused on user-visible flows, not duplicating unit tests.
+
+Progress:
+
+- 2026-05-02: Added a requirement traceability table to `docs/internal/UNIT_TEST_ARCHITECTURE.md` mapping key requirement IDs to existing API/CLI/UI/BAS coverage points. The table also maps the new `/skills/read` experiment-aware tests under the broader skill-read API contract because the current requirements catalog does not define a dedicated experiment/variant requirement.
 
 ### Phase 7: Coverage Gates and Drift Prevention
 
@@ -362,17 +374,17 @@ cd scenarios/prompt-manager/ui && pnpm test -- --run src/components src/hooks sr
 
 ## Rollout Checklist
 
-- [ ] Baseline `make test` result captured.
-- [ ] API testutil package added and documented.
-- [ ] Production-import meta-test added for API testutil.
+- [x] Baseline `make test` result captured.
+- [x] API testutil package added and documented.
+- [x] Production-import meta-test added for API testutil.
 - [ ] Duplicate team fixtures consolidated.
-- [ ] Common API handler helpers adopted in at least three packages.
-- [ ] CLI command harness added.
-- [ ] Low-coverage CLI packages receive contract tests.
+- [x] Common API handler helpers adopted in at least three packages.
+- [x] CLI command harness added.
+- [x] Low-coverage CLI packages receive contract tests.
 - [x] UI `@/test` exports routine render/provider/storage/network helpers.
 - [x] Accidental UI network calls fail or are explicitly allowed.
 - [x] Noisy UI warnings removed or intentionally documented.
-- [ ] Requirement-critical tests tagged or mapped.
+- [x] Requirement-critical tests tagged or mapped.
 - [ ] Final `make test` passes.
 
 ## Risks and Mitigations

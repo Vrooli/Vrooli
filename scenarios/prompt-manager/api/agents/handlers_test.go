@@ -1,16 +1,13 @@
 package agents
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
+	"prompt-manager/internal/testutil/httpx"
 	"prompt-manager/store"
 	"testing"
-
-	"github.com/gorilla/mux"
 )
 
 // MockAgentStore implements store.AgentStore for testing
@@ -177,14 +174,12 @@ func TestList(t *testing.T) {
 
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
-	req := httptest.NewRequest("GET", "/agents", nil)
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/agents", nil, nil)
+	w := httpx.Recorder()
 
 	handlers.List(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusOK)
 
 	var response []Response
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
@@ -212,16 +207,12 @@ func TestCreate(t *testing.T) {
 			Accent: "#0000FF",
 		},
 	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/agents", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
+	req := httpx.JSONRequest(t, http.MethodPost, "/agents", body, nil)
+	w := httpx.Recorder()
 
 	handlers.Create(w, req)
 
-	if w.Code != http.StatusCreated {
-		t.Errorf("Expected status 201, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusCreated)
 
 	var response Response
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
@@ -242,16 +233,12 @@ func TestCreateMissingDisplayName(t *testing.T) {
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	body := CreateRequest{}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/agents", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
+	req := httpx.JSONRequest(t, http.MethodPost, "/agents", body, nil)
+	w := httpx.Recorder()
 
 	handlers.Create(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusBadRequest)
 }
 
 func TestCreateInvalidColor(t *testing.T) {
@@ -266,16 +253,12 @@ func TestCreateInvalidColor(t *testing.T) {
 			Accent: "#0000FF",
 		},
 	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/agents", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
+	req := httpx.JSONRequest(t, http.MethodPost, "/agents", body, nil)
+	w := httpx.Recorder()
 
 	handlers.Create(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusBadRequest)
 }
 
 func TestGet(t *testing.T) {
@@ -288,15 +271,12 @@ func TestGet(t *testing.T) {
 
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
-	req := httptest.NewRequest("GET", "/agents/agent-1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/agents/agent-1", nil, map[string]string{"id": "agent-1"})
+	w := httpx.Recorder()
 
 	handlers.Get(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusOK)
 
 	var response Response
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
@@ -312,15 +292,12 @@ func TestGetNotFound(t *testing.T) {
 	agentStore := NewMockAgentStore()
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
-	req := httptest.NewRequest("GET", "/agents/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/agents/nonexistent", nil, map[string]string{"id": "nonexistent"})
+	w := httpx.Recorder()
 
 	handlers.Get(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusNotFound)
 }
 
 func TestDelete(t *testing.T) {
@@ -333,15 +310,12 @@ func TestDelete(t *testing.T) {
 
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
-	req := httptest.NewRequest("DELETE", "/agents/agent-1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodDelete, "/agents/agent-1", nil, map[string]string{"id": "agent-1"})
+	w := httpx.Recorder()
 
 	handlers.Delete(w, req)
 
-	if w.Code != http.StatusNoContent {
-		t.Errorf("Expected status 204, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusNoContent)
 
 	if _, ok := agentStore.agents["agent-1"]; ok {
 		t.Error("Expected agent to be deleted")
@@ -369,15 +343,12 @@ func TestListTeams(t *testing.T) {
 
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", relationStore, teamStore)
 
-	req := httptest.NewRequest("GET", "/agents/agent-1/teams", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/agents/agent-1/teams", nil, map[string]string{"id": "agent-1"})
+	w := httpx.Recorder()
 
 	handlers.ListTeams(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusOK)
 
 	var response AgentTeamsResponse
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
@@ -406,13 +377,10 @@ func TestListTeamsAgentNotFound(t *testing.T) {
 	agentStore := NewMockAgentStore()
 	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
-	req := httptest.NewRequest("GET", "/agents/nonexistent/teams", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	w := httptest.NewRecorder()
+	req := httpx.Request(t, http.MethodGet, "/agents/nonexistent/teams", nil, map[string]string{"id": "nonexistent"})
+	w := httpx.Recorder()
 
 	handlers.ListTeams(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404, got %d", w.Code)
-	}
+	httpx.AssertStatus(t, w, http.StatusNotFound)
 }
