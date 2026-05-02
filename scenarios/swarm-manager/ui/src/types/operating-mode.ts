@@ -68,6 +68,7 @@ export interface OperatingModePhaseGraph {
 
 export interface OperatingModeCatalogPhase {
   phase: string;
+  label: string;
   title: string;
   purpose: string;
   trigger: string;

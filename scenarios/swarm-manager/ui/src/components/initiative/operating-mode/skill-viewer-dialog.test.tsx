@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SkillViewerDialog } from "./skill-viewer-dialog";
 import { selectors } from "../../../consts/selectors";
-import { createQueryWrapper } from "../../../test-utils/query";
+import { createQueryWrapper, createTestQueryClient } from "../../../test-utils/query";
 
 vi.mock("../../../config", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -119,6 +119,39 @@ describe("SkillViewerDialog", () => {
     await waitFor(() => {
       expect(screen.getByText(/no content body/)).toBeInTheDocument();
     });
+  });
+
+  it("renders an Open in Prompt Manager link when the prompt-manager URL resolves", async () => {
+    vi.mocked(promptService.getSkill).mockResolvedValue(sampleSkill);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(["embedded-service-url", "prompt-manager"], "https://prompt.test");
+    render(
+      <SkillViewerDialog
+        isOpen
+        onClose={() => {}}
+        skillId="swarm-manager/holistic-loop-investigate"
+      />,
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Holistic Loop Investigate")).toBeInTheDocument();
+    });
+    const link = screen.getByTestId(selectors.initiativeDetails.skillViewerExternalLink);
+    expect(link).toHaveAttribute(
+      "href",
+      "https://prompt.test/skills/swarm-manager%2Fholistic-loop-investigate",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("hides the Open in Prompt Manager link when the prompt-manager URL has not resolved", async () => {
+    vi.mocked(promptService.getSkill).mockResolvedValue(sampleSkill);
+    renderDialog();
+    await waitFor(() => {
+      expect(screen.getByText("Holistic Loop Investigate")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId(selectors.initiativeDetails.skillViewerExternalLink)).toBeNull();
   });
 
   it("copies the skill ID via the Copy ID button when clicked", async () => {

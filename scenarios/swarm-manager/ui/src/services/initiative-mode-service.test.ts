@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { IApiClient } from "../lib/api-client";
-import { createInitiativeModeService, type IInitiativeModeService } from "./initiative-mode-service";
+import { ApiError } from "../lib/api-client";
+import {
+  createInitiativeModeService,
+  parseActiveItemExecutionsConflict,
+  type IInitiativeModeService,
+} from "./initiative-mode-service";
 
 describe("Initiative Mode Service", () => {
   let api: IApiClient;
@@ -353,5 +358,67 @@ describe("Initiative Mode Service", () => {
     );
     expect(result.proposalResult?.applied).toBe(1);
     expect(result.proposalResult?.outcomes?.[0]?.mutationId).toBe("m1");
+  });
+});
+
+describe("parseActiveItemExecutionsConflict", () => {
+  it("returns the parsed payload for a 409 active-item-executions error", () => {
+    const error = new ApiError("http", "active executions", {
+      status: 409,
+      code: "active_item_executions",
+      details: {
+        initiative_name: "initiative-a",
+        from_mode: "item-level",
+        to_mode: "holistic-loop",
+        active_item_executions: [
+          { item_ref: "fix:auth-cookie", execution_id: "exec-1", run_id: "run-aaaa-bbbb", status: "running" },
+          { item_ref: "feat:onboarding", run_id: "run-cccc-dddd", status: "running" },
+        ],
+      },
+    });
+
+    const conflict = parseActiveItemExecutionsConflict(error);
+    expect(conflict).not.toBeNull();
+    expect(conflict?.initiativeName).toBe("initiative-a");
+    expect(conflict?.fromMode).toBe("item-level");
+    expect(conflict?.toMode).toBe("holistic-loop");
+    expect(conflict?.executions).toHaveLength(2);
+    expect(conflict?.executions[0]).toMatchObject({
+      itemRef: "fix:auth-cookie",
+      executionId: "exec-1",
+      runId: "run-aaaa-bbbb",
+      status: "running",
+    });
+    expect(conflict?.executions[1]).toMatchObject({
+      itemRef: "feat:onboarding",
+      runId: "run-cccc-dddd",
+    });
+  });
+
+  it("returns null for non-ApiError values", () => {
+    expect(parseActiveItemExecutionsConflict(new Error("boom"))).toBeNull();
+    expect(parseActiveItemExecutionsConflict("string error")).toBeNull();
+    expect(parseActiveItemExecutionsConflict(null)).toBeNull();
+  });
+
+  it("returns null for ApiErrors that aren't 409 active-item-executions", () => {
+    const wrongStatus = new ApiError("http", "lock held", {
+      status: 409,
+      code: "active_operating_mode_round",
+      details: { initiative_name: "initiative-a" },
+    });
+    expect(parseActiveItemExecutionsConflict(wrongStatus)).toBeNull();
+
+    const wrong404 = new ApiError("http", "not found", { status: 404 });
+    expect(parseActiveItemExecutionsConflict(wrong404)).toBeNull();
+  });
+
+  it("returns null when details lacks the executions array", () => {
+    const error = new ApiError("http", "conflict", {
+      status: 409,
+      code: "active_item_executions",
+      details: { initiative_name: "initiative-a" },
+    });
+    expect(parseActiveItemExecutionsConflict(error)).toBeNull();
   });
 });

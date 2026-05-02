@@ -23,7 +23,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEmbeddedServiceUrl } from "../../hooks/useEmbeddedServiceUrl";
+import { useAgentRunUrl } from "../../services/external-links";
 import { Button } from "../ui/button";
 import { StatusChip } from "../ui/status-chip";
 import { FeedbackThread } from "./feedback-thread";
@@ -112,8 +112,7 @@ export function FeedbackRoundCard({
     },
   });
 
-  const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
-  const runUrl = round.run_id && agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${round.run_id}` : null;
+  const runUrl = useAgentRunUrl(round.run_id);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 

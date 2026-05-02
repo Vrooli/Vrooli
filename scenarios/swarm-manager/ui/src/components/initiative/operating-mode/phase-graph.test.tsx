@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeAll, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PhaseGraph } from "./phase-graph";
+import { selectors } from "../../../consts/selectors";
 import { installMatchMediaMock, installResizeObserverMock } from "../../../test-utils/browser";
 import type {
   OperatingModeCatalogEntry,
@@ -14,6 +16,7 @@ beforeAll(() => {
 
 function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
+    label: overrides.phase,
     title: overrides.phase,
     purpose: "",
     trigger: "",
@@ -55,9 +58,9 @@ const ENTRY: OperatingModeCatalogEntry = {
   switchable: true,
   supportsPhases: true,
   phases: [
-    basePhase({ phase: "investigate", title: "Investigate", isStart: true }),
-    basePhase({ phase: "execute", title: "Execute", writesRepo: true }),
-    basePhase({ phase: "review", title: "Review", isTerminal: true }),
+    basePhase({ phase: "investigate", label: "Investigate", title: "Holistic Loop Investigate", isStart: true }),
+    basePhase({ phase: "execute", label: "Execute", title: "Holistic Loop Execute", writesRepo: true }),
+    basePhase({ phase: "review", label: "Review", title: "Holistic Loop Review", isTerminal: true }),
   ],
   phaseGraph: {
     startPhase: "investigate",
@@ -80,12 +83,27 @@ describe("PhaseGraph", () => {
     expect(screen.getByText("progress decision")).toBeInTheDocument();
   });
 
-  it("renders the phase node titles", () => {
+  it("renders phase node labels (no mode prefix)", () => {
     render(<PhaseGraph entry={ENTRY} />);
-    // Custom node label appears in the rendered DOM tree.
     expect(screen.getByText("Investigate")).toBeInTheDocument();
     expect(screen.getByText("Execute")).toBeInTheDocument();
     expect(screen.getByText("Review")).toBeInTheDocument();
+    expect(screen.queryByText("Holistic Loop Investigate")).not.toBeInTheDocument();
+    expect(screen.queryByText("Holistic Loop Execute")).not.toBeInTheDocument();
+  });
+
+  it("opens the glossary dialog when the legend area is clicked", async () => {
+    render(<PhaseGraph entry={ENTRY} />);
+    const legendButton = screen.getByTestId(selectors.initiativeDetails.phaseGraphLegend);
+    expect(legendButton.tagName).toBe("BUTTON");
+    expect(legendButton).toHaveAttribute("aria-label", "Open phase-graph glossary");
+    expect(screen.queryByTestId(selectors.initiativeDetails.phaseGraphGlossaryDialog)).not.toBeInTheDocument();
+
+    await userEvent.click(legendButton);
+
+    const dialog = screen.getByTestId(selectors.initiativeDetails.phaseGraphGlossaryDialog);
+    expect(dialog).toHaveAttribute("role", "dialog");
+    expect(screen.getByRole("heading", { name: /How to read this phase graph/i })).toBeInTheDocument();
   });
 
   it("renders the legend transition kinds", () => {

@@ -16,6 +16,7 @@ import { cn, formatRelativeTime, canRunPostRunChecks } from "../../lib";
 import { resolvePostRunExecution } from "../../lib/finalization";
 import { EXECUTION_STATUS_COLORS, formatExecutionStatus } from "../../types";
 import { selectors } from "../../consts/selectors";
+import { buildAgentRunUrl } from "../../services/external-links";
 import type { ExecutionRecord } from "../../types";
 
 export interface ReviewStatusHeaderProps {
@@ -74,7 +75,7 @@ export function ReviewStatusHeader({
 
   const statusColor = EXECUTION_STATUS_COLORS[execution.status] ?? "bg-slate-500";
   const action = resolvePrimaryAction(execution, isActive, isTriggering, isTriggeringEvidence);
-  const runUrl = execution.runId && agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${execution.runId}` : null;
+  const runUrl = buildAgentRunUrl(agentManagerUiUrl, execution.runId);
 
   return (
     <div className="py-3" data-testid={selectors.review.statusHeader}>

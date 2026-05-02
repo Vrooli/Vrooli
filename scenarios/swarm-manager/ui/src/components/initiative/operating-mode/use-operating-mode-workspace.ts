@@ -46,6 +46,15 @@ export function useOperatingModeWorkspace({
   const workspaceQuery = useQuery({
     queryKey: ["initiative-operating-mode", initiative.name],
     queryFn: () => initiativeModeService.workspace(initiative.name),
+    // Poll every 5s while a round is actively running so the operator sees
+    // status transitions (agent_running → completed/failed) and freshly-emitted
+    // artifacts without a manual refresh. Otherwise stay idle.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return false;
+      const hasActive = data.rounds.some((round) => round.status === "agent_running");
+      return hasActive ? 5_000 : false;
+    },
   });
   const modeCatalogQuery = useQuery({
     queryKey: ["operating-mode-catalog"],
@@ -145,6 +154,19 @@ export function useOperatingModeWorkspace({
     completeItemsMutation.isPending ||
     applyBacklogSyncMutation.isPending;
   const canRunPhases = Boolean(workspace?.definition.capabilities.canStartPhases) && !runningRound;
+  const phaseStartDisabledReason = (() => {
+    if (!workspace) return null;
+    if (!workspace.definition.capabilities.supportsPhases) {
+      return "This mode does not run phases — switch to a phased mode to start one.";
+    }
+    if (!workspace.definition.capabilities.canStartPhases) {
+      return "Phases are not startable in this state.";
+    }
+    if (runningRound) {
+      return `Round ${runningRound.round.toString().padStart(3, "0")} is still ${runningRound.status.replace("_", " ")} — wait for it to finish.`;
+    }
+    return null;
+  })();
 
   return {
     criteriaText,
@@ -169,6 +191,7 @@ export function useOperatingModeWorkspace({
     runningRound,
     phaseBusy,
     canRunPhases,
+    phaseStartDisabledReason,
     modeMutation,
     criteriaMutation,
     startMutation,

@@ -19,6 +19,7 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { initiativeModeService } from "../services";
 import { initiativeDetailPath } from "../app/routes/route-paths";
+import { selectors } from "../consts/selectors";
 import type { OperatingModeDetail } from "../types/operating-mode";
 import { PhaseGraph } from "../components/initiative/operating-mode/phase-graph";
 import { PhaseList } from "../components/initiative/operating-mode/phase-list";
@@ -41,7 +42,7 @@ export function OperatingModeDetailsPage() {
   const queryClient = useQueryClient();
   const mode = params.mode ?? "";
 
-  const { data, isLoading, error } = useQuery<OperatingModeDetail>({
+  const { data, isLoading, error, refetch } = useQuery<OperatingModeDetail>({
     queryKey: ["operating-modes", "detail", mode],
     queryFn: () => initiativeModeService.getMode(mode),
     enabled: Boolean(mode),
@@ -106,11 +107,26 @@ export function OperatingModeDetailsPage() {
   }
   if (isLoading) return <PageLoadingState label="Loading operating mode..." />;
   if (error || !data) {
+    const technicalDetails = (error as Error | undefined)?.message;
     return (
-      <ErrorState
-        title="Failed to load operating mode"
-        message={(error as Error | undefined)?.message ?? "Unknown error"}
-      />
+      <div className="space-y-3">
+        <ErrorState
+          title="We couldn't load this operating mode"
+          message="The mode catalog endpoint did not respond. Try again, or check that the operating-mode service is running."
+          onRetry={() => void refetch()}
+        />
+        {technicalDetails && (
+          <details
+            className="rounded-md border border-slate-800/80 bg-slate-900/50 px-3 py-2 text-xs text-slate-400"
+            data-testid={selectors.initiativeDetails.operatingModeErrorTechnicalDetails}
+          >
+            <summary className="cursor-pointer select-none">Technical details</summary>
+            <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] text-slate-500">
+              {technicalDetails}
+            </pre>
+          </details>
+        )}
+      </div>
     );
   }
 

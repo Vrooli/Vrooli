@@ -16,6 +16,7 @@ import {
 import { Button } from "../ui/button";
 import { PostRunStatusBadge } from "../execution/post-run-status-badge";
 import { cn, formatRelativeTime, canFollowUpExecution, resolvePostRunExecution } from "../../lib";
+import { buildAgentRunUrl } from "../../services/external-links";
 import {
   EXECUTION_STATUS_COLORS,
   formatExecutionStatus,
@@ -148,7 +149,7 @@ function ActivityItem({ activity, agentManagerUiUrl }: { activity: AgentActivity
           )}
           {activity.runId && agentManagerUiUrl && (
             <a
-              href={`${agentManagerUiUrl}/runs/${activity.runId}`}
+              href={buildAgentRunUrl(agentManagerUiUrl, activity.runId) ?? "#"}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -382,7 +383,7 @@ function ExecutionTimelineItem({
             </Button>
             {exec.runId && agentManagerUiUrl && (
               <a
-                href={`${agentManagerUiUrl}/runs/${exec.runId}`}
+                href={buildAgentRunUrl(agentManagerUiUrl, exec.runId) ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { RoundTimeline } from "./round-timeline";
 import { selectors } from "../../../consts/selectors";
 import type {
@@ -92,6 +93,52 @@ describe("RoundTimeline", () => {
     expect(groups[1]!).toHaveAttribute("data-phase", "plan");
     expect(within(groups[0]!).getByText(/3 rounds/)).toBeInTheDocument();
     expect(within(groups[1]!).getByText(/1 round/)).toBeInTheDocument();
+  });
+
+  it("collapses rounds beyond the first 10 with a Show-more affordance", async () => {
+    const rounds: OperatingModeRound[] = Array.from({ length: 12 }, (_, i) =>
+      round({ round: i + 1, phase: "investigate" }),
+    );
+    render(
+      <RoundTimeline
+        rounds={rounds}
+        capabilities={capabilities}
+        busy={false}
+        onRefresh={vi.fn()}
+        onCancel={vi.fn()}
+        onCompleteItems={vi.fn()}
+        onApplyBacklogSync={vi.fn()}
+      />,
+    );
+    const cardsBeforeExpand = screen.getAllByTestId(selectors.initiativeDetails.roundCard);
+    expect(cardsBeforeExpand.length).toBe(10);
+    const showMore = screen.getByTestId(selectors.initiativeDetails.roundTimelineShowMore);
+    expect(showMore).toHaveTextContent(/Show 2 more rounds/);
+
+    await userEvent.click(showMore);
+
+    const cardsAfterExpand = screen.getAllByTestId(selectors.initiativeDetails.roundCard);
+    expect(cardsAfterExpand.length).toBe(12);
+    expect(screen.queryByTestId(selectors.initiativeDetails.roundTimelineShowMore)).toBeNull();
+  });
+
+  it("does not render the Show-more button when bucket has 10 or fewer rounds", () => {
+    const rounds: OperatingModeRound[] = Array.from({ length: 10 }, (_, i) =>
+      round({ round: i + 1, phase: "investigate" }),
+    );
+    render(
+      <RoundTimeline
+        rounds={rounds}
+        capabilities={capabilities}
+        busy={false}
+        onRefresh={vi.fn()}
+        onCancel={vi.fn()}
+        onCompleteItems={vi.fn()}
+        onApplyBacklogSync={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId(selectors.initiativeDetails.roundTimelineShowMore)).toBeNull();
+    expect(screen.getAllByTestId(selectors.initiativeDetails.roundCard).length).toBe(10);
   });
 
   it("shows the last-status pill in the bucket summary", () => {

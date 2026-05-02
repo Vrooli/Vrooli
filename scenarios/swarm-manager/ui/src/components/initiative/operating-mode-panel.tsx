@@ -60,6 +60,7 @@ export function OperatingModePanel({
     runningRound,
     phaseBusy,
     canRunPhases,
+    phaseStartDisabledReason,
     modeMutation,
     criteriaMutation,
     startMutation,
@@ -133,6 +134,7 @@ export function OperatingModePanel({
             onNoteChange={setComposerNote}
             phaseBusy={phaseBusy}
             canRunPhases={canRunPhases}
+            phaseStartDisabledReason={phaseStartDisabledReason}
             startError={startMutation.error}
             onStart={(phase, note) => startMutation.mutate({ phase, note })}
           />

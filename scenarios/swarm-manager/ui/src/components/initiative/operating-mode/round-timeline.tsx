@@ -66,6 +66,7 @@ export function RoundTimeline({
   }
 
   const buckets = bucketByPhase(rounds);
+  const COLLAPSE_THRESHOLD = 10;
 
   return (
     <div className="space-y-3">
@@ -98,21 +99,17 @@ export function RoundTimeline({
                 last: {phaseLabel(last.status)}
               </span>
             </summary>
-            <div className="space-y-3 border-t border-slate-800 p-3">
-              {all.map((round) => (
-                <RoundCard
-                  key={`${round.mode}-${round.round}`}
-                  round={round}
-                  capabilities={capabilities}
-                  busy={busy}
-                  onRefresh={onRefresh}
-                  onCancel={onCancel}
-                  onCompleteItems={onCompleteItems}
-                  onApplyBacklogSync={onApplyBacklogSync}
-                  onViewDetails={setDetailRound}
-                />
-              ))}
-            </div>
+            <PhaseBucketBody
+              all={all}
+              capabilities={capabilities}
+              busy={busy}
+              onRefresh={onRefresh}
+              onCancel={onCancel}
+              onCompleteItems={onCompleteItems}
+              onApplyBacklogSync={onApplyBacklogSync}
+              onViewDetails={setDetailRound}
+              collapseThreshold={COLLAPSE_THRESHOLD}
+            />
           </details>
         );
       })}
@@ -122,6 +119,61 @@ export function RoundTimeline({
           isOpen={Boolean(detailRound)}
           onClose={() => setDetailRound(null)}
         />
+      )}
+    </div>
+  );
+}
+
+function PhaseBucketBody({
+  all,
+  capabilities,
+  busy,
+  onRefresh,
+  onCancel,
+  onCompleteItems,
+  onApplyBacklogSync,
+  onViewDetails,
+  collapseThreshold,
+}: {
+  all: OperatingModeRound[];
+  capabilities: OperatingModeCapabilities;
+  busy: boolean;
+  onRefresh: (round: OperatingModeRound) => void;
+  onCancel: (round: OperatingModeRound) => void;
+  onCompleteItems: (round: OperatingModeRound, itemRefs: string[]) => void;
+  onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
+  onViewDetails: (round: OperatingModeRound) => void;
+  collapseThreshold: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const showAll = expanded || all.length <= collapseThreshold;
+  const visibleRounds = showAll ? all : all.slice(0, collapseThreshold);
+  const hiddenCount = all.length - visibleRounds.length;
+
+  return (
+    <div className="space-y-3 border-t border-slate-800 p-3">
+      {visibleRounds.map((round) => (
+        <RoundCard
+          key={`${round.mode}-${round.round}`}
+          round={round}
+          capabilities={capabilities}
+          busy={busy}
+          onRefresh={onRefresh}
+          onCancel={onCancel}
+          onCompleteItems={onCompleteItems}
+          onApplyBacklogSync={onApplyBacklogSync}
+          onViewDetails={onViewDetails}
+        />
+      ))}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          data-testid={selectors.initiativeDetails.roundTimelineShowMore}
+          className="w-full rounded-md border border-dashed border-slate-700 bg-slate-900/40 px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:border-cyan-500/50 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
+        >
+          Show {hiddenCount} more round{hiddenCount === 1 ? "" : "s"}
+        </button>
       )}
     </div>
   );

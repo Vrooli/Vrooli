@@ -55,6 +55,7 @@ function renderPage(mode = "holistic-loop", search = "") {
 
 function makePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
+    label: overrides.phase,
     title: overrides.phase,
     purpose: "",
     trigger: "",
@@ -100,6 +101,7 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
     phases: [
       makePhase({
         phase: "investigate",
+        label: "Investigate",
         title: "Holistic Loop Investigate",
         purpose: "Investigate initiative-wide code, backlog, and system state.",
         trigger: "Operator starts holistic-loop investigate phase",
@@ -115,6 +117,7 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
       }),
       makePhase({
         phase: "execute",
+        label: "Execute",
         title: "Holistic Loop Execute",
         purpose: "Execute and report whether replanning is needed.",
         profileKey: "swarm-manager/deep-work",
@@ -127,6 +130,7 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
       }),
       makePhase({
         phase: "review",
+        label: "Review",
         title: "Holistic Loop Acceptance Review",
         purpose: "Evaluate against acceptance criteria.",
         profileKey: "swarm-manager/analysis",
@@ -182,11 +186,12 @@ describe("OperatingModeDetailsPage", () => {
     expect(screen.getByText("Initiative B")).toBeInTheDocument();
   });
 
-  it("renders phase cards with title, purpose, and chips", async () => {
+  it("renders phase cards with clean label, purpose, and chips", async () => {
     getModeMock.mockResolvedValue(SAMPLE_DETAIL);
     renderPage("holistic-loop", "?view=list");
 
-    expect(await screen.findByText("Holistic Loop Investigate")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Investigate" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Holistic Loop Investigate" })).not.toBeInTheDocument();
     expect(screen.getByText("Investigate initiative-wide code, backlog, and system state.")).toBeInTheDocument();
     // start chip
     expect(screen.getByText("start")).toBeInTheDocument();

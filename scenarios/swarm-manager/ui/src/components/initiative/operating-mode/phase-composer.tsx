@@ -45,6 +45,13 @@ export interface PhaseComposerProps {
 
   phaseBusy: boolean;
   canRunPhases: boolean;
+  /**
+   * Human-readable explanation for *why* the Start button is disabled when
+   * `canRunPhases` is false. Surfaced as a tooltip on the disabled button so
+   * operators understand whether they're blocked on a running round, missing
+   * acceptance criteria, or a mode that doesn't run phases.
+   */
+  phaseStartDisabledReason?: string | null;
   startError?: unknown;
 
   onStart: (phase: string, envelopeNote: string) => void;
@@ -111,6 +118,7 @@ export function PhaseComposer({
   onNoteChange,
   phaseBusy,
   canRunPhases,
+  phaseStartDisabledReason,
   startError,
   onStart,
 }: PhaseComposerProps) {
@@ -320,6 +328,11 @@ export function PhaseComposer({
           size="sm"
           onClick={handleStart}
           disabled={!canSubmit}
+          title={
+            !canSubmit && !canRunPhases && phaseStartDisabledReason
+              ? phaseStartDisabledReason
+              : undefined
+          }
           data-testid={selectors.initiativeDetails.phaseComposerStart}
         >
           <Play className="mr-1.5 h-4 w-4" />

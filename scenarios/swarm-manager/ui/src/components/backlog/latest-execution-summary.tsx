@@ -10,6 +10,7 @@ import { ExternalLink, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
+import { buildAgentRunUrl } from "../../services/external-links";
 import type { ExecutionRecord } from "../../types";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 
@@ -35,7 +36,7 @@ export function LatestExecutionSummary({
 }: LatestExecutionSummaryProps) {
   const testId = `${selectors.backlogDetails.outputTab}-latest-exec`;
   const runId = latestAgentActivity?.runId ?? latestExecution?.runId;
-  const runUrl = runId && agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${runId}` : null;
+  const runUrl = buildAgentRunUrl(agentManagerUiUrl, runId);
 
   // Active run state — agent is currently running
   if (agentRunIsBusy && latestAgentActivity) {

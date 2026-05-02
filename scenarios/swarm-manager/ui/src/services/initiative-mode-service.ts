@@ -1,7 +1,8 @@
 import type { IApiClient } from "../lib/api-client";
-import { defaultApiClient } from "../lib/api-client";
+import { defaultApiClient, isApiError } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
+  ActiveItemExecution,
   OperatingModeArtifactDefinition,
   OperatingModeArtifactSnapshot,
   OperatingModeBacklogSyncResult,
@@ -153,6 +154,7 @@ function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
   const bindings = phase.result_bindings ?? phase.resultBindings;
   return {
     phase: stringValue(phase.phase),
+    label: stringValue(phase.label),
     title: stringValue(phase.title),
     purpose: stringValue(phase.purpose),
     trigger: stringValue(phase.trigger),
@@ -309,17 +311,18 @@ function normalizeWorkspace(raw: unknown): OperatingModeWorkspace {
   };
 }
 
+function normalizeExecution(item: unknown): ActiveItemExecution {
+  const exec = recordValue(item);
+  return {
+    itemRef: stringValue(exec.item_ref ?? exec.itemRef),
+    executionId: stringValue(exec.execution_id ?? exec.executionId, undefined),
+    runId: stringValue(exec.run_id ?? exec.runId, undefined),
+    status: stringValue(exec.status, undefined),
+  };
+}
+
 function normalizeSwitchResult(raw: unknown): SwitchOperatingModeResult {
   const result = recordValue(raw);
-  const normalizeExecution = (item: unknown) => {
-    const exec = recordValue(item);
-    return {
-      itemRef: stringValue(exec.item_ref ?? exec.itemRef),
-      executionId: stringValue(exec.execution_id ?? exec.executionId, undefined),
-      runId: stringValue(exec.run_id ?? exec.runId, undefined),
-      status: stringValue(exec.status, undefined),
-    };
-  };
   const active = result.active_item_executions ?? result.activeItemExecutions;
   const canceled = result.canceled_item_executions ?? result.canceledItemExecutions;
   return {
@@ -330,6 +333,41 @@ function normalizeSwitchResult(raw: unknown): SwitchOperatingModeResult {
     canceledItemExecutions: Array.isArray(canceled) ? canceled.map(normalizeExecution) : undefined,
     requiresCancellation: boolValue(result.requires_cancellation ?? result.requiresCancellation, undefined),
     operatingModeWorkspaceId: stringValue(result.operating_mode_workspace_id ?? result.operatingModeWorkspaceId, undefined),
+  };
+}
+
+/**
+ * Server-side 409 conflict shape returned when SwitchMode is called against
+ * an initiative with active item executions and `cancel_active_item_executions`
+ * is false. Mirrors `ActiveItemExecutionsConflict` in
+ * `scenarios/swarm-manager/api/internal/operatingmode/service.go`.
+ */
+export interface ActiveItemExecutionsConflict {
+  initiativeName: string;
+  fromMode: string;
+  toMode: string;
+  executions: ActiveItemExecution[];
+}
+
+/**
+ * Detect whether an error came from the server's 409 active-item-executions
+ * conflict response. The mode-picker dialog uses this to render the affected
+ * items list before re-submitting with cancel_active_item_executions=true.
+ *
+ * Returns the parsed conflict payload, or `null` for any other error shape.
+ */
+export function parseActiveItemExecutionsConflict(error: unknown): ActiveItemExecutionsConflict | null {
+  if (!isApiError(error)) return null;
+  if (error.status !== 409) return null;
+  if (error.code !== "active_item_executions") return null;
+  const details = recordValue(error.details);
+  const executions = details.active_item_executions ?? details.activeItemExecutions;
+  if (!Array.isArray(executions)) return null;
+  return {
+    initiativeName: stringValue(details.initiative_name ?? details.initiativeName),
+    fromMode: stringValue(details.from_mode ?? details.fromMode, "item-level"),
+    toMode: stringValue(details.to_mode ?? details.toMode, "item-level"),
+    executions: executions.map(normalizeExecution),
   };
 }
 

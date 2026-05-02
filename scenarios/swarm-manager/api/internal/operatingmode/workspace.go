@@ -214,6 +214,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 		_, isTerminal := terminalSet[phaseName]
 		entry.Phases = append(entry.Phases, ModeCatalogPhase{
 			Phase:                 string(phase.Phase),
+			Label:                 humanizeToken(string(phase.Phase)),
 			Title:                 phase.PromptCatalog.Title,
 			Purpose:               phase.PromptCatalog.Purpose,
 			Trigger:               phase.PromptCatalog.Trigger,

@@ -3,10 +3,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PhaseCard } from "./phase-card";
 import { selectors } from "../../../consts/selectors";
+import { createQueryWrapper, createTestQueryClient } from "../../../test-utils/query";
 import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
 
 function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
+    label: overrides.phase,
     title: overrides.phase,
     purpose: "",
     trigger: "",
@@ -28,24 +30,39 @@ function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
 }
 
 describe("PhaseCard", () => {
-  it("renders the title, snake_case ID, and purpose", () => {
+  it("renders the label as the headline, with the snake_case ID and purpose", () => {
     render(
-      <PhaseCard
+<PhaseCard
         phase={basePhase({
           phase: "investigate",
+          label: "Investigate",
           title: "Holistic Loop Investigate",
           purpose: "Investigate the initiative.",
         })}
       />,
     );
-    expect(screen.getByText("Holistic Loop Investigate")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Investigate" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Holistic Loop Investigate" })).not.toBeInTheDocument();
     expect(screen.getByText("investigate")).toBeInTheDocument();
     expect(screen.getByText("Investigate the initiative.")).toBeInTheDocument();
   });
 
+  it("falls back to title when label is empty (legacy API payload)", () => {
+    render(
+<PhaseCard
+        phase={basePhase({
+          phase: "investigate",
+          label: "",
+          title: "Holistic Loop Investigate",
+        })}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Holistic Loop Investigate" })).toBeInTheDocument();
+  });
+
   it("renders start and terminal markers", () => {
     render(
-      <PhaseCard
+<PhaseCard
         phase={basePhase({ phase: "investigate", isStart: true })}
       />,
     );
@@ -53,7 +70,7 @@ describe("PhaseCard", () => {
     expect(screen.queryByText("terminal")).not.toBeInTheDocument();
 
     render(
-      <PhaseCard
+<PhaseCard
         phase={basePhase({ phase: "review", isTerminal: true })}
       />,
     );
@@ -62,7 +79,7 @@ describe("PhaseCard", () => {
 
   it("renders only the contract chips that are set", () => {
     render(
-      <PhaseCard
+<PhaseCard
         phase={basePhase({
           phase: "review",
           requiresCriteria: true,
@@ -85,7 +102,7 @@ describe("PhaseCard", () => {
 
   it("flags required artifacts and lists optional ones", () => {
     render(
-      <PhaseCard
+<PhaseCard
         phase={basePhase({
           phase: "investigate",
           outputArtifacts: [
@@ -113,17 +130,47 @@ describe("PhaseCard", () => {
     expect(article?.className).toMatch(/ring-cyan-500/);
   });
 
-  it("exposes a profile-info disclosure with the descriptive copy", async () => {
-    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />);
-    const details = screen.getByTestId(selectors.initiativeDetails.phaseCardProfileInfo);
-    expect(details.tagName).toBe("DETAILS");
-    expect(details).not.toHaveAttribute("open");
-    const summary = details.querySelector("summary");
-    expect(summary).not.toBeNull();
-    await userEvent.click(summary!);
-    expect(details).toHaveAttribute("open");
+  it("opens the profile popover when the profile chip is clicked", async () => {
+    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />, {
+      wrapper: createQueryWrapper(),
+    });
+    const chip = screen.getByTestId(selectors.initiativeDetails.phaseCardProfileChip);
+    expect(chip.tagName).toBe("BUTTON");
+    expect(screen.queryByTestId(selectors.initiativeDetails.phaseProfilePopover)).not.toBeInTheDocument();
+
+    await userEvent.click(chip);
+
+    const popover = screen.getByTestId(selectors.initiativeDetails.phaseProfilePopover);
+    expect(popover).toBeInTheDocument();
+    expect(popover).toHaveAttribute("role", "dialog");
     expect(
-      screen.getByText(/Different profiles vary the model, tool access, and runtime budget/),
+      screen.getByText(/defines the model, tool access, and runtime budget/i),
     ).toBeInTheDocument();
+    // The literal profile key is present inside the popover's <code> block.
+    expect(popover.querySelector("code")?.textContent).toBe("swarm-manager/deep-work");
+  });
+
+  it("renders an external Agent Manager link in the popover when the agent-manager URL resolves", async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
+    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />, {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseCardProfileChip));
+    const link = screen.getByTestId(selectors.initiativeDetails.phaseProfileExternalLink);
+    expect(link).toHaveAttribute(
+      "href",
+      "https://agent.test/profiles?profileKey=swarm-manager%2Fdeep-work",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("hides the popover external link when the agent-manager URL has not resolved", async () => {
+    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />, {
+      wrapper: createQueryWrapper(),
+    });
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.phaseCardProfileChip));
+    expect(screen.queryByTestId(selectors.initiativeDetails.phaseProfileExternalLink)).toBeNull();
   });
 });

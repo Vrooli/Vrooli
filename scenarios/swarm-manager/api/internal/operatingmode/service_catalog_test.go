@@ -58,6 +58,12 @@ func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
 	if investigate.Title == "" || investigate.Purpose == "" || investigate.Trigger == "" {
 		t.Fatalf("investigate prompt-catalog metadata missing: %#v", investigate)
 	}
+	if got, want := investigate.Label, "Investigate"; got != want {
+		t.Fatalf("investigate.Label = %q, want %q (must be the humanized phase ID, free of mode prefix)", got, want)
+	}
+	if got, want := investigate.Title, "Holistic Loop Investigate"; got != want {
+		t.Fatalf("investigate.Title = %q, want %q (PromptCatalog title must remain mode-prefixed for catalog disambiguation)", got, want)
+	}
 	if investigate.CatalogID == "" || investigate.SkillID == "" {
 		t.Fatalf("investigate catalog/skill IDs missing: %#v", investigate)
 	}
@@ -192,11 +198,26 @@ func TestBuildCatalogEntry_PhasedPlanDrain_ProgressTransitions(t *testing.T) {
 	if !classify.OutputContract.RequiresProgress {
 		t.Fatalf("classify_progress.RequiresProgress = false, want true")
 	}
+	if got, want := classify.Label, "Classify Progress"; got != want {
+		t.Fatalf("classify_progress.Label = %q, want %q (humanized phase ID; no mode prefix)", got, want)
+	}
+	if got, want := classify.Title, "Phased Plan Classify Progress"; got != want {
+		t.Fatalf("classify_progress.Title = %q, want %q (PromptCatalog title stays mode-prefixed)", got, want)
+	}
 	if len(classify.ResultBindings) == 0 {
 		t.Fatalf("classify_progress.ResultBindings empty")
 	}
 	if classify.ResultBindings[0].Kind != ResultBindingProgressArtifact {
 		t.Fatalf("classify_progress binding kind = %q, want progress_artifact", classify.ResultBindings[0].Kind)
+	}
+
+	preparePlan := findPhase(t, entry, "prepare_plan")
+	if got, want := preparePlan.Label, "Prepare Plan"; got != want {
+		t.Fatalf("prepare_plan.Label = %q, want %q", got, want)
+	}
+	executeNextPhase := findPhase(t, entry, "execute_next")
+	if got, want := executeNextPhase.Label, "Execute Next"; got != want {
+		t.Fatalf("execute_next.Label = %q, want %q", got, want)
 	}
 }
 

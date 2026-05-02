@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ModePickerDialog } from "./mode-picker-dialog";
+import { ApiError } from "../../../lib/api-client";
 import { selectors } from "../../../consts/selectors";
+import { createQueryWrapper, createTestQueryClient } from "../../../test-utils/query";
 import type {
   OperatingModeCapabilities,
   OperatingModeCatalogEntry,
@@ -139,7 +141,7 @@ describe("ModePickerDialog", () => {
     expect(onConfirm).toHaveBeenCalledWith("phased-plan-drain", false);
   });
 
-  it("requires the override checkbox when leaving item-execution flow", async () => {
+  it("submits with cancel=false on the first attempt when leaving item-execution flow", async () => {
     const onConfirm = vi.fn();
     render(
       <ModePickerDialog
@@ -154,13 +156,13 @@ describe("ModePickerDialog", () => {
     );
     const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
     await userEvent.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+    // No upfront cancellation ack is shown — the server's 409 response is the
+    // source of truth for when cancellation is required.
+    expect(screen.queryByTestId(selectors.initiativeDetails.modePickerOverrideAck)).toBeNull();
     const confirm = screen.getByTestId(selectors.initiativeDetails.modePickerConfirm);
-    expect(confirm).toBeDisabled();
-    const ack = screen.getByTestId(selectors.initiativeDetails.modePickerOverrideAck);
-    await userEvent.click(ack);
     expect(confirm).toBeEnabled();
     await userEvent.click(confirm);
-    expect(onConfirm).toHaveBeenCalledWith("holistic-loop", true);
+    expect(onConfirm).toHaveBeenCalledWith("holistic-loop", false);
   });
 
   it("does not show the amber notice when switching between two non-item-execution modes", async () => {
@@ -177,6 +179,154 @@ describe("ModePickerDialog", () => {
     );
     const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
     await userEvent.click(cards.find((c) => c.textContent?.includes("Phased Plan Drain"))!);
+    expect(screen.queryByTestId(selectors.initiativeDetails.modePickerOverrideAck)).toBeNull();
+  });
+
+  it("surfaces a 409 active-item-executions conflict as a preview list with ack-then-confirm", async () => {
+    const onConfirm = vi.fn();
+    const conflictError = new ApiError("http", "active executions", {
+      status: 409,
+      code: "active_item_executions",
+      details: {
+        initiative_name: "initiative-a",
+        from_mode: "item-level",
+        to_mode: "holistic-loop",
+        active_item_executions: [
+          { item_ref: "fix:auth-cookie", run_id: "run-aaaa-bbbb", status: "running" },
+          { item_ref: "feat:onboarding", run_id: "run-cccc-dddd", status: "running" },
+        ],
+      },
+    });
+
+    const wrapper = createQueryWrapper();
+    const { rerender } = render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={onConfirm}
+      />,
+      { wrapper },
+    );
+    const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
+    await userEvent.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.modePickerConfirm));
+    expect(onConfirm).toHaveBeenLastCalledWith("holistic-loop", false);
+
+    // Server returns 409. Parent forwards the error as `mutationError`.
+    rerender(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        mutationError={conflictError}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    const list = await screen.findByTestId(selectors.initiativeDetails.cancellationItemList);
+    expect(within(list).getByText("fix:auth-cookie")).toBeInTheDocument();
+    expect(within(list).getByText("feat:onboarding")).toBeInTheDocument();
+    expect(within(list).getByText(/2 item executions currently running/i)).toBeInTheDocument();
+    // Raw error message is suppressed in favour of the rendered preview.
+    expect(screen.queryByText("active executions")).toBeNull();
+
+    const confirm = screen.getByTestId(selectors.initiativeDetails.modePickerConfirm);
+    expect(confirm).toBeDisabled();
+    await userEvent.click(screen.getByTestId(selectors.initiativeDetails.modePickerOverrideAck));
+    expect(confirm).toBeEnabled();
+    expect(confirm).toHaveTextContent(/Cancel executions and switch/i);
+
+    await userEvent.click(confirm);
+    expect(onConfirm).toHaveBeenLastCalledWith("holistic-loop", true);
+  });
+
+  it("renders run-id links via the agent-manager external URL when resolved", async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
+
+    const conflictError = new ApiError("http", "active executions", {
+      status: 409,
+      code: "active_item_executions",
+      details: {
+        initiative_name: "initiative-a",
+        from_mode: "item-level",
+        to_mode: "holistic-loop",
+        active_item_executions: [{ item_ref: "fix:auth-cookie", run_id: "run-aaaa-bbbb", status: "running" }],
+      },
+    });
+
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        mutationError={conflictError}
+        onConfirm={() => {}}
+      />,
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+
+    const list = await screen.findByTestId(selectors.initiativeDetails.cancellationItemList);
+    const runLink = within(list).getByRole("link");
+    expect(runLink).toHaveAttribute("href", "https://agent.test/runs/run-aaaa-bbbb");
+    expect(runLink).toHaveAttribute("target", "_blank");
+    expect(runLink).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("clears the conflict preview when the user picks a different target mode", async () => {
+    const conflictError = new ApiError("http", "active executions", {
+      status: 409,
+      code: "active_item_executions",
+      details: {
+        initiative_name: "initiative-a",
+        from_mode: "item-level",
+        to_mode: "holistic-loop",
+        active_item_executions: [{ item_ref: "fix:auth-cookie", run_id: "r" }],
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { rerender } = render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        mutationError={conflictError}
+        onConfirm={() => {}}
+      />,
+      { wrapper },
+    );
+    expect(await screen.findByTestId(selectors.initiativeDetails.cancellationItemList)).toBeInTheDocument();
+
+    rerender(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        // Conflict was tied to the previous selection; switching to a new
+        // target mode discards the stale preview.
+        mutationError={undefined}
+        onConfirm={() => {}}
+      />,
+    );
+    const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
+    await userEvent.click(cards.find((c) => c.textContent?.includes("Phased Plan Drain"))!);
+    expect(screen.queryByTestId(selectors.initiativeDetails.cancellationItemList)).toBeNull();
     expect(screen.queryByTestId(selectors.initiativeDetails.modePickerOverrideAck)).toBeNull();
   });
 

@@ -12,12 +12,13 @@
  */
 
 import { useState } from "react";
-import { Copy, Check, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { Copy, Check, RefreshCw, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "../../ui/button";
 import { Dialog } from "../../ui/dialog";
 import { selectors } from "../../../consts/selectors";
 import { promptService } from "../../../services/prompt-service";
+import { useSkillUrl } from "../../../services/external-links";
 import { renderMarkdown } from "../../../lib/render-markdown";
 import { defaultQueryOptions } from "../../../lib";
 
@@ -29,6 +30,7 @@ export interface SkillViewerDialogProps {
 
 export function SkillViewerDialog({ isOpen, onClose, skillId }: SkillViewerDialogProps) {
   const [copied, setCopied] = useState(false);
+  const externalUrl = useSkillUrl(skillId);
 
   const skillQuery = useQuery({
     queryKey: ["prompts", "skill", skillId],
@@ -147,7 +149,19 @@ export function SkillViewerDialog({ isOpen, onClose, skillId }: SkillViewerDialo
           </p>
         )}
 
-        <div className="flex justify-end pt-1">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+          {externalUrl && (
+            <a
+              href={externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              data-testid={selectors.initiativeDetails.skillViewerExternalLink}
+              className="inline-flex items-center gap-1.5 rounded border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-cyan-500/60 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
+            >
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              Open in Prompt Manager
+            </a>
+          )}
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>

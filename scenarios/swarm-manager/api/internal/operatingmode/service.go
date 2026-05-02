@@ -330,6 +330,7 @@ type ModeDetail struct {
 // carried separately on ModeCatalogPhaseGraph.
 type ModeCatalogPhase struct {
 	Phase                 string                     `json:"phase"`
+	Label                 string                     `json:"label"`
 	Title                 string                     `json:"title"`
 	Purpose               string                     `json:"purpose"`
 	Trigger               string                     `json:"trigger"`

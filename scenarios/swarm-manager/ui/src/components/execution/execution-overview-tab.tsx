@@ -20,6 +20,7 @@ import { DetailSection } from "../detail/DetailSection";
 import { formatRelativeTime, canRunPostRunChecks } from "../../lib";
 import { formatExecutionMode } from "../../types";
 import { selectors } from "../../consts/selectors";
+import { buildAgentRunUrl } from "../../services/external-links";
 import type { ExecutionRecord } from "../../types";
 
 export interface ExecutionOverviewTabProps {
@@ -109,7 +110,7 @@ export function ExecutionOverviewTab({
           {/* Agent Manager run link */}
           {execution.runId && agentManagerUiUrl && (
             <a
-              href={`${agentManagerUiUrl}/runs/${execution.runId}`}
+              href={buildAgentRunUrl(agentManagerUiUrl, execution.runId) ?? "#"}
               target="_blank"
               rel="noopener noreferrer"
               data-testid={selectors.executionDetails.viewRunButton}

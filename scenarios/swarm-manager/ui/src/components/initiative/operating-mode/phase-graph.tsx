@@ -12,7 +12,7 @@
  * matching PhaseCard and scroll it into view.
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -26,6 +26,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
+import { selectors } from "../../../consts/selectors";
 import type {
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
@@ -33,6 +34,7 @@ import type {
   OperatingModeRound,
 } from "../../../types/operating-mode";
 import { PhaseNode, type PhaseNodeData, type PhaseNodeType } from "./phase-node";
+import { PhaseGraphGlossaryDialog } from "./phase-graph-glossary-dialog";
 
 export interface PhaseStateMap {
   [phase: string]: { startable?: boolean; reason?: string; isNext?: boolean };
@@ -44,9 +46,9 @@ const NODE_HEIGHT = 76;
 const NODE_TYPES = { phase: PhaseNode } as const;
 
 const EDGE_KIND_COLORS = {
-  always: "#94a3b8",
-  payload_bool: "#fbbf24",
-  progress_decision: "#22d3ee",
+  always: "var(--graph-edge-always)",
+  payload_bool: "var(--graph-edge-payload-bool)",
+  progress_decision: "var(--graph-edge-progress-decision)",
 } as const;
 
 interface PhaseGraphProps {
@@ -77,7 +79,7 @@ function buildGraph({ phases, transitions, selectedPhaseId, mode, roundsByPhase,
     position: { x: 0, y: 0 },
     data: {
       phase: phase.phase,
-      title: phase.title || phase.phase,
+      title: phase.label || phase.title || phase.phase,
       isStart: !!phase.isStart,
       isTerminal: !!phase.isTerminal,
       writesRepo: phase.writesRepo,
@@ -99,8 +101,8 @@ function buildGraph({ phases, transitions, selectedPhaseId, mode, roundsByPhase,
       label: edge.label,
       labelBgPadding: [4, 2],
       labelBgBorderRadius: 4,
-      labelBgStyle: { fill: "#0f172a", fillOpacity: 0.85 },
-      labelStyle: { fill: "#e2e8f0", fontSize: 11 },
+      labelBgStyle: { fill: "var(--graph-edge-label-bg)" },
+      labelStyle: { fill: "var(--graph-edge-label-color)", fontSize: 11 },
       style: { stroke: color, strokeWidth: 1.5 },
       markerEnd: { type: MarkerType.ArrowClosed, color },
     };
@@ -138,9 +140,9 @@ const LEGEND_ITEMS: Array<{ dot: string; label: string }> = [
 ];
 
 const EDGE_LEGEND: Array<{ color: string; label: string }> = [
-  { color: "#94a3b8", label: "always" },
-  { color: "#fbbf24", label: "payload bool" },
-  { color: "#22d3ee", label: "progress decision" },
+  { color: "var(--graph-edge-always)", label: "always" },
+  { color: "var(--graph-edge-payload-bool)", label: "payload bool" },
+  { color: "var(--graph-edge-progress-decision)", label: "progress decision" },
 ];
 
 export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds, phaseStates }: PhaseGraphProps) {
@@ -158,6 +160,7 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<PhaseNodeType>(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(builtEdges);
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
 
   useEffect(() => {
     setNodes(layoutedNodes);
@@ -168,18 +171,24 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds
 
   return (
     <div className="space-y-2" data-testid="phase-graph">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
+      <button
+        type="button"
+        onClick={() => setGlossaryOpen(true)}
+        aria-label="Open phase-graph glossary"
+        data-testid={selectors.initiativeDetails.phaseGraphLegend}
+        className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded px-2 py-1 text-left text-[11px] text-slate-400 transition-colors hover:bg-slate-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
+      >
         <span className="font-medium text-slate-300">Legend:</span>
-        <div className="flex items-center gap-3">
+        <span className="flex items-center gap-3">
           {LEGEND_ITEMS.map((item) => (
             <span key={item.label} className="flex items-center gap-1.5">
               <span className={`inline-block h-2 w-2 rounded-full ${item.dot}`} />
               {item.label}
             </span>
           ))}
-        </div>
+        </span>
         <span className="text-slate-600">·</span>
-        <div className="flex items-center gap-3">
+        <span className="flex items-center gap-3">
           {EDGE_LEGEND.map((item) => (
             <span key={item.label} className="flex items-center gap-1.5">
               <span
@@ -189,9 +198,11 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds
               {item.label}
             </span>
           ))}
-        </div>
-      </div>
-      <div className="h-[420px] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 sm:h-[480px]">
+        </span>
+        <span className="ml-auto text-[11px] text-slate-500">click for glossary</span>
+      </button>
+      <PhaseGraphGlossaryDialog isOpen={glossaryOpen} onClose={() => setGlossaryOpen(false)} />
+      <div className="h-[300px] min-h-[240px] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 sm:h-[440px] md:h-[480px]">
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
@@ -210,17 +221,17 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds
             fitViewOptions={{ padding: 0.2 }}
             proOptions={{ hideAttribution: true }}
           >
-            <Background gap={24} size={1} color="#1e293b" />
-            <Controls showInteractive={false} className="!bg-slate-900 !border-slate-700" />
+            <Background gap={24} size={1} color="var(--graph-grid)" />
+            <Controls showInteractive={false} />
             <MiniMap
               pannable
               zoomable
-              maskColor="rgb(15, 23, 42, 0.8)"
+              maskColor="var(--graph-mini-mask)"
               nodeColor={(node) => {
                 const data = node.data as PhaseNodeData | undefined;
-                if (data?.isStart) return "#34d399";
-                if (data?.isTerminal) return "#a78bfa";
-                return "#475569";
+                if (data?.isStart) return "var(--graph-mini-node-start)";
+                if (data?.isTerminal) return "var(--graph-mini-node-terminal)";
+                return "var(--graph-mini-node-default)";
               }}
               className="!bg-slate-900 !border !border-slate-700"
             />

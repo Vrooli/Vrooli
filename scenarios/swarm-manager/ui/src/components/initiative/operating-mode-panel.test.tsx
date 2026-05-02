@@ -65,6 +65,7 @@ const fullPhaseCapabilities = capabilities({
 
 function makeCatalogPhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
+    label: overrides.phase,
     title: overrides.phase,
     purpose: "",
     trigger: "",
@@ -329,16 +330,24 @@ describe("OperatingModePanel", () => {
       });
     });
 
-    it("requires the override checkbox when switching from item-level to a phase mode", async () => {
+    it("submits with cancel=false on first attempt — server-side 409 drives the ack flow", async () => {
       renderPanel({ initiative: { mode: "item-level" } });
       const user = userEvent.setup();
       await user.click(await screen.findByTestId(selectors.initiativeDetails.modeHeroSwitchButton));
       const cards = await screen.findAllByTestId(selectors.initiativeDetails.modePickerCard);
       await user.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+      // No upfront ack — the dialog only renders the cancellation list after
+      // the server returns a 409 active-item-executions conflict.
+      expect(screen.queryByTestId(selectors.initiativeDetails.modePickerOverrideAck)).toBeNull();
       const confirm = screen.getByTestId(selectors.initiativeDetails.modePickerConfirm);
-      expect(confirm).toBeDisabled();
-      await user.click(screen.getByTestId(selectors.initiativeDetails.modePickerOverrideAck));
       expect(confirm).toBeEnabled();
+      await user.click(confirm);
+      await waitFor(() => {
+        expect(initiativeModeService.switchMode).toHaveBeenCalledWith("mode-initiative", {
+          mode: "holistic-loop",
+          cancelActiveItemExecutions: false,
+        });
+      });
     });
   });
 
