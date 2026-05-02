@@ -265,6 +265,19 @@ export default defineConfig({
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
+          name: 'boundaries',
+          include: ['vitest/boundaries/**/*.test.ts'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+          coverage: {
+            enabled: false,
+          },
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
           name: 'stores',
           include: [
             'src/stores/**/*.test.{ts,tsx}',

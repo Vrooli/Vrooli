@@ -2,9 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
 import { useWorkflowStore } from '@stores/workflowStore';
 import type { Node, Edge } from 'reactflow';
-
-// Mock fetch globally
-global.fetch = vi.fn();
+import { fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 // Mock getConfig
 vi.mock('../config', () => ({
@@ -29,18 +27,13 @@ vi.mock('../utils/workflowNormalizers', () => ({
   normalizeEdges: vi.fn((edges) => edges),
 }));
 
-function createFetchResponse<T>(data: T, ok = true, status = ok ? 200 : 400) {
-  return Promise.resolve({
-    ok,
-    status,
-    text: () => Promise.resolve(JSON.stringify(data)),
-    json: () => Promise.resolve(data),
-  } as Response);
-}
-
 describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock = installFetchMock();
+
     // Reset store state
     useWorkflowStore.setState({
       workflows: [],
@@ -96,9 +89,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         },
       ];
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ workflows: mockWorkflows })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ workflows: mockWorkflows }));
 
       await act(async () => {
         await useWorkflowStore.getState().loadWorkflows('project-1');
@@ -130,9 +121,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         },
       };
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ workflow: mockWorkflow })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ workflow: mockWorkflow }));
 
       await act(async () => {
         await useWorkflowStore.getState().loadWorkflow('workflow-1');
@@ -161,12 +150,10 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         flow_definition: { nodes: [], edges: [] },
       };
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: newWorkflow,
-          flow_definition: newWorkflow.flow_definition,
-        })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: newWorkflow,
+        flow_definition: newWorkflow.flow_definition,
+      }));
 
       let returnedWorkflow;
       await act(async () => {
@@ -231,12 +218,10 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         flow_definition: { nodes: [], edges: [] },
       };
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: savedWorkflow,
-          flow_definition: savedWorkflow.flow_definition,
-        })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: savedWorkflow,
+        flow_definition: savedWorkflow.flow_definition,
+      }));
 
       await act(async () => {
         await useWorkflowStore.getState().saveWorkflow({
@@ -279,9 +264,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 
       useWorkflowStore.setState({ workflows: [workflow] });
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ success: true })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ success: true }));
 
       await act(async () => {
         await useWorkflowStore.getState().deleteWorkflow('workflow-to-delete');
@@ -338,9 +321,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 
       useWorkflowStore.setState({ workflows });
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ deleted: ['workflow-1', 'workflow-2'], failed: [] })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ deleted: ['workflow-1', 'workflow-2'], failed: [] }));
 
       let result;
       await act(async () => {
@@ -427,22 +408,20 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         isDirty: true,
       });
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: {
-            id: workflow.id,
-            project_id: 'project-1',
-            name: workflow.name,
-            description: '',
-            folder_path: workflow.folderPath,
-            version: 2,
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-02T00:00:00Z',
-            flow_definition: { nodes: [], edges: [] },
-          },
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: {
+          id: workflow.id,
+          project_id: 'project-1',
+          name: workflow.name,
+          description: '',
+          folder_path: workflow.folderPath,
+          version: 2,
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-02T00:00:00Z',
           flow_definition: { nodes: [], edges: [] },
-        })
-      );
+        },
+        flow_definition: { nodes: [], edges: [] },
+      }));
 
       act(() => {
         useWorkflowStore.getState().scheduleAutosave({
@@ -532,13 +511,10 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         isDirty: true
       });
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse(
-          { error: 'Version conflict detected', conflict: { remote_version: 3, expected_version: 1, remote_updated_at: '2025-01-03' } },
-          false,
-          409
-        )
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse(
+        { error: 'Version conflict detected', conflict: { remote_version: 3, expected_version: 1, remote_updated_at: '2025-01-03' } },
+        { status: 409 }
+      ));
 
       await act(async () => {
         try {
@@ -578,22 +554,20 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         isDirty: true,
       });
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: {
-            id: workflow.id,
-            project_id: 'project-1',
-            name: workflow.name,
-            description: '',
-            folder_path: workflow.folderPath,
-            version: 2,
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-02T00:00:00Z',
-            flow_definition: { nodes: [], edges: [] },
-          },
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: {
+          id: workflow.id,
+          project_id: 'project-1',
+          name: workflow.name,
+          description: '',
+          folder_path: workflow.folderPath,
+          version: 2,
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-02T00:00:00Z',
           flow_definition: { nodes: [], edges: [] },
-        })
-      );
+        },
+        flow_definition: { nodes: [], edges: [] },
+      }));
 
       await act(async () => {
         await useWorkflowStore.getState().forceSaveWorkflow({
@@ -633,9 +607,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         },
       ];
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ versions: mockVersions })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ versions: mockVersions }));
 
       await act(async () => {
         await useWorkflowStore.getState().loadWorkflowVersions('workflow-1');
@@ -683,19 +655,17 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         flow_definition: { nodes: [], edges: [] },
       };
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: restoredWorkflow,
-          restored_version: {
-            workflow_id: currentWorkflow.id,
-            version: 2,
-            flow_definition: { nodes: [], edges: [] },
-            change_description: 'Restored to version 2',
-            created_by: 'user-1',
-            created_at: '2025-01-01T00:00:00Z',
-          },
-        })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: restoredWorkflow,
+        restored_version: {
+          workflow_id: currentWorkflow.id,
+          version: 2,
+          flow_definition: { nodes: [], edges: [] },
+          change_description: 'Restored to version 2',
+          created_by: 'user-1',
+          created_at: '2025-01-01T00:00:00Z',
+        },
+      }));
 
       await act(async () => {
         await useWorkflowStore
@@ -734,12 +704,10 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         },
       };
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: generatedWorkflow,
-          flow_definition: generatedWorkflow.flow_definition,
-        })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: generatedWorkflow,
+        flow_definition: generatedWorkflow.flow_definition,
+      }));
 
       let result;
       await act(async () => {
@@ -803,12 +771,10 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         },
       };
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({
-          workflow: modifiedWorkflow,
-          flow_definition: modifiedWorkflow.flow_definition,
-        })
-      );
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        workflow: modifiedWorkflow,
+        flow_definition: modifiedWorkflow.flow_definition,
+      }));
 
       let result;
       await act(async () => {

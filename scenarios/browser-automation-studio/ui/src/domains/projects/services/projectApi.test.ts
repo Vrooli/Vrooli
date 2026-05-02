@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchJsonResponse, fetchTextResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 vi.mock('@/config', () => ({
   getConfig: vi.fn(() => Promise.resolve({ API_URL: 'http://localhost:8080' })),
@@ -13,15 +14,16 @@ vi.mock('@/utils/logger', () => ({
 import { fetchProjectEntries, fetchProjectWorkflows, fetchProjectsList } from './projectApi';
 
 describe('projectApi', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
+    fetchMock = installFetchMock();
   });
 
   it('returns parsed projects', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      fetchJsonResponse({
         projects: [
           {
             id: 'project-1',
@@ -31,8 +33,8 @@ describe('projectApi', () => {
             updated_at: '2024-01-02T00:00:00.000Z',
           },
         ],
-      }),
-    } as Response);
+      })
+    );
 
     const projects = await fetchProjectsList();
     expect(projects).toHaveLength(1);
@@ -40,19 +42,14 @@ describe('projectApi', () => {
   });
 
   it('throws when the response is not ok', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      text: async () => 'boom',
-    } as Response);
+    fetchMock.mockResolvedValueOnce(fetchTextResponse('boom', { status: 500 }));
 
     await expect(fetchProjectsList()).rejects.toThrow('boom');
   });
 
   it('returns validated project workflows', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      fetchJsonResponse({
         workflows: [
           {
             id: 'workflow-1',
@@ -66,8 +63,8 @@ describe('projectApi', () => {
             },
           },
         ],
-      }),
-    } as Response);
+      })
+    );
 
     const workflows = await fetchProjectWorkflows('project-1');
     expect(workflows).toHaveLength(1);
@@ -75,9 +72,8 @@ describe('projectApi', () => {
   });
 
   it('returns validated project entries', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      fetchJsonResponse({
         entries: [
           {
             id: 'entry-1',
@@ -86,8 +82,8 @@ describe('projectApi', () => {
             kind: 'folder',
           },
         ],
-      }),
-    } as Response);
+      })
+    );
 
     const entries = await fetchProjectEntries('project-1');
     expect(entries).toHaveLength(1);

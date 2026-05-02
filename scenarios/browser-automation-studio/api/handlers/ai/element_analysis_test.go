@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
 )
 
 func TestNewElementAnalysisHandler(t *testing.T) {
@@ -79,9 +80,7 @@ func TestAnalyzeElements_RequestValidation(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
+		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element analysis URL normalization smoke")
 
 		reqBody := ElementAnalysisRequest{URL: "example.com"}
 		body, _ := json.Marshal(reqBody)
@@ -131,9 +130,7 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts zero coordinates", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
+		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element coordinate smoke")
 
 		reqBody := ElementAtCoordinateRequest{
 			URL: "https://example.com",
@@ -152,9 +149,7 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts negative coordinates", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
+		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element coordinate smoke")
 
 		// Negative coordinates might be valid in some viewport scenarios
 		reqBody := ElementAtCoordinateRequest{
@@ -174,9 +169,7 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
+		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element coordinate URL normalization smoke")
 
 		reqBody := ElementAtCoordinateRequest{
 			URL: "example.com",
@@ -196,9 +189,7 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 }
 
 func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+	integration.SkipShort(t, "driver coordinate integration")
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
@@ -233,9 +224,7 @@ func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
 }
 
 func TestExtractPageElements_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+	integration.SkipShort(t, "browser extraction integration")
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
@@ -265,24 +254,9 @@ func TestExtractPageElements_Integration(t *testing.T) {
 }
 
 func TestGenerateAISuggestions_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	// Check if Ollama is available by checking both HTTP endpoint and CLI availability
-	ollamaAvailable := false
-	resp, err := http.Get("http://localhost:11434/api/tags")
-	if err == nil {
-		resp.Body.Close()
-		// Also verify OLLAMA_URL or OLLAMA_HOST is set
-		if os.Getenv("OLLAMA_URL") != "" || os.Getenv("OLLAMA_HOST") != "" {
-			ollamaAvailable = true
-		}
-	}
-
-	if !ollamaAvailable {
-		t.Skip("Ollama not available or not configured (OLLAMA_URL/OLLAMA_HOST not set), skipping integration test")
-	}
+	integration.SkipShort(t, "Ollama suggestions integration")
+	integration.RequireAnyEnv(t, []string{"OLLAMA_URL", "OLLAMA_HOST"}, "Ollama suggestions integration")
+	integration.RequireHTTPStatusOK(t, http.DefaultClient, "http://localhost:11434/api/tags", "Ollama suggestions integration")
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)

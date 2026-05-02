@@ -11,14 +11,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
 // Requires a running Playwright driver at PLAYWRIGHT_DRIVER_URL and no Browserless URL configured.
 func TestPlaywrightCaptureIntegration(t *testing.T) {
-	if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-		t.Skip("PLAYWRIGHT_DRIVER_URL not set; skipping Playwright capture integration")
-	}
+	integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "Playwright capture integration")
 	os.Unsetenv("BROWSERLESS_URL")
 
 	// Minimal export page that listens for bas:render and advances a timer.

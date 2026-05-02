@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/silent-logger.ts'],
   collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'json-summary', 'lcov'],
@@ -33,8 +34,6 @@ module.exports = {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        // Use isolatedModules for faster transforms
-        isolatedModules: true,
         // Allow ts-jest to process node_modules packages
         tsconfig: {
           allowJs: true,

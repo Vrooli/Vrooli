@@ -11,18 +11,7 @@ vi.mock('@hooks/usePopoverPosition', () => ({
   }),
 }));
 
-// Mock ReactFlow's useReactFlow hook
-vi.mock('reactflow', async () => {
-  const actual = await vi.importActual('reactflow');
-  return {
-    ...actual,
-    useReactFlow: () => ({
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn(),
-      fitView: vi.fn(),
-    }),
-  };
-});
+vi.mock('reactflow', async () => await import('@/test-utils/mocks/reactflow'));
 
 describe('WorkflowToolbar [REQ:BAS-WORKFLOW-BUILDER-ZOOM] [REQ:BAS-WORKFLOW-BUILDER-UNDO-REDO]', () => {
   const defaultProps = {

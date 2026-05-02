@@ -8,283 +8,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/mocks"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
-	"github.com/vrooli/browser-automation-studio/storage"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
-	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
-	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
-	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
-
-// mockCatalogService implements workflow.CatalogService for testing.
-type mockCatalogService struct {
-	listWorkflowsFn   func(ctx context.Context, req *basapi.ListWorkflowsRequest) (*basapi.ListWorkflowsResponse, error)
-	createWorkflowFn  func(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error)
-	updateWorkflowFn  func(ctx context.Context, req *basapi.UpdateWorkflowRequest) (*basapi.UpdateWorkflowResponse, error)
-	createProjectFn   func(ctx context.Context, project *database.ProjectIndex, description string) error
-	listProjectsFn    func(ctx context.Context, limit, offset int) ([]*database.ProjectIndex, error)
-	getWorkflowFn     func(ctx context.Context, id uuid.UUID) (*basapi.WorkflowSummary, error)
-	checkHealthFn     func() string
-	checkAutoHealthFn func(ctx context.Context) (bool, error)
-}
-
-// Verify mockCatalogService implements CatalogService interface
-var _ workflow.CatalogService = (*mockCatalogService)(nil)
-
-func (m *mockCatalogService) CheckHealth() string {
-	if m.checkHealthFn != nil {
-		return m.checkHealthFn()
-	}
-	return "ok"
-}
-
-func (m *mockCatalogService) CheckAutomationHealth(ctx context.Context) (bool, error) {
-	if m.checkAutoHealthFn != nil {
-		return m.checkAutoHealthFn(ctx)
-	}
-	return true, nil
-}
-
-func (m *mockCatalogService) CreateProject(ctx context.Context, project *database.ProjectIndex, description string) error {
-	if m.createProjectFn != nil {
-		return m.createProjectFn(ctx, project, description)
-	}
-	return nil
-}
-
-func (m *mockCatalogService) GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) GetProjectByName(ctx context.Context, name string) (*database.ProjectIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.ProjectIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) UpdateProject(ctx context.Context, project *database.ProjectIndex, description string) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockCatalogService) DeleteProject(ctx context.Context, id uuid.UUID, deleteFiles bool) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockCatalogService) ListProjects(ctx context.Context, limit, offset int) ([]*database.ProjectIndex, error) {
-	if m.listProjectsFn != nil {
-		return m.listProjectsFn(ctx, limit, offset)
-	}
-	return []*database.ProjectIndex{}, nil
-}
-
-func (m *mockCatalogService) GetProjectStats(ctx context.Context, projectID uuid.UUID) (*database.ProjectStats, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.WorkflowIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockCatalogService) EnsureSeedProject(ctx context.Context) (*database.ProjectIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) HydrateProject(ctx context.Context, project *database.ProjectIndex) (*basprojects.Project, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) CreateWorkflow(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
-	if m.createWorkflowFn != nil {
-		return m.createWorkflowFn(ctx, req)
-	}
-	return &basapi.CreateWorkflowResponse{
-		Workflow: &basapi.WorkflowSummary{Id: uuid.New().String(), Name: req.Name},
-	}, nil
-}
-
-func (m *mockCatalogService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) UpdateWorkflow(ctx context.Context, req *basapi.UpdateWorkflowRequest) (*basapi.UpdateWorkflowResponse, error) {
-	if m.updateWorkflowFn != nil {
-		return m.updateWorkflowFn(ctx, req)
-	}
-	return &basapi.UpdateWorkflowResponse{
-		Workflow: &basapi.WorkflowSummary{Id: req.GetWorkflowId(), Version: 2},
-	}, nil
-}
-
-func (m *mockCatalogService) DeleteWorkflow(ctx context.Context, req *basapi.DeleteWorkflowRequest) (*basapi.DeleteWorkflowResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) ListWorkflows(ctx context.Context, req *basapi.ListWorkflowsRequest) (*basapi.ListWorkflowsResponse, error) {
-	if m.listWorkflowsFn != nil {
-		return m.listWorkflowsFn(ctx, req)
-	}
-	return &basapi.ListWorkflowsResponse{Workflows: []*basapi.WorkflowSummary{}, Total: 0}, nil
-}
-
-func (m *mockCatalogService) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error) {
-	if m.getWorkflowFn != nil {
-		return m.getWorkflowFn(ctx, workflowID)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockCatalogService) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*basapi.WorkflowSummary, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string, projectRoot string) (*basapi.WorkflowSummary, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) ListWorkflowVersionsAPI(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowVersionList, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) GetWorkflowVersionAPI(ctx context.Context, workflowID uuid.UUID, version int32) (*basapi.WorkflowVersion, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) RestoreWorkflowVersionAPI(ctx context.Context, workflowID uuid.UUID, version int32, changeDescription string) (*basapi.RestoreWorkflowVersionResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockCatalogService) SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockCatalogService) ModifyWorkflowAPI(ctx context.Context, workflowID uuid.UUID, prompt string, current *basworkflows.WorkflowDefinitionV2) (*basapi.UpdateWorkflowResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-// mockExecutionService implements workflow.ExecutionService for testing.
-type mockExecutionService struct {
-	executeWorkflowAPIFn   func(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error)
-	getExecutionFn         func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
-	getExecutionTimelineFn func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionTimeline, error)
-	stopExecutionFn        func(ctx context.Context, executionID uuid.UUID) error
-	listExecutionsFn       func(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
-}
-
-// Verify mockExecutionService implements ExecutionService interface
-var _ workflow.ExecutionService = (*mockExecutionService)(nil)
-
-func (m *mockExecutionService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
-	if m.executeWorkflowAPIFn != nil {
-		return m.executeWorkflowAPIFn(ctx, req)
-	}
-	return &basapi.ExecuteWorkflowResponse{
-		ExecutionId: uuid.New().String(),
-		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_PENDING,
-	}, nil
-}
-
-func (m *mockExecutionService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req *basapi.ExecuteWorkflowRequest, opts *workflow.ExecuteOptions) (*basapi.ExecuteWorkflowResponse, error) {
-	return m.ExecuteWorkflowAPI(ctx, req)
-}
-
-func (m *mockExecutionService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *basexecution.ExecuteAdhocRequest) (*basexecution.ExecuteAdhocResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflow.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) StopExecution(ctx context.Context, executionID uuid.UUID) error {
-	if m.stopExecutionFn != nil {
-		return m.stopExecutionFn(ctx, executionID)
-	}
-	return nil
-}
-
-func (m *mockExecutionService) ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
-	if m.listExecutionsFn != nil {
-		return m.listExecutionsFn(ctx, workflowID, projectID, limit, offset)
-	}
-	return []*database.ExecutionIndex{}, nil
-}
-
-func (m *mockExecutionService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
-	if m.getExecutionFn != nil {
-		return m.getExecutionFn(ctx, id)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockExecutionService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockExecutionService) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) GetExecutionVideoArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionVideoArtifact, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) GetExecutionTraceArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) GetExecutionHarArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) HydrateExecutionProto(ctx context.Context, execIndex *database.ExecutionIndex) (*basexecution.Execution, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionTimeline, error) {
-	if m.getExecutionTimelineFn != nil {
-		return m.getExecutionTimelineFn(ctx, executionID)
-	}
-	return &workflow.ExecutionTimeline{Frames: []workflow.TimelineFrame{}}, nil
-}
-
-func (m *mockExecutionService) GetExecutionTimelineProto(ctx context.Context, executionID uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mockExecutionService) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
-	return errors.New("not implemented")
-}
 
 // --- Tests ---
 
 func TestExecute_UnknownTool(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "unknown_tool", nil)
@@ -303,8 +38,8 @@ func TestExecuteWorkflow_Success(t *testing.T) {
 	workflowID := uuid.New()
 	executionID := uuid.New()
 
-	mock := &mockExecutionService{
-		executeWorkflowAPIFn: func(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
+	mock := &mocks.WorkflowExecutionService{
+		ExecuteWorkflowAPIFunc: func(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
 			if req.WorkflowId != workflowID.String() {
 				t.Errorf("expected workflow_id %s, got %s", workflowID.String(), req.WorkflowId)
 			}
@@ -316,7 +51,7 @@ func TestExecuteWorkflow_Success(t *testing.T) {
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
 		ExecutionService: mock,
 	})
 
@@ -339,8 +74,8 @@ func TestExecuteWorkflow_Success(t *testing.T) {
 
 func TestExecuteWorkflow_MissingWorkflowID(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "execute_workflow", map[string]interface{}{})
@@ -357,8 +92,8 @@ func TestExecuteWorkflow_MissingWorkflowID(t *testing.T) {
 
 func TestExecuteWorkflow_InvalidWorkflowID(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "execute_workflow", map[string]interface{}{
@@ -380,8 +115,8 @@ func TestGetExecution_Success(t *testing.T) {
 	workflowID := uuid.New()
 	startedAt := time.Now()
 
-	mock := &mockExecutionService{
-		getExecutionFn: func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	mock := &mocks.WorkflowExecutionService{
+		GetExecutionFunc: func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
 			return &database.ExecutionIndex{
 				ID:         executionID,
 				WorkflowID: workflowID,
@@ -392,7 +127,7 @@ func TestGetExecution_Success(t *testing.T) {
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
 		ExecutionService: mock,
 	})
 
@@ -416,14 +151,14 @@ func TestGetExecution_Success(t *testing.T) {
 }
 
 func TestGetExecution_NotFound(t *testing.T) {
-	mock := &mockExecutionService{
-		getExecutionFn: func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	mock := &mocks.WorkflowExecutionService{
+		GetExecutionFunc: func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
 			return nil, errors.New("not found")
 		},
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
 		ExecutionService: mock,
 	})
 
@@ -445,8 +180,8 @@ func TestStopExecution_Success(t *testing.T) {
 	executionID := uuid.New()
 	stopCalled := false
 
-	mock := &mockExecutionService{
-		stopExecutionFn: func(ctx context.Context, id uuid.UUID) error {
+	mock := &mocks.WorkflowExecutionService{
+		StopExecutionFunc: func(ctx context.Context, id uuid.UUID) error {
 			stopCalled = true
 			if id != executionID {
 				t.Errorf("expected execution_id %s, got %s", executionID.String(), id.String())
@@ -456,7 +191,7 @@ func TestStopExecution_Success(t *testing.T) {
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
 		ExecutionService: mock,
 	})
 
@@ -477,8 +212,8 @@ func TestStopExecution_Success(t *testing.T) {
 func TestListWorkflows_Success(t *testing.T) {
 	workflowID := uuid.New()
 
-	mock := &mockCatalogService{
-		listWorkflowsFn: func(ctx context.Context, req *basapi.ListWorkflowsRequest) (*basapi.ListWorkflowsResponse, error) {
+	mock := &mocks.WorkflowCatalogService{
+		ListWorkflowsFunc: func(ctx context.Context, req *basapi.ListWorkflowsRequest) (*basapi.ListWorkflowsResponse, error) {
 			return &basapi.ListWorkflowsResponse{
 				Workflows: []*basapi.WorkflowSummary{
 					{Id: workflowID.String(), Name: "Test Workflow"},
@@ -490,7 +225,7 @@ func TestListWorkflows_Success(t *testing.T) {
 
 	executor := NewServerExecutor(ServerExecutorConfig{
 		CatalogService:   mock,
-		ExecutionService: &mockExecutionService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "list_workflows", map[string]interface{}{
@@ -520,8 +255,8 @@ func TestListExecutions_Success(t *testing.T) {
 	executionID := uuid.New()
 	workflowID := uuid.New()
 
-	mock := &mockExecutionService{
-		listExecutionsFn: func(ctx context.Context, wfID *uuid.UUID, projID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+	mock := &mocks.WorkflowExecutionService{
+		ListExecutionsFunc: func(ctx context.Context, wfID *uuid.UUID, projID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
 			return []*database.ExecutionIndex{
 				{ID: executionID, WorkflowID: workflowID, Status: database.ExecutionStatusCompleted},
 			}, nil
@@ -529,7 +264,7 @@ func TestListExecutions_Success(t *testing.T) {
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
 		ExecutionService: mock,
 	})
 
@@ -545,8 +280,8 @@ func TestListExecutions_Success(t *testing.T) {
 func TestCreateWorkflow_Success(t *testing.T) {
 	workflowID := uuid.New()
 
-	mock := &mockCatalogService{
-		createWorkflowFn: func(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
+	mock := &mocks.WorkflowCatalogService{
+		CreateWorkflowFunc: func(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
 			if req.Name != "Test Workflow" {
 				t.Errorf("expected name 'Test Workflow', got %s", req.Name)
 			}
@@ -558,7 +293,7 @@ func TestCreateWorkflow_Success(t *testing.T) {
 
 	executor := NewServerExecutor(ServerExecutorConfig{
 		CatalogService:   mock,
-		ExecutionService: &mockExecutionService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "create_workflow", map[string]interface{}{
@@ -582,8 +317,8 @@ func TestCreateWorkflow_Success(t *testing.T) {
 
 func TestCreateWorkflow_MissingName(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "create_workflow", map[string]interface{}{})
@@ -601,8 +336,8 @@ func TestCreateWorkflow_MissingName(t *testing.T) {
 func TestCreateProject_Success(t *testing.T) {
 	createCalled := false
 
-	mock := &mockCatalogService{
-		createProjectFn: func(ctx context.Context, project *database.ProjectIndex, description string) error {
+	mock := &mocks.WorkflowCatalogService{
+		CreateProjectFunc: func(ctx context.Context, project *database.ProjectIndex, description string) error {
 			createCalled = true
 			if project.Name != "Test Project" {
 				t.Errorf("expected name 'Test Project', got %s", project.Name)
@@ -613,7 +348,7 @@ func TestCreateProject_Success(t *testing.T) {
 
 	executor := NewServerExecutor(ServerExecutorConfig{
 		CatalogService:   mock,
-		ExecutionService: &mockExecutionService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "create_project", map[string]interface{}{
@@ -634,8 +369,8 @@ func TestCreateProject_Success(t *testing.T) {
 func TestListProjects_Success(t *testing.T) {
 	projectID := uuid.New()
 
-	mock := &mockCatalogService{
-		listProjectsFn: func(ctx context.Context, limit, offset int) ([]*database.ProjectIndex, error) {
+	mock := &mocks.WorkflowCatalogService{
+		ListProjectsFunc: func(ctx context.Context, limit, offset int) ([]*database.ProjectIndex, error) {
 			return []*database.ProjectIndex{
 				{ID: projectID, Name: "Test Project"},
 			}, nil
@@ -644,7 +379,7 @@ func TestListProjects_Success(t *testing.T) {
 
 	executor := NewServerExecutor(ServerExecutorConfig{
 		CatalogService:   mock,
-		ExecutionService: &mockExecutionService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "list_projects", nil)
@@ -671,8 +406,8 @@ func TestListProjects_Success(t *testing.T) {
 func TestGetExecutionTimeline_Success(t *testing.T) {
 	executionID := uuid.New()
 
-	mock := &mockExecutionService{
-		getExecutionTimelineFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionTimeline, error) {
+	mock := &mocks.WorkflowExecutionService{
+		GetExecutionTimelineFunc: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionTimeline, error) {
 			return &workflow.ExecutionTimeline{
 				ExecutionID: executionID,
 				Frames: []workflow.TimelineFrame{
@@ -684,7 +419,7 @@ func TestGetExecutionTimeline_Success(t *testing.T) {
 	}
 
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
 		ExecutionService: mock,
 	})
 
@@ -709,8 +444,8 @@ func TestGetExecutionTimeline_Success(t *testing.T) {
 
 func TestValidateWorkflow_Success(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "validate_workflow", map[string]interface{}{
@@ -726,8 +461,8 @@ func TestValidateWorkflow_Success(t *testing.T) {
 
 func TestValidateWorkflow_MissingDefinition(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	result, err := executor.Execute(context.Background(), "validate_workflow", map[string]interface{}{})
@@ -744,8 +479,8 @@ func TestValidateWorkflow_MissingDefinition(t *testing.T) {
 
 func TestInvalidExecutionID(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	tools := []string{"get_execution", "get_execution_timeline", "stop_execution"}
@@ -771,8 +506,8 @@ func TestInvalidExecutionID(t *testing.T) {
 // Test recording tools return appropriate error (not implemented)
 func TestRecordingTools_NotImplemented(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	tools := []struct {
@@ -801,8 +536,8 @@ func TestRecordingTools_NotImplemented(t *testing.T) {
 // Test AI tools return appropriate error (not implemented)
 func TestAITools_NotImplemented(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{
-		CatalogService:   &mockCatalogService{},
-		ExecutionService: &mockExecutionService{},
+		CatalogService:   &mocks.WorkflowCatalogService{},
+		ExecutionService: &mocks.WorkflowExecutionService{},
 	})
 
 	tools := []struct {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 vi.mock('@/config', () => ({
   getConfig: vi.fn(() => Promise.resolve({ API_URL: 'http://localhost:8080' })),
@@ -7,15 +8,16 @@ vi.mock('@/config', () => ({
 import { fetchExecutionsList } from './executionApi';
 
 describe('executionApi', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
+    fetchMock = installFetchMock();
   });
 
   it('returns a validated execution list', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      fetchJsonResponse({
         executions: [
           {
             execution_id: 'exec-1',
@@ -24,8 +26,8 @@ describe('executionApi', () => {
             started_at: '2024-01-01T00:00:00.000Z',
           },
         ],
-      }),
-    } as Response);
+      })
+    );
 
     const executions = await fetchExecutionsList(5);
     expect(executions).toHaveLength(1);
@@ -33,12 +35,11 @@ describe('executionApi', () => {
   });
 
   it('throws when execution list validation fails', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      fetchJsonResponse({
         executions: [{ execution_id: 42 }],
-      }),
-    } as Response);
+      })
+    );
 
     await expect(fetchExecutionsList()).rejects.toThrow('Invalid ExecutionsList response');
   });

@@ -21,6 +21,57 @@ This document catalogs the architectural seams in browser-automation-studio for 
 
 ---
 
+## Test Infrastructure Boundaries
+
+### 1. Go API Test Utilities (New / Enforced)
+
+**Location:** `api/internal/testutil`
+
+**Contract:**
+- Shared API test utilities live under `internal/testutil`.
+- Production Go files must not import `github.com/vrooli/browser-automation-studio/internal/testutil`.
+- New Go files must not import the legacy top-level `github.com/vrooli/browser-automation-studio/testutil` package.
+- The boundary is enforced by `api/internal/testutil/no_prod_import_test.go`.
+
+**Status:** Good
+- Package documentation now defines the intended subpackages: `fixtures`, `mocks`, `db`, `httpx`, and `assertx`.
+- `api/internal/testutil/fixtures` now contains canonical recording/session fixtures for `domain.RecordingSession`, recording timeline entries, recording actions, page events, and session profiles. Service-level recording tests should use these builders instead of repeating full domain structs. Tests inside `services/recording/persistence` remain package-local because importing fixtures there would create a Go import cycle through the persistence package.
+- `api/internal/testutil/mocks` now contains canonical fakes for recurring seams: `shared.DirectoryScanner`, `shared.WorkflowIndexer`, `shared.ProjectIndexer`, plus function-backed `workflow.CatalogService` and `workflow.ExecutionService` fakes for tool-execution and future handler-style tests that need only a narrow service slice.
+- `api/internal/testutil/integration` contains shared optional-integration gates for short mode, required environment variables, required local commands, and health-checkable HTTP services. Playwright, Ollama, MinIO, and FFmpeg tests should use these helpers instead of hand-rolled `t.Skip` strings.
+- The old `api/testutil` package still exists and should be retired incrementally; a boundary test now prevents new imports from depending on it while useful recording/session factory behavior moves into `internal/testutil/fixtures`.
+
+### 2. Driver Test Helpers (Enforced)
+
+**Location:** `playwright-driver/tests/helpers`
+
+**Contract:**
+- Driver production code under `playwright-driver/src` must not import helper modules from `tests/helpers`.
+- The boundary is enforced by `playwright-driver/tests/unit/boundaries/no-prod-testutil-imports.test.ts`.
+
+**Status:** Good
+- The import boundary is now covered by the driver unit suite.
+- `tests/helpers/README.md` and `playwright-driver/docs/internal/SEAMS.md` document the current helper responsibilities: Playwright object fakes, HTTP mocks, typed instruction builders, config fixtures, and the compatibility barrel.
+- Session, recording, and telemetry builders should be added only when those seams recur across tests.
+
+### 3. UI Test Utilities (Enforced)
+
+**Location:** `ui/src/test-utils`
+
+**Contract:**
+- UI production modules under `ui/src` must not import from `src/test-utils`.
+- The boundary is enforced by `ui/vitest/boundaries/test-utils-imports.test.ts`.
+- `ui/scripts/run-vitest.sh` now has an explicit smoke/full split: default `pnpm test` runs stable smoke projects, and `pnpm test:full` runs all configured Vitest projects.
+
+**Status:** Good
+- The boundary check runs in the default smoke suite through the `boundaries` Vitest project.
+- `src/test-utils` now has focused entry points for `render`, `hooks`, `mocks`, `fixtures`, and `stores`, with compatibility exports for older `testHelpers` and `renderHook` imports.
+- Fetch-based API adapter, store, component, and recording-state tests should use `installFetchMock` plus `fetchJsonResponse`, `fetchTextResponse`, or `fetchEmptyResponse` from `@/test-utils` instead of hand-rolled `global.fetch` response objects.
+- The shared fetch seam now covers representative API adapter tests; the `projectStore`, `scenarioStore`, `workflowStore`, and `entitlementStore` suites; `ProjectDetail`; and recording viewport sync tests. UI tests should not assign `global.fetch` or `window.fetch` directly.
+- Workflow builder tests should use the canonical ReactFlow, Monaco, drag-event, workflow-node, workflow-edge, viewport, validation-response, and workflow-store fixtures from `@/test-utils` instead of redefining canvas/editor shims locally.
+- Assertion helpers still need to be added as recurring domain expectations emerge.
+
+---
+
 ## Go API Seams
 
 ### 1. AutomationEngine Seam (Strong)
@@ -938,6 +989,7 @@ function closeMetricsServer(server: Server): Promise<void>
 - Separates metrics endpoint from main HTTP server
 - Clean lifecycle functions for startup and shutdown
 - Infrastructure concern isolated from business logic
+- Unit seam coverage now exercises successful `/metrics` responses, 404 behavior for non-metrics paths, collection failure handling, and duplicate-port startup errors.
 
 ---
 

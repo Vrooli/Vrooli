@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "@/test-utils/testHelpers";
+import {
+  fetchJsonResponse,
+  installFetchMock,
+  renderWithProviders,
+  type FetchMock,
+} from "@/test-utils";
 import type { Project } from "./store";
 import ProjectDetail from "./ProjectDetail";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
@@ -170,40 +175,32 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
     },
   };
 
-  const originalFetch = global.fetch;
-  let fetchMock: ReturnType<typeof vi.fn>;
+  let fetchMock: FetchMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
     getConfigMock.mockResolvedValue({ API_URL: apiBase });
     executionStoreState.startExecution.mockResolvedValue(undefined);
 
-    fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
+    fetchMock = installFetchMock();
+    fetchMock.mockImplementation((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url === `${apiBase}/projects/${project.id}/workflows`) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ workflows: [workflow] }),
-        } as Response);
+        return Promise.resolve(fetchJsonResponse({ workflows: [workflow] }));
       }
 
       if (url === `${apiBase}/workflows/${workflow.id}/execute`) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ execution_id: "exec-123", status: "pending" }),
-        } as Response);
+        return Promise.resolve(
+          fetchJsonResponse({ execution_id: "exec-123", status: "pending" }),
+        );
       }
 
       return Promise.reject(new Error(`Unhandled fetch call for ${url}`));
     });
-
-    const mockFetch = fetchMock as unknown as typeof fetch;
-    global.fetch = mockFetch;
-    window.fetch = mockFetch;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    vi.unstubAllGlobals();
   });
 
   it("starts executions through the execution store when executing a workflow", async () => {

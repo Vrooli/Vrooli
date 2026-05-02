@@ -16,6 +16,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
+import { fetchEmptyResponse, fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 // Mock dependencies using proper factory functions
 vi.mock('../../config', () => ({
@@ -26,9 +27,11 @@ vi.mock('../../config', () => ({
 import { useEntitlementStore, isValidEmail, type ApiSource } from '../entitlementStore';
 
 describe('entitlementStore', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
+    fetchMock = installFetchMock();
 
     // Reset store state
     useEntitlementStore.setState({
@@ -112,13 +115,12 @@ describe('entitlementStore', () => {
 
   describe('getApiSource', () => {
     it('fetches API source from backend', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      fetchMock.mockResolvedValueOnce(
+        fetchJsonResponse({
           source: 'local',
           local_port: 16000,
-        }),
-      } as Response);
+        })
+      );
 
       await act(async () => {
         await useEntitlementStore.getState().getApiSource();
@@ -130,10 +132,7 @@ describe('entitlementStore', () => {
     });
 
     it('handles 404 gracefully with defaults', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchEmptyResponse({ status: 404 }));
 
       await act(async () => {
         await useEntitlementStore.getState().getApiSource();
@@ -146,7 +145,7 @@ describe('entitlementStore', () => {
     });
 
     it('handles network error gracefully', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useEntitlementStore.getState().getApiSource();
@@ -163,21 +162,17 @@ describe('entitlementStore', () => {
 
   describe('setApiSource', () => {
     it('sets API source to production', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ source: 'production', local_port: 15000 }),
-        } as Response)
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({ source: 'production', local_port: 15000 }))
         // For fetchStatus call after
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: '',
             status: 'inactive',
             tier: 'free',
             is_active: false,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setApiSource('production');
@@ -189,20 +184,16 @@ describe('entitlementStore', () => {
     });
 
     it('sets API source to local with port', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ source: 'local', local_port: 17000 }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({ source: 'local', local_port: 17000 }))
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: '',
             status: 'inactive',
             tier: 'free',
             is_active: false,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setApiSource('local', 17000);
@@ -214,20 +205,16 @@ describe('entitlementStore', () => {
     });
 
     it('sets API source to disabled', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ source: 'disabled', local_port: 15000 }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({ source: 'disabled', local_port: 15000 }))
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: '',
             status: 'inactive',
             tier: 'free',
             is_active: false,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setApiSource('disabled');
@@ -243,7 +230,7 @@ describe('entitlementStore', () => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
+      fetchMock.mockReturnValueOnce(fetchPromise);
 
       const setPromise = useEntitlementStore.getState().setApiSource('local');
 
@@ -254,10 +241,7 @@ describe('entitlementStore', () => {
       if (!resolvePromise) {
         throw new Error('Expected fetch resolver to be defined');
       }
-      resolvePromise({
-        ok: true,
-        json: async () => ({ source: 'local', local_port: 15000 }),
-      } as Response);
+      resolvePromise(fetchJsonResponse({ source: 'local', local_port: 15000 }));
 
       await act(async () => {
         await setPromise;
@@ -265,11 +249,7 @@ describe('entitlementStore', () => {
     });
 
     it('handles error response', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: async () => ({ error: 'Invalid source' }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ error: 'Invalid source' }, { status: 400 }));
 
       await act(async () => {
         await useEntitlementStore.getState().setApiSource('invalid' as ApiSource);
@@ -281,20 +261,16 @@ describe('entitlementStore', () => {
     });
 
     it('calls fetchStatus after setting source', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ source: 'local', local_port: 16000 }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({ source: 'local', local_port: 16000 }))
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: 'test@example.com',
             status: 'active',
             tier: 'pro',
             is_active: true,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setApiSource('local', 16000);
@@ -307,21 +283,17 @@ describe('entitlementStore', () => {
 
   describe('setUserEmail', () => {
     it('sets user email successfully', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({}),
-        } as Response)
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({}))
         // For fetchStatus call after
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: 'user@example.com',
             status: 'active',
             tier: 'pro',
             is_active: true,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setUserEmail('user@example.com');
@@ -357,17 +329,16 @@ describe('entitlementStore', () => {
     });
 
     it('normalizes email to lowercase', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({}))
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: 'user@example.com',
             status: 'inactive',
             tier: 'free',
             is_active: false,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setUserEmail('USER@EXAMPLE.COM');
@@ -408,10 +379,7 @@ describe('entitlementStore', () => {
         },
       });
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ status: 'cleared' }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ status: 'cleared' }));
 
       await act(async () => {
         await useEntitlementStore.getState().clearUserEmail();
@@ -426,22 +394,18 @@ describe('entitlementStore', () => {
 
   describe('setOverrideTier', () => {
     it('sets override tier successfully', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ tier: 'pro' }),
-        } as Response)
+      fetchMock
+        .mockResolvedValueOnce(fetchJsonResponse({ tier: 'pro' }))
         // For fetchStatus call after
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: '',
             status: 'active',
             tier: 'pro',
             is_active: true,
             override_tier: 'pro',
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setOverrideTier('pro');
@@ -457,21 +421,16 @@ describe('entitlementStore', () => {
     });
 
     it('clears override tier with null', async () => {
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 204,
-          json: async () => ({}),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+      fetchMock
+        .mockResolvedValueOnce(fetchEmptyResponse())
+        .mockResolvedValueOnce(
+          fetchJsonResponse({
             user_identity: '',
             status: 'inactive',
             tier: 'free',
             is_active: false,
-          }),
-        } as Response);
+          })
+        );
 
       await act(async () => {
         await useEntitlementStore.getState().setOverrideTier(null);
@@ -509,10 +468,7 @@ describe('entitlementStore', () => {
         ai_reset_date: '2025-02-01',
       };
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockStatus,
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockStatus));
 
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
@@ -527,11 +483,7 @@ describe('entitlementStore', () => {
     });
 
     it('handles HTTP error responses', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: 'Internal server error' }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ error: 'Internal server error' }, { status: 500 }));
 
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
@@ -550,7 +502,7 @@ describe('entitlementStore', () => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
+      fetchMock.mockReturnValueOnce(fetchPromise);
 
       const fetchCall = useEntitlementStore.getState().fetchStatus();
 
@@ -561,15 +513,14 @@ describe('entitlementStore', () => {
       if (!resolvePromise) {
         throw new Error('Expected fetch resolver to be defined');
       }
-      resolvePromise({
-        ok: true,
-        json: async () => ({
+      resolvePromise(
+        fetchJsonResponse({
           user_identity: '',
           status: 'inactive',
           tier: 'free',
           is_active: false,
-        }),
-      } as Response);
+        })
+      );
 
       await act(async () => {
         await fetchCall;
@@ -579,9 +530,8 @@ describe('entitlementStore', () => {
     });
 
     it('updates userEmail from status response', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      fetchMock.mockResolvedValueOnce(
+        fetchJsonResponse({
           user_identity: 'fetched@example.com',
           status: 'active',
           tier: 'pro',
@@ -599,8 +549,8 @@ describe('entitlementStore', () => {
           ai_credits_remaining: -1,
           ai_requests_count: 0,
           ai_reset_date: '2025-02-01',
-        }),
-      } as Response);
+        })
+      );
 
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
@@ -611,9 +561,8 @@ describe('entitlementStore', () => {
     });
 
     it('updates overrideTier from status response', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      fetchMock.mockResolvedValueOnce(
+        fetchJsonResponse({
           user_identity: '',
           status: 'active',
           tier: 'studio',
@@ -632,8 +581,8 @@ describe('entitlementStore', () => {
           ai_credits_remaining: -1,
           ai_requests_count: 0,
           ai_reset_date: '2025-02-01',
-        }),
-      } as Response);
+        })
+      );
 
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
@@ -653,10 +602,7 @@ describe('entitlementStore', () => {
         is_active: true,
       };
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockStatus,
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockStatus));
 
       await act(async () => {
         await useEntitlementStore.getState().refreshEntitlement();
@@ -671,10 +617,7 @@ describe('entitlementStore', () => {
 
   describe('getUserEmail', () => {
     it('fetches stored user email', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ email: 'stored@example.com' }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ email: 'stored@example.com' }));
 
       let result = '';
       await act(async () => {
@@ -686,10 +629,7 @@ describe('entitlementStore', () => {
     });
 
     it('returns empty string on error', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchEmptyResponse({ status: 404 }));
 
       let result = '';
       await act(async () => {
@@ -717,10 +657,7 @@ describe('entitlementStore', () => {
         },
       ];
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ periods: mockPeriods }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ periods: mockPeriods }));
 
       await act(async () => {
         await useEntitlementStore.getState().fetchUsageHistory(6, 0);
@@ -732,7 +669,7 @@ describe('entitlementStore', () => {
     });
 
     it('handles usage history error gracefully', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useEntitlementStore.getState().fetchUsageHistory();
@@ -764,10 +701,7 @@ describe('entitlementStore', () => {
         has_more: false,
       };
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockPage,
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockPage));
 
       await act(async () => {
         await useEntitlementStore.getState().fetchOperationLog('2025-01');
@@ -811,10 +745,7 @@ describe('entitlementStore', () => {
         has_more: false,
       };
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockPage,
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockPage));
 
       await act(async () => {
         await useEntitlementStore.getState().fetchOperationLog('2025-01', undefined, 20, 1);

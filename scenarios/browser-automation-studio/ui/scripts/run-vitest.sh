@@ -4,12 +4,42 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-PROJECTS=(
+SMOKE_PROJECTS=(
+  boundaries
   stores
   features-core
   workflow-palette
   workflow-builder
 )
+
+FULL_PROJECTS=(
+  boundaries
+  stores
+  features-core
+  workflow-palette
+  workflow-builder
+  utils
+  record-mode
+  session-manager
+  subscription
+  components
+  export-domain
+  exports-domain
+  shared
+)
+
+case "${BAS_VITEST_SUITE:-smoke}" in
+  smoke)
+    PROJECTS=("${SMOKE_PROJECTS[@]}")
+    ;;
+  full)
+    PROJECTS=("${FULL_PROJECTS[@]}")
+    ;;
+  *)
+    echo "BAS_VITEST_SUITE must be 'smoke' or 'full'" >&2
+    exit 2
+    ;;
+esac
 
 rm -rf coverage
 mkdir -p coverage
@@ -17,9 +47,24 @@ export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
 
 ARGS=("$@")
 
+has_coverage_arg() {
+  for arg in "${ARGS[@]}"; do
+    case "$arg" in
+      --coverage|--coverage=*|--no-coverage)
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
 for project in "${PROJECTS[@]}"; do
   echo "\n=== Running Vitest project: ${project} ==="
-  pnpm exec vitest run --project "$project" "${ARGS[@]}"
+  EXTRA_ARGS=()
+  if [ "$project" = "boundaries" ] && ! has_coverage_arg; then
+    EXTRA_ARGS=(--coverage=false)
+  fi
+  pnpm exec vitest run --project "$project" "${EXTRA_ARGS[@]}" "${ARGS[@]}"
   if [ -f coverage/vitest-requirements.json ]; then
     mv coverage/vitest-requirements.json "coverage/vitest-requirements-${project}.json"
   fi

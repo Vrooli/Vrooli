@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
+import { fetchJsonResponse, fetchTextResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 // Mock dependencies using proper factory functions
 vi.mock('../../config', () => ({
@@ -33,9 +34,11 @@ vi.mock('../../utils/logger', () => ({
 import { useScenarioStore } from '../scenarioStore';
 
 describe('scenarioStore', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
+    fetchMock = installFetchMock();
 
     // Reset store state
     useScenarioStore.setState({
@@ -79,10 +82,7 @@ describe('scenarioStore', () => {
         { name: 'notes', description: 'Notes app', status: 'stopped' },
       ];
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: mockScenarios }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -101,7 +101,7 @@ describe('scenarioStore', () => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
+      fetchMock.mockReturnValueOnce(fetchPromise);
 
       const fetchCall = useScenarioStore.getState().fetchScenarios();
 
@@ -112,10 +112,7 @@ describe('scenarioStore', () => {
       if (!resolvePromise) {
         throw new Error('Expected fetch resolver to be defined');
       }
-      resolvePromise({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      resolvePromise(fetchJsonResponse({ scenarios: [] }));
 
       await act(async () => {
         await fetchCall;
@@ -127,10 +124,7 @@ describe('scenarioStore', () => {
     it('updates lastFetchTime on successful fetch', async () => {
       const beforeFetch = Date.now();
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: [] }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -144,10 +138,7 @@ describe('scenarioStore', () => {
     });
 
     it('handles empty scenarios array', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: [] }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -166,10 +157,7 @@ describe('scenarioStore', () => {
         { name: 'notes', description: 'Notes app', status: 'running' },
       ];
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: mockScenarios }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -190,10 +178,7 @@ describe('scenarioStore', () => {
         { name: 'notes', description: 'Notes app' }, // Missing status
       ];
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: mockScenarios }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -210,12 +195,9 @@ describe('scenarioStore', () => {
 
   describe('Caching', () => {
     it('uses cache when fetched within 30 seconds', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          scenarios: [{ name: 'calendar', description: 'Calendar', status: 'running' }],
-        }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({
+        scenarios: [{ name: 'calendar', description: 'Calendar', status: 'running' }],
+      }));
 
       // First fetch
       await act(async () => {
@@ -235,12 +217,9 @@ describe('scenarioStore', () => {
     it('fetches again after cache expires (30 seconds)', async () => {
       vi.useFakeTimers();
 
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          scenarios: [{ name: 'calendar', description: 'Calendar', status: 'running' }],
-        }),
-      } as Response);
+      fetchMock.mockResolvedValue(fetchJsonResponse({
+        scenarios: [{ name: 'calendar', description: 'Calendar', status: 'running' }],
+      }));
 
       // First fetch
       await act(async () => {
@@ -270,7 +249,7 @@ describe('scenarioStore', () => {
         resolveFirstFetch = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(firstFetchPromise);
+      fetchMock.mockReturnValueOnce(firstFetchPromise);
 
       // Start first fetch
       const firstFetch = useScenarioStore.getState().fetchScenarios();
@@ -282,10 +261,7 @@ describe('scenarioStore', () => {
       if (!resolveFirstFetch) {
         throw new Error('Expected fetch resolver to be defined');
       }
-      resolveFirstFetch({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      resolveFirstFetch(fetchJsonResponse({ scenarios: [] }));
 
       await act(async () => {
         await Promise.all([firstFetch, secondFetch]);
@@ -298,11 +274,10 @@ describe('scenarioStore', () => {
 
   describe('Error Handling', () => {
     it('handles HTTP error responses', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: false,
+      fetchMock.mockResolvedValueOnce(fetchTextResponse('Internal server error', {
         status: 500,
-        text: async () => 'Internal server error',
-      } as Response);
+        statusText: 'Internal Server Error',
+      }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -316,7 +291,7 @@ describe('scenarioStore', () => {
     });
 
     it('handles network errors', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -332,7 +307,7 @@ describe('scenarioStore', () => {
     it('updates lastFetchTime even on error to avoid hammering', async () => {
       const beforeFetch = Date.now();
 
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -346,7 +321,7 @@ describe('scenarioStore', () => {
     });
 
     it('uses default error message for non-Error exceptions', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce('String error');
+      fetchMock.mockRejectedValueOnce('String error');
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -361,7 +336,7 @@ describe('scenarioStore', () => {
   describe('clearError', () => {
     it('clears error state', async () => {
       // Set an error first
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -382,10 +357,7 @@ describe('scenarioStore', () => {
         { name: 'calendar', description: 'Calendar', status: 'running' },
       ];
 
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: mockScenarios }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: mockScenarios }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();
@@ -408,10 +380,7 @@ describe('scenarioStore', () => {
 
   describe('API Integration', () => {
     it('calls correct API endpoint', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ scenarios: [] }),
-      } as Response);
+      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ scenarios: [] }));
 
       await act(async () => {
         await useScenarioStore.getState().fetchScenarios();

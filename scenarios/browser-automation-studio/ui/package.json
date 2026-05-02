@@ -16,6 +16,7 @@
     "build": "tsc && npx vite build && node ./scripts/gzip-dist.mjs",
     "preview": "npx vite preview",
     "test": "bash ./scripts/run-vitest.sh",
+    "test:full": "BAS_VITEST_SUITE=full bash ./scripts/run-vitest.sh",
     "test:stores": "vitest run --project stores",
     "test:components": "vitest run --project components-core --project components-palette",
     "test:workflow-builder": "vitest run --project workflow-builder-basic --project workflow-builder-view --project workflow-builder-toolbar --project workflow-builder-drag --project workflow-builder-autosave",

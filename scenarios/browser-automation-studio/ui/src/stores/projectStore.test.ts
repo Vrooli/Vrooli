@@ -1,18 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { useProjectStore, type Project } from '@/domains/projects';
-
-// Mock fetch globally
-global.fetch = vi.fn();
-
-function createFetchResponse<T>(data: T, ok = true, status = ok ? 200 : 400) {
-  return Promise.resolve({
-    ok,
-    status,
-    text: () => Promise.resolve(JSON.stringify(data)),
-    json: () => Promise.resolve(data),
-  } as Response);
-}
+import { fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 const ts = (iso: string) => {
   const date = new Date(iso);
@@ -20,8 +9,12 @@ const ts = (iso: string) => {
 };
 
 describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock = installFetchMock();
+
     // Reset store state
     useProjectStore.setState({
       projects: [],
@@ -66,9 +59,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       },
     ];
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      createFetchResponse({ projects: mockProjects })
-    );
+    fetchMock.mockResolvedValueOnce(fetchJsonResponse({ projects: mockProjects }));
 
     await act(async () => {
       await useProjectStore.getState().fetchProjects();
@@ -102,9 +93,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       updated_at: '2025-01-03T00:00:00.000Z',
     };
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      createFetchResponse(createdProjectProto)
-    );
+    fetchMock.mockResolvedValueOnce(fetchJsonResponse(createdProjectProto));
 
     let returnedProject: Project | undefined;
     await act(async () => {
@@ -126,9 +115,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
   it('handles project creation errors [REQ:BAS-PROJECT-CREATE-VALIDATION]', async () => {
     const errorMessage = 'Project name already exists';
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      createFetchResponse({ error: errorMessage }, false)
-    );
+    fetchMock.mockResolvedValueOnce(fetchJsonResponse({ error: errorMessage }, { status: 400 }));
 
     await expect(async () => {
       await act(async () => {
@@ -174,7 +161,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       updated_at: '2025-01-04T00:00:00.000Z',
     };
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createFetchResponse(updatedProjectProto));
+    fetchMock.mockResolvedValueOnce(fetchJsonResponse(updatedProjectProto));
 
     await act(async () => {
       await useProjectStore.getState().updateProject('existing-id', updates);
@@ -204,9 +191,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 
     useProjectStore.setState({ projects: [projectToDelete] });
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      createFetchResponse({ success: true })
-    );
+    fetchMock.mockResolvedValueOnce(fetchJsonResponse({ success: true }));
 
     await act(async () => {
       await useProjectStore.getState().deleteProject('delete-id');
