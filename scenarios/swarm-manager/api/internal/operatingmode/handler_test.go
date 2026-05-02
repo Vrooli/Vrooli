@@ -77,6 +77,41 @@ func TestCatalogEndpointReturnsRegisteredModes(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"usage_count":1`) {
 		t.Fatalf("expected at least one mode to report usage_count=1: %s", rec.Body.String())
 	}
+
+	// Decision-metadata fields are part of the catalog wire contract from day
+	// one (no omitempty on the three lists). Decode and assert per mode.
+	var catalog struct {
+		Modes []ModeCatalogEntry `json:"modes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &catalog); err != nil {
+		t.Fatalf("decode catalog: %v", err)
+	}
+	if len(catalog.Modes) != len(Modes()) {
+		t.Fatalf("catalog modes len = %d, want %d", len(catalog.Modes), len(Modes()))
+	}
+	for _, entry := range catalog.Modes {
+		if len(entry.BestFor) == 0 {
+			t.Errorf("mode %q wire response missing best_for entries", entry.Mode)
+		}
+		if len(entry.NotFor) == 0 {
+			t.Errorf("mode %q wire response missing not_for entries", entry.Mode)
+		}
+		if len(entry.Tradeoffs) == 0 {
+			t.Errorf("mode %q wire response missing tradeoffs entries", entry.Mode)
+		}
+	}
+	// JSON keys must use snake_case to match the rest of the catalog wire.
+	for _, key := range []string{`"best_for"`, `"not_for"`, `"tradeoffs"`} {
+		if !strings.Contains(rec.Body.String(), key) {
+			t.Fatalf("catalog response missing JSON key %s: %s", key, rec.Body.String())
+		}
+	}
+	// when_in_doubt_pick_instead is omitempty; item-level intentionally omits
+	// it (it is the safe default), so the key should appear at least once for
+	// the other modes.
+	if !strings.Contains(rec.Body.String(), `"when_in_doubt_pick_instead"`) {
+		t.Fatalf("catalog response missing when_in_doubt_pick_instead key: %s", rec.Body.String())
+	}
 }
 
 func TestGetModeReturnsLinkedInitiatives(t *testing.T) {

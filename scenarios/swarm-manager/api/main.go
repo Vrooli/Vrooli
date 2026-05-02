@@ -73,6 +73,7 @@ type Server struct {
 	initReviewStopChan  chan struct{}
 	graphBroker         *graph.Broker
 	graphDispatch       *graph.Dispatch
+	graphProjection     *graph.ProjectionService
 	queueHandler        *queue.Handler
 	scenarioRoot        string
 	eventDB             *sql.DB

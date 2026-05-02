@@ -195,10 +195,20 @@ function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
   const mode = recordValue(raw);
   const phases = mode.phases;
   const supportsPhases = boolValue(mode.supports_phases ?? mode.supportsPhases) ?? false;
+  const whenInDoubt = stringValue(
+    mode.when_in_doubt_pick_instead ?? mode.whenInDoubtPickInstead,
+    undefined,
+  );
   return {
     mode: stringValue(mode.mode, "item-level"),
     label: stringValue(mode.label),
     description: stringValue(mode.description, undefined),
+    bestFor: stringArray(mode.best_for ?? mode.bestFor),
+    notFor: stringArray(mode.not_for ?? mode.notFor),
+    tradeoffs: stringArray(mode.tradeoffs),
+    whenInDoubtPickInstead: whenInDoubt
+      ? (whenInDoubt as InitiativeOperatingMode)
+      : undefined,
     usageCount: numberValue(mode.usage_count ?? mode.usageCount, 0) ?? 0,
     scopeKind: stringValue(mode.scope_kind ?? mode.scopeKind),
     runStrategy: stringValue(mode.run_strategy ?? mode.runStrategy),

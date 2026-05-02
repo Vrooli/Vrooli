@@ -435,6 +435,28 @@ export const literalSelectors = {
     itemLevelEmptyStateSwitchButton: "initiative-mode-item-level-empty-state-switch",
     roundTimelineShowMore: "initiative-mode-round-timeline-show-more",
     operatingModeErrorTechnicalDetails: "operating-mode-error-technical-details",
+    // Operating-mode details page concept explainers + decision-support
+    // sections. The picker and how-to-choose dialog also share the explainer
+    // primitive via these selectors.
+    conceptExplainerDialog: "concept-explainer-dialog",
+    modeDetailsScopeInfoIcon: "operating-mode-details-scope-info",
+    modeDetailsRunStrategyInfoIcon: "operating-mode-details-run-strategy-info",
+    modeDetailsDefaultInfoIcon: "operating-mode-details-default-info",
+    modeDetailsCapabilitiesSection: "operating-mode-details-capabilities",
+    modeDetailsBestForSection: "operating-mode-details-best-for",
+    modeDetailsNotForSection: "operating-mode-details-not-for",
+    modeDetailsTradeoffsSection: "operating-mode-details-tradeoffs",
+    modeDetailsLearnMoreSection: "operating-mode-details-learn-more",
+    modeDetailsHowToChooseButton: "operating-mode-details-how-to-choose",
+    modePickerGuidanceCallouts: "initiative-mode-picker-guidance-callouts",
+    modePickerPhaseGraphPreview: "initiative-mode-picker-phase-graph-preview",
+    modePickerCriteriaPrewarning: "initiative-mode-picker-criteria-prewarning",
+    modePickerHowToChooseLink: "initiative-mode-picker-how-to-choose",
+    howToChooseDialog: "how-to-choose-dialog",
+    howToChooseDecisionFlow: "how-to-choose-decision-flow",
+    howToChooseMatrix: "how-to-choose-matrix",
+    orientationBanner: "operating-mode-orientation-banner",
+    graphNodeActiveRoundChip: "graph-node-active-round-chip",
   },
   // Initiative feedback surface — dialog, panel, thread, proposal review.
   feedback: {

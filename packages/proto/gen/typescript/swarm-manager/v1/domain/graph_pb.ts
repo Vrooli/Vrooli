@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/graph.proto.
  */
 export const file_swarm_manager_v1_domain_graph: GenFile = /*@__PURE__*/
-  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9ncmFwaC5wcm90bxIQc3dhcm1fbWFuYWdlci52MSIlCg1HcmFwaFBvc2l0aW9uEgkKAXgYASABKAESCQoBeRgCIAEoASKcAQoVR3JhcGhJbml0aWF0aXZlUm9sbHVwEhYKBXRvdGFsGAEgASgFQge6SAQaAigAEhoKCWNvbXBsZXRlZBgCIAEoBUIHukgEGgIoABIcCgtpbl9wcm9ncmVzcxgDIAEoBUIHukgEGgIoABIXCgZmYWlsZWQYBCABKAVCB7pIBBoCKAASGAoHcGVuZGluZxgFIAEoBUIHukgEGgIoACKQAwoUR3JhcGhCYWNrbG9nTm9kZURhdGESOAoEa2luZBgBIAEoCUIqukgnciVSBGlkZWFSCHJlc2VhcmNoUgNmaXhSB2V4ZWN1dGVSBWNob3JlEhUKBG5hbWUYAiABKAlCB7pIBHICEAESFgoFdGl0bGUYAyABKAlCB7pIBHICEAESjwEKBnN0YXR1cxgEIAEoCUJ/ukh8cnpSB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJaW5fcmV2aWV3Ug5yZXZpZXdfcGVuZGluZ1IJY29tcGxldGVkUgZmYWlsZWRSDm5lZWRzX2ZvbGxvd3VwUghhcmNoaXZlZBIbCghwcmlvcml0eRgFIAEoBUIJukgGGgQYCigBEiQKF2FjdGl2ZV9leGVjdXRpb25fc3RhdHVzGAYgASgJSACIAQESHgoWYWN0aXZlX2V4ZWN1dGlvbl9jb3VudBgHIAEoBUIaChhfYWN0aXZlX2V4ZWN1dGlvbl9zdGF0dXMimgEKF0dyYXBoSW5pdGlhdGl2ZU5vZGVEYXRhEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESFwoGc3RhdHVzGAMgASgJQge6SARyAhABEjcKBnJvbGx1cBgEIAEoCzInLnN3YXJtX21hbmFnZXIudjEuR3JhcGhJbml0aWF0aXZlUm9sbHVwInoKFEdyYXBoQ2FwdHVyZU5vZGVEYXRhEhMKAmlkGAEgASgJQge6SARyAhABEhUKBHRleHQYAiABKAlCB7pIBHICEAESNgoGc3RhdHVzGAMgASgJQia6SCNyIVILY2xhc3NpZnlpbmdSCmNsYXNzaWZpZWRSBmZhaWxlZCJnChVHcmFwaFNjZW5hcmlvTm9kZURhdGESFQoEbmFtZRgBIAEoCUIHukgEcgIQARI3CgZzdGF0dXMYAiABKAlCJ7pIJHIiUgdydW5uaW5nUgdzdG9wcGVkUgVlcnJvclIHdW5rbm93biLdAgoWR3JhcGhFeGVjdXRpb25Ob2RlRGF0YRIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESSwoMYmFja2xvZ19raW5kGAIgASgJQjW6SDJyMFIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZVIFY2hvcmVSCXNwZWMtc3luYxIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESdQoGc3RhdHVzGAQgASgJQmW6SGJyYFIHcGVuZGluZ1IIc3RhcnRpbmdSB3J1bm5pbmdSDG5lZWRzX3Jldmlld1IKdmFsaWRhdGluZ1ILbmVlZHNfZml4dXBSCWNvbXBsZXRlZFIGZmFpbGVkUghjYW5jZWxlZBIhCgRtb2RlGAUgASgJQhO6SBByDlIGbWFudWFsUgR5b2xvEhMKBnJ1bl9pZBgGIAEoCUgAiAEBQgkKB19ydW5faWQiwgUKGkdyYXBoQWdlbnRBY3Rpdml0eU5vZGVEYXRhEhwKC2FjdGl2aXR5X2lkGAEgASgJQge6SARyAhABEkoKCm93bmVyX3R5cGUYAiABKAlCNrpIM3IxUgdiYWNrbG9nUgdjYXB0dXJlUghzY2VuYXJpb1IKaW5pdGlhdGl2ZVIHc2Vzc2lvbhIXCgpvd25lcl9raW5kGAMgASgJSACIAQESGwoKb3duZXJfbmFtZRgEIAEoCUIHukgEcgIQARIYCgtvd25lcl90aXRsZRgFIAEoCUgBiAEBEhkKDGV4ZWN1dGlvbl9pZBgGIAEoCUgCiAEBEqABCgdwdXJwb3NlGAcgASgJQo4BukiKAXKHAVIKaW5pdGlhbGl6ZVIId29ya3Nob3BSCGZpbmFsaXplUghyZXNlYXJjaFIHcHJvY2Vzc1IFZml4dXBSCGZvbGxvd3VwUglzcGVjX3N5bmNSCGNsYXNzaWZ5UgdjbGFyaWZ5UghmZWVkYmFja1IRZmVlZGJhY2tfY29udGludWVSBnJldmlldxIwChBpbnRlcmFjdGlvbl90eXBlGAggASgJQha6SBNyEVIFc3Bhd25SCGNvbnRpbnVlEmkKBnN0YXR1cxgJIAEoCUJZukhWclRSB3BlbmRpbmdSCHN0YXJ0aW5nUgdydW5uaW5nUgxuZWVkc19yZXZpZXdSCGNvbXBsZXRlUgZmYWlsZWRSCWNhbmNlbGxlZFILdW5zcGVjaWZpZWQSEwoGcnVuX2lkGAogASgJSAOIAQESFAoHdGFza19pZBgLIAEoCUgEiAEBEh0KDHJlcXVlc3RlZF9hdBgMIAEoCUIHukgEcgIQAUINCgtfb3duZXJfa2luZEIOCgxfb3duZXJfdGl0bGVCDwoNX2V4ZWN1dGlvbl9pZEIJCgdfcnVuX2lkQgoKCF90YXNrX2lkImYKEEdyYXBoUnVuTm9kZURhdGESFwoGcnVuX2lkGAEgASgJQge6SARyAhABEhQKB3Rhc2tfaWQYAiABKAlIAIgBARIXCgZzdGF0dXMYAyABKAlCB7pIBHICEAFCCgoIX3Rhc2tfaWQiwAMKDUdyYXBoTm9kZURhdGESOQoHYmFja2xvZxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuR3JhcGhCYWNrbG9nTm9kZURhdGFIABI/Cgppbml0aWF0aXZlGAIgASgLMikuc3dhcm1fbWFuYWdlci52MS5HcmFwaEluaXRpYXRpdmVOb2RlRGF0YUgAEjkKB2NhcHR1cmUYAyABKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkdyYXBoQ2FwdHVyZU5vZGVEYXRhSAASOwoIc2NlbmFyaW8YBCABKAsyJy5zd2FybV9tYW5hZ2VyLnYxLkdyYXBoU2NlbmFyaW9Ob2RlRGF0YUgAEj0KCWV4ZWN1dGlvbhgFIAEoCzIoLnN3YXJtX21hbmFnZXIudjEuR3JhcGhFeGVjdXRpb25Ob2RlRGF0YUgAEkAKCGFjdGl2aXR5GAYgASgLMiwuc3dhcm1fbWFuYWdlci52MS5HcmFwaEFnZW50QWN0aXZpdHlOb2RlRGF0YUgAEjEKA3J1bhgHIAEoCzIiLnN3YXJtX21hbmFnZXIudjEuR3JhcGhSdW5Ob2RlRGF0YUgAQgcKBXZhbHVlIugBCglHcmFwaE5vZGUSEwoCaWQYASABKAlCB7pIBHICEAESZAoEdHlwZRgCIAEoCUJWukhTclFSC0JhY2tsb2dJdGVtUgpJbml0aWF0aXZlUgdDYXB0dXJlUghTY2VuYXJpb1IPRXhlY3V0aW9uUmVjb3JkUg1BZ2VudEFjdGl2aXR5UgNSdW4SLQoEZGF0YRgDIAEoCzIfLnN3YXJtX21hbmFnZXIudjEuR3JhcGhOb2RlRGF0YRIxCghwb3NpdGlvbhgEIAEoCzIfLnN3YXJtX21hbmFnZXIudjEuR3JhcGhQb3NpdGlvbiLrAQoJR3JhcGhFZGdlEhMKAmlkGAEgASgJQge6SARyAhABEhcKBnNvdXJjZRgCIAEoCUIHukgEcgIQARIXCgZ0YXJnZXQYAyABKAlCB7pIBHICEAESlgEKBHR5cGUYBCABKAlChwG6SIMBcoABUgpkZXBlbmRzX29uUgltZW1iZXJfb2ZSDWNsYXNzaWZpZWRfYXNSB3RhcmdldHNSCGV4ZWN1dGVzUglmb2xsb3dfdXBSDGFjdGl2aXR5X2ZvclIQcmVjb3Jkc19hY3Rpdml0eVILc3Bhd25lZF9ydW5SDWNvbnRpbnVlZF9ydW4i0wIKCUdyYXBoTWV0YRIvCgRsZW5zGAEgASgJQiG6SB5yHFIIdG9wb2xvZ3lSBGZsb3dSCm9wZXJhdGlvbnMSGwoKbm9kZV9jb3VudBgCIAEoBUIHukgEGgIoABIbCgplZGdlX2NvdW50GAMgASgFQge6SAQaAigAEh0KDGdlbmVyYXRlZF9hdBgEIAEoCUIHukgEcgIQARIkChdhZ2VudF9tYW5hZ2VyX2F2YWlsYWJsZRgFIAEoCEgAiAEBEhoKDWZvY3VzX25vZGVfaWQYBiABKAlIAYgBARIcCg9mb2N1c19ub2RlX3R5cGUYByABKAlIAogBARIRCgRoaW50GAggASgJSAOIAQFCGgoYX2FnZW50X21hbmFnZXJfYXZhaWxhYmxlQhAKDl9mb2N1c19ub2RlX2lkQhIKEF9mb2N1c19ub2RlX3R5cGVCBwoFX2hpbnRCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9ncmFwaC5wcm90bxIQc3dhcm1fbWFuYWdlci52MSIlCg1HcmFwaFBvc2l0aW9uEgkKAXgYASABKAESCQoBeRgCIAEoASKcAQoVR3JhcGhJbml0aWF0aXZlUm9sbHVwEhYKBXRvdGFsGAEgASgFQge6SAQaAigAEhoKCWNvbXBsZXRlZBgCIAEoBUIHukgEGgIoABIcCgtpbl9wcm9ncmVzcxgDIAEoBUIHukgEGgIoABIXCgZmYWlsZWQYBCABKAVCB7pIBBoCKAASGAoHcGVuZGluZxgFIAEoBUIHukgEGgIoACKQAwoUR3JhcGhCYWNrbG9nTm9kZURhdGESOAoEa2luZBgBIAEoCUIqukgnciVSBGlkZWFSCHJlc2VhcmNoUgNmaXhSB2V4ZWN1dGVSBWNob3JlEhUKBG5hbWUYAiABKAlCB7pIBHICEAESFgoFdGl0bGUYAyABKAlCB7pIBHICEAESjwEKBnN0YXR1cxgEIAEoCUJ/ukh8cnpSB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJaW5fcmV2aWV3Ug5yZXZpZXdfcGVuZGluZ1IJY29tcGxldGVkUgZmYWlsZWRSDm5lZWRzX2ZvbGxvd3VwUghhcmNoaXZlZBIbCghwcmlvcml0eRgFIAEoBUIJukgGGgQYCigBEiQKF2FjdGl2ZV9leGVjdXRpb25fc3RhdHVzGAYgASgJSACIAQESHgoWYWN0aXZlX2V4ZWN1dGlvbl9jb3VudBgHIAEoBUIaChhfYWN0aXZlX2V4ZWN1dGlvbl9zdGF0dXMikwEKGkdyYXBoSW5pdGlhdGl2ZUFjdGl2ZVJvdW5kEhUKBG1vZGUYASABKAlCB7pIBHICEAESFgoFcGhhc2UYAiABKAlCB7pIBHICEAESFgoFcm91bmQYAyABKAVCB7pIBBoCKAESLgoGc3RhdHVzGAQgASgJQh66SBtyGVIIcmVzZXJ2ZWRSDWFnZW50X3J1bm5pbmcipAIKF0dyYXBoSW5pdGlhdGl2ZU5vZGVEYXRhEhUKBG5hbWUYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESFwoGc3RhdHVzGAMgASgJQge6SARyAhABEjcKBnJvbGx1cBgEIAEoCzInLnN3YXJtX21hbmFnZXIudjEuR3JhcGhJbml0aWF0aXZlUm9sbHVwEhsKDm9wZXJhdGluZ19tb2RlGAUgASgJSACIAQESRwoMYWN0aXZlX3JvdW5kGAYgASgLMiwuc3dhcm1fbWFuYWdlci52MS5HcmFwaEluaXRpYXRpdmVBY3RpdmVSb3VuZEgBiAEBQhEKD19vcGVyYXRpbmdfbW9kZUIPCg1fYWN0aXZlX3JvdW5kInoKFEdyYXBoQ2FwdHVyZU5vZGVEYXRhEhMKAmlkGAEgASgJQge6SARyAhABEhUKBHRleHQYAiABKAlCB7pIBHICEAESNgoGc3RhdHVzGAMgASgJQia6SCNyIVILY2xhc3NpZnlpbmdSCmNsYXNzaWZpZWRSBmZhaWxlZCJnChVHcmFwaFNjZW5hcmlvTm9kZURhdGESFQoEbmFtZRgBIAEoCUIHukgEcgIQARI3CgZzdGF0dXMYAiABKAlCJ7pIJHIiUgdydW5uaW5nUgdzdG9wcGVkUgVlcnJvclIHdW5rbm93biLdAgoWR3JhcGhFeGVjdXRpb25Ob2RlRGF0YRIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESSwoMYmFja2xvZ19raW5kGAIgASgJQjW6SDJyMFIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZVIFY2hvcmVSCXNwZWMtc3luYxIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESdQoGc3RhdHVzGAQgASgJQmW6SGJyYFIHcGVuZGluZ1IIc3RhcnRpbmdSB3J1bm5pbmdSDG5lZWRzX3Jldmlld1IKdmFsaWRhdGluZ1ILbmVlZHNfZml4dXBSCWNvbXBsZXRlZFIGZmFpbGVkUghjYW5jZWxlZBIhCgRtb2RlGAUgASgJQhO6SBByDlIGbWFudWFsUgR5b2xvEhMKBnJ1bl9pZBgGIAEoCUgAiAEBQgkKB19ydW5faWQiwgUKGkdyYXBoQWdlbnRBY3Rpdml0eU5vZGVEYXRhEhwKC2FjdGl2aXR5X2lkGAEgASgJQge6SARyAhABEkoKCm93bmVyX3R5cGUYAiABKAlCNrpIM3IxUgdiYWNrbG9nUgdjYXB0dXJlUghzY2VuYXJpb1IKaW5pdGlhdGl2ZVIHc2Vzc2lvbhIXCgpvd25lcl9raW5kGAMgASgJSACIAQESGwoKb3duZXJfbmFtZRgEIAEoCUIHukgEcgIQARIYCgtvd25lcl90aXRsZRgFIAEoCUgBiAEBEhkKDGV4ZWN1dGlvbl9pZBgGIAEoCUgCiAEBEqABCgdwdXJwb3NlGAcgASgJQo4BukiKAXKHAVIKaW5pdGlhbGl6ZVIId29ya3Nob3BSCGZpbmFsaXplUghyZXNlYXJjaFIHcHJvY2Vzc1IFZml4dXBSCGZvbGxvd3VwUglzcGVjX3N5bmNSCGNsYXNzaWZ5UgdjbGFyaWZ5UghmZWVkYmFja1IRZmVlZGJhY2tfY29udGludWVSBnJldmlldxIwChBpbnRlcmFjdGlvbl90eXBlGAggASgJQha6SBNyEVIFc3Bhd25SCGNvbnRpbnVlEmkKBnN0YXR1cxgJIAEoCUJZukhWclRSB3BlbmRpbmdSCHN0YXJ0aW5nUgdydW5uaW5nUgxuZWVkc19yZXZpZXdSCGNvbXBsZXRlUgZmYWlsZWRSCWNhbmNlbGxlZFILdW5zcGVjaWZpZWQSEwoGcnVuX2lkGAogASgJSAOIAQESFAoHdGFza19pZBgLIAEoCUgEiAEBEh0KDHJlcXVlc3RlZF9hdBgMIAEoCUIHukgEcgIQAUINCgtfb3duZXJfa2luZEIOCgxfb3duZXJfdGl0bGVCDwoNX2V4ZWN1dGlvbl9pZEIJCgdfcnVuX2lkQgoKCF90YXNrX2lkImYKEEdyYXBoUnVuTm9kZURhdGESFwoGcnVuX2lkGAEgASgJQge6SARyAhABEhQKB3Rhc2tfaWQYAiABKAlIAIgBARIXCgZzdGF0dXMYAyABKAlCB7pIBHICEAFCCgoIX3Rhc2tfaWQiwAMKDUdyYXBoTm9kZURhdGESOQoHYmFja2xvZxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuR3JhcGhCYWNrbG9nTm9kZURhdGFIABI/Cgppbml0aWF0aXZlGAIgASgLMikuc3dhcm1fbWFuYWdlci52MS5HcmFwaEluaXRpYXRpdmVOb2RlRGF0YUgAEjkKB2NhcHR1cmUYAyABKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkdyYXBoQ2FwdHVyZU5vZGVEYXRhSAASOwoIc2NlbmFyaW8YBCABKAsyJy5zd2FybV9tYW5hZ2VyLnYxLkdyYXBoU2NlbmFyaW9Ob2RlRGF0YUgAEj0KCWV4ZWN1dGlvbhgFIAEoCzIoLnN3YXJtX21hbmFnZXIudjEuR3JhcGhFeGVjdXRpb25Ob2RlRGF0YUgAEkAKCGFjdGl2aXR5GAYgASgLMiwuc3dhcm1fbWFuYWdlci52MS5HcmFwaEFnZW50QWN0aXZpdHlOb2RlRGF0YUgAEjEKA3J1bhgHIAEoCzIiLnN3YXJtX21hbmFnZXIudjEuR3JhcGhSdW5Ob2RlRGF0YUgAQgcKBXZhbHVlIugBCglHcmFwaE5vZGUSEwoCaWQYASABKAlCB7pIBHICEAESZAoEdHlwZRgCIAEoCUJWukhTclFSC0JhY2tsb2dJdGVtUgpJbml0aWF0aXZlUgdDYXB0dXJlUghTY2VuYXJpb1IPRXhlY3V0aW9uUmVjb3JkUg1BZ2VudEFjdGl2aXR5UgNSdW4SLQoEZGF0YRgDIAEoCzIfLnN3YXJtX21hbmFnZXIudjEuR3JhcGhOb2RlRGF0YRIxCghwb3NpdGlvbhgEIAEoCzIfLnN3YXJtX21hbmFnZXIudjEuR3JhcGhQb3NpdGlvbiLrAQoJR3JhcGhFZGdlEhMKAmlkGAEgASgJQge6SARyAhABEhcKBnNvdXJjZRgCIAEoCUIHukgEcgIQARIXCgZ0YXJnZXQYAyABKAlCB7pIBHICEAESlgEKBHR5cGUYBCABKAlChwG6SIMBcoABUgpkZXBlbmRzX29uUgltZW1iZXJfb2ZSDWNsYXNzaWZpZWRfYXNSB3RhcmdldHNSCGV4ZWN1dGVzUglmb2xsb3dfdXBSDGFjdGl2aXR5X2ZvclIQcmVjb3Jkc19hY3Rpdml0eVILc3Bhd25lZF9ydW5SDWNvbnRpbnVlZF9ydW4i0wIKCUdyYXBoTWV0YRIvCgRsZW5zGAEgASgJQiG6SB5yHFIIdG9wb2xvZ3lSBGZsb3dSCm9wZXJhdGlvbnMSGwoKbm9kZV9jb3VudBgCIAEoBUIHukgEGgIoABIbCgplZGdlX2NvdW50GAMgASgFQge6SAQaAigAEh0KDGdlbmVyYXRlZF9hdBgEIAEoCUIHukgEcgIQARIkChdhZ2VudF9tYW5hZ2VyX2F2YWlsYWJsZRgFIAEoCEgAiAEBEhoKDWZvY3VzX25vZGVfaWQYBiABKAlIAYgBARIcCg9mb2N1c19ub2RlX3R5cGUYByABKAlIAogBARIRCgRoaW50GAggASgJSAOIAQFCGgoYX2FnZW50X21hbmFnZXJfYXZhaWxhYmxlQhAKDl9mb2N1c19ub2RlX2lkQhIKEF9mb2N1c19ub2RlX3R5cGVCBwoFX2hpbnRCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * GraphPosition is a 2D coordinate used by the graph workspace.
@@ -128,6 +128,42 @@ export const GraphBacklogNodeDataSchema: GenMessage<GraphBacklogNodeData> = /*@_
   messageDesc(file_swarm_manager_v1_domain_graph, 2);
 
 /**
+ * GraphInitiativeActiveRound surfaces the first non-terminal operating-mode
+ * round on an initiative node so the workspace graph can render a phase chip
+ * + pulse without re-fetching per-initiative workspace state.
+ *
+ * @generated from message swarm_manager.v1.GraphInitiativeActiveRound
+ */
+export type GraphInitiativeActiveRound = Message<"swarm_manager.v1.GraphInitiativeActiveRound"> & {
+  /**
+   * @generated from field: string mode = 1;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: string phase = 2;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: int32 round = 3;
+   */
+  round: number;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.GraphInitiativeActiveRound.
+ * Use `create(GraphInitiativeActiveRoundSchema)` to create a new message.
+ */
+export const GraphInitiativeActiveRoundSchema: GenMessage<GraphInitiativeActiveRound> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_graph, 3);
+
+/**
  * GraphInitiativeNodeData describes an initiative node.
  *
  * @generated from message swarm_manager.v1.GraphInitiativeNodeData
@@ -152,6 +188,21 @@ export type GraphInitiativeNodeData = Message<"swarm_manager.v1.GraphInitiativeN
    * @generated from field: swarm_manager.v1.GraphInitiativeRollup rollup = 4;
    */
   rollup?: GraphInitiativeRollup | undefined;
+
+  /**
+   * Operating mode of the initiative when an active round is in flight.
+   * Empty for initiatives in item-level mode or with no active round.
+   *
+   * @generated from field: optional string operating_mode = 5;
+   */
+  operatingMode?: string | undefined;
+
+  /**
+   * First non-terminal round, or unset when no round is active.
+   *
+   * @generated from field: optional swarm_manager.v1.GraphInitiativeActiveRound active_round = 6;
+   */
+  activeRound?: GraphInitiativeActiveRound | undefined;
 };
 
 /**
@@ -159,7 +210,7 @@ export type GraphInitiativeNodeData = Message<"swarm_manager.v1.GraphInitiativeN
  * Use `create(GraphInitiativeNodeDataSchema)` to create a new message.
  */
 export const GraphInitiativeNodeDataSchema: GenMessage<GraphInitiativeNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 3);
+  messageDesc(file_swarm_manager_v1_domain_graph, 4);
 
 /**
  * GraphCaptureNodeData describes a capture node.
@@ -188,7 +239,7 @@ export type GraphCaptureNodeData = Message<"swarm_manager.v1.GraphCaptureNodeDat
  * Use `create(GraphCaptureNodeDataSchema)` to create a new message.
  */
 export const GraphCaptureNodeDataSchema: GenMessage<GraphCaptureNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 4);
+  messageDesc(file_swarm_manager_v1_domain_graph, 5);
 
 /**
  * GraphScenarioNodeData describes a scenario node.
@@ -212,7 +263,7 @@ export type GraphScenarioNodeData = Message<"swarm_manager.v1.GraphScenarioNodeD
  * Use `create(GraphScenarioNodeDataSchema)` to create a new message.
  */
 export const GraphScenarioNodeDataSchema: GenMessage<GraphScenarioNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 5);
+  messageDesc(file_swarm_manager_v1_domain_graph, 6);
 
 /**
  * GraphExecutionNodeData describes an execution node.
@@ -256,7 +307,7 @@ export type GraphExecutionNodeData = Message<"swarm_manager.v1.GraphExecutionNod
  * Use `create(GraphExecutionNodeDataSchema)` to create a new message.
  */
 export const GraphExecutionNodeDataSchema: GenMessage<GraphExecutionNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 6);
+  messageDesc(file_swarm_manager_v1_domain_graph, 7);
 
 /**
  * GraphAgentActivityNodeData describes a tracked agent activity node.
@@ -330,7 +381,7 @@ export type GraphAgentActivityNodeData = Message<"swarm_manager.v1.GraphAgentAct
  * Use `create(GraphAgentActivityNodeDataSchema)` to create a new message.
  */
 export const GraphAgentActivityNodeDataSchema: GenMessage<GraphAgentActivityNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 7);
+  messageDesc(file_swarm_manager_v1_domain_graph, 8);
 
 /**
  * GraphRunNodeData describes an agent-manager run node.
@@ -359,7 +410,7 @@ export type GraphRunNodeData = Message<"swarm_manager.v1.GraphRunNodeData"> & {
  * Use `create(GraphRunNodeDataSchema)` to create a new message.
  */
 export const GraphRunNodeDataSchema: GenMessage<GraphRunNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 8);
+  messageDesc(file_swarm_manager_v1_domain_graph, 9);
 
 /**
  * GraphNodeData is the typed payload for a graph node.
@@ -420,7 +471,7 @@ export type GraphNodeData = Message<"swarm_manager.v1.GraphNodeData"> & {
  * Use `create(GraphNodeDataSchema)` to create a new message.
  */
 export const GraphNodeDataSchema: GenMessage<GraphNodeData> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 9);
+  messageDesc(file_swarm_manager_v1_domain_graph, 10);
 
 /**
  * GraphNode is a node in the graph workspace.
@@ -454,7 +505,7 @@ export type GraphNode = Message<"swarm_manager.v1.GraphNode"> & {
  * Use `create(GraphNodeSchema)` to create a new message.
  */
 export const GraphNodeSchema: GenMessage<GraphNode> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 10);
+  messageDesc(file_swarm_manager_v1_domain_graph, 11);
 
 /**
  * GraphEdge is an edge in the graph workspace.
@@ -488,7 +539,7 @@ export type GraphEdge = Message<"swarm_manager.v1.GraphEdge"> & {
  * Use `create(GraphEdgeSchema)` to create a new message.
  */
 export const GraphEdgeSchema: GenMessage<GraphEdge> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 11);
+  messageDesc(file_swarm_manager_v1_domain_graph, 12);
 
 /**
  * GraphMeta describes the graph projection metadata.
@@ -544,5 +595,5 @@ export type GraphMeta = Message<"swarm_manager.v1.GraphMeta"> & {
  * Use `create(GraphMetaSchema)` to create a new message.
  */
 export const GraphMetaSchema: GenMessage<GraphMeta> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_graph, 12);
+  messageDesc(file_swarm_manager_v1_domain_graph, 13);
 

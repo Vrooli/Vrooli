@@ -139,6 +139,78 @@ describe("Initiative Mode Service", () => {
     expect(catalog.modes[0]?.phases[0]?.requiresCriteria).toBe(true);
   });
 
+  it("normalizes catalog decision-support metadata", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      modes: [
+        {
+          mode: "item-level",
+          label: "Item Level",
+          description: "Default mode",
+          best_for: ["Right-sized items", "Loose coupling"],
+          not_for: ["Coupled work"],
+          tradeoffs: ["Highest parallelism"],
+          // No when_in_doubt_pick_instead — item-level is the safe default.
+          scope_kind: "backlog_item",
+          run_strategy: "existing_item_flow",
+          workspace_tab_id: "info",
+          capabilities: {},
+          default: true,
+          switchable: true,
+          supports_phases: false,
+          phases: [],
+        },
+        {
+          mode: "holistic-loop",
+          label: "Holistic Loop",
+          description: "investigate→plan→execute",
+          best_for: ["Coupled work"],
+          not_for: ["Independent items"],
+          tradeoffs: ["One plan, not N"],
+          when_in_doubt_pick_instead: "item-level",
+          scope_kind: "initiative",
+          run_strategy: "operator_gated_loop",
+          workspace_tab_id: "operating-mode",
+          capabilities: {},
+          default: false,
+          switchable: true,
+          supports_phases: true,
+          phases: [],
+        },
+      ],
+    });
+
+    const catalog = await service.catalog();
+    expect(catalog.modes[0]?.bestFor).toEqual(["Right-sized items", "Loose coupling"]);
+    expect(catalog.modes[0]?.notFor).toEqual(["Coupled work"]);
+    expect(catalog.modes[0]?.tradeoffs).toEqual(["Highest parallelism"]);
+    expect(catalog.modes[0]?.whenInDoubtPickInstead).toBeUndefined();
+    expect(catalog.modes[1]?.bestFor).toEqual(["Coupled work"]);
+    expect(catalog.modes[1]?.whenInDoubtPickInstead).toBe("item-level");
+  });
+
+  it("returns empty arrays for missing decision metadata fields", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      modes: [{
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        workspace_tab_id: "operating-mode",
+        capabilities: {},
+        default: false,
+        switchable: true,
+        supports_phases: true,
+        phases: [],
+      }],
+    });
+
+    const catalog = await service.catalog();
+    expect(catalog.modes[0]?.bestFor).toEqual([]);
+    expect(catalog.modes[0]?.notFor).toEqual([]);
+    expect(catalog.modes[0]?.tradeoffs).toEqual([]);
+    expect(catalog.modes[0]?.whenInDoubtPickInstead).toBeUndefined();
+  });
+
   it("normalizes catalog usage_count and description", async () => {
     vi.mocked(api.get).mockResolvedValue({
       modes: [{

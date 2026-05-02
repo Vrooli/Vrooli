@@ -1,9 +1,10 @@
-import { ArrowRight, Check, Minus, Plus } from "lucide-react";
+import { ArrowRight, Minus, Plus } from "lucide-react";
 import { selectors } from "../../../consts/selectors";
 import type {
   OperatingModeCapabilities,
   OperatingModeCatalogEntry,
 } from "../../../types/operating-mode";
+import { CapabilityList } from "./capability-list";
 import { capabilityLabel, humanizeRunStrategy, humanizeScopeKind } from "./utils";
 
 export interface ModeComparePanelProps {
@@ -89,7 +90,6 @@ function Column({
   mode: OperatingModeCatalogEntry;
   highlight?: boolean;
 }) {
-  const enabledCapabilities = CAPABILITY_FLAGS.filter((flag) => mode.capabilities[flag]);
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
@@ -99,18 +99,7 @@ function Column({
       <p className="mt-1 text-[11px] text-slate-500">
         {humanizeScopeKind(mode.scopeKind)} · {humanizeRunStrategy(mode.runStrategy)}
       </p>
-      {enabledCapabilities.length > 0 ? (
-        <ul className="mt-2 space-y-1">
-          {enabledCapabilities.map((flag) => (
-            <li key={flag} className="flex items-center gap-1.5 text-xs text-slate-300">
-              <Check className="h-3 w-3 text-emerald-400" aria-hidden="true" />
-              {capabilityLabel(flag)}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs italic text-slate-500">No capabilities enabled.</p>
-      )}
+      <CapabilityList capabilities={mode.capabilities} variant="compact" />
     </div>
   );
 }

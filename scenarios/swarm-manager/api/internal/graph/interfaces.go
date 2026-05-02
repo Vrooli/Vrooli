@@ -68,6 +68,25 @@ type AgentActivityLister interface {
 	IsAvailable(ctx context.Context) bool
 }
 
+// OperatingModeActiveRound is the per-initiative active-round shape the
+// graph projection consumes. It mirrors operatingmode.ActiveRoundSummary
+// but is declared in the graph package so the projection has no compile
+// dependency on operatingmode internals.
+type OperatingModeActiveRound struct {
+	Mode   string
+	Phase  string
+	Round  int
+	Status string
+}
+
+// OperatingModeReader returns the first non-terminal round per initiative
+// in a single bulk read. Used by graph projections to surface running mode
+// state on initiative nodes without N+1 workspace fetches. Returning a map
+// keyed by initiative name makes the bulk contract explicit at the seam.
+type OperatingModeReader interface {
+	ActiveRoundsByInitiative(ctx context.Context) (map[string]OperatingModeActiveRound, error)
+}
+
 // Broadcaster sends real-time events to connected WebSocket clients.
 type Broadcaster interface {
 	BroadcastUpdate(event string, payload any)

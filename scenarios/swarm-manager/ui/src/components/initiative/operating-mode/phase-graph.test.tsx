@@ -40,6 +40,9 @@ function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
 const ENTRY: OperatingModeCatalogEntry = {
   mode: "holistic-loop" as OperatingModeCatalogEntry["mode"],
   label: "Holistic Loop",
+  bestFor: ["Coupled work"],
+  notFor: ["Independent items"],
+  tradeoffs: ["One plan, not N"],
   usageCount: 0,
   scopeKind: "initiative",
   runStrategy: "operator_gated_loop",
@@ -123,5 +126,19 @@ describe("PhaseGraph", () => {
     const investigate = screen.getByText("Investigate");
     fireEvent.click(investigate);
     expect(onSelectPhase).toHaveBeenCalledWith("investigate");
+  });
+
+  it("renders MiniMap and Controls in default mode", () => {
+    const { container } = render(<PhaseGraph entry={ENTRY} />);
+    // xyflow renders MiniMap as .react-flow__minimap and Controls as .react-flow__controls.
+    expect(container.querySelector(".react-flow__minimap")).not.toBeNull();
+    expect(container.querySelector(".react-flow__controls")).not.toBeNull();
+  });
+
+  it("hides MiniMap and Controls when compact, and uses a shorter canvas", () => {
+    const { container } = render(<PhaseGraph entry={ENTRY} compact />);
+    expect(container.querySelector(".react-flow__minimap")).toBeNull();
+    expect(container.querySelector(".react-flow__controls")).toBeNull();
+    expect(container.querySelector(".h-\\[200px\\]")).not.toBeNull();
   });
 });

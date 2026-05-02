@@ -103,6 +103,10 @@ export interface OperatingModeCatalogEntry {
   mode: InitiativeOperatingMode;
   label: string;
   description?: string;
+  bestFor: string[];
+  notFor: string[];
+  tradeoffs: string[];
+  whenInDoubtPickInstead?: InitiativeOperatingMode;
   usageCount: number;
   scopeKind: string;
   runStrategy: string;

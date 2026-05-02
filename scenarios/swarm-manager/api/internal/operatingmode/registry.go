@@ -71,16 +71,31 @@ type Definition struct {
 	Mode        Mode
 	Label       string
 	Description string
-	Scope       ScopePolicy
-	PhaseGraph  PhaseGraph
-	RunStrategy RunStrategyPolicy
-	Artifact    ArtifactPolicy
-	Prompt      PromptPolicy
-	Profile     ProfilePolicy
-	BacklogSync BacklogSyncPolicy
-	Metrics     MetricsPolicy
-	Lock        LockPolicy
-	UI          UIPolicy
+	// BestFor enumerates the work shapes this mode is the right pick for.
+	// Surfaced in the picker and details page as decision support; populated
+	// alongside the mode definition. Validator requires ≥1 entry per mode.
+	BestFor []string
+	// NotFor enumerates the work shapes this mode handles poorly. Validator
+	// requires ≥1 entry per mode.
+	NotFor []string
+	// Tradeoffs enumerates the structural tradeoffs an operator accepts when
+	// choosing this mode. Validator requires ≥1 entry per mode.
+	Tradeoffs []string
+	// WhenInDoubtPickInstead names a registered mode the operator should pick
+	// if they're unsure between this one and another. Empty means this mode is
+	// itself the safe default. Validator requires this to reference a
+	// registered mode and not be self.
+	WhenInDoubtPickInstead Mode
+	Scope                  ScopePolicy
+	PhaseGraph             PhaseGraph
+	RunStrategy            RunStrategyPolicy
+	Artifact               ArtifactPolicy
+	Prompt                 PromptPolicy
+	Profile                ProfilePolicy
+	BacklogSync            BacklogSyncPolicy
+	Metrics                MetricsPolicy
+	Lock                   LockPolicy
+	UI                     UIPolicy
 }
 
 type ScopePolicy struct {
@@ -298,6 +313,9 @@ func validateDefinitions(defs map[Mode]Definition) error {
 		if strings.TrimSpace(def.Description) == "" {
 			return fmt.Errorf("mode %q description is required", mode)
 		}
+		if err := validateDecisionMetadata(defs, mode, def); err != nil {
+			return err
+		}
 		if def.Scope.Kind == "" {
 			return fmt.Errorf("mode %q scope kind is required", mode)
 		}
@@ -321,6 +339,39 @@ func validateDefinitions(defs map[Mode]Definition) error {
 		}
 		if err := validateInitiativeModeDefinition(def); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validateDecisionMetadata(defs map[Mode]Definition, mode Mode, def Definition) error {
+	if err := validateNonEmptyStringList(mode, "best_for", def.BestFor); err != nil {
+		return err
+	}
+	if err := validateNonEmptyStringList(mode, "not_for", def.NotFor); err != nil {
+		return err
+	}
+	if err := validateNonEmptyStringList(mode, "tradeoffs", def.Tradeoffs); err != nil {
+		return err
+	}
+	if def.WhenInDoubtPickInstead != "" {
+		if def.WhenInDoubtPickInstead == mode {
+			return fmt.Errorf("mode %q when_in_doubt_pick_instead cannot reference itself", mode)
+		}
+		if _, ok := defs[def.WhenInDoubtPickInstead]; !ok {
+			return fmt.Errorf("mode %q when_in_doubt_pick_instead references unregistered mode %q", mode, def.WhenInDoubtPickInstead)
+		}
+	}
+	return nil
+}
+
+func validateNonEmptyStringList(mode Mode, field string, values []string) error {
+	if len(values) == 0 {
+		return fmt.Errorf("mode %q %s requires at least one entry", mode, field)
+	}
+	for i, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("mode %q %s entry %d cannot be blank", mode, field, i)
 		}
 	}
 	return nil

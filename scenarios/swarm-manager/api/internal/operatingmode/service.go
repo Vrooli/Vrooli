@@ -291,19 +291,28 @@ type ModeCatalog struct {
 }
 
 type ModeCatalogEntry struct {
-	Mode           string                 `json:"mode"`
-	Label          string                 `json:"label"`
-	Description    string                 `json:"description,omitempty"`
-	UsageCount     int                    `json:"usage_count"`
-	ScopeKind      string                 `json:"scope_kind"`
-	RunStrategy    string                 `json:"run_strategy"`
-	WorkspaceTabID string                 `json:"workspace_tab_id"`
-	Capabilities   ModeCapabilities       `json:"capabilities"`
-	Default        bool                   `json:"default"`
-	Switchable     bool                   `json:"switchable"`
-	SupportsPhases bool                   `json:"supports_phases"`
-	Phases         []ModeCatalogPhase     `json:"phases"`
-	PhaseGraph     *ModeCatalogPhaseGraph `json:"phase_graph,omitempty"`
+	Mode        string `json:"mode"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	// Decision-support metadata. Validator guarantees the three lists are
+	// non-empty per registered mode, so they intentionally do not use
+	// omitempty (an empty list on the wire is a contract violation worth
+	// surfacing). WhenInDoubtPickInstead is empty when the mode is itself
+	// the safer default.
+	BestFor                []string               `json:"best_for"`
+	NotFor                 []string               `json:"not_for"`
+	Tradeoffs              []string               `json:"tradeoffs"`
+	WhenInDoubtPickInstead string                 `json:"when_in_doubt_pick_instead,omitempty"`
+	UsageCount             int                    `json:"usage_count"`
+	ScopeKind              string                 `json:"scope_kind"`
+	RunStrategy            string                 `json:"run_strategy"`
+	WorkspaceTabID         string                 `json:"workspace_tab_id"`
+	Capabilities           ModeCapabilities       `json:"capabilities"`
+	Default                bool                   `json:"default"`
+	Switchable             bool                   `json:"switchable"`
+	SupportsPhases         bool                   `json:"supports_phases"`
+	Phases                 []ModeCatalogPhase     `json:"phases"`
+	PhaseGraph             *ModeCatalogPhaseGraph `json:"phase_graph,omitempty"`
 }
 
 // InitiativeRef is the compact view of an initiative attached to a mode in
@@ -482,6 +491,66 @@ func (s *Service) ResolveRoundActionMode(initiativeName, rawMode string) (Mode, 
 		return "", fmt.Errorf("round actions require an explicit non-default mode or an initiative currently using one: %w", err)
 	}
 	return mode, nil
+}
+
+// ActiveRoundSummary is the wire shape for the first non-terminal round of
+// an initiative-scoped operating mode. It is the seam through which the
+// graph projection learns which initiatives are mid-phase without coupling
+// to RoundEnvelope.
+type ActiveRoundSummary struct {
+	Mode   string `json:"mode"`
+	Phase  string `json:"phase"`
+	Round  int    `json:"round"`
+	Status string `json:"status"`
+	RunID  string `json:"run_id,omitempty"`
+}
+
+// ActiveRoundsByInitiative returns the first non-terminal round per
+// initiative, keyed by initiative name. Initiatives with no active round
+// (or in item-level mode) are absent from the map. The implementation does
+// one pass over the initiatives list and one rounds-directory read per
+// initiative bound to a non-default mode — N+1 only in initiatives, never
+// in rounds. Initiative-exclusive locking guarantees at most one
+// non-terminal round per initiative, so the first match is canonical.
+func (s *Service) ActiveRoundsByInitiative(_ context.Context) (map[string]ActiveRoundSummary, error) {
+	out := map[string]ActiveRoundSummary{}
+	if s == nil || s.initLister == nil || s.store == nil {
+		return out, nil
+	}
+	all, err := s.initLister.ListInitiatives()
+	if err != nil {
+		return nil, err
+	}
+	for _, init := range all {
+		mode := NormalizeMode(init.Mode)
+		if mode == ModeItemLevel {
+			continue
+		}
+		def, err := DefinitionFor(mode)
+		if err != nil {
+			// Unknown mode on an initiative is a registry/data drift; skip
+			// the initiative rather than fail the whole projection.
+			continue
+		}
+		rounds, err := s.store.ListRounds(init.Name, def.Mode)
+		if err != nil {
+			return nil, fmt.Errorf("list rounds for %q: %w", init.Name, err)
+		}
+		for _, round := range rounds {
+			if !isRoundActive(round) {
+				continue
+			}
+			out[init.Name] = ActiveRoundSummary{
+				Mode:   string(round.Mode),
+				Phase:  string(round.Phase),
+				Round:  round.Round,
+				Status: string(round.Status),
+				RunID:  strings.TrimSpace(round.RunID),
+			}
+			break
+		}
+	}
+	return out, nil
 }
 
 func requireRoundActionMode(mode Mode) (Mode, error) {

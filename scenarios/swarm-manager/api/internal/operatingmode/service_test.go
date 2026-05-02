@@ -1171,3 +1171,72 @@ func saveCompletedRoundWith(t *testing.T, svc *Service, initiativeName string, m
 	}
 	return round
 }
+
+func TestActiveRoundsByInitiative(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-running": {
+				Name:  "init-running",
+				Title: "Running",
+				Mode:  string(ModeHolisticLoop),
+			},
+			"init-idle": {
+				Name:  "init-idle",
+				Title: "Idle",
+				Mode:  string(ModeHolisticLoop),
+			},
+			"init-item-level": {
+				Name:  "init-item-level",
+				Title: "Item Level",
+				Mode:  string(ModeItemLevel),
+			},
+		}},
+	})
+
+	// Reserve a round on init-running so it has an active round.
+	reserved, err := svc.store.CreateRound(RoundEnvelope{
+		Mode:           string(ModeHolisticLoop),
+		InitiativeName: "init-running",
+		ScopeID:        "init-running",
+		Phase:          "investigate",
+		Status:         RoundStatusReserved,
+	})
+	if err != nil {
+		t.Fatalf("CreateRound: %v", err)
+	}
+	if reserved.Round == 0 {
+		t.Fatalf("expected non-zero round number, got %+v", reserved)
+	}
+
+	// Save a completed round on init-idle — it should not appear.
+	saveCompletedRound(t, svc, "init-idle", ModeHolisticLoop, "investigate", nil)
+
+	rounds, err := svc.ActiveRoundsByInitiative(context.Background())
+	if err != nil {
+		t.Fatalf("ActiveRoundsByInitiative: %v", err)
+	}
+	if _, ok := rounds["init-running"]; !ok {
+		t.Fatalf("init-running missing from active rounds: %+v", rounds)
+	}
+	if got := rounds["init-running"]; got.Mode != string(ModeHolisticLoop) || got.Phase != "investigate" || got.Status != string(RoundStatusReserved) {
+		t.Fatalf("init-running summary = %+v, want holistic-loop/investigate/reserved", got)
+	}
+	if _, ok := rounds["init-idle"]; ok {
+		t.Errorf("init-idle should not appear (only completed rounds); got %+v", rounds["init-idle"])
+	}
+	if _, ok := rounds["init-item-level"]; ok {
+		t.Errorf("init-item-level should not appear (item-level mode skipped); got %+v", rounds["init-item-level"])
+	}
+}
+
+func TestActiveRoundsByInitiative_EmptyWhenNoLister(t *testing.T) {
+	svc := &Service{}
+	rounds, err := svc.ActiveRoundsByInitiative(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(rounds) != 0 {
+		t.Fatalf("expected empty map, got %+v", rounds)
+	}
+}

@@ -101,20 +101,32 @@ func encodeGraphNodeData(data any) (*domainpb.GraphNodeData, error) {
 		if value == nil {
 			return nil, fmt.Errorf("missing initiative node data")
 		}
+		initiative := &domainpb.GraphInitiativeNodeData{
+			Name:   value.Name,
+			Title:  value.Title,
+			Status: value.Status,
+			Rollup: &domainpb.GraphInitiativeRollup{
+				Total:      value.Rollup.Total,
+				Completed:  value.Rollup.Completed,
+				InProgress: value.Rollup.InProgress,
+				Failed:     value.Rollup.Failed,
+				Pending:    value.Rollup.Pending,
+			},
+		}
+		if value.OperatingMode != "" {
+			initiative.OperatingMode = proto.String(value.OperatingMode)
+		}
+		if value.ActiveRound != nil {
+			initiative.ActiveRound = &domainpb.GraphInitiativeActiveRound{
+				Mode:   value.ActiveRound.Mode,
+				Phase:  value.ActiveRound.Phase,
+				Round:  int32(value.ActiveRound.Round),
+				Status: value.ActiveRound.Status,
+			}
+		}
 		return &domainpb.GraphNodeData{
 			Value: &domainpb.GraphNodeData_Initiative{
-				Initiative: &domainpb.GraphInitiativeNodeData{
-					Name:   value.Name,
-					Title:  value.Title,
-					Status: value.Status,
-					Rollup: &domainpb.GraphInitiativeRollup{
-						Total:      value.Rollup.Total,
-						Completed:  value.Rollup.Completed,
-						InProgress: value.Rollup.InProgress,
-						Failed:     value.Rollup.Failed,
-						Pending:    value.Rollup.Pending,
-					},
-				},
+				Initiative: initiative,
 			},
 		}, nil
 	case GraphCaptureNodeData:

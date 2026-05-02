@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-30T18:30:00Z",
-    "endedAt": "2026-04-30T18:30:10Z",
+    "startedAt": "2026-05-02T18:30:00Z",
+    "endedAt": "2026-05-02T18:30:00Z",
     "status": "failed",
-    "runId": "e709bd68-9d5a-452d-9c5a-9bc3c9929a7b",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-30T18-30-00Z.log",
-    "error": "2026-04-30T18:30:05.966262Z ERROR codex_core::session: failed to record rollout items: thread 019ddfa7-ad80-78e1-bea5-dc5dbba615fe not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 34,
+  "revision": 36,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-30T18:30:10Z"
+  "updatedAt": "2026-05-02T18:30:00Z"
 }

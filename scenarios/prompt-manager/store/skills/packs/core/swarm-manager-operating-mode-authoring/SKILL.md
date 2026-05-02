@@ -81,18 +81,23 @@ Actions:
    - required artifacts
    - required progress/verdict/handoff/criteria
    - transition rules after completion
-3. Define the structured `operating_mode_result` contract expected from each phase.
-4. Define backlog reconciliation behavior:
+3. Draft decision metadata that the picker, details page, and how-to-choose dialog will surface to operators. Each list must have at least one entry; entries must be plain prose an operator can scan, not engineer-shaped capability deltas:
+   - `bestFor` — the work shapes this mode is the right pick for
+   - `notFor` — the work shapes this mode handles poorly
+   - `tradeoffs` — the structural tradeoffs an operator accepts when choosing this mode
+   - `whenInDoubtPickInstead` — the registered mode an operator should pick if they're unsure between this and another (leave empty only if this mode is itself a safe default; never reference self)
+4. Define the structured `operating_mode_result` contract expected from each phase.
+5. Define backlog reconciliation behavior:
    - whether completed member items may be marked complete
    - whether proposal-backed create/update/follow-up reconciliation is allowed
    - when operators should apply reconciliation
-5. Define metrics semantics:
+6. Define metrics semantics:
    - phases that count toward replan sample size
    - phases that count toward acceptance sample size
    - success/acceptance verdict values
    - any mode-specific metrics that should become future work
-6. List prompt-manager skills to create, one per phase.
-7. List tests and docs required to make the mode safe.
+7. List prompt-manager skills to create, one per phase.
+8. List tests and docs required to make the mode safe.
 
 Exit criteria:
 
@@ -133,9 +138,11 @@ Entry criteria: the operator explicitly asks to implement the approved proposal.
 Actions:
 
 1. Add one focused `mode_<name>.go` definition using `buildInitiativeMode`.
-2. Add the mode constant and registry map entry.
-3. Add one prompt-manager skill per phase. Skill IDs must match the registry-derived `SkillID`.
-4. Add or update tests for:
+2. Populate decision metadata in the mode definition: `BestFor` (≥1 entry), `NotFor` (≥1 entry), `Tradeoffs` (≥1 entry), and `WhenInDoubtPickInstead` (a registered `Mode` constant or empty). The registry validator rejects empty `BestFor`/`NotFor`/`Tradeoffs` lists at startup, so the API will fail to boot if any of them are missing.
+3. Add the mode constant and registry map entry.
+4. Add one prompt-manager skill per phase. Skill IDs must match the registry-derived `SkillID`.
+5. Update `scenarios/swarm-manager/ui/src/components/initiative/operating-mode/decision-flow.config.ts` to include at least one terminal-question path that selects the new mode. The how-to-choose decision flow validates referenced modes against the catalog at render time; an unreferenced mode will not be reachable through the guided flow, and a reference to a renamed/removed mode renders a visible error chip.
+6. Add or update tests for:
    - registry validation
    - prompt catalog generation and validation
    - phase action transitions
@@ -144,8 +151,8 @@ Actions:
    - metrics policy
    - backend capability projection
    - lifecycle behavior unique to the mode
-5. Add operator docs for when to use the mode and how to run it.
-6. Update `docs/manifest.json` if the docs should appear in the Swarm Manager docs UI.
+7. Add operator docs for when to use the mode and how to run it.
+8. Update `docs/manifest.json` if the docs should appear in the Swarm Manager docs UI.
 
 Exit criteria:
 
@@ -184,6 +191,17 @@ prompt-manager skill show <new-phase-skill-id>
 prompt-manager skill read <new-phase-skill-id>
 ```
 
+Validate that decision metadata reached the wire and the how-to-choose flow points at the new mode:
+
+```bash
+# Decision metadata appears on the catalog response. Replace <new> with the mode token.
+curl -s http://localhost:9999/api/v1/operating-modes \
+  | jq '.modes[] | select(.mode=="<new>") | {best_for, not_for, tradeoffs, when_in_doubt_pick_instead}'
+
+# decision-flow.config.ts contains at least one terminal node referencing the new mode.
+rg -n '"<new>"' scenarios/swarm-manager/ui/src/components/initiative/operating-mode/decision-flow.config.ts
+```
+
 When available, run scenario validation:
 
 ```bash
@@ -213,6 +231,8 @@ Artifact: validation summary.
 ### Static Mode Design Checklist
 
 - [ ] Mode scope is explicit.
+- [ ] Decision metadata is populated: `BestFor`, `NotFor`, `Tradeoffs` each have ≥1 plain-prose entry, and `WhenInDoubtPickInstead` is either empty or a registered mode (never self).
+- [ ] `decision-flow.config.ts` includes at least one terminal node referencing the new mode.
 - [ ] Every phase has a stable token and lowercase snake-case purpose.
 - [ ] Transitions are represented in `Transitions` and `TransitionRules`.
 - [ ] Agent output contract is explicit for each phase.

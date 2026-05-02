@@ -571,3 +571,133 @@ func cloneMetricsPolicy(in MetricsPolicy) MetricsPolicy {
 	in.AcceptedVerdicts = append([]string(nil), in.AcceptedVerdicts...)
 	return in
 }
+
+func TestDefinitionsHaveDecisionMetadata(t *testing.T) {
+	for _, mode := range Modes() {
+		def, err := DefinitionFor(mode)
+		if err != nil {
+			t.Fatalf("DefinitionFor(%q): %v", mode, err)
+		}
+		if len(def.BestFor) == 0 {
+			t.Errorf("mode %q BestFor is empty", mode)
+		}
+		if len(def.NotFor) == 0 {
+			t.Errorf("mode %q NotFor is empty", mode)
+		}
+		if len(def.Tradeoffs) == 0 {
+			t.Errorf("mode %q Tradeoffs is empty", mode)
+		}
+		for i, entry := range def.BestFor {
+			if strings.TrimSpace(entry) == "" {
+				t.Errorf("mode %q BestFor[%d] is blank", mode, i)
+			}
+		}
+		for i, entry := range def.NotFor {
+			if strings.TrimSpace(entry) == "" {
+				t.Errorf("mode %q NotFor[%d] is blank", mode, i)
+			}
+		}
+		for i, entry := range def.Tradeoffs {
+			if strings.TrimSpace(entry) == "" {
+				t.Errorf("mode %q Tradeoffs[%d] is blank", mode, i)
+			}
+		}
+	}
+}
+
+func TestWhenInDoubtPickInsteadReferencesRegisteredMode(t *testing.T) {
+	itemLevel := MustDefinition(ModeItemLevel)
+	if itemLevel.WhenInDoubtPickInstead != "" {
+		t.Errorf("item-level WhenInDoubtPickInstead = %q, want empty (item-level is the safe default)", itemLevel.WhenInDoubtPickInstead)
+	}
+	for _, mode := range []Mode{ModeHolisticLoop, ModePhasedPlanDrain} {
+		def := MustDefinition(mode)
+		if def.WhenInDoubtPickInstead == "" {
+			t.Errorf("mode %q WhenInDoubtPickInstead is empty; only item-level may be empty", mode)
+			continue
+		}
+		if def.WhenInDoubtPickInstead == mode {
+			t.Errorf("mode %q WhenInDoubtPickInstead = self", mode)
+		}
+		if !ValidateMode(string(def.WhenInDoubtPickInstead)) {
+			t.Errorf("mode %q WhenInDoubtPickInstead %q is not a registered mode", mode, def.WhenInDoubtPickInstead)
+		}
+	}
+}
+
+func TestValidateRegistryRejectsMissingDecisionMetadata(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(map[Mode]Definition)
+		want   string
+	}{
+		{
+			name: "empty best_for",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.BestFor = nil
+				defs[ModeHolisticLoop] = def
+			},
+			want: "best_for requires at least one entry",
+		},
+		{
+			name: "empty not_for",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.NotFor = nil
+				defs[ModeHolisticLoop] = def
+			},
+			want: "not_for requires at least one entry",
+		},
+		{
+			name: "empty tradeoffs",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.Tradeoffs = nil
+				defs[ModeHolisticLoop] = def
+			},
+			want: "tradeoffs requires at least one entry",
+		},
+		{
+			name: "blank entry",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.BestFor = []string{"   "}
+				defs[ModeHolisticLoop] = def
+			},
+			want: "cannot be blank",
+		},
+		{
+			name: "self reference",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.WhenInDoubtPickInstead = ModeHolisticLoop
+				defs[ModeHolisticLoop] = def
+			},
+			want: "cannot reference itself",
+		},
+		{
+			name: "unregistered fallback",
+			mutate: func(defs map[Mode]Definition) {
+				def := defs[ModeHolisticLoop]
+				def.WhenInDoubtPickInstead = Mode("nope")
+				defs[ModeHolisticLoop] = def
+			},
+			want: "references unregistered mode",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defs := cloneRegistryForTest()
+			tt.mutate(defs)
+			err := validateDefinitions(defs)
+			if err == nil {
+				t.Fatalf("validateDefinitions error = nil, want %q", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("validateDefinitions error = %v, want contains %q", err, tt.want)
+			}
+		})
+	}
+}

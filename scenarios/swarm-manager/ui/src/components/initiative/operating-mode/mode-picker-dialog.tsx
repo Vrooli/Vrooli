@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, HelpCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Dialog } from "../../ui/dialog";
 import { selectors } from "../../../consts/selectors";
@@ -14,7 +14,9 @@ import {
 } from "../../../services/initiative-mode-service";
 import { useAgentRunUrl } from "../../../services/external-links";
 import { ModeComparePanel } from "./mode-compare-panel";
+import { ModeGuidanceCallouts } from "./mode-guidance-callouts";
 import { OperatingModeCard } from "./operating-mode-card";
+import { PhaseGraph } from "./phase-graph";
 
 export interface ModePickerDialogProps {
   isOpen: boolean;
@@ -28,6 +30,19 @@ export interface ModePickerDialogProps {
   isMutating: boolean;
   mutationError?: unknown;
   onConfirm: (mode: InitiativeOperatingMode, cancelActiveItemExecutions: boolean) => void;
+  /**
+   * Optional callback that opens the how-to-choose decision support dialog.
+   * When omitted, the picker's "How to choose" link is hidden.
+   */
+  onOpenHowToChoose?: () => void;
+  /**
+   * Optional controlled selection that overrides the picker's internal
+   * `selectedModeKey` when it changes. Used by the how-to-choose flow to
+   * land an operator on the recommended mode after they accept it. The
+   * parent should change this value to trigger the override; the picker
+   * then resumes user-driven selection.
+   */
+  pendingSelectedMode?: InitiativeOperatingMode | null;
 }
 
 export function ModePickerDialog({
@@ -42,6 +57,8 @@ export function ModePickerDialog({
   isMutating,
   mutationError,
   onConfirm,
+  onOpenHowToChoose,
+  pendingSelectedMode,
 }: ModePickerDialogProps) {
   const switchableModes = catalog.filter((entry) => entry.switchable);
   const [selectedModeKey, setSelectedModeKey] = useState<InitiativeOperatingMode>(currentMode);
@@ -62,6 +79,15 @@ export function ModePickerDialog({
       setSwitchConflict(null);
     }
   }, [isOpen, currentMode]);
+
+  // Allow parent flows (how-to-choose) to land the operator on a specific
+  // mode by changing the controlled `pendingSelectedMode` prop. Each new
+  // value applies once.
+  useEffect(() => {
+    if (pendingSelectedMode) {
+      setSelectedModeKey(pendingSelectedMode);
+    }
+  }, [pendingSelectedMode]);
 
   // Reset the conflict + ack when the user picks a different target mode —
   // the previous conflict was scoped to the prior selection.
@@ -105,9 +131,22 @@ export function ModePickerDialog({
       testId={selectors.initiativeDetails.modePicker}
     >
       <div className="space-y-4">
-        <p className="text-sm text-slate-400">
-          Pick a methodology for how this initiative is executed. Differences in scope, run strategy, and capabilities are summarized below.
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm text-slate-400">
+            Pick a methodology for how this initiative is executed. Differences in scope, run strategy, and capabilities are summarized below.
+          </p>
+          {onOpenHowToChoose ? (
+            <button
+              type="button"
+              onClick={onOpenHowToChoose}
+              className="inline-flex shrink-0 items-center gap-1 text-xs text-cyan-300 hover:text-cyan-200"
+              data-testid={selectors.initiativeDetails.modePickerHowToChooseLink}
+            >
+              <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              How to choose
+            </button>
+          ) : null}
+        </div>
 
         {catalogLoading && (
           <div
@@ -162,9 +201,52 @@ export function ModePickerDialog({
           </div>
         )}
 
+        {selectedEntry && (
+          <div className="space-y-3 rounded-lg border border-slate-800/80 bg-slate-900/40 p-4">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                About {selectedEntry.label}
+              </p>
+              {selectedEntry.description ? (
+                <p className="mt-1 text-sm leading-relaxed text-slate-200">
+                  {selectedEntry.description}
+                </p>
+              ) : null}
+            </div>
+            <ModeGuidanceCallouts mode={selectedEntry} />
+          </div>
+        )}
+
+        {selectedEntry?.phaseGraph && selectedEntry.phases.length > 0 && (
+          <div
+            className="space-y-1"
+            data-testid={selectors.initiativeDetails.modePickerPhaseGraphPreview}
+          >
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              Phase flow
+            </p>
+            <PhaseGraph entry={selectedEntry} compact />
+          </div>
+        )}
+
         {currentEntry && selectedEntry && (
           <ModeComparePanel current={currentEntry} selected={selectedEntry} />
         )}
+
+        {currentEntry &&
+          selectedEntry &&
+          selectedEntry.capabilities.requiresAcceptanceCriteria &&
+          !currentEntry.capabilities.requiresAcceptanceCriteria && (
+            <div
+              className="flex items-start gap-2 rounded-md border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-sm text-cyan-100"
+              data-testid={selectors.initiativeDetails.modePickerCriteriaPrewarning}
+            >
+              <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                Requires acceptance criteria — you'll be guided to set these next.
+              </span>
+            </div>
+          )}
 
         {switchConflict && (
           <ActiveItemExecutionsPreview conflict={switchConflict} />

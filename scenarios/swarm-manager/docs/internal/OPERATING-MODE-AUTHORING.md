@@ -28,11 +28,12 @@ Typical files for a new initiative-scoped mode:
 
 | File | Expected change |
 |---|---|
-| `api/internal/operatingmode/mode_<name>.go` | New mode definition built with `buildInitiativeMode` |
+| `api/internal/operatingmode/mode_<name>.go` | New mode definition built with `buildInitiativeMode`, including decision metadata (`BestFor`, `NotFor`, `Tradeoffs`, `WhenInDoubtPickInstead`) |
 | `api/internal/operatingmode/registry.go` | Add the mode constant and one registry map entry |
 | `api/internal/operatingmode/registry_test.go` | Validate the new mode definition and capability contract |
 | `api/internal/operatingmode/service_test.go` or a focused test file | Exercise lifecycle paths that are unique to the mode |
 | Prompt-manager skill source | Add one skill per phase, matching `SkillID`/`CatalogID` |
+| `ui/src/components/initiative/operating-mode/decision-flow.config.ts` | Add at least one terminal-question path that selects the new mode in the how-to-choose flow |
 | `docs/concepts/EXECUTION-MODES.md` or `docs/guides/<mode>.md` | Explain when operators should use the mode |
 | `docs/manifest.json` | Register new operator docs when they should appear in the docs UI |
 
@@ -146,6 +147,21 @@ var registry = map[Mode]Definition{
 	ModeExample:         exampleModeDefinition(),
 }
 ```
+
+## Decision Metadata
+
+Every `Definition` carries four fields that drive operator-facing decision support in the picker, the details page, and the how-to-choose dialog. The registry validator rejects empty `BestFor`, `NotFor`, or `Tradeoffs` lists at startup, and rejects a `WhenInDoubtPickInstead` that references an unregistered mode or itself, so the API will fail to boot if any of these constraints are violated.
+
+| Field | Use | Constraint |
+|---|---|---|
+| `BestFor []string` | Plain-prose work shapes this mode is the right pick for | At least one entry; entries cannot be blank |
+| `NotFor []string` | Plain-prose work shapes this mode handles poorly | At least one entry; entries cannot be blank |
+| `Tradeoffs []string` | Structural tradeoffs an operator accepts when choosing this mode | At least one entry; entries cannot be blank |
+| `WhenInDoubtPickInstead Mode` | Registered mode an operator should pick if unsure between this one and another | Empty (mode is itself a safe default), or a registered mode that is not self |
+
+For modes built with `buildInitiativeMode`, the four fields live on `initiativeModeSpec` and are propagated into the resulting `Definition`. For modes constructed via direct `Definition{}` literals (such as `mode_item_level.go`), populate the fields directly on the literal.
+
+The catalog wire response uses snake_case JSON keys (`best_for`, `not_for`, `tradeoffs`, `when_in_doubt_pick_instead`). The three lists do not use `omitempty` because the validator already guarantees they are non-empty; an empty list arriving on the wire is itself a contract violation worth surfacing. Operator-editable overlay (`OverlayStore`) is intentionally not extended to these fields — they are semantic strategy claims authored alongside the mode definition and change via redeploy.
 
 ## Phase Fields
 
@@ -320,6 +336,8 @@ test-genie execute swarm-manager --preset comprehensive
 
 - [ ] The mode has one focused definition file.
 - [ ] The registry map contains the new mode and `ValidateRegistry` passes.
+- [ ] Decision metadata is populated: `BestFor`, `NotFor`, `Tradeoffs` each have ≥1 plain-prose entry; `WhenInDoubtPickInstead` is empty or a registered mode (never self).
+- [ ] `decision-flow.config.ts` has at least one terminal-question path selecting the new mode.
 - [ ] All phase purpose tokens are lowercase snake-case and owned by the mode definition.
 - [ ] Every phase has a matching prompt-manager skill.
 - [ ] Prompt catalog validation catches missing or mismatched phase metadata.

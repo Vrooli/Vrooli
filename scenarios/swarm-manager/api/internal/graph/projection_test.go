@@ -642,3 +642,114 @@ func TestComputeInitiativeRollup_NewStatuses(t *testing.T) {
 		t.Errorf("Pending = %d, want 0", got.Pending)
 	}
 }
+
+// stubOperatingModeReader records call counts so tests can assert the
+// projection invokes the reader exactly once per Project() call (no N+1).
+type stubOperatingModeReader struct {
+	rounds map[string]OperatingModeActiveRound
+	err    error
+	calls  int
+}
+
+func (s *stubOperatingModeReader) ActiveRoundsByInitiative(_ context.Context) (map[string]OperatingModeActiveRound, error) {
+	s.calls++
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.rounds, nil
+}
+
+func TestTopologyInitiativeActiveRoundChip(t *testing.T) {
+	reader := &stubOperatingModeReader{
+		rounds: map[string]OperatingModeActiveRound{
+			"init-running": {
+				Mode:   "holistic-loop",
+				Phase:  "investigate",
+				Round:  3,
+				Status: "agent_running",
+			},
+		},
+	}
+	svc := NewProjectionService(ProjectionConfig{
+		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{}},
+		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
+			{Name: "init-running", Title: "Running"},
+			{Name: "init-idle", Title: "Idle"},
+		}},
+		OperatingMode: reader,
+	})
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reader.calls != 1 {
+		t.Fatalf("OperatingModeReader called %d times, want exactly 1 (no N+1)", reader.calls)
+	}
+	var running, idle GraphInitiativeNodeData
+	for _, n := range resp.Nodes {
+		if n.Type != "Initiative" {
+			continue
+		}
+		data, ok := n.Data.(GraphInitiativeNodeData)
+		if !ok {
+			t.Fatalf("expected GraphInitiativeNodeData, got %T", n.Data)
+		}
+		switch data.Name {
+		case "init-running":
+			running = data
+		case "init-idle":
+			idle = data
+		}
+	}
+	if running.OperatingMode != "holistic-loop" {
+		t.Errorf("init-running OperatingMode = %q, want holistic-loop", running.OperatingMode)
+	}
+	if running.ActiveRound == nil {
+		t.Fatalf("init-running ActiveRound = nil, want populated")
+	}
+	if running.ActiveRound.Status != "agent_running" {
+		t.Errorf("init-running ActiveRound.Status = %q, want agent_running", running.ActiveRound.Status)
+	}
+	if running.ActiveRound.Phase != "investigate" {
+		t.Errorf("init-running ActiveRound.Phase = %q, want investigate", running.ActiveRound.Phase)
+	}
+	// Initiatives without an active round should have no ActiveRound and no
+	// OperatingMode chip — nodes for idle initiatives must not falsely
+	// indicate they're mid-phase.
+	if idle.ActiveRound != nil {
+		t.Errorf("init-idle ActiveRound = %+v, want nil", idle.ActiveRound)
+	}
+	if idle.OperatingMode != "" {
+		t.Errorf("init-idle OperatingMode = %q, want empty", idle.OperatingMode)
+	}
+}
+
+func TestTopologyInitiativeActiveRound_ReaderErrorOmitsField(t *testing.T) {
+	reader := &stubOperatingModeReader{err: errBoom}
+	svc := NewProjectionService(ProjectionConfig{
+		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{}},
+		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
+			{Name: "init-x", Title: "X"},
+		}},
+		OperatingMode: reader,
+	})
+	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensTopology})
+	if err != nil {
+		t.Fatalf("Project returned error despite reader fail-closed: %v", err)
+	}
+	for _, n := range resp.Nodes {
+		if n.Type != "Initiative" {
+			continue
+		}
+		data := n.Data.(GraphInitiativeNodeData)
+		if data.ActiveRound != nil {
+			t.Fatalf("reader error should omit ActiveRound; got %+v", data.ActiveRound)
+		}
+	}
+}
+
+var errBoom = simpleErr("boom")
+
+type simpleErr string
+
+func (e simpleErr) Error() string { return string(e) }

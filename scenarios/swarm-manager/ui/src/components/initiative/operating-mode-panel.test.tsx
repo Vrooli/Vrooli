@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -89,6 +89,9 @@ function makeCatalogPhase(overrides: Partial<OperatingModeCatalogPhase> & { phas
 function makeCatalogEntry(overrides: Partial<OperatingModeCatalogEntry> & { mode: string; label: string }): OperatingModeCatalogEntry {
   return {
     description: `${overrides.label} description.`,
+    bestFor: [`${overrides.label} best for`],
+    notFor: [`${overrides.label} not for`],
+    tradeoffs: [`${overrides.label} tradeoff`],
     usageCount: 0,
     scopeKind: "initiative",
     runStrategy: "operator_gated_loop",
@@ -328,6 +331,30 @@ describe("OperatingModePanel", () => {
           cancelActiveItemExecutions: false,
         });
       });
+    });
+
+    it("shows the orientation banner pointing at acceptance-criteria after switching to a mode that requires criteria", async () => {
+      vi.mocked(initiativeModeService.switchMode).mockResolvedValue({
+        initiativeName: "mode-initiative",
+        fromMode: "item-level",
+        toMode: "holistic-loop",
+      });
+      // Initiative starts in item-level (capabilities don't require criteria
+      // initially) and has no acceptance criteria yet.
+      renderPanel({ initiative: { mode: "item-level", acceptanceCriteria: [] } });
+      const user = userEvent.setup();
+      await user.click(await screen.findByTestId(selectors.initiativeDetails.modeHeroSwitchButton));
+      const cards = await screen.findAllByTestId(selectors.initiativeDetails.modePickerCard);
+      await user.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+      await user.click(screen.getByTestId(selectors.initiativeDetails.modePickerConfirm));
+
+      const banner = await screen.findByTestId(selectors.initiativeDetails.orientationBanner);
+      expect(banner).toHaveTextContent("Holistic Loop");
+      expect(banner).toHaveTextContent(/acceptance criteria/i);
+
+      // Dismiss closes the banner.
+      await user.click(within(banner).getByLabelText("Dismiss orientation banner"));
+      expect(screen.queryByTestId(selectors.initiativeDetails.orientationBanner)).toBeNull();
     });
 
     it("submits with cancel=false on first attempt — server-side 409 drives the ack flow", async () => {

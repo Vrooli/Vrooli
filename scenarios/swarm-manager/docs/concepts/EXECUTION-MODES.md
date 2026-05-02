@@ -28,7 +28,9 @@ Mode phases are also registered in the prompt catalog by `(mode, phase)`, with s
 
 Operator-facing mode catalogs are derived from the same backend registry through `GET /api/v1/operating-modes`. UI and CLI mode selectors must consume that read model instead of carrying parallel built-in mode option lists.
 
-Future static modes should follow [DOC: ../internal/OPERATING-MODE-AUTHORING.md]. Mode definitions own transitions, result bindings, output contracts, prompt metadata, metrics semantics, and capabilities; shared framework code should not gain mode-specific behavior branches for a new methodology.
+Each `Definition` also carries decision-support metadata (`BestFor`, `NotFor`, `Tradeoffs`, `WhenInDoubtPickInstead`) that the picker, details page, and how-to-choose dialog render directly. The when-to-use prose in this document is canonical; the structured fields are short callouts derived from it. The registry validator enforces that all three lists are non-empty for every registered mode and that `WhenInDoubtPickInstead`, when set, references a registered mode and not self.
+
+Future static modes should follow [DOC: ../internal/OPERATING-MODE-AUTHORING.md]. Mode definitions own transitions, result bindings, output contracts, prompt metadata, metrics semantics, capabilities, and decision-support metadata; shared framework code should not gain mode-specific behavior branches for a new methodology.
 
 ## Why this distinction exists
 

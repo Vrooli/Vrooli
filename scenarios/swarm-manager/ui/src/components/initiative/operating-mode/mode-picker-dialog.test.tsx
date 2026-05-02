@@ -35,6 +35,9 @@ const initiativeModeCapabilities: OperatingModeCapabilities = {
 function makeMode(overrides: Partial<OperatingModeCatalogEntry> & { mode: string; label: string }): OperatingModeCatalogEntry {
   return {
     description: `${overrides.label} description`,
+    bestFor: [`${overrides.label} best for`],
+    notFor: [`${overrides.label} not for`],
+    tradeoffs: [`${overrides.label} tradeoff`],
     usageCount: 1,
     scopeKind: "initiative",
     runStrategy: "operator_gated_loop",
@@ -438,5 +441,126 @@ describe("ModePickerDialog", () => {
     const retry = screen.getByTestId(selectors.initiativeDetails.modePickerRetry);
     expect(retry).toBeDisabled();
     expect(retry).toHaveTextContent(/Retrying…/);
+  });
+
+  it("renders the criteria pre-warning chip when target requires criteria and current does not", async () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
+    await userEvent.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+    expect(
+      screen.getByTestId(selectors.initiativeDetails.modePickerCriteriaPrewarning),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the criteria pre-warning when current already requires criteria", async () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="holistic-loop"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
+    await userEvent.click(cards.find((c) => c.textContent?.includes("Phased Plan Drain"))!);
+    expect(
+      screen.queryByTestId(selectors.initiativeDetails.modePickerCriteriaPrewarning),
+    ).toBeNull();
+  });
+
+  it("renders the How to choose link when an opener is provided", async () => {
+    const onOpenHowToChoose = vi.fn();
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={() => {}}
+        onOpenHowToChoose={onOpenHowToChoose}
+      />,
+    );
+    const link = screen.getByTestId(selectors.initiativeDetails.modePickerHowToChooseLink);
+    await userEvent.click(link);
+    expect(onOpenHowToChoose).toHaveBeenCalled();
+  });
+
+  it("hides the How to choose link when no opener is provided", () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    expect(
+      screen.queryByTestId(selectors.initiativeDetails.modePickerHowToChooseLink),
+    ).toBeNull();
+  });
+
+  it("renders the guidance callouts for the selected mode in a detail block below the card grid", async () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    // The detail block already renders for the initial selection (current
+    // mode). Picking another card swaps the detail block to that mode.
+    const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
+    await userEvent.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+    const callouts = screen.getByTestId(selectors.initiativeDetails.modePickerGuidanceCallouts);
+    expect(callouts).toBeInTheDocument();
+    // Detail block sits *outside* every card so the 3-column callout grid can
+    // breathe at the dialog's full width instead of being squeezed into a
+    // single card column.
+    for (const card of cards) {
+      expect(card.contains(callouts)).toBe(false);
+    }
+  });
+
+  it("renders the selected mode description and label in the detail block", async () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    const cards = screen.getAllByTestId(selectors.initiativeDetails.modePickerCard);
+    await userEvent.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
+    expect(screen.getByText("About Holistic Loop")).toBeInTheDocument();
+    // Description shows in the card *and* the detail block — both copies are
+    // expected and useful (card stays self-explanatory, detail block reads
+    // unclamped).
+    expect(screen.getAllByText("Holistic Loop description").length).toBeGreaterThanOrEqual(1);
   });
 });

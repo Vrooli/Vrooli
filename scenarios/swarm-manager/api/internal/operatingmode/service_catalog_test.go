@@ -237,3 +237,42 @@ func TestBuildCatalogEntry_ItemLevel_NoPhaseGraph(t *testing.T) {
 		t.Fatalf("item-level PhaseGraph = %#v, want nil", entry.PhaseGraph)
 	}
 }
+
+func TestBuildCatalogEntry_PropagatesDecisionMetadata(t *testing.T) {
+	cases := []struct {
+		mode               Mode
+		def                Definition
+		wantWhenInDoubt    string
+		wantBestForNonZero bool
+	}{
+		{ModeItemLevel, itemLevelDefinition(), "", true},
+		{ModeHolisticLoop, holisticLoopDefinition(), string(ModeItemLevel), true},
+		{ModePhasedPlanDrain, phasedPlanDrainDefinition(), string(ModeHolisticLoop), true},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.mode), func(t *testing.T) {
+			entry := buildCatalogEntry(tc.def, 0)
+			if len(entry.BestFor) == 0 {
+				t.Fatalf("entry.BestFor is empty for %q", tc.mode)
+			}
+			if len(entry.NotFor) == 0 {
+				t.Fatalf("entry.NotFor is empty for %q", tc.mode)
+			}
+			if len(entry.Tradeoffs) == 0 {
+				t.Fatalf("entry.Tradeoffs is empty for %q", tc.mode)
+			}
+			if entry.WhenInDoubtPickInstead != tc.wantWhenInDoubt {
+				t.Fatalf("entry.WhenInDoubtPickInstead = %q, want %q", entry.WhenInDoubtPickInstead, tc.wantWhenInDoubt)
+			}
+			// Ensure the catalog slice is independent of the registry slice so
+			// mutations in one do not bleed into the other.
+			if len(entry.BestFor) > 0 && len(tc.def.BestFor) > 0 {
+				original := tc.def.BestFor[0]
+				entry.BestFor[0] = "MUTATED"
+				if tc.def.BestFor[0] != original {
+					t.Fatalf("buildCatalogEntry shared BestFor slice with the definition; mutating entry leaked into registry")
+				}
+			}
+		})
+	}
+}

@@ -239,26 +239,37 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 		if err != nil {
 			slog.Error("operations: initiatives error", "error", err)
 		} else {
+			activeRounds := p.loadActiveRounds(ctx)
 			for _, init := range inits {
 				if init.ArchivedAt != nil {
 					continue
 				}
 				rollup := computeInitiativeRollup(init.Items, itemByKey)
+				data := GraphInitiativeNodeData{
+					Name:   init.Name,
+					Title:  init.Title,
+					Status: init.Status,
+					Rollup: GraphInitiativeRollup{
+						Total:      int32(rollup.Total),
+						Completed:  int32(rollup.Completed),
+						InProgress: int32(rollup.InProgress),
+						Failed:     int32(rollup.Failed),
+						Pending:    int32(rollup.Pending),
+					},
+				}
+				if round, ok := activeRounds[init.Name]; ok {
+					data.OperatingMode = round.Mode
+					data.ActiveRound = &GraphInitiativeActiveRound{
+						Mode:   round.Mode,
+						Phase:  round.Phase,
+						Round:  round.Round,
+						Status: round.Status,
+					}
+				}
 				nodes = append(nodes, Node{
 					ID:   "initiative/" + init.Name,
 					Type: "Initiative",
-					Data: GraphInitiativeNodeData{
-						Name:   init.Name,
-						Title:  init.Title,
-						Status: init.Status,
-						Rollup: GraphInitiativeRollup{
-							Total:      int32(rollup.Total),
-							Completed:  int32(rollup.Completed),
-							InProgress: int32(rollup.InProgress),
-							Failed:     int32(rollup.Failed),
-							Pending:    int32(rollup.Pending),
-						},
-					},
+					Data: data,
 				})
 			}
 		}

@@ -2,15 +2,33 @@ package operatingmode
 
 func phasedPlanDrainDefinition() Definition {
 	return buildInitiativeMode(initiativeModeSpec{
-		Mode:                ModePhasedPlanDrain,
-		Label:               "Phased Plan Drain",
-		Description:         "Prepare a stable phased plan, then drain it with sequential handoff runs that classify progress and reconcile the backlog. Use when the work decomposes cleanly upfront.",
-		RunStrategy:         RunStrategySequentialHandoff,
-		ArtifactRoot:        "modes/phased-plan-drain",
-		PromptCatalogPrefix: "swarm-manager-phased-plan",
-		DefaultProfileKey:   ProfileDeepWork,
-		StartPhase:          "prepare_plan",
-		Terminal:            []Phase{"review"},
+		Mode:        ModePhasedPlanDrain,
+		Label:       "Phased Plan Drain",
+		Description: "Prepare a stable phased plan, then drain it with sequential handoff runs that classify progress and reconcile the backlog. Use when the work decomposes cleanly upfront.",
+		BestFor: []string{
+			"Long sequential plans that agents drain over many runs",
+			"A multi-phase plan can be prepared once and stays stable",
+			"Continuity across handoffs matters more than parallelism",
+			"Explicit progress classification between slices is valuable",
+		},
+		NotFor: []string{
+			"The plan is exploratory or unstable — use holistic-loop",
+			"Items are independent and parallel execution wins — use item-level",
+			"Work is small enough to fit in a single backlog item",
+		},
+		Tradeoffs: []string{
+			"Continuity over parallelism — one slice at a time",
+			"Less planning churn than holistic loop once the plan is stable",
+			"Explicit progress classification (continue / replan / complete / blocked) between slices",
+			"Heavier upfront plan preparation than holistic loop",
+		},
+		WhenInDoubtPickInstead: ModeHolisticLoop,
+		RunStrategy:            RunStrategySequentialHandoff,
+		ArtifactRoot:           "modes/phased-plan-drain",
+		PromptCatalogPrefix:    "swarm-manager-phased-plan",
+		DefaultProfileKey:      ProfileDeepWork,
+		StartPhase:             "prepare_plan",
+		Terminal:               []Phase{"review"},
 		Transitions: map[Phase][]Phase{
 			"prepare_plan":      {"execute_next"},
 			"execute_next":      {"classify_progress"},

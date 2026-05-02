@@ -63,12 +63,27 @@ message GraphBacklogNodeData {
   int32 active_execution_count = 7;
 }
 
+// GraphInitiativeActiveRound surfaces the first non-terminal operating-mode
+// round on an initiative node so the workspace graph can render a phase chip
+// + pulse without re-fetching per-initiative workspace state.
+message GraphInitiativeActiveRound {
+  string mode = 1 [(buf.validate.field).string.min_len = 1];
+  string phase = 2 [(buf.validate.field).string.min_len = 1];
+  int32 round = 3 [(buf.validate.field).int32.gte = 1];
+  string status = 4 [(buf.validate.field).string = { in: ["reserved", "agent_running"] }];
+}
+
 // GraphInitiativeNodeData describes an initiative node.
 message GraphInitiativeNodeData {
   string name = 1 [(buf.validate.field).string.min_len = 1];
   string title = 2 [(buf.validate.field).string.min_len = 1];
   string status = 3 [(buf.validate.field).string.min_len = 1];
   GraphInitiativeRollup rollup = 4;
+  // Operating mode of the initiative when an active round is in flight.
+  // Empty for initiatives in item-level mode or with no active round.
+  optional string operating_mode = 5;
+  // First non-terminal round, or unset when no round is active.
+  optional GraphInitiativeActiveRound active_round = 6;
 }
 
 // GraphCaptureNodeData describes a capture node.

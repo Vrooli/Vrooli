@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-30T18:30:00Z",
-    "endedAt": "2026-04-30T18:30:10Z",
+    "startedAt": "2026-05-02T18:30:00Z",
+    "endedAt": "2026-05-02T18:30:00Z",
     "status": "failed",
-    "runId": "f026e7f5-f0ee-470e-8f11-5613fcb73c25",
-    "logPath": "../store/teams/marketing-crew/members/subscription-advertiser/logs/2026-04-30T18-30-00Z.log",
-    "error": "2026-04-30T18:30:05.142771Z ERROR codex_core::session: failed to record rollout items: thread 019ddfa7-adb1-79f1-b8e4-961a814788a6 not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 31,
+  "revision": 34,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-30T18:30:10Z"
+  "updatedAt": "2026-05-02T18:30:00Z"
 }

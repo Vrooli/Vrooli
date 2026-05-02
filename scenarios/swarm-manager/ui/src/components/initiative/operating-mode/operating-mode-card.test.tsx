@@ -23,6 +23,9 @@ function makeMode(overrides: Partial<OperatingModeCatalogEntry> = {}): Operating
     mode: "item-level",
     label: "Item Level",
     description: "Each backlog item runs through the existing flow.",
+    bestFor: ["Right-sized items"],
+    notFor: ["Coupled work"],
+    tradeoffs: ["Highest parallelism"],
     usageCount: 3,
     scopeKind: "backlog_item",
     runStrategy: "existing_item_flow",
@@ -93,5 +96,18 @@ describe("OperatingModeCard", () => {
   it("uses two-line description clamp by default", () => {
     const { container } = render(<OperatingModeCard mode={makeMode()} data-testid="card" />);
     expect(container.querySelector("p.line-clamp-2.text-xs")).not.toBeNull();
+  });
+
+  it("keeps the uniform compact shape when selected (decision-support detail renders below the grid)", () => {
+    const { container } = render(
+      <OperatingModeCard mode={makeMode()} selected onClick={() => {}} data-testid="card" />,
+    );
+    // Selected cards stay tight so they don't push the row to a tall narrow
+    // column. Callouts and full description live in the picker's detail
+    // block below the grid, not inside the card itself.
+    expect(container.querySelector("p.line-clamp-2.text-xs")).not.toBeNull();
+    expect(
+      screen.queryByTestId("initiative-mode-picker-guidance-callouts"),
+    ).toBeNull();
   });
 });

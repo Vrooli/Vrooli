@@ -75,6 +75,43 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		log.Fatalf("operating-mode: failed to build Service: %v", err)
 	}
 	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
+
+	// Wire the active-rounds reader into the graph projection so initiative
+	// nodes can render an operating-mode chip + pulse without N+1 fetches.
+	// The graph projection was constructed earlier (registerGraphRoutes runs
+	// before this); a setter is the seam that keeps both registrations
+	// independently testable while letting the projection learn about the
+	// operating-mode service late.
+	if s.graphProjection != nil {
+		s.graphProjection.SetOperatingModeReader(operatingModeActiveRoundReader{svc: svc})
+	}
+}
+
+// operatingModeActiveRoundReader adapts operatingmode.Service into the
+// graph.OperatingModeReader interface. Translation between the two
+// active-round shapes lives here so neither package imports the other.
+type operatingModeActiveRoundReader struct {
+	svc *operatingmode.Service
+}
+
+func (r operatingModeActiveRoundReader) ActiveRoundsByInitiative(ctx context.Context) (map[string]graph.OperatingModeActiveRound, error) {
+	if r.svc == nil {
+		return map[string]graph.OperatingModeActiveRound{}, nil
+	}
+	rounds, err := r.svc.ActiveRoundsByInitiative(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]graph.OperatingModeActiveRound, len(rounds))
+	for name, round := range rounds {
+		out[name] = graph.OperatingModeActiveRound{
+			Mode:   round.Mode,
+			Phase:  round.Phase,
+			Round:  round.Round,
+			Status: round.Status,
+		}
+	}
+	return out, nil
 }
 
 func firstCatalogValue(values []string) string {

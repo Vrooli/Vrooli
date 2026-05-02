@@ -10,19 +10,41 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { Layers, List, Network, Pencil, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  Info,
+  Layers,
+  List,
+  Network,
+  Pencil,
+  Scale,
+  X,
+  XCircle,
+} from "lucide-react";
 import { Button } from "../components/ui/button";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
+import { ConceptExplainerDialog } from "../components/ui/concept-explainer-dialog";
+import { HowToChooseDialog } from "../components/initiative/operating-mode/how-to-choose-dialog";
 import { initiativeModeService } from "../services";
+import { useDocsUrl } from "../services/external-links";
 import { initiativeDetailPath } from "../app/routes/route-paths";
 import { selectors } from "../consts/selectors";
 import type { OperatingModeDetail } from "../types/operating-mode";
 import { PhaseGraph } from "../components/initiative/operating-mode/phase-graph";
 import { PhaseList } from "../components/initiative/operating-mode/phase-list";
+import { CapabilityList } from "../components/initiative/operating-mode/capability-list";
+import {
+  CAPABILITY_EXPLAINER,
+  DEFAULT_FLAG_EXPLAINER,
+  RUN_STRATEGY_EXPLAINER,
+  SCOPE_KIND_EXPLAINER,
+  type ConceptExplainer,
+} from "../components/initiative/operating-mode/concept-explainers";
 import {
   humanizeRunStrategy,
   humanizeScopeKind,
@@ -47,6 +69,16 @@ export function OperatingModeDetailsPage() {
     queryFn: () => initiativeModeService.getMode(mode),
     enabled: Boolean(mode),
   });
+
+  const catalogQuery = useQuery({
+    queryKey: ["operating-modes", "catalog"],
+    queryFn: () => initiativeModeService.catalog(),
+  });
+  const catalogModes = useMemo(
+    () => catalogQuery.data?.modes ?? [],
+    [catalogQuery.data],
+  );
+  const [howToChooseOpen, setHowToChooseOpen] = useState(false);
 
   const [isEditing, setEditing] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
@@ -76,6 +108,10 @@ export function OperatingModeDetailsPage() {
   });
   const [highlightedPhaseId, setHighlightedPhaseId] = useState<string | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
+  const [activeExplainer, setActiveExplainer] = useState<ConceptExplainer | null>(null);
+  const docsExecutionModesUrl = useDocsUrl("/docs/concepts/EXECUTION-MODES.md");
+  const docsHolisticLoopUrl = useDocsUrl("/docs/guides/holistic-loop-mode.md");
+  const docsPhasedPlanDrainUrl = useDocsUrl("/docs/guides/phased-plan-drain-mode.md");
 
   useEffect(() => {
     return () => {
@@ -225,15 +261,27 @@ export function OperatingModeDetailsPage() {
             )}
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 md:grid-cols-4">
               <div>
-                <dt className="text-slate-500">Scope</dt>
+                <ExplainableLabel
+                  label="Scope"
+                  onOpen={() => setActiveExplainer(SCOPE_KIND_EXPLAINER)}
+                  testId={selectors.initiativeDetails.modeDetailsScopeInfoIcon}
+                />
                 <dd className="text-slate-200">{humanizeScopeKind(entry.scopeKind)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Run strategy</dt>
+                <ExplainableLabel
+                  label="Run strategy"
+                  onOpen={() => setActiveExplainer(RUN_STRATEGY_EXPLAINER)}
+                  testId={selectors.initiativeDetails.modeDetailsRunStrategyInfoIcon}
+                />
                 <dd className="text-slate-200">{humanizeRunStrategy(entry.runStrategy)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Default</dt>
+                <ExplainableLabel
+                  label="Default"
+                  onOpen={() => setActiveExplainer(DEFAULT_FLAG_EXPLAINER)}
+                  testId={selectors.initiativeDetails.modeDetailsDefaultInfoIcon}
+                />
                 <dd className="text-slate-200">{entry.default ? "yes" : "no"}</dd>
               </div>
               <div>
@@ -294,6 +342,86 @@ export function OperatingModeDetailsPage() {
         </DetailSection>
       )}
 
+      <DetailSection
+        title="Capabilities"
+        action={
+          <button
+            type="button"
+            onClick={() => setActiveExplainer(CAPABILITY_EXPLAINER)}
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
+            aria-label="What capability flags mean"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+        }
+      >
+        <div data-testid={selectors.initiativeDetails.modeDetailsCapabilitiesSection}>
+          <CapabilityList capabilities={entry.capabilities} variant="full" />
+        </div>
+      </DetailSection>
+
+      <DetailSection title="When to use">
+        <ul
+          className="space-y-2"
+          data-testid={selectors.initiativeDetails.modeDetailsBestForSection}
+        >
+          {entry.bestFor.map((item, idx) => (
+            <li key={`best-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </DetailSection>
+
+      <DetailSection title="When not to use">
+        <ul
+          className="space-y-2"
+          data-testid={selectors.initiativeDetails.modeDetailsNotForSection}
+        >
+          {entry.notFor.map((item, idx) => (
+            <li key={`not-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </DetailSection>
+
+      <DetailSection title="Tradeoffs">
+        <ul
+          className="space-y-2"
+          data-testid={selectors.initiativeDetails.modeDetailsTradeoffsSection}
+        >
+          {entry.tradeoffs.map((item, idx) => (
+            <li key={`trade-${idx}`} className="flex items-start gap-2 text-sm text-slate-200">
+              <Scale className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </DetailSection>
+
+      <DetailSection title="Learn more">
+        <LearnMoreLinks
+          mode={entry.mode}
+          executionModesUrl={docsExecutionModesUrl}
+          holisticLoopUrl={docsHolisticLoopUrl}
+          phasedPlanDrainUrl={docsPhasedPlanDrainUrl}
+        />
+      </DetailSection>
+
+      <DetailSection title="Compare to other modes" hideDivider>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setHowToChooseOpen(true)}
+          data-testid={selectors.initiativeDetails.modeDetailsHowToChooseButton}
+        >
+          How does this compare to other modes?
+        </Button>
+      </DetailSection>
+
       <DetailSection title="Linked Initiatives">
         {linkedInitiatives.length === 0 ? (
           <p className="text-sm italic text-slate-500">No initiatives currently use this mode.</p>
@@ -322,6 +450,106 @@ export function OperatingModeDetailsPage() {
           </ul>
         )}
       </DetailSection>
+
+      <ConceptExplainerDialog
+        isOpen={activeExplainer !== null}
+        onClose={() => setActiveExplainer(null)}
+        title={activeExplainer?.title ?? ""}
+        intro={activeExplainer?.intro}
+        sections={activeExplainer?.sections ?? []}
+      />
+
+      <HowToChooseDialog
+        isOpen={howToChooseOpen}
+        onClose={() => setHowToChooseOpen(false)}
+        catalog={catalogModes}
+      />
     </DetailPageLayout>
+  );
+}
+
+function ExplainableLabel({
+  label,
+  onOpen,
+  testId,
+}: {
+  label: string;
+  onOpen: () => void;
+  testId: string;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <dt className="text-slate-500">{label}</dt>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="rounded p-0.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-200"
+        aria-label={`What ${label.toLowerCase()} means`}
+        data-testid={testId}
+      >
+        <Info className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+function LearnMoreLinks({
+  mode,
+  executionModesUrl,
+  holisticLoopUrl,
+  phasedPlanDrainUrl,
+}: {
+  mode: string;
+  executionModesUrl: string | null;
+  holisticLoopUrl: string | null;
+  phasedPlanDrainUrl: string | null;
+}) {
+  // Always offer the canonical EXECUTION-MODES doc; mode-specific guides are
+  // surfaced when applicable.
+  const links: Array<{ key: string; label: string; url: string | null }> = [
+    {
+      key: "execution-modes",
+      label: "Execution modes (concept)",
+      url: executionModesUrl,
+    },
+  ];
+  if (mode === "holistic-loop") {
+    links.push({ key: "holistic", label: "Holistic loop guide", url: holisticLoopUrl });
+  }
+  if (mode === "phased-plan-drain") {
+    links.push({ key: "phased", label: "Phased plan drain guide", url: phasedPlanDrainUrl });
+  }
+  const docsUnavailable = links.every((link) => link.url === null);
+  return (
+    <div
+      className="space-y-2"
+      data-testid={selectors.initiativeDetails.modeDetailsLearnMoreSection}
+    >
+      {docsUnavailable ? (
+        <p className="text-sm italic text-slate-500">Docs server unavailable.</p>
+      ) : null}
+      <ul className="space-y-1.5">
+        {links.map((link) => (
+          <li key={link.key}>
+            {link.url ? (
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-cyan-300 hover:text-cyan-200"
+              >
+                {link.label}
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+                {link.label}
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

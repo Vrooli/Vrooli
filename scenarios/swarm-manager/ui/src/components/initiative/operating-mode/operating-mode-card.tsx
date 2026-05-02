@@ -21,6 +21,11 @@ export function OperatingModeCard({
   "data-testid": testId,
 }: OperatingModeCardProps) {
   const interactive = Boolean(onClick);
+  // Cards in the picker live in an evenly-sized grid, so they keep a uniform
+  // tight shape regardless of selection state. Decision-support detail
+  // (full description, best-for / not-for / tradeoffs callouts) renders in
+  // a full-width detail block below the grid where it can breathe — see
+  // `mode-picker-dialog.tsx`.
   const descriptionClamp = compact ? "line-clamp-1" : "line-clamp-2";
 
   const body = (

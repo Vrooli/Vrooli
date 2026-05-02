@@ -61,6 +61,12 @@ interface PhaseGraphProps {
   rounds?: OperatingModeRound[];
   /** Per-phase startable/reason/next data, sourced from the workspace endpoint in composer mode. */
   phaseStates?: PhaseStateMap;
+  /**
+   * compact reduces the canvas height and hides the MiniMap and Controls.
+   * Used for the picker preview where the graph is a quick reference, not
+   * the primary interaction surface.
+   */
+  compact?: boolean;
 }
 
 interface BuildArgs {
@@ -145,7 +151,7 @@ const EDGE_LEGEND: Array<{ color: string; label: string }> = [
   { color: "var(--graph-edge-progress-decision)", label: "progress decision" },
 ];
 
-export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds, phaseStates }: PhaseGraphProps) {
+export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds, phaseStates, compact }: PhaseGraphProps) {
   const transitions = useMemo(() => entry.phaseGraph?.transitions ?? [], [entry.phaseGraph]);
   const roundsByPhase = useMemo(() => {
     const map = new Map<string, number>();
@@ -202,7 +208,13 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds
         <span className="ml-auto text-[11px] text-slate-500">click for glossary</span>
       </button>
       <PhaseGraphGlossaryDialog isOpen={glossaryOpen} onClose={() => setGlossaryOpen(false)} />
-      <div className="h-[300px] min-h-[240px] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 sm:h-[440px] md:h-[480px]">
+      <div
+        className={
+          compact
+            ? "h-[200px] overflow-hidden rounded-lg border border-slate-800 bg-slate-950"
+            : "h-[300px] min-h-[240px] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 sm:h-[440px] md:h-[480px]"
+        }
+      >
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
@@ -222,19 +234,21 @@ export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={24} size={1} color="var(--graph-grid)" />
-            <Controls showInteractive={false} />
-            <MiniMap
-              pannable
-              zoomable
-              maskColor="var(--graph-mini-mask)"
-              nodeColor={(node) => {
-                const data = node.data as PhaseNodeData | undefined;
-                if (data?.isStart) return "var(--graph-mini-node-start)";
-                if (data?.isTerminal) return "var(--graph-mini-node-terminal)";
-                return "var(--graph-mini-node-default)";
-              }}
-              className="!bg-slate-900 !border !border-slate-700"
-            />
+            {compact ? null : <Controls showInteractive={false} />}
+            {compact ? null : (
+              <MiniMap
+                pannable
+                zoomable
+                maskColor="var(--graph-mini-mask)"
+                nodeColor={(node) => {
+                  const data = node.data as PhaseNodeData | undefined;
+                  if (data?.isStart) return "var(--graph-mini-node-start)";
+                  if (data?.isTerminal) return "var(--graph-mini-node-terminal)";
+                  return "var(--graph-mini-node-default)";
+                }}
+                className="!bg-slate-900 !border !border-slate-700"
+              />
+            )}
           </ReactFlow>
         </ReactFlowProvider>
       </div>

@@ -35,6 +35,7 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 		projCfg.Activity = s.agentActivitySvc
 	}
 	projSvc := graph.NewProjectionService(projCfg)
+	s.graphProjection = projSvc
 	projectionCache := graph.NewProjectionCache(graph.ProjectionCacheConfig{
 		Projector: projSvc,
 	})

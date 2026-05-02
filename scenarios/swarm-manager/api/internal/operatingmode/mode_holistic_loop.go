@@ -2,15 +2,33 @@ package operatingmode
 
 func holisticLoopDefinition() Definition {
 	return buildInitiativeMode(initiativeModeSpec{
-		Mode:                ModeHolisticLoop,
-		Label:               "Holistic Loop",
-		Description:         "Investigate → plan → execute → review cycles across the whole initiative. Use when scope is exploratory and the plan must be revised as you learn.",
-		RunStrategy:         RunStrategyOperatorGatedLoop,
-		ArtifactRoot:        "modes/holistic-loop",
-		PromptCatalogPrefix: "swarm-manager-holistic-loop",
-		DefaultProfileKey:   ProfileDeepWork,
-		StartPhase:          "investigate",
-		Terminal:            []Phase{"review"},
+		Mode:        ModeHolisticLoop,
+		Label:       "Holistic Loop",
+		Description: "Investigate → plan → execute → review cycles across the whole initiative. Use when scope is exploratory and the plan must be revised as you learn.",
+		BestFor: []string{
+			"Coupled work where items can't be validated in isolation",
+			"The right plan can only be authored after cross-item investigation",
+			"Item shape will shift as the work reveals what items actually are",
+			"Replanning is expected — the first plan will be wrong about something material",
+		},
+		NotFor: []string{
+			"Items are independent and stable — use item-level for parallelism",
+			"A stable plan already exists and just needs to be drained — use phased-plan-drain",
+			"Work is small enough to fit in a single backlog item",
+		},
+		Tradeoffs: []string{
+			"One plan, not N plans — lower replanning cost than item-level for coupled work",
+			"Higher per-run cost than item-level",
+			"Loses parallelism — only one round runs at a time",
+			"Initiative-level acceptance review instead of per-item review",
+		},
+		WhenInDoubtPickInstead: ModeItemLevel,
+		RunStrategy:            RunStrategyOperatorGatedLoop,
+		ArtifactRoot:           "modes/holistic-loop",
+		PromptCatalogPrefix:    "swarm-manager-holistic-loop",
+		DefaultProfileKey:      ProfileDeepWork,
+		StartPhase:             "investigate",
+		Terminal:               []Phase{"review"},
 		Transitions: map[Phase][]Phase{
 			"investigate": {"plan"},
 			"plan":        {"execute"},

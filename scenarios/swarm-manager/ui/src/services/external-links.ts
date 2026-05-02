@@ -92,3 +92,20 @@ export function useSkillUrl(skillId: string | null | undefined): string | null {
   const { url } = useEmbeddedServiceUrl("prompt-manager");
   return useMemo(() => buildSkillUrl(url, skillId), [url, skillId]);
 }
+
+/**
+ * Resolve a deep-link to an in-scenario docs path (e.g.
+ * "/docs/concepts/EXECUTION-MODES.md") via the embedded "docs" service. The
+ * `path` argument is appended to the docs base URL as-is, so callers should
+ * include the leading slash.
+ *
+ * Returns null when the docs service is unavailable — call sites should
+ * render a disabled link or "Docs server unavailable" inline message.
+ */
+export function useDocsUrl(path: string | null | undefined): string | null {
+  const { url } = useEmbeddedServiceUrl("docs");
+  return useMemo(() => {
+    if (!path) return null;
+    return joinUrl(url, path);
+  }, [url, path]);
+}

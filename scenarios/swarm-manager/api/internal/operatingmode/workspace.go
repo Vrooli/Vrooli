@@ -190,17 +190,21 @@ func (s *Service) modeUsageCounts() (map[Mode]int, error) {
 func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 	capabilities := modeCapabilities(def)
 	entry := ModeCatalogEntry{
-		Mode:           string(def.Mode),
-		Label:          def.Label,
-		Description:    def.Description,
-		UsageCount:     usageCount,
-		ScopeKind:      string(def.Scope.Kind),
-		RunStrategy:    string(def.RunStrategy.Kind),
-		WorkspaceTabID: def.UI.WorkspaceTabID,
-		Capabilities:   capabilities,
-		Default:        def.Mode == DefaultMode(),
-		Switchable:     true,
-		SupportsPhases: capabilities.SupportsPhases,
+		Mode:                   string(def.Mode),
+		Label:                  def.Label,
+		Description:            def.Description,
+		BestFor:                append([]string(nil), def.BestFor...),
+		NotFor:                 append([]string(nil), def.NotFor...),
+		Tradeoffs:              append([]string(nil), def.Tradeoffs...),
+		WhenInDoubtPickInstead: string(def.WhenInDoubtPickInstead),
+		UsageCount:             usageCount,
+		ScopeKind:              string(def.Scope.Kind),
+		RunStrategy:            string(def.RunStrategy.Kind),
+		WorkspaceTabID:         def.UI.WorkspaceTabID,
+		Capabilities:           capabilities,
+		Default:                def.Mode == DefaultMode(),
+		Switchable:             true,
+		SupportsPhases:         capabilities.SupportsPhases,
 	}
 	if !entry.SupportsPhases {
 		return entry

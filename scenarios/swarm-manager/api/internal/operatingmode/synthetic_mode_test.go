@@ -166,15 +166,19 @@ func TestSyntheticModeHarnessDoesNotLeakIntoProductionRegistry(t *testing.T) {
 
 func syntheticHarnessDefinition() Definition {
 	return buildInitiativeMode(initiativeModeSpec{
-		Mode:                modeSyntheticHarness,
-		Label:               "Synthetic Harness",
-		Description:         "Synthetic harness used by registry tests; not a production mode.",
-		RunStrategy:         RunStrategyOperatorGatedLoop,
-		ArtifactRoot:        "modes/synthetic-harness",
-		PromptCatalogPrefix: "swarm-manager-synthetic-harness",
-		DefaultProfileKey:   ProfileDeepWork,
-		StartPhase:          "assess",
-		Terminal:            []Phase{"review"},
+		Mode:                   modeSyntheticHarness,
+		Label:                  "Synthetic Harness",
+		Description:            "Synthetic harness used by registry tests; not a production mode.",
+		BestFor:                []string{"Exercising registry validators"},
+		NotFor:                 []string{"Anything resembling production work"},
+		Tradeoffs:              []string{"Test-only — never registered outside test scope"},
+		WhenInDoubtPickInstead: ModeItemLevel,
+		RunStrategy:            RunStrategyOperatorGatedLoop,
+		ArtifactRoot:           "modes/synthetic-harness",
+		PromptCatalogPrefix:    "swarm-manager-synthetic-harness",
+		DefaultProfileKey:      ProfileDeepWork,
+		StartPhase:             "assess",
+		Terminal:               []Phase{"review"},
 		Transitions: map[Phase][]Phase{
 			"assess": {"decide"},
 			"decide": {"assess", "review"},

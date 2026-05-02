@@ -81,6 +81,10 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
     mode: "holistic-loop",
     label: "Holistic Loop",
     description: "Investigate→plan→execute cycles",
+    bestFor: ["Coupled work"],
+    notFor: ["Independent items"],
+    tradeoffs: ["One plan, not N"],
+    whenInDoubtPickInstead: "item-level",
     usageCount: 2,
     scopeKind: "initiative",
     runStrategy: "operator_gated_loop",
@@ -278,5 +282,42 @@ describe("OperatingModeDetailsPage", () => {
     fireEvent.change(labelInput, { target: { value: "   " } });
 
     expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+  });
+
+  it("renders decision-support sections from the catalog metadata", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage();
+
+    await screen.findByText("Holistic Loop");
+    expect(screen.getByTestId("operating-mode-details-best-for")).toHaveTextContent("Coupled work");
+    expect(screen.getByTestId("operating-mode-details-not-for")).toHaveTextContent("Independent items");
+    expect(screen.getByTestId("operating-mode-details-tradeoffs")).toHaveTextContent("One plan, not N");
+    expect(screen.getByTestId("operating-mode-details-capabilities")).toBeInTheDocument();
+    expect(screen.getByTestId("operating-mode-details-learn-more")).toBeInTheDocument();
+  });
+
+  it("opens the scope explainer dialog when the info icon is clicked", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage();
+
+    await screen.findByText("Holistic Loop");
+    expect(screen.queryByTestId("concept-explainer-dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("operating-mode-details-scope-info"));
+
+    const dialog = screen.getByTestId("concept-explainer-dialog");
+    expect(dialog).toHaveAttribute("role", "dialog");
+    expect(screen.getByRole("heading", { name: "Scope" })).toBeInTheDocument();
+  });
+
+  it("renders the disabled docs fallback when the docs URL is unavailable", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage();
+
+    await screen.findByText("Holistic Loop");
+    const learnMore = screen.getByTestId("operating-mode-details-learn-more");
+    expect(learnMore).toHaveTextContent("Docs server unavailable.");
+    // No anchor links since useDocsUrl returns null in test env.
+    expect(learnMore.querySelector("a")).toBeNull();
   });
 });

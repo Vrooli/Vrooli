@@ -3,18 +3,22 @@ package operatingmode
 import "strings"
 
 type initiativeModeSpec struct {
-	Mode                Mode
-	Label               string
-	Description         string
-	RunStrategy         RunStrategyKind
-	ArtifactRoot        string
-	PromptCatalogPrefix string
-	DefaultProfileKey   string
-	StartPhase          Phase
-	Terminal            []Phase
-	Transitions         map[Phase][]Phase
-	TransitionRules     map[Phase][]TransitionRule
-	Phases              []initiativePhaseSpec
+	Mode                   Mode
+	Label                  string
+	Description            string
+	BestFor                []string
+	NotFor                 []string
+	Tradeoffs              []string
+	WhenInDoubtPickInstead Mode
+	RunStrategy            RunStrategyKind
+	ArtifactRoot           string
+	PromptCatalogPrefix    string
+	DefaultProfileKey      string
+	StartPhase             Phase
+	Terminal               []Phase
+	Transitions            map[Phase][]Phase
+	TransitionRules        map[Phase][]TransitionRule
+	Phases                 []initiativePhaseSpec
 }
 
 type initiativePhaseSpec struct {
@@ -61,10 +65,14 @@ func buildInitiativeMode(spec initiativeModeSpec) Definition {
 	}
 
 	return Definition{
-		Mode:        spec.Mode,
-		Label:       spec.Label,
-		Description: spec.Description,
-		Scope:       ScopePolicy{Kind: ScopeInitiative},
+		Mode:                   spec.Mode,
+		Label:                  spec.Label,
+		Description:            spec.Description,
+		BestFor:                append([]string(nil), spec.BestFor...),
+		NotFor:                 append([]string(nil), spec.NotFor...),
+		Tradeoffs:              append([]string(nil), spec.Tradeoffs...),
+		WhenInDoubtPickInstead: spec.WhenInDoubtPickInstead,
+		Scope:                  ScopePolicy{Kind: ScopeInitiative},
 		PhaseGraph: PhaseGraph{
 			StartPhase:      spec.StartPhase,
 			Terminal:        append([]Phase(nil), spec.Terminal...),
