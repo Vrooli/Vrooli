@@ -1,0 +1,21 @@
+{
+  "app": {
+    "title": "{{SCENARIO_DISPLAY_NAME}}",
+    "eyebrow": "Scenario Template",
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "locale": {
+    "switcherLabel": "Language",
+    "english": "English",
+    "japanese": "日本語"
+  }
+}
