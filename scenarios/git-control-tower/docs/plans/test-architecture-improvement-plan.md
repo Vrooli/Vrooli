@@ -299,12 +299,28 @@ cd scenarios/git-control-tower/platforms/electron/renderer && go test ./...
 
 - [x] `make test` failures are fixed or intentionally documented.
 - [x] API `internal/testutil` package exists with no production import leaks.
-- [ ] Existing root-level fake files are migrated or reduced to compatibility wrappers for tests only.
+- [x] Existing root-level fake files are migrated or reduced to compatibility wrappers for tests only.
 - [x] HTTP/client tests use shared `httpx` utilities.
 - [x] UI has `test-setup.ts` wired into Vitest.
 - [x] App shell and high-risk UI surfaces have focused tests.
 - [x] Coverage reports show meaningful movement in API, CLI, and UI hotspots.
 - [x] `docs/internal/SEAMS.md` documents the updated test seams and remaining gaps.
+
+Implementation note: generic repo/file/assert helpers now live in `api/internal/testutil` and `api/testutil_test.go` is a package-local compatibility wrapper. The remaining root fakes stay in `package main` because they depend on API root types and unexported behavior; moving them to an importable testutil package would require production package restructuring or extra exported contracts that this plan explicitly avoids.
+
+Implementation note: settings workflow coverage now includes modal visibility, desktop layout routing, mobile close behavior, integration capability rendering, and repo-scoped visual-capture storage clearing. This moved UI statement coverage from 23.00% to 25.38%, with `SettingsModal.tsx`, `SettingsTabLayout.tsx`, `SettingsTabIntegrations.tsx`, and `SettingsTabStorage.tsx` now covered by user-facing tests.
+
+Implementation note: Scenario Review visual workflow coverage now includes screenshot empty/unavailable states, captured preset switching, page selection state callbacks, stale capture warnings, screenshot agent-context attachment, workflow execution-mode selection, disabled baseline execution with no selected modes, role switching between baseline/capture details, workflow error expansion, and video lightbox opening.
+
+Implementation note: CLI domain coverage now replaces compile-only checks with behavior-focused tests for domain registration, audit flag parsing and entry formatting, branch flag parsing and warning remediation output, repo diff/stage/commit/sync formatting, and review summary triage rendering. Current CLI coverage is `domains: 100.0%`, `audit: 47.7%`, `branch: 22.8%`, `repo: 44.9%`, and `review: 42.5%`.
+
+Implementation note: File-list subview coverage now exercises the flat, grouped, and mobile action surfaces directly. The pass also fixed an invalid nested-button structure in `FileSection` so section toggles and metrics buttons remain separate interactive controls. `AppModals` now has focused routing coverage for settings, upstream, discard, delete, and desktop/mobile file-search surfaces. UI statement coverage moved from `28.11%` to `31.49%`.
+
+Implementation note: React Query hook coverage now includes settings, visual capture, test execution, tidiness, agent, auditor, and review seams. These tests assert repo-scoped API forwarding, disabled-query guards, failure surfacing for failed captures, and mutation invalidation keys. UI statement coverage moved from `31.49%` to `32.28%`; `hooks-agent.ts` moved to `47.36%`, `hooks-settings.ts` to `45.23%`, and `hooks-visual.ts` to `72.15%`.
+
+Implementation note: mobile navigation coverage now exercises bottom-tab routing, capped change badges, mobile header review/search callbacks, bottom-sheet repository details, refresh/settings menu actions, and compact history/blame mode routing. This closes the explicit mobile-header/nav gap from Phase 6 without adding new production behavior.
+
+Implementation note: branch and repository selector coverage now exercises desktop branch filtering, local/remote switch routing, dirty-switch confirmation flags, branch-create validation/options, inactive-repo selection, repo-open validation, and fetch-required publish confirmation. UI statement coverage moved from `33.75%` to `35.35%`; `BranchSelector.tsx` is now `73.61%` and `RepoSelector.tsx` is now `76.96%`.
 
 ## Risks and Mitigations
 

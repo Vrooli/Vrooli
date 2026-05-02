@@ -77,25 +77,28 @@ export function FileSection({
 
   return (
     <div className="mb-4" data-testid={`file-section-${category}`}>
-      <button
-        className="flex items-center gap-2 w-full text-left px-2 py-1.5 hover:bg-slate-800/50 rounded transition-colors"
-        onClick={() => setExpanded(!expanded)}
-        data-testid={`file-section-toggle-${category}`}
-      >
-        {expanded ? (
-          <ChevronDown className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
-        ) : (
-          <ChevronRight className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
-        )}
-        {icon}
-        <span className={`font-medium text-slate-400 uppercase tracking-wider ${isMobile ? "text-sm" : "text-xs"}`}>
-          {title}
-        </span>
+      <div className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-slate-800/50 transition-colors">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          onClick={() => setExpanded(!expanded)}
+          data-testid={`file-section-toggle-${category}`}
+        >
+          {expanded ? (
+            <ChevronDown className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
+          ) : (
+            <ChevronRight className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
+          )}
+          {icon}
+          <span className={`font-medium text-slate-400 uppercase tracking-wider ${isMobile ? "text-sm" : "text-xs"}`}>
+            {title}
+          </span>
+        </button>
         <div className="ml-auto flex items-center gap-2">
           <LineStats stats={changeStats} compact onClick={onStatsClick} />
           <span className={`text-slate-600 ${isMobile ? "text-sm" : "text-xs"}`}>{files.length}</span>
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <ul className="mt-1 space-y-0.5 min-w-0">
@@ -142,4 +145,3 @@ export function FileSection({
     </div>
   );
 }
-

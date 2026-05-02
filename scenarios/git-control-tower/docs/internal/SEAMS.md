@@ -158,6 +158,8 @@ Guardrails:
 - Production code must not import `git-control-tower/internal/testutil/...`; this is enforced by `api/internal/testutil/no_prod_import_test.go`.
 - Handler tests can keep package-local fixtures when they need access to unexported server internals, but shared cross-scenario HTTP behavior belongs in `httpx`.
 
+Package-local fakes such as `FakeGitRunner`, `FakeAuditLogger`, `FakeDBChecker`, `FakeFileIO`, and `FakeWorkspaceSandboxAPI` intentionally remain in root `_test.go` files while the API package is `package main`. They model root-package interfaces and, in some cases, unexported behavior. Generic helpers that do not need root-package access belong in `internal/testutil`; `api/testutil_test.go` should remain a thin compatibility wrapper only.
+
 ## API Test Fixture and Persistence Seam
 
 **Locations**:

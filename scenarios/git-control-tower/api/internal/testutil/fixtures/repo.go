@@ -3,6 +3,7 @@ package fixtures
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -44,6 +45,50 @@ func WriteRepoContract(t *testing.T, root string) {
 }`
 	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
 		t.Fatalf("write repo-contract fixture: %v", err)
+	}
+}
+
+// RunGitCommand executes a git command with deterministic author/committer
+// environment for integration tests that intentionally touch real git.
+func RunGitCommand(t *testing.T, dir string, args ...string) {
+	t.Helper()
+
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=Test",
+		"GIT_AUTHOR_EMAIL=test@test.com",
+		"GIT_COMMITTER_NAME=Test",
+		"GIT_COMMITTER_EMAIL=test@test.com",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v failed: %v (%s)", args, err, string(out))
+	}
+}
+
+// SetupGitRepo creates a temporary git repository for integration tests.
+func SetupGitRepo(t *testing.T) string {
+	t.Helper()
+
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available in PATH")
+	}
+
+	repoDir := t.TempDir()
+	RunGitCommand(t, repoDir, "init")
+	RunGitCommand(t, repoDir, "checkout", "-b", "main")
+	return repoDir
+}
+
+// WriteFile creates a file with parent directories under test control.
+func WriteFile(t *testing.T, path string, contents string) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write file failed: %v", err)
 	}
 }
 
