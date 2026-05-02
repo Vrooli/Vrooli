@@ -9,6 +9,8 @@ vi.mock("@vrooli/api-base", () => ({
   buildApiUrl: (path: string, opts: { baseUrl: string }) => `${opts.baseUrl}${path}`,
 }));
 
+Element.prototype.scrollIntoView = vi.fn();
+
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
     if (typeof args[0] === "string" && args[0].startsWith("[api-base]")) {

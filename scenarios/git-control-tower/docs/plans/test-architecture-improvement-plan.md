@@ -322,6 +322,12 @@ Implementation note: mobile navigation coverage now exercises bottom-tab routing
 
 Implementation note: branch and repository selector coverage now exercises desktop branch filtering, local/remote switch routing, dirty-switch confirmation flags, branch-create validation/options, inactive-repo selection, repo-open validation, and fetch-required publish confirmation. UI statement coverage moved from `33.75%` to `35.35%`; `BranchSelector.tsx` is now `73.61%` and `RepoSelector.tsx` is now `76.96%`.
 
+Implementation note: file-search modal coverage now exercises recent-file selection, repository file selection, persisted file history, content-search mode persistence, advanced content-search option forwarding, grouped match rendering, and line-level match selection. This closes a 0% user-facing modal gap from the file workflow portion of Phase 6. UI statement coverage moved from `35.35%` to `37.96%`; `FileSearchModal.tsx` is now `83.50%` and `fileSearchUtils.tsx` is now `57.92%`.
+
+Implementation note: Agent tab workflow coverage now exercises the unavailable dependency state, automatic active-run selection, review-mode chat rendering, grouped tool output expansion, summary/diff/sandbox review rendering, approval routing, context chip callbacks, and first-run creation with the scenario envelope. The pass also added a shared `scrollIntoView` jsdom shim and gave the icon-only send button an accessible label. UI statement coverage moved from `37.96%` to `40.66%`; `AgentTab.tsx` is now `72.04%`, `AgentTabBubbles.tsx` is now `86.91%`, and `AgentTabTypes.ts` is now `85.36%`.
+
+Implementation note: Scenario Review quality/rules coverage now exercises changed-file quality matching, first-scan triggering, standards check start/persist behavior, completed violation rendering, expansion details, and agent-context attachment. This pass also fixed `CodeQualityTab` changed-file derivation so `RepoFileStats` category maps are flattened into scenario-relative paths before filtering tidiness issues.
+
 ## Risks and Mitigations
 
 - Risk: moving fakes out of the root package could require exported interfaces or constructors that production does not need.

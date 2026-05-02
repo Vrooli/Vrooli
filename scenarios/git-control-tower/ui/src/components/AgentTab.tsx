@@ -646,6 +646,7 @@ export function AgentTab({
               variant="default"
               size="sm"
               onClick={handleInputSend}
+              aria-label={canContinue ? "Send follow-up" : "Send message"}
               disabled={inputDisabled || isUploading || (!message.trim() && contextItems.length === 0 && attachments.length === 0)}
               className="h-9 w-9 p-0 shrink-0"
             >

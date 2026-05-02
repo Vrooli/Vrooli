@@ -41,9 +41,13 @@ export function CodeQualityTab({
   const changedFiles = useMemo(() => {
     if (!fileStats) return [];
     const prefix = `scenarios/${scenarioSlug}/`;
-    return Object.keys(fileStats).map(p =>
-      p.startsWith(prefix) ? p.slice(prefix.length) : p
-    );
+    const paths = new Set<string>();
+    for (const category of [fileStats.staged, fileStats.unstaged, fileStats.untracked]) {
+      for (const path of Object.keys(category ?? {})) {
+        paths.add(path.startsWith(prefix) ? path.slice(prefix.length) : path);
+      }
+    }
+    return Array.from(paths);
   }, [fileStats, scenarioSlug]);
 
   // Filter issues to changed files
