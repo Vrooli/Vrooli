@@ -1,4 +1,5 @@
 {
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: {{SCENARIO_DISPLAY_NAME}} のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "{{SCENARIO_DISPLAY_NAME}}",
     "eyebrow": "シナリオテンプレート",
@@ -14,9 +15,10 @@
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
   },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
   "locale": {
-    "switcherLabel": "言語",
-    "english": "English",
-    "japanese": "日本語"
+    "switcherLabel": "言語"
   }
 }

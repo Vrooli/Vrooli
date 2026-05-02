@@ -3,11 +3,22 @@
  *
  * Catches "added a key to en, forgot every other locale" drift before it
  * ships. We compare flattened key shapes between every locale catalog —
- * with one wrinkle: CLDR plural forms differ between languages (English
- * has `_one` + base, Japanese has only the base), so we strip plural
- * suffixes before comparing. Each *logical* key must exist in every
- * locale; a locale is free to declare extra plural variants its language
- * needs.
+ * with two wrinkles:
+ *
+ *   1. CLDR plural forms differ between languages (English has `_one` +
+ *      base, Japanese has only the base), so we strip plural suffixes
+ *      before comparing. Each *logical* key must exist in every locale;
+ *      a locale is free to declare extra plural variants its language
+ *      needs.
+ *   2. Catalog keys whose final segment starts with `_` are sentinels
+ *      (e.g., `_comment` documenting the file). They aren't user-facing
+ *      strings, don't go through `t()`, and a locale is free to omit
+ *      them. We skip them during flattening.
+ *
+ * The same sentinel skip lives in `scripts/gen-strings.mjs` (so they
+ * don't leak into `strings.generated.ts`) and `eslint-rules/no-unused-
+ * keys.js` (so they don't get flagged as orphans). The convention is
+ * duplicated by intent — each consumer documents its own contract.
  */
 import { describe, it, expect } from "vitest";
 import en from "./en.json";
@@ -17,12 +28,15 @@ const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 
 const stripPluralSuffix = (key: string) => key.replace(PLURAL_SUFFIX, "");
 
+const isSentinelKey = (key: string) => key.startsWith("_");
+
 const flatten = (
   obj: Record<string, unknown>,
   prefix = "",
 ): Record<string, string> => {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(obj)) {
+    if (isSentinelKey(k)) continue;
     const path = prefix ? `${prefix}.${k}` : k;
     if (typeof v === "string") {
       out[path] = v;

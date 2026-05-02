@@ -17,7 +17,8 @@
  *
  * Adding a locale:
  *   1. Drop `./locales/<code>.json` next to en.json (same shape).
- *   2. Add the code to `SUPPORTED_LOCALES` and an entry to `LOCALE_CONFIG`.
+ *   2. Add a single entry to `LOCALE_CONFIG` below — `SUPPORTED_LOCALES`
+ *      and the `Locale` type derive from it automatically.
  *   3. Import + register it in the `resources` block below.
  *   4. The language switcher reads `LOCALE_CONFIG` directly — no UI changes.
  */
@@ -26,9 +27,6 @@ import { initReactI18next, useTranslation } from "react-i18next";
 import en from "./locales/en.json";
 import ja from "./locales/ja.json";
 
-export const SUPPORTED_LOCALES = ["en", "ja"] as const;
-export type Locale = (typeof SUPPORTED_LOCALES)[number];
-
 interface LocaleConfig {
   /** Native-language label shown in switchers; never translated. */
   nativeLabel: string;
@@ -36,10 +34,16 @@ interface LocaleConfig {
   dir: "ltr" | "rtl";
 }
 
-const LOCALE_CONFIG: Record<Locale, LocaleConfig> = {
+// `LOCALE_CONFIG` is the single source of truth for supported locales —
+// the `Locale` type and `SUPPORTED_LOCALES` array derive from its keys, so
+// adding a locale is one entry, not three places to keep in sync.
+const LOCALE_CONFIG = {
   en: { nativeLabel: "English", dir: "ltr" },
   ja: { nativeLabel: "日本語", dir: "ltr" },
-};
+} as const satisfies Record<string, LocaleConfig>;
+
+export type Locale = keyof typeof LOCALE_CONFIG;
+export const SUPPORTED_LOCALES = Object.keys(LOCALE_CONFIG) as readonly Locale[];
 
 const STORAGE_KEY = "vrooli.locale";
 
@@ -86,5 +90,14 @@ export const setLocale = (lng: Locale): Promise<unknown> =>
   i18n.changeLanguage(lng);
 
 export const getLocaleConfig = (lng: Locale): LocaleConfig => LOCALE_CONFIG[lng];
+
+/**
+ * Resolve the active locale as a typed `Locale`. `i18n.language` at runtime can
+ * be `cimode` (test pseudo-locale), a region-tagged code like `en-US`, or a
+ * fallback — all of which are typed as `string`. Use this helper anywhere the
+ * caller needs to compare against `SUPPORTED_LOCALES` or index `LOCALE_CONFIG`.
+ */
+export const getCurrentLocale = (): Locale =>
+  isSupported(i18n.language) ? i18n.language : "en";
 
 export { i18n, useTranslation };

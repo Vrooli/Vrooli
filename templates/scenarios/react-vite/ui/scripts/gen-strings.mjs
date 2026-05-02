@@ -47,9 +47,20 @@ const HEADER = `// AUTO-GENERATED — do not edit by hand.
 // function takes as its first argument.
 `;
 
+/**
+ * Catalog keys whose final segment starts with `_` are sentinels (e.g.,
+ * `_comment` documenting the file). Skip them everywhere — they don't
+ * belong in the typed registry, the parity test, or the unused-key audit.
+ * See locales.test.ts and eslint-rules/no-unused-keys.js for the matching
+ * skip logic; the convention is duplicated by intent so each consumer is
+ * self-explanatory, not via a shared import.
+ */
+export const isSentinelKey = (key) => key.startsWith("_");
+
 const buildKeys = (catalog, prefix = "") => {
   const result = {};
   for (const [key, value] of Object.entries(catalog)) {
+    if (isSentinelKey(key)) continue;
     const path = prefix ? `${prefix}.${key}` : key;
     if (typeof value === "string") {
       result[key] = path;

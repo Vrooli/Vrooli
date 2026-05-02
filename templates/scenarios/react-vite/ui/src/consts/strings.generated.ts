@@ -28,10 +28,13 @@ export const strings = {
     serviceLabel: "health.serviceLabel",
     timestampLabel: "health.timestampLabel",
   },
+  notifications: {
+    summary: "notifications.summary",
+    summary_zero: "notifications.summary_zero",
+    summary_one: "notifications.summary_one",
+  },
   locale: {
     switcherLabel: "locale.switcherLabel",
-    english: "locale.english",
-    japanese: "locale.japanese",
   },
 } as const;
 

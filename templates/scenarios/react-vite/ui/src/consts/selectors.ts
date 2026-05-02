@@ -307,6 +307,9 @@ const literalSelectors = {
     refreshButton: "health-refresh-button",
     refreshCount: "health-refresh-count",
   },
+  notifications: {
+    summary: "notifications-summary",
+  },
   locale: {
     switcher: "locale-switcher",
   },

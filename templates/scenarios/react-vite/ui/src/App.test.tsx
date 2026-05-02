@@ -189,4 +189,48 @@ describe("App locale switching (real locales — end-to-end)", () => {
       );
     });
   });
+
+  // The notifications.summary key exercises a three-way plural shape — base
+  // (`_other` fallback), `_zero`, and `_one` — to give scenario authors a
+  // worked example of CLDR plurals beyond the simple singular/plural split
+  // demoed by refreshCount. The three tests below cover each branch.
+  it("renders zero-form plural at count=0 (notifications.summary_zero)", async () => {
+    renderApp();
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.notifications.summary)).toHaveTextContent(
+        en.notifications.summary_zero,
+      );
+    });
+  });
+
+  it("renders one-form plural at count=1 (notifications.summary_one)", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId(selectors.health.refreshButton));
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.notifications.summary)).toHaveTextContent(
+        en.notifications.summary_one,
+      );
+    });
+  });
+
+  it("renders other-form plural at count=5 (notifications.summary base)", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    const button = screen.getByTestId(selectors.health.refreshButton);
+    for (let i = 0; i < 5; i++) {
+      await user.click(button);
+    }
+
+    await waitFor(() => {
+      const expected = en.notifications.summary.replace("{{count}}", "5");
+      expect(screen.getByTestId(selectors.notifications.summary)).toHaveTextContent(
+        expected,
+      );
+    });
+  });
 });

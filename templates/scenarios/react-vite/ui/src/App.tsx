@@ -5,12 +5,12 @@ import { Button } from "./components/ui/button";
 import { selectors } from "./consts/selectors";
 import { strings } from "./consts/strings";
 import { formatDate } from "./i18n/format";
-import { SUPPORTED_LOCALES, getLocaleConfig, setLocale, useTranslation, type Locale } from "./i18n";
+import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "./i18n";
 import { fetchHealth } from "./lib/api";
 
 export default function App() {
-  const { t, i18n } = useTranslation();
-  const currentLocale = i18n.language as Locale;
+  const { t } = useTranslation();
+  const currentLocale = getCurrentLocale();
   const [refreshCount, setRefreshCount] = useState(0);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -109,7 +109,7 @@ export default function App() {
             onClick={handleRefresh}
           >
             {t(strings.health.refresh)}
-            <ArrowRight className="ms-2 h-4 w-4" />
+            <ArrowRight aria-hidden="true" className="ms-2 h-4 w-4" />
           </Button>
           {refreshCount > 0 && (
             <p
@@ -119,6 +119,12 @@ export default function App() {
               {t(strings.health.refreshCount, { count: refreshCount })}
             </p>
           )}
+          <p
+            data-testid={selectors.notifications.summary}
+            className="mt-2 text-xs text-slate-500"
+          >
+            {t(strings.notifications.summary, { count: refreshCount })}
+          </p>
         </div>
       </div>
     </div>

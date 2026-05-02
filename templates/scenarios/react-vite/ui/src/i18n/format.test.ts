@@ -30,10 +30,15 @@ describe("locale-aware Intl formatters", () => {
     });
 
     it("switches output when i18n.language changes", async () => {
-      await i18n.changeLanguage("en");
+      // Using a locale pair whose Intl output actually diverges (en-US uses
+      // ',' as thousands separator + '.' as decimal; de-DE inverts both) so
+      // the assertion proves `i18n.language` drives the formatter — not just
+      // that the call doesn't throw. en + ja would both produce "1,234.5"
+      // and silently pass even if the language-switch path were broken.
+      await i18n.changeLanguage("en-US");
       expect(formatNumber(1234.5)).toBe("1,234.5");
-      await i18n.changeLanguage("ja");
-      expect(formatNumber(1234.5)).toBe("1,234.5");
+      await i18n.changeLanguage("de-DE");
+      expect(formatNumber(1234.5)).toBe("1.234,5");
     });
 
     it("forwards Intl.NumberFormatOptions to the constructor", () => {

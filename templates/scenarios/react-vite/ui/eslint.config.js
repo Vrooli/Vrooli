@@ -5,6 +5,7 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import stringsPlugin from "./eslint-rules/index.js";
 
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage"] },
@@ -25,7 +26,12 @@ export default tseslint.config(
       ecmaVersion: 2020,
       globals: globals.browser,
       parserOptions: {
-        project: ["./tsconfig.json", "./tsconfig.node.json"],
+        // `projectService: true` is the typescript-eslint v8+ canonical
+        // way to pick up TS project info without listing each tsconfig
+        // explicitly. Avoids the "Multiple projects found, consider using
+        // a single tsconfig with references" advisory that the older
+        // explicit `project: [...]` array shape produces.
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -33,12 +39,19 @@ export default tseslint.config(
       import: importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      strings: stringsPlugin,
     },
     settings: {
       "import/resolver": {
+        // `eslint-import-resolver-typescript` follows TS project references
+        // automatically when given a single root tsconfig (tsconfig.json
+        // already references tsconfig.node.json), so we point at the root
+        // and let the resolver walk references. Listing both explicitly
+        // produces the same "Multiple projects found" advisory we silence
+        // on the parser side via `projectService: true`.
         typescript: {
           alwaysTryTypes: true,
-          project: ["./tsconfig.json", "./tsconfig.node.json"],
+          project: "./tsconfig.json",
         },
       },
     },
@@ -124,6 +137,12 @@ export default tseslint.config(
       // class names (string content of `className`), not the HTML `placeholder`
       // attribute, so they are not affected by rule #3.
       // ════════════════════════════════════════════════════════════════════════
+      // String registry custom rules — see eslint-rules/index.js for the
+      // contract. Both rules anchor on `src/consts/strings.generated.ts` and
+      // emit exactly once per lint pass.
+      "strings/codegen-fresh": "error",
+      "strings/no-unused-keys": "error",
+
       "no-restricted-syntax": [
         "error",
         {
@@ -158,15 +177,17 @@ export default tseslint.config(
       // ════════════════════════════════════════════════════════════════════════
       // TEST STABILITY ENFORCEMENT
       //
-      // Banning string literals as the first argument to text-based queries
-      // (`getByText("Reload")`) forces tests through one of three load-bearing
-      // patterns:
+      // Banning string and template literals as the first argument to every
+      // copy- or label-driven Testing Library query forces tests through one
+      // of three load-bearing patterns:
       //
       //   1. `getByTestId(selectors.x.y)`   — copy-independent, structure-
       //      independent. The default for "find this element."
       //   2. `getByText(strings.x.y)`       — combined with cimode (default
       //      via test-setup.ts), `t()` returns the key, so this is a typed,
       //      copy-independent assertion that the right *key* renders.
+      //      The same pattern works with the role-by-name shape:
+      //      `getByRole(role, { name: t(strings.x.y) })`.
       //   3. `getByText(en.x.y)`            — explicit real-locale tests
       //      (validating the i18n pipeline end-to-end). MemberExpressions
       //      pass this rule; only string and template literals are banned.
@@ -174,8 +195,16 @@ export default tseslint.config(
       // Regex matchers (`getByText(/loading/i)`) remain allowed — they're
       // explicit pattern matchers, not exact-string assertions.
       //
+      // Coverage: every copy-driven *By* family from Testing Library —
+      // ByText, ByLabelText, ByPlaceholderText, ByTitle, ByAltText,
+      // ByDisplayValue. ByRole and ByTestId are NOT covered: ByRole takes
+      // a role name (not copy), and ByTestId is the canonical escape hatch
+      // we want authors to use.
+      //
       // If you hit this rule:
-      //   ✅ DO: replace with `selectors.x.y` (test ID) or `strings.x.y` (key).
+      //   ✅ DO: replace with `selectors.x.y` (test ID), `strings.x.y` (key),
+      //         or `getByRole(role, { name: t(strings.x.y) })` for accessible
+      //         names.
       //   ❌ DON'T: disable the rule. The whole point is that tests don't
       //         silently break when copy changes — that's a test failure
       //         every time copy moves, not a real regression.
@@ -184,15 +213,15 @@ export default tseslint.config(
         "error",
         {
           selector:
-            "CallExpression[callee.property.name=/^(getByText|findByText|queryByText|getAllByText|findAllByText|queryAllByText)$/] > Literal[value=/[a-zA-Z]/]:first-child",
+            "CallExpression[callee.property.name=/^(get|find|query|getAll|findAll|queryAll)By(Text|LabelText|PlaceholderText|Title|AltText|DisplayValue)$/] > Literal[value=/[a-zA-Z]/]:first-child",
           message:
-            "Don't pass string literals to *ByText queries. Use getByTestId(selectors.x.y) or getByText(strings.x.y) (with the cimode default) so tests survive copy changes.",
+            "Don't pass string literals to copy-driven Testing Library queries. Use getByTestId(selectors.x.y), getByText(strings.x.y) (with the cimode default), or getByRole(role, { name: t(strings.x.y) }) so tests survive copy changes.",
         },
         {
           selector:
-            "CallExpression[callee.property.name=/^(getByText|findByText|queryByText|getAllByText|findAllByText|queryAllByText)$/] > TemplateLiteral:first-child",
+            "CallExpression[callee.property.name=/^(get|find|query|getAll|findAll|queryAll)By(Text|LabelText|PlaceholderText|Title|AltText|DisplayValue)$/] > TemplateLiteral:first-child",
           message:
-            "Don't pass template literals to *ByText queries. Use getByTestId(selectors.x.y) or getByText(strings.x.y) (with the cimode default) so tests survive copy changes.",
+            "Don't pass template literals to copy-driven Testing Library queries. Use getByTestId(selectors.x.y), getByText(strings.x.y) (with the cimode default), or getByRole(role, { name: t(strings.x.y) }) so tests survive copy changes.",
         },
       ],
     },
