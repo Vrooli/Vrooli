@@ -40,10 +40,13 @@ interface MemberDetailPanelProps {
   appearance?: AgentAppearance
   manager?: TeamMember | null
   directReports?: TeamMember[]
-  /** Which section tab to navigate to */
+  /** Controlled section value. When supplied, the panel mirrors this value
+   * instead of holding its own state, and emits onSectionChange on user nav. */
+  section?: MemberDetailSection
+  /** Called when the user picks a section button. */
+  onSectionChange?: (section: MemberDetailSection) => void
+  /** Initial section for uncontrolled use. Ignored when `section` is provided. */
   initialSection?: MemberDetailSection
-  /** Nonce that changes on each navigation request to guarantee the effect fires */
-  initialSectionNonce?: number
   onUpdateMember: (agentId: string, request: UpdateMemberRequest) => Promise<TeamMember>
   onRemoveMember: (agentId: string) => Promise<void>
   onClose: () => void
@@ -82,14 +85,20 @@ function formatRelativePastTime(date: Date) {
 // Component
 // ============================================================================
 
+function sectionToTab(section: MemberDetailSection): ActiveTab {
+  if (section === 'pipeline' || section === 'prompt') return section
+  return 'overview'
+}
+
 export function MemberDetailPanel({
   team,
   member,
   appearance,
   manager = null,
   directReports = [],
+  section,
+  onSectionChange,
   initialSection,
-  initialSectionNonce,
   onUpdateMember,
   onRemoveMember,
   onClose,
@@ -101,26 +110,31 @@ export function MemberDetailPanel({
   // Running agent state from shared store
   const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
 
-  // Local state — 3 tabs: overview, pipeline, prompt
-  const [activeSection, setActiveSection] = useState<ActiveTab>(
-    initialSection === 'pipeline' ? 'pipeline'
-      : initialSection === 'prompt' ? 'prompt'
-        : 'overview'
+  // Internal section state for uncontrolled use; ignored when `section` is supplied.
+  const [internalSection, setInternalSection] = useState<MemberDetailSection>(
+    initialSection ?? 'overview',
+  )
+  const effectiveSection = section ?? internalSection
+
+  const handleSectionChange = useCallback(
+    (next: MemberDetailSection) => {
+      if (onSectionChange) onSectionChange(next)
+      else setInternalSection(next)
+    },
+    [onSectionChange],
   )
 
-  // Sync when a navigation request arrives (e.g. clicking a heartbeat in Info tab).
-  // The nonce ensures the effect fires even for repeated navigations to the same section.
+  const activeSection = sectionToTab(effectiveSection)
+
+  // Scroll to overview sub-section when section transitions into responsibilities/heartbeat.
   useEffect(() => {
-    if (!initialSection) return
-    const tab: ActiveTab = (initialSection === 'responsibilities' || initialSection === 'heartbeat')
-      ? 'overview' : initialSection
-    setActiveSection(tab)
-    if (initialSection === 'responsibilities' || initialSection === 'heartbeat') {
-      setTimeout(() => {
-        document.getElementById(`section-${initialSection}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
-    }
-  }, [initialSection, initialSectionNonce])
+    if (effectiveSection !== 'responsibilities' && effectiveSection !== 'heartbeat') return
+    const id = `section-${effectiveSection}`
+    const handle = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+    return () => window.clearTimeout(handle)
+  }, [effectiveSection])
 
   const [responsibilities, setResponsibilities] = useState('')
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')
@@ -435,11 +449,11 @@ export function MemberDetailPanel({
         </div>
       </div>
 
-      {/* Section tabs — 2 tabs */}
+      {/* Section tabs — 3 tabs */}
       <div className="flex-shrink-0 flex border-b border-border">
         <button
           type="button"
-          onClick={() => setActiveSection('overview')}
+          onClick={() => handleSectionChange('overview')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeSection === 'overview'
@@ -451,7 +465,7 @@ export function MemberDetailPanel({
         </button>
         <button
           type="button"
-          onClick={() => setActiveSection('pipeline')}
+          onClick={() => handleSectionChange('pipeline')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeSection === 'pipeline'
@@ -463,7 +477,7 @@ export function MemberDetailPanel({
         </button>
         <button
           type="button"
-          onClick={() => setActiveSection('prompt')}
+          onClick={() => handleSectionChange('prompt')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeSection === 'prompt'
@@ -714,12 +728,7 @@ Describe what this agent is responsible for in this team..."
           <MemberPromptPipelineSection
             teamId={team.id}
             memberId={member.agentId}
-            onNavigateToTab={(section) => {
-              setActiveSection('overview')
-              setTimeout(() => {
-                document.getElementById(`section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }, 50)
-            }}
+            onNavigateToTab={(target) => handleSectionChange(target)}
             onNavigateToAgentFiles={onNavigateToAgentFiles ? (filePath) => onNavigateToAgentFiles(member.agentId, filePath) : undefined}
           />
         )}

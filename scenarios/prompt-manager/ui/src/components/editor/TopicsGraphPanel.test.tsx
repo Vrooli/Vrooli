@@ -26,6 +26,7 @@ vi.mock('@xyflow/react', async () => {
 })
 
 import { TopicsGraphPanel } from './TopicsGraphPanel'
+import { __resetTopicsGraphCache } from '@/hooks/useTopicsGraph'
 
 function fixture(): TopicsGraphResponse {
   return {
@@ -68,6 +69,7 @@ function fixture(): TopicsGraphResponse {
 
 describe('TopicsGraphPanel', () => {
   beforeEach(() => {
+    __resetTopicsGraphCache()
     getTopicsGraph.mockReset()
     getDrainStatus.mockReset()
   })

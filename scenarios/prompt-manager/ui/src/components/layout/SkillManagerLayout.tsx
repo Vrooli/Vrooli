@@ -27,6 +27,7 @@ import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { AgentEditorPanel } from '../editor/AgentEditorPanel'
 import { TeamEditorPanel } from '../editor/TeamEditorPanel'
+import type { MemberDetailSection } from '../editor/MemberDetailPanel'
 import { RunEditorPanel } from '../editor/RunEditorPanel'
 import { TopicEditorPanel } from '../topic/TopicEditorPanel'
 import { ActionEditorPanel } from '../action/ActionEditorPanel'
@@ -124,6 +125,8 @@ export function SkillManagerLayout() {
   const topicWizardActive = location.pathname === topicWizardPath()
   const pendingTab = searchParams.get('tab')
   const pendingSubTab = searchParams.get('subTab')
+  const pendingMemberId = searchParams.get('memberId')
+  const pendingMemberSection = searchParams.get('memberSection')
   const highlightRequest = useMemo(
     () => highlightFromSearchParams(searchParams),
     [searchParams]
@@ -187,6 +190,19 @@ export function SkillManagerLayout() {
 
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
+
+  // Clear stale ?memberId / ?memberSection params when the team changes and the
+  // pending memberId is not present in the new team's members. Avoids ghost
+  // selection state after switching teams via URL.
+  useEffect(() => {
+    if (!currentTeam || !pendingMemberId) return
+    const stillExists = currentTeam.members.some((m) => m.agentId === pendingMemberId)
+    if (stillExists) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('memberId')
+    next.delete('memberSection')
+    setSearchParams(next, { replace: true })
+  }, [currentTeam, pendingMemberId, searchParams, setSearchParams])
 
   // Health scores from graph store.
   // Use useShallow to avoid infinite re-renders from new [] references when graph is null.
@@ -1438,8 +1454,17 @@ export function SkillManagerLayout() {
                 allAgents={agents}
                 initialTab={pendingTab}
                 initialSubTab={pendingSubTab}
+                initialMemberId={pendingMemberId}
+                initialMemberSection={pendingMemberSection as MemberDetailSection | null}
                 onTabChange={(tab) => updateRouteSearchParam('tab', tab)}
                 onSubTabChange={(subTab) => updateRouteSearchParam('subTab', subTab)}
+                onMemberSelect={(agentId) => updateRouteSearchParam('memberId', agentId)}
+                onMemberSectionChange={(section) =>
+                  updateRouteSearchParam(
+                    'memberSection',
+                    section && section !== 'overview' ? section : null,
+                  )
+                }
                 onNavigateToAgentFiles={handleNavigateToAgentFiles}
                 onUpdate={async (updates) => {
                   if (selectedTeamId) {

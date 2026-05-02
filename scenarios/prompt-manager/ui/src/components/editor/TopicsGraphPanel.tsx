@@ -11,7 +11,7 @@
  * DOC: docs/agent-system/drafts/topics-schema.md
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -26,7 +26,7 @@ import { Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TopicsGraphNode } from './TopicsGraphNode'
 import { TopicsValidationPanel } from './TopicsValidationPanel'
-import * as memberFlowService from '@/services/memberFlowService'
+import { useTopicsGraph } from '@/hooks/useTopicsGraph'
 import type {
   TopicEdgeKind,
   TopicGraphEdge,
@@ -42,6 +42,14 @@ import '@xyflow/react/dist/style.css'
 
 interface TopicsGraphPanelProps {
   teamId: string
+  /** Optional handler invoked when a member node is clicked. Boundary nodes still highlight locally without firing this. */
+  onSelectMember?: (agentId: string) => void
+  /** Controlled validation-sidebar visibility (lifted to TeamEditorPanel). */
+  showValidation?: boolean
+  /** Toggle handler for the validation sidebar (paired with showValidation). */
+  onValidationToggle?: () => void
+  /** Open a member's file in the Files tab (used by validation-finding CTA). */
+  onOpenMemberFile?: (team: string, member: string, fileName: string) => void
   className?: string
 }
 
@@ -162,41 +170,44 @@ function buildFlow(
   return getLayouted(flowNodes, flowEdges)
 }
 
-export function TopicsGraphPanel({ teamId, className }: TopicsGraphPanelProps) {
-  const [graph, setGraph] = useState<TopicsGraphResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+export function TopicsGraphPanel({
+  teamId,
+  onSelectMember,
+  showValidation: showValidationProp,
+  onValidationToggle,
+  onOpenMemberFile,
+  className,
+}: TopicsGraphPanelProps) {
+  const { graph, loading, error, refresh } = useTopicsGraph(teamId)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdge, setSelectedEdge] = useState<TopicGraphEdge | null>(null)
-  const [showValidation, setShowValidation] = useState(true)
+  const [internalShowValidation, setInternalShowValidation] = useState(true)
+  const showValidation = showValidationProp ?? internalShowValidation
+  const handleValidationToggle = useCallback(() => {
+    if (onValidationToggle) onValidationToggle()
+    else setInternalShowValidation((v) => !v)
+  }, [onValidationToggle])
 
-  const fetchGraph = useMemo(
-    () => async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await memberFlowService.getTopicsGraph(teamId)
-        setGraph(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-      } finally {
-        setLoading(false)
+  const handleSelectNode = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId)
+    if (nodeId.startsWith('member:')) {
+      const slashIdx = nodeId.indexOf('/', 'member:'.length)
+      if (slashIdx > 0) {
+        const agentId = nodeId.slice(slashIdx + 1)
+        if (agentId) onSelectMember?.(agentId)
       }
-    },
-    [teamId],
-  )
+    }
+  }, [onSelectMember])
 
-  useEffect(() => {
-    void fetchGraph()
-  }, [fetchGraph])
+  const fetchGraph = useCallback(() => refresh(), [refresh])
 
   const { nodes, edges } = useMemo(() => {
     if (!graph) {
       return { nodes: [] as TopicsFlowNode[], edges: [] as TopicsFlowEdge[] }
     }
-    const built = buildFlow(graph, selectedNodeId, setSelectedNodeId)
+    const built = buildFlow(graph, selectedNodeId, handleSelectNode)
     return { nodes: built.nodes, edges: built.edges }
-  }, [graph, selectedNodeId])
+  }, [graph, selectedNodeId, handleSelectNode])
 
   const handleEdgeClick: EdgeMouseHandler<TopicsFlowEdge> = (event, edge) => {
     event.stopPropagation()
@@ -291,12 +302,8 @@ export function TopicsGraphPanel({ teamId, className }: TopicsGraphPanelProps) {
           className="bg-background"
         >
           <Background color="hsl(var(--border))" gap={20} />
-          <Controls
-            className="!bg-card !border-border !rounded-lg overflow-hidden"
-            showInteractive={false}
-          />
+          <Controls showInteractive={false} />
           <MiniMap
-            className="!bg-card !border-border !rounded-lg"
             nodeColor={(n) => {
               const kind = (n.data as { graphNode?: { kind?: TopicNodeKind } } | undefined)?.graphNode?.kind
               switch (kind) {
@@ -373,7 +380,7 @@ export function TopicsGraphPanel({ teamId, className }: TopicsGraphPanelProps) {
             </button>
             <button
               type="button"
-              onClick={() => setShowValidation((v) => !v)}
+              onClick={handleValidationToggle}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg',
                 'bg-card border border-border text-foreground',
@@ -398,6 +405,7 @@ export function TopicsGraphPanel({ teamId, className }: TopicsGraphPanelProps) {
             onSelectMember={(team, member) => {
               setSelectedNodeId(`member:${team}/${member}`)
             }}
+            onOpenMemberFile={onOpenMemberFile}
           />
         </div>
       )}

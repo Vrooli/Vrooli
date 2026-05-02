@@ -761,13 +761,9 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
             className="bg-background"
           >
             <Background color="hsl(var(--border))" gap={20} />
-            <Controls
-              className="!bg-card !border-border !rounded-lg overflow-hidden"
-              showInteractive={false}
-            />
+            <Controls showInteractive={false} />
             {showMiniMap && (
               <MiniMap
-                className="!bg-card !border-border !rounded-lg"
                 nodeColor={(node) => {
                   const data = node.data as unknown as GraphNodeData
                   switch (data.nodeType) {

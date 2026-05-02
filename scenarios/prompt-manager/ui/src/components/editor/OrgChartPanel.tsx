@@ -8,7 +8,7 @@
  * - Toolbar with Add Member, auto-layout, zoom controls
  */
 
-import { useCallback, useMemo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -20,11 +20,13 @@ import {
   type Edge,
   type OnConnect,
   type EdgeMouseHandler,
+  type Node as RFNode,
+  type NodeProps,
   Panel,
   MarkerType,
 } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
-import { UserPlus, LayoutGrid, Users, Info, Trash2, Code } from 'lucide-react'
+import { UserPlus, Users, Info, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { OrgChartNode } from './OrgChartNode'
@@ -50,7 +52,8 @@ interface OrgChartPanelProps {
   onSelectMember: (agentId: string | null) => void
   onEdgeUpdate: (agentId: string, managerId: string | null) => void
   onAddMember: () => void
-  onSwitchToCode?: () => void
+  /** Controlled layout direction (TB vertical, LR horizontal). Default 'TB'. */
+  layoutDirection?: LayoutDirection
   className?: string
 }
 
@@ -60,25 +63,118 @@ interface OrgChartPanelProps {
 
 const NODE_WIDTH = 200
 const NODE_HEIGHT = 80
-const LAYOUT_DIRECTION = 'TB' // Top to bottom
+const NODE_GAP_X = 32
+const NODE_GAP_Y = 24
+const GROUP_HEADER_HEIGHT = 28
+const GROUP_GAP = 24
 type LayoutDirection = 'TB' | 'LR'
 
 // ============================================================================
 // Node Types
 // ============================================================================
 
+interface OrgGroupHeaderData extends Record<string, unknown> {
+  label: string
+  roleId: string
+}
+
+type OrgGroupHeaderNode = RFNode<OrgGroupHeaderData, 'orgGroup'>
+type OrgChartFlowNode = OrgChartNodeType | OrgGroupHeaderNode
+
+const OrgGroupHeader = memo(function OrgGroupHeader({
+  data,
+}: NodeProps<OrgGroupHeaderNode>) {
+  return (
+    <div
+      className="px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground/80 font-medium pointer-events-none select-none"
+      data-testid={`org-group-header-${data.roleId}`}
+    >
+      {data.label}
+    </div>
+  )
+})
+
 const nodeTypes = {
   orgMember: OrgChartNode,
+  orgGroup: OrgGroupHeader,
 }
 
 // ============================================================================
 // Layout Function
 // ============================================================================
 
+/**
+ * Wrapped grid layout for hierarchies with zero edges. Members are placed in
+ * rows grouped by their first role, with a labeled header node per group so
+ * the label tracks the React-Flow viewport during pan/zoom.
+ */
+function getGridLayout(
+  nodes: OrgChartNodeType[],
+  isMobile: boolean,
+): { nodes: OrgChartFlowNode[] } {
+  const cols = isMobile ? 2 : 4
+  const stepX = NODE_WIDTH + NODE_GAP_X
+  const stepY = NODE_HEIGHT + NODE_GAP_Y
+
+  // Group by first role.
+  const order: string[] = []
+  const groups = new Map<string, OrgChartNodeType[]>()
+  for (const node of nodes) {
+    const roles = node.data.member.roles ?? []
+    const groupKey = roles[0] ?? 'unassigned'
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, [])
+      order.push(groupKey)
+    }
+    groups.get(groupKey)!.push(node)
+  }
+
+  const placedNodes: OrgChartFlowNode[] = []
+  let yCursor = 0
+
+  for (const key of order) {
+    const groupNodes = groups.get(key) ?? []
+    const label = labelForRoleKey(key, groupNodes[0]?.data.teamRoles ?? [])
+    placedNodes.push({
+      id: `__group__${key}`,
+      type: 'orgGroup',
+      position: { x: 0, y: yCursor },
+      data: { label, roleId: key },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      width: NODE_WIDTH * cols,
+      height: GROUP_HEADER_HEIGHT,
+    })
+    yCursor += GROUP_HEADER_HEIGHT
+    groupNodes.forEach((node, idx) => {
+      const col = idx % cols
+      const row = Math.floor(idx / cols)
+      placedNodes.push({
+        ...node,
+        position: {
+          x: col * stepX,
+          y: yCursor + row * stepY,
+        },
+      })
+    })
+    const rows = Math.ceil(groupNodes.length / cols) || 1
+    yCursor += rows * stepY + GROUP_GAP
+  }
+
+  return { nodes: placedNodes }
+}
+
+function labelForRoleKey(key: string, teamRoles: { id: string; name: string }[]): string {
+  if (key === 'unassigned') return 'Unassigned'
+  const match = teamRoles.find((r) => r.id === key)
+  return match?.name ?? key
+}
+
 function getLayoutedElements(
   nodes: OrgChartNodeType[],
   edges: OrgChartFlowEdge[],
-  direction = LAYOUT_DIRECTION
+  direction: LayoutDirection,
 ): { nodes: OrgChartNodeType[]; edges: OrgChartFlowEdge[] } {
   const dagreGraph = new dagre.graphlib.Graph()
   dagreGraph.setDefaultEdgeLabel(() => ({}))
@@ -124,14 +220,15 @@ export function OrgChartPanel({
   onSelectMember,
   onEdgeUpdate,
   onAddMember,
-  onSwitchToCode,
+  layoutDirection = 'TB',
   className,
 }: OrgChartPanelProps) {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(LAYOUT_DIRECTION)
   const [showReportingHelp, setShowReportingHelp] = useState(false)
   const reportingHelpRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
+  const reportingMode = team.coordination.reportingMode
+  const isLeaderless = reportingMode === 'none'
 
   // Heartbeat configs keyed by agentId
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<Map<string, HeartbeatConfig>>(new Map())
@@ -272,25 +369,66 @@ export function OrgChartPanel({
     }))
   }, [orgEdges])
 
-  // Apply layout
-  const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
-    () => getLayoutedElements(initialNodes, initialEdges, layoutDirection),
-    [initialNodes, initialEdges, layoutDirection]
-  )
+  // Apply layout: dagre when edges exist, wrapped grid when leaderless/empty.
+  const usingGridLayout = initialEdges.length === 0
+  const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo<{
+    nodes: OrgChartFlowNode[]
+    edges: OrgChartFlowEdge[]
+  }>(() => {
+    if (usingGridLayout) {
+      const { nodes: gridNodes } = getGridLayout(initialNodes, isMobile)
+      return { nodes: gridNodes, edges: initialEdges }
+    }
+    const dagre = getLayoutedElements(initialNodes, initialEdges, layoutDirection)
+    return { nodes: dagre.nodes, edges: dagre.edges }
+  }, [initialNodes, initialEdges, layoutDirection, usingGridLayout, isMobile])
+
+  // reportingMode-aware info chip variant.
+  const reportingChip = useMemo(() => {
+    const hasEdges = initialEdges.length > 0
+    if (isLeaderless && !hasEdges) {
+      return {
+        tone: 'info' as const,
+        title: 'Leaderless team',
+        message:
+          'No reporting lines expected for this team. See the Topics view for cross-member message flow.',
+      }
+    }
+    if (isLeaderless && hasEdges) {
+      return {
+        tone: 'warning' as const,
+        title: 'Reporting lines + leaderless team',
+        message:
+          'Reporting lines are defined but the team is set to leaderless. Either change reportingMode to org-chart, or remove the edges.',
+      }
+    }
+    if (!isLeaderless && !hasEdges) {
+      return {
+        tone: 'warning' as const,
+        title: 'No reporting lines yet',
+        message:
+          'No reporting lines defined yet. Drag from a manager handle to a report to start.',
+      }
+    }
+    return null
+  }, [isLeaderless, initialEdges.length])
 
   // React Flow state - use type assertions since hooks don't preserve generics
-  const [nodes, setNodes, onNodesChange] = useNodesState<OrgChartNodeType>(layoutedNodes)
+  const [nodes, setNodes, onNodesChange] = useNodesState<OrgChartFlowNode>(layoutedNodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState<OrgChartFlowEdge>(layoutedEdges)
 
-  // Update nodes when selection or data changes
+  // Update nodes when selection or data changes (member nodes only)
   useEffect(() => {
-    const updatedNodes: OrgChartNodeType[] = layoutedNodes.map((node) => ({
-      ...node,
-      data: {
-        ...node.data,
-        isSelected: node.id === selectedMemberId,
-      },
-    }))
+    const updatedNodes: OrgChartFlowNode[] = layoutedNodes.map((node) => {
+      if (node.type !== 'orgMember') return node
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isSelected: node.id === selectedMemberId,
+        },
+      }
+    })
     setNodes(updatedNodes)
   }, [layoutedNodes, selectedMemberId, setNodes])
 
@@ -327,15 +465,6 @@ export function OrgChartPanel({
     },
     [onEdgeUpdate]
   )
-
-  // Handle auto-layout button
-  const handleAutoLayout = useCallback(() => {
-    const nextDirection: LayoutDirection = layoutDirection === 'TB' ? 'LR' : 'TB'
-    const { nodes: newNodes, edges: newEdges } = getLayoutedElements(nodes, flowEdges, nextDirection)
-    setLayoutDirection(nextDirection)
-    setNodes(newNodes)
-    setEdges(newEdges)
-  }, [layoutDirection, nodes, flowEdges, setNodes, setEdges])
 
   // Handle background click to deselect
   const onPaneClick = useCallback(() => {
@@ -380,179 +509,139 @@ export function OrgChartPanel({
           <p className="text-sm text-muted-foreground/70 max-w-xs mx-auto mb-4">
             Add your first team member to start building your org chart.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={onAddMember}
-              className={cn(
-                'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
-              )}
-            >
-              <UserPlus className="h-4 w-4" />
-              Add First Member
-            </button>
-            {onSwitchToCode && (
-              <button
-                type="button"
-                onClick={onSwitchToCode}
-                className={cn(
-                  'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg',
-                  'bg-card border border-border text-foreground hover:bg-muted transition-colors'
-                )}
-              >
-                <Code className="h-4 w-4" />
-                Code View
-              </button>
+          <button
+            type="button"
+            onClick={onAddMember}
+            className={cn(
+              'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg',
+              'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors',
             )}
-          </div>
+          >
+            <UserPlus className="h-4 w-4" />
+            Add First Member
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className={cn('h-full', className)}>
-      <ReactFlow
-        nodes={nodes}
-        edges={flowEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onEdgesDelete={onEdgeDelete}
-        onEdgeClick={onEdgeClick}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.5}
-        maxZoom={1.5}
-        proOptions={{ hideAttribution: true }}
-        className="bg-background"
-      >
-        <Background color="hsl(var(--border))" gap={20} />
-        <Controls
-          className="!bg-card !border-border !rounded-lg overflow-hidden"
-          showInteractive={false}
-        />
-        <MiniMap
-          className="!bg-card !border-border !rounded-lg"
-          nodeColor={(node) => {
-            const data = node.data as OrgChartNodeData
-            return data.appearance?.body ?? '#6366f1'
-          }}
-          maskColor="rgba(0, 0, 0, 0.5)"
-        />
+    <div className={cn('h-full flex flex-col', className)}>
+      {reportingChip && (
+        <div
+          className={cn(
+            'flex-shrink-0 flex items-start gap-2 mx-2 mt-2 p-2 rounded-lg border',
+            reportingChip.tone === 'warning'
+              ? 'bg-amber-500/10 border-amber-500/30'
+              : 'bg-card border-border',
+          )}
+          data-testid={`reporting-chip-${reportingChip.tone}`}
+        >
+          {reportingChip.tone === 'warning' ? (
+            <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+          ) : (
+            <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-medium">{reportingChip.title}</p>
+            <p className="text-xs text-muted-foreground">{reportingChip.message}</p>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 min-h-0 relative">
+        <ReactFlow
+          nodes={nodes}
+          edges={flowEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onEdgesDelete={onEdgeDelete}
+          onEdgeClick={onEdgeClick}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.5}
+          maxZoom={1.5}
+          proOptions={{ hideAttribution: true }}
+          className="bg-background"
+        >
+          <Background color="hsl(var(--border))" gap={20} />
+          <Controls showInteractive={false} />
+          <MiniMap
+            nodeColor={(node) => {
+              const data = node.data as OrgChartNodeData
+              return data.appearance?.body ?? '#6366f1'
+            }}
+            maskColor="rgba(0, 0, 0, 0.5)"
+          />
 
-        {/* Legend + Selected Edge Panel */}
-        <Panel position="top-left" className="flex flex-col gap-2 max-w-xs">
-          {isMobile ? (
-            <div ref={reportingHelpRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowReportingHelp(!showReportingHelp)}
-                className={cn(
-                  'p-2 rounded-lg bg-card border border-border transition-colors',
-                  showReportingHelp ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                )}
-                title="Reporting lines help"
-                aria-label="Reporting lines help"
-              >
-                <Info className="h-4 w-4" />
-              </button>
-              {showReportingHelp && (
-                <div className="absolute top-full left-0 mt-1 p-2 rounded-lg bg-card border border-border shadow-lg z-10 w-56">
-                  <p className="text-xs font-medium mb-1">Reporting Lines</p>
-                  <p className="text-xs text-muted-foreground">
-                    Drag from a manager to a report to set relationships. Each member can report to one
-                    manager. Click an edge to remove it.
-                  </p>
+          {/* Reporting-lines help (only shown when dagre layout is active — drag-drop is disabled in grid mode) */}
+          {!usingGridLayout && (
+            <Panel position="top-left" className="flex flex-col gap-2 max-w-xs">
+              {isMobile ? (
+                <div ref={reportingHelpRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowReportingHelp(!showReportingHelp)}
+                    className={cn(
+                      'p-2 rounded-lg bg-card border border-border transition-colors',
+                      showReportingHelp ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    title="Reporting lines help"
+                    aria-label="Reporting lines help"
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                  {showReportingHelp && (
+                    <div className="absolute top-full left-0 mt-1 p-2 rounded-lg bg-card border border-border shadow-lg z-10 w-56">
+                      <p className="text-xs font-medium mb-1">Reporting Lines</p>
+                      <p className="text-xs text-muted-foreground">
+                        Drag from a manager to a report to set relationships. Each member can report to one
+                        manager. Click an edge to remove it.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 p-2 rounded-lg bg-card border border-border">
+                  <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium">Reporting Lines</p>
+                    <p className="text-xs text-muted-foreground">
+                      Drag from a manager to a report to set relationships. Each member can report to one
+                      manager. Click an edge to remove it.
+                    </p>
+                  </div>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 p-2 rounded-lg bg-card border border-border">
-              <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-xs font-medium">Reporting Lines</p>
-                <p className="text-xs text-muted-foreground">
-                  Drag from a manager to a report to set relationships. Each member can report to one
-                  manager. Click an edge to remove it.
-                </p>
-              </div>
-            </div>
-          )}
-          {selectedEdge && (
-            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-card border border-border">
-              <div className="min-w-0">
-                <p className="text-xs font-medium">Selected Relationship</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {selectedManagerName} → {selectedReportName}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleRemoveSelectedEdge}
-                className={cn(
-                  'p-1.5 rounded-md border border-border',
-                  'text-destructive hover:bg-destructive/10 transition-colors'
-                )}
-                title="Remove relationship"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </Panel>
-
-        {/* Toolbar Panel */}
-        <Panel position="top-right" className="flex gap-2">
-          {onSwitchToCode && (
-            <button
-              type="button"
-              onClick={onSwitchToCode}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg',
-                'bg-card border border-border text-foreground',
-                'hover:bg-muted transition-colors'
+              {selectedEdge && (
+                <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-card border border-border">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium">Selected Relationship</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {selectedManagerName} → {selectedReportName}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveSelectedEdge}
+                    className={cn(
+                      'p-1.5 rounded-md border border-border',
+                      'text-destructive hover:bg-destructive/10 transition-colors',
+                    )}
+                    title="Remove relationship"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
-              title="Switch to code view"
-              aria-label="Code View"
-            >
-              <Code className="h-3.5 w-3.5" />
-              {!isMobile && <span>Code View</span>}
-            </button>
+            </Panel>
           )}
-          <button
-            type="button"
-            onClick={handleAutoLayout}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg',
-              'bg-card border border-border text-foreground',
-              'hover:bg-muted transition-colors'
-            )}
-            title={`Switch layout direction (${layoutDirection === 'TB' ? 'vertical' : 'horizontal'})`}
-            aria-label="Toggle layout direction"
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            {!isMobile && <span>{layoutDirection === 'TB' ? 'Layout: Vertical' : 'Layout: Horizontal'}</span>}
-          </button>
-          <button
-            type="button"
-            onClick={onAddMember}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg',
-              'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
-            )}
-            title="Add member"
-            aria-label="Add Member"
-          >
-            <UserPlus className="h-3.5 w-3.5" />
-            {!isMobile && <span>Add Member</span>}
-          </button>
-        </Panel>
-      </ReactFlow>
+
+        </ReactFlow>
+      </div>
     </div>
   )
 }
