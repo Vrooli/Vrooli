@@ -12,6 +12,7 @@ import {
   isGraphLens,
   routeTargetToNodeId,
   scenarioDetailPath,
+  sessionDetailPath,
 } from "./route-paths";
 
 describe("route paths", () => {
@@ -28,6 +29,8 @@ describe("route paths", () => {
     expect(executionDetailPath("exec/1")).toBe("/executions/exec%2F1");
     expect(initiativeDetailPath("route cutover")).toBe("/initiatives/route%20cutover");
     expect(captureDetailPath("cap 1")).toBe("/captures/cap%201");
+    expect(sessionDetailPath("sess 1")).toBe("/sessions/sess%201");
+    expect(sessionDetailPath("sess-1", { tab: "proposals" })).toBe("/sessions/sess-1?tab=proposals");
     expect(commandPostPath()).toBe("/command-post");
     expect(decisionStreamPath()).toBe("/command-post/decisions");
   });
@@ -35,6 +38,8 @@ describe("route paths", () => {
   it("converts detail targets and node IDs into canonical routes", () => {
     expect(detailPath({ entityType: "backlog", kind: "execute", name: "ship" })).toBe("/backlog/execute/ship");
     expect(detailPath({ entityType: "execution", identifier: "exec-1" })).toBe("/executions/exec-1");
+    expect(detailPath({ entityType: "session", identifier: "sess-1" })).toBe("/sessions/sess-1");
+    expect(routeTargetToNodeId({ entityType: "session", identifier: "sess-1" })).toBeNull();
     expect(detailPathFromNodeId("capture/cap-1")).toBe("/captures/cap-1");
     expect(detailPathFromNodeId("scenario/swarm-manager")).toBe("/scenarios/swarm-manager");
   });

@@ -1,4 +1,13 @@
+/**
+ * SessionDetailsPage — Routed agent-session detail page.
+ *
+ * Conversation transcript, composer, proposals, artifacts, and run/session
+ * metadata for a meta-orchestration or operating-mode-authoring session.
+ */
+
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   Bot,
@@ -13,19 +22,21 @@ import {
   Square,
   Workflow,
 } from "lucide-react";
-import { FloatingPanel } from "../ui/floating-panel";
-import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
-import { cn } from "../../lib/utils";
-import { formatDisplayText, formatRelativeTime } from "../../lib/format-utils";
-import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
-import { useAgentSessionStore } from "../../stores";
-import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../../types";
-
-const INITIAL_POSITION = {
-  x: Math.max(8, window.innerWidth - 720),
-  y: Math.max(8, window.innerHeight * 0.12),
-};
+import { DetailPageLayout } from "../components/detail/DetailPageLayout";
+import { DetailPageHeader } from "../components/detail/DetailPageHeader";
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
+import { ErrorState } from "../components/ui/error-state";
+import { PageLoadingState } from "../components/ui/loading-states";
+import { cn } from "../lib/utils";
+import { formatDisplayText, formatRelativeTime } from "../lib/format-utils";
+import { useAutoResizeTextarea } from "../hooks/useAutoResizeTextarea";
+import { useAgentSessionStore } from "../stores";
+import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
+import { useAppBack } from "../app/routes/useAppBack";
+import { detailPathFromNodeId } from "../app/routes/route-paths";
+import { buildActivityNodeId, buildBacklogNodeId } from "../surfaces/graph/lib/node-id-parser";
+import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../types";
 
 const MAX_TEXTAREA_HEIGHT = 104;
 
@@ -39,25 +50,17 @@ const KIND_ICONS = {
   operating_mode_authoring: GitPullRequestArrow,
 };
 
-const STATUS_STYLES: Record<AgentSession["status"], string> = {
-  draft: "bg-slate-700/60 text-slate-300",
-  starting: "bg-blue-500/20 text-blue-300",
-  running: "bg-cyan-500/20 text-cyan-300",
-  waiting_for_user: "bg-amber-500/20 text-amber-300",
-  proposal_ready: "bg-violet-500/20 text-violet-300",
-  applying: "bg-blue-500/20 text-blue-300",
-  complete: "bg-green-500/20 text-green-300",
-  failed: "bg-red-500/20 text-red-300",
-  canceled: "bg-slate-700/40 text-slate-500",
-};
+const TERMINAL_STATUSES = new Set<AgentSession["status"]>(["complete", "failed", "canceled"]);
 
-interface AgentSessionPanelProps {
-  onOpenArtifact?: (artifact: AgentSessionArtifact) => void;
-}
+export function SessionDetailsPage() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
+  const closeDetail = useAppBack();
 
-export function AgentSessionPanel({ onOpenArtifact }: AgentSessionPanelProps) {
-  const session = useAgentSessionStore((s) => s.activeSession);
-  const setActiveSession = useAgentSessionStore((s) => s.setActiveSession);
+  const storeSession = useAgentSessionStore((s) =>
+    s.sessions.find((session) => session.id === sessionId),
+  );
+  const loadSession = useAgentSessionStore((s) => s.loadSession);
   const continueSession = useAgentSessionStore((s) => s.continueSession);
   const refreshSession = useAgentSessionStore((s) => s.refreshSession);
   const cancelSession = useAgentSessionStore((s) => s.cancelSession);
@@ -65,27 +68,27 @@ export function AgentSessionPanel({ onOpenArtifact }: AgentSessionPanelProps) {
   const isMutating = useAgentSessionStore((s) => s.isMutating);
   const isRefreshing = useAgentSessionStore((s) => s.isRefreshing);
   const error = useAgentSessionStore((s) => s.error);
+
+  useAgentSessionPolling(sessionId);
+
+  const { data: fetchedSession, isLoading, error: queryError } = useQuery({
+    queryKey: ["session", sessionId],
+    queryFn: () => loadSession(sessionId ?? ""),
+    enabled: !!sessionId && !storeSession,
+  });
+
+  const session: AgentSession | undefined = storeSession ?? fetchedSession;
+
   const [draft, setDraft] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useAutoResizeTextarea(textareaRef, draft, { maxHeight: MAX_TEXTAREA_HEIGHT });
 
-  const isOpen = Boolean(session);
-  const canSend = Boolean(session && draft.trim() && !isMutating);
-  const Icon = session ? KIND_ICONS[session.kind] : Bot;
-  const title = session?.title || "Agent session";
-
   const sortedMessages = useMemo(
     () => [...(session?.messages ?? [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [session?.messages],
   );
-
-  const handleClose = useCallback(() => {
-    setDraft("");
-    setLocalError(null);
-    setActiveSession(null);
-  }, [setActiveSession]);
 
   const handleSend = useCallback(async () => {
     if (!session || !draft.trim()) return;
@@ -140,47 +143,86 @@ export function AgentSessionPanel({ onOpenArtifact }: AgentSessionPanelProps) {
     [applyProposal, session],
   );
 
-  if (!session) return null;
+  const handleOpenArtifact = useCallback(
+    (artifact: AgentSessionArtifact) => {
+      const nodeId = nodeIdForArtifact(artifact);
+      if (!nodeId) return;
+      const path = detailPathFromNodeId(nodeId);
+      if (path) navigate(path);
+    },
+    [navigate],
+  );
+
+  if (!sessionId) {
+    return (
+      <DetailPageLayout header={<DetailPageHeader entityType="Session" title="Not found" nodeId={null} lenses={[]} />}>
+        <ErrorState message="No session selected." onRetry={closeDetail} />
+      </DetailPageLayout>
+    );
+  }
+
+  if (isLoading && !session) {
+    return <PageLoadingState label="Loading session..." />;
+  }
+
+  if ((queryError && !session) || (!session && !isLoading)) {
+    return (
+      <DetailPageLayout header={<DetailPageHeader entityType="Session" title="Not found" nodeId={null} lenses={[]} />}>
+        <ErrorState message="Session not found." onRetry={closeDetail} />
+      </DetailPageLayout>
+    );
+  }
+
+  if (!session) return <PageLoadingState label="Loading session..." />;
+
+  const Icon = KIND_ICONS[session.kind] ?? Bot;
+  const canSend = Boolean(draft.trim() && !isMutating);
+  const cancelDisabled = isMutating || TERMINAL_STATUSES.has(session.status);
+
+  const headerActions = (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => void handleRefresh()} disabled={isMutating || isRefreshing} data-testid="session-refresh">
+        <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+        Refresh
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => void handleCancel()} disabled={cancelDisabled} data-testid="session-cancel">
+        <Square className="mr-1.5 h-3.5 w-3.5" />
+        Cancel
+      </Button>
+    </>
+  );
+
+  const mobileActions = (
+    <div className="flex flex-col gap-2 p-2">
+      <Button variant="ghost" onClick={() => void handleRefresh()} disabled={isMutating || isRefreshing}>
+        <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+        Refresh
+      </Button>
+      <Button variant="ghost" onClick={() => void handleCancel()} disabled={cancelDisabled}>
+        <Square className="mr-2 h-4 w-4" />
+        Cancel
+      </Button>
+    </div>
+  );
 
   return (
-    <FloatingPanel
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={title}
-      initialPosition={INITIAL_POSITION}
-      className="max-w-3xl"
-      testId="agent-session-panel"
+    <DetailPageLayout
+      header={
+        <DetailPageHeader
+          entityType="Session"
+          entityIcon={Icon}
+          title={session.title || "Agent session"}
+          subtitle={`${KIND_LABELS[session.kind]} · ${formatRelativeTime(session.updatedAt)}`}
+          status={formatDisplayText(session.status)}
+          nodeId={null}
+          lenses={[]}
+          actions={headerActions}
+        />
+      }
+      mobileActions={mobileActions}
+      mobileActionsTitle="Session actions"
     >
-      <div className="flex h-[76vh] flex-col gap-3">
-        <header className="rounded-lg border border-white/10 bg-slate-950/40 p-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Icon className="h-4 w-4 text-cyan-300" />
-                <span>{KIND_LABELS[session.kind]}</span>
-                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_STYLES[session.status])}>
-                  {formatDisplayText(session.status)}
-                </span>
-              </div>
-              <h3 className="mt-1 truncate text-base font-semibold text-slate-100">{session.title}</h3>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isMutating || isRefreshing} aria-label="Refresh session">
-                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleCancel} disabled={isMutating || session.status === "canceled" || session.status === "complete"} aria-label="Cancel session">
-                <Square className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          <dl className="mt-3 grid gap-2 text-[11px] text-slate-400 sm:grid-cols-2">
-            <RunDetail label="Run" value={session.runId} />
-            <RunDetail label="Task" value={session.taskId} />
-            <RunDetail label="Profile" value={session.profileKey} />
-            <RunDetail label="Updated" value={formatRelativeTime(session.updatedAt)} />
-          </dl>
-        </header>
-
+      <div className="mx-auto w-full max-w-6xl space-y-3">
         {(localError || error?.message) && (
           <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" role="alert">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -188,8 +230,8 @@ export function AgentSessionPanel({ onOpenArtifact }: AgentSessionPanelProps) {
           </div>
         )}
 
-        <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <section className="flex min-h-0 flex-col rounded-lg border border-white/10 bg-slate-950/30">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="flex min-h-[60vh] flex-col rounded-lg border border-white/10 bg-slate-950/30">
             <div className="border-b border-white/10 px-3 py-2 text-xs font-medium text-slate-300">Conversation</div>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3" data-testid="agent-session-messages">
               {sortedMessages.length > 0 ? (
@@ -236,21 +278,24 @@ export function AgentSessionPanel({ onOpenArtifact }: AgentSessionPanelProps) {
             </div>
           </section>
 
-          <aside className="min-h-0 space-y-3 overflow-y-auto">
+          <aside className="space-y-3">
             <ProposalList proposals={session.proposals} isMutating={isMutating} onApply={handleApply} />
-            <ArtifactList artifacts={session.artifacts} onOpenArtifact={onOpenArtifact} />
+            <ArtifactList artifacts={session.artifacts} onOpenArtifact={handleOpenArtifact} />
             <section className="rounded-lg border border-white/10 bg-slate-950/30 p-3">
               <h4 className="text-xs font-medium text-slate-300">Session details</h4>
               <dl className="mt-2 space-y-1 text-[11px] text-slate-400">
                 <RunDetail label="Session ID" value={session.id} />
                 <RunDetail label="Skill" value={session.skillId} />
+                <RunDetail label="Run" value={session.runId} />
+                <RunDetail label="Task" value={session.taskId} />
+                <RunDetail label="Profile" value={session.profileKey} />
                 <RunDetail label="Created" value={formatRelativeTime(session.createdAt)} />
               </dl>
             </section>
           </aside>
         </div>
       </div>
-    </FloatingPanel>
+    </DetailPageLayout>
   );
 }
 
@@ -310,7 +355,7 @@ function ArtifactList({
   onOpenArtifact,
 }: {
   artifacts: AgentSessionArtifact[];
-  onOpenArtifact?: (artifact: AgentSessionArtifact) => void;
+  onOpenArtifact: (artifact: AgentSessionArtifact) => void;
 }) {
   return (
     <section className="rounded-lg border border-white/10 bg-slate-950/30 p-3" data-testid="agent-session-artifacts">
@@ -321,27 +366,30 @@ function ArtifactList({
       </div>
       <div className="mt-2 space-y-2">
         {artifacts.length > 0 ? (
-          artifacts.map((artifact) => (
-            <button
-              key={artifact.id}
-              type="button"
-              onClick={() => onOpenArtifact?.(artifact)}
-              className="w-full rounded-md border border-white/10 bg-slate-900/70 p-2 text-left transition-colors hover:border-slate-700 hover:bg-slate-800/70 disabled:pointer-events-none"
-              disabled={!onOpenArtifact}
-              data-testid="agent-session-artifact"
-            >
-              <div className="flex items-start gap-2">
-                <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-slate-100">{artifact.title || artifact.entityRef}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    {formatDisplayText(artifact.action)} {formatDisplayText(artifact.artifactType)}
-                  </p>
+          artifacts.map((artifact) => {
+            const canOpen = nodeIdForArtifact(artifact) !== null;
+            return (
+              <button
+                key={artifact.id}
+                type="button"
+                onClick={() => onOpenArtifact(artifact)}
+                className="w-full rounded-md border border-white/10 bg-slate-900/70 p-2 text-left transition-colors hover:border-slate-700 hover:bg-slate-800/70 disabled:pointer-events-none disabled:opacity-60"
+                disabled={!canOpen}
+                data-testid="agent-session-artifact"
+              >
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-slate-100">{artifact.title || artifact.entityRef}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {formatDisplayText(artifact.action)} {formatDisplayText(artifact.artifactType)}
+                    </p>
+                  </div>
+                  {canOpen && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
                 </div>
-                {onOpenArtifact && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
-              </div>
-            </button>
-          ))
+              </button>
+            );
+          })
         ) : (
           <p className="py-4 text-center text-xs text-slate-500">No artifacts linked yet.</p>
         )}
@@ -358,4 +406,25 @@ function RunDetail({ label, value }: { label: string; value?: string }) {
       <dd className="min-w-0 truncate text-right text-slate-300">{value}</dd>
     </div>
   );
+}
+
+function nodeIdForArtifact(artifact: AgentSessionArtifact): string | null {
+  const ref = artifact.entityRef?.trim();
+  if (!ref) return null;
+
+  switch (artifact.artifactType) {
+    case "backlog_item": {
+      const slashIndex = ref.indexOf("/");
+      if (slashIndex <= 0) return null;
+      return buildBacklogNodeId(ref.slice(0, slashIndex), ref.slice(slashIndex + 1));
+    }
+    case "initiative":
+      return `initiative/${ref}`;
+    case "capture":
+      return `capture/${ref}`;
+    case "agent_activity":
+      return buildActivityNodeId(ref);
+    default:
+      return null;
+  }
 }

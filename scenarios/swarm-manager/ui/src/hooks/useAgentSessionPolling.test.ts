@@ -63,10 +63,9 @@ describe("useAgentSessionPolling", () => {
   it("polls the active detail session separately", async () => {
     const { refreshSession } = resetStore({
       sessions: [ACTIVE_SESSION],
-      activeSession: ACTIVE_SESSION,
     });
 
-    renderHook(() => useAgentSessionPolling());
+    renderHook(() => useAgentSessionPolling("sess_active"));
 
     await act(async () => {
       vi.advanceTimersByTime(3_000);
@@ -78,10 +77,9 @@ describe("useAgentSessionPolling", () => {
   it("does not poll completed sessions", async () => {
     const { fetchSessions, refreshSession } = resetStore({
       sessions: [COMPLETE_SESSION],
-      activeSession: COMPLETE_SESSION,
     });
 
-    renderHook(() => useAgentSessionPolling());
+    renderHook(() => useAgentSessionPolling("sess_complete"));
 
     await act(async () => {
       vi.advanceTimersByTime(10_000);

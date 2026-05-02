@@ -5,7 +5,7 @@ import { parseNodeId } from "../../surfaces/graph/lib/node-id-parser";
 export const GRAPH_LENSES = ["focus", "topology", "operations"] as const satisfies readonly GraphLens[];
 
 export type AppGraphLens = (typeof GRAPH_LENSES)[number];
-export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture";
+export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session";
 
 export interface DetailRouteTarget {
   entityType: DetailEntityType;
@@ -69,6 +69,10 @@ export function captureDetailPath(captureId: string, query?: QueryParams): strin
   return appendQuery(`/captures/${enc(captureId)}`, query);
 }
 
+export function sessionDetailPath(sessionId: string, query?: QueryParams): string {
+  return appendQuery(`/sessions/${enc(sessionId)}`, query);
+}
+
 export function commandPostPath(query?: QueryParams): string {
   return appendQuery("/command-post", query);
 }
@@ -91,6 +95,8 @@ export function detailPath(target: DetailRouteTarget): string | null {
       return target.name ? initiativeDetailPath(target.name, target.tab ? { tab: target.tab } : undefined) : null;
     case "capture":
       return target.identifier ? captureDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
+    case "session":
+      return target.identifier ? sessionDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
   }
 }
 
@@ -125,6 +131,8 @@ export function routeTargetToNodeId(target: DetailRouteTarget): string | null {
       return target.name ? `initiative/${target.name}` : null;
     case "capture":
       return target.identifier ? `capture/${target.identifier}` : null;
+    case "session":
+      return null;
   }
 }
 

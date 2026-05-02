@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../../../stores";
 import type { AgentSession } from "../../../../types";
 import { SessionsTab } from "./SessionsTab";
+
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return { ...actual, useNavigate: () => navigateMock };
+});
 import { applySessionFilters, applySessionSort } from "./session-list-utils";
 import type { SessionFilters, SortConfig } from "./types";
 
@@ -70,11 +76,11 @@ const AUTHORING_SESSION: AgentSession = {
 
 describe("SessionsTab", () => {
   beforeEach(() => {
+    navigateMock.mockReset();
     useAgentSessionStore.setState({
       ...agentSessionStoreInitialState,
       sessions: [META_SESSION, AUTHORING_SESSION],
       status: "success",
-      openSession: vi.fn().mockResolvedValue(undefined),
     });
   });
 
@@ -106,7 +112,7 @@ describe("SessionsTab", () => {
     fireEvent.click(screen.getByText("Author phased execution mode"));
 
     await waitFor(() => {
-      expect(useAgentSessionStore.getState().openSession).toHaveBeenCalledWith("sess_mode");
+      expect(navigateMock).toHaveBeenCalledWith("/sessions/sess_mode");
     });
     expect(onOpenSession).toHaveBeenCalledWith("sess_mode");
   });

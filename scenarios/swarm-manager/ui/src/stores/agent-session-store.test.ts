@@ -73,9 +73,10 @@ describe("agent-session-store", () => {
     expect(state.sessions.map((session) => session.id)).toEqual(["sess_b", "sess_a"]);
   });
 
-  it("opens, creates, continues, refreshes, cancels, and applies sessions", async () => {
-    await useAgentSessionStore.getState().openSession("sess_a");
-    expect(useAgentSessionStore.getState().activeSession?.id).toBe("sess_a");
+  it("loads, creates, continues, refreshes, cancels, and applies sessions", async () => {
+    const loaded = await useAgentSessionStore.getState().loadSession("sess_a");
+    expect(loaded.id).toBe("sess_a");
+    expect(useAgentSessionStore.getState().sessions.map((s) => s.id)).toContain("sess_a");
 
     await useAgentSessionStore.getState().createSession({
       kind: "meta_orchestration",
@@ -102,8 +103,7 @@ describe("agent-session-store", () => {
   });
 
   it("loads artifacts by entity and exposes active selectors", async () => {
-    useAgentSessionStore.getState().setActiveSession(SESSION_A);
-    useAgentSessionStore.getState().setActiveSession(SESSION_B);
+    await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
 
     const artifacts = await useAgentSessionStore.getState().loadArtifactsByEntity("initiative", "quality-gates");
 

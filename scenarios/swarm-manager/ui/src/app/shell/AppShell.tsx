@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "../../surfaces/graph/components/Sidebar";
 import { SettingsDrawer } from "../../surfaces/graph/components/SettingsDrawer";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
-import { buildActivityNodeId, buildBacklogNodeId } from "../../surfaces/graph/lib/node-id-parser";
-import { AgentSessionPanel } from "../../components/agent-session/agent-session-panel";
+import { buildActivityNodeId } from "../../surfaces/graph/lib/node-id-parser";
 import { buildFeed } from "../../lib/feed";
 import { defaultQueryOptions } from "../../lib";
 import { settingsService } from "../../services";
@@ -19,7 +18,6 @@ import { useIsMobile } from "../../hooks/useMediaQuery";
 import { AppShellContext } from "./AppShellContext";
 import { commandPostPath, detailPathFromNodeId, graphPath } from "../routes/route-paths";
 import type { FeedbackItem, MaturityItem } from "../../lib/feed";
-import type { AgentSessionArtifact } from "../../types";
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -124,15 +122,6 @@ export function AppShell() {
     [navigateToNode],
   );
 
-  const handleOpenSessionArtifact = useCallback(
-    (artifact: AgentSessionArtifact) => {
-      const nodeId = nodeIdForArtifact(artifact);
-      if (!nodeId) return;
-      navigateToNode(nodeId, artifact.artifactType === "agent_activity" ? "operations" : "topology");
-    },
-    [navigateToNode],
-  );
-
   const shellContext = useMemo(
     () => ({
       openSidebar: () => setSidebarCollapsed(false),
@@ -166,29 +155,7 @@ export function AppShell() {
         </main>
 
         <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
-        <AgentSessionPanel onOpenArtifact={handleOpenSessionArtifact} />
       </div>
     </AppShellContext.Provider>
   );
-}
-
-function nodeIdForArtifact(artifact: AgentSessionArtifact): string | null {
-  const ref = artifact.entityRef?.trim();
-  if (!ref) return null;
-
-  switch (artifact.artifactType) {
-    case "backlog_item": {
-      const slashIndex = ref.indexOf("/");
-      if (slashIndex <= 0) return null;
-      return buildBacklogNodeId(ref.slice(0, slashIndex), ref.slice(slashIndex + 1));
-    }
-    case "initiative":
-      return `initiative/${ref}`;
-    case "capture":
-      return `capture/${ref}`;
-    case "agent_activity":
-      return buildActivityNodeId(ref);
-    default:
-      return null;
-  }
 }

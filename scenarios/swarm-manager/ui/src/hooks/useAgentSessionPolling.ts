@@ -8,23 +8,27 @@ import { useStorePolling } from "./useStorePolling";
 const SESSION_LIST_POLL_INTERVAL_MS = 4_000;
 const ACTIVE_SESSION_POLL_INTERVAL_MS = 3_000;
 
-export function useAgentSessionPolling(): void {
+export function useAgentSessionPolling(sessionId?: string): void {
   const sessions = useAgentSessionStore((state) => state.sessions);
-  const activeSession = useAgentSessionStore((state) => state.activeSession);
   const fetchSessions = useAgentSessionStore((state) => state.fetchSessions);
   const refreshSession = useAgentSessionStore((state) => state.refreshSession);
 
   const hasActiveSessions = sessions.some(isActiveAgentSession);
-  const shouldPollActiveSession = activeSession ? isActiveAgentSession(activeSession) : false;
+  const detailSession = sessionId ? sessions.find((session) => session.id === sessionId) : undefined;
+  const shouldPollDetail = !!sessionId && (!detailSession || isActiveAgentSession(detailSession));
 
   const pollSessionList = useCallback(async () => {
     await fetchSessions({ activeOnly: true }, { force: true });
   }, [fetchSessions]);
 
-  const pollActiveSession = useCallback(async () => {
-    if (!activeSession) return;
-    await refreshSession(activeSession.id);
-  }, [activeSession, refreshSession]);
+  const pollDetailSession = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      await refreshSession(sessionId);
+    } catch {
+      // swallow — error surfaces via store.error
+    }
+  }, [sessionId, refreshSession]);
 
   useStorePolling({
     enabled: hasActiveSessions,
@@ -33,8 +37,8 @@ export function useAgentSessionPolling(): void {
   });
 
   useStorePolling({
-    enabled: shouldPollActiveSession,
+    enabled: shouldPollDetail,
     intervalMs: ACTIVE_SESSION_POLL_INTERVAL_MS,
-    pollFn: pollActiveSession,
+    pollFn: pollDetailSession,
   });
 }

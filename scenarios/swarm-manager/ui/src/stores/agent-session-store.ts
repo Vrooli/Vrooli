@@ -33,7 +33,6 @@ const ACTIVE_STATUSES = new Set<AgentSession["status"]>([
 
 interface AgentSessionStoreState {
   sessions: AgentSession[];
-  activeSession: AgentSession | null;
   artifactsByEntity: Record<string, AgentSessionArtifact[]>;
   status: LoadStatus;
   error: Error | null;
@@ -41,8 +40,7 @@ interface AgentSessionStoreState {
   isMutating: boolean;
   lastFetchedAt: number | null;
   fetchSessions: (filters?: ListAgentSessionsFilters, options?: { force?: boolean }) => Promise<void>;
-  openSession: (sessionId: string) => Promise<void>;
-  setActiveSession: (session: AgentSession | null) => void;
+  loadSession: (sessionId: string) => Promise<AgentSession>;
   createSession: (args: CreateAgentSessionArgs) => Promise<AgentSession>;
   continueSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   refreshSession: (sessionId: string) => Promise<AgentSession>;
@@ -57,7 +55,6 @@ let service: IAgentSessionService = agentSessionService;
 
 export const agentSessionStoreInitialState = {
   sessions: hydrated.data,
-  activeSession: null,
   artifactsByEntity: {} as Record<string, AgentSessionArtifact[]>,
   status: (hydrated.data.length > 0 ? "success" : "idle") as LoadStatus,
   error: null,
@@ -104,16 +101,15 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     }
   },
 
-  openSession: async (sessionId): Promise<void> => {
-    if (!sessionId) return;
+  loadSession: async (sessionId): Promise<AgentSession> => {
     set({ isRefreshing: true, error: null });
     try {
       const session = await service.get(sessionId);
       set((state) => ({
-        activeSession: session,
         sessions: upsertSession(state.sessions, session),
         isRefreshing: false,
       }));
+      return session;
     } catch (error) {
       set({
         error: error instanceof Error ? error : new Error("Unable to load agent session."),
@@ -123,19 +119,11 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     }
   },
 
-  setActiveSession: (session): void => {
-    set((state) => ({
-      activeSession: session,
-      sessions: session ? upsertSession(state.sessions, session) : state.sessions,
-    }));
-  },
-
   createSession: async (args): Promise<AgentSession> => {
     set({ isMutating: true, error: null });
     try {
       const session = await service.create(args);
       set((state) => ({
-        activeSession: session,
         sessions: upsertSession(state.sessions, session),
         isMutating: false,
       }));
@@ -154,7 +142,6 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     try {
       const session = await service.continue(args);
       set((state) => ({
-        activeSession: session,
         sessions: upsertSession(state.sessions, session),
         isMutating: false,
       }));
@@ -171,7 +158,6 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
   refreshSession: async (sessionId): Promise<AgentSession> => {
     const session = await service.refresh(sessionId);
     set((state) => ({
-      activeSession: state.activeSession?.id === session.id ? session : state.activeSession,
       sessions: upsertSession(state.sessions, session),
     }));
     return session;
@@ -182,7 +168,6 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     try {
       const session = await service.cancel(sessionId);
       set((state) => ({
-        activeSession: state.activeSession?.id === session.id ? session : state.activeSession,
         sessions: upsertSession(state.sessions, session),
         isMutating: false,
       }));
@@ -201,7 +186,6 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     try {
       const result = await service.applyProposal(sessionId, proposalId);
       set((state) => ({
-        activeSession: result.session,
         sessions: upsertSession(state.sessions, result.session),
         isMutating: false,
       }));
@@ -230,7 +214,6 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     clearStorage(PERSIST_CONFIG.key);
     set({
       sessions: [],
-      activeSession: null,
       artifactsByEntity: {},
       status: "idle",
       error: null,

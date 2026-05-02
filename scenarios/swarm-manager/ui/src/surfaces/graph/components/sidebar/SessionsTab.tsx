@@ -3,9 +3,11 @@
  */
 
 import { Bot, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
 import { isActiveAgentSession, useAgentSessionStore } from "../../../../stores";
+import { sessionDetailPath } from "../../../../app/routes/route-paths";
 import { matchesSearch } from "./useSidebarSearch";
 import { applySessionFilters, applySessionSort } from "./session-list-utils";
 import type { AgentSession } from "../../../../types";
@@ -45,7 +47,7 @@ export function SessionsTab({ searchQuery, filters, sort, onOpenSession }: Sessi
   const status = useAgentSessionStore((s) => s.status);
   const error = useAgentSessionStore((s) => s.error);
   const fetchSessions = useAgentSessionStore((s) => s.fetchSessions);
-  const openSession = useAgentSessionStore((s) => s.openSession);
+  const navigate = useNavigate();
 
   let filtered = applySessionFilters(sessions, filters);
   if (searchQuery) {
@@ -57,7 +59,7 @@ export function SessionsTab({ searchQuery, filters, sort, onOpenSession }: Sessi
   const hasFilters = filters.statuses.length > 0 || filters.kinds.length > 0 || filters.activeOnly || filters.hasProposals || filters.hasAppliedArtifacts;
 
   const handleOpen = (sessionId: string) => {
-    void openSession(sessionId);
+    navigate(sessionDetailPath(sessionId));
     onOpenSession?.(sessionId);
   };
 

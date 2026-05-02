@@ -1,5 +1,7 @@
 import { Bot, UserRound, Workflow } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAgentSessionStore } from "../../stores";
+import { sessionDetailPath } from "../../app/routes/route-paths";
 import type { AgentSessionAttribution } from "../../types";
 import { cn } from "../../lib/utils";
 
@@ -15,7 +17,7 @@ export function AttributionChip({
   className,
 }: AttributionChipProps) {
   const sessions = useAgentSessionStore((s) => s.sessions);
-  const openSession = useAgentSessionStore((s) => s.openSession);
+  const navigate = useNavigate();
 
   if (!attribution) return null;
 
@@ -52,7 +54,7 @@ export function AttributionChip({
       className={baseClassName}
       title={label}
       onClick={() => {
-        if (sessionId) void openSession(sessionId);
+        if (sessionId) navigate(sessionDetailPath(sessionId));
       }}
       data-testid="attribution-chip"
     >

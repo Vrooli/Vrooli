@@ -4,6 +4,12 @@ import { agentSessionStoreInitialState, useAgentSessionStore } from "../../store
 import type { AgentSession } from "../../types";
 import { AttributionChip } from "./AttributionChip";
 
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return { ...actual, useNavigate: () => navigateMock };
+});
+
 const SESSION: AgentSession = {
   id: "sess_1",
   title: "Plan quality gates",
@@ -20,15 +26,14 @@ const SESSION: AgentSession = {
 describe("AttributionChip", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    navigateMock.mockReset();
     useAgentSessionStore.setState(agentSessionStoreInitialState);
   });
 
-  it("opens the attributed session when session provenance exists", () => {
-    const openSession = vi.fn();
+  it("navigates to the attributed session detail page when session provenance exists", () => {
     useAgentSessionStore.setState({
       ...agentSessionStoreInitialState,
       sessions: [SESSION],
-      openSession,
     });
 
     render(
@@ -46,7 +51,7 @@ describe("AttributionChip", () => {
     fireEvent.click(screen.getByTestId("attribution-chip"));
 
     expect(screen.getByText("Created by Plan quality gates")).toBeInTheDocument();
-    expect(openSession).toHaveBeenCalledWith("sess_1");
+    expect(navigateMock).toHaveBeenCalledWith("/sessions/sess_1");
   });
 
   it("renders non-session agent provenance as read-only", () => {
