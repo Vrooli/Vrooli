@@ -1,7 +1,7 @@
 # Prompt-Manager Unit Testing Architecture
 
 ## Last Updated
-2026-05-01
+2026-05-02
 
 ## Test Organization Status
 - [x] Go tests are co-located with source files (`scenarios/prompt-manager/api/**/_test.go`).
@@ -51,11 +51,11 @@ The canonical shared test package is `scenarios/prompt-manager/api/internal/test
 | `fixtures` | Domain object factories with functional options. Team fixtures live here first because heartbeat and teams tests had duplicate builders with undocumented drift. |
 | `mocks` | Hand-written fakes, one per production seam, with sane defaults and explicit error knobs. |
 | `httpx` | HTTP handler request/response helpers for JSON bodies, route variables, decoding, and status assertions. |
-| `assertx` | Domain assertions that report broken contracts clearly. |
+| `assertx` | Focused assertions for contract fragments and domain expectations that report broken contracts clearly. |
 
 Production code must not import `prompt-manager/internal/testutil/...`. Tests may import it directly, except tests in the `store` package should avoid fixture imports that create an import cycle back through `prompt-manager/store`.
 
-`httpx` is now used by handler tests in `agents`, `teams`, and `heartbeat`. New handler tests should use it for recorder construction, JSON requests, route variables, response decoding, and status assertions instead of repeating raw `httptest` and mux setup.
+`httpx` is now used by handler tests in `agents`, `teams`, `heartbeat`, and `worldscale`. New handler tests should use it for recorder construction, JSON requests, route variables, response decoding, and status assertions instead of repeating raw `httptest` and mux setup. Use `assertx.Contains` when a test protects a named error-body or prompt-fragment contract; keep generic string checks local when they are incidental.
 
 ## Shared CLI Test Utilities
 
@@ -90,7 +90,7 @@ Persisted world stores skip import-time auto-fetches in Vitest and expose explic
 
 ## Decision Boundary Coverage
 
-High-risk behavior should be covered where the decision is made, not only through UI or scenario workflows. Current examples include heartbeat decision/defer/pending behavior, graph health and scoring, AI search fallback paths, and `/skills/read` experiment-aware variant selection.
+High-risk behavior should be covered where the decision is made, not only through UI or scenario workflows. Current examples include heartbeat decision/defer/pending behavior, graph health and scoring, AI search fallback paths, file-backed world configuration persistence/malformed data handling, and `/skills/read` experiment-aware variant selection.
 
 The `/skills/read` variant-selection tests protect three contracts: running experiments may override the returned content with a selected variant, control selections keep the original skill content, and non-running experiments fail before returning content. These tests use deterministic experiment weights instead of random assertions.
 
@@ -111,6 +111,7 @@ Use requirement IDs from `requirements/*/module.json` in test names, comments, o
 | `REQ-P0-018` REST API for Team CRUD | `api/teams/*_test.go`, `api/heartbeat/*team*test.go`, and BAS team/member workflows cover team API contracts and runtime usage. |
 | `REQ-P1-023` Team-Member Relations API | `api/teams/handlers_cleanup_test.go`, heartbeat member-context tests, and member CLI tests cover relation cleanup, context inclusion, and CLI request behavior. |
 | `REQ-P2-027` 3D World Canvas | `ui/src/test` R3F harness users and BAS world UI workflows cover core render contracts without accidental network calls. |
+| World configuration API contract | `api/worldscale/handlers_test.go` and `api/worldseats/handlers_test.go` cover default reads, malformed persisted data, validation errors, and persistence for file-backed world settings. |
 
 ## Issues Found
 1. Inline mock definitions in API tests outside the graph package (example: `scenarios/prompt-manager/api/teams/handlers_test.go`).

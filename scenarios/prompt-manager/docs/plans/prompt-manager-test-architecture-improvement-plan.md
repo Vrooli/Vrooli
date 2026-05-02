@@ -190,6 +190,7 @@ Progress:
 - 2026-05-01: Added initial `httpx` helpers for request construction, mux vars, JSON request bodies, response decoding, and status assertions.
 - 2026-05-02: Adopted `api/internal/testutil/httpx` in three handler-test areas: `agents`, `teams` export, and heartbeat retry/investigation handlers. The migration replaced package-local `httptest`/mux/status boilerplate while preserving existing assertions.
 - 2026-05-02: Verified the touched API packages with `cd scenarios/prompt-manager/api && go test ./agents ./teams ./heartbeat`.
+- 2026-05-02: Adopted `api/internal/testutil/httpx` in `worldscale` handler tests while adding file-backed config boundary coverage for default reads, malformed persisted JSON, invalid request JSON, range validation, and persistence.
 
 ### Phase 3: CLI Harness and Contract Coverage
 
@@ -302,6 +303,7 @@ Acceptance criteria:
 Progress:
 
 - 2026-05-02: Added `/skills/read` experiment-selection decision tests covering three contracts: a running experiment can select a variant and override returned skill content, a control-arm selection keeps original skill content, and non-running experiments are rejected before returning content. The tests use deterministic 0/1 weights so they protect read-time variant behavior without random flake risk.
+- 2026-05-02: Added world-scale file-backed boundary tests for malformed persisted data and persisted write/readback behavior, complementing the existing world-seats persistence and malformed-data coverage.
 
 ### Phase 6: Requirement Traceability and BAS Alignment
 
@@ -347,9 +349,11 @@ Acceptance criteria:
 Progress:
 
 - 2026-05-02: Added fixture-package tests for `api/internal/testutil/fixtures` so the shared fixture package has direct contract coverage and no longer appears as an untested code package in standards scans.
+- 2026-05-02: Added `api/internal/testutil/assertx.Contains` with direct package coverage so named error-body and prompt-fragment contracts can use shared, contract-oriented failure messages instead of repeated ad hoc substring checks.
 - 2026-05-02: Removed the UI test-mode hardcoded `localhost:3000` API base in favor of relative `/api/v1`; standards now reports no high-severity findings.
 - 2026-05-02: Stabilized `TestTriggerHeartbeat_DirectExecutionFallback` by waiting for the executor completion callback before allowing `t.TempDir()` cleanup.
 - 2026-05-02: Full `make test` reached 10/11 passing phases after the fixes. Unit, playbooks, lint, standards, integration, business, and performance passed; smoke failed only because `ui/src/constants/selectors.manifest.json` had been regenerated after the running bundle started. Restarting prompt-manager via lifecycle and running `vrooli scenario ui-smoke prompt-manager` passed.
+- 2026-05-02: Fixed the UI fetch-guard lint contract by returning explicit promises instead of using an `async` mock with no await. Re-ran `cd scenarios/prompt-manager && make test`; run `20260502-023609-c128ffb1` passed all 11 phases.
 
 ## Contract Decisions
 
@@ -392,7 +396,7 @@ cd scenarios/prompt-manager/ui && pnpm test -- --run src/components src/hooks sr
 - [x] Accidental UI network calls fail or are explicitly allowed.
 - [x] Noisy UI warnings removed or intentionally documented.
 - [x] Requirement-critical tests tagged or mapped.
-- [ ] Final `make test` passes.
+- [x] Final `make test` passes.
 
 ## Risks and Mitigations
 

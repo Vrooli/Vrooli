@@ -39,15 +39,15 @@ export function installFetchGuard(options: FetchGuardOptions = {}): FetchGuard {
     headers: { 'Content-Type': 'application/json' },
   })
 
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = requestUrl(input)
     calls.push({ input, init })
 
     if (isAllowed(url, allow)) {
-      return defaultResponse.clone()
+      return Promise.resolve(defaultResponse.clone())
     }
 
-    throw new Error(`Unexpected fetch in unit test: ${url}`)
+    return Promise.reject(new Error(`Unexpected fetch in unit test: ${url}`))
   })
 
   globalThis.fetch = fetchMock as unknown as typeof fetch
