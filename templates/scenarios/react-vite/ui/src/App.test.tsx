@@ -33,8 +33,10 @@ import App from "./App";
 import { selectors } from "./consts/selectors";
 import { strings } from "./consts/strings";
 import { setLocale } from "./i18n";
+import ar from "./i18n/locales/ar.json";
 import en from "./i18n/locales/en.json";
 import ja from "./i18n/locales/ja.json";
+import { interp } from "./test-setup";
 
 const renderApp = () => {
   const client = new QueryClient({
@@ -133,6 +135,38 @@ describe("App locale switching (real locales — end-to-end)", () => {
     expect(document.documentElement.lang).toBe("ja");
   });
 
+  it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
+    // The whole point of ar in the template: prove the LTR→RTL pipeline works
+    // end-to-end. `LOCALE_CONFIG.ar.dir === "rtl"` flows through `applyDocumentLocale`
+    // on `languageChanged`, and the document's `dir` should flip. Without this
+    // assertion the `rtl` branch of the type would be unexercised.
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
+
+    await waitFor(() => {
+      expect(screen.getByText(ar.app.eyebrow)).toBeInTheDocument();
+    });
+    expect(document.documentElement.lang).toBe("ar");
+    expect(document.documentElement.dir).toBe("rtl");
+  });
+
+  it("flips <html dir> back to ltr when returning to a non-RTL locale", async () => {
+    // Direction is a stateful attribute; an rtl→ltr round-trip catches the
+    // failure mode where `applyDocumentLocale` only ever sets `dir` once.
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
+    await waitFor(() => {
+      expect(document.documentElement.dir).toBe("rtl");
+    });
+
+    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "en" })));
+    await waitFor(() => {
+      expect(document.documentElement.dir).toBe("ltr");
+    });
+  });
+
   it("persists the chosen locale to localStorage so returning visits restore it", async () => {
     const user = userEvent.setup();
     renderApp();
@@ -183,9 +217,8 @@ describe("App locale switching (real locales — end-to-end)", () => {
     await user.click(button);
 
     await waitFor(() => {
-      const expected = en.health.refreshCount.replace("{{count}}", "3");
       expect(screen.getByTestId(selectors.health.refreshCount)).toHaveTextContent(
-        expected,
+        interp(en.health.refreshCount, { count: 3 }),
       );
     });
   });
@@ -227,9 +260,8 @@ describe("App locale switching (real locales — end-to-end)", () => {
     }
 
     await waitFor(() => {
-      const expected = en.notifications.summary.replace("{{count}}", "5");
       expect(screen.getByTestId(selectors.notifications.summary)).toHaveTextContent(
-        expected,
+        interp(en.notifications.summary, { count: 5 }),
       );
     });
   });

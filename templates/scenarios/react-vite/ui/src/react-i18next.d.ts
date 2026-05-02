@@ -37,9 +37,37 @@
 import "i18next";
 import en from "./i18n/locales/en.json";
 
+/**
+ * Strip catalog *sentinel* keys (any segment whose first character is `_`,
+ * e.g. `_comment`) recursively. Sentinels live in catalogs as documentation
+ * but never go through `t()` — `gen-strings.mjs` excludes them from the
+ * typed `strings.*` registry and `eslint-rules/no-unused-keys.js` skips
+ * them in the audit. Mirroring the rule in the augmentation makes
+ * `t("_comment")` a TypeScript error too — closing the only path by which
+ * sentinels could leak into runtime translation lookups.
+ *
+ * `K extends \`_${string}\`` only matches segments that *start* with `_`,
+ * so CLDR plural variants like `refreshCount_one` (mid-key underscore) are
+ * preserved correctly. The recursion handles future nested sentinels too.
+ */
+type StripSentinels<T> = T extends string
+  ? T
+  : T extends readonly unknown[]
+    ? T
+    : T extends object
+      ? {
+          [K in keyof T as K extends `_${string}` ? never : K]: StripSentinels<T[K]>;
+        }
+      : T;
+
+export type Translation = StripSentinels<typeof en>;
+
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "translation";
-    resources: { translation: typeof en };
+    // Mirrors the runtime `returnNull: false` set in `i18n/index.ts`. Without
+    // this, `t()` returns `string | null` and consumers get spurious null-checks.
+    returnNull: false;
+    resources: { translation: Translation };
   }
 }

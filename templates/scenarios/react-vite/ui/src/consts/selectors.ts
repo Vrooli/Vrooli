@@ -20,6 +20,7 @@
  *
  * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
  */
+import { LOCALE_CODES } from "../i18n/locales";
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
@@ -318,13 +319,17 @@ const literalSelectors = {
 // Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
 // We deliberately do NOT also declare static `toggleEn` / `toggleJa` literals —
 // the dynamic form is the single source of truth, and duplicating it here would
-// drift the moment a new locale is added to SUPPORTED_LOCALES.
+// drift the moment a new locale is added to LOCALE_CODES.
+//
+// `code` is constrained to `LOCALE_CODES` so `selectors.locale.toggle({ code: "fr" })`
+// is a TypeScript error when "fr" isn't a supported locale. The runtime enum
+// validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
   locale: {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",
       testIdPattern: "locale-toggle-${code}",
-      params: { code: { type: "string" } },
+      params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },
 } satisfies DynamicSelectorTree;

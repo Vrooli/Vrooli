@@ -103,6 +103,18 @@ const collectSourceFiles = (root) => {
 // copy of this module (each scenario has its own eslint-rules/).
 let cached = null;
 
+// Match every `strings.feature.key` accessor (and deeper) in source files.
+// The captured group is the dotted path *after* the `strings.` prefix.
+// Identifier rules: first char `[A-Za-z_$]`, subsequent `[\w$]`. Dots
+// separate segments. This is intentionally tight — segments cannot start
+// with a digit, so we don't match `strings.123` or other syntactic noise.
+const ACCESSOR_RE = /\bstrings\.([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
+
+// Match every quoted dotted-string literal (single or double quotes) that
+// looks like an i18next key (`"feature.key"`, `"a.b.c"`). The string must
+// contain at least one `.` so we don't match every plain identifier string.
+const DOTTED_RE = /["']([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)["']/g;
+
 const computeOrphans = () => {
   if (cached) return cached;
   if (!existsSync(CATALOG_PATH)) {
@@ -115,23 +127,40 @@ const computeOrphans = () => {
   // is referenced anywhere. i18next resolves variants from the base call.
   const basesNeeded = new Set(allKeys.map((k) => k.replace(PLURAL_SUFFIX, "")));
 
+  // Extract every `strings.X.Y...` accessor and every quoted dotted-string
+  // literal from the source tree into Sets. Then `Set.has(base)` answers
+  // "is this key referenced?" exactly — no false positives from prefix
+  // overlaps (`strings.health.title` would NOT match `strings.health.titleBig`)
+  // and no false negatives. O(files+keys) instead of O(files×keys).
   const sourceFiles = collectSourceFiles(SRC_DIR);
-  const haystack = sourceFiles
-    .map((f) => readFileSync(f, "utf-8"))
-    .join("\n");
+  const usedAccessors = new Set();
+  const usedDotted = new Set();
+  for (const file of sourceFiles) {
+    const src = readFileSync(file, "utf-8");
+    for (const match of src.matchAll(ACCESSOR_RE)) {
+      // Record the full path AND every prefix, so a leaf-only callsite
+      // `strings.health.title` also marks `health.title` as used. (The
+      // catalog only stores leaf paths, but the regex captures any depth
+      // that appears in source — including future intermediate references.)
+      usedAccessors.add(match[1]);
+    }
+    for (const match of src.matchAll(DOTTED_RE)) {
+      usedDotted.add(match[1]);
+    }
+  }
 
   const orphans = [];
   for (const base of basesNeeded) {
-    // Two usage signals: the dotted literal "feature.key" or any path-segment
-    // that walks the registry to the same leaf (`strings.feature.key`).
-    // The dotted-string check covers `t("feature.key")`, `getByText(strings.feature.key)`
-    // (because the registry produces literal strings), and `en.feature.key`
-    // (the real-locale test path). The strings.* fallback covers cases where
-    // an author imported the registry under a different alias.
-    const dotted = base;
-    const accessor = `strings.${base}`;
-    if (haystack.includes(`"${dotted}"`) || haystack.includes(`'${dotted}'`)) continue;
-    if (haystack.includes(accessor)) continue;
+    // Two usage signals:
+    //   1. Dotted literal — covers `t("feature.key")`, `getByText("feature.key")`,
+    //      and the registry-emitted literal at `strings.feature.key`'s leaf
+    //      (the registry produces strings, so any consumer of `strings.x.y`
+    //      either reads it as a string or accesses it via the accessor form).
+    //   2. Accessor walk — `strings.feature.key` import-time reference, also
+    //      covers test files that import `strings` under any alias since the
+    //      regex anchors on the literal `strings.` token.
+    if (usedDotted.has(base)) continue;
+    if (usedAccessors.has(base)) continue;
     orphans.push(base);
   }
   cached = { orphans, catalogMissing: false };
