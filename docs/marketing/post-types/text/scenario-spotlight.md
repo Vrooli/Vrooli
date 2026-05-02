@@ -148,7 +148,7 @@ Honesty flags the publisher-member must attach to a spotlight draft (mirroring t
 
 ## Promotion path for craft observations
 
-Patterns observed during production runs of `x-scenario-spotlight` should be appended to `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (created on first observation). Promotion targets per [team-shared-docs-design](../../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md):
+Patterns observed during production runs of `x-scenario-spotlight` should be appended to `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (created on first observation). Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../agent-system/TEAM_DOCS_PATTERNS.md):
 
 - **Skill edit** — most observations land as edits to the `x-scenario-spotlight` skill (round structure, mining-strategy adjustments, output-contract refinements).
 - **This file** — observations that change strategic canon (audience model, conversion goal phrasing, new variant, new failure mode).

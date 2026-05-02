@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "ui-i18n-adoption",
   "name": "UI i18n Adoption",
-  "description": "Adopt multi-language support in a scenario UI by wiring i18next through the existing strings.ts registry, with RTL/locale-formatting hooks pre-wired so adding new locales is a config change",
+  "description": "Adopt multi-language support in a scenario UI: wire i18next through the typed strings.ts/selectors.ts registries, default tests to cimode, layer accessibility and locale-parity contracts on top, so adding new locales is a config change and tests don't drift when copy moves",
   "modes": [
     "steer",
     "react",
@@ -16,7 +16,7 @@
   "status": "active",
   "entry": "SKILL.md",
   "defaultScope": "architecture-scope",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-05-02T03:51:50Z",
-  "updatedAt": "2026-05-02T03:51:50Z"
+  "updatedAt": "2026-05-02T15:00:00Z"
 }

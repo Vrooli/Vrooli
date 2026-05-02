@@ -59,7 +59,7 @@ This principle generalizes across teams (not just marketing) — see the meta-op
 
 ## Why per-entity files (not subsections of STRATEGY.md)
 
-Per the [`team-shared-docs-design`](../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md) skill: monolithic plan-of-record docs invite accidental damage when adding/retiring one entity. Per-entity files keep edits scoped and let each post type evolve at its own pace. Cross-cutting structural rules (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, inter-post linkage, recommendation-framing, competitive-comparison) live in [`../post-techniques/`](../post-techniques/) and are referenced from each post-type file rather than duplicated. Strategies that span multiple post-types (e.g., AI-UGC personas) live in [`../strategies/`](../strategies/).
+Per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md): monolithic plan-of-record docs invite accidental damage when adding/retiring one entity. Per-entity files keep edits scoped and let each post type evolve at its own pace. Cross-cutting structural rules (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, inter-post linkage, recommendation-framing, competitive-comparison) live in [`../post-techniques/`](../post-techniques/) and are referenced from each post-type file rather than duplicated. Strategies that span multiple post-types (e.g., AI-UGC personas) live in [`../strategies/`](../strategies/).
 
 ## Decision tree — which post type when?
 

@@ -8,7 +8,7 @@ Every entry in these docs is prose describing *something that should eventually 
 
 Entries are **technical debt**. They exist because the permanent solution — a skill, a scenario feature, a plan-of-record addition — doesn't exist yet. The team's `brand-manager` member periodically scans these docs and proposes promoting mature entries into permanent structure.
 
-A notebook entry has exactly **three promotion targets** (per [`team-shared-docs-design`](../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md)) — and the curator picks the right one per entry, not all entries go to the same target:
+A notebook entry has exactly **three promotion targets** (per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md)) — and the curator picks the right one per entry, not all entries go to the same target:
 
 1. **A skill** in `scenarios/prompt-manager/store/skills/packs/core/<skill>/` — when the pattern is *executable agent guidance* (e.g., "x-dev-log should mine X when Y is unavailable" → edit to `x-dev-log` SKILL.md). Most `*_CRAFT.md` entries promote here.
 2. **A plan-of-record file** under `docs/marketing/` (including `post-types/` and `post-techniques/` sub-folders) — when the pattern is *strategic canon* the operator reads to make decisions (audience refinements, new technique rules, new failure mode at type level).
@@ -63,6 +63,6 @@ Early-stage docs should say "revisit this section after N heartbeats" or "revisi
 
 ## Cross-references
 
-- `docs/meta-optimization/README.md` — meta-optimization uses the same pattern. This notebook mirrors its structure.
-- `scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md` — the two-pattern definition.
+- `docs/agent-system/TEAM_DOCS_PATTERNS.md` — the two-pattern definition (canon).
+- `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern that has largely replaced markdown notebooks across the agent system.
 - `scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md` — live operating rules.

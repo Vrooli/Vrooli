@@ -4,7 +4,8 @@ Analyze **{{SKILL}}** and propose meaningful improvements to its tools, wording,
 
 Required reading:
 - `prompt-manager skill read {{SKILL}}`
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 
 Conditional required reading (when {{SKILL}} includes CLI guidance or CLI workflows):
 - `prompt-manager skill read cli-steer`
@@ -18,7 +19,7 @@ Use this skill to reduce execution friction without losing correctness.
 
 - Improve tooling first where manual loops repeat.
 - Keep skill guidance concise and decision-oriented.
-- Apply the `skill-principles` lifecycle: interim prose -> promote -> retire.
+- Apply the promotion ladder (`docs/agent-system/PROMOTION_LADDER.md`): interim prose -> promote -> retire.
 - Prioritize changes that reduce drift, retries, and token cost across repeated use.
 
 ---
@@ -39,7 +40,7 @@ Use this skill to reduce execution friction without losing correctness.
 - Tool usage instructions (belongs in Tools skills)
 
 Lifecycle rule:
-- Follow the canonical lifecycle in `skill-principles` section `Promotion-Retirement Lifecycle`.
+- Follow the canonical lifecycle in `docs/agent-system/PROMOTION_LADDER.md`.
 - Do not stop at promotion suggestions; explicitly identify what skill prose can be collapsed or deleted after promotion.
 
 ---

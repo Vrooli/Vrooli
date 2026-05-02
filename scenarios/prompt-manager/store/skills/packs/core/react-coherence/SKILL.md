@@ -13,6 +13,9 @@ Do **not** break functionality, regress tests, or introduce unrelated product fe
 Required reading:
 - `prompt-manager skills read visited-tracker-tools`
 
+See also:
+- `prompt-manager skill read ui-i18n-adoption` — when adding multi-language support to a scenario.
+
 ---
 
 ### **0. Why This Skill Exists**

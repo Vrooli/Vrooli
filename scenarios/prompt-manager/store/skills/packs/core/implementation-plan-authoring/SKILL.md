@@ -6,7 +6,7 @@ Required reading:
 - `prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement`
 
 Optional reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read skill-validation`
 
 ---

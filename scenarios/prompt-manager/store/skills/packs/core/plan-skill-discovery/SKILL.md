@@ -3,7 +3,7 @@
 Methodology for finding and loading relevant prompt-manager skills before creating implementation plans. Ensures plans are informed by existing organizational knowledge and that executing agents can load the same context.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

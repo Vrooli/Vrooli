@@ -3,7 +3,7 @@
 Apply a **structured severity assessment** to any incoming problem, finding, or escalation: gather evidence, assess severity and blast radius, then decide on response urgency and approach. This methodology produces triage reports that drive downstream investigation, resolution, or prioritization.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
 - `prompt-manager skill read skill-authoring-practice`

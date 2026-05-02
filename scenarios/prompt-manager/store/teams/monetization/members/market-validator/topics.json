@@ -1,0 +1,25 @@
+{
+  "intake": [
+    {
+      "prefix": "market-validation-inbox/*",
+      "drained_by_skill": "market-validation-router",
+      "source_team": null
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent/*",
+      "drained_by_skill": "market-validation-router",
+      "source_team": "marketing-crew"
+    }
+  ],
+  "output": [
+    { "prefix": "monetization-benchmark/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "benchmark-update",
+    "pricing-decision",
+    "financial-model-assumption-update"
+  ],
+  "decisions_consumed": ["capability-gap"],
+  "raises_capability_gaps": true,
+  "external_producers": ["operator", "vision-walk", "bookmark-intelligence-hub"]
+}

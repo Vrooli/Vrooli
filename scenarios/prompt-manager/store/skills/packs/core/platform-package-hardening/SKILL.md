@@ -3,7 +3,7 @@
 Harden `packages/{{PACKAGE}}/` for reliability and usability: stabilize contracts, improve default human output (when relevant), add tests and docs, and prove changes via a downstream compat set. Default posture is brownfield-safe and non-breaking.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read platform-scope`
 
 Optional reading:

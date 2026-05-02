@@ -1,10 +1,8 @@
 # Reference Scenarios Registry
 
-The `toolchain-validator` member runs the development toolchain against a **gold-star reference scenario** each heartbeat. This doc is the registry of which scenario currently holds that role.
+The `toolchain-validator` member of the `meta-optimization` team runs the development toolchain against a **gold-star reference scenario** each heartbeat. This file is the registry of which scenario currently holds that role.
 
-**Posture:** State. This is not doctrine or memory — it's a pointer that gets updated when the operator changes which scenario is the reference.
-
-**Revisit markers:** Review when the current reference scenario is itself restructured significantly, or when a new scenario overtakes it in quality.
+Edits go through `meta-optimization` decisions; agents may propose nominations or demotions but do not edit the registry directly.
 
 ---
 
@@ -26,7 +24,7 @@ A scenario can be proposed as the gold-star reference if:
 3. It exercises a reasonably broad cross-section of scenario patterns (API + CLI + UI, tests, CI wiring, resource integration).
 4. Its structure is considered stable for at least 60 days.
 
-Nomination is an operator action — file a note here, not a decision, when proposing one.
+Nomination is an operator action — propose during a vision walk and file a `meta-self-improvement` decision.
 
 ---
 
@@ -59,11 +57,3 @@ When the gold-star reference starts producing violations that weren't there befo
 A log of reference-scenario changes. Format: date, previous reference, new reference, reason.
 
 - 2026-04-24 — *(unset)* → `reference-react-vite` — Operator nomination at vision walk. First scan produced 72 standards violations (41 High, 10 Medium, 20 Low, 1 Info), 0 security vulns, opaque `test-genie` 500. Reference is dirty against the tools that gate every other scenario; cleanup is the operator's call.
-
----
-
-## Open questions
-
-- Should there be more than one gold-star, rotating? (Keeps any single scenario from becoming test-overfit.)
-- What's the threshold for "exercising a broad cross-section"? (Probably a checklist; not yet written.)
-- Who notices when the current reference starts drifting — is it toolchain-validator's job, or the owning scenario's team?

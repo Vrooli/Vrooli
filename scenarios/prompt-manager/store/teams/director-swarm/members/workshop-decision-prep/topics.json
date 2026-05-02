@@ -1,0 +1,10 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "workshop-decision-prep/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [],
+  "decisions_consumed": [],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator", "vision-walk"]
+}

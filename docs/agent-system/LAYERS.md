@@ -1,0 +1,79 @@
+# Layers
+
+The single canonical home for the layering rule. Other PoR files cite this one; skills cite this one; nobody restates it.
+
+---
+
+## The layering rule
+
+Every piece of guidance in the agent system has exactly one correct home. The rule:
+
+```
+Truth lives in Plan of Record.
+Judgment lives in Skills.
+Execution lives in Actions.
+Implementation lives in CLIs.
+Unbuilt work lives in backlog or capability-gap.
+Raw learning starts in inboxes and synthesis.
+Identity stays in SOUL.md.
+Ownership stays in team contracts and responsibilities.
+```
+
+No double residency. If the same definition appears in two homes, one is wrong; the migration plan picks one and retires the other.
+
+---
+
+## The classifier
+
+When you have a paragraph and don't know where it belongs, ask what it is *saying*:
+
+```
+If it says what is true       -> Plan of Record.
+If it says how to decide      -> Skill.
+If it says what to run        -> Action.
+If it says how it works       -> CLI implementation.
+If it says what is missing    -> backlog / capability-gap.
+If it is unverified or one-off-> inbox / synthesis (not permanent).
+```
+
+Apply the classifier first. If the answer is "inbox / synthesis," the paragraph is debt — it exists because the permanent solution doesn't yet. The promotion ladder (`PROMOTION_LADDER.md`) describes how it eventually graduates or retires.
+
+---
+
+## Why the rule matters
+
+The system's improvement velocity depends on this rule. When canon lives in the right home:
+
+- Agents reading skills don't re-derive doctrine from prose. The skill cites canon, the agent reads canon once, the same definition steers every consumer.
+- Audits become structural. The team-member capability audit (see `TEAM_MEMBER_ARCHITECTURE.md`) scores each layer independently because each layer has its own home.
+- Retirement is mechanical. Once a CLI returns deterministic pass/fail for a workflow, the prose skill that tries to encode that workflow in words can be retired (per `PROMOTION_LADDER.md`).
+
+When canon lives in the wrong home — typically when a skill restates doctrine that should live in PoR — the same paragraph drifts as different copies update at different rates. The 9-layer audit then turns into prose-grep, which misses everything.
+
+---
+
+## Where each layer lives in the file system
+
+| Layer | Location | Examples |
+|---|---|---|
+| Plan of Record | `docs/<domain>/` and `docs/agent-system/` | `docs/monetization/`, `docs/marketing/research/README.md`, this file |
+| Skills | `scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/SKILL.md` | `marketing-research-router`, `team-member-capability-architecture-audit` |
+| Actions | `scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, `team.decisions.list` |
+| CLIs | `scenarios/<scenario>/cli/` and resource CLIs | `prompt-manager`, `swarm-manager`, `resource-postgres` |
+| Backlog / capability-gap | swarm-manager backlog + `capability-gap` decisions | filed via `swarm-manager` or as decisions |
+| Inbox / synthesis | team knowledge entries under topic prefix | `research-inbox/<signal-type>/<slug>` |
+| Identity | `store/agents/<id>/SOUL.md` | per-agent identity prose |
+| Ownership | `store/teams/<team>/shared/TEAM.md`, `RESPONSIBILITIES.md`, `roles.json` | per-team contracts |
+
+---
+
+## The lint rule
+
+`team-member-capability-architecture-audit` flags as a smell ("skillless canon residue") any skill whose content includes:
+
+- the layer mantra above (any paraphrase that names ≥3 of: PoR, Skill, Action, CLI, backlog, notebook, identity, ownership)
+- the classifier ("If it says X → Y") with ≥3 rows
+- the promotion ladder steps (interim → CLI/tool → Action → retire) without citing `PROMOTION_LADDER.md`
+- the 9-layer table without citing `TEAM_MEMBER_ARCHITECTURE.md`
+
+Skills carrying canon residue must drop the prose and add `Required reading: docs/agent-system/<file>`. The PoR coherence test in `scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces this.

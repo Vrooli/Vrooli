@@ -1,0 +1,20 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "decision-rejection-proposed",
+    "framework-meta"
+  ],
+  "decisions_consumed": [
+    "runtime-health-finding",
+    "platform-code-finding",
+    "cross-platform-debt",
+    "instrumentation-gap",
+    "reliability-target-update",
+    "capability-gap"
+  ],
+  "raises_capability_gaps": false,
+  "external_producers": []
+}

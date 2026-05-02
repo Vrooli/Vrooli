@@ -1,0 +1,22 @@
+{
+  "intake": [
+    {
+      "prefix": "marketing-crew/notebook/*",
+      "drained_by_skill": "brand-manager",
+      "source_team": null
+    }
+  ],
+  "output": [
+    { "prefix": "marketing-canon/*", "destination_kind": "por_file", "destination_path": "docs/marketing/STRATEGY.md" },
+    { "prefix": "marketing-canon/*", "destination_kind": "por_file", "destination_path": "docs/marketing/AUDIENCES.md" }
+  ],
+  "decisions_owned": [
+    "campaign-launch-proposal",
+    "brand-guideline-update",
+    "notebook-promotion",
+    "notebook-retirement"
+  ],
+  "decisions_consumed": ["capability-gap"],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator", "vision-walk"]
+}

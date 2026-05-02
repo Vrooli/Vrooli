@@ -29,6 +29,7 @@ import * as orgChartService from '@/services/orgChartService'
 
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { OrgChartPanel } from './OrgChartPanel'
+import { TopicsGraphPanel } from './TopicsGraphPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import type { MemberDetailSection } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
@@ -43,7 +44,15 @@ import { formatRelativePastTime } from '@/lib/timeUtils'
 
 export type MembersViewMode = 'graph' | 'code'
 
+/**
+ * Graph sub-mode: hierarchy (managerId edges) | topics (topics.json edges) | both.
+ * Auto-defaults: hierarchy when org-chart edges exist; topics otherwise.
+ * "Both" is opt-in.
+ */
+export type GraphMode = 'hierarchy' | 'topics' | 'both'
+
 const MEMBERS_VIEW_STORAGE_KEY = 'pm.teamMembersViewMode'
+const GRAPH_MODE_STORAGE_KEY = 'pm.teamGraphMode'
 
 interface TeamEditorPanelProps {
   /** Current team being edited */
@@ -150,12 +159,27 @@ export function TeamEditorPanel({
     return stored === 'code' ? 'code' : 'graph'
   })
 
+  // Graph sub-mode (hierarchy vs topics vs both); persisted via localStorage.
+  // Set lazily after edges load (see auto-default effect below).
+  const [graphMode, setGraphMode] = useState<GraphMode | null>(() => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem(GRAPH_MODE_STORAGE_KEY)
+    if (stored === 'hierarchy' || stored === 'topics' || stored === 'both') return stored
+    return null
+  })
+
   // Persist view mode preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(MEMBERS_VIEW_STORAGE_KEY, membersViewMode)
     }
   }, [membersViewMode])
+
+  // Persist graph mode when explicitly set
+  useEffect(() => {
+    if (typeof window === 'undefined' || graphMode === null) return
+    localStorage.setItem(GRAPH_MODE_STORAGE_KEY, graphMode)
+  }, [graphMode])
 
   // Team editor store
   const selectedMemberId = useTeamEditorStore((state) => state.selectedMemberId)
@@ -194,6 +218,14 @@ export function TeamEditorPanel({
     void loadEdges()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run when team ID changes
   }, [team?.id, setEdges, reset])
+
+  // Auto-default graphMode once edges are known. Hierarchy when any
+  // managerId edges exist, topics otherwise. Operator override (any explicit
+  // selection) wins via the persisted localStorage value.
+  useEffect(() => {
+    if (graphMode !== null) return
+    setGraphMode(edges.length > 0 ? 'hierarchy' : 'topics')
+  }, [edges.length, graphMode])
 
   // Get selected member
   const selectedMember = useMemo(() => {
@@ -526,20 +558,69 @@ export function TeamEditorPanel({
                   ref={containerRef}
                   className={cn('h-full flex relative', isResizing && 'select-none')}
                 >
-                  {/* Left panel: Org Chart */}
+                  {/* Left panel: graph (Hierarchy | Topics | Both) */}
                   {!showDetailOnly && (
-                    <div className="flex-1 min-w-0 h-full">
-                      <OrgChartPanel
-                        team={team}
-                        edges={edges}
-                        allAgents={allAgents}
-                        selectedMemberId={selectedMemberId}
-                      onSelectMember={setSelectedMemberId}
-                      onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
-                      onAddMember={() => setShowMemberPicker(true)}
-                      onSwitchToCode={handleSwitchToCode}
-                      className="h-full"
-                    />
+                    <div className="flex-1 min-w-0 h-full flex flex-col">
+                      {/* Graph mode toggle bar */}
+                      <div className="flex items-center gap-1 px-2 py-1 border-b border-border bg-card/50">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-2">
+                          Graph
+                        </span>
+                        {(['hierarchy', 'topics', 'both'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setGraphMode(mode)}
+                            className={cn(
+                              'px-2 py-0.5 text-xs rounded transition-colors',
+                              graphMode === mode
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:bg-muted',
+                            )}
+                            data-testid={`graph-mode-${mode}`}
+                            aria-pressed={graphMode === mode}
+                          >
+                            {mode === 'hierarchy' ? 'Hierarchy' : mode === 'topics' ? 'Topics' : 'Both'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex-1 min-h-0">
+                        {graphMode === 'topics' ? (
+                          <TopicsGraphPanel teamId={team.id} className="h-full" />
+                        ) : graphMode === 'both' ? (
+                          <div className="h-full flex flex-col">
+                            <div className="flex-1 min-h-0">
+                              <OrgChartPanel
+                                team={team}
+                                edges={edges}
+                                allAgents={allAgents}
+                                selectedMemberId={selectedMemberId}
+                                onSelectMember={setSelectedMemberId}
+                                onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
+                                onAddMember={() => setShowMemberPicker(true)}
+                                onSwitchToCode={handleSwitchToCode}
+                                className="h-full"
+                              />
+                            </div>
+                            <div className="flex-1 min-h-0 border-t border-border">
+                              <TopicsGraphPanel teamId={team.id} className="h-full" />
+                            </div>
+                          </div>
+                        ) : (
+                          <OrgChartPanel
+                            team={team}
+                            edges={edges}
+                            allAgents={allAgents}
+                            selectedMemberId={selectedMemberId}
+                            onSelectMember={setSelectedMemberId}
+                            onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
+                            onAddMember={() => setShowMemberPicker(true)}
+                            onSwitchToCode={handleSwitchToCode}
+                            className="h-full"
+                          />
+                        )}
+                      </div>
                   </div>
                 )}
 

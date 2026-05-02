@@ -3,7 +3,7 @@
 Intelligent deployment routing and advisory for Vrooli scenarios. Determines the deployment target, checks readiness, routes to the appropriate target-specific Tools skill, and gracefully handles unavailable targets. Adapts behavior based on whether the user wants to deploy now, learn about deployment options, or prepare for future deployment.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

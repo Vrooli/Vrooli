@@ -3,7 +3,7 @@
 Guide for creating **Meta** skills (where `modes[0] = "Meta"`). Meta skills govern how the skill system itself evolves, stays coherent, and avoids drift.
 
 Required reading:
-- `prompt-manager skills read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

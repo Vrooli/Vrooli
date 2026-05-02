@@ -1,0 +1,10 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "qa-run/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": ["preemptive-qa-backlog"],
+  "decisions_consumed": [],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator"]
+}

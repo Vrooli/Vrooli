@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import globals from "globals";
 import importPlugin from "eslint-plugin-import";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -8,7 +9,17 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      // jsx-a11y catches lint-time accessibility issues that complement the
+      // axe-core runtime checks in *.a11y.test.tsx — missing alt text, buttons
+      // without accessible names, invalid ARIA props, etc. Strict (not just
+      // recommended) because every scenario UI is a product surface that must
+      // pass WCAG; weakening this for individual rules is preferable to
+      // dropping the whole ruleset.
+      jsxA11y.flatConfigs.strict,
+    ],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
@@ -87,34 +98,49 @@ export default tseslint.config(
       // ════════════════════════════════════════════════════════════════════════
       // STRING REGISTRY ENFORCEMENT
       //
-      // User-facing strings must live in src/consts/strings.ts so that:
-      //   - tests can assert against `strings.x.y` instead of brittle literals,
-      //   - copy edits are one-line changes, not haystack greps,
-      //   - the registry is ready to swap for a `t()` accessor if/when a
-      //     scenario adopts react-i18next for multi-language support.
+      // User-facing strings live in src/i18n/locales/<locale>.json and are
+      // referenced through the typed `strings.*` registry in src/consts/strings.ts.
+      // The registry derives dotted key paths from en.json at build/load time,
+      // so `strings.app.titel` is a TypeScript error and renames in en.json
+      // produce errors at every callsite.
       //
-      // If you hit this rule:
-      //   ✅ DO: add the string to src/consts/strings.ts and reference it as
-      //         `{strings.feature.key}` (use `format()` for interpolation).
+      // The rules below ensure the registry stays the *only* path that copy
+      // takes into the DOM. They cover three classes of leak:
+      //
+      //   1. JSX text             — `<h1>Hello</h1>`
+      //   2. JSX expression body  — `<h1>{"Hello"}</h1>`
+      //   3. JSX string attribute — `aria-label="Language"`, `placeholder="…"`,
+      //                              `title="…"`, `alt="…"`
+      //
+      // If you hit one of these rules:
+      //   ✅ DO: add the string to src/i18n/locales/en.json (and every other
+      //         locale), then reference it as `{t(strings.feature.key)}`.
+      //         For interpolation, use i18next's `{{var}}` placeholders in
+      //         the JSON and call `t(strings.feature.key, { var: value })`.
       //   ❌ DON'T: disable the rule, or work around it with a template literal
-      //         (`{`Hello ${name}`}`) — that hides the string from the registry.
+      //         (`{`Hello ${name}`}`) — that hides the string from translators.
       //
-      // The rule deliberately only catches JSX text and JSXExpressionContainer
-      // literals — string attributes (placeholder, aria-label, title, …) are
-      // out of scope for Phase 1. Migrate them when a scenario adopts a real
-      // i18n library.
+      // Note: regex matchers like `placeholder:text-white/40` are Tailwind
+      // class names (string content of `className`), not the HTML `placeholder`
+      // attribute, so they are not affected by rule #3.
       // ════════════════════════════════════════════════════════════════════════
       "no-restricted-syntax": [
         "error",
         {
           selector: "JSXText[value=/[a-zA-Z]/]",
           message:
-            "User-facing strings must live in src/consts/strings.ts. Reference them as `{strings.feature.key}` instead of inlining JSX text.",
+            "User-facing strings must go through the i18n registry. Reference them as `{t(strings.feature.key)}` instead of inlining JSX text.",
         },
         {
           selector: "JSXExpressionContainer > Literal[value=/[a-zA-Z]/]",
           message:
-            "User-facing strings must live in src/consts/strings.ts. Reference them as `{strings.feature.key}` instead of `{\"...\"}`.",
+            "User-facing strings must go through the i18n registry. Reference them as `{t(strings.feature.key)}` instead of `{\"...\"}`.",
+        },
+        {
+          selector:
+            "JSXAttribute[name.name=/^(aria-label|aria-description|aria-placeholder|aria-roledescription|aria-valuetext|placeholder|title|alt|label)$/] > Literal[value=/[a-zA-Z]/]",
+          message:
+            "User-facing string attributes must go through the i18n registry. Use `aria-label={t(strings.feature.key)}` (etc.) instead of a string literal.",
         },
       ],
     },

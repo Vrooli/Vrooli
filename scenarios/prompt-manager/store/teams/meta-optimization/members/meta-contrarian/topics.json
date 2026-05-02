@@ -1,0 +1,28 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "decision-rejection-proposed",
+    "framework-update"
+  ],
+  "decisions_consumed": [
+    "skill-conversion-candidate",
+    "skill-improvement",
+    "skill-deprecation",
+    "action-candidate",
+    "action-improvement",
+    "action-deprecation",
+    "agent-improvement",
+    "agent-deprecation",
+    "team-structure-change",
+    "team-deprecation",
+    "toolchain-violation",
+    "run-lesson",
+    "capability-gap",
+    "meta-self-improvement"
+  ],
+  "raises_capability_gaps": false,
+  "external_producers": []
+}

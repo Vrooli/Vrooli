@@ -1,0 +1,13 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "outcome-targets/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "outcome-gap",
+    "outcome-direction"
+  ],
+  "decisions_consumed": ["capability-gap"],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator", "vision-walk"]
+}

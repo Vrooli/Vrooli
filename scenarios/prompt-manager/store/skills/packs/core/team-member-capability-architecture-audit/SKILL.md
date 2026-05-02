@@ -3,7 +3,9 @@
 Audit whether a prompt-manager team member has the right capability structure around its work. Use this when a member is vague, workflow-heavy, repeatedly blocked, or dependent on external signals that are not captured cleanly.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 9-layer model (definitions, score scale, smell catalogue)
+- `docs/agent-system/INTAKE_PIPELINE.md` — the Intake → Collection → Analysis → Promotion pipeline
+- `docs/agent-system/LAYERS.md` — the layering rule the audit applies
 - `prompt-manager skill read capability-extraction`
 
 Optional reading:
@@ -33,32 +35,9 @@ The goal is not to make every member elaborate. The goal is to put each kind of 
 
 ### 2. Layer Model
 
-Classify the member's capability across these layers:
+The 9-layer model — definitions, score scale, smell catalogue, and the layering rule — lives in `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read it before scoring; do not re-derive the layers from this skill.
 
-| Layer | Belongs in | Good sign | Failure sign |
-|---|---|---|---|
-| Identity | `SOUL.md` and short agent prose | Compact enduring posture | Long task procedure or volatile rules |
-| Ownership | team contract, role, `RESPONSIBILITIES.md` | Clear lane, decision contexts, write surfaces | "Help with X" with no decision/write boundary |
-| Plan of Record | durable docs hub | Accepted strategy/canon has a discoverable home | Canon lives only in heartbeat prose or handoff |
-| Skill Surface | focused skills | Repeatable workflows have one or more paired skills | One mega-skill or no skill for repeated work |
-| Intake | team shared state, inbox, heartbeat, external handoff | Work can arrive through named channels | Operator discoveries disappear into conversation memory |
-| Collection | tool skill, Action, CLI, scenario, or collection section | Evidence gathering is explicit and honest | "Research it" without source strategy |
-| Analysis Method | practice skill | The reasoning method is reusable and inspectable | Every run reinvents the method |
-| Promotion / Routing | contract, skill, decision guidance | Observation vs notebook vs decision vs backlog is explicit | Everything becomes a decision or nothing does |
-| Feedback Loop | meta-optimization ownership | Skill/doc/tool gaps route to the right optimizer | Weakness is observed but has no improvement path |
-
-Keep the layers separate:
-
-```text
-Truth lives in Plan of Record.
-Judgment lives in Skills.
-Execution lives in Actions and CLIs.
-Implementation lives in scenario code.
-Unbuilt work lives in backlog or capability-gap decisions.
-Raw learning starts in notebooks and logs.
-Identity stays in SOUL.md.
-Ownership stays in team contracts and responsibilities.
-```
+This skill scores the layers and routes findings; the layer definitions themselves are canon.
 
 ---
 
@@ -70,9 +49,19 @@ Read only enough context to understand the member's current capability shape:
 
 1. Agent files: `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `agent.json`
 2. Team files: `TEAM.md`, `roles.json`, `team.json`
-3. Member files: `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `last-handoff.md`
+3. Member files: `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `last-handoff.md`, `topics.json`
 4. Relevant shared state: decisions, knowledge, audit logs, notebooks, plan-of-record hubs
 5. Existing skill references from the member, team, docs, and graph node if available
+6. Structural pipeline state — run once for the team and reuse the output:
+
+   ```bash
+   prompt-manager graph topics --team <team>           # validation findings (errors + warnings)
+   prompt-manager graph drain-status --team <team>     # per-prefix queue depth + oldest age
+   ```
+
+   The validation report is the source of truth for the four pipeline-layer scores
+   in Phase 2; the drain-status output feeds the `stalled_drain` / `piling_inbox`
+   warnings copied into Section 5's Validation report subsection.
 
 Use concrete evidence. Quote the current prose or name the missing file/skill/path.
 
@@ -100,6 +89,7 @@ Look for these recurring smells:
 | Workflow in heartbeat | Repeatable method lives in `HEARTBEAT.md` | Extract or propose a focused skill |
 | Planless skill | Skill exists but no plan-of-record doc says why/when it matters | Add or reference docs hub |
 | Skillless canon | Plan-of-record doc exists but no executable skill applies it | Propose paired skill |
+| Skillless canon residue | Skill restates canon that lives in `docs/agent-system/` (layer mantra, promotion ladder, 9-layer table, etc.) | Drop the prose; cite `docs/agent-system/<file>.md` |
 | Mega-skill pressure | One skill handles many unrelated methods | Split into router plus method skills |
 | Source ambiguity | External research required but source collection is unspecified | Add collection skill/tool/backlog |
 | Passive-only intake | Operator can feed work, but proactive scan path is absent | Add proactive baseline or explicit non-goal |
@@ -127,46 +117,29 @@ Respect ownership. If you are `team-agent-optimizer`, do not author the skill yo
 
 ---
 
-### 4. Intake, Collection, Analysis, Promotion
+### 4. Pipeline scoring (Intake / Collection / Analysis / Promotion)
 
-For members that process signals, evidence, or external information, explicitly check this pipeline:
+For members that process signals, evidence, or external information, the four pipeline layers (Intake, Collection, Analysis Method, Promotion / Routing) are derived **structurally** from the member's `topics.json` declarations rather than from prose grep. The pattern, the conventions, and the intake-router-drain mechanism live in `docs/agent-system/INTAKE_PIPELINE.md` — read it once.
 
-```text
-Intake -> Collection -> Analysis Method -> Promotion / Routing
+Scoring rules (pipeline layers only; other layers stay prose-judgment):
+
+| Layer | `0 missing` | `1 weak` | `2 adequate` | `3 strong` |
+|---|---|---|---|---|
+| Intake | no `intake[]` entries | one entry but no `drained_by_skill` | at least one entry with `drained_by_skill` | validation in `prompt-manager graph topics --team <name>` returns no smells for any intake prefix |
+| Collection | no collection skill, no Action, no `external_producers[]` | `external_producers[]` declared but no procedure | a paired collection skill or Action exists | collection is exposed as an Action wrapping one CLI |
+| Analysis | no method skill referenced from `drained_by_skill` | one method skill but combined with collection | a dedicated method skill is named | multiple method skills declared and the router dispatches to them by signal type |
+| Promotion / Routing | no `output[]`, no `decisions_owned[]`, `raises_capability_gaps: false` | `output[]` declared but no destinations or decisions | `output[]` + at least one of `decisions_owned[]` / `raises_capability_gaps` | `output[]` validates structurally (no orphan-output smells), `decisions_owned[]` are real, capability-gap path exists |
+
+When the member legitimately has no pipeline (a pure reviewer, code-writer, or deterministic-CLI maintainer), score these four layers `n/a` — `topics.json` should be `{}` (or omitted) as a positive declaration that there is no flow.
+
+The audit's structural pipeline scores are populated by:
+
+```bash
+prompt-manager graph topics --team <team>           # validation report
+prompt-manager graph drain-status --team <team>     # queue depth + age
 ```
 
-**Intake** asks: how does work enter the member's lane?
-- operator-fed: vision walk, direct instruction, alpha inbox
-- proactive: scheduled scan, known source list, telemetry
-- cross-team: decisions, inbox messages, handoff, capability-gap
-- internal: logs, knowledge, scenario metrics
-
-**Collection** asks: how is source material gathered?
-- supplied source refs
-- web/manual research
-- scenario API/CLI
-- Action
-- future capability-gap when source access is unavailable
-
-**Analysis Method** asks: what reusable method interprets the material?
-- audience pain mining
-- workflow deconstruction
-- competitor positioning scan
-- hook pattern mining
-- post-type discovery
-- benchmark-adjacent scan
-- domain-specific review rubric
-
-**Promotion / Routing** asks: what happens to the output?
-- ignore as low-signal
-- append knowledge
-- append notebook debt
-- update working state
-- propose plan-of-record change
-- propose skill/action/scenario/backlog work
-- route to another team/member
-
-Combined skills are allowed early. A method skill may both collect and analyze when the source is simple. Split collection into its own tool/skill/action when source access becomes reusable, credentialed, scheduled, or deterministic.
+Other layers (Identity, Ownership, Plan of Record, Skill Surface, Feedback Loop) remain prose-judgment per Phase 1–4 of `### 3. Audit Process`.
 
 ---
 
@@ -199,6 +172,12 @@ When using this skill, produce a concise audit in this shape:
 - skill-optimizer: <skill create/split/improve, if any>
 - debt-curator: <plan-of-record/notebook promotion, if any>
 - capability-gap/backlog: <missing tool/scenario/action, if any>
+
+**Validation report:** (copy verbatim from `prompt-manager graph topics --team <team>`)
+- structural errors / warnings touching this member, including any
+  `stalled_drain` or `piling_inbox` entries from the drain-status output.
+- omit when the member's `topics.json` is `{}` and the report has no findings;
+  in that case write `Validation report: clean (no flow declared).`
 
 **Expected delta:** <what improves and how to measure it>
 ```

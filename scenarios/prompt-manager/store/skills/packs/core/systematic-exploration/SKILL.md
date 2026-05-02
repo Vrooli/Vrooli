@@ -3,7 +3,7 @@
 Apply a **structured investigation methodology** to any codebase or system: define what you need to learn, map the landscape, form understanding hypotheses, validate through targeted reading, and produce findings that inform downstream decisions. This methodology produces exploration reports that accelerate planning and implementation.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
 - `prompt-manager skill read skill-authoring-practice`

@@ -3,7 +3,7 @@
 Guide for creating **Platform** skills (where `modes[0] = "platform"`). Platform skills steer safe evolution of shared code (for example `packages/*`, shared templates, shared contracts) that is consumed by many scenarios.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
 - `prompt-manager skill read cli-steer`

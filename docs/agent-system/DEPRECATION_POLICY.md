@@ -1,10 +1,8 @@
 # Deprecation Policy
 
-Rules for proposing and executing deprecation of skills, agents, and teams within Vrooli's meta-layer.
+Rules for proposing and executing deprecation of skills, agents, and teams within Vrooli's agent system.
 
-**Posture:** Mostly doctrine (thresholds are rules). The memory section at the bottom captures edge cases we've learned about.
-
-**Revisit markers:** Review thresholds after 5 executed deprecations. Review the archive-path rules after the first deprecation reversal, if any.
+This file is canon (plan-of-record). Edits go through `meta-optimization` decisions. Skills and team docs cite this file rather than restating the thresholds.
 
 ---
 
@@ -37,8 +35,6 @@ If any of 1–4 hits, do not file deprecation. Instead, file a `skill-improvemen
 
 ## Archive path
 
-*Revisit after the first deprecation reversal (if any).*
-
 Once a deprecation decision is accepted by the operator:
 
 1. **Soft archive first.** Set `status: archived` in the entity's manifest (agent.json / team.json / skill manifest). Do NOT delete files yet.
@@ -46,7 +42,7 @@ Once a deprecation decision is accepted by the operator:
 3. **Hard archive after 30 heartbeats.** Move the entity's files to a `store/archived/<entity-type>/<id>/` folder (to be created on first use). Update indexes. The entity no longer appears in `prompt-manager <entity> list`.
 4. **Hard delete after 180 heartbeats.** Remove the archived folder. By this point nothing should reference it, and the relation files have been cleaned up.
 
-The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting points. If we see reversals happening after 30, extend. If nothing is ever reversed at 30, consider shortening.
+The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting points. Edge cases that suggest tightening or relaxing these numbers are tracked as team knowledge entries under topic prefix `meta-optimization/notebook/deprecation-edges/<slug>` and reviewed at the next deprecation cadence.
 
 ---
 
@@ -56,15 +52,7 @@ The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting poi
 - `agent-deprecation` — **team-agent-optimizer** files it, after running the roadmap check.
 - `team-deprecation` — **team-agent-optimizer** files it, after running the roadmap check.
 
-The `debt-curator` does NOT file deprecation decisions for entities outside meta-optimization — those are the owning members' lanes. The debt-curator only retires *doc entries in `docs/meta-optimization/`*.
-
----
-
-## Edge cases (memory)
-
-*Promotion target: when an edge case here appears twice in real deprecations, debt-curator proposes tightening the rules above.*
-
-_(empty — will fill in as edge cases accumulate)_
+The `debt-curator` does NOT file deprecation decisions for entities outside meta-optimization — those are the owning members' lanes. The debt-curator only retires *doc entries it owns* (the inbox/synthesis layer for the meta-optimization team itself).
 
 ---
 
@@ -76,10 +64,3 @@ Documented here so proposals can explicitly guard against them. Every deprecatio
 2. **Capability gap by omission** — entity is the only coverage of a capability and no successor exists. Guard: check #4 above.
 3. **Usage signal lag** — entity was referenced heavily last quarter but is going through a quiet phase; deprecation would re-create wheels a month later. Guard: use 90-day windows, not 30-day.
 4. **Phantom references** — entity has no active references but is referenced by archived entities (graph ghosts). Guard: graph-orphaned queries must filter out archived entity references.
-
----
-
-## Open questions
-
-- Should we track deprecation reversals separately to tune the grace period? (Probably yes, but needs a log that doesn't exist yet.)
-- How do we handle entities that are healthy in isolation but part of a broader bundle being deprecated? (Currently: deprecate the bundle, not the parts; but this may change.)

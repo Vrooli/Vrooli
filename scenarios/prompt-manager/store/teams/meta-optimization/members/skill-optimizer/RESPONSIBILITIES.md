@@ -35,6 +35,8 @@ Initial seed Actions to consider during audits: action:scenario.status.show for 
 |-------|---------|
 | `prompt-manager skill read skill-authoring-tools` | Standards for keeping judgment in skills while moving deterministic execution into CLIs and Actions |
 | `prompt-manager skill read skill-validation` | Validate quality after edits |
-| `prompt-manager skill read skill-principles` | Universal quality criteria |
+| `docs/agent-system/SKILL_AUTHORING.md` | Universal quality criteria |
+| `docs/agent-system/PROMOTION_LADDER.md` | Promotion / retirement lifecycle |
+| `docs/agent-system/LAYERS.md` | Layering rule the skill system applies |
 | `prompt-manager skill read visited-tracker-tools` | Rotation pattern across the skill library |
 | `prompt-manager skill read documentation-health` | Durable audit snapshots |

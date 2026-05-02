@@ -1,0 +1,15 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "platform-code-audit/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "platform-code-finding",
+    "cross-platform-debt",
+    "instrumentation-gap",
+    "capability-gap"
+  ],
+  "decisions_consumed": [],
+  "raises_capability_gaps": true,
+  "external_producers": ["operator"]
+}

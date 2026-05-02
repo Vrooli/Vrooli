@@ -3,7 +3,7 @@
 Conversational decision triage for Swarm Manager workshop questions. Use this when the operator wants to answer backlog workshop decisions without going through the Swarm Manager UI.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read swarm-manager-backlog-tools`
 
 ---

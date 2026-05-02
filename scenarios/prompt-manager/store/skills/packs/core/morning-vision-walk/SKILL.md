@@ -3,7 +3,7 @@
 Daily strategic sync and idea generation session — the single interface through which you steer the entire Vrooli project. This skill guides a structured conversation that covers decision triage, strategic review, and open-ended brainstorming, ensuring nothing falls through the cracks while preserving space for creative exploration.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
 - `prompt-manager skill read idea-workshop` (for ideation phase technique)
@@ -243,7 +243,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Agent / team structure | Changes to agent prompts, team coordination patterns, role additions/removals, deprecations |
 | Run lessons | Durable lessons from specific agent-manager runs that warrant a skill/agent change |
 | Toolchain violations | Issues the dev toolchain surfaced against the gold-star reference scenario |
-| Debt promotions | Workarounds in `docs/meta-optimization/` mature enough to become permanent structure (Plan of Record, skill, Action, CLI backlog, team-config change, or scenario feature) |
+| Debt promotions | Synthesis material under topic prefix `meta-optimization/notebook/<slug>` mature enough to become permanent structure (Plan of Record under `docs/agent-system/`, skill, Action, CLI backlog, team-config change, or scenario feature) |
 | Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject pending decisions |
 
 **Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.

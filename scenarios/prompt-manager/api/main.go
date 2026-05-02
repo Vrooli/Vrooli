@@ -17,6 +17,7 @@ import (
 	"prompt-manager/aisearch"
 	"prompt-manager/graph"
 	"prompt-manager/heartbeat"
+	"prompt-manager/memberflow"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
 	"prompt-manager/search"
@@ -464,6 +465,24 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/export/claude-code", teamHandlers.ExportClaudeCode).Methods("GET")
+
+	// Member-flow (per-member topics.json) routes — declares each member's
+	// intake/output topic prefixes and feeds the team graph view.
+	// DOC: docs/agent-system/drafts/topics-schema.md
+	memberFlowHandlers := memberflow.NewHandlers(absStoreDir)
+	memberFlowHandlers.SetKnowledgeQuery(
+		newTeamKnowledgeQuery(fileStore.Teams().(*store.FileTeamStore)),
+		memberflow.InboxAgingOptions{},
+	)
+	v1.HandleFunc("/teams/{id}/members/{agentId}/topics", memberFlowHandlers.GetMember).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/topics", memberFlowHandlers.PutMember).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/topics", memberFlowHandlers.GetTeam).Methods("GET")
+	// Note: /topics/graph and /topics/drain-status are member-flow endpoints
+	// distinct from the content-taxonomy /topics CRUD below. Routes must be
+	// registered before /topics/{id} so mux does not treat "graph"/
+	// "drain-status" as topic IDs.
+	v1.HandleFunc("/topics/graph", memberFlowHandlers.GetGraph).Methods("GET")
+	v1.HandleFunc("/topics/drain-status", memberFlowHandlers.GetDrainStatus).Methods("GET")
 
 	// Topic routes
 	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())

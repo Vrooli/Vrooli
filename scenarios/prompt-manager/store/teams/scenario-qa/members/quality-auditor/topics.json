@@ -1,0 +1,10 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "quality-audit/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": ["deep-audit-backlog"],
+  "decisions_consumed": [],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator"]
+}

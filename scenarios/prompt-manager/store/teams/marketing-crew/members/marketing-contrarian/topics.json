@@ -1,0 +1,26 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "decision-rejection-proposed",
+    "framework-update"
+  ],
+  "decisions_consumed": [
+    "content-publish-proposal",
+    "campaign-launch-proposal",
+    "brand-guideline-update",
+    "audience-update",
+    "channel-update",
+    "channel-strategy-update",
+    "post-type-proposal",
+    "hook-candidate-promotion",
+    "coverage-gap",
+    "notebook-promotion",
+    "notebook-retirement",
+    "capability-gap"
+  ],
+  "raises_capability_gaps": false,
+  "external_producers": []
+}

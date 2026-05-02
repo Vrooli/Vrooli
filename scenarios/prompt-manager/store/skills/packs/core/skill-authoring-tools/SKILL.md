@@ -3,7 +3,8 @@
 Guide for creating **Tools** skills (where `modes[0] = "Tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 
 ---
 
@@ -90,7 +91,7 @@ Promotion rule:
 - If one Vrooli-controlled CLI command owns a deterministic operation, prefer exposing it as an Action and referencing that Action instead of documenting command prose inline.
 - If multiple entries share the same root cause, add a short promotion note (what should move to CLI/tooling, or why it should remain manual).
 - Keep this as guidance, not a rigid section template.
-- Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
+- Apply the canonical lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
 
 ---
 

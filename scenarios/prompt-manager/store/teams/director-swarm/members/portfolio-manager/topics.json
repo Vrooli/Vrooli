@@ -1,0 +1,15 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "initiative-portfolio/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "initiative-portfolio",
+    "initiative-supplement",
+    "initiative-proposal",
+    "initiative-readiness"
+  ],
+  "decisions_consumed": ["capability-gap", "vision-update", "outcome-direction"],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator", "vision-walk"]
+}

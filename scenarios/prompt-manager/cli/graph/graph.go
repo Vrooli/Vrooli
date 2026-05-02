@@ -72,7 +72,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "graph",
 				Aliases:     []string{"g"},
 				NeedsAPI:    true,
-				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health)",
+				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|drain-status)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -114,6 +114,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdCircularRefs(ctx, subArgs)
 	case "health":
 		return cmdHealth(ctx, subArgs)
+	case "topics":
+		return cmdTopics(ctx, subArgs)
+	case "drain-status":
+		return cmdDrainStatus(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", sub, usageText())
 	}
@@ -139,7 +143,9 @@ Subcommands:
   cliless-skills [--limit N]          Skills not referencing CLIs
   popular [--limit 10] [--type X]     Most referenced nodes
   circular-refs                       Circular reference detection
-  health [--type X | <id>]            Health scores`
+  health [--type X | <id>]            Health scores
+  topics [--team X] [--json]          Member topic-flow graph + validation
+  drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)`
 }
 
 // cmdShow prints a summary of graph counts by type.

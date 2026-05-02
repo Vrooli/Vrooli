@@ -12,7 +12,7 @@ react-stability.
 Do **not** break functionality, regress tests, or introduce unrelated features.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read react-coherence`
 - `packages/api-base/README.md`
 - `packages/iframe-bridge/README.md`

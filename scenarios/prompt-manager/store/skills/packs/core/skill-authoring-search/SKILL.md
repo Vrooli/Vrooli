@@ -3,7 +3,7 @@
 Guide for creating **Search** skills (where `modes[0] = "Search"`). Search skills focus on discovery, mapping, and evidence gathering, not implementation.
 
 Required reading:
-- `prompt-manager skills read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

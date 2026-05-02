@@ -3,7 +3,7 @@
 Collaborative methodology for transforming vague intuitions into coherent, structured ideas through iterative conversation. The goal is to help the user externalize and shape a raw concept without disrupting their creative flow, then hand off the refined idea to swarm-manager's idea agent pipeline for formal hardening.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

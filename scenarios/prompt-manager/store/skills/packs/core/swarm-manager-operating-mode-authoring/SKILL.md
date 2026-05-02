@@ -8,8 +8,10 @@ Use this skill when a repeated agent methodology should become a first-class Swa
 
 Required reading:
 
+- `docs/agent-system/SKILL_AUTHORING.md`
+
 ```bash
-prompt-manager skill read skill-principles skill-authoring-tools implementation-plan-authoring documentation-health
+prompt-manager skill read skill-authoring-tools implementation-plan-authoring documentation-health
 ```
 
 Also read:

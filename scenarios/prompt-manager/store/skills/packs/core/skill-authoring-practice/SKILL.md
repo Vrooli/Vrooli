@@ -3,7 +3,7 @@
 Guide for creating **Practice** skills (where `modes[0] = "Practice"`). Practice skills define systematic engineering methodologies—repeatable approaches to recurring challenges that apply across scenarios, tools, and tech stacks.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

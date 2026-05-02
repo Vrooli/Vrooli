@@ -309,11 +309,13 @@ const literalSelectors = {
   },
   locale: {
     switcher: "locale-switcher",
-    toggleEn: "locale-toggle-en",
-    toggleJa: "locale-toggle-ja",
   },
 } satisfies LiteralSelectorTree;
 
+// Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
+// We deliberately do NOT also declare static `toggleEn` / `toggleJa` literals —
+// the dynamic form is the single source of truth, and duplicating it here would
+// drift the moment a new locale is added to SUPPORTED_LOCALES.
 const dynamicSelectorDefinitions = {
   locale: {
     toggle: defineDynamicSelector({

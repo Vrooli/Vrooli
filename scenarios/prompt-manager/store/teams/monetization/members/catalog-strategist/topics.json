@@ -1,0 +1,18 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "monetization-canon/*", "destination_kind": "por_file", "destination_path": "docs/monetization/CATALOG.md" }
+  ],
+  "decisions_owned": [
+    "catalog-promotion",
+    "catalog-mapping-update",
+    "channel-activation",
+    "sku-retirement",
+    "services-activation",
+    "services-conversion",
+    "services-sunset"
+  ],
+  "decisions_consumed": ["capability-gap", "benchmark-update"],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator", "vision-walk"]
+}

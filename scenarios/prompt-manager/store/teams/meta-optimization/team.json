@@ -59,34 +59,38 @@
       }
     },
     "documents": {
-      "planOfRecord": [],
-      "notebooks": [
+      "planOfRecord": [
         {
-          "id": "meta-optimization-notebook",
+          "id": "agent-system-canon",
+          "hub": {"base": "repo-root", "path": "docs/agent-system/README.md"},
           "paths": [
-            {
-              "base": "repo-root",
-              "path": "docs/meta-optimization/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/meta-optimization/CONVERSION_PLAYBOOK.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/meta-optimization/DEPRECATION_POLICY.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/meta-optimization/REFERENCE_SCENARIOS.md"
-            }
+            {"base": "repo-root", "path": "docs/agent-system/README.md"},
+            {"base": "repo-root", "path": "docs/agent-system/PRIMITIVES.md"},
+            {"base": "repo-root", "path": "docs/agent-system/LAYERS.md"},
+            {"base": "repo-root", "path": "docs/agent-system/PROMOTION_LADDER.md"},
+            {"base": "repo-root", "path": "docs/agent-system/TEAM_DOCS_PATTERNS.md"},
+            {"base": "repo-root", "path": "docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md"},
+            {"base": "repo-root", "path": "docs/agent-system/INTAKE_PIPELINE.md"},
+            {"base": "repo-root", "path": "docs/agent-system/SKILL_AUTHORING.md"},
+            {"base": "repo-root", "path": "docs/agent-system/DEPRECATION_POLICY.md"},
+            {"base": "repo-root", "path": "docs/agent-system/REFERENCE_SCENARIOS.md"}
           ],
-          "posture": "debt",
-          "writePolicy": "append-any-member",
-          "curatorMemberId": "debt-curator",
-          "promotionContext": "meta-self-improvement"
+          "posture": "canon",
+          "writePolicy": "operator-curated-via-decision",
+          "promotionContext": "meta-self-improvement",
+          "consumers": [
+            "meta-optimization",
+            "marketing-crew",
+            "monetization",
+            "director-swarm",
+            "infra-health",
+            "scenario-qa"
+          ],
+          "rationale": "Canonical home for the prompt-manager self-improvement framework: definitions, layer model, promotion ladder, intake pipeline, skill authoring rules, deprecation policy, and reference scenarios. Every team's audit and skill work cites this hub.",
+          "useFor": "framework canon — definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 9-layer team-member architecture, the intake-collection-analysis-promotion pipeline"
         }
       ],
+      "notebooks": [],
       "sharedState": [
         {
           "id": "agent-audit-md",
@@ -612,7 +616,7 @@
         }
       },
       "debt-curator": {
-        "lane": "Promote or retire mature meta-optimization notebook debt.",
+        "lane": "Promote or retire mature meta-optimization synthesis debt under topic prefix `meta-optimization/notebook/<slug>`. Propose updates to `docs/agent-system/` canon when patterns stabilize. Never edits canon directly.",
         "ownedDecisionContexts": [
           "meta-self-improvement"
         ],
@@ -638,7 +642,7 @@
         "forbiddenWrites": [
           {
             "base": "repo-root",
-            "path": "docs/meta-optimization/"
+            "path": "docs/agent-system/"
           },
           {
             "base": "repo-root",

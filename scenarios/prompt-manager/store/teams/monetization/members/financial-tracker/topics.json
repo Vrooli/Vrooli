@@ -1,0 +1,18 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "monetization-ledger/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "runway-warning",
+    "services-trap-warning",
+    "channel-attribution-gap",
+    "pricing-decision",
+    "financial-model-assumption-update",
+    "funnel-bottleneck",
+    "retention-concern"
+  ],
+  "decisions_consumed": ["capability-gap", "benchmark-update"],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator"]
+}

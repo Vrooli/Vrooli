@@ -1,0 +1,18 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "skill-audit/*", "destination_kind": "knowledge", "destination_team": null },
+    { "prefix": "action-audit/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "skill-conversion-candidate",
+    "skill-improvement",
+    "skill-deprecation",
+    "action-candidate",
+    "action-improvement",
+    "action-deprecation"
+  ],
+  "decisions_consumed": ["capability-gap"],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator"]
+}

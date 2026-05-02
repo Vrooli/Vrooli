@@ -31,7 +31,7 @@
     {
       "id": "debt-curator",
       "name": "Debt Curator",
-      "description": "Applies the team's own evolutionary-pressure principles to itself. Scans docs/meta-optimization/ for prose workarounds that have stabilized into promotable patterns; proposes promotion into permanent structure (skills, scenario features, team-config changes) or retirement when already obsoleted. Proposes only — never implements."
+      "description": "Applies the team's own evolutionary-pressure principles to itself. Scans team knowledge under topic prefix `meta-optimization/notebook/<slug>` for prose workarounds that have stabilized into promotable patterns; proposes promotion into permanent structure (canon under docs/agent-system/, skills, scenario features, team-config changes) or retirement when already obsoleted. Proposes only — never implements."
     }
   ]
 }

@@ -362,7 +362,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "market-scan-YYYY-MM-DD": {
+      "monetization/market-scan/<slug>": {
         "ownerMemberId": "market-validator",
         "supersedesPrevious": true,
         "retention": "snapshot"

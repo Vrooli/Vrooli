@@ -1,0 +1,16 @@
+{
+  "intake": [
+    {
+      "prefix": "meta-optimization/notebook/*",
+      "drained_by_skill": "team-member-capability-architecture-audit",
+      "source_team": null
+    }
+  ],
+  "output": [
+    { "prefix": "debt-scan/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": ["meta-self-improvement"],
+  "decisions_consumed": [],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator"]
+}

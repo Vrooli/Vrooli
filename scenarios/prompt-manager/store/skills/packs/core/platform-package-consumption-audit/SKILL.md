@@ -3,7 +3,7 @@
 Analyze how scenarios consume `packages/{{PACKAGE}}/`, identify repeated friction and contract drift, and produce a prioritized improvement backlog that makes the package more reliable and easier to use without breaking downstream consumers.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read platform-scope`
 
 Optional reading:

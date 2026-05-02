@@ -5,7 +5,7 @@ Prioritize migrating `scenarios/{{TARGET}}/ui/` to a **token-driven, primitive-o
 Your goal is to reduce style coupling, preserve behavior, and converge on a UI where visual identity can be changed by updating tokens and primitive variants rather than rewriting surfaces.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read react-coherence react-stability experience-architecture-audit`
 - `prompt-manager skill read visited-tracker-tools`
 

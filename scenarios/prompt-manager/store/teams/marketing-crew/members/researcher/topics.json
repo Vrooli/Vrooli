@@ -1,0 +1,24 @@
+{
+  "intake": [
+    {
+      "prefix": "research-inbox/*",
+      "drained_by_skill": "marketing-research-router",
+      "source_team": null
+    }
+  ],
+  "output": [
+    { "prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null },
+    { "prefix": "competitor/*", "destination_kind": "knowledge", "destination_team": null },
+    { "prefix": "hook/*", "destination_kind": "knowledge", "destination_team": null },
+    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization" }
+  ],
+  "decisions_owned": [
+    "audience-update",
+    "channel-strategy-update",
+    "post-type-proposal",
+    "hook-candidate-promotion"
+  ],
+  "decisions_consumed": ["capability-gap"],
+  "raises_capability_gaps": true,
+  "external_producers": ["vision-walk", "operator", "bookmark-intelligence-hub"]
+}

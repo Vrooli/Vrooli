@@ -1,0 +1,13 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "research-inbox/*", "destination_kind": "knowledge", "destination_team": "marketing-crew" },
+    { "prefix": "monetization-inbox/*", "destination_kind": "knowledge", "destination_team": "monetization" },
+    { "prefix": "market-validation-inbox/*", "destination_kind": "knowledge", "destination_team": "monetization" },
+    { "prefix": "vision-walk-prep/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": ["vision-update"],
+  "decisions_consumed": [],
+  "raises_capability_gaps": false,
+  "external_producers": ["operator"]
+}

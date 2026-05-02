@@ -134,7 +134,7 @@ Honesty flags the publisher / oss-advertiser member must attach to a dev-log dra
 
 ## Promotion path for craft observations
 
-Patterns observed during production runs of `x-dev-log` are appended to [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../notebook/DEV_LOG_CRAFT.md). Promotion targets per [team-shared-docs-design](../../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md):
+Patterns observed during production runs of `x-dev-log` are appended to [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../notebook/DEV_LOG_CRAFT.md). Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../agent-system/TEAM_DOCS_PATTERNS.md):
 
 - **Skill edit** — most observations land as edits to the `x-dev-log` skill (mining-strategy rubric, interestingness-scoring weights, output-contract refinements). Primary promotion target.
 - **This file** — observations that change strategic canon (audience model, conversion goal, new failure mode, type-specific voice rule).

@@ -5,7 +5,7 @@ Manage the full branding lifecycle for Vrooli scenarios — check status, genera
 > **Draft skill.** The brand-manager scenario is in the swarm-manager ideas backlog. This skill documents the planned CLI interface so the ecosystem knows how to use it once built. Commands below are planned, not yet functional.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 

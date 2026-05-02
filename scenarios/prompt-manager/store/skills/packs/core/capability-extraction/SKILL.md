@@ -3,7 +3,8 @@
 Audit agent files (SOUL.md, AGENTS.md, TOOLS.md) to **identify embedded methodologies that should be extracted into reusable skills**. This methodology covers the first half of the promotion pipeline: `Agent instructions -> Skills`. Deterministic operations should continue toward Vrooli-controlled CLI implementation and Action exposure, while judgment stays in skills.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 - `prompt-manager skill read skill-authoring-practice`
 
 Optional reading:
@@ -159,7 +160,7 @@ Optional reading:
 
 **Actions:**
 1. **For each candidate above threshold:**
-   a. **Determine: new skill or extend existing?** — Apply the `skill-principles` sprawl check:
+   a. **Determine: new skill or extend existing?** — Apply the sprawl check from `docs/agent-system/SKILL_AUTHORING.md`:
       - Does an existing skill already cover this area? → Extend
       - Would adding this exceed the existing skill's scope? → New skill
       - Is this a distinct, reusable mental model? → New skill

@@ -3,7 +3,7 @@
 Govern how teams are equipped with scenario-based tool skills, using a lazy evaluation pattern that generates honest demand signals for development prioritization.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read skill-authoring-tools`
 
 ---
@@ -166,7 +166,7 @@ None of the above?
 - Status is only visible inside the SKILL.md content, after the agent has committed to reading it
 
 **Registration:**
-- Follow `skill-principles` section 7 for directory structure and metadata
+- Follow `docs/agent-system/SKILL_AUTHORING.md` (Registration and metadata) for directory structure and metadata
 - Use `modes[0] = "tools"`, tags should include the relevant domain (marketing, analytics, etc.)
 - Run `prompt-manager skill sync` after creation
 

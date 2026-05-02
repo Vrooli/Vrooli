@@ -5,7 +5,9 @@ Analyze **{{SKILL}}** by running a structured “validation suite” that surfac
 Required reading:
 
 * `prompt-manager skill read {{SKILL}}`
-* `prompt-manager skill read skill-principles`
+* `docs/agent-system/SKILL_AUTHORING.md`
+* `docs/agent-system/PROMOTION_LADDER.md`
+* `docs/agent-system/LAYERS.md`
 
 Optional reading (recommended follow-up after validation):
 
@@ -20,7 +22,7 @@ Skill validation keeps operational guidance reliable.
 * It catches correctness and contract drift before they spread.
 * It reduces guesswork by enforcing explicit verification and failure paths.
 * It distinguishes immediate correctness fixes from optimization follow-up.
-* For CLI-operational skills, it enforces the promotion-retirement lifecycle from `skill-principles`.
+* For CLI-operational skills, it enforces the promotion-retirement lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
 
 ---
 
@@ -317,7 +319,7 @@ When you find cross-skill conflicts:
 
 #### **4.9 Complexity Retirement Pass (Required for CLI-Operational Skills)**
 
-Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
+Apply the canonical lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
 
 For each major gate/workflow instruction in {{SKILL}}, classify:
 - `Keep` (policy/safety/ownership boundary; should remain in skill)
@@ -409,7 +411,7 @@ High-leverage expansion patch types:
 ### **8. Category-Specific Validation Checklists**
 
 Use short, category-specific delta checks here. Baseline authoring structure belongs to:
-- `skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 - `skill-authoring`
 - `skill-authoring-tools`
 - `skill-authoring-search`
@@ -435,7 +437,7 @@ Use short, category-specific delta checks here. Baseline authoring structure bel
 #### **Meta skills**
 
 * [ ] Has clear decision rules for ambiguous cases
-* [ ] Governance rules do not duplicate canonical policy from `skill-principles`
+* [ ] Governance rules do not duplicate canonical policy from `docs/agent-system/SKILL_AUTHORING.md` or other PoR files under `docs/agent-system/`
 * [ ] Meta guidance defines boundaries and ownership clearly
 
 ---

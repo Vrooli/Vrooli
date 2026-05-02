@@ -3,7 +3,8 @@
 Orchestrate the **full lifecycle of ecosystem capability improvement**: research the current state of skills and scenarios in a target area, analyze capability gaps with structured decision trees, and plan cross-cutting implementation that spans skills, scenarios, CLIs, and ecosystem registries. This pipeline composes leaf skills (`skill-improvement-suggestions`, `systematic-exploration`) into a leader workflow with explicit phase gates, decision frameworks, and convergence patterns for the unique challenge of improving the Vrooli skill/scenario ecosystem itself.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 - `prompt-manager skill read skill-improvement-suggestions`
 
 Optional reading:
@@ -365,7 +366,7 @@ Before proceeding to Plan, verify:
 - [ ] Decision tree branch and rationale are documented for each decision
 - [ ] Cross-cutting decisions are identified and grouped
 - [ ] Ecosystem integration needs are documented
-- [ ] Prose retirement candidates are identified (per skill-principles lifecycle)
+- [ ] Prose retirement candidates are identified (per `docs/agent-system/PROMOTION_LADDER.md`)
 - [ ] No decisions require additional research (or rework is flagged)
 
 **If gate fails:** Return to Research (missing context) or Analyze (gap classification unclear).
@@ -526,7 +527,7 @@ When reviewing gaps and decisions, actively look for:
 | **Analyzing without research** | Gap register is based on assumptions, not evidence | Research first; every gap must have evidence |
 | **One gap, one solution** | Misses that a single capability can close multiple gaps | Look for cross-cutting capabilities during Decide |
 | **Ignoring ecosystem integration** | New capability exists but nothing references it | Plan the full loop: implement → register → update skills → retire prose |
-| **Treating skill updates as the only fix** | Adds prose where automation would be better | Apply the skill-principles lifecycle: prefer tool/CLI promotion over prose |
+| **Treating skill updates as the only fix** | Adds prose where automation would be better | Apply the promotion ladder (`docs/agent-system/PROMOTION_LADDER.md`): prefer tool/CLI promotion over prose |
 | **Not retiring superseded prose** | Skills grow forever; token cost increases | Every new capability must include a prose retirement plan |
 | **Research scope creep** | Investigating everything instead of the target area | Set boundaries in Phase 1; expand only through deliberate rework |
 | **Deciding without decision trees** | Inconsistent decisions; no reviewable rationale | Use the provided decision trees; record the branch taken |
@@ -559,7 +560,7 @@ This is the key pattern this pipeline captures. When a capability gap is identif
               │
               ▼
 6. Retire superseded prose from the skill
-   (skill-principles lifecycle: Collapse or Delete)
+   (per `docs/agent-system/PROMOTION_LADDER.md`: Collapse or Delete)
 ```
 
 Every work item in the Implementation Roadmap should trace through this loop. Items that skip steps (e.g., implementing a CLI command without updating skills to reference it) leave value on the table.

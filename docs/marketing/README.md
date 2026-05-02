@@ -7,7 +7,7 @@ There is a companion working notebook under [`notebook/`](notebook/README.md). T
 - **Plan-of-record (this folder).** Canon. Operator-curated via approved decisions. Agents propose diffs; they never edit directly. Entries grow and stabilize over time.
 - **Working notebook ([`notebook/`](notebook/)).** Debt. Any member may append freely. `brand-manager` proposes promotions and retirements. Entries shrink over time as they're crystallized into permanent structure.
 
-See [`scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md) for the pattern definition. See [`scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md) for the team's live operating rules.
+See [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) for the pattern definition. See [`scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md) for the team's live operating rules.
 
 ## Start here for agents
 

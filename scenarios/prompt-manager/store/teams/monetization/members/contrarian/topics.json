@@ -1,0 +1,29 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [
+    "decision-rejection-proposed",
+    "framework-update"
+  ],
+  "decisions_consumed": [
+    "catalog-promotion",
+    "catalog-mapping-update",
+    "channel-activation",
+    "sku-retirement",
+    "services-activation",
+    "services-conversion",
+    "services-sunset",
+    "pricing-decision",
+    "financial-model-assumption-update",
+    "runway-warning",
+    "services-trap-warning",
+    "benchmark-update",
+    "funnel-bottleneck",
+    "retention-concern",
+    "channel-attribution-gap"
+  ],
+  "raises_capability_gaps": false,
+  "external_producers": []
+}

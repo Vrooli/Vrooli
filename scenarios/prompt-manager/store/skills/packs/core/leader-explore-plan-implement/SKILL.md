@@ -7,7 +7,7 @@ Required reading:
 - `prompt-manager skill read implementation-plan-authoring`
 
 Optional reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 
