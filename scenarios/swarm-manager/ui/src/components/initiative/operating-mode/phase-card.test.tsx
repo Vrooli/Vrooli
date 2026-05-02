@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PhaseCard } from "./phase-card";
+import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
 
 function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
@@ -109,5 +111,19 @@ describe("PhaseCard", () => {
     );
     const article = container.querySelector('[data-testid="phase-card"]');
     expect(article?.className).toMatch(/ring-cyan-500/);
+  });
+
+  it("exposes a profile-info disclosure with the descriptive copy", async () => {
+    render(<PhaseCard phase={basePhase({ phase: "investigate" })} />);
+    const details = screen.getByTestId(selectors.initiativeDetails.phaseCardProfileInfo);
+    expect(details.tagName).toBe("DETAILS");
+    expect(details).not.toHaveAttribute("open");
+    const summary = details.querySelector("summary");
+    expect(summary).not.toBeNull();
+    await userEvent.click(summary!);
+    expect(details).toHaveAttribute("open");
+    expect(
+      screen.getByText(/Different profiles vary the model, tool access, and runtime budget/),
+    ).toBeInTheDocument();
   });
 });

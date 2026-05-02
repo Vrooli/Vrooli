@@ -20,6 +20,7 @@ import { cn } from "../../lib/utils";
 import { graphPath } from "../../app/routes/route-paths";
 import { useAppBack } from "../../app/routes/useAppBack";
 import { useAppShell } from "../../app/shell/AppShellContext";
+import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 import { StatusBadge } from "./StatusBadge";
 import { TitlePopover } from "./TitlePopover";
 import { LensBar } from "./LensBar";
@@ -69,6 +70,11 @@ export function DetailPageHeader({
   const goBack = useAppBack();
   const navigate = useNavigate();
   const { openSidebar } = useAppShell();
+  // Hide the header hamburger when the sidebar is already visible — its
+  // own collapse toggle becomes the single way to dismiss it. Default to
+  // `true` (button visible) so we never miss the affordance during the
+  // first render before the persisted store finishes hydration.
+  const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed ?? true);
 
   const handleCloseClick = () => {
     goBack();
@@ -80,17 +86,19 @@ export function DetailPageHeader({
 
   return (
     <header className={cn("border-b border-slate-800", className)} data-testid="detail-page-header">
-      {/* Menu button (left) + two-row content + route close (right) */}
+      {/* Menu button (left, only when the sidebar is collapsed) + two-row content + route close (right) */}
       <div className="flex items-center gap-3 px-4 py-3 md:px-6">
-        <button
-          type="button"
-          onClick={openSidebar}
-          className="shrink-0 self-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Open sidebar"
-          data-testid="page-sidebar-button"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            onClick={openSidebar}
+            className="shrink-0 self-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+            aria-label="Open sidebar"
+            data-testid="page-sidebar-button"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
 
         <div className="min-w-0 flex-1">
           {/* Row 1: title (click to view full title + copy) */}

@@ -24,6 +24,7 @@ import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemA
 import type { BacklogItem } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 interface PlanValidationSummary {
   passed: boolean;
@@ -51,6 +52,7 @@ interface BacklogTabProps {
   filters: BacklogFilters;
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
 }
 
 function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
@@ -88,7 +90,7 @@ function hasActiveFilters(filters: BacklogFilters): boolean {
   return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived || filters.validationStatus !== "";
 }
 
-export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {
+export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSearch }: BacklogTabProps) {
   const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
   const blockingMap = useBacklogStore((s) => s.blockingMap);
@@ -126,11 +128,18 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
   const sorted = applySort(filtered, sort, items);
 
   if (sorted.length === 0) {
+    const filtersActive = hasActiveFilters(filters);
+    const title = filtersActive
+      ? "No backlog items match your filters."
+      : "No backlog items yet.";
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <ListTodo className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery || hasActiveFilters(filters) ? "No backlog items match your filters." : "No backlog items."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={ListTodo}
+        title={title}
+        hint={filtersActive ? undefined : "Capture an idea or chore to get started."}
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

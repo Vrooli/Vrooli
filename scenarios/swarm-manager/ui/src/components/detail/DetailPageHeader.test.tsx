@@ -6,6 +6,7 @@ import { Network, Activity } from "lucide-react";
 import { DetailPageHeader, type DetailPageHeaderProps } from "./DetailPageHeader";
 import type { LensOption } from "./lens-options";
 import { installMatchMediaMock, renderWithProviders } from "../../test-utils";
+import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 
 const testLenses: LensOption[] = [
   { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
@@ -14,6 +15,9 @@ const testLenses: LensOption[] = [
 
 beforeEach(() => {
   installMatchMediaMock();
+  // Default to a collapsed sidebar so the existing tests that assert the
+  // hamburger is present continue to pass; specific tests override below.
+  useGraphUIStore.setState({ sidebarCollapsed: true });
 });
 
 function renderHeader(overrides?: Partial<DetailPageHeaderProps>) {
@@ -94,6 +98,18 @@ describe("DetailPageHeader", () => {
     renderHeader({ tabBar: <div data-testid="custom-tabs">Tabs</div> });
 
     expect(screen.getByTestId("custom-tabs")).toBeInTheDocument();
+  });
+
+  it("hides the hamburger button when the sidebar is open", () => {
+    useGraphUIStore.setState({ sidebarCollapsed: false });
+    renderHeader();
+    expect(screen.queryByTestId("page-sidebar-button")).toBeNull();
+  });
+
+  it("shows the hamburger button when the sidebar is collapsed", () => {
+    useGraphUIStore.setState({ sidebarCollapsed: true });
+    renderHeader();
+    expect(screen.getByTestId("page-sidebar-button")).toBeInTheDocument();
   });
 
   it("uses route back semantics for the nav button", async () => {

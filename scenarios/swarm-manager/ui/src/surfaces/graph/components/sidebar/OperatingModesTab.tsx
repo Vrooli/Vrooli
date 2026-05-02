@@ -12,10 +12,12 @@ import { matchesSearch } from "./useSidebarSearch";
 import { initiativeModeService } from "../../../../services";
 import type { OperatingModeCatalogEntry } from "../../../../types/operating-mode";
 import { OperatingModeCard } from "../../../../components/initiative/operating-mode/operating-mode-card";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 interface OperatingModesTabProps {
   searchQuery: string;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
 }
 
 function LoadingSkeleton() {
@@ -31,7 +33,7 @@ function LoadingSkeleton() {
   );
 }
 
-export function OperatingModesTab({ searchQuery, onItemClick }: OperatingModesTabProps) {
+export function OperatingModesTab({ searchQuery, onItemClick, onClearSearch }: OperatingModesTabProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["operating-modes", "catalog"],
     queryFn: () => initiativeModeService.catalog(),
@@ -53,10 +55,13 @@ export function OperatingModesTab({ searchQuery, onItemClick }: OperatingModesTa
 
   if (filtered.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <Layers className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery ? "No modes match your search." : "No operating modes registered."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={Layers}
+        title="No operating modes registered."
+        hint="Modes appear here as the system learns new methodologies."
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

@@ -161,6 +161,7 @@ export function useOperatingModeWorkspace({
     setComposerNote,
     workspaceQuery,
     modeCatalogQuery,
+    refetchCatalog: modeCatalogQuery.refetch,
     workspace,
     currentMode,
     currentModeEntry,

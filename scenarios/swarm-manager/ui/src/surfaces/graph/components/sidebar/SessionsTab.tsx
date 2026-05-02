@@ -12,12 +12,14 @@ import { matchesSearch } from "./useSidebarSearch";
 import { applySessionFilters, applySessionSort } from "./session-list-utils";
 import type { AgentSession } from "../../../../types";
 import type { SessionFilters, SortConfig } from "./types";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 interface SessionsTabProps {
   searchQuery: string;
   filters: SessionFilters;
   sort: SortConfig;
   onOpenSession?: (sessionId: string) => void;
+  onClearSearch?: () => void;
 }
 
 const STATUS_COLORS: Record<AgentSession["status"], string> = {
@@ -42,7 +44,7 @@ const KIND_ICONS = {
   operating_mode_authoring: GitPullRequestArrow,
 };
 
-export function SessionsTab({ searchQuery, filters, sort, onOpenSession }: SessionsTabProps) {
+export function SessionsTab({ searchQuery, filters, sort, onOpenSession, onClearSearch }: SessionsTabProps) {
   const sessions = useAgentSessionStore((s) => s.sessions);
   const status = useAgentSessionStore((s) => s.status);
   const error = useAgentSessionStore((s) => s.error);
@@ -81,13 +83,15 @@ export function SessionsTab({ searchQuery, filters, sort, onOpenSession }: Sessi
   }
 
   if (sorted.length === 0) {
+    const title = hasFilters ? "No sessions match your filters." : "No agent sessions yet.";
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500" data-testid="sidebar-sessions-empty">
-        <MessageSquareMore className="mb-2 h-8 w-8" />
-        <p className="text-sm">
-          {searchQuery || hasFilters ? "No sessions match your filters." : "No agent sessions yet."}
-        </p>
-      </div>
+      <SidebarEmptyState
+        icon={MessageSquareMore}
+        title={title}
+        hint={hasFilters ? undefined : "Plan-work and authoring conversations show up here once started."}
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

@@ -453,6 +453,46 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText(/Holistic loop/i)).toBeInTheDocument();
   });
 
+  it("renders the Info-tab Mode card as a link to the operating-mode details page", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      ...mockInitiativeData,
+      initiative: {
+        ...mockInitiativeData.initiative,
+        mode: "holistic-loop",
+      },
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
+    });
+
+    const card = screen.getByTestId("initiative-info-mode-card");
+    expect(card.tagName).toBe("A");
+    expect(card).toHaveAttribute("href", "/operating-modes/holistic-loop");
+  });
+
+  it("falls back to item-level for the Info-tab Mode card when no mode is set", async () => {
+    const { mode: _ignored, ...initiativeWithoutMode } = mockInitiativeData.initiative;
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      ...mockInitiativeData,
+      // The service shape requires `mode`, but the UI must tolerate missing
+      // values on legacy records — cast through unknown to assert the runtime
+      // behavior the page is designed to defend against.
+      initiative: initiativeWithoutMode as unknown as typeof mockInitiativeData.initiative,
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("initiative-info-mode-card")).toHaveAttribute(
+      "href",
+      "/operating-modes/item-level",
+    );
+  });
+
   it("renders the new in_review status chip colors when an item is in review", async () => {
     useBacklogStore.getState().setItems([
       {

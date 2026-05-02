@@ -10,12 +10,14 @@ import { buildExecutionNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
 import type { ExecutionRecord } from "../../../../types";
 import type { ExecutionFilters, SortConfig } from "./types";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 interface ExecutionsTabProps {
   searchQuery: string;
   filters: ExecutionFilters;
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -63,7 +65,7 @@ function applySort(items: ExecutionRecord[], sort: SortConfig): ExecutionRecord[
   return sorted;
 }
 
-export function ExecutionsTab({ searchQuery, filters, sort, onItemClick }: ExecutionsTabProps) {
+export function ExecutionsTab({ searchQuery, filters, sort, onItemClick, onClearSearch }: ExecutionsTabProps) {
   const items = useExecutionStore((s) => s.items);
 
   let filtered = applyFilters(items, filters);
@@ -75,15 +77,16 @@ export function ExecutionsTab({ searchQuery, filters, sort, onItemClick }: Execu
   const sorted = applySort(filtered, sort);
 
   if (sorted.length === 0) {
+    const filtersActive = filters.statuses.length > 0 || filters.modes.length > 0;
+    const title = filtersActive ? "No executions match your filters." : "No executions yet.";
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <Play className="mb-2 h-8 w-8" />
-        <p className="text-sm">
-          {searchQuery || filters.statuses.length > 0 || filters.modes.length > 0
-            ? "No executions match your filters."
-            : "No executions yet."}
-        </p>
-      </div>
+      <SidebarEmptyState
+        icon={Play}
+        title={title}
+        hint={filtersActive ? undefined : "Runs and reviews appear here as agents start work."}
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

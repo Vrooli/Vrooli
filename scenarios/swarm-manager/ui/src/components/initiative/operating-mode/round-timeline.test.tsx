@@ -33,7 +33,7 @@ function round(overrides: Partial<OperatingModeRound> & { round: number; phase: 
 }
 
 describe("RoundTimeline", () => {
-  it("renders an empty state when there are no rounds", () => {
+  it("renders the supportsPhases empty state when there are no rounds", () => {
     render(
       <RoundTimeline
         rounds={[]}
@@ -45,7 +45,26 @@ describe("RoundTimeline", () => {
         onApplyBacklogSync={vi.fn()}
       />,
     );
-    expect(screen.getByText("No operating-mode rounds have run yet.")).toBeInTheDocument();
+    const empty = screen.getByTestId(selectors.initiativeDetails.roundTimelineEmpty);
+    expect(empty).toHaveTextContent(/Start a phase from the composer above/);
+    expect(empty).toHaveAttribute("data-supports-phases", "true");
+  });
+
+  it("renders the item-level empty state when supportsPhases is false", () => {
+    render(
+      <RoundTimeline
+        rounds={[]}
+        capabilities={{ ...capabilities, supportsPhases: false, usesItemExecutionFlow: true }}
+        busy={false}
+        onRefresh={vi.fn()}
+        onCancel={vi.fn()}
+        onCompleteItems={vi.fn()}
+        onApplyBacklogSync={vi.fn()}
+      />,
+    );
+    const empty = screen.getByTestId(selectors.initiativeDetails.roundTimelineEmpty);
+    expect(empty).toHaveTextContent(/does not run rounds/);
+    expect(empty).toHaveAttribute("data-supports-phases", "false");
   });
 
   it("groups rounds by phase, newest phase first", () => {

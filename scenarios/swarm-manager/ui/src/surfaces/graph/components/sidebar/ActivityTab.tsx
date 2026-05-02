@@ -13,11 +13,13 @@ import { useRecentlyViewedStore, type RecentlyViewedItem } from "../../../../sto
 import { buildBacklogNodeId, buildExecutionNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
 import type { FeedItem } from "../../../../lib/feed";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 interface ActivityTabProps {
   feed: FeedItem[];
   searchQuery: string;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -168,7 +170,7 @@ function getSearchableText(item: FeedItem): [string, string | undefined] {
   return [item.item.title || item.item.name, item.item.description];
 }
 
-export function ActivityTab({ feed, searchQuery, onItemClick }: ActivityTabProps) {
+export function ActivityTab({ feed, searchQuery, onItemClick, onClearSearch }: ActivityTabProps) {
   const filtered = searchQuery
     ? feed.filter((item) => {
         const [primary, secondary] = getSearchableText(item);
@@ -178,10 +180,13 @@ export function ActivityTab({ feed, searchQuery, onItemClick }: ActivityTabProps
 
   if (filtered.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <Inbox className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery ? "No items match your search." : "No feed items available."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={Inbox}
+        title="No feed items available."
+        hint="Captures, attention items, and recent backlog activity show up here."
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

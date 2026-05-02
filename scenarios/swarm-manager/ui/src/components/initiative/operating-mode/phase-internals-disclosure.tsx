@@ -7,10 +7,13 @@
  * and a Tailwind-styled chevron.
  */
 
-import { ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { BookOpen, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { selectors } from "../../../consts/selectors";
 import { StatusChip } from "../../ui/status-chip";
 import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
+import { SkillViewerDialog } from "./skill-viewer-dialog";
 
 interface PhaseInternalsDisclosureProps {
   phase: OperatingModeCatalogPhase;
@@ -54,6 +57,7 @@ function TokenRow({ label, value }: { label: string; value: string }) {
 export function PhaseInternalsDisclosure({ phase, defaultOpen }: PhaseInternalsDisclosureProps) {
   const hasMetricFlags = phase.samplesReplanRate || phase.samplesAcceptanceRate;
   const hasBindings = (phase.resultBindings?.length ?? 0) > 0;
+  const [skillDialogOpen, setSkillDialogOpen] = useState(false);
 
   return (
     <details
@@ -80,7 +84,7 @@ export function PhaseInternalsDisclosure({ phase, defaultOpen }: PhaseInternalsD
         )}
         <dl className="space-y-1.5">
           <TokenRow label="Catalog ID" value={phase.catalogId} />
-          <TokenRow label="Skill ID" value={phase.skillId} />
+          <SkillTokenRow skillId={phase.skillId} onOpen={() => setSkillDialogOpen(true)} />
           <TokenRow label="Activity purpose" value={phase.activityPurpose} />
           <TokenRow label="Lock purpose" value={phase.lockPurpose} />
         </dl>
@@ -113,6 +117,41 @@ export function PhaseInternalsDisclosure({ phase, defaultOpen }: PhaseInternalsD
           </div>
         )}
       </div>
+      {skillDialogOpen && (
+        <SkillViewerDialog
+          isOpen={skillDialogOpen}
+          onClose={() => setSkillDialogOpen(false)}
+          skillId={phase.skillId}
+        />
+      )}
     </details>
+  );
+}
+
+function SkillTokenRow({ skillId, onOpen }: { skillId: string; onOpen: () => void }) {
+  if (!skillId) return null;
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
+      <dt className="shrink-0 text-[11px] uppercase tracking-wide text-slate-500 sm:w-32">Skill ID</dt>
+      <dd>
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            "group/skill inline-flex items-center gap-1.5 rounded bg-slate-800/80 px-1.5 py-0.5 text-[11px] font-mono text-slate-200 transition-colors",
+            "hover:bg-cyan-500/20 hover:text-cyan-200",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
+          )}
+          data-testid={selectors.initiativeDetails.phaseSkillIdButton}
+          title={`Open skill template for ${skillId}`}
+        >
+          <BookOpen
+            className="h-3 w-3 shrink-0 text-slate-500 transition-colors group-hover/skill:text-cyan-300"
+            aria-hidden
+          />
+          <code className="font-mono">{skillId}</code>
+        </button>
+      </dd>
+    </div>
   );
 }

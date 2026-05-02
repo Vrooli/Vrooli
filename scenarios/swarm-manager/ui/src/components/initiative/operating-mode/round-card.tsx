@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CheckSquare, RefreshCw, Square } from "lucide-react";
+import { CheckSquare, FileText, RefreshCw, Square } from "lucide-react";
 import { Button } from "../../ui/button";
 import { formatRelativeTime } from "../../../lib";
 import { selectors } from "../../../consts/selectors";
@@ -15,6 +15,7 @@ export function RoundCard({
   onCancel,
   onCompleteItems,
   onApplyBacklogSync,
+  onViewDetails,
   busy,
 }: {
   round: OperatingModeRound;
@@ -23,6 +24,7 @@ export function RoundCard({
   onCancel: (round: OperatingModeRound) => void;
   onCompleteItems: (round: OperatingModeRound, itemRefs: string[]) => void;
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
+  onViewDetails?: (round: OperatingModeRound) => void;
   busy: boolean;
 }) {
   const view = useMemo(() => buildRoundViewModel(round, capabilities), [round, capabilities]);
@@ -49,6 +51,17 @@ export function RoundCard({
           </p>
         </div>
         <div className="flex gap-1.5">
+          {onViewDetails && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onViewDetails(round)}
+              title="View round details"
+              data-testid={selectors.initiativeDetails.roundDetailButton}
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={() => onRefresh(round)} disabled={busy} title="Refresh round">
             <RefreshCw className="h-4 w-4" />
           </Button>

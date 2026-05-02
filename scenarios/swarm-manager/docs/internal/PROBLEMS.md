@@ -16,6 +16,13 @@ The operating-mode panel rework (2026-05-02) explicitly deferred a few API-side 
 2. **Server-computed switch deltas.** The picker derives capability deltas client-side from before/after catalog entries. Exposing a `preview_deltas` field on `SwitchModeResult` (or a dedicated `POST /switch/preview` endpoint) would let the server be the source of truth for "what will change".
 3. **In-flight item executions on the workspace endpoint.** `ItemLevelEmptyState` shows in-flight count from `InitiativeRollup.inProgress` (already piped through). For modes where the rollup isn't available, a richer `OperatingModeWorkspace.activeItemExecutions[]` field would unblock the same display.
 
+## Deferred — operating-mode production-polish UX pass (2026-05-02)
+
+A second polish pass landed five UI-side phases (clickable mode chip + Info-tab card, mode-picker retry, skill viewer, shared sidebar empty-state, header hamburger gating, capability-aware round timeline empty state, artifact viewer dialog, round detail dialog). Two follow-ups stayed out of v1 by design:
+
+1. **Live agent-log streaming on `RoundDetailDialog`.** The dialog renders the round's existing client-side fields (summary, error, items, handoffs, agent profile) and presents `runId` as a copyable mono token. A future iteration could stream agent-manager logs and linkify `runId` to a stable run-detail URL — both depend on contracts we don't yet own. The dialog is built so adding either is a non-breaking extension.
+2. **Hover-popover tooltip primitive.** The phase-card `profileKey` chip uses an expanded `title=""` plus a native `<details>` info disclosure for the longer copy. A richer popover primitive (Radix-style) would benefit other surfaces too, but adding it for one chip wasn't worth the dependency surface in this pass.
+
 ## Recently Resolved
 
 ### Operating Mode Panel Polish (2026-05-02)

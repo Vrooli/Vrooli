@@ -59,6 +59,7 @@ export function Sidebar({
   const aiSearchStatus = useAISearchStatus();
   const aiAvailable = aiSearchStatus.status?.available ?? false;
   const aiMode = state.searchMode === "ai" && aiAvailable;
+  const clearSearch = () => dispatch({ type: "SET_SEARCH", query: "" });
 
   if (sidebarCollapsed) {
     return null;
@@ -144,7 +145,12 @@ export function Sidebar({
           ) : (
             <>
               {activeTab === "activity" && (
-                <ActivityTab feed={feed} searchQuery={debouncedSearch} onItemClick={onItemClick} />
+                <ActivityTab
+                  feed={feed}
+                  searchQuery={debouncedSearch}
+                  onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
+                />
               )}
               {activeTab === "backlog" && (
                 <BacklogTab
@@ -152,6 +158,7 @@ export function Sidebar({
                   filters={state.filters.backlog}
                   sort={state.sorts.backlog}
                   onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "captures" && (
@@ -160,6 +167,7 @@ export function Sidebar({
                   filters={state.filters.captures}
                   sort={state.sorts.captures}
                   onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "initiatives" && (
@@ -168,12 +176,14 @@ export function Sidebar({
                   filters={state.filters.initiatives}
                   sort={state.sorts.initiatives}
                   onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "operatingModes" && (
                 <OperatingModesTab
                   searchQuery={debouncedSearch}
                   onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "executions" && (
@@ -182,6 +192,7 @@ export function Sidebar({
                   filters={state.filters.executions}
                   sort={state.sorts.executions}
                   onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "sessions" && (
@@ -190,6 +201,7 @@ export function Sidebar({
                   filters={state.filters.sessions}
                   sort={state.sorts.sessions}
                   onOpenSession={onOpenAgentSession}
+                  onClearSearch={clearSearch}
                 />
               )}
             </>

@@ -11,7 +11,7 @@
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, MessageCirclePlus, ClipboardCheck, Workflow } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
@@ -53,7 +53,7 @@ import { formatDisplayText } from "../lib/format-utils";
 import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
 import { StatusChip } from "../components/ui/status-chip";
 import { BACKLOG_STATUS_COLORS } from "../types";
-import { backlogDetailPath, initiativeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
+import { backlogDetailPath, initiativeDetailPath, operatingModeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
 
 type InitiativeTab = "info" | "mode" | "feedback" | "review" | "files";
@@ -727,7 +727,12 @@ export function InitiativeDetailsPage() {
                       {upstreamDependencyCards.length} upstream • {downstreamDependencyCards.length} downstream
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                  <Link
+                    to={operatingModeDetailPath(initiative.mode ?? "item-level")}
+                    className="block rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3 transition-colors hover:border-cyan-400/60 hover:bg-slate-800/80"
+                    data-testid={selectors.initiativeDetails.infoTabModeCard}
+                    title={`View details for ${formatDisplayText((initiative.mode ?? "item-level").replace(/-/g, " "))}`}
+                  >
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
                       <Workflow className="h-3.5 w-3.5" />
                       Mode
@@ -738,7 +743,7 @@ export function InitiativeDetailsPage() {
                     <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
                       {missingItemCount > 0 ? `${missingItemCount} unresolved item ${missingItemCount === 1 ? "ref" : "refs"}` : priority > 0 ? `P${priority} priority` : "Priority unset"}
                     </p>
-                  </div>
+                  </Link>
                 </div>
                 {initiative.description && (
                   <div data-testid={selectors.initiativeDetails.description}>

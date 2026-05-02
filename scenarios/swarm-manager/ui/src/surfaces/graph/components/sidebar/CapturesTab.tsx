@@ -17,12 +17,14 @@ import { matchesSearch } from "./useSidebarSearch";
 import type { Capture, BacklogFormValues } from "../../../../types";
 import type { CaptureFilters, SortConfig } from "./types";
 import { captureDetailPath } from "../../../../app/routes/route-paths";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 interface CapturesTabProps {
   searchQuery: string;
   filters: CaptureFilters;
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
 }
 
 function applyFilters(items: Capture[], filters: CaptureFilters): Capture[] {
@@ -50,7 +52,7 @@ function applySort(items: Capture[], sort: SortConfig): Capture[] {
   return sorted;
 }
 
-export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemClick }: CapturesTabProps) {
+export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemClick, onClearSearch }: CapturesTabProps) {
   const navigate = useNavigate();
   const captures = useCaptureStore((s) => s.captures);
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
@@ -88,11 +90,16 @@ export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemCl
   };
 
   if (sorted.length === 0) {
+    const filtersActive = filters.statuses.length > 0;
+    const title = filtersActive ? "No captures match your filters." : "No captures yet.";
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <MessageSquare className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery || filters.statuses.length > 0 ? "No captures match your filters." : "No captures yet."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={MessageSquare}
+        title={title}
+        hint={filtersActive ? undefined : "Quick thoughts and observations land here before classification."}
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

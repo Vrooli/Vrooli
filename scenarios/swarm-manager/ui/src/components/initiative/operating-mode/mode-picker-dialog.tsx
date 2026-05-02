@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Dialog } from "../../ui/dialog";
 import { selectors } from "../../../consts/selectors";
@@ -17,6 +17,8 @@ export interface ModePickerDialogProps {
   catalog: OperatingModeCatalogEntry[];
   catalogLoading: boolean;
   catalogError?: unknown;
+  catalogFetching?: boolean;
+  onRetryCatalog?: () => void;
   isMutating: boolean;
   mutationError?: unknown;
   onConfirm: (mode: InitiativeOperatingMode, cancelActiveItemExecutions: boolean) => void;
@@ -29,6 +31,8 @@ export function ModePickerDialog({
   catalog,
   catalogLoading,
   catalogError,
+  catalogFetching,
+  onRetryCatalog,
   isMutating,
   mutationError,
   onConfirm,
@@ -81,9 +85,28 @@ export function ModePickerDialog({
           <p className="text-sm text-slate-500">Loading modes…</p>
         )}
         {Boolean(catalogError) && (
-          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {catalogError instanceof Error ? catalogError.message : "Failed to load operating modes."}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p className="min-w-0 flex-1">
+              {catalogError instanceof Error ? catalogError.message : "Failed to load operating modes."}
+            </p>
+            {onRetryCatalog && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onRetryCatalog}
+                disabled={catalogFetching}
+                data-testid={selectors.initiativeDetails.modePickerRetry}
+              >
+                {catalogFetching ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {catalogFetching ? "Retrying…" : "Retry"}
+              </Button>
+            )}
+          </div>
         )}
 
         {!catalogLoading && switchableModes.length > 0 && (

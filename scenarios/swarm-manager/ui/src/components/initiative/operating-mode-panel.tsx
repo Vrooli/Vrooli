@@ -52,6 +52,7 @@ export function OperatingModePanel({
     setComposerNote,
     workspaceQuery,
     modeCatalogQuery,
+    refetchCatalog,
     workspace,
     currentMode,
     currentModeEntry,
@@ -169,6 +170,8 @@ export function OperatingModePanel({
         catalog={catalogModes}
         catalogLoading={modeCatalogQuery.isLoading}
         catalogError={modeCatalogQuery.error}
+        catalogFetching={modeCatalogQuery.isFetching}
+        onRetryCatalog={() => void refetchCatalog()}
         isMutating={modeMutation.isPending}
         mutationError={modeMutation.error}
         onConfirm={(mode, cancelActiveItemExecutions) => {

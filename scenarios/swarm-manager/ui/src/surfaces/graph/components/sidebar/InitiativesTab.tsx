@@ -18,6 +18,7 @@ import {
   dependencyAwareSort,
   type DepthItem,
 } from "../../../../lib/dependency-sort";
+import { SidebarEmptyState } from "./SidebarEmptyState";
 
 // Constant namespace so initiative keys never collide with backlog keys
 // in shared dependency-sort computations.
@@ -44,6 +45,7 @@ interface InitiativesTabProps {
   filters: InitiativeFilters;
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -127,7 +129,7 @@ function LoadingSkeleton() {
   );
 }
 
-export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: InitiativesTabProps) {
+export function InitiativesTab({ searchQuery, filters, sort, onItemClick, onClearSearch }: InitiativesTabProps) {
   const items = useInitiativeStore((s) => s.items);
   const status = useInitiativeStore((s) => s.status);
   const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
@@ -149,11 +151,16 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
   const sorted = applySort(filtered, sort, items);
 
   if (sorted.length === 0) {
+    const filtersActive = filters.statuses.length > 0;
+    const title = filtersActive ? "No initiatives match your filters." : "No initiatives yet.";
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <FolderKanban className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery || filters.statuses.length > 0 ? "No initiatives match your filters." : "No initiatives yet."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={FolderKanban}
+        title={title}
+        hint={filtersActive ? undefined : "Group related backlog work into initiatives to track progress together."}
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+      />
     );
   }
 

@@ -231,4 +231,62 @@ describe("ModePickerDialog", () => {
     expect(screen.getByTestId(selectors.initiativeDetails.modePickerConfirm)).toBeDisabled();
     expect(screen.getByText("Switching…")).toBeInTheDocument();
   });
+
+  it("does not render the catalog Retry button when there is no catalog error", () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={catalog}
+        catalogLoading={false}
+        onRetryCatalog={() => {}}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    expect(screen.queryByTestId(selectors.initiativeDetails.modePickerRetry)).toBeNull();
+  });
+
+  it("renders the catalog Retry button on catalog error and calls onRetryCatalog when clicked", async () => {
+    const onRetryCatalog = vi.fn();
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={[]}
+        catalogLoading={false}
+        catalogError={new Error("network down")}
+        onRetryCatalog={onRetryCatalog}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    expect(screen.getByText("network down")).toBeInTheDocument();
+    const retry = screen.getByTestId(selectors.initiativeDetails.modePickerRetry);
+    expect(retry).toBeEnabled();
+    await userEvent.click(retry);
+    expect(onRetryCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the Retry button and shows a spinner while the catalog is fetching", () => {
+    render(
+      <ModePickerDialog
+        isOpen
+        onClose={() => {}}
+        currentMode="item-level"
+        catalog={[]}
+        catalogLoading={false}
+        catalogError={new Error("network down")}
+        catalogFetching
+        onRetryCatalog={() => {}}
+        isMutating={false}
+        onConfirm={() => {}}
+      />,
+    );
+    const retry = screen.getByTestId(selectors.initiativeDetails.modePickerRetry);
+    expect(retry).toBeDisabled();
+    expect(retry).toHaveTextContent(/Retrying…/);
+  });
 });

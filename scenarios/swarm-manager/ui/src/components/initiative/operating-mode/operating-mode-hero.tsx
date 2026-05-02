@@ -1,4 +1,5 @@
 import { ArrowRightLeft, Workflow } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "../../ui/button";
 import { selectors } from "../../../consts/selectors";
 import type {
@@ -6,6 +7,7 @@ import type {
   OperatingModeRound,
 } from "../../../types/operating-mode";
 import type { InitiativeOperatingMode } from "../../../types";
+import { operatingModeDetailPath } from "../../../app/routes/route-paths";
 import { humanizeRunStrategy, humanizeScopeKind, modeLabel } from "./utils";
 
 export interface OperatingModeHeroProps {
@@ -32,15 +34,22 @@ export function OperatingModeHero({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Workflow className="h-4 w-4 text-cyan-400" aria-hidden="true" />
-            <h2
-              className="text-base font-semibold text-slate-100"
-              data-testid={selectors.initiativeDetails.modeHeroLabel}
+            <Link
+              to={operatingModeDetailPath(currentMode)}
+              className="group flex items-center gap-2 transition-colors hover:text-cyan-300"
+              data-testid={selectors.initiativeDetails.modeHeroLink}
+              title={`View details for ${label}`}
             >
-              {label}
-            </h2>
-            <code className="rounded bg-slate-900/70 px-1.5 py-0.5 text-[11px] text-slate-400">
-              {currentMode}
-            </code>
+              <h2
+                className="text-base font-semibold text-slate-100 group-hover:text-cyan-300"
+                data-testid={selectors.initiativeDetails.modeHeroLabel}
+              >
+                {label}
+              </h2>
+              <code className="rounded bg-slate-900/70 px-1.5 py-0.5 text-[11px] text-slate-400 group-hover:text-cyan-300">
+                {currentMode}
+              </code>
+            </Link>
             {runningRound && (
               <span className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-medium text-cyan-200">
                 Round {runningRound.round} running

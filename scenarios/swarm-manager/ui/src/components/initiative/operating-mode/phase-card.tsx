@@ -12,11 +12,16 @@
  *   footer  : <PhaseInternalsDisclosure> (catalog/skill IDs, trigger, metrics)
  */
 
+import { Info } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { selectors } from "../../../consts/selectors";
 import { StatusChip } from "../../ui/status-chip";
 import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
 import { PhaseInternalsDisclosure } from "./phase-internals-disclosure";
 import { phaseCardDomId } from "./utils";
+
+const PROFILE_KEY_HELP =
+  "Agent-manager profile this phase runs under. Different profiles vary the model, tool access, and runtime budget the agent gets while executing the phase.";
 
 interface PhaseCardProps {
   phase: OperatingModeCatalogPhase;
@@ -115,8 +120,26 @@ export function PhaseCard({ phase, highlighted, defaultInternalsOpen }: PhaseCar
         <p className="mt-2 text-sm leading-relaxed text-slate-300">{phase.purpose}</p>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <StatusChip label={phase.profileKey} colors={PROFILE_COLORS} title="Agent profile" />
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <StatusChip label={phase.profileKey} colors={PROFILE_COLORS} title={PROFILE_KEY_HELP} />
+        <details
+          className="group/profile inline-flex items-center"
+          data-testid={selectors.initiativeDetails.phaseCardProfileInfo}
+        >
+          <summary
+            className={cn(
+              "flex cursor-pointer list-none items-center rounded p-0.5 text-slate-500",
+              "hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
+            )}
+            title="What's an agent profile?"
+            aria-label="What is an agent profile?"
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden />
+          </summary>
+          <p className="mt-1 max-w-xs basis-full rounded-md border border-slate-700/80 bg-slate-900/80 p-2 text-[11px] leading-snug text-slate-300">
+            {PROFILE_KEY_HELP}
+          </p>
+        </details>
         <StatusChip label={writesRepoLabel} colors={writesRepoColors} />
         {phase.requiresCriteria && <StatusChip label="requires criteria" colors={CRITERIA_COLORS} />}
         {contract.requiresStructuredResult && (

@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
 import { RoundCard } from "./round-card";
+import { RoundDetailDialog } from "./round-detail-dialog";
 import { phaseLabel, statusClasses } from "./utils";
 
 interface PhaseBucket {
@@ -46,10 +48,19 @@ export function RoundTimeline({
   onCompleteItems: (round: OperatingModeRound, itemRefs: string[]) => void;
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
 }) {
+  const [detailRound, setDetailRound] = useState<OperatingModeRound | null>(null);
+
   if (rounds.length === 0) {
+    const message = capabilities.supportsPhases
+      ? "No rounds yet. Start a phase from the composer above to begin."
+      : "This mode does not run rounds — execution happens through item runs.";
     return (
-      <p className="rounded-lg border border-slate-800/80 bg-slate-900/55 p-4 text-sm text-slate-500">
-        No operating-mode rounds have run yet.
+      <p
+        className="rounded-lg border border-slate-800/80 bg-slate-900/55 p-4 text-sm text-slate-500"
+        data-testid={selectors.initiativeDetails.roundTimelineEmpty}
+        data-supports-phases={String(capabilities.supportsPhases)}
+      >
+        {message}
       </p>
     );
   }
@@ -98,12 +109,20 @@ export function RoundTimeline({
                   onCancel={onCancel}
                   onCompleteItems={onCompleteItems}
                   onApplyBacklogSync={onApplyBacklogSync}
+                  onViewDetails={setDetailRound}
                 />
               ))}
             </div>
           </details>
         );
       })}
+      {detailRound && (
+        <RoundDetailDialog
+          round={detailRound}
+          isOpen={Boolean(detailRound)}
+          onClose={() => setDetailRound(null)}
+        />
+      )}
     </div>
   );
 }
