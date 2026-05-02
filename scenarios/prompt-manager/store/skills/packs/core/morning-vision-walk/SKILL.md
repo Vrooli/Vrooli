@@ -383,7 +383,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Signal | Preferred destination |
 |---|---|
 | Marketing audience, channel, hook, post-type, workflow, competitor, funnel, or skill opportunity | `prompt-manager team knowledge-add marketing-crew --by=vision-walk --topic="research-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `audience\|hook\|channel\|competitor\|workflow\|skill\|format\|funnel\|benchmark\|unknown`. |
-| Monetization pricing, market category, revenue-line, packaging, or benchmark signal | `prompt-manager team knowledge-add monetization --topic "vision-walk/alpha/<topic>" ...` if monetization is active; otherwise director-swarm knowledge fallback. |
+| Monetization SKU/bundle/add-on/services-line/channel candidate, capability-arrival, customer-ask, competitor move, bundle hint, retention signal, or pricing benchmark | `prompt-manager team knowledge-add monetization --by=vision-walk --topic="opportunity-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `competitor-move\|capability-arrival\|customer-ask\|channel\|bundle-hint\|retention-signal\|benchmark\|unknown`. The `monetization-opportunity-router` skill triages; promoted entries retag to `monetization/opportunity/<slug>` (SKU-shaped bets) or `monetization/market-scan/<slug>` (single-snapshot facts). |
 | Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
 | Product/scenario idea ready for execution pipeline | Swarm-manager backlog item. |
 | Unclear strategic residue or no owner exists yet | Director-swarm knowledge fallback. |
@@ -397,6 +397,8 @@ Research-inbox entries are knowledge entries on the `marketing-crew` team under 
 - Optional next method goes inline at the end of `--content` (e.g. `suggested-method: hook-pattern-mining`).
 
 The router will retag (or delete) the entry once classified, so the inbox view (`team knowledge-list marketing-crew --topic-prefix=research-inbox/`) is always the unrouted set.
+
+Opportunity-inbox entries follow the same pattern on the `monetization` team: knowledge entries under `opportunity-inbox/<signal-type>/<slug>`, written via the CLI (do not write JSONL files directly). The `monetization-opportunity-router` will retag promoted entries to `monetization/opportunity/<slug>` or `monetization/market-scan/<slug>`, or delete dropped ones, so `team knowledge-list monetization --topic-prefix=opportunity-inbox/` is always the unrouted set.
 
 When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that scenario's CLI/export path instead of manually creating platform-specific intake records. Until then, an inbox knowledge entry with source URL and raw note is the right shape.
 

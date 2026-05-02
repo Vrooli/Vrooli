@@ -48,10 +48,10 @@ See [REVENUE_LINES.md](../../REVENUE_LINES.md) for services-engagement disciplin
 
 Not active work, but signals the team watches:
 
-- Explicit requests from prospects for this kind of tooling (logged in opportunities.jsonl with `sku=property-services`)
+- Explicit requests from prospects for this kind of tooling (logged as monetization knowledge under `monetization/opportunity/property-services-*` or `opportunity-inbox/customer-ask/*`)
 - Scenarios that become deployable and are reusable for this add-on (e.g., image-generation service, geo-data resource)
 - Regulatory changes that materially affect lead-gen economics
-- Competitor activity in this space (market-validator notes in market-scans.jsonl)
+- Competitor activity in this space (market-validator notes under `monetization/market-scan/*` knowledge entries)
 
 None of these cause automatic promotion; they inform the trigger review.
 

@@ -80,4 +80,4 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 - [`../../marketing/STRATEGY.md`](../../marketing/STRATEGY.md) — Source-material-discipline section; applies to all numbers borrowed from MapiLeads source.
 - `scenarios/bas/` — substrate for Maps scraping (wrap-not-use).
 - `scenarios/swarm-manager/ideas/email-outreach-manager-archived/` — partial-overlap archived scenario; not to be revived.
-- `scenarios/prompt-manager/store/teams/monetization/shared/opportunities.jsonl` — no paired opportunity-scout entry yet (this idea was captured operator-direct from walk #5 alpha; opportunity-scout may surface a paired entry on a future heartbeat).
+- `monetization` team knowledge under `monetization/opportunity/<slug>` — no paired opportunity-scout entry yet (this idea was captured operator-direct from walk #5 alpha; opportunity-scout may surface a paired entry on a future heartbeat).

@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "opportunity-pool-hygiene",
+  "name": "Opportunity Pool Hygiene",
+  "description": "Periodically sweep the monetization opportunity pool: evaluate revisit triggers, retire stale or disproved bets, propose catalog-promotion decisions when triggers fire, and keep pool size honest. Complements the opportunity router, which handles intake.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "monetization",
+    "opportunity",
+    "hygiene",
+    "maintenance"
+  ],
+  "icon": "broom",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-01T00:00:00Z",
+  "updatedAt": "2026-05-01T00:00:00Z"
+}

@@ -79,7 +79,7 @@ Additional guardrails:
 
 ## How services lines get activated
 
-1. `opportunity-scout` captures candidate services lines as they emerge from market or prospect conversations; logs to `store/teams/monetization/shared/opportunities.jsonl` with `kind: services-line`.
+1. `opportunity-scout` captures candidate services lines as they emerge from market or prospect conversations; creates a knowledge entry under `monetization/opportunity/<slug>` with `kind: services-line-candidate` in the required front-matter.
 2. `catalog-strategist` reviews the pool periodically; when a candidate's trigger fires, raises a decision with context `services-activation`.
 3. `contrarian` reviews the proposal and challenges it specifically against the trap conditions: hypothesis, fixed duration, productization target, sunset clause, legal surface, time-capacity implications.
 4. Operator decides at the vision walk. If promoted to `active`, the line's file is updated (`Status: active`) and `financial-tracker` begins tracking separately.

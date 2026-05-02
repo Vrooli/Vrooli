@@ -17,7 +17,7 @@ Every SKU carries a status field that flows through this lifecycle:
 
 Promotion from `candidate` → `active` is a human decision surfaced at the morning vision walk. Agents never self-promote.
 
-**Where SKU-shaped ideas live before they enter this catalog:** the agent-side raw pool is `scenarios/prompt-manager/store/teams/monetization/shared/opportunities.jsonl`, populated by opportunity-scout. When an opportunity is broader-than-SKU OR not-yet-ready-for-active-tracking, it may instead be staged in [`docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/) — the operator-curated, capacity-deferred staging surface for project-wide ideas. Idea-pipeline graduates SKU-shaped entries here as `candidate` files when their revisit triggers fire and active tracking is warranted.
+**Where SKU-shaped ideas live before they enter this catalog:** the agent-side raw pool lives as `monetization` team knowledge entries under `monetization/opportunity/<slug>`, populated by opportunity-scout. List with `prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/`. When an opportunity is broader-than-SKU OR not-yet-ready-for-active-tracking, it may instead be staged in [`docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/) — the operator-curated, capacity-deferred staging surface for project-wide ideas. Idea-pipeline graduates SKU-shaped entries here as `candidate` files when their revisit triggers fire and active tracking is warranted.
 
 ## Revisit trigger discipline
 
@@ -72,7 +72,7 @@ These rules are enforced by the monetization team's TEAM.md and should be honore
 
 ## How the catalog is updated
 
-- **New candidates** — opportunity-scout appends ideas to `store/teams/monetization/shared/opportunities.jsonl` with proposed SKU classification. Catalog-strategist periodically proposes promotions from the scout's pool to new candidate files. Human approves before a doc file is created.
+- **New candidates** — opportunity-scout creates knowledge entries under `monetization/opportunity/<slug>` (via `prompt-manager team knowledge-add monetization --topic="monetization/opportunity/<slug>"`) with required front-matter (catalog classification, revisit trigger, acquisition + retention hypotheses). Catalog-strategist periodically proposes promotions from the scout's pool to new candidate files. Human approves before a doc file is created.
 - **Trigger firings** — catalog-strategist raises a decision with context `catalog-promotion`. Human decides in the vision walk.
 - **Status updates** — catalog-strategist proposes status changes via decisions when milestones hit (e.g., first paying user → `shipped`). Human curates the update to this file.
 - **Retirements** — contrarian or catalog-strategist may propose retirement with rationale. Human decides.

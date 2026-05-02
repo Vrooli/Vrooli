@@ -5,7 +5,7 @@
 > **Purpose:** the **operator-curated, capacity-deferred staging area** for project-wide ideas — scenarios, features, team-member additions, platform upgrades, capability proposals — that aren't ready to enter any team's active pipeline yet, but shouldn't be lost.
 >
 > **What this isn't:**
-> - opportunity-scout's raw pool (that's `scenarios/prompt-manager/store/teams/monetization/shared/opportunities.jsonl`)
+> - opportunity-scout's raw pool (that's `monetization` team knowledge entries under `monetization/opportunity/<slug>` and `opportunity-inbox/<signal-type>/<slug>` topics)
 > - the SKU index (that's [`docs/monetization/CATALOG.md`](../../monetization/CATALOG.md))
 > - engineering-pipeline staging (that's `scenarios/swarm-manager/ideas/`)
 > - settled monetization reference material (that's [`docs/monetization/revenue-lines/`](../../monetization/revenue-lines/))
@@ -17,13 +17,13 @@
 
 This is the single rule that keeps idea-pipeline structurally distinct from team-pipeline surfaces. If any team's heartbeat starts writing here directly, the surface collapses into another team's queue and breaks the **capacity-deferred** property — which is the entire reason this surface exists. Surface this rule prominently when reviewing or proposing changes. Violating it is the failure mode that retires this whole convention.
 
-The convention applies even to the operator's own automated tooling: a script or skill that auto-populates idea-pipeline entries from any agent surface (opportunities.jsonl, marketing observations, etc.) violates the spirit of this rule. The operator may copy *content* from those sources by hand; the operator is the curation gate.
+The convention applies even to the operator's own automated tooling: a script or skill that auto-populates idea-pipeline entries from any agent surface (monetization opportunity pool, marketing observations, etc.) violates the spirit of this rule. The operator may copy *content* from those sources by hand; the operator is the curation gate.
 
 ## Why this surface exists
 
 Project-wide ideas come from many sources. They aren't all the same shape:
 
-- A SKU-shaped idea fits opportunity-scout's flow → opportunities.jsonl → CATALOG candidate.
+- A SKU-shaped idea fits opportunity-scout's flow → `monetization/opportunity/<slug>` knowledge entry → CATALOG candidate.
 - A scenario-shaped idea ready to build fits swarm-manager/ideas/ → workshop → backlog.
 - An engineering insight that's too immature for either of the above, but valuable enough that losing it would be a real cost — *that's where idea-pipeline lives.*
 
@@ -38,7 +38,7 @@ Ideas can arrive from any of these sources. None of them write directly to idea-
 | Vision-walk **chore phase** (Phase 6) | Operator narrating outside-Vrooli activities; surfaces capability gaps as friction observations | Operator decides during Phase 8 of the walk; idea-pipeline is one valid "note for later" target |
 | Vision-walk **big-picture phase** (Phase 7) | Operator + agent ideating from chore-audit raw material + bundle-roadmap context | Same as above |
 | **Social-media alpha extraction** | External viral posts / tools / strategies the operator surfaces during a walk; structural patterns get extracted to marketing canon, but residual scenario-shaped ideas may need their own home | Operator promotes during Phase 8; cite the source URL in the entry |
-| **opportunity-scout heartbeat** | SKU-shaped monetization candidates (`opportunities.jsonl`) — usually destined for CATALOG promotion | When an opportunity is **broader-than-SKU** (a scenario hypothesis the team will eventually act on, not a SKU-shaped offering) OR **not-yet-ready-for-active-tracking**, opportunity-scout proposes idea-pipeline as the promotion target via a `catalog-promotion`-class decision instead of (or in addition to) a CATALOG candidate file |
+| **opportunity-scout heartbeat** | SKU-shaped monetization candidates (knowledge entries under `monetization/opportunity/<slug>`) — usually destined for CATALOG promotion | When an opportunity is **broader-than-SKU** (a scenario hypothesis the team will eventually act on, not a SKU-shaped offering) OR **not-yet-ready-for-active-tracking**, opportunity-scout proposes idea-pipeline as the promotion target via a `catalog-promotion`-class decision instead of (or in addition to) a CATALOG candidate file |
 | **Marketing-crew researcher** | Audience scans, competitive observations | When a research observation surfaces a *capability gap* that maps to a project-wide idea (vs. an audience or marketing-craft observation), the researcher proposes promotion via decision |
 | **BIH ideation-extraction** *(future)* | Bookmark-intelligence-hub-derived idea candidates from operator's bookmark stream | When BIH ships, its extraction agent proposes promotions via decision |
 | **Operator notes** | Direct operator capture during ad-hoc thinking | Operator writes the entry directly |
@@ -52,7 +52,7 @@ Ask the questions in order. The first match wins.
 2. **Is the idea a marketing-craft pattern (post technique, hook style, voice rule)?** → marketing canon (`docs/marketing/post-techniques/` or `post-types/`).
 3. **Is the idea a settled monetization reference (revenue-line architecture, pricing benchmark)?** → `docs/monetization/revenue-lines/<line>.md` reference section.
 4. **Is the idea a SKU-shaped offering (bundle / add-on / services line)?** AND **does it need active tracking now?** → `monetization/CATALOG.md` candidate (via opportunity-scout → catalog-promotion decision).
-5. **Is the idea a SKU-shaped offering** but **revisit-trigger-deferred?** → `opportunities.jsonl` (opportunity-scout's pool).
+5. **Is the idea a SKU-shaped offering** but **revisit-trigger-deferred?** → opportunity-scout's pool (knowledge entry under `monetization/opportunity/<slug>`).
 6. **Is the idea a scenario / feature / team-member / platform-upgrade ready to be worked on now?** → `scenarios/swarm-manager/ideas/<slug>/` as a standard backlog item.
 7. **Is the idea a scenario / feature / team-member / platform-upgrade** that's well-shaped but **not capacity-available**? → **idea-pipeline** (this folder).
 8. **Is the idea half-formed / single-signal / no clear shape?** → don't capture. Cheap-to-recover ideas don't pay the capture cost.
@@ -147,7 +147,7 @@ Idea-pipeline does not replace any existing idea-storage surface. It *complement
 
 | Surface | Owner | Shape it serves | Why it's not idea-pipeline |
 |---|---|---|---|
-| `monetization/shared/opportunities.jsonl` | opportunity-scout (agent) | SKU-shaped monetization candidates with rich framing (TAM, effort, revisit triggers, acquisition + retention hypotheses) | Agent-side raw pool, not operator-curated; SKU-shaped only; capacity-deferral handled internally via revisit triggers. **Parallel pool for SKU-shaped ideas, not competing.** |
+| `monetization` knowledge entries under `monetization/opportunity/<slug>` | opportunity-scout (agent) | SKU-shaped monetization candidates with rich framing (TAM, effort, revisit triggers, acquisition + retention hypotheses) | Agent-side raw pool, not operator-curated; SKU-shaped only; capacity-deferral handled internally via revisit triggers. **Parallel pool for SKU-shaped ideas, not competing.** |
 | `docs/monetization/CATALOG.md` + `catalog/base/*.md` + `catalog/addons/*.md` | catalog-strategist proposes → operator approves | SKU lifecycle (`idea → candidate → trigger-met → active → shipped → retired`) | SKU-scope, not scenario-scope. Idea-pipeline can reference CATALOG SKUs in its monetization framing. |
 | `docs/monetization/revenue-lines/*.md` | monetization team | Revenue-stream registry with productization targets, legal surfaces, candidate playbooks | Settled reference material, not idea-staging. Reference-architectures can be cited from idea-pipeline entries. |
 | `scenarios/swarm-manager/ideas/<slug>/` | swarm-manager (engineering pipeline) | Scenario hypotheses ready for workshop loop | Pulls into development pipeline / director-team prioritization. Idea-pipeline graduates here when capacity opens. |
@@ -180,7 +180,7 @@ A single `README.md` per idea is enough until a Tier 2 section grows past ~500 w
 - [`../../monetization/CATALOG.md`](../../monetization/CATALOG.md) — SKU index; cited from monetization framing sections.
 - [`../../monetization/revenue-lines/`](../../monetization/revenue-lines/) — settled revenue-stream reference material.
 - `scenarios/swarm-manager/ideas/` — engineering pipeline staging; idea-pipeline graduates here.
-- `scenarios/prompt-manager/store/teams/monetization/shared/opportunities.jsonl` — opportunity-scout's parallel SKU-shaped raw pool.
+- `monetization` team knowledge entries under `monetization/opportunity/<slug>` — opportunity-scout's parallel SKU-shaped raw pool. List with `prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/`.
 
 ## Changelog
 

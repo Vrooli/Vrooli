@@ -92,5 +92,5 @@ Link relevant existing surfaces. Examples:
 - `docs/monetization/revenue-lines/<line>.md` — relevant revenue line
 - `docs/marketing/AUDIENCES.md#<persona>` — primary audience
 - `scenarios/<existing-scenario>/` — capability-multiplier upstream/downstream
-- `scenarios/prompt-manager/store/teams/monetization/shared/opportunities.jsonl` opp-<id> — paired opportunity-scout entry, if any
+- `monetization` team knowledge entry under `monetization/opportunity/<slug>` — paired opportunity-scout entry, if any (`prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/<slug>`)
 -->

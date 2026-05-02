@@ -226,16 +226,6 @@
           "required": true
         },
         {
-          "id": "market-scans-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "market-scans.jsonl"
-          },
-          "ownerMemberId": "market-validator",
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
           "id": "operator-inputs-json",
           "path": {
             "base": "team-shared",
@@ -243,16 +233,6 @@
           },
           "ownerMemberId": "financial-tracker",
           "kind": "operator-input",
-          "required": true
-        },
-        {
-          "id": "opportunities-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "opportunities.jsonl"
-          },
-          "ownerMemberId": "opportunity-scout",
-          "kind": "append-only-event-log",
           "required": true
         }
       ]
@@ -475,10 +455,6 @@
             "path": "decisions.jsonl"
           },
           {
-            "base": "team-shared",
-            "path": "opportunities.jsonl"
-          },
-          {
             "kind": "handoff"
           }
         ],
@@ -491,7 +467,8 @@
         "safetyCriticalRules": [
           "Every candidate needs a concrete revisit trigger.",
           "Every idea needs both acquisition and retention hypotheses.",
-          "Do not nominate Tier 4 hardware work without explicit operator initiation."
+          "Do not nominate Tier 4 hardware work without explicit operator initiation.",
+          "Inbox triage must leave no entry under opportunity-inbox/* — promote (retag to monetization/opportunity/<slug>), convert-to-market-scan (retag to monetization/market-scan/<slug>), or delete."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -503,7 +480,8 @@
           "ideasPerHeartbeat": "3-10 when signal supports it; fewer is valid during quiet signal",
           "destinationRule": [
             "strong signal plus clear fit -> decision",
-            "plausible speculative idea -> opportunities.jsonl only",
+            "plausible speculative idea -> knowledge entry under monetization/opportunity/<slug> with required front-matter (catalog, revisit_trigger, acquisition_hypothesis, retention_hypothesis)",
+            "raw untriaged signal -> knowledge entry under opportunity-inbox/<signal-type>/<slug>",
             "weak or incoherent -> drop"
           ]
         }
@@ -591,10 +569,6 @@
           {
             "base": "team-shared",
             "path": "decisions.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "market-scans.jsonl"
           },
           {
             "kind": "handoff"
