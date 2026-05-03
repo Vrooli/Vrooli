@@ -46,6 +46,11 @@ Use this skill when:
 │                                                              ┌──────────────┐│
 │                                                              │ RESTORE      ││
 │                                                              │ DEFAULT (P6) ││
+│                                                              └──────┬───────┘│
+│                                                                     ▼        │
+│                                                              ┌──────────────┐│
+│                                                              │ PERSIST      ││
+│                                                              │ AUDIT (P7)   ││
 │                                                              └──────────────┘│
 │                                                                              │
 │  After a fix lands, **re-run from Phase 2** with the same Phase 3 script    │
@@ -115,6 +120,11 @@ mkdir -p "${WORKDIR}"
 # Restart with the perf-build env var. The build script's mode-aware vite
 # invocation produces the perf bundle; the lifecycle's force_setup=true
 # rebuilds, which is what we want here.
+#
+# Build time: first profile-mode build is 5–10 min (cold UI build is the
+# worst case). Warm rebuilds with the Vite cache are 30–60s. If a "restart"
+# returns in <60s, the cached profile bundle is being reused — that's
+# expected, not a sign the rebuild was skipped.
 VROOLI_BUILD_MODE=profile vrooli scenario restart "${SCENARIO}"
 
 # Verify the served bundle is the perf one. Names like `BacklogRow`,
@@ -195,16 +205,63 @@ const WEB_VITALS_INIT = `
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// --- Reusable interaction helpers. Add to your audit's capture.js as needed. ---
+
+// Drag a target horizontally by `dx` over N steps (settles transition queues
+// better than a one-shot move, so resize-lag traces are reproducible).
+async function dragHorizontalOnce(page, selector, dx, steps = 20) {
+  const handle = await page.locator(selector).boundingBox();
+  if (!handle) throw new Error(`dragHorizontalOnce: ${selector} not found`);
+  const startX = handle.x + handle.width / 2;
+  const startY = handle.y + handle.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(startX + (dx * i) / steps, startY, { steps: 1 });
+  }
+  await page.mouse.up();
+}
+
+// Walk up from a target element to find its nearest scrollable ancestor.
+// Useful when scrolling a virtualized list whose scroll-parent isn't the
+// element you started from (e.g. a panel-level <main>).
+async function findScrollableAncestor(page, selector) {
+  return await page.evaluate((sel) => {
+    let el = document.querySelector(sel);
+    while (el && el !== document.body) {
+      const cs = window.getComputedStyle(el);
+      if (cs.overflowY === "auto" || cs.overflowY === "scroll") {
+        // Return a CSS-locatable handle (id or generated path) the test can grab.
+        if (el.id) return `#${el.id}`;
+        const parent = el.parentElement;
+        if (parent) {
+          const idx = Array.from(parent.children).indexOf(el);
+          return `${parent.tagName.toLowerCase()} > :nth-child(${idx + 1})`;
+        }
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }, selector);
+}
+// ----------------------------------------------------------------------
+
 // --- Customise this for the audit. Each phase logs a label so the trace
-//     is annotated and analysis can correlate timestamps to phases. ---
+//     is annotated and analysis can correlate timestamps to phases. The DOM
+//     counts logged after structural changes are a hard-to-fake confirmation
+//     that the change you're auditing actually shipped (e.g. virtualization
+//     reducing 278 backlog rows to 9 visible). ---
 async function exerciseTarget(page, log) {
   log("waiting for shell to mount");
   await page.waitForSelector("[data-testid='sidebar']", { timeout: 15000 }).catch(() => {});
   await sleep(800);
+  log(`pre-phase DOM count [data-testid='backlog-item']: ${await page.locator("[data-testid='backlog-item']").count()}`);
 
   log("phase 1: <describe what the user complained about>");
   // ... interactions: page.click(), page.mouse.down/move/up(), page.keyboard.type(), etc.
+  // Example: await dragHorizontalOnce(page, "[data-testid='sidebar-resize-handle']", 80);
   await sleep(500);
+  log(`post-phase DOM count [data-testid='backlog-item']: ${await page.locator("[data-testid='backlog-item']").count()}`);
 }
 // ----------------------------------------------------------------------
 
@@ -239,7 +296,9 @@ async function main() {
   });
   const traceComplete = new Promise((res, rej) => {
     client.once("Tracing.tracingComplete", res);
-    setTimeout(() => rej(new Error("tracingComplete timeout")), 60000);
+    // 120s covers multi-phase scripts (resize + scroll + click sequences).
+    // Bump higher only if your `exerciseTarget` deliberately runs >90s.
+    setTimeout(() => rej(new Error("tracingComplete timeout")), 120000);
   });
 
   await exerciseTarget(page, (m) => console.log(`[capture] ${m}`));
@@ -310,6 +369,9 @@ for (const [id, s] of Object.entries(agg).sort((a,b) => b[1].total - a[1].total)
 | Specific subtree has high *avg* commit time but low count | The component is genuinely expensive when it renders. Look for un-memoized lists, heavy `useMemo` deps, expensive sync filtering/sorting. |
 | Single commit with a max far above the avg | Outlier — usually a state-cascade or a specific user action. Find its timestamp in the trace, look at what fired then. |
 | `nested-update` commits | A `setState` fired *during* a render. Look for hooks that update state in render (selector instability, derived state in render bodies). |
+| Memoized leaf has commit count proportional to (parent commits × N rows) | **Memo is being defeated.** Look for unstable props chained from above: fresh closures (inline arrow functions per render), fresh array literals, `Map.get(rebuiltMap)` patterns where the map is created in the parent body, and TanStack `useMutation`'s `mutate` (only stable until reset). Lift derived data to context, hoist Maps into `useMemo`, and bake mutation pending state out of callbacks. |
+
+**Watch `avg(μs)` more than `total(ms)`.** When a fix changes commit cardinality (e.g. virtualization makes a list mount many cheap rows instead of one giant render), `total(ms)` can rise even though each commit is now far cheaper. `avg(μs)` is the per-commit cost; that's the metric that tracks "did the fix actually make rendering this thing cheaper". Validate the win by confirming `avg(μs)` drops; the long-task delta in `*.web-vitals.json` corroborates from a different angle.
 
 **Open the trace in Chrome DevTools** (Performance → "Load profile…") for visual analysis: the user_timing track shows the `⚛` markers aligned with frames; the CPU samples flame graph shows readable hook/utility names. Use the bottom-up view filtered to scripting-time to identify dominant cost sites.
 
@@ -318,6 +380,8 @@ for (const [id, s] of Object.entries(agg).sort((a,b) => b[1].total - a[1].total)
 - Quantitative evidence (commit count, avg, max — copy-pasted from the analysis table)
 - Hypothesis for the cause (selector instability, missing memo, etc.)
 - Suggested next step (which to actually do is *out of scope for this skill*; that's a separate engineering task)
+
+**List new dependencies the suggested fixes would add.** If a recommendation needs a package the scenario doesn't currently have (e.g. `@tanstack/react-virtual` for virtualization), surface it under a "New dependencies" bullet in `findings.md`. The user authorizes deps before implementation begins, not in the middle of it — surfacing late wastes the implementer's loop.
 
 **Exit criteria:** Findings written; trace JSON archived; user has a quantitative answer to "which subtree is slow."
 
@@ -336,6 +400,35 @@ vrooli scenario restart "${SCENARIO}"
 Optionally clean up `${WORKDIR}` if disk is tight. The trace is large (~40 MB for a 12 s capture). Keep it if a follow-up engineering task is going to act on the findings; archive it to a durable path if the audit results need to be referenced later.
 
 **Exit criteria:** Scenario back on the regular bundle. Audit complete.
+
+---
+
+### **Phase 7: Persist the audit**
+
+If the audit reached actionable findings, persist them as a durable artifact in the scenario's docs tree so future sessions can find them. Free-form `findings.md` files in `/tmp/` disappear; `docs/perf/` files in the scenario tree survive across sessions, can be cross-linked, and are validated by `knowledge-observatory`.
+
+```bash
+SLUG="<short-kebab-slug>"   # e.g. sidebar-resize-and-backlog-scroll
+DEST="scenarios/${SCENARIO}/docs/perf/$(date -I)-${SLUG}.md"
+mkdir -p "$(dirname "${DEST}")"
+knowledge-observatory docs template perf-audit > "${DEST}"
+# Edit the file: fill in frontmatter (date, scenario, interactions, status,
+# trace paths) and replace the placeholder sections with the audit content
+# (Framing / Methodology / Per-component table / Long-task summary /
+# Findings / Recommendations + outcome).
+```
+
+Validate the shape:
+
+```bash
+knowledge-observatory docs audit "${SCENARIO}"
+# Look for any "perf-audit:" issues in the output. Zero issues = the
+# frontmatter and per-component table conform.
+```
+
+Register the doc in the scenario's `docs/manifest.json` under a `perf` section so it surfaces in the in-app docs viewer.
+
+**Exit criteria:** Audit findings live at `scenarios/${SCENARIO}/docs/perf/<date>-<slug>.md`, registered in the manifest, and pass `knowledge-observatory docs audit`.
 
 ---
 
@@ -376,16 +469,59 @@ function agg(path) {
 const before = agg('${WORKDIR}/trace.before.json');
 const after = agg('${WORKDIR}/trace.after.json');
 const all = new Set([...Object.keys(before), ...Object.keys(after)]);
-console.log('component'.padEnd(22), 'before(ms)'.padStart(11), 'after(ms)'.padStart(11), 'delta(ms)'.padStart(11), 'delta(%)'.padStart(9));
+const colHeader = (s, w) => s.padStart(w);
+console.log(
+  'component'.padEnd(22),
+  colHeader('b-cnt', 7), colHeader('a-cnt', 7),
+  colHeader('before(ms)', 11), colHeader('after(ms)', 11),
+  colHeader('b-avg(μs)', 10), colHeader('a-avg(μs)', 10),
+  colHeader('delta(ms)', 11), colHeader('delta(%)', 9),
+);
 for (const id of [...all].sort()) {
-  const b = before[id]?.total || 0;
-  const a = after[id]?.total || 0;
-  const dms = (a - b) / 1000;
-  const dpct = b > 0 ? ((a - b) / b) * 100 : (a > 0 ? Infinity : 0);
-  console.log(id.slice(0,22).padEnd(22), (b/1000).toFixed(1).padStart(11), (a/1000).toFixed(1).padStart(11), dms.toFixed(1).padStart(11), (isFinite(dpct) ? dpct.toFixed(0)+'%' : 'new').padStart(9));
+  const b = before[id] || {count:0,total:0,max:0};
+  const a = after[id] || {count:0,total:0,max:0};
+  const dms = (a.total - b.total) / 1000;
+  const dpct = b.total > 0 ? ((a.total - b.total) / b.total) * 100 : (a.total > 0 ? Infinity : 0);
+  const bAvg = b.count > 0 ? Math.round(b.total / b.count) : 0;
+  const aAvg = a.count > 0 ? Math.round(a.total / a.count) : 0;
+  console.log(
+    id.slice(0,22).padEnd(22),
+    String(b.count).padStart(7), String(a.count).padStart(7),
+    (b.total/1000).toFixed(1).padStart(11), (a.total/1000).toFixed(1).padStart(11),
+    String(bAvg).padStart(10), String(aAvg).padStart(10),
+    dms.toFixed(1).padStart(11),
+    (isFinite(dpct) ? dpct.toFixed(0)+'%' : 'new').padStart(9),
+  );
 }
 "
 ```
+
+The added `b-cnt / a-cnt / b-avg / a-avg` columns surface the case the original `before/after/delta-%` layout could hide: virtualization can take a list from 14 expensive commits to 60 cheap ones (total rises slightly, avg-per-commit drops 30×). Always check `a-avg < b-avg` for the targeted component before declaring the fix worked.
+
+**Long-task delta (first-class, not a footnote):** the long-task signal is the cleanest correlate of *felt* performance. Run this directly on the `*.web-vitals.json` files captured by `WEB_VITALS_INIT`:
+
+```bash
+node -e "
+const b = require('${WORKDIR}/trace.before.web-vitals.json').longTasks || [];
+const a = require('${WORKDIR}/trace.after.web-vitals.json').longTasks || [];
+const sum = (xs) => xs.reduce((s,e) => s + e.duration, 0);
+const max = (xs) => xs.reduce((m,e) => Math.max(m, e.duration), 0);
+console.log('Long tasks  | count |  total(ms) |   max(ms)');
+console.log('before      | %s | %s | %s', String(b.length).padStart(5), sum(b).toFixed(0).padStart(10), max(b).toFixed(0).padStart(9));
+console.log('after       | %s | %s | %s', String(a.length).padStart(5), sum(a).toFixed(0).padStart(10), max(a).toFixed(0).padStart(9));
+console.log('delta       | %s | %s | %s', String(a.length - b.length).padStart(5), (sum(a) - sum(b)).toFixed(0).padStart(10), (max(a) - max(b)).toFixed(0).padStart(9));
+"
+```
+
+A 1300ms → 175ms long-task total drop with a flat per-component table means the fix landed at a layer the Profiler doesn't see (event handlers, layout thrash, browser-side work). Trust the long-task delta.
+
+**Run the scenario test suite before declaring the comparison successful:**
+
+```bash
+vrooli scenario test "${SCENARIO}"
+```
+
+A perf "win" that breaks tests isn't a win. Tests must be green on the post-fix tree before you record the comparison as conclusive.
 
 Read the table. Validate:
 
@@ -413,11 +549,11 @@ Net change:       <Δ long-task ms>, <Δ commits>
 
 Every audit produces:
 
-1. **`${WORKDIR}/findings.md`** — durable, file-path-anchored conclusions. Lives until the follow-up engineering work is done.
-2. **`${WORKDIR}/trace.json` and `trace.web-vitals.json`** — raw evidence. Re-loadable in DevTools, re-analysable, comparable across audits if archived.
+1. **`scenarios/<slug>/docs/perf/<date>-<slug>.md`** (Phase 7 output) — the durable, in-repo record of the audit. Validated by `knowledge-observatory docs audit`. This is the artifact that survives across sessions and is the canonical reference; the `${WORKDIR}/findings.md` is a draft on the way to this.
+2. **`${WORKDIR}/trace.json` and `trace.web-vitals.json`** — raw evidence. Re-loadable in DevTools, re-analysable, comparable across audits if archived. Referenced by absolute path from the persisted doc; may be GC'd from `/tmp` and that's OK — the persisted doc remains.
 3. **Permanent code edits** from Phase 1 if the scenario lacked perf-build infra. Those edits are scenario assets — they make the next audit faster.
 
-Findings reports should reference the trace by absolute path so a reader can re-open the evidence.
+The persisted `docs/perf/<date>-<slug>.md` doc references traces by absolute path so a reader can re-open the evidence while it lasts.
 
 ---
 
@@ -447,9 +583,10 @@ A successful application of this skill produces:
 
 - A trace JSON loadable in Chrome DevTools Performance panel
 - A per-component aggregation table with count / total / avg / max
-- A `findings.md` with file:line-anchored hypotheses and quantitative evidence
+- A `scenarios/<slug>/docs/perf/<date>-<slug>.md` doc (Phase 7) with file:line-anchored hypotheses and quantitative evidence, registered in the scenario's `docs/manifest.json` and passing `knowledge-observatory docs audit`
+- A long-task delta line (count, total ms, max ms) corroborating or replacing the per-component signal
 - (If Phase 1 added infra) committed code changes bringing the scenario up to perf-audit readiness
-- (If a comparison run was performed) a delta table and net-change summary tying the change to the fix that produced it
+- (If a comparison run was performed) a delta table with `b-cnt / a-cnt / b-avg / a-avg / delta` columns and a net-change summary tying the change to the fix that produced it
 
 What this skill does *not* produce:
 - Code fixes for the identified hotspots — those are a separate task
@@ -472,5 +609,5 @@ The browser-launch + CDP-tracing flow encoded in Phase 4's script is a candidate
 | `ProfileChunk` events present, names still mangled | `keepNames: true` not in vite.config's profile mode block | Phase 1 audit missed it; add it |
 | Restart leaves the perf bundle in place when env var is unset | The `build` script lacks the conditional substitution | Phase 1: check `package.json`; the `build` script must use `$([ "$VROOLI_BUILD_MODE" = profile ] && echo --mode profile)` |
 | Capture script can't find `rebrowser-playwright` | BAS not installed or path wrong | Run `cd scenarios/browser-automation-studio/playwright-driver && pnpm install` once |
-| `Tracing.tracingComplete` timeout | Interaction took too long, or the page crashed mid-capture | Check `page.on("pageerror")` log; trim the interaction or raise the 60 s timeout |
+| `Tracing.tracingComplete` timeout | Interaction took too long, or the page crashed mid-capture | Check `page.on("pageerror")` log; trim the interaction or raise the 120 s timeout |
 | Trace JSON is hundreds of MB | The interaction window is too long | Cap interactions at ~15 s; long captures aren't more useful, just heavier |

@@ -1,5 +1,5 @@
 {
-  "version": "1.3.1",
+  "version": "1.4.0",
   "title": "Swarm Manager Documentation",
   "description": "Documentation for backlog-first scenario governance and execution control",
   "defaultDocument": "QUICKSTART.md",
@@ -105,6 +105,25 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "gauge",
+      "documents": [
+        {
+          "path": "perf/README.md",
+          "title": "Perf Audits",
+          "description": "Index of headless perf audits run against the swarm-manager UI",
+          "audience": ["developers"]
+        },
+        {
+          "path": "perf/2026-05-03-sidebar-resize-and-backlog-scroll.md",
+          "title": "2026-05-03 — Sidebar resize + Backlog scroll",
+          "description": "Initial perf audit: sidebar drag lag and BacklogTab scroll cost (status: fixed)",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -199,6 +218,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "concepts", "guides", "reference"],
-    "secondary": ["internal"]
+    "secondary": ["perf", "internal"]
   }
 }

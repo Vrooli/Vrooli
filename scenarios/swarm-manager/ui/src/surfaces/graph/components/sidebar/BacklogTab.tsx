@@ -178,23 +178,25 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
 
   return (
     <>
-      <VirtualizedBacklogList
-        sorted={sorted}
-        blockingMap={blockingMap}
-        readinessMap={readinessMap}
-        attentionReasonsMap={attentionReasonsMap}
-        pendingQuestionsMap={pendingQuestionsMap}
-        activeRunKeys={activeRunKeys}
-        activeRunLabels={activeRunLabels}
-        completedSteppers={completedSteppers}
-        transitionItems={transitionItems}
-        getItemCallbacks={getItemCallbacks}
-        pendingArchiveKey={pendingArchiveKey}
-        pendingWorkshop={pendingWorkshop}
-        pendingStatusKey={pendingStatusKey}
-        handleStepperCompleted={handleStepperCompleted}
-        onItemClick={onItemClick}
-      />
+      <Profiler id="VirtualizedBacklogList" onRender={onProfilerRender}>
+        <VirtualizedBacklogList
+          sorted={sorted}
+          blockingMap={blockingMap}
+          readinessMap={readinessMap}
+          attentionReasonsMap={attentionReasonsMap}
+          pendingQuestionsMap={pendingQuestionsMap}
+          activeRunKeys={activeRunKeys}
+          activeRunLabels={activeRunLabels}
+          completedSteppers={completedSteppers}
+          transitionItems={transitionItems}
+          getItemCallbacks={getItemCallbacks}
+          pendingArchiveKey={pendingArchiveKey}
+          pendingWorkshop={pendingWorkshop}
+          pendingStatusKey={pendingStatusKey}
+          handleStepperCompleted={handleStepperCompleted}
+          onItemClick={onItemClick}
+        />
+      </Profiler>
 
       {/* Run modal */}
       <RunBacklogModal

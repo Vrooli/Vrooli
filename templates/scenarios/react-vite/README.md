@@ -136,6 +136,16 @@ The template ships with a fully-wired i18n setup so adopters don't have to retro
 3. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
 4. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
 
+## UI Performance Profiling
+The UI ships ready for headless perf audits:
+
+- **Profile-mode build**: `VITE_BUILD_MODE=profile` (or `pnpm run build:profile`) keeps React's profiling instrumentation in the bundle. Configured in `ui/vite.config.ts`.
+- **`onProfilerRender` util**: `ui/src/lib/profiler.ts` emits a `performance.measure` per commit so component-level timing shows up in any Chrome trace as `⚛ <id>` user_timing entries.
+- **Top-level `<React.Profiler id="App">`**: wired in `ui/src/main.tsx`. Inert in regular prod (the callback never fires); load-bearing only in profile builds. Add inner `<Profiler>` boundaries around heavy subtrees as you go — never remove the top-level one.
+- **Capture template**: [`ui/perf/capture.template.js`](ui/perf/capture.template.js) is a starting-point Playwright + CDP tracing script. Includes `dragHorizontalOnce` and `findScrollableAncestor` helpers. See [`ui/perf/README.md`](ui/perf/README.md) for the workflow.
+
+The full audit methodology lives in the `scenario-performance-audit` skill (`prompt-manager skill read scenario-performance-audit`). Audit results persist as `docs/perf/<date>-<slug>.md` in the scenario tree, validated by `knowledge-observatory docs audit`.
+
 ## pnpm Everywhere
 The template assumes pnpm. If you run another package manager, convert lockfiles yourself before committing. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce drift.
 
