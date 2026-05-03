@@ -66,6 +66,11 @@ function makeService(
 beforeEach(() => {
   useOperationsStore.getState().reset();
   resetOperationsStoreService();
+  // Existing tests in this file inspect the bar's interior (counts, action
+  // buttons, confirm dialogs). Selection mode is opt-in at the page level,
+  // so default it on here so each test exercises a single concern. The
+  // gating-specific tests below set it explicitly.
+  useOperationsStore.getState().setSelectionMode(true);
 });
 
 describe("OpsBulkActions", () => {
@@ -197,6 +202,45 @@ describe("OpsBulkActions", () => {
     );
     expect(outcome).toHaveTextContent(/Stopped 1 of 2; 1 failed/);
     expect(outcome).toHaveTextContent(/manager unreachable/);
+  });
+
+  it("hides the bar entirely when selection mode is off, even if active rows exist", async () => {
+    const { service } = makeService({
+      activeRows: [row({ runId: "run-a", lane: "execute" })],
+    });
+    setOperationsStoreService(service);
+    await useOperationsStore.getState().refresh();
+    // Override the beforeEach default — this test is about the OFF gate.
+    act(() => {
+      useOperationsStore.getState().setSelectionMode(false);
+    });
+
+    const { container } = render(<OpsBulkActions />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("becomes visible when selection mode is flipped on at runtime", async () => {
+    const { service } = makeService({
+      activeRows: [row({ runId: "run-a", lane: "execute" })],
+    });
+    setOperationsStoreService(service);
+    await useOperationsStore.getState().refresh();
+    act(() => {
+      useOperationsStore.getState().setSelectionMode(false);
+    });
+
+    render(<OpsBulkActions />);
+    expect(
+      screen.queryByTestId(selectors.operationsCenter.bulkActionBar),
+    ).toBeNull();
+
+    act(() => {
+      useOperationsStore.getState().setSelectionMode(true);
+    });
+
+    expect(
+      screen.getByTestId(selectors.operationsCenter.bulkActionBar),
+    ).toBeInTheDocument();
   });
 
   it("clearing selection from the store hides the selection-specific actions", async () => {

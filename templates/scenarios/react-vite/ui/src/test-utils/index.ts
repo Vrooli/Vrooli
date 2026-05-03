@@ -3,8 +3,11 @@
  *
  * Organized so consumers learn one import path and discover capabilities
  * via auto-complete. Production code MUST NOT import from this directory
- * — a future ESLint guardrail will enforce this (Tier 2). Treat it as
- * test-only by convention until then.
+ * — `eslint.config.js` enforces this via `no-restricted-imports`
+ * (mirroring the Go-side AST guardrail at
+ * `api/internal/testutil/no_prod_import_test.go`). The override block
+ * for `*.test.{ts,tsx}` / `*.spec.{ts,tsx}` turns the rule off so
+ * tests import from here freely.
  *
  * # What lives here
  *
@@ -52,10 +55,10 @@ export { interp } from "./interp";
 export { makeHealthResponse, makeListNotesResponse, makeNote } from "./factories";
 export type { HealthResponse, ListNotesResponse, Note } from "./factories";
 
-// Mock builders for external SDKs. Each test file still calls
-// `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
-// builders live in one place so a future API addition is a one-edit
-// change rather than a fan-out across hook tests.
+// Mock builders for external SDKs and internal seams. Each test file
+// still calls `vi.mock(<module>, ...)` inline (Vitest hoisting requires
+// it); the builders live in one place so a future API addition is a
+// one-edit change rather than a fan-out across consumers.
 export {
   makeGamepadInputManagerCtor,
   makeMockGamepadInputManager,
@@ -65,3 +68,13 @@ export type {
   MockGamepadInputManager,
   MockSpatialNavController,
 } from "./mocks/spatial";
+
+// Internal-seam mock builders for the UI's own lib/* HTTP wrappers.
+// Use `...makeApiMocks()` / `...makeNotesMocks()` *inside* the
+// `vi.mock(..., async (importOriginal) => …)` factory closure — never
+// at module top level. See mocks/api.ts and mocks/notes.ts for the
+// canonical usage shape.
+export { makeApiMocks } from "./mocks/api";
+export type { ApiMocks } from "./mocks/api";
+export { makeNotesMocks } from "./mocks/notes";
+export type { NotesMocks, NotesMockCreateInput } from "./mocks/notes";

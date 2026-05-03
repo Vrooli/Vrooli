@@ -29,6 +29,8 @@ function renderBody(
     activities: ActivityRow[];
     recentlyFinished: ActivityRow[];
     enableByPhaseView: boolean;
+    selectionMode: boolean;
+    onSelectionModeToggle: () => void;
   }> = {},
 ) {
   const onViewChange = props.onViewChange ?? vi.fn();
@@ -40,6 +42,8 @@ function renderBody(
         activities={props.activities ?? []}
         recentlyFinished={props.recentlyFinished ?? []}
         enableByPhaseView={props.enableByPhaseView ?? true}
+        selectionMode={props.selectionMode}
+        onSelectionModeToggle={props.onSelectionModeToggle}
       />
     </MemoryRouter>,
   );
@@ -180,5 +184,61 @@ describe("OpsBody", () => {
   it("hides the recently-finished tail when empty", () => {
     renderBody({ recentlyFinished: [] });
     expect(screen.queryByText(/Recently finished/i)).toBeNull();
+  });
+
+  describe("selection-mode toggle", () => {
+    it("does not render the toggle when no handler is provided", () => {
+      renderBody();
+      expect(
+        screen.queryByTestId(selectors.operationsCenter.selectionModeToggle),
+      ).toBeNull();
+    });
+
+    it("renders the toggle when an onSelectionModeToggle handler is supplied", () => {
+      renderBody({ onSelectionModeToggle: vi.fn() });
+      expect(
+        screen.getByTestId(selectors.operationsCenter.selectionModeToggle),
+      ).toBeInTheDocument();
+    });
+
+    it("reflects the selectionMode prop via aria-pressed and label", () => {
+      const { rerender } = renderBody({
+        selectionMode: false,
+        onSelectionModeToggle: vi.fn(),
+      });
+      const toggle = screen.getByTestId(
+        selectors.operationsCenter.selectionModeToggle,
+      );
+      expect(toggle).toHaveAttribute("aria-pressed", "false");
+      expect(toggle).toHaveTextContent(/^Select$/);
+
+      rerender(
+        <MemoryRouter>
+          <OpsBody
+            view="by-initiative"
+            onViewChange={vi.fn()}
+            activities={[]}
+            recentlyFinished={[]}
+            enableByPhaseView
+            selectionMode
+            onSelectionModeToggle={vi.fn()}
+          />
+        </MemoryRouter>,
+      );
+      const onToggle = screen.getByTestId(
+        selectors.operationsCenter.selectionModeToggle,
+      );
+      expect(onToggle).toHaveAttribute("aria-pressed", "true");
+      expect(onToggle).toHaveTextContent(/Selecting/);
+    });
+
+    it("calls onSelectionModeToggle when clicked", async () => {
+      const onSelectionModeToggle = vi.fn();
+      renderBody({ onSelectionModeToggle });
+      await userEvent.click(
+        screen.getByTestId(selectors.operationsCenter.selectionModeToggle),
+      );
+      expect(onSelectionModeToggle).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -386,4 +386,84 @@ describe("OperationsCenterPage", () => {
       });
     });
   });
+
+  describe("selection mode", () => {
+    it("hides row checkboxes and the bulk-action bar by default", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.body),
+        ).toBeInTheDocument();
+      });
+      // No row-level checkboxes when selection mode is off.
+      expect(
+        screen.queryByTestId(
+          selectors.operationsCenter.activityRowCheckbox,
+        ),
+      ).toBeNull();
+      // The bulk-action bar is hidden entirely when selection mode is off,
+      // even though there is one active row in the seeded view.
+      expect(
+        screen.queryByTestId(selectors.operationsCenter.bulkActionBar),
+      ).toBeNull();
+    });
+
+    it("clicking the Select toggle reveals checkboxes and the bulk-action bar", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.body),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByTestId(
+        selectors.operationsCenter.selectionModeToggle,
+      );
+      expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+      await userEvent.click(toggle);
+
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute("aria-pressed", "true");
+      });
+      expect(
+        screen.getByTestId(selectors.operationsCenter.activityRowCheckbox),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.operationsCenter.bulkActionBar),
+      ).toBeInTheDocument();
+    });
+
+    it("clicking the Select toggle a second time hides the affordances again", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.body),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByTestId(
+        selectors.operationsCenter.selectionModeToggle,
+      );
+      await userEvent.click(toggle);
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.activityRowCheckbox),
+        ).toBeInTheDocument();
+      });
+
+      await userEvent.click(toggle);
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute("aria-pressed", "false");
+      });
+      expect(
+        screen.queryByTestId(
+          selectors.operationsCenter.activityRowCheckbox,
+        ),
+      ).toBeNull();
+      expect(
+        screen.queryByTestId(selectors.operationsCenter.bulkActionBar),
+      ).toBeNull();
+    });
+  });
 });

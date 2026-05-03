@@ -165,6 +165,15 @@ jobs:
             || { echo "::error::Go coverage $pct% < $threshold%"; exit 1; }
           echo "Go coverage $pct% >= $threshold%"
 
+      - name: E2E (binary boots and serves /health)
+        # Build-tag-isolated test in api/main_e2e_test.go. Boots the
+        # real binary, polls /health, sends SIGTERM, asserts clean exit.
+        # Catches regressions that handler tests can't see: missing
+        # server.Deps wiring, broken preflight, listener config drift.
+        # The default `go test ./...` skips it (no `e2e` tag); this step
+        # is the only gate that runs it.
+        run: go test -tags=e2e -run TestE2E -timeout 60s .
+
   cli:
     name: CLI tests
     runs-on: ubuntu-latest

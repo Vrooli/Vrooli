@@ -15,14 +15,14 @@
  * the operator needs them.
  *
  * Layout:
- *   - Desktop (≥md): four equal columns in a CSS grid; each column
- *     scrolls vertically when its row count exceeds the available
- *     height.
- *   - Mobile (<md): the same columns laid out as horizontal flex
- *     children; the parent overflows horizontally so each column keeps
- *     a comfortable minimum width and operators swipe between them.
- *     Column headers are sticky relative to the column scroll body, so
- *     scrolling within a long lane keeps the lane label visible.
+ *   Single horizontal flex row at every breakpoint. Each column has a
+ *   `min-w-[260px]` floor and `flex-1` so columns grow to fill the row
+ *   when there is room and the container scrolls horizontally when the
+ *   floors exceed the available width. This avoids the prior failure
+ *   mode where four equal grid columns squished below useful width on
+ *   narrow desktops / sidebar-open layouts. Column headers are sticky
+ *   relative to the column scroll body so scrolling within a long lane
+ *   keeps the lane label visible.
  */
 
 import { Card } from "../../ui/card";
@@ -75,7 +75,7 @@ export function ByPhaseView({ activities, selectable = false }: ByPhaseViewProps
 
   return (
     <div
-      className="flex gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-4 md:overflow-visible"
+      className="flex gap-3 overflow-x-auto pb-1"
       data-testid={selectors.operationsCenter.byPhaseBoard}
       role="list"
     >
@@ -102,7 +102,7 @@ function LaneColumn({ lane, rows, selectable = false }: LaneColumnProps) {
   return (
     <Card
       padding="sm"
-      className="flex min-w-[260px] flex-col md:min-w-0"
+      className="flex min-w-[260px] flex-1 basis-0 flex-col"
       data-testid={selectors.operationsCenter.byPhaseColumn}
       data-lane={lane}
       role="listitem"

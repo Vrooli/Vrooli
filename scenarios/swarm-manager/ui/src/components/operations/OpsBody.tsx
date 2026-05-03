@@ -12,7 +12,7 @@
  */
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Layers, ListTree } from "lucide-react";
+import { CheckSquare, ChevronDown, ChevronUp, Layers, ListTree } from "lucide-react";
 import { Card } from "../ui/card";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
@@ -37,6 +37,14 @@ export interface OpsBodyProps {
    * only.
    */
   selectable?: boolean;
+  /**
+   * When provided, renders a "Select" toggle next to the view tabs that
+   * flips multi-select on/off. The toggle is omitted when no handler is
+   * supplied so non-page hosts (e.g. tests, embeds) can render a static
+   * `selectable={true}` body without an extra control.
+   */
+  selectionMode?: boolean;
+  onSelectionModeToggle?(): void;
 }
 
 const FINISHED_PREVIEW_COUNT = 8;
@@ -48,7 +56,11 @@ export function OpsBody({
   recentlyFinished,
   enableByPhaseView = false,
   selectable = false,
+  selectionMode,
+  onSelectionModeToggle,
 }: OpsBodyProps) {
+  const showSelectionToggle = typeof onSelectionModeToggle === "function";
+  const selectionToggleActive = Boolean(selectionMode);
   const [finishedExpanded, setFinishedExpanded] = useState(false);
 
   return (
@@ -56,7 +68,7 @@ export function OpsBody({
       className="flex flex-col gap-3"
       data-testid={selectors.operationsCenter.body}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div role="tablist" className="inline-flex rounded-full bg-slate-900/60 p-1">
           <button
             type="button"
@@ -94,6 +106,23 @@ export function OpsBody({
             By phase
           </button>
         </div>
+        {showSelectionToggle && (
+          <button
+            type="button"
+            onClick={onSelectionModeToggle}
+            aria-pressed={selectionToggleActive}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              selectionToggleActive
+                ? "border-cyan-400/40 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25"
+                : "border-slate-700/60 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200",
+            )}
+            data-testid={selectors.operationsCenter.selectionModeToggle}
+          >
+            <CheckSquare className="h-3.5 w-3.5" aria-hidden />
+            {selectionToggleActive ? "Selecting" : "Select"}
+          </button>
+        )}
       </div>
 
       {view === "by-phase" && enableByPhaseView ? (

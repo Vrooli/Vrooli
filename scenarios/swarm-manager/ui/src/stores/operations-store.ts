@@ -66,6 +66,16 @@ interface OperationsStoreState {
 
   filters: OperationsFilters;
   viewMode: OperationsViewMode;
+  /**
+   * When false (default) the active-row checkboxes and the sticky
+   * bulk-action bar are hidden — the page reads as a clean info surface.
+   * When true the operator has explicitly opted into multi-select; rows
+   * grow a leading checkbox and `OpsBulkActions` becomes visible.
+   *
+   * Turning selection mode OFF clears `selection` so toggling it back ON
+   * starts from a known-empty state.
+   */
+  selectionMode: boolean;
   selection: ReadonlySet<string>;
   /**
    * Run IDs the operator has issued a bulk-stop call for, but for which
@@ -87,6 +97,10 @@ interface OperationsStoreState {
   resetFilters(): void;
   setViewMode(mode: OperationsViewMode): void;
 
+  /** Set selection mode explicitly. Turning OFF clears selection. */
+  setSelectionMode(on: boolean): void;
+  /** Flip selection mode. Same clearing semantics as `setSelectionMode(false)`. */
+  toggleSelectionMode(): void;
   toggleSelection(runId: string): void;
   setSelection(ids: readonly string[]): void;
   clearSelection(): void;
@@ -120,6 +134,7 @@ const initialState = {
   lastRefreshedAt: null as number | null,
   filters: operationsStoreInitialFilters,
   viewMode: "by-initiative" as OperationsViewMode,
+  selectionMode: false,
   selection: new Set<string>() as ReadonlySet<string>,
   stoppingRunIds: new Set<string>() as ReadonlySet<string>,
   isBulkStopping: false,
@@ -178,6 +193,27 @@ export const useOperationsStore = create<OperationsStoreState>((set, get) => ({
 
   setViewMode: (mode): void => {
     set({ viewMode: mode });
+  },
+
+  setSelectionMode: (on): void => {
+    set((state) => {
+      if (state.selectionMode === on) return {};
+      // Turning OFF always clears any pending selection so toggling back ON
+      // starts fresh; turning ON preserves whatever the operator had.
+      if (!on) {
+        return { selectionMode: false, selection: new Set<string>() };
+      }
+      return { selectionMode: true };
+    });
+  },
+
+  toggleSelectionMode: (): void => {
+    set((state) => {
+      if (state.selectionMode) {
+        return { selectionMode: false, selection: new Set<string>() };
+      }
+      return { selectionMode: true };
+    });
   },
 
   toggleSelection: (runId): void => {

@@ -622,6 +622,9 @@ export const literalSelectors = {
     bulkStopConfirmDialog: "operations-center-bulk-stop-confirm",
     bulkStopAllConfirmDialog: "operations-center-bulk-stop-all-confirm",
     bulkStopOutcomeToast: "operations-center-bulk-stop-outcome",
+    // Selection-mode toggle that lives next to the view tabs. When off,
+    // row checkboxes and the bulk-action bar are hidden.
+    selectionModeToggle: "operations-center-selection-mode-toggle",
     // Page-level navigation chrome (sidebar toggle + close). Distinct from
     // `header`, which is the stats strip below the nav bar.
     navHeader: "operations-center-nav-header",

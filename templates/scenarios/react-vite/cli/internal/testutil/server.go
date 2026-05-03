@@ -14,11 +14,27 @@
 // Patterns to extend (not implemented yet — add when the first real consumer
 // exists):
 //
+//   - NewTestApp(t, handler) *cliapp.ScenarioApp — wraps NewAPIServer +
+//     cliapp.NewStandardScenarioApp. Today, cli/domains/notes/handlers_test.go
+//     defines this inline as `newCoreFor`. The third domain to repeat the
+//     shape is the trigger to extract here.
 //   - A typed APIClientFake that records request/response pairs for tests
 //     that want to assert on the request shape, not just the response.
 //   - A canned-response helper for table-driven endpoint tests.
 //
 // Resist over-generalising. Add helpers when the third caller appears.
+//
+// # Failer-seam asymmetry
+//
+// CaptureStdout exposes a `failer` interface so its fail paths can be
+// exercised in this package's own tests. NewHTTPServer / NewAPIServer /
+// WithAPIBase don't — they call into testing.TB directly. The
+// asymmetry is intentional: those helpers can only fail in the
+// environment (port exhaustion, etc.), not in shapes a unit test would
+// usefully spy on. CaptureStdout's failure modes (pipe creation, IO
+// copy, command error) are all worth pinning. Apply the same judgment
+// when adding new helpers — add a failer seam only when the failure
+// mode rewards in-process verification.
 package testutil
 
 import (
@@ -28,6 +44,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // NewAPIServer wraps NewHTTPServer and additionally points the CLI at
@@ -61,6 +80,37 @@ func NewHTTPServer(tb testing.TB, handler http.Handler) *httptest.Server {
 func WithAPIBase(tb testing.TB, apiBase string) {
 	tb.Helper()
 	tb.Setenv("API_BASE_URL", apiBase)
+}
+
+// MustMarshalProto serialises msg as the wire shape the API would emit
+// (snake_case via UseProtoNames=true), or fails the test. The CLI
+// counterpart to assertx.MustUnmarshalProto on the API side: every CLI
+// handler test that needs to feed a fake response should reach for
+// this rather than hand-writing JSON literals. Hand-rolled JSON drifts
+// silently when the proto schema grows or renames fields; a typed
+// proto.Marshal call breaks at compile time, surfacing the schema
+// change at the test that depends on it.
+//
+// Canonical usage in a fake API server:
+//
+//	body := testutil.MustMarshalProto(t, &notesv1.ListNotesResponse{
+//	    Notes: []*notesv1.Note{{Id: "a", Title: "first"}},
+//	})
+//	w.Write(body)
+//
+// UseProtoNames=true mirrors the production handler's
+// `(protojson.MarshalOptions{UseProtoNames: true}).Marshal(...)` so
+// the wire shape the test feeds matches what production sends —
+// including snake_case keys like `created_at` that the CLI's
+// protojson.Unmarshal accepts on the read side.
+func MustMarshalProto(tb testing.TB, msg proto.Message) []byte {
+	tb.Helper()
+	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
+	if err != nil {
+		tb.Fatalf("MustMarshalProto: %v", err)
+		return nil
+	}
+	return body
 }
 
 // failer is the minimum surface CaptureStdout needs from testing.TB.

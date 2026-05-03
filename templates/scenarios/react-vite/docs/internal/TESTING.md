@@ -188,6 +188,56 @@ domain's `*_sqlite_test.go`. Don't reach for migrations frameworks or
 in-test `CREATE TABLE` literals — the embedded `schema.sql` is the
 source of truth for both production and tests.
 
+### Buffer-backed logger pattern
+
+The production `*log.Logger` shouldn't write to stderr during tests —
+it pollutes the runner's output and makes failure messages harder to
+read. The canonical substitution is a `bytes.Buffer`-backed logger:
+
+```go
+logBuf := &bytes.Buffer{}
+srv := server.New(server.Deps{
+    Logger: log.New(logBuf, "", 0),
+    // …other deps
+})
+```
+
+Discard-only sinks (`log.New(io.Discard, "", 0)`) work for tests that
+don't need to inspect log output; reach for the buffer when the test
+asserts on what was logged (e.g., the 500-path test in
+`handlers/notes/handler_test.go::TestNotesHandler_GetInternalError`
+checks the underlying error reaches operator logs).
+
+### Testing context cancellation
+
+The template ships no streaming endpoints today, but the test
+infrastructure supports them. When a scenario adds an SSE / long-poll
+/ background-work endpoint, the canonical cancellation test is:
+
+```go
+live := httpx.NewLiveServer(t, srv)
+ctx, cancel := context.WithCancel(context.Background())
+req, _ := http.NewRequestWithContext(ctx, http.MethodGet, live.URL+"/stream", nil)
+resp, err := live.Client.Do(req)
+require.NoError(t, err)
+defer resp.Body.Close()
+
+// Read enough bytes to confirm the handler started writing.
+buf := make([]byte, 64)
+_, _ = resp.Body.Read(buf)
+
+cancel()
+// Expect the handler to observe r.Context().Done() and abort cleanly.
+// The fake (Pinger / NoteStore / future StreamProducer) records the
+// cancellation; assert on the recorded state.
+```
+
+`httpx.NewLiveServer` runs over a real socket (not `httptest.NewRecorder`),
+so `http.Flusher` and the request `Context()` plumbing match production
+behavior. Recorder-based tests would silently pass while production
+hangs on a never-cancelled handler — the same class of bug
+workspace-sandbox shipped on 2026-04-28.
+
 ### Production-import quarantine (`no_prod_import_test.go`)
 
 The test in `api/internal/testutil/no_prod_import_test.go` walks every
@@ -330,6 +380,53 @@ update when canonical English copy changes — that's what they verify.
 
 See `App.test.tsx` for the full pattern and the CLDR plural variants
 (`refreshCount_one`, `notifications.summary_zero` / `_one` / base).
+
+### Mock builders for `lib/api` and `lib/notes`
+
+`vi.mock(path, factory)` is hoisted before any user import resolves;
+a wrapper imported from `test-utils` would be in the temporal dead
+zone at hoist time. The escape hatch is to keep the `vi.mock` call
+inline at the top of each test file, but move the *factory body* into
+a builder function that runs when the closure executes — which is
+*after* imports initialise.
+
+`@/test-utils` exports `makeApiMocks()` and `makeNotesMocks()` for
+exactly this. Canonical shape:
+
+```tsx
+import { makeApiMocks, makeNotesMocks } from "@/test-utils";
+
+vi.mock("./lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/api")>();
+  return { ...actual, ...makeApiMocks() };
+});
+
+vi.mock("./lib/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/notes")>();
+  return { ...actual, ...makeNotesMocks() };
+});
+```
+
+Defaults are picked so the most common test paths work no-args:
+`makeApiMocks().fetchHealth` resolves to a healthy response;
+`makeNotesMocks().listNotes` resolves to an empty list;
+`createNote({ title })` echoes the title back as a Note. Per-test
+overrides use vitest's standard pattern *after* the mock is wired:
+
+```tsx
+const { listNotes } = await import("./lib/notes");
+vi.mocked(listNotes).mockResolvedValueOnce(
+  makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
+);
+```
+
+The `...actual` spread keeps non-mocked exports (the `ApiError` class,
+re-exported proto types) intact — only network-touching functions are
+substituted.
+
+When a third lib/* surface lands (e.g., `lib/users.ts`), follow the
+same pattern: builder in `ui/src/test-utils/mocks/<surface>.ts`, self-
+test alongside, re-export from `test-utils/index.ts`.
 
 ### Test-utils quarantine
 
@@ -534,6 +631,38 @@ Steps:
 Don't add a new `mocks/Fake*` interface for the proto type — the proto
 isn't a seam, it's a contract. Seams are interfaces; protos are
 payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
+
+## E2E binary smoke gate
+
+`api/main_e2e_test.go` is a build-tag-isolated test (`//go:build e2e`)
+that:
+
+1. `go build -o <tmp> .` from the api directory
+2. Boots the binary with `API_PORT`, `SQLITE_PATH`, and
+   `VROOLI_LIFECYCLE_MANAGED=true` set
+3. Polls `/health` over a real socket
+4. Sends `SIGTERM` and asserts clean exit within 5s
+
+It catches regressions handler tests can't see:
+
+- main.go forgets to wire a new field into `server.Deps` (handler
+  tests construct `server.New` directly with a hand-built Deps;
+  main.go's wiring is unverified)
+- `preflight.Run` order changes break the boot path
+- `apiserver.Run` listener config drifts (SIGTERM cleanup hook,
+  port resolution from env)
+- `storage.NewResolver(ProfileAuto)` chooses an unwritable path on
+  the host
+
+Default `go test ./...` skips it (no `e2e` tag). The CI workflow
+runs it as a dedicated step via `go test -tags=e2e -run TestE2E .`.
+Local invocation: `cd api && go test -tags=e2e .`.
+
+This is the only test in the suite that exercises the actual binary
+entry point. As scenarios add streaming endpoints, websocket upgrades,
+or background workers, extend this file with matching `TestE2E_*`
+cases — one per top-level boot-path concern. Resist using it for
+feature-level coverage; that's what handler tests are for.
 
 ## Coverage thresholds
 

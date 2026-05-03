@@ -9,6 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
+	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+
 	"github.com/vrooli/cli-core/cliapp"
 
 	"{{SCENARIO_ID}}/cli/internal/testutil"
@@ -33,8 +36,13 @@ func newCoreFor(t *testing.T, handler http.Handler) *cliapp.ScenarioApp {
 }
 
 // fakeAPI returns an http.Handler routing /api/v1/notes paths to the
-// supplied response and capturing the inbound request for assertions.
-func fakeAPI(t *testing.T, status int, body string) (http.Handler, *http.Request, *string) {
+// supplied response bytes and capturing the inbound request for
+// assertions. Body is `[]byte` so callers feed proto-marshalled
+// payloads (via testutil.MustMarshalProto) instead of hand-rolled JSON
+// literals — drift between the test wire and the proto schema becomes
+// a compile error at the test rather than a silent pass against stale
+// JSON.
+func fakeAPI(t *testing.T, status int, body []byte) (http.Handler, *http.Request, *string) {
 	t.Helper()
 	var captured *http.Request
 	var capturedBody string
@@ -46,16 +54,21 @@ func fakeAPI(t *testing.T, status int, body string) (http.Handler, *http.Request
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
-		_, _ = io.WriteString(w, body)
+		_, _ = w.Write(body)
 	})
 	return handler, captured, &capturedBody
 }
 
 func TestNotesList_RendersResults(t *testing.T) {
-	body := `{"notes":[
-		{"id":"a","title":"first","body":"","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"},
-		{"id":"b","title":"second","body":"x","created_at":"2026-01-02T00:00:00Z","updated_at":"2026-01-02T00:00:00Z"}
-	]}`
+	// Proto-marshal the response so a future schema change (renamed
+	// field, added required field) breaks at the test rather than
+	// silently passing against stale JSON literals.
+	body := testutil.MustMarshalProto(t, &notesv1.ListNotesResponse{
+		Notes: []*notesv1.Note{
+			{Id: "a", Title: "first", Body: "", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
+			{Id: "b", Title: "second", Body: "x", CreatedAt: "2026-01-02T00:00:00Z", UpdatedAt: "2026-01-02T00:00:00Z"},
+		},
+	})
 	handler, _, _ := fakeAPI(t, http.StatusOK, body)
 	core := newCoreFor(t, handler)
 
@@ -68,7 +81,10 @@ func TestNotesList_RendersResults(t *testing.T) {
 }
 
 func TestNotesList_SurfacesEnvelopeErrors(t *testing.T) {
-	envelope := `{"code":"internal","message":"store down"}`
+	envelope := testutil.MustMarshalProto(t, &errorsv1.ErrorEnvelope{
+		Code:    "internal",
+		Message: "store down",
+	})
 	handler, _, _ := fakeAPI(t, http.StatusInternalServerError, envelope)
 	core := newCoreFor(t, handler)
 
@@ -80,7 +96,7 @@ func TestNotesList_SurfacesEnvelopeErrors(t *testing.T) {
 }
 
 func TestNotesCreate_RequiresTitle(t *testing.T) {
-	handler, _, _ := fakeAPI(t, http.StatusOK, `{}`)
+	handler, _, _ := fakeAPI(t, http.StatusOK, []byte(`{}`))
 	core := newCoreFor(t, handler)
 
 	h := newHandlers(core)
@@ -90,7 +106,12 @@ func TestNotesCreate_RequiresTitle(t *testing.T) {
 }
 
 func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
-	respBody := `{"note":{"id":"new","title":"hello","body":"world","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`
+	respBody := testutil.MustMarshalProto(t, &notesv1.CreateNoteResponse{
+		Note: &notesv1.Note{
+			Id: "new", Title: "hello", Body: "world",
+			CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+		},
+	})
 	var lastBody string
 	var lastMethod string
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +120,7 @@ func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
 		lastBody = string(b)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_, _ = io.WriteString(w, respBody)
+		_, _ = w.Write(respBody)
 	})
 	core := newCoreFor(t, handler)
 
@@ -109,6 +130,11 @@ func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
 	})
 
 	require.Equal(t, http.MethodPost, lastMethod)
+	// The CLI's create handler currently posts a hand-rolled
+	// map[string]string — the request shape ought to migrate to a
+	// proto-marshalled CreateNoteRequest in lockstep with this test
+	// learning to decode it. Until then, json.Unmarshal into a map is
+	// the right shape for what's actually on the wire.
 	var sent map[string]string
 	require.NoError(t, json.Unmarshal([]byte(lastBody), &sent))
 	require.Equal(t, "hello", sent["title"])
@@ -118,7 +144,10 @@ func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
 }
 
 func TestNotesGet_ReportsNotFoundEnvelope(t *testing.T) {
-	envelope := `{"code":"not_found","message":"note \"ghost\" not found"}`
+	envelope := testutil.MustMarshalProto(t, &errorsv1.ErrorEnvelope{
+		Code:    "not_found",
+		Message: `note "ghost" not found`,
+	})
 	handler, _, _ := fakeAPI(t, http.StatusNotFound, envelope)
 	core := newCoreFor(t, handler)
 
@@ -130,13 +159,18 @@ func TestNotesGet_ReportsNotFoundEnvelope(t *testing.T) {
 }
 
 func TestNotesGet_RendersNote(t *testing.T) {
-	respBody := `{"note":{"id":"abc","title":"found","body":"","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`
+	respBody := testutil.MustMarshalProto(t, &notesv1.GetNoteResponse{
+		Note: &notesv1.Note{
+			Id: "abc", Title: "found", Body: "",
+			CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+		},
+	})
 	var lastPath string
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lastPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = io.WriteString(w, respBody)
+		_, _ = w.Write(respBody)
 	})
 	core := newCoreFor(t, handler)
 
@@ -150,7 +184,7 @@ func TestNotesGet_RendersNote(t *testing.T) {
 }
 
 func TestNotesGet_RequiresID(t *testing.T) {
-	handler, _, _ := fakeAPI(t, http.StatusOK, `{}`)
+	handler, _, _ := fakeAPI(t, http.StatusOK, []byte(`{}`))
 	core := newCoreFor(t, handler)
 	h := newHandlers(core)
 	err := h.get(nil)
@@ -162,7 +196,8 @@ func TestNotesGet_RequiresID(t *testing.T) {
 // proving the surface is registered with the cli-core shape downstream
 // callers can dispatch through.
 func TestRegister_Wiring(t *testing.T) {
-	handler, _, _ := fakeAPI(t, http.StatusOK, `{"notes":[]}`)
+	emptyList := testutil.MustMarshalProto(t, &notesv1.ListNotesResponse{})
+	handler, _, _ := fakeAPI(t, http.StatusOK, emptyList)
 	core := newCoreFor(t, handler)
 	group := Register(core)
 

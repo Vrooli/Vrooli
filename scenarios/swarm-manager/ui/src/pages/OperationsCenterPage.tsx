@@ -122,9 +122,13 @@ export function OperationsCenterPage() {
   const error = useOperationsStore((state) => state.error);
   const filters = useOperationsStore((state) => state.filters);
   const viewMode = useOperationsStore((state) => state.viewMode);
+  const selectionMode = useOperationsStore((state) => state.selectionMode);
   const setFilters = useOperationsStore((state) => state.setFilters);
   const resetFilters = useOperationsStore((state) => state.resetFilters);
   const setViewMode = useOperationsStore((state) => state.setViewMode);
+  const toggleSelectionMode = useOperationsStore(
+    (state) => state.toggleSelectionMode,
+  );
   const refresh = useOperationsStore((state) => state.refresh);
 
   const { openSidebar } = useAppShell();
@@ -268,7 +272,9 @@ export function OperationsCenterPage() {
             activities={view.activities}
             recentlyFinished={view.recentlyFinished}
             enableByPhaseView={true}
-            selectable
+            selectable={selectionMode}
+            selectionMode={selectionMode}
+            onSelectionModeToggle={toggleSelectionMode}
           />
         )}
 

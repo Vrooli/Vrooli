@@ -125,6 +125,46 @@ describe("operations-store", () => {
     expect(useOperationsStore.getState().selection.size).toBe(0);
   });
 
+  describe("selectionMode", () => {
+    it("defaults to off", () => {
+      expect(useOperationsStore.getState().selectionMode).toBe(false);
+    });
+
+    it("setSelectionMode(true) enables selection mode and preserves selection", () => {
+      useOperationsStore.getState().setSelection(["run-1"]);
+      useOperationsStore.getState().setSelectionMode(true);
+      const state = useOperationsStore.getState();
+      expect(state.selectionMode).toBe(true);
+      expect(state.selection.has("run-1")).toBe(true);
+    });
+
+    it("setSelectionMode(false) disables and clears selection", () => {
+      useOperationsStore.getState().setSelectionMode(true);
+      useOperationsStore.getState().setSelection(["run-1", "run-2"]);
+      useOperationsStore.getState().setSelectionMode(false);
+      const state = useOperationsStore.getState();
+      expect(state.selectionMode).toBe(false);
+      expect(state.selection.size).toBe(0);
+    });
+
+    it("setSelectionMode is idempotent on the no-change path", () => {
+      useOperationsStore.getState().setSelection(["run-1"]);
+      useOperationsStore.getState().setSelectionMode(false); // already off
+      // Selection should NOT have been cleared by a no-op call.
+      expect(useOperationsStore.getState().selection.has("run-1")).toBe(true);
+    });
+
+    it("toggleSelectionMode flips and clears selection on the OFF transition", () => {
+      useOperationsStore.getState().toggleSelectionMode(); // off → on
+      expect(useOperationsStore.getState().selectionMode).toBe(true);
+      useOperationsStore.getState().setSelection(["run-1"]);
+      useOperationsStore.getState().toggleSelectionMode(); // on → off
+      const state = useOperationsStore.getState();
+      expect(state.selectionMode).toBe(false);
+      expect(state.selection.size).toBe(0);
+    });
+  });
+
   describe("bulkStopSelected", () => {
     it("posts the selected run IDs and clears selection on success", async () => {
       const bulkSpy = vi.fn(async (req: BulkStopRequest): Promise<BulkStopResponse> => {

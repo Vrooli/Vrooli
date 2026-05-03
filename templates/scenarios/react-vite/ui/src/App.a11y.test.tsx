@@ -27,22 +27,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
 
-import { makeHealthResponse, makeListNotesResponse, renderWithProviders } from "./test-utils";
+import { makeApiMocks, makeNotesMocks, renderWithProviders } from "./test-utils";
 
+// See App.test.tsx for the mock-builder pattern rationale and
+// docs/internal/TESTING.md for the canonical shape.
 vi.mock("./lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./lib/api")>();
-  return {
-    ...actual,
-    fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
-  };
+  return { ...actual, ...makeApiMocks() };
 });
 
 vi.mock("./lib/notes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./lib/notes")>();
-  return {
-    ...actual,
-    listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
-  };
+  return { ...actual, ...makeNotesMocks() };
 });
 
 import App from "./App";

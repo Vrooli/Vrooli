@@ -31,25 +31,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { interp, makeHealthResponse, makeListNotesResponse, makeNote, renderWithProviders } from "./test-utils";
+import {
+  interp,
+  makeApiMocks,
+  makeListNotesResponse,
+  makeNote,
+  makeNotesMocks,
+  renderWithProviders,
+} from "./test-utils";
 
+// Mock-builder pattern: the `vi.mock` factory body stays inline (Vitest
+// hoisting requires it), but the *contents* of the substituted exports
+// come from `makeApiMocks()` / `makeNotesMocks()` so the contract for
+// each lib/* surface lives in one file. See `docs/internal/TESTING.md`
+// → "Mock builders for lib/api and lib/notes".
 vi.mock("./lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./lib/api")>();
-  return {
-    ...actual,
-    fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
-  };
+  return { ...actual, ...makeApiMocks() };
 });
 
 vi.mock("./lib/notes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./lib/notes")>();
-  return {
-    ...actual,
-    listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
-    createNote: vi.fn().mockImplementation(({ title }: { title: string }) =>
-      Promise.resolve(makeNote({ title })),
-    ),
-  };
+  return { ...actual, ...makeNotesMocks() };
 });
 
 import App from "./App";

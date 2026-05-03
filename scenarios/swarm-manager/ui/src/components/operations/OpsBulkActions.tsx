@@ -1,11 +1,14 @@
 /**
  * OpsBulkActions — sticky bottom bar for bulk-stop affordances.
  *
- * Renders only when at least one row is selected (Stop selected) or when
- * any active row exists (Stop all running). Both stop actions are gated
- * by `<ConfirmDialog>`. "Stop all running" requires the operator to type
- * `STOP ALL` because it cancels every active run regardless of selection
- * — a wider blast radius warrants a wider confirmation surface.
+ * Visibility gate: the bar is hidden entirely unless the operator has
+ * explicitly entered selection mode (via the "Select" toggle next to the
+ * view tabs). Inside selection mode it shows whenever at least one row is
+ * selected (Stop selected) or any active row exists (Stop all running).
+ * Both stop actions are gated by `<ConfirmDialog>`. "Stop all running"
+ * requires the operator to type `STOP ALL` because it cancels every
+ * active run regardless of selection — a wider blast radius warrants a
+ * wider confirmation surface.
  *
  * After a stop call resolves, the component surfaces a transient outcome
  * panel summarizing how many runs stopped vs. failed. The panel sits
@@ -41,6 +44,7 @@ export interface OpsBulkActionsProps {
 }
 
 export function OpsBulkActions({ className }: OpsBulkActionsProps) {
+  const selectionMode = useOperationsStore((s) => s.selectionMode);
   const selectionSize = useOperationsStore((s) => s.selection.size);
   const activeCount = useOperationsStore(selectActiveCount);
   const isBulkStopping = useOperationsStore((s) => s.isBulkStopping);
@@ -53,8 +57,11 @@ export function OpsBulkActions({ className }: OpsBulkActionsProps) {
   const [stopAllOpen, setStopAllOpen] = useState(false);
   const [outcomeDismissed, setOutcomeDismissed] = useState(false);
 
-  const visible = selectionSize > 0 || activeCount > 0;
+  // Outcome surfaces even after selection mode is turned off so the
+  // operator can read the result of their stop without having to flip the
+  // toggle back on. It self-dismisses on the inline X.
   const showOutcome = lastResult !== null && !outcomeDismissed;
+  const visible = selectionMode && (selectionSize > 0 || activeCount > 0);
 
   if (!visible && !showOutcome) {
     return null;
@@ -101,6 +108,7 @@ export function OpsBulkActions({ className }: OpsBulkActionsProps) {
         />
       )}
 
+      {visible && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-400">
           {selectionSize > 0 ? (
@@ -155,6 +163,7 @@ export function OpsBulkActions({ className }: OpsBulkActionsProps) {
           )}
         </div>
       </div>
+      )}
 
       <ConfirmDialog
         isOpen={stopSelectedOpen}
