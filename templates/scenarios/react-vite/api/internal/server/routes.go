@@ -25,10 +25,12 @@ func (s *Server) registerRoutes() {
 
 	// Notes CRUD reference. Mounted as a subrouter so the notes handler
 	// owns its full path table (list, create, get-by-id) without
-	// reaching back into the server's mux.
+	// reaching back into the server's mux. The handler depends on the
+	// application-service layer (notes.Service); validation and default
+	// substitution live there, not here (api-steer §7).
 	notesHandler := notes.NewHandler(notes.Deps{
-		Store:  s.deps.NoteStore,
-		Logger: s.deps.Logger,
+		Service: s.deps.NoteService,
+		Logger:  s.deps.Logger,
 	})
 	s.router.PathPrefix("/api/v1/notes").Handler(notesHandler)
 }

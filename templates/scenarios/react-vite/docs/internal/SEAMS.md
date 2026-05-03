@@ -63,15 +63,25 @@ test ergonomics fall out for free.
 | **Test fake** | `internal/testutil/mocks::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
 
-### NoteStore (notes repository)
+### notes.Repository (notes persistence)
 
 | | |
 |---|---|
 | **Seam** | Notes persistence (CRUD) |
-| **Interface** | `internal/store/notes.go::NoteStore` (`Create`, `Get`, `List`) |
-| **Production wiring** | `main.go` constructs `store.NewSQLiteNoteStore(db, clock.System{})` and passes it via `server.Deps`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
-| **Test fake** | `internal/testutil/mocks::FakeNoteStore` (in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). |
-| **Why it exists** | Notes is the canonical CRUD reference: every layer downstream of this seam (handler, UI client, CLI domain) is the pattern new scenarios copy when adding their first non-trivial mutation. The handler test substitutes the fake to exercise the full transport edge (decode → call → error mapping → typed response) without standing up SQLite; the repository test in `internal/store/notes_sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). See `handlers/notes/handler_test.go` and `internal/store/notes_sqlite_test.go`. |
+| **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
+| **Production wiring** | `main.go` constructs `notes.NewSQLiteRepository(db, clock.System{})`, then wraps it with `notes.NewService(repo)` (see next row) before passing the service via `server.Deps.NoteService`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
+| **Test fake** | `internal/testutil/mocks::FakeRepository` (in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
+| **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
+
+### notes.Service (notes application layer)
+
+| | |
+|---|---|
+| **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
+| **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
+| **Production wiring** | `main.go` constructs `notes.NewService(repo)` and passes it via `server.Deps.NoteService`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
+| **Test fake** | `internal/testutil/mocks::FakeService` (records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/handler_test.go` to drive the handler without validation/repository plumbing in scope. |
+| **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (gRPC, batch jobs, scheduled imports) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
 
 ### Doer (outbound HTTP)
 
@@ -87,33 +97,65 @@ test ergonomics fall out for free.
 
 The right time to add a seam is the moment you find yourself reaching
 past `*sql.DB`, `http.Get`, or `os.OpenFile` from a handler/service. The
-process is mechanical:
+process is mechanical.
 
-1. **Define the interface in a domain-named package.** Methods are
-   exactly what callers need — no more, no less. Example:
+### Domain-scoped packages, not generic `services/`
+
+When a seam belongs to a domain (notes, tasks, users, …), it lives in
+`internal/<domain>/`, NOT in `internal/store/` or `internal/services/`.
+The notes package is the canonical example — copy its layout:
+
+```
+internal/notes/
+  types.go         # Note, CreateInput, ErrInvalidNote, ErrNoteNotFound
+  repository.go    # Repository interface
+  sqlite.go        # NewSQLiteRepository (production impl)
+  sqlite_test.go   # Repository tests against real sqlite
+  service.go       # Service interface + impl (validation, defaults)
+  service_test.go  # Service tests against FakeRepository
+```
+
+Mocks live one level up, in `internal/testutil/mocks/<domain>_repository.go`
+and `<domain>_service.go`. Two distinct mocks: `FakeRepository` for
+service tests; `FakeService` for handler tests.
+
+`internal/store/` retains only generic infrastructure (`Pinger`,
+`EnsureSchema`, `schema.sql`) — never domain-specific interfaces.
+
+### Mechanical steps
+
+1. **Define the interface in a domain package.** Methods are exactly
+   what callers need — no more, no less. Example:
    ```go
-   // internal/store/store.go
-   type TaskStore interface {
-       CreateTask(ctx context.Context, t Task) (TaskID, error)
-       GetTask(ctx context.Context, id TaskID) (Task, error)
+   // internal/tasks/repository.go
+   package tasks
+
+   type Repository interface {
+       Create(ctx context.Context, t Task) (Task, error)
+       Get(ctx context.Context, id string) (Task, error)
    }
    ```
 2. **Implement it in production with the concrete dependency wrapped
    in an unexported struct.** The struct holds `*sql.DB`; the methods
    translate domain calls to SQL. Production wires this in `main.go`;
    tests never see it.
-3. **Add a fake in `internal/testutil/mocks/`.** Match the naming
-   convention `Fake<Interface>` (e.g. `FakeTaskStore`). Each method
-   takes a per-method error knob (`CreateTaskErr error`) plus any
-   state it needs to return. Counters use `atomic.Int32`, not
-   plain `int`, so race-detector tests don't flap.
-4. **Update this document.** A row in the table above with the same
+3. **Add a service alongside the repository.** Even if `Service`
+   currently does nothing more than pass through, define it now —
+   handlers should depend on the service, not the repository, so
+   future validation/policy has a home that doesn't require a handler
+   refactor.
+4. **Add fakes in `internal/testutil/mocks/`** named
+   `<domain>_repository.go` and `<domain>_service.go`. Each method
+   takes a per-method error knob (`CreateErr error`) plus any state it
+   needs to return. Counters use `atomic.Int64`, not plain `int`, so
+   race-detector tests don't flap.
+5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.
-5. **Add a `var _` compile-time assertion** wherever the interface is
-   defined: `var _ TaskStore = (*sqliteTaskStore)(nil)`. The assertion
-   moves "this concrete type satisfies the interface" from a runtime
-   surprise into a compile error.
+6. **Add `var _` compile-time assertions** wherever the interface is
+   defined: `var _ Repository = (*sqliteRepository)(nil)`. The
+   assertion moves "this concrete type satisfies the interface" from a
+   runtime surprise into a compile error.
 
 ## UI-side seams
 
@@ -140,6 +182,16 @@ the goal is the same: production wires once, tests substitute.
 | **Test fake** | Inline `vi.mock("./lib/notes", async (importOriginal) => …)`; the factory closure uses `makeNote()` / `makeListNotesResponse()` from `@/test-utils`. Unit tests in `lib/notes.test.ts` stub `global.fetch` directly via `vi.stubGlobal`. |
 | **Why it exists** | The canonical CRUD wrapper pattern. Decodes proto-typed responses via `fromJson(<Schema>, ...)` and surfaces non-2xx as `ApiError` carrying the typed `ErrorEnvelope.code` — UI branches on `err.code === "not_found"` etc. without parsing strings. Mirror this shape when adding a second domain client (e.g., `lib/tasks.ts`). |
 
+### ErrorBoundary (render-error catch)
+
+| | |
+|---|---|
+| **Boundary** | App-level render-error catch |
+| **Module** | `ui/src/components/ErrorBoundary.tsx` (class component with `getDerivedStateFromError` + `componentDidCatch`) |
+| **Production wiring** | `ui/src/main.tsx` wraps `<App />` inside `<QueryClientProvider>`; the boundary catches any render-time exception thrown by `App` or its descendants and shows the localised default fallback. |
+| **Test fake** | None — the boundary is the system-under-test. `ui/src/components/ErrorBoundary.test.tsx` drives it with a controlled-throw fixture (`Throw({ when })`). |
+| **Why it exists** | Render-time exceptions silently nuke the page in raw React (white screen, no recovery). Every mature Vrooli scenario hand-rolls a class boundary; the template ships one as the canonical pattern. The `onError` prop is exposed for telemetry sinks (Sentry, etc.); the template wires nothing in production by intent — scenarios add their own sink as needed. |
+
 ### i18n singleton (locale state)
 
 | | |
@@ -162,8 +214,26 @@ the goal is the same: production wires once, tests substitute.
 - **Generated proto types.** They're contracts, not seams. See "Wire
   contracts live in proto, not seams" above.
 
+## API contract manifest
+
+Not a seam (no production-vs-test substitution), but worth listing
+here for discoverability: `.vrooli/endpoints.json` is the canonical
+declaration of every public HTTP endpoint plus its CLI mirror. Doc
+generators, Postman collection builders, and SDK-stub tooling read it.
+When you add or change an endpoint:
+
+1. Update the handler.
+2. Update `.vrooli/endpoints.json` (path, method, summary, error codes
+   matching the `httpx.Code*` constants the handler emits, and a
+   `cli_mapping` pointing at the real CLI subcommand registered in
+   `cli/domains/`).
+3. The CI gate validates the JSON shape and that every `cli_mapping`
+   names a registered command — drift becomes a build failure.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).
+- API contract manifest: `.vrooli/endpoints.json`.
+- Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.

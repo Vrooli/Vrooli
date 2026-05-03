@@ -43,6 +43,11 @@ export const strings = {
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
+  errorBoundary: {
+    title: "errorBoundary.title",
+    message: "errorBoundary.message",
+    retry: "errorBoundary.retry",
+  },
 } as const;
 
 export type Strings = typeof strings;

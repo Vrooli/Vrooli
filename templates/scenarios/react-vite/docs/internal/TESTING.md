@@ -158,11 +158,14 @@ time. The pattern from wire to render:
 | Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteResponse` |
 | Error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | One typed body for every non-2xx path, with canonical codes (`invalid_request`, `not_found`, `internal`) |
 | Request decode | `internal/httpx/decode.go::DecodeJSON[T]` | Strict input by default — `DisallowUnknownFields` rejects payloads carrying fields the schema hasn't caught up to |
-| Domain types | `internal/store/notes.go::{Note, NoteStore, ErrNoteNotFound}` | Domain-pure (no proto imports); the typed `ErrNoteNotFound` sentinel handlers translate into a 404 envelope |
-| Repository impl | `internal/store/notes_sqlite.go::NewSQLiteNoteStore` | sqlite-backed `NoteStore`; production wires it once in `main.go` |
-| Repository test | `internal/store/notes_sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `store.EnsureSchema(ctx, db)` (the canonical compose pattern) |
-| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeNoteStore` and exercises the full transport edge through `httpx.NewLiveServer` |
-| Mock | `internal/testutil/mocks/notes.go::FakeNoteStore` | In-memory slice + per-method error knobs (`CreateErr` / `GetErr` / `ListErr`) + atomic call counters |
+| Domain types | `internal/notes/types.go::{Note, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels (`ErrInvalidNote` for validation, `ErrNoteNotFound` for misses) translate into 400/404 envelopes at the handler edge |
+| Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
+| Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
+| Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `store.EnsureSchema(ctx, db)` (the canonical compose pattern) |
+| Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
+| Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository`; pins the validation, default-substitution, and error-propagation contracts |
+| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeService` and exercises the full transport edge through `httpx.NewLiveServer` |
+| Mocks | `internal/testutil/mocks/{notes_repository,notes_service}.go::{FakeRepository,FakeService}` | Two distinct fakes — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs |
 | UI client | `ui/src/lib/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
 | UI tests | `ui/src/lib/notes.test.ts` + the `App Notes pane` block in `App.test.tsx` | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./lib/notes", ...)` for the component test |
 | CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
@@ -187,6 +190,33 @@ That two-line helper is the canonical entry point for every new
 domain's `*_sqlite_test.go`. Don't reach for migrations frameworks or
 in-test `CREATE TABLE` literals — the embedded `schema.sql` is the
 source of truth for both production and tests.
+
+### Service-layer tests
+
+The notes domain uses three test layers, each with a different fake:
+
+```
+HTTP → handler → Service (validates, applies defaults) → Repository (persists)
+                     ↑                                       ↑
+                     FakeService (handler tests)              FakeRepository (service tests)
+                                                              Real sqlite (repository tests)
+```
+
+`internal/notes/service_test.go` is the reference. Service tests:
+
+- Substitute `mocks.FakeRepository` (in-memory state) so the test can
+  assert on what the repository was called with and whether the service
+  filtered the call (e.g., empty title rejected before reaching `Create`).
+- Pin validation contracts (`Create` rejects empty / whitespace-only
+  title with `ErrInvalidNote{Field: "title"}`).
+- Pin default-substitution contracts (`List(0)` substitutes
+  `defaultListLimit`; `List(5)` passes 5 through unchanged).
+- Pin error propagation (`Get` returns `ErrNoteNotFound` verbatim;
+  `Create` returns repository errors verbatim).
+
+Handler tests then substitute `mocks.FakeService` — they don't seed
+sqlite-shaped state to assert on routing. Two-mock split keeps each
+layer's tests focused on what that layer owns.
 
 ### Buffer-backed logger pattern
 
@@ -228,7 +258,7 @@ _, _ = resp.Body.Read(buf)
 
 cancel()
 // Expect the handler to observe r.Context().Done() and abort cleanly.
-// The fake (Pinger / NoteStore / future StreamProducer) records the
+// The fake (Pinger / FakeService / future StreamProducer) records the
 // cancellation; assert on the recorded state.
 ```
 
@@ -427,6 +457,33 @@ substituted.
 When a third lib/* surface lands (e.g., `lib/users.ts`), follow the
 same pattern: builder in `ui/src/test-utils/mocks/<surface>.ts`, self-
 test alongside, re-export from `test-utils/index.ts`.
+
+### ErrorBoundary tests
+
+`ui/src/components/ErrorBoundary.test.tsx` is the reference for testing
+React error boundaries. The patterns it pins:
+
+- **Controlled-throw fixture** (`Throw({ when, message })`). One
+  component shared across cases keeps the surface narrow — the
+  boundary's contract is "if a child throws, swap to the fallback,"
+  and that's what each case exercises.
+- **`console.error` suppression** in `beforeEach` / `afterEach`. React
+  intentionally logs the caught error; without the spy, the suite's
+  output drowns real failure messages. The `onError` test still
+  asserts the prop fired, so coverage of the error path is preserved.
+- **Mutable-control recovery test**. To prove `setState` re-renders
+  children, the test flips a shared object's `value` field rather
+  than re-mounting the boundary — boundary identity has to survive
+  the retry click for `setState` to take effect.
+- **cimode key assertions**. The default test setup runs i18next in
+  cimode, so `t(strings.errorBoundary.title)` returns the literal
+  key path. Asserting on the key (not the English copy) proves the
+  fallback consulted the registry — the test stays green when copy
+  changes and breaks loudly if a key is renamed.
+
+App-level wrap point lives in `ui/src/main.tsx`; the boundary nests
+inside `<QueryClientProvider>` (and after the `./i18n` side-effect
+init) so `useTranslation` works inside the localised fallback.
 
 ### Test-utils quarantine
 

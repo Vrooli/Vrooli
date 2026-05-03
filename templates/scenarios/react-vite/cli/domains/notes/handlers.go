@@ -66,8 +66,18 @@ func (h *handlers) create(args []string) error {
 		return fmt.Errorf("--title is required")
 	}
 
-	reqBody := map[string]string{"title": *title, "body": *body}
-	respBody, err := h.core.Request(http.MethodPost, "/notes", nil, reqBody)
+	// Marshal via protojson so the wire shape stays in lockstep with the
+	// CreateNoteRequest schema. A future field addition / rename in
+	// notes.proto becomes a compile error here, where a hand-rolled
+	// map[string]string would silently send stale keys until the API
+	// rejected them at runtime.
+	reqMsg := &notesv1.CreateNoteRequest{Title: *title, Body: *body}
+	encoded, err := protojson.Marshal(reqMsg)
+	if err != nil {
+		return fmt.Errorf("marshal CreateNoteRequest: %w", err)
+	}
+
+	respBody, err := h.core.Request(http.MethodPost, "/notes", nil, encoded)
 	if err != nil {
 		return apiError("create note", err, respBody)
 	}

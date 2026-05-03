@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "title": "{{SCENARIO_DISPLAY_NAME}} Documentation",
+  "description": "Reference docs for the scenario generated from the react-vite template",
+  "defaultDocument": "PROGRESS.md",
+  "sections": [
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "compass",
+      "description": "Lifecycle, rollout, and operator-facing context",
+      "documents": [
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress",
+          "description": "Lifecycle and rollout state for this scenario",
+          "audience": ["operators", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "wrench",
+      "description": "Developer-facing reference for boundaries and test patterns",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Boundary registry: every interface and its production / test fake",
+          "audience": ["developers"]
+        },
+        {
+          "path": "internal/TESTING.md",
+          "title": "Testing",
+          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "audience": ["developers"]
+        }
+      ]
+    }
+  ]
+}

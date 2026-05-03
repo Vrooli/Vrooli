@@ -3,6 +3,7 @@ package health_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"testing"
@@ -70,12 +71,12 @@ func TestHealthHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
 			srv := server.New(server.Deps{
-				Pinger:    pinger,
-				Clock:     clock.System{},
-				Logger:    log.New(discardWriter{}, "", 0),
-				NoteStore: &mocks.FakeNoteStore{},
-				Service:   "react-vite-test",
-				Version:   "1.0.0",
+				Pinger:      pinger,
+				Clock:       clock.System{},
+				Logger:      log.New(io.Discard, "", 0),
+				NoteService: &mocks.FakeService{},
+				Service:     "react-vite-test",
+				Version:     "1.0.0",
 			})
 			live := httpx.NewLiveServer(t, srv)
 
@@ -100,9 +101,3 @@ func TestHealthHandler(t *testing.T) {
 	}
 }
 
-// discardWriter swallows middleware log output so the test's stderr
-// stays clean. The real log output is exercised by the middleware's
-// own test (internal/middleware/logging_test.go).
-type discardWriter struct{}
-
-func (discardWriter) Write(p []byte) (int, error) { return len(p), nil }

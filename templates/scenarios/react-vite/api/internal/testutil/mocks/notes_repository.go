@@ -7,19 +7,19 @@ import (
 
 	"github.com/google/uuid"
 
-	"{{SCENARIO_ID}}/internal/store"
+	"{{SCENARIO_ID}}/internal/notes"
 )
 
-// FakeNoteStore satisfies store.NoteStore for handler tests that don't
-// want the sqlite round-trip. Arrange via field mutation; failure
+// FakeRepository satisfies notes.Repository for service tests that
+// don't want the sqlite round-trip. Arrange via field mutation; failure
 // injection is per-method (CreateErr, GetErr, ListErr) so a single test
-// can prove handler behavior on one failure mode without poisoning the
+// can prove service behavior on one failure mode without poisoning the
 // others. Calls counters use atomic.Int64 so go test -race stays quiet
-// when handlers fan out.
-type FakeNoteStore struct {
+// when callers fan out.
+type FakeRepository struct {
 	mu sync.Mutex
 
-	Notes []store.Note
+	Notes []notes.Note
 
 	CreateErr error
 	GetErr    error
@@ -31,13 +31,13 @@ type FakeNoteStore struct {
 }
 
 // Create appends n to the in-memory slice. If n.ID is empty the fake
-// assigns a UUID so handler tests don't have to pre-populate it. Returns
-// CreateErr if set, before mutating state — keeps the failure path
-// observable as "didn't insert" via len(f.Notes).
-func (f *FakeNoteStore) Create(ctx context.Context, n store.Note) (store.Note, error) {
+// assigns a UUID so service tests don't have to pre-populate it.
+// Returns CreateErr if set, before mutating state — keeps the failure
+// path observable as "didn't insert" via len(f.Notes).
+func (f *FakeRepository) Create(ctx context.Context, n notes.Note) (notes.Note, error) {
 	f.CreateCalls.Add(1)
 	if f.CreateErr != nil {
-		return store.Note{}, f.CreateErr
+		return notes.Note{}, f.CreateErr
 	}
 
 	f.mu.Lock()
@@ -53,10 +53,10 @@ func (f *FakeNoteStore) Create(ctx context.Context, n store.Note) (store.Note, e
 // Get linear-scans Notes for an ID match. Returns GetErr if set
 // (overrides any in-memory match) so tests can drive the not-found and
 // internal-error paths independently.
-func (f *FakeNoteStore) Get(ctx context.Context, id string) (store.Note, error) {
+func (f *FakeRepository) Get(ctx context.Context, id string) (notes.Note, error) {
 	f.GetCalls.Add(1)
 	if f.GetErr != nil {
-		return store.Note{}, f.GetErr
+		return notes.Note{}, f.GetErr
 	}
 
 	f.mu.Lock()
@@ -67,14 +67,14 @@ func (f *FakeNoteStore) Get(ctx context.Context, id string) (store.Note, error) 
 			return n, nil
 		}
 	}
-	return store.Note{}, store.ErrNoteNotFound{ID: id}
+	return notes.Note{}, notes.ErrNoteNotFound{ID: id}
 }
 
 // List returns up to `limit` notes in their insertion order — newest
 // inserts at the tail, but tests that care about ordering should use
-// the real sqlite store. The fake's job is to drive handler shape, not
-// pin SQL ordering. Returns ListErr if set.
-func (f *FakeNoteStore) List(ctx context.Context, limit int) ([]store.Note, error) {
+// the real sqlite repository. The fake's job is to drive service shape,
+// not pin SQL ordering. Returns ListErr if set.
+func (f *FakeRepository) List(ctx context.Context, limit int) ([]notes.Note, error) {
 	f.ListCalls.Add(1)
 	if f.ListErr != nil {
 		return nil, f.ListErr
@@ -89,10 +89,10 @@ func (f *FakeNoteStore) List(ctx context.Context, limit int) ([]store.Note, erro
 	if limit > len(f.Notes) {
 		limit = len(f.Notes)
 	}
-	out := make([]store.Note, limit)
+	out := make([]notes.Note, limit)
 	copy(out, f.Notes[:limit])
 	return out, nil
 }
 
-// Compile-time guarantee that *FakeNoteStore satisfies store.NoteStore.
-var _ store.NoteStore = (*FakeNoteStore)(nil)
+// Compile-time guarantee that *FakeRepository satisfies notes.Repository.
+var _ notes.Repository = (*FakeRepository)(nil)

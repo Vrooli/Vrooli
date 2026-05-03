@@ -1,15 +1,17 @@
-// Package store defines the storage seams the API depends on and the
-// schema-bootstrap entry point invoked from main.go.
+// Package store owns the generic database infrastructure shared
+// across domains: the connection-level Pinger seam consumed by the
+// health endpoint, and the schema-bootstrap entry point invoked from
+// main.go (EnsureSchema + schema.sql).
+//
+// Domain-scoped persistence lives in internal/<domain>/ packages
+// (e.g., internal/notes/{repository,sqlite}.go) per the canonical
+// Vrooli pattern. New domains do NOT add Repository interfaces here
+// — they own their own package.
 //
 // Production wires *sql.DB opened against modernc.org/sqlite (which
 // already satisfies Pinger via its PingContext method). Tests wire
 // testutil/mocks.FakePinger or testutil/db.NewSQLite for real-handle
 // repository tests.
-//
-// As scenarios grow beyond the health endpoint, additional interfaces
-// (TaskStore, UserStore, etc.) live alongside Pinger here. Repository
-// implementations live in their own packages; this package only owns
-// the contracts and schema bootstrap (schema.sql + EnsureSchema).
 package store
 
 import (

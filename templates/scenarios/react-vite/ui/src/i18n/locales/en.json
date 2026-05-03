@@ -30,5 +30,10 @@
   },
   "locale": {
     "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
   }
 }

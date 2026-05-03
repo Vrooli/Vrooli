@@ -1,4 +1,4 @@
-package store
+package notes
 
 import (
 	"context"
@@ -12,24 +12,24 @@ import (
 	"{{SCENARIO_ID}}/internal/clock"
 )
 
-// sqliteNoteStore is the production NoteStore impl. Unexported so
-// callers depend on the NoteStore interface — tests substitute the
+// sqliteRepository is the production Repository impl. Unexported so
+// callers depend on the Repository interface — tests substitute the
 // fake without reaching inside the struct (seam-discovery §4).
-type sqliteNoteStore struct {
+type sqliteRepository struct {
 	db    *sql.DB
 	clock clock.Clock
 }
 
-// NewSQLiteNoteStore constructs the production NoteStore. db is the
+// NewSQLiteRepository constructs the production Repository. db is the
 // connection pool opened in main.go; clk supplies CreatedAt/UpdatedAt
 // timestamps so tests can advance time deterministically via
 // mocks.FakeClock.
-func NewSQLiteNoteStore(db *sql.DB, clk clock.Clock) NoteStore {
-	return &sqliteNoteStore{db: db, clock: clk}
+func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+	return &sqliteRepository{db: db, clock: clk}
 }
 
 // Compile-time guarantee.
-var _ NoteStore = (*sqliteNoteStore)(nil)
+var _ Repository = (*sqliteRepository)(nil)
 
 const (
 	// RFC3339 with nanosecond precision matches the format produced by
@@ -56,7 +56,7 @@ LIMIT ?
 `
 )
 
-func (s *sqliteNoteStore) Create(ctx context.Context, n Note) (Note, error) {
+func (s *sqliteRepository) Create(ctx context.Context, n Note) (Note, error) {
 	if n.ID == "" {
 		n.ID = uuid.NewString()
 	}
@@ -80,7 +80,7 @@ func (s *sqliteNoteStore) Create(ctx context.Context, n Note) (Note, error) {
 	return n, nil
 }
 
-func (s *sqliteNoteStore) Get(ctx context.Context, id string) (Note, error) {
+func (s *sqliteRepository) Get(ctx context.Context, id string) (Note, error) {
 	row := s.db.QueryRowContext(ctx, selectNoteByIDSQL, id)
 	n, err := scanNote(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -92,7 +92,7 @@ func (s *sqliteNoteStore) Get(ctx context.Context, id string) (Note, error) {
 	return n, nil
 }
 
-func (s *sqliteNoteStore) List(ctx context.Context, limit int) ([]Note, error) {
+func (s *sqliteRepository) List(ctx context.Context, limit int) ([]Note, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -124,9 +124,9 @@ type rowScanner interface {
 
 func scanNote(s rowScanner) (Note, error) {
 	var (
-		n             Note
-		createdRaw    string
-		updatedRaw    string
+		n          Note
+		createdRaw string
+		updatedRaw string
 	)
 	if err := s.Scan(&n.ID, &n.Title, &n.Body, &createdRaw, &updatedRaw); err != nil {
 		return Note{}, err

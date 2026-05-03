@@ -38,7 +38,14 @@ export class ApiError extends Error {
   }
 }
 
-async function decodeError(res: Response): Promise<never> {
+/**
+ * Build an ApiError from a non-2xx response. Returns the error rather
+ * than throwing it so callers express the throw at the call site
+ * (`throw await decodeApiError(res)`) — a `Promise<never>` returner
+ * reads as if the call site is doing nothing, when in fact every
+ * caller relies on the thrown error to short-circuit decoding.
+ */
+async function decodeApiError(res: Response): Promise<ApiError> {
   let envelope: ErrorEnvelope;
   try {
     const json = (await res.json()) as JsonValue;
@@ -49,7 +56,7 @@ async function decodeError(res: Response): Promise<never> {
       message: `unexpected ${res.status} response (no envelope)`,
     });
   }
-  throw new ApiError(envelope, res.status);
+  return new ApiError(envelope, res.status);
 }
 
 /**
@@ -66,7 +73,7 @@ export async function listNotes(): Promise<ListNotesResponse> {
     cache: "no-store",
   });
   if (!res.ok) {
-    return decodeError(res);
+    throw await decodeApiError(res);
   }
   const json = (await res.json()) as JsonValue;
   return fromJson(ListNotesResponseSchema, json, { ignoreUnknownFields: true });
@@ -95,7 +102,7 @@ export async function createNote(input: CreateNoteInput): Promise<Note> {
     body: toJsonString(CreateNoteRequestSchema, reqMsg),
   });
   if (!res.ok) {
-    return decodeError(res);
+    throw await decodeApiError(res);
   }
   const json = (await res.json()) as JsonValue;
   const decoded = fromJson(CreateNoteResponseSchema, json, { ignoreUnknownFields: true });
@@ -119,7 +126,7 @@ export async function getNote(id: string): Promise<Note> {
     cache: "no-store",
   });
   if (!res.ok) {
-    return decodeError(res);
+    throw await decodeApiError(res);
   }
   const json = (await res.json()) as JsonValue;
   const decoded = fromJson(GetNoteResponseSchema, json, { ignoreUnknownFields: true });

@@ -45,8 +45,21 @@ const (
 //
 // Handlers reach for WriteError on every non-2xx path so the wire
 // vocabulary stays consistent. Translation from typed sentinels (e.g.,
-// store.ErrNoteNotFound) to (status, code, message) tuples is the
-// handler's responsibility — this writer just emits.
+// notes.ErrNoteNotFound, notes.ErrInvalidNote) to (status, code,
+// message) tuples is the handler's responsibility — this writer just
+// emits.
+//
+// # Why no logger seam here
+//
+// WriteError is a package-level function called from every handler;
+// threading a *log.Logger through every callsite would impose seam
+// overhead for a branch that cannot fire in practice (the marshal
+// failure below is unreachable for the ErrorEnvelope shape — no
+// oneofs, no recursion, no Any, no large payloads). The fallback
+// uses the global log package by intent, gated by a comment so a
+// scenario adding a new envelope shape remembers to revisit if the
+// new shape introduces a real failure mode. If that day comes, the
+// right move is to thread the logger; do not silently drop the log.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
 	envelope := &errorsv1.ErrorEnvelope{
 		Code:    code,
@@ -54,10 +67,10 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 	}
 	body, err := protojson.Marshal(envelope)
 	if err != nil {
-		// protojson.Marshal on a populated ErrorEnvelope cannot fail —
-		// no oneofs, no recursion, no Any fields. If it does, the
-		// process is in an unrecoverable state; log and fall back to a
-		// minimal JSON literal so the client still sees *something*.
+		// Unreachable for the current ErrorEnvelope shape (see header
+		// comment). If a future shape change makes this firable, the
+		// scenario MUST thread a logger through WriteError instead of
+		// keeping this global-log fallback.
 		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError

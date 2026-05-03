@@ -12,19 +12,25 @@ import (
 	"github.com/gorilla/mux"
 
 	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/notes"
 	"{{SCENARIO_ID}}/internal/store"
 )
 
 // Deps holds the interfaces the Server depends on. Production wires
 // concrete implementations (clock.System{}, *sql.DB) in main.go; tests
 // wire fakes from internal/testutil/mocks.
+//
+// NoteService is the application-service surface for the notes
+// resource (validation, defaults). Production wires
+// notes.NewService(notes.NewSQLiteRepository(db, clk)); handler tests
+// substitute mocks.FakeService.
 type Deps struct {
-	Pinger    store.Pinger
-	Clock     clock.Clock
-	Logger    *log.Logger
-	NoteStore store.NoteStore
-	Service   string
-	Version   string
+	Pinger      store.Pinger
+	Clock       clock.Clock
+	Logger      *log.Logger
+	NoteService notes.Service
+	Service     string
+	Version     string
 }
 
 // Server is the wired HTTP application: dependencies + router. After

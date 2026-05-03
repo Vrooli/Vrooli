@@ -5,17 +5,18 @@ import (
 
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 
-	"{{SCENARIO_ID}}/internal/store"
+	"{{SCENARIO_ID}}/internal/notes"
 )
 
-// domainToProto converts an internal store.Note into the wire shape the
-// notes proto declares. Times serialise as RFC3339 strings — the same
-// format the sqlite store persists, so round-tripping is byte-identical.
+// domainToProto converts an internal notes.Note into the wire shape
+// the notes proto declares. Times serialise as RFC3339 strings — the
+// same format the sqlite repository persists, so round-tripping is
+// byte-identical.
 //
 // Lives in the handler package by intent. The conversion is mechanical
 // and only used at the transport edge; pulling it into a separate
 // adapters package would create a one-import wrapper for no gain.
-func domainToProto(n store.Note) *notesv1.Note {
+func domainToProto(n notes.Note) *notesv1.Note {
 	return &notesv1.Note{
 		Id:        n.ID,
 		Title:     n.Title,

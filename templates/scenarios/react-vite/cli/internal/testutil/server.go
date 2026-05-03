@@ -10,14 +10,15 @@
 //   - WithAPIBase: sets the API_BASE_URL env var so cli-core's resolver picks
 //     up the test server. Restored at end-of-test via t.Setenv.
 //   - CaptureStdout: capture writes to os.Stdout for the duration of fn.
+//   - MustMarshalProto: serialise a proto.Message as the wire shape the API
+//     would emit (snake_case via UseProtoNames=true), or fail the test.
+//   - NewTestApp: wires a *cliapp.ScenarioApp pointed at a test server so
+//     domain handler tests can drive core.Get / core.Request through one
+//     line of construction. See app.go.
 //
 // Patterns to extend (not implemented yet — add when the first real consumer
 // exists):
 //
-//   - NewTestApp(t, handler) *cliapp.ScenarioApp — wraps NewAPIServer +
-//     cliapp.NewStandardScenarioApp. Today, cli/domains/notes/handlers_test.go
-//     defines this inline as `newCoreFor`. The third domain to repeat the
-//     shape is the trigger to extract here.
 //   - A typed APIClientFake that records request/response pairs for tests
 //     that want to assert on the request shape, not just the response.
 //   - A canned-response helper for table-driven endpoint tests.

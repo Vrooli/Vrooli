@@ -322,6 +322,10 @@ const literalSelectors = {
   locale: {
     switcher: "locale-switcher",
   },
+  errorBoundary: {
+    root: "error-boundary-root",
+    retryButton: "error-boundary-retry",
+  },
 } satisfies LiteralSelectorTree;
 
 // Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
