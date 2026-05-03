@@ -134,6 +134,7 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 			})
 			continue
 		}
+		report.Issues = append(report.Issues, validateRelocationProtoSources(deps, ctx, info)...)
 		tempRoot, err := os.MkdirTemp("", "vrooli-template-validate-*")
 		if err != nil {
 			report.Issues = append(report.Issues, TemplateValidationIssue{
@@ -158,7 +159,7 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 					Message:  err.Error(),
 				}}
 			}
-			if err := copyTemplate(info.Path, destination, values); err != nil {
+			if err := copyTemplate(info.Path, destination, values, info.Manifest.Relocations); err != nil {
 				return []TemplateValidationIssue{{
 					Template: info.Name,
 					Message:  fmt.Sprintf("generate validation copy: %v", err),
@@ -168,6 +169,29 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 				return []TemplateValidationIssue{{
 					Template: info.Name,
 					Message:  err.Error(),
+				}}
+			}
+			// Run the relocations against the validation seed values so
+			// the generated scenario's go.mod tidy step (below) can
+			// resolve any proto dependencies. The relocation targets
+			// land at predictable paths (e.g.
+			// packages/proto/schemas/template-validation-react-vite/)
+			// because the seed values use a `template-validation-` prefix
+			// for SCENARIO_ID — no real scenario can collide with that
+			// prefix. Relocation targets are cleaned up regardless of
+			// whether validation succeeds.
+			resolved, err := resolveRelocations(deps.Root(ctx), info, values)
+			if err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("resolve relocations: %v", err),
+				}}
+			}
+			defer cleanupRelocationTargets(resolved)
+			if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("relocate validation artifacts: %v", err),
 				}}
 			}
 			return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
@@ -200,6 +224,10 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 	if err != nil {
 		return "", GenerateResult{}, err
 	}
+	resolved, err := resolveRelocations(deps.Root(ctx), info, values)
+	if err != nil {
+		return "", GenerateResult{}, err
+	}
 	if opts.DryRun {
 		return cliout.FormatHuman, GenerateResult{
 			TemplateName: info.Name,
@@ -207,6 +235,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 			Destination:  destination,
 			Values:       values,
 			Manifest:     info.Manifest,
+			Relocations:  resolved,
 			DryRun:       true,
 		}, nil
 	}
@@ -218,10 +247,26 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 			return "", GenerateResult{}, err
 		}
 	}
-	if err := copyTemplate(info.Path, destination, values); err != nil {
+	// Pre-flight every relocation target so the generator never partially
+	// commits when a later target collides. This mirrors the destination
+	// guard above; with --force we remove first, otherwise we error fast.
+	for _, reloc := range resolved {
+		if stat, err := os.Stat(reloc.To); err == nil && stat != nil {
+			if !opts.Force {
+				return "", GenerateResult{}, fmt.Errorf("relocation target already exists: %s (use --force to overwrite)", reloc.To)
+			}
+			if err := os.RemoveAll(reloc.To); err != nil {
+				return "", GenerateResult{}, err
+			}
+		}
+	}
+	if err := copyTemplate(info.Path, destination, values, info.Manifest.Relocations); err != nil {
 		return "", GenerateResult{}, err
 	}
 	if err := verifyTemplate(destination); err != nil {
+		return "", GenerateResult{}, err
+	}
+	if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
 		return "", GenerateResult{}, err
 	}
 	if issues := validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
@@ -238,6 +283,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 		Destination:  destination,
 		Values:       values,
 		Manifest:     info.Manifest,
+		Relocations:  resolved,
 		RunHooks:     opts.RunHooks,
 	}
 	if opts.RunHooks {
@@ -246,6 +292,196 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 		}
 	}
 	return cliout.FormatHuman, result, nil
+}
+
+// resolveRelocations renders each relocation's To path against the
+// substitution values and returns absolute repo-rooted destinations.
+// The From paths are left template-relative — the caller resolves them
+// against info.Path when copying. Errors signal misconfigured manifests
+// (empty From/To, From referencing outside the template tree, etc.).
+func resolveRelocations(root string, info TemplateInfo, values map[string]string) ([]ResolvedRelocation, error) {
+	if len(info.Manifest.Relocations) == 0 {
+		return nil, nil
+	}
+	repoRoot := filepath.Clean(root)
+	resolved := make([]ResolvedRelocation, 0, len(info.Manifest.Relocations))
+	for index, reloc := range info.Manifest.Relocations {
+		from := strings.TrimSpace(reloc.From)
+		if from == "" {
+			return nil, fmt.Errorf("relocation %d: from is required", index)
+		}
+		// Reject path traversal so a manifest can't escape the template tree.
+		cleanFrom := filepath.Clean(filepath.FromSlash(from))
+		if cleanFrom == ".." || strings.HasPrefix(cleanFrom, ".."+string(filepath.Separator)) || filepath.IsAbs(cleanFrom) {
+			return nil, fmt.Errorf("relocation %d: from %q must be a template-relative path", index, reloc.From)
+		}
+		toRendered := strings.TrimSpace(renderTemplateString(reloc.To, values))
+		if toRendered == "" {
+			return nil, fmt.Errorf("relocation %d: to is required (rendered from %q)", index, reloc.To)
+		}
+		toAbs := toRendered
+		if !filepath.IsAbs(toAbs) {
+			toAbs = filepath.Join(repoRoot, filepath.FromSlash(toAbs))
+		}
+		toAbs = filepath.Clean(toAbs)
+		// The resolved To must stay within the repo root — relocations
+		// declare in-repo placement, not arbitrary writes.
+		rel, err := filepath.Rel(repoRoot, toAbs)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return nil, fmt.Errorf("relocation %d: to %q resolves outside repo root", index, reloc.To)
+		}
+		resolved = append(resolved, ResolvedRelocation{
+			Description: reloc.Description,
+			From:        cleanFrom,
+			To:          toAbs,
+			Post:        reloc.Post,
+		})
+	}
+	return resolved, nil
+}
+
+// runRelocations writes each resolved relocation to disk, substituting
+// {{...}} placeholders in both file content and path components, and
+// then invokes Post commands at the repo root. It must run AFTER
+// copyTemplate so the in-tree skip-list has already filtered the
+// relocated source dirs out of the scenario destination.
+func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, relocations []ResolvedRelocation, values map[string]string) error {
+	if len(relocations) == 0 {
+		return nil
+	}
+	for _, reloc := range relocations {
+		srcDir := filepath.Join(templateDir, reloc.From)
+		stat, err := os.Stat(srcDir)
+		if err != nil {
+			return fmt.Errorf("relocation source %q: %w", reloc.From, err)
+		}
+		if !stat.IsDir() {
+			return fmt.Errorf("relocation source %q is not a directory", reloc.From)
+		}
+		if err := copyRelocationTree(srcDir, reloc.To, values); err != nil {
+			return fmt.Errorf("relocate %s -> %s: %w", reloc.From, reloc.To, err)
+		}
+		if err := verifyTemplate(reloc.To); err != nil {
+			return fmt.Errorf("relocate %s -> %s: %w", reloc.From, reloc.To, err)
+		}
+	}
+	// Post commands run from the repo root, NOT the scenario destination —
+	// this is the structural difference from runTemplateHooks. They're
+	// declared per-relocation but executed in declaration order after every
+	// relocation has been written, so a single `make generate` covers all
+	// of them when multiple relocations are siblings.
+	repoRoot := deps.Root(ctx)
+	for _, reloc := range relocations {
+		for _, hook := range reloc.Post {
+			cmd := strings.TrimSpace(hook.Cmd)
+			if cmd == "" {
+				continue
+			}
+			cwd := repoRoot
+			if hookCwd := strings.TrimSpace(hook.Cwd); hookCwd != "" && hookCwd != "." {
+				cwd = filepath.Join(repoRoot, filepath.FromSlash(hookCwd))
+			}
+			description := strings.TrimSpace(hook.Description)
+			if description == "" {
+				description = cmd
+			}
+			_, _ = fmt.Fprintf(deps.Stdout(ctx), "[Relocation post] %s\n", description)
+			if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+				Name:   "bash",
+				Args:   []string{"-lc", cmd},
+				Dir:    cwd,
+				Env:    deps.CommandEnv(ctx),
+				Stdout: deps.Stdout(ctx),
+				Stderr: deps.Stderr(ctx),
+			}); err != nil {
+				return fmt.Errorf("relocation post-command %q: %w", cmd, err)
+			}
+		}
+	}
+	return nil
+}
+
+// cleanupRelocationTargets removes the resolved To paths and any artifacts
+// each post-command would have produced under packages/proto/gen/ for the
+// validation scenario. Best-effort: errors are swallowed because the
+// validation flow has already completed by the time cleanup runs.
+//
+// The proto/gen/ artifact paths are derived heuristically (look for any
+// `gen/<lang>/<scenario-id>/` subdirectory under each relocation's
+// repo-rooted parent). This keeps cleanup symmetric with `make generate`'s
+// output without requiring the validator to know plugin-specific layouts.
+func cleanupRelocationTargets(relocations []ResolvedRelocation) {
+	for _, reloc := range relocations {
+		_ = os.RemoveAll(reloc.To)
+		// Heuristic gen-cleanup: if the relocation target lives under
+		// packages/proto/schemas/<id>/, the generator wrote artifacts
+		// under packages/proto/gen/{go,typescript,python}/<id>/. Walk
+		// up to packages/proto/, then sweep gen/<*>/<id>/.
+		schemasParent := filepath.Dir(reloc.To)
+		if filepath.Base(schemasParent) != "schemas" {
+			continue
+		}
+		protoRoot := filepath.Dir(schemasParent)
+		genRoot := filepath.Join(protoRoot, "gen")
+		scenarioID := filepath.Base(reloc.To)
+		entries, err := os.ReadDir(genRoot)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			_ = os.RemoveAll(filepath.Join(genRoot, entry.Name(), scenarioID))
+		}
+	}
+}
+
+// copyRelocationTree mirrors copyTemplate's substitution logic but writes
+// into an arbitrary repo-relative target instead of the scenario destination.
+// File mode is preserved from the source; path components and text content
+// are both rendered through renderTemplateString.
+func copyRelocationTree(srcDir, destDir string, values map[string]string) error {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return err
+	}
+	return filepath.WalkDir(srcDir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == srcDir {
+			return nil
+		}
+		if entry.IsDir() && shouldSkipTemplateCopyDir(entry.Name()) {
+			return filepath.SkipDir
+		}
+		relPath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		if filepath.Base(path) == ".DS_Store" {
+			return nil
+		}
+		targetPath := filepath.Join(destDir, renderTemplateString(relPath, values))
+		if entry.IsDir() {
+			return os.MkdirAll(targetPath, 0o755)
+		}
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if looksLikeTextFile(data) {
+			data = []byte(renderTemplateString(string(data), values))
+		}
+		return os.WriteFile(targetPath, data, info.Mode())
+	})
 }
 
 func loadTemplates(root string) ([]TemplateInfo, error) {
@@ -331,6 +567,13 @@ func buildTemplateValues(root, destination, templateName string, manifest Templa
 			values[key] = renderTemplateString(manifest.OptionalVars[key].Default, values)
 		}
 	}
+	// Derive snake_case identifiers from kebab-case scenario IDs so proto
+	// package directives (which forbid hyphens), Go package aliases, and
+	// Python module names get a valid identifier without each template
+	// having to re-implement the conversion.
+	if id, ok := values["SCENARIO_ID"]; ok && strings.TrimSpace(id) != "" {
+		values["SCENARIO_ID_SNAKE"] = strings.ReplaceAll(id, "-", "_")
+	}
 	return values, nil
 }
 
@@ -363,9 +606,20 @@ func populateTemplatePathValues(root, destination string, values map[string]stri
 	return nil
 }
 
-func copyTemplate(templateDir, destination string, values map[string]string) error {
+func copyTemplate(templateDir, destination string, values map[string]string, relocations []TemplateRelocation) error {
 	if err := os.MkdirAll(destination, 0o755); err != nil {
 		return err
+	}
+	// Build the set of relocation source paths (template-relative, cleaned)
+	// so the walk can prune them — they're handled by runRelocations and
+	// must not also land in the scenario destination.
+	relocSources := make(map[string]struct{}, len(relocations))
+	for _, reloc := range relocations {
+		from := strings.TrimSpace(reloc.From)
+		if from == "" {
+			continue
+		}
+		relocSources[filepath.Clean(filepath.FromSlash(from))] = struct{}{}
 	}
 	return filepath.WalkDir(templateDir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -380,6 +634,11 @@ func copyTemplate(templateDir, destination string, values map[string]string) err
 		relPath, err := filepath.Rel(templateDir, path)
 		if err != nil {
 			return err
+		}
+		if entry.IsDir() {
+			if _, skip := relocSources[filepath.Clean(relPath)]; skip {
+				return filepath.SkipDir
+			}
 		}
 		if filepath.Base(path) == ".DS_Store" || relPath == "template.json" {
 			return nil
@@ -529,6 +788,141 @@ func validateTemplateSource(info TemplateInfo) []TemplateValidationIssue {
 		return nil
 	})
 	return issues
+}
+
+// validateRelocationProtoSources runs `buf lint` against template-side
+// proto source folders so schema-level mistakes (missing package
+// directive, syntax errors, naming convention violations) surface in
+// template validation rather than after a real scenario generation.
+//
+// The "is this proto?" decision is heuristic: any relocation source that
+// contains a .proto file is treated as one. Future non-proto relocations
+// (e.g., scripts) won't be confused for protos because they won't have
+// .proto files inside.
+//
+// Implementation note: `buf lint --path` only accepts paths inside the
+// buf module (packages/proto/schemas/). The template's protos live
+// outside that module pre-substitution, so we copy them into a temp
+// subdirectory under schemas/ with template-validation seed values
+// applied, lint there, and clean up. The temp directory name is
+// prefixed with `.tmp-validate-` so it can never collide with a real
+// scenario schema directory.
+//
+// Skipped entirely when deps.RunSubprocess is nil (mirrors the pattern
+// used by validateGeneratedScenario for `go mod tidy`).
+func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info TemplateInfo) []TemplateValidationIssue {
+	if deps.RunSubprocess == nil {
+		return nil
+	}
+	if len(info.Manifest.Relocations) == 0 {
+		return nil
+	}
+	repoRoot := deps.Root(ctx)
+	protoPackageDir := filepath.Join(repoRoot, "packages", "proto")
+	schemasDir := filepath.Join(protoPackageDir, "schemas")
+	if _, err := os.Stat(schemasDir); err != nil {
+		// No proto module in this repo (e.g., test fixtures with a
+		// minimal repo-contract). The template's claim is that protos
+		// belong here, so absence isn't a per-template issue — the
+		// generator would fail at make-generate time, which is a
+		// separate failure mode.
+		return nil
+	}
+	var issues []TemplateValidationIssue
+	values := templateValidationSeedValues(info)
+	if id, ok := values["SCENARIO_ID"]; ok && strings.TrimSpace(id) != "" {
+		values["SCENARIO_ID_SNAKE"] = strings.ReplaceAll(id, "-", "_")
+	}
+	for _, reloc := range info.Manifest.Relocations {
+		from := strings.TrimSpace(reloc.From)
+		if from == "" {
+			continue
+		}
+		srcDir := filepath.Join(info.Path, filepath.FromSlash(from))
+		if !directoryContainsProto(srcDir) {
+			continue
+		}
+		tmpDir, err := os.MkdirTemp(schemasDir, ".tmp-validate-"+info.Name+"-")
+		if err != nil {
+			issues = append(issues, TemplateValidationIssue{
+				Template: info.Name,
+				Path:     filepath.ToSlash(from),
+				Message:  fmt.Sprintf("create lint temp dir: %v", err),
+			})
+			continue
+		}
+		// Best-effort cleanup; lint failures are surfaced through
+		// `issues` regardless of whether the cleanup succeeds.
+		shouldClean := true
+		defer func(path string, doClean *bool) {
+			if *doClean {
+				_ = os.RemoveAll(path)
+			}
+		}(tmpDir, &shouldClean)
+		if err := copyRelocationTree(srcDir, tmpDir, values); err != nil {
+			issues = append(issues, TemplateValidationIssue{
+				Template: info.Name,
+				Path:     filepath.ToSlash(from),
+				Message:  fmt.Sprintf("substitute proto sources for lint: %v", err),
+			})
+			continue
+		}
+		// `buf lint --path` is now scoped to the temp dir which lives
+		// inside the buf module, so the lint succeeds.
+		var stderr bytes.Buffer
+		relTmp, err := filepath.Rel(protoPackageDir, tmpDir)
+		if err != nil {
+			relTmp = tmpDir
+		}
+		err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+			Name:   "bash",
+			Args:   []string{"-lc", fmt.Sprintf("buf lint --path %s", shellQuote(relTmp))},
+			Dir:    protoPackageDir,
+			Env:    deps.CommandEnv(ctx),
+			Stdout: io.Discard,
+			Stderr: &stderr,
+		})
+		if err != nil {
+			msg := strings.TrimSpace(stderr.String())
+			if msg == "" {
+				msg = err.Error()
+			}
+			issues = append(issues, TemplateValidationIssue{
+				Template: info.Name,
+				Path:     filepath.ToSlash(from),
+				Message:  fmt.Sprintf("buf lint failed: %s", msg),
+			})
+		}
+	}
+	return issues
+}
+
+// directoryContainsProto reports whether the directory tree rooted at
+// path contains any .proto files. Walks until the first match.
+func directoryContainsProto(path string) bool {
+	stat, err := os.Stat(path)
+	if err != nil || !stat.IsDir() {
+		return false
+	}
+	found := false
+	_ = filepath.WalkDir(path, func(p string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(p), ".proto") {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
+// shellQuote returns a single-quoted shell argument that survives buf's
+// `bash -lc` invocation. Used for absolute paths that may contain
+// shell-special characters; deliberately conservative.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func validateGeneratedScenario(destination string, runCommands bool, run func(scenarioexec.SubprocessSpec) error, templateName string) []TemplateValidationIssue {

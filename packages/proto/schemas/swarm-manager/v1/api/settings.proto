@@ -72,10 +72,18 @@ message UpdateSettingsRequest {
   optional bool review_require_tests = 24;
 
   // Concurrency and governance settings.
-  optional int32 max_concurrent_executions = 25;
+  // Per-phase-kind concurrency caps. Keys are lane names matching
+  // operatingmode.PhaseKind values: "investigate", "execute", "review",
+  // "reconcile". Empty map means leave each lane at its current value;
+  // present keys overwrite. Replaces the legacy single global cap
+  // (reserved 25).
+  map<string, int32> lane_concurrency_limits = 34;
   optional int32 max_queue_depth = 26;
   optional int32 circuit_breaker_threshold = 27;
   optional int32 circuit_breaker_cooldown_minutes = 28;
   optional double execution_cost_cap_per_run = 29;
   optional double cost_per_turn_estimate = 30;
+
+  reserved 25;
+  reserved "max_concurrent_executions";
 }

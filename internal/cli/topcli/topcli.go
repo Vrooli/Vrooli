@@ -27,6 +27,7 @@ const (
 	CommandDiagnosePort CommandID = "diagnose-port"
 	CommandContract     CommandID = "contract"
 	CommandLifecycle    CommandID = "lifecycle"
+	CommandAuth         CommandID = "auth"
 )
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -48,6 +49,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandLocks), Group: "Maintenance Commands", Summary: "Inspect or clean stale port lock files", Handler: CommandLocks, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandDiagnosePort), Group: "Maintenance Commands", Summary: "Diagnose port conflicts and stale lock ownership", Handler: CommandDiagnosePort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandContract), Group: "Maintenance Commands", Summary: "Inspect and validate the repository contract", Handler: CommandContract, Suggestable: true},
+		{Name: string(CommandAuth), Group: "Maintenance Commands", Summary: "Report sign-in state for host tools (buf, future: claude/codex/gh/...)", Handler: CommandAuth, Suggestable: true},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}
 }

@@ -1,41 +1,15 @@
 BUF_BASE_BRANCH ?= master
 
-.PHONY: generate lint format breaking check clean
+.PHONY: generate lint format breaking check clean refresh-vendor
 
 generate:
 	buf generate
-	touch gen/python/py.typed \
-	      gen/python/agent_manager/py.typed \
-	      gen/python/agent_manager/v1/py.typed \
-	      gen/python/agent_manager/v1/api/py.typed \
-	      gen/python/agent_manager/v1/domain/py.typed \
-	      gen/python/browser_automation_studio/py.typed \
-	      gen/python/browser_automation_studio/v1/py.typed \
-	      gen/python/browser_automation_studio/v1/api/py.typed \
-	      gen/python/browser_automation_studio/v1/base/py.typed \
-	      gen/python/browser_automation_studio/v1/domain/py.typed \
-	      gen/python/browser_automation_studio/v1/actions/py.typed \
-	      gen/python/browser_automation_studio/v1/workflows/py.typed \
-	      gen/python/browser_automation_studio/v1/timeline/py.typed \
-	      gen/python/browser_automation_studio/v1/execution/py.typed \
-	      gen/python/browser_automation_studio/v1/recording/py.typed \
-	      gen/python/browser_automation_studio/v1/projects/py.typed \
-	      gen/python/common/py.typed \
-	      gen/python/landing_page_react_vite/py.typed \
-	      gen/python/swarm_manager/py.typed \
-	      gen/python/swarm_manager/v1/py.typed \
-	      gen/python/swarm_manager/v1/api/py.typed \
-	      gen/python/swarm_manager/v1/domain/py.typed \
-	      gen/python/scenario_to_desktop/py.typed \
-	      gen/python/scenario_to_desktop/v1/py.typed \
-	      gen/python/scenario_to_desktop/v1/base/py.typed \
-	      gen/python/scenario_to_desktop/v1/domain/py.typed \
-	      gen/python/scenario_to_desktop/v1/pipeline/py.typed \
-	      gen/python/scenario_to_desktop/v1/distribution/py.typed \
-	      gen/python/system_monitor/py.typed \
-	      gen/python/system_monitor/v1/py.typed \
-	      gen/python/system_monitor/v1/api/py.typed \
-	      gen/python/system_monitor/v1/domain/py.typed
+	# Mark every generated Python package directory as typed (PEP 561).
+	# Recursive find replaces the previous hardcoded list so adding a new
+	# scenario doesn't require Makefile edits.
+	@if [ -d gen/python ]; then \
+		find gen/python -type d -exec touch {}/py.typed \; ; \
+	fi
 
 lint:
 	buf lint
@@ -59,3 +33,12 @@ check: lint
 
 clean:
 	rm -rf gen/*
+
+# refresh-vendor re-exports the BSR module deps (googleapis, protovalidate)
+# into vendor/ so codegen continues to resolve transitive imports without
+# contacting BSR. This is the single code path that requires BSR access;
+# see docs/configuration/integrations/buf-bsr.md for the optional login.
+# After refresh, run `make check` to confirm gen/ remains consistent.
+refresh-vendor:
+	buf export buf.build/googleapis/googleapis -o vendor/googleapis
+	buf export buf.build/bufbuild/protovalidate -o vendor/protovalidate

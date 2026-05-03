@@ -16,6 +16,7 @@ import (
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/authhandlers"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
@@ -653,6 +654,10 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Service: func(ctx *CommandContext) contractapp.Service {
 				return contractapp.NewDefaultService()
 			},
+		}),
+		topcli.CommandAuth: authhandlers.RootHandler(authhandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			OutputFormat: projectOutputFormat,
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}

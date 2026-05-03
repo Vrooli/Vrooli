@@ -89,10 +89,16 @@ message Settings {
   bool review_require_tests = 24;
 
   // Concurrency and governance settings.
-  int32 max_concurrent_executions = 25 [(buf.validate.field).int32 = { gte: 1, lte: 20 }];
+  // Per-phase-kind concurrency caps. Keys are lane names matching
+  // operatingmode.PhaseKind values: "investigate", "execute", "review",
+  // "reconcile". Replaces the legacy single global cap (reserved 25).
+  map<string, int32> lane_concurrency_limits = 34;
   int32 max_queue_depth = 26 [(buf.validate.field).int32 = { gte: 0, lte: 100 }];
   int32 circuit_breaker_threshold = 27 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
   int32 circuit_breaker_cooldown_minutes = 28 [(buf.validate.field).int32 = { gte: 5, lte: 1440 }];
   double execution_cost_cap_per_run = 29 [(buf.validate.field).double.gte = 0];
   double cost_per_turn_estimate = 30 [(buf.validate.field).double = { gte: 0, lte: 5 }];
+
+  reserved 25;
+  reserved "max_concurrent_executions";
 }

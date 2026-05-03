@@ -45,6 +45,7 @@ The project-level docs are organized around a stable taxonomy:
 - `narrative/` for project-identity canon (pitch, story, FAQ, press kit, deck outline) — cross-team consumed
 - `marketing/` for voice canon, audiences, channels, campaigns, brand assets, image-style guide
 - `concepts/` for architecture and vocabulary
+- `development/` for development pipelines (e.g. [`development/proto.md`](development/proto.md) — proto codegen)
 - `guides/` for task-oriented workflows
 - `reference/` for CLI, contracts, and shared policy
 - `operations/` for live operational guidance

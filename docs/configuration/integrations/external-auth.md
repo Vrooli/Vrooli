@@ -79,7 +79,7 @@ The connector handler also embeds the client_id; the client_secret lives in Vaul
 
 **What it looks like.** Operator runs a sign-in command in their terminal — `claude /login`, `codex login`, `gh auth login`, etc. The third-party tool stores its own token in its own config dir. Integration-hub does not own the token; it owns *detection* of the sign-in state.
 
-**Examples.** Coding agents (Claude Code, Codex, OpenCode), GitHub CLI, Cloudflare's `cloudflared`, Stripe CLI.
+**Examples.** Coding agents (Claude Code, Codex, OpenCode), GitHub CLI, Cloudflare's `cloudflared`, Stripe CLI, Buf Schema Registry (see [`buf-bsr.md`](buf-bsr.md)).
 
 **Connector manifest fields under `auth`.**
 

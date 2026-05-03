@@ -9,7 +9,6 @@ kept only as implementation reference for capabilities not yet ported.
 | File | Purpose | Notes |
 |---|---|---|
 | `ast-grep.sh` | Install `ast-grep` | Manifest exists (`internal/tools/ast-grep/tool.json`) but brew-only — no apt install path yet. CLAUDE.md references ast-grep as preferred dev tool |
-| `buf.sh` | Install `buf` CLI (Protobuf) | Manifest exists (`internal/tools/buf/tool.json`) but brew-only — no apt install path yet. Relevant if proto migration happens |
 | `lychee.sh` | Install `lychee` (link checker) | Manifest exists (`internal/tools/lychee/tool.json`) but brew-only — no apt install path yet. Relevant for doc-link validation |
 
 ## safeguards/

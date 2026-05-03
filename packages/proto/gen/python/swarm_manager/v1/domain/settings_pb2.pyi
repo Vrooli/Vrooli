@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -29,7 +30,14 @@ class DeleteConfirmationSettings(_message.Message):
     def __init__(self, backlog: _Optional[_Union[DeleteConfirmLevel, str]] = ..., initiative: _Optional[_Union[DeleteConfirmLevel, str]] = ..., capture: _Optional[_Union[DeleteConfirmLevel, str]] = ...) -> None: ...
 
 class Settings(_message.Message):
-    __slots__ = ("theme", "default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled", "max_auto_rounds", "auto_initialize_workshop", "auto_advance_workshop", "auto_cascade_workshop", "auto_advance_delay_seconds", "agent_max_turns", "agent_timeout_seconds", "search_debounce_ms", "toast_duration_ms", "delete_confirmation", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "max_concurrent_executions", "max_queue_depth", "circuit_breaker_threshold", "circuit_breaker_cooldown_minutes", "execution_cost_cap_per_run", "cost_per_turn_estimate")
+    __slots__ = ("theme", "default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled", "max_auto_rounds", "auto_initialize_workshop", "auto_advance_workshop", "auto_cascade_workshop", "auto_advance_delay_seconds", "agent_max_turns", "agent_timeout_seconds", "search_debounce_ms", "toast_duration_ms", "delete_confirmation", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "lane_concurrency_limits", "max_queue_depth", "circuit_breaker_threshold", "circuit_breaker_cooldown_minutes", "execution_cost_cap_per_run", "cost_per_turn_estimate")
+    class LaneConcurrencyLimitsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
     THEME_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_MODE_FIELD_NUMBER: _ClassVar[int]
     AUTO_FIXUP_FIELD_NUMBER: _ClassVar[int]
@@ -51,7 +59,7 @@ class Settings(_message.Message):
     REVIEW_MAX_WARNINGS_FIELD_NUMBER: _ClassVar[int]
     REVIEW_REQUIRE_SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
     REVIEW_REQUIRE_TESTS_FIELD_NUMBER: _ClassVar[int]
-    MAX_CONCURRENT_EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
+    LANE_CONCURRENCY_LIMITS_FIELD_NUMBER: _ClassVar[int]
     MAX_QUEUE_DEPTH_FIELD_NUMBER: _ClassVar[int]
     CIRCUIT_BREAKER_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     CIRCUIT_BREAKER_COOLDOWN_MINUTES_FIELD_NUMBER: _ClassVar[int]
@@ -78,10 +86,10 @@ class Settings(_message.Message):
     review_max_warnings: int
     review_require_screenshots: bool
     review_require_tests: bool
-    max_concurrent_executions: int
+    lane_concurrency_limits: _containers.ScalarMap[str, int]
     max_queue_depth: int
     circuit_breaker_threshold: int
     circuit_breaker_cooldown_minutes: int
     execution_cost_cap_per_run: float
     cost_per_turn_estimate: float
-    def __init__(self, theme: _Optional[str] = ..., default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ..., max_auto_rounds: _Optional[int] = ..., auto_initialize_workshop: _Optional[bool] = ..., auto_advance_workshop: _Optional[bool] = ..., auto_cascade_workshop: _Optional[bool] = ..., auto_advance_delay_seconds: _Optional[int] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ..., search_debounce_ms: _Optional[int] = ..., toast_duration_ms: _Optional[int] = ..., delete_confirmation: _Optional[_Union[DeleteConfirmationSettings, _Mapping]] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., max_concurrent_executions: _Optional[int] = ..., max_queue_depth: _Optional[int] = ..., circuit_breaker_threshold: _Optional[int] = ..., circuit_breaker_cooldown_minutes: _Optional[int] = ..., execution_cost_cap_per_run: _Optional[float] = ..., cost_per_turn_estimate: _Optional[float] = ...) -> None: ...
+    def __init__(self, theme: _Optional[str] = ..., default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ..., max_auto_rounds: _Optional[int] = ..., auto_initialize_workshop: _Optional[bool] = ..., auto_advance_workshop: _Optional[bool] = ..., auto_cascade_workshop: _Optional[bool] = ..., auto_advance_delay_seconds: _Optional[int] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ..., search_debounce_ms: _Optional[int] = ..., toast_duration_ms: _Optional[int] = ..., delete_confirmation: _Optional[_Union[DeleteConfirmationSettings, _Mapping]] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., lane_concurrency_limits: _Optional[_Mapping[str, int]] = ..., max_queue_depth: _Optional[int] = ..., circuit_breaker_threshold: _Optional[int] = ..., circuit_breaker_cooldown_minutes: _Optional[int] = ..., execution_cost_cap_per_run: _Optional[float] = ..., cost_per_turn_estimate: _Optional[float] = ...) -> None: ...

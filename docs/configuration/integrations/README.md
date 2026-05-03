@@ -24,6 +24,7 @@ The discipline is: **a page lives here only when the integration is actually wir
 ## Existing per-integration pages
 
 - [`video-providers.md`](video-providers.md) — Seedance, Veo, Sora and the like. Worked example of wiring a pay-per-use AI video model via API key. (Will likely become a `fal-api` connector when integration-hub ships.)
+- [`buf-bsr.md`](buf-bsr.md) — Buf Schema Registry sign-in. Optional after the proto-codegen pipeline switched to local plugins; only needed for refreshing vendored proto modules. Worked example of an `external_sign_in_command` integration that's wired in advance of integration-hub.
 
 Other integrations (Cloudflare tunnels, GitHub, Slack, Telegram, Gmail, TikTok-account, Instagram-account, etc.) get pages as they are wired. The absence of a page means the integration is either not yet wired or wired ad-hoc; flag the gap as a backlog item rather than writing a speculative page.
 

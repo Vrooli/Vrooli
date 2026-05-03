@@ -2,9 +2,24 @@ version: v2
 modules:
   - path: schemas
     name: buf.build/vrooli/schemas
-deps:
-  - buf.build/googleapis/googleapis
-  - buf.build/bufbuild/protovalidate
+  # BSR module deps are vendored under vendor/{googleapis,protovalidate}/
+  # and treated as workspace modules so transitive imports resolve without
+  # contacting BSR. Refresh via `make refresh-vendor` (the only code path
+  # that requires BSR access). See docs/development/proto.md.
+  - path: vendor/googleapis
+    name: buf.build/googleapis/googleapis
+    lint:
+      use:
+        - MINIMAL
+    breaking:
+      ignore_unstable_packages: true
+  - path: vendor/protovalidate
+    name: buf.build/bufbuild/protovalidate
+    lint:
+      use:
+        - MINIMAL
+    breaking:
+      ignore_unstable_packages: true
 lint:
   use:
     - DEFAULT

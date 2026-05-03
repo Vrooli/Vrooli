@@ -20,7 +20,11 @@ import (
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
 	"github.com/vrooli/vrooli/internal/tools"
+	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
+	"github.com/vrooli/vrooli/internal/tools/protoc"
+	protocgenes "github.com/vrooli/vrooli/internal/tools/protoc-gen-es"
+	protocgengo "github.com/vrooli/vrooli/internal/tools/protoc-gen-go"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
 	"github.com/vrooli/vrooli/internal/tools/vault"
 )
@@ -29,9 +33,13 @@ import (
 // under internal/tools/. The invariant is enforced by
 // TestToolManifestsReferenceRegisteredHandlers.
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
-	"cloudflared": cloudflared.NewHandler,
-	"stripe":      stripe.NewHandler,
-	"vault":       vault.NewHandler,
+	"buf":           buf.NewHandler,
+	"cloudflared":   cloudflared.NewHandler,
+	"protoc":        protoc.NewHandler,
+	"protoc_gen_es": protocgenes.NewHandler,
+	"protoc_gen_go": protocgengo.NewHandler,
+	"stripe":        stripe.NewHandler,
+	"vault":         vault.NewHandler,
 }
 
 // customSafeguardHandlers must stay in sync with every safeguard.json

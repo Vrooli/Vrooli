@@ -99,12 +99,17 @@ type UpdateSettingsRequest struct {
 	ReviewRequireScreenshots    *bool    `protobuf:"varint,23,opt,name=review_require_screenshots,json=reviewRequireScreenshots,proto3,oneof" json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          *bool    `protobuf:"varint,24,opt,name=review_require_tests,json=reviewRequireTests,proto3,oneof" json:"review_require_tests,omitempty"`
 	// Concurrency and governance settings.
-	MaxConcurrentExecutions       *int32   `protobuf:"varint,25,opt,name=max_concurrent_executions,json=maxConcurrentExecutions,proto3,oneof" json:"max_concurrent_executions,omitempty"`
-	MaxQueueDepth                 *int32   `protobuf:"varint,26,opt,name=max_queue_depth,json=maxQueueDepth,proto3,oneof" json:"max_queue_depth,omitempty"`
-	CircuitBreakerThreshold       *int32   `protobuf:"varint,27,opt,name=circuit_breaker_threshold,json=circuitBreakerThreshold,proto3,oneof" json:"circuit_breaker_threshold,omitempty"`
-	CircuitBreakerCooldownMinutes *int32   `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3,oneof" json:"circuit_breaker_cooldown_minutes,omitempty"`
-	ExecutionCostCapPerRun        *float64 `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3,oneof" json:"execution_cost_cap_per_run,omitempty"`
-	CostPerTurnEstimate           *float64 `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3,oneof" json:"cost_per_turn_estimate,omitempty"`
+	// Per-phase-kind concurrency caps. Keys are lane names matching
+	// operatingmode.PhaseKind values: "investigate", "execute", "review",
+	// "reconcile". Empty map means leave each lane at its current value;
+	// present keys overwrite. Replaces the legacy single global cap
+	// (reserved 25).
+	LaneConcurrencyLimits         map[string]int32 `protobuf:"bytes,34,rep,name=lane_concurrency_limits,json=laneConcurrencyLimits,proto3" json:"lane_concurrency_limits,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	MaxQueueDepth                 *int32           `protobuf:"varint,26,opt,name=max_queue_depth,json=maxQueueDepth,proto3,oneof" json:"max_queue_depth,omitempty"`
+	CircuitBreakerThreshold       *int32           `protobuf:"varint,27,opt,name=circuit_breaker_threshold,json=circuitBreakerThreshold,proto3,oneof" json:"circuit_breaker_threshold,omitempty"`
+	CircuitBreakerCooldownMinutes *int32           `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3,oneof" json:"circuit_breaker_cooldown_minutes,omitempty"`
+	ExecutionCostCapPerRun        *float64         `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3,oneof" json:"execution_cost_cap_per_run,omitempty"`
+	CostPerTurnEstimate           *float64         `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3,oneof" json:"cost_per_turn_estimate,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -279,11 +284,11 @@ func (x *UpdateSettingsRequest) GetReviewRequireTests() bool {
 	return false
 }
 
-func (x *UpdateSettingsRequest) GetMaxConcurrentExecutions() int32 {
-	if x != nil && x.MaxConcurrentExecutions != nil {
-		return *x.MaxConcurrentExecutions
+func (x *UpdateSettingsRequest) GetLaneConcurrencyLimits() map[string]int32 {
+	if x != nil {
+		return x.LaneConcurrencyLimits
 	}
-	return 0
+	return nil
 }
 
 func (x *UpdateSettingsRequest) GetMaxQueueDepth() int32 {
@@ -327,7 +332,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xf1\x11\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xf9\x12\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
@@ -351,13 +356,16 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05H\x0fR\x1breviewMaxBlockingViolations\x88\x01\x01\x123\n" +
 	"\x13review_max_warnings\x18\x16 \x01(\x05H\x10R\x11reviewMaxWarnings\x88\x01\x01\x12A\n" +
 	"\x1areview_require_screenshots\x18\x17 \x01(\bH\x11R\x18reviewRequireScreenshots\x88\x01\x01\x125\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bH\x12R\x12reviewRequireTests\x88\x01\x01\x12?\n" +
-	"\x19max_concurrent_executions\x18\x19 \x01(\x05H\x13R\x17maxConcurrentExecutions\x88\x01\x01\x12+\n" +
-	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x14R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
-	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x15R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
-	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x16R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
-	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x17R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x18R\x13costPerTurnEstimate\x88\x01\x01B\b\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bH\x12R\x12reviewRequireTests\x88\x01\x01\x12z\n" +
+	"\x17lane_concurrency_limits\x18\" \x03(\v2B.swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntryR\x15laneConcurrencyLimits\x12+\n" +
+	"\x0fmax_queue_depth\x18\x1a \x01(\x05H\x13R\rmaxQueueDepth\x88\x01\x01\x12?\n" +
+	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05H\x14R\x17circuitBreakerThreshold\x88\x01\x01\x12L\n" +
+	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05H\x15R\x1dcircuitBreakerCooldownMinutes\x88\x01\x01\x12?\n" +
+	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01H\x16R\x16executionCostCapPerRun\x88\x01\x01\x128\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x17R\x13costPerTurnEstimate\x88\x01\x01\x1aH\n" +
+	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01B\b\n" +
 	"\x06_themeB\x0f\n" +
 	"\r_default_modeB\r\n" +
 	"\v_auto_fixupB\x15\n" +
@@ -376,13 +384,12 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x1f_review_max_blocking_violationsB\x16\n" +
 	"\x14_review_max_warningsB\x1d\n" +
 	"\x1b_review_require_screenshotsB\x17\n" +
-	"\x15_review_require_testsB\x1c\n" +
-	"\x1a_max_concurrent_executionsB\x12\n" +
+	"\x15_review_require_testsB\x12\n" +
 	"\x10_max_queue_depthB\x1c\n" +
 	"\x1a_circuit_breaker_thresholdB#\n" +
 	"!_circuit_breaker_cooldown_minutesB\x1d\n" +
 	"\x1b_execution_cost_cap_per_runB\x19\n" +
-	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x17agent_requires_approvalR\x1bconfirm_destructive_actionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x17_cost_per_turn_estimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x19max_concurrent_executionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once
@@ -396,21 +403,23 @@ func file_swarm_manager_v1_api_settings_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_settings_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_swarm_manager_v1_api_settings_proto_goTypes = []any{
-	(*SettingsResponse)(nil),                  // 0: swarm_manager.v1.SettingsResponse
-	(*UpdateSettingsRequest)(nil),             // 1: swarm_manager.v1.UpdateSettingsRequest
-	(*domain.Settings)(nil),                   // 2: swarm_manager.v1.Settings
-	(*domain.DeleteConfirmationSettings)(nil), // 3: swarm_manager.v1.DeleteConfirmationSettings
+	(*SettingsResponse)(nil),      // 0: swarm_manager.v1.SettingsResponse
+	(*UpdateSettingsRequest)(nil), // 1: swarm_manager.v1.UpdateSettingsRequest
+	nil,                           // 2: swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	(*domain.Settings)(nil),       // 3: swarm_manager.v1.Settings
+	(*domain.DeleteConfirmationSettings)(nil), // 4: swarm_manager.v1.DeleteConfirmationSettings
 }
 var file_swarm_manager_v1_api_settings_proto_depIdxs = []int32{
-	2, // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
-	3, // 1: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation:type_name -> swarm_manager.v1.DeleteConfirmationSettings
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
+	4, // 1: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation:type_name -> swarm_manager.v1.DeleteConfirmationSettings
+	2, // 2: swarm_manager.v1.UpdateSettingsRequest.lane_concurrency_limits:type_name -> swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_settings_proto_init() }
@@ -425,7 +434,7 @@ func file_swarm_manager_v1_api_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_settings_proto_rawDesc), len(file_swarm_manager_v1_api_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

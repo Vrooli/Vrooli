@@ -22,6 +22,25 @@ type TemplateHook struct {
 	Cwd         string `json:"cwd,omitempty"`
 }
 
+// TemplateRelocation declares an out-of-tree placement performed by the
+// generator after the in-tree copy. The directory at From (template-relative)
+// is rendered (with placeholder substitution applied to both file content
+// and path components) into To (repo-root-relative; may contain placeholders).
+//
+// Post commands run from the repo root after every relocation in the manifest
+// has been applied — useful for codegen steps that depend on the relocated
+// content (e.g., regenerating proto artifacts in packages/proto/).
+//
+// The From directory is automatically excluded from the in-tree copy that
+// writes into the scenario destination, so the same source folder doesn't
+// end up in two places.
+type TemplateRelocation struct {
+	Description string         `json:"description,omitempty"`
+	From        string         `json:"from"`
+	To          string         `json:"to"`
+	Post        []TemplateHook `json:"post,omitempty"`
+}
+
 type TemplateManifest struct {
 	Name         string                 `json:"name,omitempty"`
 	DisplayName  string                 `json:"displayName,omitempty"`
@@ -31,6 +50,7 @@ type TemplateManifest struct {
 	OptionalVars map[string]TemplateVar `json:"optionalVars,omitempty"`
 	Docs         map[string]string      `json:"docs,omitempty"`
 	PostHooks    []TemplateHook         `json:"postHooks,omitempty"`
+	Relocations  []TemplateRelocation   `json:"relocations,omitempty"`
 }
 
 type TemplateInfo struct {
@@ -58,12 +78,23 @@ type (
 	}
 )
 
+// ResolvedRelocation captures a relocation after placeholder substitution,
+// so callers (and dry-run output) can show exactly where each From folder
+// would land before any disk writes happen.
+type ResolvedRelocation struct {
+	Description string         `json:"description,omitempty"`
+	From        string         `json:"from"`         // template-relative source dir
+	To          string         `json:"to"`           // absolute path under repo root after substitution
+	Post        []TemplateHook `json:"post,omitempty"`
+}
+
 type GenerateResult struct {
 	TemplateName string
 	DisplayName  string
 	Destination  string
 	Values       map[string]string
 	Manifest     TemplateManifest
+	Relocations  []ResolvedRelocation
 	DryRun       bool
 	RunHooks     bool
 }
@@ -128,6 +159,26 @@ func RenderTemplateShowResponse(w io.Writer, format cliout.Format, info Template
 			_, _ = fmt.Fprintf(w, "  - %s\n", line)
 		}
 	}
+	if len(manifest.Relocations) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Relocations:")
+		for _, reloc := range manifest.Relocations {
+			label := reloc.Description
+			if label == "" {
+				label = reloc.From + " -> " + reloc.To
+			}
+			_, _ = fmt.Fprintf(w, "  - %s\n", label)
+			_, _ = fmt.Fprintf(w, "      from: %s\n", reloc.From)
+			_, _ = fmt.Fprintf(w, "      to:   %s\n", reloc.To)
+			for _, hook := range reloc.Post {
+				cmd := hook.Description
+				if cmd == "" {
+					cmd = hook.Cmd
+				}
+				_, _ = fmt.Fprintf(w, "      post: %s\n", cmd)
+			}
+		}
+	}
 	if len(manifest.Docs) > 0 {
 		docKeys := make([]string, 0, len(manifest.Docs))
 		for key := range manifest.Docs {
@@ -162,15 +213,45 @@ func RenderGenerateResponse(w io.Writer, format cliout.Format, result GenerateRe
 	if result.DryRun {
 		_, _ = fmt.Fprintf(w, "[DRY-RUN] Would generate template %s at %s\n", result.TemplateName, result.Destination)
 		WriteTemplateValues(w, result.Values)
+		WriteTemplateRelocations(w, result.Relocations)
 		return nil
 	}
 	_, _ = fmt.Fprintf(w, "Created %s at %s\n", result.DisplayName, result.Destination)
 	WriteTemplateValues(w, result.Values)
+	WriteTemplateRelocations(w, result.Relocations)
 	WriteTemplateNextSteps(w, result.Destination, result.Manifest)
 	if !result.RunHooks {
 		WriteTemplateHooks(w, result.Manifest)
 	}
 	return nil
+}
+
+// WriteTemplateRelocations renders the resolved relocations (if any). Used
+// by both the dry-run path (so authors can see exactly where each folder
+// would land) and the success path (so the destination summary explains
+// what happened outside the scenario directory).
+func WriteTemplateRelocations(w io.Writer, relocations []ResolvedRelocation) {
+	if len(relocations) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Relocations:")
+	for _, reloc := range relocations {
+		label := reloc.Description
+		if label == "" {
+			label = reloc.From + " -> " + reloc.To
+		}
+		_, _ = fmt.Fprintf(w, "  - %s\n", label)
+		_, _ = fmt.Fprintf(w, "      from: %s\n", reloc.From)
+		_, _ = fmt.Fprintf(w, "      to:   %s\n", reloc.To)
+		for _, hook := range reloc.Post {
+			cmd := hook.Description
+			if cmd == "" {
+				cmd = hook.Cmd
+			}
+			_, _ = fmt.Fprintf(w, "      post: %s\n", cmd)
+		}
+	}
 }
 
 func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report TemplateValidationReport) error {

@@ -174,12 +174,15 @@ type Settings struct {
 	ReviewRequireScreenshots    bool    `protobuf:"varint,23,opt,name=review_require_screenshots,json=reviewRequireScreenshots,proto3" json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          bool    `protobuf:"varint,24,opt,name=review_require_tests,json=reviewRequireTests,proto3" json:"review_require_tests,omitempty"`
 	// Concurrency and governance settings.
-	MaxConcurrentExecutions       int32   `protobuf:"varint,25,opt,name=max_concurrent_executions,json=maxConcurrentExecutions,proto3" json:"max_concurrent_executions,omitempty"`
-	MaxQueueDepth                 int32   `protobuf:"varint,26,opt,name=max_queue_depth,json=maxQueueDepth,proto3" json:"max_queue_depth,omitempty"`
-	CircuitBreakerThreshold       int32   `protobuf:"varint,27,opt,name=circuit_breaker_threshold,json=circuitBreakerThreshold,proto3" json:"circuit_breaker_threshold,omitempty"`
-	CircuitBreakerCooldownMinutes int32   `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3" json:"circuit_breaker_cooldown_minutes,omitempty"`
-	ExecutionCostCapPerRun        float64 `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3" json:"execution_cost_cap_per_run,omitempty"`
-	CostPerTurnEstimate           float64 `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3" json:"cost_per_turn_estimate,omitempty"`
+	// Per-phase-kind concurrency caps. Keys are lane names matching
+	// operatingmode.PhaseKind values: "investigate", "execute", "review",
+	// "reconcile". Replaces the legacy single global cap (reserved 25).
+	LaneConcurrencyLimits         map[string]int32 `protobuf:"bytes,34,rep,name=lane_concurrency_limits,json=laneConcurrencyLimits,proto3" json:"lane_concurrency_limits,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	MaxQueueDepth                 int32            `protobuf:"varint,26,opt,name=max_queue_depth,json=maxQueueDepth,proto3" json:"max_queue_depth,omitempty"`
+	CircuitBreakerThreshold       int32            `protobuf:"varint,27,opt,name=circuit_breaker_threshold,json=circuitBreakerThreshold,proto3" json:"circuit_breaker_threshold,omitempty"`
+	CircuitBreakerCooldownMinutes int32            `protobuf:"varint,28,opt,name=circuit_breaker_cooldown_minutes,json=circuitBreakerCooldownMinutes,proto3" json:"circuit_breaker_cooldown_minutes,omitempty"`
+	ExecutionCostCapPerRun        float64          `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3" json:"execution_cost_cap_per_run,omitempty"`
+	CostPerTurnEstimate           float64          `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3" json:"cost_per_turn_estimate,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -361,11 +364,11 @@ func (x *Settings) GetReviewRequireTests() bool {
 	return false
 }
 
-func (x *Settings) GetMaxConcurrentExecutions() int32 {
+func (x *Settings) GetLaneConcurrencyLimits() map[string]int32 {
 	if x != nil {
-		return x.MaxConcurrentExecutions
+		return x.LaneConcurrencyLimits
 	}
-	return 0
+	return nil
 }
 
 func (x *Settings) GetMaxQueueDepth() int32 {
@@ -413,7 +416,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\x02 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\n" +
 	"initiative\x12>\n" +
-	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\x9a\x0e\n" +
+	"\acapture\x18\x03 \x01(\x0e2$.swarm_manager.v1.DeleteConfirmLevelR\acapture\"\xad\x0f\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -440,15 +443,18 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
 	"\x13review_max_warnings\x18\x16 \x01(\x05B\x10\xbaH\r\x1a\v(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n" +
 	"\x1areview_require_screenshots\x18\x17 \x01(\bR\x18reviewRequireScreenshots\x120\n" +
-	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTests\x12E\n" +
-	"\x19max_concurrent_executions\x18\x19 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x14(\x01R\x17maxConcurrentExecutions\x121\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTests\x12m\n" +
+	"\x17lane_concurrency_limits\x18\" \x03(\v25.swarm_manager.v1.Settings.LaneConcurrencyLimitsEntryR\x15laneConcurrencyLimits\x121\n" +
 	"\x0fmax_queue_depth\x18\x1a \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\rmaxQueueDepth\x12E\n" +
 	"\x19circuit_breaker_threshold\x18\x1b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\x17circuitBreakerThreshold\x12S\n" +
 	" circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x05R\x1dcircuitBreakerCooldownMinutes\x12J\n" +
 	"\x1aexecution_cost_cap_per_run\x18\x1d \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16executionCostCapPerRun\x12L\n" +
-	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimateJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10R\x17agent_requires_approvalR\x1bconfirm_destructive_actions*\x9b\x01\n" +
+	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimate\x1aH\n" +
+	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b\x19\x10\x1aR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x19max_concurrent_executions*\x9b\x01\n" +
 	"\x12DeleteConfirmLevel\x12$\n" +
 	" DELETE_CONFIRM_LEVEL_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bDELETE_CONFIRM_LEVEL_SIMPLE\x10\x01\x12\x1d\n" +
@@ -468,22 +474,24 @@ func file_swarm_manager_v1_domain_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_swarm_manager_v1_domain_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
 	(DeleteConfirmLevel)(0),            // 0: swarm_manager.v1.DeleteConfirmLevel
 	(*DeleteConfirmationSettings)(nil), // 1: swarm_manager.v1.DeleteConfirmationSettings
 	(*Settings)(nil),                   // 2: swarm_manager.v1.Settings
+	nil,                                // 3: swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
 }
 var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
 	0, // 0: swarm_manager.v1.DeleteConfirmationSettings.backlog:type_name -> swarm_manager.v1.DeleteConfirmLevel
 	0, // 1: swarm_manager.v1.DeleteConfirmationSettings.initiative:type_name -> swarm_manager.v1.DeleteConfirmLevel
 	0, // 2: swarm_manager.v1.DeleteConfirmationSettings.capture:type_name -> swarm_manager.v1.DeleteConfirmLevel
 	1, // 3: swarm_manager.v1.Settings.delete_confirmation:type_name -> swarm_manager.v1.DeleteConfirmationSettings
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 4: swarm_manager.v1.Settings.lane_concurrency_limits:type_name -> swarm_manager.v1.Settings.LaneConcurrencyLimitsEntry
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_settings_proto_init() }
@@ -497,7 +505,7 @@ func file_swarm_manager_v1_domain_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_settings_proto_rawDesc), len(file_swarm_manager_v1_domain_settings_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
