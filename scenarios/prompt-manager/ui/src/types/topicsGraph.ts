@@ -32,7 +32,8 @@ export interface TopicMemberRef {
 
 export interface TopicIntakeEntry {
   prefix: string
-  drained_by_skill: string
+  taxonomy?: string
+  classifier_skill?: string
   source_team?: string | null
 }
 
@@ -41,6 +42,7 @@ export interface TopicOutputEntry {
   destination_kind: string
   destination_team?: string | null
   destination_path?: string | null
+  schema?: string
 }
 
 export interface TopicDeclaration {

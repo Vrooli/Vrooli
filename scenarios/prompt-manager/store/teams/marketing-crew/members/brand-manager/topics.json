@@ -2,7 +2,7 @@
   "intake": [
     {
       "prefix": "marketing-crew/notebook/*",
-      "drained_by_skill": "brand-manager",
+      "taxonomy": "notebook-debt",
       "source_team": null
     }
   ],

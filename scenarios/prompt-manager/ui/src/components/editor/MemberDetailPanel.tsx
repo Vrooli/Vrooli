@@ -17,11 +17,14 @@ import type { AgentAppearance } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { CollapsibleSection } from '@/components/shared/CollapsibleSection'
 import * as heartbeatService from '@/services/heartbeatService'
+import * as memberFlowService from '@/services/memberFlowService'
 import { toast } from '@/hooks/use-toast'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
+import type { TopicDeclaration } from '@/types/topicsGraph'
 import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
 import { MemberPromptPreview } from './MemberPromptPreview'
+import { MemberInboxTab } from './MemberInboxTab'
 import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 import { ToastAction } from '@/components/ui/toast'
 import { runDetailPath } from '@/app/routes/route-paths'
@@ -30,9 +33,9 @@ import { runDetailPath } from '@/app/routes/route-paths'
 // Types
 // ============================================================================
 
-export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'pipeline' | 'prompt'
+export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'inbox' | 'pipeline' | 'prompt'
 
-type ActiveTab = 'overview' | 'pipeline' | 'prompt'
+type ActiveTab = 'overview' | 'inbox' | 'pipeline' | 'prompt'
 
 interface MemberDetailPanelProps {
   team: TeamDetails
@@ -86,7 +89,7 @@ function formatRelativePastTime(date: Date) {
 // ============================================================================
 
 function sectionToTab(section: MemberDetailSection): ActiveTab {
-  if (section === 'pipeline' || section === 'prompt') return section
+  if (section === 'pipeline' || section === 'prompt' || section === 'inbox') return section
   return 'overview'
 }
 
@@ -141,10 +144,13 @@ export function MemberDetailPanel({
   const [heartbeatConfig, setHeartbeatConfig] = useState<HeartbeatConfig | null>(null)
   const [schedule, setSchedule] = useState('0 */6 * * *')
   const [recentHeartbeatLogs, setRecentHeartbeatLogs] = useState<heartbeatService.LogEntry[]>([])
+  const [topics, setTopics] = useState<TopicDeclaration | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingRecentHeartbeats, setIsLoadingRecentHeartbeats] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const hasInbox = (topics?.intake?.length ?? 0) > 0
 
   // Dirty tracking
   const [isResponsibilitiesDirty, setIsResponsibilitiesDirty] = useState(false)
@@ -161,14 +167,16 @@ export function MemberDetailPanel({
       setIsLoadingRecentHeartbeats(true)
       setError(null)
       try {
-        const [resp, instr, config] = await Promise.all([
+        const [resp, instr, config, topicsResp] = await Promise.all([
           heartbeatService.getResponsibilities(team.id, member.agentId),
           heartbeatService.getHeartbeatInstructions(team.id, member.agentId),
           heartbeatService.getHeartbeat(team.id, member.agentId),
+          memberFlowService.getMemberTopics(team.id, member.agentId).catch(() => null),
         ])
         setResponsibilities(resp)
         setHeartbeatInstructions(instr)
         setHeartbeatConfig(config)
+        setTopics(topicsResp?.topics ?? null)
         setSchedule(config?.schedule ?? '0 */6 * * *')
         setIsResponsibilitiesDirty(false)
         setIsInstructionsDirty(false)
@@ -449,7 +457,7 @@ export function MemberDetailPanel({
         </div>
       </div>
 
-      {/* Section tabs — 3 tabs */}
+      {/* Section tabs */}
       <div className="flex-shrink-0 flex border-b border-border">
         <button
           type="button"
@@ -463,6 +471,21 @@ export function MemberDetailPanel({
         >
           Overview
         </button>
+        {hasInbox && (
+          <button
+            type="button"
+            onClick={() => handleSectionChange('inbox')}
+            data-testid="member-tab-inbox"
+            className={cn(
+              'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+              activeSection === 'inbox'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Inbox
+          </button>
+        )}
         <button
           type="button"
           onClick={() => handleSectionChange('pipeline')}
@@ -721,6 +744,15 @@ Describe what this agent is responsible for in this team..."
               )}
             </CollapsibleSection>
           </div>
+        )}
+
+        {/* Inbox section */}
+        {activeSection === 'inbox' && (
+          <MemberInboxTab
+            teamId={team.id}
+            intake={topics?.intake ?? []}
+            output={topics?.output ?? []}
+          />
         )}
 
         {/* Pipeline section */}

@@ -45,16 +45,16 @@ func TestLoadAll_ValidMixedTopics(t *testing.T) {
 	store := makeStore(t, map[string]map[string]string{
 		"marketing-crew": {
 			"researcher": `{
-				"intake": [{"prefix": "research-inbox/*", "drained_by_skill": "marketing-research-router"}],
-				"output": [{"prefix": "audience-scan/*", "destination_kind": "knowledge"}],
+				"intake": [{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "marketing-signal-classifier"}],
+				"output": [{"prefix": "audience-scan/*", "destination_kind": "knowledge", "schema": "audience-scan"}],
 				"raises_capability_gaps": true
 			}`,
-			"publisher": `{}`,
+			"publisher":     `{}`,
 			"empty-no-file": "", // no file written
 		},
 		"monetization": {
 			"opportunity-router": `{
-				"intake": [{"prefix": "monetization-inbox/*", "drained_by_skill": "monetization-opportunity-router"}]
+				"intake": [{"prefix": "monetization-inbox/*", "taxonomy": "monetization-opportunity", "classifier_skill": "monetization-signal-classifier"}]
 			}`,
 		},
 	})
@@ -103,7 +103,7 @@ func TestLoadAll_ValidMixedTopics(t *testing.T) {
 	if !res.Exists {
 		t.Errorf("expected researcher.Exists=true")
 	}
-	if len(res.Topics.Intake) != 1 || res.Topics.Intake[0].DrainedBySkill != "marketing-research-router" {
+	if len(res.Topics.Intake) != 1 || res.Topics.Intake[0].Taxonomy != "marketing-research" {
 		t.Errorf("researcher intake mismatch: %+v", res.Topics.Intake)
 	}
 	if !res.Topics.RaisesCapabilityGaps {
@@ -126,7 +126,7 @@ func TestLoadAll_MalformedJSON(t *testing.T) {
 func TestLoadAll_SchemaViolation(t *testing.T) {
 	store := makeStore(t, map[string]map[string]string{
 		"team-a": {
-			"member-1": `{"intake": [{"prefix": "*", "drained_by_skill": "x"}]}`,
+			"member-1": `{"intake": [{"prefix": "*", "taxonomy": "x"}]}`,
 		},
 	})
 	_, err := LoadAll(store)
@@ -207,10 +207,10 @@ func TestWriteMember_RoundTrip(t *testing.T) {
 	}
 	original := Topics{
 		Intake: []IntakeEntry{
-			{Prefix: "research-inbox/*", DrainedBySkill: "marketing-research-router"},
+			{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "marketing-signal-classifier"},
 		},
 		Output: []OutputEntry{
-			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge},
+			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge, Schema: "audience-scan"},
 		},
 		DecisionsOwned:       []string{"audience-update"},
 		RaisesCapabilityGaps: true,
@@ -225,14 +225,14 @@ func TestWriteMember_RoundTrip(t *testing.T) {
 	if !got.Exists {
 		t.Fatal("expected Exists=true after WriteMember")
 	}
-	if len(got.Topics.Intake) != 1 || got.Topics.Intake[0].DrainedBySkill != "marketing-research-router" {
+	if len(got.Topics.Intake) != 1 || got.Topics.Intake[0].Taxonomy != "marketing-research" {
 		t.Errorf("round-trip lost intake: %+v", got.Topics)
 	}
 }
 
 func TestWriteMember_RefusesInvalid(t *testing.T) {
 	root := t.TempDir()
-	bad := Topics{Intake: []IntakeEntry{{Prefix: "ok/*", DrainedBySkill: ""}}}
+	bad := Topics{Intake: []IntakeEntry{{Prefix: "*", Taxonomy: "x"}}}
 	if err := WriteMember(root, "team-a", "member-1", bad); err == nil {
 		t.Errorf("WriteMember should reject invalid declarations")
 	}

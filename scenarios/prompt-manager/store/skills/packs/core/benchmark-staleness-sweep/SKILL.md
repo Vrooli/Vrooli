@@ -1,6 +1,6 @@
 ## Tools focus: Benchmark Staleness Sweep
 
-Periodically sweep the monetization market-scan canon — knowledge entries under `monetization/market-scan/<slug>` — and auto-populate `validation-queue/benchmark-staleness/<slug>` entries for any scan that has aged past its dimension-aware threshold. Complement to `market-validation-router` (which triages the queue) and `pricing-comp-capture` (which does the actual re-fetch).
+Periodically sweep the monetization market-scan canon — knowledge entries under `monetization/market-scan/<slug>` — and auto-populate `validation-queue/benchmark-staleness/<slug>` entries for any scan that has aged past its dimension-aware threshold. Complement to `market-validation-triage` (which triages the queue) and `pricing-comp-capture` (which does the actual re-fetch).
 
 > **Status:** v1. The sweep does NOT fetch sources or write decisions; it only marks scans as needing re-fetch by enqueuing them. This keeps the inbox-as-unrouted-set invariant uniform across all entry types.
 
@@ -121,6 +121,6 @@ prompt-manager team knowledge-list monetization --topic-prefix=validation-queue/
 - <e.g., "first sweep since 2026-05-15" or "skipped full sweep, pricing-only this heartbeat">
 ```
 
-After the sweep, proceed to `market-validation-router` to triage the queue (which now includes the newly-enqueued staleness items alongside any operator-fed or peer-fed requests).
+After the sweep, proceed to `market-validation-triage` to triage the queue (which now includes the newly-enqueued staleness items alongside any operator-fed or peer-fed requests).
 
 No known operational edge cases for standard usage.

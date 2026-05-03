@@ -12,11 +12,11 @@ func TestTopicsValidate_ValidCanonical(t *testing.T) {
 	// The canonical worked example from docs/agent-system/drafts/topics-schema.md
 	raw := `{
 		"intake": [
-			{"prefix": "research-inbox/*", "drained_by_skill": "marketing-research-router", "source_team": null}
+			{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "marketing-signal-classifier", "source_team": null}
 		],
 		"output": [
-			{"prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null},
-			{"prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization"}
+			{"prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null, "schema": "audience-scan"},
+			{"prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent"}
 		],
 		"decisions_owned": ["audience-update", "channel-strategy-update"],
 		"decisions_consumed": ["capability-gap"],
@@ -32,6 +32,35 @@ func TestTopicsValidate_ValidCanonical(t *testing.T) {
 	}
 	if topics.IsEmpty() {
 		t.Errorf("IsEmpty() = true on canonical example")
+	}
+	if topics.Intake[0].Taxonomy != "marketing-research" {
+		t.Errorf("taxonomy field did not round-trip: %+v", topics.Intake[0])
+	}
+	if topics.Output[0].Schema != "audience-scan" {
+		t.Errorf("schema field did not round-trip: %+v", topics.Output[0])
+	}
+}
+
+func TestTopics_LegacyDrainedBySkill_IsIgnored(t *testing.T) {
+	// Phase I: drained_by_skill has been removed from the struct. Older
+	// topics.json files that still carry the field unmarshal cleanly
+	// (the JSON decoder ignores unknown keys); Topics.Validate doesn't
+	// look at the field. The validator's missing_taxonomy rule is the
+	// signal that surfaces such files for migration.
+	raw := `{
+		"intake": [
+			{"prefix": "x/*", "drained_by_skill": "legacy-router"}
+		]
+	}`
+	var topics Topics
+	if err := json.Unmarshal([]byte(raw), &topics); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if err := topics.Validate(); err != nil {
+		t.Errorf("shape validation should still pass with extra legacy keys: %v", err)
+	}
+	if topics.Intake[0].Taxonomy != "" {
+		t.Errorf("legacy field must not populate taxonomy: %+v", topics.Intake[0])
 	}
 }
 
@@ -56,36 +85,35 @@ func TestIntakeValidation(t *testing.T) {
 	}{
 		{
 			name:    "missing prefix",
-			entry:   IntakeEntry{DrainedBySkill: "router"},
+			entry:   IntakeEntry{Taxonomy: "tx"},
 			wantErr: "prefix is required",
 		},
 		{
 			name:    "whitespace prefix",
-			entry:   IntakeEntry{Prefix: "  ", DrainedBySkill: "router"},
+			entry:   IntakeEntry{Prefix: "  ", Taxonomy: "tx"},
 			wantErr: "prefix is required",
 		},
 		{
-			name:    "missing drain skill",
-			entry:   IntakeEntry{Prefix: "foo/*"},
-			wantErr: "drained_by_skill is required",
-		},
-		{
 			name:    "bare star prefix",
-			entry:   IntakeEntry{Prefix: "*", DrainedBySkill: "router"},
+			entry:   IntakeEntry{Prefix: "*", Taxonomy: "tx"},
 			wantErr: "malformed",
 		},
 		{
 			name:    "inner star prefix",
-			entry:   IntakeEntry{Prefix: "foo/*/bar", DrainedBySkill: "router"},
+			entry:   IntakeEntry{Prefix: "foo/*/bar", Taxonomy: "tx"},
 			wantErr: "malformed",
 		},
 		{
-			name:  "valid wildcard",
-			entry: IntakeEntry{Prefix: "research-inbox/*", DrainedBySkill: "marketing-research-router"},
+			name:  "valid wildcard with taxonomy",
+			entry: IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "marketing-signal-classifier"},
 		},
 		{
-			name:  "valid exact prefix",
-			entry: IntakeEntry{Prefix: "research-inbox/audience/foo", DrainedBySkill: "marketing-research-router"},
+			name:  "valid exact prefix without classifier",
+			entry: IntakeEntry{Prefix: "research-inbox/audience/foo", Taxonomy: "marketing-research"},
+		},
+		{
+			name:  "valid intake with no taxonomy is shape-clean (transitional)",
+			entry: IntakeEntry{Prefix: "x/*"},
 		},
 	}
 
@@ -156,10 +184,11 @@ func TestOutputValidation(t *testing.T) {
 			},
 		},
 		{
-			name: "valid knowledge",
+			name: "valid knowledge with schema",
 			entry: OutputEntry{
 				Prefix:          "audience-scan/*",
 				DestinationKind: DestinationKnowledge,
+				Schema:          "audience-scan",
 			},
 		},
 		{
@@ -195,8 +224,8 @@ func TestOutputValidation(t *testing.T) {
 func TestValidateAllReturnsAllErrors(t *testing.T) {
 	topics := Topics{
 		Intake: []IntakeEntry{
-			{Prefix: "", DrainedBySkill: "x"},
-			{Prefix: "ok/*", DrainedBySkill: ""},
+			{Prefix: "", Taxonomy: "x"},
+			{Prefix: "*", Taxonomy: "x"},
 		},
 		Output: []OutputEntry{
 			{Prefix: "out/*", DestinationKind: DestinationKind("bogus")},
@@ -270,10 +299,10 @@ func TestOverlap(t *testing.T) {
 func TestRoundTripJSON(t *testing.T) {
 	original := Topics{
 		Intake: []IntakeEntry{
-			{Prefix: "research-inbox/*", DrainedBySkill: "marketing-research-router", SourceTeam: nil},
+			{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "marketing-signal-classifier", SourceTeam: nil},
 		},
 		Output: []OutputEntry{
-			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge},
+			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge, Schema: "audience-scan"},
 			{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/PRIMITIVES.md")},
 		},
 		DecisionsOwned:       []string{"audience-update"},
@@ -291,10 +320,16 @@ func TestRoundTripJSON(t *testing.T) {
 	if err := roundTrip.Validate(); err != nil {
 		t.Errorf("round-trip Validate(): %v", err)
 	}
-	if len(roundTrip.Intake) != 1 || roundTrip.Intake[0].DrainedBySkill != "marketing-research-router" {
+	if len(roundTrip.Intake) != 1 || roundTrip.Intake[0].Taxonomy != "marketing-research" {
 		t.Errorf("intake round-trip lost data: %+v", roundTrip.Intake)
+	}
+	if roundTrip.Intake[0].ClassifierSkill != "marketing-signal-classifier" {
+		t.Errorf("classifier_skill round-trip lost data: %+v", roundTrip.Intake[0])
 	}
 	if len(roundTrip.Output) != 2 {
 		t.Errorf("output round-trip wrong length: %d", len(roundTrip.Output))
+	}
+	if roundTrip.Output[0].Schema != "audience-scan" {
+		t.Errorf("output[0].schema round-trip lost data: %+v", roundTrip.Output[0])
 	}
 }

@@ -2,12 +2,13 @@
   "intake": [
     {
       "prefix": "opportunity-inbox/*",
-      "drained_by_skill": "monetization-opportunity-router",
+      "taxonomy": "monetization-opportunity",
+      "classifier_skill": "monetization-signal-classifier",
       "source_team": null
     }
   ],
   "output": [
-    { "prefix": "candidate-sku/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "candidate-sku/*", "destination_kind": "knowledge", "destination_team": null, "schema": "candidate-sku" }
   ],
   "decisions_owned": [
     "catalog-promotion",

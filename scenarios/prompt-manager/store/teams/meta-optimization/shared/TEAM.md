@@ -15,9 +15,9 @@ Does not own scenario code quality, monetization strategy, or new scenario desig
 - Pruning is a first-class improvement path.
 - Cross-lane changes are proposals to the owning surface, not direct implementation.
 
-## Members and audit coverage
+## Audit coverage
 
-The team is six members. Five run audits across different lenses; one is a mandatory skeptic. Each member produces decisions; none of them implement directly (the team's role is evolutionary pressure, not execution).
+The team is six agents. Five run audits across different lenses; one is a mandatory skeptic. Each produces decisions; none of them implement directly (the team's role is evolutionary pressure, not execution).
 
 ```mermaid
 flowchart TB

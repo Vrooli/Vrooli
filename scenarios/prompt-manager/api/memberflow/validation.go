@@ -28,17 +28,29 @@ type Finding struct {
 }
 
 // ValidationOptions configures runtime checks that depend on filesystem state
-// (skill registry, PoR file existence). Repo root is required for
-// dangling_por_sink and missing_drain_skill checks.
+// (taxonomy registry, classifier-skill files, PoR file existence). Repo root
+// is required for dangling_por_sink, unknown_taxonomy, and
+// non_portable_classifier checks.
 type ValidationOptions struct {
 	// RepoRoot is the absolute path to the repository root (the parent of
-	// docs/, scenarios/, etc.). Used to verify por_file destination_path
-	// targets exist. Empty disables those checks.
+	// docs/, scenarios/, etc.). Used for por_file existence,
+	// classifier-skill content scans, and as a fallback location for
+	// taxonomies when Taxonomies is nil.
 	RepoRoot string
 
-	// SkillIDs is the set of skill IDs known to the skill registry.
-	// Empty disables missing_drain_skill check.
+	// SkillIDs is the set of skill ids known to the skill registry.
+	// Empty disables skill-existence cross-checks.
 	SkillIDs map[string]bool
+
+	// SkillPaths maps skill id -> absolute path to its SKILL.md content,
+	// used by ruleNonPortableClassifier to grep classifier skills for
+	// forbidden coupling. Optional: empty disables the rule.
+	SkillPaths map[string]string
+
+	// Taxonomies is the loaded taxonomy registry used by
+	// ruleUnknownTaxonomy and ruleMissingDestinationSchema. When nil and
+	// RepoRoot is set, Validate loads taxonomies on demand.
+	Taxonomies TaxonomyRegistry
 }
 
 // ValidationResult bundles findings with summary counts.
@@ -61,12 +73,20 @@ func (r ValidationResult) ExitCode() int {
 // have prevented bad declarations from reaching here; if any have slipped
 // through (e.g., the loader was bypassed), they are still reported.
 func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
+	if opts.Taxonomies == nil && strings.TrimSpace(opts.RepoRoot) != "" {
+		if reg, err := LoadAllTaxonomies(opts.RepoRoot); err == nil {
+			opts.Taxonomies = reg
+		}
+	}
+
 	var findings []Finding
 
 	findings = append(findings, ruleConflictingDrain(members)...)
 	findings = append(findings, ruleOrphanOutput(members, opts)...)
 	findings = append(findings, ruleOrphanInput(members)...)
-	findings = append(findings, ruleMissingDrainSkill(members, opts)...)
+	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
+	findings = append(findings, ruleNonPortableClassifier(members, opts)...)
+	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
 	findings = append(findings, ruleDanglingPORSink(members, opts)...)
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
@@ -152,6 +172,7 @@ func ruleConflictingDrain(members []MemberTopics) []Finding {
 //   - the output destination_kind is non-knowledge (decision, por_file,
 //     capability_gap, skill_proposal, backlog) — those are sinks, not orphans
 func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding {
+	_ = opts
 	var out []Finding
 
 	// Build set of intake prefixes for quick lookup.
@@ -247,23 +268,162 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 	return out
 }
 
-// ruleMissingDrainSkill — the drained_by_skill on an intake entry references
-// a skill ID that doesn't exist in the registry. Skipped when SkillIDs is
-// nil/empty.
-func ruleMissingDrainSkill(members []MemberTopics, opts ValidationOptions) []Finding {
-	if len(opts.SkillIDs) == 0 {
+// ruleUnknownTaxonomy reports two related error conditions on every intake
+// entry:
+//
+//   - missing_taxonomy (error): the intake declares no taxonomy id.
+//   - unknown_taxonomy (error): the intake names a taxonomy that does not
+//     resolve in the registry.
+//
+// Skipped entirely when Taxonomies is empty AND RepoRoot is empty (e.g. unit
+// tests that don't load taxonomies).
+func ruleUnknownTaxonomy(members []MemberTopics, opts ValidationOptions) []Finding {
+	if opts.Taxonomies == nil && strings.TrimSpace(opts.RepoRoot) == "" {
 		return nil
+	}
+	registry := opts.Taxonomies
+	if registry == nil {
+		registry = TaxonomyRegistry{}
 	}
 	var out []Finding
 	for _, m := range members {
 		for _, in := range m.Topics.Intake {
-			if !opts.SkillIDs[in.DrainedBySkill] {
+			id := strings.TrimSpace(in.Taxonomy)
+			if id == "" {
 				out = append(out, Finding{
-					Rule:     "missing_drain_skill",
+					Rule:     "missing_taxonomy",
 					Severity: SeverityError,
 					Member:   m.Ref,
 					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("drained_by_skill %q is not in the skill registry", in.DrainedBySkill),
+					Detail:   fmt.Sprintf("intake %q has no taxonomy id; set intake[].taxonomy to a registered taxonomy", in.Prefix),
+				})
+				continue
+			}
+			if _, ok := registry[id]; !ok {
+				out = append(out, Finding{
+					Rule:     "unknown_taxonomy",
+					Severity: SeverityError,
+					Member:   m.Ref,
+					Prefix:   in.Prefix,
+					Detail:   fmt.Sprintf("taxonomy %q does not resolve under docs/", id),
+				})
+			}
+		}
+	}
+	return out
+}
+
+// classifierForbiddenSubstrings are patterns a portable classifier skill
+// must NOT contain. They mark coupling to a specific inbox prefix,
+// drain-procedure command, or team store — content that belongs in the
+// generated heartbeat section, not in a reusable judgment skill. Hits fire
+// `non_portable_classifier`.
+//
+// Note: legitimate documentation paths under docs/<domain>/ (e.g.
+// docs/monetization/CATALOG.md) are *not* coupling and are not flagged.
+// The patterns target either the specific inbox topic-prefix conventions
+// or the knowledge-CLI write/delete verbs that perform routing.
+var classifierForbiddenSubstrings = []string{
+	// Inbox topic-prefix coupling.
+	"research-inbox/",
+	"opportunity-inbox/",
+	"validation-queue/",
+	// Knowledge CLI verbs that perform routing (read-only knowledge-list
+	// is fine in member prose, but a portable judgment skill should not
+	// invoke these).
+	"prompt-manager team knowledge-update",
+	"prompt-manager team knowledge-delete",
+	"prompt-manager team knowledge-add",
+	"team knowledge-update",
+	"team knowledge-delete",
+	"team knowledge-add",
+	// Team-store filesystem coupling. The `teams/<id>/members/<id>`
+	// pattern only appears when a skill is reaching into a specific
+	// team's per-member directory — exactly the coupling we want to
+	// forbid.
+	"teams/marketing-crew/members",
+	"teams/monetization/members",
+}
+
+// ruleNonPortableClassifier scans each intake's classifier skill for
+// forbidden coupling content. Skipped when SkillPaths is empty.
+func ruleNonPortableClassifier(members []MemberTopics, opts ValidationOptions) []Finding {
+	if len(opts.SkillPaths) == 0 {
+		return nil
+	}
+	var out []Finding
+	scanned := map[string]bool{}
+	for _, m := range members {
+		for _, in := range m.Topics.Intake {
+			id := strings.TrimSpace(in.ClassifierSkill)
+			if id == "" {
+				continue
+			}
+			if scanned[id] {
+				continue
+			}
+			scanned[id] = true
+
+			path, ok := opts.SkillPaths[id]
+			if !ok {
+				out = append(out, Finding{
+					Rule:     "non_portable_classifier",
+					Severity: SeverityError,
+					Member:   m.Ref,
+					Prefix:   in.Prefix,
+					Detail:   fmt.Sprintf("classifier_skill %q is not in the skill registry", id),
+				})
+				continue
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				out = append(out, Finding{
+					Rule:     "non_portable_classifier",
+					Severity: SeverityWarning,
+					Member:   m.Ref,
+					Prefix:   in.Prefix,
+					Detail:   fmt.Sprintf("classifier_skill %q SKILL.md not readable at %s: %v", id, path, err),
+				})
+				continue
+			}
+			content := string(data)
+			for _, sub := range classifierForbiddenSubstrings {
+				if strings.Contains(content, sub) {
+					out = append(out, Finding{
+						Rule:     "non_portable_classifier",
+						Severity: SeverityError,
+						Member:   m.Ref,
+						Prefix:   in.Prefix,
+						Detail:   fmt.Sprintf("classifier_skill %q SKILL.md contains forbidden pattern %q (judgment skills must be member-agnostic)", id, sub),
+					})
+					break
+				}
+			}
+		}
+	}
+	return out
+}
+
+// ruleMissingDestinationSchema warns when an output entry names a schema
+// that no taxonomy declares. Skipped when Taxonomies is empty.
+func ruleMissingDestinationSchema(members []MemberTopics, opts ValidationOptions) []Finding {
+	if opts.Taxonomies == nil {
+		return nil
+	}
+	var out []Finding
+	for _, m := range members {
+		for _, o := range m.Topics.Output {
+			id := strings.TrimSpace(o.Schema)
+			if id == "" {
+				continue
+			}
+			if !opts.Taxonomies.HasSchema(id) {
+				out = append(out, Finding{
+					Rule:     "missing_destination_schema",
+					Severity: SeverityWarning,
+					Member:   m.Ref,
+					Prefix:   o.Prefix,
+					Detail:   fmt.Sprintf("output schema %q is not declared by any loaded taxonomy", id),
 				})
 			}
 		}
@@ -308,8 +468,8 @@ func ruleDanglingPORSink(members []MemberTopics, opts ValidationOptions) []Findi
 //	<storeDir>/skills/packs/*/<skill-id>/skill.json
 //
 // Returns an empty map without error when the registry is missing — callers
-// that need the missing_drain_skill check should treat that as "skip the
-// check," not as a failure.
+// that need cross-checks should treat that as "skip the check," not as a
+// failure.
 func LoadSkillIDs(storeDir string) (map[string]bool, error) {
 	out := make(map[string]bool)
 	packsDir := filepath.Join(storeDir, "skills", "packs")
@@ -335,6 +495,45 @@ func LoadSkillIDs(storeDir string) (map[string]bool, error) {
 			if _, err := os.Stat(filepath.Join(packsDir, p.Name(), s.Name(), "skill.json")); err == nil {
 				out[s.Name()] = true
 			}
+		}
+	}
+	return out, nil
+}
+
+// LoadSkillPaths returns skill id -> absolute path to its SKILL.md file,
+// for every skill in the registry that has both a skill.json and a SKILL.md.
+// Used by ruleNonPortableClassifier.
+func LoadSkillPaths(storeDir string) (map[string]string, error) {
+	out := make(map[string]string)
+	packsDir := filepath.Join(storeDir, "skills", "packs")
+	packs, err := os.ReadDir(packsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return nil, fmt.Errorf("memberflow: read packs %q: %w", packsDir, err)
+	}
+	for _, p := range packs {
+		if !p.IsDir() {
+			continue
+		}
+		skillRoots, err := os.ReadDir(filepath.Join(packsDir, p.Name()))
+		if err != nil {
+			continue
+		}
+		for _, s := range skillRoots {
+			if !s.IsDir() {
+				continue
+			}
+			skillJSON := filepath.Join(packsDir, p.Name(), s.Name(), "skill.json")
+			skillMD := filepath.Join(packsDir, p.Name(), s.Name(), "SKILL.md")
+			if _, err := os.Stat(skillJSON); err != nil {
+				continue
+			}
+			if _, err := os.Stat(skillMD); err != nil {
+				continue
+			}
+			out[s.Name()] = skillMD
 		}
 	}
 	return out, nil

@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "market-validation-triage",
+  "name": "Market Validation Triage",
+  "description": "Triage a market-validation request: confirm request_type from the taxonomy, score urgency vs. leverage, set honesty_flags, and recommend a default method. Pure judgment - no queue mutations or team coupling.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "monetization",
+    "validation",
+    "triage"
+  ],
+  "icon": "search",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 2,
+  "createdAt": "2026-05-01T00:00:00Z",
+  "updatedAt": "2026-05-03T00:00:00Z"
+}

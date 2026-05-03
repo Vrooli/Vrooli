@@ -5,13 +5,10 @@
 //
 // The schema declares, structurally, how a single team member produces and
 // consumes work via topic-prefixed channels. It is the machine-readable
-// counterpart to prose router skills.
+// counterpart to prose router skills and feeds the heartbeat builder's
+// generated Inbox Flow section.
 //
-// Phase 0 of the agent-system migration ships only the type definitions and a
-// schema validator (no loader, no endpoints). Phase 2 adds the loader, API
-// endpoints, and graph computation; Phase 3 layers the validation rules on top.
-//
-// DOC: docs/agent-system/drafts/topics-schema.md
+// DOC: docs/agent-system/drafts/topics-schema.md, docs/agent-system/drafts/inbox-flow-refactor-plan.md
 package memberflow
 
 import (
@@ -48,10 +45,19 @@ type IntakeEntry struct {
 	// match; a string without `/*` matches only that exact topic.
 	Prefix string `json:"prefix"`
 
-	// DrainedBySkill is the skill ID that owns the drain procedure. Required.
-	// The missing_drain_skill validation rule (Phase 3) cross-checks against
-	// the skill registry.
-	DrainedBySkill string `json:"drained_by_skill"`
+	// Taxonomy is the id of the signal taxonomy that owns this prefix. The
+	// heartbeat builder resolves it to docs/<domain>/<id>.json (the JSON
+	// sidecar) to render the Inbox Flow section. Required after migration.
+	// During the inbox-flow refactor transition, an empty Taxonomy surfaces
+	// as a `missing_taxonomy` warning rather than a hard error.
+	Taxonomy string `json:"taxonomy,omitempty"`
+
+	// ClassifierSkill is the optional, portable judgment skill the member
+	// runs on each entry to assign signal_type, evidence_strength, and
+	// honesty_flags. Optional: when the prefix carries a deterministic
+	// signal_type (e.g., the topic itself names the type), no classifier is
+	// needed.
+	ClassifierSkill string `json:"classifier_skill,omitempty"`
 
 	// SourceTeam names the team whose member writes this prefix, when the flow
 	// is cross-team. Empty / nil means same-team or external producer.
@@ -77,6 +83,13 @@ type OutputEntry struct {
 	// otherwise. The dangling_por_sink validation rule (Phase 3) checks the
 	// file exists.
 	DestinationPath *string `json:"destination_path,omitempty"`
+
+	// Schema names the destination front-matter schema declared on the
+	// producer's taxonomy (taxonomy.schemas.<schema>). Optional but
+	// encouraged for knowledge destinations: it lets the heartbeat builder
+	// surface the expected front-matter shape and lets the validator catch
+	// drift between topics.json and the taxonomy PoR.
+	Schema string `json:"schema,omitempty"`
 }
 
 // Topics is the full per-member declaration. Marshalled to/from
@@ -107,16 +120,13 @@ func (t Topics) IsEmpty() bool {
 // that want the full set of errors should call ValidateAll instead.
 //
 // Shape errors include:
-//   - empty intake.prefix
-//   - empty intake.drained_by_skill
-//   - invalid prefix syntax (e.g., bare "*")
-//   - empty output.prefix
-//   - unknown output.destination_kind
+//   - empty intake.prefix or malformed prefix
+//   - empty output.prefix or unknown destination_kind
 //   - destination_kind == por_file with empty destination_path
-//   - destination_path set with destination_kind != por_file (warning-tier; allowed but unused)
 //
-// Cross-member errors (orphan_input, conflicting_drain, etc.) require the full
-// graph and are computed by Phase 3's validation package, not by Validate.
+// Cross-member errors (orphan_input, conflicting_drain, unknown_taxonomy,
+// non_portable_classifier, missing_destination_schema, etc.) require the full
+// graph and are computed by Validate (validation.go), not by this method.
 func (t Topics) Validate() error {
 	errs := t.ValidateAll()
 	if len(errs) == 0 {
@@ -149,9 +159,6 @@ func validateIntake(e IntakeEntry) error {
 	}
 	if !validPrefix(e.Prefix) {
 		return fmt.Errorf("prefix %q is malformed", e.Prefix)
-	}
-	if strings.TrimSpace(e.DrainedBySkill) == "" {
-		return errors.New("drained_by_skill is required")
 	}
 	return nil
 }

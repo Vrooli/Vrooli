@@ -125,9 +125,9 @@ Scoring rules (pipeline layers only; other layers stay prose-judgment):
 
 | Layer | `0 missing` | `1 weak` | `2 adequate` | `3 strong` |
 |---|---|---|---|---|
-| Intake | no `intake[]` entries | one entry but no `drained_by_skill` | at least one entry with `drained_by_skill` | validation in `prompt-manager graph topics --team <name>` returns no smells for any intake prefix |
+| Intake | no `intake[]` entries | one entry but no `taxonomy` (or `taxonomy` does not resolve) | at least one entry with a registered `taxonomy` | validation in `prompt-manager graph topics --team <name>` returns no smells for any intake prefix |
 | Collection | no collection skill, no Action, no `external_producers[]` | `external_producers[]` declared but no procedure | a paired collection skill or Action exists | collection is exposed as an Action wrapping one CLI |
-| Analysis | no method skill referenced from `drained_by_skill` | one method skill but combined with collection | a dedicated method skill is named | multiple method skills declared and the router dispatches to them by signal type |
+| Analysis | no method skill referenced from the taxonomy's dispatch | one method skill but combined with collection | a dedicated method skill is named | multiple method skills declared and the member dispatches to them by classifier-recommended signal type |
 | Promotion / Routing | no `output[]`, no `decisions_owned[]`, `raises_capability_gaps: false` | `output[]` declared but no destinations or decisions | `output[]` + at least one of `decisions_owned[]` / `raises_capability_gaps` | `output[]` validates structurally (no orphan-output smells), `decisions_owned[]` are real, capability-gap path exists |
 
 When the member legitimately has no pipeline (a pure reviewer, code-writer, or deterministic-CLI maintainer), score these four layers `n/a` — `topics.json` should be `{}` (or omitted) as a positive declaration that there is no flow.

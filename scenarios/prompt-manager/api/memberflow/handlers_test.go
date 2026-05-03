@@ -58,7 +58,7 @@ func TestPutMember_RoundTrip(t *testing.T) {
 	r := newRouter(h)
 
 	body := bytes.NewBufferString(`{
-		"intake": [{"prefix": "research-inbox/*", "drained_by_skill": "marketing-research-router"}],
+		"intake": [{"prefix": "research-inbox/*", "taxonomy": "marketing-research"}],
 		"output": [{"prefix": "audience-scan/*", "destination_kind": "knowledge"}],
 		"raises_capability_gaps": true
 	}`)
@@ -83,7 +83,7 @@ func TestPutMember_RoundTrip(t *testing.T) {
 	if !resp.Exists || !resp.Topics.RaisesCapabilityGaps {
 		t.Errorf("round-trip lost data: %+v", resp)
 	}
-	if len(resp.Topics.Intake) != 1 || resp.Topics.Intake[0].DrainedBySkill != "marketing-research-router" {
+	if len(resp.Topics.Intake) != 1 || resp.Topics.Intake[0].Taxonomy != "marketing-research" {
 		t.Errorf("intake mismatch: %+v", resp.Topics.Intake)
 	}
 }
@@ -103,7 +103,7 @@ func TestPutMember_RejectsMalformed(t *testing.T) {
 func TestPutMember_RejectsSchemaViolation(t *testing.T) {
 	store := newStore(t)
 	r := newRouter(NewHandlers(store))
-	body := bytes.NewBufferString(`{"intake":[{"prefix":"*","drained_by_skill":"x"}]}`)
+	body := bytes.NewBufferString(`{"intake":[{"prefix":"*","taxonomy":"x"}]}`)
 	req := httptest.NewRequest("PUT", "/teams/t/members/m/topics", body)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -117,7 +117,7 @@ func TestGetTeam_AggregatesMembers(t *testing.T) {
 	h := NewHandlers(store)
 
 	if err := WriteMember(store, "marketing-crew", "researcher", Topics{
-		Intake: []IntakeEntry{{Prefix: "research-inbox/*", DrainedBySkill: "marketing-research-router"}},
+		Intake: []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestGetGraph_BuildsExpectedNodes(t *testing.T) {
 	store := newStore(t)
 	if err := WriteMember(store, "marketing-crew", "researcher", Topics{
 		Intake: []IntakeEntry{
-			{Prefix: "research-inbox/*", DrainedBySkill: "marketing-research-router"},
+			{Prefix: "research-inbox/*", Taxonomy: "marketing-research"},
 		},
 		Output: []OutputEntry{
 			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge},

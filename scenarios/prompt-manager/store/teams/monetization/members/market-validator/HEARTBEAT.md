@@ -14,21 +14,12 @@ Do not attempt all of these every heartbeat. 1-2 queue items + the staleness swe
 ## Task Loop
 1. **Staleness sweep first.** Run `benchmark-staleness-sweep` to enqueue any scans past their dimension-aware threshold. Pricing-only sweep every heartbeat; full sweep weekly.
 2. **Read context.** Last handoff, recent decisions in owned contexts (`benchmark-update`, `pricing-decision`, `financial-model-assumption-update`), and the BENCHMARKS / STRATEGY / REVENUE_LINES docs relevant to in-flight queue items.
-3. **Triage the queue.** Run `market-validation-router` over `validation-queue/*`. Pick the 1-2 highest-leverage items per the reasoning framework above. Defer the rest with a note.
-4. **Apply the method skill.** For pricing-dimension requests, use `pricing-comp-capture` (it encodes source priority, honesty flags, the material-change threshold, and the front-matter shape). For other dimensions, follow inline router guidance until a dedicated method skill emerges.
+3. **Drain your queues per the generated `# Inbox Flow` section.** Pick the 1-2 highest-leverage items per the reasoning framework above. Defer the rest with a note.
+4. **Apply the method skill.** For pricing-dimension requests, use `pricing-comp-capture`. For other dimensions, follow inline guidance from `docs/monetization/VALIDATION_TAXONOMY.md` until a dedicated method skill emerges.
 5. **Run supersession** against existing owned-context decisions before proposing replacements.
-6. **Raise decisions only when material.** Default thresholds in `market-validation-router` §5.
-7. **Resolve queue entries.** Every triaged item exits the queue — converted to a market-scan, decision-only, or dropped. The queue is the unrouted set.
+6. **Raise decisions only when material.** Materiality thresholds live in `docs/monetization/VALIDATION_TAXONOMY.md`.
 
-## Knowledge Topic Surfaces
-This member writes to:
-- `validation-queue/<request-type>/<slug>` — only via `benchmark-staleness-sweep` (auto-populated). Other writers (operator vision-walk, opportunity-scout conversion, catalog-strategist, financial-tracker) populate the queue from outside.
-- `monetization/market-scan/<slug>` — the canon. Front-matter shape per `market-validation-router` §6 and `pricing-comp-capture` §4.
-
-This member does NOT write to:
-- `docs/monetization/*` (propose via `benchmark-update` decision)
-- `monetization/opportunity/*` (that's opportunity-scout)
-- `opportunity-inbox/*` (that's the routing target of monetization-opportunity-router, not this member)
+(Queue/inbox draining commands and destination prefixes are in the generated `# Inbox Flow` section above; do not duplicate them here.)
 
 ## Honesty Flags (referenced from skills)
 - Every captured value has a source URL and a `date_observed`.

@@ -2,15 +2,16 @@
   "intake": [
     {
       "prefix": "research-inbox/*",
-      "drained_by_skill": "marketing-research-router",
+      "taxonomy": "marketing-research",
+      "classifier_skill": "marketing-signal-classifier",
       "source_team": null
     }
   ],
   "output": [
-    { "prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "competitor/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "hook/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization" }
+    { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
+    { "prefix": "competitor/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
+    { "prefix": "hook/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
+    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": [
     "audience-update",

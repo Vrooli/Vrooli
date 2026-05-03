@@ -180,8 +180,15 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	// resolve correctly, then findings are filtered down to the requested
 	// team for the response.
 	skillIDs, _ := LoadSkillIDs(h.storeDir)
+	skillPaths, _ := LoadSkillPaths(h.storeDir)
 	repoRoot := h.repoRoot()
-	val := Validate(all, ValidationOptions{RepoRoot: repoRoot, SkillIDs: skillIDs})
+	taxonomies, _ := LoadAllTaxonomies(repoRoot)
+	val := Validate(all, ValidationOptions{
+		RepoRoot:   repoRoot,
+		SkillIDs:   skillIDs,
+		SkillPaths: skillPaths,
+		Taxonomies: taxonomies,
+	})
 
 	// Layer inbox-aging warnings if a knowledge query is wired in.
 	if h.knowledgeQuery != nil {

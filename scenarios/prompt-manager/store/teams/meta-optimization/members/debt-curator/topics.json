@@ -2,7 +2,7 @@
   "intake": [
     {
       "prefix": "meta-optimization/notebook/*",
-      "drained_by_skill": "team-member-capability-architecture-audit",
+      "taxonomy": "notebook-debt",
       "source_team": null
     }
   ],

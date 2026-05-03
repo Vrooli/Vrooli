@@ -35,7 +35,7 @@ func TestEnrichWithDrainStatus_NilQueryReturnsNothing(t *testing.T) {
 
 func TestEnrichWithDrainStatus_NoEntriesIsClean(t *testing.T) {
 	members := []MemberTopics{
-		mt("t", "a", IntakeEntry{Prefix: "research-inbox/*", DrainedBySkill: "x"}),
+		mt("t", "a", IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "tx"}),
 	}
 	q := stubKnowledgeQuery{byPrefix: map[string][]InboxEntry{}}
 	got := EnrichWithDrainStatus(members, q, InboxAgingOptions{})
@@ -46,7 +46,7 @@ func TestEnrichWithDrainStatus_NoEntriesIsClean(t *testing.T) {
 
 func TestEnrichWithDrainStatus_PilingInbox(t *testing.T) {
 	members := []MemberTopics{
-		mt("t", "a", IntakeEntry{Prefix: "research-inbox/*", DrainedBySkill: "x"}),
+		mt("t", "a", IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "tx"}),
 	}
 	entries := make([]InboxEntry, 6)
 	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
@@ -66,7 +66,7 @@ func TestEnrichWithDrainStatus_PilingInbox(t *testing.T) {
 
 func TestEnrichWithDrainStatus_StalledDrain(t *testing.T) {
 	members := []MemberTopics{
-		mt("t", "a", IntakeEntry{Prefix: "research-inbox/*", DrainedBySkill: "x"}),
+		mt("t", "a", IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "tx"}),
 	}
 	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
 	old := now.Add(-10 * 24 * time.Hour)
@@ -90,7 +90,7 @@ func TestEnrichWithDrainStatus_StalledDrain(t *testing.T) {
 
 func TestEnrichWithDrainStatus_BothRulesAtOnce(t *testing.T) {
 	members := []MemberTopics{
-		mt("t", "a", IntakeEntry{Prefix: "p/*", DrainedBySkill: "x"}),
+		mt("t", "a", IntakeEntry{Prefix: "p/*", Taxonomy: "tx"}),
 	}
 	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
 	old := now.Add(-30 * 24 * time.Hour)
@@ -112,7 +112,7 @@ func TestEnrichWithDrainStatus_BothRulesAtOnce(t *testing.T) {
 
 func TestEnrichWithDrainStatus_QueryErrorBecomesWarning(t *testing.T) {
 	members := []MemberTopics{
-		mt("t", "a", IntakeEntry{Prefix: "p/*", DrainedBySkill: "x"}),
+		mt("t", "a", IntakeEntry{Prefix: "p/*", Taxonomy: "tx"}),
 	}
 	q := stubKnowledgeQuery{err: errors.New("boom")}
 	findings := EnrichWithDrainStatus(members, q, InboxAgingOptions{})

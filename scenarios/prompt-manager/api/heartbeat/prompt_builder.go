@@ -3,6 +3,8 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
@@ -216,6 +218,15 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			SourcePath: fmt.Sprintf("teams/%s/team.json", teamID),
 			Content:    operatingPolicy,
 		})
+
+		if section := b.buildInboxFlowSection(teamID, agentID); section != "" {
+			sections = append(sections, PromptSection{
+				Kind:       promptSectionKindInboxFlow,
+				Label:      promptSectionLabelInboxFlow,
+				SourcePath: fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID),
+				Content:    section,
+			})
+		}
 
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
@@ -1047,6 +1058,55 @@ func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID
 	}
 
 	return prompt, nil
+}
+
+// buildInboxFlowSection generates the "Inbox Flow" prompt section from the
+// member's topics.json + the taxonomy registry. Returns empty when the
+// member declares no intake; in that case the caller skips the section.
+//
+// All errors are swallowed and logged-via-empty-section by design: a
+// malformed topics.json should not block the whole heartbeat. The
+// `unknown_taxonomy` validator surfaces those problems separately.
+func (b *PromptBuilder) buildInboxFlowSection(teamID, agentID string) string {
+	if b.teamStore == nil {
+		return ""
+	}
+	storeDir := b.teamStore.StoreDir()
+	repoRoot := deriveRepoRoot(storeDir)
+	in, ok, err := LoadInboxFlowInputs(storeDir, repoRoot, teamID, agentID)
+	if err != nil || !ok {
+		return ""
+	}
+	return RenderInboxFlow(in)
+}
+
+// deriveRepoRoot resolves the repository root for taxonomy lookup. Prefers
+// VROOLI_ROOT (set by the lifecycle), then walks up from an absolute
+// storeDir (.../scenarios/prompt-manager/store -> repo root). Returns
+// empty when neither path produces a usable directory; in that case
+// taxonomy resolution is skipped and the Inbox Flow section renders
+// without dispatch tables (operators see _NOT FOUND_ markers).
+func deriveRepoRoot(storeDir string) string {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return root
+	}
+	if strings.TrimSpace(storeDir) == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(storeDir)
+	if err != nil {
+		return ""
+	}
+	// store -> prompt-manager -> scenarios -> repo
+	cur := abs
+	for i := 0; i < 3; i++ {
+		next := filepath.Dir(cur)
+		if next == cur {
+			return ""
+		}
+		cur = next
+	}
+	return cur
 }
 
 func (b *PromptBuilder) buildInboxSection(ctx context.Context, teamID, agentID string) string {

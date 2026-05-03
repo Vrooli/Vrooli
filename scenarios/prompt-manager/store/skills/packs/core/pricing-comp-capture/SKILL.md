@@ -10,7 +10,7 @@ Capture a competitor's pricing as a structured `monetization/market-scan/<slug>`
 
 Use this skill when:
 
-- the `market-validation-router` routes a `pricing-comp-needed` request to you
+- the `market-validation-triage` routes a `pricing-comp-needed` request to you
 - a `benchmark-staleness` queue entry for a pricing-dimension scan has matured (re-fetch path uses this skill)
 - opportunity-scout or vision-walk produced a `competitor-move` signal that converted to a pricing-needed validation request
 

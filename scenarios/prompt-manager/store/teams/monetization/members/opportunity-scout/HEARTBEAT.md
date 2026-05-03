@@ -12,12 +12,14 @@
 ## Task Loop
 1. Read declared catalog, channel, and strategy docs relevant to this heartbeat's signal.
 2. Read your last handoff, recent vision-walk knowledge, recent monetization knowledge, and recent candidate-pool entries.
-3. Generate candidate ideas only to the extent the signal supports them.
+3. Drain your inbox per the generated `# Inbox Flow` section above. Generate or capture candidate ideas only to the extent the signal supports them.
 4. Dedupe against the existing pool; update the interpretation rather than re-adding duplicates.
 5. Append new candidate-pool entries when the idea is distinct and triggerable.
 6. Run supersession against existing owned-context decisions before proposing replacements.
 7. Raise promotion or activation decisions only when the operator should decide now.
 8. Record the scout-scan knowledge entry.
+
+(Inbox draining commands and destination prefixes are in the generated `# Inbox Flow` section; do not duplicate them here.)
 
 ## Entry Schema For Candidate Pool
 ```json

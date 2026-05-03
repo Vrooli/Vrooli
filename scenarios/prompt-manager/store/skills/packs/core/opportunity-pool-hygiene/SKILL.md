@@ -1,6 +1,6 @@
 ## Tools focus: Opportunity Pool Hygiene
 
-Periodically sweep the monetization opportunity pool — knowledge entries under `monetization/opportunity/<slug>` — to keep it honest. Evaluate each entry's revisit trigger; promote, retire, or leave as-is. Complement to `monetization-opportunity-router`, which handles intake; this skill handles outflow and decay.
+Periodically sweep the monetization opportunity pool — knowledge entries under `monetization/opportunity/<slug>` — to keep it honest. Evaluate each entry's revisit trigger; promote, retire, or leave as-is. Complement to `monetization-signal-classifier`, which handles intake; this skill handles outflow and decay.
 
 > **Status:** v1. The pool lives as `monetization` team knowledge entries under `monetization/opportunity/<slug>` topics. There is no separate JSONL file.
 
@@ -16,7 +16,7 @@ Use this skill on the opportunity-scout heartbeat when:
 - a recent ledger event, scenario shipping milestone, or competitor move could fire one or more revisit triggers
 
 Do not use this skill for:
-- intake / triage of the inbox — that's `monetization-opportunity-router`
+- intake / triage of the inbox — that's `monetization-signal-classifier`
 - editing CATALOG.md candidate files — propose via `catalog-promotion`-class decision; catalog-strategist + operator do the writing
 
 ---
