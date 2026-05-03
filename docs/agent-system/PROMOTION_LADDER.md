@@ -33,7 +33,7 @@ flowchart LR
     P2 -.partial automation<br/>steady state.-> P2
 ```
 
-A skill that classifies fuzzy text (e.g., `marketing-research-router`) will likely never reach step 3 — classification of nuanced human signals is an LLM job. That is fine; the ladder is not a glide path to retirement, it is a tool for recognizing which steps a given skill *can* take.
+A skill that classifies fuzzy text (e.g., `marketing-signal-classifier`) will likely never reach step 3 — classification of nuanced human signals is an LLM job. That is fine; the ladder is not a glide path to retirement, it is a tool for recognizing which steps a given skill *can* take.
 
 For the operator-approval gate at step 3 → step 4 (the only step where prose actually retires), see §"Action graduation gate" in `DECISIONS.md`.
 

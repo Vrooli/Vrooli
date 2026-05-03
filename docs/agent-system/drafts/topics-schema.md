@@ -4,7 +4,7 @@ This document is the human-readable plan-of-record for the `topics.json` data la
 
 ## Purpose
 
-A `topics.json` file declares, **structurally**, how a single team member produces and consumes work via topic-prefixed channels. It is the machine-readable counterpart to prose router skills.
+A `topics.json` file declares, **structurally**, how a single team member produces and consumes work via topic-prefixed channels. It is the machine-readable substrate the heartbeat builder uses to render the universal `# Inbox Flow` section, and the validator uses to detect orphan flows and drift.
 
 Once this layer ships, prose claims like "the researcher drains `research-inbox/*`" become declarations the system can validate, visualize, and lint against. Orphan output prefixes, dangling intake claims, conflicting drain duty, and stalled inboxes become detectable.
 
@@ -25,7 +25,8 @@ Sibling to `HEARTBEAT.md`, `RESPONSIBILITIES.md`, `last-handoff.md`. One file pe
   "intake": [
     {
       "prefix": "research-inbox/*",
-      "drained_by_skill": "marketing-research-router",
+      "taxonomy": "marketing-research",
+      "classifier_skill": "marketing-signal-classifier",
       "source_team": null
     }
   ],
@@ -33,12 +34,14 @@ Sibling to `HEARTBEAT.md`, `RESPONSIBILITIES.md`, `last-handoff.md`. One file pe
     {
       "prefix": "audience-scan/*",
       "destination_kind": "knowledge",
-      "destination_team": null
+      "destination_team": null,
+      "schema": "audience-scan"
     },
     {
       "prefix": "monetization-benchmark-adjacent/*",
       "destination_kind": "knowledge",
-      "destination_team": "monetization"
+      "destination_team": "monetization",
+      "schema": "monetization-benchmark-adjacent"
     }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update"],
@@ -52,28 +55,30 @@ Top-level keys, all optional (omit when not applicable):
 
 | Key | Type | Meaning |
 |---|---|---|
-| `intake` | array of intake entries | Topic-prefixes this member drains. Each entry names a router/method skill that knows how to drain it. |
-| `output` | array of output entries | Topic-prefixes this member writes to. Each entry names what the destination is and where. |
-| `decisions_owned` | array of decision-context strings | Decision contexts this member owns (i.e., proposes-and-files, not just consumes). |
-| `decisions_consumed` | array of decision-context strings | Decision contexts whose acceptance changes this member's behavior or workload. |
-| `raises_capability_gaps` | boolean | True if this member's role includes filing `capability-gap` decisions when blocked by missing tooling. |
-| `external_producers` | array of stable identifiers | Non-team-member producers that feed this member's intake (e.g., `vision-walk`, `operator`, `bookmark-intelligence-hub`). Used to satisfy the `orphan_input` validation rule for prefixes whose producer is not another team member. |
+| `intake` | array of intake entries | Topic-prefixes this member drains. Each entry references a taxonomy and (optionally) a classifier skill. |
+| `output` | array of output entries | Topic-prefixes this member writes. Each entry names destination kind, optional cross-team destination, and optional front-matter schema. |
+| `decisions_owned` | array of decision-context strings | Decision contexts this member owns. |
+| `decisions_consumed` | array of decision-context strings | Decision contexts whose acceptance changes this member's behavior. |
+| `raises_capability_gaps` | boolean | True if the member's role includes filing `capability-gap` decisions. |
+| `external_producers` | array of stable identifiers | Non-team-member producers that feed intake (e.g., `vision-walk`, `operator`, `bookmark-intelligence-hub`). |
 
 ### Intake entry
 
 ```jsonc
 {
   "prefix": "research-inbox/*",
-  "drained_by_skill": "marketing-research-router",
+  "taxonomy": "marketing-research",
+  "classifier_skill": "marketing-signal-classifier",
   "source_team": null
 }
 ```
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `prefix` | string with optional `*` suffix | yes | Topic-prefix matched against `team knowledge-list --topic-prefix=`. Must end in `/*` for a prefix-match; an exact-prefix string (no `*`) matches only that exact topic. |
-| `drained_by_skill` | string | yes | Skill ID that owns the drain procedure for this prefix. The validation rule `missing_drain_skill` ensures this skill exists. |
-| `source_team` | string or `null` | optional | If the prefix is fed by another team's members (cross-team flow), name the source team here. `null` means same-team or external producer. Used by the `orphan_input` rule to find the producer. |
+| `prefix` | string with optional `*` suffix | yes | Topic-prefix matched against `team knowledge-list --topic-prefix=`. |
+| `taxonomy` | string | yes | The id of the taxonomy JSON sidecar (`docs/<domain>/<id>.json`) that owns this prefix's signal vocabulary, dispatch, evidence rules, and destination schemas. The validator's `unknown_taxonomy` rule resolves this against the registry; an empty value fires `missing_taxonomy`. |
+| `classifier_skill` | string | optional | A portable, member-agnostic judgment skill that assigns `signal_type` from the taxonomy. Optional: when the topic-prefix carries a deterministic signal type, no classifier is needed. The `non_portable_classifier` rule scans the named skill for forbidden coupling content. |
+| `source_team` | string or `null` | optional | If the prefix is fed by another team, name the source team. `null` means same-team or external producer. |
 
 ### Output entry
 
@@ -82,7 +87,8 @@ Top-level keys, all optional (omit when not applicable):
   "prefix": "audience-scan/*",
   "destination_kind": "knowledge",
   "destination_team": null,
-  "destination_path": null
+  "destination_path": null,
+  "schema": "audience-scan"
 }
 ```
 
@@ -90,86 +96,82 @@ Top-level keys, all optional (omit when not applicable):
 |---|---|---|---|
 | `prefix` | string with optional `*` suffix | yes | Topic-prefix this member writes. |
 | `destination_kind` | enum | yes | `knowledge` \| `decision` \| `por_file` \| `capability_gap` \| `skill_proposal` \| `backlog` |
-| `destination_team` | string or `null` | optional | If the destination is on another team's surface (e.g., monetization-team knowledge), name it. `null` means same-team. |
-| `destination_path` | string or `null` | optional | Required when `destination_kind` is `por_file`; names the path under `docs/` to which content is promoted. |
+| `destination_team` | string or `null` | optional | If the destination is on another team's surface, name it. |
+| `destination_path` | string or `null` | optional | Required when `destination_kind` is `por_file`; names the path under `docs/`. |
+| `schema` | string | optional | References a front-matter shape declared on the *producer's* taxonomy (`taxonomy.schemas.<id>`). The validator's `missing_destination_schema` warning fires when set but unresolvable. The producer's taxonomy owns the schema even when the consumer is on another team. |
 
 ### `destination_kind` semantics
 
 | Kind | Meaning | Validation |
 |---|---|---|
 | `knowledge` | Output is a team knowledge entry under this prefix | No further validation |
-| `decision` | Output is a decision context; its name should appear in some member's `decisions_consumed` | Cross-checked in `orphan_output` rule |
-| `por_file` | Output is a markdown edit (proposed via decision) to a file under `docs/` | `dangling_por_sink` rule checks `destination_path` exists |
-| `capability_gap` | Output is a `capability-gap` decision | Member's `raises_capability_gaps` should be true |
-| `skill_proposal` | Output is a proposal to author/modify a skill | Should be claimed by `skill-optimizer` (validated by cross-team consumption) |
-| `backlog` | Output is a backlog item handed off to a director-swarm or scenario team | Cross-team consumption (`source_team` of the consuming member's intake should reference this team) |
+| `decision` | Output is a decision context | Cross-checked in `orphan_output` rule |
+| `por_file` | Output is a markdown edit (proposed via decision) under `docs/` | `dangling_por_sink` checks `destination_path` exists |
+| `capability_gap` | Output is a `capability-gap` decision | `raises_capability_gaps` should be true |
+| `skill_proposal` | Output is a proposal to author/modify a skill | Should be claimed by `skill-optimizer` |
+| `backlog` | Output is a backlog item handed off | Cross-team consumption |
 
 ## Validation rules
 
-Implemented as a Go package (`scenarios/prompt-manager/api/memberflow/validation.go`) with one function per rule. Run via `prompt-manager graph topics`.
+Implemented in `scenarios/prompt-manager/api/memberflow/validation.go`. Run via `prompt-manager graph topics`.
 
 | Rule | Smell | Severity | Detection |
 |---|---|---|---|
-| `orphan_output` | Output prefix has no consumer (no router intake matches, no PoR sink declared) | error | For each output entry: at least one member's intake `prefix` must overlap, OR `destination_kind` resolves to a non-member sink |
-| `orphan_input` | Intake prefix has no producer | error | For each intake entry: at least one member's output `prefix` must overlap, OR an `external_producer` claims it |
-| `conflicting_drain` | Two members' intake prefixes overlap (both claim to drain the same topic) | error | Pairwise overlap check across all members; equal prefixes always conflict, prefix-with-`*` overlaps any narrower prefix |
-| `missing_drain_skill` | `drained_by_skill` references a skill ID that doesn't exist | error | Cross-check against `prompt-manager skill list --json` |
-| `dangling_por_sink` | `destination_kind=por_file` references a `destination_path` that doesn't exist | error | Filesystem stat |
-| `stalled_drain` | Intake prefix has unrouted entries older than threshold (default 7 days) | warning | Cross-check against `prompt-manager team knowledge-list --topic-prefix=` timestamps |
-| `piling_inbox` | Intake prefix has > N unrouted entries (default 50) | warning | Same query |
+| `orphan_output` | Output prefix has no consumer | error | For each output: another member's intake prefix overlaps, or destination_kind is non-member sink |
+| `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it |
+| `conflicting_drain` | Two members' intake prefixes overlap | error | Pairwise overlap check |
+| `unknown_taxonomy` | `intake[].taxonomy` does not resolve in the registry | error | Cross-check against `LoadAllTaxonomies` |
+| `missing_taxonomy` | `intake[].taxonomy` is unset | error | Surfaces intake entries that have not been migrated to the inbox-flow taxonomy model. |
+| `non_portable_classifier` | `intake[].classifier_skill` SKILL.md contains forbidden coupling content | error | Forbidden-pattern grep against the skill's SKILL.md |
+| `missing_destination_schema` | `output[].schema` doesn't resolve under any taxonomy | warning | Cross-check against `taxonomy.schemas.<id>` across the registry |
+| `dangling_por_sink` | `destination_kind=por_file` references missing `destination_path` | error | Filesystem stat |
+| `stalled_drain` | Intake has unrouted entries older than threshold (default 7d) | warning | Cross-check against `team knowledge-list` timestamps |
+| `piling_inbox` | Intake has > N unrouted entries (default 50) | warning | Same query |
 
 Errors fail `prompt-manager graph topics` with exit code 1. Warnings do not affect exit code.
 
 ## Prefix-match semantics
 
-- An exact prefix string `foo/bar` matches only the topic `foo/bar` (used for fixed topics like `audience-update` decision contexts when expressed as topic strings, though in practice decisions are not topics — this would be unusual).
-- A wildcard prefix `foo/bar/*` matches any topic starting with `foo/bar/` (most common form).
-- A wildcard `*` matches everything (disallowed in practice; would defeat overlap detection).
-- Two prefixes "overlap" if either is a prefix of the other (with `/*` truncated for comparison). For example, `research-inbox/audience/*` overlaps `research-inbox/*` but does not overlap `research-inbox/competitor/*`.
-
-The `conflicting_drain` rule treats overlap as conflict only when the overlap is non-empty in practice (i.e., at least one prefix is "wider" than the other). Equal prefixes always conflict.
+- Exact prefix `foo/bar` matches only `foo/bar`.
+- Wildcard prefix `foo/bar/*` matches any topic starting with `foo/bar/`.
+- Bare `*` is disallowed.
+- Two prefixes overlap when either is a prefix of the other (with `/*` truncated). `research-inbox/audience/*` overlaps `research-inbox/*` but not `research-inbox/competitor/*`.
 
 ## Empty-file convention
-
-A member with no flow declarations writes:
 
 ```json
 {}
 ```
 
-This is valid. The validation engine treats absent keys as empty arrays. Members with no flow may omit the file entirely, but explicit `{}` makes "we audited this and it has no flow" a positive declaration rather than ambiguous absence.
+is a positive "audited; no flow" declaration; absent files are treated the same way.
 
 ## Cross-team flow
 
-When a member writes to another team's surface, both sides should agree:
+When a member writes to another team's surface:
 
-- Source side: `output.destination_team = "<other-team>"` and `destination_kind` matches
-- Destination side: a member of the other team has an intake entry whose `prefix` matches the source's `prefix`, with `source_team` set to the originating team
+- Source side: `output[].destination_team = "<other-team>"` and `destination_kind` matches.
+- Destination side: a member on the other team has an intake whose `prefix` matches, with `source_team` set to the producer team.
+- The producer's taxonomy owns the front-matter schema for cross-team prefixes; the consumer side adopts the same schema.
 
-Validation flags one-sided claims via `orphan_output` (the source claims a destination team that doesn't pick it up) or `orphan_input` (the destination claims a source team that doesn't write it).
-
-## Backwards compatibility
-
-None. This is greenfield. Members without `topics.json` are listed by `prompt-manager graph topics` under "members with no declarations" and the structural layer scores in the audit skill (Phase 5) report `0 missing` for the four pipeline layers.
+`orphan_output` flags one-sided claims.
 
 ## Example: marketing-crew researcher
-
-The canonical worked example (used to validate the schema during Phase 2 canary backfill):
 
 ```json
 {
   "intake": [
     {
       "prefix": "research-inbox/*",
-      "drained_by_skill": "marketing-research-router",
+      "taxonomy": "marketing-research",
+      "classifier_skill": "marketing-signal-classifier",
       "source_team": null
     }
   ],
   "output": [
-    { "prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "competitor/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "hook/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization" }
+    { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
+    { "prefix": "competitor/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
+    { "prefix": "hook/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
+    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update", "post-type-proposal", "hook-candidate-promotion"],
   "decisions_consumed": ["capability-gap"],
@@ -179,12 +181,13 @@ The canonical worked example (used to validate the schema during Phase 2 canary 
 ```
 
 When loaded, `prompt-manager graph topics --team marketing-crew` should:
-- Render edges from `vision-walk` and `operator` (external boundary nodes) into the researcher
-- Render edges from the researcher to four output prefixes (three same-team knowledge sinks, one cross-team monetization sink)
-- Validate that `marketing-research-router` skill exists
-- Validate that `audience-update`, `channel-strategy-update`, `post-type-proposal`, `hook-candidate-promotion` are decision contexts at least one team member consumes (or, more loosely, that they exist)
-- Cross-validate `monetization-benchmark-adjacent/*` against the monetization team's intake (some monetization member should declare this prefix in their `intake` with `source_team: "marketing-crew"`)
+- Render edges from `vision-walk` and `operator` (external boundary nodes) into the researcher.
+- Render edges from the researcher to four output prefixes (three same-team knowledge sinks, one cross-team monetization sink).
+- Validate that `marketing-research` taxonomy exists and resolves to `docs/marketing/signal-taxonomy.json`.
+- Validate that `marketing-signal-classifier` is a registered, portable skill (no forbidden coupling content).
+- Validate every `output[].schema` resolves against the producer's taxonomy.
+- Cross-validate `monetization-benchmark-adjacent/*` against the monetization team's intake (some monetization member should declare this prefix in their `intake` with `source_team: "marketing-crew"`).
 
 ## Stability gate
 
-After Phase 2 canary backfill on marketing-crew completes cleanly, this schema is frozen by a `meta-optimization` decision. Backwards-incompatible changes after that gate require a new decision and a migration plan for already-authored `topics.json` files.
+After the Phase I cleanup of the inbox-flow refactor (and the canary backfill on marketing-crew + monetization), this schema is frozen by a `meta-optimization` decision. Backwards-incompatible changes after that gate require a new decision and a migration plan.

@@ -103,11 +103,11 @@ Without (2), direct-write would lose traceability. Treat the execution record as
 
 ---
 
-## 4. Router execute-directly vs file-decision threshold
+## 4. Drain execute-directly vs file-decision threshold
 
-Routers (e.g., `marketing-research-router`, `monetization-opportunity-router`) classify inbox items and choose the smallest useful action. The **file-a-decision threshold** is the rule for when the router escalates rather than executing in place.
+Members that drain a topic-prefix inbox (e.g., the marketing-crew researcher draining `research-inbox/*`, monetization's opportunity-scout draining `opportunity-inbox/*`) classify items via their declared classifier or the topic-prefix itself, then choose the smallest useful action from the taxonomy's `actionSelection` set. The **file-a-decision threshold** is the rule for when the member escalates rather than executing in place.
 
-### A router may execute directly when **all** of these hold
+### A drain may execute directly when **all** of these hold
 
 1. **The action is reversible by the same team.** Adding a knowledge observation, retagging an inbox entry to a canonical surface prefix, dropping a duplicate — all reversible without coordination.
 2. **The action is scoped to data the team owns.** Team knowledge entries, team inbox topics, team-internal skill execution.

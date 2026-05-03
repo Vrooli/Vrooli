@@ -45,7 +45,7 @@ How does work enter the member's lane?
 - cross-team: decisions, inbox messages, handoff, capability-gap
 - internal: logs, knowledge, scenario metrics
 
-Declared in `topics.json` as `intake[]` entries (each with a `prefix`, a `drained_by_skill`, and an optional `source_team`) and `external_producers[]` (named non-team-member sources like `vision-walk` or `operator`).
+Declared in `topics.json` as `intake[]` entries (each with a `prefix`, a `taxonomy` id, an optional `classifier_skill`, and an optional `source_team`) and `external_producers[]` (named non-team-member sources like `vision-walk` or `operator`).
 
 ### Collection
 

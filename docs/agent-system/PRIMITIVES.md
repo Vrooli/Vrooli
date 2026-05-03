@@ -134,7 +134,7 @@ The distinction: backlog is "we plan to build X." Capability-gap is "we are bloc
 
 The first stage where raw observations land before they have permanent structure. In the agent system, this is **not** a markdown notebook — it is team knowledge entries under the topic prefix `<inbox-name>/<signal-type>/<slug>`.
 
-A router skill (e.g., `marketing-research-router`) drains the inbox by retagging each entry to its destination prefix or deleting it as duplicate/weak. The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
+The draining member resolves each entry by retagging it to its destination prefix or deleting it as duplicate/weak. The procedure is universal (rendered into the heartbeat as a generated `# Inbox Flow` section); the per-domain signal vocabulary, dispatch table, evidence rules, and destination schemas live as a taxonomy JSON sidecar (e.g., `docs/marketing/signal-taxonomy.json`); pure-judgment classification (when the topic-prefix isn't deterministic) lives as a portable classifier skill (e.g., `marketing-signal-classifier`). The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
 
 Markdown-file notebooks are a special case of synthesis — short-lived drafts living adjacent to canon (`docs/agent-system/drafts/`, for example) where structure is being workshopped before promotion. They are not a permanent layer; the historical "three-tier model" (hot buffer / notebook / permanent) is replaced by the inbox-router-drain model in the current architecture.
 

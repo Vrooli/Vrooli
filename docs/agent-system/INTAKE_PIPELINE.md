@@ -32,7 +32,8 @@ Each intake channel a member drains is declared structurally in `topics.json`:
   "intake": [
     {
       "prefix": "research-inbox/*",
-      "drained_by_skill": "marketing-research-router",
+      "taxonomy": "marketing-research",
+      "classifier_skill": "marketing-signal-classifier",
       "source_team": null
     }
   ],
@@ -40,13 +41,13 @@ Each intake channel a member drains is declared structurally in `topics.json`:
 }
 ```
 
-`prefix` names the topic-prefix the member drains; `drained_by_skill` names the router skill that owns the procedure; `source_team` is set when the prefix is fed by another team's members.
+`prefix` names the topic-prefix the member drains; `taxonomy` names the JSON sidecar (`docs/<domain>/<id>.json`) that owns the signal vocabulary, dispatch table, evidence rules, and destination schemas; `classifier_skill` is the optional pure-judgment skill loaded when assignment of `signal_type` requires interpretation; `source_team` is set when the prefix is fed by another team's members. The heartbeat builder generates the universal drain procedure into the member's prompt as the `# Inbox Flow` section.
 
 ---
 
 ## The inbox-router-drain pattern
 
-The dominant mechanism for unstructured-to-structured signal flow. Used by `marketing-research-router`, `monetization-opportunity-router`, `market-validation-router`, and others.
+The dominant mechanism for unstructured-to-structured signal flow. Used by `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`, and others (paired with their taxonomies).
 
 ### Inbox topics
 
@@ -81,7 +82,9 @@ Each entry must preserve: source URL when available, raw operator note, confiden
 
 ### Routing — drain duty
 
-The router skill drains the inbox by **routing each entry exactly once**. After routing, the entry must leave the inbox view (must no longer carry an `<inbox-name>/*` prefix) in one of two ways:
+The draining member uses its taxonomy (`intake[].taxonomy`) and, when judgment is needed, its classifier skill (`intake[].classifier_skill`) to **route each entry exactly once**. The heartbeat builder generates a universal `# Inbox Flow` section that names the prefix, the loaded taxonomy, the classifier (if any), the destination schemas, and the dispatch table. The classifier is portable and team-agnostic — it returns a recommendation; the member's drain procedure picks the action.
+
+After routing, the entry must leave the inbox view (must no longer carry an `<inbox-name>/*` prefix) in one of two ways:
 
 - **Promoted to permanent canon** — retag the entry to its destination prefix:
 
@@ -148,13 +151,13 @@ A reusable method skill turns gathered evidence into a structured observation. E
 
 Combined skills are allowed early — a method skill may both collect and analyze when the source is simple. Split collection into its own tool/skill/Action when source access becomes reusable, credentialed, scheduled, or deterministic.
 
-Method skills are loaded by the router on the strength of the signal type. The router itself is not a method skill; it classifies and dispatches.
+Method skills are loaded by the draining member on the strength of the classifier's signal-type recommendation (or the deterministic topic-prefix). The classifier itself is not a method skill; it returns judgment only — the member dispatches.
 
 ---
 
 ## Promotion / Routing — what happens to the output
 
-The router (or the method skill it delegates to) chooses the smallest useful action:
+The draining member (using its taxonomy's `actionSelection` set, possibly informed by a classifier recommendation) chooses the smallest useful action:
 
 | Condition | Action |
 |---|---|
@@ -168,15 +171,15 @@ The router (or the method skill it delegates to) chooses the smallest useful act
 | Collection requires missing source/tool/scenario | Raise `capability-gap` (see `DECISIONS.md` §5 for the capability-gap-vs-decision criteria). |
 | Signal belongs to another domain | Write to that domain's prefix or hand off as cross-team flow (cross-team output ownership rules in `DECISIONS.md` §9). |
 
-The router's execute-directly vs file-decision threshold (and what governs each routing-outcome row above) is defined in `DECISIONS.md` §4. This table names what each row *is*; that file names *when* the router is allowed to take each row vs escalate.
+The drain's execute-directly vs file-decision threshold (and what governs each routing-outcome row above) is defined in `DECISIONS.md` §4. This table names what each row *is*; that file names *when* the member is allowed to take each row vs escalate.
 
 Each member declares structurally what it produces:
 
 ```jsonc
 {
   "output": [
-    { "prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization" }
+    { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
+    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update"],
   "decisions_consumed": ["capability-gap"],
@@ -184,7 +187,7 @@ Each member declares structurally what it produces:
 }
 ```
 
-`destination_kind` is one of `knowledge`, `decision`, `por_file`, `capability_gap`, `skill_proposal`, `backlog`. Cross-team flow is declared on both sides — see `drafts/topics-schema.md`.
+`destination_kind` is one of `knowledge`, `decision`, `por_file`, `capability_gap`, `skill_proposal`, `backlog`. `schema` references a front-matter shape declared on the producer's taxonomy (`taxonomy.schemas.<id>`); the producer's taxonomy owns the schema even when the consumer is on another team. Cross-team flow is declared on both sides — see `drafts/topics-schema.md`.
 
 ---
 
