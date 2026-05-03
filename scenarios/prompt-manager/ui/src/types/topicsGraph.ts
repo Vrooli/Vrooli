@@ -2,7 +2,7 @@
  * Topics graph types for the dual-mode team graph view.
  *
  * Mirrors `api/memberflow/handlers.go` GraphResponse + ValidationResult.
- * DOC: docs/agent-system/drafts/topics-schema.md
+ * DOC: docs/agent-system/TOPICS_SCHEMA.md
  */
 
 import type { Node, Edge } from '@xyflow/react'

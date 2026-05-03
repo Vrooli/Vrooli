@@ -12,6 +12,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"prompt-manager/actions"
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
@@ -30,9 +34,6 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -468,7 +469,7 @@ func main() {
 
 	// Member-flow (per-member topics.json) routes — declares each member's
 	// intake/output topic prefixes and feeds the team graph view.
-	// DOC: docs/agent-system/drafts/topics-schema.md
+	// DOC: docs/agent-system/TOPICS_SCHEMA.md
 	memberFlowHandlers := memberflow.NewHandlers(absStoreDir)
 	memberFlowHandlers.SetKnowledgeQuery(
 		newTeamKnowledgeQuery(fileStore.Teams().(*store.FileTeamStore)),

@@ -1,7 +1,7 @@
 // Package memberflow handlers for per-member topics declarations and the
 // derived graph / drain-status endpoints.
 //
-// DOC: docs/agent-system/drafts/topics-schema.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
 package memberflow
 
 import (

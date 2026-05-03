@@ -8,7 +8,7 @@
  * - Directed edges labelled with topic prefix; edge style by kind
  * - Validation overlay (red ring on members with error-severity findings)
  *
- * DOC: docs/agent-system/drafts/topics-schema.md
+ * DOC: docs/agent-system/TOPICS_SCHEMA.md
  */
 
 import { useCallback, useMemo, useState } from 'react'

@@ -5,7 +5,7 @@
 // match. This adapter strips the wildcard suffix before delegating, and maps
 // the timestamp string to time.Time.
 //
-// DOC: docs/agent-system/drafts/topics-schema.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
 
 package main
 

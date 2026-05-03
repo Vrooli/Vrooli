@@ -4,7 +4,7 @@
  * Renders findings grouped by severity, then by member. Clicking a finding
  * focuses the corresponding member node in the graph.
  *
- * DOC: docs/agent-system/drafts/topics-schema.md
+ * DOC: docs/agent-system/TOPICS_SCHEMA.md
  */
 
 import { useMemo, useState, useCallback } from 'react'

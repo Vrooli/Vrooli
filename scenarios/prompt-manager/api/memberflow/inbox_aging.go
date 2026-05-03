@@ -5,7 +5,7 @@
 // them because it has no I/O; we layer them on top via a KnowledgeQuery
 // dependency that the API supplies in production and tests stub out.
 //
-// DOC: docs/agent-system/drafts/topics-schema.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
 package memberflow
 
 import (

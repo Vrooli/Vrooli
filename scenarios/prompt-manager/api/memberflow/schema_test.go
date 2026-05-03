@@ -9,7 +9,7 @@ import (
 func ptr(s string) *string { return &s }
 
 func TestTopicsValidate_ValidCanonical(t *testing.T) {
-	// The canonical worked example from docs/agent-system/drafts/topics-schema.md
+	// The canonical worked example from docs/agent-system/TOPICS_SCHEMA.md
 	raw := `{
 		"intake": [
 			{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "marketing-signal-classifier", "source_team": null}

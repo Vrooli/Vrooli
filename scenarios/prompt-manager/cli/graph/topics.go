@@ -1,6 +1,6 @@
 // Topics + drain-status subcommands for `prompt-manager graph`.
 //
-// DOC: docs/agent-system/drafts/topics-schema.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
 package graph
 
 import (
@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"sort"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -92,7 +93,7 @@ func cmdTopics(ctx appctx.Context, args []string) error {
 	if resp.Validation.Errors > 0 {
 		// Returning a non-nil error makes the cliapp dispatcher exit
 		// with a non-zero status, matching the contract in
-		// docs/agent-system/drafts/topics-schema.md.
+		// docs/agent-system/TOPICS_SCHEMA.md.
 		return fmt.Errorf("topics validation failed: %d error(s)", resp.Validation.Errors)
 	}
 	return nil
@@ -190,11 +191,11 @@ func printTopicsHuman(resp topicsGraphResponse, team string) {
 }
 
 type drainStatusEntry struct {
-	Member          topicMemberRef `json:"member"`
-	Prefix          string         `json:"prefix"`
-	UnroutedCount   int            `json:"unrouted_count"`
-	OldestAt        string         `json:"oldest_at,omitempty"`
-	OldestAgeSecs   int64          `json:"oldest_age_seconds,omitempty"`
+	Member        topicMemberRef `json:"member"`
+	Prefix        string         `json:"prefix"`
+	UnroutedCount int            `json:"unrouted_count"`
+	OldestAt      string         `json:"oldest_at,omitempty"`
+	OldestAgeSecs int64          `json:"oldest_age_seconds,omitempty"`
 }
 
 type drainStatusResponse struct {

@@ -11,7 +11,7 @@
  * - PUT    /teams/{id}/knowledge/{knowledgeId}                    (promote: retag)
  * - DELETE /teams/{id}/knowledge/{knowledgeId}                    (drop)
  *
- * DOC: docs/agent-system/drafts/topics-schema.md
+ * DOC: docs/agent-system/TOPICS_SCHEMA.md
  *      docs/agent-system/INTAKE_PIPELINE.md
  */
 

@@ -8,7 +8,7 @@
 // counterpart to prose router skills and feeds the heartbeat builder's
 // generated Inbox Flow section.
 //
-// DOC: docs/agent-system/drafts/topics-schema.md, docs/agent-system/drafts/inbox-flow-refactor-plan.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md, docs/agent-system/drafts/inbox-flow-refactor-plan.md
 package memberflow
 
 import (
@@ -205,7 +205,7 @@ func validPrefix(p string) bool {
 
 // Overlap reports whether two prefixes share at least one matchable topic.
 //
-// Semantics (matches docs/agent-system/drafts/topics-schema.md):
+// Semantics (matches docs/agent-system/TOPICS_SCHEMA.md):
 //   - Equal prefixes always overlap.
 //   - "foo/*" overlaps "foo/bar" (the wildcard is wider).
 //   - "foo/bar/*" overlaps "foo/*" (the wildcard is wider).
