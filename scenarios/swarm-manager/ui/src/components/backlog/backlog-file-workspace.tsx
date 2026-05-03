@@ -53,6 +53,7 @@ export function BacklogFileWorkspace({
   onFileAction,
 }: BacklogFileWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const filesPanelRef = useRef<HTMLDivElement | null>(null);
   const [showFilesSheet, setShowFilesSheet] = useState(false);
   const [previewResetKey, setPreviewResetKey] = useState(0);
 
@@ -62,6 +63,7 @@ export function BacklogFileWorkspace({
 
   const { size: filesPanelWidth, isResizing, resizeHandleProps } = useResizablePanel({
     containerRef: workspaceRef,
+    targetRef: filesPanelRef,
     minSize: MIN_FILES_PANEL_WIDTH,
     maxSize: MAX_FILES_PANEL_WIDTH,
     defaultSize: 320,
@@ -160,7 +162,7 @@ export function BacklogFileWorkspace({
             isResizing && "select-none"
           )}
         >
-          <div className="hidden lg:flex flex-col" style={{ width: filesPanelWidth }}>
+          <div ref={filesPanelRef} className="hidden lg:flex flex-col" style={{ width: filesPanelWidth }}>
             <BacklogFileBrowser {...fileBrowserProps} />
           </div>
           <div

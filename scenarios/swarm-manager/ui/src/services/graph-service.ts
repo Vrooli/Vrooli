@@ -127,7 +127,7 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
         ? {
             mode: initiative.activeRound.mode,
             phase: initiative.activeRound.phase,
-            round: Number(initiative.activeRound.round ?? 0),
+            round: initiative.activeRound.round ?? 0,
             status: initiative.activeRound.status,
           }
         : undefined;

@@ -1,12 +1,16 @@
 /**
- * useResizablePanel – reusable hook for pointer-drag panel resizing.
+ * useResizablePanel – pointer-drag panel resizing.
  *
- * Extracted from the identical implementations in BacklogDetailsPage and
- * PromptsPage. Returns state + handler props so callers retain full control
- * over the resize-handle JSX.
+ * The hook drives the target element's width imperatively during drag (writing
+ * `targetRef.current.style.width` on every pointermove) and only commits the
+ * final size to React state on pointerup. This avoids re-rendering the React
+ * tree on every pointer tick — a 60–100 Hz storm that otherwise cascades into
+ * every sibling component. Callers spread `style={{ width: size }}` on the
+ * target for the initial render (and for after-drag reconciliation); the hook
+ * takes over during the drag itself.
  */
 
-import { useState, useCallback, useEffect, type RefObject, type PointerEvent } from "react";
+import { useState, useCallback, useEffect, useRef, type RefObject, type PointerEvent } from "react";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -35,6 +39,9 @@ function savePersistedSize(storageKey: string | undefined, size: number): void {
 export interface UseResizablePanelOptions {
   /** Ref to the outer container whose width constrains the resize range. */
   containerRef: RefObject<HTMLElement | null>;
+  /** Ref to the element whose width is being controlled. The hook writes
+   *  `style.width` directly during drag. */
+  targetRef: RefObject<HTMLElement | null>;
   /** Resize axis. Only "horizontal" is supported today. */
   direction?: "horizontal";
   /** Minimum panel width in px. */
@@ -52,7 +59,8 @@ export interface UseResizablePanelOptions {
 }
 
 export interface UseResizablePanelReturn {
-  /** Current panel width in px. */
+  /** Current panel width in px. Updated only on pointerup, so React renders
+   *  driven by this value happen at most once per drag. */
   size: number;
   /** Whether a drag is in progress (useful for adding `select-none` to the container). */
   isResizing: boolean;
@@ -69,6 +77,7 @@ export interface UseResizablePanelReturn {
 
 export function useResizablePanel({
   containerRef,
+  targetRef,
   minSize,
   maxSize,
   defaultSize,
@@ -79,9 +88,12 @@ export function useResizablePanel({
   const [size, setSize] = useState(() => loadPersistedSize(storageKey, defaultSize, minSize, maxSize));
   const [isResizing, setIsResizing] = useState(false);
 
+  // Tracks the latest size during drag so pointerup can commit it without a
+  // round-trip through React state mid-drag.
+  const liveSizeRef = useRef(size);
   useEffect(() => {
-    savePersistedSize(storageKey, size);
-  }, [size, storageKey]);
+    liveSizeRef.current = size;
+  }, [size]);
 
   const handlePointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
@@ -100,11 +112,18 @@ export function useResizablePanel({
         Math.min(maxSize, bounds.width - adjacentMinSize - handleWidth),
       );
       const nextSize = clamp(event.clientX - bounds.left, minSize, effectiveMax);
-      setSize(nextSize);
+      liveSizeRef.current = nextSize;
+      const target = targetRef.current;
+      if (target) {
+        target.style.width = `${nextSize}px`;
+      }
     };
 
     const handlePointerUp = () => {
+      const finalSize = liveSizeRef.current;
       setIsResizing(false);
+      setSize(finalSize);
+      savePersistedSize(storageKey, finalSize);
     };
 
     const previousCursor = document.body.style.cursor;
@@ -120,7 +139,7 @@ export function useResizablePanel({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [isResizing, containerRef, minSize, maxSize, adjacentMinSize, handleWidth]);
+  }, [isResizing, containerRef, targetRef, minSize, maxSize, adjacentMinSize, handleWidth, storageKey]);
 
   return {
     size,

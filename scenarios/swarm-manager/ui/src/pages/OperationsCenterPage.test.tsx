@@ -126,6 +126,15 @@ function renderPage(arg: string | RenderOptions = "/operations") {
               </>
             }
           />
+          <Route
+            path="/command-post"
+            element={
+              <>
+                <CaptureLocation />
+                <div data-testid="command-post-page-stub" />
+              </>
+            }
+          />
         </Routes>
       </AppShellContext.Provider>
     </MemoryRouter>,
@@ -464,6 +473,100 @@ describe("OperationsCenterPage", () => {
       expect(
         screen.queryByTestId(selectors.operationsCenter.bulkActionBar),
       ).toBeNull();
+    });
+  });
+
+  describe("Spawn CTAs", () => {
+    it("renders a Spawn button in the page header", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.spawnButton),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getByTestId(selectors.operationsCenter.spawnButton),
+      ).toHaveAccessibleName(/spawn/i);
+    });
+
+    it("navigates to /command-post when the header Spawn button is clicked", async () => {
+      renderPage();
+      const spawn = await screen.findByTestId(
+        selectors.operationsCenter.spawnButton,
+      );
+      await userEvent.click(spawn);
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("command-post-page-stub"),
+        ).toBeInTheDocument();
+      });
+      expect(locationCapture?.pathname).toBe("/command-post");
+    });
+
+    it("renders the empty-state Spawn CTA only when the page is empty", async () => {
+      mockResponse = makeView({
+        activities: [],
+        recentlyFinished: [],
+        queue: { depth: 0, maxDepth: 50 },
+      });
+      const { unmount } = renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.emptyStateSpawnCta),
+        ).toBeInTheDocument();
+      });
+      unmount();
+
+      mockResponse = makeView();
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.body),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByTestId(
+          selectors.operationsCenter.emptyStateSpawnCta,
+        ),
+      ).toBeNull();
+    });
+
+    it("navigates to /command-post when the empty-state Spawn CTA is clicked", async () => {
+      mockResponse = makeView({
+        activities: [],
+        recentlyFinished: [],
+        queue: { depth: 0, maxDepth: 50 },
+      });
+      renderPage();
+      const cta = await screen.findByTestId(
+        selectors.operationsCenter.emptyStateSpawnCta,
+      );
+      await userEvent.click(cta);
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("command-post-page-stub"),
+        ).toBeInTheDocument();
+      });
+      expect(locationCapture?.pathname).toBe("/command-post");
+    });
+
+    it("clears the URL filters when the empty-state Reset Filters button is clicked", async () => {
+      mockResponse = makeView({
+        activities: [],
+        recentlyFinished: [],
+        queue: { depth: 0, maxDepth: 50 },
+      });
+      renderPage("/operations?status=running&lane=execute&q=auth");
+      const reset = await screen.findByTestId(
+        selectors.operationsCenter.emptyStateResetFilters,
+      );
+      await userEvent.click(reset);
+      await waitFor(() => {
+        expect(locationCapture?.search ?? "").toBe("");
+      });
+      expect(
+        screen.getByTestId(selectors.operationsCenter.emptyStateSpawnCta),
+      ).toBeInTheDocument();
     });
   });
 });

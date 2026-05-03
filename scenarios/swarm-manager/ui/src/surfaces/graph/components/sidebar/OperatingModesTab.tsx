@@ -6,6 +6,7 @@
  * how many modes are registered.
  */
 
+import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
 import { matchesSearch } from "./useSidebarSearch";
@@ -33,7 +34,7 @@ function LoadingSkeleton() {
   );
 }
 
-export function OperatingModesTab({ searchQuery, onItemClick, onClearSearch }: OperatingModesTabProps) {
+function OperatingModesTabImpl({ searchQuery, onItemClick, onClearSearch }: OperatingModesTabProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["operating-modes", "catalog"],
     queryFn: () => initiativeModeService.catalog(),
@@ -79,3 +80,5 @@ export function OperatingModesTab({ searchQuery, onItemClick, onClearSearch }: O
     </div>
   );
 }
+
+export const OperatingModesTab = memo(OperatingModesTabImpl);

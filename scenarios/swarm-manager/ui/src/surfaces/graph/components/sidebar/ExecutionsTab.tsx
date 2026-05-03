@@ -2,6 +2,7 @@
  * ExecutionsTab - Lists execution records with status, mode, and timing.
  */
 
+import { memo } from "react";
 import { Play } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
@@ -65,7 +66,7 @@ function applySort(items: ExecutionRecord[], sort: SortConfig): ExecutionRecord[
   return sorted;
 }
 
-export function ExecutionsTab({ searchQuery, filters, sort, onItemClick, onClearSearch }: ExecutionsTabProps) {
+function ExecutionsTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch }: ExecutionsTabProps) {
   const items = useExecutionStore((s) => s.items);
 
   let filtered = applyFilters(items, filters);
@@ -120,3 +121,5 @@ export function ExecutionsTab({ searchQuery, filters, sort, onItemClick, onClear
     </div>
   );
 }
+
+export const ExecutionsTab = memo(ExecutionsTabImpl);

@@ -5,7 +5,7 @@
  * from the sidebar without leaving the graph view.
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { useCaptureStore } from "../../../../stores";
@@ -52,7 +52,7 @@ function applySort(items: Capture[], sort: SortConfig): Capture[] {
   return sorted;
 }
 
-export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemClick, onClearSearch }: CapturesTabProps) {
+function CapturesTabImpl({ searchQuery, filters, sort, onItemClick: _onItemClick, onClearSearch }: CapturesTabProps) {
   const navigate = useNavigate();
   const captures = useCaptureStore((s) => s.captures);
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
@@ -132,3 +132,5 @@ export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemCl
     </>
   );
 }
+
+export const CapturesTab = memo(CapturesTabImpl);

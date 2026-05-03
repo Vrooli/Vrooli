@@ -2,7 +2,7 @@
  * InitiativesTab - Lists initiatives with rollup counts.
  */
 
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { Archive, FolderKanban } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
@@ -129,7 +129,7 @@ function LoadingSkeleton() {
   );
 }
 
-export function InitiativesTab({ searchQuery, filters, sort, onItemClick, onClearSearch }: InitiativesTabProps) {
+function InitiativesTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch }: InitiativesTabProps) {
   const items = useInitiativeStore((s) => s.items);
   const status = useInitiativeStore((s) => s.status);
   const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
@@ -217,3 +217,5 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick, onClea
     </div>
   );
 }
+
+export const InitiativesTab = memo(InitiativesTabImpl);

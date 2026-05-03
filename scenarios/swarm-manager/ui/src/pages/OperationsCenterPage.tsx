@@ -9,9 +9,10 @@
  */
 
 import { useCallback, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Bot, Menu, RefreshCw, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Bot, Menu, Plus, RefreshCw, RotateCcw, X } from "lucide-react";
 import { useAppBack } from "../app/routes/useAppBack";
+import { commandPostPath } from "../app/routes/route-paths";
 import { useAppShell } from "../app/shell/AppShellContext";
 import { Button } from "../components/ui/button";
 import { ErrorState } from "../components/ui/error-state";
@@ -133,6 +134,7 @@ export function OperationsCenterPage() {
 
   const { openSidebar } = useAppShell();
   const goBack = useAppBack();
+  const navigate = useNavigate();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -174,6 +176,10 @@ export function OperationsCenterPage() {
   const handleManualRefresh = useCallback(() => {
     void refresh({ force: true });
   }, [refresh]);
+
+  const handleSpawnClick = useCallback(() => {
+    navigate(commandPostPath());
+  }, [navigate]);
 
   const handleResetFilters = useCallback(() => {
     resetFilters();
@@ -222,6 +228,15 @@ export function OperationsCenterPage() {
             Operations Center
           </h1>
         </div>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleSpawnClick}
+          data-testid={selectors.operationsCenter.spawnButton}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+          <span className="hidden sm:inline">Spawn</span>
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -291,6 +306,26 @@ export function OperationsCenterPage() {
               Nothing is running, queued, or finished within the selected time
               window. Spawn an agent or widen the window to see more.
             </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSpawnClick}
+                data-testid={selectors.operationsCenter.emptyStateSpawnCta}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Spawn agent
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                data-testid={selectors.operationsCenter.emptyStateResetFilters}
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Reset filters
+              </Button>
+            </div>
           </div>
         )}
       </div>

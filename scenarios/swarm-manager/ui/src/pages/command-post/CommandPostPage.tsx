@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { Profiler, useCallback } from "react";
 import { Menu, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { onProfilerRender } from "../../lib/profiler";
 import { SummaryView } from "../../components/command-post/SummaryView";
 import { ClarificationPanel } from "../../components/backlog/clarification-panel";
 import { detailPath, decisionStreamPath, graphPath } from "../../app/routes/route-paths";
@@ -11,6 +12,14 @@ import type { DetailRouteTarget } from "../../app/routes/route-paths";
 import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
 
 export function CommandPostPage() {
+  return (
+    <Profiler id="CommandPostPage" onRender={onProfilerRender}>
+      <CommandPostPageImpl />
+    </Profiler>
+  );
+}
+
+function CommandPostPageImpl() {
   const navigate = useNavigate();
   const goBack = useAppBack(graphPath({ lens: "topology" }));
   const { openSidebar } = useAppShell();

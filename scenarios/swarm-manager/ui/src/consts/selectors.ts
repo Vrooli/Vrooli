@@ -629,6 +629,12 @@ export const literalSelectors = {
     // `header`, which is the stats strip below the nav bar.
     navHeader: "operations-center-nav-header",
     backButton: "operations-center-back",
+    // Spawn affordances that route the operator to the Command Post.
+    // The header button is always visible; the empty-state CTAs only
+    // render when activities + queue + recentlyFinished are all empty.
+    spawnButton: "operations-center-spawn-button",
+    emptyStateSpawnCta: "operations-center-empty-state-spawn-cta",
+    emptyStateResetFilters: "operations-center-empty-state-reset-filters",
   },
   // Evidence renderer selectors
   evidence: {

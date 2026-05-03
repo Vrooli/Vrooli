@@ -5,7 +5,7 @@
  * FeedItemCard rendering and priority-based ordering.
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { ChevronDown, ChevronRight, Clock, Inbox } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
@@ -170,7 +170,7 @@ function getSearchableText(item: FeedItem): [string, string | undefined] {
   return [item.item.title || item.item.name, item.item.description];
 }
 
-export function ActivityTab({ feed, searchQuery, onItemClick, onClearSearch }: ActivityTabProps) {
+function ActivityTabImpl({ feed, searchQuery, onItemClick, onClearSearch }: ActivityTabProps) {
   const filtered = searchQuery
     ? feed.filter((item) => {
         const [primary, secondary] = getSearchableText(item);
@@ -210,3 +210,5 @@ export function ActivityTab({ feed, searchQuery, onItemClick, onClearSearch }: A
     </div>
   );
 }
+
+export const ActivityTab = memo(ActivityTabImpl);

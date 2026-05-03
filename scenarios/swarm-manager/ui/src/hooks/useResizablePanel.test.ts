@@ -22,9 +22,16 @@ function makeContainerRef(width = 1000) {
   return { current: el };
 }
 
+function makeTargetRef() {
+  const style: Record<string, string> = {};
+  const el = { style } as unknown as HTMLDivElement;
+  return { current: el, style };
+}
+
 function defaultOptions(overrides: Partial<UseResizablePanelOptions> = {}): UseResizablePanelOptions {
   return {
     containerRef: makeContainerRef(),
+    targetRef: makeTargetRef(),
     minSize: 200,
     maxSize: 500,
     defaultSize: 320,
@@ -51,7 +58,7 @@ describe("useResizablePanel", () => {
     expect(result.current.isResizing).toBe(false);
   });
 
-  it("restores and persists size when storageKey is provided", async () => {
+  it("restores persisted size and persists final size on pointerup", async () => {
     window.localStorage.setItem("test-panel-width", "410");
     const { result } = renderHook(() => useResizablePanel(defaultOptions({ storageKey: "test-panel-width" })));
 
@@ -107,10 +114,10 @@ describe("useResizablePanel", () => {
     expect(result.current.isResizing).toBe(true);
   });
 
-  it("updates size on pointermove and stops on pointerup", () => {
-    const { result } = renderHook(() => useResizablePanel(defaultOptions()));
+  it("writes target.style.width during pointermove and commits size on pointerup", () => {
+    const target = makeTargetRef();
+    const { result } = renderHook(() => useResizablePanel(defaultOptions({ targetRef: target })));
 
-    // Start drag
     act(() => {
       result.current.resizeHandleProps.onPointerDown({
         button: 0,
@@ -118,23 +125,30 @@ describe("useResizablePanel", () => {
       } as unknown as PointerEvent<HTMLDivElement>);
     });
 
-    // Move to 400px
+    // pointermove writes the DOM directly; React state stays put.
     act(() => {
       window.dispatchEvent(new PointerEvent("pointermove", { clientX: 400 }));
     });
-    expect(result.current.size).toBe(400);
+    expect(target.style.width).toBe("400px");
+    expect(result.current.size).toBe(320);
 
-    // Release
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 450 }));
+    });
+    expect(target.style.width).toBe("450px");
+    expect(result.current.size).toBe(320);
+
+    // pointerup commits the final size.
     act(() => {
       window.dispatchEvent(new PointerEvent("pointerup"));
     });
+    expect(result.current.size).toBe(450);
     expect(result.current.isResizing).toBe(false);
-    // Size should stay at 400 after release
-    expect(result.current.size).toBe(400);
   });
 
   it("clamps size to minSize", () => {
-    const { result } = renderHook(() => useResizablePanel(defaultOptions()));
+    const target = makeTargetRef();
+    const { result } = renderHook(() => useResizablePanel(defaultOptions({ targetRef: target })));
 
     act(() => {
       result.current.resizeHandleProps.onPointerDown({
@@ -145,14 +159,15 @@ describe("useResizablePanel", () => {
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointermove", { clientX: 50 }));
+      window.dispatchEvent(new PointerEvent("pointerup"));
     });
-    expect(result.current.size).toBe(200); // minSize
+    expect(result.current.size).toBe(200);
+    expect(target.style.width).toBe("200px");
   });
 
   it("clamps size to effective max (container - adjacent - handle)", () => {
-    // Container 1000, adjacentMinSize 300, handleWidth 8 → effective max = 692
-    // But maxSize is 500, so should clamp to min(500, 692) = 500
-    const { result } = renderHook(() => useResizablePanel(defaultOptions()));
+    const target = makeTargetRef();
+    const { result } = renderHook(() => useResizablePanel(defaultOptions({ targetRef: target })));
 
     act(() => {
       result.current.resizeHandleProps.onPointerDown({
@@ -163,13 +178,14 @@ describe("useResizablePanel", () => {
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointermove", { clientX: 800 }));
+      window.dispatchEvent(new PointerEvent("pointerup"));
     });
     expect(result.current.size).toBe(500); // maxSize
   });
 
   it("clamps to effective max when container is narrow", () => {
-    // Container 600, adjacentMinSize 300, handleWidth 8 → effective max = 292
-    const opts = defaultOptions({ containerRef: makeContainerRef(600) });
+    const target = makeTargetRef();
+    const opts = defaultOptions({ containerRef: makeContainerRef(600), targetRef: target });
     const { result } = renderHook(() => useResizablePanel(opts));
 
     act(() => {
@@ -181,8 +197,9 @@ describe("useResizablePanel", () => {
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointermove", { clientX: 450 }));
+      window.dispatchEvent(new PointerEvent("pointerup"));
     });
-    expect(result.current.size).toBe(292); // effective max
+    expect(result.current.size).toBe(292); // effective max = 600 - 300 - 8
   });
 
   it("sets col-resize cursor during drag and restores on release", () => {

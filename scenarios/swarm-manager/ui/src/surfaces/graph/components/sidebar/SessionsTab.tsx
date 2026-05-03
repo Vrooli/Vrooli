@@ -2,6 +2,7 @@
  * SessionsTab - Lists durable Agent Manager conversations owned by Swarm Manager.
  */
 
+import { memo } from "react";
 import { Bot, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../../../lib/utils";
@@ -44,7 +45,7 @@ const KIND_ICONS = {
   operating_mode_authoring: GitPullRequestArrow,
 };
 
-export function SessionsTab({ searchQuery, filters, sort, onOpenSession, onClearSearch }: SessionsTabProps) {
+function SessionsTabImpl({ searchQuery, filters, sort, onOpenSession, onClearSearch }: SessionsTabProps) {
   const sessions = useAgentSessionStore((s) => s.sessions);
   const status = useAgentSessionStore((s) => s.status);
   const error = useAgentSessionStore((s) => s.error);
@@ -154,3 +155,5 @@ export function SessionsTab({ searchQuery, filters, sort, onOpenSession, onClear
     </div>
   );
 }
+
+export const SessionsTab = memo(SessionsTabImpl);

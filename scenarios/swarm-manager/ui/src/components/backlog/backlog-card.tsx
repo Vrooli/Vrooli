@@ -8,6 +8,7 @@
  * (computed by `getItemActions()` in the parent) — this component only renders.
  */
 
+import { memo } from "react";
 import { Archive, ArrowRight, CheckSquare, Clock, Loader2, Lock, MessageSquare, MessageSquareText, Play, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
@@ -71,7 +72,7 @@ export interface BacklogCardProps {
   onSnooze?: (key: string, expiresAt: number) => void;
 }
 
-export function BacklogCard({
+function BacklogCardImpl({
   item,
   allItems,
   readinessData,
@@ -421,3 +422,5 @@ export function BacklogCard({
     </>
   );
 }
+
+export const BacklogCard = memo(BacklogCardImpl);

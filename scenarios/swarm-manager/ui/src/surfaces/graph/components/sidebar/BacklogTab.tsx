@@ -5,8 +5,9 @@
  * decision answering, run/workshop/finalize actions, and follow-up/archive.
  */
 
-import { useState } from "react";
+import { Profiler, memo, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { onProfilerRender } from "../../../../lib/profiler";
 import { ListTodo } from "lucide-react";
 import { useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
@@ -21,8 +22,12 @@ import { RunBacklogModal } from "../../../../components/backlog/run-backlog-moda
 import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
-import type { BacklogItem } from "../../../../types";
+import type { ItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
+import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
+import type { AttentionReason } from "../../../../lib/feed";
+import type { ReadinessIndicatorData } from "../../../../lib/maturity";
+import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 
@@ -81,16 +86,11 @@ function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogIte
   });
 }
 
-function applySort(items: BacklogItem[], sort: SortConfig, allItems: BacklogItem[]): BacklogItem[] {
-  const unblockingMap = computeUnblockingMap(allItems);
-  return sortBacklogItems(items, buildBacklogCompareFn(sort, unblockingMap), allItems);
-}
-
 function hasActiveFilters(filters: BacklogFilters): boolean {
   return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived || filters.validationStatus !== "";
 }
 
-export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSearch }: BacklogTabProps) {
+function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch }: BacklogTabProps) {
   const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
   const blockingMap = useBacklogStore((s) => s.blockingMap);
@@ -98,6 +98,18 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSea
   const snoozedKeys = useSnoozedKeys();
 
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+
+  // Stable callbacks for the action hook so its internal memos don't churn.
+  const handleSelectBacklog = useCallback(
+    (kind: string, name: string) =>
+      navigate(backlogDetailPath(kind as BacklogItem["kind"], name)),
+    [navigate],
+  );
+  const handleRunItem = useCallback(
+    (kind: BacklogItem["kind"], name: string, title?: string) =>
+      setRunModalTarget({ kind, name, title: title ?? "" }),
+    [],
+  );
 
   // ── Shared action wiring ────────────────────────────────────────────
   const {
@@ -113,19 +125,35 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSea
     setWorkshopBlockingConfirm,
     confirmWorkshopOverride,
   } = useCommandPostItemActions({
-    onSelectBacklog: (kind, name) => navigate(backlogDetailPath(kind, name)),
-    onRunItem: (kind, name, title) => setRunModalTarget({ kind, name, title }),
+    onSelectBacklog: handleSelectBacklog,
+    onRunItem: handleRunItem,
   });
 
   // ── Filter, search, snooze, sort ─────────────────────────────────────
-  let filtered = applyFilters(items, filters);
-  if (searchQuery) {
-    filtered = filtered.filter((item) =>
-      matchesSearch(searchQuery, item.title, item.name, item.description, ...(item.tags ?? [])),
-    );
-  }
-  filtered = filterSnoozed(filtered, (item) => snoozeKeyForBacklog(item.kind, item.name), snoozedKeys);
-  const sorted = applySort(filtered, sort, items);
+  // Unblocking map is O(n²)-ish on the full backlog; memoize on items alone
+  // so it doesn't recompute when filters or search change.
+  const unblockingMap = useMemo(() => computeUnblockingMap(items), [items]);
+
+  const sorted = useMemo(() => {
+    let next = applyFilters(items, filters);
+    if (searchQuery) {
+      next = next.filter((item) =>
+        matchesSearch(searchQuery, item.title, item.name, item.description, ...(item.tags ?? [])),
+      );
+    }
+    next = filterSnoozed(next, (item) => snoozeKeyForBacklog(item.kind, item.name), snoozedKeys);
+    return sortBacklogItems(next, buildBacklogCompareFn(sort, unblockingMap), items);
+  }, [items, filters, searchQuery, sort, snoozedKeys, unblockingMap]);
+
+  const handleCloseRunModal = useCallback(() => setRunModalTarget(undefined), []);
+  const handleRunModalSuccess = useCallback(() => {
+    setRunModalTarget(undefined);
+    void fetchBacklog({ force: true });
+  }, [fetchBacklog]);
+  const handleCloseWorkshopConfirm = useCallback(
+    () => setWorkshopBlockingConfirm(null),
+    [setWorkshopBlockingConfirm],
+  );
 
   if (sorted.length === 0) {
     const filtersActive = hasActiveFilters(filters);
@@ -147,44 +175,23 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSea
     <>
       <div className="space-y-2">
         {sorted.map((item) => {
-          const nodeId = buildBacklogNodeId(item.kind, item.name);
           const itemKey = `${item.kind}/${item.name}`;
-          const readiness = readinessMap.get(itemKey);
-          const reasons = attentionReasonsMap.get(itemKey) ?? [];
-          const callbacks = getItemCallbacks(item);
-
           return (
-            <button
-              key={nodeId}
-              type="button"
-              onClick={() => onItemClick(nodeId)}
-              className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
-              data-testid="sidebar-backlog-item"
-            >
-              <BacklogCard
-                item={item}
-                allItems={items}
-                readinessData={readiness}
-                itemActions={getItemActions({
-                  item,
-                  blockingInfo: blockingMap[itemKey] ?? null,
-                  readinessReady: readiness ? readiness.ready : null,
-                  pendingSynthesis: readiness?.pendingSynthesis ?? false,
-                  agentRunning: activeRunKeys.has(itemKey),
-                  hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
-                  hasExecutionHistory: item.status === "completed" || item.status === "failed",
-                })}
-                attentionReasons={reasons}
-                pendingQuestions={pendingQuestionsMap.get(itemKey)}
-                isStepperCompleted={completedSteppers.has(itemKey)}
-                transitionResult={transitionItems.get(itemKey)}
-                onStepperCompleted={(result) => handleStepperCompleted(itemKey, item, result)}
-                batchMode={false}
-                isSelected={false}
-                onToggleSelection={() => {}}
-                {...callbacks}
-              />
-            </button>
+            <BacklogRow
+              key={itemKey}
+              item={item}
+              allItems={items}
+              blockingInfo={blockingMap[itemKey] ?? null}
+              readiness={readinessMap.get(itemKey)}
+              attentionReasons={attentionReasonsMap.get(itemKey) ?? EMPTY_REASONS}
+              pendingQuestions={pendingQuestionsMap.get(itemKey)}
+              agentRunning={activeRunKeys.has(itemKey)}
+              isStepperCompleted={completedSteppers.has(itemKey)}
+              transitionResult={transitionItems.get(itemKey)}
+              getItemCallbacks={getItemCallbacks}
+              handleStepperCompleted={handleStepperCompleted}
+              onItemClick={onItemClick}
+            />
           );
         })}
       </div>
@@ -192,18 +199,15 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSea
       {/* Run modal */}
       <RunBacklogModal
         isOpen={!!runModalTarget}
-        onClose={() => setRunModalTarget(undefined)}
+        onClose={handleCloseRunModal}
         target={runModalTarget}
-        onSuccess={() => {
-          setRunModalTarget(undefined);
-          void fetchBacklog({ force: true });
-        }}
+        onSuccess={handleRunModalSuccess}
       />
 
       {/* Workshop blocking override confirmation */}
       <ConfirmDialog
         isOpen={!!workshopBlockingConfirm}
-        onClose={() => setWorkshopBlockingConfirm(null)}
+        onClose={handleCloseWorkshopConfirm}
         onConfirm={confirmWorkshopOverride}
         title="Dependencies Not Ready"
         description={
@@ -216,3 +220,97 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick, onClearSea
     </>
   );
 }
+
+function BacklogTabWrapped(props: BacklogTabProps) {
+  return (
+    <Profiler id="BacklogTab" onRender={onProfilerRender}>
+      <BacklogTabImpl {...props} />
+    </Profiler>
+  );
+}
+
+export const BacklogTab = memo(BacklogTabWrapped);
+
+// Stable empty array, returned when a key has no attention reasons. Keeping
+// the reference constant lets the memoized row skip re-renders that would
+// otherwise be triggered by a fresh `[]` literal each render.
+const EMPTY_REASONS: AttentionReason[] = [];
+
+interface BacklogRowProps {
+  item: BacklogItem;
+  allItems: BacklogItem[];
+  blockingInfo: ItemBlockingInfo | null;
+  readiness: ReadinessIndicatorData | undefined;
+  attentionReasons: AttentionReason[];
+  pendingQuestions: PendingQuestion[] | undefined;
+  agentRunning: boolean;
+  isStepperCompleted: boolean;
+  transitionResult: StepperCompletionResult | undefined;
+  getItemCallbacks: (item: BacklogItem) => ItemCallbacks;
+  handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
+  onItemClick: (nodeId: string) => void;
+}
+
+const BacklogRow = memo(function BacklogRow({
+  item,
+  allItems,
+  blockingInfo,
+  readiness,
+  attentionReasons,
+  pendingQuestions,
+  agentRunning,
+  isStepperCompleted,
+  transitionResult,
+  getItemCallbacks,
+  handleStepperCompleted,
+  onItemClick,
+}: BacklogRowProps) {
+  const itemKey = `${item.kind}/${item.name}`;
+  const nodeId = useMemo(() => buildBacklogNodeId(item.kind, item.name), [item.kind, item.name]);
+  const hasPendingDecisions = (pendingQuestions?.length ?? 0) > 0;
+  const itemActions = useMemo(
+    () =>
+      getItemActions({
+        item,
+        blockingInfo,
+        readinessReady: readiness ? readiness.ready : null,
+        pendingSynthesis: readiness?.pendingSynthesis ?? false,
+        agentRunning,
+        hasPendingDecisions,
+        hasExecutionHistory: item.status === "completed" || item.status === "failed",
+      }),
+    [item, blockingInfo, readiness, agentRunning, hasPendingDecisions],
+  );
+  const callbacks = getItemCallbacks(item);
+  const handleClick = useCallback(() => onItemClick(nodeId), [nodeId, onItemClick]);
+  const handleStepperCompletedForItem = useCallback(
+    (result: StepperCompletionResult) => handleStepperCompleted(itemKey, item, result),
+    [handleStepperCompleted, itemKey, item],
+  );
+  const noopToggleSelection = useCallback(() => {}, []);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
+      data-testid="sidebar-backlog-item"
+    >
+      <BacklogCard
+        item={item}
+        allItems={allItems}
+        readinessData={readiness}
+        itemActions={itemActions}
+        attentionReasons={attentionReasons}
+        pendingQuestions={pendingQuestions}
+        isStepperCompleted={isStepperCompleted}
+        transitionResult={transitionResult}
+        onStepperCompleted={handleStepperCompletedForItem}
+        batchMode={false}
+        isSelected={false}
+        onToggleSelection={noopToggleSelection}
+        {...callbacks}
+      />
+    </button>
+  );
+});

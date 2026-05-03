@@ -57,6 +57,7 @@ const buildSimpleDiff = (next: string, previous: string): string[] => {
 export function PromptsPage() {
   const queryClient = useQueryClient();
   const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const skillsPanelRef = useRef<HTMLDivElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<PromptTab>("catalog");
   const [selectedSkillId, setSelectedSkillId] = useState("");
@@ -65,6 +66,7 @@ export function PromptsPage() {
   const [markdownView, setMarkdownView] = useState<"raw" | "rendered">("raw");
   const { size: skillsPanelWidth, isResizing, resizeHandleProps: skillsResizeHandleProps } = useResizablePanel({
     containerRef: workspaceRef,
+    targetRef: skillsPanelRef,
     minSize: MIN_SKILLS_PANEL_WIDTH,
     maxSize: MAX_SKILLS_PANEL_WIDTH,
     defaultSize: 320,
@@ -285,6 +287,7 @@ export function PromptsPage() {
         <TabsContent value="viewer" data-testid={selectors.prompts.viewerPanel}>
           <PromptEditor
             workspaceRef={workspaceRef}
+            skillsPanelRef={skillsPanelRef}
             skillsPanelWidth={skillsPanelWidth}
             isResizing={isResizing}
             skillsResizeHandleProps={skillsResizeHandleProps}

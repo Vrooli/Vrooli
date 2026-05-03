@@ -9,7 +9,8 @@
  * feed to show only that group's items. Tapping again clears the filter.
  */
 
-import { useMemo, useState, useCallback } from "react";
+import { Profiler, useMemo, useState, useCallback } from "react";
+import { onProfilerRender } from "../../lib/profiler";
 import { useBacklogStore } from "../../stores/backlog-store";
 import { useExecutionStore } from "../../stores/execution-store";
 import { useCaptureStore } from "../../stores/capture-store";
@@ -37,7 +38,15 @@ interface SummaryViewProps {
   onSwitchLens: (lens: string) => void;
 }
 
-export function SummaryView({
+export function SummaryView(props: SummaryViewProps) {
+  return (
+    <Profiler id="SummaryView" onRender={onProfilerRender}>
+      <SummaryViewImpl {...props} />
+    </Profiler>
+  );
+}
+
+function SummaryViewImpl({
   onEnterDecisionStream,
   onNavigateToDetail,
   onSwitchLens,

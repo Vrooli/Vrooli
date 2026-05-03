@@ -225,9 +225,7 @@ function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
     bestFor: stringArray(mode.best_for ?? mode.bestFor),
     notFor: stringArray(mode.not_for ?? mode.notFor),
     tradeoffs: stringArray(mode.tradeoffs),
-    whenInDoubtPickInstead: whenInDoubt
-      ? (whenInDoubt as InitiativeOperatingMode)
-      : undefined,
+    whenInDoubtPickInstead: whenInDoubt ? whenInDoubt : undefined,
     usageCount: numberValue(mode.usage_count ?? mode.usageCount, 0) ?? 0,
     scopeKind: stringValue(mode.scope_kind ?? mode.scopeKind),
     runStrategy: stringValue(mode.run_strategy ?? mode.runStrategy),

@@ -5,7 +5,8 @@
  * Dagre layout before rendering.
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { onProfilerRender } from "../../../lib/profiler";
 import { useGraphAutoFit } from "../hooks/useGraphAutoFit";
 import {
   Background,
@@ -65,7 +66,7 @@ const baseEdgeOptions: DefaultEdgeOptions = {
 // from Zustand stores. Without memo, every GraphWorkspace re-render (e.g.,
 // from the 5-second activity polling) would cascade into GraphCanvas,
 // re-evaluating all its useMemo/useCallback hooks unnecessarily.
-export const GraphCanvas = memo(function GraphCanvas() {
+const GraphCanvasImpl = memo(function GraphCanvasImpl() {
   const storeNodes = useGraphDataStore((s) => s.nodes);
   const storeEdges = useGraphDataStore((s) => s.edges);
   const lens = useGraphDataStore((s) => s.lens);
@@ -475,3 +476,11 @@ export const GraphCanvas = memo(function GraphCanvas() {
     </div>
   );
 });
+
+export function GraphCanvas() {
+  return (
+    <Profiler id="GraphCanvas" onRender={onProfilerRender}>
+      <GraphCanvasImpl />
+    </Profiler>
+  );
+}

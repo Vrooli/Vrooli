@@ -38,6 +38,7 @@ const EDITOR_OPTIONS = {
 
 export interface PromptEditorProps {
   workspaceRef: Ref<HTMLDivElement>;
+  skillsPanelRef: Ref<HTMLDivElement>;
   skillsPanelWidth: number;
   isResizing: boolean;
   skillsResizeHandleProps: Record<string, unknown>;
@@ -68,6 +69,7 @@ export interface PromptEditorProps {
 
 export function PromptEditor({
   workspaceRef,
+  skillsPanelRef,
   skillsPanelWidth,
   isResizing,
   skillsResizeHandleProps,
@@ -101,7 +103,7 @@ export function PromptEditor({
         ref={workspaceRef}
         className={`flex h-[calc(100dvh-12rem)] flex-col lg:h-[calc(100dvh-15rem)] lg:flex-row ${isResizing ? "select-none" : ""}`}
       >
-        <div className="hidden lg:flex lg:flex-col" style={{ width: skillsPanelWidth }}>
+        <div ref={skillsPanelRef} className="hidden lg:flex lg:flex-col" style={{ width: skillsPanelWidth }}>
           {skillsSidebar}
         </div>
         <div

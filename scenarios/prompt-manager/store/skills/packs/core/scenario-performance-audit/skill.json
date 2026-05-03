@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scenario-performance-audit",
+  "name": "Scenario Performance Audit",
+  "description": "Reproducible headless browser-perf audit for Vrooli scenario UIs: confirm perf-build infra, capture a Chrome trace while exercising a scripted interaction, and analyse it for component-level commit hotspots. Discovery + before/after fix validation.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "performance",
+    "profiling",
+    "react",
+    "browser",
+    "methodology",
+    "audit"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-03T17:00:43Z",
+  "updatedAt": "2026-05-03T17:00:43Z"
+}

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Profiler, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { onProfilerRender } from "../../lib/profiler";
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "../../surfaces/graph/components/Sidebar";
 import { SettingsDrawer } from "../../surfaces/graph/components/SettingsDrawer";
@@ -22,6 +23,7 @@ import type { FeedbackItem, MaturityItem } from "../../lib/feed";
 export function AppShell() {
   const navigate = useNavigate();
   const shellRef = useRef<HTMLDivElement>(null);
+  const sidebarAsideRef = useRef<HTMLElement>(null);
   const isMobile = useIsMobile();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
 
@@ -40,6 +42,7 @@ export function AppShell() {
 
   const { resizeHandleProps, size: sidebarWidth } = useResizablePanel({
     containerRef: shellRef,
+    targetRef: sidebarAsideRef,
     minSize: 260,
     maxSize: 480,
     defaultSize: 320,
@@ -122,6 +125,20 @@ export function AppShell() {
     navigate(graphPath({ lens: "topology" }));
   }, [closeSidebarOnMobile, navigate]);
 
+  const handleSidebarItemClick = useCallback(
+    (nodeId: string) => navigateToNode(nodeId),
+    [navigateToNode],
+  );
+
+  const handleOpenSettings = useCallback(() => setShowSettingsDrawer(true), []);
+
+  const handleOpenCommandPost = useCallback(() => {
+    closeSidebarOnMobile();
+    navigate(commandPostPath());
+  }, [closeSidebarOnMobile, navigate]);
+
+  const handleCloseSettingsDrawer = useCallback(() => setShowSettingsDrawer(false), []);
+
   const shellContext = useMemo(
     () => ({
       openSidebar: () => setSidebarCollapsed(false),
@@ -132,28 +149,32 @@ export function AppShell() {
   );
 
   return (
-    <AppShellContext.Provider value={shellContext}>
-      <div ref={shellRef} className="flex h-screen min-w-0 bg-slate-950 text-slate-50">
-        <Sidebar
-          feed={feed}
-          onItemClick={(nodeId) => navigateToNode(nodeId)}
-          onSettingsOpen={() => setShowSettingsDrawer(true)}
-          onGoHome={handleGoHome}
-          onOpenCommandPost={() => {
-            closeSidebarOnMobile();
-            navigate(commandPostPath());
-          }}
-          onOpenAgentSession={closeSidebarOnMobile}
-          desktopWidth={isMobile ? undefined : sidebarWidth}
-          resizeHandleProps={isMobile ? undefined : resizeHandleProps}
-        />
+    <Profiler id="AppShell" onRender={onProfilerRender}>
+      <AppShellContext.Provider value={shellContext}>
+        <div ref={shellRef} className="flex h-screen min-w-0 bg-slate-950 text-slate-50">
+          <Profiler id="Sidebar" onRender={onProfilerRender}>
+            <Sidebar
+              feed={feed}
+              onItemClick={handleSidebarItemClick}
+              onSettingsOpen={handleOpenSettings}
+              onGoHome={handleGoHome}
+              onOpenCommandPost={handleOpenCommandPost}
+              onOpenAgentSession={closeSidebarOnMobile}
+              desktopWidth={isMobile ? undefined : sidebarWidth}
+              resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+              asideRef={sidebarAsideRef}
+            />
+          </Profiler>
 
-        <main className="min-w-0 flex-1 overflow-auto">
-          <Outlet />
-        </main>
+          <main className="min-w-0 flex-1 overflow-auto">
+            <Profiler id="Outlet" onRender={onProfilerRender}>
+              <Outlet />
+            </Profiler>
+          </main>
 
-        <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
-      </div>
-    </AppShellContext.Provider>
+          <SettingsDrawer isOpen={showSettingsDrawer} onClose={handleCloseSettingsDrawer} />
+        </div>
+      </AppShellContext.Provider>
+    </Profiler>
   );
 }

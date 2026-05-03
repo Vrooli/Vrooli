@@ -5,12 +5,14 @@
  * Manages sidebar UI state via persisted reducer state.
  */
 
-import type { HTMLAttributes } from "react";
+import { useCallback, type ChangeEvent, type HTMLAttributes, type Ref } from "react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
 import { useAISearchStatus } from "../../../../lib/ai-search";
 import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { useSidebarState } from "./useSidebarState";
+import type { SearchMode } from "./useSidebarState";
+import type { SidebarTab } from "./types";
 import { useDebouncedValue } from "./useSidebarSearch";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarTabs } from "./SidebarTabs";
@@ -35,6 +37,9 @@ interface SidebarProps {
   onOpenAgentSession?: (sessionId: string) => void;
   desktopWidth?: number;
   resizeHandleProps?: HTMLAttributes<HTMLDivElement>;
+  /** Optional ref to the <aside> element. Used by parents to imperatively
+   *  drive the width during drag without re-rendering React. */
+  asideRef?: Ref<HTMLElement>;
 }
 
 export function Sidebar({
@@ -46,6 +51,7 @@ export function Sidebar({
   onOpenAgentSession,
   desktopWidth,
   resizeHandleProps,
+  asideRef,
 }: SidebarProps) {
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
@@ -55,7 +61,19 @@ export function Sidebar({
   const aiSearchStatus = useAISearchStatus();
   const aiAvailable = aiSearchStatus.status?.available ?? false;
   const aiMode = state.searchMode === "ai" && aiAvailable;
-  const clearSearch = () => dispatch({ type: "SET_SEARCH", query: "" });
+  const clearSearch = useCallback(() => dispatch({ type: "SET_SEARCH", query: "" }), [dispatch]);
+  const handleSearchChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => dispatch({ type: "SET_SEARCH", query: e.target.value }),
+    [dispatch],
+  );
+  const handleSearchModeChange = useCallback(
+    (mode: SearchMode) => dispatch({ type: "SET_SEARCH_MODE", mode }),
+    [dispatch],
+  );
+  const handleTabChange = useCallback(
+    (tab: SidebarTab) => dispatch({ type: "SET_TAB", tab }),
+    [dispatch],
+  );
 
   if (sidebarCollapsed) {
     return null;
@@ -74,6 +92,7 @@ export function Sidebar({
       />
 
       <aside
+        ref={asideRef}
         className={cn(
           "fixed inset-0 z-50 flex w-full flex-col border-r border-slate-200/20 bg-slate-950 shadow-2xl",
           "md:relative md:z-auto md:w-auto md:shrink-0 md:shadow-none",
@@ -97,14 +116,14 @@ export function Sidebar({
           <SearchBar
             placeholder={aiMode ? "Semantic search..." : "Search..."}
             value={state.searchQuery}
-            onChange={(e) => dispatch({ type: "SET_SEARCH", query: e.target.value })}
+            onChange={handleSearchChange}
             widthClass="w-full"
             className="h-8 text-[16px] md:text-sm"
             data-testid="sidebar-search"
           />
           <SearchModeToggle
             mode={state.searchMode}
-            onChange={(mode) => dispatch({ type: "SET_SEARCH_MODE", mode })}
+            onChange={handleSearchModeChange}
             aiAvailable={aiAvailable}
             unavailableReason={aiSearchStatus.status?.message ?? aiSearchStatus.error ?? undefined}
           />
@@ -114,7 +133,7 @@ export function Sidebar({
         {!aiMode && (
           <SidebarTabs
             activeTab={activeTab}
-            onTabChange={(tab) => dispatch({ type: "SET_TAB", tab })}
+            onTabChange={handleTabChange}
           />
         )}
 
