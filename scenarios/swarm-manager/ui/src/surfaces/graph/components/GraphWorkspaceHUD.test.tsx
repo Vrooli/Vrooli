@@ -1,8 +1,8 @@
 /**
  * Tests for GraphWorkspaceHUD.
  *
- * Pins the P8 contract that the agents button is the Operations Center
- * trigger pill (HUD variant), not the legacy `<AgentsDropdown>`.
+ * Pins the contract that the agents button is the Operations Center
+ * trigger pill (HUD variant) and links to /operations.
  */
 
 import { describe, it, expect, vi } from "vitest";

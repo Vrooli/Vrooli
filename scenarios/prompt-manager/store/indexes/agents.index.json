@@ -1,21 +1,6 @@
 {
-  "generatedAt": "2026-05-01T23:29:08Z",
+  "generatedAt": "2026-05-03T02:29:44Z",
   "items": [
-    {
-      "id": "agent-26",
-      "displayName": "Agent 26",
-      "status": "active"
-    },
-    {
-      "id": "agent-27",
-      "displayName": "Agent 27",
-      "status": "active"
-    },
-    {
-      "id": "agent-28",
-      "displayName": "Agent 28",
-      "status": "active"
-    },
     {
       "id": "brand-manager",
       "displayName": "Brand Manager",

@@ -3,12 +3,9 @@
  *
  * Shows the app title, a home button (returns to graph view), the
  * always-visible Operations Center trigger pill, a settings gear, and a
- * collapse/close button.
- *
- * The Operations Center trigger replaces the legacy `<AgentsDropdown>`
- * popover (P8 of the Operations Center plan). It reads its count from
- * `useOperationsStore` rather than `useAgentActivitiesStore`, so the
- * sidebar header no longer needs activity-list / stop-run plumbing.
+ * collapse/close button. The trigger reads its count from
+ * `useOperationsStore`, so the sidebar header does not need activity-list
+ * or stop-run plumbing.
  */
 
 import { Home, PanelLeft, Settings, X } from "lucide-react";

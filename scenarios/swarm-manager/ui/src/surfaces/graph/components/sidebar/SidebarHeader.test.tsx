@@ -2,8 +2,7 @@
  * Tests for SidebarHeader.
  *
  * Verifies home, settings, and collapse handlers fire, and pins that the
- * Operations Center trigger pill (P8) renders in place of the legacy
- * `<AgentsDropdown>` popover.
+ * Operations Center trigger pill renders and links to /operations.
  */
 
 import { describe, it, expect, vi } from "vitest";

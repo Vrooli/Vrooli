@@ -4,11 +4,9 @@
  * Renders the top HUD rows: sidebar toggle, settings/stats/help/agents
  * buttons, lens navigation, and optional nav controls.
  *
- * The agents button is the always-visible Operations Center trigger
- * (P8 of the Operations Center plan); it replaces the legacy
- * `<AgentsDropdown>` popover. The trigger reads its count from
- * `useOperationsStore`, so the HUD no longer needs activity / stop-run
- * plumbing piped down from `GraphWorkspace`.
+ * The agents button is the always-visible Operations Center trigger; it
+ * reads its count from `useOperationsStore`, so the HUD does not need
+ * activity / stop-run plumbing piped down from `GraphWorkspace`.
  */
 
 import { BarChart3, HelpCircle, Menu, Settings } from "lucide-react";

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { describe, expect, it, beforeEach, beforeAll } from "vitest";
 import { OperationsCenterPage } from "./OperationsCenterPage";
+import { AppShellContext } from "../app/shell/AppShellContext";
 import { selectors } from "../consts/selectors";
 import {
   installMatchMediaMock,
@@ -66,6 +67,9 @@ const fakeService: IOperationsService = {
     if (mockError) throw mockError;
     return mockResponse;
   },
+  async bulkStop() {
+    return { outcomes: [], total: 0, stopped: 0, failed: 0 };
+  },
 };
 
 let locationCapture: ReturnType<typeof useLocation> | null = null;
@@ -74,20 +78,56 @@ function CaptureLocation() {
   return null;
 }
 
-function renderPage(initial = "/operations") {
+interface RenderOptions {
+  initial?: string;
+  shellContext?: {
+    openSidebar?: () => void;
+    closeSidebar?: () => void;
+    toggleSidebar?: () => void;
+  };
+}
+
+function renderPage(arg: string | RenderOptions = "/operations") {
+  const opts: RenderOptions = typeof arg === "string" ? { initial: arg } : arg;
+  const initial = opts.initial ?? "/operations";
+  const shellValue = {
+    openSidebar: opts.shellContext?.openSidebar ?? (() => {}),
+    closeSidebar: opts.shellContext?.closeSidebar ?? (() => {}),
+    toggleSidebar: opts.shellContext?.toggleSidebar ?? (() => {}),
+  };
   return render(
     <MemoryRouter initialEntries={[initial]}>
-      <Routes>
-        <Route
-          path="/operations"
-          element={
-            <>
-              <CaptureLocation />
-              <OperationsCenterPage />
-            </>
-          }
-        />
-      </Routes>
+      <AppShellContext.Provider value={shellValue}>
+        <Routes>
+          <Route
+            path="/operations"
+            element={
+              <>
+                <CaptureLocation />
+                <OperationsCenterPage />
+              </>
+            }
+          />
+          <Route
+            path="/graph"
+            element={
+              <>
+                <CaptureLocation />
+                <div data-testid="graph-page-stub" />
+              </>
+            }
+          />
+          <Route
+            path="/graph/:lens"
+            element={
+              <>
+                <CaptureLocation />
+                <div data-testid="graph-page-stub" />
+              </>
+            }
+          />
+        </Routes>
+      </AppShellContext.Provider>
     </MemoryRouter>,
   );
 }
@@ -269,6 +309,81 @@ describe("OperationsCenterPage", () => {
     );
     await waitFor(() => {
       expect(locationCapture?.search ?? "").not.toContain("view=");
+    });
+  });
+
+  describe("nav header", () => {
+    it("renders the page-level nav header with sidebar, refresh, and close affordances", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.navHeader),
+        ).toBeInTheDocument();
+      });
+      const navHeader = screen.getByTestId(
+        selectors.operationsCenter.navHeader,
+      );
+      // Page title lives in the nav header so it is reachable when the
+      // stats panel is collapsed under the sticky bar on small screens.
+      expect(navHeader).toHaveTextContent(/Operations Center/i);
+      // Sidebar opener uses the shared `page-sidebar-button` testid so
+      // top-level pages match the convention set by CommandPostPage.
+      expect(
+        screen.getByTestId("page-sidebar-button"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.operationsCenter.refreshButton),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId(selectors.operationsCenter.backButton),
+      ).toBeInTheDocument();
+    });
+
+    it("invokes openSidebar on the AppShell context when the menu button is clicked", async () => {
+      let opened = 0;
+      renderPage({
+        initial: "/operations",
+        shellContext: { openSidebar: () => void (opened += 1) },
+      });
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("page-sidebar-button"),
+        ).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("page-sidebar-button"));
+      expect(opened).toBe(1);
+    });
+
+    it("navigates back to the graph fallback when the close button is clicked", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(selectors.operationsCenter.backButton),
+        ).toBeInTheDocument();
+      });
+      await userEvent.click(
+        screen.getByTestId(selectors.operationsCenter.backButton),
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("graph-page-stub"),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("triggers a manual refresh when the refresh button is clicked", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(lastFilters).not.toBeNull();
+      });
+      // Reset the spy then click — the refresh path always re-fetches.
+      lastFilters = null;
+      await userEvent.click(
+        screen.getByTestId(selectors.operationsCenter.refreshButton),
+      );
+      await waitFor(() => {
+        expect(lastFilters).not.toBeNull();
+      });
     });
   });
 });

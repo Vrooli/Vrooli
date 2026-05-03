@@ -6,8 +6,10 @@ import (
 	"swarm-manager/internal/operations"
 )
 
-// registerOperationsRoutes wires the Operations Center aggregate endpoint
-// (`GET /api/v1/operations`).
+// registerOperationsRoutes wires the Operations Center HTTP surface:
+//
+//   - GET  /api/v1/operations           — aggregated lanes / queue / activity view
+//   - POST /api/v1/operations/bulk-stop — server-serialized cancellation
 //
 // Must run after registerAgentActivityRoutes, registerExecutionRoutes, and
 // registerOperatingModeRoutes — operations joins those three readers and
@@ -34,4 +36,14 @@ func (s *Server) registerOperationsRoutes() {
 		log.Fatalf("operations: failed to build Aggregator: %v", err)
 	}
 	operations.NewHandler(aggregator).RegisterRoutes(s.router)
+
+	// Bulk-stop reuses the same agentActivitySvc as both Stopper and
+	// ActivityLister: StopRun cancels a single run end-to-end (manager
+	// stop + ledger update + dispatch), and List feeds the filter-mode
+	// resolver with the same source of truth the aggregator uses.
+	bulkStop, err := operations.NewBulkStopHandler(s.agentActivitySvc, s.agentActivitySvc)
+	if err != nil {
+		log.Fatalf("operations: failed to build BulkStopHandler: %v", err)
+	}
+	bulkStop.RegisterRoutes(s.router)
 }

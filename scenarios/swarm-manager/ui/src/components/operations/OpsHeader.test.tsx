@@ -1,6 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { OpsHeader } from "./OpsHeader";
 import type { OperationsView } from "../../types/operations";
 
@@ -40,14 +39,7 @@ function makeView(overrides: Partial<OperationsView> = {}): OperationsView {
 
 describe("OpsHeader", () => {
   it("renders four lane bars in canonical order", () => {
-    render(
-      <OpsHeader
-        view={makeView()}
-        isRefreshing={false}
-        onRefresh={() => {}}
-        windowSeconds={10800}
-      />,
-    );
+    render(<OpsHeader view={makeView()} windowSeconds={10800} />);
     const bars = screen.getAllByRole("progressbar");
     expect(bars).toHaveLength(4);
     expect(bars[0]).toHaveAccessibleName(/Investigate/);
@@ -57,78 +49,30 @@ describe("OpsHeader", () => {
   });
 
   it("renders queue chip with depth", () => {
-    render(
-      <OpsHeader
-        view={makeView()}
-        isRefreshing={false}
-        onRefresh={() => {}}
-        windowSeconds={10800}
-      />,
-    );
+    render(<OpsHeader view={makeView()} windowSeconds={10800} />);
     expect(screen.getByLabelText("2 queued")).toBeInTheDocument();
   });
 
   it("counts complete and failed totals from recently finished", () => {
-    render(
-      <OpsHeader
-        view={makeView()}
-        isRefreshing={false}
-        onRefresh={() => {}}
-        windowSeconds={10800}
-      />,
-    );
+    render(<OpsHeader view={makeView()} windowSeconds={10800} />);
     expect(screen.getByText("1 ✓")).toBeInTheDocument();
     expect(screen.getByText("1 ✗")).toBeInTheDocument();
   });
 
-  it("calls onRefresh when the refresh button is clicked", async () => {
-    const handler = vi.fn();
-    render(
-      <OpsHeader
-        view={makeView()}
-        isRefreshing={false}
-        onRefresh={handler}
-        windowSeconds={10800}
-      />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: /refresh/i }));
-    expect(handler).toHaveBeenCalled();
-  });
-
-  it("disables the refresh button while a refresh is in flight", () => {
-    render(
-      <OpsHeader
-        view={makeView()}
-        isRefreshing={true}
-        onRefresh={() => {}}
-        windowSeconds={10800}
-      />,
-    );
-    expect(screen.getByRole("button", { name: /refresh/i })).toBeDisabled();
-  });
-
   it("renders empty bars when view is null", () => {
-    render(
-      <OpsHeader
-        view={null}
-        isRefreshing={false}
-        onRefresh={() => {}}
-        windowSeconds={10800}
-      />,
-    );
-    // No progressbars when no view yet.
+    render(<OpsHeader view={null} windowSeconds={10800} />);
     expect(screen.queryAllByRole("progressbar")).toHaveLength(0);
   });
 
   it("formats the window label as hours when ≥ 1h", () => {
-    render(
-      <OpsHeader
-        view={makeView()}
-        isRefreshing={false}
-        onRefresh={() => {}}
-        windowSeconds={3 * 3600}
-      />,
-    );
+    render(<OpsHeader view={makeView()} windowSeconds={3 * 3600} />);
     expect(screen.getByText(/last 3h/i)).toBeInTheDocument();
+  });
+
+  it("does not render a refresh button (page nav header owns it)", () => {
+    render(<OpsHeader view={makeView()} windowSeconds={10800} />);
+    expect(
+      screen.queryByRole("button", { name: /refresh/i }),
+    ).not.toBeInTheDocument();
   });
 });

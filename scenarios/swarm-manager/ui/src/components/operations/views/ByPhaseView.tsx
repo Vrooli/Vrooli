@@ -38,6 +38,11 @@ import { laneLabel, lanePalette } from "../utils";
 
 export interface ByPhaseViewProps {
   activities: ActivityRowType[];
+  /**
+   * When true, rows render with leading checkboxes; selection state is
+   * read from `useOperationsStore` inside ActivityRow itself.
+   */
+  selectable?: boolean;
 }
 
 interface LaneBucket {
@@ -65,7 +70,7 @@ function bucketByLane(activities: ActivityRowType[]): LaneBucket[] {
   }));
 }
 
-export function ByPhaseView({ activities }: ByPhaseViewProps) {
+export function ByPhaseView({ activities, selectable = false }: ByPhaseViewProps) {
   const buckets = bucketByLane(activities);
 
   return (
@@ -75,7 +80,12 @@ export function ByPhaseView({ activities }: ByPhaseViewProps) {
       role="list"
     >
       {buckets.map((bucket) => (
-        <LaneColumn key={bucket.lane} lane={bucket.lane} rows={bucket.rows} />
+        <LaneColumn
+          key={bucket.lane}
+          lane={bucket.lane}
+          rows={bucket.rows}
+          selectable={selectable}
+        />
       ))}
     </div>
   );
@@ -84,9 +94,10 @@ export function ByPhaseView({ activities }: ByPhaseViewProps) {
 interface LaneColumnProps {
   lane: OperationsLane;
   rows: ActivityRowType[];
+  selectable?: boolean;
 }
 
-function LaneColumn({ lane, rows }: LaneColumnProps) {
+function LaneColumn({ lane, rows, selectable = false }: LaneColumnProps) {
   const palette = lanePalette(lane);
   return (
     <Card
@@ -128,6 +139,7 @@ function LaneColumn({ lane, rows }: LaneColumnProps) {
               key={row.runId ?? row.activityId}
               row={row}
               showLane={false}
+              selectable={selectable}
             />
           ))}
         </div>

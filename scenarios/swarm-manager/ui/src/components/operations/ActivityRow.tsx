@@ -17,6 +17,7 @@
 import { useNavigate } from "react-router-dom";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
+import { useOperationsStore } from "../../stores/operations-store";
 import { StatusChip, type StatusChipColors } from "../ui/status-chip";
 import type { ActivityRow as ActivityRowType } from "../../types/operations";
 import {
@@ -32,6 +33,21 @@ export interface ActivityRowProps {
   /** When false, the row renders without lane chip (e.g. inside a lane column). */
   showLane?: boolean;
   className?: string;
+  /**
+   * When true, render a leading checkbox the operator can use to add the
+   * row to bulk-action selection. Selection state, the in-flight
+   * `isStopping` flag, and the toggle action are read from
+   * `useOperationsStore` so the view tree (ByInitiativeView, ByPhaseView)
+   * does not need to thread props down. Pages that render ActivityRow
+   * outside the Operations Center leave this off and the row stays
+   * read-only.
+   *
+   * Rows without a `runId` are not selectable (the bulk endpoint targets
+   * run IDs); the checkbox is disabled in that case so the visual layout
+   * stays uniform but the operator gets a hint about why a queue row
+   * isn't selectable.
+   */
+  selectable?: boolean;
 }
 
 const PENDING_STATUS_COLORS: StatusChipColors = {
@@ -115,8 +131,19 @@ export function ActivityRow({
   row,
   showLane = true,
   className,
+  selectable = false,
 }: ActivityRowProps) {
   const navigate = useNavigate();
+  // Subscribe narrowly so unrelated store changes do not re-render every
+  // row. The `runId` lookup short-circuits when selection is disabled.
+  const runId = row.runId ?? null;
+  const selected = useOperationsStore((s) =>
+    selectable && runId ? s.selection.has(runId) : false,
+  );
+  const isStopping = useOperationsStore((s) =>
+    selectable && runId ? s.stoppingRunIds.has(runId) : false,
+  );
+  const toggleSelection = useOperationsStore((s) => s.toggleSelection);
   const href = detailHref(row);
   const colors = statusColors(row.status);
   const label = statusLabel(row.status);
@@ -126,7 +153,13 @@ export function ActivityRow({
     row.status === "pending";
   const palette = row.lane ? lanePalette(row.lane) : null;
 
+  // A row is checkbox-selectable only when the bulk endpoint can target it.
+  // Queue rows without a runId are excluded; the disabled checkbox still
+  // renders so the visual layout stays uniform.
+  const canSelect = selectable && !!row.runId && !isStopping;
+
   const handleClick = () => {
+    if (isStopping) return;
     if (href) navigate(href);
   };
 
@@ -134,34 +167,60 @@ export function ActivityRow({
     <div
       className={cn(
         "group flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-slate-900/50 px-3 py-2 transition-colors",
-        href && "cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800/60",
+        href && !isStopping && "cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800/60",
+        selected && "border-cyan-500/60 bg-slate-800/40",
+        isStopping && "opacity-60",
         className,
       )}
       onClick={handleClick}
       onKeyDown={(e) => {
-        if (!href) return;
+        if (!href || isStopping) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           navigate(href);
         }
       }}
-      role={href ? "button" : undefined}
-      tabIndex={href ? 0 : -1}
+      role={href && !isStopping ? "button" : undefined}
+      tabIndex={href && !isStopping ? 0 : -1}
       data-testid={selectors.operationsCenter.activityRow}
       data-run-id={row.runId ?? row.activityId}
       data-status={row.status}
+      data-stopping={isStopping ? "true" : undefined}
+      data-selected={selected ? "true" : undefined}
     >
+      {selectable && (
+        <input
+          type="checkbox"
+          aria-label={`Select activity ${activityDisplayName(row)}`}
+          className="shrink-0 cursor-pointer accent-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+          data-testid={selectors.operationsCenter.activityRowCheckbox}
+          data-run-id={row.runId ?? row.activityId}
+          checked={selected}
+          disabled={!canSelect}
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => {
+            event.stopPropagation();
+            if (!row.runId) return;
+            toggleSelection(row.runId);
+          }}
+        />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <StatusChip
             label={label}
             colors={colors}
             leadingDot
-            pulse={active}
+            pulse={active && !isStopping}
           />
           <span className="truncate text-sm font-medium text-slate-100">
             {activityDisplayName(row)}
           </span>
+          {isStopping && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+              Stopping…
+            </span>
+          )}
         </div>
         <p className="mt-0.5 truncate text-[11px] text-slate-400">
           {activitySubtitle(row)}

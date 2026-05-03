@@ -26,6 +26,35 @@ function fakeClient(handler: (path: string) => unknown): IApiClient {
   };
 }
 
+interface PostCall {
+  path: string;
+  body: unknown;
+}
+
+function fakeClientWithPost(
+  postHandler: (path: string, body: unknown) => unknown,
+  calls: PostCall[] = [],
+): IApiClient {
+  return {
+    async get<T>(): Promise<T> {
+      throw new Error("not implemented");
+    },
+    async post<T>(path: string, body: unknown): Promise<T> {
+      calls.push({ path, body });
+      return postHandler(path, body) as T;
+    },
+    async put<T>(): Promise<T> {
+      throw new Error("not implemented");
+    },
+    async patch<T>(): Promise<T> {
+      throw new Error("not implemented");
+    },
+    async delete<T>(): Promise<T> {
+      throw new Error("not implemented");
+    },
+  };
+}
+
 describe("formatWindowSeconds", () => {
   it("formats whole hours", () => {
     expect(formatWindowSeconds(3 * 3600)).toBe("PT3H");
@@ -210,5 +239,71 @@ describe("createOperationsService.fetchOperations", () => {
     });
     const fn = vi.fn(() => createOperationsService(client).fetchOperations());
     await expect(fn()).rejects.toThrow("boom");
+  });
+});
+
+describe("createOperationsService.bulkStop", () => {
+  const successResponse = {
+    outcomes: [
+      { run_id: "run-a", success: true },
+      { run_id: "run-b", success: false, error: "agent-manager unreachable" },
+    ],
+    total: 2,
+    stopped: 1,
+    failed: 1,
+  };
+
+  it("posts run IDs as snake_case run_ids", async () => {
+    const calls: PostCall[] = [];
+    const client = fakeClientWithPost(() => successResponse, calls);
+    await createOperationsService(client).bulkStop({ runIds: ["run-a", "run-b"] });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.path).toBe("/operations/bulk-stop");
+    expect(calls[0]!.body).toEqual({ run_ids: ["run-a", "run-b"] });
+  });
+
+  it("posts a filter payload when filter is supplied", async () => {
+    const calls: PostCall[] = [];
+    const client = fakeClientWithPost(() => successResponse, calls);
+    await createOperationsService(client).bulkStop({
+      filter: { lane: "execute", status: "running" },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.body).toEqual({ filter: { lane: "execute", status: "running" } });
+  });
+
+  it("normalizes the snake_case outcome fields", async () => {
+    const client = fakeClientWithPost(() => successResponse);
+    const resp = await createOperationsService(client).bulkStop({ runIds: ["run-a"] });
+
+    expect(resp.total).toBe(2);
+    expect(resp.stopped).toBe(1);
+    expect(resp.failed).toBe(1);
+    expect(resp.outcomes).toEqual([
+      { runId: "run-a", success: true, error: undefined },
+      {
+        runId: "run-b",
+        success: false,
+        error: "agent-manager unreachable",
+      },
+    ]);
+  });
+
+  it("strips empty filter fields before posting", async () => {
+    const calls: PostCall[] = [];
+    const client = fakeClientWithPost(() => successResponse, calls);
+    await createOperationsService(client).bulkStop({ filter: {} });
+    expect(calls[0]!.body).toEqual({ filter: {} });
+  });
+
+  it("propagates network errors", async () => {
+    const client = fakeClientWithPost(() => {
+      throw new Error("net down");
+    });
+    await expect(
+      createOperationsService(client).bulkStop({ runIds: ["run-a"] }),
+    ).rejects.toThrow("net down");
   });
 });

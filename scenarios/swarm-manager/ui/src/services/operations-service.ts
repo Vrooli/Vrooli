@@ -20,6 +20,9 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
   ActivityRow,
+  BulkStopOutcome,
+  BulkStopRequest,
+  BulkStopResponse,
   LaneStatus,
   OperationsFilters,
   OperationsView,
@@ -158,8 +161,52 @@ function buildOperationsQuery(filters?: OperationsFilters): string {
   return encoded ? `?${encoded}` : "";
 }
 
+function normalizeBulkOutcome(raw: unknown): BulkStopOutcome {
+  const row = recordValue(raw);
+  return {
+    runId: stringValue(row.run_id ?? row.runId),
+    success: row.success === true,
+    error: stringValue(row.error, "") || undefined,
+  };
+}
+
+function normalizeBulkResponse(raw: unknown): BulkStopResponse {
+  const view = recordValue(raw);
+  const outcomes = view.outcomes;
+  return {
+    outcomes: Array.isArray(outcomes) ? outcomes.map(normalizeBulkOutcome) : [],
+    total: numberValue(view.total),
+    stopped: numberValue(view.stopped),
+    failed: numberValue(view.failed),
+  };
+}
+
+/**
+ * Convert the camelCase request shape into the snake_case wire shape the
+ * backend expects. Mirrors the field-by-field normalization the rest of
+ * this module uses for incoming responses — intentionally avoiding a
+ * generic camel→snake converter so renames surface as type errors rather
+ * than silent wire mismatches.
+ */
+function serializeBulkRequest(req: BulkStopRequest): Record<string, unknown> {
+  if ("runIds" in req && req.runIds) {
+    return { run_ids: req.runIds };
+  }
+  if ("filter" in req && req.filter) {
+    const filter: Record<string, string> = {};
+    if (req.filter.lane) filter.lane = req.filter.lane;
+    if (req.filter.status) filter.status = req.filter.status;
+    return { filter };
+  }
+  // Should be unreachable — the BulkStopRequest discriminated union forbids
+  // it at the type level — but be defensive so a future caller error fails
+  // fast on the wire (the backend rejects empty bodies with 400).
+  return {};
+}
+
 export interface IOperationsService {
   fetchOperations(filters?: OperationsFilters): Promise<OperationsView>;
+  bulkStop(request: BulkStopRequest): Promise<BulkStopResponse>;
 }
 
 export function createOperationsService(
@@ -171,6 +218,11 @@ export function createOperationsService(
       const raw = await apiClient.get<unknown>(`${API_ENDPOINTS.operations}${suffix}`);
       return normalizeView(raw);
     },
+    async bulkStop(request: BulkStopRequest): Promise<BulkStopResponse> {
+      const body = serializeBulkRequest(request);
+      const raw = await apiClient.post<unknown>(API_ENDPOINTS.operationsBulkStop, body);
+      return normalizeBulkResponse(raw);
+    },
   };
 }
 
@@ -178,4 +230,4 @@ export const operationsService = createOperationsService();
 
 // Exported for tests so they can assert query-string composition without
 // mocking the entire IApiClient surface.
-export const __test__ = { buildOperationsQuery };
+export const __test__ = { buildOperationsQuery, serializeBulkRequest };

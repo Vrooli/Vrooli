@@ -1,9 +1,9 @@
 /**
  * OpsTriggerButton — always-visible entry point to the Operations Center.
  *
- * Replaces the conditional `<AgentsDropdown>` popover that previously
- * lived in the sidebar header and the graph HUD. Two visual variants
- * keep the trigger at home in both contexts:
+ * Lives in the sidebar header and the graph HUD as a peer to the other
+ * navigation buttons. Two visual variants keep the trigger at home in
+ * both contexts:
  *
  *   - `compact` — slim pill used in the sidebar header. Mirrors the
  *     metric/badge density of the surrounding header buttons.

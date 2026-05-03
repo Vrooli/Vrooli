@@ -138,3 +138,36 @@ export const OPERATIONS_VIEW_MODES: readonly OperationsViewMode[] = [
   "by-initiative",
   "by-phase",
 ] as const;
+
+/**
+ * Filter accepted by the `bulk-stop` "stop all" path. Mirrors the backend
+ * `BulkStopFilter` wire shape. Either field may be omitted; an empty
+ * filter targets every active run.
+ */
+export interface BulkStopFilter {
+  lane?: string;
+  status?: string;
+}
+
+/**
+ * Wire shape POSTed to `/api/v1/operations/bulk-stop`. Exactly one of
+ * `runIds` and `filter` is set; the backend rejects both and neither.
+ */
+export type BulkStopRequest =
+  | { runIds: string[]; filter?: never }
+  | { runIds?: never; filter: BulkStopFilter };
+
+/** Per-run outcome from a bulk-stop call. */
+export interface BulkStopOutcome {
+  runId: string;
+  success: boolean;
+  error?: string;
+}
+
+/** Top-level response from `/api/v1/operations/bulk-stop`. */
+export interface BulkStopResponse {
+  outcomes: BulkStopOutcome[];
+  total: number;
+  stopped: number;
+  failed: number;
+}

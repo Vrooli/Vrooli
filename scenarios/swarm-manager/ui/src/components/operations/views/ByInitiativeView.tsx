@@ -19,6 +19,11 @@ import { groupByInitiative } from "../utils";
 
 export interface ByInitiativeViewProps {
   activities: ActivityRowType[];
+  /**
+   * When true, rows render with leading checkboxes; selection state is
+   * read from `useOperationsStore` inside ActivityRow itself.
+   */
+  selectable?: boolean;
 }
 
 function modeBadgeText(rows: ActivityRowType[]): string | null {
@@ -28,7 +33,7 @@ function modeBadgeText(rows: ActivityRowType[]): string | null {
   return null;
 }
 
-export function ByInitiativeView({ activities }: ByInitiativeViewProps) {
+export function ByInitiativeView({ activities, selectable = false }: ByInitiativeViewProps) {
   const groups = groupByInitiative(activities);
 
   if (groups.length === 0) return null;
@@ -56,6 +61,7 @@ export function ByInitiativeView({ activities }: ByInitiativeViewProps) {
                   key={row.runId ?? row.activityId}
                   row={row}
                   showLane
+                  selectable={selectable}
                 />
               ))}
             </div>
@@ -89,6 +95,7 @@ export function ByInitiativeView({ activities }: ByInitiativeViewProps) {
                   key={row.runId ?? row.activityId}
                   row={row}
                   showLane
+                  selectable={selectable}
                 />
               ))}
             </div>

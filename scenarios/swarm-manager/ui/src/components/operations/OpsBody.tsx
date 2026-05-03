@@ -30,6 +30,13 @@ export interface OpsBodyProps {
   activities: ActivityRowType[];
   recentlyFinished: ActivityRowType[];
   enableByPhaseView?: boolean;
+  /**
+   * When true, active rows render with a leading checkbox and read
+   * selection / stopping state from the operations-store. Recently
+   * finished rows are never selectable — bulk-stop targets active runs
+   * only.
+   */
+  selectable?: boolean;
 }
 
 const FINISHED_PREVIEW_COUNT = 8;
@@ -40,6 +47,7 @@ export function OpsBody({
   activities,
   recentlyFinished,
   enableByPhaseView = false,
+  selectable = false,
 }: OpsBodyProps) {
   const [finishedExpanded, setFinishedExpanded] = useState(false);
 
@@ -89,9 +97,9 @@ export function OpsBody({
       </div>
 
       {view === "by-phase" && enableByPhaseView ? (
-        <ByPhaseView activities={activities} />
+        <ByPhaseView activities={activities} selectable={selectable} />
       ) : (
-        <ByInitiativeView activities={activities} />
+        <ByInitiativeView activities={activities} selectable={selectable} />
       )}
 
       {recentlyFinished.length > 0 && (

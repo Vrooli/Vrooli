@@ -1,25 +1,27 @@
 /**
  * Operations Center page (`/operations`).
  *
- * Greenfield replacement for the legacy `<AgentsDropdown>` popover.
- * Composes the stats header, filter bar, and body view; wires polling
- * via `useOperationsPolling`; mirrors filter and view state onto the
- * URL query string for deep-link / reload survival.
- *
- * Phase 6 ships the by-initiative body view and the read-only filter
- * bar. P7a layers in the by-phase board view + view toggle, and P7b
- * adds bulk actions (selection, "Stop selected" / "Stop all running").
+ * Single-page bird's-eye view of agentic activity. Composes the stats
+ * header, filter bar, body view (by-initiative or by-phase), and the
+ * bulk-action bar; wires polling via `useOperationsPolling`; mirrors
+ * filter and view state onto the URL query string for deep-link /
+ * reload survival.
  */
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Bot } from "lucide-react";
+import { Bot, Menu, RefreshCw, X } from "lucide-react";
+import { useAppBack } from "../app/routes/useAppBack";
+import { useAppShell } from "../app/shell/AppShellContext";
+import { Button } from "../components/ui/button";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { OpsHeader } from "../components/operations/OpsHeader";
 import { OpsFilterBar } from "../components/operations/OpsFilterBar";
 import { OpsBody } from "../components/operations/OpsBody";
+import { OpsBulkActions } from "../components/operations/OpsBulkActions";
 import { selectors } from "../consts/selectors";
+import { cn } from "../lib/utils";
 import { useOperationsPolling } from "../hooks/useOperationsPolling";
 import {
   DEFAULT_OPERATIONS_WINDOW_SECONDS,
@@ -125,6 +127,9 @@ export function OperationsCenterPage() {
   const setViewMode = useOperationsStore((state) => state.setViewMode);
   const refresh = useOperationsStore((state) => state.refresh);
 
+  const { openSidebar } = useAppShell();
+  const goBack = useAppBack();
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL → store on mount. Subsequent URL changes (back/forward) also
@@ -187,56 +192,109 @@ export function OperationsCenterPage() {
 
   const showFullPageLoading = isLoading && view === null;
 
+  const refreshing = isRefreshing || isLoading;
+
   return (
     <div
-      className="flex min-h-screen flex-col gap-4 bg-slate-950 px-4 py-4 text-slate-50 md:px-6 md:py-6"
+      className="flex min-h-screen flex-col bg-slate-950 text-slate-50"
       data-testid={selectors.operationsCenter.page}
     >
-      <OpsHeader
-        view={view}
-        isRefreshing={isRefreshing || isLoading}
-        onRefresh={handleManualRefresh}
-        windowSeconds={filters.windowSeconds ?? DEFAULT_OPERATIONS_WINDOW_SECONDS}
-      />
-      <OpsFilterBar
-        filters={filters}
-        onFiltersChange={setFilters}
-        onReset={handleResetFilters}
-      />
-
-      {error && view === null && (
-        <div data-testid={selectors.operationsCenter.errorState}>
-          <ErrorState error={error} onRetry={handleManualRefresh} />
-        </div>
-      )}
-
-      {showFullPageLoading && <PageLoadingState label="Loading operations…" />}
-
-      {view !== null && !isEmpty && (
-        <OpsBody
-          view={viewMode}
-          onViewChange={setViewMode}
-          activities={view.activities}
-          recentlyFinished={view.recentlyFinished}
-          enableByPhaseView={true}
-        />
-      )}
-
-      {view !== null && isEmpty && (
-        <div
-          className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/5 bg-slate-900/40 px-6 py-12 text-center"
-          data-testid={selectors.operationsCenter.emptyState}
+      <header
+        className="sticky top-0 z-20 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-4 py-2.5 backdrop-blur-sm md:px-6"
+        data-testid={selectors.operationsCenter.navHeader}
+      >
+        <button
+          type="button"
+          onClick={openSidebar}
+          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          aria-label="Open sidebar"
+          data-testid="page-sidebar-button"
         >
-          <Bot className="h-10 w-10 text-slate-600" aria-hidden />
-          <h2 className="text-base font-medium text-slate-200">
-            No agentic activity in window
-          </h2>
-          <p className="max-w-sm text-sm text-slate-400">
-            Nothing is running, queued, or finished within the selected time
-            window. Spawn an agent or widen the window to see more.
-          </p>
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Bot className="h-5 w-5 shrink-0 text-cyan-400" aria-hidden />
+          <h1 className="min-w-0 truncate text-lg font-semibold text-slate-100">
+            Operations Center
+          </h1>
         </div>
-      )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          data-testid={selectors.operationsCenter.refreshButton}
+        >
+          <RefreshCw
+            className={cn("mr-1.5 h-3.5 w-3.5", refreshing && "animate-spin")}
+            aria-hidden
+          />
+          <span className="hidden sm:inline">Refresh</span>
+        </Button>
+        <button
+          type="button"
+          onClick={goBack}
+          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          aria-label="Close page"
+          data-testid={selectors.operationsCenter.backButton}
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
+        <OpsHeader
+          view={view}
+          windowSeconds={filters.windowSeconds ?? DEFAULT_OPERATIONS_WINDOW_SECONDS}
+        />
+        <OpsFilterBar
+          filters={filters}
+          onFiltersChange={setFilters}
+          onReset={handleResetFilters}
+        />
+
+        {error && view === null && (
+          <div data-testid={selectors.operationsCenter.errorState}>
+            <ErrorState error={error} onRetry={handleManualRefresh} />
+          </div>
+        )}
+
+        {showFullPageLoading && <PageLoadingState label="Loading operations…" />}
+
+        {view !== null && !isEmpty && (
+          <OpsBody
+            view={viewMode}
+            onViewChange={setViewMode}
+            activities={view.activities}
+            recentlyFinished={view.recentlyFinished}
+            enableByPhaseView={true}
+            selectable
+          />
+        )}
+
+        {view !== null && isEmpty && (
+          <div
+            className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/5 bg-slate-900/40 px-6 py-12 text-center"
+            data-testid={selectors.operationsCenter.emptyState}
+          >
+            <Bot className="h-10 w-10 text-slate-600" aria-hidden />
+            <h2 className="text-base font-medium text-slate-200">
+              No agentic activity in window
+            </h2>
+            <p className="max-w-sm text-sm text-slate-400">
+              Nothing is running, queued, or finished within the selected time
+              window. Spawn an agent or widen the window to see more.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/*
+        OpsBulkActions self-gates: it returns null when there's nothing to
+        act on, so mounting it unconditionally is cheap and keeps the bar
+        from re-creating its sticky shell on each refresh tick.
+      */}
+      <OpsBulkActions />
     </div>
   );
 }

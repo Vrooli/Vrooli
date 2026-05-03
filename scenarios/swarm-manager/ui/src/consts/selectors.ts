@@ -54,12 +54,10 @@ export const literalSelectors = {
     desktopTabs: "desktop-tabs",
     mobileNav: "mobile-nav",
     agentsToggle: "layout-agents-toggle",
-    agentsDropdown: "layout-agents-dropdown",
-    // P8 — always-shown bot icon + "N agents" pill that navigates to
-    // /operations. Replaces the conditional `agentsDropdown` trigger in
-    // both the sidebar header and the graph HUD. Two visual variants
-    // (compact, hud) share the same selector so workflow tooling can
-    // assert "the trigger is on screen" regardless of layout context.
+    // Always-shown bot icon + "N agents" pill that navigates to
+    // /operations. Two visual variants (compact, hud) share the same
+    // selector so workflow tooling can assert "the trigger is on screen"
+    // regardless of layout context.
     opsTriggerButton: "layout-ops-trigger-button",
   },
   // Error state selectors (shared across pages)
@@ -585,10 +583,8 @@ export const literalSelectors = {
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
   },
-  // Operations Center selectors. Single page surface that replaces the
-  // legacy `<AgentsDropdown>` popover. The `layout.opsTriggerButton`
-  // entry will be added in P8 (the always-shown bot icon + "N agents"
-  // pill that lives in the sidebar header and the graph HUD).
+  // Operations Center selectors. Single-page surface for agentic
+  // activity; the trigger lives under `layout.opsTriggerButton`.
   operationsCenter: {
     page: "operations-center-page",
     header: "operations-center-header",
@@ -615,6 +611,21 @@ export const literalSelectors = {
     ownerTypeSelect: "operations-center-owner-type-select",
     windowSelect: "operations-center-window-select",
     resetFilters: "operations-center-reset-filters",
+    // Bulk-action selectors (P7b). Row checkbox is rendered inside
+    // ActivityRow when selectable=true; the bulk-action bar appears at the
+    // bottom of the page when selection.size > 0.
+    activityRowCheckbox: "operations-center-activity-row-checkbox",
+    bulkActionBar: "operations-center-bulk-action-bar",
+    bulkStopSelected: "operations-center-bulk-stop-selected",
+    bulkStopAll: "operations-center-bulk-stop-all",
+    bulkClearSelection: "operations-center-bulk-clear-selection",
+    bulkStopConfirmDialog: "operations-center-bulk-stop-confirm",
+    bulkStopAllConfirmDialog: "operations-center-bulk-stop-all-confirm",
+    bulkStopOutcomeToast: "operations-center-bulk-stop-outcome",
+    // Page-level navigation chrome (sidebar toggle + close). Distinct from
+    // `header`, which is the stats strip below the nav bar.
+    navHeader: "operations-center-nav-header",
+    backButton: "operations-center-back",
   },
   // Evidence renderer selectors
   evidence: {
