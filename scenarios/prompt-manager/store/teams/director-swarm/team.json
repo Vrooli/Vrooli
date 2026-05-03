@@ -220,12 +220,12 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "portfolio-snapshot-YYYY-MM-DD": {
+      "portfolio-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "portfolio-manager",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "outcome-snapshot-YYYY-MM-DD": {
+      "outcome-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "outcome-strategist",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -248,7 +248,7 @@
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
           "decision-application/<decision-id>",
-          "portfolio-snapshot-YYYY-MM-DD"
+          "portfolio-snapshot/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -302,7 +302,7 @@
         ],
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "outcome-snapshot-YYYY-MM-DD",
+          "outcome-snapshot/YYYY-MM-DD",
           "decision-application/<decision-id>"
         ],
         "allowedWrites": [

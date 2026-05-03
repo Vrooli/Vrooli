@@ -1,6 +1,6 @@
-# Toolchain Scan
+# Toolchain Audit
 
-Latest scan result from `toolchain-validator`. Supersedes on each heartbeat.
+Latest audit result from `toolchain-validator`. Supersedes on each heartbeat. (Renamed from `Toolchain Scan` 2026-05-03 to align with the audit-vs-scan naming rule — the work is adversarial / compliance-shaped, producing `toolchain-violation` decisions, not survey-shaped observations.)
 
 ---
 
@@ -77,4 +77,4 @@ Either way, this means scan results across heartbeats may not be directly compar
 - **Pre-heartbeat queue:** 4 pending team-wide; 1 own-context. Post-raise: 5 pending team-wide (4 − 1 superseded + 2 new = +1 net); 2 own-context (under 4 cap).
 
 ### Knowledge entries
-- `toolchain-scan-2026-04-28` — supersedes `toolchain-scan-2026-04-27`
+- `toolchain-audit-2026-04-28` — supersedes `toolchain-audit-2026-04-27`

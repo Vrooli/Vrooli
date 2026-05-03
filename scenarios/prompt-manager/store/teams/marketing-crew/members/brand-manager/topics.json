@@ -1,7 +1,7 @@
 {
   "intake": [
     {
-      "prefix": "marketing-crew/notebook/*",
+      "prefix": "marketing/notebook/*",
       "taxonomy": "notebook-debt",
       "source_team": null
     }

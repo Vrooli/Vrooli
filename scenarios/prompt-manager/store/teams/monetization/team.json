@@ -347,17 +347,17 @@
       }
     },
     "knowledgeTopics": {
-      "catalog-snapshot-YYYY-MM-DD": {
+      "catalog-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "catalog-strategist",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "ledger-snapshot-YYYY-MM-DD": {
+      "ledger-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "financial-tracker",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "scout-scan-YYYY-MM-DD": {
+      "scout-scan/YYYY-MM-DD": {
         "ownerMemberId": "opportunity-scout",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -393,7 +393,7 @@
         "newDecisionCapPerHeartbeat": 3,
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "catalog-snapshot-YYYY-MM-DD"
+          "catalog-snapshot/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -443,7 +443,7 @@
         "newDecisionCapPerHeartbeat": 3,
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "scout-scan-YYYY-MM-DD"
+          "scout-scan/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -500,7 +500,7 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "ledger-snapshot-YYYY-MM-DD"
+          "ledger-snapshot/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {

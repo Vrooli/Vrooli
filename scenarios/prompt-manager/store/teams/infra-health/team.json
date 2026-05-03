@@ -219,17 +219,17 @@
       }
     },
     "knowledgeTopics": {
-      "runtime-health-YYYY-MM-DD": {
+      "runtime-health-audit/YYYY-MM-DD": {
         "ownerMemberId": "runtime-health-scanner",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "platform-audit-YYYY-MM-DD": {
+      "platform-code-audit/YYYY-MM-DD": {
         "ownerMemberId": "platform-code-auditor",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "infra-contrarian-YYYY-MM-DD": {
+      "contrarian-scan/YYYY-MM-DD": {
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -252,7 +252,7 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "runtime-health-YYYY-MM-DD"
+          "runtime-health-audit/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -308,7 +308,7 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "platform-audit-YYYY-MM-DD"
+          "platform-code-audit/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -376,7 +376,7 @@
         },
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "infra-contrarian-YYYY-MM-DD",
+          "contrarian-scan/YYYY-MM-DD",
           "challenge-note/<decision-id>"
         ],
         "allowedWrites": [

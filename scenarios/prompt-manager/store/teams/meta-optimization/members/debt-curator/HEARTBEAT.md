@@ -45,7 +45,7 @@ You curate meta-optimization's own debt. Notebook entries are not failures; they
 - Or: "None (read-only mode / no candidate warranted promotion)."
 
 ### Knowledge entries written
-- debt-scan-YYYY-MM-DD (supersedes prior)
+- debt-scan/YYYY-MM-DD (supersedes prior)
 - friction/recurring-workaround/<YYYY-MM-DD>/<slug> when recurring friction was found
 ```
 

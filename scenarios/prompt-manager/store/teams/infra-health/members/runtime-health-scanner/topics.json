@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "runtime-health/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "runtime-health-audit/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": [
     "runtime-health-finding",

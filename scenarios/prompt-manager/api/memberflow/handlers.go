@@ -194,6 +194,10 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	if h.knowledgeQuery != nil {
 		extra := EnrichWithDrainStatus(all, h.knowledgeQuery, h.agingOpts)
 		val = MergeFindings(val, extra)
+
+		// Cross-check entry topic keys against declared prefixes.
+		mismatchExtra := EnrichWithKeyPrefixMismatch(all, h.knowledgeQuery)
+		val = MergeFindings(val, mismatchExtra)
 	}
 
 	if team != "" {

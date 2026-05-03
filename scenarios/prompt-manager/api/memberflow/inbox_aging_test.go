@@ -8,6 +8,7 @@ import (
 
 type stubKnowledgeQuery struct {
 	byPrefix map[string][]InboxEntry
+	allByTeam map[string][]InboxEntry
 	err      error
 }
 
@@ -16,6 +17,13 @@ func (s stubKnowledgeQuery) ListUnrouted(_ string, prefix string) ([]InboxEntry,
 		return nil, s.err
 	}
 	return s.byPrefix[prefix], nil
+}
+
+func (s stubKnowledgeQuery) ListAll(team string) ([]InboxEntry, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.allByTeam[team], nil
 }
 
 func mt(team, member string, intake ...IntakeEntry) MemberTopics {

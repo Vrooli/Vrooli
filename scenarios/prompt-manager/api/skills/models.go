@@ -67,7 +67,7 @@ type CreateRequest struct {
 	TargetToolID *string  `json:"targetToolId,omitempty"`
 	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include
 	Draft        bool     `json:"draft"`
-	Folder       string   `json:"folder"` // "local" or "drafts" only
+	Folder       string   `json:"folder"` // one of: "local", "drafts", "core"
 }
 
 // UpdateRequest is the request body for updating a skill.

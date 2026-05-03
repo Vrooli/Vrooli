@@ -5,7 +5,7 @@ Cross-team-readable canon for how notebook-debt curators (members that drain `<t
 **Owner team:** meta-optimization. **Status:** canon. Operator-curated via meta-optimization decisions.
 
 Cited by:
-- `topics.json` for any member whose `intake[].taxonomy = "notebook-debt"` — currently `marketing-crew/brand-manager` (`marketing-crew/notebook/*`) and `meta-optimization/debt-curator` (`meta-optimization/notebook/*`).
+- `topics.json` for any member whose `intake[].taxonomy = "notebook-debt"` — currently `marketing-crew/brand-manager` (`marketing/notebook/*`) and `meta-optimization/debt-curator` (`meta-optimization/notebook/*`).
 
 Notebook-debt curation is a *generic* drain pattern: the entries are not new external signals (so no classifier skill is required) but they still need an explicit decision-style outcome on each pass. The curator member iterates, picks one of {promotion-candidate, retirement-candidate, still-debt}, and acts.
 

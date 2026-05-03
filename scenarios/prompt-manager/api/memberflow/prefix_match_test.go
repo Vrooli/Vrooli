@@ -1,0 +1,115 @@
+package memberflow
+
+import (
+	"errors"
+	"testing"
+)
+
+func TestEnrichWithKeyPrefixMismatch_NilQueryReturnsNil(t *testing.T) {
+	got := EnrichWithKeyPrefixMismatch([]MemberTopics{
+		mt("alpha", "researcher", IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}),
+	}, nil)
+	if got != nil {
+		t.Fatalf("expected nil findings when query is nil, got %v", got)
+	}
+}
+
+func TestEnrichWithKeyPrefixMismatch_AllEntriesCovered(t *testing.T) {
+	members := []MemberTopics{
+		{
+			Ref:    MemberRef{Team: "alpha", Member: "researcher"},
+			Exists: true,
+			Topics: Topics{
+				Intake: []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
+				Output: []OutputEntry{{Prefix: "audience-scan/*", DestinationKind: "knowledge"}},
+			},
+		},
+	}
+	q := stubKnowledgeQuery{
+		allByTeam: map[string][]InboxEntry{
+			"alpha": {
+				{ID: "knw-1", Topic: "research-inbox/audience/foo"},
+				{ID: "knw-2", Topic: "audience-scan/2026-04-23"},
+			},
+		},
+	}
+	findings := EnrichWithKeyPrefixMismatch(members, q)
+	if len(findings) != 0 {
+		t.Fatalf("expected zero findings, got %d: %+v", len(findings), findings)
+	}
+}
+
+func TestEnrichWithKeyPrefixMismatch_FlagsUndeclaredEntry(t *testing.T) {
+	members := []MemberTopics{
+		{
+			Ref:    MemberRef{Team: "alpha", Member: "researcher"},
+			Exists: true,
+			Topics: Topics{
+				Output: []OutputEntry{{Prefix: "audience-scan/*", DestinationKind: "knowledge"}},
+			},
+		},
+	}
+	q := stubKnowledgeQuery{
+		allByTeam: map[string][]InboxEntry{
+			"alpha": {
+				{ID: "knw-1", Topic: "audience-scan/foo"},   // declared
+				{ID: "knw-2", Topic: "competitor/bar"},      // NOT declared
+				{ID: "knw-3", Topic: "audience-scan-flat-1"}, // would be flat-form, not slash-form
+			},
+		},
+	}
+	findings := EnrichWithKeyPrefixMismatch(members, q)
+	if len(findings) != 2 {
+		t.Fatalf("expected 2 findings (competitor + flat), got %d: %+v", len(findings), findings)
+	}
+	for _, f := range findings {
+		if f.Rule != "topic_key_prefix_mismatch" || f.Severity != SeverityWarning {
+			t.Errorf("unexpected finding shape: %+v", f)
+		}
+		if f.Member.Team != "alpha" {
+			t.Errorf("expected team=alpha, got %q", f.Member.Team)
+		}
+	}
+}
+
+func TestEnrichWithKeyPrefixMismatch_ScopesByTeam(t *testing.T) {
+	members := []MemberTopics{
+		{
+			Ref:    MemberRef{Team: "alpha", Member: "a"},
+			Exists: true,
+			Topics: Topics{Output: []OutputEntry{{Prefix: "audience-scan/*", DestinationKind: "knowledge"}}},
+		},
+		{
+			Ref:    MemberRef{Team: "beta", Member: "b"},
+			Exists: true,
+			Topics: Topics{Output: []OutputEntry{{Prefix: "competitor/*", DestinationKind: "knowledge"}}},
+		},
+	}
+	q := stubKnowledgeQuery{
+		allByTeam: map[string][]InboxEntry{
+			// "competitor/x" is declared in team beta but NOT in team alpha.
+			// alpha-side it should fire; beta-side it's fine.
+			"alpha": {{ID: "knw-1", Topic: "competitor/x"}},
+			"beta":  {{ID: "knw-2", Topic: "competitor/y"}},
+		},
+	}
+	findings := EnrichWithKeyPrefixMismatch(members, q)
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 cross-team-isolation finding, got %d: %+v", len(findings), findings)
+	}
+	if findings[0].Member.Team != "alpha" {
+		t.Errorf("expected finding scoped to alpha, got %q", findings[0].Member.Team)
+	}
+}
+
+func TestEnrichWithKeyPrefixMismatch_QueryError(t *testing.T) {
+	q := stubKnowledgeQuery{err: errors.New("backend down")}
+	members := []MemberTopics{{Ref: MemberRef{Team: "alpha"}, Exists: true}}
+	findings := EnrichWithKeyPrefixMismatch(members, q)
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 unavailable finding, got %d", len(findings))
+	}
+	if findings[0].Rule != "topic_key_query_unavailable" {
+		t.Errorf("expected rule topic_key_query_unavailable, got %q", findings[0].Rule)
+	}
+}

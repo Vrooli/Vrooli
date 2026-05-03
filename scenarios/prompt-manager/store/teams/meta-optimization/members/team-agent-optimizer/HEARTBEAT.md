@@ -72,7 +72,7 @@ Respect lane ownership. You may propose the structure and routing, but skill aut
 
 ### Knowledge entries written
 - agent-visited/<id> OR team-visited/<id> (supersedes prior)
-- agent-audit-YYYY-MM-DD OR team-audit-YYYY-MM-DD (supersedes prior)
+- agent-audit/YYYY-MM-DD OR team-audit/YYYY-MM-DD (supersedes prior)
 - friction/prompt-team-agent-storage/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
 ```
 

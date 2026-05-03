@@ -58,6 +58,25 @@ func (q *teamKnowledgeQuery) ListUnrouted(team string, prefix string) ([]memberf
 	return out, nil
 }
 
+// ListAll returns every team-knowledge entry regardless of topic. Used by
+// the topic_key_prefix_mismatch validator rule to cross-check entries
+// against the team's declared topic prefixes.
+func (q *teamKnowledgeQuery) ListAll(team string) ([]memberflow.InboxEntry, error) {
+	entries, err := q.store.GetKnowledge(context.Background(), team, "", "", 0)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]memberflow.InboxEntry, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, memberflow.InboxEntry{
+			ID:    e.ID,
+			Topic: e.Topic,
+			At:    parseRFC3339(e.At),
+		})
+	}
+	return out, nil
+}
+
 func parseRFC3339(s string) time.Time {
 	if s == "" {
 		return time.Time{}

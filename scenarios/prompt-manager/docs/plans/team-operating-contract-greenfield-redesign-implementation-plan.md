@@ -787,7 +787,7 @@ Knowledge topic families:
 | `team-visited/<team-id>` | `team-agent-optimizer` | supersedes previous for same team |
 | `agent-visited/<agent-id>` | `team-agent-optimizer` | supersedes previous for same agent |
 | `run-lessons-YYYY-MM-DD` | `run-introspector` | supersedes previous |
-| `toolchain-scan-YYYY-MM-DD` | `toolchain-validator` | supersedes previous |
+| `toolchain-audit-YYYY-MM-DD` | `toolchain-validator` | supersedes previous (renamed from `toolchain-scan-YYYY-MM-DD` 2026-05-03 per audit-vs-scan rule) |
 | `debt-scan-YYYY-MM-DD` | `debt-curator` | supersedes previous |
 | `challenge-note/<decision-id>` | `meta-contrarian` | append-only, no supersedes |
 

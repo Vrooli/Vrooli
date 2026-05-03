@@ -48,9 +48,9 @@ You apply evolutionary pressure to the skill and Action library. Your primary le
 
 ### Knowledge entries written
 - skill-visited/<skill-id> (supersedes prior for this skill)
-- skill-audit-YYYY-MM-DD (supersedes prior)
+- skill-audit/YYYY-MM-DD (supersedes prior)
 - action-visited/<action-id> when an Action was inspected
-- action-audit-YYYY-MM-DD when the Action audit changed
+- action-audit/YYYY-MM-DD when the Action audit changed
 ```
 
 ## Stop Conditions

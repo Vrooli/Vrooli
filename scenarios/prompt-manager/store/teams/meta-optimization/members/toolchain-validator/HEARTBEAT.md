@@ -52,7 +52,7 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 - Or: "None (read-only mode / no material change)."
 
 ### Knowledge entries written
-- toolchain-scan-YYYY-MM-DD (supersedes prior)
+- toolchain-audit/YYYY-MM-DD (supersedes prior)
 - friction/toolchain/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
 ```
 

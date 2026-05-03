@@ -217,7 +217,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Validate folder
 	if !IsWritableFolder(req.Folder) {
-		http.Error(w, "Can only create skills in 'local' or 'drafts' folders", http.StatusBadRequest)
+		http.Error(w, "folder must be one of: local, drafts, core", http.StatusBadRequest)
 		return
 	}
 

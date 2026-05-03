@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "toolchain-scan/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "toolchain-audit/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": ["toolchain-violation", "capability-gap"],
   "decisions_consumed": [],

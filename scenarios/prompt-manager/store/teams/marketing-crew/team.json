@@ -492,27 +492,27 @@
       }
     },
     "knowledgeTopics": {
-      "brand-snapshot-YYYY-MM-DD": {
+      "brand-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "brand-manager",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "subscription-ad-run-YYYY-MM-DD": {
+      "subscription-ad-run/YYYY-MM-DD": {
         "ownerMemberId": "subscription-advertiser",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "oss-ad-run-YYYY-MM-DD": {
+      "oss-ad-run/YYYY-MM-DD": {
         "ownerMemberId": "oss-advertiser",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "coverage-snapshot-YYYY-MM-DD": {
+      "coverage-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "publisher",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "audience-scan-YYYY-MM-DD": {
+      "audience-scan/YYYY-MM-DD": {
         "ownerMemberId": "researcher",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -549,7 +549,7 @@
         ],
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "brand-snapshot-YYYY-MM-DD"
+          "brand-snapshot/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -607,7 +607,7 @@
         ],
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "subscription-ad-run-YYYY-MM-DD"
+          "subscription-ad-run/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -664,7 +664,7 @@
         ],
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "oss-ad-run-YYYY-MM-DD"
+          "oss-ad-run/YYYY-MM-DD"
         ],
         "allowedWrites": [
           {
@@ -721,7 +721,7 @@
         ],
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "coverage-snapshot-YYYY-MM-DD",
+          "coverage-snapshot/YYYY-MM-DD",
           "decision-application/<decision-id>"
         ],
         "allowedWrites": [
@@ -793,7 +793,7 @@
         ],
         "pendingOwnedDecisionCap": 2,
         "requiredKnowledgeTopics": [
-          "audience-scan-YYYY-MM-DD",
+          "audience-scan/YYYY-MM-DD",
           "monetization-benchmark-adjacent/<topic>"
         ],
         "allowedWrites": [

@@ -34,8 +34,13 @@ type InboxEntry struct {
 // `prefix` here is a topic-prefix in the topics.json sense (e.g.
 // "research-inbox/audience/*" or "research-inbox/audience"). The query is
 // expected to interpret a trailing /* as a wildcard.
+//
+// `ListAll` returns every knowledge entry for a team regardless of topic.
+// Used by the topic_key_prefix_mismatch rule to cross-check entries against
+// declared prefixes.
 type KnowledgeQuery interface {
 	ListUnrouted(team string, prefix string) ([]InboxEntry, error)
+	ListAll(team string) ([]InboxEntry, error)
 }
 
 // InboxAgingOptions configures the threshold behaviour for the inbox-aging

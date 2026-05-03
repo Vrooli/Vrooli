@@ -413,7 +413,7 @@ func cmdRead(ctx appctx.Context, args []string) error {
 
 func cmdAdd(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("add", flag.ContinueOnError)
-	folder := fs.String("folder", "local", "Folder to create skill in (local|drafts)")
+	folder := fs.String("folder", "local", "Folder to create skill in (local|drafts|core). 'local' is the default for new skills; 'core' is reserved for foundational skills that have proven their value and should be opted into deliberately.")
 	description := fs.String("description", "", "Skill description")
 	draft := fs.Bool("draft", false, "Mark as draft")
 	tags := fs.String("tags", "", "Comma-separated tags")
@@ -422,12 +422,12 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill add <name> [--folder=local|drafts] [--description=...] [--tags=...] [--draft]")
+		return fmt.Errorf("usage: skill add <name> [--folder=local|drafts|core] [--description=...] [--tags=...] [--draft]")
 	}
 	name := fs.Arg(0)
 
-	if *folder != "local" && *folder != "drafts" {
-		return fmt.Errorf("folder must be 'local' or 'drafts'")
+	if *folder != "local" && *folder != "drafts" && *folder != "core" {
+		return fmt.Errorf("folder must be 'local', 'drafts', or 'core'")
 	}
 
 	// Get content from stdin

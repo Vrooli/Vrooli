@@ -40,6 +40,8 @@ This is the load-bearing claim that makes the substrate auditable. Adding a new 
 
 The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Topics with deterministic prefixes (e.g., `notebook-debt`-taxonomy intakes) need no classifier — the prefix segment after the inbox name *is* the signal type.
 
+For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*`), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention.
+
 ## When to create a topic
 
 Create a new topic when **all three** of these are true:
@@ -65,20 +67,24 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
 
 ### Stable conventions
 
-- **kebab-case.** Lowercase ASCII letters, digits, and hyphens. No underscores, no camelCase, no team names embedded inside surface prefixes (use `destination_team` to declare cross-team flow instead).
+- **kebab-case.** Lowercase ASCII letters, digits, and hyphens. No underscores, no camelCase.
 - **Wildcard.** `<prefix>/*` matches any entry whose key starts with `<prefix>/`. Bare `*` is disallowed by the validator.
 - **Slug last.** Every full entry key ends in a unique slug under the prefix (e.g., `audience-scan/<slug>`). Slugs are short, kebab-case, descriptive.
 - **One topic, one purpose.** A topic prefix is for one kind of work. Don't co-mingle audience observations and competitor pricing under a single prefix because they're in the same domain — they're different signal types and need different routing.
+- **Slash-slug entry keys.** Every knowledge entry's `topic` field is `<declared-prefix>/<slug>` — the prefix matches some member's `topics.json` declaration with any trailing `/*` stripped, the slug names the entry under that prefix. Date-rotated snapshots use the date as the slug (`audience-scan/2026-04-23`); per-case reports use a descriptive slug (`bug-investigation/login-500-2026-05-03`). Flat-hyphenated keys (`audience-scan-2026-04-23`) and bare tokens with no slash structure are forbidden — they don't match prefix-based queries (`prompt-manager team knowledge-list <team> --topic-prefix=<prefix>/` returns nothing for a flat key). The `topic_key_prefix_mismatch` validation rule (severity warning) flags any entry whose topic doesn't match a declared prefix on its team.
+- **`-audit` vs `-scan` suffix.** Adversarial / compliance topics — those whose owned-decision contexts are findings, violations, or other "X is broken against a standard" shapes — use `-audit`. Survey / observation topics — those whose entries are just observations of a domain without an implicit standard — use `-scan`. Mechanical test: look at the producing member's `decisions_owned` in `topics.json`; if any context is named `*-finding`, `*-violation`, `*-gap` against a standard, it's audit. Examples: `platform-code-audit/*`, `team-audit/*`, `toolchain-audit/*` are adversarial; `audience-scan/*`, `debt-scan/*` are survey. The suffix is optional only when the bare domain name already unambiguously names the surface (e.g., `competitor/*`, `hook/*` are durable observation surfaces with no `-scan` suffix); when in doubt, add the suffix.
+- **Team name in the prefix only when the team name is part of the *concept*.** Team scoping is implicit — every entry already lives in some team's knowledge store, and cross-team flow is declared explicitly via `destination_team` / `source_team`. Adding a team name to the prefix is therefore redundant by default, and *coupling* the topic to a particular team makes it harder to reorganize (re-assign a topic to a different drainer, move it between teams, or have multiple teams share a concept). The default is **no team in the prefix** — `audience-scan/*`, `competitor/*`, `bug-inbox/*`, `qa-run/*`. Add the team only when the team name is genuinely part of the concept (e.g., `marketing-canon/*` and `monetization-canon/*` are two distinct PoR-write surfaces that need to coexist as named concepts), or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/<signal-type>/<slug>` — the notebook IS team-internal and signal types nest under it). When team appears, use the **short domain name** (`marketing`, not `marketing-crew`); the only abbreviation in active use is `marketing-crew` → `marketing` (others — `monetization`, `meta-optimization`, `scenario-qa`, `infra-health`, `director-swarm` — match team id verbatim).
 
 ### Topic shapes (current usage)
 
 | Shape | Pattern | Examples | Lifetime |
 |---|---|---|---|
 | **Inbox (transient)** | `<inbox-name>/<signal-type>/<slug>` | `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar` | drained → entry retagged or deleted |
-| **Notebook debt** | `<team>/notebook/<signal-type>/<slug>` | `marketing-crew/notebook/audience-question/foo` | drained → promoted, retired, or aged |
+| **Notebook debt** | `<short-domain>/notebook/<signal-type>/<slug>` | `marketing/notebook/audience-question/foo`, `meta-optimization/notebook/skill-debt/bar` | drained → promoted, retired, or aged |
 | **Canonical surface (knowledge)** | `<surface>/<slug>` | `audience-scan/foo`, `competitor/bar`, `hook/baz`, `candidate-sku/qux` | durable; the entry's permanent home |
 | **Cross-team flow** | same as inbox or canonical, with explicit `destination_team` / `source_team` | `monetization-benchmark-adjacent/foo` (marketing → monetization) | depends on the receiving member's drain |
-| **Audit / scan output** | `<purpose>-audit/<slug>` or `<purpose>-scan/<slug>` | `quality-audit/foo`, `audience-scan/bar`, `toolchain-scan/baz` | durable observation; not retagged |
+| **Audit output** | `<purpose>-audit/<slug>` | `quality-audit/foo`, `toolchain-audit/bar`, `runtime-health-audit/baz` | adversarial / compliance findings; durable, not retagged |
+| **Scan output** | `<purpose>-scan/<slug>` | `audience-scan/foo`, `debt-scan/bar` | survey / observation collection; durable, not retagged |
 | **PoR-write topic** | `<team>-canon/<slug>` | `marketing-canon/foo`, `monetization-canon/bar` | translates to a PoR markdown edit; `destination_kind = por_file` |
 | **Decision-prep / synthesis** | `<purpose>/<slug>` | `vision-walk-prep/foo`, `workshop-decision-prep/bar`, `initiative-portfolio/baz`, `outcome-targets/qux` | durable; consumed by another member's intake or by the operator |
 | **Local audit log** | `<purpose>/<slug>` | `publish-log/foo`, `qa-run/bar`, `run-lessons/baz`, `debt-scan/qux`, `monetization-ledger/quux` | durable; usually not drained, just queryable |
@@ -94,9 +100,10 @@ The producer-side rule that follows from this: if you discover something with a 
 These are real today; they should be reconciled via meta-optimization decisions before the registry below is treated as steady-state.
 
 1. ~~**Inbox-naming drift.**~~ **Resolved 2026-05-03.** Standardized on `*-inbox/*` for external/cross-team intake; `validation-queue/*` was renamed to `validation-inbox/*`. `<team>/notebook/*` stays as-is — it's a team-scoped curation surface (notebook-debt taxonomy), not a producer→consumer intake, so the different shape is intentional.
-2. **Audit vs. scan suffix.** `*-audit/*` (action-audit, agent-audit, platform-code-audit, quality-audit, skill-audit, team-audit) and `*-scan/*` (audience-scan, debt-scan, toolchain-scan) interleave with no principled distinction. **Recommendation:** pick one rule — `audit` for adversarial/compliance-shaped findings, `scan` for survey-shaped observations — and migrate the misaligned ones via decision.
-3. **`challenge-note/*` is shared by five contrarians (one per team) but is purely team-local.** Every team's contrarian writes `challenge-note/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. The shared name is fine (it's a *kind* of topic, not a shared surface), but it has no documented consumer. **Recommendation:** either add a drainer (e.g., `meta-contrarian` consumes peer-team `challenge-note/*` cross-team) or document explicitly that `challenge-note/*` is operator-read-only and should be flagged as `orphan_output: warning, by-design`.
-4. **Domain-prefix vs team-prefix on canon surfaces.** `audience-scan/*`, `competitor/*`, `hook/*` are domain-prefixed; `marketing-canon/*`, `monetization-canon/*` are team-prefixed. Likely correct (different `destination_kind`: `knowledge` vs `por_file`) but the rule should be documented explicitly: knowledge-canon uses domain-prefix, PoR-write topics use team-prefix. **Recommendation:** add the rule to § Stable conventions once confirmed.
+2. ~~**Audit vs. scan suffix.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: `-audit` for adversarial / compliance-shaped findings, `-scan` for survey / observation collection. Two renames executed: `toolchain-scan/*` → `toolchain-audit/*` (toolchain-validator produces `toolchain-violation` decisions — adversarial) and `runtime-health/*` → `runtime-health-audit/*` (runtime-health-scanner produces `runtime-health-finding` decisions — adversarial). The `TOOLCHAIN_SCAN.md` shared snapshot was renamed to `TOOLCHAIN_AUDIT.md` for parity with sibling files.
+3. ~~**Slash-slug vs flat-hyphenated entry keys.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: every entry uses `<prefix>/<slug>` form, no flat-hyphenated keys (`<prefix>-<slug>`). 21 `team.json` declarations migrated to slash form, 60+ live knowledge entries renamed across 5 teams (marketing-crew, meta-optimization, monetization, scenario-qa, director-swarm), 6 HEARTBEAT.md files updated, 2 prefix mismatches fixed during migration (`runtime-health` → `runtime-health-audit`, `platform-audit` → `platform-code-audit` — both align team.json with declared topics.json prefixes), 12 atypical legacy entries cleaned up (Portfolio entries → `portfolio-snapshot/<date>`, scenario-qa daily logs → `qa-run/<topic>` or `quality-audit/<topic>`, `dev-log-narrative-principles` → `principles/dev-log-narrative`, `State persistence issue …` → `legacy-note/state-persistence-resolved`). New validator rule `topic_key_prefix_mismatch` (warning) cross-checks each entry's topic against declared prefixes per team — running it now will surface the next layer of gaps (entries under prefixes not yet declared in any `topics.json` output, e.g., `vision-walk/*`, `agent-visited/*`, `principles/*`, `legacy-note/*`, plus snapshot prefixes like `brand-snapshot/*` and `portfolio-snapshot/*` that need `topics.json` declarations or rename). Those become follow-up decisions.
+4. **`challenge-note/*` is shared by five contrarians (one per team) but is purely team-local.** Every team's contrarian writes `challenge-note/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. The shared name is fine (it's a *kind* of topic, not a shared surface), but it has no documented consumer. **Recommendation:** either add a drainer (e.g., `meta-contrarian` consumes peer-team `challenge-note/*` cross-team) or document explicitly that `challenge-note/*` is operator-read-only and should be flagged as `orphan_output: warning, by-design`.
+5. ~~**Domain-prefix vs team-prefix on canon surfaces.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: team name appears in the prefix only when the team name is part of the concept (e.g., distinct PoR-write surfaces `marketing-canon/*` vs `monetization-canon/*`) or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/*`). Default is no team prefix. The only abbreviation enforced is `marketing-crew` → `marketing` in topic prefixes; rename of `marketing-crew/notebook/*` → `marketing/notebook/*` landed at the same time.
 
 ---
 
@@ -126,7 +133,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `runtime-health-scanner` | _(none — proactive)_ | `runtime-health/*` | — |
+| `runtime-health-scanner` | _(none — proactive)_ | `runtime-health-audit/*` | — |
 | `platform-code-auditor` | _(none — proactive)_ | `platform-code-audit/*` | — |
 | `infra-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
 
@@ -142,7 +149,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
 | `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor/*`, `hook/*`, `monetization-benchmark-adjacent/*` | writes `monetization-benchmark-adjacent/*` → monetization |
-| `brand-manager` | `marketing-crew/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `docs/marketing/STRATEGY.md`, `docs/marketing/AUDIENCES.md`) | — |
+| `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `docs/marketing/STRATEGY.md`, `docs/marketing/AUDIENCES.md`) | — |
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
 | `oss-advertiser` | _(none — proactive)_ | `campaign-drafts/*` | — |
 | `subscription-advertiser` | _(none — proactive)_ | `campaign-drafts/*` | — |
@@ -162,7 +169,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `debt-curator` | `meta-optimization/notebook/*` (taxonomy: notebook-debt, no classifier) | `debt-scan/*` | — |
 | `skill-optimizer` | _(none — proactive)_ | `skill-audit/*`, `action-audit/*` | — |
 | `team-agent-optimizer` | _(none — proactive)_ | `team-audit/*`, `agent-audit/*` | — |
-| `toolchain-validator` | _(none — proactive)_ | `toolchain-scan/*` | — |
+| `toolchain-validator` | _(none — proactive)_ | `toolchain-audit/*` | — |
 | `run-introspector` | _(none — proactive)_ | `run-lessons/*` | — |
 | `meta-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
 

@@ -165,10 +165,10 @@
           "required": true
         },
         {
-          "id": "toolchain-scan-md",
+          "id": "toolchain-audit-md",
           "path": {
             "base": "team-shared",
-            "path": "TOOLCHAIN_SCAN.md"
+            "path": "TOOLCHAIN_AUDIT.md"
           },
           "kind": "rolling-snapshot",
           "required": true
@@ -306,7 +306,7 @@
       }
     },
     "knowledgeTopics": {
-      "skill-audit-YYYY-MM-DD": {
+      "skill-audit/YYYY-MM-DD": {
         "ownerMemberId": "skill-optimizer",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -316,7 +316,7 @@
         "supersedesPrevious": true,
         "retention": "visited-tracker"
       },
-      "action-audit-YYYY-MM-DD": {
+      "action-audit/YYYY-MM-DD": {
         "ownerMemberId": "skill-optimizer",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -326,12 +326,12 @@
         "supersedesPrevious": true,
         "retention": "visited-tracker"
       },
-      "team-audit-YYYY-MM-DD": {
+      "team-audit/YYYY-MM-DD": {
         "ownerMemberId": "team-agent-optimizer",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "agent-audit-YYYY-MM-DD": {
+      "agent-audit/YYYY-MM-DD": {
         "ownerMemberId": "team-agent-optimizer",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -351,7 +351,7 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "run-lessons-YYYY-MM-DD": {
+      "run-lessons/YYYY-MM-DD": {
         "ownerMemberId": "run-introspector",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -361,7 +361,7 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "toolchain-scan-YYYY-MM-DD": {
+      "toolchain-audit/YYYY-MM-DD": {
         "ownerMemberId": "toolchain-validator",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -371,7 +371,7 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "debt-scan-YYYY-MM-DD": {
+      "debt-scan/YYYY-MM-DD": {
         "ownerMemberId": "debt-curator",
         "supersedesPrevious": true,
         "retention": "snapshot"
@@ -397,7 +397,7 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "toolchain-scan-YYYY-MM-DD",
+          "toolchain-audit/YYYY-MM-DD",
           "friction/toolchain/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
@@ -435,9 +435,9 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "skill-audit-YYYY-MM-DD",
+          "skill-audit/YYYY-MM-DD",
           "skill-visited/<skill-id>",
-          "action-audit-YYYY-MM-DD",
+          "action-audit/YYYY-MM-DD",
           "action-visited/<action-id>"
         ],
         "allowedWrites": [
@@ -492,8 +492,8 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "team-audit-YYYY-MM-DD",
-          "agent-audit-YYYY-MM-DD",
+          "team-audit/YYYY-MM-DD",
+          "agent-audit/YYYY-MM-DD",
           "team-visited/<team-id>",
           "agent-visited/<agent-id>",
           "friction/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
@@ -529,7 +529,7 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "run-lessons-YYYY-MM-DD",
+          "run-lessons/YYYY-MM-DD",
           "friction/run-execution/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
@@ -623,7 +623,7 @@
         "newDecisionCapPerHeartbeat": 1,
         "pendingOwnedDecisionCap": 2,
         "requiredKnowledgeTopics": [
-          "debt-scan-YYYY-MM-DD",
+          "debt-scan/YYYY-MM-DD",
           "friction/recurring-workaround/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
