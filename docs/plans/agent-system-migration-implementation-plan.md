@@ -164,7 +164,7 @@ Goal: settle the two contracts that everything else depends on, without writing 
 - `docs/agent-system/README.md` skeleton — index page listing intended files, no content yet. Establishes the folder.
 - `docs/agent-system/_outline.md` — table mapping each PoR file to its source skill(s) and which sections move where. Used as the migration manifest for Phase 1.
 - `scenarios/prompt-manager/api/internal/topics/schema.go` (or equivalent) — the `topics.json` schema as a Go struct + JSON Schema validator. No loader yet, no endpoints yet.
-- `docs/agent-system/drafts/topics-schema.md` — human-readable schema doc used as PoR for the data model.
+- `docs/agent-system/TOPICS_SCHEMA.md` — human-readable schema doc used as PoR for the data model. (Originally drafted at `docs/agent-system/drafts/topics-schema.md` in Phase 0; promoted to canon during the inbox-flow refactor.)
 
 **`topics.json` schema (canonical for the rest of the plan):**
 

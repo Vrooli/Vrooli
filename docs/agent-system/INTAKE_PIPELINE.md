@@ -80,6 +80,16 @@ prompt-manager team knowledge-add <team> \
 
 Each entry must preserve: source URL when available, raw operator note, confidence/honesty flags, and a proposed next method (or a reason no follow-up is warranted). Signal-type lives in the topic prefix, not the content.
 
+### Two routing modes
+
+The same drain procedure runs in either of two modes, picked per intake by whether the topic-prefix carries enough information to determine `signal_type` deterministically.
+
+**Mode 1 — Classifier-required (judgment intake).** The producer writes a raw note under a generic prefix (`research-inbox/<signal-type>/<slug>`); the assigned signal-type is a *hint*, not authority. The drainer applies a portable classifier skill — pure judgment, no team or destination coupling — to derive the authoritative `signal_type`, `evidence_strength`, and `honesty_flags` for each entry. Use this mode when the producer is upstream of the taxonomy (operator, vision-walk, cross-team handoff) and may misclassify, or when interpretation is required to disambiguate signal types. Examples: `marketing-crew/researcher` → `marketing-signal-classifier` over `marketing-research`; `monetization/opportunity-scout` → `monetization-signal-classifier` over `monetization-opportunity`; `monetization/market-validator` → `market-validation-triage` over `monetization-validation`.
+
+**Mode 2 — Deterministic prefix (no classifier).** The producer is constrained to write only valid taxonomy signal-types in the prefix segment after the inbox name (`<inbox-name>/<signal-type>/<slug>`), and that segment is taken as authoritative. No classifier skill is loaded; the drainer's heartbeat omits the classifier line and reads the signal-type straight from the topic. Use this mode when (a) the producer set is closed and trusted (typically same-team curation, not external alpha) and (b) the taxonomy's signal-types are mutually exclusive enough that misclassification is rare. Examples: `marketing-crew/brand-manager` and `meta-optimization/debt-curator` both drain `<team>/notebook/*` against the `notebook-debt` taxonomy with no classifier — the producer writes `notebook/promotion-candidate/<slug>` etc., and the curator trusts the prefix.
+
+The choice is structural, recorded in `topics.json`: setting `intake[].classifier_skill` selects mode 1; omitting it selects mode 2. The heartbeat builder renders the appropriate procedure either way; the drainer does not need to know which mode is in use beyond what the generated section says.
+
 ### Routing — drain duty
 
 The draining member uses its taxonomy (`intake[].taxonomy`) and, when judgment is needed, its classifier skill (`intake[].classifier_skill`) to **route each entry exactly once**. The heartbeat builder generates a universal `# Inbox Flow` section that names the prefix, the loaded taxonomy, the classifier (if any), the destination schemas, and the dispatch table. The classifier is portable and team-agnostic — it returns a recommendation; the member's drain procedure picks the action.
@@ -187,7 +197,22 @@ Each member declares structurally what it produces:
 }
 ```
 
-`destination_kind` is one of `knowledge`, `decision`, `por_file`, `capability_gap`, `skill_proposal`, `backlog`. `schema` references a front-matter shape declared on the producer's taxonomy (`taxonomy.schemas.<id>`); the producer's taxonomy owns the schema even when the consumer is on another team. Cross-team flow is declared on both sides — see `drafts/topics-schema.md`.
+`destination_kind` is one of `knowledge`, `decision`, `por_file`, `capability_gap`, `skill_proposal`, `backlog`. `schema` references a front-matter shape declared on the producer's taxonomy (`taxonomy.schemas.<id>`). Cross-team flow is declared on both sides — see [Cross-team schema ownership](#cross-team-schema-ownership) below and `TOPICS_SCHEMA.md`.
+
+### Cross-team schema ownership
+
+When a prefix crosses team boundaries, **the producer's taxonomy owns the front-matter schema**. The consumer adopts the same schema; it does not redefine it. This is one of the load-bearing rules of the inbox-flow architecture and the one most likely to confuse a new adopter.
+
+| | Producer side | Consumer side |
+|---|---|---|
+| `topics.json` field | `output[].destination_team = "<other-team>"`, `output[].schema = "<id>"` | `intake[].source_team = "<producer-team>"`, `intake[].taxonomy = "<consumer-domain>"` |
+| Owns front-matter shape | yes | no |
+| Owns dispatch / routing on read | no | yes |
+| Validator behavior | `missing_destination_schema` resolves `output[].schema` against the producer's taxonomy | `unknown_taxonomy` resolves the consumer's intake taxonomy independently |
+
+Worked example. `marketing-crew/researcher` writes `monetization-benchmark-adjacent/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
+
+Why this rule: the on-disk shape is fixed at write time. The producer is the only party who can guarantee shape consistency; if the consumer redefined the schema, the producer would be unable to validate its own writes. Routing is a read-side concern and may legitimately differ across consumers (a single prefix could be drained by multiple consumers under different taxonomies later). Schemas can't.
 
 ---
 

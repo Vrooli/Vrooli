@@ -1,6 +1,8 @@
 # `topics.json` — per-member message-flow declarations
 
-This document is the human-readable plan-of-record for the `topics.json` data layer. It pairs with the Go implementation at `scenarios/prompt-manager/api/memberflow/schema.go`. Until the schema is approved by `meta-optimization` decision (the Phase 0 acceptance gate), this lives under `drafts/`. After acceptance it is promoted to `docs/agent-system/TOPICS_SCHEMA.md`.
+**Status:** canon. This document is the plan-of-record for the `topics.json` data layer. It pairs with the Go implementation at `scenarios/prompt-manager/api/memberflow/schema.go`. Cross-team-readable; cited by `INTAKE_PIPELINE.md`, `LAYERS.md`, and the heartbeat builder.
+
+Promoted from `drafts/topics-schema.md` after the inbox-flow refactor stabilized the schema across five in-prod adopters. Backwards-incompatible changes from this point require a `meta-optimization` decision and a migration plan (see [Stability gate](#stability-gate)).
 
 ## Purpose
 
@@ -151,9 +153,14 @@ When a member writes to another team's surface:
 
 - Source side: `output[].destination_team = "<other-team>"` and `destination_kind` matches.
 - Destination side: a member on the other team has an intake whose `prefix` matches, with `source_team` set to the producer team.
-- The producer's taxonomy owns the front-matter schema for cross-team prefixes; the consumer side adopts the same schema.
 
 `orphan_output` flags one-sided claims.
+
+### Producer owns the schema
+
+When a prefix crosses team boundaries, the **producer's taxonomy** owns the front-matter schema. The consumer adopts the same schema; it does not redefine it. This rule is canonical and called out separately in `INTAKE_PIPELINE.md` ("Cross-team schema ownership").
+
+Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjacent/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
 
 ## Example: marketing-crew researcher
 
@@ -190,4 +197,8 @@ When loaded, `prompt-manager graph topics --team marketing-crew` should:
 
 ## Stability gate
 
-After the Phase I cleanup of the inbox-flow refactor (and the canary backfill on marketing-crew + monetization), this schema is frozen by a `meta-optimization` decision. Backwards-incompatible changes after that gate require a new decision and a migration plan.
+This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `marketing-crew/researcher`, `marketing-crew/brand-manager`, `meta-optimization/debt-curator`, `monetization/opportunity-scout`, `monetization/market-validator`).
+
+Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `scenarios/prompt-manager/store/teams/*/members/*/`, (b) the Go schema at `scenarios/prompt-manager/api/memberflow/schema.go`, (c) the heartbeat builder section template at `scenarios/prompt-manager/api/heartbeat/inbox_flow.go`, and (d) the validation rules.
+
+Backwards-compatible additions (new optional fields, new `destination_kind` enum values, new validation rules at `warning` severity) may land via PR without a decision.

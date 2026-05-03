@@ -228,9 +228,14 @@
           "description": "Historical migration manifest for the agent-system plan-of-record"
         },
         {
-          "path": "agent-system/drafts/topics-schema.md",
-          "title": "Topics Schema Draft",
-          "description": "Implemented draft for per-member topic-flow declarations"
+          "path": "agent-system/TOPICS_SCHEMA.md",
+          "title": "Topics Schema",
+          "description": "Canonical schema for per-member topic-flow declarations (topics.json)"
+        },
+        {
+          "path": "agent-system/TOPICS.md",
+          "title": "Topics Registry",
+          "description": "Human registry of every topic prefix in active use, with per-team breakdown and adoption checklist"
         }
       ]
     },

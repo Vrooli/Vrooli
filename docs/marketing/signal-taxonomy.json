@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "id": "marketing-research",
+  "displayName": "Marketing Research Signal Taxonomy",
+  "owner_team": "marketing-crew",
+  "porPath": "docs/marketing/SIGNAL_TAXONOMY.md",
+  "signalTypes": [
+    {
+      "id": "audience-pain",
+      "definition": "Audience frustration, buying trigger, vocabulary, or unmet need.",
+      "defaultMethod": "audience-pain-mining",
+      "defaultDestinationPrefix": "audience-scan/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; converging required for decision"
+    },
+    {
+      "id": "competitor",
+      "definition": "Competitor pricing, packaging, positioning, or changelog.",
+      "defaultMethod": "competitor-positioning-scan",
+      "defaultDestinationPrefix": "competitor/<slug>",
+      "evidenceMinimum": "single-snapshot allowed"
+    },
+    {
+      "id": "hook",
+      "definition": "Reusable opening, framing, or copy pattern observed working.",
+      "defaultMethod": "hook-pattern-mining",
+      "defaultDestinationPrefix": "hook/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; converging required for hook-candidate-promotion"
+    },
+    {
+      "id": "workflow",
+      "definition": "External process, playbook, agent setup, or business workflow worth deconstructing.",
+      "defaultMethod": "workflow-deconstruction",
+      "defaultDestinationPrefix": "workflow-scan/<slug>",
+      "evidenceMinimum": "single-snapshot with light-interpretation"
+    },
+    {
+      "id": "skill",
+      "definition": "External skill or reusable prompt/process; may imply a missing capability.",
+      "defaultMethod": "skill-opportunity-scan",
+      "defaultDestinationPrefix": "skill-scan/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; raise capability-gap when blocking"
+    },
+    {
+      "id": "channel",
+      "definition": "New acquisition channel observed working in market.",
+      "defaultMethod": "channel-format-scan",
+      "defaultDestinationPrefix": "channel-scan/<slug>",
+      "evidenceMinimum": "single-snapshot for observation; converging for channel-strategy-update"
+    },
+    {
+      "id": "format",
+      "definition": "New marketing post format or channel-native format pattern.",
+      "defaultMethod": "post-type-discovery",
+      "defaultDestinationPrefix": "format-scan/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; converging for post-type-proposal"
+    },
+    {
+      "id": "benchmark-adjacent",
+      "definition": "Pricing or market fact relevant to monetization (cross-team to monetization).",
+      "defaultMethod": "benchmark-adjacent-scan",
+      "defaultDestinationPrefix": "monetization-benchmark-adjacent/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; cross-team handoff to monetization"
+    }
+  ],
+  "evidenceRules": [
+    "One source = observation; three converging independent sources = decision threshold.",
+    "Single-snapshot findings carry the `light-interpretation` flag.",
+    "Tool classifications are inputs, not proof.",
+    "Researchers do not edit canon directly. Propose canon changes via owned decisions."
+  ],
+  "actionSelection": {
+    "drop": "Weak one-off / duplicate / out of scope. Delete the inbox row; mention in handoff if useful.",
+    "observe": "Single-snapshot fact with applicability. Retag inbox row to the destination prefix with required front-matter.",
+    "promote-to-canon": "Converging evidence meets threshold. Retag plus raise the matching owned-context decision.",
+    "file-decision": "Operator should decide now. Raise the owned-context decision; delete the inbox row if the artifact lives elsewhere.",
+    "capability-gap": "Source / tool / scenario missing. File capability-gap decision and leave the inbox row until the gap is closed."
+  },
+  "schemas": {
+    "audience-scan": {
+      "frontMatter": {
+        "type": "audience-scan",
+        "audience_segment": "<text>",
+        "evidence_strength": "<single-snapshot|converging>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>",
+        "date_observed": "<YYYY-MM-DD>"
+      },
+      "bodyRequiredSections": ["Observation", "Implication (light-interpretation)"]
+    },
+    "competitor-observation": {
+      "frontMatter": {
+        "type": "competitor-observation",
+        "competitor": "<name>",
+        "dimension": "<pricing|packaging|positioning|changelog>",
+        "evidence_strength": "<single-snapshot|converging>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>",
+        "date_observed": "<YYYY-MM-DD>"
+      },
+      "bodyRequiredSections": ["Observation", "Implication"]
+    },
+    "hook": {
+      "frontMatter": {
+        "type": "hook",
+        "pattern": "<short label>",
+        "channel": "<text-or-null>",
+        "evidence_strength": "<single-snapshot|converging>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>"
+      },
+      "bodyRequiredSections": ["Pattern", "Example", "When to use"]
+    },
+    "workflow-scan": {
+      "frontMatter": {
+        "type": "workflow-scan",
+        "subject": "<text>",
+        "evidence_strength": "<single-snapshot|converging>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>"
+      },
+      "bodyRequiredSections": ["Steps", "Reusable parts"]
+    },
+    "skill-scan": {
+      "frontMatter": {
+        "type": "skill-scan",
+        "subject": "<text>",
+        "implies_capability_gap": "<true|false>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>"
+      },
+      "bodyRequiredSections": ["Skill", "Implication"]
+    },
+    "channel-scan": {
+      "frontMatter": {
+        "type": "channel-scan",
+        "channel": "<text>",
+        "evidence_strength": "<single-snapshot|converging>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>",
+        "date_observed": "<YYYY-MM-DD>"
+      },
+      "bodyRequiredSections": ["Observation", "Implication"]
+    },
+    "format-scan": {
+      "frontMatter": {
+        "type": "format-scan",
+        "format": "<text>",
+        "evidence_strength": "<single-snapshot|converging>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>"
+      },
+      "bodyRequiredSections": ["Format", "Example", "Adoption notes"]
+    },
+    "monetization-benchmark-adjacent": {
+      "frontMatter": {
+        "type": "monetization-benchmark-adjacent",
+        "comp": "<name or category-wide>",
+        "dimension": "<pricing|packaging|other>",
+        "applicability": "<high|medium|low>",
+        "honesty_flags": "[<...>]",
+        "source": "<url-or-null>",
+        "date_observed": "<YYYY-MM-DD>"
+      },
+      "bodyRequiredSections": ["Value", "Notes"]
+    }
+  },
+  "honestyFlags": [
+    "light-interpretation",
+    "tailwind-uncited",
+    "ai-extracted",
+    "single-source",
+    "operator-asserted-only"
+  ],
+  "pendingMethodSkills": [
+    "audience-pain-mining",
+    "competitor-positioning-scan",
+    "hook-pattern-mining",
+    "workflow-deconstruction",
+    "skill-opportunity-scan",
+    "channel-format-scan",
+    "post-type-discovery",
+    "benchmark-adjacent-scan"
+  ]
+}

@@ -64,6 +64,10 @@ When canon lives in the wrong home — typically when a skill restates doctrine 
 | Inbox / synthesis | team knowledge entries under topic prefix | `research-inbox/<signal-type>/<slug>` |
 | Identity | `store/agents/<id>/SOUL.md` | per-agent identity prose |
 | Ownership | `store/teams/<team>/shared/TEAM.md`, `RESPONSIBILITIES.md`, `roles.json` | per-team contracts |
+| Topic flow declarations | `store/teams/<team>/members/<member>/topics.json` (per-member); schema canon at `docs/agent-system/TOPICS_SCHEMA.md` | intake/output prefixes, taxonomy bindings, decision-context ownership |
+| Signal taxonomies | `docs/<domain>/<id>-taxonomy.json` + `docs/<domain>/<NAME>_TAXONOMY.md` | per-domain signal vocabulary, dispatch table, evidence rules, destination schemas |
+
+When a topic-prefix crosses team boundaries, the producer's taxonomy owns the front-matter schema; the consumer's taxonomy governs only its own routing. See `INTAKE_PIPELINE.md` § Cross-team schema ownership for the load-bearing rule and `TOPICS_SCHEMA.md` for the validator's resolution semantics.
 
 ---
 

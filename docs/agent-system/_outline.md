@@ -160,9 +160,9 @@ Wholesale relocation of `docs/meta-optimization/REFERENCE_SCENARIOS.md`.
 |---|---|---|
 | `docs/meta-optimization/REFERENCE_SCENARIOS.md` | All sections | Move (file deleted) |
 
-### `docs/agent-system/drafts/topics-schema.md`
+### `docs/agent-system/TOPICS_SCHEMA.md` (originally `drafts/topics-schema.md`)
 
-Authored fresh in Phase 0 (this commit set). Paired with the Go schema at `scenarios/prompt-manager/api/memberflow/schema.go`. Documents the per-member topic declarations data layer (intake / output / decisions_owned / decisions_consumed / raises_capability_gaps / external_producers).
+Authored fresh in Phase 0 as `drafts/topics-schema.md`; promoted to canon at `TOPICS_SCHEMA.md` during the inbox-flow refactor. Paired with the Go schema at `scenarios/prompt-manager/api/memberflow/schema.go`. Documents the per-member topic declarations data layer (intake / output / decisions_owned / decisions_consumed / raises_capability_gaps / external_producers).
 
 | Source | Action on source |
 |---|---|
