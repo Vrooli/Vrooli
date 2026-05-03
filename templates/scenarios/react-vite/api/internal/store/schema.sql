@@ -5,7 +5,7 @@
 -- notes is the canonical CRUD reference table. Backs the /api/v1/notes
 -- endpoints exposed in handlers/notes/. Times are stored as RFC3339
 -- strings (matching the wire format and the time.Time round-trip in
--- store/notes_sqlite.go::scanNote).
+-- internal/notes/sqlite.go::scanNote).
 CREATE TABLE IF NOT EXISTS notes (
   id         TEXT PRIMARY KEY,
   title      TEXT NOT NULL,

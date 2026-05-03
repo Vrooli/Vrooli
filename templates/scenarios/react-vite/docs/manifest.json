@@ -2,18 +2,72 @@
   "version": "1.0.0",
   "title": "{{SCENARIO_DISPLAY_NAME}} Documentation",
   "description": "Reference docs for the scenario generated from the react-vite template",
-  "defaultDocument": "PROGRESS.md",
+  "defaultDocument": "QUICKSTART.md",
   "sections": [
     {
-      "id": "operations",
-      "title": "Operations",
-      "icon": "compass",
-      "description": "Lifecycle, rollout, and operator-facing context",
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "description": "First-touch experience and orientation",
       "documents": [
         {
-          "path": "PROGRESS.md",
-          "title": "Progress",
-          "description": "Lifecycle and rollout state for this scenario",
+          "path": "QUICKSTART.md",
+          "title": "Quickstart",
+          "description": "Clone-to-running in five minutes",
+          "audience": ["users", "operators", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "compass",
+      "description": "Mental model and architectural intent",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Three surfaces, proto bridge, layering, where things live",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "description": "Task-oriented walkthroughs",
+      "documents": [
+        {
+          "path": "guides/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "Common issues and fixes for any scenario built from this template",
+          "audience": ["users", "operators", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "description": "API, CLI, and configuration reference",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Endpoints",
+          "description": "HTTP API reference (mirrors .vrooli/endpoints.json)",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "CLI command reference (built-ins + scenario commands)",
+          "audience": ["operators", "developers"]
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Environment variables, service.json shape, CLI config precedence",
           "audience": ["operators", "developers"]
         }
       ]
@@ -22,13 +76,13 @@
       "id": "internal",
       "title": "Internal",
       "icon": "wrench",
-      "description": "Developer-facing reference for boundaries and test patterns",
+      "description": "Developer-facing memory: seams, tests, problems, progress",
       "visibility": "developers-only",
       "documents": [
         {
           "path": "internal/SEAMS.md",
           "title": "Seams",
-          "description": "Boundary registry: every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": ["developers"]
         },
         {
@@ -36,8 +90,24 @@
           "title": "Testing",
           "description": "Layered test patterns, fixtures, and coverage expectations",
           "audience": ["developers"]
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Problems",
+          "description": "Known issues, tech debt, and deferred work specific to this scenario",
+          "audience": ["developers"]
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Lifecycle log — append a row whenever work lands",
+          "audience": ["developers"]
         }
       ]
     }
-  ]
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "secondary": ["internal"]
+  }
 }

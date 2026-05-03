@@ -1,0 +1,135 @@
+# Configuration — {{SCENARIO_DISPLAY_NAME}}
+
+How this scenario is configured — env vars consumed by the binaries,
+the `.vrooli/service.json` manifest, and the per-user CLI config file.
+
+The lifecycle (`vrooli scenario start`, `make start`) sets every
+required variable automatically. You only need this reference when
+running a binary by hand or when a scenario adds a new variable.
+
+## Environment variables
+
+### Required at runtime (set by the lifecycle)
+
+| Variable | Range / format | Purpose |
+|---|---|---|
+| `API_PORT` | `15000-19999` | Port for the Go API server |
+| `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
+
+If the scenario adds WebSocket channels, declare a `websocket` port
+under `.vrooli/service.json` `ports` (canonical band: `25000-29999`)
+and add the corresponding env var here.
+
+The canonical bands all sit below 32768 so Linux never hands out the
+ports as outbound source ports. See the project-level
+[port-allocation reference](../../../../docs/reference/port-allocation.md)
+for the full policy.
+
+### Optional overrides
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/{{SCENARIO_ID}}.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| `VITE_API_BASE_URL` | `http://localhost:${API_PORT}/api/v1` | API base URL the UI bundle reads at build/dev time. |
+| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+
+### Scenario-prefixed CLI variables
+
+`cli-core` derives a standard set of env vars from the scenario name.
+For `{{SCENARIO_ID}}` the following are recognised, in precedence
+order (first-found wins):
+
+| Purpose | Variables |
+|---|---|
+| API base URL | `{{SCENARIO_ID_UPPER}}_API_BASE`, `{{SCENARIO_ID_UPPER}}_API_URL`, `VROOLI_API_BASE` |
+| API port | `{{SCENARIO_ID_UPPER}}_API_PORT` |
+| API token | `{{SCENARIO_ID_UPPER}}_API_TOKEN`, `VROOLI_API_TOKEN` |
+| Config dir | `{{SCENARIO_ID_UPPER}}_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
+| HTTP timeout | `{{SCENARIO_ID_UPPER}}_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
+
+> **Do not** set the un-prefixed `API_PORT` for a CLI invocation —
+> when CLIs run inside web-console terminals it leaks across scenarios.
+> Use the scenario-prefixed form or the `--api-base` flag.
+
+## Service manifest (`.vrooli/service.json`)
+
+Single source of truth for everything the lifecycle needs to know.
+
+| Section | Owns |
+|---|---|
+| `service` | name, display name, description, version, category, maintainers, repository URL |
+| `ports` | port-name → env-var + range mapping (lifecycle allocates from these) |
+| `cli` | command name, install scripts (per OS), invoke shape, freshness inputs |
+| `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
+| `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
+| `lifecycle.develop` | how to start the running scenario |
+| `lifecycle.test` | which test command to invoke |
+| `lifecycle.stop` | how to shut down cleanly |
+| `environment` | static env vars set for every lifecycle step |
+| `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
+
+The template ships with `dependencies.resources: {}` — SQLite is
+in-process, so no resource is required. Scenarios add resources here
+when they need shared infrastructure.
+
+## CLI config file
+
+The scenario CLI persists per-user configuration to a JSON file.
+Resolution order (first match wins):
+
+1. `${{{SCENARIO_ID_UPPER}}_CONFIG_DIR}/config.json`
+2. `${XDG_CONFIG_HOME}/vrooli/{{SCENARIO_ID}}/config.json`
+3. `~/.vrooli/config/{{SCENARIO_ID}}/config.json`
+4. `~/.config/vrooli/{{SCENARIO_ID}}/config.json`
+
+File shape:
+
+```json
+{
+  "api_base": "http://localhost:15001/api/v1",
+  "token": "optional-auth-token"
+}
+```
+
+Set values via the CLI rather than editing the file directly:
+
+```bash
+{{SCENARIO_ID}} configure api_base http://localhost:15001/api/v1
+{{SCENARIO_ID}} configure token <token>
+```
+
+## API-base resolution precedence
+
+When the CLI calls the API, the base URL is resolved in this order
+(first match wins):
+
+1. `--api-base <url>` flag
+2. Scenario-prefixed env vars (above)
+3. CLI config file (`api_base` field)
+4. Vrooli lifecycle port detection (`vrooli scenario port {{SCENARIO_ID}} API_PORT`)
+5. Compile-time default (only set if explicitly configured in `app.go`)
+
+If none of these resolve, the command exits with an actionable error
+("API not available — try `--auto-start` or `vrooli scenario start
+{{SCENARIO_ID}}`").
+
+## Test/CI configuration
+
+| File | Owns |
+|---|---|
+| `.vrooli/testing.json` | Test categories — lint, unit, business checks (endpoints, CLI commands), Lighthouse, bundle size |
+| `.vrooli/lighthouse.json` | Lighthouse pages, thresholds, Chrome flags |
+| `.vrooli/endpoints.json` | API endpoint manifest (path, method, status codes, request/response shapes, CLI mapping) |
+| `.github/workflows/test.yml` | CI gate — UI lint + test, Go vet + race + coverage, E2E binary smoke |
+
+These files are read by tooling (`vrooli scenario test`, `test-genie`,
+the doc viewer) — keep them in sync with the code they describe.
+
+## Cross-references
+
+- [`QUICKSTART.md`](../QUICKSTART.md) — boot the scenario in 5 minutes
+- [`api-endpoints.md`](api-endpoints.md) — endpoint reference
+- [`cli-commands.md`](cli-commands.md) — CLI command reference
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist

@@ -21,12 +21,12 @@
 //	    return d
 //	}
 //
-// See `internal/store/notes_sqlite_test.go` for the worked example.
+// See `internal/notes/sqlite_test.go` for the worked example.
 // The two-line helper is intentionally inline at the consumer rather
 // than exported from this package — `db` lives under `testutil` and
-// `store` is the consumer, so an exported helper would invert the
-// dependency. Reach for it as a per-package convention; do not
-// generalise across packages.
+// the domain package is the consumer, so an exported helper would
+// invert the dependency. Reach for it as a per-package convention;
+// do not generalise across packages.
 package db
 
 import (

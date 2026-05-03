@@ -129,9 +129,9 @@ jobs:
 
       - name: Tests (race + coverage)
         # `-race` is non-negotiable: test fakes (FakeClock, FakePinger,
-        # FakeNoteStore, FakeDoer) carry mutexes / atomics, and middleware
-        # concurrency is the most common site of regressions when
-        # scenarios add cross-cutting behaviour.
+        # FakeRepository, FakeService, FakeDoer) carry mutexes / atomics,
+        # and middleware concurrency is the most common site of
+        # regressions when scenarios add cross-cutting behaviour.
         #
         # `-coverpkg` is wired to every non-testutil, non-main package so
         # cross-package coverage counts (e.g., handlers/notes tests

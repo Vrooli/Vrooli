@@ -6,7 +6,7 @@ Use this template to bootstrap every new scenario. It mirrors the patterns from 
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/PROGRESS.md`)
+- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
 
 ## Copy the Template
 ```bash
@@ -20,6 +20,8 @@ cd scenarios/<your-scenario>/
 
 Immediately replace placeholder tokens (scenario name, description, maintainer info, etc.).
 
+> **The `notes` domain is a worked example, not a starting feature.** It ships to demonstrate the canonical layering — proto contract → repository → service → handler → CLI domain → UI consumer, each with its own self-test. Copy the *structure* when you add your own domains, then delete the notes code once you have a real domain replacing it: `api/internal/notes/`, `api/handlers/notes/`, `api/internal/testutil/mocks/notes_*.go`, `cli/domains/notes/`, `ui/src/lib/notes.ts`, the notes pane in `ui/src/App.tsx`, the `notes.*` keys in `ui/src/consts/strings.ts` + `ui/src/i18n/locales/*.json`, the `notes` table in `api/internal/store/schema.sql`, the `notes_*` entries in `.vrooli/endpoints.json`, and the proto schemas under `proto/v1/notes/` + `proto/v1/errors/`. Update the matching rows in `docs/internal/SEAMS.md` when you do.
+
 ## What You Get
 - **Clean UI scaffold**: Vite + Tailwind + shadcn-style primitives, pnpm-based scripts, Vitest + Testing Library pre-configured, `.env.example` for API URL.
 - **i18n out of the box**: i18next + react-i18next wired up with locale persistence, RTL-ready `<html lang>`/`<html dir>`, an `Intl`-based formatter helper (date/number/currency/relative-time/list), and a typed key registry generated from `en.json` at build time. ESLint forbids inline copy and string-literal `*ByText` queries, so copy edits are one-line catalog changes and tests survive them automatically. See [i18n flow](#i18n-flow).
@@ -27,16 +29,16 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 - **CLI manifest contract**: `.vrooli/service.json` declares the CLI command, adapter, install strategies, and freshness inputs.
 - **Lifecycle-ready service.json**: ports aligned with the platform, no external resource required by default (storage is local SQLite), lifecycle steps that build API/UI and start dev servers.
 - **Iframe-ready UI**: Automatically initializes `@vrooli/iframe-bridge` so App Monitor and other hosts can embed the scenario without extra work.
-- **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API + WebSocket URLs across localhost/dev/proxy contexts.
+- **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API URL across localhost/dev/proxy contexts.
 - **Requirements seed**: `requirements/index.json` + `requirements/modules/foundation.json` show how operational targets trace to technical requirements.
 - **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
-- **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
+- **Progress log**: `docs/internal/PROGRESS.md` so improvers track deltas outside PRD.md.
 - **SQLite storage**: API uses `api-core/database` with the `sqlite` driver and `api-core/storage` for filesystem-safe paths — no external DB process required. The schema lives at `api/internal/store/schema.sql` (embedded into the binary, applied at startup via `store.EnsureSchema`).
 - **Proto-first wire contracts**: The template ships proto sources at `proto/{{SCENARIO_ID}}/v1/health/health.proto`. At generation time, `vrooli scenario generate` relocates them into `packages/proto/schemas/<your-scenario>/`, runs `make generate`, and the API + UI immediately consume the generated Go and TypeScript types. No hand-written wire shape duplication; adding a new endpoint means adding a `.proto`, regenerating, and importing the typed message. The codegen pipeline runs entirely on local plugins — no BSR network calls — so it works on flight Wi-Fi or inside firewalled CI runners. See `proto/README.md`, `docs/internal/TESTING.md::How to add a new proto`, and the project-level [proto pipeline guide](../../docs/development/proto.md).
 - **Notes CRUD reference**: A worked end-to-end example at `/api/v1/notes` (list / create / get-by-id) backed by sqlite, with proto-typed wire contracts (`v1/notes/`, `v1/errors/`), a typed error envelope, repository tests on a real handle, handler tests through the live HTTP harness, a UI consumer at `ui/src/lib/notes.ts` rendered by the App's Notes pane, and a CLI domain at `cli/domains/notes/`. Copy this layering when adding your first non-trivial mutation — every layer has its own self-test, so the pattern is hard to break.
 - **Domain-scoped application-service layer**: The notes domain ships the canonical Vrooli layering — `internal/notes/` owns `Repository` (persistence), `Service` (validation, defaults, cross-handler policy), and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) handlers translate at the transport edge. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means each layer's tests stay focused on what that layer owns. New domains live in `internal/<domain>/` — never a generic `services/` directory.
 - **API contract manifest**: `.vrooli/endpoints.json` declares every public endpoint (path, method, status codes matching the `httpx.Code*` constants the handler emits, request/response shapes) plus a `cli_mapping` per endpoint pointing at the real subcommand registered in `cli/domains/`. Doc generators, Postman collections, and SDK stubs read from this single file.
-- **Documentation manifest**: `docs/manifest.json` declares the doc set (`README.md`, `PRD.md`, `PROGRESS.md`, `internal/TESTING.md`, `internal/SEAMS.md`) with audience tags and section grouping. Manifest-driven nav tooling (web-console doc viewer, etc.) reads it.
+- **Documentation manifest**: `docs/manifest.json` declares the canonical doc set with audience tags and section grouping. Manifest-driven nav tooling (web-console doc viewer, etc.) reads it. The shipped layout follows the `documentation-health` skill standard: `QUICKSTART.md` (default document), `concepts/ARCHITECTURE.md`, `guides/troubleshooting.md`, `reference/{api-endpoints,cli-commands,configuration}.md`, and `internal/{SEAMS,TESTING,PROBLEMS,PROGRESS}.md`.
 - **Outbound HTTP seam**: `api/internal/httpc.Doer` declares the canonical interface every scenario uses when calling external services. Production wires `*http.Client` directly (compile-time-asserted to satisfy `Doer`); tests substitute `mocks.FakeDoer`. Ships unwired in production by intent — the seam exists so the first scenario to need an outbound call doesn't reinvent ad-hoc mocking.
 - **App-level ErrorBoundary**: `ui/src/components/ErrorBoundary.tsx` is a hand-rolled React class component wrapped at `main.tsx` (inside i18n + QueryClient providers, so the localised fallback can `useTranslation`). A render-time exception in `App.tsx` falls back to a recoverable error pane with a retry button — no more silent blank-screen failures. The `onError` prop is exposed for scenarios to wire telemetry (Sentry, etc.).
 
@@ -44,40 +46,30 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 ```bash
 cd scenarios/<your-scenario>
 
-# Install dependencies (Go 1.22+ + pnpm must be available)
-corepack pnpm install --dir ui --ignore-workspace
+# Build API + UI, install pnpm deps, install scenario CLI
+make setup   # wraps `vrooli scenario setup`
 
-# Build API + UI via lifecycle
-vrooli scenario run <your-scenario> --setup
-
-# Start dev servers (API + Vite)
-make dev   # wraps `vrooli scenario run --dev`
+# Start API + UI in the background
+make start   # wraps `vrooli scenario start`
 ```
 
-Run tests with `make test` or `test-genie execute --scenario <your-scenario>`.
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-### UI Smoke Harness
-
-- `vrooli scenario ui-smoke <your-scenario>` launches a Browserless session against the production UI bundle, waits for `@vrooli/iframe-bridge` to signal readiness, captures a screenshot, HTML snapshot, console logs, and network trace.
-- Artifacts live under `coverage/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/ui-smoke/latest.json`.
-- Structure tests invoke the harness automatically. Disable it temporarily by toggling `structure.ui_smoke.enabled` in `.vrooli/testing.json` or extend the default timeouts via `timeout_ms` / `handshake_timeout_ms`.
-- Browserless must be running (`resource-browserless status --format json`). If it is offline the harness fails early so issues surface before release.
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-genie execute <your-scenario> --preset comprehensive` directly for finer-grained presets.
 
 ## Required Environment Variables
-The lifecycle exports everything automatically when you run `vrooli scenario run`. If you start pieces manually, set these yourself (there are no fallbacks):
+The lifecycle exports everything automatically when you run `make start` (`vrooli scenario start`). If you start pieces manually, set these yourself (there are no fallbacks):
 
 | Variable | Canonical range | Purpose |
 |----------|-----------------|---------|
 | `API_PORT` | `15000-19999` | Port assigned to the Go API server |
 | `UI_PORT`  | `20000-24999` | Port assigned to the Vite dev server / production UI |
-| `WS_PORT`  | `25000-29999` | WebSocket channel for live updates |
 | `SQLITE_PATH` | — | Optional override for the SQLite file path. Defaults to `api-core/storage` resolver under the scenario data dir. |
-| `N8N_BASE_URL` | Base URL for workflow automation calls |
-| `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
-| `API_TOKEN` | Shared secret the CLI/API uses for authentication |
-| `VITE_API_BASE_URL` | — | UI → API bridge (set to `http://localhost:${API_PORT}/api/v1`) |
+| `UI_BASE_URL` | — | Base URL for the Vrooli UI shell / iframe bridge (resolved by `@vrooli/api-base` when unset) |
+| `API_TOKEN` | — | Shared secret the CLI/API uses for authentication (only enforce in deployed scenarios) |
+| `VITE_API_BASE_URL` | — | UI → API bridge. Default: `http://localhost:${API_PORT}/api/v1`. |
 
-> All canonical bands sit below 32768 so Linux never hands the ports out as outbound source ports. See [docs/reference/port-allocation.md](../../../docs/reference/port-allocation.md) for the full policy and OS-specific ephemeral-range details.
+> Canonical bands sit below 32768 so Linux never hands the ports out as outbound source ports. See [docs/reference/port-allocation.md](../../../docs/reference/port-allocation.md) for the full policy. Scenarios that add WebSocket channels declare a `websocket` port (canonical band `25000-29999`) under `.vrooli/service.json` `ports`.
 
 > Tip: when running outside the lifecycle, fetch ports with `vrooli scenario port <name> API_PORT` (or `UI_PORT`) and then export `VITE_API_BASE_URL` accordingly:
 
@@ -139,7 +131,7 @@ The template ships with a fully-wired i18n setup so adopters don't have to retro
 
 ## Customize Safely
 1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.
-2. **Append progress entries** to `docs/PROGRESS.md` whenever you land work.
+2. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
 3. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
 4. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
 

@@ -4,7 +4,7 @@ This folder is **not** a regular template directory.
 
 At scenario generation time, `vrooli scenario generate` reads the
 `relocations` block in `template.json` and copies this entire `proto/`
-tree into `packages/proto/schemas/<scenario-id>/`, substituting
+tree into `packages/proto/schemas/<your-scenario>/`, substituting
 `{{SCENARIO_ID}}` and `{{SCENARIO_ID_SNAKE}}` in both path components
 and file content. The `proto/` folder does **not** appear inside the
 generated scenario.
@@ -22,15 +22,15 @@ import generated Go and TypeScript types immediately.
   generated proto type without translation.
 
   After relocation this lands at
-  `packages/proto/schemas/<scenario-id>/v1/health/health.proto`. The
-  scenario-id namespace comes from the relocation `to` path in
-  `template.json`, not from a directory inside `proto/` — matching the
-  convention used by every existing scenario in `packages/proto/schemas/`.
+  `packages/proto/schemas/<your-scenario>/v1/health/health.proto`. The
+  namespace comes from the relocation `to` path in `template.json`,
+  not from a directory inside `proto/` — matching the convention used
+  by every existing scenario in `packages/proto/schemas/`.
 
 ## Adding a new schema
 
 After the scenario is generated, add new `.proto` files under
-`packages/proto/schemas/<scenario-id>/v1/` (or a `v1/<domain>/`
+`packages/proto/schemas/<your-scenario>/v1/` (or a `v1/<domain>/`
 subdirectory if the domain warrants its own folder). Then run
 `cd packages/proto && make generate && make lint` and commit the
 regenerated artifacts in `packages/proto/gen/`.
@@ -42,7 +42,7 @@ scenario's wire contracts. Keeping the template's protos here as a
 relocation source — rather than directly in `packages/proto/schemas/` —
 prevents the template's protos from leaking into builds: a scenario's
 generated artifacts always come from its own substituted copy at
-`packages/proto/schemas/<id>/`, never from this template tree.
+`packages/proto/schemas/<your-scenario>/`, never from this template tree.
 
 See `templates/scenarios/react-vite/template.json::relocations` for the
 generator wiring and `internal/cli/scenariohandlers/template_runtime.go`

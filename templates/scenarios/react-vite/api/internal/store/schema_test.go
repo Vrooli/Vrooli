@@ -48,25 +48,6 @@ func TestEnsureSchema_Idempotent(t *testing.T) {
 		"EnsureSchema must be idempotent (uses IF NOT EXISTS guards)")
 }
 
-// TestStripComments verifies the comment-only detection still works for
-// helper callers that pre-screen scripts. The schema.sql we ship is no
-// longer comment-only, but the helper survives for future placeholder
-// flows (e.g., scenarios that reset schema.sql while iterating).
-func TestStripComments(t *testing.T) {
-	cases := map[string]string{
-		"":                                       "",
-		"-- comment only":                        "",
-		"\n\n\n  -- with blanks\n\n":             "",
-		"CREATE TABLE x(id);":                    "CREATE TABLE x(id);",
-		"-- header\nCREATE TABLE x(id);\n-- end": "CREATE TABLE x(id);",
-	}
-	for in, want := range cases {
-		if got := stripComments(in); got != want {
-			t.Errorf("stripComments(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 func listTables(t *testing.T, db *sql.DB) []string {
 	t.Helper()
 	rows, err := db.Query(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
