@@ -2,6 +2,7 @@ package server
 
 import (
 	"{{SCENARIO_ID}}/handlers/health"
+	"{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/middleware"
 )
 
@@ -21,4 +22,13 @@ func (s *Server) registerRoutes() {
 	// /health for infrastructure probes; /api/v1/health for clients.
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+
+	// Notes CRUD reference. Mounted as a subrouter so the notes handler
+	// owns its full path table (list, create, get-by-id) without
+	// reaching back into the server's mux.
+	notesHandler := notes.NewHandler(notes.Deps{
+		Store:  s.deps.NoteStore,
+		Logger: s.deps.Logger,
+	})
+	s.router.PathPrefix("/api/v1/notes").Handler(notesHandler)
 }

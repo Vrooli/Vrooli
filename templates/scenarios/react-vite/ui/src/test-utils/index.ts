@@ -44,12 +44,13 @@
  */
 export { renderWithProviders } from "./renderWithProviders";
 export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
+export { interp } from "./interp";
 // Note: HealthResponse is the *generated proto type* re-exported by
 // factories.ts. Tests should always import it from here so a future
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
-export { makeHealthResponse } from "./factories";
-export type { HealthResponse } from "./factories";
+export { makeHealthResponse, makeListNotesResponse, makeNote } from "./factories";
+export type { HealthResponse, ListNotesResponse, Note } from "./factories";
 
 // Mock builders for external SDKs. Each test file still calls
 // `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the

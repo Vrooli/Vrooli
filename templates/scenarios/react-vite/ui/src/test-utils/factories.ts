@@ -12,9 +12,9 @@
  *
  * # Wire shape lives in proto, not here
  *
- * The HealthResponse type is the GENERATED proto message at
- * `packages/proto/gen/typescript/{{SCENARIO_ID}}/v1/health/health_pb.ts`.
- * Factories use `create(ResponseSchema, overrides)` so:
+ * The HealthResponse / Note / ListNotesResponse types are GENERATED
+ * proto messages at `packages/proto/gen/typescript/{{SCENARIO_ID}}/v1/...`.
+ * Factories use `create(<Schema>, overrides)` so:
  *
  *   - the runtime instance includes proto's internal `$typeName` /
  *     reflection state (necessary for `toJson` / `fromJson` round-trips
@@ -33,8 +33,14 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
 import type { Response as HealthResponse } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
+import {
+  ListNotesResponseSchema,
+  NoteSchema,
+  type Note,
+  type ListNotesResponse,
+} from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
 
-export type { HealthResponse };
+export type { HealthResponse, Note, ListNotesResponse };
 
 // MessageInitShape<typeof ResponseSchema> is the @bufbuild/protobuf-provided
 // type for the optional fields you can pass to `create()`. Using it instead
@@ -50,5 +56,25 @@ export const makeHealthResponse = (
     timestamp: "2026-01-01T00:00:00.000Z",
     readiness: true,
     version: "1.0.0",
+    ...overrides,
+  });
+
+export const makeNote = (
+  overrides: MessageInitShape<typeof NoteSchema> = {},
+): Note =>
+  create(NoteSchema, {
+    id: "note-1",
+    title: "First note",
+    body: "Hello, world.",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  });
+
+export const makeListNotesResponse = (
+  overrides: MessageInitShape<typeof ListNotesResponseSchema> = {},
+): ListNotesResponse =>
+  create(ListNotesResponseSchema, {
+    notes: [],
     ...overrides,
   });

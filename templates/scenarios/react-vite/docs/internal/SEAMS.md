@@ -63,6 +63,26 @@ test ergonomics fall out for free.
 | **Test fake** | `internal/testutil/mocks::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
 
+### NoteStore (notes repository)
+
+| | |
+|---|---|
+| **Seam** | Notes persistence (CRUD) |
+| **Interface** | `internal/store/notes.go::NoteStore` (`Create`, `Get`, `List`) |
+| **Production wiring** | `main.go` constructs `store.NewSQLiteNoteStore(db, clock.System{})` and passes it via `server.Deps`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
+| **Test fake** | `internal/testutil/mocks::FakeNoteStore` (in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). |
+| **Why it exists** | Notes is the canonical CRUD reference: every layer downstream of this seam (handler, UI client, CLI domain) is the pattern new scenarios copy when adding their first non-trivial mutation. The handler test substitutes the fake to exercise the full transport edge (decode → call → error mapping → typed response) without standing up SQLite; the repository test in `internal/store/notes_sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). See `handlers/notes/handler_test.go` and `internal/store/notes_sqlite_test.go`. |
+
+### Doer (outbound HTTP)
+
+| | |
+|---|---|
+| **Seam** | Outbound HTTP request boundary |
+| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
+| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
+| **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
+| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching
@@ -109,6 +129,16 @@ the goal is the same: production wires once, tests substitute.
 | **Production wiring** | `App.tsx` (and any component using React Query) imports `fetchHealth` directly. |
 | **Test fake** | Inline `vi.mock("./lib/api", async (importOriginal) => …)` at the top of each test file. The factory closure invokes `makeHealthResponse()` from `@/test-utils` to produce typed proto-shaped responses. |
 | **Why it exists** | Network calls in unit tests would be flaky and slow. Mocking at this single module boundary means every component that reads `/health` gets the same substitution. The wrapper is intentionally thin (decode-only) so `vi.mock` doesn't have to reproduce business logic. |
+
+### `lib/notes` (network boundary, CRUD reference)
+
+| | |
+|---|---|
+| **Seam** | UI ↔ API notes endpoints |
+| **Module** | `ui/src/lib/notes.ts` (`listNotes`, `createNote`, `getNote`, `ApiError`) |
+| **Production wiring** | `App.tsx` imports `listNotes` / `createNote` directly and wires them through `useQuery` / `useMutation`. |
+| **Test fake** | Inline `vi.mock("./lib/notes", async (importOriginal) => …)`; the factory closure uses `makeNote()` / `makeListNotesResponse()` from `@/test-utils`. Unit tests in `lib/notes.test.ts` stub `global.fetch` directly via `vi.stubGlobal`. |
+| **Why it exists** | The canonical CRUD wrapper pattern. Decodes proto-typed responses via `fromJson(<Schema>, ...)` and surfaces non-2xx as `ApiError` carrying the typed `ErrorEnvelope.code` — UI branches on `err.code === "not_found"` etc. without parsing strings. Mirror this shape when adding a second domain client (e.g., `lib/tasks.ts`). |
 
 ### i18n singleton (locale state)
 

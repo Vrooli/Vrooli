@@ -7,19 +7,16 @@
  *   1. mount calls initSpatialNav exactly once with the passed options
  *   2. unmount calls controller.dispose() exactly once
  *
- * Same hoisting-safe `vi.hoisted` + per-test reset pattern as
- * useGamepad.test.ts.
+ * Same async-vi.hoisted + dynamic-import pattern as useGamepad.test.ts;
+ * see that file's header comment for why a normal top-level import of
+ * the shared builders would TDZ inside the hoisted closure.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 
-const mockState = vi.hoisted(() => {
-  const controller = {
-    registerGroup: vi.fn().mockReturnValue(vi.fn()),
-    pushScope: vi.fn(),
-    popScope: vi.fn(),
-    dispose: vi.fn(),
-  };
+const mockState = await vi.hoisted(async () => {
+  const { makeMockSpatialNavController } = await import("../test-utils");
+  const controller = makeMockSpatialNavController();
   const initSpatialNav = vi.fn().mockImplementation(() => controller);
   return { controller, initSpatialNav };
 });
@@ -33,7 +30,7 @@ import { useSpatialNav } from "./useSpatialNav";
 describe("useSpatialNav", () => {
   beforeEach(() => {
     mockState.controller.dispose.mockReset();
-    mockState.controller.registerGroup.mockReset().mockReturnValue(vi.fn());
+    mockState.controller.registerGroup.mockReset().mockReturnValue(mockState.controller.cleanup);
     mockState.controller.pushScope.mockReset();
     mockState.controller.popScope.mockReset();
     mockState.initSpatialNav.mockClear();

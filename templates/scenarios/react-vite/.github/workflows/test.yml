@@ -127,11 +127,43 @@ jobs:
           CGO_ENABLED: "0"
         run: go build ./...
 
-      - name: Tests (race detector)
-        # `-race` is non-negotiable: test fakes (FakeClock, FakePinger) carry
-        # mutexes / atomics, and middleware concurrency is the most common
-        # site of regressions when scenarios add cross-cutting behaviour.
-        run: go test -race ./...
+      - name: Tests (race + coverage)
+        # `-race` is non-negotiable: test fakes (FakeClock, FakePinger,
+        # FakeNoteStore, FakeDoer) carry mutexes / atomics, and middleware
+        # concurrency is the most common site of regressions when
+        # scenarios add cross-cutting behaviour.
+        #
+        # `-coverpkg` is wired to every non-testutil, non-main package so
+        # cross-package coverage counts (e.g., handlers/notes tests
+        # exercise internal/server, internal/store, internal/httpx).
+        # Without it, Go's default per-package coverage would report
+        # internal/server at 0% even though the handler tests drive it
+        # end-to-end.
+        #
+        # Excluded:
+        #   - internal/testutil/... — test scaffolding; tested by its
+        #     own self-tests, not part of the production denominator.
+        #   - the main package — the binary entry point; not unit-tested
+        #     by convention. End-to-end coverage of the boot path comes
+        #     from `vrooli scenario test`.
+        run: |
+          PKGS=$(go list ./... | grep -v '/internal/testutil' | grep -v "^$(go list -m)\$")
+          COVERPKG=$(echo "$PKGS" | tr '\n' ',' | sed 's/,$//')
+          go test -race -coverprofile=coverage.out -covermode=atomic \
+            -coverpkg="$COVERPKG" $PKGS
+
+      - name: Coverage gate (>= 75%)
+        # Threshold rationale: Go has more declaration-only surface
+        # (interfaces, generated proto types, struct types) than the UI,
+        # so 75% here is roughly equivalent to the UI's 85%. Raise to
+        # 80%/85% as scenarios stabilise. See docs/internal/TESTING.md
+        # for the canonical threshold table.
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%",""); print $3}')
+          threshold=75.0
+          awk -v p="$pct" -v t="$threshold" 'BEGIN { exit (p+0 >= t+0) ? 0 : 1 }' \
+            || { echo "::error::Go coverage $pct% < $threshold%"; exit 1; }
+          echo "Go coverage $pct% >= $threshold%"
 
   cli:
     name: CLI tests
@@ -168,8 +200,23 @@ jobs:
           CGO_ENABLED: "0"
         run: go build ./...
 
-      - name: Tests (race detector)
-        # The CLI's testutil package wires real httptest servers and
-        # captures os.Stdout under t.Cleanup; the race detector keeps
-        # those concurrency-sensitive helpers honest.
-        run: go test -race ./...
+      - name: Tests (race + coverage)
+        # See the API job for the full coverage rationale; the wiring
+        # is identical (-coverpkg counts cross-package coverage,
+        # internal/testutil and the main package are excluded).
+        run: |
+          PKGS=$(go list ./... | grep -v '/internal/testutil' | grep -v "^$(go list -m)\$")
+          COVERPKG=$(echo "$PKGS" | tr '\n' ',' | sed 's/,$//')
+          go test -race -coverprofile=coverage.out -covermode=atomic \
+            -coverpkg="$COVERPKG" $PKGS
+
+      - name: Coverage gate (>= 75%)
+        # Same 75% floor as the API job. See docs/internal/TESTING.md
+        # for the rationale (Go's higher proportion of declaration-only
+        # files vs the UI's 85% gate).
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%",""); print $3}')
+          threshold=75.0
+          awk -v p="$pct" -v t="$threshold" 'BEGIN { exit (p+0 >= t+0) ? 0 : 1 }' \
+            || { echo "::error::CLI coverage $pct% < $threshold%"; exit 1; }
+          echo "CLI coverage $pct% >= $threshold%"

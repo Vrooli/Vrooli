@@ -21,6 +21,13 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
+  "notes": {
+    "title": "Notes",
+    "loading": "Loading notes…",
+    "empty": "No notes yet.",
+    "create": "Create note",
+    "error": "Unable to load notes."
+  },
   "locale": {
     "switcherLabel": "Language"
   }

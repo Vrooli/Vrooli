@@ -27,13 +27,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
 
-import { makeHealthResponse, renderWithProviders } from "./test-utils";
+import { makeHealthResponse, makeListNotesResponse, renderWithProviders } from "./test-utils";
 
 vi.mock("./lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./lib/api")>();
   return {
     ...actual,
     fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
+  };
+});
+
+vi.mock("./lib/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/notes")>();
+  return {
+    ...actual,
+    listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
   };
 });
 
@@ -52,9 +60,11 @@ describe("App accessibility", () => {
 
   it("renders without axe violations in English", async () => {
     const { container } = renderWithProviders(<App />);
-    // Wait for React Query to resolve so we scan the post-loading DOM.
+    // Wait for React Query to resolve so we scan the post-loading DOM
+    // for both the health and notes panes.
     await waitFor(() => {
       expect(screen.getByTestId(selectors.health.statusValue)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.notes.empty)).toBeInTheDocument();
     });
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);

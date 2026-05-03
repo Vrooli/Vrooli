@@ -147,6 +147,47 @@ hand-written struct mirror to drift against. `DiscardUnknown:true` is
 wired in `MustUnmarshalProto` so the test keeps passing when the wire
 grows fields the proto hasn't caught up to.
 
+### CRUD reference — `notes` end-to-end
+
+The `notes` domain is the canonical CRUD reference. New scenarios add
+their first non-trivial mutation by copying its layering one file at a
+time. The pattern from wire to render:
+
+| Layer | File | What it owns |
+|---|---|---|
+| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteResponse` |
+| Error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | One typed body for every non-2xx path, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| Request decode | `internal/httpx/decode.go::DecodeJSON[T]` | Strict input by default — `DisallowUnknownFields` rejects payloads carrying fields the schema hasn't caught up to |
+| Domain types | `internal/store/notes.go::{Note, NoteStore, ErrNoteNotFound}` | Domain-pure (no proto imports); the typed `ErrNoteNotFound` sentinel handlers translate into a 404 envelope |
+| Repository impl | `internal/store/notes_sqlite.go::NewSQLiteNoteStore` | sqlite-backed `NoteStore`; production wires it once in `main.go` |
+| Repository test | `internal/store/notes_sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `store.EnsureSchema(ctx, db)` (the canonical compose pattern) |
+| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeNoteStore` and exercises the full transport edge through `httpx.NewLiveServer` |
+| Mock | `internal/testutil/mocks/notes.go::FakeNoteStore` | In-memory slice + per-method error knobs (`CreateErr` / `GetErr` / `ListErr`) + atomic call counters |
+| UI client | `ui/src/lib/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
+| UI tests | `ui/src/lib/notes.test.ts` + the `App Notes pane` block in `App.test.tsx` | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./lib/notes", ...)` for the component test |
+| CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
+| CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
+
+#### Compose pattern: schema-applied repository test
+
+`db.NewSQLite(t)` returns a blank handle. Repository tests apply the
+production schema before the first query so the test exercises the
+same shape `main.go` ships:
+
+```go
+func newSchemaDB(t *testing.T) *sql.DB {
+    t.Helper()
+    d := db.NewSQLite(t)
+    require.NoError(t, store.EnsureSchema(context.Background(), d))
+    return d
+}
+```
+
+That two-line helper is the canonical entry point for every new
+domain's `*_sqlite_test.go`. Don't reach for migrations frameworks or
+in-test `CREATE TABLE` literals — the embedded `schema.sql` is the
+source of truth for both production and tests.
+
 ### Production-import quarantine (`no_prod_import_test.go`)
 
 The test in `api/internal/testutil/no_prod_import_test.go` walks every
@@ -162,6 +203,34 @@ package. If the rule fires:
 - ✅ **Move the helper out of testutil** into a non-test package.
 - ❌ **Don't add `// nolint`** — the production code path will then
    carry the test-only dep into the binary on every build.
+
+### Outbound HTTP — `httpc.Doer`
+
+Production callers consuming external services depend on the `Doer`
+interface declared at `internal/httpc/doer.go`. `*http.Client` satisfies
+it directly (compile-time-asserted in the same file); tests substitute
+`mocks.FakeDoer`. Reference test:
+`internal/httpc/doer_test.go::TestDoer_TestPath` exercises both the
+production-side and test-side wiring through one tiny inline caller —
+the canonical substitution shape.
+
+`mocks.FakeDoer` queues canned `*http.Response` (or errors) via
+`AddResponse(status, body) []byte` and records every inbound request
+into `.Requests` for after-the-fact assertions. The test fake is the
+same shape every scenario reaches for; resist hand-rolling per-feature
+HTTP fakes when this surface fits.
+
+The seam ships *unwired* in production by intent — there's no
+`server.Deps.Doer` field until the first scenario actually needs one.
+When you wire it, follow the canonical pattern:
+
+```go
+// main.go
+deps := server.Deps{
+    Doer: &http.Client{Timeout: 10 * time.Second},
+    // …other deps
+}
+```
 
 ## UI testing
 
@@ -193,7 +262,11 @@ Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
    `QueryClientProvider` (retries disabled — tests should fail fast,
    not paper over flakes) and `I18nextProvider` bound to the same
    singleton production uses. Returns a `RenderResult` plus the
-   `queryClient` for tests that need to seed cache state.
+   `queryClient` for tests that need to seed cache state. The helper
+   has its own self-test at `ui/src/test-utils/renderWithProviders.test.tsx`
+   pinning retries-disabled, queryClient identity, custom-client
+   override, and singleton i18n wiring — mirrors the API-side
+   `internal/testutil/httpx/server_test.go` pattern.
 2. **`make<Domain>(overrides?: Partial<Domain>)`** — typed factory for
    stable test data. `makeHealthResponse()` is the worked example;
    add new factories alongside it as new shapes appear. Defaults
@@ -464,20 +537,50 @@ payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
 
 ## Coverage thresholds
 
+| Module | Floor | Where it's enforced |
+|---|---|---|
+| UI (`ui/`) | 85% lines / branches / functions / statements | `ui/vite.config.ts` `test.coverage`; CI runs `pnpm test:coverage` |
+| API (`api/`) | 75% total | `.github/workflows/test.yml` `api` job |
+| CLI (`cli/`) | 75% total | `.github/workflows/test.yml` `cli` job |
+
+### UI
+
 Configured in `vite.config.ts` at the bottom of the `test.coverage`
-block. Currently 85% across lines, branches, functions, and statements.
+block. The `coverage.exclude` list covers test scaffolding and codegen
+only — production source under `src/` is exhaustively included. The
+default position is: every new `src/` file ships with its own
+`*.test.{ts,tsx}` and lands inside the include set. If a scenario adds
+genuinely-untestable code, prefer a narrow file exclusion with a
+one-line rationale comment in `vite.config.ts` over loosening the
+thresholds.
 
-The `coverage.exclude` list covers test scaffolding and codegen only —
-production source under `src/` is exhaustively included. The default
-position is: every new `src/` file ships with its own `*.test.{ts,tsx}`
-and lands inside the include set. If a scenario adds genuinely-untestable
-code, prefer a narrow file exclusion with a one-line rationale comment
-in `vite.config.ts` over loosening the thresholds.
+### Go (API + CLI)
 
-The CI workflow (`.github/workflows/test.yml`) runs
-`pnpm test:coverage`, which reads these thresholds. A drop below floor
-fails the gate immediately. Raise thresholds (toward 90+%) when real
-coverage clears the new floor for a full release.
+Both Go modules gate on a 75% total floor in CI. The threshold is
+intentionally lower than the UI's 85% because Go has more
+declaration-only surface (interfaces, generated proto types, struct
+types) that doesn't carry executable lines — 75% in Go is roughly
+equivalent to 85% in TypeScript by lines-per-meaningful-coverage.
+
+`internal/testutil/...` is excluded from the denominator. Those
+packages exist to support tests; including them would create the wrong
+incentive (writing tests *of* test helpers to inflate the gate). Each
+test-utils package has its own self-test (see
+`internal/testutil/db/sqlite_test.go`,
+`internal/testutil/httpx/server_test.go`, etc.) so the substrate
+itself is still verified — it's just not what the production-coverage
+number tracks.
+
+Raise toward 80%/85% as scenarios stabilise. Tighten the threshold
+rather than loosening it when a new file lands without tests; that's
+the signal that drives the test-first habit.
+
+### CI failure mode
+
+A drop below floor fails the relevant CI job immediately with the
+actual percentage in the error message (`::error::API coverage 71.4%
+< 75%`). The fix is to raise coverage in the missing file, not to
+lower the gate.
 
 ## Common patterns and anti-patterns
 

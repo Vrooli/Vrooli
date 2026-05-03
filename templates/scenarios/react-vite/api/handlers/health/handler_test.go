@@ -70,11 +70,12 @@ func TestHealthHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
 			srv := server.New(server.Deps{
-				Pinger:  pinger,
-				Clock:   clock.System{},
-				Logger:  log.New(discardWriter{}, "", 0),
-				Service: "react-vite-test",
-				Version: "1.0.0",
+				Pinger:    pinger,
+				Clock:     clock.System{},
+				Logger:    log.New(discardWriter{}, "", 0),
+				NoteStore: &mocks.FakeNoteStore{},
+				Service:   "react-vite-test",
+				Version:   "1.0.0",
 			})
 			live := httpx.NewLiveServer(t, srv)
 

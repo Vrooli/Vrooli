@@ -1,6 +1,10 @@
 package domains
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"{{SCENARIO_ID}}/cli/domains/notes"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 // CommandGroups aggregates flat command groups from domain packages.
 //
@@ -15,10 +19,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
 //
-// Prefer domain packages as the default growth path:
-//
-//	cli/domains/tasks/register.go
-//	cli/domains/projects/register.go
+// Each domain package owns a Register(core *cliapp.ScenarioApp) function
+// returning a SubcommandGroup; this aggregator is intentionally a one-liner
+// per domain so adding a new one is mechanical. The notes domain is the
+// canonical CRUD reference — copy its shape (cli/domains/notes/) when
+// adding a real feature.
 //
 // For API-backed commands:
 //   - set NeedsAPI: true so stale-check + --auto-start preflight works
@@ -28,6 +33,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //   - use cliapp.PrintReportJSON(...) when a --json mode should mirror the
 //     same structured report
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-	_ = core
-	return nil
+	return []cliapp.SubcommandGroup{
+		notes.Register(core),
+	}
 }

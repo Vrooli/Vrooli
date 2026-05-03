@@ -15,6 +15,12 @@
  *   beforeEach(async () => { await setLocale("en"); });
  *
  * The setup-file `beforeEach` runs first, so per-file overrides win.
+ *
+ * This file owns *setup-side-effects only*. Helpers tests reach for
+ * (e.g. `interp`) live in `@/test-utils` so the setup-file remains a
+ * pure registration surface — moving them out keeps test-setup.ts
+ * single-purpose and makes the import graph for individual tests
+ * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
 import { beforeEach, vi } from "vitest";
@@ -25,31 +31,12 @@ beforeEach(async () => {
   await i18n.changeLanguage("cimode");
 });
 
-// jsdom doesn't implement HTMLCanvasElement.getContext, which axe-core probes
-// during color-contrast / icon-ligature checks. axe-core falls back gracefully,
-// but the unhandled call spams stderr on every run. Returning null matches
-// axe-core's "canvas unavailable" branch — same behavior, no noise.
+// Process-wide spy by intent — axe-core probes canvas during every a11y
+// run, and jsdom doesn't implement HTMLCanvasElement.getContext. We do
+// NOT call vi.restoreAllMocks() between tests because the canvas mock
+// is part of the test environment, not per-test arrangement. If a
+// future test legitimately needs a real canvas surface, it should
+// explicitly `vi.spyOn(HTMLCanvasElement.prototype, "getContext")` in
+// its own beforeEach and restore it on teardown — opt-in override
+// rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-
-/**
- * Substitute `{{name}}` placeholders in a catalog string with concrete values
- * for assertion. Centralised so an eventual ICU-MessageFormat migration is a
- * one-file change instead of touching every plural test.
- *
- * Use only in tests that explicitly verify the i18n pipeline end-to-end —
- * `cimode`-default tests assert on the raw key path via `strings.x.y` and
- * never need this helper.
- */
-export const interp = (
-  template: string,
-  vars: Record<string, string | number>,
-): string =>
-  template.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => {
-    const value = vars[name];
-    if (value === undefined) {
-      throw new Error(
-        `interp(): template expects '{{${name}}}' but no value was provided`,
-      );
-    }
-    return String(value);
-  });

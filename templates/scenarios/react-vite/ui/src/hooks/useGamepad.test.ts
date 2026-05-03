@@ -10,27 +10,27 @@
  *      (the `callbackRef` indirection — without it, every action would
  *      go to the *first* callback the component ever rendered with)
  *
- * Vitest hoists `vi.mock(path, factory)` above all imports. We declare
- * the shared mock-state holder via `vi.hoisted(...)` so the factory
- * (which runs at import time) and the test bodies (which run later)
- * touch the same object. `beforeEach` resets the slots so tests stay
- * isolated even though they share the `instance` reference.
+ * # Why dynamic import inside vi.hoisted
+ *
+ * Vitest hoists `vi.mock` AND `vi.hoisted` callbacks above all imports.
+ * A normal `import` of the shared `make…` builders from `@/test-utils`
+ * is therefore in the temporal dead zone when the closure runs. The
+ * sanctioned escape hatch is async vi.hoisted + dynamic import: the
+ * hoisted closure resolves the test-utils module on demand, after
+ * which it can invoke the pure builder functions safely.
+ *
+ * The builders themselves are imported normally at the top of the file
+ * for use in test bodies — the TDZ caveat only applies to references
+ * inside the hoisted closure.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 
-const mockState = vi.hoisted(() => {
-  const instance = {
-    start: vi.fn(),
-    dispose: vi.fn(),
-    onAction: undefined as ((a: unknown) => void) | undefined,
-  };
-  const Ctor = vi
-    .fn()
-    .mockImplementation((opts: { onAction?: (a: unknown) => void }) => {
-      instance.onAction = opts.onAction;
-      return instance;
-    });
+const mockState = await vi.hoisted(async () => {
+  const { makeMockGamepadInputManager, makeGamepadInputManagerCtor } =
+    await import("../test-utils");
+  const instance = makeMockGamepadInputManager();
+  const Ctor = makeGamepadInputManagerCtor(instance);
   return { instance, Ctor };
 });
 

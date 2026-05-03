@@ -33,6 +33,13 @@ export const strings = {
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
   },
+  notes: {
+    title: "notes.title",
+    loading: "notes.loading",
+    empty: "notes.empty",
+    create: "notes.create",
+    error: "notes.error",
+  },
   locale: {
     switcherLabel: "locale.switcherLabel",
   },

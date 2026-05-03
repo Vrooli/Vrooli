@@ -95,11 +95,14 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	noteStore := store.NewSQLiteNoteStore(db, clock.System{})
+
 	srv := server.New(server.Deps{
-		Pinger:  db,
-		Clock:   clock.System{},
-		Service: "{{SCENARIO_ID}}-api",
-		Version: "1.0.0",
+		Pinger:    db,
+		Clock:     clock.System{},
+		NoteStore: noteStore,
+		Service:   "{{SCENARIO_ID}}-api",
+		Version:   "1.0.0",
 	})
 
 	if err := apiserver.Run(apiserver.Config{
