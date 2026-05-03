@@ -16,6 +16,7 @@ import { useCapturePolling } from "../../hooks/useCapturePolling";
 import { useStorePolling } from "../../hooks/useStorePolling";
 import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { useIsMobile } from "../../hooks/useMediaQuery";
+import { BacklogItemsProvider } from "../../components/backlog/backlog-items-context";
 import { AppShellContext } from "./AppShellContext";
 import { commandPostPath, detailPathFromNodeId, graphPath } from "../routes/route-paths";
 import type { FeedbackItem, MaturityItem } from "../../lib/feed";
@@ -151,29 +152,31 @@ export function AppShell() {
   return (
     <Profiler id="AppShell" onRender={onProfilerRender}>
       <AppShellContext.Provider value={shellContext}>
-        <div ref={shellRef} className="flex h-screen min-w-0 bg-slate-950 text-slate-50">
-          <Profiler id="Sidebar" onRender={onProfilerRender}>
-            <Sidebar
-              feed={feed}
-              onItemClick={handleSidebarItemClick}
-              onSettingsOpen={handleOpenSettings}
-              onGoHome={handleGoHome}
-              onOpenCommandPost={handleOpenCommandPost}
-              onOpenAgentSession={closeSidebarOnMobile}
-              desktopWidth={isMobile ? undefined : sidebarWidth}
-              resizeHandleProps={isMobile ? undefined : resizeHandleProps}
-              asideRef={sidebarAsideRef}
-            />
-          </Profiler>
-
-          <main className="min-w-0 flex-1 overflow-auto">
-            <Profiler id="Outlet" onRender={onProfilerRender}>
-              <Outlet />
+        <BacklogItemsProvider items={backlogItems}>
+          <div ref={shellRef} className="flex h-screen min-w-0 bg-slate-950 text-slate-50">
+            <Profiler id="Sidebar" onRender={onProfilerRender}>
+              <Sidebar
+                feed={feed}
+                onItemClick={handleSidebarItemClick}
+                onSettingsOpen={handleOpenSettings}
+                onGoHome={handleGoHome}
+                onOpenCommandPost={handleOpenCommandPost}
+                onOpenAgentSession={closeSidebarOnMobile}
+                desktopWidth={isMobile ? undefined : sidebarWidth}
+                resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+                asideRef={sidebarAsideRef}
+              />
             </Profiler>
-          </main>
 
-          <SettingsDrawer isOpen={showSettingsDrawer} onClose={handleCloseSettingsDrawer} />
-        </div>
+            <main className="min-w-0 flex-1 overflow-auto">
+              <Profiler id="Outlet" onRender={onProfilerRender}>
+                <Outlet />
+              </Profiler>
+            </main>
+
+            <SettingsDrawer isOpen={showSettingsDrawer} onClose={handleCloseSettingsDrawer} />
+          </div>
+        </BacklogItemsProvider>
       </AppShellContext.Provider>
     </Profiler>
   );

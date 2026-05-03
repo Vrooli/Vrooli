@@ -5,8 +5,9 @@
  * decision answering, run/workshop/finalize actions, and follow-up/archive.
  */
 
-import { Profiler, memo, useCallback, useMemo, useState } from "react";
+import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { onProfilerRender } from "../../../../lib/profiler";
 import { ListTodo } from "lucide-react";
 import { useBacklogStore } from "../../../../stores";
@@ -22,7 +23,7 @@ import { RunBacklogModal } from "../../../../components/backlog/run-backlog-moda
 import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
-import type { ItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
+import type { StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
 import type { AttentionReason } from "../../../../lib/feed";
@@ -115,6 +116,7 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
   const {
     getItemCallbacks,
     activeRunKeys,
+    activeRunLabels,
     readinessMap,
     pendingQuestionsMap,
     attentionReasonsMap,
@@ -124,6 +126,9 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
     workshopBlockingConfirm,
     setWorkshopBlockingConfirm,
     confirmWorkshopOverride,
+    pendingArchiveKey,
+    pendingWorkshop,
+    pendingStatusKey,
   } = useCommandPostItemActions({
     onSelectBacklog: handleSelectBacklog,
     onRunItem: handleRunItem,
@@ -173,28 +178,23 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
 
   return (
     <>
-      <div className="space-y-2">
-        {sorted.map((item) => {
-          const itemKey = `${item.kind}/${item.name}`;
-          return (
-            <BacklogRow
-              key={itemKey}
-              item={item}
-              allItems={items}
-              blockingInfo={blockingMap[itemKey] ?? null}
-              readiness={readinessMap.get(itemKey)}
-              attentionReasons={attentionReasonsMap.get(itemKey) ?? EMPTY_REASONS}
-              pendingQuestions={pendingQuestionsMap.get(itemKey)}
-              agentRunning={activeRunKeys.has(itemKey)}
-              isStepperCompleted={completedSteppers.has(itemKey)}
-              transitionResult={transitionItems.get(itemKey)}
-              getItemCallbacks={getItemCallbacks}
-              handleStepperCompleted={handleStepperCompleted}
-              onItemClick={onItemClick}
-            />
-          );
-        })}
-      </div>
+      <VirtualizedBacklogList
+        sorted={sorted}
+        blockingMap={blockingMap}
+        readinessMap={readinessMap}
+        attentionReasonsMap={attentionReasonsMap}
+        pendingQuestionsMap={pendingQuestionsMap}
+        activeRunKeys={activeRunKeys}
+        activeRunLabels={activeRunLabels}
+        completedSteppers={completedSteppers}
+        transitionItems={transitionItems}
+        getItemCallbacks={getItemCallbacks}
+        pendingArchiveKey={pendingArchiveKey}
+        pendingWorkshop={pendingWorkshop}
+        pendingStatusKey={pendingStatusKey}
+        handleStepperCompleted={handleStepperCompleted}
+        onItemClick={onItemClick}
+      />
 
       {/* Run modal */}
       <RunBacklogModal
@@ -236,9 +236,128 @@ export const BacklogTab = memo(BacklogTabWrapped);
 // otherwise be triggered by a fresh `[]` literal each render.
 const EMPTY_REASONS: AttentionReason[] = [];
 
+// Rough card height before measurement; the virtualizer remeasures each
+// rendered row via measureElement, so this only affects scrollbar-position
+// estimation for unmeasured rows.
+const ROW_HEIGHT_ESTIMATE_PX = 180;
+// Buffer rows rendered above/below the viewport. Keeps scrolling smooth
+// without negating the wins from virtualization.
+const ROW_OVERSCAN = 6;
+// Vertical gap between rows (matches the previous space-y-2 layout).
+const ROW_GAP_PX = 8;
+
+interface VirtualizedBacklogListProps {
+  sorted: BacklogItem[];
+  blockingMap: Record<string, ItemBlockingInfo>;
+  readinessMap: Map<string, ReadinessIndicatorData>;
+  attentionReasonsMap: Map<string, AttentionReason[]>;
+  pendingQuestionsMap: Map<string, PendingQuestion[]>;
+  activeRunKeys: Set<string>;
+  activeRunLabels: Map<string, string>;
+  completedSteppers: Set<string>;
+  transitionItems: Map<string, StepperCompletionResult>;
+  getItemCallbacks: (item: BacklogItem) => StableItemCallbacks;
+  pendingArchiveKey: string | null;
+  pendingWorkshop: { key: string; mode: "workshop" | "finalize" } | null;
+  pendingStatusKey: string | null;
+  handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
+  onItemClick: (nodeId: string) => void;
+}
+
+function VirtualizedBacklogList({
+  sorted,
+  blockingMap,
+  readinessMap,
+  attentionReasonsMap,
+  pendingQuestionsMap,
+  activeRunKeys,
+  activeRunLabels,
+  completedSteppers,
+  transitionItems,
+  getItemCallbacks,
+  pendingArchiveKey,
+  pendingWorkshop,
+  pendingStatusKey,
+  handleStepperCompleted,
+  onItemClick,
+}: VirtualizedBacklogListProps) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+
+  // The sidebar's existing overflow-y-auto container is our scroll parent;
+  // walk up from the sentinel to find it. Done in an effect so we measure
+  // after mount.
+  useEffect(() => {
+    let el: HTMLElement | null = sentinelRef.current?.parentElement ?? null;
+    while (el && el !== document.body) {
+      const cs = window.getComputedStyle(el);
+      if (cs.overflowY === "auto" || cs.overflowY === "scroll") {
+        setScrollEl(el);
+        return;
+      }
+      el = el.parentElement;
+    }
+  }, []);
+
+  const rowVirtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => ROW_HEIGHT_ESTIMATE_PX,
+    overscan: ROW_OVERSCAN,
+    gap: ROW_GAP_PX,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const totalHeight = rowVirtualizer.getTotalSize();
+
+  return (
+    <div ref={sentinelRef} style={{ height: totalHeight, position: "relative", width: "100%" }}>
+      {virtualItems.map((virtualRow) => {
+        const item = sorted[virtualRow.index];
+        if (!item) return null;
+        const itemKey = `${item.kind}/${item.name}`;
+        const readiness = readinessMap.get(itemKey);
+        return (
+          <div
+            key={itemKey}
+            data-index={virtualRow.index}
+            ref={rowVirtualizer.measureElement}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <BacklogRow
+              item={item}
+              blockingInfo={blockingMap[itemKey] ?? null}
+              readiness={readiness}
+              attentionReasons={attentionReasonsMap.get(itemKey) ?? EMPTY_REASONS}
+              pendingQuestions={pendingQuestionsMap.get(itemKey)}
+              agentRunning={activeRunKeys.has(itemKey)}
+              isStepperCompleted={completedSteppers.has(itemKey)}
+              transitionResult={transitionItems.get(itemKey)}
+              callbacks={getItemCallbacks(item)}
+              archivePending={pendingArchiveKey === itemKey}
+              finalizePending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "finalize"}
+              workshopPending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "workshop"}
+              statusChangePending={pendingStatusKey === itemKey}
+              workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
+              runningLabel={activeRunLabels.get(itemKey)}
+              handleStepperCompleted={handleStepperCompleted}
+              onItemClick={onItemClick}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface BacklogRowProps {
   item: BacklogItem;
-  allItems: BacklogItem[];
   blockingInfo: ItemBlockingInfo | null;
   readiness: ReadinessIndicatorData | undefined;
   attentionReasons: AttentionReason[];
@@ -246,14 +365,26 @@ interface BacklogRowProps {
   agentRunning: boolean;
   isStepperCompleted: boolean;
   transitionResult: StepperCompletionResult | undefined;
-  getItemCallbacks: (item: BacklogItem) => ItemCallbacks;
+  /** Stable per-item callbacks. Identity is preserved for items whose
+   *  kind/name and blocking info haven't changed. */
+  callbacks: StableItemCallbacks;
+  /** Per-row pending booleans — derived in the parent loop from primitive
+   *  pending keys. Only the actively-mutating row sees these flip, so other
+   *  rows preserve memo equality. */
+  archivePending: boolean;
+  finalizePending: boolean;
+  workshopPending: boolean;
+  statusChangePending: boolean;
+  workshopLabel: string;
+  runningLabel: string | undefined;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
   onItemClick: (nodeId: string) => void;
 }
 
+const NOOP_TOGGLE_SELECTION = () => {};
+
 const BacklogRow = memo(function BacklogRow({
   item,
-  allItems,
   blockingInfo,
   readiness,
   attentionReasons,
@@ -261,7 +392,13 @@ const BacklogRow = memo(function BacklogRow({
   agentRunning,
   isStepperCompleted,
   transitionResult,
-  getItemCallbacks,
+  callbacks,
+  archivePending,
+  finalizePending,
+  workshopPending,
+  statusChangePending,
+  workshopLabel,
+  runningLabel,
   handleStepperCompleted,
   onItemClick,
 }: BacklogRowProps) {
@@ -281,13 +418,11 @@ const BacklogRow = memo(function BacklogRow({
       }),
     [item, blockingInfo, readiness, agentRunning, hasPendingDecisions],
   );
-  const callbacks = getItemCallbacks(item);
   const handleClick = useCallback(() => onItemClick(nodeId), [nodeId, onItemClick]);
   const handleStepperCompletedForItem = useCallback(
     (result: StepperCompletionResult) => handleStepperCompleted(itemKey, item, result),
     [handleStepperCompleted, itemKey, item],
   );
-  const noopToggleSelection = useCallback(() => {}, []);
 
   return (
     <button
@@ -298,7 +433,6 @@ const BacklogRow = memo(function BacklogRow({
     >
       <BacklogCard
         item={item}
-        allItems={allItems}
         readinessData={readiness}
         itemActions={itemActions}
         attentionReasons={attentionReasons}
@@ -308,8 +442,19 @@ const BacklogRow = memo(function BacklogRow({
         onStepperCompleted={handleStepperCompletedForItem}
         batchMode={false}
         isSelected={false}
-        onToggleSelection={noopToggleSelection}
-        {...callbacks}
+        onToggleSelection={NOOP_TOGGLE_SELECTION}
+        onRun={callbacks.onRun}
+        onArchive={callbacks.onArchive}
+        onFollowUp={callbacks.onFollowUp}
+        onFinalize={callbacks.onFinalize}
+        onWorkshop={callbacks.onWorkshop}
+        onStatusChange={callbacks.onStatusChange}
+        archivePending={archivePending}
+        finalizePending={finalizePending}
+        workshopPending={workshopPending}
+        statusChangePending={statusChangePending}
+        workshopLabel={workshopLabel}
+        runningLabel={runningLabel}
       />
     </button>
   );

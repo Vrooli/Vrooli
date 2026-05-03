@@ -21,6 +21,13 @@ import type { BacklogItem, BacklogKind, BacklogStatus, PendingQuestion } from ".
 
 const ACTIVE_REFRESH_MS = 6000;
 
+/**
+ * The full action contract consumed by `BacklogCard`. We keep this interface
+ * for BacklogCard's prop contract (it still receives all of these), but we
+ * split how it's *produced*: stable function callbacks come from a memoized
+ * per-item map, while the per-row pending booleans / labels are derived in
+ * the parent loop from the primitive pending keys exposed by this hook.
+ */
 export interface ItemCallbacks {
   onRun: () => void;
   onArchive: () => void;
@@ -36,11 +43,29 @@ export interface ItemCallbacks {
   statusChangePending: boolean;
 }
 
+/**
+ * Stable per-item callbacks. Identity is preserved across renders for items
+ * whose `kind/name` and `blockingMap` entry haven't changed, so consumers
+ * (BacklogRow / FeedItem) can pass them as memoized props without breaking
+ * `React.memo` on the card.
+ */
+export interface StableItemCallbacks {
+  onRun: () => void;
+  onArchive: () => void;
+  onFollowUp: () => void;
+  onFinalize: () => void;
+  onWorkshop: () => void;
+  onStatusChange: (newStatus: BacklogStatus) => void;
+}
+
 export interface UseCommandPostItemActionsResult {
-  /** Per-item callback factory. */
-  getItemCallbacks: (item: BacklogItem) => ItemCallbacks;
+  /** Stable per-item callbacks. Identity is preserved when items / blocking
+   *  haven't changed, so passing this through to memoized rows is safe. */
+  getItemCallbacks: (item: BacklogItem) => StableItemCallbacks;
   /** Active run tracking for agent-running badge logic. */
   activeRunKeys: Set<string>;
+  /** Per-item label shown when an agent is running, e.g. "Running workshop…". */
+  activeRunLabels: Map<string, string>;
   /** Summary-derived maps for BacklogCard props. */
   readinessMap: Map<string, ReadinessIndicatorData>;
   pendingQuestionsMap: Map<string, PendingQuestion[]>;
@@ -62,6 +87,11 @@ export interface UseCommandPostItemActionsResult {
   /** Mutation objects for pending checks. */
   workshopMutation: { isPending: boolean; variables?: { kind: string; name: string; mode: string } };
   archiveMutation: { isPending: boolean };
+  /** Primitive pending keys — derive per-row booleans in the parent loop so
+   *  only the actively-pending row re-renders, not the whole list. */
+  pendingArchiveKey: string | null;
+  pendingWorkshop: { key: string; mode: "workshop" | "finalize" } | null;
+  pendingStatusKey: string | null;
 }
 
 export interface UseCommandPostItemActionsOptions {
@@ -273,88 +303,128 @@ export function useCommandPostItemActions(
     workshopMutation.mutate({ kind, name: itemName, mode, prompt, confirm: true, force: true });
   }, [workshopBlockingConfirm, workshopMutation]);
 
-  // ── Per-item callback factory ────────────────────────────────────────
-  const getItemCallbacks = useCallback((item: BacklogItem): ItemCallbacks => {
-    const itemKey = `${item.kind}/${item.name}`;
-    const readiness = readinessMap.get(itemKey);
+  // ── Stable per-item callbacks ───────────────────────────────────────
+  // Pull mutate functions out so the closure depends only on stable refs.
+  // (TanStack Query v5 returns stable mutate functions across renders.)
+  const archive = archiveMutation.mutate;
+  const workshop = workshopMutation.mutate;
+  const status = statusMutation.mutate;
+  const onRunItem = options.onRunItem;
+  const onSelectBacklog = options.onSelectBacklog;
 
-    return {
-      onRun: () => {
-        options.onRunItem?.(item.kind, item.name, item.title);
-      },
-      onArchive: () => {
-        archiveMutation.mutate({ kind: item.kind, name: item.name });
-      },
-      onFollowUp: () => {
-        options.onSelectBacklog?.(item.kind, item.name);
-      },
-      onFinalize: () => {
-        const info = blockingMap[itemKey];
-        if (info?.blocked) {
-          setWorkshopBlockingConfirm({
+  // Per-item callback map. Rebuilt only when items / blockingMap / option
+  // callbacks change. For the common steady-state, this map's identity AND
+  // each entry's identity are preserved across renders, so memoized rows
+  // skip re-rendering on every parent update.
+  const itemCallbackMap = useMemo<Map<string, StableItemCallbacks>>(() => {
+    const map = new Map<string, StableItemCallbacks>();
+    for (const item of items) {
+      const itemKey = `${item.kind}/${item.name}`;
+      map.set(itemKey, {
+        onRun: () => onRunItem?.(item.kind, item.name, item.title),
+        onArchive: () => archive({ kind: item.kind, name: item.name }),
+        onFollowUp: () => onSelectBacklog?.(item.kind, item.name),
+        onFinalize: () => {
+          const info = blockingMap[itemKey];
+          if (info?.blocked) {
+            setWorkshopBlockingConfirm({
+              kind: item.kind,
+              name: item.name,
+              mode: "finalize",
+              blockingDepKeys: info.blockingDepKeys,
+            });
+            return;
+          }
+          workshop({
             kind: item.kind,
             name: item.name,
             mode: "finalize",
-            blockingDepKeys: info.blockingDepKeys,
+            prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
+            confirm: true,
           });
-          return;
-        }
-        workshopMutation.mutate({
+        },
+        onWorkshop: () => {
+          const info = blockingMap[itemKey];
+          if (info?.blocked) {
+            setWorkshopBlockingConfirm({
+              kind: item.kind,
+              name: item.name,
+              mode: "workshop",
+              blockingDepKeys: info.blockingDepKeys,
+            });
+            return;
+          }
+          workshop({
+            kind: item.kind,
+            name: item.name,
+            mode: "workshop",
+            prompt: "Run the next workshop round for this backlog item.",
+            confirm: true,
+          });
+        },
+        onStatusChange: (newStatus: BacklogStatus) => {
+          status({ kind: item.kind, name: item.name, newStatus });
+        },
+      });
+    }
+    return map;
+  }, [items, blockingMap, archive, workshop, status, onRunItem, onSelectBacklog]);
+
+  const getItemCallbacks = useCallback(
+    (item: BacklogItem): StableItemCallbacks => {
+      const itemKey = `${item.kind}/${item.name}`;
+      const entry = itemCallbackMap.get(itemKey);
+      if (entry) return entry;
+      // Item not in the store yet (rare; e.g. optimistic UI). Return a
+      // throwaway object — this row will re-render on the next items
+      // refresh and pick up the stable entry.
+      return {
+        onRun: () => onRunItem?.(item.kind, item.name, item.title),
+        onArchive: () => archive({ kind: item.kind, name: item.name }),
+        onFollowUp: () => onSelectBacklog?.(item.kind, item.name),
+        onFinalize: () => workshop({
           kind: item.kind,
           name: item.name,
           mode: "finalize",
           prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
           confirm: true,
-        });
-      },
-      onWorkshop: () => {
-        const info = blockingMap[itemKey];
-        if (info?.blocked) {
-          setWorkshopBlockingConfirm({
-            kind: item.kind,
-            name: item.name,
-            mode: "workshop",
-            blockingDepKeys: info.blockingDepKeys,
-          });
-          return;
-        }
-        workshopMutation.mutate({
+        }),
+        onWorkshop: () => workshop({
           kind: item.kind,
           name: item.name,
           mode: "workshop",
           prompt: "Run the next workshop round for this backlog item.",
           confirm: true,
-        });
-      },
-      archivePending: archiveMutation.isPending,
-      finalizePending:
-        workshopMutation.isPending &&
-        workshopMutation.variables?.kind === item.kind &&
-        workshopMutation.variables?.name === item.name &&
-        workshopMutation.variables?.mode === "finalize",
-      workshopPending:
-        workshopMutation.isPending &&
-        workshopMutation.variables?.kind === item.kind &&
-        workshopMutation.variables?.name === item.name &&
-        workshopMutation.variables?.mode === "workshop",
-      workshopLabel: (readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop",
-      runningLabel: activeRunLabels.get(itemKey),
-      onStatusChange: (newStatus: BacklogStatus) => {
-        statusMutation.mutate({ kind: item.kind, name: item.name, newStatus });
-      },
-      statusChangePending:
-        statusMutation.isPending &&
-        statusMutation.variables?.kind === item.kind &&
-        statusMutation.variables?.name === item.name,
-    };
-  }, [
-    options, blockingMap, readinessMap, activeRunLabels,
-    archiveMutation, workshopMutation, statusMutation,
-  ]);
+        }),
+        onStatusChange: (newStatus: BacklogStatus) => status({
+          kind: item.kind, name: item.name, newStatus,
+        }),
+      };
+    },
+    [itemCallbackMap, archive, workshop, status, onRunItem, onSelectBacklog],
+  );
+
+  // ── Primitive pending keys ──────────────────────────────────────────
+  // Per-row pending booleans get derived from these in the parent loop.
+  // Only the actively-mutating row sees its boolean flip; all other rows
+  // see false === false and skip re-render via memo.
+  const pendingArchiveKey = archiveMutation.isPending && archiveMutation.variables
+    ? `${archiveMutation.variables.kind}/${archiveMutation.variables.name}`
+    : null;
+  const pendingWorkshop = workshopMutation.isPending && workshopMutation.variables
+    ? {
+      key: `${workshopMutation.variables.kind}/${workshopMutation.variables.name}`,
+      mode: workshopMutation.variables.mode,
+    }
+    : null;
+  const pendingStatusKey = statusMutation.isPending && statusMutation.variables
+    ? `${statusMutation.variables.kind}/${statusMutation.variables.name}`
+    : null;
 
   return {
     getItemCallbacks,
     activeRunKeys,
+    activeRunLabels,
     readinessMap,
     pendingQuestionsMap,
     attentionReasonsMap,
@@ -371,5 +441,8 @@ export function useCommandPostItemActions(
     archiveMutation: {
       isPending: archiveMutation.isPending,
     },
+    pendingArchiveKey,
+    pendingWorkshop,
+    pendingStatusKey,
   };
 }

@@ -37,7 +37,6 @@ import { displayLimitsConfig } from "../../config";
 
 export interface BacklogCardProps {
   item: BacklogItem;
-  allItems: BacklogItem[];
   readinessData?: ReadinessIndicatorData;
   itemActions: ItemActions;
   // Attention / stepper
@@ -74,7 +73,6 @@ export interface BacklogCardProps {
 
 function BacklogCardImpl({
   item,
-  allItems,
   readinessData,
   itemActions,
   attentionReasons,
@@ -229,7 +227,7 @@ function BacklogCardImpl({
           {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
             <div className="mt-2 flex flex-wrap gap-1">
               <InitiativeBadge initiative={item.initiative} />
-              <DependencyIndicator dependsOn={item.dependsOn} allItems={allItems} />
+              <DependencyIndicator dependsOn={item.dependsOn} />
             </div>
           )}
           <TagList

@@ -45,7 +45,6 @@ const makeActions = (overrides?: Partial<ItemActions>): ItemActions => ({
 const renderCard = (overrides?: Partial<BacklogCardProps>) => {
   const props: BacklogCardProps = {
     item: makeItem(),
-    allItems: [],
     itemActions: makeActions(),
     attentionReasons: [],
     isStepperCompleted: false,

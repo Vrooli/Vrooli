@@ -7,19 +7,17 @@
  */
 
 import { memo } from "react";
-import type { BacklogItem } from "../../types";
+import { useBacklogItemLookup } from "./backlog-items-context";
 
 const WORKSHOP_BLOCKING_STATUSES = new Set(["backlog", "researching"]);
 
 interface DependencyIndicatorProps {
   dependsOn?: string[];
-  allItems: BacklogItem[];
 }
 
-export const DependencyIndicator = memo(function DependencyIndicator({ dependsOn, allItems }: DependencyIndicatorProps) {
+export const DependencyIndicator = memo(function DependencyIndicator({ dependsOn }: DependencyIndicatorProps) {
+  const itemsByKey = useBacklogItemLookup();
   if (!dependsOn || dependsOn.length === 0) return null;
-
-  const itemsByKey = new Map(allItems.map((item) => [`${item.kind}/${item.name}`, item]));
 
   const workshopBlocked = dependsOn.filter((dep) => {
     const item = itemsByKey.get(dep);

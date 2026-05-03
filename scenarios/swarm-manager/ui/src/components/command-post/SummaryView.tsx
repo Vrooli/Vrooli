@@ -9,7 +9,7 @@
  * feed to show only that group's items. Tapping again clears the filter.
  */
 
-import { Profiler, useMemo, useState, useCallback } from "react";
+import { Profiler, memo, useCallback, useMemo, useState } from "react";
 import { onProfilerRender } from "../../lib/profiler";
 import { useBacklogStore } from "../../stores/backlog-store";
 import { useExecutionStore } from "../../stores/execution-store";
@@ -77,6 +77,7 @@ function SummaryViewImpl({
   const {
     getItemCallbacks,
     activeRunKeys,
+    activeRunLabels,
     readinessMap,
     pendingQuestionsMap,
     attentionReasonsMap,
@@ -86,6 +87,9 @@ function SummaryViewImpl({
     workshopBlockingConfirm,
     setWorkshopBlockingConfirm,
     confirmWorkshopOverride,
+    pendingArchiveKey,
+    pendingWorkshop,
+    pendingStatusKey,
   } = itemActionsHook;
 
   // ── Feed/feedback/maturity maps for groupActionItems ───────────────
@@ -235,24 +239,34 @@ function SummaryViewImpl({
             </button>
           )}
         </div>
-        {visibleItems.map((item) => (
-          <FeedItem
-            key={item.key}
-            item={item}
-            backlogItems={backlogItems}
-            blockingMap={blockingMap}
-            readinessMap={readinessMap}
-            pendingQuestionsMap={pendingQuestionsMap}
-            attentionReasonsMap={attentionReasonsMap}
-            activeRunKeys={activeRunKeys}
-            completedSteppers={completedSteppers}
-            transitionItems={transitionItems}
-            getItemCallbacks={getItemCallbacks}
-            handleStepperCompleted={handleStepperCompleted}
-            handleSnooze={handleSnooze}
-            navigateToItem={navigateToItem}
-          />
-        ))}
+        {visibleItems.map((item) => {
+          const bi = item.type === "backlog" ? item.backlogItem : undefined;
+          const itemKey = bi ? `${bi.kind}/${bi.name}` : "";
+          const readiness = bi ? readinessMap.get(itemKey) : undefined;
+          return (
+            <FeedItem
+              key={item.key}
+              item={item}
+              blockingInfo={bi ? blockingMap[itemKey] ?? null : null}
+              readiness={readiness}
+              attentionReasons={bi ? attentionReasonsMap.get(itemKey) ?? EMPTY_ATTENTION_REASONS : EMPTY_ATTENTION_REASONS}
+              pendingQuestions={bi ? pendingQuestionsMap.get(itemKey) : undefined}
+              agentRunning={bi ? activeRunKeys.has(itemKey) : false}
+              isStepperCompleted={bi ? completedSteppers.has(itemKey) : false}
+              transitionResult={bi ? transitionItems.get(itemKey) : undefined}
+              callbacks={bi ? getItemCallbacks(bi) : undefined}
+              archivePending={pendingArchiveKey === itemKey}
+              finalizePending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "finalize"}
+              workshopPending={pendingWorkshop?.key === itemKey && pendingWorkshop.mode === "workshop"}
+              statusChangePending={pendingStatusKey === itemKey}
+              workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
+              runningLabel={bi ? activeRunLabels.get(itemKey) : undefined}
+              handleStepperCompleted={handleStepperCompleted}
+              handleSnooze={handleSnooze}
+              navigateToItem={navigateToItem}
+            />
+          );
+        })}
         {visibleItems.length === 0 && activeFilter && (
           <p className="py-4 text-center text-xs text-slate-500">No items in this group</p>
         )}
@@ -311,74 +325,103 @@ function SummaryViewImpl({
 // FeedItem — Renders BacklogCard for backlog items, ExecutionCaptureCard for others
 // ---------------------------------------------------------------------------
 
+// Stable empty-array reference so non-attention-reason rows don't see a
+// fresh `[]` literal each render and break BacklogCard memo equality.
+const EMPTY_ATTENTION_REASONS: import("../../lib/feed").AttentionReason[] = [];
+const NOOP_TOGGLE_SELECTION = () => {};
+
 interface FeedItemProps {
   item: ActionableItem;
-  backlogItems: import("../../types").BacklogItem[];
-  blockingMap: Record<string, import("../../types").ItemBlockingInfo>;
-  readinessMap: Map<string, import("../../lib/maturity").ReadinessIndicatorData>;
-  pendingQuestionsMap: Map<string, import("../../types").PendingQuestion[]>;
-  attentionReasonsMap: Map<string, import("../../lib/feed").AttentionReason[]>;
-  activeRunKeys: Set<string>;
-  completedSteppers: Set<string>;
-  transitionItems: Map<string, import("../backlog/inline-question-stepper").StepperCompletionResult>;
-  getItemCallbacks: (item: import("../../types").BacklogItem) => import("../../hooks/useCommandPostItemActions").ItemCallbacks;
+  blockingInfo: import("../../types").ItemBlockingInfo | null;
+  readiness: import("../../lib/maturity").ReadinessIndicatorData | undefined;
+  attentionReasons: import("../../lib/feed").AttentionReason[];
+  pendingQuestions: import("../../types").PendingQuestion[] | undefined;
+  agentRunning: boolean;
+  isStepperCompleted: boolean;
+  transitionResult: import("../backlog/inline-question-stepper").StepperCompletionResult | undefined;
+  /** Stable per-item callbacks — undefined for non-backlog rows. */
+  callbacks: import("../../hooks/useCommandPostItemActions").StableItemCallbacks | undefined;
+  archivePending: boolean;
+  finalizePending: boolean;
+  workshopPending: boolean;
+  statusChangePending: boolean;
+  workshopLabel: string;
+  runningLabel: string | undefined;
   handleStepperCompleted: (itemKey: string, item: import("../../types").BacklogItem, result: import("../backlog/inline-question-stepper").StepperCompletionResult) => void;
   handleSnooze: (key: string, expiresAt: number) => void;
   navigateToItem: (item: { type: string; kind?: string; name?: string; executionId?: string }) => void;
 }
 
-function FeedItem({
+const FeedItem = memo(function FeedItem({
   item,
-  backlogItems,
-  blockingMap,
-  readinessMap,
-  pendingQuestionsMap,
-  attentionReasonsMap,
-  activeRunKeys,
-  completedSteppers,
-  transitionItems,
-  getItemCallbacks,
+  blockingInfo,
+  readiness,
+  attentionReasons,
+  pendingQuestions,
+  agentRunning,
+  isStepperCompleted,
+  transitionResult,
+  callbacks,
+  archivePending,
+  finalizePending,
+  workshopPending,
+  statusChangePending,
+  workshopLabel,
+  runningLabel,
   handleStepperCompleted,
   handleSnooze,
   navigateToItem,
 }: FeedItemProps) {
-  if (item.type === "backlog" && item.backlogItem) {
+  const handleNavigate = useCallback(() => navigateToItem(item), [navigateToItem, item]);
+
+  if (item.type === "backlog" && item.backlogItem && callbacks) {
     const bi = item.backlogItem;
     const itemKey = `${bi.kind}/${bi.name}`;
-    const callbacks = getItemCallbacks(bi);
-    const readiness = readinessMap.get(itemKey);
+    const itemActions = getItemActions({
+      item: bi,
+      blockingInfo,
+      readinessReady: readiness ? readiness.ready : null,
+      pendingSynthesis: readiness?.pendingSynthesis ?? false,
+      agentRunning,
+      hasPendingDecisions: (pendingQuestions?.length ?? 0) > 0,
+      hasExecutionHistory: bi.status === "completed" || bi.status === "failed",
+    });
+    const onStepperCompleted = (result: import("../backlog/inline-question-stepper").StepperCompletionResult) =>
+      handleStepperCompleted(itemKey, bi, result);
 
     return (
       <button
         type="button"
-        onClick={() => navigateToItem(item)}
+        onClick={handleNavigate}
         className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
         data-testid={`command-post-feed-item-${item.key}`}
       >
         <BacklogCard
           item={bi}
-          allItems={backlogItems}
           readinessData={readiness}
-          itemActions={getItemActions({
-            item: bi,
-            blockingInfo: blockingMap[itemKey] ?? null,
-            readinessReady: readiness ? readiness.ready : null,
-            pendingSynthesis: readiness?.pendingSynthesis ?? false,
-            agentRunning: activeRunKeys.has(itemKey),
-            hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
-            hasExecutionHistory: bi.status === "completed" || bi.status === "failed",
-          })}
-          attentionReasons={attentionReasonsMap.get(itemKey) ?? []}
-          pendingQuestions={pendingQuestionsMap.get(itemKey)}
-          isStepperCompleted={completedSteppers.has(itemKey)}
-          transitionResult={transitionItems.get(itemKey)}
-          onStepperCompleted={(result) => handleStepperCompleted(itemKey, bi, result)}
+          itemActions={itemActions}
+          attentionReasons={attentionReasons}
+          pendingQuestions={pendingQuestions}
+          isStepperCompleted={isStepperCompleted}
+          transitionResult={transitionResult}
+          onStepperCompleted={onStepperCompleted}
           batchMode={false}
           isSelected={false}
-          onToggleSelection={() => {}}
+          onToggleSelection={NOOP_TOGGLE_SELECTION}
+          onRun={callbacks.onRun}
+          onArchive={callbacks.onArchive}
+          onFollowUp={callbacks.onFollowUp}
+          onFinalize={callbacks.onFinalize}
+          onWorkshop={callbacks.onWorkshop}
+          onStatusChange={callbacks.onStatusChange}
+          archivePending={archivePending}
+          finalizePending={finalizePending}
+          workshopPending={workshopPending}
+          statusChangePending={statusChangePending}
+          workshopLabel={workshopLabel}
+          runningLabel={runningLabel}
           showSnooze
           onSnooze={handleSnooze}
-          {...callbacks}
         />
       </button>
     );
@@ -388,8 +431,8 @@ function FeedItem({
   return (
     <ExecutionCaptureCard
       item={item}
-      onNavigate={() => navigateToItem(item)}
+      onNavigate={handleNavigate}
       onSnooze={handleSnooze}
     />
   );
-}
+});
