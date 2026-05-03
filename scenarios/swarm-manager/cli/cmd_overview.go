@@ -35,14 +35,23 @@ type InitiativeEdgeSuggestion struct {
 	Reason            string   `json:"reason"`
 }
 
+// LaneStatus mirrors the per-lane utilization slice in the API governance
+// status. Lane names are "investigate", "execute", "review", "reconcile".
+type LaneStatus struct {
+	Lane     string `json:"lane"`
+	Active   int    `json:"active"`
+	Capacity int    `json:"capacity"`
+	Queue    int    `json:"queue"`
+}
+
 // GovernanceStatus mirrors the API governance status.
 type GovernanceStatus struct {
-	ActiveExecutions    int      `json:"active_executions"`
-	MaxConcurrent       int      `json:"max_concurrent"`
-	QueueDepth          int      `json:"queue_depth"`
-	MaxQueueDepth       int      `json:"max_queue_depth"`
-	CircuitBrokenItems  []string `json:"circuit_broken_items"`
-	EstimatedQueuedCost float64  `json:"estimated_queued_cost"`
+	Lanes               []LaneStatus `json:"lanes"`
+	ActiveExecutions    int          `json:"active_executions"`
+	QueueDepth          int          `json:"queue_depth"`
+	MaxQueueDepth       int          `json:"max_queue_depth"`
+	CircuitBrokenItems  []string     `json:"circuit_broken_items"`
+	EstimatedQueuedCost float64      `json:"estimated_queued_cost"`
 }
 
 // OverviewInitiative pairs an initiative with its rollup status.
@@ -102,8 +111,17 @@ func printOverviewMarkdown(resp OverviewResponse) {
 	if resp.Governance != nil {
 		gov := resp.Governance
 		printSection("Governance")
-		fmt.Printf("  Executions: %d/%d active | Queue: %d/%d\n",
-			gov.ActiveExecutions, gov.MaxConcurrent, gov.QueueDepth, gov.MaxQueueDepth)
+		fmt.Printf("  Active total: %d | Queue: %d/%d\n",
+			gov.ActiveExecutions, gov.QueueDepth, gov.MaxQueueDepth)
+		// Per-lane breakdown — mirrors the four-lane Operations Center
+		// header on the UI.
+		for _, lane := range gov.Lanes {
+			fmt.Printf("  %-12s %d/%d active", lane.Lane, lane.Active, lane.Capacity)
+			if lane.Queue > 0 {
+				fmt.Printf(" | queue %d", lane.Queue)
+			}
+			fmt.Println()
+		}
 		if gov.EstimatedQueuedCost > 0 {
 			fmt.Printf("  Estimated queued cost: $%.2f\n", gov.EstimatedQueuedCost)
 		}

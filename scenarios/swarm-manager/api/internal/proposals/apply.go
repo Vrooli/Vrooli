@@ -243,6 +243,45 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 	return result, nil
 }
 
+// StateBuilder loads CurrentState for an initiative. The single argument is
+// the initiative name and matches the signatures used by feedback rounds and
+// operating-mode reconciliation, so the same builder closure can drive both.
+type StateBuilder func(initiativeName string) (CurrentState, error)
+
+// ApplyFlow is the canonical recipe for turning an agent-supplied proposal
+// into applied mutations: build state for the source initiative, Normalize
+// the proposal against that state, then Apply.
+//
+// Every surface that applies proposals (feedback rounds, operating-mode
+// reconciliation, future agent surfaces) MUST call ApplyFlow rather than
+// re-implementing the recipe. The Applier's contract assumes pre-normalized
+// input; skipping Normalize means agent-produced whitespace/casing quirks
+// (e.g. "  ready  ", "EXECUTE/Foo") fall through Validate and surface as
+// per-mutation errors instead of being canonicalized.
+//
+// Errors returned here are pre-flight: state-build, normalize, or
+// Apply-level rejection (invalid form, missing initiative). A successful
+// call returns a non-nil result whose Outcomes capture per-mutation
+// success/failure; callers inspect those rather than expecting a non-nil
+// error on partial failure.
+func (a *Applier) ApplyFlow(ctx context.Context, proposal Proposal, stateBuilder StateBuilder, acceptedIDs []string, source Source) (*ApplyResult, error) {
+	if stateBuilder == nil {
+		return nil, errors.New("proposals: ApplyFlow requires a StateBuilder")
+	}
+	if strings.TrimSpace(source.InitiativeName) == "" {
+		return nil, errors.New("proposals: ApplyFlow requires source.InitiativeName")
+	}
+	state, err := stateBuilder(source.InitiativeName)
+	if err != nil {
+		return nil, fmt.Errorf("build proposal state: %w", err)
+	}
+	normalized, err := Normalize(proposal, state)
+	if err != nil {
+		return nil, fmt.Errorf("normalize proposal: %w", err)
+	}
+	return a.Apply(ctx, normalized, state, acceptedIDs, source)
+}
+
 func applyTarget(m Mutation) string {
 	switch m.Op {
 	case OpAddItem:

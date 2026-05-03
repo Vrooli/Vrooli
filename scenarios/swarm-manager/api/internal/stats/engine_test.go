@@ -158,6 +158,82 @@ func TestOperatingModePhaseStats(t *testing.T) {
 	}
 }
 
+func TestPhaseRunsByLane_AggregatesPerPhaseKind(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	base := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		phase     string
+		phaseKind string
+	}{
+		{"investigate", "investigate"},
+		{"plan", "investigate"},
+		{"execute", "execute"},
+		{"review", "review"},
+		{"reconcile", "reconcile"},
+		{"reconcile", "reconcile"},
+	}
+	for i, c := range cases {
+		appendEvent(t, repo, base.Add(time.Duration(i)*time.Second), eventlog.EntityInitiative, "init-lane",
+			eventlog.EventOperatingModePhaseStarted, eventlog.OperatingModePhasePayload{
+				Mode:        "holistic-loop",
+				ScopeKind:   "initiative",
+				ScopeID:     "init-lane",
+				Phase:       c.phase,
+				PhaseKind:   c.phaseKind,
+				RunStrategy: "operator_gated_loop",
+				RoundNumber: i + 1,
+			})
+	}
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	got := engine.GetStats().Mode.PhaseRunsByLane
+
+	want := map[string]int{
+		"investigate": 2,
+		"execute":     1,
+		"review":      1,
+		"reconcile":   2,
+	}
+	for lane, count := range want {
+		if got[lane] != count {
+			t.Errorf("lane %q = %d, want %d", lane, got[lane], count)
+		}
+	}
+}
+
+func TestPhaseRunsByLane_LegacyEventsKeepEmptyKey(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	base := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+
+	// Legacy event written before P2 wired phase_kind onto the payload.
+	appendEvent(t, repo, base, eventlog.EntityInitiative, "init-legacy",
+		eventlog.EventOperatingModePhaseStarted, eventlog.OperatingModePhasePayload{
+			Mode:        "holistic-loop",
+			ScopeKind:   "initiative",
+			ScopeID:     "init-legacy",
+			Phase:       "investigate",
+			PhaseKind:   "", // legacy
+			RunStrategy: "operator_gated_loop",
+			RoundNumber: 1,
+		})
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	got := engine.GetStats().Mode.PhaseRunsByLane
+	if got[""] != 1 {
+		t.Errorf("empty-lane bucket = %d, want 1 (legacy events visible)", got[""])
+	}
+	if got["investigate"] != 0 {
+		t.Errorf("investigate bucket leaked legacy event: got %d, want 0", got["investigate"])
+	}
+}
+
 func TestOperatingModeReplanRateCountsCompletedExecutePayloadOnly(t *testing.T) {
 	engine, repo := setupEngine(t)
 	ctx := context.Background()

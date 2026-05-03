@@ -1528,3 +1528,196 @@ func TestApply_AttributionChainSurfacedInOutcomesAndEvents(t *testing.T) {
 		t.Fatalf("DecidedBy lost: %+v", got)
 	}
 }
+
+// TestApplyFlow_HappyPath drives the full state→Normalize→Apply recipe via
+// the canonical helper. The agent submits raw whitespace ("  Baz  ") in
+// Title to prove ApplyFlow performs Normalize before Apply — Apply's
+// validation contract assumes pre-normalized input, so a missing Normalize
+// would surface as a per-mutation error rather than a clean apply.
+func TestApplyFlow_HappyPath(t *testing.T) {
+	env := newApplyEnv(t)
+	state := env.currentState()
+
+	stateBuilder := func(name string) (CurrentState, error) {
+		if name != "ui-rewrite" {
+			t.Fatalf("stateBuilder called with unexpected initiative %q", name)
+		}
+		return state, nil
+	}
+
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			// Whitespace + casing quirks the agent might emit; Normalize
+			// trims/lowers them before Apply sees them.
+			{ID: "m1", Op: OpChangeStatus, Target: "  execute/foo  ", Status: "  READY  "},
+		},
+	}
+	source := Source{
+		InitiativeName:   "ui-rewrite",
+		FeedbackRoundID:  "ui-rewrite/round-001",
+		RoundNumber:      1,
+		RoundSlug:        "test-round",
+		Entrypoint:       "initiative.feedback",
+		DecidedBy:        "tester",
+		DecidedAtRFC3339: "2026-05-02T00:00:00Z",
+	}
+
+	res, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
+	if err != nil {
+		t.Fatalf("ApplyFlow: %v", err)
+	}
+	if res == nil {
+		t.Fatalf("ApplyFlow: nil result")
+	}
+	if res.Applied != 1 || res.Failed != 0 || res.Skipped != 0 {
+		t.Fatalf("unexpected counts: applied=%d failed=%d skipped=%d", res.Applied, res.Failed, res.Skipped)
+	}
+	if len(res.Outcomes) != 1 || !res.Outcomes[0].Applied {
+		t.Fatalf("expected single applied outcome, got %+v", res.Outcomes)
+	}
+	// Round-trip the side effect: the canonicalized status landed on disk.
+	item := env.loadItem("execute", "foo")
+	if item.Status != backlog.StatusReady {
+		t.Fatalf("expected status %q after ApplyFlow, got %q", backlog.StatusReady, item.Status)
+	}
+}
+
+// TestApplyFlow_RejectsNilStateBuilder pins the precondition that surfaces
+// the most common wiring mistake (ApplyFlow callable but no state source
+// configured). Without this gate, a nil builder would panic later with no
+// useful trace.
+func TestApplyFlow_RejectsNilStateBuilder(t *testing.T) {
+	env := newApplyEnv(t)
+	source := Source{InitiativeName: "ui-rewrite"}
+	p := Proposal{Form: FormMutationList}
+
+	_, err := env.applier.ApplyFlow(context.Background(), p, nil, nil, source)
+	if err == nil {
+		t.Fatalf("expected error from nil StateBuilder, got nil")
+	}
+	if !strings.Contains(err.Error(), "StateBuilder") {
+		t.Fatalf("expected error to mention StateBuilder, got %v", err)
+	}
+}
+
+// TestApplyFlow_RejectsEmptyInitiative pins the precondition that ApplyFlow
+// asks for the initiative name on Source — the same field Apply requires.
+// Catching it here gives a clearer error than the deeper Apply check.
+func TestApplyFlow_RejectsEmptyInitiative(t *testing.T) {
+	env := newApplyEnv(t)
+	stateBuilder := func(name string) (CurrentState, error) {
+		t.Fatalf("stateBuilder must not be called with empty initiative")
+		return CurrentState{}, nil
+	}
+	p := Proposal{Form: FormMutationList}
+
+	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, Source{InitiativeName: "   "})
+	if err == nil {
+		t.Fatalf("expected error from empty InitiativeName, got nil")
+	}
+	if !strings.Contains(err.Error(), "InitiativeName") {
+		t.Fatalf("expected error to mention InitiativeName, got %v", err)
+	}
+}
+
+// TestApplyFlow_StateBuilderError surfaces the upstream failure with a
+// "build proposal state" prefix so callers can distinguish state-loading
+// trouble from normalize/apply failures in logs and HTTP responses.
+func TestApplyFlow_StateBuilderError(t *testing.T) {
+	env := newApplyEnv(t)
+	wantErr := errors.New("graph materialization failed")
+	stateBuilder := func(name string) (CurrentState, error) {
+		return CurrentState{}, wantErr
+	}
+	p := Proposal{Form: FormMutationList}
+	source := Source{InitiativeName: "ui-rewrite"}
+
+	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
+	if err == nil {
+		t.Fatalf("expected error from stateBuilder, got nil")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected wrapped wantErr, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "build proposal state") {
+		t.Fatalf("expected 'build proposal state' prefix, got %v", err)
+	}
+}
+
+// TestApplyFlow_NormalizeError surfaces a malformed proposal (unknown form)
+// with a "normalize proposal" prefix so ApplyFlow's three failure modes
+// stay individually diagnosable from one log line.
+func TestApplyFlow_NormalizeError(t *testing.T) {
+	env := newApplyEnv(t)
+	state := env.currentState()
+	stateBuilder := func(name string) (CurrentState, error) { return state, nil }
+
+	// Bypass UnmarshalJSON's form check by constructing the Proposal in code.
+	p := Proposal{Form: Form("bogus")}
+	source := Source{InitiativeName: "ui-rewrite"}
+
+	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
+	if err == nil {
+		t.Fatalf("expected error from Normalize, got nil")
+	}
+	if !errors.Is(err, ErrInvalidProposal) {
+		t.Fatalf("expected ErrInvalidProposal in chain, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "normalize proposal") {
+		t.Fatalf("expected 'normalize proposal' prefix, got %v", err)
+	}
+}
+
+// TestApplyFlow_ApplyError surfaces an apply-level rejection (mismatched
+// initiative) directly rather than wrapping it again — Apply already
+// produces a clear message. This pins the contract: ApplyFlow does not
+// add its own wrapping on top of Apply errors.
+func TestApplyFlow_ApplyError(t *testing.T) {
+	env := newApplyEnv(t)
+	state := env.currentState() // initiative "ui-rewrite"
+	stateBuilder := func(name string) (CurrentState, error) { return state, nil }
+
+	p := Proposal{Form: FormMutationList}
+	source := Source{InitiativeName: "other-project"} // mismatch with state
+
+	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
+	if err == nil {
+		t.Fatalf("expected error from Apply, got nil")
+	}
+	if !strings.Contains(err.Error(), "does not match current state") {
+		t.Fatalf("expected mismatched-initiative error, got %v", err)
+	}
+}
+
+// TestApplyFlow_PassesAcceptedIDs proves the helper threads acceptedIDs
+// through to Apply unchanged — partial-accept is the expected operator
+// flow when reviewing a multi-mutation proposal.
+func TestApplyFlow_PassesAcceptedIDs(t *testing.T) {
+	env := newApplyEnv(t)
+	state := env.currentState()
+	stateBuilder := func(name string) (CurrentState, error) { return state, nil }
+
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpChangePriority, Target: "execute/foo", Priority: intPtr(7)},
+			{ID: "m2", Op: OpChangePriority, Target: "execute/bar", Priority: intPtr(8)},
+		},
+	}
+	source := Source{InitiativeName: "ui-rewrite", DecidedBy: "tester"}
+
+	res, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, []string{"m1"}, source)
+	if err != nil {
+		t.Fatalf("ApplyFlow: %v", err)
+	}
+	if res.Applied != 1 || res.Skipped != 1 {
+		t.Fatalf("expected 1 applied + 1 skipped, got applied=%d skipped=%d", res.Applied, res.Skipped)
+	}
+	if got := env.loadItem("execute", "foo").Priority; got != 7 {
+		t.Fatalf("foo priority: want 7, got %d", got)
+	}
+	if got := env.loadItem("execute", "bar").Priority; got != 5 {
+		t.Fatalf("bar priority unchanged expectation: want 5, got %d", got)
+	}
+}

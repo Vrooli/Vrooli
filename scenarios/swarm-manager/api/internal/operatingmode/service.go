@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/initiativelock"
@@ -131,6 +130,16 @@ type AgentSpawner interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+// InitiativeActivitySpawner is the narrow seam the operating-mode service
+// uses to launch initiative agent runs through the agentactivity tracker
+// (which applies lane gating and emits typed errors like
+// agentactivity.ErrLaneSaturated). Production wires this to
+// *agentactivity.Service; tests can inject saturation failures here without
+// dragging in the full activity service.
+type InitiativeActivitySpawner interface {
+	SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error)
+}
+
 type PromptCatalogResolver func(mode, phase string) (PromptCatalogEntry, bool)
 
 // InitiativeLock is the narrow initiative-agent lock seam used by operating
@@ -156,7 +165,7 @@ type Config struct {
 	Reconciler       ProposalReconciler
 	ItemExecutions   ItemExecutionController
 	Agent            AgentSpawner
-	Activity         *agentactivity.Service
+	Activity         InitiativeActivitySpawner
 	PromptClient     promptmanager.Client
 	PromptCatalog    PromptCatalogResolver
 	Events           *eventlog.Emitter
@@ -177,7 +186,7 @@ type Service struct {
 	reconciler    ProposalReconciler
 	itemExecs     ItemExecutionController
 	agent         AgentSpawner
-	activity      *agentactivity.Service
+	activity      InitiativeActivitySpawner
 	prompts       promptmanager.Client
 	promptCatalog PromptCatalogResolver
 	events        *eventlog.Emitter
@@ -338,7 +347,11 @@ type ModeDetail struct {
 // flags). Only fields that the UI/CLI render are surfaced; transitions are
 // carried separately on ModeCatalogPhaseGraph.
 type ModeCatalogPhase struct {
-	Phase                 string                     `json:"phase"`
+	Phase string `json:"phase"`
+	// PhaseKind classifies the phase (investigate / execute / review /
+	// reconcile). Operations Center column placement, lane assignment, and
+	// per-lane metrics all key off this axis.
+	PhaseKind             string                     `json:"phase_kind"`
 	Label                 string                     `json:"label"`
 	Title                 string                     `json:"title"`
 	Purpose               string                     `json:"purpose"`
@@ -357,6 +370,10 @@ type ModeCatalogPhase struct {
 	ResultBindings        []ResultBinding            `json:"result_bindings,omitempty"`
 	SamplesReplanRate     bool                       `json:"samples_replan_rate,omitempty"`
 	SamplesAcceptanceRate bool                       `json:"samples_acceptance_rate,omitempty"`
+	// AutoStartAfter, when non-empty, lists the predecessor phase whose
+	// completion auto-starts this phase via the round-refresher hook.
+	// Length ≤ 1 in v1 (validator-enforced).
+	AutoStartAfter []string `json:"auto_start_after,omitempty"`
 }
 
 // PhaseOutputContractSummary is the flat catalog-side view of the registry's
@@ -367,6 +384,7 @@ type PhaseOutputContractSummary struct {
 	RequiresProgress         bool `json:"requires_progress"`
 	RequiresVerdict          bool `json:"requires_verdict"`
 	RequiresHandoff          bool `json:"requires_handoff"`
+	RequiresBacklogSync      bool `json:"requires_backlog_sync"`
 	RequiredArtifactCount    int  `json:"required_artifact_count"`
 }
 
@@ -398,6 +416,7 @@ func summarizeContract(contract PhaseOutputContract) PhaseOutputContractSummary 
 		RequiresProgress:         contract.RequiresProgress,
 		RequiresVerdict:          contract.RequiresVerdict,
 		RequiresHandoff:          contract.RequiresHandoff,
+		RequiresBacklogSync:      contract.RequiresBacklogSync,
 		RequiredArtifactCount:    len(contract.RequiredArtifacts),
 	}
 }
@@ -420,7 +439,12 @@ func transitionLabel(condition TransitionCondition) string {
 }
 
 type WorkspacePhase struct {
-	Phase            string               `json:"phase"`
+	Phase string `json:"phase"`
+	// PhaseKind classifies the phase (investigate / execute / review /
+	// reconcile). Mirrors the catalog field of the same name; surfaced on
+	// the workspace endpoint so the UI can render lane-aware affordances
+	// without re-fetching the catalog.
+	PhaseKind        string               `json:"phase_kind"`
 	ActivityPurpose  string               `json:"activity_purpose"`
 	ProfileKey       string               `json:"profile_key"`
 	WritesRepo       bool                 `json:"writes_repo"`
@@ -429,6 +453,10 @@ type WorkspacePhase struct {
 	Startable        bool                 `json:"startable"`
 	Reason           string               `json:"reason,omitempty"`
 	Next             bool                 `json:"next,omitempty"`
+	// AutoStartAfter mirrors the catalog field. UI surfaces use it to
+	// render an "auto-starts after X" badge instead of an operator-action
+	// button.
+	AutoStartAfter []string `json:"auto_start_after,omitempty"`
 }
 
 func NewService(cfg Config) (*Service, error) {

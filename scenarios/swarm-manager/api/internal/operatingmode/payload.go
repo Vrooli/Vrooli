@@ -149,6 +149,16 @@ func (p RoundPayloadView) set(key string, value any) {
 	p.payload[key] = value
 }
 
+// clear removes the key from the payload entirely. Used by callers that
+// need a "missing" semantic distinct from a present-but-nil value (e.g.,
+// the auto-start retry marker, where presence is the signal).
+func (p RoundPayloadView) clear(key string) {
+	if p.payload == nil {
+		return
+	}
+	delete(p.payload, key)
+}
+
 func (p RoundPayloadView) setString(key, value string) {
 	if strings.TrimSpace(value) != "" {
 		p.set(key, strings.TrimSpace(value))

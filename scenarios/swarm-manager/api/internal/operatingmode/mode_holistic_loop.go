@@ -28,12 +28,12 @@ func holisticLoopDefinition() Definition {
 		PromptCatalogPrefix:    "swarm-manager-holistic-loop",
 		DefaultProfileKey:      ProfileDeepWork,
 		StartPhase:             "investigate",
-		Terminal:               []Phase{"review"},
+		Terminal:               []Phase{"reconcile"},
 		Transitions: map[Phase][]Phase{
 			"investigate": {"plan"},
 			"plan":        {"execute"},
 			"execute":     {"review", "investigate"},
-			"review":      {"investigate"},
+			"review":      {"reconcile"},
 		},
 		TransitionRules: map[Phase][]TransitionRule{
 			"execute": {
@@ -54,6 +54,7 @@ func holisticLoopDefinition() Definition {
 		Phases: []initiativePhaseSpec{
 			{
 				Phase:           "investigate",
+				Kind:            PhaseKindInvestigate,
 				Purpose:         "holistic_loop_investigate",
 				PromptTitle:     "Holistic Loop Investigate",
 				PromptTrigger:   "Operator starts holistic-loop investigate phase",
@@ -63,6 +64,7 @@ func holisticLoopDefinition() Definition {
 			},
 			{
 				Phase:           "plan",
+				Kind:            PhaseKindInvestigate,
 				Purpose:         "holistic_loop_plan",
 				PromptTitle:     "Holistic Loop Plan",
 				PromptTrigger:   "Operator starts holistic-loop plan phase",
@@ -72,6 +74,7 @@ func holisticLoopDefinition() Definition {
 			},
 			{
 				Phase:         "execute",
+				Kind:          PhaseKindExecute,
 				Purpose:       "holistic_loop_execute",
 				PromptTitle:   "Holistic Loop Execute",
 				PromptTrigger: "Operator starts holistic-loop execute phase",
@@ -82,6 +85,7 @@ func holisticLoopDefinition() Definition {
 			},
 			{
 				Phase:            "review",
+				Kind:             PhaseKindReview,
 				Purpose:          "holistic_loop_review",
 				PromptTitle:      "Holistic Loop Acceptance Review",
 				PromptTrigger:    "Operator starts holistic-loop review phase",
@@ -90,6 +94,18 @@ func holisticLoopDefinition() Definition {
 				RequiresVerdict:  true,
 				RequiresCriteria: true,
 				Metrics:          PhaseMetricsSpec{CountsAcceptanceSample: true},
+			},
+			{
+				Phase:               "reconcile",
+				Kind:                PhaseKindReconcile,
+				AutoStartAfter:      []Phase{"review"},
+				Purpose:             "holistic_loop_reconcile",
+				PromptSuffix:        "reconcile",
+				PromptTitle:         "Holistic Loop Backlog Reconcile",
+				PromptTrigger:       "Round refresher auto-starts holistic-loop reconcile after review completes",
+				PromptPurpose:       "Read prior round artifacts and propose backlog mutations that align the initiative with the work just completed.",
+				ProfileKey:          ProfileAnalysis,
+				RequiresBacklogSync: true,
 			},
 		},
 	})

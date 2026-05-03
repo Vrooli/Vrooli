@@ -94,6 +94,7 @@ func phasePayload(round RoundEnvelope, status, reason string) eventlog.Operating
 		ScopeID:         round.ScopeID,
 		InitiativeName:  round.InitiativeName,
 		Phase:           round.Phase,
+		PhaseKind:       string(phaseKindFor(Mode(round.Mode), Phase(round.Phase))),
 		RunStrategy:     round.RunStrategy,
 		AgentProfileKey: round.AgentProfileKey,
 		RoundNumber:     round.Round,
@@ -114,6 +115,22 @@ func phasePayload(round RoundEnvelope, status, reason string) eventlog.Operating
 	}
 	payload.DurationSeconds = roundDuration(round)
 	return payload
+}
+
+// phaseKindFor returns the PhaseKind for (mode, phase) by consulting the
+// registry. Empty string when the mode or phase is unknown — stats and
+// downstream consumers tolerate empty PhaseKind on legacy events written
+// before this field landed.
+func phaseKindFor(mode Mode, phase Phase) PhaseKind {
+	def, err := DefinitionFor(mode)
+	if err != nil {
+		return ""
+	}
+	phaseDef, err := def.PhaseDefinition(phase)
+	if err != nil {
+		return ""
+	}
+	return phaseDef.Kind
 }
 
 func artifactPaths(updates []ArtifactUpdate) []string {

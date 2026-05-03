@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/pathutil"
 )
 
@@ -58,7 +59,7 @@ func (s *Service) drainPendingLocked(ctx context.Context) {
 
 	for _, p := range pending {
 		active := countActiveExecutions(records)
-		if active >= gov.MaxConcurrentExecutions {
+		if active >= laneCapacity(gov, agentactivity.LaneExecute) {
 			break
 		}
 		started, startErr := s.startLocked(ctx, p.ExecutionID)

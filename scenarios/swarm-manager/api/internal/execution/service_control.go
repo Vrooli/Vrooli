@@ -32,11 +32,14 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, apierr.BadRequest("cannot start canceled execution")
 	}
 
-	// Concurrency gate.
+	// Concurrency gate. Backlog item processing always lives in the
+	// Execute lane — no derivation needed here. service_queue.QueueBacklog
+	// catches errAtCapacity and leaves the record pending so the poller
+	// drains it later (preserving pre-P2 enqueue-on-saturation semantics).
 	if gov, govErr := s.governanceProvider.LoadGovernance(); govErr == nil {
 		active := countActiveExecutions(records)
-		if active >= gov.MaxConcurrentExecutions {
-			return Record{}, apierr.Wrap(errAtCapacity, http.StatusConflict, "concurrency limit reached")
+		if active >= laneCapacity(gov, agentactivity.LaneExecute) {
+			return Record{}, apierr.Wrap(errAtCapacity, http.StatusConflict, "execute lane saturated")
 		}
 	}
 

@@ -355,6 +355,8 @@ func mapOperatingModeError(w http.ResponseWriter, ctx string, err error) {
 	var activeConflict *ActiveItemExecutionsConflict
 	var activeRoundConflict *ActiveOperatingModeRoundConflict
 	switch {
+	case errors.Is(err, ErrApplyModeNotImplemented):
+		apierr.MapError(w, ctx, apierr.NotImplemented("%s", err.Error()).WithCode("apply_mode_not_implemented"))
 	case errors.As(err, &activeConflict):
 		apierr.MapError(w, ctx, apierr.Conflict("%s", err.Error()).
 			WithCode("active_item_executions").

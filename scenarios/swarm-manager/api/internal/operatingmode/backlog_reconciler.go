@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+// ErrApplyModeNotImplemented is returned when an initiative-scoped mode is
+// configured with a BacklogSyncApplyMode other than operator-gated. v1 only
+// implements operator-gated apply; the auto-apply variants (auto-apply-safe,
+// auto-apply-all) deliberately fail loudly here so future mode authors cannot
+// silently enable an unimplemented apply path. Handlers map this to HTTP 501.
+var ErrApplyModeNotImplemented = errors.New("operating mode backlog_sync apply_mode is not implemented")
+
 func (s *Service) CompleteItems(ctx context.Context, req CompleteItemsRequest) (BacklogSyncResult, error) {
 	if s.backlogMut == nil {
 		return BacklogSyncResult{}, errors.New("operatingmode: BacklogMutator is not configured")
@@ -119,6 +126,9 @@ func (s *Service) ApplyBacklogSync(ctx context.Context, req ApplyBacklogSyncRequ
 	}
 	if !hasBacklogSyncCapability(def.BacklogSync, BacklogSyncProposeMutations) {
 		return BacklogSyncResult{}, fmt.Errorf("mode %q does not allow backlog mutation proposals", mode)
+	}
+	if def.BacklogSync.ApplyMode != BacklogSyncApplyOperatorGated {
+		return BacklogSyncResult{}, fmt.Errorf("%w: mode %q apply_mode=%q (only %q is implemented in v1)", ErrApplyModeNotImplemented, mode, def.BacklogSync.ApplyMode, BacklogSyncApplyOperatorGated)
 	}
 	runID := strings.TrimSpace(req.RunID)
 	if def.BacklogSync.RequiresRunID && runID == "" {

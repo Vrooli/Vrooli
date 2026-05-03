@@ -168,6 +168,13 @@ type ModeStats struct {
 	BacklogSyncByMode        map[string]BacklogSyncStats   `json:"backlog_sync_by_mode"`
 	UsageByProfile           map[string]int                `json:"usage_by_profile"`
 	PhaseRunsByProfile       map[string]map[string]int     `json:"phase_runs_by_profile"`
+	// PhaseRunsByLane is the canonical per-phase-kind utilization counter
+	// the Operations Center / governance UI consumes for trend bars.
+	// Counted at phase-started time (not retroactively recomputed from
+	// terminal events) so cancelled / failed runs still show up.
+	// Keys: "investigate", "execute", "review", "reconcile". Empty-key
+	// bucket exists for legacy events written before P2 wired phase_kind.
+	PhaseRunsByLane map[string]int `json:"phase_runs_by_lane"`
 }
 
 type BacklogSyncStats struct {

@@ -156,6 +156,7 @@ func (h *Handler) spawnWorkshopForClarification(
 		OwnerName:   item.Name,
 		OwnerTitle:  item.Title,
 		Purpose:     agentactivity.PurposeWorkshop,
+		PhaseKind:   string(agentactivity.LaneInvestigate),
 		RequestedBy: "swarm-manager",
 		Metadata: map[string]string{
 			"entrypoint": "backlog.clarification_workshop_respawn",

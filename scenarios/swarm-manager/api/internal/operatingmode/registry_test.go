@@ -552,6 +552,7 @@ func clonePhaseDefinitions(in map[Phase]PhaseDefinition) map[Phase]PhaseDefiniti
 		def.OutputArtifacts = append([]ArtifactDefinition(nil), def.OutputArtifacts...)
 		def.ResultBindings = cloneResultBindings(def.ResultBindings)
 		def.OutputContract.RequiredArtifacts = append([]ArtifactDefinition(nil), def.OutputContract.RequiredArtifacts...)
+		def.AutoStartAfter = append([]Phase(nil), def.AutoStartAfter...)
 		out[phase] = def
 	}
 	return out

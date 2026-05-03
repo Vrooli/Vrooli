@@ -17,6 +17,7 @@ import { promptService } from "../../../services/prompt-service";
 function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
     label: overrides.phase,
+    phaseKind: "investigate",
     title: overrides.phase,
     purpose: "",
     trigger: "",

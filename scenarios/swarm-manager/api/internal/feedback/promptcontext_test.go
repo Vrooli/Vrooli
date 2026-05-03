@@ -3,6 +3,8 @@ package feedback
 import (
 	"strings"
 	"testing"
+
+	"swarm-manager/internal/operatingmode/promptcatalog"
 )
 
 func TestBuildPromptVariables_PopulatesAllKeys(t *testing.T) {
@@ -58,6 +60,23 @@ func TestBuildPromptVariables_PopulatesAllKeys(t *testing.T) {
 	}
 	if !strings.Contains(vars["CURRENT_GRAPH"], `"ui-rewrite"`) {
 		t.Fatalf("CURRENT_GRAPH not preserved: %s", vars["CURRENT_GRAPH"])
+	}
+}
+
+// TestBuildPromptVariables_RendersSharedSnippet pins the load-bearing
+// invariant that the feedback prompt and the operating-mode reconcile
+// prompts substitute the same proposal-format snippet under the same
+// template variable. If this drifts, the agent sees two different
+// proposal-envelope contracts depending on which surface ran the round —
+// exactly the failure mode the snippet was extracted to prevent.
+func TestBuildPromptVariables_RendersSharedSnippet(t *testing.T) {
+	vars := BuildPromptVariables(PromptInputs{InitiativeName: "x"})
+	got, ok := vars[promptcatalog.BacklogSyncProposalVariableKey]
+	if !ok {
+		t.Fatalf("feedback prompt vars missing %q (the shared reconcile snippet)", promptcatalog.BacklogSyncProposalVariableKey)
+	}
+	if got != promptcatalog.BacklogSyncProposalSnippet() {
+		t.Fatalf("feedback snippet drift: got %d chars, want %d (must match operatingmode/promptcatalog)", len(got), len(promptcatalog.BacklogSyncProposalSnippet()))
 	}
 }
 

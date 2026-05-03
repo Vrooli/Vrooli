@@ -17,7 +17,12 @@ func testStore(t *testing.T) *Store {
 	s.DefaultMode = "yolo"
 	s.AutoFixup = true
 	s.MaxFixupAttempts = 3
-	s.MaxConcurrentExecutions = 5
+	s.LaneConcurrencyLimits = map[string]int{
+		"investigate": 6,
+		"execute":     5,
+		"review":      8,
+		"reconcile":   2,
+	}
 	s.MaxQueueDepth = 25
 	s.CircuitBreakerThreshold = 4
 	s.CircuitBreakerCooldownMinutes = 30
@@ -99,8 +104,14 @@ func TestGovernanceAdapter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGovernance: %v", err)
 	}
-	if gov.MaxConcurrentExecutions != 5 {
-		t.Errorf("MaxConcurrentExecutions = %d, want 5", gov.MaxConcurrentExecutions)
+	if got := gov.LaneLimits["execute"]; got != 5 {
+		t.Errorf("LaneLimits[execute] = %d, want 5", got)
+	}
+	if got := gov.LaneLimits["investigate"]; got != 6 {
+		t.Errorf("LaneLimits[investigate] = %d, want 6", got)
+	}
+	if got := gov.LaneLimits["reconcile"]; got != 2 {
+		t.Errorf("LaneLimits[reconcile] = %d, want 2", got)
 	}
 	if gov.MaxQueueDepth != 25 {
 		t.Errorf("MaxQueueDepth = %d, want 25", gov.MaxQueueDepth)

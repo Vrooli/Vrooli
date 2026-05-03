@@ -1,26 +1,24 @@
 /**
  * SidebarHeader — Top bar for the graph sidebar.
  *
- * Shows the app title, a home button (returns to graph view), a compact
- * running-agents badge, a settings gear, and a collapse/close button.
+ * Shows the app title, a home button (returns to graph view), the
+ * always-visible Operations Center trigger pill, a settings gear, and a
+ * collapse/close button.
  *
- * DOC: docs/plans/navigation-header-unification-plan.md#phase-3
+ * The Operations Center trigger replaces the legacy `<AgentsDropdown>`
+ * popover (P8 of the Operations Center plan). It reads its count from
+ * `useOperationsStore` rather than `useAgentActivitiesStore`, so the
+ * sidebar header no longer needs activity-list / stop-run plumbing.
  */
 
 import { Home, PanelLeft, Settings, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { defaultQueryOptions } from "../../../../lib";
-import { settingsService } from "../../../../services";
-import { useAgentActivitiesStore } from "../../../../stores";
-import { AgentsDropdown } from "../../../../components/agents/AgentsDropdown";
 import { CommandPostButton } from "../../../../components/command-post/CommandPostButton";
+import { OpsTriggerButton } from "../../../../components/operations/OpsTriggerButton";
 import { useCommandPostBadgeCount } from "../../../../hooks/useCommandPostBadgeCount";
 
 export interface SidebarHeaderProps {
   onSettingsOpen: () => void;
   onCollapse: () => void;
-  onViewActivity: (activityId: string) => void;
-  onViewBacklog: (nodeId: string) => void;
   onGoHome: () => void;
   onOpenCommandPost?: () => void;
 }
@@ -28,19 +26,10 @@ export interface SidebarHeaderProps {
 export function SidebarHeader({
   onSettingsOpen,
   onCollapse,
-  onViewActivity,
-  onViewBacklog,
   onGoHome,
   onOpenCommandPost,
 }: SidebarHeaderProps) {
-  const activities = useAgentActivitiesStore((s) => s.activities);
-  const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const commandPostBadgeCount = useCommandPostBadgeCount();
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => settingsService.get(),
-    ...defaultQueryOptions,
-  });
 
   return (
     <div className="flex h-10 shrink-0 items-center justify-between border-b border-slate-200/20 px-3">
@@ -58,7 +47,7 @@ export function SidebarHeader({
         <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
       </div>
 
-      {/* Right: Command Post (mobile) + Agents badge + Settings + Collapse/Close */}
+      {/* Right: Command Post (mobile) + Operations trigger + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">
         {onOpenCommandPost && (
           <CommandPostButton
@@ -67,14 +56,7 @@ export function SidebarHeader({
             className="md:hidden border-0 bg-transparent p-1.5"
           />
         )}
-        <AgentsDropdown
-          activities={activities}
-          onViewActivity={onViewActivity}
-          onViewBacklog={onViewBacklog}
-          onStopRun={(runId) => void stopRun(runId)}
-          maxConcurrent={settings?.maxConcurrentExecutions}
-          variant="badge"
-        />
+        <OpsTriggerButton variant="compact" />
         <button
           type="button"
           onClick={onSettingsOpen}

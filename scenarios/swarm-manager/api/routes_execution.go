@@ -39,6 +39,13 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
 	}
 	s.executionSvc = execution.NewService(cfg)
+	// Wire the agentactivity service in as the lane reader so
+	// GovernanceStatus reports per-lane utilization for all four canonical
+	// lanes (Execute is also visible via execution.Records, but the other
+	// three only live in the activity store).
+	if s.agentActivitySvc != nil {
+		s.executionSvc.SetActivityLaneReader(s.agentActivitySvc)
+	}
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
 	s.executionHandler.RegisterRoutes(s.router)
 

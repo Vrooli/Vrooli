@@ -261,7 +261,8 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 				OwnerKind:   string(kind),
 				OwnerName:   item.Name,
 				OwnerTitle:  item.Title,
-				Purpose:     "research",
+				Purpose:     agentactivity.PurposeResearch,
+				PhaseKind:   string(agentactivity.LaneInvestigate),
 				RequestedBy: "swarm-manager",
 				Metadata: map[string]string{
 					"entrypoint": "backlog.clarification.invalidate_round",

@@ -4,12 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "../../surfaces/graph/components/Sidebar";
 import { SettingsDrawer } from "../../surfaces/graph/components/SettingsDrawer";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
-import { buildActivityNodeId } from "../../surfaces/graph/lib/node-id-parser";
 import { buildFeed } from "../../lib/feed";
 import { defaultQueryOptions } from "../../lib";
 import { settingsService } from "../../services";
 import { useAgentActivitiesStore, useAgentSessionStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../stores";
 import { useGovernanceStore } from "../../stores/governance-store";
+import { useOperationsStore } from "../../stores/operations-store";
 import { useAgentSessionPolling } from "../../hooks/useAgentSessionPolling";
 import { useCapturePolling } from "../../hooks/useCapturePolling";
 import { useStorePolling } from "../../hooks/useStorePolling";
@@ -33,6 +33,7 @@ export function AppShell() {
   const fetchSessions = useAgentSessionStore((s) => s.fetchSessions);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
   const refreshGovernance = useGovernanceStore((s) => s.refreshGovernance);
+  const refreshOperations = useOperationsStore((s) => s.refresh);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setSidebarCollapsed = useGraphUIStore((s) => s.setSidebarCollapsed);
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
@@ -77,6 +78,19 @@ export function AppShell() {
     immediate: true,
   });
 
+  // P8 — keep the Operations Center trigger pill (sidebar header + graph
+  // HUD) live with the latest agent count. The Operations Center page
+  // mounts its own faster polling via `useOperationsPolling`; the page's
+  // internal serialization makes the dual-poll a no-op while the page is
+  // open. 8s is slow enough to keep idle traffic light yet fast enough
+  // that operators see new activity within ~one tick of it spawning.
+  useStorePolling({
+    enabled: true,
+    intervalMs: 8000,
+    pollFn: () => void refreshOperations(),
+    immediate: true,
+  });
+
   const feed = useMemo(() => {
     const feedbackItems: FeedbackItem[] = [];
     const maturityItems: MaturityItem[] = [];
@@ -108,20 +122,6 @@ export function AppShell() {
     navigate(graphPath({ lens: "topology" }));
   }, [closeSidebarOnMobile, navigate]);
 
-  const handleViewActivity = useCallback(
-    (activityId: string) => {
-      navigateToNode(buildActivityNodeId(activityId), "operations");
-    },
-    [navigateToNode],
-  );
-
-  const handleViewBacklog = useCallback(
-    (nodeId: string) => {
-      navigateToNode(nodeId, "topology");
-    },
-    [navigateToNode],
-  );
-
   const shellContext = useMemo(
     () => ({
       openSidebar: () => setSidebarCollapsed(false),
@@ -138,8 +138,6 @@ export function AppShell() {
           feed={feed}
           onItemClick={(nodeId) => navigateToNode(nodeId)}
           onSettingsOpen={() => setShowSettingsDrawer(true)}
-          onViewActivity={handleViewActivity}
-          onViewBacklog={handleViewBacklog}
           onGoHome={handleGoHome}
           onOpenCommandPost={() => {
             closeSidebarOnMobile();

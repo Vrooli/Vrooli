@@ -9,18 +9,14 @@ import (
 	"swarm-manager/internal/proposals"
 )
 
-// applyCurrentProposal normalizes the round's current proposal and
-// applies the accepted mutation IDs through the proposals.Applier.
+// applyCurrentProposal applies the round's current proposal through the
+// shared proposals.ApplyFlow recipe (build state → Normalize → Apply).
 // Returns an error when no current proposal exists; accept/reject
 // semantics are the caller's to enforce.
 func (s *Service) applyCurrentProposal(ctx context.Context, round Round, acceptedIDs []string, decidedBy, decidedAt string) (*proposals.ApplyResult, error) {
 	current := round.CurrentProposal()
 	if current == nil {
 		return nil, errors.New("round has no current proposal to apply")
-	}
-	state, err := s.StateBuilder(round.InitiativeName)
-	if err != nil {
-		return nil, fmt.Errorf("build state: %w", err)
 	}
 	if decidedAt == "" {
 		decidedAt = s.clock().UTC().Format(time.RFC3339)
@@ -34,13 +30,5 @@ func (s *Service) applyCurrentProposal(ctx context.Context, round Round, accepte
 		DecidedBy:        decidedBy,
 		DecidedAtRFC3339: decidedAt,
 	}
-	// Normalize before Apply so agent-produced whitespace/casing quirks
-	// (e.g. "  ready  ", "EXECUTE/Foo") are canonicalized. Apply's
-	// contract expects pre-normalized input; without this the defensive
-	// Validate inside Apply rejects values the agent intended correctly.
-	normalized, err := proposals.Normalize(current.Proposal, state)
-	if err != nil {
-		return nil, fmt.Errorf("normalize proposal: %w", err)
-	}
-	return s.apply.Apply(ctx, normalized, state, acceptedIDs, source)
+	return s.apply.ApplyFlow(ctx, current.Proposal, proposals.StateBuilder(s.StateBuilder), acceptedIDs, source)
 }

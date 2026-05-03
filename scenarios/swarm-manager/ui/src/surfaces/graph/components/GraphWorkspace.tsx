@@ -14,11 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { defaultQueryOptions } from "../../../lib";
 import { applyTheme, watchSystemTheme } from "../../../lib/theme-utils";
 import { settingsService } from "../../../services";
-import { useAgentActivitiesStore, useAgentSessionStore } from "../../../stores";
+import { useAgentSessionStore } from "../../../stores";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { buildActivityNodeId } from "../lib/node-id-parser";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
@@ -36,7 +35,7 @@ import { GraphHelpPanel } from "./GraphHelpPanel";
 import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
 import { GraphWorkspaceHUD } from "./GraphWorkspaceHUD";
 import { GraphActionLauncher } from "./GraphActionLauncher";
-import { commandPostPath, detailPathFromNodeId } from "../../../app/routes/route-paths";
+import { commandPostPath } from "../../../app/routes/route-paths";
 import { useAppShell } from "../../../app/shell/AppShellContext";
 
 export function GraphWorkspace() {
@@ -53,8 +52,6 @@ export function GraphWorkspace() {
   // --- Graph state sync (URL ↔ store) ---
   const { urlLens: _urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
 
-  const agentActivities = useAgentActivitiesStore((s) => s.activities);
-  const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const createSession = useAgentSessionStore((s) => s.createSession);
   const isCreatingSession = useAgentSessionStore((s) => s.isMutating);
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
@@ -63,7 +60,6 @@ export function GraphWorkspace() {
   const setNodePulsing = useGraphDataStore((s) => s.setNodePulsing);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
   const focusNodeLabel = useGraphUIStore((s) => s.focusNodeLabel);
-  const selectNode = useGraphUIStore((s) => s.selectNode);
 
   const showNavControls = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens].showNavControls);
 
@@ -83,16 +79,6 @@ export function GraphWorkspace() {
     }
     return undefined;
   }, [settings?.theme]);
-
-  const handleSidebarItemClick = useCallback(
-    (nodeId: string) => {
-      selectNode(nodeId);
-
-      const detailPath = detailPathFromNodeId(nodeId);
-      if (detailPath) navigate(detailPath);
-    },
-    [navigate, selectNode],
-  );
 
   useGraphKeyboardShortcuts({
     onLensChange: handleLensChange,
@@ -118,22 +104,6 @@ export function GraphWorkspace() {
     lens,
     onNodePulse: handleNodePulse,
   });
-
-  const handleViewActivity = useCallback(
-    (activityId: string) => {
-      handleLensChange("operations");
-      handleSidebarItemClick(buildActivityNodeId(activityId));
-    },
-    [handleLensChange, handleSidebarItemClick],
-  );
-
-  const handleViewBacklog = useCallback(
-    (nodeId: string) => {
-      handleLensChange("topology");
-      handleSidebarItemClick(nodeId);
-    },
-    [handleLensChange, handleSidebarItemClick],
-  );
 
   const handleCreateAgentSession = useCallback(
     async (kind: "meta_orchestration" | "operating_mode_authoring") => {
@@ -174,8 +144,6 @@ export function GraphWorkspace() {
           sidebarCollapsed={sidebarCollapsed}
           showNavControls={showNavControls}
           commandPostBadgeCount={commandPostBadgeCount}
-          agentActivities={agentActivities}
-          maxConcurrent={settings?.maxConcurrentExecutions}
           onToggleSidebar={openSidebar}
           onToggleCommandPost={() => navigate(commandPostPath())}
           onToggleStats={() => setShowStatsPanel((prev) => !prev)}
@@ -183,9 +151,6 @@ export function GraphWorkspace() {
           onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
           onLensChange={handleLensChange}
           onReturnToAtlas={handleReturnToAtlas}
-          onViewActivity={handleViewActivity}
-          onViewBacklog={handleViewBacklog}
-          onStopRun={(runId) => void stopRun(runId)}
         />
 
         {/* Floating panels */}

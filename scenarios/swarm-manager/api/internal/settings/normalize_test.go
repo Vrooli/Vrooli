@@ -78,19 +78,6 @@ func TestNormalizeIntFields(t *testing.T) {
 		get   func(Settings) int
 	}{
 		{
-			field: "MaxConcurrentExecutions",
-			cases: []intCase{
-				{"zero clamped to 1", 0, 1},
-				{"negative clamped to 1", -5, 1},
-				{"min boundary", 1, 1},
-				{"mid range", 10, 10},
-				{"max boundary", 20, 20},
-				{"over max clamped to 20", 50, 20},
-			},
-			build: func(v int) Settings { return Settings{MaxConcurrentExecutions: v} },
-			get:   func(s Settings) int { return s.MaxConcurrentExecutions },
-		},
-		{
 			field: "MaxQueueDepth",
 			cases: []intCase{
 				{"negative clamped to 0", -1, 0},
@@ -140,6 +127,52 @@ func TestNormalizeIntFields(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestNormalizeLaneConcurrencyLimits_FillsMissingKeys(t *testing.T) {
+	// Empty / nil input should resolve to the canonical defaults so
+	// settings stored before P2 (no lane_concurrency_limits) load cleanly.
+	got := normalizeLaneConcurrencyLimits(nil)
+	want := defaultLaneConcurrencyLimits()
+	if len(got) != len(want) {
+		t.Fatalf("len(normalized) = %d, want %d", len(got), len(want))
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("default %q = %d, want %d", k, got[k], v)
+		}
+	}
+}
+
+func TestNormalizeLaneConcurrencyLimits_ClampsAndDropsUnknownKeys(t *testing.T) {
+	in := map[string]int{
+		"investigate": 0,    // <= 0 → default
+		"execute":     -3,   // negative → default
+		"review":      999,  // over max → clamped to 50
+		"reconcile":   1,    // valid pass-through
+		"unknown":     1234, // dropped (not a canonical lane)
+	}
+	got := normalizeLaneConcurrencyLimits(in)
+
+	defaults := defaultLaneConcurrencyLimits()
+	if got["investigate"] != defaults["investigate"] {
+		t.Errorf("investigate <= 0 should fall back to default %d, got %d", defaults["investigate"], got["investigate"])
+	}
+	if got["execute"] != defaults["execute"] {
+		t.Errorf("execute negative should fall back to default %d, got %d", defaults["execute"], got["execute"])
+	}
+	if got["review"] != 50 {
+		t.Errorf("review over max should clamp to 50, got %d", got["review"])
+	}
+	if got["reconcile"] != 1 {
+		t.Errorf("reconcile valid should pass through, got %d", got["reconcile"])
+	}
+	if _, present := got["unknown"]; present {
+		t.Errorf("unknown key should be dropped, found %d", got["unknown"])
+	}
+	if len(got) != 4 {
+		t.Errorf("expected exactly 4 canonical keys after normalize, got %d", len(got))
 	}
 }
 

@@ -30,8 +30,6 @@ interface SidebarProps {
   feed: FeedItem[];
   onItemClick: (nodeId: string) => void;
   onSettingsOpen: () => void;
-  onViewActivity: (activityId: string) => void;
-  onViewBacklog: (nodeId: string) => void;
   onGoHome: () => void;
   onOpenCommandPost?: () => void;
   onOpenAgentSession?: (sessionId: string) => void;
@@ -43,8 +41,6 @@ export function Sidebar({
   feed,
   onItemClick,
   onSettingsOpen,
-  onViewActivity,
-  onViewBacklog,
   onGoHome,
   onOpenCommandPost,
   onOpenAgentSession,
@@ -92,8 +88,6 @@ export function Sidebar({
         <SidebarHeader
           onSettingsOpen={onSettingsOpen}
           onCollapse={toggleSidebar}
-          onViewActivity={onViewActivity}
-          onViewBacklog={onViewBacklog}
           onGoHome={onGoHome}
           onOpenCommandPost={onOpenCommandPost}
         />

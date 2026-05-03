@@ -184,19 +184,30 @@ type Policy struct {
 
 // GovernanceSettings controls concurrency, queue depth, circuit breaker, and cost caps.
 type GovernanceSettings struct {
-	MaxConcurrentExecutions       int     `json:"max_concurrent_executions"`
-	MaxQueueDepth                 int     `json:"max_queue_depth"`
-	CircuitBreakerThreshold       int     `json:"circuit_breaker_threshold"`
-	CircuitBreakerCooldownMinutes int     `json:"circuit_breaker_cooldown_minutes"`
-	ExecutionCostCapPerRun        float64 `json:"execution_cost_cap_per_run"`
-	CostPerTurnEstimate           float64 `json:"cost_per_turn_estimate"`
-	AgentMaxTurns                 int     `json:"agent_max_turns"`
+	// LaneLimits caps simultaneous tracked agent activity by phase-kind
+	// lane. Keys are lane names matching agentactivity.Lane /
+	// operatingmode.PhaseKind: "investigate", "execute", "review",
+	// "reconcile". Zero or missing keys fall back to the per-lane default
+	// in DefaultGovernanceSettings — see docs/internal/SEAMS.md
+	// "Concurrency Lane Boundary" for the full contract.
+	LaneLimits                    map[string]int `json:"lane_limits"`
+	MaxQueueDepth                 int            `json:"max_queue_depth"`
+	CircuitBreakerThreshold       int            `json:"circuit_breaker_threshold"`
+	CircuitBreakerCooldownMinutes int            `json:"circuit_breaker_cooldown_minutes"`
+	ExecutionCostCapPerRun        float64        `json:"execution_cost_cap_per_run"`
+	CostPerTurnEstimate           float64        `json:"cost_per_turn_estimate"`
+	AgentMaxTurns                 int            `json:"agent_max_turns"`
 }
 
 // DefaultGovernanceSettings returns safe defaults for governance settings.
 func DefaultGovernanceSettings() GovernanceSettings {
 	return GovernanceSettings{
-		MaxConcurrentExecutions:       3,
+		LaneLimits: map[string]int{
+			"investigate": 6,
+			"execute":     3,
+			"review":      8,
+			"reconcile":   2,
+		},
 		MaxQueueDepth:                 50,
 		CircuitBreakerThreshold:       3,
 		CircuitBreakerCooldownMinutes: 60,
@@ -206,10 +217,23 @@ func DefaultGovernanceSettings() GovernanceSettings {
 	}
 }
 
+// LaneStatus reports utilization for one phase-kind lane.
+type LaneStatus struct {
+	Lane     string `json:"lane"`
+	Active   int    `json:"active"`
+	Capacity int    `json:"capacity"`
+	Queue    int    `json:"queue"`
+}
+
 // GovernanceStatusResponse contains governance state for the overview endpoint.
 type GovernanceStatusResponse struct {
+	// Lanes carries per-phase-kind utilization (active / capacity / queue)
+	// in the canonical Investigate → Execute → Review → Reconcile order.
+	// Always populated for every canonical lane, even when active=0.
+	Lanes []LaneStatus `json:"lanes"`
+	// ActiveExecutions sums active counts across the four lanes (legacy
+	// compatibility for callers that have not migrated to per-lane).
 	ActiveExecutions    int      `json:"active_executions"`
-	MaxConcurrent       int      `json:"max_concurrent"`
 	QueueDepth          int      `json:"queue_depth"`
 	MaxQueueDepth       int      `json:"max_queue_depth"`
 	CircuitBrokenItems  []string `json:"circuit_broken_items"`

@@ -19,8 +19,10 @@ type (
 	Mode                    string
 	ScopeKind               string
 	Phase                   string
+	PhaseKind               string
 	RunStrategyKind         string
 	BacklogSyncCapability   string
+	BacklogSyncApplyMode    string
 	TransitionConditionKind string
 	ResultBindingKind       string
 )
@@ -34,6 +36,19 @@ const (
 const (
 	ScopeBacklogItem ScopeKind = "backlog_item"
 	ScopeInitiative  ScopeKind = "initiative"
+)
+
+// PhaseKind classifies a phase by the kind of work it performs. Lane
+// assignment, Operations Center column placement, and per-lane metric
+// grouping all key off this axis. PhaseKind is descriptive, not restrictive:
+// modes are free to define any phases they want — each phase declares its
+// kind. Adding a fifth kind is a substrate change (lane plumbing, UI columns,
+// authoring contract all move together) and is intentionally out of scope.
+const (
+	PhaseKindInvestigate PhaseKind = "investigate"
+	PhaseKindExecute     PhaseKind = "execute"
+	PhaseKindReview      PhaseKind = "review"
+	PhaseKindReconcile   PhaseKind = "reconcile"
 )
 
 const (
@@ -50,6 +65,29 @@ const (
 	BacklogSyncCreateFollowups  BacklogSyncCapability = "create_followups"
 	BacklogSyncUpdateScope      BacklogSyncCapability = "update_scope"
 )
+
+// BacklogSyncApplyMode controls whether reconcile-phase proposals require an
+// operator decision before mutating the backlog, or whether the system applies
+// some/all proposed mutations automatically. Only operator-gated is
+// implemented in v1; the auto-apply variants land as a typed
+// ErrApplyModeNotImplemented at the apply seam so loud failures, not silent
+// backlog edits, surface any future mode misconfiguration.
+const (
+	BacklogSyncApplyOperatorGated BacklogSyncApplyMode = "operator-gated"
+	BacklogSyncApplyAutoSafe      BacklogSyncApplyMode = "auto-apply-safe"
+	BacklogSyncApplyAutoAll       BacklogSyncApplyMode = "auto-apply-all"
+)
+
+// IsValidBacklogSyncApplyMode reports whether the given mode is one of the
+// three registered apply modes. Empty is invalid; unknown values are invalid.
+func IsValidBacklogSyncApplyMode(mode BacklogSyncApplyMode) bool {
+	switch mode {
+	case BacklogSyncApplyOperatorGated, BacklogSyncApplyAutoSafe, BacklogSyncApplyAutoAll:
+		return true
+	default:
+		return false
+	}
+}
 
 const (
 	TransitionConditionAlways           TransitionConditionKind = "always"
@@ -111,7 +149,19 @@ type PhaseGraph struct {
 }
 
 type PhaseDefinition struct {
-	Phase            Phase
+	Phase Phase
+	// Kind is the phase classification (investigate / execute / review /
+	// reconcile). Lane assignment, Operations Center column placement, and
+	// per-lane metric grouping all key off this axis. Must be set on every
+	// initiative-scoped phase; the validator rejects empty values.
+	Kind PhaseKind
+	// AutoStartAfter lists phases whose successful completion should
+	// automatically start this phase. Constrained to length ≤ 1 in v1; the
+	// validator rejects multi-predecessor declarations to avoid
+	// race-condition design pressure on the round refresher hook. The
+	// auto-start path fires only on RoundStatusCompleted (not Failed /
+	// Cancelled) and only after the initiative lock is released.
+	AutoStartAfter   []Phase
 	ActivityPurpose  string
 	LockPurpose      string
 	CatalogID        string
@@ -123,6 +173,17 @@ type PhaseDefinition struct {
 	ResultBindings   []ResultBinding
 	OutputContract   PhaseOutputContract
 	RequiresCriteria bool
+}
+
+// IsValidPhaseKind reports whether the given kind is one of the four
+// registered classifications. Empty is invalid; unknown values are invalid.
+func IsValidPhaseKind(kind PhaseKind) bool {
+	switch kind {
+	case PhaseKindInvestigate, PhaseKindExecute, PhaseKindReview, PhaseKindReconcile:
+		return true
+	default:
+		return false
+	}
 }
 
 type PromptCatalogMetadata struct {
@@ -154,6 +215,12 @@ type PhaseOutputContract struct {
 	RequiresProgress         bool
 	RequiresVerdict          bool
 	RequiresHandoff          bool
+	// RequiresBacklogSync demands that the phase emit a non-nil BacklogSync
+	// plan in its structured result envelope. Reconcile phases set this so a
+	// misbehaving agent cannot complete the phase without producing a
+	// proposal — the operator never lands in a state where an
+	// auto-dispatched reconcile round leaves no backlog plan to apply.
+	RequiresBacklogSync bool
 }
 
 type RunStrategyPolicy struct {
@@ -185,6 +252,11 @@ type BacklogSyncPolicy struct {
 	RequiresRunID      bool
 	RequiresMembership bool
 	EventSource        string
+	// ApplyMode declares how reconcile-phase proposals are committed to the
+	// backlog. Required on every initiative-scoped mode that emits proposals;
+	// only BacklogSyncApplyOperatorGated is implemented in v1. The validator
+	// rejects empty or unknown values for initiative-scoped modes.
+	ApplyMode BacklogSyncApplyMode
 }
 
 type MetricsPolicy struct {
@@ -440,6 +512,9 @@ func validateInitiativeModeDefinition(def Definition) error {
 	if !def.Lock.InitiativeExclusive {
 		return fmt.Errorf("mode %q must use initiative-exclusive locking", def.Mode)
 	}
+	if !IsValidBacklogSyncApplyMode(def.BacklogSync.ApplyMode) {
+		return fmt.Errorf("mode %q backlog_sync apply_mode must be one of operator-gated|auto-apply-safe|auto-apply-all (got %q)", def.Mode, def.BacklogSync.ApplyMode)
+	}
 	for _, terminal := range def.PhaseGraph.Terminal {
 		if _, ok := def.PhaseGraph.Phases[terminal]; !ok {
 			return fmt.Errorf("mode %q terminal phase %q is not registered", def.Mode, terminal)
@@ -489,6 +564,34 @@ func validateInitiativeModeDefinition(def Definition) error {
 		if err := validatePhaseOutputContract(phaseDef); err != nil {
 			return fmt.Errorf("mode %q phase %q: %w", def.Mode, phase, err)
 		}
+		if !IsValidPhaseKind(phaseDef.Kind) {
+			return fmt.Errorf("mode %q phase %q kind must be one of investigate|execute|review|reconcile (got %q)", def.Mode, phase, phaseDef.Kind)
+		}
+		if err := validatePhaseAutoStartAfter(def, phaseDef); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validatePhaseAutoStartAfter enforces v1 constraints on auto-start
+// declarations: at most one predecessor, the predecessor must exist in the
+// mode's phase graph, and a phase cannot list itself. These rules keep the
+// round-refresher auto-dispatch hook deterministic — multi-predecessor races
+// are deferred to a future plan that revisits the locking model.
+func validatePhaseAutoStartAfter(def Definition, phaseDef PhaseDefinition) error {
+	if len(phaseDef.AutoStartAfter) == 0 {
+		return nil
+	}
+	if len(phaseDef.AutoStartAfter) > 1 {
+		return fmt.Errorf("mode %q phase %q auto_start_after supports at most one predecessor in v1 (got %d)", def.Mode, phaseDef.Phase, len(phaseDef.AutoStartAfter))
+	}
+	target := phaseDef.AutoStartAfter[0]
+	if target == phaseDef.Phase {
+		return fmt.Errorf("mode %q phase %q auto_start_after cannot reference itself", def.Mode, phaseDef.Phase)
+	}
+	if _, ok := def.PhaseGraph.Phases[target]; !ok {
+		return fmt.Errorf("mode %q phase %q auto_start_after references unregistered phase %q", def.Mode, phaseDef.Phase, target)
 	}
 	return nil
 }

@@ -55,6 +55,12 @@ export const literalSelectors = {
     mobileNav: "mobile-nav",
     agentsToggle: "layout-agents-toggle",
     agentsDropdown: "layout-agents-dropdown",
+    // P8 — always-shown bot icon + "N agents" pill that navigates to
+    // /operations. Replaces the conditional `agentsDropdown` trigger in
+    // both the sidebar header and the graph HUD. Two visual variants
+    // (compact, hud) share the same selector so workflow tooling can
+    // assert "the trigger is on screen" regardless of layout context.
+    opsTriggerButton: "layout-ops-trigger-button",
   },
   // Error state selectors (shared across pages)
   error: {
@@ -578,6 +584,37 @@ export const literalSelectors = {
     zoomIn: "graph-nav-zoom-in",
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
+  },
+  // Operations Center selectors. Single page surface that replaces the
+  // legacy `<AgentsDropdown>` popover. The `layout.opsTriggerButton`
+  // entry will be added in P8 (the always-shown bot icon + "N agents"
+  // pill that lives in the sidebar header and the graph HUD).
+  operationsCenter: {
+    page: "operations-center-page",
+    header: "operations-center-header",
+    filterBar: "operations-center-filter-bar",
+    body: "operations-center-body",
+    viewToggleByInitiative: "operations-center-view-by-initiative",
+    viewToggleByPhase: "operations-center-view-by-phase",
+    laneBar: "operations-center-lane-bar",
+    queueChip: "operations-center-queue-chip",
+    finishedChip: "operations-center-finished-chip",
+    refreshButton: "operations-center-refresh",
+    activityRow: "operations-center-activity-row",
+    initiativeCard: "operations-center-initiative-card",
+    standaloneBucket: "operations-center-standalone-bucket",
+    byPhaseBoard: "operations-center-by-phase-board",
+    byPhaseColumn: "operations-center-by-phase-column",
+    byPhaseColumnHeader: "operations-center-by-phase-column-header",
+    byPhaseColumnEmpty: "operations-center-by-phase-column-empty",
+    emptyState: "operations-center-empty-state",
+    errorState: "operations-center-error-state",
+    searchInput: "operations-center-search",
+    statusSelect: "operations-center-status-select",
+    laneSelect: "operations-center-lane-select",
+    ownerTypeSelect: "operations-center-owner-type-select",
+    windowSelect: "operations-center-window-select",
+    resetFilters: "operations-center-reset-filters",
   },
   // Evidence renderer selectors
   evidence: {

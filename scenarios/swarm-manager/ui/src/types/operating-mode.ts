@@ -20,8 +20,21 @@ export interface OperatingModeArtifactSnapshot extends OperatingModeArtifactDefi
   sizeBytes?: number;
 }
 
+/**
+ * Phase classification axis used for Operations Center column placement,
+ * lane-cap utilization bars, and per-lane metrics. Mirrors the backend
+ * `operatingmode.PhaseKind` enum. New kinds require coordinated changes
+ * across lane plumbing, UI columns, and the authoring contract.
+ */
+export type OperatingModePhaseKind =
+  | "investigate"
+  | "execute"
+  | "review"
+  | "reconcile";
+
 export interface OperatingModeWorkspacePhase {
   phase: string;
+  phaseKind: OperatingModePhaseKind | "";
   activityPurpose: string;
   profileKey: string;
   writesRepo: boolean;
@@ -30,6 +43,12 @@ export interface OperatingModeWorkspacePhase {
   startable: boolean;
   reason?: string;
   next?: boolean;
+  /**
+   * When non-empty, names the predecessor phase whose successful completion
+   * auto-starts this phase via the round-refresher hook. Length ≤ 1 in v1
+   * (validator-enforced server-side).
+   */
+  autoStartAfter?: string[];
 }
 
 export interface PhaseOutputContractSummary {
@@ -68,6 +87,7 @@ export interface OperatingModePhaseGraph {
 
 export interface OperatingModeCatalogPhase {
   phase: string;
+  phaseKind: OperatingModePhaseKind | "";
   label: string;
   title: string;
   purpose: string;
@@ -86,6 +106,7 @@ export interface OperatingModeCatalogPhase {
   resultBindings?: PhaseResultBinding[];
   samplesReplanRate?: boolean;
   samplesAcceptanceRate?: boolean;
+  autoStartAfter?: string[];
 }
 
 export interface OperatingModeCapabilities {

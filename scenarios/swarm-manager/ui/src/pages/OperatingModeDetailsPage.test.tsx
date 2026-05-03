@@ -56,6 +56,7 @@ function renderPage(mode = "holistic-loop", search = "") {
 function makePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
     label: overrides.phase,
+    phaseKind: "investigate",
     title: overrides.phase,
     purpose: "",
     trigger: "",

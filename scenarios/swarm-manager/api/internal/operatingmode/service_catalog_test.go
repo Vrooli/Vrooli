@@ -44,7 +44,7 @@ func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
 	if !entry.SupportsPhases {
 		t.Fatalf("expected supports_phases=true for holistic-loop")
 	}
-	if got, want := len(entry.Phases), 4; got != want {
+	if got, want := len(entry.Phases), 5; got != want {
 		t.Fatalf("phase count = %d, want %d (%v)", got, want, phaseNames(entry.Phases))
 	}
 
@@ -95,8 +95,8 @@ func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
 	}
 
 	review := findPhase(t, entry, "review")
-	if !review.IsTerminal {
-		t.Fatalf("review.IsTerminal = false, want true")
+	if review.IsTerminal {
+		t.Fatalf("review.IsTerminal = true, want false (reconcile is now the terminal phase)")
 	}
 	if !review.RequiresCriteria {
 		t.Fatalf("review.RequiresCriteria = false, want true")
@@ -106,6 +106,20 @@ func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
 	}
 	if !review.SamplesAcceptanceRate {
 		t.Fatalf("review.SamplesAcceptanceRate = false, want true")
+	}
+
+	reconcile := findPhase(t, entry, "reconcile")
+	if !reconcile.IsTerminal {
+		t.Fatalf("reconcile.IsTerminal = false, want true")
+	}
+	if got, want := reconcile.PhaseKind, string(PhaseKindReconcile); got != want {
+		t.Fatalf("reconcile.PhaseKind = %q, want %q", got, want)
+	}
+	if !reconcile.OutputContract.RequiresBacklogSync {
+		t.Fatalf("reconcile.OutputContract.RequiresBacklogSync = false, want true")
+	}
+	if got, want := reconcile.AutoStartAfter, []string{"review"}; len(got) != 1 || got[0] != want[0] {
+		t.Fatalf("reconcile.AutoStartAfter = %v, want %v", got, want)
 	}
 
 	plan := findPhase(t, entry, "plan")
@@ -123,7 +137,7 @@ func TestBuildCatalogEntry_HolisticLoop_PhaseGraph(t *testing.T) {
 	if graph.StartPhase != "investigate" {
 		t.Fatalf("start_phase = %q, want investigate", graph.StartPhase)
 	}
-	if got, want := graph.Terminal, []string{"review"}; len(got) != 1 || got[0] != want[0] {
+	if got, want := graph.Terminal, []string{"reconcile"}; len(got) != 1 || got[0] != want[0] {
 		t.Fatalf("terminal = %v, want %v", got, want)
 	}
 

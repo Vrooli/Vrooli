@@ -198,11 +198,16 @@ type InitiativeModeChangePayload struct {
 // lifecycle event. It is intentionally shared by started/completed/failed/
 // canceled so stats can aggregate phase usage without phase-specific parsing.
 type OperatingModePhasePayload struct {
-	Mode            string   `json:"mode"`
-	ScopeKind       string   `json:"scope_kind"`
-	ScopeID         string   `json:"scope_id"`
-	InitiativeName  string   `json:"initiative_name,omitempty"`
-	Phase           string   `json:"phase"`
+	Mode           string `json:"mode"`
+	ScopeKind      string `json:"scope_kind"`
+	ScopeID        string `json:"scope_id"`
+	InitiativeName string `json:"initiative_name,omitempty"`
+	Phase          string `json:"phase"`
+	// PhaseKind is the lane classification (investigate / execute /
+	// review / reconcile) attached at emit-time so stats aggregation does
+	// not have to round-trip through the registry. Resolved by
+	// operatingmode.events.phasePayload via def.PhaseDefinition().Kind.
+	PhaseKind       string   `json:"phase_kind,omitempty"`
 	RunStrategy     string   `json:"run_strategy"`
 	AgentProfileKey string   `json:"agent_profile_key"`
 	RoundNumber     int      `json:"round_number,omitempty"`

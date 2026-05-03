@@ -1,9 +1,44 @@
 package settings
 
 import (
+	"math"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
+
+// laneLimitsToProto narrows widths from int (Go) to int32 (proto). Values
+// that overflow int32 are clamped to math.MaxInt32 — settings normalize
+// already keeps them in [1, 50] but the clamp keeps the conversion total.
+func laneLimitsToProto(limits map[string]int) map[string]int32 {
+	if limits == nil {
+		return nil
+	}
+	out := make(map[string]int32, len(limits))
+	for k, v := range limits {
+		switch {
+		case v > math.MaxInt32:
+			out[k] = math.MaxInt32
+		case v < math.MinInt32:
+			out[k] = math.MinInt32
+		default:
+			out[k] = int32(v)
+		}
+	}
+	return out
+}
+
+// laneLimitsFromProto widens int32 (proto) to int (Go) without loss.
+func laneLimitsFromProto(limits map[string]int32) map[string]int {
+	if limits == nil {
+		return nil
+	}
+	out := make(map[string]int, len(limits))
+	for k, v := range limits {
+		out[k] = int(v)
+	}
+	return out
+}
 
 func deleteConfirmLevelToProto(level DeleteConfirmLevel) domainpb.DeleteConfirmLevel {
 	switch level {
@@ -55,7 +90,7 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		ReviewMaxWarnings:             int32(s.ReviewMaxWarnings),
 		ReviewRequireScreenshots:      s.ReviewRequireScreenshots,
 		ReviewRequireTests:            s.ReviewRequireTests,
-		MaxConcurrentExecutions:       int32(s.MaxConcurrentExecutions),
+		LaneConcurrencyLimits:         laneLimitsToProto(s.LaneConcurrencyLimits),
 		MaxQueueDepth:                 int32(s.MaxQueueDepth),
 		CircuitBreakerThreshold:       int32(s.CircuitBreakerThreshold),
 		CircuitBreakerCooldownMinutes: int32(s.CircuitBreakerCooldownMinutes),
@@ -154,9 +189,8 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ReviewRequireTests
 		patch.ReviewRequireTests = &v
 	}
-	if req.MaxConcurrentExecutions != nil {
-		v := int(*req.MaxConcurrentExecutions)
-		patch.MaxConcurrentExecutions = &v
+	if req.LaneConcurrencyLimits != nil {
+		patch.LaneConcurrencyLimits = laneLimitsFromProto(req.LaneConcurrencyLimits)
 	}
 	if req.MaxQueueDepth != nil {
 		v := int(*req.MaxQueueDepth)
@@ -205,7 +239,7 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.ReviewMaxWarnings == nil &&
 		req.ReviewRequireScreenshots == nil &&
 		req.ReviewRequireTests == nil &&
-		req.MaxConcurrentExecutions == nil &&
+		req.LaneConcurrencyLimits == nil &&
 		req.MaxQueueDepth == nil &&
 		req.CircuitBreakerThreshold == nil &&
 		req.CircuitBreakerCooldownMinutes == nil &&

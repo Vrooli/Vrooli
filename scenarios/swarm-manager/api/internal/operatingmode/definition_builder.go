@@ -22,22 +22,31 @@ type initiativeModeSpec struct {
 }
 
 type initiativePhaseSpec struct {
-	Phase            Phase
-	Purpose          string
-	LockPurpose      string
-	PromptSuffix     string
-	PromptTitle      string
-	PromptPurpose    string
-	PromptTrigger    string
-	ProfileKey       string
-	WritesRepo       bool
-	OutputArtifacts  []ArtifactDefinition
-	ResultBindings   []ResultBinding
-	Metrics          PhaseMetricsSpec
-	RequiresProgress bool
-	RequiresVerdict  bool
-	RequiresHandoff  bool
-	RequiresCriteria bool
+	Phase Phase
+	// Kind classifies the phase (investigate / execute / review / reconcile).
+	// Required on every initiative-scoped phase; the registry validator
+	// rejects empty values.
+	Kind PhaseKind
+	// AutoStartAfter, when set, lists the single predecessor phase whose
+	// successful completion should auto-start this phase via the
+	// round-refresher hook. Length > 1 is rejected by the validator in v1.
+	AutoStartAfter      []Phase
+	Purpose             string
+	LockPurpose         string
+	PromptSuffix        string
+	PromptTitle         string
+	PromptPurpose       string
+	PromptTrigger       string
+	ProfileKey          string
+	WritesRepo          bool
+	OutputArtifacts     []ArtifactDefinition
+	ResultBindings      []ResultBinding
+	Metrics             PhaseMetricsSpec
+	RequiresProgress    bool
+	RequiresVerdict     bool
+	RequiresHandoff     bool
+	RequiresBacklogSync bool
+	RequiresCriteria    bool
 }
 
 type PhaseMetricsSpec struct {
@@ -95,6 +104,7 @@ func buildInitiativeMode(spec initiativeModeSpec) Definition {
 			RequiresRunID:      true,
 			RequiresMembership: true,
 			EventSource:        string(spec.Mode),
+			ApplyMode:          BacklogSyncApplyOperatorGated,
 		},
 		Metrics: metrics,
 		Lock:    LockPolicy{InitiativeExclusive: true},
@@ -117,6 +127,8 @@ func buildInitiativePhase(promptCatalogPrefix string, spec initiativePhaseSpec) 
 
 	return PhaseDefinition{
 		Phase:           spec.Phase,
+		Kind:            spec.Kind,
+		AutoStartAfter:  append([]Phase(nil), spec.AutoStartAfter...),
 		ActivityPurpose: spec.Purpose,
 		LockPurpose:     lockPurpose,
 		CatalogID:       promptCatalogPrefix + "-" + promptSuffix,
@@ -136,6 +148,7 @@ func buildInitiativePhase(promptCatalogPrefix string, spec initiativePhaseSpec) 
 			RequiresProgress:         spec.RequiresProgress,
 			RequiresVerdict:          spec.RequiresVerdict,
 			RequiresHandoff:          spec.RequiresHandoff,
+			RequiresBacklogSync:      spec.RequiresBacklogSync,
 		},
 		RequiresCriteria: spec.RequiresCriteria,
 	}

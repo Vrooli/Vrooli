@@ -129,7 +129,11 @@ type aggregateState struct {
 	itemStatus        map[string]string // entity_id → current status
 
 	// Operating-mode tracking.
-	modePhaseRuns           map[string]map[string]int
+	modePhaseRuns map[string]map[string]int
+	// modePhaseRunsByLane counts started phase events grouped by lane
+	// (PhaseKind from the payload). Empty-key bucket catches legacy
+	// events written before P2 wired phase_kind on the payload.
+	modePhaseRunsByLane     map[string]int
 	modeCompleted           map[string]int
 	modeFailed              map[string]int
 	modeCanceled            map[string]int
@@ -210,6 +214,7 @@ func newAggregateState() *aggregateState {
 		initiativeMode:                make(map[string]string),
 		itemStatus:                    make(map[string]string),
 		modePhaseRuns:                 make(map[string]map[string]int),
+		modePhaseRunsByLane:           make(map[string]int),
 		modeCompletedScopes:           make(map[string]map[string]bool),
 		modeCompleted:                 make(map[string]int),
 		modeFailed:                    make(map[string]int),
@@ -269,6 +274,9 @@ func (s *aggregateState) recordModePhaseStarted(p eventlog.OperatingModePhasePay
 		return
 	}
 	incrementNested(s.modePhaseRuns, p.Mode, p.Phase, 1)
+	// Count by lane regardless of mode so the Operations Center can show
+	// historical pressure across all initiative-shaped work.
+	s.modePhaseRunsByLane[p.PhaseKind]++
 	if p.AgentProfileKey != "" {
 		s.modeProfileUsage[p.AgentProfileKey]++
 		incrementNested(s.modeProfilePhaseRuns, p.AgentProfileKey, p.Phase, 1)

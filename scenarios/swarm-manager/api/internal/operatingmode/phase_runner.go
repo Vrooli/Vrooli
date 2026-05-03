@@ -102,11 +102,16 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 		ProfileKey:  phaseDef.ProfileKey,
 	}
 	if s.activity != nil {
+		// PhaseKind drives lane assignment in agentactivity. The activity
+		// purpose is a mode-defined dynamic string (e.g.
+		// "holistic_loop_investigate"), so without phaseKind LaneOf would
+		// return an error and the spawn would be rejected.
 		spec := agentactivity.Spec{
 			OwnerType:   agentactivity.OwnerInitiative,
 			OwnerName:   init.Name,
 			OwnerTitle:  init.Title,
 			Purpose:     agentactivity.Purpose(phaseDef.ActivityPurpose),
+			PhaseKind:   string(phaseDef.Kind),
 			RequestedBy: s.requestedBy,
 			Metadata: map[string]string{
 				"entrypoint":        "initiative.operating_mode.phase",

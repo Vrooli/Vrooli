@@ -94,6 +94,16 @@ func backlogActivitySpec(
 	requestedBy string,
 	metadata map[string]string,
 ) agentactivity.Spec {
+	// Resolve PhaseKind explicitly here so every execution-package spawn
+	// site sees a fully-typed lane intent. Falls back to the per-Purpose
+	// default in agentactivity.LaneOf — this assignment exists so the wire
+	// shape carries phase_kind for Operations Center utilization without
+	// relying on the default-resolution path.
+	lane, err := agentactivity.LaneOf(purpose, "")
+	phaseKind := ""
+	if err == nil {
+		phaseKind = string(lane)
+	}
 	return agentactivity.Spec{
 		OwnerType:   agentactivity.OwnerBacklog,
 		OwnerKind:   item.Kind,
@@ -101,6 +111,7 @@ func backlogActivitySpec(
 		OwnerTitle:  item.Title,
 		ExecutionID: executionID,
 		Purpose:     purpose,
+		PhaseKind:   phaseKind,
 		RequestedBy: requestedBy,
 		Metadata:    metadata,
 	}
@@ -118,6 +129,8 @@ func scenarioActivitySpec(
 		OwnerTitle:  ac.ScenarioName,
 		ExecutionID: executionID,
 		Purpose:     agentactivity.PurposeSpecSync,
+		// spec-sync runs are scenario-shaped backlog work — Execute lane.
+		PhaseKind:   string(agentactivity.LaneExecute),
 		RequestedBy: requestedBy,
 		Metadata:    metadata,
 	}
@@ -179,9 +192,20 @@ type Service struct {
 	eventDispatcher          dispatch.NodeDispatcher
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
+	activityLaneReader       ActivityLaneReader
 	processingFinalizations  map[string]struct{}
 	runTrackers              map[string]*runTracker
 	mu                       sync.Mutex
+}
+
+// SetActivityLaneReader wires the agentactivity-backed lane reader after
+// construction. The wiring layer (server bootstrap) calls this once both
+// services exist; tests can leave it unset and GovernanceStatus will
+// report zero for non-Execute lanes.
+func (s *Service) SetActivityLaneReader(r ActivityLaneReader) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activityLaneReader = r
 }
 
 // NewService creates a new execution service.

@@ -157,7 +157,8 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		OwnerKind:   string(kind),
 		OwnerName:   item.Name,
 		OwnerTitle:  item.Title,
-		Purpose:     "clarify",
+		Purpose:     agentactivity.PurposeClarify,
+		PhaseKind:   string(agentactivity.LaneInvestigate),
 		RequestedBy: "swarm-manager",
 		Metadata: map[string]string{
 			"entrypoint":   "backlog.clarification",

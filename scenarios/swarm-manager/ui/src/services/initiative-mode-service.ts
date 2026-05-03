@@ -13,6 +13,7 @@ import type {
   OperatingModeDetail,
   OperatingModeLinkedInitiative,
   OperatingModePhaseGraph,
+  OperatingModePhaseKind,
   OperatingModePhaseTransition,
   OperatingModeRound,
   OperatingModeRoundItem,
@@ -61,11 +62,26 @@ function normalizeArtifact(raw: unknown): OperatingModeArtifactSnapshot {
   };
 }
 
+const PHASE_KINDS: ReadonlySet<OperatingModePhaseKind> = new Set([
+  "investigate",
+  "execute",
+  "review",
+  "reconcile",
+]);
+
+function normalizePhaseKind(raw: unknown): OperatingModePhaseKind | "" {
+  const value = stringValue(raw);
+  return PHASE_KINDS.has(value as OperatingModePhaseKind)
+    ? (value as OperatingModePhaseKind)
+    : "";
+}
+
 function normalizePhase(raw: unknown): OperatingModeWorkspacePhase {
   const phase = recordValue(raw);
   const artifacts = phase.output_artifacts ?? phase.outputArtifacts;
   return {
     phase: stringValue(phase.phase),
+    phaseKind: normalizePhaseKind(phase.phase_kind ?? phase.phaseKind),
     activityPurpose: stringValue(phase.activity_purpose ?? phase.activityPurpose),
     profileKey: stringValue(phase.profile_key ?? phase.profileKey),
     writesRepo: boolValue(phase.writes_repo ?? phase.writesRepo) ?? false,
@@ -76,6 +92,7 @@ function normalizePhase(raw: unknown): OperatingModeWorkspacePhase {
     startable: boolValue(phase.startable) ?? false,
     reason: stringValue(phase.reason, undefined),
     next: boolValue(phase.next),
+    autoStartAfter: stringArray(phase.auto_start_after ?? phase.autoStartAfter),
   };
 }
 
@@ -154,6 +171,7 @@ function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
   const bindings = phase.result_bindings ?? phase.resultBindings;
   return {
     phase: stringValue(phase.phase),
+    phaseKind: normalizePhaseKind(phase.phase_kind ?? phase.phaseKind),
     label: stringValue(phase.label),
     title: stringValue(phase.title),
     purpose: stringValue(phase.purpose),
@@ -174,6 +192,7 @@ function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
     resultBindings: Array.isArray(bindings) ? bindings.map(normalizeResultBinding) : undefined,
     samplesReplanRate: boolValue(phase.samples_replan_rate ?? phase.samplesReplanRate),
     samplesAcceptanceRate: boolValue(phase.samples_acceptance_rate ?? phase.samplesAcceptanceRate),
+    autoStartAfter: stringArray(phase.auto_start_after ?? phase.autoStartAfter),
   };
 }
 

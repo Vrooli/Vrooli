@@ -88,6 +88,7 @@ function makeWorkspace(overrides?: Partial<OperatingModeWorkspace>): OperatingMo
       phases: [
         {
           phase: "investigate",
+          phaseKind: "investigate",
           activityPurpose: "holistic_loop_investigate",
           profileKey: "swarm-manager/deep-work",
           writesRepo: false,
@@ -97,6 +98,7 @@ function makeWorkspace(overrides?: Partial<OperatingModeWorkspace>): OperatingMo
         },
         {
           phase: "execute",
+          phaseKind: "execute",
           activityPurpose: "holistic_loop_execute",
           profileKey: "swarm-manager/deep-work",
           writesRepo: true,

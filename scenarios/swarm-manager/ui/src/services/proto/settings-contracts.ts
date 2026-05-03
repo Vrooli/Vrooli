@@ -24,6 +24,29 @@ function normalizeThemePreference(value?: string): ThemePreference {
   return isThemePreference(value) ? value : "dark";
 }
 
+// Canonical lane defaults — kept in sync with API DefaultSettings and
+// settings-service.DEFAULT_SETTINGS. Mirrored here so the proto-mapping
+// layer can fill missing keys when the API has not yet written the
+// settings file with lane caps.
+const DEFAULT_LANE_LIMITS: Record<string, number> = {
+  investigate: 6,
+  execute: 3,
+  review: 8,
+  reconcile: 2,
+};
+
+function mapLaneConcurrencyLimits(input?: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = { ...DEFAULT_LANE_LIMITS };
+  if (!input) return out;
+  for (const lane of Object.keys(DEFAULT_LANE_LIMITS)) {
+    const val = input[lane];
+    if (typeof val === "number" && val > 0) {
+      out[lane] = val;
+    }
+  }
+  return out;
+}
+
 function mapDeleteConfirmLevel(proto: DeleteConfirmLevel): DomainDeleteConfirmLevel {
   switch (proto) {
     case DeleteConfirmLevel.SIMPLE:
@@ -70,7 +93,7 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     reviewMaxWarnings: protoSettings.reviewMaxWarnings ?? -1,
     reviewRequireScreenshots: protoSettings.reviewRequireScreenshots ?? true,
     reviewRequireTests: protoSettings.reviewRequireTests ?? true,
-    maxConcurrentExecutions: protoSettings.maxConcurrentExecutions ?? 3,
+    laneConcurrencyLimits: mapLaneConcurrencyLimits(protoSettings.laneConcurrencyLimits),
     maxQueueDepth: protoSettings.maxQueueDepth ?? 50,
     circuitBreakerThreshold: protoSettings.circuitBreakerThreshold ?? 3,
     circuitBreakerCooldownMinutes: protoSettings.circuitBreakerCooldownMinutes ?? 60,

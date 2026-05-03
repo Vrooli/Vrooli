@@ -28,12 +28,12 @@ func phasedPlanDrainDefinition() Definition {
 		PromptCatalogPrefix:    "swarm-manager-phased-plan",
 		DefaultProfileKey:      ProfileDeepWork,
 		StartPhase:             "prepare_plan",
-		Terminal:               []Phase{"review"},
+		Terminal:               []Phase{"reconcile"},
 		Transitions: map[Phase][]Phase{
 			"prepare_plan":      {"execute_next"},
 			"execute_next":      {"classify_progress"},
 			"classify_progress": {"execute_next", "prepare_plan", "review"},
-			"review":            {"prepare_plan"},
+			"review":            {"reconcile"},
 		},
 		TransitionRules: map[Phase][]TransitionRule{
 			"classify_progress": {
@@ -69,6 +69,7 @@ func phasedPlanDrainDefinition() Definition {
 		Phases: []initiativePhaseSpec{
 			{
 				Phase:           "prepare_plan",
+				Kind:            PhaseKindInvestigate,
 				Purpose:         "phased_plan_prepare",
 				PromptSuffix:    "prepare",
 				PromptTitle:     "Phased Plan Prepare",
@@ -79,6 +80,7 @@ func phasedPlanDrainDefinition() Definition {
 			},
 			{
 				Phase:           "execute_next",
+				Kind:            PhaseKindExecute,
 				Purpose:         "phased_plan_execute_next",
 				PromptSuffix:    "execute-next",
 				PromptTitle:     "Phased Plan Execute Next",
@@ -91,6 +93,7 @@ func phasedPlanDrainDefinition() Definition {
 			},
 			{
 				Phase:            "classify_progress",
+				Kind:             PhaseKindReview,
 				Purpose:          "phased_plan_classify_progress",
 				PromptSuffix:     "classify-progress",
 				PromptTitle:      "Phased Plan Classify Progress",
@@ -102,6 +105,7 @@ func phasedPlanDrainDefinition() Definition {
 			},
 			{
 				Phase:            "review",
+				Kind:             PhaseKindReview,
 				Purpose:          "phased_plan_review",
 				PromptTitle:      "Phased Plan Acceptance Review",
 				PromptTrigger:    "Operator starts phased-plan-drain review phase",
@@ -110,6 +114,18 @@ func phasedPlanDrainDefinition() Definition {
 				RequiresVerdict:  true,
 				RequiresCriteria: true,
 				Metrics:          PhaseMetricsSpec{CountsAcceptanceSample: true},
+			},
+			{
+				Phase:               "reconcile",
+				Kind:                PhaseKindReconcile,
+				AutoStartAfter:      []Phase{"review"},
+				Purpose:             "phased_plan_reconcile",
+				PromptSuffix:        "reconcile",
+				PromptTitle:         "Phased Plan Backlog Reconcile",
+				PromptTrigger:       "Round refresher auto-starts phased-plan-drain reconcile after review completes",
+				PromptPurpose:       "Read prior round artifacts and propose backlog mutations that align the initiative with the drained plan.",
+				ProfileKey:          ProfileAnalysis,
+				RequiresBacklogSync: true,
 			},
 		},
 	})

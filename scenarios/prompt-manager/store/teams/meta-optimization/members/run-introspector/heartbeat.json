@@ -6,12 +6,12 @@
   "enabled": true,
   "schedule": "45 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-01T22:45:00Z",
-    "endedAt": "2026-05-01T22:45:00Z",
+    "startedAt": "2026-05-02T22:45:00Z",
+    "endedAt": "2026-05-02T22:45:00Z",
     "status": "failed",
     "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 34,
+  "revision": 36,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-01T22:45:00Z"
+  "updatedAt": "2026-05-02T22:45:00Z"
 }

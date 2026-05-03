@@ -65,6 +65,7 @@ type Server struct {
 	initiativeService   *initiatives.Service
 	executionSvc        *execution.Service
 	executionHandler    *execution.Handler
+	operatingModeSvc    *operatingmode.Service
 	reviewSvc           *review.Service
 	reviewHandler       *review.Handler
 	initiativeReviewSvc *initiativereview.Service
@@ -172,6 +173,7 @@ func (s *Server) setupRoutes() {
 	s.registerFeedbackRoutes(materializer)
 	s.registerInitiativeReviewRoutes(materializer)
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
+	s.registerOperationsRoutes()
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 
@@ -281,10 +283,14 @@ func (s *Server) registerAgentActivityRoutes(_ string) {
 	if err != nil {
 		panic(err)
 	}
-	s.agentActivitySvc = agentactivity.NewService(agentactivity.ServiceConfig{
+	cfg := agentactivity.ServiceConfig{
 		StorePath:    storePath,
 		AgentService: s.agentSvc,
-	})
+	}
+	if s.settingsStore != nil {
+		cfg.LanePolicy = settings.NewLanePolicyAdapter(s.settingsStore)
+	}
+	s.agentActivitySvc = agentactivity.NewService(cfg)
 	agentActivityHandler := agentactivity.NewHandler(s.agentActivitySvc)
 	agentActivityHandler.RegisterRoutes(s.router)
 }

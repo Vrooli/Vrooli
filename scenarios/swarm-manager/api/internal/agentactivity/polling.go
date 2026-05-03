@@ -173,7 +173,32 @@ func matchesFilters(record Record, filters ListFilters) bool {
 	if value := strings.TrimSpace(filters.RunID); value != "" && record.RunID != value {
 		return false
 	}
+	if !filters.ActiveOrFinishedSince.IsZero() && !recordWithinWindow(record, filters.ActiveOrFinishedSince) {
+		return false
+	}
 	return true
+}
+
+// recordWithinWindow returns true when the record is still active
+// (pending / starting / running / needs_review) OR finished at or after
+// the given cutoff. Records with malformed FinishedAt strings are kept
+// (we can't tell whether they fall outside the window — failing closed
+// would silently lose them from the operations view).
+func recordWithinWindow(record Record, since time.Time) bool {
+	if isActiveStatus(record.Status) {
+		return true
+	}
+	finished := strings.TrimSpace(record.FinishedAt)
+	if finished == "" {
+		// No FinishedAt yet but not active — treat as "still recent" so the
+		// operator sees the row instead of losing it to a clock race.
+		return true
+	}
+	t, err := time.Parse(time.RFC3339, finished)
+	if err != nil {
+		return true
+	}
+	return !t.Before(since)
 }
 
 func indexByID(records []Record, activityID string) int {

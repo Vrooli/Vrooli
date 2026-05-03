@@ -209,6 +209,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		OwnerTitle:  itemTitle,
 		ExecutionID: params.ExecutionID,
 		Purpose:     agentactivity.PurposeReview,
+		PhaseKind:   string(agentactivity.LaneReview),
 		RequestedBy: "swarm-manager",
 		Metadata: map[string]string{
 			"entrypoint":   "review.start",
@@ -401,6 +402,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 				OwnerTitle:  itemTitle,
 				ExecutionID: round.ExecutionID,
 				Purpose:     agentactivity.PurposeReview,
+				PhaseKind:   string(agentactivity.LaneReview),
 				RequestedBy: "swarm-manager-ui",
 				Metadata: map[string]string{
 					"entrypoint": "review.request_more_evidence",

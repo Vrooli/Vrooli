@@ -171,6 +171,9 @@ func validateAppliedPhaseResult(phaseDef PhaseDefinition, result PhaseResult, ro
 	if contract.RequiresHandoff && result.Handoff == nil && len(result.Handoffs) == 0 {
 		return fmt.Errorf("phase %q requires a durable handoff", phaseDef.Phase)
 	}
+	if contract.RequiresBacklogSync && result.BacklogSync == nil {
+		return fmt.Errorf("phase %q requires a backlog_sync plan", phaseDef.Phase)
+	}
 	for _, required := range contract.RequiredArtifacts {
 		if strings.TrimSpace(required.Path) == "" {
 			continue

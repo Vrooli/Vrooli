@@ -303,6 +303,7 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 		OwnerName:   item.Name,
 		OwnerTitle:  item.Title,
 		Purpose:     researchPurpose(mode),
+		PhaseKind:   researchLane(mode),
 		RequestedBy: "swarm-manager",
 		Metadata: map[string]string{
 			"entrypoint":     "backlog.workshop_auto_advance",

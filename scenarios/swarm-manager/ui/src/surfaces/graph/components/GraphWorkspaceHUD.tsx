@@ -1,18 +1,22 @@
 /**
  * GraphWorkspaceHUD - Floating controls overlay for the graph workspace.
  *
- * Renders the top HUD rows: sidebar toggle, settings/stats/help/agents buttons,
- * lens navigation, and optional nav controls.
- * Extracted from GraphWorkspace.tsx to reduce component size.
+ * Renders the top HUD rows: sidebar toggle, settings/stats/help/agents
+ * buttons, lens navigation, and optional nav controls.
+ *
+ * The agents button is the always-visible Operations Center trigger
+ * (P8 of the Operations Center plan); it replaces the legacy
+ * `<AgentsDropdown>` popover. The trigger reads its count from
+ * `useOperationsStore`, so the HUD no longer needs activity / stop-run
+ * plumbing piped down from `GraphWorkspace`.
  */
 
 import { BarChart3, HelpCircle, Menu, Settings } from "lucide-react";
-import { AgentsDropdown } from "../../../components/agents/AgentsDropdown";
 import { CommandPostButton } from "../../../components/command-post";
+import { OpsTriggerButton } from "../../../components/operations/OpsTriggerButton";
 import { LensNav } from "./LensNav";
 import { GraphNavControls } from "./GraphNavControls";
 import type { GraphLens } from "../stores/graph-data-store";
-import type { AgentActivityRecord } from "../../../stores/agent-activities-store";
 
 export interface GraphWorkspaceHUDProps {
   /** Current active lens */
@@ -25,10 +29,6 @@ export interface GraphWorkspaceHUDProps {
   showNavControls: boolean;
   /** Badge count for command post button */
   commandPostBadgeCount: number;
-  /** Agent activities for the dropdown */
-  agentActivities: AgentActivityRecord[];
-  /** Max concurrent executions from governance settings. */
-  maxConcurrent?: number;
   onToggleSidebar: () => void;
   onToggleCommandPost: () => void;
   onToggleStats: () => void;
@@ -36,9 +36,6 @@ export interface GraphWorkspaceHUDProps {
   onToggleHelp: () => void;
   onLensChange: (lens: GraphLens) => void;
   onReturnToAtlas: () => void;
-  onViewActivity: (activityId: string) => void;
-  onViewBacklog: (nodeId: string) => void;
-  onStopRun: (runId: string) => void;
 }
 
 export function GraphWorkspaceHUD({
@@ -47,8 +44,6 @@ export function GraphWorkspaceHUD({
   sidebarCollapsed,
   showNavControls,
   commandPostBadgeCount,
-  agentActivities,
-  maxConcurrent,
   onToggleSidebar,
   onToggleCommandPost,
   onToggleStats,
@@ -56,9 +51,6 @@ export function GraphWorkspaceHUD({
   onToggleHelp,
   onLensChange,
   onReturnToAtlas,
-  onViewActivity,
-  onViewBacklog,
-  onStopRun,
 }: GraphWorkspaceHUDProps) {
   return (
     <div
@@ -91,7 +83,7 @@ export function GraphWorkspaceHUD({
           </div>
         </div>
 
-        {/* Right: Command Post + Stats + Settings + Help + Agents */}
+        {/* Right: Command Post + Stats + Settings + Help + Operations trigger */}
         <div className="flex items-center gap-1.5">
           <CommandPostButton
             count={commandPostBadgeCount}
@@ -124,14 +116,13 @@ export function GraphWorkspaceHUD({
           >
             <HelpCircle className="h-4 w-4" />
           </button>
-          {/* Show HUD agents button on mobile always, desktop only when sidebar collapsed */}
-          <AgentsDropdown
-            activities={agentActivities}
-            onViewActivity={onViewActivity}
-            onViewBacklog={onViewBacklog}
-            onStopRun={(runId) => onStopRun(runId)}
-            maxConcurrent={maxConcurrent}
-            variant="button"
+          {/* Operations Center trigger.
+              On mobile (sidebar always collapsed behind the menu) the HUD
+              trigger is the operator's primary entry point, so it is
+              always shown. On desktop it hides while the sidebar is open
+              because the sidebar header already exposes the compact pill. */}
+          <OpsTriggerButton
+            variant="hud"
             className={sidebarCollapsed ? "" : "md:hidden"}
           />
         </div>

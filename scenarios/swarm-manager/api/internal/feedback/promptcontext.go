@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"swarm-manager/internal/operatingmode/promptcatalog"
 )
 
 // PromptVariables is the variable map handed to the prompt-manager skill
@@ -98,6 +100,7 @@ func BuildPromptVariables(in PromptInputs) PromptVariables {
 		"ITEM_FOLDER_INDEX":      renderFolderIndex(in.ItemFolderIndex),
 		"THIS_FEEDBACK":          strings.TrimSpace(in.ThisFeedback),
 		"ATTACHMENT_IMAGES":      renderAttachments(in.Attachments),
+		promptcatalog.BacklogSyncProposalVariableKey: promptcatalog.BacklogSyncProposalSnippet(),
 	}
 }
 

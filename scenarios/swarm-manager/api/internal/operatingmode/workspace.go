@@ -218,6 +218,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 		_, isTerminal := terminalSet[phaseName]
 		entry.Phases = append(entry.Phases, ModeCatalogPhase{
 			Phase:                 string(phase.Phase),
+			PhaseKind:             string(phase.Kind),
 			Label:                 humanizeToken(string(phase.Phase)),
 			Title:                 phase.PromptCatalog.Title,
 			Purpose:               phase.PromptCatalog.Purpose,
@@ -236,6 +237,7 @@ func buildCatalogEntry(def Definition, usageCount int) ModeCatalogEntry {
 			ResultBindings:        phase.ResultBindings,
 			SamplesReplanRate:     def.Metrics.CountsReplanSample(phaseName),
 			SamplesAcceptanceRate: def.Metrics.CountsAcceptanceSample(phaseName),
+			AutoStartAfter:        phasesToStrings(phase.AutoStartAfter),
 		})
 	}
 	entry.PhaseGraph = buildCatalogPhaseGraph(def)
@@ -310,6 +312,7 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 		action := actions[phaseName]
 		phases = append(phases, WorkspacePhase{
 			Phase:            string(phase.Phase),
+			PhaseKind:        string(phase.Kind),
 			ActivityPurpose:  phase.ActivityPurpose,
 			ProfileKey:       phase.ProfileKey,
 			WritesRepo:       phase.WritesRepo,
@@ -318,6 +321,7 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 			Startable:        action.Startable,
 			Reason:           action.Reason,
 			Next:             action.Next,
+			AutoStartAfter:   phasesToStrings(phase.AutoStartAfter),
 		})
 	}
 	terminal := make([]string, 0, len(def.PhaseGraph.Terminal))
@@ -343,6 +347,19 @@ func workspaceMode(def Definition, rounds []RoundEnvelope, acceptanceCriteria []
 		Transitions:  transitions,
 		RunStrategy:  string(def.RunStrategy.Kind),
 	}
+}
+
+// phasesToStrings projects a slice of typed Phase values to plain strings for
+// JSON wire shapes. Returns nil for empty inputs to keep `omitempty` honest.
+func phasesToStrings(phases []Phase) []string {
+	if len(phases) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(phases))
+	for _, p := range phases {
+		out = append(out, string(p))
+	}
+	return out
 }
 
 func modeCapabilities(def Definition) ModeCapabilities {

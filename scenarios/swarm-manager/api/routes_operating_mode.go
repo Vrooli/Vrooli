@@ -74,6 +74,7 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 	if err != nil {
 		log.Fatalf("operating-mode: failed to build Service: %v", err)
 	}
+	s.operatingModeSvc = svc
 	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
 
 	// Wire the active-rounds reader into the graph projection so initiative
@@ -137,15 +138,7 @@ func (r operatingModeProposalReconciler) ApplyBacklogSyncProposal(ctx context.Co
 	if err := json.Unmarshal(req.Proposal, &proposal); err != nil {
 		return nil, fmt.Errorf("parse backlog_sync proposal: %w", err)
 	}
-	state, err := r.stateBuilder(req.InitiativeName)
-	if err != nil {
-		return nil, fmt.Errorf("build proposal state: %w", err)
-	}
-	normalized, err := proposals.Normalize(proposal, state)
-	if err != nil {
-		return nil, fmt.Errorf("normalize proposal: %w", err)
-	}
-	result, err := r.applier.Apply(ctx, normalized, state, req.AcceptedMutationIDs, proposals.Source{
+	source := proposals.Source{
 		InitiativeName:   req.InitiativeName,
 		Mode:             req.Mode,
 		Phase:            req.Phase,
@@ -155,14 +148,19 @@ func (r operatingModeProposalReconciler) ApplyBacklogSyncProposal(ctx context.Co
 		Entrypoint:       "initiative.operating_mode.backlog_sync",
 		DecidedBy:        req.DecidedBy,
 		DecidedAtRFC3339: req.DecidedAtRFC3339,
-	})
+	}
+	result, err := r.applier.ApplyFlow(ctx, proposal, proposals.StateBuilder(r.stateBuilder), req.AcceptedMutationIDs, source)
 	if err != nil {
 		return nil, err
 	}
-	return operatingModeApplyResult(result, normalized), nil
+	return operatingModeApplyResult(result), nil
 }
 
-func operatingModeApplyResult(result *proposals.ApplyResult, proposal proposals.Proposal) *operatingmode.ProposalApplyResult {
+// operatingModeApplyResult lifts the proposals.ApplyResult into the
+// operating-mode wire shape and tallies per-op create/update counts off
+// outcome metadata directly. Outcome carries both MutationID and Op, so
+// we don't need the normalized proposal as a second input.
+func operatingModeApplyResult(result *proposals.ApplyResult) *operatingmode.ProposalApplyResult {
 	if result == nil {
 		return nil
 	}
@@ -172,11 +170,7 @@ func operatingModeApplyResult(result *proposals.ApplyResult, proposal proposals.
 		Failed:   result.Failed,
 		Skipped:  result.Skipped,
 	}
-	applied := make(map[string]bool, len(result.Outcomes))
 	for _, outcome := range result.Outcomes {
-		if outcome.Applied {
-			applied[outcome.MutationID] = true
-		}
 		out.Outcomes = append(out.Outcomes, operatingmode.ProposalOutcome{
 			MutationID: outcome.MutationID,
 			Op:         string(outcome.Op),
@@ -185,12 +179,10 @@ func operatingModeApplyResult(result *proposals.ApplyResult, proposal proposals.
 			Skipped:    outcome.Skipped,
 			Error:      outcome.Error,
 		})
-	}
-	for _, mutation := range proposal.Mutations {
-		if !applied[mutation.ID] {
+		if !outcome.Applied {
 			continue
 		}
-		switch mutation.Op {
+		switch outcome.Op {
 		case proposals.OpAddItem, proposals.OpSplitItem, proposals.OpMergeItems:
 			out.Created++
 		default:

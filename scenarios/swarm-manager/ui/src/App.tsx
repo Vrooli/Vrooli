@@ -50,6 +50,9 @@ const CommandPostPage = lazy(() =>
 const DecisionStreamPage = lazy(() =>
   import("./pages/command-post/DecisionStreamPage").then((m) => ({ default: m.DecisionStreamPage })),
 );
+const OperationsCenterPage = lazy(() =>
+  import("./pages/OperationsCenterPage").then((m) => ({ default: m.OperationsCenterPage })),
+);
 
 /**
  * Compute the BrowserRouter basename from proxy context.
@@ -98,6 +101,7 @@ export default function App() {
               <Route path="operating-modes/:mode" element={<PageErrorBoundary pageName="Operating Mode Details"><OperatingModeDetailsPage /></PageErrorBoundary>} />
               <Route path="command-post" element={<PageErrorBoundary pageName="Command Post"><CommandPostPage /></PageErrorBoundary>} />
               <Route path="command-post/decisions" element={<PageErrorBoundary pageName="Decision Stream"><DecisionStreamPage /></PageErrorBoundary>} />
+              <Route path="operations" element={<PageErrorBoundary pageName="Operations Center"><OperationsCenterPage /></PageErrorBoundary>} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

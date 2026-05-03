@@ -66,6 +66,7 @@ const fullPhaseCapabilities = capabilities({
 function makeCatalogPhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: string }): OperatingModeCatalogPhase {
   return {
     label: overrides.phase,
+    phaseKind: "investigate",
     title: overrides.phase,
     purpose: "",
     trigger: "",
@@ -167,6 +168,7 @@ function makeWorkspace(overrides?: Partial<OperatingModeWorkspace>): OperatingMo
       phases: [
         {
           phase: "investigate",
+          phaseKind: "investigate",
           activityPurpose: "holistic_loop_investigate",
           profileKey: "swarm-manager/deep-work",
           writesRepo: false,

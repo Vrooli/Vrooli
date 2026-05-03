@@ -170,6 +170,8 @@ Use `initiativePhaseSpec` for each phase:
 | Field | Use |
 |---|---|
 | `Phase` | Stable phase token used in routes, rounds, stats, and UI |
+| `Kind` | **Required.** One of `PhaseKindInvestigate \| Execute \| Review \| Reconcile`. Drives Operations Center column placement, lane utilization, and per-lane metrics. The validator rejects empty values. |
+| `AutoStartAfter` | Optional. Length ≤ 1. When set, names the predecessor phase whose successful completion auto-starts this phase via the round refresher. Multi-predecessor races are out of scope in v1. |
 | `Purpose` | Lowercase snake-case audit token for agent activity |
 | `LockPurpose` | Optional lowercase snake-case token; defaults to `Purpose` |
 | `PromptSuffix` | Optional suffix when prompt IDs should not use the raw phase token |
@@ -187,6 +189,17 @@ Use `initiativePhaseSpec` for each phase:
 | `RequiresCriteria` | Phase start requires initiative acceptance criteria |
 
 Purpose tokens must be lowercase snake-case. Do not add a shared constant for each new phase in `agentactivity` or `initiativelock`; the registry owns those purpose strings.
+
+### Choosing `Kind`
+
+Phase kinds describe the **shape of work**, not the phase name:
+
+- `PhaseKindInvestigate` — research, planning, scoping. Reads code/state and produces findings or plans. Examples: `holistic-loop` `investigate`, `holistic-loop` `plan`, `phased-plan-drain` `prepare_plan`.
+- `PhaseKindExecute` — repository-modifying work. Writes code, runs tests, ships diffs. Examples: `holistic-loop` `execute`, `phased-plan-drain` `execute_next`.
+- `PhaseKindReview` — judgment phases. Classify progress, render verdicts against acceptance criteria. Examples: `phased-plan-drain` `classify_progress`, `holistic-loop` `review`, `phased-plan-drain` `review`.
+- `PhaseKindReconcile` — backlog-reality alignment. Reads prior round artifacts and emits a `BacklogSyncPlan` proposal aligning the backlog with what was actually done. (P4 introduces this kind on the two existing initiative-scoped modes.)
+
+A phase belongs to exactly one kind. If multiple kinds seem to fit, the phase is probably doing too much — split it.
 
 ## Transitions
 
@@ -296,6 +309,49 @@ Use the operating-mode reconciliation endpoints:
 
 The reconciler attaches source metadata: entrypoint, initiative, mode, phase, round, run ID, and requester.
 
+## Reconcile Phase Contract
+
+Every initiative-scoped operating mode MUST declare exactly one phase of `Kind: PhaseKindReconcile` whose `AutoStartAfter` lists the predecessor that closes the iteration (typically `review`). The reconcile phase is the contract by which a mode proves it stays consistent with the backlog over time. Modes without a reconcile phase silently let the backlog drift from what the code actually does — the operator notices when the next iteration starts from a stale plan.
+
+Required shape:
+
+```go
+{
+    Phase:               "reconcile",
+    Kind:                PhaseKindReconcile,
+    AutoStartAfter:      []Phase{"review"},
+    Purpose:             "<mode>_reconcile",
+    PromptSuffix:        "reconcile",
+    PromptTitle:         "<Mode Label> Backlog Reconcile",
+    PromptTrigger:       "Round refresher auto-starts <mode> reconcile after review completes",
+    PromptPurpose:       "Read prior round artifacts and propose backlog mutations that align the initiative with the work just completed.",
+    ProfileKey:          ProfileAnalysis,
+    RequiresBacklogSync: true,
+}
+```
+
+Phase graph topology:
+
+- `Transitions[predecessor] = []Phase{"reconcile"}` (replace any prior route out of the predecessor; document operator-driven loops as separate `StartPhase` calls, not phase-internal edges).
+- `Terminal = []Phase{"reconcile"}` — reconcile is the only terminal phase.
+- The reconcile phase has no outgoing transitions: continuation across iterations is the operator's call.
+
+Backlog sync policy:
+
+- The mode's `BacklogSync.ApplyMode` MUST be set; for v1 the only implemented value is `BacklogSyncApplyOperatorGated`. Other values (`auto-apply-safe`, `auto-apply-all`) cause `apply-backlog-sync` to return HTTP 501 with `apply_mode_not_implemented`. Do not set those values until the corresponding apply path lands.
+- `BacklogSync.Capabilities` should include `propose_mutations` (so the proposal can land in the round payload) and any per-mode capabilities the reconcile prompt is allowed to exercise.
+
+Prompt skill:
+
+- Create a skill at `prompt-manager/store/skills/packs/core/<catalog-id>/SKILL.md` whose ID matches `<PromptCatalogPrefix>-reconcile`.
+- The SKILL.md MUST substitute the shared `{{BACKLOG_SYNC_PROPOSAL_SNIPPET}}` template variable. The snippet content lives in `api/internal/operatingmode/promptcatalog/snippets.go`; both reconcile prompts and the initiative-feedback prompt render it from a single source so the proposal envelope contract cannot drift across surfaces.
+- Adding a new `proposals.Op` requires extending the snippet first; the `proposals_test.go` reverse-coupling test fails until the snippet documents the new op.
+
+Auto-dispatch behavior:
+
+- The round refresher fires `maybeAutoStartNext` *after* the predecessor lock is released and *only* when the predecessor transitions to `RoundStatusCompleted`. Failed and cancelled runs are skipped — there is nothing reliable to reconcile against.
+- On `agentactivity.ErrLaneSaturated`, the predecessor round is marked with a `pending_auto_start` payload entry; periodic `RefreshRound` calls retry the dispatch until lane capacity recovers. Do not implement custom retry logic in mode-specific code — the refresher is the single seam.
+
 ## Tests
 
 At minimum, add or update tests for:
@@ -338,6 +394,11 @@ test-genie execute swarm-manager --preset comprehensive
 - [ ] The registry map contains the new mode and `ValidateRegistry` passes.
 - [ ] Decision metadata is populated: `BestFor`, `NotFor`, `Tradeoffs` each have ≥1 plain-prose entry; `WhenInDoubtPickInstead` is empty or a registered mode (never self).
 - [ ] `decision-flow.config.ts` has at least one terminal-question path selecting the new mode.
+- [ ] **Every phase declares `Kind` as one of `PhaseKindInvestigate | Execute | Review | Reconcile`. The validator rejects empty values; pick the kind that describes the *shape of work*, not the name.**
+- [ ] **Any `AutoStartAfter` declarations are length ≤ 1 and reference a registered phase (not self).**
+- [ ] **The mode declares exactly one `Kind: PhaseKindReconcile` phase, `AutoStartAfter: []Phase{<predecessor>}`, `RequiresBacklogSync: true`, and reconcile is the only terminal phase.**
+- [ ] **`BacklogSync.ApplyMode` is set to `BacklogSyncApplyOperatorGated` (the only v1-implemented value).**
+- [ ] **The reconcile prompt skill substitutes `{{BACKLOG_SYNC_PROPOSAL_SNIPPET}}`; surface-specific guidance (what to read first, how to scope rationales for this mode) lives in the skill body around the snippet, not duplicated.**
 - [ ] All phase purpose tokens are lowercase snake-case and owned by the mode definition.
 - [ ] Every phase has a matching prompt-manager skill.
 - [ ] Prompt catalog validation catches missing or mismatched phase metadata.

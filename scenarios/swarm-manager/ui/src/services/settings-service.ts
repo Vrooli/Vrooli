@@ -51,7 +51,12 @@ export const DEFAULT_SETTINGS: Settings = {
   reviewMaxWarnings: -1,
   reviewRequireScreenshots: true,
   reviewRequireTests: true,
-  maxConcurrentExecutions: 3,
+  laneConcurrencyLimits: {
+    investigate: 6,
+    execute: 3,
+    review: 8,
+    reconcile: 2,
+  },
   maxQueueDepth: 50,
   circuitBreakerThreshold: 3,
   circuitBreakerCooldownMinutes: 60,
@@ -60,6 +65,24 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 type SettingsPatch = Partial<Settings>;
+
+/**
+ * Fill any missing canonical lane keys from DEFAULT_SETTINGS so the four
+ * lanes are always present in the rendered Settings shape. The API does
+ * the same on its side; this is the UI guard.
+ */
+function normalizeLaneLimits(input?: Record<string, number>): Record<string, number> {
+  const defaults = DEFAULT_SETTINGS.laneConcurrencyLimits;
+  const out: Record<string, number> = { ...defaults };
+  if (!input) return out;
+  for (const lane of Object.keys(defaults)) {
+    const val = input[lane];
+    if (typeof val === "number" && val > 0) {
+      out[lane] = val;
+    }
+  }
+  return out;
+}
 
 function normalizeSettings(input?: SettingsPatch): Settings {
   if (!input) return DEFAULT_SETTINGS;
@@ -89,7 +112,7 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     reviewMaxWarnings: input.reviewMaxWarnings ?? DEFAULT_SETTINGS.reviewMaxWarnings,
     reviewRequireScreenshots: input.reviewRequireScreenshots ?? DEFAULT_SETTINGS.reviewRequireScreenshots,
     reviewRequireTests: input.reviewRequireTests ?? DEFAULT_SETTINGS.reviewRequireTests,
-    maxConcurrentExecutions: input.maxConcurrentExecutions ?? DEFAULT_SETTINGS.maxConcurrentExecutions,
+    laneConcurrencyLimits: normalizeLaneLimits(input.laneConcurrencyLimits),
     maxQueueDepth: input.maxQueueDepth ?? DEFAULT_SETTINGS.maxQueueDepth,
     circuitBreakerThreshold: input.circuitBreakerThreshold ?? DEFAULT_SETTINGS.circuitBreakerThreshold,
     circuitBreakerCooldownMinutes: input.circuitBreakerCooldownMinutes ?? DEFAULT_SETTINGS.circuitBreakerCooldownMinutes,
@@ -139,6 +162,7 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.reviewMaxWarnings !== undefined ? { reviewMaxWarnings: patch.reviewMaxWarnings } : {}),
         ...(patch.reviewRequireScreenshots !== undefined ? { reviewRequireScreenshots: patch.reviewRequireScreenshots } : {}),
         ...(patch.reviewRequireTests !== undefined ? { reviewRequireTests: patch.reviewRequireTests } : {}),
+        ...(patch.laneConcurrencyLimits !== undefined ? { laneConcurrencyLimits: patch.laneConcurrencyLimits } : {}),
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/execution"
 )
 
@@ -60,8 +61,14 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 	if err != nil {
 		return execution.GovernanceSettings{}, err
 	}
+	// Copy the lane map so callers cannot mutate the settings store's
+	// in-memory snapshot.
+	laneLimits := make(map[string]int, len(s.LaneConcurrencyLimits))
+	for k, v := range s.LaneConcurrencyLimits {
+		laneLimits[k] = v
+	}
 	return execution.GovernanceSettings{
-		MaxConcurrentExecutions:       s.MaxConcurrentExecutions,
+		LaneLimits:                    laneLimits,
 		MaxQueueDepth:                 s.MaxQueueDepth,
 		CircuitBreakerThreshold:       s.CircuitBreakerThreshold,
 		CircuitBreakerCooldownMinutes: s.CircuitBreakerCooldownMinutes,
@@ -69,6 +76,34 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
 		AgentMaxTurns:                 s.AgentMaxTurns,
 	}, nil
+}
+
+// lanePolicyAdapter bridges Store to agentactivity.LanePolicy. Lookups
+// load the latest settings on each call so a Settings update is picked up
+// without restarting the service. Failures fall back to the lane defaults
+// in DefaultSettings — saturation is preferable to spawn errors during a
+// transient store outage.
+type lanePolicyAdapter struct {
+	store *Store
+}
+
+// NewLanePolicyAdapter creates a LanePolicy backed by the given Store.
+func NewLanePolicyAdapter(store *Store) *lanePolicyAdapter {
+	return &lanePolicyAdapter{store: store}
+}
+
+func (a *lanePolicyAdapter) LimitFor(lane agentactivity.Lane) int {
+	s, err := a.store.Load()
+	if err != nil {
+		// Defaults rather than zero so a load error does not silently
+		// uncap every lane. defaultLaneConcurrencyLimits is the same map
+		// DefaultSettings would have produced.
+		return defaultLaneConcurrencyLimits()[string(lane)]
+	}
+	if val, ok := s.LaneConcurrencyLimits[string(lane)]; ok && val > 0 {
+		return val
+	}
+	return defaultLaneConcurrencyLimits()[string(lane)]
 }
 
 // reviewThresholdsAdapter bridges Store to execution.ReviewThresholdsProvider.

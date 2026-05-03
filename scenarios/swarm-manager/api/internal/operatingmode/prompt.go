@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"swarm-manager/internal/operatingmode/promptcatalog"
 )
 
 func (s *Service) buildPrompt(ctx context.Context, data phaseContext, round RoundEnvelope, note string) (string, error) {
@@ -52,6 +54,7 @@ func promptVariables(data phaseContext, round RoundEnvelope, note string) map[st
 		"MEMBER_ITEMS_JSON":      mustJSON(data.items),
 		"MODE_ARTIFACTS_JSON":    mustJSON(data.artifacts),
 		"PRIOR_ROUNDS_JSON":      mustJSON(data.rounds),
+		promptcatalog.BacklogSyncProposalVariableKey: promptcatalog.BacklogSyncProposalSnippet(),
 	}
 }
 

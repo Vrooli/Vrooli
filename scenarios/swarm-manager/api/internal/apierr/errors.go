@@ -120,6 +120,14 @@ func Internal(format string, args ...any) *DomainError {
 	return Wrapf(errors.New("internal error"), http.StatusInternalServerError, format, args...)
 }
 
+// NotImplemented returns a 501 DomainError for endpoints whose request shape
+// is structurally valid but whose backing functionality is not implemented
+// (e.g., a configuration knob like BacklogSyncApplyMode that lands as a
+// typed enum but only has v1 implementations for one value).
+func NotImplemented(format string, args ...any) *DomainError {
+	return Wrapf(ErrNotImplemented, http.StatusNotImplemented, format, args...)
+}
+
 // WithCode tags a DomainError with a machine-readable code. Returns the
 // same error to allow chaining: apierr.BadRequest("...").WithCode("plan_stale").
 func (e *DomainError) WithCode(code string) *DomainError {

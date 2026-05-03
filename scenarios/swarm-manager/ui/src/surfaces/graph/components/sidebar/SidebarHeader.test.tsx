@@ -1,40 +1,33 @@
 /**
  * Tests for SidebarHeader.
  *
- * Verifies home button behavior, settings button, and collapse button.
+ * Verifies home, settings, and collapse handlers fire, and pins that the
+ * Operations Center trigger pill (P8) renders in place of the legacy
+ * `<AgentsDropdown>` popover.
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { SidebarHeader } from "./SidebarHeader";
-
-// Mock AgentsDropdown to avoid store complexity.
-vi.mock("../../../../components/agents/AgentsDropdown", () => ({
-  AgentsDropdown: () => <div data-testid="agents-dropdown" />,
-}));
+import { selectors } from "../../../../consts/selectors";
 
 // Mock useCommandPostBadgeCount to avoid QueryClientProvider dependency.
 vi.mock("../../../../hooks/useCommandPostBadgeCount", () => ({
   useCommandPostBadgeCount: () => 0,
 }));
 
-// Mock react-query to avoid QueryClientProvider dependency.
-vi.mock("@tanstack/react-query", async () => {
-  const actual = await vi.importActual("@tanstack/react-query");
-  return { ...actual, useQuery: () => ({ data: undefined, isLoading: false }) };
-});
-
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHeader>>) {
   return render(
-    <SidebarHeader
-      onSettingsOpen={vi.fn()}
-      onCollapse={vi.fn()}
-      onViewActivity={vi.fn()}
-      onViewBacklog={vi.fn()}
-      onGoHome={vi.fn()}
-      {...overrides}
-    />,
+    <MemoryRouter>
+      <SidebarHeader
+        onSettingsOpen={vi.fn()}
+        onCollapse={vi.fn()}
+        onGoHome={vi.fn()}
+        {...overrides}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -76,9 +69,19 @@ describe("SidebarHeader", () => {
     expect(onCollapse).toHaveBeenCalledOnce();
   });
 
-  it("renders agents dropdown", () => {
+  it("renders the Operations Center trigger pill (compact variant)", () => {
     renderHeader();
 
-    expect(screen.getByTestId("agents-dropdown")).toBeInTheDocument();
+    const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
+    expect(trigger).toBeInTheDocument();
+    expect(trigger.getAttribute("data-variant")).toBe("compact");
+    expect(trigger.getAttribute("href")).toBe("/operations");
+  });
+
+  it("does not render the legacy agents dropdown", () => {
+    renderHeader();
+
+    expect(screen.queryByTestId("agents-badge")).toBeNull();
+    expect(screen.queryByTestId("agents-dropdown")).toBeNull();
   });
 });

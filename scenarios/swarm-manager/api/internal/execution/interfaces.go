@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 )
 
@@ -52,6 +53,14 @@ type GovernanceProvider interface {
 // import cycles between the execution and review packages.
 type ReviewServiceIntegration interface {
 	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON string) error
+}
+
+// ActivityLaneReader exposes per-lane active counts from the agentactivity
+// store so execution.GovernanceStatus can render the four-lane utilization
+// view without execution importing agentactivity at the type level (the
+// concrete implementation in agentactivity.Service satisfies this seam).
+type ActivityLaneReader interface {
+	LaneActiveCounts() (map[agentactivity.Lane]int, error)
 }
 
 // EventLogger records execution state-change events for analytics.

@@ -69,12 +69,17 @@ type Settings struct {
 	ReviewRequireTests          bool    `json:"review_require_tests"`
 
 	// Concurrency and governance.
-	MaxConcurrentExecutions       int     `json:"max_concurrent_executions"`
-	MaxQueueDepth                 int     `json:"max_queue_depth"`
-	CircuitBreakerThreshold       int     `json:"circuit_breaker_threshold"`
-	CircuitBreakerCooldownMinutes int     `json:"circuit_breaker_cooldown_minutes"`
-	ExecutionCostCapPerRun        float64 `json:"execution_cost_cap_per_run"`
-	CostPerTurnEstimate           float64 `json:"cost_per_turn_estimate"`
+	// LaneConcurrencyLimits caps simultaneous tracked agent activities by
+	// phase-kind lane. Keys are lane names matching agentactivity.Lane /
+	// operatingmode.PhaseKind values: "investigate", "execute", "review",
+	// "reconcile". Values <= 0 are clamped to 1 by normalize. Replaces the
+	// pre-P2 single global cap.
+	LaneConcurrencyLimits         map[string]int `json:"lane_concurrency_limits"`
+	MaxQueueDepth                 int            `json:"max_queue_depth"`
+	CircuitBreakerThreshold       int            `json:"circuit_breaker_threshold"`
+	CircuitBreakerCooldownMinutes int            `json:"circuit_breaker_cooldown_minutes"`
+	ExecutionCostCapPerRun        float64        `json:"execution_cost_cap_per_run"`
+	CostPerTurnEstimate           float64        `json:"cost_per_turn_estimate"`
 }
 
 // SettingsPatch allows partial updates.
@@ -106,12 +111,16 @@ type SettingsPatch struct {
 	ReviewRequireScreenshots    *bool    `json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          *bool    `json:"review_require_tests,omitempty"`
 
-	MaxConcurrentExecutions       *int     `json:"max_concurrent_executions,omitempty"`
-	MaxQueueDepth                 *int     `json:"max_queue_depth,omitempty"`
-	CircuitBreakerThreshold       *int     `json:"circuit_breaker_threshold,omitempty"`
-	CircuitBreakerCooldownMinutes *int     `json:"circuit_breaker_cooldown_minutes,omitempty"`
-	ExecutionCostCapPerRun        *float64 `json:"execution_cost_cap_per_run,omitempty"`
-	CostPerTurnEstimate           *float64 `json:"cost_per_turn_estimate,omitempty"`
+	// LaneConcurrencyLimits, when non-nil, replaces the corresponding lane
+	// caps wholesale. Keys are lane names; values must be >= 1. Pass nil to
+	// leave the existing map untouched. Pass an empty map to reset to
+	// defaults (DefaultSettings()).
+	LaneConcurrencyLimits         map[string]int `json:"lane_concurrency_limits,omitempty"`
+	MaxQueueDepth                 *int           `json:"max_queue_depth,omitempty"`
+	CircuitBreakerThreshold       *int           `json:"circuit_breaker_threshold,omitempty"`
+	CircuitBreakerCooldownMinutes *int           `json:"circuit_breaker_cooldown_minutes,omitempty"`
+	ExecutionCostCapPerRun        *float64       `json:"execution_cost_cap_per_run,omitempty"`
+	CostPerTurnEstimate           *float64       `json:"cost_per_turn_estimate,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -168,7 +177,17 @@ func DefaultSettings() Settings {
 		ReviewRequireScreenshots:    true,
 		ReviewRequireTests:          true,
 
-		MaxConcurrentExecutions:       3,
+		// Lane caps: investigate (workshop / clarify / classify / research /
+		// feedback) is the most parallelizable; execute matches today's
+		// global default of 3 to preserve backlog-process semantics; review
+		// is read-mostly so we allow more headroom; reconcile is bounded
+		// since it follows execute and writes to the backlog.
+		LaneConcurrencyLimits: map[string]int{
+			"investigate": 6,
+			"execute":     3,
+			"review":      8,
+			"reconcile":   2,
+		},
 		MaxQueueDepth:                 50,
 		CircuitBreakerThreshold:       3,
 		CircuitBreakerCooldownMinutes: 60,
@@ -237,6 +256,43 @@ func clampFloat(v, min, max float64) float64 {
 	return v
 }
 
+// laneKeys is the canonical set of LaneConcurrencyLimits keys. Mirrors
+// agentactivity.Lanes() but lives here as plain strings to keep the
+// settings package free of agentactivity imports (settings is a leaf used
+// by many adapters).
+var laneKeys = []string{"investigate", "execute", "review", "reconcile"}
+
+// normalizeLaneConcurrencyLimits canonicalizes the lane cap map: every
+// canonical key is present, missing keys are filled from DefaultSettings,
+// values are clamped to [1, 50] (50 is generous; the validator stops well
+// before any realistic system limit), and unknown keys are dropped to
+// keep the wire surface tight.
+func normalizeLaneConcurrencyLimits(raw map[string]int) map[string]int {
+	defaults := defaultLaneConcurrencyLimits()
+	out := make(map[string]int, len(laneKeys))
+	for _, key := range laneKeys {
+		val, ok := raw[key]
+		if !ok || val <= 0 {
+			out[key] = defaults[key]
+			continue
+		}
+		out[key] = clampInt(val, 1, 50)
+	}
+	return out
+}
+
+// defaultLaneConcurrencyLimits returns a fresh copy of the canonical
+// defaults so callers never accidentally mutate the DefaultSettings
+// shared map.
+func defaultLaneConcurrencyLimits() map[string]int {
+	return map[string]int{
+		"investigate": 6,
+		"execute":     3,
+		"review":      8,
+		"reconcile":   2,
+	}
+}
+
 func normalizeDeleteConfirmLevel(level, fallback DeleteConfirmLevel) DeleteConfirmLevel {
 	switch level {
 	case DeleteConfirmNone, DeleteConfirmSimple, DeleteConfirmStrong:
@@ -288,7 +344,7 @@ func normalizeSettings(settings Settings) Settings {
 	}
 
 	// Concurrency and governance.
-	settings.MaxConcurrentExecutions = clampInt(settings.MaxConcurrentExecutions, 1, 20)
+	settings.LaneConcurrencyLimits = normalizeLaneConcurrencyLimits(settings.LaneConcurrencyLimits)
 	settings.MaxQueueDepth = clampInt(settings.MaxQueueDepth, 0, 100)
 	settings.CircuitBreakerThreshold = clampInt(settings.CircuitBreakerThreshold, 1, 10)
 	settings.CircuitBreakerCooldownMinutes = clampInt(settings.CircuitBreakerCooldownMinutes, 5, 1440)
@@ -388,8 +444,15 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ReviewRequireTests != nil {
 		current.ReviewRequireTests = *patch.ReviewRequireTests
 	}
-	if patch.MaxConcurrentExecutions != nil {
-		current.MaxConcurrentExecutions = *patch.MaxConcurrentExecutions
+	if patch.LaneConcurrencyLimits != nil {
+		// Non-nil patch replaces wholesale (after normalize fills any
+		// missing canonical keys from defaults). Empty map → reset to
+		// defaults via normalize.
+		merged := make(map[string]int, len(patch.LaneConcurrencyLimits))
+		for k, v := range patch.LaneConcurrencyLimits {
+			merged[k] = v
+		}
+		current.LaneConcurrencyLimits = merged
 	}
 	if patch.MaxQueueDepth != nil {
 		current.MaxQueueDepth = *patch.MaxQueueDepth

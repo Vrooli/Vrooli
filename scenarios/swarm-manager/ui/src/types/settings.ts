@@ -31,7 +31,7 @@ export type DeleteConfirmationSettings = {
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "maxConcurrentExecutions" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmation"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "autoAdvanceDelaySeconds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings" | "laneConcurrencyLimits" | "maxQueueDepth" | "circuitBreakerThreshold" | "circuitBreakerCooldownMinutes" | "executionCostCapPerRun" | "costPerTurnEstimate" | "deleteConfirmation"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -60,8 +60,14 @@ export type Settings = Omit<
   reviewMaxWarnings: number;
   reviewRequireScreenshots: boolean;
   reviewRequireTests: boolean;
-  /** Concurrency and governance */
-  maxConcurrentExecutions: number;
+  /**
+   * Concurrency and governance.
+   *
+   * laneConcurrencyLimits caps simultaneous tracked agent activity by
+   * phase-kind lane. Keys are lane names matching the API's
+   * `agentactivity.Lane`: `investigate`, `execute`, `review`, `reconcile`.
+   */
+  laneConcurrencyLimits: Record<string, number>;
   maxQueueDepth: number;
   circuitBreakerThreshold: number;
   circuitBreakerCooldownMinutes: number;

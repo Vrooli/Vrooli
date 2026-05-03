@@ -152,6 +152,7 @@ func (s *aggregateState) buildMode() ModeStats {
 		BacklogSyncByMode:        cloneBacklogSyncMap(s.modeBacklogSync),
 		UsageByProfile:           cloneIntMap(s.modeProfileUsage),
 		PhaseRunsByProfile:       cloneNestedInt(s.modeProfilePhaseRuns),
+		PhaseRunsByLane:          cloneIntMap(s.modePhaseRunsByLane),
 	}
 }
 

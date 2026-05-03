@@ -79,8 +79,9 @@ Actions:
    - profile key
    - whether the phase writes repo files
    - required artifacts
-   - required progress/verdict/handoff/criteria
+   - required progress/verdict/handoff/criteria/backlog-sync
    - transition rules after completion
+   - **reconcile phase**: every initiative-scoped mode MUST declare exactly one phase of `Kind: PhaseKindReconcile`. Its `AutoStartAfter` lists the predecessor that closes the iteration (typically `review`). It sets `RequiresBacklogSync: true`. It is the mode's only terminal phase. Its purpose is to read prior round artifacts and emit a `BacklogSyncPlan` proposal aligning the backlog with the work just completed. Modes without a reconcile phase silently let the backlog drift.
 3. Draft decision metadata that the picker, details page, and how-to-choose dialog will surface to operators. Each list must have at least one entry; entries must be plain prose an operator can scan, not engineer-shaped capability deltas:
    - `bestFor` — the work shapes this mode is the right pick for
    - `notFor` — the work shapes this mode handles poorly
@@ -91,12 +92,13 @@ Actions:
    - whether completed member items may be marked complete
    - whether proposal-backed create/update/follow-up reconciliation is allowed
    - when operators should apply reconciliation
+   - the mode's `BacklogSyncPolicy.ApplyMode` value. v1 only implements `BacklogSyncApplyOperatorGated`; the auto-apply variants land as `ErrApplyModeNotImplemented` (HTTP 501) until the apply path is wired. Default to operator-gated unless a separate plan has explicitly added an auto-apply implementation.
 6. Define metrics semantics:
    - phases that count toward replan sample size
    - phases that count toward acceptance sample size
    - success/acceptance verdict values
    - any mode-specific metrics that should become future work
-7. List prompt-manager skills to create, one per phase.
+7. List prompt-manager skills to create, one per phase. The reconcile phase's SKILL.md MUST substitute the shared `{{BACKLOG_SYNC_PROPOSAL_SNIPPET}}` template variable so the proposal envelope contract stays single-sourced (see `api/internal/operatingmode/promptcatalog/snippets.go`).
 8. List tests and docs required to make the mode safe.
 
 Exit criteria:
@@ -234,6 +236,10 @@ Artifact: validation summary.
 - [ ] Decision metadata is populated: `BestFor`, `NotFor`, `Tradeoffs` each have ≥1 plain-prose entry, and `WhenInDoubtPickInstead` is either empty or a registered mode (never self).
 - [ ] `decision-flow.config.ts` includes at least one terminal node referencing the new mode.
 - [ ] Every phase has a stable token and lowercase snake-case purpose.
+- [ ] Every phase declares `Kind` (one of investigate/execute/review/reconcile).
+- [ ] **Mode declares exactly one `Kind: PhaseKindReconcile` phase with `AutoStartAfter: []Phase{<predecessor>}` and `RequiresBacklogSync: true`. Reconcile is the only terminal phase.**
+- [ ] **`BacklogSync.ApplyMode` is set to `BacklogSyncApplyOperatorGated`. (Auto-apply values are not implemented in v1 and surface as HTTP 501 at runtime.)**
+- [ ] **The reconcile prompt skill substitutes `{{BACKLOG_SYNC_PROPOSAL_SNIPPET}}` so the proposal envelope contract is single-sourced.**
 - [ ] Transitions are represented in `Transitions` and `TransitionRules`.
 - [ ] Agent output contract is explicit for each phase.
 - [ ] Artifacts live under the mode artifact root.

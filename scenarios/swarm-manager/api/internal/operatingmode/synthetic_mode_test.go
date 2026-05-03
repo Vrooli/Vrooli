@@ -205,12 +205,14 @@ func syntheticHarnessDefinition() Definition {
 		Phases: []initiativePhaseSpec{
 			{
 				Phase:         "assess",
+				Kind:          PhaseKindInvestigate,
 				Purpose:       "synthetic_harness_assess",
 				PromptPurpose: "Assess the synthetic methodology state.",
 				ProfileKey:    ProfileDeepWork,
 			},
 			{
 				Phase:            "decide",
+				Kind:             PhaseKindReview,
 				Purpose:          "synthetic_harness_decide",
 				PromptPurpose:    "Classify whether the synthetic methodology should replan or review.",
 				ProfileKey:       ProfileAnalysis,
@@ -220,6 +222,7 @@ func syntheticHarnessDefinition() Definition {
 			},
 			{
 				Phase:            "review",
+				Kind:             PhaseKindReview,
 				Purpose:          "synthetic_harness_review",
 				PromptPurpose:    "Review the synthetic methodology output.",
 				ProfileKey:       ProfileAnalysis,

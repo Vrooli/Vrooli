@@ -79,7 +79,7 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
             <p className="mt-1 text-sm text-slate-400">Concurrency limits, queue depth, circuit breaker, and cost controls.</p>
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
-            maxConcurrentExecutions: DEFAULT_SETTINGS.maxConcurrentExecutions,
+            laneConcurrencyLimits: { ...DEFAULT_SETTINGS.laneConcurrencyLimits },
             maxQueueDepth: DEFAULT_SETTINGS.maxQueueDepth,
             circuitBreakerThreshold: DEFAULT_SETTINGS.circuitBreakerThreshold,
             circuitBreakerCooldownMinutes: DEFAULT_SETTINGS.circuitBreakerCooldownMinutes,
@@ -89,16 +89,38 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
         </div>
         <div className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300">Max Concurrent Executions</label>
-            <p className="mt-1 text-xs text-slate-400">Maximum simultaneous agent runs (1-20).</p>
-            <Input
-              type="number"
-              min={1}
-              max={20}
-              className="mt-1"
-              value={form.maxConcurrentExecutions}
-              onChange={(e) => patch({ maxConcurrentExecutions: Math.max(1, Math.min(20, Number(e.target.value || 1))) })}
-            />
+            <label className="block text-sm font-medium text-slate-300">Lane Concurrency Limits</label>
+            <p className="mt-1 text-xs text-slate-400">
+              Per-phase-kind concurrency caps (each 1-50). Lanes mirror the
+              Operations Center columns: <em>investigate</em> covers
+              workshop / clarify / classify / research, <em>execute</em>
+              covers backlog process runs, <em>review</em> covers review
+              and finalize, <em>reconcile</em> covers reconciliation
+              phases.
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(["investigate", "execute", "review", "reconcile"] as const).map((lane) => (
+                <div key={lane}>
+                  <label className="block text-xs font-medium capitalize text-slate-400">{lane}</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    className="mt-1"
+                    value={form.laneConcurrencyLimits[lane] ?? DEFAULT_SETTINGS.laneConcurrencyLimits[lane]}
+                    onChange={(e) => {
+                      const next = Math.max(1, Math.min(50, Number(e.target.value || 1)));
+                      patch({
+                        laneConcurrencyLimits: {
+                          ...form.laneConcurrencyLimits,
+                          [lane]: next,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <div className="border-t border-white/5 pt-4">
             <label className="block text-sm font-medium text-slate-300">Max Queue Depth</label>

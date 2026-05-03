@@ -494,3 +494,84 @@ describe("parseActiveItemExecutionsConflict", () => {
     expect(parseActiveItemExecutionsConflict(error)).toBeNull();
   });
 });
+
+describe("Initiative Mode Service phase_kind normalization", () => {
+  let api: IApiClient;
+  let service: IInitiativeModeService;
+
+  beforeEach(() => {
+    api = {
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      patch: vi.fn(),
+      delete: vi.fn(),
+    };
+    service = createInitiativeModeService(api);
+  });
+
+  it("normalizes phase_kind on workspace and catalog phases", async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      initiative_name: "initiative-a",
+      mode: "holistic-loop",
+      definition: {
+        mode: "holistic-loop",
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        capabilities: {},
+        phases: [
+          {
+            phase: "investigate",
+            phase_kind: "investigate",
+            activity_purpose: "holistic_loop_investigate",
+            profile_key: "swarm-manager/deep-work",
+            writes_repo: false,
+          },
+          {
+            phase: "execute",
+            phase_kind: "execute",
+            activity_purpose: "holistic_loop_execute",
+            profile_key: "swarm-manager/deep-work",
+            writes_repo: true,
+            auto_start_after: ["plan"],
+          },
+        ],
+        terminal: ["review"],
+        transitions: {},
+      },
+      artifacts: [],
+      rounds: [],
+    });
+
+    const workspace = await service.workspace("initiative-a");
+    expect(workspace.definition.phases[0]?.phaseKind).toBe("investigate");
+    expect(workspace.definition.phases[1]?.phaseKind).toBe("execute");
+    expect(workspace.definition.phases[1]?.autoStartAfter).toEqual(["plan"]);
+
+    vi.mocked(api.get).mockResolvedValueOnce({
+      modes: [{
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        scope_kind: "initiative",
+        run_strategy: "operator_gated_loop",
+        workspace_tab_id: "operating-mode",
+        capabilities: {},
+        default: false,
+        switchable: true,
+        supports_phases: true,
+        phases: [
+          { phase: "investigate", phase_kind: "investigate" },
+          { phase: "review", phase_kind: "review", auto_start_after: ["execute"] },
+          { phase: "weird", phase_kind: "fabricated-kind" },
+        ],
+      }],
+    });
+    const catalog = await service.catalog();
+    expect(catalog.modes[0]?.phases[0]?.phaseKind).toBe("investigate");
+    expect(catalog.modes[0]?.phases[1]?.phaseKind).toBe("review");
+    expect(catalog.modes[0]?.phases[1]?.autoStartAfter).toEqual(["execute"]);
+    // Unknown kinds collapse to empty rather than silently passing through
+    // a malformed value to the lane-aware UI surfaces.
+    expect(catalog.modes[0]?.phases[2]?.phaseKind).toBe("");
+  });
+});

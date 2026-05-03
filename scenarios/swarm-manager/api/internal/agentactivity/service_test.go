@@ -85,6 +85,27 @@ func newTestService(t *testing.T, raw *stubAgentService) *Service {
 	})
 }
 
+// stubLanePolicy implements LanePolicy for tests.
+type stubLanePolicy struct {
+	limits map[Lane]int
+}
+
+func (s *stubLanePolicy) LimitFor(lane Lane) int {
+	if s == nil {
+		return 0
+	}
+	return s.limits[lane]
+}
+
+func newTestServiceWithLanePolicy(t *testing.T, raw *stubAgentService, policy LanePolicy) *Service {
+	t.Helper()
+	return NewService(ServiceConfig{
+		StorePath:    filepath.Join(t.TempDir(), "agent-activities.json"),
+		AgentService: raw,
+		LanePolicy:   policy,
+	})
+}
+
 func TestServiceSpawnBacklogCreatesTrackedActivity(t *testing.T) {
 	t.Parallel()
 
@@ -721,5 +742,96 @@ func TestHasActiveAgent_ReturnsFalseAfterComplete(t *testing.T) {
 
 	if svc.HasActiveAgent(context.Background(), "idea", "item-a") {
 		t.Error("expected HasActiveAgent to return false after refresh shows complete")
+	}
+}
+
+func TestSpawnTracked_LaneSaturationReturnsErrLaneSaturated(t *testing.T) {
+	t.Parallel()
+
+	raw := &stubAgentService{
+		enabled:     true,
+		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
+	}
+	policy := &stubLanePolicy{limits: map[Lane]int{
+		LaneInvestigate: 1,
+		LaneExecute:     5,
+		LaneReview:      5,
+		LaneReconcile:   5,
+	}}
+	svc := newTestServiceWithLanePolicy(t, raw, policy)
+
+	// Pre-fill the Investigate lane with one running record.
+	pre := Record{
+		ActivityID:      "investigate-1",
+		OwnerType:       OwnerBacklog,
+		OwnerKind:       "idea",
+		OwnerName:       "item-a",
+		Purpose:         PurposeWorkshop, // → LaneInvestigate
+		InteractionType: InteractionSpawn,
+		Status:          StatusRunning,
+		RunID:           "r-existing",
+		RequestedAt:     nowRFC3339(),
+		UpdatedAt:       nowRFC3339(),
+	}
+	if err := svc.store.Save([]Record{pre}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Now try to spawn a *different* backlog item into the same lane —
+	// per-item busy gate doesn't trip (different name), but the lane gate
+	// should.
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog,
+		OwnerKind: "idea",
+		OwnerName: "item-b",
+		Purpose:   PurposeWorkshop,
+	})
+	_, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{Kind: "idea", Name: "item-b"})
+	if err == nil {
+		t.Fatal("expected ErrLaneSaturated, got nil")
+	}
+	if !errors.Is(err, ErrLaneSaturated) {
+		t.Fatalf("expected ErrLaneSaturated, got %v", err)
+	}
+
+	// And the Execute lane (cap=5) should still accept new spawns —
+	// saturation is per-lane, not global.
+	ctx = WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog,
+		OwnerKind: "idea",
+		OwnerName: "item-c",
+		Purpose:   PurposeProcess, // → LaneExecute
+	})
+	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{Kind: "idea", Name: "item-c"}); err != nil {
+		t.Fatalf("Execute lane should accept; got %v", err)
+	}
+}
+
+func TestLaneActiveCounts_ReadFromService(t *testing.T) {
+	t.Parallel()
+
+	svc := newTestService(t, &stubAgentService{enabled: true})
+
+	records := []Record{
+		{ActivityID: "a", OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "x", Purpose: PurposeProcess, Status: StatusRunning, RunID: "r1"},
+		{ActivityID: "b", OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "y", Purpose: PurposeWorkshop, Status: StatusRunning, RunID: "r2"},
+		{ActivityID: "c", OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "z", Purpose: PurposeReview, Status: StatusComplete, RunID: "r3"}, // inactive
+	}
+	if err := svc.store.Save(records); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	got, err := svc.LaneActiveCounts()
+	if err != nil {
+		t.Fatalf("LaneActiveCounts: %v", err)
+	}
+	if got[LaneExecute] != 1 {
+		t.Errorf("Execute = %d, want 1", got[LaneExecute])
+	}
+	if got[LaneInvestigate] != 1 {
+		t.Errorf("Investigate = %d, want 1", got[LaneInvestigate])
+	}
+	if got[LaneReview] != 0 {
+		t.Errorf("Review = %d, want 0 (record c is complete)", got[LaneReview])
 	}
 }

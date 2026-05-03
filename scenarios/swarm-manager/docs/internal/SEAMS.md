@@ -310,7 +310,7 @@ back into one service file.
 - **Lock seam rule**: `operatingmode.Service` depends on a narrow initiative-lock interface rather than the concrete file lock. The production adapter is still `initiativelock.Lock`, but tests can inject lock failures at specific lifecycle moments such as the provisional-to-run-ID ownership swap.
 - **Audit rule**: Mode changes are emitted as `initiative.mode_changed` events. Phase runners emit typed `operating_mode.phase_*`, `operating_mode.replan_needed`, and `operating_mode.backlog_synced` events rather than relying on file scans or agentactivity inference.
 - **Switch rule**: External callers switch modes through `POST /api/v1/initiatives/{name}/operating-mode/switch`, not generic initiative metadata update. The switch service is the lifecycle boundary that detects active item-level executions, requires explicit cancellation confirmation before entering a non-default initiative mode, and rejects switching out of non-default modes while a mode round is active.
-- **Backlog reconciliation rule**: Non-default modes may mark member items complete through the run-id-validated `complete-items` endpoint. The service passes a typed backlog mutation source (`entrypoint`, initiative, mode, phase, round, run ID, requested-by) to the adapter; the event log records that source on both the `backlog.status_changed` event and the `operating_mode.backlog_synced` summary. Create/update/follow-up reconciliation must flow through `apply-backlog-sync`, which adapts the round's `backlog_sync.proposal` to the existing `proposals.Applier` and carries equivalent mode/phase/run metadata through `proposals.Source`; `operatingmode` depends only on a narrow reconciler interface to avoid importing the proposal/graph/initiative stack directly.
+- **Backlog reconciliation rule**: Non-default modes may mark member items complete through the run-id-validated `complete-items` endpoint. The service passes a typed backlog mutation source (`entrypoint`, initiative, mode, phase, round, run ID, requested-by) to the adapter; the event log records that source on both the `backlog.status_changed` event and the `operating_mode.backlog_synced` summary. Create/update/follow-up reconciliation must flow through `apply-backlog-sync`, which adapts the round's `backlog_sync.proposal` to the canonical `proposals.ApplyFlow` recipe (see Proposal Apply Boundary) and carries equivalent mode/phase/run metadata through `proposals.Source`; `operatingmode` depends only on a narrow reconciler interface to avoid importing the proposal/graph/initiative stack directly.
 - **Stats rule**: Mode stats derive from the durable event log and registry metrics policy. Profile usage, phase counts, replan/acceptance rates, phase durations, and backlog-sync counts are all sourced from operating-mode event payloads. Replan and acceptance sample phases are opt-in mode policy rather than hardcoded phase names; `operating_mode.replan_needed` stays available for timeline observability without double-counting the numerator.
 - **Artifact and round persistence**: `operatingmode.Store` owns mode-scoped paths under each initiative (`modes/<mode>/...`), current-state artifact reads/writes, and append-only round envelopes at `modes/<mode>/rounds/round-NNN.json`. Runner and handler code should use this store rather than constructing paths directly. Derived artifact writes belong in phase `ResultBindings`, not in mode-specific artifact applier branches.
 - **Round envelope contract**: Round JSON records mode, phase, scope, run strategy, selected `agent_profile_key`, run ID, status, readiness, artifact updates, handoffs, and phase payload. Sequential modes preserve handoffs in round JSON so future runs have durable context.
@@ -379,6 +379,125 @@ back into one service file.
   when those keys are absent.
 
 **Testing at the seam**: `api/internal/operatingmode/*_test.go` locks required modes, default normalization, unknown-mode rejection, phase profile mappings, stable registry-authored activity/lock purposes, mode-scoped path resolution, round numbering, malformed JSON rejection, handoff/profile preservation, artifact root validation, transition-rule routing, result-binding writes, registry-driven metrics semantics, backend-declared capabilities, prompt catalog generation, readiness scoring, progress classification validation, and lifecycle cleanup when lock acquisition or run-ID lock ownership fails. The synthetic mode harness proves new non-production methodology behavior can run through framework paths without shared control-flow edits.
+
+### Phase Kind Boundary
+
+`api/internal/operatingmode/registry.go` defines `PhaseKind` (the
+`investigate | execute | review | reconcile` enum) on every phase
+declaration. PhaseKind is the **single classification axis** for phase
+intent and is consumed by:
+
+- **Lane bookkeeping** — `agentactivity.Spec.PhaseKind` (string-typed to
+  avoid an import cycle) is persisted on `agentactivity.Record.phase_kind`.
+  Per-phase-kind concurrency lanes (P2) and the Operations Center
+  aggregator (P5) read this field; lane derivation lives in one map.
+- **Operations Center column placement** — the by-phase view groups
+  activities by lane (kind). The lane is the kind, period.
+- **Per-lane metrics** — `lane_utilization_by_kind` (P5) and any future
+  lane-aware aggregate keys off `phase_kind`.
+
+**Rules:**
+
+- Every initiative-scoped phase must declare a non-empty `Kind`. The
+  registry validator rejects empty values at API startup.
+- `IsValidPhaseKind` is the gate for unknown values (typos, fabricated
+  kinds). Unknown values fail validation with the same error message
+  that empty values do.
+- Adding a fifth kind is a substrate change (lane plumbing + UI columns +
+  authoring contract move together). It is intentionally not a small edit
+  — propose it via a new plan, not as a registry-only addition.
+- The wire shape is `phase_kind` (snake_case JSON, camelCase UI). The UI
+  service explicitly normalizes via `normalizePhaseKind` and collapses
+  unrecognized values to `""` rather than passing through malformed lane
+  identifiers.
+
+### Auto Start After Boundary
+
+`PhaseDefinition.AutoStartAfter` is the generic auto-transition
+declaration: when the listed predecessor phase completes successfully
+(status `completed`, not `failed` or `cancelled`), the round refresher
+auto-starts this phase via the existing phase runner. This replaces
+mode-specific post-round hooks with one explicit field.
+
+**Rules:**
+
+- Length ≤ 1 in v1 (validator-enforced). Multi-predecessor races are
+  deferred — the round refresher's lock-release-then-dispatch ordering
+  cannot safely arbitrate concurrent triggers without revisiting the
+  locking model.
+- The predecessor must be a registered phase in the same mode. The
+  validator rejects unknown targets and self-references with explicit
+  error messages.
+- The auto-start hook fires *after* `s.lock.Release(...)` in
+  `round_refresher.go` (P4). Firing before lock release would deadlock
+  against `LockPolicy.InitiativeExclusive`.
+- The wire shape is `auto_start_after: []string` on both
+  `WorkspacePhase` and `ModeCatalogPhase`. The UI surfaces use this to
+  render an "auto-starts after X" badge instead of an operator-action
+  button.
+
+### Concurrency Lane Boundary
+
+The four canonical concurrency lanes — `investigate`, `execute`, `review`,
+`reconcile` — are the single axis through which Swarm Manager governs
+agent-spawn parallelism. Lane names mirror `operatingmode.PhaseKind`
+values (the runtime projection of phase classification) and live as the
+`agentactivity.Lane` type so callers don't import the operatingmode
+package for capacity bookkeeping.
+
+**Rules:**
+
+- `agentactivity.LaneOf(purpose, phaseKind)` is the **only** place the
+  `(purpose, phaseKind) → lane` mapping is computed. No call site
+  re-derives the lane from a Purpose, a phase name, or a status. New
+  callers consume the function; new lane assignments edit the
+  `purposeLane` map in `agentactivity/lanes.go` once.
+- PhaseKind takes precedence over the per-Purpose default when both are
+  set. The fallback (PhaseKind=="" → purpose default) exists so legacy
+  spawn paths and tests continue to work; production call sites set
+  PhaseKind explicitly so wire-shape consumers (Operations Center,
+  GovernanceStatus.Lanes) see lane intent without inference.
+- Every Purpose constant declared in `agentactivity/types.go` MUST have
+  an entry in `purposeLane` (the `init()` panic enforces this at first
+  package load). Missing assignments are a compile-time-equivalent
+  hard error, not a silent default.
+- `isKnownPurpose(p)` delegates to `purposeLane`'s membership. Adding a
+  Purpose constant without a lane makes it un-spawnable for owner types
+  that gate on registration (Backlog / Capture / Scenario), which is
+  the desired fail-loud behavior.
+- Settings expose lane caps via `Settings.LaneConcurrencyLimits`
+  (`map[string]int` keyed by lane name) — replacing the pre-P2 single
+  `MaxConcurrentExecutions` cap. `normalize` fills any missing canonical
+  key from `defaultLaneConcurrencyLimits` (investigate=6, execute=3,
+  review=8, reconcile=2) and drops unknown keys.
+- The agentactivity service consults `LanePolicy.LimitFor(lane)` before
+  every tracked spawn; saturation returns `ErrLaneSaturated`. Backlog
+  process callers translate that into a pending-state enqueue
+  (`execution.QueueBacklog` preserves the pre-P2 at-capacity behavior);
+  ad-hoc spawn paths (workshop / clarify / finalize / classify /
+  operating-mode phase) surface the error so the caller decides.
+- `execution.GovernanceStatusResponse.Lanes []LaneStatus` is the
+  per-lane utilization view (active / capacity / queue) — Execute lane
+  reads queue from execution.Records, all four lanes read active counts
+  from `agentactivity.Service.LaneActiveCounts()` (the
+  `execution.ActivityLaneReader` seam). The legacy
+  `MaxConcurrent`-shaped fields are gone.
+
+### Proposal Apply Boundary
+
+`api/internal/proposals/apply.go` is the canonical recipe for turning an
+agent-supplied proposal into applied mutations. Every surface that wants to
+apply a proposal — feedback rounds, operating-mode reconciliation, future
+agent-driven mutation surfaces — calls `proposals.ApplyFlow` rather than
+re-implementing the `state → Normalize → Apply` pipeline.
+
+- **Single recipe rule**: `ApplyFlow(ctx, proposal, stateBuilder, acceptedIDs, source)` is the only supported way to drive Apply for fresh agent input. It builds `CurrentState` via the supplied `StateBuilder`, runs `Normalize` against that state, and calls `Applier.Apply` with the normalized result. Inline `state → Normalize → Apply` triplets at call sites are a regression of this seam.
+- **StateBuilder seam**: `proposals.StateBuilder` is `func(initiativeName string) (CurrentState, error)`. Each surface owns its own state-loading closure (e.g., `feedback.Service.StateBuilder`, the route-wired `newFeedbackStateBuilder`); the proposals package never imports the graph projection or initiative store directly.
+- **Source-on-Apply rule**: Attribution metadata (`Mode`, `Phase`, `RoundNumber`, `RoundSlug`, `RunID`, `Entrypoint`, `DecidedBy`, `DecidedAtRFC3339`) flows through `proposals.Source`. Each call site populates the fields that apply to its surface; the helper does not synthesize them. This keeps the event-log and per-mutation outcome attribution independent of the apply path.
+- **Validate-only carve-out**: The proposals-validation surfaces (e.g., `feedback.validateExtractedProposal`) call `Normalize` directly without `Apply`. Those paths are explicit one-shots that surface validation errors back to the agent and are out of scope for ApplyFlow.
+- **Outcome-self-describes rule**: Per-mutation `Outcome` carries `MutationID`, `Op`, `Target`, `Applied`, `Skipped`, and `Error`. Wire shapes that lift `ApplyResult` (e.g., `operatingmode.ProposalApplyResult`) tally created/updated counts off `outcome.Op` directly — they do not require the normalized proposal as a second input.
+
+**Testing at the seam**: `proposals/apply_test.go:TestApplyFlow_*` covers the happy path, nil/empty preconditions, state-build failure (with the `build proposal state:` prefix), normalize failure (with the `normalize proposal:` prefix), Apply-level rejection passthrough, and `acceptedIDs` propagation. New surfaces that adopt ApplyFlow do not need to re-test the recipe; they test only the surface-specific Source population and post-Apply integration.
 
 ### Backlog Import Boundary
 
@@ -1826,3 +1945,65 @@ Background indexing, graph invalidation, and reindex jobs intentionally run thro
 |----------|----------|----------|------|
 | Eventual async assertion | `api/internal/testutil/assertx.Eventually` and `api/internal/testutil.Eventually` | Polls positive asynchronous conditions with a useful timeout reason. This is the default test seam for background work that should eventually happen. | `aisearch`, `graph`, and root initiative feedback/review integration tests |
 | Absence over time | Local tests with explicit comments | Negative asynchronous assertions may keep a short fixed sleep only when the test is specifically validating that no background work appears during a small real-time window. | `initiative_review_trigger_test.go`, `graph/materialize_test.go`, `aisearch/integration_test.go` |
+
+### Reconcile Phase Contract (added 2026-05-02)
+
+Every initiative-scoped operating mode declares exactly one `Kind: PhaseKindReconcile` phase that auto-fires after the iteration's terminal review. The reconcile phase reads round artifacts and emits a `BacklogSyncPlan` proposal aligning the backlog with the work the round actually completed. The contract has four parts; each is its own sub-seam so the failure modes stay localized.
+
+**Definition shape** ([CODE: api/internal/operatingmode/registry.go]). `PhaseDefinition.Kind == PhaseKindReconcile`, `AutoStartAfter == []Phase{predecessor}` (length ≤ 1 by validator), `OutputContract.RequiresBacklogSync == true`. The validator rejects modes that omit any of these. New modes get the contract from `buildInitiativeMode` defaults plus an explicit reconcile phase entry.
+
+**Apply mode policy** ([CODE: api/internal/operatingmode/registry.go], [CODE: api/internal/operatingmode/backlog_reconciler.go]). `BacklogSyncPolicy.ApplyMode` is required for initiative-scoped modes. The validator accepts any of `operator-gated | auto-apply-safe | auto-apply-all` at registration time, but `ApplyBacklogSync` returns the typed sentinel `ErrApplyModeNotImplemented` (HTTP 501, code `apply_mode_not_implemented`) for any value other than `operator-gated` in v1. The fail-closed runtime is intentional: the enum lands so future plans can wire auto-apply paths without a registry refactor, and unimplemented paths must surface loudly rather than silently mutate the backlog.
+
+**Shared proposal-format snippet** ([CODE: api/internal/operatingmode/promptcatalog/snippets.go]). The proposal envelope contract (form, ops table, rationale rules) lives in a single Go-side string constant exposed as `BacklogSyncProposalSnippet()`. Both reconcile prompts and the initiative-feedback prompt substitute it under the `BACKLOG_SYNC_PROPOSAL_SNIPPET` template variable. A reverse-coupling test in `proposals/snippet_coverage_test.go` fails until every op in `proposals.AllOps()` appears in the snippet — adding a new op forces the snippet update before the new op can land.
+
+**Auto-dispatch hook** ([CODE: api/internal/operatingmode/round_refresher.go]). `maybeAutoStartNext` runs after the predecessor lock is released and only on `RoundStatusCompleted`. Failed and cancelled runs skip auto-dispatch (nothing reliable to reconcile against). On `agentactivity.ErrLaneSaturated`, the predecessor round records a `pending_auto_start` payload entry; subsequent `RefreshRound` calls retry the dispatch until lane capacity recovers. There is no per-mode retry logic — the refresher is the single seam.
+
+**Testing at the seam**: `operatingmode/auto_start_test.go` covers happy-path dispatch, failure/cancel skip, lane-saturation defer, and retry on next refresh; `operatingmode/reconcile_test.go` covers contract-shape regression (`RequiresBacklogSync`, `ApplyMode = operator-gated`, snippet renders identically across both modes); `proposals/snippet_coverage_test.go` covers the op-coverage reverse coupling; `operatingmode/backlog_reconciler.go` rejection is covered by `TestApplyBacklogSync_RejectsNonOperatorGated`. New initiative-scoped modes do not need to re-test the recipe; they test only that their reconcile phase declares the right shape and that their reconcile prompt skill substitutes the shared snippet.
+
+### Operations Aggregate (added 2026-05-02)
+
+The Operations Center page (UI), `/api/v1/operations` (HTTP), and any future fan-in surface that needs a bird's-eye view of agentic work all read through one seam: `operations.Aggregator` ([CODE: api/internal/operations/aggregator.go]). The aggregator joins three readers — the agentactivity ledger, the operating-mode round projection, and the governance lane caps — and returns a fully-materialized `OperationsView`. Callers do not reach past it to recompute pieces of the view from the underlying packages.
+
+**Time-bounded query**. `Aggregate` accepts a `Filters.Window` clamped to `[MinWindow=1m, MaxWindow=24h]` (default `DefaultWindow=3h`) and pushes `ActiveOrFinishedSince=now-window` into the activity store via `agentactivity.ListFilters` ([CODE: api/internal/agentactivity/types.go], [CODE: api/internal/agentactivity/polling.go]). The store applies the time bound during its single load pass — no in-handler post-filter, no N+1. A record passes the bound when it is currently active OR its `FinishedAt` is at-or-after the cutoff; malformed timestamps fail open so display races do not silently lose rows.
+
+**Live lane utilization**. `LaneStatus.Active` is computed from the bounded record set via `agentactivity.LaneActiveCounts` — the same canonical `LaneOf(purpose, phaseKind)` derivation governance uses, so the operations bars and `GovernanceStatusResponse.Lanes` agree without an extra round-trip. Capacity and per-lane queue come from `execution.Service.GovernanceStatus()`. The live path is intentionally distinct from the historical-trend path in `stats/engine.go:modePhaseRunsByLane`: live counts power the header bars, historical counters power the metrics endpoint.
+
+**Round join**. Operating-mode round metadata (mode, phase, round number, initiative name) is joined onto `ActivityRow` by `RunID`, the only stable cross-reference between agentactivity records and `ActiveRoundSummary`. Activities with no matching round (workshop / clarify / finalize / standalone item-level executions) keep `Mode/Phase/Round` empty; the seam never invents data. When the aggregator is constructed without a `RoundProjection` (test wiring), the join becomes a no-op rather than an error.
+
+**Filter contract**. The aggregator applies `Statuses`, `Lanes`, `Modes`, `OwnerTypes`, and `Q` (case-insensitive substring search over `OwnerTitle | OwnerName | RunID`) in a single pass over the bounded record set. `Lane` filters are pre-validated against the canonical four-lane vocabulary at the handler boundary — invalid lanes return 400, never silently empty results. ISO-8601 duration parsing for the `window` query param is restricted to `PT`-prefixed time-only forms (`PT3H`, `PT1H30M`, `PT45M`, `PT90S`) so typos surface as 400s rather than disguised defaults.
+
+**Testing at the seam**: `operations/aggregator_test.go` covers window pushdown, lane math, queue counting, recently-finished partitioning, round join (matched + orphan), filter composition (`lane`, `status+q`), max-window clamping, runtime computation for active vs finished records, error propagation, and required-config validation. `operations/handler_test.go` covers default/custom/clamped windows, malformed-window rejection, lane-list filters in both `lane=` and `lane[]=` forms, status filter, q search, and the full ISO-8601 grammar. There is no separate stats-engine test; the stats path is `lane_utilization_by_kind` (already covered in P2) and is intentionally not the source of truth for the live operations view.
+
+### Operations Center UI (added 2026-05-02)
+
+The `/operations` route ([CODE: ui/src/pages/OperationsCenterPage.tsx]) is the only UI consumer of the Operations Aggregate seam in v1; future fan-in surfaces (e.g. a sidebar trigger badge in P8) reach the same data through the same store. The page composes three layout pieces (`OpsHeader`, `OpsFilterBar`, `OpsBody`) over one Zustand store ([CODE: ui/src/stores/operations-store.ts]) that owns the latest `OperationsView`, the active filters, the view-mode toggle, and a selection set reserved for P7b's bulk actions.
+
+**Single fetch boundary**. Every UI call that reads operations data goes through `operationsService.fetchOperations(filters)` ([CODE: ui/src/services/operations-service.ts]); the service is the only place that knows about `GET /api/v1/operations`, the snake_case wire shape, the ISO-8601 PT-duration encoding for `window`, and the repeated-key form (`lane=execute&lane=review`) used for array filters. The page never builds query strings or normalizes responses directly — keeping wire concerns inside the service is what lets the rest of the page treat `OperationsView` as a plain camelCase domain type.
+
+**Polling cadence**. `useOperationsPolling` ([CODE: ui/src/hooks/useOperationsPolling.ts]) drives a 4-second tick (the same cadence the agent-session list uses) and forces an immediate refresh whenever the store's `filters` reference changes. The hook is enabled by default while the page is mounted; the explicit `enabled` flag exists for future surfaces (e.g. trigger button) that mount the store without wanting to poll.
+
+**Filters ↔ URL contract**. The page mirrors store state onto query string keys `status`, `lane`, `owner_type`, `q`, `window_seconds`, and `view`. Read direction validates against canonical vocabularies (status, lane, owner-type, allowed window seconds) before assigning to the store, so an arbitrary URL never produces a malformed fetch. Write direction omits keys that match defaults so `/operations` and `/operations?` stay clean for the empty-filter case.
+
+**Testing at the seam**: `operations-service.test.ts` pins the wire-shape normalization plus query-string composition. `operations-store.test.ts` pins refresh state transitions, filter merging, selection toggles. `OperationsCenterPage.test.tsx` pins the URL ↔ store contract (URL→store on mount, store→URL on filter change, invalid URL values ignored, reset clears query). Component-level coverage (`OpsHeader`, `OpsFilterBar`, `LaneBar`, `views/ByInitiativeView`) asserts the visible vocabulary so future component changes do not silently drift from the seam.
+
+### Operations Center by-phase view (added 2026-05-02, P7a)
+
+The `/operations?view=by-phase` board ([CODE: ui/src/components/operations/views/ByPhaseView.tsx]) groups active activities into the four canonical lanes — Investigate / Execute / Review / Reconcile — and is the second body view exposed by `OpsBody` ([CODE: ui/src/components/operations/OpsBody.tsx]). The view-mode toggle round-trips through the operations-store and the `view=` URL key; both surfaces validate against `OPERATIONS_VIEW_MODES` so an arbitrary value collapses to the default.
+
+**Lane is the column-derivation key, period.** `ByPhaseView` reads `ActivityRow.lane` and matches it against `OPERATIONS_LANES`; activities whose `lane` is missing or non-canonical are dropped silently. The aggregator ([CODE: api/internal/operations/aggregator.go]) is responsible for setting `lane` whenever it can be derived from `(purpose, phase_kind)`; queue rows whose phase-kind is undecided are the only rows that legitimately surface without a lane and are visible in the by-initiative view instead.
+
+**Display invariant**: a row inside a lane column never re-renders the lane chip — `ActivityRow` accepts `showLane={false}` and the column header conveys the lane. This keeps the column visually compact and prevents the redundant chip + header pair.
+
+**Testing at the seam**: `views/ByPhaseView.test.tsx` pins canonical-lane order, per-lane row placement, lane-count headers, the empty-column placeholder, the silent-drop rule for missing / non-canonical lanes, and the lane-chip suppression invariant. `OpsBody.test.tsx` pins the toggle's gate (`enableByPhaseView`), aria state, and the disabled-fallback path. `OperationsCenterPage.test.tsx` extends to cover the URL ↔ view-mode round trip (toggle adds `view=by-phase`, URL hydrates the store on mount, toggling back clears the key).
+
+### Operations Center trigger button (added 2026-05-02, P8)
+
+`OpsTriggerButton` ([CODE: ui/src/components/operations/OpsTriggerButton.tsx]) is the single, always-visible entry point to `/operations`. It replaces the conditional `<AgentsDropdown>` popover at both call sites — the sidebar header ([CODE: ui/src/surfaces/graph/components/sidebar/SidebarHeader.tsx]) and the graph HUD ([CODE: ui/src/surfaces/graph/components/GraphWorkspaceHUD.tsx]). Two visual variants (`compact` for the sidebar pill, `hud` for the bordered HUD button) share the same `data-testid` (`selectors.layout.opsTriggerButton`) so workflow tooling can locate the trigger regardless of layout context.
+
+**Count source is the operations-store, not the legacy agent-activities-store.** The trigger reads `selectActiveCount` from `useOperationsStore` ([CODE: ui/src/stores/operations-store.ts]) and renders "N agents" with plural-correct labelling. AppShell ([CODE: ui/src/app/shell/AppShell.tsx]) mounts a global 8s poll for `useOperationsStore.refresh` so the count stays fresh wherever the trigger renders; the Operations Center page itself layers a faster 4s poll on top, and the store's internal serialization makes the dual-poll a no-op while the page is open. The trigger button never drives its own polling.
+
+**Always-shown contract.** The trigger renders even when no agents are active — the label reads "0 agents" rather than collapsing. Hiding the trigger on idle defeats its purpose as the canonical "where do I go to see what's running?" surface. The HUD variant additionally takes a `className` so the consumer can apply the legacy "show on mobile, hide on desktop when sidebar is open" responsive rule via Tailwind utilities (`md:hidden`); the compact variant has no equivalent because the sidebar header is always visible while the sidebar is open.
+
+**Greenfield cut.** `AgentsDropdown.tsx` is no longer imported anywhere in the UI tree (`rg "from .*AgentsDropdown"` returns 0 hits) but the file remains on disk until P7b. The `useAgentActivitiesStore` reference was dropped from `SidebarHeader` and `GraphWorkspace` since they fed only the dropdown; the store remains, used by backlog detail surfaces and the Command Post item-actions hook. `Sidebar` and `AppShell` no longer thread `onViewActivity` / `onViewBacklog` through to the header — those navigation handlers existed only to feed the dropdown's "View Activity" / "View Backlog" buttons, which now live on the Operations Center page itself.
+
+**Testing at the seam**: `components/operations/OpsTriggerButton.test.tsx` pins the always-shown rule, plural-correct labelling, idle/active styling, link target, both variants under the same selector, and live store reactivity. `surfaces/graph/components/sidebar/SidebarHeader.test.tsx` and `surfaces/graph/components/GraphWorkspaceHUD.test.tsx` pin that the trigger replaces the legacy dropdown in each layout context and assert the responsive-visibility rule on the HUD variant.

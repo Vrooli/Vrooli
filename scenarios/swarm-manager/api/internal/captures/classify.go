@@ -133,6 +133,7 @@ func (h *Handler) spawnClassifyAgent(r *http.Request, cap *capture) (*agentmanag
 		OwnerName:   cap.ID,
 		OwnerTitle:  truncate(cap.Text, 120),
 		Purpose:     agentactivity.PurposeClassify,
+		PhaseKind:   string(agentactivity.LaneInvestigate),
 		RequestedBy: "swarm-manager",
 		Metadata: map[string]string{
 			"entrypoint": "captures.classify",

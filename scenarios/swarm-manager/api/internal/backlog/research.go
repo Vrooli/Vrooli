@@ -108,6 +108,20 @@ func researchPurpose(mode ResearchMode) agentactivity.Purpose {
 	}
 }
 
+// researchLane maps research mode to the lane name (string of
+// agentactivity.Lane) used for spawn bookkeeping. Workshop / initialize
+// are investigate-shaped (exploring the problem); finalize is review-
+// shaped (committing to a deliverable). Kept in sync with researchPurpose
+// so PhaseKind matches Purpose intent at the call site.
+func researchLane(mode ResearchMode) string {
+	switch mode {
+	case ResearchModeFinalize:
+		return string(agentactivity.LaneReview)
+	default:
+		return string(agentactivity.LaneInvestigate)
+	}
+}
+
 // fetchResearchPrompt loads a research prompt from prompt-manager.
 func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (promptSelection, error) {
 	entry, ok := promptcatalog.ResolveBacklogSkill(string(mode), string(item.Kind))
@@ -449,6 +463,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		OwnerName:   item.Name,
 		OwnerTitle:  item.Title,
 		Purpose:     researchPurpose(mode),
+		PhaseKind:   researchLane(mode),
 		RequestedBy: "swarm-manager",
 		Metadata: map[string]string{
 			"entrypoint": "backlog.research",
