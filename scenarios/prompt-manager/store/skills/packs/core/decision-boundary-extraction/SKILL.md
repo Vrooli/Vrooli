@@ -7,6 +7,7 @@ A “decision” is any place where the system **chooses between alternatives** 
 Do **not** break functionality, regress tests, or change business rules except to fix clearly incorrect behavior. All changes must maintain or improve completeness and reliability.
 
 Required reading:
+- `docs/scenario-qa/audit-techniques/decision-boundary-extraction.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
 - `prompt-manager skills read knowledge-observatory-tools`
 
 * * *

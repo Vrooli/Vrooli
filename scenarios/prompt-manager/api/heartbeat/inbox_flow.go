@@ -13,9 +13,10 @@ package heartbeat
 import (
 	"fmt"
 	"path/filepath"
-	"prompt-manager/memberflow"
 	"sort"
 	"strings"
+
+	"prompt-manager/memberflow"
 )
 
 // inboxFlowInputs is the deterministic input bundle for RenderInboxFlow.
@@ -106,7 +107,11 @@ func renderInboxBlock(b *strings.Builder, in *inboxFlowInputs, intake memberflow
 		b.WriteString("| Classifier | _none_ — the topic prefix is taken as the deterministic signal-type |\n")
 	}
 	if intake.SourceTeam != nil && strings.TrimSpace(*intake.SourceTeam) != "" {
-		b.WriteString(fmt.Sprintf("| Source team | `%s` |\n", *intake.SourceTeam))
+		if *intake.SourceTeam == memberflow.SourceTeamWildcard {
+			b.WriteString("| Source team | `*` (universal — any team's members may write) |\n")
+		} else {
+			b.WriteString(fmt.Sprintf("| Source team | `%s` |\n", *intake.SourceTeam))
+		}
 	}
 
 	b.WriteString("\nView unrouted entries:\n")

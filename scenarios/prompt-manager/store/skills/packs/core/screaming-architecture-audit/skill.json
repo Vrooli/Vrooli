@@ -10,7 +10,8 @@
     "audits"
   ],
   "tags": [
-    "skill"
+    "skill",
+    "audit-technique"
   ],
   "icon": "building2",
   "status": "active",

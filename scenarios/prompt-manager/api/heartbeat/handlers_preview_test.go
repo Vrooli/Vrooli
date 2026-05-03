@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"prompt-manager/store"
 	"strings"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 func TestPreviewPromptHandler(t *testing.T) {

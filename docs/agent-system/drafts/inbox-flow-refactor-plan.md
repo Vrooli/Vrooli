@@ -1,6 +1,8 @@
 # Inbox-Flow Refactor: Plan of Action
 
-Status: draft. Authored 2026-05-03. Will move out of `drafts/` once execution begins.
+Status: historical draft (executed). Authored 2026-05-03. Captured here as the contemporaneous plan; canon for the resulting architecture lives at `docs/agent-system/INTAKE_PIPELINE.md`, `TOPICS.md`, and `TOPICS_SCHEMA.md`.
+
+> **Naming drift note (2026-05-03 post-refactor pass).** This document references `validation-queue/*` throughout. After landing, that prefix was renamed to `validation-inbox/*` to standardize external/cross-team intake naming. Treat any `validation-queue/*` mention here as the historical name; the live name is `validation-inbox/*`. See `TOPICS.md` § Known inconsistencies #1 for the resolution.
 
 ## 1. Required Reading
 
@@ -27,7 +29,7 @@ Three members today drain topic-prefix inboxes via dedicated "router" skills:
 |---|---|---|
 | `marketing-crew/researcher` | `research-inbox/*` | `marketing-research-router` |
 | `monetization/opportunity-scout` | `opportunity-inbox/*` | `monetization-opportunity-router` |
-| `monetization/market-validator` | `validation-queue/*`, `monetization-benchmark-adjacent/*` | `market-validation-router` |
+| `monetization/market-validator` | `validation-queue/*`, `monetization-benchmark-adjacent/*` | `market-validation-router` | <!-- validation-queue/* was renamed to validation-inbox/* on 2026-05-03 (post-refactor naming pass) -->
 
 Each router skill conflates six concerns: (1) draining mechanics, (2) action-selection skeleton, (3) domain signal taxonomy, (4) domain thresholds and quality rules, (5) destination data schemas, (6) signal-type → method dispatch. Concerns (1) and (2) are universal procedure; (3)–(6) are domain doctrine. Mashing them inside a "skill" is the steer-skill equivalent of hardcoding a scenario path — it kills portability and makes adoption expensive (~70% of each router skill is structural restatement that would generate from `topics.json`).
 

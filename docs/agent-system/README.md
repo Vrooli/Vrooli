@@ -10,6 +10,8 @@ This is the live plan-of-record for the prompt-manager agent system. The Phase 1
 
 The topic-flow data layer is implemented as per-member `topics.json` files and surfaced through `prompt-manager graph topics`. The schema canon lives at `TOPICS_SCHEMA.md` (promoted from drafts during the inbox-flow refactor); the human registry of every topic in active use lives at `TOPICS.md`. The inbox-flow refactor split per-member router skills into portable classifier skills + per-domain taxonomies; see `INTAKE_PIPELINE.md` and the [Active taxonomies](#active-taxonomies) registry below.
 
+Four teams now own a full plan-of-record at `docs/<domain>/`: `marketing-crew`, `monetization`, `meta-optimization` (this folder), and `scenario-qa`. Each PoR follows the same paired-doc-and-skill discipline for its technique registries (e.g., marketing's `post-techniques/`, scenario-qa's `investigation-techniques/` and `audit-techniques/`). Scenario-qa is also the agent system's **bug-triage hub** — the `bug-investigator` member drains `bug-inbox/*`, the only universal-source (`source_team: "*"`) intake in the system, fed by every team's members through the `report-bug` writer skill (see `TOPICS_SCHEMA.md` § Universal-source intakes).
+
 ## Mental Model
 
 The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; accepted decisions either land directly or route through swarm-manager for execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
@@ -110,6 +112,7 @@ A taxonomy is the per-domain signal vocabulary, dispatch table, evidence rules, 
 | `monetization-opportunity` | `monetization` | `docs/monetization/opportunity-taxonomy.json` | `docs/monetization/OPPORTUNITY_TAXONOMY.md` | `monetization/opportunity-scout` |
 | `monetization-validation` | `monetization` | `docs/monetization/validation-taxonomy.json` | `docs/monetization/VALIDATION_TAXONOMY.md` | `monetization/market-validator` |
 | `notebook-debt` | `meta-optimization` | `docs/agent-system/notebook-debt-taxonomy.json` | `docs/agent-system/NOTEBOOK_DEBT_TAXONOMY.md` | `marketing-crew/brand-manager`, `meta-optimization/debt-curator` |
+| `bug-report` | `scenario-qa` | `docs/scenario-qa/bug-report-taxonomy.json` | `docs/scenario-qa/BUG_REPORT_TAXONOMY.md` | `scenario-qa/bug-investigator` (universal-source intake — any team's members may write via the `report-bug` skill) |
 
 Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy: drop a `*-taxonomy.json` (or `signal-taxonomy.json` / `opportunity-taxonomy.json` / `validation-taxonomy.json`) under `docs/<domain>/` with a unique `id` field — the loader at `scenarios/prompt-manager/api/memberflow/taxonomy.go` walks `docs/` and indexes by id. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
 

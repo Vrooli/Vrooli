@@ -2,8 +2,9 @@ package heartbeat
 
 import (
 	"fmt"
-	"prompt-manager/teamconfig"
 	"testing"
+
+	"prompt-manager/teamconfig"
 )
 
 func TestDefaultProfileKeyForRuntimeMode(t *testing.T) {

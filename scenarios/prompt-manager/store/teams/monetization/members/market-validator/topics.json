@@ -1,7 +1,7 @@
 {
   "intake": [
     {
-      "prefix": "validation-queue/*",
+      "prefix": "validation-inbox/*",
       "taxonomy": "monetization-validation",
       "classifier_skill": "market-validation-triage",
       "source_team": null

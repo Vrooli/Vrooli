@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "bug-investigator",
+  "displayName": "Bug Investigator",
+  "description": "Drains scenario-qa's bug-inbox/* (universal-source intake — any team's members may write via the report-bug skill). Applies a registered investigation technique from docs/scenario-qa/investigation-techniques/, identifies root cause, takes the smallest useful action (drop, observe, file-backlog, file-decision, route-to-another-topic, capability-gap), and writes a bug-investigation/<slug> audit-log entry on close. Calm, methodical, no speculation; honest when investigation is blocked.",
+  "status": "active",
+  "appearance": {
+    "body": "#1E40AF",
+    "head": "#3B82F6",
+    "accent": "#93C5FD"
+  },
+  "tags": [
+    "quality",
+    "investigation",
+    "debugging",
+    "bug-triage"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-05-03T00:00:00Z"
+}

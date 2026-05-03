@@ -83,11 +83,17 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
 | **Decision-prep / synthesis** | `<purpose>/<slug>` | `vision-walk-prep/foo`, `workshop-decision-prep/bar`, `initiative-portfolio/baz`, `outcome-targets/qux` | durable; consumed by another member's intake or by the operator |
 | **Local audit log** | `<purpose>/<slug>` | `publish-log/foo`, `qa-run/bar`, `run-lessons/baz`, `debt-scan/qux`, `monetization-ledger/quux` | durable; usually not drained, just queryable |
 
+### Notebook vs typed inbox
+
+Both are kinds of intake but serve different roles. A typed inbox (`*-inbox/*`) is for observations whose destination is *known* — the producer assigns a hint signal-type, the drainer classifies and routes promptly, and the inbox view is the unrouted set (entries must leave). A notebook (`<team>/notebook/*`) is for observations whose destination is *not yet known* — the producer just drops the entry, the curator decides later, and entries may persist as `still-debt` indefinitely. The notebook is therefore the residual surface for the catch-all case; as concrete observation types graduate to their own typed inboxes, the notebook narrows to ever-more-residual content.
+
+The producer-side rule that follows from this: if you discover something with a clear typed destination, write to that inbox directly. Use the notebook only when no typed inbox fits. The curator's job includes spotting recurring notebook signal-types and proposing graduation to a typed inbox via `meta-self-improvement` decision.
+
 ### Known inconsistencies
 
 These are real today; they should be reconciled via meta-optimization decisions before the registry below is treated as steady-state.
 
-1. **Inbox-naming drift.** Three conventions in use: `*-inbox/*` (research-inbox, opportunity-inbox), `*-queue/*` (validation-queue), `<team>/notebook/*` (marketing-crew/notebook, meta-optimization/notebook). The first two are functionally identical (transient external intake); the third is genuinely different (team-scoped curation surface). **Recommendation:** standardize external/cross-team intake on `*-inbox/*`, rename `validation-queue/*` → `validation-inbox/*`. Notebook stays as-is.
+1. ~~**Inbox-naming drift.**~~ **Resolved 2026-05-03.** Standardized on `*-inbox/*` for external/cross-team intake; `validation-queue/*` was renamed to `validation-inbox/*`. `<team>/notebook/*` stays as-is — it's a team-scoped curation surface (notebook-debt taxonomy), not a producer→consumer intake, so the different shape is intentional.
 2. **Audit vs. scan suffix.** `*-audit/*` (action-audit, agent-audit, platform-code-audit, quality-audit, skill-audit, team-audit) and `*-scan/*` (audience-scan, debt-scan, toolchain-scan) interleave with no principled distinction. **Recommendation:** pick one rule — `audit` for adversarial/compliance-shaped findings, `scan` for survey-shaped observations — and migrate the misaligned ones via decision.
 3. **`challenge-note/*` is shared by five contrarians (one per team) but is purely team-local.** Every team's contrarian writes `challenge-note/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. The shared name is fine (it's a *kind* of topic, not a shared surface), but it has no documented consumer. **Recommendation:** either add a drainer (e.g., `meta-contrarian` consumes peer-team `challenge-note/*` cross-team) or document explicitly that `challenge-note/*` is operator-read-only and should be flagged as `orphan_output: warning, by-design`.
 4. **Domain-prefix vs team-prefix on canon surfaces.** `audience-scan/*`, `competitor/*`, `hook/*` are domain-prefixed; `marketing-canon/*`, `monetization-canon/*` are team-prefixed. Likely correct (different `destination_kind`: `knowledge` vs `por_file`) but the rule should be documented explicitly: knowledge-canon uses domain-prefix, PoR-write topics use team-prefix. **Recommendation:** add the rule to § Stable conventions once confirmed.
@@ -106,7 +112,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `outcome-strategist` | _(none — proactive; reads decisions)_ | `outcome-targets/*` | — |
 | `portfolio-manager` | _(none — proactive; reads decisions)_ | `initiative-portfolio/*` | — |
-| `vision-walk-prep` | _(none — proactive; reads decisions)_ | `vision-walk-prep/*`, plus produces into other teams' inboxes (see below) | writes `research-inbox/*` → marketing-crew, `opportunity-inbox/*` → monetization, `validation-queue/*` → monetization |
+| `vision-walk-prep` | _(none — proactive; reads decisions)_ | `vision-walk-prep/*`, plus produces into other teams' inboxes (see below) | writes `research-inbox/*` → marketing-crew, `opportunity-inbox/*` → monetization, `validation-inbox/*` → monetization |
 | `workshop-decision-prep` | _(none — proactive; reads decisions)_ | `workshop-decision-prep/*` | — |
 
 **Observations (draft):**
@@ -173,29 +179,33 @@ Per team: the topics that team currently produces and drains, with first-princip
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
 | `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: monetization-signal-classifier) | `candidate-sku/*` | — |
-| `market-validator` | `validation-queue/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent/*` (cross-team from marketing) | `monetization-benchmark/*` | reads `monetization-benchmark-adjacent/*` ← marketing-crew |
+| `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent/*` (cross-team from marketing) | `monetization-benchmark/*` | reads `monetization-benchmark-adjacent/*` ← marketing-crew |
 | `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `docs/monetization/CATALOG.md`) | — |
 | `financial-tracker` | _(none — proactive)_ | `monetization-ledger/*` | — |
 | `contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
 
 **Observations (draft):**
-- `validation-queue/*` should be renamed `validation-inbox/*` per § Known inconsistencies #1.
 - `candidate-sku/*` and `monetization-benchmark/*` have no documented consumer. `catalog-strategist` likely *should* consume `candidate-sku/*` (it owns catalog promotion); declare it as `intake[].source_team = "monetization"` (same-team) once confirmed. Workshop.
 - `financial-tracker` produces a ledger-shaped log (`monetization-ledger/*`). No drainer; consumed by operator and by decision-flow. Same pattern as `run-lessons/*` (see meta-optimization observations).
 
 ### scenario-qa
 
-**Mission:** ensure scenario quality through code auditing, test coverage analysis, documentation verification, structural review.
+**Mission:** ensure scenario quality through deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes.
+
+**Plan of record:** [`docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`), `BUG_REPORT_TAXONOMY.md`. Owner-curated like every other team PoR.
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `programmatic-qa-runner` | _(none — proactive)_ | `qa-run/*` | — |
-| `quality-auditor` | _(none — proactive)_ | `quality-audit/*` | — |
+| `programmatic-qa-runner` | _(none — proactive)_ | `qa-run/*`, `reviewed-scenario/*`, `dependency-wiring` | — |
+| `quality-auditor` | _(none — proactive)_ | `quality-audit/*`, `deep-audit/*` | — |
+| `bug-investigator` | `bug-inbox/*` (taxonomy: `bug-report`, source: `*` — universal-source) | `bug-investigation/*` | producers: every team via the `report-bug` writer skill |
+| `qa-contrarian` | _(none — proactive)_ | `challenge-note/*` | — |
 
-**Observations (draft):**
-- Smallest team. Both members are proactive producers; no contrarian.
-- No `qa-inbox/*` for operator-fed "look at this scenario" alpha. **Possible gap:** workshop.
-- No contrarian member. By the pattern other teams follow, scenario-qa should likely have one. Cross-cutting question: is the absence intentional, or a gap? Workshop with `team-agent-optimizer`.
+**Observations:**
+- `bug-inbox/*` is the agent system's only **universal-source intake** today. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
+- `bug-investigation/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
+- `challenge-note/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Known inconsistencies #3). Workshop-pending.
+- **Possible future gap:** `qa-inbox/*` / `audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
 
 ---
 

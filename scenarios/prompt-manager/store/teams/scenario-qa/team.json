@@ -3,8 +3,8 @@
   "schemaVersion": 1,
   "id": "scenario-qa",
   "displayName": "Scenario QA Team",
-  "mission": "Ensure scenario quality through comprehensive code auditing, test coverage analysis, and documentation verification.",
-  "enabled": false,
+  "mission": "Ensure scenario quality through deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
+  "enabled": true,
   "runtime": {
     "mode": "multi-process"
   },
@@ -24,16 +24,16 @@
   },
   "execution": {
     "queuePolicy": "bounded-parallel",
-    "maxConcurrentRuns": 2
+    "maxConcurrentRuns": 4
   },
   "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 2,
+  "revision": 3,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-08T10:25:03Z",
+  "updatedAt": "2026-05-03T00:00:00Z",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -41,7 +41,7 @@
       "teamPendingCeiling": {
         "value": 20,
         "readOnlyWhenAtOrAbove": false,
-        "rationale": "Scenario QA is currently disabled and creates backlog artifacts rather than operator approval decisions."
+        "rationale": "Scenario QA produces backlog artifacts and audit-log entries rather than operator-approval decisions; the ceiling guards against unbounded pending-decision growth on bug-resolution-proposal."
       },
       "supersession": {
         "requiredBeforeNewDecision": true,
@@ -50,7 +50,45 @@
       }
     },
     "documents": {
-      "planOfRecord": [],
+      "planOfRecord": [
+        {
+          "id": "scenario-qa-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/scenario-qa/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/scenario-qa/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/scenario-qa/BUG_REPORT_TAXONOMY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/scenario-qa/investigation-techniques/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/scenario-qa/audit-techniques/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/scenario-qa/readiness-checks/README.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions",
+          "consumers": [
+            "scenario-qa",
+            "swarm-manager",
+            "meta-optimization"
+          ],
+          "rationale": "Strategic canon for scenario-qa: team plan-of-record overview, bug-report taxonomy, and three paired-doc-and-skill technique registries (investigation, audit, readiness).",
+          "useFor": "QA mission, member roster, decision contexts, bug-report schemas, audit-technique applicability, investigation-technique applicability, future technique graduation"
+        }
+      ],
       "notebooks": [],
       "sharedState": [
         {
@@ -103,6 +141,12 @@
           "quality-auditor"
         ],
         "description": "Judgment-based structural audit findings converted into Swarm Manager execute backlog items."
+      },
+      "bug-resolution-proposal": {
+        "ownerMemberIds": [
+          "bug-investigator"
+        ],
+        "description": "Cross-cutting fixes that require operator approval — for example, renaming a CLI verb because three bugs trace to its ambiguous name; refactoring a skill section that recurs as prompt-confusion; canonicalizing a data-shape that has drifted across producers."
       }
     },
     "knowledgeTopics": {
@@ -116,10 +160,38 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
+      "qa-run/<scenario-id>": {
+        "ownerMemberId": "programmatic-qa-runner",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
       "deep-audit/<scenario-id>/<skill-id>": {
         "ownerMemberId": "quality-auditor",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "quality-audit/<scenario-id>/<skill-id>": {
+        "ownerMemberId": "quality-auditor",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "bug-inbox/<signal-type>/<slug>": {
+        "ownerMemberId": "bug-investigator",
+        "supersedesPrevious": false,
+        "retention": "drained-on-close",
+        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-bug skill. The bug-investigator drains."
+      },
+      "bug-investigation/<slug>": {
+        "ownerMemberId": "bug-investigator",
+        "supersedesPrevious": false,
+        "retention": "append-only",
+        "comment": "Audit log of closed bugs; one entry per investigation. Drives technique-graduation decisions on meta-self-improvement."
+      },
+      "challenge-note/<slug>": {
+        "ownerMemberId": "qa-contrarian",
+        "supersedesPrevious": false,
+        "retention": "append-only",
+        "comment": "Cross-cutting challenges to scenario-qa member outputs. Cross-team drain currently workshop-pending."
       }
     },
     "members": {
@@ -171,7 +243,7 @@
         }
       },
       "quality-auditor": {
-        "lane": "Perform deep structural audits using steer skills and create execute backlog items with draft plans when findings are material.",
+        "lane": "Perform deep structural audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
         "ownedDecisionContexts": [
           "deep-audit-backlog"
         ],
@@ -220,6 +292,102 @@
             "cognitive-load-reduction",
             "decision-boundary-extraction",
             "code-cleanup"
+          ]
+        }
+      },
+      "bug-investigator": {
+        "lane": "Drain bug-inbox/* (universal-source — any team may write via the report-bug skill). Apply a registered investigation technique, identify root cause, take the smallest useful action, write a bug-investigation/<slug> audit-log entry on close.",
+        "ownedDecisionContexts": [
+          "bug-resolution-proposal"
+        ],
+        "pendingOwnedDecisionCap": 4,
+        "requiredKnowledgeTopics": [
+          "bug-investigation/<slug>"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "task"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "scenarios/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not modify target scenario code directly; investigation produces evidence, not patches.",
+          "Do not write to bug-inbox/* (the producer side); the investigator only drains. The constraint is enforced by the topics.json output declarations and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level.",
+          "Close every drained entry with a bug-investigation/<slug> audit-log entry — never silently delete a bug-inbox entry."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 1,
+        "taskParameters": {
+          "newInvestigationsPerHeartbeat": 1,
+          "severityOrdered": true,
+          "techniqueRegistryPath": "docs/scenario-qa/investigation-techniques/"
+        }
+      },
+      "qa-contrarian": {
+        "lane": "Read peer scenario-qa member outputs (bug-investigations, audits, readiness backlog) and write challenge-note/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
+        "ownedDecisionContexts": [],
+        "pendingOwnedDecisionCap": 0,
+        "requiredKnowledgeTopics": [
+          "challenge-note/<slug>"
+        ],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "decision"
+          },
+          {
+            "kind": "task"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Every challenge-note must cite a specific failure mode from a registered technique's PoR doc 'What the qa-contrarian watches for' section. Free-form challenges are forbidden.",
+          "Quiet heartbeats are valid; manufactured challenge is forbidden.",
+          "Cap at 3 challenge-notes per heartbeat.",
+          "Only write to challenge-note/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation/, quality-audit/, qa-run/). The constraint is enforced by the topics.json output declaration (output prefix is challenge-note/* only) and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": false,
+          "stillWriteHandoff": true
+        },
+        "newDecisionCapPerHeartbeat": 0,
+        "taskParameters": {
+          "challengeNotesPerHeartbeatCap": 3,
+          "peerOutputsToReview": [
+            "bug-investigation/*",
+            "quality-audit/*",
+            "qa-run/*"
           ]
         }
       }

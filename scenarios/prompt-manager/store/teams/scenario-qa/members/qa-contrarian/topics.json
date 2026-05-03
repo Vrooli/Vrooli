@@ -1,0 +1,15 @@
+{
+  "intake": [],
+  "output": [
+    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+  ],
+  "decisions_owned": [],
+  "decisions_consumed": [
+    "bug-resolution-proposal",
+    "preemptive-qa-backlog",
+    "deep-audit-backlog",
+    "capability-gap"
+  ],
+  "raises_capability_gaps": false,
+  "external_producers": []
+}

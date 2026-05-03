@@ -1,7 +1,7 @@
 # Responsibilities: Market Validator
 
 ## Primary Duties
-- **Sweep market-scan staleness first.** Run `benchmark-staleness-sweep` at the top of every heartbeat. The sweep auto-populates `validation-queue/benchmark-staleness/<slug>` for any scan past its dimension-aware threshold (pricing 90d, retention/activation 180d, channel-cac 120d, other 365d). The sweep itself never re-fetches — it only enqueues.
+- **Sweep market-scan staleness first.** Run `benchmark-staleness-sweep` at the top of every heartbeat. The sweep auto-populates `validation-inbox/benchmark-staleness/<slug>` for any scan past its dimension-aware threshold (pricing 90d, retention/activation 180d, channel-cac 120d, other 365d). The sweep itself never re-fetches — it only enqueues.
 - **Capture pricing comps via `pricing-comp-capture`.** Source priority: company /pricing → ProductHunt → G2 → wayback → founder-post. Required front-matter, honesty flags, and the >15% material-change threshold are encoded in the skill and `docs/monetization/VALIDATION_TAXONOMY.md`.
 - **Validate financial-model assumptions.** When financial-tracker raises an `assumption-check` request, find 2-3 comps, write scans, and raise `financial-model-assumption-update` if the finding contradicts the assumption with applicability=high.
 - **Capture material competitive changes.** When opportunity-scout converts a `competitor-move` signal to a validation request, fetch and document.

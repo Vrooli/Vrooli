@@ -2,8 +2,9 @@ package heartbeat
 
 import (
 	"context"
-	"prompt-manager/store"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 type stubConfigStore struct {

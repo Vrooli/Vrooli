@@ -1,9 +1,10 @@
 package heartbeat
 
 import (
-	"prompt-manager/memberflow"
 	"strings"
 	"testing"
+
+	"prompt-manager/memberflow"
 )
 
 func ptr(s string) *string { return &s }
@@ -98,7 +99,7 @@ func TestRenderInboxFlow_TwoIntakes_CrossTeam(t *testing.T) {
 	in := mkInputs("monetization", "market-validator",
 		memberflow.Topics{
 			Intake: []memberflow.IntakeEntry{
-				{Prefix: "validation-queue/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage"},
+				{Prefix: "validation-inbox/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage"},
 				{Prefix: "monetization-benchmark-adjacent/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage", SourceTeam: ptr("marketing-crew")},
 			},
 			Output: []memberflow.OutputEntry{
@@ -108,7 +109,7 @@ func TestRenderInboxFlow_TwoIntakes_CrossTeam(t *testing.T) {
 		map[string]*memberflow.Taxonomy{"monetization-validation": tx},
 	)
 	out := RenderInboxFlow(in)
-	if !strings.Contains(out, "## Inbox: `validation-queue/*`") {
+	if !strings.Contains(out, "## Inbox: `validation-inbox/*`") {
 		t.Errorf("missing first inbox header:\n%s", out)
 	}
 	if !strings.Contains(out, "## Inbox: `monetization-benchmark-adjacent/*`") {
@@ -171,7 +172,7 @@ func TestPrefixForList(t *testing.T) {
 	if got := prefixForList("research-inbox/*"); got != "research-inbox/" {
 		t.Errorf("got %q", got)
 	}
-	if got := prefixForList("validation-queue/staleness"); got != "validation-queue/staleness" {
+	if got := prefixForList("validation-inbox/staleness"); got != "validation-inbox/staleness" {
 		t.Errorf("got %q", got)
 	}
 }

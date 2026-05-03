@@ -5,7 +5,7 @@ Cross-team-readable canon for how monetization validation requests are partition
 **Owner team:** monetization. **Status:** canon. Operator-curated via monetization decisions.
 
 Cited by:
-- `topics.json` for `monetization/market-validator` (`intake[].taxonomy = "monetization-validation"` — both for `validation-queue/*` and the cross-team `monetization-benchmark-adjacent/*` intake).
+- `topics.json` for `monetization/market-validator` (`intake[].taxonomy = "monetization-validation"` — both for `validation-inbox/*` and the cross-team `monetization-benchmark-adjacent/*` intake).
 - The `market-validation-triage` skill (pure judgment).
 
 ## Editing rules

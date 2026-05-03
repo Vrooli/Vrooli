@@ -1,6 +1,6 @@
 ## Tools focus: Benchmark Staleness Sweep
 
-Periodically sweep the monetization market-scan canon — knowledge entries under `monetization/market-scan/<slug>` — and auto-populate `validation-queue/benchmark-staleness/<slug>` entries for any scan that has aged past its dimension-aware threshold. Complement to `market-validation-triage` (which triages the queue) and `pricing-comp-capture` (which does the actual re-fetch).
+Periodically sweep the monetization market-scan canon — knowledge entries under `monetization/market-scan/<slug>` — and auto-populate `validation-inbox/benchmark-staleness/<slug>` entries for any scan that has aged past its dimension-aware threshold. Complement to `market-validation-triage` (which triages the queue) and `pricing-comp-capture` (which does the actual re-fetch).
 
 > **Status:** v1. The sweep does NOT fetch sources or write decisions; it only marks scans as needing re-fetch by enqueuing them. This keeps the inbox-as-unrouted-set invariant uniform across all entry types.
 
@@ -21,7 +21,7 @@ Do not run this skill during a heartbeat where the validation queue already has 
 ### 2. Required Reading
 
 - all market-scans: `prompt-manager team knowledge-list monetization --topic-prefix=monetization/market-scan/ --json`
-- existing queue: `prompt-manager team knowledge-list monetization --topic-prefix=validation-queue/ --json` (avoid duplicate enqueues)
+- existing queue: `prompt-manager team knowledge-list monetization --topic-prefix=validation-inbox/ --json` (avoid duplicate enqueues)
 - `scenarios/prompt-manager/store/teams/monetization/team.json` — `taskParameters.staleBenchmarkAfterMonths` (current default: 12 months)
 - `last-handoff.md` for the prior sweep date
 
@@ -52,13 +52,13 @@ Override per-entry by adding `refresh_after_days: <n>` to the front-matter; the 
    - `age_days >= 0.8 * threshold` → flag-only (not enqueued, but surfaced in the sweep summary so a human can opt-in to early refresh).
    - otherwise → fresh.
 
-3. **De-duplicate.** Before enqueuing, check `validation-queue/benchmark-staleness/<slug>` for the same scan slug. If a queue entry already exists, skip — the prior sweep enqueued it and triage hasn't gotten to it yet.
+3. **De-duplicate.** Before enqueuing, check `validation-inbox/benchmark-staleness/<slug>` for the same scan slug. If a queue entry already exists, skip — the prior sweep enqueued it and triage hasn't gotten to it yet.
 
 4. **Enqueue stale scans.**
    ```bash
    prompt-manager team knowledge-add monetization \
      --by=benchmark-staleness-sweep \
-     --topic="validation-queue/benchmark-staleness/<scan-slug>" \
+     --topic="validation-inbox/benchmark-staleness/<scan-slug>" \
      --content="$(cat <<EOF
    request_type: benchmark-staleness
    source: benchmark-staleness-sweep
@@ -95,7 +95,7 @@ Add a queue entry (see step 4).
 Check existing queue to avoid dupes:
 
 ```bash
-prompt-manager team knowledge-list monetization --topic-prefix=validation-queue/benchmark-staleness/ --json
+prompt-manager team knowledge-list monetization --topic-prefix=validation-inbox/benchmark-staleness/ --json
 ```
 
 ---

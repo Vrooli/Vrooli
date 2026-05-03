@@ -80,7 +80,7 @@ Top-level keys, all optional (omit when not applicable):
 | `prefix` | string with optional `*` suffix | yes | Topic-prefix matched against `team knowledge-list --topic-prefix=`. |
 | `taxonomy` | string | yes | The id of the taxonomy JSON sidecar (`docs/<domain>/<id>.json`) that owns this prefix's signal vocabulary, dispatch, evidence rules, and destination schemas. The validator's `unknown_taxonomy` rule resolves this against the registry; an empty value fires `missing_taxonomy`. |
 | `classifier_skill` | string | optional | A portable, member-agnostic judgment skill that assigns `signal_type` from the taxonomy. Optional: when the topic-prefix carries a deterministic signal type, no classifier is needed. The `non_portable_classifier` rule scans the named skill for forbidden coupling content. |
-| `source_team` | string or `null` | optional | If the prefix is fed by another team, name the source team. `null` means same-team or external producer. |
+| `source_team` | string or `null` or `"*"` | optional | If the prefix is fed by another team, name the source team. `null` means same-team or external producer. The literal `"*"` declares a **universal-source intake** — any team's members may write. See § Universal-source intakes. |
 
 ### Output entry
 
@@ -159,6 +159,25 @@ When a member writes to another team's surface:
 ### Producer owns the schema
 
 When a prefix crosses team boundaries, the **producer's taxonomy** owns the front-matter schema. The consumer adopts the same schema; it does not redefine it. This rule is canonical and called out separately in `INTAKE_PIPELINE.md` ("Cross-team schema ownership").
+
+### Universal-source intakes
+
+`intake[].source_team = "*"` is a first-class declaration meaning *any team's members may write this prefix*. Used when an inbox is structurally cross-team — every agent on every team should be able to file into it without per-team plumbing.
+
+Validator behavior:
+- `orphan_input` is **skipped** for universal-source intakes (no specific peer-output is required to satisfy the producer-existence check).
+- `wildcard_source_misuse` (warning) fires when `source_team == "*"` AND `external_producers` is empty. The wildcard declares "any team may write," but the producer-side anchor — typically the writer skill — must still be documented in `external_producers`. Empty `external_producers` + wildcard source means "I made it universal but forgot to document who actually writes."
+
+When to use:
+- The intake is genuinely universal — every agent on every team is an expected producer (e.g., bug reports, friction signals, capability gaps if cross-team filing is allowed).
+- A single writer skill is the producer-side anchor. The skill is destination-coupled by design (writer skills always are; the `non_portable_classifier` rule applies only to classifier skills, not writers).
+
+When *not* to use:
+- The set of producers is small and named — declare specific `source_team` values for each, not `*`.
+- The intake is intra-team only — leave `source_team: null`.
+- You don't yet have a writer skill — author the skill first; declare `source_team: "*"` and `external_producers: ["<skill-id>"]` together.
+
+Worked example: `scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).
 
 Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjacent/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
 

@@ -296,6 +296,29 @@ func TestOverlap(t *testing.T) {
 	}
 }
 
+func TestIntakeRoundTrip_SourceTeamWildcard(t *testing.T) {
+	// "*" is a first-class source_team value declaring universal-source
+	// intake (any team's members may write). Shape validation must accept
+	// it; cross-graph validation handles the orphan_input skip and the
+	// paired wildcard_source_misuse warning (covered in validation_test.go).
+	raw := `{
+		"intake": [
+			{"prefix": "bug-inbox/*", "taxonomy": "bug-report", "source_team": "*"}
+		],
+		"external_producers": ["report-bug-skill"]
+	}`
+	var topics Topics
+	if err := json.Unmarshal([]byte(raw), &topics); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if err := topics.Validate(); err != nil {
+		t.Errorf("Validate() rejected source_team=\"*\": %v", err)
+	}
+	if topics.Intake[0].SourceTeam == nil || *topics.Intake[0].SourceTeam != SourceTeamWildcard {
+		t.Errorf("source_team=\"*\" did not round-trip: %+v", topics.Intake[0])
+	}
+}
+
 func TestRoundTripJSON(t *testing.T) {
 	original := Topics{
 		Intake: []IntakeEntry{

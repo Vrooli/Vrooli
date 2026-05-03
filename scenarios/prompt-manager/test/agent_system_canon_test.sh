@@ -138,6 +138,83 @@ check "No active reference to team-shared-docs-design" no_active_refs_to "team-s
 check "No active reference to docs/meta-optimization" no_active_refs_to "docs/meta-optimization"
 
 # ---------------------------------------------------------------------------
+# 5. Technique-registry pairing: doc + paired skill discipline
+# ---------------------------------------------------------------------------
+#
+# Every <slug>.md (excluding README.md) under a registered technique-registry
+# directory MUST have a matching SKILL.md at
+# scenarios/prompt-manager/store/skills/packs/core/<slug>/SKILL.md, AND every
+# skill whose skill.json declares the registry's tag MUST have a matching PoR
+# doc in the registry directory.
+#
+# Future registries plug in by appending one entry to TECHNIQUE_REGISTRIES.
+
+TECHNIQUE_REGISTRIES=(
+    "docs/scenario-qa/investigation-techniques|investigation-technique"
+    "docs/scenario-qa/audit-techniques|audit-technique"
+)
+
+# For each registry, derive the doc slug set and the skill slug set, then
+# assert symmetric difference is empty.
+SKILL_PACK_DIR="scenarios/prompt-manager/store/skills/packs/core"
+
+docs_in_registry() {
+    local dir="$1"
+    if [[ ! -d "$dir" ]]; then return 0; fi
+    find "$dir" -maxdepth 1 -type f -name '*.md' \
+        ! -name 'README.md' \
+        -printf '%f\n' 2>/dev/null \
+        | sed 's/\.md$//' \
+        | sort -u
+}
+
+skills_with_tag() {
+    local tag="$1"
+    if [[ ! -d "$SKILL_PACK_DIR" ]]; then return 0; fi
+    # Find skill.json files containing the tag literal "<tag>" inside a
+    # tags array. Use grep then verify with ripgrep when available; fall
+    # back to grep + python-style awk.
+    for sj in "$SKILL_PACK_DIR"/*/skill.json; do
+        [[ -f "$sj" ]] || continue
+        if grep -q "\"$tag\"" "$sj" 2>/dev/null; then
+            basename "$(dirname "$sj")"
+        fi
+    done | sort -u
+}
+
+registry_pairing_clean() {
+    local entry="$1"
+    local dir="${entry%|*}"
+    local tag="${entry#*|}"
+    local docs skills
+    docs=$(docs_in_registry "$dir")
+    skills=$(skills_with_tag "$tag")
+    # Doc without skill?
+    while IFS= read -r slug; do
+        [[ -z "$slug" ]] && continue
+        if ! grep -qx "$slug" <<<"$skills"; then
+            red "    doc '$dir/$slug.md' has no paired skill at $SKILL_PACK_DIR/$slug/SKILL.md"
+            return 1
+        fi
+    done <<<"$docs"
+    # Skill without doc?
+    while IFS= read -r slug; do
+        [[ -z "$slug" ]] && continue
+        if ! grep -qx "$slug" <<<"$docs"; then
+            red "    skill '$slug' (tagged '$tag') has no paired PoR doc in $dir/"
+            return 1
+        fi
+    done <<<"$skills"
+    return 0
+}
+
+for entry in "${TECHNIQUE_REGISTRIES[@]}"; do
+    dir="${entry%|*}"
+    tag="${entry#*|}"
+    check "Technique pairing clean for $dir (tag: $tag)" registry_pairing_clean "$entry"
+done
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 

@@ -4,14 +4,15 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {
@@ -216,6 +217,8 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"## Continue",
 		"Use your final `## HANDOFF` for short-term continuity.",
 		"## Observe",
+		"prompt-manager skill read report-bug",
+		"bug-inbox/<signal-type>/<slug>",
 		"If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction.",
 		"## Propose",
 		"## Operate",

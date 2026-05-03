@@ -7,6 +7,7 @@ Your goal is to make the codebase’s structure and naming **clearly express the
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
+- `docs/scenario-qa/audit-techniques/screaming-architecture-audit.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
 - `prompt-manager skills read knowledge-observatory-tools`
 
 ---

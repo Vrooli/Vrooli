@@ -3,6 +3,7 @@
 Apply the **scientific method to debugging**: generate falsifiable hypotheses, design experiments (tests) to validate them, and systematically narrow down to the root cause. This methodology produces regression tests and documented findings that prevent recurrence.
 
 Required reading:
+- `docs/scenario-qa/investigation-techniques/scientific-debugging.md` — strategic-canon home: when this technique applies, when it backfires, what the qa-contrarian challenges.
 - `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:

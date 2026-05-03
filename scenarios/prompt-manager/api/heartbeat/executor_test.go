@@ -3,8 +3,9 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
-	"prompt-manager/store"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 func TestExecutorExecuteFailsWhenConfigMissing(t *testing.T) {

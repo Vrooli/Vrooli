@@ -140,6 +140,100 @@ func TestRule_OrphanInput_ExternalProducerSatisfies(t *testing.T) {
 	}
 }
 
+func TestRule_OrphanInput_WildcardSourceTeamSkipsCheck(t *testing.T) {
+	// source_team == "*" declares a universal-source intake: any team's
+	// members may write. The orphan_input check should be skipped because
+	// no specific peer producer is required by the topology. The paired
+	// wildcard_source_misuse warning still fires when external_producers
+	// is empty (covered by TestRule_WildcardSourceMisuse_*).
+	wildcard := SourceTeamWildcard
+	members := []MemberTopics{
+		mkMember("scenario-qa", "bug-investigator", Topics{
+			Intake: []IntakeEntry{{
+				Prefix:     "bug-inbox/*",
+				Taxonomy:   "bug-report",
+				SourceTeam: &wildcard,
+			}},
+			ExternalProducers: []string{"report-bug-skill"},
+		}),
+	}
+	r := Validate(members, ValidationOptions{})
+	for _, f := range r.Findings {
+		if f.Rule == "orphan_input" {
+			t.Errorf("source_team=\"*\" should suppress orphan_input; got %v", f)
+		}
+	}
+}
+
+func TestRule_WildcardSourceMisuse_FiresWhenExternalProducersEmpty(t *testing.T) {
+	// source_team=="*" without any external_producers is misuse: "I made
+	// it universal but forgot to document who actually writes." Warning,
+	// not error, because the topology still works — operators just lose
+	// the audit trail.
+	wildcard := SourceTeamWildcard
+	members := []MemberTopics{
+		mkMember("scenario-qa", "bug-investigator", Topics{
+			Intake: []IntakeEntry{{
+				Prefix:     "bug-inbox/*",
+				Taxonomy:   "bug-report",
+				SourceTeam: &wildcard,
+			}},
+		}),
+	}
+	r := Validate(members, ValidationOptions{})
+	hits := 0
+	for _, f := range r.Findings {
+		if f.Rule == "wildcard_source_misuse" {
+			hits++
+			if f.Severity != SeverityWarning {
+				t.Errorf("wildcard_source_misuse should be warning; got %s", f.Severity)
+			}
+		}
+	}
+	if hits != 1 {
+		t.Errorf("expected 1 wildcard_source_misuse finding, got %d (findings=%v)", hits, r.Findings)
+	}
+}
+
+func TestRule_WildcardSourceMisuse_QuietWhenExternalProducersDocumented(t *testing.T) {
+	wildcard := SourceTeamWildcard
+	members := []MemberTopics{
+		mkMember("scenario-qa", "bug-investigator", Topics{
+			Intake: []IntakeEntry{{
+				Prefix:     "bug-inbox/*",
+				Taxonomy:   "bug-report",
+				SourceTeam: &wildcard,
+			}},
+			ExternalProducers: []string{"report-bug-skill"},
+		}),
+	}
+	r := Validate(members, ValidationOptions{})
+	for _, f := range r.Findings {
+		if f.Rule == "wildcard_source_misuse" {
+			t.Errorf("documented external_producers should suppress misuse warning; got %v", f)
+		}
+	}
+}
+
+func TestRule_WildcardSourceMisuse_QuietForNonWildcardSources(t *testing.T) {
+	specific := "marketing-crew"
+	members := []MemberTopics{
+		mkMember("monetization", "market-validator", Topics{
+			Intake: []IntakeEntry{{
+				Prefix:     "monetization-benchmark-adjacent/*",
+				Taxonomy:   "monetization-validation",
+				SourceTeam: &specific,
+			}},
+		}),
+	}
+	r := Validate(members, ValidationOptions{})
+	for _, f := range r.Findings {
+		if f.Rule == "wildcard_source_misuse" {
+			t.Errorf("specific source_team should not trip wildcard_source_misuse; got %v", f)
+		}
+	}
+}
+
 func TestRule_OrphanInput_PeerProducerSatisfies(t *testing.T) {
 	members := []MemberTopics{
 		mkMember("team-a", "writer", Topics{

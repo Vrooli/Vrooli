@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
+
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
-	"sort"
-	"strings"
 )
 
 // PromptBuildRequest defines the inputs for assembling a heartbeat prompt.
@@ -856,6 +857,10 @@ Write what your next run needs to know: what changed, what remains open, what to
 Use the knowledge log for structured observations from this heartbeat: evidence, measurements, snapshots, findings, and concrete friction signals.
 
 Use the notebook only for unresolved patterns, workarounds, or rough lessons that are not ready for durable structure. Notebook entries are debt, not authority. The curator later promotes or retires them.
+
+When an observation has a clear typed destination — another member's inbox topic, or a concrete-typed topic that another member drains — write to that topic with ` + "`prompt-manager team knowledge-add`" + ` so the right drainer picks it up. The notebook is the residual surface for observations that don't fit any typed inbox; if you don't know where it goes, the notebook is correct. The full registry of inboxes and other typed topics is ` + "`docs/agent-system/TOPICS.md`" + `.
+
+For broken scenario or code behavior — bugs of any kind: code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors — load ` + "`prompt-manager skill read report-bug`" + ` and follow it. The skill writes to ` + "`bug-inbox/<signal-type>/<slug>`" + ` on ` + "`scenario-qa`" + `, where the bug-investigator drains. Do not put bugs in the notebook; ` + "`bug-inbox/*`" + ` is the universal-source intake any team's members write to.
 
 If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction. Mention one-off friction in handoff, write concrete friction to knowledge, append recurring workarounds to the notebook, and raise a decision only when the friction blocks work or points to a missing/broken capability.
 

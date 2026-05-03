@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "report-bug",
+  "name": "Report Bug",
+  "description": "Universal writer skill for filing a bug observation against any scenario, skill, member, or CLI command. Writes a bug-inbox/<signal-type>/<slug> entry on the scenario-qa team for the bug-investigator to drain.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "observability",
+    "bug-report",
+    "writer-skill"
+  ],
+  "icon": "bug",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-05-03T00:00:00Z"
+}

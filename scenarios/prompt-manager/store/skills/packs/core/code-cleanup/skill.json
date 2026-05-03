@@ -9,7 +9,8 @@
     "cleanup"
   ],
   "tags": [
-    "skill"
+    "skill",
+    "audit-technique"
   ],
   "icon": "trash2",
   "status": "active",

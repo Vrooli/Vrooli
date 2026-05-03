@@ -3,7 +3,7 @@
   "output": [
     { "prefix": "research-inbox/*", "destination_kind": "knowledge", "destination_team": "marketing-crew" },
     { "prefix": "opportunity-inbox/*", "destination_kind": "knowledge", "destination_team": "monetization" },
-    { "prefix": "validation-queue/*", "destination_kind": "knowledge", "destination_team": "monetization" },
+    { "prefix": "validation-inbox/*", "destination_kind": "knowledge", "destination_team": "monetization" },
     { "prefix": "vision-walk-prep/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": ["vision-update"],

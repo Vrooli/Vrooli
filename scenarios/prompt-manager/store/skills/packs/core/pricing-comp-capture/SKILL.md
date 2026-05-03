@@ -145,7 +145,7 @@ Body captured every published tier (Hobby, Pro, Pro+, Ultra, Teams, Enterprise) 
 
 ### 8. CLI Reference
 
-Initial capture (queue entry exists, retag from `validation-queue/pricing-comp-needed/<slug>` to scan):
+Initial capture (inbox entry exists, retag from `validation-inbox/pricing-comp-needed/<slug>` to scan):
 
 ```bash
 prompt-manager team knowledge-update monetization <queue-id> \

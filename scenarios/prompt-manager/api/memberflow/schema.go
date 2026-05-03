@@ -61,8 +61,20 @@ type IntakeEntry struct {
 
 	// SourceTeam names the team whose member writes this prefix, when the flow
 	// is cross-team. Empty / nil means same-team or external producer.
+	//
+	// The literal "*" (SourceTeamWildcard) means "any team's members may
+	// write" — used for universal-source intakes such as bug-inbox where
+	// every agent on every team may report. The validator skips
+	// orphan_input for "*" entries; a paired wildcard_source_misuse warning
+	// fires when external_producers is empty (the producer-side anchor
+	// must be documented).
 	SourceTeam *string `json:"source_team,omitempty"`
 }
+
+// SourceTeamWildcard is the literal value of IntakeEntry.SourceTeam that
+// declares a universal-source intake — any team's members may write the
+// prefix. See IntakeEntry.SourceTeam for semantics.
+const SourceTeamWildcard = "*"
 
 // OutputEntry declares one topic-prefix this member writes.
 type OutputEntry struct {

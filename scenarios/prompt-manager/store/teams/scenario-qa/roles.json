@@ -12,6 +12,16 @@
       "id": "architectural-auditor",
       "name": "Architectural Auditor",
       "description": "Investigates scenarios through architectural and testing lenses to surface non-programmatic quality findings."
+    },
+    {
+      "id": "bug-investigator",
+      "name": "Bug Investigator",
+      "description": "Drains bug-inbox/* (universal-source intake — any team's members may file via the report-bug skill), applies a registered investigation technique from docs/scenario-qa/investigation-techniques/, and closes each entry with a bug-investigation/<slug> audit-log entry naming the technique applied and outcome taken."
+    },
+    {
+      "id": "qa-contrarian",
+      "name": "QA Contrarian",
+      "description": "Cross-cutting skeptic for scenario-qa. Reads peer-member outputs (bug-investigations, audits, readiness backlog) and writes challenge-note/* entries citing specific failure modes from the technique registries. Does not generate positive-action proposals."
     }
   ]
 }

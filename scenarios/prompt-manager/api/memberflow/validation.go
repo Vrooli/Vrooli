@@ -84,6 +84,7 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 	findings = append(findings, ruleConflictingDrain(members)...)
 	findings = append(findings, ruleOrphanOutput(members, opts)...)
 	findings = append(findings, ruleOrphanInput(members)...)
+	findings = append(findings, ruleWildcardSourceMisuse(members)...)
 	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
 	findings = append(findings, ruleNonPortableClassifier(members, opts)...)
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
@@ -226,6 +227,9 @@ func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding 
 //   - another member's output prefix overlaps the intake prefix
 //   - the intake's source_team plus a member of that team writing the prefix
 //   - any external_producer named on this member counts as a potential producer
+//   - source_team == "*" (universal-source intake) — any team may write,
+//     so producer existence is not enforced; misuse is caught by
+//     ruleWildcardSourceMisuse
 func ruleOrphanInput(members []MemberTopics) []Finding {
 	var out []Finding
 
@@ -247,6 +251,9 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 			if hasExternal {
 				continue // external producer is sufficient evidence
 			}
+			if in.SourceTeam != nil && *in.SourceTeam == SourceTeamWildcard {
+				continue // universal-source intake: any team may write
+			}
 			matched := false
 			for _, o := range outputs {
 				if Overlap(o.prefix, in.Prefix) {
@@ -263,6 +270,35 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 					Detail:   fmt.Sprintf("intake prefix %q has no producer (no member's output overlaps and no external_producer is declared)", in.Prefix),
 				})
 			}
+		}
+	}
+	return out
+}
+
+// ruleWildcardSourceMisuse — a universal-source intake (source_team == "*")
+// without any documented producer-side anchor. The wildcard is a real
+// declaration of intent ("any team may write here") but it must point at a
+// concrete writer-side anchor — typically a writer skill listed in
+// ExternalProducers — so the topology is auditable. Empty
+// ExternalProducers + wildcard source means "I made it universal but
+// forgot to document who actually writes," which is the misuse.
+func ruleWildcardSourceMisuse(members []MemberTopics) []Finding {
+	var out []Finding
+	for _, m := range members {
+		if len(m.Topics.ExternalProducers) > 0 {
+			continue
+		}
+		for _, in := range m.Topics.Intake {
+			if in.SourceTeam == nil || *in.SourceTeam != SourceTeamWildcard {
+				continue
+			}
+			out = append(out, Finding{
+				Rule:     "wildcard_source_misuse",
+				Severity: SeverityWarning,
+				Member:   m.Ref,
+				Prefix:   in.Prefix,
+				Detail:   fmt.Sprintf("intake %q declares source_team=%q but external_producers is empty; document the producer-side anchor (e.g., the writer skill or external system that produces entries)", in.Prefix, SourceTeamWildcard),
+			})
 		}
 	}
 	return out
@@ -327,7 +363,7 @@ var classifierForbiddenSubstrings = []string{
 	// Inbox topic-prefix coupling.
 	"research-inbox/",
 	"opportunity-inbox/",
-	"validation-queue/",
+	"validation-inbox/",
 	// Knowledge CLI verbs that perform routing (read-only knowledge-list
 	// is fine in member prose, but a portable judgment skill should not
 	// invoke these).

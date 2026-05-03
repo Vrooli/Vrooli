@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "qa-contrarian",
+  "displayName": "QA Contrarian",
+  "description": "Cross-cutting skeptic for scenario-qa. Reads peer-team decisions and member outputs (bug-investigation entries, audit findings, readiness backlog items, scenario-qa cross-team handoffs) and writes challenge-note/* entries that surface gaps in QA reasoning, false-positive findings, churn-for-churn's-sake refactors, and over-reach. Does not generate positive-action proposals; if a class of QA failure isn't covered by the existing technique registries, proposes a registry update.",
+  "status": "active",
+  "appearance": {
+    "body": "#7C2D12",
+    "head": "#C2410C",
+    "accent": "#FED7AA"
+  },
+  "tags": [
+    "quality",
+    "contrarian",
+    "skepticism",
+    "challenge-notes"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-05-03T00:00:00Z"
+}
