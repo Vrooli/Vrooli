@@ -56,5 +56,19 @@
       "cmd": "GOWORK=off go mod tidy",
       "cwd": "api"
     }
+  ],
+  "relocations": [
+    {
+      "description": "Relocate proto schemas to packages/proto/ and run codegen",
+      "from": "proto/",
+      "to": "packages/proto/schemas/{{SCENARIO_ID}}/",
+      "post": [
+        {
+          "description": "Regenerate proto artifacts (Go + TypeScript + Python)",
+          "cmd": "make generate",
+          "cwd": "packages/proto"
+        }
+      ]
+    }
   ]
 }

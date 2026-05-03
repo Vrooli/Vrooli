@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // recordingT is the spy *testing.T-compatible target the failer-using
@@ -79,5 +82,55 @@ func TestMustDecodeJSON_FailureIncludesBody(t *testing.T) {
 	}
 	if !strings.Contains(r.fatalMsg, string(body)) {
 		t.Errorf("Fatalf message should include the body bytes for debugging; got %q", r.fatalMsg)
+	}
+}
+
+// MustUnmarshalProto exercises the generic proto.Message decoder.
+// wrapperspb.StringValue is used as a stable, scenario-independent
+// proto.Message — assertx must stay decoupled from any per-scenario
+// generated type, so a well-known wrapper is the right test target.
+
+func TestMustUnmarshalProto_Success(t *testing.T) {
+	r := &recordingT{}
+	got := mustUnmarshalProto[wrapperspb.StringValue](r, []byte(`"hello"`))
+	if r.fatalCalled {
+		t.Fatalf("MustUnmarshalProto on valid body unexpectedly fataled: %s", r.fatalMsg)
+	}
+	if got == nil {
+		t.Fatal("MustUnmarshalProto returned nil pointer")
+	}
+	if got.Value != "hello" {
+		t.Errorf("got.Value = %q, want hello", got.Value)
+	}
+}
+
+func TestMustUnmarshalProto_FailureIncludesBody(t *testing.T) {
+	r := &recordingT{}
+	body := []byte(`{not proto`)
+	_ = mustUnmarshalProto[wrapperspb.StringValue](r, body)
+	if !r.fatalCalled {
+		t.Fatal("malformed JSON should fatal")
+	}
+	if !strings.Contains(r.fatalMsg, string(body)) {
+		t.Errorf("Fatalf message should include the body bytes for debugging; got %q", r.fatalMsg)
+	}
+}
+
+// TestMustUnmarshalProto_TolerantToUnknownFields pins the
+// DiscardUnknown:true contract — handler tests should keep passing
+// when the wire grows fields the proto hasn't caught up to. The
+// reverse (failing on every wire-shape addition) would force
+// unrelated test churn whenever api-core/health gets a new field.
+//
+// google.protobuf.Empty has no fields by definition, so every property
+// in the JSON object below is "unknown" from the proto's perspective.
+// With DiscardUnknown:true the decode succeeds; without it,
+// protojson.Unmarshal would error on the first unknown field.
+func TestMustUnmarshalProto_TolerantToUnknownFields(t *testing.T) {
+	r := &recordingT{}
+	bodyWithUnknowns := []byte(`{"unknown":"field","another":42}`)
+	_ = mustUnmarshalProto[emptypb.Empty](r, bodyWithUnknowns)
+	if r.fatalCalled {
+		t.Fatalf("DiscardUnknown was not wired; mustUnmarshalProto fataled on unknown fields: %s", r.fatalMsg)
 	}
 }

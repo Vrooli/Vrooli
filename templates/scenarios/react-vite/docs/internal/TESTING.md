@@ -15,10 +15,12 @@ Three files are the source of truth. When in doubt, copy their shape:
 
 - **API**: `api/handlers/health/handler_test.go` — table-driven, real
   middleware via `httpx.NewLiveServer`, fake pinger from `mocks/`,
-  typed-fixture JSON decode via
-  `assertx.MustDecodeJSON[fixtures.HealthResponse]` (matches the
-  api-core/health wire shape field-for-field — assert on typed fields,
-  not `map[string]any` chains).
+  typed-proto decode via
+  `assertx.MustUnmarshalProto[healthv1.Response]` (the wire shape lives
+  in `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/health.proto`;
+  assert on typed proto fields, not `map[string]any` chains). For
+  endpoints whose wire shape isn't in proto yet, `MustDecodeJSON[T]`
+  is the fallback — but adding the proto first is the right move.
 - **UI**: `ui/src/App.test.tsx` — `renderWithProviders` + factory data
   + inline `vi.mock` factory closure. Two describe blocks: cimode
   (copy-independent assertions) and real-locale (end-to-end i18n).
@@ -53,7 +55,7 @@ api/
     └── handler_test.go           # Canonical test
 ```
 
-### The four primitives every test uses
+### The five primitives every test uses
 
 1. **`mocks.FakeClock`** — substitutes `clock.Clock`. Construct with
    `mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))`,
@@ -73,12 +75,20 @@ api/
    in microseconds; the cost of the bug class it catches is measured
    in incidents.
 4. **`assertx`** — `AssertStatus(t, resp, want)` for status code
-   checks (dumps body on mismatch); `MustDecodeJSON[T any](t, body) T`
-   for typed JSON decoding. Pair the generic decode with a typed
-   fixture (`fixtures.HealthResponse`) so assertions read as
-   `got.Status` / `got.Dependencies["database"].Connected` rather than
-   `map[string]any` chains. Resist over-generalising; add helpers when
-   the third caller appears.
+   checks (dumps body on mismatch); `MustUnmarshalProto[T proto.Message]
+   (t, body) *T` for proto-typed JSON decoding (use this whenever the
+   endpoint's wire shape lives in `packages/proto/schemas/`);
+   `MustDecodeJSON[T any](t, body) T` for ad-hoc JSON when no proto
+   exists yet. Resist over-generalising; add helpers when the third
+   caller appears.
+5. **Generated proto types** — every endpoint's wire shape lives in
+   `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<file>.proto`.
+   Tests import the generated Go type directly
+   (`healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"`)
+   and decode wire bodies into it via `MustUnmarshalProto`. The
+   `fixtures` package re-exports the proto type as a short alias
+   (`fixtures.HealthResponse = healthv1.Response`) so test code reads
+   cleanly.
 
 ### Canonical test pattern
 
@@ -91,11 +101,11 @@ import (
     "testing"
 
     "github.com/stretchr/testify/require"
+    healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
 
     "{{SCENARIO_ID}}/internal/clock"
     "{{SCENARIO_ID}}/internal/server"
     "{{SCENARIO_ID}}/internal/testutil/assertx"
-    "{{SCENARIO_ID}}/internal/testutil/fixtures"
     "{{SCENARIO_ID}}/internal/testutil/httpx"
     "{{SCENARIO_ID}}/internal/testutil/mocks"
 )
@@ -120,7 +130,7 @@ func TestHealthHandler(t *testing.T) {
             resp, body := live.Do(t, http.MethodGet, "/health", nil)
 
             assertx.AssertStatus(t, resp, tc.wantCode)
-            got := assertx.MustDecodeJSON[fixtures.HealthResponse](t, body)
+            got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
             require.Equal(t, tc.wantStatus, got.Status)
             require.Equal(t, tc.wantConnected, got.Dependencies["database"].Connected)
             require.Equal(t, int64(1), pinger.Calls.Load())
@@ -129,9 +139,13 @@ func TestHealthHandler(t *testing.T) {
 }
 ```
 
-The fixture's JSON tags mirror `api-core/health.Response` exactly, so
-`MustDecodeJSON` round-trips the wire shape directly into the typed
-struct — no `map[string]any` chains, no per-test `interface{}` casts.
+The proto schema in `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/health.proto`
+mirrors `api-core/health.Response` field-for-field, so `MustUnmarshalProto`
+round-trips the wire shape directly into the generated Go type — no
+`map[string]any` chains, no per-test `interface{}` casts, no parallel
+hand-written struct mirror to drift against. `DiscardUnknown:true` is
+wired in `MustUnmarshalProto` so the test keeps passing when the wire
+grows fields the proto hasn't caught up to.
 
 ### Production-import quarantine (`no_prod_import_test.go`)
 
@@ -380,6 +394,73 @@ provably can't see it. If the test fires:
 | New non-API command (config write, fingerprint print, etc.) | Direct `app.Run([...])` with `CaptureStdout`. No fake server needed. |
 | Change to `app.go` wiring | The smoke gate (`TestNewAppConstructs`) catches most regressions automatically. Add a focused test only when the wiring touches a non-default code path. |
 | New env var that affects API resolution | Extend or wrap `clitest.WithAPIBase` rather than calling `t.Setenv` inline. Keeps the env-var name in one place. |
+
+## How to add a new proto
+
+Wire shapes for new endpoints belong in `packages/proto/schemas/{{SCENARIO_ID}}/`,
+not in hand-written Go structs or TS interfaces. The `health.proto`
+shipped with this scenario is the canonical example.
+
+Steps:
+
+1. **Author the schema.** Add `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<name>.proto`.
+   Use snake_case in the proto package directive
+   (`package vrooli.{{SCENARIO_ID_SNAKE}}.v1.<domain>;`) and add a
+   `go_package` option pointing at the per-scenario gen path:
+
+   ```protobuf
+   option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>;<domain>_v1";
+   ```
+
+2. **Regenerate.** From the repo root:
+
+   ```bash
+   cd packages/proto && make generate && make lint
+   ```
+
+   New artifacts land at `packages/proto/gen/{go,typescript,python}/{{SCENARIO_ID}}/v1/<domain>/`.
+   Commit them alongside the schema — generated code is checked in so
+   downstream scenarios don't have to re-run codegen.
+
+3. **Wire it on the API side.** Import the generated Go type in your
+   handler test and decode via `assertx.MustUnmarshalProto`:
+
+   ```go
+   import notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+
+   got := assertx.MustUnmarshalProto[notesv1.ListResponse](t, body)
+   ```
+
+   For fixtures, follow the `fixtures/health.go` pattern — re-export
+   the proto type as a short alias and provide functional-options
+   builders:
+
+   ```go
+   type ListResponse = notesv1.ListResponse
+   func NewListResponse(opts ...ListOpt) *notesv1.ListResponse { /* ... */ }
+   ```
+
+4. **Wire it on the UI side.** Import the generated TS schema and use
+   `fromJson` for decode + `create` for fixtures:
+
+   ```ts
+   import { fromJson, create } from "@bufbuild/protobuf";
+   import { ListResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
+
+   // production
+   return fromJson(ListResponseSchema, json, { ignoreUnknownFields: true });
+
+   // tests
+   const fixture = create(ListResponseSchema, { items: [{ id: "n-1" }] });
+   ```
+
+5. **Tests follow.** Handler test uses `MustUnmarshalProto`; fixture
+   test asserts on the typed shape via `proto.Equal`. UI test mocks
+   `lib/api` and returns `makeListResponse()` from the factory.
+
+Don't add a new `mocks/Fake*` interface for the proto type — the proto
+isn't a seam, it's a contract. Seams are interfaces; protos are
+payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
 
 ## Coverage thresholds
 

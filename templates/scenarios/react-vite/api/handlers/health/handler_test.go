@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
 
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/testutil/assertx"
-	"{{SCENARIO_ID}}/internal/testutil/fixtures"
 	"{{SCENARIO_ID}}/internal/testutil/httpx"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
 )
@@ -31,10 +31,12 @@ import (
 //
 // The pattern: spin up a *server.Server with mocked deps, wrap it in
 // httpx.NewLiveServer (real httptest.Server over real socket), issue a
-// real HTTP request, decode JSON straight into the typed
-// fixtures.HealthResponse mirror (which carries the api-core/health
-// JSON tags), assert on typed fields. Same shape every future handler
-// test in this scenario should follow.
+// real HTTP request, decode JSON straight into the generated proto
+// type via assertx.MustUnmarshalProto, assert on typed fields. Same
+// shape every future handler test in this scenario should follow —
+// when the endpoint's wire shape lives in packages/proto/, decode
+// through protojson; when it doesn't yet, MustDecodeJSON is the
+// fallback (but adding the proto first is the right move).
 func TestHealthHandler(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -79,7 +81,7 @@ func TestHealthHandler(t *testing.T) {
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
 			assertx.AssertStatus(t, resp, tc.wantStatusCode)
 
-			got := assertx.MustDecodeJSON[fixtures.HealthResponse](t, body)
+			got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")

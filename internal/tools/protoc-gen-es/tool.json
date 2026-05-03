@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "protoc-gen-es",
+  "description": "TypeScript/JavaScript protoc plugin (@bufbuild/protoc-gen-es) used by packages/proto codegen (local plugin, no BSR fetch)",
+  "commands": ["protoc-gen-es"],
+  "versionArgs": ["--version"],
+  "handler": "protoc_gen_es",
+  "version": "2.12.0",
+  "platforms": ["linux", "macos", "windows"],
+  "installHint": "Installed via `npm install --prefix ~/.cache/vrooli/protoc-plugins/node @bufbuild/protoc-gen-es@2.12.0` then symlinked to ~/.local/bin/protoc-gen-es. Requires Node on PATH (handled by the `node` host tool).",
+  "notes": "Pinned alongside buf.gen.yaml; bump in lockstep with the proto-codegen byte-stability gate (`make check`)."
+}

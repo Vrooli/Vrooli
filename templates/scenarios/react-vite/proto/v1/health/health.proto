@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package vrooli.{{SCENARIO_ID_SNAKE}}.v1.health;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health;health_v1";
+
+// =============================================================================
+// HEALTH DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain health
+// @stability stable
+//
+// Wire contract for the API's /health and /api/v1/health endpoints.
+//
+// Mirrors api-core/health.Response field-for-field with matching JSON
+// names so the api-core/health.Builder.Handler() chain in production
+// produces JSON that decodes into the generated proto type without
+// translation. Keep these in lockstep with packages/api-core/health/health.go;
+// adding a field there means adding the same field with the same JSON
+// name here.
+//
+// Consumed by:
+//   - API: handlers/health/handler_test.go decodes responses via protojson
+//          into Response and asserts on typed fields.
+//   - UI:  ui/src/lib/api.ts wraps `fetch` with `fromJson(ResponseSchema, ...)`
+//          using `useProtoNames: true` so the wire shape and the runtime
+//          type agree.
+//   - Tests: ui/src/test-utils/factories.ts builds Response instances
+//          via `create(ResponseSchema, overrides)` for component tests.
+//
+// Notes:
+//   - The `metrics` field on api-core/health.Response is omitted here
+//     because `map<string, google.protobuf.Value>` requires importing
+//     the well-known Any/Value types. The template doesn't ship metrics;
+//     scenarios that wire real metrics extend this proto when they do.
+//   - Optional numeric fields use plain `double` rather than wrapper
+//     types — the template's only consumer (DependencyStatus.latency_ms)
+//     treats absence as zero and that matches the api-core JSON encoding.
+// =============================================================================
+
+// DependencyStatus mirrors api-core/health.DependencyStatus. Reported
+// per-dependency from the /health endpoint.
+message DependencyStatus {
+  // Whether the dependency was reachable on the most recent check.
+  bool connected = 1;
+
+  // Probe latency in milliseconds. Zero when unset on the wire (the
+  // api-core encoder uses `omitempty`; a zero here means "no latency
+  // reported," not "instantaneous").
+  double latency_ms = 2;
+
+  // Human-readable failure message; empty when the dependency is healthy.
+  string error = 3;
+
+  // Backend identifier (e.g., "sqlite") for dependencies that expose it.
+  string database = 4;
+}
+
+// Response is the JSON payload returned by /health and /api/v1/health.
+// Fields appear in the order api-core/health.Response declares them so
+// proto field numbers match the source-of-truth declaration order.
+message Response {
+  // Overall service status. Canonical values: "healthy", "degraded",
+  // "unhealthy". Set to "unhealthy" when any Critical dependency fails.
+  string status = 1;
+
+  // Service identifier (e.g., the scenario's name).
+  string service = 2;
+
+  // Server time at the moment the response was generated, as RFC3339.
+  string timestamp = 3;
+
+  // True when every Critical dependency is reachable. Used by load
+  // balancers / orchestrators that distinguish liveness from readiness.
+  bool readiness = 4;
+
+  // Service version string; empty when unset.
+  string version = 5;
+
+  // Process uptime in seconds at the moment the response was generated.
+  double uptime_seconds = 6;
+
+  // Per-dependency status reports, keyed by dependency name (e.g.,
+  // "database"). Critical dependencies flip readiness to false when
+  // they're not connected.
+  map<string, DependencyStatus> dependencies = 7;
+}

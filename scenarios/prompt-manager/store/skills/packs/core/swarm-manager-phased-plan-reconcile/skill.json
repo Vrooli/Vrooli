@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-phased-plan-reconcile",
+  "name": "Swarm Manager Phased Plan Reconcile",
+  "description": "Reconcile the initiative backlog with the drained phased-plan; emits a BacklogSyncPlan proposal.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "operating-mode", "phased-plan-drain", "reconcile"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-02T00:00:00Z",
+  "updatedAt": "2026-05-02T00:00:00Z"
+}

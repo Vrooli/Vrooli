@@ -32,6 +32,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 - **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
 - **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
 - **SQLite storage**: API uses `api-core/database` with the `sqlite` driver and `api-core/storage` for filesystem-safe paths — no external DB process required. The schema lives at `api/internal/store/schema.sql` (embedded into the binary, applied at startup via `store.EnsureSchema`).
+- **Proto-first wire contracts**: The template ships proto sources at `proto/{{SCENARIO_ID}}/v1/health/health.proto`. At generation time, `vrooli scenario generate` relocates them into `packages/proto/schemas/<your-scenario>/`, runs `make generate`, and the API + UI immediately consume the generated Go and TypeScript types. No hand-written wire shape duplication; adding a new endpoint means adding a `.proto`, regenerating, and importing the typed message. The codegen pipeline runs entirely on local plugins — no BSR network calls — so it works on flight Wi-Fi or inside firewalled CI runners. See `proto/README.md`, `docs/internal/TESTING.md::How to add a new proto`, and the project-level [proto pipeline guide](../../docs/development/proto.md).
 
 ## Setup Workflow
 ```bash

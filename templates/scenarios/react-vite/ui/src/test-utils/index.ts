@@ -44,6 +44,10 @@
  */
 export { renderWithProviders } from "./renderWithProviders";
 export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
+// Note: HealthResponse is the *generated proto type* re-exported by
+// factories.ts. Tests should always import it from here so a future
+// schema change is one-import-update; consuming the proto package
+// directly in tests fragments that contract.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
 
