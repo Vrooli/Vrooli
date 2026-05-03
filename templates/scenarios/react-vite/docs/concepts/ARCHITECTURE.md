@@ -106,7 +106,8 @@ Cross-cutting concerns:
 - `internal/middleware/` — request logging (uses `Clock`, not `time.Now`)
 - `internal/httpx/` — JSON decode + typed error envelope
 - `internal/httpc/` — outbound HTTP `Doer` seam (ships unwired by intent)
-- `internal/server/` — wires `Deps` and registers routes
+- `internal/module/` — `Module` data type + `EndpointDescriptor`; the seam each domain returns to be mounted
+- `internal/server/` — composes a slice of modules + cross-cutting middleware (no per-domain code)
 - `internal/testutil/` — fakes, fixtures, harness helpers (test-only)
 
 The `var _ Interface = (*Impl)(nil)` compile-time assertion is used
@@ -118,15 +119,72 @@ See [`SEAMS.md`](../internal/SEAMS.md) for the authoritative seam
 registry and [`TESTING.md`](../internal/TESTING.md) for how each layer
 is tested.
 
+## Domain modules — adding and removing features
+
+The horizontal axis: each domain self-describes via a `Module()`
+constructor in its handler package. `main.go` lists them; the server
+iterates and mounts.
+
+```
+  api/main.go
+       │
+       ├─ healthH.Module(db, "{{SCENARIO_ID}}-api", "1.0.0") ──┐
+       ├─ notesH.Module(db, clk, logger) ───────────────────────┼─→ server.New(deps, modules...)
+       └─ tasksH.Module(...)  ←─ adding a domain = one line ────┘         │
+                                                                           │
+                                                                           ├─ for m := range modules: m.Mount(router)
+                                                                           └─ Handler() → http.Handler
+```
+
+`module.Module` is a data type (not an interface): `{Name string;
+Mount func(r *mux.Router); Endpoints []EndpointDescriptor}`. Each
+domain owns its own constructor, its own routes, and its own slice of
+endpoint descriptors. `server.Deps` shrinks to cross-cutting concerns
+only (`Clock`, `Logger`); per-domain dependencies live inside the
+module's constructor.
+
+**Adding a domain** (`tasks` example):
+
+1. Create `proto/v1/tasks/tasks.proto`; run `make generate`.
+2. Create `api/internal/tasks/{types,repository,sqlite,service}.go`.
+3. Create `api/handlers/tasks/{handler,module,endpoints}.go`.
+4. Add **one line** to `api/main.go`'s `server.New(...)` slice:
+   `tasksH.Module(db, clk, logger)`.
+5. Create `cli/domains/tasks/{register,handlers}.go`.
+6. Add **one line** to `cli/domains/domains.go`'s
+   `SubcommandGroups`: `tasks.Register(core)`.
+7. Add an entry to `api/cmd/gen-endpoints/cli_commands_seed.json`;
+   run `make endpoints`.
+8. Create `ui/src/lib/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`;
+   add **one import + one render line** in `ui/src/App.tsx`.
+
+That's it. No central struct field, no central wiring line, no
+hand-edit of `.vrooli/endpoints.json`. The `notes` reference can be
+removed by reversing the same steps; see
+[`../internal/REPLACING-NOTES.md`](../internal/REPLACING-NOTES.md).
+
+**The trade-off:** one layer of indirection (the `Module` data type)
+pays for the open–closed property. For a template that gets forked
+many times, the cost is paid once and saved per scenario. The CLI
+side has used this pattern since Pass 1 (`SubcommandGroup`
+registrations); Pass 3 brought the API + UI + endpoints manifest up
+to the same standard.
+
 ## Inside the UI: feature-shaped React
 
 ```
 ui/src/
   main.tsx              ◀── composition root: i18n + QueryClient + iframe-bridge + ErrorBoundary
-  App.tsx               ◀── top-level shell (extract sections as the surface grows)
+  App.tsx               ◀── 15-line composition: <AppShell> + per-feature cards
   components/
+    AppShell.tsx        ◀── outer layout + locale switcher; takes children
     ErrorBoundary.tsx   ◀── render-error catch (class component, localised fallback)
     ui/                 ◀── shadcn-style primitives (Button, Input, Textarea)
+  features/             ◀── per-domain UI (delete a folder to delete the feature)
+    health/
+      HealthCard.tsx    ◀── system-status reference; ships in every scenario
+    notes/
+      NotesCard.tsx     ◀── canonical CRUD reference; replace per scenario
   hooks/                ◀── custom hooks (spatial nav, gamepad)
   lib/
     api.ts              ◀── network boundary: fetch + proto-typed decode

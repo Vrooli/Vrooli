@@ -98,6 +98,12 @@
           "audience": ["developers"]
         },
         {
+          "path": "internal/REPLACING-NOTES.md",
+          "title": "Replacing the notes reference",
+          "description": "Step-by-step guide for swapping the canonical CRUD reference with your scenario's first real domain",
+          "audience": ["developers"]
+        },
+        {
           "path": "internal/PROGRESS.md",
           "title": "Progress",
           "description": "Lifecycle log — append a row whenever work lands",

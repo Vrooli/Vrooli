@@ -1,8 +1,9 @@
 /**
  * Accessibility regression test using axe-core directly.
  *
- * Renders the App in real English (so axe checks against the actual user-
- * facing copy, not the cimode keys) and asserts no axe violations. Catches:
+ * Renders the App in real English (so axe checks against the actual
+ * user-facing copy, not the cimode keys) and asserts no axe
+ * violations. Catches:
  *
  *   - Missing labels (forms, icon-only buttons)
  *   - Insufficient color contrast detectable from CSS
@@ -10,42 +11,29 @@
  *   - Heading hierarchy violations
  *   - Missing landmark roles
  *
- * We use `axe-core` directly rather than a matcher library so there's no
- * matcher-signature mismatch between jest-axe and vitest. The assertion is
+ * Scope is the **shell** — heading + locale switcher + the
+ * card-stack region. Per-feature a11y scans live in
+ * features/<name>/<Name>Card.a11y.test.tsx (add when a feature ships
+ * its first interactive widget). Splitting this way keeps the smoke
+ * resilient when REPLACING-NOTES.md is followed: deleting a feature
+ * does not break this file.
+ *
+ * We use `axe-core` directly rather than a matcher library so there's
+ * no signature mismatch between jest-axe and vitest. The assertion is
  * `expect(results.violations).toEqual([])` — readable failure output
  * because vitest prints the array contents on failure.
- *
- * Render and mock plumbing comes from `@/test-utils` for parity with the
- * canonical `App.test.tsx`. Diverging patterns between sibling test files
- * is the failure mode the test-utils package exists to prevent — when a
- * second a11y test is added, it inherits exactly the shape of this one.
- *
- * Add new a11y test files per high-traffic surface as the scenario grows.
- * One axe run per surface is enough; full-page scans are expensive.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
 
-import { makeApiMocks, makeNotesMocks, renderWithProviders } from "./test-utils";
-
-// See App.test.tsx for the mock-builder pattern rationale and
-// docs/internal/TESTING.md for the canonical shape.
-vi.mock("./lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/api")>();
-  return { ...actual, ...makeApiMocks() };
-});
-
-vi.mock("./lib/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/notes")>();
-  return { ...actual, ...makeNotesMocks() };
-});
+import { renderWithProviders } from "./test-utils";
 
 import App from "./App";
 import { selectors } from "./consts/selectors";
 import { setLocale } from "./i18n";
 
-describe("App accessibility", () => {
+describe("App accessibility (shell scope)", () => {
   beforeEach(async () => {
     await setLocale("en");
   });
@@ -56,11 +44,12 @@ describe("App accessibility", () => {
 
   it("renders without axe violations in English", async () => {
     const { container } = renderWithProviders(<App />);
-    // Wait for React Query to resolve so we scan the post-loading DOM
-    // for both the health and notes panes.
+    // Shell selectors are present immediately; waiting on them ensures
+    // the AppShell + locale switcher are in the DOM before axe scans.
+    // Per-feature waits belong in per-feature a11y tests.
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.health.statusValue)).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.notes.empty)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.locale.switcher)).toBeInTheDocument();
     });
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);

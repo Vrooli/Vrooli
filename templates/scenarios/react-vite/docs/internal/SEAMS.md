@@ -79,9 +79,29 @@ test ergonomics fall out for free.
 |---|---|
 | **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
 | **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
-| **Production wiring** | `main.go` constructs `notes.NewService(repo)` and passes it via `server.Deps.NoteService`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
+| **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
 | **Test fake** | `internal/testutil/mocks::FakeService` (records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/handler_test.go` to drive the handler without validation/repository plumbing in scope. |
 | **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (gRPC, batch jobs, scheduled imports) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
+
+### module.Module (domain composition)
+
+| | |
+|---|---|
+| **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
+| **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
+| **Production wiring** | `main.go` calls `healthH.Module(...)`, `notesH.Module(...)`, ..., and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
+| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/notes/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
+| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
+
+### Endpoints codegen (manifest source-of-truth)
+
+| | |
+|---|---|
+| **Seam** | The `.vrooli/endpoints.json` API documentation manifest. |
+| **Interface** | `api/cmd/gen-endpoints/main.go` reads each handler module's `Endpoints []module.EndpointDescriptor` slice (`handlers/notes/endpoints.go`, `handlers/health/endpoints.go`, …) and `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
+| **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
+| **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. The cross-check (every `cli_mapping.command` in `endpoints[]` matches a `cli_commands[].name`) has its own unit test. |
+| **Why it exists** | Hand-edited endpoints manifests drift from real handlers (a Pass-2 risk that surfaced before this refactor). Generating from each module's descriptor slice means the manifest is always derived from the real wire shape. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
 
 ### Doer (outbound HTTP)
 
@@ -220,15 +240,24 @@ Not a seam (no production-vs-test substitution), but worth listing
 here for discoverability: `.vrooli/endpoints.json` is the canonical
 declaration of every public HTTP endpoint plus its CLI mirror. Doc
 generators, Postman collection builders, and SDK-stub tooling read it.
-When you add or change an endpoint:
+
+**The file is generated** from each handler module's
+`Endpoints []module.EndpointDescriptor` slice (see the
+"Endpoints codegen" seam above). To add or change an endpoint:
 
 1. Update the handler.
-2. Update `.vrooli/endpoints.json` (path, method, summary, error codes
-   matching the `httpx.Code*` constants the handler emits, and a
-   `cli_mapping` pointing at the real CLI subcommand registered in
-   `cli/domains/`).
-3. The CI gate validates the JSON shape and that every `cli_mapping`
-   names a registered command — drift becomes a build failure.
+2. Update the descriptor in `api/handlers/<dom>/endpoints.go` —
+   path, method, summary, error codes (must match the `httpx.Code*`
+   constants the handler emits), and a `cli_mapping` pointing at
+   the real CLI subcommand registered in `cli/domains/`.
+3. If the change touches a CLI command, update
+   `api/cmd/gen-endpoints/cli_commands_seed.json`.
+4. Run `make endpoints` to regenerate `.vrooli/endpoints.json`.
+5. Commit both the descriptor edit AND the regenerated manifest.
+
+The CI drift check (`make endpoints && git diff --exit-code
+.vrooli/endpoints.json`) fails the build if step 4 was skipped, with
+an actionable diff showing exactly which entries diverged.
 
 ## Cross-references
 

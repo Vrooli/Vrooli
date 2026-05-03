@@ -12,9 +12,9 @@
       "response": {
         "type": "object",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -67,8 +67,8 @@
       "request": {
         "type": "object",
         "properties": {
-          "title": "string (required, non-whitespace)",
-          "body": "string"
+          "body": "string",
+          "title": "string (required, non-whitespace)"
         }
       },
       "response": {
@@ -97,7 +97,12 @@
       ],
       "cli_mapping": {
         "command": "{{SCENARIO_ID}} notes create",
-        "args": ["--title", "<title>", "--body", "<body>"]
+        "args": [
+          "--title",
+          "<title>",
+          "--body",
+          "<body>"
+        ]
       }
     },
     {
@@ -133,7 +138,9 @@
       ],
       "cli_mapping": {
         "command": "{{SCENARIO_ID}} notes get",
-        "args": ["<id>"]
+        "args": [
+          "<id>"
+        ]
       }
     }
   ],

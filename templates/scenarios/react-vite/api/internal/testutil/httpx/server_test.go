@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"{{SCENARIO_ID}}/handlers/health"
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
@@ -19,13 +20,7 @@ import (
 // /health endpoint through a real HTTP client and expects a JSON body
 // with the canonical service identity.
 func TestNewLiveServer_RoutesRegistered(t *testing.T) {
-	srv := server.New(server.Deps{
-		Pinger:  &mocks.FakePinger{},
-		Clock:   clock.System{},
-		Logger:  log.New(io.Discard, "", 0),
-		Service: "harness-test",
-		Version: "0.0.1",
-	})
+	srv := newHarnessServer(t, "harness-test")
 	live := NewLiveServer(t, srv)
 
 	resp, body := live.Do(t, http.MethodGet, "/health", nil)
@@ -46,13 +41,7 @@ func TestNewLiveServer_RoutesRegistered(t *testing.T) {
 // wrote. Catches regressions where Do silently swallows or truncates
 // the body (e.g. forgetting to read before Close).
 func TestLiveServer_DoReturnsBodyBytes(t *testing.T) {
-	srv := server.New(server.Deps{
-		Pinger:  &mocks.FakePinger{},
-		Clock:   clock.System{},
-		Logger:  log.New(io.Discard, "", 0),
-		Service: "body-test",
-		Version: "0.0.1",
-	})
+	srv := newHarnessServer(t, "body-test")
 	live := NewLiveServer(t, srv)
 
 	resp, body := live.Do(t, http.MethodGet, "/health", nil)
@@ -72,19 +61,25 @@ func TestLiveServer_DoReturnsBodyBytes(t *testing.T) {
 // reach the same endpoint. Documenting via test guards against a
 // future refactor that drops the normalisation.
 func TestNewLiveServer_NormalisesPathPrefix(t *testing.T) {
-	srv := server.New(server.Deps{
-		Pinger:  &mocks.FakePinger{},
-		Clock:   clock.System{},
-		Logger:  log.New(io.Discard, "", 0),
-		Service: "prefix-test",
-		Version: "0.0.1",
-	})
+	srv := newHarnessServer(t, "prefix-test")
 	live := NewLiveServer(t, srv)
 
 	resp, _ := live.Do(t, http.MethodGet, "health", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d (path without leading slash should still resolve)", resp.StatusCode)
 	}
+}
+
+// newHarnessServer wires a server with just the health module so the
+// harness tests have a real route to hit. The harness itself is what's
+// under test; the module choice is incidental.
+func newHarnessServer(t *testing.T, service string) *server.Server {
+	t.Helper()
+	mod := health.Module(&mocks.FakePinger{}, service, "0.0.1")
+	return server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+		mod,
+	)
 }
 
 // recordingT spies on the failer surface NewLiveServer drives. Used to

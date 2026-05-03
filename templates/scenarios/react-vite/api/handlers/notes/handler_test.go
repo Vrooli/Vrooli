@@ -13,32 +13,39 @@ import (
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 
+	"{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/notes"
+	internalnotes "{{SCENARIO_ID}}/internal/notes"
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/testutil/assertx"
 	"{{SCENARIO_ID}}/internal/testutil/httpx"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/gorilla/mux"
+	"{{SCENARIO_ID}}/internal/module"
 )
 
-// newServer wires a server.Server backed by the supplied FakeService.
-// Health-side deps are populated with safe defaults so the test's
-// surface stays focused on notes.
-func newServer(t *testing.T, fake *mocks.FakeService) *httpx.LiveServer {
+// newServer wires a server.Server with a single notes module backed by
+// the supplied FakeService. The stub-module pattern matches what
+// production does (a domain owns its mount), but injects the fake
+// service in place of the real repo+service chain so the handler test
+// stays focused on transport behaviour.
+func newServer(t *testing.T, fake *mocks.FakeService, logger *log.Logger) *httpx.LiveServer {
 	t.Helper()
-	srv := server.New(server.Deps{
-		Pinger:      &mocks.FakePinger{},
-		Clock:       clock.System{},
-		Logger:      log.New(&bytes.Buffer{}, "", 0),
-		NoteService: fake,
-		Service:     "react-vite-test",
-		Version:     "1.0.0",
-	})
+	if logger == nil {
+		logger = log.New(&bytes.Buffer{}, "", 0)
+	}
+	h := notes.NewHandler(notes.Deps{Service: fake, Logger: logger})
+	mod := module.Module{
+		Name:  "notes",
+		Mount: func(r *mux.Router) { r.PathPrefix("/api/v1/notes").Handler(h) },
+	}
+	srv := server.New(server.Deps{Clock: clock.System{}, Logger: logger}, mod)
 	return httpx.NewLiveServer(t, srv)
 }
 
 func TestNotesHandler_ListEmpty(t *testing.T) {
-	live := newServer(t, &mocks.FakeService{})
+	live := newServer(t, &mocks.FakeService{}, nil)
 	resp, body := live.Do(t, http.MethodGet, "/api/v1/notes", nil)
 	assertx.AssertStatus(t, resp, http.StatusOK)
 
@@ -48,12 +55,12 @@ func TestNotesHandler_ListEmpty(t *testing.T) {
 
 func TestNotesHandler_ListReturnsItems(t *testing.T) {
 	fake := &mocks.FakeService{
-		ListOut: []notes.Note{
+		ListOut: []internalnotes.Note{
 			{ID: "a", Title: "first"},
 			{ID: "b", Title: "second"},
 		},
 	}
-	live := newServer(t, fake)
+	live := newServer(t, fake, nil)
 	resp, body := live.Do(t, http.MethodGet, "/api/v1/notes", nil)
 	assertx.AssertStatus(t, resp, http.StatusOK)
 
@@ -66,7 +73,7 @@ func TestNotesHandler_ListReturnsItems(t *testing.T) {
 
 func TestNotesHandler_CreateSuccess(t *testing.T) {
 	fake := &mocks.FakeService{}
-	live := newServer(t, fake)
+	live := newServer(t, fake, nil)
 
 	resp, body := live.Do(t, http.MethodPost, "/api/v1/notes",
 		strings.NewReader(`{"title":"first","body":"hello"}`))
@@ -89,9 +96,9 @@ func TestNotesHandler_CreateSuccess(t *testing.T) {
 // moved from handler.go to service.go; the wire contract is unchanged.
 func TestNotesHandler_CreateRejectsMissingTitle(t *testing.T) {
 	fake := &mocks.FakeService{
-		CreateErr: notes.ErrInvalidNote{Field: "title", Reason: "required"},
+		CreateErr: internalnotes.ErrInvalidNote{Field: "title", Reason: "required"},
 	}
-	live := newServer(t, fake)
+	live := newServer(t, fake, nil)
 
 	resp, body := live.Do(t, http.MethodPost, "/api/v1/notes",
 		strings.NewReader(`{"title":"","body":"x"}`))
@@ -103,7 +110,7 @@ func TestNotesHandler_CreateRejectsMissingTitle(t *testing.T) {
 }
 
 func TestNotesHandler_CreateRejectsMalformedJSON(t *testing.T) {
-	live := newServer(t, &mocks.FakeService{})
+	live := newServer(t, &mocks.FakeService{}, nil)
 
 	resp, body := live.Do(t, http.MethodPost, "/api/v1/notes",
 		strings.NewReader(`{"title":`))
@@ -114,7 +121,7 @@ func TestNotesHandler_CreateRejectsMalformedJSON(t *testing.T) {
 }
 
 func TestNotesHandler_CreateRejectsUnknownFields(t *testing.T) {
-	live := newServer(t, &mocks.FakeService{})
+	live := newServer(t, &mocks.FakeService{}, nil)
 
 	resp, body := live.Do(t, http.MethodPost, "/api/v1/notes",
 		strings.NewReader(`{"title":"x","extra":"y"}`))
@@ -128,9 +135,9 @@ func TestNotesHandler_CreateRejectsUnknownFields(t *testing.T) {
 
 func TestNotesHandler_GetReturnsNote(t *testing.T) {
 	fake := &mocks.FakeService{
-		GetByID: map[string]notes.Note{"abc": {ID: "abc", Title: "found"}},
+		GetByID: map[string]internalnotes.Note{"abc": {ID: "abc", Title: "found"}},
 	}
-	live := newServer(t, fake)
+	live := newServer(t, fake, nil)
 
 	resp, body := live.Do(t, http.MethodGet, "/api/v1/notes/abc", nil)
 	assertx.AssertStatus(t, resp, http.StatusOK)
@@ -142,8 +149,8 @@ func TestNotesHandler_GetReturnsNote(t *testing.T) {
 }
 
 func TestNotesHandler_GetReturnsNotFound(t *testing.T) {
-	fake := &mocks.FakeService{GetErr: notes.ErrNoteNotFound{ID: "ghost"}}
-	live := newServer(t, fake)
+	fake := &mocks.FakeService{GetErr: internalnotes.ErrNoteNotFound{ID: "ghost"}}
+	live := newServer(t, fake, nil)
 
 	resp, body := live.Do(t, http.MethodGet, "/api/v1/notes/ghost", nil)
 	assertx.AssertStatus(t, resp, http.StatusNotFound)
@@ -156,15 +163,7 @@ func TestNotesHandler_GetReturnsNotFound(t *testing.T) {
 func TestNotesHandler_GetInternalError(t *testing.T) {
 	logBuf := &bytes.Buffer{}
 	fake := &mocks.FakeService{GetErr: errors.New("boom")}
-	srv := server.New(server.Deps{
-		Pinger:      &mocks.FakePinger{},
-		Clock:       clock.System{},
-		Logger:      log.New(logBuf, "", 0),
-		NoteService: fake,
-		Service:     "react-vite-test",
-		Version:     "1.0.0",
-	})
-	live := httpx.NewLiveServer(t, srv)
+	live := newServer(t, fake, log.New(logBuf, "", 0))
 
 	resp, body := live.Do(t, http.MethodGet, "/api/v1/notes/x", nil)
 	assertx.AssertStatus(t, resp, http.StatusInternalServerError)

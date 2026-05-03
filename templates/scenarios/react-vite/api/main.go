@@ -14,8 +14,9 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	healthH "{{SCENARIO_ID}}/handlers/health"
+	notesH "{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/notes"
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/store"
 )
@@ -96,16 +97,11 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	noteRepo := notes.NewSQLiteRepository(db, clock.System{})
-	noteSvc := notes.NewService(noteRepo)
-
-	srv := server.New(server.Deps{
-		Pinger:      db,
-		Clock:       clock.System{},
-		NoteService: noteSvc,
-		Service:     "{{SCENARIO_ID}}-api",
-		Version:     "1.0.0",
-	})
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "{{SCENARIO_ID}}-api", "1.0.0"),
+		notesH.Module(db, clock.System{}, log.Default()),
+	)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),

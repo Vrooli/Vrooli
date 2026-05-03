@@ -6,6 +6,7 @@ import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./i18n";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -30,7 +31,14 @@ ReactDOM.createRoot(rootEl).render(
           itself would escape this boundary, but that failure mode is
           covered by react-query's own tests, not application logic. */}
       <ErrorBoundary>
-        <App />
+        {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+            the profiling hook); emits user_timing entries via onProfilerRender
+            when the perf-build channel is active. See lib/profiler.ts. Add
+            inner <Profiler> boundaries around heavy subtrees as needed; do
+            not remove this one. */}
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
       </ErrorBoundary>
     </QueryClientProvider>
   </React.StrictMode>

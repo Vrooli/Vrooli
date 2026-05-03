@@ -25,6 +25,12 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // canonical CRUD reference — copy its shape (cli/domains/notes/) when
 // adding a real feature.
 //
+// This is the CLI side of the domain-module pattern; the API side uses
+// the same one-liner-per-domain shape via server.New(deps, modules...).
+// See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
+// pattern and docs/internal/REPLACING-NOTES.md for the delete-checklist
+// when swapping the notes reference for your scenario's first domain.
+//
 // For API-backed commands:
 //   - set NeedsAPI: true so stale-check + --auto-start preflight works
 //   - call core.Get(...) / core.Request(...) for versioned /api/v1 routes

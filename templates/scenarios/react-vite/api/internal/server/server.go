@@ -1,6 +1,11 @@
-// Package server wires the production HTTP handler stack: middleware,
-// routes, and dependencies. Constructed once in main.go and exposed via
-// Handler() for both the production listener and the httpx test harness
+// Package server wires the production HTTP handler stack: cross-cutting
+// middleware + a slice of domain modules. Each domain returns a
+// module.Module from its handlers package; main.go passes them in.
+// There is no central routes.go and no per-domain field on Deps —
+// adding a feature means creating files, not modifying this package.
+//
+// Constructed once in main.go and exposed via Handler() for both the
+// production listener and the httpx test harness
 // (internal/testutil/httpx.NewLiveServer).
 package server
 
@@ -12,44 +17,49 @@ import (
 	"github.com/gorilla/mux"
 
 	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/store"
+	"{{SCENARIO_ID}}/internal/middleware"
+	"{{SCENARIO_ID}}/internal/module"
 )
 
-// Deps holds the interfaces the Server depends on. Production wires
-// concrete implementations (clock.System{}, *sql.DB) in main.go; tests
+// Deps holds the cross-cutting interfaces the Server depends on
+// regardless of which modules are mounted. Production wires concrete
+// implementations (clock.System{}, log.Default()) in main.go; tests
 // wire fakes from internal/testutil/mocks.
 //
-// NoteService is the application-service surface for the notes
-// resource (validation, defaults). Production wires
-// notes.NewService(notes.NewSQLiteRepository(db, clk)); handler tests
-// substitute mocks.FakeService.
+// Per-domain dependencies (database handle, repository services,
+// pingers) live inside each module's constructor — Deps is intentionally
+// limited to what the middleware stack reads.
 type Deps struct {
-	Pinger      store.Pinger
-	Clock       clock.Clock
-	Logger      *log.Logger
-	NoteService notes.Service
-	Service     string
-	Version     string
+	Clock  clock.Clock
+	Logger *log.Logger
 }
 
-// Server is the wired HTTP application: dependencies + router. After
-// New, registerRoutes has already been called and Handler() returns the
-// production-ready http.Handler.
+// Server is the wired HTTP application: cross-cutting deps + router
+// with all module routes mounted. After New, every module's Mount has
+// already been called and Handler() returns the production-ready
+// http.Handler.
 type Server struct {
 	deps   Deps
 	router *mux.Router
 }
 
-// New builds a Server with routes registered. Logger defaults to
-// log.Default() if nil; the rest of Deps must be set explicitly
-// (greenfield rule — no hidden seams).
-func New(d Deps) *Server {
+// New builds a Server with logging middleware applied and every module's
+// Mount invoked. Logger defaults to log.Default() if nil; Clock has no
+// default — set it explicitly (greenfield rule, no hidden seams).
+//
+// The handler test in handlers/health/handler_test.go reproduces a
+// stripped-down version of the middleware composition; if you add
+// cross-cutting middleware here, mirror it in the test or move the
+// composition into a shared helper.
+func New(d Deps, modules ...module.Module) *Server {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
-	s.registerRoutes()
+	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
+	for _, m := range modules {
+		m.Mount(s.router)
+	}
 	return s
 }
 

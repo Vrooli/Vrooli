@@ -4,100 +4,74 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
 	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/module"
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/testutil/httpx"
-	"{{SCENARIO_ID}}/internal/testutil/mocks"
 )
 
-// TestServer_RoutesAreRegistered pins the route table the production
-// router exposes. Handler-level behaviour is covered by per-package
-// handler tests (handlers/health, handlers/notes); the contract this
-// test owns is "the server.New + registerRoutes wiring exposes every
-// path the scenario advertises, with the canonical method-to-status
-// mapping."
+// TestServer_MountsEachModule pins the contract the server owns:
+// every module passed to New has its Mount invoked exactly once on
+// the production router, and the resulting routes are reachable
+// through the Handler() chain (including recovery + logging
+// middleware).
 //
-// Why this exists in addition to handler tests: handler tests construct
-// the handler directly (notes.NewHandler, health.NewHandler) and never
-// exercise registerRoutes. A regression that drops a route from
-// routes.go silently passes every handler test but breaks production.
-// The e2e binary smoke test (api/main_e2e_test.go) only hits /health.
-// This test catches the rest before the e2e gate ever runs.
-func TestServer_RoutesAreRegistered(t *testing.T) {
-	srv := newTestServer(t)
+// Per-module route coverage (notes list returns 200, notes get
+// returns 404, etc.) lives in each handler's module_test.go where
+// it belongs; this file owns the wiring guarantee.
+func TestServer_MountsEachModule(t *testing.T) {
+	var aMounted, bMounted bool
+
+	moduleA := module.Module{
+		Name: "a",
+		Mount: func(r *mux.Router) {
+			aMounted = true
+			r.HandleFunc("/a", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("a-ok"))
+			}).Methods(http.MethodGet)
+		},
+	}
+	moduleB := module.Module{
+		Name: "b",
+		Mount: func(r *mux.Router) {
+			bMounted = true
+			r.HandleFunc("/b", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusTeapot)
+			}).Methods(http.MethodGet)
+		},
+	}
+
+	srv := server.New(newTestDeps(), moduleA, moduleB)
+	require.True(t, aMounted, "module A's Mount must be invoked")
+	require.True(t, bMounted, "module B's Mount must be invoked")
+
 	live := httpx.NewLiveServer(t, srv)
 
-	cases := []struct {
-		name         string
-		method       string
-		path         string
-		body         string
-		wantStatus   int
-		wantContains string // substring expected somewhere in the response body
-	}{
-		{
-			name:         "health_root",
-			method:       http.MethodGet,
-			path:         "/health",
-			wantStatus:   http.StatusOK,
-			wantContains: `"status"`,
-		},
-		{
-			name:         "health_versioned",
-			method:       http.MethodGet,
-			path:         "/api/v1/health",
-			wantStatus:   http.StatusOK,
-			wantContains: `"status"`,
-		},
-		{
-			name:       "notes_list",
-			method:     http.MethodGet,
-			path:       "/api/v1/notes",
-			wantStatus: http.StatusOK,
-			// Empty list responses serialise to "{}" because protojson
-			// omits proto3-default fields. The route-existence
-			// guarantee is the 200; per-field response shape is the
-			// handler test's job (handlers/notes/handler_test.go).
-			wantContains: `{`,
-		},
-		{
-			name:         "notes_create",
-			method:       http.MethodPost,
-			path:         "/api/v1/notes",
-			body:         `{"title":"x"}`,
-			wantStatus:   http.StatusCreated,
-			wantContains: `"note"`,
-		},
-		{
-			name:       "notes_get_not_found",
-			method:     http.MethodGet,
-			path:       "/api/v1/notes/missing",
-			wantStatus: http.StatusNotFound,
-			// The not-found path proves the {id} subroute is mounted
-			// (a missing route would return 404 from the router with
-			// no envelope; the envelope confirms the handler ran).
-			wantContains: `"not_found"`,
-		},
-	}
+	respA, payloadA := live.Do(t, http.MethodGet, "/a", nil)
+	require.Equal(t, http.StatusOK, respA.StatusCode)
+	require.Equal(t, "a-ok", string(payloadA))
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var body io.Reader
-			if tc.body != "" {
-				body = strings.NewReader(tc.body)
-			}
-			resp, payload := live.Do(t, tc.method, tc.path, body)
-			require.Equal(t, tc.wantStatus, resp.StatusCode,
-				"unexpected status; body=%s", string(payload))
-			require.Contains(t, string(payload), tc.wantContains,
-				"response body missing expected fragment")
-		})
-	}
+	respB, _ := live.Do(t, http.MethodGet, "/b", nil)
+	require.Equal(t, http.StatusTeapot, respB.StatusCode)
+}
+
+// TestServer_ZeroModules proves the variadic surface accepts zero
+// modules — useful for tests that only need middleware composition
+// and assert nothing about the route table.
+func TestServer_ZeroModules(t *testing.T) {
+	srv := server.New(newTestDeps())
+	require.NotNil(t, srv.Handler(), "Handler must be wired even with no modules")
+
+	live := httpx.NewLiveServer(t, srv)
+	resp, _ := live.Do(t, http.MethodGet, "/anything", nil)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode,
+		"unmounted paths must 404 from the router")
 }
 
 // TestServer_HandlerNotNil pins the smallest possible smoke: New must
@@ -105,22 +79,13 @@ func TestServer_RoutesAreRegistered(t *testing.T) {
 // Catches the case where a refactor drops the recovery wrapper or
 // returns the bare router without middleware composition.
 func TestServer_HandlerNotNil(t *testing.T) {
-	srv := newTestServer(t)
+	srv := server.New(newTestDeps())
 	require.NotNil(t, srv.Handler(), "server.Handler() must not be nil")
 }
 
-// newTestServer builds a Server backed by happy-path fakes for every
-// seam. Tests asserting on a specific seam's behaviour replace its
-// fake; tests in this file only care about wiring, so all fakes use
-// defaults.
-func newTestServer(t *testing.T) *server.Server {
-	t.Helper()
-	return server.New(server.Deps{
-		Pinger:      &mocks.FakePinger{},
-		Clock:       clock.System{},
-		Logger:      log.New(io.Discard, "", 0),
-		NoteService: &mocks.FakeService{},
-		Service:     "react-vite-test",
-		Version:     "1.0.0",
-	})
+func newTestDeps() server.Deps {
+	return server.Deps{
+		Clock:  clock.System{},
+		Logger: log.New(io.Discard, "", 0),
+	}
 }

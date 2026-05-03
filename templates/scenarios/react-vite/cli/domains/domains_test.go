@@ -17,12 +17,21 @@ func TestCommandGroups(t *testing.T) {
 	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
 }
 
-// TestSubcommandGroups proves the aggregator wires the notes domain.
-// New domain packages should land here as additional asserts so the
-// aggregator's failure mode (forgot to add the new domain) is caught
-// in CI rather than on a bug report.
+// TestSubcommandGroups proves the aggregator returns whatever domains
+// are wired in domains.go without panicking, and that every registered
+// group has the load-bearing fields (Name + Subcommands) populated.
+//
+// Deliberately flexible on count and name: scenarios add and remove
+// domain packages over time, and pinning "exactly 1 group named X"
+// breaks the moment a scenario follows REPLACING-NOTES.md to swap the
+// canonical reference for its own first domain. The catch-the-typo
+// failure mode (a domain registers but forgets to set Name or has no
+// subcommands) still fails this test loudly.
 func TestSubcommandGroups(t *testing.T) {
 	got := SubcommandGroups(&cliapp.ScenarioApp{})
-	require.Len(t, got, 1, "expected exactly one registered subcommand group")
-	require.Equal(t, "notes", got[0].Name, "the canonical CRUD reference must always be present")
+	require.NotNil(t, got, "SubcommandGroups must return a slice (possibly empty), not nil")
+	for i, g := range got {
+		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
+		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
+	}
 }

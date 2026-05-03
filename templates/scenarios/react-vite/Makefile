@@ -1,4 +1,4 @@
-.PHONY: help setup start stop restart status logs test open run dev
+.PHONY: help setup start stop restart status logs test open run dev endpoints
 
 .DEFAULT_GOAL := help
 
@@ -14,6 +14,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
 	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -42,6 +43,9 @@ test: ## Run scenario tests
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
+
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json --seed cmd/gen-endpoints/cli_commands_seed.json
 
 run: start
 

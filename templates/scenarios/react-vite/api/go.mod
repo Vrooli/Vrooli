@@ -18,3 +18,5 @@ replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core
 replace github.com/vrooli/vrooli/packages/proto => {{PACKAGES_REL_FROM_API}}/proto
 
 replace github.com/vrooli/vrooli => {{REPO_ROOT_REL_FROM_API}}
+
+replace github.com/vrooli/repo-contract-go => {{PACKAGES_REL_FROM_API}}/repo-contract-go

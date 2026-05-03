@@ -165,6 +165,18 @@ jobs:
             || { echo "::error::Go coverage $pct% < $threshold%"; exit 1; }
           echo "Go coverage $pct% >= $threshold%"
 
+      - name: Endpoints manifest is up to date
+        # The endpoints.json is generated from each handler module's
+        # Endpoints slice (see api/cmd/gen-endpoints). A drift here
+        # means a developer added/changed an endpoint without
+        # regenerating; the diff names the offending entries so the
+        # fix is mechanical: `make endpoints && git add .vrooli/endpoints.json`.
+        working-directory: ${{ github.workspace }}
+        run: |
+          make endpoints
+          git diff --exit-code .vrooli/endpoints.json \
+            || { echo "::error::endpoints.json is stale; run 'make endpoints' and commit"; exit 1; }
+
       - name: E2E (binary boots and serves /health)
         # Build-tag-isolated test in api/main_e2e_test.go. Boots the
         # real binary, polls /health, sends SIGTERM, asserts clean exit.
