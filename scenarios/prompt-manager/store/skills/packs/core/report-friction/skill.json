@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "report-friction",
+  "name": "Report Friction",
+  "description": "Universal writer skill for filing a friction observation — system-level capture-leak in tooling, runs, storage, or recurring workarounds. Writes a friction-inbox/<scope>/<slug> entry on the meta-optimization team for the friction-curator to drain and route to the appropriate scoped friction topic.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "observability",
+    "friction-report",
+    "writer-skill"
+  ],
+  "icon": "alert-triangle",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-05-03T00:00:00Z"
+}

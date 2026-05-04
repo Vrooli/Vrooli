@@ -40,7 +40,7 @@ This is the load-bearing claim that makes the substrate auditable. Adding a new 
 
 The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Topics with deterministic prefixes (e.g., `notebook-debt`-taxonomy intakes) need no classifier — the prefix segment after the inbox name *is* the signal type.
 
-For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*`), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention.
+For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*` on scenario-qa, `friction-inbox/*` on meta-optimization), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention. With two universal observation flows now in place (bugs and friction), the pattern (intake + writer skill + drainer + trigger paragraph) is at the threshold where a data-driven rendering off `intake[].source_team == "*"` declarations becomes worth exploring rather than a third hardcoded paragraph.
 
 ## When to create a topic
 
@@ -172,12 +172,15 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `toolchain-validator` | _(none — proactive)_ | `toolchain-audit/*` | — |
 | `run-introspector` | _(none — proactive)_ | `run-lessons/*` | — |
 | `meta-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
+| `friction-curator` | `friction-inbox/*` (taxonomy: `friction-report`, source: `*` — universal-source) | `friction/<scope>/*` (delivered to scoped sub-member topics), `friction-triage/<YYYY-MM-DD>` | producers: every team via the `report-friction` writer skill |
 
 **Observations (draft):**
-- Five proactive auditors plus one notebook-debt drainer plus one contrarian. This is the densest "proactive-shaped" team.
-- No `meta-inbox/*` for operator-fed meta alpha. If the operator wants to push "this skill needs work" or "this team is misshapen" without filing a decision, there's no inbox. **Possible gap:** `meta-inbox/*` drained by an existing optimizer or a new triage member. Workshop.
+- Five proactive auditors plus one notebook-debt drainer plus one contrarian plus one friction router. This is the densest team.
+- `friction-inbox/*` is the system's second **universal-source intake** (the first is `bug-inbox/*` on scenario-qa). Any team's members may write via the `report-friction` skill (declared as `external_producers`). The friction-curator validates scope, reclassifies `unknown`, and routes by writing to the existing `friction/<scope>/<date>/<slug>` topics on the scoped-topic owners' behalf. Curator owns no decision contexts — routing is determinate; capability-gaps are still raised by the scoped-topic owners.
+- `friction-triage/<YYYY-MM-DD>` is a daily snapshot, supersedesPrevious=true, drained by debt-curator (synthesis input) and by operator review. `orphan_output` warning is by-design here (no peer drainer).
 - `*-audit/*` (skill, action, team, agent) vs `*-scan/*` (toolchain, debt) inconsistency — see § Known inconsistencies #2.
 - `run-lessons/*` is heavily consumed by `meta-contrarian` (via `decisions_consumed: ["run-lesson", ...]`) and by other optimizers' input gathering, but no `intake[]` declares it. The flow goes through decisions, not direct topic-drain. Document this as the canonical example of "topic → decision-consumer" flow rather than "topic → topic-drainer."
+- The four scoped friction topics (`friction/toolchain/*`, `friction/run-execution/*`, `friction/prompt-team-agent-storage/*`, `friction/recurring-workaround/*`) are now multi-producer: each scoped sub-member writes their own observations *and* receives routed entries from the friction-curator. Intentional architectural choice — curator delivers cross-team observations into the scoped topic; sub-member synthesizes patterns. Documented on team.json's knowledgeTopics comments.
 
 ### monetization
 
@@ -209,7 +212,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `qa-contrarian` | _(none — proactive)_ | `challenge-note/*` | — |
 
 **Observations:**
-- `bug-inbox/*` is the agent system's only **universal-source intake** today. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
+- `bug-inbox/*` is one of two **universal-source intakes** in the system; the other is `friction-inbox/*` on meta-optimization. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
 - `bug-investigation/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
 - `challenge-note/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Known inconsistencies #3). Workshop-pending.
 - **Possible future gap:** `qa-inbox/*` / `audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.

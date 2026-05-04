@@ -52,6 +52,8 @@ Decision contexts owned by the team:
 
 scenario-qa is the bug-triage hub of the agent system. The `bug-inbox/*` topic prefix is **universal-source**: any team's members may write to it, by invoking the `report-bug` skill. The `bug-investigator` drains the inbox; classification is deterministic-prefix (signal type embedded in the topic), so no separate classifier skill is needed — investigation includes classification as its first step.
 
+**Sister flow.** The agent system has a second universal observation flow at `meta-optimization/friction-inbox/*`, drained by `friction-curator`, fed by the `report-friction` skill — for system-level capture-leak (tooling gaps, run-execution friction, storage-map confusion, recurring workarounds). Use `report-bug` for broken code or scenario behavior; use `report-friction` for things that worked but were harder than they should have been. See [`docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md`](../meta-optimization/FRICTION_REPORT_TAXONOMY.md).
+
 ```
 any-team/* ─[report-bug skill]──▶ scenario-qa/bug-inbox/<signal-type>/<slug>
                                           │

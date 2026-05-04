@@ -31,9 +31,9 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 5,
+  "revision": 6,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-22T11:17:41Z",
+  "updatedAt": "2026-05-03T00:00:00Z",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -88,6 +88,27 @@
           ],
           "rationale": "Canonical home for the prompt-manager self-improvement framework: definitions, layer model, promotion ladder, intake pipeline, skill authoring rules, deprecation policy, and reference scenarios. Every team's audit and skill work cites this hub.",
           "useFor": "framework canon — definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 9-layer team-member architecture, the intake-collection-analysis-promotion pipeline"
+        },
+        {
+          "id": "meta-optimization-friction-canon",
+          "hub": {"base": "repo-root", "path": "docs/meta-optimization/README.md"},
+          "paths": [
+            {"base": "repo-root", "path": "docs/meta-optimization/README.md"},
+            {"base": "repo-root", "path": "docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md"}
+          ],
+          "posture": "canon",
+          "writePolicy": "operator-curated-via-decision",
+          "promotionContext": "meta-self-improvement",
+          "consumers": [
+            "meta-optimization",
+            "marketing-crew",
+            "monetization",
+            "director-swarm",
+            "infra-health",
+            "scenario-qa"
+          ],
+          "rationale": "Strategic canon for cross-team friction observation: the friction-report taxonomy (scopes, severities, schemas, action-selection, what-is-NOT-friction guard) and the team-level overview of the universal-source friction-inbox flow. Cited by friction-curator/topics.json (intake taxonomy) and report-friction skill (required reading).",
+          "useFor": "friction-report taxonomy, friction routing rules, cross-team flow diagram, the second instance of the universal observation flow primitive (mirror of bug-inbox)"
         }
       ],
       "notebooks": [],
@@ -385,6 +406,18 @@
         "ownerMemberId": "meta-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "friction-inbox/<scope>/<slug>": {
+        "ownerMemberId": "friction-curator",
+        "supersedesPrevious": false,
+        "retention": "drained-on-close",
+        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction/<scope>/<date>/<slug> on the owning sub-member's behalf."
+      },
+      "friction-triage/<YYYY-MM-DD>": {
+        "ownerMemberId": "friction-curator",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "Daily snapshot of friction-inbox throughput: counts received/routed/dropped/reclassified/handoffs, by-scope and by-reporter-team breakdown, overflow flag. supersedesPrevious=true within a day; each heartbeat overwrites the day's snapshot."
       }
     },
     "members": {
@@ -624,7 +657,8 @@
         "pendingOwnedDecisionCap": 2,
         "requiredKnowledgeTopics": [
           "debt-scan/YYYY-MM-DD",
-          "friction/recurring-workaround/<YYYY-MM-DD>/<slug>"
+          "friction/recurring-workaround/<YYYY-MM-DD>/<slug>",
+          "friction-triage/<YYYY-MM-DD>"
         ],
         "allowedWrites": [
           {
@@ -684,6 +718,66 @@
             "retirement"
           ],
           "maxCandidatesSelected": 1
+        }
+      },
+      "friction-curator": {
+        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage/<YYYY-MM-DD> snapshot. Router, not analyst.",
+        "ownedDecisionContexts": [],
+        "newDecisionCapPerHeartbeat": 0,
+        "pendingOwnedDecisionCap": 0,
+        "requiredKnowledgeTopics": [
+          "friction-inbox/<scope>/<slug>",
+          "friction-triage/<YYYY-MM-DD>"
+        ],
+        "allowedWrites": [
+          {
+            "base": "team-shared",
+            "path": "knowledge.jsonl"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "team-shared",
+            "path": "decisions.jsonl"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never originate friction/<scope>/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
+          "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage/<YYYY-MM-DD> (routed, dropped, reclassified, or handed off).",
+          "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator — never direct-write friction/recurring-workaround/* from unknown.",
+          "Cap daily inbox drain at dailyInboxDrainCap; above that, emit inbox-overflow triage entry, handoff to debt-curator, and pause further routing this heartbeat."
+        ],
+        "readOnlyModeBehavior": {
+          "skipNewDecisions": true,
+          "stillWriteKnowledge": true,
+          "stillRunSupersession": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "dailyInboxDrainCap": 25,
+          "newRoutingsPerHeartbeat": 5,
+          "scopes": [
+            "toolchain",
+            "run-execution",
+            "prompt-team-agent-storage",
+            "recurring-workaround",
+            "unknown"
+          ],
+          "severities": [
+            "blocking",
+            "recurring",
+            "one-off"
+          ],
+          "actionSelection": [
+            "route",
+            "drop",
+            "reclassify",
+            "handoff-debt-curator",
+            "overflow-flag"
+          ]
         }
       }
     }

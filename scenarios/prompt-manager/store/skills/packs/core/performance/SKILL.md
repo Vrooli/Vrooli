@@ -4,7 +4,10 @@ Prioritize **runtime performance and perceived responsiveness** across this enti
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
+- `prompt-manager skill read scenario-performance-audit`
+
+Use `scenario-performance-audit` as the **measurement counterpart** to this steer: this skill says *what* to optimize and what counts as a real improvement; the audit skill is the reproducible methodology for *measuring* whether a given change actually produced one. Whenever this steer surfaces a hotspot beyond a trivial fix — anything where you'd otherwise be guessing whether it helped — run an audit (capture trace → analyse → comparison run after the fix) and persist the result to `docs/perf/<date>-<slug>.md`. Don't ship perf changes on vibes when the audit substrate is sitting right there.
 
 Focus on delivering a **faster, smoother experience**, guided by the following principles:
 

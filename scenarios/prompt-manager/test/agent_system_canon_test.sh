@@ -7,10 +7,14 @@
 #      scenarios/prompt-manager/store/skills/.
 #   2. The two skills fully absorbed in Phase 1 (skill-principles,
 #      team-shared-docs-design) no longer exist as skill directories.
-#   3. The retired docs/meta-optimization/ folder no longer exists.
+#   3. The docs/meta-optimization/ folder is the friction-report canon hub
+#      (revived 2026-05-03 with narrow scope: friction-report taxonomy + PoR
+#      only; the old broad meta-opt content remains absorbed into
+#      docs/agent-system/). The folder must contain README.md,
+#      FRICTION_REPORT_TAXONOMY.md, and friction-report-taxonomy.json.
 #   4. No active SKILL.md or live team/agent config references the retired
-#      skill IDs or the deleted folder. (Historical logs in *.jsonl and
-#      member last-handoff.md are exempt; they are immutable runtime traces.)
+#      skill IDs. (Historical logs in *.jsonl and member last-handoff.md are
+#      exempt; they are immutable runtime traces.)
 #
 # Run from repo root:
 #   bash scenarios/prompt-manager/test/agent_system_canon_test.sh
@@ -79,14 +83,22 @@ check "Skill 'skill-principles' is deleted" skill_principles_gone
 check "Skill 'team-shared-docs-design' is deleted" team_shared_docs_design_gone
 
 # ---------------------------------------------------------------------------
-# 3. docs/meta-optimization/ is deleted
+# 3. docs/meta-optimization/ is the friction-report canon hub
 # ---------------------------------------------------------------------------
+#
+# Revived 2026-05-03 with narrow scope: friction-report canon only. The old
+# broad meta-opt content (PRIMITIVES, LAYERS, etc.) remains absorbed into
+# docs/agent-system/. The folder must hold the friction-report taxonomy +
+# PoR + README; nothing else of the previous content should creep back.
 
-meta_opt_folder_gone() {
-    [[ ! -d docs/meta-optimization ]]
+meta_opt_friction_canon_present() {
+    [[ -d docs/meta-optimization ]] \
+      && [[ -f docs/meta-optimization/README.md ]] \
+      && [[ -f docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md ]] \
+      && [[ -f docs/meta-optimization/friction-report-taxonomy.json ]]
 }
 
-check "Folder docs/meta-optimization/ is deleted" meta_opt_folder_gone
+check "Folder docs/meta-optimization/ holds friction-report canon" meta_opt_friction_canon_present
 
 # ---------------------------------------------------------------------------
 # 4. No active references to retired entities
@@ -135,7 +147,6 @@ no_active_refs_to() {
 
 check "No active reference to skill-principles" no_active_refs_to "skill-principles"
 check "No active reference to team-shared-docs-design" no_active_refs_to "team-shared-docs-design"
-check "No active reference to docs/meta-optimization" no_active_refs_to "docs/meta-optimization"
 
 # ---------------------------------------------------------------------------
 # 5. Technique-registry pairing: doc + paired skill discipline

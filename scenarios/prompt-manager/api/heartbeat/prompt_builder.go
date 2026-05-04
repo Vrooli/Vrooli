@@ -862,7 +862,7 @@ When an observation has a clear typed destination — another member's inbox top
 
 For broken scenario or code behavior — bugs of any kind: code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors — load ` + "`prompt-manager skill read report-bug`" + ` and follow it. The skill writes to ` + "`bug-inbox/<signal-type>/<slug>`" + ` on ` + "`scenario-qa`" + `, where the bug-investigator drains. Do not put bugs in the notebook; ` + "`bug-inbox/*`" + ` is the universal-source intake any team's members write to.
 
-If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction. Mention one-off friction in handoff, write concrete friction to knowledge, append recurring workarounds to the notebook, and raise a decision only when the friction blocks work or points to a missing/broken capability.
+If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction. For structural friction — a skill that misled you, a tool that's missing, a doc you couldn't find, a workaround you keep repeating — load ` + "`prompt-manager skill read report-friction`" + ` and follow it. The skill writes to ` + "`friction-inbox/<scope>/<slug>`" + ` on ` + "`meta-optimization`" + `, where the friction-curator drains and routes to the appropriate sub-member or to debt-curator for synthesis. For situational, one-off friction not worth filing, mention it in handoff.
 
 ## Propose
 
