@@ -1,8 +1,10 @@
+import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -51,7 +53,9 @@ ReactDOM.createRoot(rootElement).render(
     }}
   >
     <QueryClientProvider client={queryClient}>
-      <App />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
     </QueryClientProvider>
   </ErrorBoundary>
 );

@@ -1,8 +1,9 @@
-import { forwardRef } from "react";
+import React, { forwardRef, memo } from "react";
 import { X } from "lucide-react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { Sidebar } from "./Sidebar";
 import { Button } from "../ui/button";
+import { onProfilerRender } from "../../lib/profiler";
 import type { View } from "../../hooks/useChats";
 import type { SettingsTab } from "../settings/settingsTypes";
 import type { BulkOperation } from "../../lib/api-chat";
@@ -13,6 +14,7 @@ interface SidebarPanelProps {
   chatListOpen: boolean;
   sidebarCollapsed: boolean;
   sidebarWidth: number;
+  panelRef: React.RefObject<HTMLDivElement>;
   isSidebarResizing: boolean;
   isMobile: boolean;
   handleResizeStart: (e: React.MouseEvent) => void;
@@ -46,11 +48,12 @@ interface SidebarPanelProps {
   closeSidebarButtonTestId: string;
 }
 
-export const SidebarPanel = forwardRef<HTMLInputElement, SidebarPanelProps>(function SidebarPanel({
+export const SidebarPanel = memo(forwardRef<HTMLInputElement, SidebarPanelProps>(function SidebarPanel({
   sidebarOpen,
   chatListOpen,
   sidebarCollapsed,
   sidebarWidth,
+  panelRef,
   isSidebarResizing,
   isMobile,
   handleResizeStart,
@@ -94,6 +97,7 @@ export const SidebarPanel = forwardRef<HTMLInputElement, SidebarPanelProps>(func
 
       {/* Sidebar */}
       <div
+        ref={panelRef}
         className={`fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto transform transition-transform duration-200 ${
           sidebarOpen || chatListOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } w-[85vw] max-w-[320px] lg:w-auto lg:max-w-none`}
@@ -105,32 +109,34 @@ export const SidebarPanel = forwardRef<HTMLInputElement, SidebarPanelProps>(func
           </Button>
         </div>
         <ErrorBoundary name="Sidebar">
-          <Sidebar
-            ref={ref}
-            currentView={currentView}
-            onViewChange={(view) => { setCurrentView(view); if (window.innerWidth < 768) setSidebarOpen(false); }}
-            onNewChat={handleNewChat}
-            onNewAgentChat={handleNewAgentChat}
-            onManageLabels={onManageLabels}
-            onOpenSettings={onOpenSettings}
-            onShowKeyboardShortcuts={onShowKeyboardShortcuts}
-            isCreatingChat={isCreatingChat}
-            labels={labels}
-            chatCounts={chatCounts}
-            chats={chats}
-            selectedChatId={selectedChatId}
-            focusedIndex={focusedIndex}
-            isLoadingChats={isLoadingChats}
-            onSelectChat={onSelectChat}
-            onRenameChat={onRenameChat}
-            onBulkOperate={onBulkOperate}
-            isBulkOperating={isBulkOperating}
-            isCollapsed={sidebarCollapsed && !isMobile}
-            onToggleCollapsed={handleToggleSidebarCollapsed}
-            onClearArchived={onClearArchived}
-            isClearingArchived={isClearingArchived}
-            onDeselectChat={onDeselectChat}
-          />
+          <React.Profiler id="Sidebar" onRender={onProfilerRender}>
+            <Sidebar
+              ref={ref}
+              currentView={currentView}
+              onViewChange={(view) => { setCurrentView(view); if (window.innerWidth < 768) setSidebarOpen(false); }}
+              onNewChat={handleNewChat}
+              onNewAgentChat={handleNewAgentChat}
+              onManageLabels={onManageLabels}
+              onOpenSettings={onOpenSettings}
+              onShowKeyboardShortcuts={onShowKeyboardShortcuts}
+              isCreatingChat={isCreatingChat}
+              labels={labels}
+              chatCounts={chatCounts}
+              chats={chats}
+              selectedChatId={selectedChatId}
+              focusedIndex={focusedIndex}
+              isLoadingChats={isLoadingChats}
+              onSelectChat={onSelectChat}
+              onRenameChat={onRenameChat}
+              onBulkOperate={onBulkOperate}
+              isBulkOperating={isBulkOperating}
+              isCollapsed={sidebarCollapsed && !isMobile}
+              onToggleCollapsed={handleToggleSidebarCollapsed}
+              onClearArchived={onClearArchived}
+              isClearingArchived={isClearingArchived}
+              onDeselectChat={onDeselectChat}
+            />
+          </React.Profiler>
         </ErrorBoundary>
       </div>
 
@@ -152,4 +158,4 @@ export const SidebarPanel = forwardRef<HTMLInputElement, SidebarPanelProps>(func
       )}
     </>
   );
-});
+}));

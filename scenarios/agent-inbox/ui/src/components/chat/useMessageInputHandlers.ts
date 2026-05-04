@@ -32,6 +32,17 @@ export function useMessageInputHandlers({
   templateActions,
   sendLogic,
 }: UseMessageInputHandlersParams) {
+  const {
+    filteredSlashCommands,
+    handleMessageChangeSlash,
+    setSlashPopupOpen,
+    setSlashSelectedIndex,
+    slashPopupOpen,
+    slashSelectedIndex,
+  } = slashCommands;
+  const { handleSlashCommandSelect } = templateActions;
+  const { handleSubmit } = sendLogic;
+
   const handleWebSearchToggle = useCallback((enabled: boolean) => {
     setWebSearchEnabled(enabled);
   }, [setWebSearchEnabled]);
@@ -40,18 +51,18 @@ export function useMessageInputHandlers({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
       setMessage(value);
-      slashCommands.handleMessageChangeSlash(value, e.target.selectionStart);
+      handleMessageChangeSlash(value, e.target.selectionStart);
     },
-    [setMessage, slashCommands.handleMessageChangeSlash],
+    [handleMessageChangeSlash, setMessage],
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (slashCommands.slashPopupOpen) {
+      if (slashPopupOpen) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          slashCommands.setSlashSelectedIndex((prev) =>
-            prev < slashCommands.filteredSlashCommands.length - 1
+          setSlashSelectedIndex((prev) =>
+            prev < filteredSlashCommands.length - 1
               ? prev + 1
               : 0,
           );
@@ -59,36 +70,36 @@ export function useMessageInputHandlers({
         }
         if (e.key === "ArrowUp") {
           e.preventDefault();
-          slashCommands.setSlashSelectedIndex((prev) =>
+          setSlashSelectedIndex((prev) =>
             prev > 0
               ? prev - 1
-              : slashCommands.filteredSlashCommands.length - 1,
+              : filteredSlashCommands.length - 1,
           );
           return;
         }
         if (e.key === "Enter") {
           e.preventDefault();
           const cmd =
-            slashCommands.filteredSlashCommands[
-              slashCommands.slashSelectedIndex
+            filteredSlashCommands[
+              slashSelectedIndex
             ];
           if (cmd) {
             if (cmd.type === "search") setWebSearchEnabled(true);
-            templateActions.handleSlashCommandSelect(cmd);
-            slashCommands.setSlashPopupOpen(false);
+            handleSlashCommandSelect(cmd);
+            setSlashPopupOpen(false);
           }
           return;
         }
         if (e.key === "Escape") {
           e.preventDefault();
-          slashCommands.setSlashPopupOpen(false);
+          setSlashPopupOpen(false);
           return;
         }
       }
 
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        sendLogic.handleSubmit();
+        handleSubmit();
       }
       if (e.key === "Escape" && isEditMode && onCancelEdit) {
         e.preventDefault();
@@ -96,17 +107,19 @@ export function useMessageInputHandlers({
         onCancelEdit();
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      sendLogic.handleSubmit,
+      handleSubmit,
       isEditMode,
       onCancelEdit,
-      slashCommands.slashPopupOpen,
-      slashCommands.filteredSlashCommands,
-      slashCommands.slashSelectedIndex,
-      templateActions.handleSlashCommandSelect,
-      slashCommands.setSlashPopupOpen,
-      slashCommands.setSlashSelectedIndex,
+      slashPopupOpen,
+      filteredSlashCommands,
+      slashSelectedIndex,
+      handleSlashCommandSelect,
+      setSlashPopupOpen,
+      setSlashSelectedIndex,
+      setMessageState,
+      draft,
+      setWebSearchEnabled,
     ],
   );
 

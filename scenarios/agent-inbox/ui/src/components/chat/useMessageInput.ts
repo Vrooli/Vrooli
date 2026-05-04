@@ -4,7 +4,7 @@
  * This hook wires together draft persistence, attachments, templates, skills,
  * slash commands, suggestions, and send logic into a single return value.
  */
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useDeferredValue, useRef, useEffect } from "react";
 import { useAttachments } from "../../hooks/useAttachments";
 import { useTools } from "../../hooks/useTools";
 import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
@@ -150,6 +150,7 @@ export function useMessageInput(props: MessageInputProps) {
     resetTemplate,
   } = useTemplatesAndSkills();
 
+  const deferredSuggestionText = useDeferredValue(message);
   const {
     suggestions: suggestedSkills,
     isLoading: suggestionsLoading,
@@ -158,7 +159,7 @@ export function useMessageInput(props: MessageInputProps) {
     dismissAll: dismissAllSuggestions,
   } = useAutoSuggestSkills({
     chatId,
-    inputText: message,
+    inputText: deferredSuggestionText,
     selectedSkillIds,
     enabled: autoSuggest.enabled,
     debounceMs: autoSuggest.debounceMs,
@@ -260,7 +261,7 @@ export function useMessageInput(props: MessageInputProps) {
 
   return {
     // Core state
-    message, setMessageState, draft, loading, isEditMode,
+    message, setMessage, setMessageState, draft, loading, isEditMode,
     textareaRef, placeholder, webSearchEnabled, setWebSearchEnabled,
 
     // Capabilities

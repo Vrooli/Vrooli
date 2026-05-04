@@ -70,21 +70,37 @@ export function useSendMessage({
   disableSend,
   disableSendReason,
 }: UseSendMessageOptions) {
-  const handleSubmit = useCallback(() => {
-    const trimmedMessage = message.trim();
+  const canSendMessage = useCallback((draftMessage: string) => {
+    const finalContent = activeTemplate ? getFilledTemplateContent() : draftMessage;
+    const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
+    if (!hasContent || loading || disableSend) return false;
+    if (activeTemplate && !isTemplateValid()) return false;
+    if (enableAttachments) {
+      if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
+      if (effectiveAttachments.length > 0 && !allUploaded) return false;
+    }
+    return true;
+  }, [
+    activeTemplate,
+    allUploaded,
+    disableSend,
+    effectiveAttachments.length,
+    enableAttachments,
+    getFilledTemplateContent,
+    hasErrors,
+    hasIncompatibleAttachments,
+    isTemplateValid,
+    isUploading,
+    loading,
+  ]);
+
+  const handleSubmitWithMessage = useCallback((draftMessage: string) => {
+    const trimmedMessage = draftMessage.trim();
     const finalContent = activeTemplate
       ? getFilledTemplateContent()
       : trimmedMessage;
 
-    const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
-
-    if (!hasContent || loading) return;
-    if (activeTemplate && !isTemplateValid()) return;
-
-    if (enableAttachments) {
-      if (isUploading || hasErrors || hasIncompatibleAttachments) return;
-      if (effectiveAttachments.length > 0 && !allUploaded) return;
-    }
+    if (!canSendMessage(draftMessage)) return;
 
     const payload: MessagePayload = {
       content: finalContent.trim(),
@@ -116,13 +132,6 @@ export function useSendMessage({
       textareaRef.current.style.height = "auto";
     }
   }, [
-    message,
-    effectiveAttachments,
-    isUploading,
-    hasErrors,
-    hasIncompatibleAttachments,
-    loading,
-    allUploaded,
     getUploadedIds,
     webSearchEnabled,
     forcedTool,
@@ -136,7 +145,6 @@ export function useSendMessage({
     onSubmitEdit,
     activeTemplate,
     getFilledTemplateContent,
-    isTemplateValid,
     selectedSkillIds,
     buildSkillPayloads,
     resetTemplatesAndSkills,
@@ -144,20 +152,15 @@ export function useSendMessage({
     setWebSearchEnabled,
     setForcedTool,
     textareaRef,
+    canSendMessage,
   ]);
 
+  const handleSubmit = useCallback(() => {
+    handleSubmitWithMessage(textareaRef.current?.value ?? message);
+  }, [handleSubmitWithMessage, message, textareaRef]);
+
   // Determine if send button should be disabled
-  const finalContent = activeTemplate ? getFilledTemplateContent() : message;
-  const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
-  const canSend = (() => {
-    if (!hasContent || loading || disableSend) return false;
-    if (activeTemplate && !isTemplateValid()) return false;
-    if (enableAttachments) {
-      if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
-      if (effectiveAttachments.length > 0 && !allUploaded) return false;
-    }
-    return true;
-  })();
+  const canSend = canSendMessage(message);
 
   // Build send button tooltip
   const modKey = (() => {
@@ -183,5 +186,5 @@ export function useSendMessage({
     sendTooltip = "Remove attachments not supported by this model";
   }
 
-  return { handleSubmit, canSend, sendTooltip, modKey };
+  return { handleSubmit, handleSubmitWithMessage, canSend, canSendMessage, sendTooltip, modKey };
 }

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Loader2, X, Sparkles } from "lucide-react";
 import { WebSearchIndicator } from "./WebSearchIndicator";
 import { ForcedToolIndicator } from "./ForcedToolIndicator";
@@ -39,7 +40,7 @@ interface MessageInputFooterProps {
   dismissAllSuggestions: () => void;
 }
 
-export function MessageInputFooter({
+export const MessageInputFooter = memo(function MessageInputFooter({
   isEditMode,
   modKey,
   loading,
@@ -173,4 +174,4 @@ export function MessageInputFooter({
       </div>
     </div>
   );
-}
+});

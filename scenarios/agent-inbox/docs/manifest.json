@@ -41,6 +41,19 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "documents": [
+        {
+          "path": "perf/2026-05-04-list-resize-markdown-typing-audit.md",
+          "title": "List, Resize, Markdown, and Typing Audit",
+          "description": "Profile-mode browser trace and recommendations for Agent Inbox UI hotspots",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -74,7 +87,7 @@
     }
   ],
   "navigation": {
-    "primary": ["overview", "reference"],
+    "primary": ["overview", "reference", "perf"],
     "secondary": ["internal"]
   }
 }

@@ -46,7 +46,7 @@ function AppContent() {
 
   const {
     width: sidebarWidth, isResizing: isSidebarResizing,
-    containerRef: sidebarContainerRef, handleResizeStart,
+    panelRef: sidebarPanelRef, containerRef: sidebarContainerRef, handleResizeStart,
   } = useResizableSidebar({
     storageKey: "agent-inbox:sidebar-width",
     defaultWidth: 320, minWidth: 200, maxWidthRatio: 0.5,
@@ -168,6 +168,56 @@ function AppContent() {
     setScrollToMessageId,
   });
 
+  const handleManageLabels = useCallback(() => {
+    modals.setShowLabelManager(true);
+  }, [modals]);
+
+  const handleRenameChat = useCallback(
+    (chatId: string, newName: string) => {
+      updateChat({ chatId, data: { name: newName } });
+    },
+    [updateChat],
+  );
+
+  const handleBulkOperate = useCallback(
+    (chatIds: string[], operation: Parameters<typeof bulkOperate>[0]["operation"], labelId?: string) => {
+      bulkOperate({ chatIds, operation, labelId });
+    },
+    [bulkOperate],
+  );
+
+  const handleSendMessage = useCallback(
+    (payload: Parameters<typeof sendMessage>[0]) => {
+      void sendMessage(payload);
+    },
+    [sendMessage],
+  );
+
+  const handleTemplateDeactivate = useCallback(() => {
+    void activeTemplate.deactivate();
+  }, [activeTemplate]);
+
+  const handleCreateChatWithMessage = useCallback(
+    (payload: Parameters<typeof createChatWithMessage>[0]) => {
+      void createChatWithMessage(payload);
+    },
+    [createChatWithMessage],
+  );
+
+  const handleStartAgentChatFromEmpty = useCallback(
+    (payload: Parameters<typeof handleStartAgentChat>[0], config: Parameters<typeof handleStartAgentChat>[1]) => {
+      void handleStartAgentChat(payload, config);
+    },
+    [handleStartAgentChat],
+  );
+
+  const handleAttachRunFromEmptyState = useCallback(
+    (run: Parameters<typeof handleAttachRunFromEmpty>[0]) => {
+      void handleAttachRunFromEmpty(run);
+    },
+    [handleAttachRunFromEmpty],
+  );
+
   const visibleChats = useMemo(() => {
     return chats.filter((c) => {
       if (currentView === "inbox") return !c.is_archived;
@@ -193,6 +243,7 @@ function AppContent() {
     <div ref={sidebarContainerRef} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
       <SidebarPanel
         ref={searchInputRef}
+        panelRef={sidebarPanelRef}
         sidebarOpen={sidebarOpen} chatListOpen={chatListOpen}
         sidebarCollapsed={sidebarCollapsed} sidebarWidth={sidebarWidth}
         isSidebarResizing={isSidebarResizing} isMobile={isMobile}
@@ -201,14 +252,14 @@ function AppContent() {
         handleToggleSidebarCollapsed={handleToggleSidebarCollapsed}
         currentView={currentView} setCurrentView={setCurrentView}
         handleNewChat={handleNewChat} handleNewAgentChat={handleNewAgentChat}
-        onManageLabels={() => modals.setShowLabelManager(true)}
+        onManageLabels={handleManageLabels}
         onOpenSettings={modals.handleOpenSettings}
         onShowKeyboardShortcuts={modals.handleShowKeyboardShortcuts}
         isCreatingChat={isCreatingChat} labels={labels} chatCounts={chatCounts}
         chats={chats} selectedChatId={selectedChatId} focusedIndex={focusedIndex}
         isLoadingChats={loadingChats} onSelectChat={handleSelectChat}
-        onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
-        onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
+        onRenameChat={handleRenameChat}
+        onBulkOperate={handleBulkOperate}
         isBulkOperating={isBulkOperating}
         onClearArchived={handleClearArchived} isClearingArchived={isClearingArchived}
         onDeselectChat={handleDeselectChat}
@@ -222,7 +273,7 @@ function AppContent() {
         streamingContent={streamingContent} activeToolCalls={activeToolCalls}
         generatedImages={generatedImages} scrollToMessageId={scrollToMessageId}
         chatViewCallbacks={chatViewCallbacks}
-        sendMessage={(payload) => { void sendMessage(payload); }}
+        sendMessage={handleSendMessage}
         viewMode={viewMode}
         selectBranch={selectBranch} forkConversation={forkConversation}
         isRegenerating={isRegenerating} isForking={isForking}
@@ -236,13 +287,13 @@ function AppContent() {
         handleRemoveAsyncReference={handleRemoveAsyncReference}
         handleTemplateActivated={handleTemplateActivated}
         activeTemplateId={activeTemplate.activeTemplateId}
-        onTemplateDeactivate={() => { void activeTemplate.deactivate(); }}
+        onTemplateDeactivate={handleTemplateDeactivate}
         handleOpenAgentSettings={modals.handleOpenAgentSettings}
         handleBackToList={handleBackToList} isMobile={isMobile}
         setSidebarOpen={setSidebarOpen} chatListOpen={chatListOpen}
-        createChatWithMessage={(payload) => { void createChatWithMessage(payload); }}
-        handleStartAgentChat={(payload, config) => { void handleStartAgentChat(payload, config); }}
-        handleAttachRunFromEmpty={(run) => { void handleAttachRunFromEmpty(run); }}
+        createChatWithMessage={handleCreateChatWithMessage}
+        handleStartAgentChat={handleStartAgentChatFromEmpty}
+        handleAttachRunFromEmpty={handleAttachRunFromEmptyState}
         isCreatingChat={isCreatingChat}
       />
 

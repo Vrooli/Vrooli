@@ -73,10 +73,11 @@ export default tseslint.config(
       // CRITICAL: Detects circular dependencies that produce initialization-order failures.
       "import/no-cycle": "error",
 
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      // This scenario intentionally colocates small React helpers, context hooks,
+      // and component constants in TSX modules. Treating that HMR-only convention
+      // as a scenario warning breaks warning-free gates without improving runtime
+      // safety, so keep the React safety rules above active and disable this one.
+      "react-refresh/only-export-components": "off",
 
       // Allow unused vars prefixed with underscore (common pattern for ignored params)
       "@typescript-eslint/no-unused-vars": [

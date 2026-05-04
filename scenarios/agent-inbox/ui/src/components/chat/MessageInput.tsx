@@ -1,3 +1,4 @@
+import React, { useMemo } from "react";
 import { X } from "lucide-react";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { TemplateVariableForm } from "./TemplateVariableForm";
@@ -6,6 +7,7 @@ import { MessageInputFooter } from "./MessageInputFooter";
 import { MessageInputModals } from "./MessageInputModals";
 import { MessageInputArea } from "./MessageInputArea";
 import { selectorsManifest } from "../../consts/selectors";
+import { onProfilerRender } from "../../lib/profiler";
 
 import type { MessageInputProps } from "./MessageInput.types";
 import { useMessageInput } from "./useMessageInput";
@@ -38,13 +40,20 @@ export function MessageInput(props: MessageInputProps) {
 
   const {
     draft,
+    message,
+    setMessage,
     isEditMode,
     textareaRef,
+    placeholder,
     webSearchEnabled,
     setWebSearchEnabled,
     enableAttachments,
     enableWebSearch,
+    enableForceTools,
+    modelSupportsImages,
+    modelSupportsPDFs,
     modelSupportsWebSearch,
+    modelSupportsToolUse,
     effectiveAttachments,
     hasIncompatibleAttachments,
     removeAttachment,
@@ -78,15 +87,86 @@ export function MessageInput(props: MessageInputProps) {
     dismissSuggestion,
     dismissAllSuggestions,
     modeHistory,
+    slashCommands,
     templateActions,
     sendLogic,
     loading,
     handleForceTool,
+    handleImageSelect,
+    handlePDFSelect,
     handleClearForcedTool: _hcft,
     toolsByScenario,
     setMessageState,
     onCancelEdit,
+    handleWebSearchToggle,
+    handleKeyDown,
+    chatId,
+    isMerging,
   } = state;
+
+  const inputAreaState = useMemo(() => ({
+    message,
+    setMessage,
+    draft,
+    loading,
+    isEditMode,
+    textareaRef,
+    placeholder,
+    webSearchEnabled,
+    enableAttachments,
+    enableWebSearch,
+    enableForceTools,
+    modelSupportsImages,
+    modelSupportsPDFs,
+    modelSupportsWebSearch,
+    modelSupportsToolUse,
+    handleImageSelect,
+    handlePDFSelect,
+    handleForceTool,
+    forcedTool,
+    toolsByScenario,
+    activeTemplate,
+    selectedSkillIds,
+    slashCommands,
+    templateActions,
+    sendLogic,
+    handleWebSearchToggle,
+    handleKeyDown,
+    chatId,
+    setWebSearchEnabled,
+    isMerging,
+  }), [
+    activeTemplate,
+    chatId,
+    draft,
+    enableAttachments,
+    enableForceTools,
+    enableWebSearch,
+    forcedTool,
+    handleForceTool,
+    handleImageSelect,
+    handleKeyDown,
+    handlePDFSelect,
+    handleWebSearchToggle,
+    isEditMode,
+    isMerging,
+    loading,
+    message,
+    modelSupportsImages,
+    modelSupportsPDFs,
+    modelSupportsToolUse,
+    modelSupportsWebSearch,
+    placeholder,
+    selectedSkillIds,
+    sendLogic,
+    setMessage,
+    setWebSearchEnabled,
+    slashCommands,
+    templateActions,
+    textareaRef,
+    toolsByScenario,
+    webSearchEnabled,
+  ]);
 
   return (
     <div
@@ -170,11 +250,13 @@ export function MessageInput(props: MessageInputProps) {
       )}
 
       {/* Input container (extracted) */}
-      <MessageInputArea
-        state={state}
-        inputTestId={messageInputTestIds.input}
-        sendButtonTestId={messageInputTestIds.sendButton}
-      />
+      <React.Profiler id="MessageInputArea" onRender={onProfilerRender}>
+        <MessageInputArea
+          state={inputAreaState}
+          inputTestId={messageInputTestIds.input}
+          sendButtonTestId={messageInputTestIds.sendButton}
+        />
+      </React.Profiler>
 
       {/* Footer with keyboard hints and indicators */}
       <MessageInputFooter

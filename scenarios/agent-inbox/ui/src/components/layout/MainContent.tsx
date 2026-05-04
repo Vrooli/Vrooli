@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, memo, useCallback } from "react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { EmptyState } from "../chat/EmptyState";
 import type { ViewMode } from "../settings/Settings";
@@ -74,7 +74,7 @@ interface MainContentProps {
   isCreatingChat: boolean;
 }
 
-export function MainContent({
+export const MainContent = memo(function MainContent({
   selectedChatId,
   chatData,
   models,
@@ -118,6 +118,8 @@ export function MainContent({
   handleAttachRunFromEmpty,
   isCreatingChat,
 }: MainContentProps) {
+  const handleOpenSidebar = useCallback(() => setSidebarOpen(true), [setSidebarOpen]);
+
   return (
     <div
       className={`flex-1 flex flex-col min-h-0 min-w-0 ${
@@ -178,7 +180,7 @@ export function MainContent({
               onOpenAgentSettings={handleOpenAgentSettings}
               onBackToList={handleBackToList}
               isMobile={isMobile}
-              onOpenSidebar={() => setSidebarOpen(true)}
+              onOpenSidebar={handleOpenSidebar}
             />
           </Suspense>
         ) : (
@@ -190,10 +192,10 @@ export function MainContent({
             isCreating={isCreatingChat}
             models={models}
             isMobile={isMobile}
-            onOpenSidebar={() => setSidebarOpen(true)}
+            onOpenSidebar={handleOpenSidebar}
           />
         )}
       </ErrorBoundary>
     </div>
   );
-}
+});

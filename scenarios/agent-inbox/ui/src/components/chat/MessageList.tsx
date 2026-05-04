@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import React, { memo, useEffect, useMemo } from "react";
 import { Bot } from "lucide-react";
 import type { Message, ToolCallRecord } from "../../lib/api";
 import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
@@ -8,6 +8,8 @@ import { getSiblingInfo } from "../../lib/messageTree";
 import { MessageBubble } from "./MessageBubble";
 import { ActiveToolCallsDisplay, PendingApprovalsDisplay, StreamingMessageDisplay } from "./StreamingMessage";
 import { useScrollManagement } from "./useScrollManagement";
+import { onProfilerRender } from "../../lib/profiler";
+import { useVirtualRows } from "../../hooks/useVirtualRows";
 import {
   EMPTY_IMAGES,
   EMPTY_TOOL_CALLS,
@@ -146,6 +148,53 @@ function MessageListInner({
     });
   }, [messages, toolCallRecordMap]);
 
+  const shouldVirtualizeMessages = filteredMessages.length > 30;
+  const virtualRows = useVirtualRows({
+    count: filteredMessages.length,
+    estimateSize: isCompact ? 96 : 220,
+    overscan: 5,
+    enabled: shouldVirtualizeMessages,
+  });
+
+  const filteredMessageIndexById = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredMessages.forEach((message, index) => map.set(message.id, index));
+    return map;
+  }, [filteredMessages]);
+
+  useEffect(() => {
+    if (!scrollToMessageId || !shouldVirtualizeMessages) return;
+    const index = filteredMessageIndexById.get(scrollToMessageId);
+    if (index !== undefined) {
+      virtualRows.scrollToIndex(index, "center");
+    }
+  }, [filteredMessageIndexById, scrollToMessageId, shouldVirtualizeMessages, virtualRows]);
+
+  const renderMessage = (message: Message, measure?: (element: HTMLDivElement | null) => void) => (
+    <MessageBubble
+      key={message.id}
+      message={message}
+      viewMode={viewMode}
+      allMessages={messagesForSiblings}
+      siblingInfo={siblingInfoMap.get(message.id) ?? DEFAULT_SIBLING_INFO}
+      toolCallRecordMap={toolCallRecordMap}
+      asyncOperationMap={asyncOperationMap}
+      onRegenerate={onRegenerateMessage}
+      onSelectBranch={onSelectBranch}
+      onFork={onForkConversation}
+      onEdit={onEditMessage}
+      onOpenAsyncDrawer={onOpenAsyncDrawer}
+      isRegenerating={isRegenerating}
+      isForking={isForking}
+      isHighlighted={message.id === highlightedMessageId}
+      ref={(el) => {
+        if (el) messageRefs.current.set(message.id, el);
+        else messageRefs.current.delete(message.id);
+        measure?.(el);
+      }}
+    />
+  );
+
   // IMPORTANT: Early return MUST be AFTER all hooks to satisfy React's Rules of Hooks.
   if (messages.length === 0 && !isGenerating) {
     return (
@@ -165,30 +214,32 @@ function MessageListInner({
   }
 
   return (
-    <div className={`flex-1 overflow-y-auto overflow-x-hidden p-4 ${isCompact ? "space-y-2" : "space-y-4"}`} data-testid="message-list">
-      {filteredMessages.map((message) => (
-        <MessageBubble
-          key={message.id}
-          message={message}
-          viewMode={viewMode}
-          allMessages={messagesForSiblings}
-          siblingInfo={siblingInfoMap.get(message.id) ?? DEFAULT_SIBLING_INFO}
-          toolCallRecordMap={toolCallRecordMap}
-          asyncOperationMap={asyncOperationMap}
-          onRegenerate={onRegenerateMessage}
-          onSelectBranch={onSelectBranch}
-          onFork={onForkConversation}
-          onEdit={onEditMessage}
-          onOpenAsyncDrawer={onOpenAsyncDrawer}
-          isRegenerating={isRegenerating}
-          isForking={isForking}
-          isHighlighted={message.id === highlightedMessageId}
-          ref={(el) => {
-            if (el) messageRefs.current.set(message.id, el);
-            else messageRefs.current.delete(message.id);
-          }}
-        />
-      ))}
+    <React.Profiler id="MessageList" onRender={onProfilerRender}>
+    <div
+      ref={virtualRows.setContainerElement}
+      className={`flex-1 overflow-y-auto overflow-x-hidden p-4 ${!shouldVirtualizeMessages ? (isCompact ? "space-y-2" : "space-y-4") : ""}`}
+      data-testid="message-list"
+    >
+      {shouldVirtualizeMessages ? (
+        <div className="relative" style={{ height: virtualRows.totalHeight }}>
+          {virtualRows.virtualRows.map((row) => {
+            const message = filteredMessages[row.index];
+            if (!message) return null;
+            return (
+              <div
+                key={message.id}
+                className="absolute left-0 right-0 top-0"
+                style={{ transform: `translateY(${row.offsetTop}px)` }}
+              >
+                {renderMessage(message, (el) => virtualRows.measureElement(row.index, el))}
+              </div>
+            );
+          })}
+          <div ref={endRef} className="absolute left-0 right-0 h-px" style={{ top: virtualRows.totalHeight }} />
+        </div>
+      ) : (
+        filteredMessages.map((message) => renderMessage(message))
+      )}
 
       <ActiveToolCallsDisplay activeToolCalls={activeToolCalls} isCompact={isCompact} />
 
@@ -210,8 +261,9 @@ function MessageListInner({
         />
       )}
 
-      <div ref={endRef} />
+      {!shouldVirtualizeMessages && <div ref={endRef} />}
     </div>
+    </React.Profiler>
   );
 }
 

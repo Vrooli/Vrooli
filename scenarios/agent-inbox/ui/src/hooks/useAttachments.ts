@@ -57,39 +57,7 @@ export function useAttachments(
 ): UseAttachmentsReturn {
   const [attachments, setAttachments] = useState<AttachmentState[]>([]);
 
-  const addAttachment = useCallback((file: File, type?: AttachmentType) => {
-    const id = generateLocalId();
-    const resolvedType = type || getAttachmentType(file);
-
-    // Create initial state
-    const newAttachment: AttachmentState = {
-      id,
-      file,
-      type: resolvedType,
-      uploadStatus: "pending",
-    };
-
-    // Generate preview for images
-    if (resolvedType === "image") {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAttachments((prev) =>
-          prev.map((att) =>
-            att.id === id ? { ...att, previewUrl: e.target?.result as string } : att
-          )
-        );
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // Add to state
-    setAttachments((prev) => [...prev, newAttachment]);
-
-    // Start upload immediately
-    void uploadFile(id, file);
-  }, []);
-
-  const uploadFile = async (id: string, file: File) => {
+  const uploadFile = useCallback(async (id: string, file: File) => {
     // Mark as uploading
     setAttachments((prev) =>
       prev.map((att) =>
@@ -128,7 +96,39 @@ export function useAttachments(
         )
       );
     }
-  };
+  }, [customUploadFn]);
+
+  const addAttachment = useCallback((file: File, type?: AttachmentType) => {
+    const id = generateLocalId();
+    const resolvedType = type || getAttachmentType(file);
+
+    // Create initial state
+    const newAttachment: AttachmentState = {
+      id,
+      file,
+      type: resolvedType,
+      uploadStatus: "pending",
+    };
+
+    // Generate preview for images
+    if (resolvedType === "image") {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAttachments((prev) =>
+          prev.map((att) =>
+            att.id === id ? { ...att, previewUrl: e.target?.result as string } : att
+          )
+        );
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Add to state
+    setAttachments((prev) => [...prev, newAttachment]);
+
+    // Start upload immediately
+    void uploadFile(id, file);
+  }, [uploadFile]);
 
   const removeAttachment = useCallback((id: string) => {
     setAttachments((prev) => {

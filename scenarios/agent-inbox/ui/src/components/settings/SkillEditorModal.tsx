@@ -3,7 +3,7 @@
  * Simpler than TemplateEditorModal since skills have no variables.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Pencil, Loader2 } from "lucide-react";
 import type { Skill, SkillWithSource } from "@/lib/types/templates";
 import { ItemTreeSidebar } from "@/components/shared/ItemTreeSidebar";
@@ -49,7 +49,10 @@ export function SkillEditorModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  const formState: SkillFormState = { name, description, icon, modes, content, tagsInput, targetToolId, draft };
+  const formState: SkillFormState = useMemo(
+    () => ({ name, description, icon, modes, content, tagsInput, targetToolId, draft }),
+    [content, description, draft, icon, modes, name, tagsInput, targetToolId],
+  );
   const hasUnsavedChanges = useHasUnsavedChanges(readOnly, skill, formState);
 
   // Multi-item editing (extracted hook)
