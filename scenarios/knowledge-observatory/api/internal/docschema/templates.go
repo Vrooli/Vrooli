@@ -28,6 +28,7 @@ var templateDocTypes = map[DocType]TemplateInfo{
 	DocTypeTemporalFlows:   {"TEMPORAL-FLOWS.md", "Async patterns, race conditions, checkpoint flows"},
 	DocTypeCoherenceNotes:  {"COHERENCE-NOTES.md", "React state patterns, duplication, styling audit"},
 	DocTypeExperienceAudit: {"EXPERIENCE-AUDIT.md", "Persona mapping, friction analysis, navigation"},
+	DocTypePerfAudit:       {"PERF-AUDIT.md", "Headless perf-audit findings: frontmatter + per-component table; one file per audit at docs/perf/<date>-<slug>.md"},
 }
 
 // TemplateForDocType returns the template content for the given doc type.

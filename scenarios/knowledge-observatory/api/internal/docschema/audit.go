@@ -40,6 +40,7 @@ type AuditResult struct {
 	OrphanedDocs        []string           `json:"orphaned_docs"`
 	DuplicateTitles     []DuplicateTitle   `json:"duplicate_titles"`
 	UndocumentedTargets []string           `json:"undocumented_targets"`
+	PerfAuditIssues     []FrontmatterIssue `json:"perf_audit_issues"`
 }
 
 var (
@@ -114,6 +115,9 @@ func AuditScenarioDocumentation(scenarioPath string) (*AuditResult, error) {
 
 	// Step 6: Find undocumented PRD targets.
 	result.UndocumentedTargets = findUndocumentedTargets(scenarioPath)
+
+	// Step 7: Validate perf-audit docs (frontmatter + per-component table).
+	result.PerfAuditIssues = auditPerfDocs(scenarioPath)
 
 	return result, nil
 }

@@ -30,7 +30,7 @@ func (s *Server) handleDocsTemplateList(w http.ResponseWriter, r *http.Request) 
 	for _, dt := range types {
 		items = append(items, TemplateListItem{
 			DocType:      string(dt),
-			ExpectedPath: dt.ExpectedPath(),
+			ExpectedPath: dt.ExpectedPathDisplay(),
 			Purpose:      docschema.TemplatePurpose(dt),
 		})
 	}
@@ -56,7 +56,7 @@ func (s *Server) handleDocsTemplateGet(w http.ResponseWriter, r *http.Request) {
 
 	response := TemplateDetailResponse{
 		DocType:      string(dt),
-		ExpectedPath: dt.ExpectedPath(),
+		ExpectedPath: dt.ExpectedPathDisplay(),
 		Purpose:      docschema.TemplatePurpose(dt),
 		Content:      content,
 	}

@@ -288,6 +288,7 @@ func isRecognizedDocPath(rel string, knownNames map[string]DocType) bool {
 		"docs/reference/",
 		"docs/internal/",
 		"docs/plans/",
+		"docs/perf/",
 	} {
 		if strings.HasPrefix(rel, prefix) {
 			return true

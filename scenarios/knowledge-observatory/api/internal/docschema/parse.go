@@ -29,6 +29,8 @@ func ParseDocType(value string) (DocType, error) {
 		return DocTypeCoherenceNotes, nil
 	case "experience-audit", "experience_audit", "experienceaudit":
 		return DocTypeExperienceAudit, nil
+	case "perf-audit", "perf_audit", "perfaudit":
+		return DocTypePerfAudit, nil
 	case "quickstart":
 		return DocTypeQuickstart, nil
 	case "architecture":

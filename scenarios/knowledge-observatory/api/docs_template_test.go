@@ -23,8 +23,8 @@ func TestHandleDocsTemplateList(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&items); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(items) != 10 {
-		t.Fatalf("expected 10 templates, got %d", len(items))
+	if len(items) != 11 {
+		t.Fatalf("expected 11 templates, got %d", len(items))
 	}
 	for _, item := range items {
 		if item.DocType == "" {

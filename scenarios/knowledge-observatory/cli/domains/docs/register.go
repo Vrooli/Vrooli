@@ -121,7 +121,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Documentation",
 		Commands: []cliapp.Command{
-			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (search-files, search-text, search-deep, scenarios, tree, health, view, reset, heal, heal-status, read, add, stats)", Run: func(args []string) error {
+			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (read, add, view, search-files, search-text, search-deep, scenarios, tree, health, audit, heal, heal-status, autofix, reset, stats, templates, template)", Run: func(args []string) error {
 				return run(deps, args)
 			}},
 		},

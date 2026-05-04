@@ -7,8 +7,8 @@ import (
 
 func TestListTemplateDocTypes(t *testing.T) {
 	types := ListTemplateDocTypes()
-	if len(types) != 10 {
-		t.Fatalf("expected 10 template doc types, got %d: %v", len(types), types)
+	if len(types) != 11 {
+		t.Fatalf("expected 11 template doc types, got %d: %v", len(types), types)
 	}
 
 	// Verify sorted order.
@@ -28,8 +28,11 @@ func TestTemplateForDocType(t *testing.T) {
 		if content == "" {
 			t.Fatalf("TemplateForDocType(%s) returned empty content", dt)
 		}
-		if !strings.HasPrefix(content, "#") {
-			t.Fatalf("TemplateForDocType(%s) content should start with a heading, got: %.50s", dt, content)
+		// Templates either lead with a heading (the docs/internal pattern) or
+		// with a `---` frontmatter block (the docs/perf pattern). Reject any
+		// other lead.
+		if !strings.HasPrefix(content, "#") && !strings.HasPrefix(content, "---") {
+			t.Fatalf("TemplateForDocType(%s) content should start with a heading or frontmatter, got: %.50s", dt, content)
 		}
 	}
 }
@@ -86,14 +89,23 @@ func TestTemplatePurpose(t *testing.T) {
 }
 
 func TestExpectedDocTypes(t *testing.T) {
-	// Every template type should map to a known ExpectedPath.
+	// Every template type should map to a known placement contract: either an
+	// ExpectedPath (single-file types) or an ExpectedDir + FilenamePattern
+	// (directory-pattern types like perf-audit).
 	for _, dt := range ListTemplateDocTypes() {
 		ep := dt.ExpectedPath()
-		if ep == "" {
-			t.Fatalf("doc type %s has a template but no ExpectedPath", dt)
+		if ep != "" {
+			if !strings.Contains(ep, "internal/") {
+				t.Fatalf("fixed-path template doc type %s expected path %q should be in docs/internal/", dt, ep)
+			}
+			continue
 		}
-		if !strings.Contains(ep, "internal/") {
-			t.Fatalf("template doc type %s expected path %q should be in docs/internal/", dt, ep)
+		// No ExpectedPath: must declare ExpectedDir + FilenamePattern.
+		if dt.ExpectedDir() == "" {
+			t.Fatalf("template doc type %s has neither ExpectedPath nor ExpectedDir", dt)
+		}
+		if dt.FilenamePattern() == nil {
+			t.Fatalf("template doc type %s has ExpectedDir but no FilenamePattern", dt)
 		}
 	}
 }
