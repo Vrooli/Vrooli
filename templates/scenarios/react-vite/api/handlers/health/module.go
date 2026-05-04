@@ -5,8 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"{{SCENARIO_ID}}/internal/database"
 	"{{SCENARIO_ID}}/internal/module"
-	"{{SCENARIO_ID}}/internal/store"
 )
 
 // Module returns the health domain's contribution to the API: the
@@ -15,7 +15,7 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger store.Pinger, service, version string) module.Module {
+func Module(pinger database.Pinger, service, version string) module.Module {
 	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version})
 	return module.Module{
 		Name: "health",
@@ -26,3 +26,9 @@ func Module(pinger store.Pinger, service, version string) module.Module {
 		Endpoints: Endpoints,
 	}
 }
+
+// Schema returns "" — health is stateless, no tables to own. The
+// modules registry includes this re-export anyway so adding a stateful
+// domain later is a uniform "create the file, return the SQL" pattern
+// instead of "remember to also add a Schema() function."
+func Schema() string { return "" }

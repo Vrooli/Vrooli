@@ -4,7 +4,8 @@ import "context"
 
 // Repository is the persistence seam the notes service depends on.
 // Production wires the sqlite-backed implementation from sqlite.go;
-// service unit tests wire testutil/mocks.FakeRepository. New methods
+// service unit tests wire mocks.FakeRepository (from internal/notes/mocks).
+// New methods
 // land here when the service proves it needs them — keep the surface
 // narrow.
 type Repository interface {

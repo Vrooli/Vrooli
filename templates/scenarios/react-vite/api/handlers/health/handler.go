@@ -2,7 +2,7 @@
 //
 // Built on api-core/health for the standardized response schema
 // (status / dependencies / metrics) but plumbed through the local
-// store.Pinger seam so handler tests can substitute a fake without
+// database.Pinger seam so handler tests can substitute a fake without
 // opening the on-disk SQLite file.
 package health
 
@@ -12,14 +12,14 @@ import (
 
 	apihealth "github.com/vrooli/api-core/health"
 
-	"{{SCENARIO_ID}}/internal/store"
+	"{{SCENARIO_ID}}/internal/database"
 )
 
 // Deps wires the seams the health handler needs. Service and Version
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger  store.Pinger
+	Pinger  database.Pinger
 	Service string
 	Version string
 }

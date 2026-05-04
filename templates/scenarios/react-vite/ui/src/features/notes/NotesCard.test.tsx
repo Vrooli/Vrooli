@@ -9,12 +9,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import {
-  makeListNotesResponse,
-  makeNote,
-  makeNotesMocks,
-  renderWithProviders,
-} from "../../test-utils";
+import { renderWithProviders } from "../../test-utils";
+import { makeListNotesResponse, makeNote } from "./mocks/factories";
+import { makeNotesMocks } from "./mocks/notes";
 
 vi.mock("../../lib/notes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/notes")>();

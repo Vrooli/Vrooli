@@ -32,3 +32,9 @@ func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
 		Endpoints: Endpoints,
 	}
 }
+
+// Schema re-exports internalnotes.Schema so the modules registry can
+// collect both endpoint descriptors and schema from one symbol per
+// handler package. Keeps the registry's per-domain shape uniform:
+// handlers/<dom>/{Module, Endpoints, Schema}.
+func Schema() string { return internalnotes.Schema() }

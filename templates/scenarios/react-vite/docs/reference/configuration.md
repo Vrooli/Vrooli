@@ -37,16 +37,18 @@ for the full policy.
 ### Scenario-prefixed CLI variables
 
 `cli-core` derives a standard set of env vars from the scenario name.
-For `{{SCENARIO_ID}}` the following are recognised, in precedence
-order (first-found wins):
+For `{{SCENARIO_ID}}` the prefix is the scenario id upper-cased with
+hyphens replaced by underscores (so `my-scenario` → `MY_SCENARIO`).
+The following are recognised, in precedence order (first-found wins);
+substitute your scenario's prefix for `<PREFIX>`:
 
 | Purpose | Variables |
 |---|---|
-| API base URL | `{{SCENARIO_ID_UPPER}}_API_BASE`, `{{SCENARIO_ID_UPPER}}_API_URL`, `VROOLI_API_BASE` |
-| API port | `{{SCENARIO_ID_UPPER}}_API_PORT` |
-| API token | `{{SCENARIO_ID_UPPER}}_API_TOKEN`, `VROOLI_API_TOKEN` |
-| Config dir | `{{SCENARIO_ID_UPPER}}_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
-| HTTP timeout | `{{SCENARIO_ID_UPPER}}_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
+| API base URL | `<PREFIX>_API_BASE`, `<PREFIX>_API_URL`, `VROOLI_API_BASE` |
+| API port | `<PREFIX>_API_PORT` |
+| API token | `<PREFIX>_API_TOKEN`, `VROOLI_API_TOKEN` |
+| Config dir | `<PREFIX>_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
+| HTTP timeout | `<PREFIX>_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
 
 > **Do not** set the un-prefixed `API_PORT` for a CLI invocation —
 > when CLIs run inside web-console terminals it leaks across scenarios.
@@ -73,12 +75,39 @@ The template ships with `dependencies.resources: {}` — SQLite is
 in-process, so no resource is required. Scenarios add resources here
 when they need shared infrastructure.
 
+## Schema bootstrap
+
+Schema is owned per-domain. `api/internal/<dom>/schema.sql` declares
+each domain's tables and is embedded into the binary via `go:embed`
+from `api/internal/<dom>/schema.go::Schema()`. Cross-cutting
+infrastructure (postgres extensions, custom types, cross-domain views)
+lives in `api/internal/database/system.sql` — empty by default in
+SQLite scenarios.
+
+The shared registry at `api/internal/modules/registry.go::AllSchemas()`
+collects them in order (system first, then domains alphabetical), and
+`apidb.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from
+`api-core/database` applies them at startup. The path is idempotent —
+all DDL uses `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN
+IF NOT EXISTS`, so re-runs on every boot are no-ops.
+
+Adding a column lands in the same diff as the Go struct field, the
+repository scan, and the proto wire shape — single location, single
+edit. Drops/renames in production data need the brownfield
+versioned-migration helpers (`Migrate` / `MigrationProvider` in
+`api-core/database`, deferred until the first scenario hits the pain).
+
+See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
+for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
+for the per-seam table including `notes.Schema` and
+`database.SystemSchema`.
+
 ## CLI config file
 
 The scenario CLI persists per-user configuration to a JSON file.
 Resolution order (first match wins):
 
-1. `${{{SCENARIO_ID_UPPER}}_CONFIG_DIR}/config.json`
+1. `${<PREFIX>_CONFIG_DIR}/config.json` (the scenario-prefixed env var; see "Scenario-prefixed CLI variables" above)
 2. `${XDG_CONFIG_HOME}/vrooli/{{SCENARIO_ID}}/config.json`
 3. `~/.vrooli/config/{{SCENARIO_ID}}/config.json`
 4. `~/.config/vrooli/{{SCENARIO_ID}}/config.json`

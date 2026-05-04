@@ -52,13 +52,18 @@ export { interp } from "./interp";
 // factories.ts. Tests should always import it from here so a future
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
-export { makeHealthResponse, makeListNotesResponse, makeNote } from "./factories";
-export type { HealthResponse, ListNotesResponse, Note } from "./factories";
+//
+// Domain-specific factories (Note, ListNotesResponse, etc.) are NOT
+// re-exported here — they live next to the feature they double for
+// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// folder takes them along.
+export { makeHealthResponse } from "./factories";
+export type { HealthResponse } from "./factories";
 
-// Mock builders for external SDKs and internal seams. Each test file
-// still calls `vi.mock(<module>, ...)` inline (Vitest hoisting requires
-// it); the builders live in one place so a future API addition is a
-// one-edit change rather than a fan-out across consumers.
+// Mock builders for external SDKs. Each test file still calls
+// `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
+// builders live in one place so a future API addition is a one-edit
+// change rather than a fan-out across consumers.
 export {
   makeGamepadInputManagerCtor,
   makeMockGamepadInputManager,
@@ -69,12 +74,11 @@ export type {
   MockSpatialNavController,
 } from "./mocks/spatial";
 
-// Internal-seam mock builders for the UI's own lib/* HTTP wrappers.
-// Use `...makeApiMocks()` / `...makeNotesMocks()` *inside* the
+// Internal-seam mock builders for cross-domain HTTP wrappers (the
+// generic `lib/api` health/error path). Domain-specific mocks
+// (e.g. `makeNotesMocks`) live with their feature.
+// Use `...makeApiMocks()` *inside* the
 // `vi.mock(..., async (importOriginal) => …)` factory closure — never
-// at module top level. See mocks/api.ts and mocks/notes.ts for the
-// canonical usage shape.
+// at module top level. See mocks/api.ts for the canonical usage shape.
 export { makeApiMocks } from "./mocks/api";
 export type { ApiMocks } from "./mocks/api";
-export { makeNotesMocks } from "./mocks/notes";
-export type { NotesMocks, NotesMockCreateInput } from "./mocks/notes";

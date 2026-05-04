@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync/atomic"
 
-	"{{SCENARIO_ID}}/internal/store"
+	"{{SCENARIO_ID}}/internal/database"
 )
 
-// FakePinger satisfies store.Pinger for tests that don't want a real
+// FakePinger satisfies database.Pinger for tests that don't want a real
 // database. PingErr controls the return value of PingContext — nil means
 // healthy. Calls counts every PingContext invocation, useful for
 // asserting the health check actually ran. Read with Calls.Load();
@@ -23,5 +23,5 @@ func (p *FakePinger) PingContext(ctx context.Context) error {
 	return p.PingErr
 }
 
-// Compile-time guarantee that *FakePinger satisfies store.Pinger.
-var _ store.Pinger = (*FakePinger)(nil)
+// Compile-time guarantee that *FakePinger satisfies database.Pinger.
+var _ database.Pinger = (*FakePinger)(nil)

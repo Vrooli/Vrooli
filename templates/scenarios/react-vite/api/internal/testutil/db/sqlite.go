@@ -12,21 +12,25 @@
 //
 // NewSQLite returns a *blank* handle. The canonical compose pattern
 // for repository tests pairs it with the production schema entry
-// point (`store.EnsureSchema`) so tests exercise the same shape
+// point (`apidb.EnsureSchemas` from `api-core/database`) over the
+// system + per-domain providers, so tests exercise the same shape
 // `main.go` ships:
 //
 //	func newSchemaDB(t *testing.T) *sql.DB {
 //	    d := db.NewSQLite(t)
-//	    require.NoError(t, store.EnsureSchema(context.Background(), d))
+//	    require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+//	        apidb.SchemaProviderFunc(localdb.SystemSchema),
+//	        apidb.SchemaProviderFunc(notes.Schema),
+//	    ))
 //	    return d
 //	}
 //
 // See `internal/notes/sqlite_test.go` for the worked example.
-// The two-line helper is intentionally inline at the consumer rather
-// than exported from this package — `db` lives under `testutil` and
-// the domain package is the consumer, so an exported helper would
-// invert the dependency. Reach for it as a per-package convention;
-// do not generalise across packages.
+// The helper is intentionally inline at the consumer rather than
+// exported from this package — `db` lives under `testutil` and the
+// domain package is the consumer, so an exported helper would invert
+// the dependency. Reach for it as a per-package convention; do not
+// generalise across packages.
 package db
 
 import (

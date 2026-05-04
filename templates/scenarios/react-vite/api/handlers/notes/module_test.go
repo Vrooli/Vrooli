@@ -11,9 +11,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
+	apidb "github.com/vrooli/api-core/database"
+
 	"{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/store"
+	localdb "{{SCENARIO_ID}}/internal/database"
+	internalnotes "{{SCENARIO_ID}}/internal/notes"
 	"{{SCENARIO_ID}}/internal/testutil/db"
 )
 
@@ -22,7 +25,10 @@ import (
 // closure, and the Endpoints slice referenced from endpoints.go.
 func TestModule_Shape(t *testing.T) {
 	d := db.NewSQLite(t)
-	require.NoError(t, store.EnsureSchema(context.Background(), d))
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(internalnotes.Schema),
+	))
 
 	m := notes.Module(d, clock.System{}, log.New(io.Discard, "", 0))
 
@@ -40,7 +46,10 @@ func TestModule_Shape(t *testing.T) {
 // service↔repository wiring fails here, not in the e2e gate.
 func TestModule_RoutesAreReachable(t *testing.T) {
 	d := db.NewSQLite(t)
-	require.NoError(t, store.EnsureSchema(context.Background(), d))
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(internalnotes.Schema),
+	))
 
 	m := notes.Module(d, clock.System{}, log.New(io.Discard, "", 0))
 	r := mux.NewRouter()

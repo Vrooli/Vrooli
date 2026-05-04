@@ -17,8 +17,8 @@ import (
 	healthH "{{SCENARIO_ID}}/handlers/health"
 	notesH "{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/modules"
 	"{{SCENARIO_ID}}/internal/server"
-	"{{SCENARIO_ID}}/internal/store"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -93,7 +93,7 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := store.EnsureSchema(context.Background(), db); err != nil {
+	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 

@@ -35,18 +35,49 @@ phase — it's how you learn the pattern by copying.
    - `sqlite.go` — `SqliteRepository` impl.
    - `service.go` — `Service` interface, `NewService(repo)`,
      validation + defaults.
-   - `service_test.go`, `sqlite_test.go` — tests.
+   - `schema.sql` — domain-owned table DDL (`CREATE TABLE IF NOT
+     EXISTS tasks (...)`).
+   - `schema.go` — `//go:embed schema.sql` + `func Schema() string`.
+   - `service_test.go`, `sqlite_test.go`, `schema_test.go` — tests.
+   - `mocks/{repository,service,repository_test,service_test}.go` —
+     co-located test fakes (`package mocks`); deleting `internal/tasks/`
+     takes them along.
 
 3. **API handler + module.** Create `api/handlers/tasks/`:
    - `handler.go` — `Deps`, `NewHandler` returning a subrouter.
    - `module.go` — `Module(db, clk, logger) module.Module` that
-     constructs repo + service + handler internally.
+     constructs repo + service + handler internally; also re-exports
+     `func Schema() string { return internaltasks.Schema() }` so the
+     registry collects all per-domain metadata via one symbol per
+     handler package.
    - `endpoints.go` — `var Endpoints = []module.EndpointDescriptor{...}`
      mirroring the wire shape of each route.
    - `module_test.go`, `handler_test.go` — tests.
 
-4. **Wire into main.** Add **one line** to `api/main.go`'s
-   `server.New(...)` slice:
+4. **Wire into the registry + main.** Three single-line edits.
+
+   In `api/internal/modules/registry.go`, add tasks to both lists:
+   ```go
+   func AllEndpoints() []module.EndpointDescriptor {
+       out := make([]module.EndpointDescriptor, 0)
+       out = append(out, healthH.Endpoints...)
+       out = append(out, notesH.Endpoints...)
+       out = append(out, tasksH.Endpoints...)  // new
+       return out
+   }
+
+   func AllSchemas() []apidb.SchemaProvider {
+       return []apidb.SchemaProvider{
+           apidb.SchemaProviderFunc(localdb.SystemSchema),
+           apidb.SchemaProviderFunc(healthH.Schema),
+           apidb.SchemaProviderFunc(notesH.Schema),
+           apidb.SchemaProviderFunc(tasksH.Schema),  // new
+       }
+   }
+   ```
+
+   In `api/main.go`'s `server.New(...)` slice, add the runtime module
+   (the one place that needs live deps):
    ```go
    srv := server.New(
        server.Deps{Clock: clock.System{}, Logger: log.Default()},
@@ -82,6 +113,10 @@ phase — it's how you learn the pattern by copying.
    - `TasksCard.tsx` — function component, mirrors
      `features/notes/NotesCard.tsx`.
    - `TasksCard.test.tsx` — tests.
+   - `mocks/factories.ts` — domain-typed `makeTask` /
+     `makeListTasksResponse` (proto-backed via `create(<Schema>, ...)`).
+   - `mocks/tasks.ts` — `makeTasksMocks()` builder for `vi.mock(...)`.
+   - `mocks/{factories,tasks}.test.ts` — self-tests.
    And `ui/src/lib/tasks.ts` — fetcher + types.
    Then add **one import + one render line** in `ui/src/App.tsx`:
    ```tsx
@@ -103,9 +138,11 @@ phase — it's how you learn the pattern by copying.
 
 ## Steps to remove the `notes` reference
 
-Once your domain is green, delete notes. The full sequence:
+Once your domain is green, delete notes. Each folder owns its own
+schema, mocks, factories, tests, and helpers — folder deletion is the
+fundamental: there's no central residue per Pass 3.
 
-**1. Remove the six domain folders + the lib + the lib test:**
+**1. Delete the four domain folders + the lib files.**
 
 ```bash
 rm -rf api/internal/notes \
@@ -117,59 +154,55 @@ rm -rf api/internal/notes \
        ui/src/lib/notes.test.ts
 ```
 
-**2. Remove the four notes mocks** (FakeRepository + FakeService +
-their self-tests). These live under `internal/testutil/mocks/` but
-are domain-specific to notes:
+That single sweep takes the schema (`api/internal/notes/schema.{sql,go}`),
+the API mocks (`api/internal/notes/mocks/*`), and the UI mocks +
+factories (`ui/src/features/notes/mocks/*`) along with the rest of the
+domain.
+
+**2. Remove the import + Module + Schema + Endpoints registration lines.**
+Three central files, three sweeps per surface:
 
 ```bash
-rm api/internal/testutil/mocks/notes_repository.go \
-   api/internal/testutil/mocks/notes_service.go \
-   api/internal/testutil/mocks/notes_repository_test.go \
-   api/internal/testutil/mocks/notes_service_test.go
-```
-
-**3. Remove the import + Module registration lines** (one per surface):
-
-```bash
-# API: drop the import and the Module() call from main.go.
+# API runtime: drop the notesH import and the Module() call from main.go.
 sed -i '/notesH "[^"]*\/handlers\/notes"/d' api/main.go
 sed -i '/notesH\.Module/d' api/main.go
 
-# CLI: drop the import and the Register() call from domains.go.
+# Modules registry: drop the notesH.Endpoints + notesH.Schema entries.
+sed -i '/notesH\.Endpoints/d' api/internal/modules/registry.go
+sed -i '/notesH\.Schema/d' api/internal/modules/registry.go
+# Then remove the now-orphan `notesH "..."` import line from registry.go:
+sed -i '/notesH "[^"]*\/handlers\/notes"/d' api/internal/modules/registry.go
+
+# CLI: drop the import + Register() call from domains.go.
 sed -i '/\/cli\/domains\/notes/d' cli/domains/domains.go
 sed -i '/notes\.Register/d' cli/domains/domains.go
 
-# UI: drop the NotesCard import and render line from App.tsx.
+# UI: drop the NotesCard import + render line from App.tsx.
 sed -i '/NotesCard/d' ui/src/App.tsx
 ```
 
-**4. Drop the notes endpoints from the codegen seed and the
-gen-endpoints program**:
+**3. Drop the notes entries from the codegen seed and regenerate:**
 
 ```bash
-# Edit api/cmd/gen-endpoints/cli_commands_seed.json by hand:
-# remove the four `notes list/create/get` entries.
-
-# Drop the notesH import and the notesH.Endpoints append from
-# api/cmd/gen-endpoints/main.go (one import line, one append line).
-sed -i '/notesH "[^"]*\/handlers\/notes"/d' api/cmd/gen-endpoints/main.go
-sed -i '/notesH\.Endpoints\.\.\./d' api/cmd/gen-endpoints/main.go
-
-# Regenerate the manifest.
+# Edit api/cmd/gen-endpoints/cli_commands_seed.json by hand: remove
+# the three `notes list/create/get` entries.
 make endpoints
 ```
 
-**5. Drop the notes-specific strings** from
+**4. Drop the notes-specific strings** from
 `ui/src/i18n/locales/*.json` (search for `"notes":` blocks) and
 re-run `pnpm strings:gen` from `ui/`.
 
-The remaining surface is your domain plus health. No notes residue.
+The remaining surface is your domain plus health. No notes residue —
+including no orphan `notes` table created on every boot (Pass-3 moved
+schema ownership to `internal/notes/`, deleted with the folder).
 
-> **Why so many steps?** The fundamentals are the 6 folder deletions
-> + 3 single-line removals (one per surface). The mocks (#2) and
-> codegen wire-up (#4) are domain-specific files that a real-world
-> scenario would replace with its own equivalents — they're listed
-> for completeness so the throwaway test passes cleanly.
+> **Why these steps?** Step 1 is folder-deletion (schema, mocks,
+> factories, tests come along). Step 2 deletes three central
+> registration lines per surface. Steps 3–4 update two files codegen
+> can't reach. The cohesion gain shows up here: where prior versions
+> needed nine deletions across four locations, the surface is now
+> mostly `rm -rf`.
 
 ## Verify the deletion is complete
 

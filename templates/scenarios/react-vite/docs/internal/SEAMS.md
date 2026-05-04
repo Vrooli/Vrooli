@@ -38,7 +38,7 @@ test ergonomics fall out for free.
 | **Seam** | Short name used to refer to the boundary in conversation. |
 | **Interface** | Go file & symbol that defines the contract. |
 | **Production wiring** | Where the real implementation is constructed. |
-| **Test fake** | The fake under `internal/testutil/mocks/` that substitutes. |
+| **Test fake** | The fake under `internal/testutil/mocks/` (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
 | **Why it exists** | The class of bug it prevents or the test ergonomic it enables. |
 
 ## Current seams
@@ -58,7 +58,7 @@ test ergonomics fall out for free.
 | | |
 |---|---|
 | **Seam** | Database reachability probe |
-| **Interface** | `internal/store/store.go::Pinger` (`PingContext(ctx) error`) |
+| **Interface** | `internal/database/pinger.go::Pinger` (`PingContext(ctx) error`) |
 | **Production wiring** | `main.go` opens `*sql.DB` via `database.Connect(...)` against `modernc.org/sqlite` (pure-Go, CGO-clean). `*sql.DB` satisfies `Pinger` directly — no wrapper. |
 | **Test fake** | `internal/testutil/mocks::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
@@ -70,7 +70,7 @@ test ergonomics fall out for free.
 | **Seam** | Notes persistence (CRUD) |
 | **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
 | **Production wiring** | `main.go` constructs `notes.NewSQLiteRepository(db, clock.System{})`, then wraps it with `notes.NewService(repo)` (see next row) before passing the service via `server.Deps.NoteService`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
-| **Test fake** | `internal/testutil/mocks::FakeRepository` (in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
+| **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
 | **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
 
 ### notes.Service (notes application layer)
@@ -80,7 +80,7 @@ test ergonomics fall out for free.
 | **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
 | **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
 | **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
-| **Test fake** | `internal/testutil/mocks::FakeService` (records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/handler_test.go` to drive the handler without validation/repository plumbing in scope. |
+| **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/handler_test.go` to drive the handler without validation/repository plumbing in scope. |
 | **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (gRPC, batch jobs, scheduled imports) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
 
 ### module.Module (domain composition)
@@ -98,10 +98,30 @@ test ergonomics fall out for free.
 | | |
 |---|---|
 | **Seam** | The `.vrooli/endpoints.json` API documentation manifest. |
-| **Interface** | `api/cmd/gen-endpoints/main.go` reads each handler module's `Endpoints []module.EndpointDescriptor` slice (`handlers/notes/endpoints.go`, `handlers/health/endpoints.go`, …) and `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
+| **Interface** | `api/cmd/gen-endpoints/main.go` reads `internal/modules.AllEndpoints()` — the shared registry that collects each handler's static `Endpoints []module.EndpointDescriptor` slice plus `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
 | **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
-| **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. The cross-check (every `cli_mapping.command` in `endpoints[]` matches a `cli_commands[].name`) has its own unit test. |
-| **Why it exists** | Hand-edited endpoints manifests drift from real handlers (a Pass-2 risk that surfaced before this refactor). Generating from each module's descriptor slice means the manifest is always derived from the real wire shape. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
+| **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. `internal/modules/registry_test.go` pins the registry shape (non-empty, stable order). The cross-check (every `cli_mapping.command` in `endpoints[]` matches a `cli_commands[].name`) has its own unit test. |
+| **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is two registry lines, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
+
+### database.SystemSchema (cross-cutting infrastructure)
+
+| | |
+|---|---|
+| **Seam** | Cross-cutting database infrastructure (postgres extensions, custom types, cross-domain views) |
+| **Interface** | `internal/database/system.go::SystemSchema() string` (consumed via `api-core/database.SchemaProvider`) |
+| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(localdb.SystemSchema)` first; `main.go` passes the slice into `apidb.EnsureSchemas`. |
+| **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
+| **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership; a central `internal/store/schema.sql` was what Pass-3 deleted. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
+
+### notes.Schema (per-domain schema)
+
+| | |
+|---|---|
+| **Seam** | Notes domain SQL contribution |
+| **Interface** | `internal/notes/schema.go::Schema() string` (consumed via `handlers/notes/module.go::Schema` re-export, then `api-core/database.SchemaProvider`) |
+| **Production wiring** | `internal/modules/registry.go::AllSchemas()` includes `apidb.SchemaProviderFunc(notesH.Schema)`; applied at boot via `apidb.EnsureSchemas`. |
+| **Test fake** | `internal/notes/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + notes providers. Repository tests get a fresh table without touching the central registry. |
+| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it (no orphan table created on boot — the Pass-3 smoking-gun bug). The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
 
 ### Doer (outbound HTTP)
 
@@ -122,8 +142,9 @@ process is mechanical.
 ### Domain-scoped packages, not generic `services/`
 
 When a seam belongs to a domain (notes, tasks, users, …), it lives in
-`internal/<domain>/`, NOT in `internal/store/` or `internal/services/`.
-The notes package is the canonical example — copy its layout:
+`internal/<domain>/`, NOT in `internal/database/` or
+`internal/services/`. The notes package is the canonical example — copy
+its layout:
 
 ```
 internal/notes/
@@ -133,14 +154,28 @@ internal/notes/
   sqlite_test.go   # Repository tests against real sqlite
   service.go       # Service interface + impl (validation, defaults)
   service_test.go  # Service tests against FakeRepository
+  schema.sql       # Domain-owned table DDL (Pass-3 pattern)
+  schema.go        # //go:embed schema.sql + Schema() string
+  schema_test.go   # Embed-content tripwire
+  mocks/           # Co-located test fakes (package mocks)
+    repository.go
+    service.go
+    repository_test.go
+    service_test.go
 ```
 
-Mocks live one level up, in `internal/testutil/mocks/<domain>_repository.go`
-and `<domain>_service.go`. Two distinct mocks: `FakeRepository` for
-service tests; `FakeService` for handler tests.
+Mocks are co-located under `internal/<dom>/mocks/`, NOT under
+`internal/testutil/mocks/`. `mocks/repository.go` defines
+`FakeRepository`; `mocks/service.go` defines `FakeService`. Deleting
+`internal/<dom>/` takes the mocks (and the schema, and the tests) along
+in one sweep — that's what makes REPLACING-NOTES.md work.
 
-`internal/store/` retains only generic infrastructure (`Pinger`,
-`EnsureSchema`, `schema.sql`) — never domain-specific interfaces.
+`internal/database/` retains only cross-cutting infrastructure
+(`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —
+never domain-specific interfaces.
+
+`internal/testutil/mocks/` retains only cross-domain fakes
+(`FakeClock`, `FakePinger`, `FakeDoer`).
 
 ### Mechanical steps
 
@@ -164,11 +199,13 @@ service tests; `FakeService` for handler tests.
    handlers should depend on the service, not the repository, so
    future validation/policy has a home that doesn't require a handler
    refactor.
-4. **Add fakes in `internal/testutil/mocks/`** named
-   `<domain>_repository.go` and `<domain>_service.go`. Each method
-   takes a per-method error knob (`CreateErr error`) plus any state it
-   needs to return. Counters use `atomic.Int64`, not plain `int`, so
-   race-detector tests don't flap.
+4. **Add fakes in `internal/<domain>/mocks/`** (co-located with the
+   domain, `package mocks`) named `repository.go` and `service.go`.
+   Each method takes a per-method error knob (`CreateErr error`) plus
+   any state it needs to return. Counters use `atomic.Int64`, not plain
+   `int`, so race-detector tests don't flap. Cross-domain fakes
+   (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
+   `internal/testutil/mocks/`.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.

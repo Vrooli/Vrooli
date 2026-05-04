@@ -1,6 +1,7 @@
-// gen-endpoints emits .vrooli/endpoints.json from each handler module's
-// Endpoints slice. The center never accumulates endpoint metadata; the
-// codegen reads what each domain exports and concatenates.
+// gen-endpoints emits .vrooli/endpoints.json from the shared modules
+// registry's AllEndpoints() — the same registry main.go consumes for
+// AllSchemas. The center never accumulates endpoint metadata; the
+// registry collects what each handler package exports.
 //
 // Usage:
 //
@@ -11,11 +12,12 @@
 // build with an actionable diff. The fix is always: regenerate locally
 // and commit.
 //
-// Adding a new domain: import its handler package below, append its
-// Endpoints to the manifest's endpoints slice, and add a matching
-// entry to cli_commands_seed.json. The cross-check at codegen time
-// (every cli_mapping.command in endpoints[] must have a cli_commands[]
-// entry) catches drift before the diff gate ever sees it.
+// Adding a new domain: register it once in
+// api/internal/modules/registry.go (one line in AllEndpoints, one in
+// AllSchemas), and add the matching entry to cli_commands_seed.json.
+// The cross-check at codegen time (every cli_mapping.command in
+// endpoints[] must have a cli_commands[] entry) catches drift before
+// the diff gate ever sees it.
 package main
 
 import (
@@ -25,9 +27,8 @@ import (
 	"fmt"
 	"os"
 
-	healthH "{{SCENARIO_ID}}/handlers/health"
-	notesH "{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/module"
+	"{{SCENARIO_ID}}/internal/modules"
 )
 
 const (
@@ -70,7 +71,7 @@ func main() {
 }
 
 func run(output, seedPath string) error {
-	endpoints := allEndpoints()
+	endpoints := modules.AllEndpoints()
 	seed, err := loadSeed(seedPath)
 	if err != nil {
 		return fmt.Errorf("load seed: %w", err)
@@ -103,16 +104,6 @@ func run(output, seedPath string) error {
 		return fmt.Errorf("write %s: %w", output, err)
 	}
 	return nil
-}
-
-// allEndpoints concatenates each module's Endpoints slice in a stable
-// order (system endpoints first, then domains alphabetically). The
-// stable order is what makes the diff-exit-code CI check meaningful.
-func allEndpoints() []module.EndpointDescriptor {
-	out := make([]module.EndpointDescriptor, 0)
-	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
-	return out
 }
 
 func loadSeed(path string) (*seedFile, error) {

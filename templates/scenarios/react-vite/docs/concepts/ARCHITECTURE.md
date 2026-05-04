@@ -89,10 +89,17 @@ internal/<domain>/service.go          ◀── application layer: validation, d
      ▼
 internal/<domain>/repository.go       ◀── persistence interface
 internal/<domain>/sqlite.go               concrete sqlite implementation
+internal/<domain>/schema.sql              domain-owned table DDL (Pass-3)
+internal/<domain>/schema.go               //go:embed + Schema() string
+internal/<domain>/mocks/                  co-located test fakes (FakeRepository, FakeService)
      │
      ▼
-internal/store/                       ◀── shared infrastructure: schema, Pinger
-*.sql                                     embedded schema, applied at startup
+internal/database/                    ◀── cross-cutting infrastructure: Pinger + system schema home
+  pinger.go                               connection-level reachability seam
+  system.sql                              empty-by-default home for cross-cutting SQL
+                                          (postgres extensions, custom types, etc.)
+internal/modules/                     ◀── shared registry: AllEndpoints + AllSchemas
+                                          (consumed by main.go and gen-endpoints)
 ```
 
 Domain code lives in `internal/<domain>/` (e.g., `internal/notes/`),
@@ -146,22 +153,83 @@ module's constructor.
 **Adding a domain** (`tasks` example):
 
 1. Create `proto/v1/tasks/tasks.proto`; run `make generate`.
-2. Create `api/internal/tasks/{types,repository,sqlite,service}.go`.
-3. Create `api/handlers/tasks/{handler,module,endpoints}.go`.
-4. Add **one line** to `api/main.go`'s `server.New(...)` slice:
-   `tasksH.Module(db, clk, logger)`.
+2. Create `api/internal/tasks/{types,repository,sqlite,service,schema.sql,schema.go}.go`
+   and `api/internal/tasks/mocks/{repository,service}.go` for the
+   co-located fakes.
+3. Create `api/handlers/tasks/{handler,module,endpoints}.go` (the
+   `module.go` re-exports `func Schema() string { return internaltasks.Schema() }`
+   so the registry collects all per-domain metadata uniformly).
+4. Add **two registry lines** in `api/internal/modules/registry.go`:
+   `out = append(out, tasksH.Endpoints...)` in `AllEndpoints`, and
+   `apidb.SchemaProviderFunc(tasksH.Schema)` in `AllSchemas`. Then
+   add **one runtime line** in `api/main.go`'s `server.New(...)`
+   slice: `tasksH.Module(db, clk, logger)`.
 5. Create `cli/domains/tasks/{register,handlers}.go`.
 6. Add **one line** to `cli/domains/domains.go`'s
    `SubcommandGroups`: `tasks.Register(core)`.
 7. Add an entry to `api/cmd/gen-endpoints/cli_commands_seed.json`;
    run `make endpoints`.
-8. Create `ui/src/lib/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`;
-   add **one import + one render line** in `ui/src/App.tsx`.
+8. Create `ui/src/lib/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`
+   plus `ui/src/features/tasks/mocks/{factories,tasks}.ts` for
+   co-located UI fakes; add **one import + one render line** in
+   `ui/src/App.tsx`.
 
-That's it. No central struct field, no central wiring line, no
-hand-edit of `.vrooli/endpoints.json`. The `notes` reference can be
-removed by reversing the same steps; see
+That's it. No central schema file to edit, no hand-edit of
+`.vrooli/endpoints.json`, no separate edits to `gen-endpoints/main.go`.
+The `notes` reference can be removed by reversing the same steps; see
 [`../internal/REPLACING-NOTES.md`](../internal/REPLACING-NOTES.md).
+
+### Domain-owned schema
+
+Each domain owns its database schema the same way it owns its types,
+repository, and service. `internal/<dom>/schema.sql` declares the
+domain's tables; `internal/<dom>/schema.go` embeds it via `go:embed`
+and exports `Schema() string`. Adding a column lands in the same diff
+as the Go field, the repository scan, and the wire shape — single
+location, single edit.
+
+Cross-cutting infrastructure (postgres extensions, custom types,
+cross-domain views) lives in `internal/database/system.sql` — empty by
+default in SQLite scenarios. If you find yourself adding a `CREATE
+TABLE` to the system file, the table belongs to a domain that doesn't
+exist yet. Create the domain first.
+
+Boot path:
+
+```
+main.go → apidb.EnsureSchemas(ctx, db, modules.AllSchemas()...)
+          ↑                              ↑
+          api-core/database helper       local shared registry
+                                         (system + per-domain providers)
+```
+
+Why this shape:
+
+- **High cohesion** — schema lives next to the code that interprets it.
+- **Locality of change** — single-location edits for single logical
+  changes (adds, columns, indexes).
+- **Deletability** — `rm -rf internal/<dom>/` takes the schema with
+  the rest of the domain. The deletion in REPLACING-NOTES.md works as
+  advertised; no orphan tables created on boot.
+- **Bounded contexts** — each domain owns its data, mirroring the rest
+  of the per-domain stack.
+
+When central schema is the right answer:
+
+- Highly relational scenarios with many cross-domain FKs. The
+  bounded-context fiction breaks down; a central schema is honest
+  about the coupling. (Prefer soft FKs — ID references with no
+  constraint — before reaching for this.)
+- Scenarios where the schema *is* the product (analytics warehouses,
+  data platforms). The schema deserves its own first-class home.
+
+The template targets bounded-context CRUD scenarios, so per-domain is
+the default.
+
+For brownfield scenarios with production data needing column drops or
+renames, see the deferred versioned-migration helpers (`Migrate` /
+`MigrationProvider` in `api-core/database`, landing when the first
+scenario hits the pain).
 
 **The trade-off:** one layer of indirection (the `Module` data type)
 pays for the open–closed property. For a template that gets forked
@@ -254,10 +322,14 @@ the user-facing command set.
 ## Storage
 
 The template ships with **SQLite via `modernc.org/sqlite`** — pure-Go,
-CGO-clean, no external database process. The schema lives at
-`api/internal/store/schema.sql` and is embedded into the binary;
-`store.EnsureSchema(ctx, db)` applies it at startup (idempotent —
-safe to call on every boot).
+CGO-clean, no external database process. Each domain owns its schema
+(`api/internal/<dom>/schema.sql`, embedded via `go:embed`); cross-cutting
+infrastructure lives in `api/internal/database/system.sql` (empty by
+default in SQLite scenarios). The shared registry at
+`api/internal/modules/registry.go::AllSchemas()` collects them, and
+`apidb.EnsureSchemas(ctx, db, modules.AllSchemas()...)` applies them at
+startup — idempotent (`CREATE TABLE IF NOT EXISTS` everywhere), safe to
+call on every boot.
 
 This is the right default for most scenarios. Scenarios that need
 Postgres, Redis, Qdrant, or other resources declare them in
@@ -288,11 +360,11 @@ clean responsibility boundaries.
 | Production layer | Test seam | Fake/harness |
 |---|---|---|
 | HTTP transport | `httpx.NewLiveServer` over real socket | `httptest.Server` (real, not Recorder) |
-| Handler → Service | `notes.Service` interface | `mocks.FakeService` |
-| Service → Repository | `notes.Repository` interface | `mocks.FakeRepository` |
+| Handler → Service | `notes.Service` interface | `notes/mocks.FakeService` (co-located) |
+| Service → Repository | `notes.Repository` interface | `notes/mocks.FakeRepository` (co-located) |
 | Repository → DB | `*sql.DB` | `db.NewSQLite(t)` (in-memory) |
-| Time | `clock.Clock` interface | `mocks.FakeClock` |
-| DB reachability | `store.Pinger` interface | `mocks.FakePinger` |
+| Time | `clock.Clock` interface | `mocks.FakeClock` (cross-domain) |
+| DB reachability | `database.Pinger` interface | `mocks.FakePinger` (cross-domain) |
 | Outbound HTTP | `httpc.Doer` interface | `mocks.FakeDoer` |
 | UI ↔ API | `lib/api.ts` / `lib/notes.ts` modules | inline `vi.mock` |
 | Render-error catch | `ErrorBoundary` (system under test) | controlled-throw fixture |

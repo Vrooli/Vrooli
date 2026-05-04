@@ -1,13 +1,15 @@
 /**
- * Mock builders for `./lib/notes` — the UI ↔ API notes-CRUD boundary.
+ * Mock builders for `lib/notes` — the UI ↔ API notes-CRUD boundary.
+ * Co-located with the notes feature; deleting `features/notes/` takes
+ * these mocks with it.
  *
- * See `./api.ts` for the full builder/hoisting rationale; the same
- * pattern applies. Canonical usage:
+ * See `test-utils/mocks/api.ts` for the full builder/hoisting rationale;
+ * the same pattern applies. Canonical usage:
  *
- *   import { makeNotesMocks } from "@/test-utils";
+ *   import { makeNotesMocks } from "./mocks/notes";
  *
- *   vi.mock("./lib/notes", async (importOriginal) => {
- *     const actual = await importOriginal<typeof import("./lib/notes")>();
+ *   vi.mock("../../lib/notes", async (importOriginal) => {
+ *     const actual = await importOriginal<typeof import("../../lib/notes")>();
  *     return { ...actual, ...makeNotesMocks() };
  *   });
  *
@@ -25,7 +27,7 @@
  */
 import { vi } from "vitest";
 
-import { makeListNotesResponse, makeNote } from "../factories";
+import { makeListNotesResponse, makeNote } from "./factories";
 
 export interface NotesMockCreateInput {
   title: string;

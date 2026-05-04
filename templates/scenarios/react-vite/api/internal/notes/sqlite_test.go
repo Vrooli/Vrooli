@@ -8,21 +8,26 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	apidb "github.com/vrooli/api-core/database"
+
+	localdb "{{SCENARIO_ID}}/internal/database"
 	"{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/store"
 	"{{SCENARIO_ID}}/internal/testutil/db"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
 )
 
 // newSchemaDB returns a sqlite handle with the production schema
 // already applied. This is the canonical compose pattern for repository
-// tests: db.NewSQLite for the connection, store.EnsureSchema for the
-// tables. Helper exists to keep individual tests focused on the
-// behavior under exercise.
+// tests: db.NewSQLite for the connection + apidb.EnsureSchemas with the
+// system + per-domain providers. Helper exists to keep individual tests
+// focused on the behavior under exercise.
 func newSchemaDB(t *testing.T) *testRepo {
 	t.Helper()
 	d := db.NewSQLite(t)
-	require.NoError(t, store.EnsureSchema(context.Background(), d))
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(notes.Schema),
+	))
 	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return &testRepo{
 		repo:  notes.NewSQLiteRepository(d, clk),

@@ -19,7 +19,7 @@ import (
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/testutil/assertx"
 	"{{SCENARIO_ID}}/internal/testutil/httpx"
-	"{{SCENARIO_ID}}/internal/testutil/mocks"
+	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
 
 	"github.com/gorilla/mux"
 	"{{SCENARIO_ID}}/internal/module"

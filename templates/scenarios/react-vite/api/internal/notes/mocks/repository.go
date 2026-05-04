@@ -1,3 +1,8 @@
+// Package mocks holds notes-domain test fakes co-located with the
+// domain they double for. Living next to internal/notes/ means deleting
+// the domain folder takes its mocks with it (no central residue) and
+// the package graph reflects the ownership: mocks imports notes; notes
+// does not import mocks.
 package mocks
 
 import (

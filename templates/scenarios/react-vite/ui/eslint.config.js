@@ -166,8 +166,9 @@ export default tseslint.config(
       // ════════════════════════════════════════════════════════════════════════
       // TEST-UTILS QUARANTINE (mirrors api/internal/testutil/no_prod_import_test.go)
       //
-      // src/test-utils/ is test-only scaffolding — fakes that mutate process-wide
-      // state, factories with arbitrary defaults, render helpers that wire mock
+      // src/test-utils/ AND every per-feature `mocks/` sub-folder hold
+      // test-only scaffolding — fakes that mutate process-wide state,
+      // factories with arbitrary defaults, render helpers that wire mock
       // providers. None of it should ever ship in a production bundle.
       //
       // Without this guardrail, a single accidental `import { makeHealthResponse }
@@ -175,17 +176,22 @@ export default tseslint.config(
       // any future test-only deps) into the build. The Go side enforces this at
       // the AST level via no_prod_import_test.go; this is its TS counterpart.
       //
-      // The patterns cover both relative paths (`./test-utils`, `../../test-utils`,
-      // including deeper imports like `@/test-utils/factories`) and the `@/`
-      // alias. The override block below for *.test.{ts,tsx} / *.spec.{ts,tsx}
-      // turns the rule off so tests can — and should — import freely from here.
+      // Co-located mocks live under `features/<dom>/mocks/` (Pass-3 pattern:
+      // domain-specific test doubles ship with the feature so deletion is
+      // folder-scoped). Production code under `features/<dom>/` never imports
+      // from its own `mocks/` sub-folder; only the matching test files do.
+      //
+      // The patterns cover both relative paths and the `@/` alias. The override
+      // block below for *.test.{ts,tsx} / *.spec.{ts,tsx} turns the rule off so
+      // tests can — and should — import freely from these locations.
       //
       // If you hit this rule:
       //   ✅ DO: confirm the import is in a test file (`*.test.{ts,tsx}` /
       //         `*.spec.{ts,tsx}`). If yes, it's already exempt — your filename
       //         may not match the override pattern.
       //   ✅ DO: if you genuinely need a helper in production code, move it out
-      //         of test-utils into an appropriate src/ location.
+      //         of test-utils (or features/<dom>/mocks/) into an appropriate
+      //         non-test location.
       //   ❌ DON'T: disable the rule for a "one-off" production import. There
       //         is no path back from a test-utils leak — every future build
       //         carries it.
@@ -200,9 +206,13 @@ export default tseslint.config(
                 "**/test-utils/*",
                 "@/test-utils",
                 "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "@/features/*/mocks",
+                "@/features/*/mocks/*",
               ],
               message:
-                "Production code must not import from src/test-utils/ — these helpers are test-only. Move shared helpers out of test-utils, or move the importing file to *.test.{ts,tsx}.",
+                "Production code must not import from src/test-utils/ or any features/<dom>/mocks/ — these helpers are test-only. Move shared helpers out of those locations, or move the importing file to *.test.{ts,tsx}.",
             },
           ],
         },

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/testutil/mocks"
+	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
 )
 
 func TestService_Create_RejectsEmptyTitle(t *testing.T) {

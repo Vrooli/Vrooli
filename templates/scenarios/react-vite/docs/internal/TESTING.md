@@ -61,7 +61,8 @@ api/
    `mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))`,
    advance with `.Advance(d)`. Tests that touch duration logging or
    timestamp output start here.
-2. **`mocks.FakePinger`** — substitutes `store.Pinger`. Construct with
+2. **`mocks.FakePinger`** — substitutes `database.Pinger` (cross-domain
+   mock under `internal/testutil/mocks/`). Construct with
    `&mocks.FakePinger{PingErr: errors.New("connection refused")}` to
    exercise the unhealthy branch; default `PingErr: nil` is the happy
    path. Atomic `Calls` counter is for "the handler called Ping exactly
@@ -161,11 +162,12 @@ time. The pattern from wire to render:
 | Domain types | `internal/notes/types.go::{Note, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels (`ErrInvalidNote` for validation, `ErrNoteNotFound` for misses) translate into 400/404 envelopes at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
-| Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `store.EnsureSchema(ctx, db)` (the canonical compose pattern) |
+| Schema | `internal/notes/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `apidb.EnsureSchemas` |
+| Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `apidb.EnsureSchemas(ctx, d, ...providers...)` over system + notes (the canonical compose pattern) |
 | Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
-| Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository`; pins the validation, default-substitution, and error-propagation contracts |
-| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeService` and exercises the full transport edge through `httpx.NewLiveServer` |
-| Mocks | `internal/testutil/mocks/{notes_repository,notes_service}.go::{FakeRepository,FakeService}` | Two distinct fakes — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs |
+| Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
+| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeService` (from co-located `internal/notes/mocks/`) and exercises the full transport edge through `httpx.NewLiveServer` |
+| Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
 | UI client | `ui/src/lib/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
 | UI tests | `ui/src/lib/notes.test.ts` + the `App Notes pane` block in `App.test.tsx` | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./lib/notes", ...)` for the component test |
 | CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
@@ -181,14 +183,18 @@ same shape `main.go` ships:
 func newSchemaDB(t *testing.T) *sql.DB {
     t.Helper()
     d := db.NewSQLite(t)
-    require.NoError(t, store.EnsureSchema(context.Background(), d))
+    require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+        apidb.SchemaProviderFunc(localdb.SystemSchema),
+        apidb.SchemaProviderFunc(notes.Schema),
+    ))
     return d
 }
 ```
 
-That two-line helper is the canonical entry point for every new
-domain's `*_sqlite_test.go`. Don't reach for migrations frameworks or
-in-test `CREATE TABLE` literals — the embedded `schema.sql` is the
+That helper is the canonical entry point for every new domain's
+`*_sqlite_test.go`. Don't reach for migrations frameworks or in-test
+`CREATE TABLE` literals — the per-domain `schema.sql` files (collected
+by `internal/modules/registry.go::AllSchemas()` in production) are the
 source of truth for both production and tests.
 
 ### Service-layer tests

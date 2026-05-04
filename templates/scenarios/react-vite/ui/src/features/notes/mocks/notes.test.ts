@@ -1,5 +1,5 @@
 /**
- * Self-tests for makeNotesMocks. Same shape as `api.test.ts`.
+ * Self-tests for makeNotesMocks. Same shape as `test-utils/mocks/api.test.ts`.
  */
 import { describe, expect, it, vi } from "vitest";
 
