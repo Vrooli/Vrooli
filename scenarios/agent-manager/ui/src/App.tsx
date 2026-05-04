@@ -21,7 +21,7 @@ const StatusDialog = lazy(async () => ({ default: (await import("./components/di
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
 
-// AI_CHECK: AGENT_MANAGER_RENDER_PERF=1 | LAST: 2026-05-04
+// AI_CHECK: AGENT_MANAGER_RENDER_PERF=2 | LAST: 2026-05-04
 function ProfiledPage({ id, children }: { id: string; children: ReactNode }) {
   return (
     <Profiler id={id} onRender={onProfilerRender}>
@@ -61,7 +61,10 @@ export default function App() {
 
   const mergedRuns = useMemo(() => {
     const snapshots = runEventStore.state.runsById;
-    return (runs.data || []).map((run) => ({ ...run, ...(snapshots[run.id] ?? {}) } as Run));
+    return (runs.data || []).map((run) => {
+      const snapshot = snapshots[run.id];
+      return snapshot ? ({ ...run, ...snapshot } as Run) : run;
+    });
   }, [runs.data, runEventStore.state.runsById]);
 
   // Derive active section from current path

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   AlertCircle,
@@ -34,7 +34,7 @@ import { formatStandardRelativeTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
-import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 import { TaskDetail } from "../components/TaskDetail";
 import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
 import { useViewportSize } from "../hooks/useViewportSize";
@@ -102,6 +102,47 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "oldest", label: "Oldest First" },
   { value: "title", label: "Title A-Z" },
 ];
+
+type TaskStatusBadgeVariant =
+  | "queued"
+  | "running"
+  | "needs_review"
+  | "approved"
+  | "rejected"
+  | "failed"
+  | "cancelled";
+
+interface TaskListRowProps {
+  task: Task;
+  selected: boolean;
+  onSelect: (taskId: string) => void;
+}
+
+const TaskListRow = memo(function TaskListRow({
+  task,
+  selected,
+  onSelect,
+}: TaskListRowProps) {
+  const statusLabel = taskStatusLabel(task.status);
+
+  return (
+    <ListItem
+      selected={selected}
+      onClick={() => onSelect(task.id)}
+      icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+      actions={
+        <Badge variant={statusLabel as TaskStatusBadgeVariant}>
+          {statusLabel.replace("_", " ")}
+        </Badge>
+      }
+    >
+      <ListItemTitle>{task.title}</ListItemTitle>
+      <ListItemSubtitle>
+        {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
+      </ListItemSubtitle>
+    </ListItem>
+  );
+});
 
 export function TasksPage({
   tasks,
@@ -395,6 +436,21 @@ export function TasksPage({
     }
   }, [filteredAndSortedTasks, isDesktop, selectedTaskId]);
 
+  const getTaskKey = useCallback((task: Task) => task.id, []);
+  const handleSelectTask = useCallback((taskId: string) => {
+    setSelectedTaskId(taskId);
+  }, []);
+  const renderTaskRow = useCallback(
+    (task: Task) => (
+      <TaskListRow
+        task={task}
+        selected={selectedTaskId === task.id}
+        onSelect={handleSelectTask}
+      />
+    ),
+    [handleSelectTask, selectedTaskId]
+  );
+
   const filters: FilterConfig[] = [
     {
       id: "status",
@@ -457,35 +513,11 @@ export function TasksPage({
         </div>
       }
     >
-      {filteredAndSortedTasks.map((task) => (
-        <ListItem
-          key={task.id}
-          selected={selectedTaskId === task.id}
-          onClick={() => setSelectedTaskId(task.id)}
-          icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-          actions={
-            <Badge
-              variant={
-                taskStatusLabel(task.status) as
-                  | "queued"
-                  | "running"
-                  | "needs_review"
-                  | "approved"
-                  | "rejected"
-                  | "failed"
-                  | "cancelled"
-              }
-            >
-              {taskStatusLabel(task.status).replace("_", " ")}
-            </Badge>
-          }
-        >
-          <ListItemTitle>{task.title}</ListItemTitle>
-          <ListItemSubtitle>
-            {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
-          </ListItemSubtitle>
-        </ListItem>
-      ))}
+      <BoundedList
+        items={filteredAndSortedTasks}
+        getKey={getTaskKey}
+        renderItem={renderTaskRow}
+      />
     </ListPanel>
   );
 

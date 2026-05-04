@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -35,7 +35,7 @@ import { formatStandardDateTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
-import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 
 interface ProfilesPageProps {
   profiles: AgentProfile[];
@@ -90,6 +90,32 @@ const getModelId = (model: string | { id: string }): string => {
 type ProfileFormState = ProfileFormData & {
   modelMode: ModelSelectionMode;
 };
+
+interface ProfileListRowProps {
+  profile: AgentProfile;
+  selected: boolean;
+  onSelect: (profileId: string) => void;
+}
+
+const ProfileListRow = memo(function ProfileListRow({
+  profile,
+  selected,
+  onSelect,
+}: ProfileListRowProps) {
+  return (
+    <ListItem
+      selected={selected}
+      onClick={() => onSelect(profile.id)}
+      icon={<Settings2 className="h-5 w-5 text-primary flex-shrink-0" />}
+      actions={<Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>}
+    >
+      <ListItemTitle>{profile.name}</ListItemTitle>
+      <ListItemSubtitle>
+        {profile.description || "No description"} | {formatStandardDateTime(profile.createdAt)}
+      </ListItemSubtitle>
+    </ListItem>
+  );
+});
 
 export function ProfilesPage({
   profiles,
@@ -333,6 +359,21 @@ export function ProfilesPage({
     }
   }, [filteredAndSortedProfiles, isDesktop, selectedProfileId]);
 
+  const getProfileKey = useCallback((profile: AgentProfile) => profile.id, []);
+  const handleSelectProfile = useCallback((profileId: string) => {
+    setSelectedProfileId(profileId);
+  }, []);
+  const renderProfileRow = useCallback(
+    (profile: AgentProfile) => (
+      <ProfileListRow
+        profile={profile}
+        selected={selectedProfileId === profile.id}
+        onSelect={handleSelectProfile}
+      />
+    ),
+    [handleSelectProfile, selectedProfileId]
+  );
+
   const filters: FilterConfig[] = [
     {
       id: "runnerType",
@@ -395,22 +436,11 @@ export function ProfilesPage({
         </div>
       }
     >
-      {filteredAndSortedProfiles.map((profile) => (
-        <ListItem
-          key={profile.id}
-          selected={selectedProfileId === profile.id}
-          onClick={() => setSelectedProfileId(profile.id)}
-          icon={<Settings2 className="h-5 w-5 text-primary flex-shrink-0" />}
-          actions={
-            <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-          }
-        >
-          <ListItemTitle>{profile.name}</ListItemTitle>
-          <ListItemSubtitle>
-            {profile.description || "No description"} | {formatStandardDateTime(profile.createdAt)}
-          </ListItemSubtitle>
-        </ListItem>
-      ))}
+      <BoundedList
+        items={filteredAndSortedProfiles}
+        getKey={getProfileKey}
+        renderItem={renderProfileRow}
+      />
     </ListPanel>
   );
 

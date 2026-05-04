@@ -44,9 +44,14 @@ export function useSelectedRunController({
   const [diffLoading, setDiffLoading] = useState(false);
   const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
+  const taskById = useMemo(
+    () => new Map(tasks.map((task) => [task.id, task])),
+    [tasks]
+  );
+
   const getTaskById = useCallback(
-    (taskId: string) => extraTasks[taskId] ?? tasks.find((task) => task.id === taskId) ?? null,
-    [extraTasks, tasks]
+    (taskId: string) => extraTasks[taskId] ?? taskById.get(taskId) ?? null,
+    [extraTasks, taskById]
   );
 
   const getTaskTitle = useCallback(
@@ -56,7 +61,10 @@ export function useSelectedRunController({
 
   const resolvedRuns = useMemo(() => {
     const snapshots = runEventStore.state.runsById;
-    return runs.map((run) => ({ ...run, ...(snapshots[run.id] ?? {}) } as Run));
+    return runs.map((run) => {
+      const snapshot = snapshots[run.id];
+      return snapshot ? ({ ...run, ...snapshot } as Run) : run;
+    });
   }, [runs, runEventStore.state.runsById]);
 
   const syncRunDetails = useCallback(
@@ -163,4 +171,3 @@ export function useSelectedRunController({
     loadRunDetails,
   };
 }
-

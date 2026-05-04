@@ -34,20 +34,23 @@ export function ModelUsageBreakdown() {
   const { data, isLoading, error } = useModelBreakdown();
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
-  const models = data?.models ?? [];
+  const models = data?.models;
+  const { chartData, totalRuns } = useMemo(() => {
+    const nextChartData: ModelChartDatum[] = [...(models ?? [])]
+      .sort((a, b) => b.runCount - a.runCount)
+      .map((model) => ({
+        name: model.model || "unknown",
+        runs: model.runCount,
+        successRate: model.runCount > 0 ? model.successCount / model.runCount : 0,
+        cost: model.totalCostUsd,
+        tokens: model.totalTokens,
+      }));
 
-  // Prepare data for chart - sort by run count descending
-  const chartData: ModelChartDatum[] = [...models]
-    .sort((a, b) => b.runCount - a.runCount)
-    .map((model) => ({
-      name: model.model || "unknown",
-      runs: model.runCount,
-      successRate: model.runCount > 0 ? model.successCount / model.runCount : 0,
-      cost: model.totalCostUsd,
-      tokens: model.totalTokens,
-    }));
-
-  const totalRuns = chartData.reduce((sum, d) => sum + d.runs, 0);
+    return {
+      chartData: nextChartData,
+      totalRuns: nextChartData.reduce((sum, d) => sum + d.runs, 0),
+    };
+  }, [models]);
   const selectedStats = useMemo(
     () => chartData.find((entry) => entry.name === selectedModel) ?? null,
     [chartData, selectedModel]

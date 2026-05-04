@@ -9,9 +9,9 @@ interactions:
   - stats charts, tables, and time-window changes
 traces:
   before: /tmp/agent-manager/perf/trace.json
-  after:
+  after: /tmp/agent-manager/perf/trace-after.json
   capture_script: /tmp/agent-manager/perf/capture.js
-status: open
+status: implemented
 related_skill_run: scenario-performance-audit
 ---
 
@@ -58,9 +58,9 @@ related_skill_run: scenario-performance-audit
 
 | metric | before | after | delta |
 |---|---:|---:|---:|
-| count | 0 |  |  |
-| total(ms) | 0 |  |  |
-| max(ms) | 0 |  |  |
+| count | 0 | 0 | 0 |
+| total(ms) | 0 | 0 | 0 |
+| max(ms) | 0 | 0 | 0 |
 
 The long-task observer recorded zero browser long tasks for this scripted run. The React profile still shows large commit costs in the master-detail list surfaces; treat those as component rendering headroom rather than proven user-blocking stalls.
 
@@ -107,10 +107,28 @@ The long-task observer recorded zero browser long tasks for this scripted run. T
 | # | Recommendation | Status | Notes |
 |---|---|---|---|
 | 1 | Keep the profile-build infrastructure and Profiler boundaries | fixed | Added as an audit prerequisite; needed for future repeatable measurements. |
-| 2 | Decouple resize drag preview from persisted React state | open | Highest leverage because it affects runs/tasks/profiles master-detail layouts. |
-| 3 | Memoize and/or virtualize runs/tasks list rows | open | Runs is the top hotspot; tasks shows the same shape. |
-| 4 | Split route-wide run state into list summaries and selected-run detail state | open | Reduces `App`/`RunsPage` fan-out from websocket and detail updates. |
-| 5 | Defer stats graph optimization | deferred | Current graphs were measurable but not dominant; optimize only if larger stats payloads reproduce lag. |
+| 2 | Decouple resize drag preview from persisted React state | fixed | [useResizablePanel.ts](../../ui/src/hooks/useResizablePanel.ts) now previews with `requestAnimationFrame` and persists only committed sizes. |
+| 3 | Memoize and/or virtualize runs/tasks list rows | fixed | Added a shared bounded list primitive and memoized runs/tasks/profiles rows. Initial render caps at 80 items with explicit expansion. |
+| 4 | Split route-wide run state into list summaries and selected-run detail state | partially fixed | Preserved run object identity when no websocket snapshot exists and replaced repeated task/profile scans with maps. Full selector-based route state remains future work. |
+| 5 | Defer stats graph optimization | fixed | Memoized stats chart transforms by API response identity. |
+
+## Post-implementation measurement
+
+Post-change trace: `/tmp/agent-manager/perf/trace-after.json`
+
+| component | before total(ms) | after total(ms) | delta |
+|---|---:|---:|---:|
+| ⚛ App | 2671.8 | 985.0 | -63.1% |
+| ⚛ RunsPage | 1535.7 | 500.8 | -67.4% |
+| ⚛ MasterDetail:runs | 1413.5 | 466.9 | -67.0% |
+| ⚛ TasksPage | 776.1 | 183.9 | -76.3% |
+| ⚛ MasterDetail:tasks | 740.2 | 164.9 | -77.7% |
+| ⚛ StatsPage | 165.2 | 121.1 | -26.7% |
+| ⚛ Stats:RunStatusTrends | 53.5 | 39.4 | -26.4% |
+| ⚛ Stats:ToolUsageAnalytics | 40.5 | 24.6 | -39.3% |
+| ⚛ ProfilesPage | 33.1 | 25.5 | -23.0% |
+
+The capture workload is not perfectly deterministic, but the repeated profile run shows the intended shape: the heavy master-detail list surfaces dropped by roughly two thirds to three quarters, browser long tasks stayed at zero, and the stats route remained a secondary cost.
 
 ## New Dependencies
 

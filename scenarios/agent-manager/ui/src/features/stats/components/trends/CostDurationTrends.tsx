@@ -1,5 +1,6 @@
 // Cost and Duration Trends - dual-axis line chart
 
+import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -22,6 +23,20 @@ import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartCon
 export function CostDurationTrends() {
   const { data, isLoading, error } = useRunTrends();
   const { preset } = useTimeWindow();
+  const buckets = data?.buckets;
+  const { chartData, maxCost, maxDuration } = useMemo(() => {
+    const nextChartData = (buckets ?? []).map((bucket) => ({
+      time: bucket.timestamp,
+      cost: bucket.totalCostUsd,
+      duration: bucket.avgDurationMs,
+    }));
+
+    return {
+      chartData: nextChartData,
+      maxCost: Math.max(...nextChartData.map((d) => d.cost), 0),
+      maxDuration: Math.max(...nextChartData.map((d) => d.duration), 0),
+    };
+  }, [buckets]);
 
   if (isLoading) {
     return (
@@ -40,18 +55,6 @@ export function CostDurationTrends() {
       </div>
     );
   }
-
-  const buckets = data?.buckets ?? [];
-
-  const chartData = buckets.map((bucket) => ({
-    time: bucket.timestamp,
-    cost: bucket.totalCostUsd,
-    duration: bucket.avgDurationMs,
-  }));
-
-  // Find max values for dual axes
-  const maxCost = Math.max(...chartData.map((d) => d.cost), 0);
-  const maxDuration = Math.max(...chartData.map((d) => d.duration), 0);
 
   return (
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">

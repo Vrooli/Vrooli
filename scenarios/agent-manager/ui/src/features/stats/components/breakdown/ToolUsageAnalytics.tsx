@@ -33,17 +33,20 @@ export function ToolUsageAnalytics() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"runs" | "models">("runs");
 
-  const tools = data?.tools ?? [];
+  const tools = data?.tools;
+  const { chartData, totalCalls } = useMemo(() => {
+    const nextChartData: ToolChartDatum[] = (tools ?? []).map((tool) => ({
+      name: tool.toolName || "unknown",
+      calls: tool.callCount,
+      successRate: tool.callCount > 0 ? tool.successCount / tool.callCount : 0,
+      failedCount: tool.failedCount,
+    }));
 
-  // Prepare data for chart - already sorted by API
-  const chartData: ToolChartDatum[] = tools.map((tool) => ({
-    name: tool.toolName || "unknown",
-    calls: tool.callCount,
-    successRate: tool.callCount > 0 ? tool.successCount / tool.callCount : 0,
-    failedCount: tool.failedCount,
-  }));
-
-  const totalCalls = chartData.reduce((sum, d) => sum + d.calls, 0);
+    return {
+      chartData: nextChartData,
+      totalCalls: nextChartData.reduce((sum, d) => sum + d.calls, 0),
+    };
+  }, [tools]);
   const selectedStats = useMemo(
     () => chartData.find((entry) => entry.name === selectedTool) ?? null,
     [chartData, selectedTool]

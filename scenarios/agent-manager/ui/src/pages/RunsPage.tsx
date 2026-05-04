@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -51,7 +51,7 @@ import { useSelectedRunController } from "../hooks/useSelectedRunController";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
-import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 
 interface RunsPageProps {
   runs: Run[];
@@ -109,6 +109,115 @@ const SORT_OPTIONS: SortOption[] = [
 ];
 
 const VALID_TABS = new Set(["task", "timeline", "diff", "cost"]);
+
+interface RunListRowProps {
+  run: Run;
+  index: number;
+  selected: boolean;
+  highlighted: boolean;
+  selectionMode: boolean;
+  taskTitle: string;
+  profileName: string;
+  onSelect: (run: Run) => void;
+  onCheckboxChange: (runId: string, index: number, shiftKey: boolean) => void;
+  onStop: (runId: string) => void;
+  onResume: (run: Run) => void;
+  onDelete: (run: Run) => void;
+}
+
+const RunListRow = memo(function RunListRow({
+  run,
+  index,
+  selected,
+  highlighted,
+  selectionMode,
+  taskTitle,
+  profileName,
+  onSelect,
+  onCheckboxChange,
+  onStop,
+  onResume,
+  onDelete,
+}: RunListRowProps) {
+  return (
+    <ListItem
+      selected={selected}
+      highlighted={highlighted}
+      onClick={() => onSelect(run)}
+      checkbox={
+        selectionMode ? (
+          <input
+            type="checkbox"
+            checked={highlighted}
+            onChange={(e) => {
+              e.stopPropagation();
+              onCheckboxChange(
+                run.id,
+                index,
+                e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey
+              );
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+          />
+        ) : undefined
+      }
+      icon={<RunStatusIcon status={run.status} approvalState={run.approvalState} />}
+      actions={
+        <div className="flex items-center gap-1">
+          {run.actions?.canStop && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`Stop run ${taskTitle}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStop(run.id);
+              }}
+            >
+              <Square className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {run.actions?.canResumeFromFailure && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`Resume run ${taskTitle} from failure`}
+              title="Resume: continue this task with the prior transcript + diff as context"
+              onClick={(e) => {
+                e.stopPropagation();
+                onResume(run);
+              }}
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {run.actions?.canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              aria-label={`Delete run ${taskTitle}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(run);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <ListItemTitle>{taskTitle}</ListItemTitle>
+      <ListItemSubtitle>
+        {profileName} | {formatStandardRelativeTime(run.createdAt)}
+      </ListItemSubtitle>
+    </ListItem>
+  );
+});
 
 export function RunsPage({
   runs,
@@ -179,10 +288,14 @@ export function RunsPage({
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
 
+  const profileNameById = useMemo(
+    () => new Map(profiles.map((profile) => [profile.id, profile.name])),
+    [profiles]
+  );
   const getProfileName = useCallback(
     (profileId?: string) =>
-      profileId ? profiles.find((p) => p.id === profileId)?.name || "Unknown Profile" : "Unknown Profile",
-    [profiles]
+      profileId ? profileNameById.get(profileId) || "Unknown Profile" : "Unknown Profile",
+    [profileNameById]
   );
 
   const applyInvestigationRunId = applyInvestigationRun?.id ?? null;
@@ -249,7 +362,7 @@ export function RunsPage({
     }
   }, [runId]);
 
-  const handleStop = async (runId: string) => {
+  const handleStop = useCallback(async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
     try {
       await onStopRun(runId);
@@ -257,12 +370,12 @@ export function RunsPage({
     } catch (err) {
       console.error("Failed to stop run:", err);
     }
-  };
+  }, [onRefresh, onStopRun]);
 
-  const handleDeleteRequest = (run: Run) => {
+  const handleDeleteRequest = useCallback((run: Run) => {
     setDeleteError(null);
     setDeleteConfirmRun(run);
-  };
+  }, []);
 
   const handleDeleteConfirm = async () => {
     if (!deleteConfirmRun) return;
@@ -381,11 +494,11 @@ export function RunsPage({
     }
   };
 
-  const handleResumeRequest = (run: Run) => {
+  const handleResumeRequest = useCallback((run: Run) => {
     setResumeError(null);
     setResumeTargetRun(run);
     setResumeModalOpen(true);
-  };
+  }, []);
 
   const handleResumeFromFailure = async (customContext: string, attachmentIds?: string[]) => {
     if (!resumeTargetRun) return;
@@ -434,6 +547,51 @@ export function RunsPage({
 
     return result;
   }, [resolvedRuns, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
+
+  const getRunKey = useCallback((run: Run) => run.id, []);
+  const handleSelectRun = useCallback(
+    (run: Run) => {
+      navigate(`/runs/${run.id}`);
+      loadRunDetails(run);
+    },
+    [loadRunDetails, navigate]
+  );
+  const handleRunRowCheckboxChange = useCallback(
+    (runId: string, index: number, shiftKey: boolean) => {
+      handleRunCheckboxChange(runId, index, shiftKey, filteredAndSortedRuns);
+    },
+    [filteredAndSortedRuns, handleRunCheckboxChange]
+  );
+  const renderRunRow = useCallback(
+    (run: Run, index: number) => (
+      <RunListRow
+        run={run}
+        index={index}
+        selected={selectedRun?.id === run.id}
+        highlighted={selectedRunIds.has(run.id)}
+        selectionMode={selectionMode}
+        taskTitle={getTaskTitle(run.taskId)}
+        profileName={getProfileName(run.agentProfileId)}
+        onSelect={handleSelectRun}
+        onCheckboxChange={handleRunRowCheckboxChange}
+        onStop={handleStop}
+        onResume={handleResumeRequest}
+        onDelete={handleDeleteRequest}
+      />
+    ),
+    [
+      getProfileName,
+      getTaskTitle,
+      handleDeleteRequest,
+      handleResumeRequest,
+      handleRunRowCheckboxChange,
+      handleSelectRun,
+      handleStop,
+      selectedRun?.id,
+      selectedRunIds,
+      selectionMode,
+    ]
+  );
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -527,89 +685,11 @@ export function RunsPage({
         </div>
       }
     >
-      {filteredAndSortedRuns.map((run, index) => (
-        <ListItem
-          key={run.id}
-          selected={selectedRun?.id === run.id}
-          highlighted={selectedRunIds.has(run.id)}
-          onClick={() => {
-            navigate(`/runs/${run.id}`);
-            loadRunDetails(run);
-          }}
-          checkbox={
-            selectionMode ? (
-              <input
-                type="checkbox"
-                checked={selectedRunIds.has(run.id)}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  handleRunCheckboxChange(
-                    run.id,
-                    index,
-                    e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey,
-                    filteredAndSortedRuns
-                  );
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              />
-            ) : undefined
-          }
-          icon={<RunStatusIcon status={run.status} approvalState={run.approvalState} />}
-          actions={
-            <div className="flex items-center gap-1">
-              {run.actions?.canStop && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label={`Stop run ${getTaskTitle(run.taskId)}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStop(run.id);
-                  }}
-                >
-                  <Square className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {run.actions?.canResumeFromFailure && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label={`Resume run ${getTaskTitle(run.taskId)} from failure`}
-                  title="Resume: continue this task with the prior transcript + diff as context"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleResumeRequest(run);
-                  }}
-                >
-                  <PlayCircle className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {run.actions?.canDelete && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  aria-label={`Delete run ${getTaskTitle(run.taskId)}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteRequest(run);
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
-          }
-        >
-          <ListItemTitle>{getTaskTitle(run.taskId)}</ListItemTitle>
-          <ListItemSubtitle>
-            {getProfileName(run.agentProfileId)} | {formatStandardRelativeTime(run.createdAt)}
-          </ListItemSubtitle>
-        </ListItem>
-      ))}
+      <BoundedList
+        items={filteredAndSortedRuns}
+        getKey={getRunKey}
+        renderItem={renderRunRow}
+      />
     </ListPanel>
   );
 

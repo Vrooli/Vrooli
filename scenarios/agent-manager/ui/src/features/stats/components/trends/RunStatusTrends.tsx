@@ -1,5 +1,6 @@
 // Run Status Trends - stacked area chart showing complete/failed/cancelled over time
 
+import { useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -19,6 +20,17 @@ import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartCon
 export function RunStatusTrends() {
   const { data, isLoading, error } = useRunTrends();
   const { preset } = useTimeWindow();
+  const buckets = data?.buckets;
+  const chartData = useMemo(
+    () =>
+      (buckets ?? []).map((bucket) => ({
+        time: bucket.timestamp,
+        completed: bucket.runsCompleted,
+        failed: bucket.runsFailed,
+        started: bucket.runsStarted,
+      })),
+    [buckets]
+  );
 
   if (isLoading) {
     return (
@@ -37,16 +49,6 @@ export function RunStatusTrends() {
       </div>
     );
   }
-
-  const buckets = data?.buckets ?? [];
-
-  // Transform data for stacked area
-  const chartData = buckets.map((bucket) => ({
-    time: bucket.timestamp,
-    completed: bucket.runsCompleted,
-    failed: bucket.runsFailed,
-    started: bucket.runsStarted,
-  }));
 
   return (
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
