@@ -73,7 +73,9 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port {{SCENARIO_ID}} API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s "http://localhost:${API_PORT}/api/v1/notes"
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
 
 ## 5 — Run the tests

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes;notes_v1";
 
 // =============================================================================
@@ -12,23 +14,25 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 // @domain notes
 // @stability stable
 //
-// Wire contract for /api/v1/notes (list, create, get-by-id). Ships as the
-// canonical CRUD reference: every layer downstream of this proto (handler,
-// store, UI client, CLI domain) is the pattern new scenarios copy when
-// they add their first non-trivial mutation. Keep that role in mind when
-// extending — additions land here, then ripple to the layers in turn.
+// Wire contract for the Notes Connect-RPC service. Ships as the canonical CRUD
+// reference: every layer downstream of this proto (handler, store, UI client,
+// CLI domain) is the pattern new scenarios copy when they add their first
+// non-trivial mutation. Keep that role in mind when extending — additions land
+// here, then ripple to the layers in turn.
 //
 // Consumed by:
-//   - API: handlers/notes/handler_test.go decodes responses via
-//          assertx.MustUnmarshalProto into the messages below and asserts
-//          on typed fields.
-//   - UI:  ui/src/api/notes.ts wraps `fetch` with `fromJson(NoteSchema, ...)`
-//          through the shared proto JSON client so the wire shape and runtime
-//          type agree.
-//   - CLI: cli/domains/notes/handlers.go decodes the same JSON via
-//          protojson.Unmarshal into the generated proto types and renders
-//          via cliapp.ListReport / MutationReport.
+//   - API: handlers/notes/connect_handler.go implements the generated
+//          NotesHandler interface from the notes_v1connect Go package.
+//   - UI:  ui/src/api/notes.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/notes/handlers.go calls the generated Connect-Go client
+//          and renders via cliapp.ListReport / MutationReport.
 // =============================================================================
+
+service Notes {
+  rpc List(ListNotesRequest) returns (ListNotesResponse);
+  rpc Create(CreateNoteRequest) returns (CreateNoteResponse);
+  rpc Get(GetNoteRequest) returns (GetNoteResponse);
+}
 
 // Note is the canonical wire shape for a single note resource.
 message Note {
@@ -41,12 +45,19 @@ message Note {
   // Optional body. Empty string is the default.
   string body = 3;
 
-  // RFC3339 server time at the moment the note was first persisted.
-  string created_at = 4;
+  // Server time at the moment the note was first persisted.
+  google.protobuf.Timestamp created_at = 4;
 
-  // RFC3339 server time at the moment the note was last persisted.
+  // Server time at the moment the note was last persisted.
   // Equals created_at on first insert.
-  string updated_at = 5;
+  google.protobuf.Timestamp updated_at = 5;
+
+  // BlobStore keys for files attached through the REST multipart sub-resource.
+  repeated string attachment_keys = 6;
+}
+
+// ListNotesRequest is currently empty; add filters and pagination here.
+message ListNotesRequest {
 }
 
 // ListNotesResponse is the body returned by GET /api/v1/notes.
@@ -64,6 +75,11 @@ message CreateNoteRequest {
 // CreateNoteResponse is the body returned by a successful create.
 message CreateNoteResponse {
   Note note = 1;
+}
+
+// GetNoteRequest identifies the note to read.
+message GetNoteRequest {
+  string id = 1;
 }
 
 // GetNoteResponse is the body returned by GET /api/v1/notes/{id}.

@@ -26,6 +26,12 @@ the same generated type via `create(ResponseSchema, ...)`. Drift
 between the two is impossible because both consume one source of
 truth.
 
+For proto-typed API calls, the service block in the proto is also the
+transport contract. Generated Connect-Go handlers and Connect-Web/Go
+clients are the seam at the wire boundary. REST remains intentional
+only where the payload is not proto-typed, such as multipart file
+uploads; the response metadata still uses generated proto types.
+
 If a piece of production code reaches for `time.Now()`, `*sql.DB`, or
 the network without going through one of the entries below, that's a
 new seam that hasn't been declared yet. Declaring it is the work — the
@@ -79,9 +85,29 @@ test ergonomics fall out for free.
 |---|---|
 | **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
 | **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
-| **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
-| **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/handler_test.go` to drive the handler without validation/repository plumbing in scope. |
-| **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (gRPC, batch jobs, scheduled imports) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
+| **Production wiring** | `handlers/notes/module.go::Module(db, clk, blobs, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
+| **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/connect_handler_test.go` to drive the handler without validation/repository plumbing in scope. |
+| **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (batch jobs, scheduled imports, additional RPCs) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
+
+### Connect router (proto-typed transport)
+
+| | |
+|---|---|
+| **Seam** | Generated Connect services mounted on the scenario's existing mux router |
+| **Interface** | `api-core/connectx::RegisterServices(router, mounts...)`, where each mount is `{Path, Handler}` returned by generated `New<Domain>Handler(...)` |
+| **Production wiring** | `handlers/<domain>/module.go` constructs the domain service, passes it to `NewConnectHandler`, then mounts the generated handler with `connectx.RegisterServices`. The server's existing middleware still wraps the handler because Connect is standard `http.Handler`. |
+| **Test fake** | Handler tests can exercise the generated Connect client against an in-process handler; module tests can mount the module on a mux router and issue real HTTP requests. No hand-written request JSON ribbon is needed in tests. |
+| **Why it exists** | The proto service descriptor becomes the single wire contract for UI, CLI, and API. Handler path, method, request type, response type, and Connect error envelope all come from generated code instead of parallel route tables. |
+
+### BlobStore (opaque bytes)
+
+| | |
+|---|---|
+| **Seam** | Binary object storage for REST multipart edges |
+| **Interface** | `api-core/blobstore::BlobStore` (`Put`, `Get`, `Delete`) |
+| **Production wiring** | `main.go` constructs the filesystem-backed blob store from the scenario storage root and passes it into modules that expose multipart endpoints. |
+| **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
+| **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
 ### module.Module (domain composition)
 
@@ -219,25 +245,25 @@ never domain-specific interfaces.
 The UI uses different mechanisms (Vitest's `vi.mock` hoisting), but
 the goal is the same: production wires once, tests substitute.
 
-### `api/client::protoFetch` (substrate: proto-typed network boundary)
+### `api/client::transport` (Connect-Web transport)
 
 | | |
 |---|---|
-| **Seam** | Single proto-typed fetch helper; substrate for every per-domain client |
-| **Module** | `ui/src/api/client.ts` exports `protoFetch<RespDesc, ReqDesc>(method, path, opts)` plus `ApiError`, `decodeApiError`, `makeApiError`. `fetchHealth` and every `api/<domain>.ts` file calls it. |
-| **Production wiring** | Every domain client imports `protoFetch` and calls it once per method. Non-2xx responses throw `ApiError` carrying the typed `ErrorEnvelope.code`; 2xx responses decode through `fromJson(<RespSchema>, ..., { ignoreUnknownFields: true })`. |
-| **Test fake** | `api/client.test.ts` stubs `global.fetch` directly via `vi.stubGlobal` to drive `protoFetch` against canned responses. Per-domain tests (`api/notes.test.ts`) do the same; the substrate doesn't need its own mock — the seam is the call to `fetch`, which is already global. Component-level tests `vi.mock("./api/<domain>", …)` instead, which substitutes one layer up and bypasses `protoFetch` entirely. |
-| **Why it exists** | Per-domain clients used to repeat a 25-line ribbon (fetch + ok-check + `decodeApiError` + `fromJson` + missing-field guard) per method. Hoisting it into `protoFetch` collapses each method to a 4-line call site, and gives every UI client one error path: `fetchHealth` and `listNotes` now throw the same `ApiError` shape. New domain clients are 4 lines per method, not 25. |
+| **Seam** | Single Connect-Web transport factory for proto-typed UI API calls |
+| **Module** | `ui/src/api/client.ts` exports `transport` from `@vrooli/api-base::createScenarioConnectTransport`, plus REST-only helpers (`ApiError`, `decodeApiError`, `makeApiError`, `uploadFile`) for multipart exceptions. |
+| **Production wiring** | Every proto-typed domain client imports `transport` and constructs a generated client with `createClient(<Service>, transport)`. REST multipart helpers use `uploadFile()` and parse the metadata response with the generated proto descriptor. |
+| **Test fake** | Component tests mock `api/<domain>` modules or typed client methods. REST helper tests stub `global.fetch` directly. Connect behavior is covered at the API boundary by the generated client and focused module tests. |
+| **Why it exists** | Per-domain clients should not know URL suffix rules, fetch setup, or proto JSON parse details. Connect-Web centralizes those choices, while the REST helpers make the binary-upload exception explicit instead of becoming a second general transport pattern. |
 
 ### `api/<domain>` (per-domain client modules)
 
 | | |
 |---|---|
 | **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/notes.ts`) |
-| **Module** | `ui/src/api/notes.ts` (`listNotes`, `createNote`, `getNote`); imports `ApiError` from `./client`. |
-| **Production wiring** | `App.tsx` and feature components import the per-domain functions directly and wire them through `useQuery` / `useMutation`. Each function is a single `protoFetch(...)` call plus an optional missing-field guard; no fetch ribbon, no decode ribbon, no per-domain error wrapper. |
-| **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => …)`; the factory closure uses `makeNote()` / `makeListNotesResponse()` from `@/test-utils`. Unit tests in `api/notes.test.ts` stub `global.fetch` and exercise the real `listNotes` / `createNote` / `getNote` against `protoFetch`. |
-| **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client (e.g., `api/tasks.ts`): import `{ protoFetch, ApiError, makeApiError }` from `./client`, expose one function per HTTP method, guard optional response fields with `makeApiError("internal", "...")`. |
+| **Module** | `ui/src/api/notes.ts` exports `notesClient = createClient(Notes, transport)` and `uploadAttachment(...)` for the multipart REST exception. |
+| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `notesClient.list({})` and `notesClient.create({ title, body })`. Multipart flows call `uploadAttachment`, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
+| **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => ...)` and replace `notesClient` methods or `uploadAttachment`. Factories build generated proto types, including `Timestamp` values. |
+| **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client: export the generated Connect client, keep binary-upload helpers beside it when needed, and let components consume typed results rather than hand-written response interfaces. |
 
 ### ErrorBoundary (render-error catch)
 
@@ -279,16 +305,19 @@ declaration of every public HTTP endpoint plus its CLI mirror. Doc
 generators, Postman collection builders, and SDK-stub tooling read it.
 
 **The file is generated** from each handler module's
+Connect service metadata plus each handler module's
 `Endpoints []module.EndpointDescriptor` slice (see the
-"Endpoints codegen" seam above). To add or change an endpoint:
+"Endpoints codegen" seam above). To add or change a public operation:
 
-1. Update the handler.
-2. Update the descriptor in `api/handlers/<dom>/endpoints.go` —
-   path, method, summary, error codes (must match the `httpx.Code*`
-   constants the handler emits), and a `cli_mapping` pointing at
-   the real CLI subcommand registered in `cli/domains/`.
-3. If the change touches a CLI command, update
-   `api/cmd/gen-endpoints/cli_commands_seed.json`.
+1. Update the proto service and generated Connect handler for
+   proto-typed operations, or update the REST handler for a documented
+   exception such as multipart upload.
+2. Keep the descriptor metadata in `api/handlers/<dom>/module.go`
+   aligned with the operation. Connect paths use the generated service
+   path; REST exceptions use the explicit REST path and error envelope.
+3. If the change touches a REST-exception CLI command, update
+   `api/cmd/gen-endpoints/cli_commands_seed.json`. Connect-RPC commands
+   are described from proto service metadata and do not need a seed row.
 4. Run `make endpoints` to regenerate `.vrooli/endpoints.json`.
 5. Commit both the descriptor edit AND the regenerated manifest.
 

@@ -30,14 +30,16 @@ func newSchemaDB(t *testing.T) *testRepo {
 	))
 	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return &testRepo{
-		repo:  notes.NewSQLiteRepository(d, clk),
-		clock: clk,
+		repo:        notes.NewSQLiteRepository(d, clk),
+		attachments: notes.NewSQLiteAttachmentsRepository(d, clk),
+		clock:       clk,
 	}
 }
 
 type testRepo struct {
-	repo  notes.Repository
-	clock *mocks.FakeClock
+	repo        notes.Repository
+	attachments notes.AttachmentsRepository
+	clock       *mocks.FakeClock
 }
 
 // TestSQLiteRepository_CreateAndGetRoundTrip pins the canonical
@@ -135,4 +137,28 @@ func TestSQLiteRepository_CreatePopulatesTimestamps(t *testing.T) {
 	require.False(t, created.UpdatedAt.IsZero())
 	require.True(t, created.CreatedAt.Equal(created.UpdatedAt))
 	require.Equal(t, tr.clock.Now(), created.CreatedAt)
+}
+
+func TestSQLiteRepository_AttachmentMetadataRoundTrip(t *testing.T) {
+	tr := newSchemaDB(t)
+	ctx := context.Background()
+	created, err := tr.repo.Create(ctx, notes.Note{Title: "with attachment"})
+	require.NoError(t, err)
+
+	attachment, err := tr.attachments.CreateAttachment(ctx, notes.Attachment{
+		Key:       "notes/" + created.ID + "/attachments/file.txt",
+		NoteID:    created.ID,
+		MIMEType:  "text/plain",
+		SizeBytes: 12,
+	})
+	require.NoError(t, err)
+	require.Equal(t, tr.clock.Now(), attachment.UploadedAt)
+
+	keys, err := tr.attachments.ListAttachmentKeys(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{attachment.Key}, keys)
+
+	got, err := tr.repo.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{attachment.Key}, got.AttachmentKeys)
 }

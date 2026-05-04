@@ -301,7 +301,7 @@ TypeScript types are erased at runtime - they cannot catch API shape mismatches,
 Proto Definitions (packages/proto/schemas/)
     ↓ code generation
 Generated TS Types (@vrooli/proto-types)
-    ↓ generated descriptor parse/serialize
+    ↓ generated Connect clients / descriptor parse for REST exceptions
 UI API Boundary (ui/src/api/)
     ↓ typed results and typed error states
 Validated Data → Components
@@ -310,25 +310,31 @@ Validated Data → Components
 **Why this chain:**
 - **Proto definitions** are the source of truth for API contracts (see `packages/proto/README.md`)
 - **Generated types** provide compile-time safety
-- **Generated descriptors** provide runtime parsing at the UI API boundary
+- **Generated Connect clients** provide typed results for proto-owned API
+  calls; generated descriptors provide runtime parsing at REST/external edges
 - Once data passes proto parsing, it flows up as trusted typed data
 
 #### **7.2 When to Validate**
 
 | Boundary | Validate? | Why |
 |----------|-----------|-----|
-| Proto API responses | **YES, via `fromJson`** | External data, contract may drift |
+| Proto API responses | **YES, via generated Connect client** | External data, contract may drift |
 | Proto WebSocket messages | **YES, via `fromJson`** | External data, parsing may fail |
 | User input | **YES** | Never trust user input; validate before submit or rely on proto/API errors for proto-backed forms |
 | Non-proto external data | **YES, via Zod/equivalent** | No generated descriptor exists |
 | Internal service calls | No | Already validated at entry |
 | Component props | No | Data validated before reaching components |
 
-**Key principle:** Validate once at the system boundary (`ui/src/api/` for proto API calls), then trust the data as it flows through the application.
+**Key principle:** Validate once at the system boundary (`ui/src/api/` for
+API calls), then trust the data as it flows through the application.
 
 #### **7.3 Validation Pattern**
 
-API boundary functions should return typed data or typed errors. Keep `fetch`, `fromJson`, `toJsonString`, and API error-envelope parsing centralized in `ui/src/api/`:
+API boundary functions should return typed data or typed errors. For
+proto-owned calls, construct and export generated Connect clients in
+`ui/src/api/`. For REST exceptions or external APIs, keep `fetch`,
+`fromJson`, `toJsonString`, and API error-envelope parsing centralized in
+`ui/src/api/`:
 
 ```typescript
 type ParseResult<T> =
@@ -336,7 +342,8 @@ type ParseResult<T> =
   | { success: false; error: string };
 
 export async function fetchPlan(id: string): Promise<ParseResult<Plan>> {
-  // Fetch, parse through fromJson(PlanSchema, payload), return typed result or error.
+  // REST/external edge only: fetch, parse through fromJson(PlanSchema, payload),
+  // return typed result or error.
 }
 ```
 
@@ -350,8 +357,13 @@ This pattern:
 When creating or modifying API contracts:
 1. Define the schema in `packages/proto/schemas/` (see `packages/proto/README.md` for guidance)
 2. Run `cd packages/proto && make generate` to regenerate types
-3. Use generated TS descriptors in `ui/src/api/` for `fromJson` response parsing and `toJsonString(..., { useProtoFieldName: true })` request serialization
-4. Add focused API-boundary tests that prove fields are not dropped across casing changes
+3. Use generated Connect clients in `ui/src/api/` for proto-owned API calls
+4. Use generated TS descriptors in `ui/src/api/` for REST-exception
+   `fromJson` response parsing and `toJsonString(..., { useProtoFieldName: true })`
+   request serialization
+5. Add focused API-boundary tests that prove fields are not dropped across
+   casing changes at REST/external edges and that components consume typed
+   Connect results for proto-owned calls
 
 **Note:** Add Zod schemas only for UI-only forms, non-proto third-party payloads, or other data with no generated descriptor. Do not mirror proto messages in Zod by default.
 
@@ -388,3 +400,5 @@ Focus this loop on **practical, targeted stability improvements** that prevent w
 ### **11. Documentation**
 
 Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Stability Issues** section with your findings (crash-prone patterns, error boundary gaps, TypeScript/ESLint improvements, remaining stability risks).
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

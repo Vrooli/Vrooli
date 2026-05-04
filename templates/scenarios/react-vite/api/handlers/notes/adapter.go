@@ -1,27 +1,36 @@
 package notes
 
 import (
-	"time"
-
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"{{SCENARIO_ID}}/internal/notes"
 )
 
 // domainToProto converts an internal notes.Note into the wire shape
-// the notes proto declares. Times serialise as RFC3339 strings — the
-// same format the sqlite repository persists, so round-tripping is
-// byte-identical.
+// the notes proto declares. Timestamp lives in proto so every generated
+// client sees a real time type rather than a string convention.
 //
 // Lives in the handler package by intent. The conversion is mechanical
 // and only used at the transport edge; pulling it into a separate
 // adapters package would create a one-import wrapper for no gain.
 func domainToProto(n notes.Note) *notesv1.Note {
 	return &notesv1.Note{
-		Id:        n.ID,
-		Title:     n.Title,
-		Body:      n.Body,
-		CreatedAt: n.CreatedAt.UTC().Format(time.RFC3339Nano),
-		UpdatedAt: n.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		Id:             n.ID,
+		Title:          n.Title,
+		Body:           n.Body,
+		CreatedAt:      timestamppb.New(n.CreatedAt.UTC()),
+		UpdatedAt:      timestamppb.New(n.UpdatedAt.UTC()),
+		AttachmentKeys: append([]string(nil), n.AttachmentKeys...),
+	}
+}
+
+func attachmentToProto(a notes.Attachment) *notesv1.Attachment {
+	return &notesv1.Attachment{
+		Key:        a.Key,
+		MimeType:   a.MIMEType,
+		SizeBytes:  a.SizeBytes,
+		NoteId:     a.NoteID,
+		UploadedAt: timestamppb.New(a.UploadedAt.UTC()),
 	}
 }

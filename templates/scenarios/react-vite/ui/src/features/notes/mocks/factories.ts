@@ -21,14 +21,21 @@
  *     in factories without editing this file.
  */
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import {
+  CreateNoteResponseSchema,
   ListNotesResponseSchema,
   NoteSchema,
+  type CreateNoteResponse,
   type Note,
   type ListNotesResponse,
 } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
+import {
+  AttachmentSchema,
+  type Attachment,
+} from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/attachments_pb";
 
-export type { Note, ListNotesResponse };
+export type { Attachment, CreateNoteResponse, Note, ListNotesResponse };
 
 export const makeNote = (
   overrides: MessageInitShape<typeof NoteSchema> = {},
@@ -37,8 +44,9 @@ export const makeNote = (
     id: "note-1",
     title: "First note",
     body: "Hello, world.",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
+    createdAt: timestampFromDate(new Date("2026-01-01T00:00:00.000Z")),
+    updatedAt: timestampFromDate(new Date("2026-01-01T00:00:00.000Z")),
+    attachmentKeys: [],
     ...overrides,
   });
 
@@ -47,5 +55,25 @@ export const makeListNotesResponse = (
 ): ListNotesResponse =>
   create(ListNotesResponseSchema, {
     notes: [],
+    ...overrides,
+  });
+
+export const makeCreateNoteResponse = (
+  overrides: MessageInitShape<typeof CreateNoteResponseSchema> = {},
+): CreateNoteResponse =>
+  create(CreateNoteResponseSchema, {
+    note: makeNote(),
+    ...overrides,
+  });
+
+export const makeAttachment = (
+  overrides: MessageInitShape<typeof AttachmentSchema> = {},
+): Attachment =>
+  create(AttachmentSchema, {
+    key: "notes/note-1/attachment.txt",
+    mimeType: "text/plain",
+    sizeBytes: 12n,
+    noteId: "note-1",
+    uploadedAt: timestampFromDate(new Date("2026-01-01T00:01:00.000Z")),
     ...overrides,
   });

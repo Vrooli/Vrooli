@@ -20,6 +20,11 @@
       "name": "notes get",
       "description": "Get a note by id",
       "endpoint_id": "notes_get"
+    },
+    {
+      "name": "notes attach",
+      "description": "Upload an attachment for a note (--file PATH)",
+      "endpoint_id": "notes_attach"
     }
   ]
 }

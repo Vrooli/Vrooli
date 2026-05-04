@@ -11,29 +11,36 @@
  *     internal `$typeName`/reflection state proto runtime needs
  */
 import { fromJson, toJson } from "@bufbuild/protobuf";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
 
 import {
   ListNotesResponseSchema,
   NoteSchema,
 } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
+import { AttachmentSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/attachments_pb";
 
-import { makeListNotesResponse, makeNote } from "./factories";
+import { makeAttachment, makeListNotesResponse, makeNote } from "./factories";
 
 describe("makeNote", () => {
   it("returns a note with non-empty id/title and RFC3339 timestamps", () => {
     const n = makeNote();
     expect(n.id).not.toBe("");
     expect(n.title).not.toBe("");
-    expect(Number.isNaN(new Date(n.createdAt).getTime())).toBe(false);
-    expect(Number.isNaN(new Date(n.updatedAt).getTime())).toBe(false);
+    expect(n.createdAt).toBeDefined();
+    expect(n.updatedAt).toBeDefined();
+    if (!n.createdAt || !n.updatedAt) {
+      throw new Error("factory did not populate note timestamps");
+    }
+    expect(Number.isNaN(timestampDate(n.createdAt).getTime())).toBe(false);
+    expect(Number.isNaN(timestampDate(n.updatedAt).getTime())).toBe(false);
   });
 
   it("merges overrides without dropping defaults", () => {
     const n = makeNote({ id: "custom-1", title: "Custom" });
     expect(n.id).toBe("custom-1");
     expect(n.title).toBe("Custom");
-    expect(n.createdAt).not.toBe("");
+    expect(n.createdAt).toBeDefined();
   });
 
   it("round-trips through NoteSchema JSON encode + decode", () => {
@@ -41,7 +48,7 @@ describe("makeNote", () => {
     const decoded = fromJson(NoteSchema, toJson(NoteSchema, original));
     expect(decoded.id).toBe("rt-1");
     expect(decoded.title).toBe("round trip");
-    expect(decoded.createdAt).toBe(original.createdAt);
+    expect(decoded.createdAt).toEqual(original.createdAt);
   });
 });
 
@@ -71,5 +78,22 @@ describe("makeListNotesResponse", () => {
     expect(decoded.notes).toHaveLength(1);
     expect(decoded.notes[0]?.id).toBe("rt-list-1");
     expect(decoded.notes[0]?.title).toBe("embedded");
+  });
+});
+
+describe("makeAttachment", () => {
+  it("returns attachment metadata with stable defaults", () => {
+    const attachment = makeAttachment();
+    expect(attachment.key).not.toBe("");
+    expect(attachment.noteId).toBe("note-1");
+    expect(attachment.sizeBytes).toBeGreaterThan(0n);
+    expect(attachment.uploadedAt).toBeDefined();
+  });
+
+  it("round-trips through AttachmentSchema JSON encode + decode", () => {
+    const original = makeAttachment({ key: "custom.bin", sizeBytes: 99n });
+    const decoded = fromJson(AttachmentSchema, toJson(AttachmentSchema, original));
+    expect(decoded.key).toBe("custom.bin");
+    expect(decoded.sizeBytes).toBe(99n);
   });
 });

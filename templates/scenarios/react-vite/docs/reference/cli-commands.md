@@ -65,7 +65,8 @@ when adding the first non-trivial domain to your scenario.
 
 ### `{{SCENARIO_ID}} notes list`
 
-List notes, newest-first. Calls `GET /api/v1/notes`. Uses the
+List notes, newest-first. Calls the generated Connect-RPC
+`Notes/List` method. Uses the
 **data-retrieval contract**: `Summary → Results → Retrieval Hints`.
 
 ```bash
@@ -75,7 +76,7 @@ List notes, newest-first. Calls `GET /api/v1/notes`. Uses the
 
 ### `{{SCENARIO_ID}} notes create --title <title> [--body <body>]`
 
-Create a note. Calls `POST /api/v1/notes`. Uses the **mutation
+Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
 contract**: `Result → What Changed → Next Command`.
 
 ```bash
@@ -83,19 +84,29 @@ contract**: `Result → What Changed → Next Command`.
 ```
 
 `--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as a `400 invalid_request`
-envelope rather than a CLI-side check.
+API service, so an empty title surfaces as an `invalid_argument`
+Connect error rather than a CLI-side check.
 
 ### `{{SCENARIO_ID}} notes get <id>`
 
-Fetch a note by id. Calls `GET /api/v1/notes/{id}`.
+Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
 
 ```bash
 {{SCENARIO_ID}} notes get abc123
 ```
 
-A non-existent id surfaces as `404 not_found`; the CLI translates the
-typed envelope code to an actionable error message.
+A non-existent id surfaces as `not_found`; the CLI translates the
+typed Connect code to an actionable error message.
+
+### `{{SCENARIO_ID}} notes attach <id> --file <path>`
+
+Attach a file to a note. This is the documented REST multipart
+exception because the request body contains opaque bytes. The response
+is proto-typed attachment metadata.
+
+```bash
+{{SCENARIO_ID}} notes attach abc123 --file ./example.png
+```
 
 ## Output contracts
 

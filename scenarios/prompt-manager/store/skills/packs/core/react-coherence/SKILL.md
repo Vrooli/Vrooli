@@ -165,9 +165,9 @@ Use a structure that keeps visual-system ownership explicit:
 
 ```
 src/
-├── api/                       # UI ↔ API boundary; proto parse/serialize, fetch wrappers
-│   ├── client.ts              # shared transport/errors/proto JSON options
-│   └── <domain>.ts            # endpoint methods returning generated proto types
+├── api/                       # UI ↔ API boundary; Connect transport + REST exceptions
+│   ├── client.ts              # shared Connect transport, REST upload/error helpers
+│   └── <domain>.ts            # generated Connect client + domain-specific REST exceptions
 │
 ├── shared/
 │   ├── theme/                 # Design tokens, themes, typography, motion scales
@@ -214,7 +214,7 @@ src/
 | `shared/components/` | Shared non-design-system widgets | ErrorBoundary, route shell wrappers |
 | `shared/hooks/` | Domain-agnostic hooks | useDebounce, useMediaQuery |
 | `shared/stores/` | Truly app-wide shared state | settingsStore, modalStore |
-| `api/` | UI API clients and wire contracts | protoFetch, fetchHealth, listNotes |
+| `api/` | UI API clients and wire contracts | Connect transport, generated clients, REST upload helpers |
 | `shared/services/` | Shared non-wire services in larger apps | localStorage adapters, analytics wrappers |
 | `shared/lib/` or `lib/` | Pure utilities only | cn, formatters, math/string helpers |
 | `surfaces/X/components/` | Feature-specific render components | SearchResultsList |
@@ -348,7 +348,7 @@ Use one canonical pattern for each repeated concern:
 |-----------|---------|----------|-------|
 | Error handling | ErrorBoundary + local recovery UX | `shared/components/` | Recovery actions, not dead ends |
 | Loading states | Skeleton/Suspense/inline loading contracts | shared + surface | Consistent user feedback |
-| API calls | Proto boundary layer | `src/api/` | Generated types, proto JSON parse/serialize, centralized error shaping |
+| API calls | Connect-RPC client + transport | `src/api/` | Generated clients for proto-owned calls; REST helpers only for multipart/external edges |
 | Forms | Local reducer or feature/app store based on scope | surface/shared | Match scope, avoid dogma |
 | Modals | Shared modal primitives + optional shared state | shared | Avoid duplicated modal frameworks |
 | Toasts/alerts | Single notification mechanism | shared | Do not mix multiple systems |
@@ -516,3 +516,5 @@ For theme refresh tasks, include in your final summary:
 4. Risks and follow-ups
 
 Avoid superficial churn (renames/moves only) without real coherence gains.
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

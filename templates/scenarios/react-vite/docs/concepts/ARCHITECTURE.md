@@ -26,7 +26,7 @@ A scenario is one product expressed through three coordinated surfaces.
               │                       │                       │
               ▼                       ▼                       ▼
         ┌──────────┐            ┌──────────┐            ┌──────────┐
-        │   ui/    │  HTTP/JSON │   api/   │ HTTP/JSON  │   cli/   │
+        │   ui/    │ Connect-JSON│  api/   │ Connect-JSON│  cli/   │
         │ React    │ ◀────────▶ │   Go     │ ◀────────▶ │   Go     │
         │ + Vite   │            │ HTTP     │            │ cli-core │
         └──────────┘            └────┬─────┘            └──────────┘
@@ -43,7 +43,7 @@ A scenario is one product expressed through three coordinated surfaces.
 | **`api/`** | The scenario's core. All business logic, persistence, and external integrations live here. | Domain rules, storage, transport edge |
 | **`ui/`** | A thin React/Vite client that renders state and triggers commands. Always present (every scenario has a UI). | Components, i18n, accessibility, browser concerns |
 | **`cli/`** | A thin Go wrapper over the API for scripting, agents, and operators. | Argument parsing, output formatting; **never** business logic |
-| **`proto/`** | Wire contracts in `.proto` files. At generate-time, relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/`. Code is generated for both Go (API + CLI) and TypeScript (UI). | One canonical type per message; consumed by all three surfaces |
+| **`proto/`** | Wire contracts in `.proto` files. At generate-time, relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/`. Code is generated for Go (API + CLI), TypeScript (UI), and Connect transports. | One canonical type and service descriptor per proto-typed operation |
 
 **The load-bearing principle:** the API is the only surface that contains
 business logic. UI and CLI are translation layers. Proto types flow from
@@ -52,7 +52,9 @@ one source of truth so wire-shape drift between surfaces is impossible.
 ## Proto as the canonical contract
 
 Wire shapes do not live in TypeScript interfaces, Go structs, or
-hand-written JSON schemas. They live in `.proto` files only.
+hand-written JSON schemas. They live in `.proto` files only. For
+proto-typed API calls, the `.proto` file also declares the `service`
+block that generates the Connect handler and clients.
 
 ```
 proto/v1/health/health.proto    ── source of truth
@@ -62,26 +64,48 @@ proto/v1/health/health.proto    ── source of truth
        ▼
        make generate
        │
-       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/health/  (used by api/, cli/)
-       └──▶  packages/proto/gen/ts/{{SCENARIO_ID}}/v1/health/  (used by ui/)
+       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/...        (messages for api/, cli/)
+       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/...connect (Connect-Go handlers/clients)
+       └──▶  packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/... (messages + service descriptors for ui/)
 ```
 
-**Adding a new endpoint:** add a `.proto` message, regenerate, import
-the generated type from the API handler, the UI client, and the CLI
-handler. No hand-written struct or interface mirror exists to drift.
+**Adding a new proto-typed operation:** add request/response messages
+and an RPC method to the domain's `.proto` service, regenerate, then
+implement the generated Go handler interface. The UI and CLI call the
+generated client. No hand-written struct, route parser, or interface
+mirror exists to drift.
 
 The codegen pipeline runs entirely on local plugins (no BSR network
 calls), so it works in CI, on flight Wi-Fi, and inside firewalled
 runners. See [`proto/README.md`](../../proto/README.md) and the
 project-level proto pipeline guide for details.
 
+### Connect-RPC vs REST
+
+Use Connect-RPC by default:
+
+- UI ↔ API for proto-typed payloads: Connect-RPC.
+- CLI ↔ API for proto-typed payloads: Connect-RPC.
+- API ↔ API / inter-scenario calls with Vrooli-owned protos: Connect-RPC.
+
+Use REST only when the payload shape is not Vrooli-owned proto data:
+
+- File uploads and other opaque binary edges: REST multipart; proto
+  describes metadata only.
+- Webhook receivers and third-party APIs: REST/JSON in the shape the
+  external system requires.
+
+If an internal endpoint would be "REST because it is simple", add a
+proto service method instead. That keeps route, request type, response
+type, and error-code drift inside generated code.
+
 ## Inside the API: layered architecture
 
 ```
-HTTP request
+Connect request
      │
      ▼
-handlers/<domain>/handler.go          ◀── transport edge: parse, validate, error-translate
+handlers/<domain>/connect_handler.go  ◀── transport edge: generated request/response types, error-translate
      │                                    (NEVER business logic; orchestrates one service call)
      ▼
 internal/<domain>/service.go          ◀── application layer: validation, defaults, policy
@@ -111,7 +135,7 @@ Cross-cutting concerns:
 
 - `internal/clock/` — `Clock` seam for deterministic time in tests
 - `internal/middleware/` — request logging (uses `Clock`, not `time.Now`)
-- `internal/httpx/` — JSON decode + typed error envelope
+- `internal/httpx/` — typed error envelope for REST exceptions
 - `internal/httpc/` — outbound HTTP `Doer` seam (ships unwired by intent)
 - `internal/module/` — `Module` data type + `EndpointDescriptor`; the seam each domain returns to be mounted
 - `internal/server/` — composes a slice of modules + cross-cutting middleware (no per-domain code)
@@ -156,9 +180,10 @@ module's constructor.
 2. Create `api/internal/tasks/{types,repository,sqlite,service,schema.sql,schema.go}.go`
    and `api/internal/tasks/mocks/{repository,service}.go` for the
    co-located fakes.
-3. Create `api/handlers/tasks/{handler,module,endpoints}.go` (the
-   `module.go` re-exports `func Schema() string { return internaltasks.Schema() }`
-   so the registry collects all per-domain metadata uniformly).
+3. Create `api/handlers/tasks/{connect_handler,module}.go` (the
+   `module.go` mounts the generated Connect handler and re-exports
+   `func Schema() string { return internaltasks.Schema() }` so the
+   registry collects all per-domain metadata uniformly).
 4. Add **two registry lines** in `api/internal/modules/registry.go`:
    `out = append(out, tasksH.Endpoints...)` in `AllEndpoints`, and
    `apidb.SchemaProviderFunc(tasksH.Schema)` in `AllSchemas`. Then
@@ -167,9 +192,9 @@ module's constructor.
 5. Create `cli/domains/tasks/{register,handlers}.go`.
 6. Add **one line** to `cli/domains/domains.go`'s
    `SubcommandGroups`: `tasks.Register(core)`.
-7. Add an entry to `api/cmd/gen-endpoints/cli_commands_seed.json`;
-   run `make endpoints`.
-8. Create `ui/src/lib/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`
+7. Add entries to `api/cmd/gen-endpoints/cli_commands_seed.json` only
+   for REST exceptions such as multipart uploads; run `make endpoints`.
+8. Create `ui/src/api/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`
    plus `ui/src/features/tasks/mocks/{factories,tasks}.ts` for
    co-located UI fakes; add **one import + one render line** in
    `ui/src/App.tsx`.
@@ -255,9 +280,9 @@ ui/src/
       NotesCard.tsx     ◀── canonical CRUD reference; replace per scenario
   hooks/                ◀── custom hooks (spatial nav, gamepad)
   api/
-    client.ts           ◀── substrate: protoFetch + ApiError + decodeApiError
+    client.ts           ◀── substrate: Connect transport + REST multipart error helpers
     health.ts           ◀── health endpoint wrapper
-    notes.ts            ◀── canonical CRUD wrapper (4 lines/method via api/client::protoFetch)
+    notes.ts            ◀── generated Connect client + attachment upload helper
   lib/
     profiler.ts         ◀── browser performance helpers
     utils.ts            ◀── pure UI utilities
@@ -309,11 +334,12 @@ cli/
   internal/testutil/    ◀── parallel of api/internal/testutil/
 ```
 
-The CLI **never embeds business logic**. Handlers exclusively call
-the typed proto round-trip helpers `cliapp.Call[Req, Resp]` /
-`cliapp.CallQuery[Resp]` and format the response. If a CLI command
-needs to make a decision the API doesn't expose, the correct fix is
-to add the API endpoint, not to compute it locally.
+The CLI **never embeds business logic**. Handlers construct generated
+Connect clients with `cliapp.NewConnectHTTPClient` and format typed
+responses. REST-only commands, such as multipart uploads, use
+`cliapp.UploadFile` and decode the proto metadata response. If a CLI
+command needs to make a decision the API doesn't expose, the correct
+fix is to add the API operation, not to compute it locally.
 
 `cli-core` provides the scaffolding — global flags (`--api-base`,
 `--auto-start`, `--json`, `--no-color`), env-var precedence, config-file
@@ -329,8 +355,8 @@ positionals, `--`, `--help`) reads from it; `--help` output is
 generated from it; the runtime `RunContext` exposes typed accessors
 (`ctx.Flag("title")`, `ctx.Positional("id")`, `ctx.JSON()`) keyed by
 the same names. Adding a flag means adding a row to the schema —
-`flag.NewFlagSet`, manual `--help` strings, and per-handler proto
-marshal/unmarshal ribbon are all gone. The notes domain
+`flag.NewFlagSet`, manual `--help` strings, and per-handler HTTP
+serialization are all gone. The notes domain
 (`cli/domains/notes/{register,handlers}.go`) is the canonical worked
 example; mirror its shape when adding a second domain.
 
@@ -377,14 +403,14 @@ clean responsibility boundaries.
 
 | Production layer | Test seam | Fake/harness |
 |---|---|---|
-| HTTP transport | `httpx.NewLiveServer` over real socket | `httptest.Server` (real, not Recorder) |
+| Connect transport | generated Connect client over real handler | `httptest.Server` or in-process handler client |
 | Handler → Service | `notes.Service` interface | `notes/mocks.FakeService` (co-located) |
 | Service → Repository | `notes.Repository` interface | `notes/mocks.FakeRepository` (co-located) |
 | Repository → DB | `*sql.DB` | `db.NewSQLite(t)` (in-memory) |
 | Time | `clock.Clock` interface | `mocks.FakeClock` (cross-domain) |
 | DB reachability | `database.Pinger` interface | `mocks.FakePinger` (cross-domain) |
 | Outbound HTTP | `httpc.Doer` interface | `mocks.FakeDoer` |
-| UI ↔ API | `api/client.ts` / `api/notes.ts` modules | inline `vi.mock` |
+| UI ↔ API | `api/client.ts` transport / `api/notes.ts` typed client | inline `vi.mock` |
 | Render-error catch | `ErrorBoundary` (system under test) | controlled-throw fixture |
 
 The full register lives in [`SEAMS.md`](../internal/SEAMS.md). Test

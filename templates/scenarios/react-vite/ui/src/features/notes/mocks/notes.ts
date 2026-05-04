@@ -19,15 +19,14 @@
  *
  * Default behaviors:
  *
- *   - `listNotes` resolves to an empty list
- *   - `createNote({ title, body })` echoes the input back as a Note
- *     (so tests can assert "the title the user typed reaches the
- *     server" without arranging a per-test mockResolvedValue)
- *   - `getNote(id)` echoes the id back as a Note
+ *   - `notesClient.list` resolves to an empty list
+ *   - `notesClient.create({ title, body })` echoes the input back as a Note
+ *   - `notesClient.get({ id })` echoes the id back as a Note
+ *   - `uploadAttachment` resolves to stable attachment metadata
  */
 import { vi } from "vitest";
 
-import { makeListNotesResponse, makeNote } from "./factories";
+import { makeAttachment, makeCreateNoteResponse, makeListNotesResponse, makeNote } from "./factories";
 
 export interface NotesMockCreateInput {
   title: string;
@@ -35,19 +34,25 @@ export interface NotesMockCreateInput {
 }
 
 export interface NotesMocks {
-  listNotes: ReturnType<typeof vi.fn>;
-  createNote: ReturnType<typeof vi.fn>;
-  getNote: ReturnType<typeof vi.fn>;
+  notesClient: {
+    list: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    get: ReturnType<typeof vi.fn>;
+  };
+  uploadAttachment: ReturnType<typeof vi.fn>;
 }
 
 export const makeNotesMocks = (): NotesMocks => ({
-  listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
-  createNote: vi
-    .fn()
-    .mockImplementation((input: NotesMockCreateInput) =>
-      Promise.resolve(makeNote({ title: input.title, body: input.body ?? "" })),
-    ),
-  getNote: vi
-    .fn()
-    .mockImplementation((id: string) => Promise.resolve(makeNote({ id }))),
+  notesClient: {
+    list: vi.fn().mockResolvedValue(makeListNotesResponse()),
+    create: vi
+      .fn()
+      .mockImplementation((input: NotesMockCreateInput) =>
+        Promise.resolve(makeCreateNoteResponse({ note: makeNote({ title: input.title, body: input.body ?? "" }) })),
+      ),
+    get: vi
+      .fn()
+      .mockImplementation((input: { id: string }) => Promise.resolve({ note: makeNote({ id: input.id }) })),
+  },
+  uploadAttachment: vi.fn().mockResolvedValue(makeAttachment()),
 });

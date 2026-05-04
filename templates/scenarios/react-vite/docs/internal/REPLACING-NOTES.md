@@ -2,8 +2,9 @@
 
 The `notes` domain ships in every scenario generated from this
 template as a worked CRUD example. It demonstrates the full vertical
-stack: proto contract → API service + repository → handler +
-endpoint descriptors → CLI domain → UI feature card. **It is meant
+stack: proto contract → API service + repository → generated
+Connect handler → CLI domain → UI feature card. It also includes one
+deliberate REST exception for multipart file uploads. **It is meant
 to be replaced** with your scenario's first real domain (`tasks`,
 `users`, `orders`, …).
 
@@ -25,9 +26,26 @@ are green, delete notes (next section). Don't skip the side-by-side
 phase — it's how you learn the pattern by copying.
 
 1. **Proto contract.** Create `proto/v1/tasks/tasks.proto` (mirror
-   `proto/v1/notes/notes.proto`'s message + service shape). From the
-   workspace root, run `make generate`. New proto types appear under
-   `packages/proto/gen/{go,ts}/{{SCENARIO_ID}}/v1/tasks/`.
+   `proto/v1/notes/notes.proto`'s message + service shape). Every
+   proto-typed wire boundary needs a `service` block:
+   ```proto
+   service Tasks {
+     rpc List(ListTasksRequest) returns (ListTasksResponse);
+     rpc Create(CreateTaskRequest) returns (CreateTaskResponse);
+     rpc Get(GetTaskRequest) returns (GetTaskResponse);
+   }
+   ```
+   Use well-known types for non-string scalars, for example
+   `google.protobuf.Timestamp created_at = 4;`, and add domain-owned
+   relationship fields directly to the message (the notes reference
+   uses `repeated string attachment_keys = 6;`). If your domain has
+   opaque binary sub-resources, mirror `proto/v1/notes/attachments.proto`:
+   proto describes metadata, while bytes travel over multipart REST.
+
+   From the workspace root, run `make generate`. New proto types and
+   Connect stubs appear under
+   `packages/proto/gen/go/{{SCENARIO_ID}}/v1/tasks/` and
+   `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/tasks/`.
 
 2. **API domain package.** Create `api/internal/tasks/`:
    - `types.go` — `Task` struct, `ErrTaskNotFound`, `ErrInvalidTask`.
@@ -43,16 +61,24 @@ phase — it's how you learn the pattern by copying.
      co-located test fakes (`package mocks`); deleting `internal/tasks/`
      takes them along.
 
-3. **API handler + module.** Create `api/handlers/tasks/`:
-   - `handler.go` — `Deps`, `NewHandler` returning a subrouter.
-   - `module.go` — `Module(db, clk, logger) module.Module` that
-     constructs repo + service + handler internally; also re-exports
-     `func Schema() string { return internaltasks.Schema() }` so the
-     registry collects all per-domain metadata via one symbol per
-     handler package.
-   - `endpoints.go` — `var Endpoints = []module.EndpointDescriptor{...}`
-     mirroring the wire shape of each route.
-   - `module_test.go`, `handler_test.go` — tests.
+3. **API Connect handler + module.** Create `api/handlers/tasks/`:
+   - `connect_handler.go` — `Deps`, `NewConnectHandler`, and methods
+     implementing the generated `tasks_v1connect.TasksHandler`
+     interface. Methods should be thin: translate request fields into
+     service inputs, call the domain service, map domain errors to
+     `connect.Error`, and return generated proto responses.
+   - `module.go` — `Module(db, clk, blobs, logger) module.Module`
+     that constructs repo + service + generated Connect handler
+     internally, mounts it with `api-core/connectx.RegisterServices`,
+     and re-exports `func Schema() string { return internaltasks.Schema() }`.
+   - `adapter.go` or equivalent local conversion helpers only when the
+     domain type and proto type differ.
+   - `connect_handler_test.go`, `module_test.go` — tests.
+
+   There is no per-domain hand-written JSON decode/encode ribbon and
+   no separate `endpoints.go`. The proto service is the wire contract;
+   `module.go` keeps the generated endpoint metadata local for the
+   manifest.
 
 4. **Wire into the registry + main.** Three single-line edits.
 
@@ -82,8 +108,8 @@ phase — it's how you learn the pattern by copying.
    srv := server.New(
        server.Deps{Clock: clock.System{}, Logger: log.Default()},
        healthH.Module(db, "{{SCENARIO_ID}}-api", "1.0.0"),
-       notesH.Module(db, clock.System{}, log.Default()),
-       tasksH.Module(db, clock.System{}, log.Default()),  // new
+       notesH.Module(db, clock.System{}, blobStore, log.Default()),
+       tasksH.Module(db, clock.System{}, blobStore, log.Default()),  // new
    )
    ```
 
@@ -106,28 +132,39 @@ phase — it's how you learn the pattern by copying.
      }
      ```
    - `handlers.go` — one `func(ctx cliapp.RunContext) error` per
-     subcommand. The body uses `cliapp.Call[Req, Resp]` (typed
-     proto round-trip) or `cliapp.CallQuery[Resp]` (GET); reads
-     `ctx.Flag(...)` / `ctx.Positional(...)`; routes output via
-     `ctx.RenderList` / `ctx.RenderMutation` (which honor the
-     built-in `--json` flag); wraps errors with `cliapp.WrapAPIError`.
+     subcommand. Construct the generated Connect client once with
+     `cliapp.NewConnectHTTPClient(core)` plus the generated
+     `tasksconnect.NewTasksClient`. Each handler calls the typed client,
+     reads `ctx.Flag(...)` / `ctx.Positional(...)`, routes output via
+     `ctx.RenderList` / `ctx.RenderMutation` (which honor the built-in
+     `--json` flag), and wraps errors with `cliapp.WrapAPIError`.
      ```go
      func (h *handlers) create(ctx cliapp.RunContext) error {
-         resp, err := cliapp.Call[*tasksv1.CreateTaskRequest, *tasksv1.CreateTaskResponse](
-             h.core, http.MethodPost, "/tasks",
-             &tasksv1.CreateTaskRequest{Title: ctx.Flag("title")},
-         )
+         resp, err := h.client.Create(context.Background(),
+             connect.NewRequest(&tasksv1.CreateTaskRequest{Title: ctx.Flag("title")}))
          if err != nil { return cliapp.WrapAPIError("create task", err, nil) }
          // ... render ...
      }
      ```
-     Don't reach for `flag.NewFlagSet`, `protojson.Marshal/Unmarshal`,
-     or a per-domain `apiError`/`decodeEnvelope` helper — those are
-     in `cli-core`'s declarative surface (since iteration 1 of the
-     react-vite-template fitness program). Re-deriving them per
-     domain is the boilerplate the substrate exists to delete.
+     Don't reach for `flag.NewFlagSet`, hand-written HTTP calls, or a
+     per-domain `apiError` helper. cli-core owns the parser, rendering,
+     Connect HTTP client setup, and error wrapping.
 
-6. **Wire into CLI.** Add **one line** to `cli/domains/domains.go`'s
+6. **Multipart endpoint, when the domain needs opaque bytes.** Keep
+   binary upload as REST multipart and keep metadata proto-typed:
+   - Add a metadata proto beside the domain service proto, as notes does
+     with `attachments.proto`.
+   - Add a domain service/repository for metadata and use
+     `api-core/blobstore.BlobStore` for bytes.
+   - Mount one REST handler under a resource path such as
+     `/api/v1/tasks/{id}/attachments`.
+   - In the CLI, implement `tasks attach <id> --file <path>` with
+     `cliapp.UploadFile`.
+   - In the UI, build `FormData` and call the shared `uploadFile()`
+     helper, then parse the metadata response with the generated proto
+     descriptor.
+
+7. **Wire into CLI.** Add **one line** to `cli/domains/domains.go`'s
    `SubcommandGroups`:
    ```go
    return []cliapp.SubcommandGroup{
@@ -136,14 +173,15 @@ phase — it's how you learn the pattern by copying.
    }
    ```
 
-7. **CLI commands seed.** Add entries to
-   `api/cmd/gen-endpoints/cli_commands_seed.json` (one per
-   subcommand: `tasks list`, `tasks create`, `tasks get`). Run
-   `make endpoints` to regenerate `.vrooli/endpoints.json`. The
-   codegen cross-check fails if a `cli_mapping.command` from your
-   new endpoints isn't in the seed.
+8. **CLI commands seed.** Connect-RPC endpoints are described from the
+   proto service metadata kept in `module.go`; the seed file is only
+   for REST exceptions that have no proto service descriptor. Add a
+   `tasks attach` entry to `api/cmd/gen-endpoints/cli_commands_seed.json`
+   if you added a multipart endpoint. Run `make endpoints` to regenerate
+   `.vrooli/endpoints.json`. The codegen cross-check fails if a
+   `cli_mapping.command` from a REST exception isn't in the seed.
 
-8. **UI feature.** Create `ui/src/features/tasks/`:
+9. **UI feature.** Create `ui/src/features/tasks/`:
    - `TasksCard.tsx` — function component, mirrors
      `features/notes/NotesCard.tsx`.
    - `TasksCard.test.tsx` — tests.
@@ -151,7 +189,11 @@ phase — it's how you learn the pattern by copying.
      `makeListTasksResponse` (proto-backed via `create(<Schema>, ...)`).
    - `mocks/tasks.ts` — `makeTasksMocks()` builder for `vi.mock(...)`.
    - `mocks/{factories,tasks}.test.ts` — self-tests.
-   And `ui/src/lib/tasks.ts` — fetcher + types.
+   And `ui/src/api/tasks.ts` — exports the typed Connect client with
+   `createClient(Tasks, transport)` plus any REST multipart helpers.
+   Render timestamps with `timestampDate(...)` plus the locale-aware
+   formatters in `ui/src/i18n/format.ts`, and surface API errors through
+   `ui/src/lib/errorMessage.ts` so Connect codes map to i18n keys.
    Then add **one import + one render line** in `ui/src/App.tsx`:
    ```tsx
    import { TasksCard } from "./features/tasks/TasksCard";
@@ -163,11 +205,11 @@ phase — it's how you learn the pattern by copying.
    </AppShell>
    ```
 
-9. **Strings.** Add `tasks.title`, `tasks.create`, etc. to
+10. **Strings.** Add `tasks.title`, `tasks.create`, etc. to
    `ui/src/i18n/locales/en.json` (and the other locale files for
    parity). Run `pnpm strings:gen` from `ui/`.
 
-10. **Run all tests.** API + CLI + UI. If anything breaks, fix
+11. **Run all tests.** API + CLI + UI. If anything breaks, fix
     your domain — the pattern is sound, your wiring isn't.
 
 ## Steps to remove the `notes` reference
@@ -215,11 +257,12 @@ sed -i '/notes\.Register/d' cli/domains/domains.go
 sed -i '/NotesCard/d' ui/src/App.tsx
 ```
 
-**3. Drop the notes entries from the codegen seed and regenerate:**
+**3. Drop notes REST-exception entries from the codegen seed and regenerate:**
 
 ```bash
 # Edit api/cmd/gen-endpoints/cli_commands_seed.json by hand: remove
-# the three `notes list/create/get` entries.
+# the `notes attach` entry. Connect-RPC commands are described from
+# the proto service metadata, not manually seeded.
 make endpoints
 ```
 

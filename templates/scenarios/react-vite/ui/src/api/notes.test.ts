@@ -1,7 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "./client";
-import { createNote, getNote, listNotes } from "./notes";
+
+const mocks = vi.hoisted(() => ({
+  client: {
+    list: vi.fn(),
+    create: vi.fn(),
+    get: vi.fn(),
+  },
+}));
+
+vi.mock("@connectrpc/connect", () => ({
+  createClient: vi.fn(() => mocks.client),
+}));
 
 describe("api/notes", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -12,132 +23,84 @@ describe("api/notes", () => {
   });
 
   afterEach(() => {
+    vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 
-  describe("listNotes", () => {
-    it("returns ListNotesResponse decoded from the wire body", async () => {
+  it("exports the generated Connect client", async () => {
+    const { notesClient } = await import("./notes");
+
+    await notesClient.list({});
+
+    expect(mocks.client.list).toHaveBeenCalledWith({});
+  });
+
+  describe("uploadAttachment", () => {
+    it("posts FormData to the multipart REST endpoint and returns attachment metadata", async () => {
+      const { uploadAttachment } = await import("./notes");
+      const file = new File(["hello"], "hello.txt", { type: "text/plain" });
       fetchSpy.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            notes: [
-              {
-                id: "a",
-                title: "first",
-                body: "hello",
-                created_at: "2026-01-01T00:00:00Z",
-                updated_at: "2026-01-01T00:00:00Z",
-              },
-            ],
+            attachment: {
+              key: "notes/note-1/hello.txt",
+              mime_type: "text/plain",
+              size_bytes: "5",
+              note_id: "note-1",
+              uploaded_at: "2026-01-01T00:00:00Z",
+            },
           }),
           { status: 200 },
         ),
       );
 
-      const got = await listNotes();
+      const got = await uploadAttachment("note-1", file);
 
-      expect(got.notes).toHaveLength(1);
-      expect(got.notes[0]?.title).toBe("first");
-      expect(got.notes[0]?.createdAt).toBe("2026-01-01T00:00:00Z");
-    });
-
-    it("returns an empty notes array when the wire body has none", async () => {
-      fetchSpy.mockResolvedValueOnce(new Response('{"notes":[]}', { status: 200 }));
-      const got = await listNotes();
-      expect(got.notes).toEqual([]);
-    });
-  });
-
-  describe("createNote", () => {
-    it("POSTs the proto-encoded request body and returns the created Note", async () => {
-      fetchSpy.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            note: {
-              id: "uuid",
-              title: "first",
-              body: "hello",
-              created_at: "2026-01-01T00:00:00Z",
-              updated_at: "2026-01-01T00:00:00Z",
-            },
-          }),
-          { status: 201 },
-        ),
-      );
-
-      const got = await createNote({ title: "first", body: "hello" });
-
-      expect(got.id).toBe("uuid");
-      expect(got.title).toBe("first");
-
+      expect(got.key).toBe("notes/note-1/hello.txt");
+      expect(got.sizeBytes).toBe(5n);
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toMatch(/\/notes$/);
-      expect(init.method).toBe("POST");
-      expect(JSON.parse(init.body as string)).toEqual({ title: "first", body: "hello" });
+      expect(url).toMatch(/\/notes\/note-1\/attachments$/);
+      expect(init.body).toBeInstanceOf(FormData);
     });
 
-    it("surfaces server-side validation failures as ApiError(invalid_request)", async () => {
-      fetchSpy.mockResolvedValueOnce(
-        new Response(JSON.stringify({ code: "invalid_request", message: "title required" }), {
-          status: 400,
-        }),
-      );
-
-      const err = await createNote({ title: "" }).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(ApiError);
-      expect((err as ApiError).code).toBe("invalid_request");
-      expect((err as ApiError).message).toContain("title required");
-    });
-  });
-
-  describe("getNote", () => {
-    it("returns the decoded Note on the happy path", async () => {
+    it("URL-encodes the note id so route-confused inputs do not misroute", async () => {
+      const { uploadAttachment } = await import("./notes");
       fetchSpy.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            note: {
-              id: "abc",
-              title: "found",
-              body: "",
-              created_at: "2026-01-01T00:00:00Z",
-              updated_at: "2026-01-01T00:00:00Z",
+            attachment: {
+              key: "notes/x-y/file.txt",
+              mime_type: "text/plain",
+              size_bytes: "1",
+              note_id: "x/y",
+              uploaded_at: "2026-01-01T00:00:00Z",
             },
           }),
           { status: 200 },
         ),
       );
 
-      const got = await getNote("abc");
-      expect(got.id).toBe("abc");
-      expect(got.title).toBe("found");
-    });
+      await uploadAttachment("x/y", new File(["x"], "x.txt"));
 
-    it("surfaces 404s as ApiError(not_found)", async () => {
-      fetchSpy.mockResolvedValueOnce(
-        new Response(JSON.stringify({ code: "not_found", message: "note missing not found" }), {
-          status: 404,
-        }),
-      );
-
-      const err = await getNote("missing").catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(ApiError);
-      expect((err as ApiError).code).toBe("not_found");
-      expect((err as ApiError).status).toBe(404);
-    });
-
-    it("URL-encodes the id so route-confused inputs don't silently misroute", async () => {
-      fetchSpy.mockResolvedValueOnce(
-        new Response(
-          '{"note":{"id":"x/y","title":"t","body":"","created_at":"t","updated_at":"t"}}',
-          { status: 200 },
-        ),
-      );
-
-      await getNote("x/y");
       const [url] = fetchSpy.mock.calls[0] as [string];
       expect(url).toContain("x%2Fy");
       expect(url).not.toContain("x/y");
     });
+
+    it("surfaces multipart failures as ApiError", async () => {
+      const { uploadAttachment } = await import("./notes");
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "not_found", message: "note missing" }), {
+          status: 404,
+        }),
+      );
+
+      const err = await uploadAttachment("missing", new File(["x"], "x.txt")).catch(
+        (e: unknown) => e,
+      );
+
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).code).toBe("not_found");
+    });
   });
 });
-

@@ -26,7 +26,31 @@
     "loading": "جارٍ تحميل الملاحظات…",
     "empty": "لا توجد ملاحظات بعد.",
     "create": "إنشاء ملاحظة",
-    "error": "تعذر تحميل الملاحظات."
+    "createdAtLabel": "تاريخ الإنشاء:",
+    "attachmentsLabel": "{{count}} مرفقات",
+    "attachmentsLabel_one": "مرفق واحد",
+    "uploadAttachment": "رفع مرفق",
+    "attachmentFileLabel": "ملف المرفق",
+    "uploadSuccess": "تم رفع {{name}}.",
+    "noFileSelected": "اختر ملفًا قبل الرفع."
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
   },
   "locale": {
     "switcherLabel": "اللغة"

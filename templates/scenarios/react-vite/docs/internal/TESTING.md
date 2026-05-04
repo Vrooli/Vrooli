@@ -51,7 +51,7 @@ api/
 │       ├── no_prod_import_test.go  # AST guardrail (see below)
 │       └── testutil.go           # Package contract
 └── handlers/health/
-    ├── handler.go                # Production handler
+    ├── handler.go                # Production REST handler
     └── handler_test.go           # Canonical test
 ```
 
@@ -156,21 +156,23 @@ time. The pattern from wire to render:
 
 | Layer | File | What it owns |
 |---|---|---|
-| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteResponse` |
-| Error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | One typed body for every non-2xx path, with canonical codes (`invalid_request`, `not_found`, `internal`) |
-| Request decode | `internal/httpx/decode.go::DecodeProtoJSON[T]` | Structured proto ingress uses `protojson` and rejects unknown fields by default so schema drift fails at the boundary |
-| Domain types | `internal/notes/types.go::{Note, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels (`ErrInvalidNote` for validation, `ErrNoteNotFound` for misses) translate into 400/404 envelopes at the handler edge |
+| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `service Notes`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
+| REST metadata contract | `proto/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
+| Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
+| REST error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
 | Schema | `internal/notes/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `apidb.EnsureSchemas` |
 | Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `apidb.EnsureSchemas(ctx, d, ...providers...)` over system + notes (the canonical compose pattern) |
 | Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
 | Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
-| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeService` (from co-located `internal/notes/mocks/`) and exercises the full transport edge through `httpx.NewLiveServer` |
+| Connect handler test | `handlers/notes/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
+| Multipart handler test | `handlers/notes/attachments_handler_test.go` | Uses `blobstore.MemoryBlobStore` plus test metadata repositories to exercise file-upload success and error paths |
 | Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/api/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
-| UI tests | `ui/src/api/notes.test.ts` + component tests | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./api/notes", ...)` for the component test |
-| CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
+| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(Notes, transport)` plus `uploadAttachment` for multipart metadata |
+| UI tests | `ui/src/api/notes.test.ts` + component tests | Mock generated client methods and `uploadAttachment`; REST helper tests stub `global.fetch` |
+| CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
 | CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
 
 #### Compose pattern: schema-applied repository test
@@ -220,7 +222,7 @@ HTTP → handler → Service (validates, applies defaults) → Repository (persi
 - Pin error propagation (`Get` returns `ErrNoteNotFound` verbatim;
   `Create` returns repository errors verbatim).
 
-Handler tests then substitute `mocks.FakeService` — they don't seed
+Connect handler tests then substitute `mocks.FakeService` — they don't seed
 sqlite-shaped state to assert on routing. Two-mock split keeps each
 layer's tests focused on what that layer owns.
 
@@ -241,7 +243,7 @@ srv := server.New(server.Deps{
 Discard-only sinks (`log.New(io.Discard, "", 0)`) work for tests that
 don't need to inspect log output; reach for the buffer when the test
 asserts on what was logged (e.g., the 500-path test in
-`handlers/notes/handler_test.go::TestNotesHandler_GetInternalError`
+`handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
 checks the underlying error reaches operator logs).
 
 ### Testing context cancellation
@@ -445,13 +447,13 @@ vi.mock("./api/notes", async (importOriginal) => {
 
 Defaults are picked so the most common test paths work no-args:
 `makeApiMocks().fetchHealth` resolves to a healthy response;
-`makeNotesMocks().listNotes` resolves to an empty list;
-`createNote({ title })` echoes the title back as a Note. Per-test
-overrides use vitest's standard pattern *after* the mock is wired:
+`makeNotesMocks().notesClient.list` resolves to an empty list;
+`notesClient.create({ title })` echoes the title back as a Note.
+Per-test overrides use vitest's standard pattern *after* the mock is wired:
 
 ```tsx
-const { listNotes } = await import("./api/notes");
-vi.mocked(listNotes).mockResolvedValueOnce(
+const { notesClient } = await import("./api/notes");
+vi.mocked(notesClient.list).mockResolvedValueOnce(
   makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
 );
 ```
@@ -687,9 +689,10 @@ Steps:
    const fixture = create(ListResponseSchema, { items: [{ id: "n-1" }] });
    ```
 
-5. **Tests follow.** Handler test uses `MustUnmarshalProto`; fixture
-   test asserts on the typed shape via `proto.Equal`. UI test mocks
-   `api/notes` and returns `makeListResponse()` from the factory.
+5. **Tests follow.** Connect handler tests call the generated client;
+   fixture tests assert on the typed shape via `proto.Equal`. UI tests
+   mock `api/notes` and return generated response objects from the
+   factory.
 
 Don't add a new `mocks/Fake*` interface for the proto type — the proto
 isn't a seam, it's a contract. Seams are interfaces; protos are

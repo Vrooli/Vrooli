@@ -469,7 +469,8 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	expectedTools := []string{
 		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
 		"docker", "ffmpeg", "git", "go", "helm", "jq", "lychee",
-		"node", "openbox", "protoc", "protoc-gen-es", "protoc-gen-go",
+		"node", "openbox", "protoc", "protoc-gen-connect-go",
+		"protoc-gen-es", "protoc-gen-go",
 		"python", "stripe", "tmux", "vault", "websockify", "x11vnc",
 		"xdotool", "yq",
 	}

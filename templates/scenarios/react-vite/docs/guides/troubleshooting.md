@@ -99,11 +99,12 @@ parent directory is created on first write — if that fails, your
 home directory is read-only or `XDG_CONFIG_HOME` is set to an
 unwritable path.
 
-### API returns `400 invalid_request` with no body
+### API returns `400 invalid_request` on multipart upload
 
-Likely cause: the request includes fields the proto schema doesn't
-declare. The decoder uses `DisallowUnknownFields` by default. Check
-the request payload against `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`.
+Likely cause: the upload request is not valid `multipart/form-data` or
+is missing the `file` part. Proto-typed operations use Connect-RPC and
+will surface Connect codes such as `invalid_argument`; `invalid_request`
+is reserved for REST exceptions like file upload.
 
 ## Build and dependencies
 

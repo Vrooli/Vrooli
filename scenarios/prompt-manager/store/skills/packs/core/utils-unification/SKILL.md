@@ -120,6 +120,11 @@ core    X-> app code
 | Classname helpers | `shared/core/` | Keep pure string logic out of React code |
 | Data adapters | `shared/domain/` | Transform API data to UI-ready shapes |
 
+Connect transport factories are framework utilities and should live in
+`shared/framework/` or the app's API boundary substrate. Thin RPC client
+wrappers that speak domain language may live in `shared/domain/`, but avoid
+wrapping generated clients unless the wrapper removes real duplication.
+
 ---
 
 ### **4. Utility API Design Standards**
@@ -288,3 +293,5 @@ You **must**:
 * Ensure new utilities are testable and have seams
 
 **Avoid superficial changes** that only rename files or move code without real consolidation.
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

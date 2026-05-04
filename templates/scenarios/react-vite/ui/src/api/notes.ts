@@ -1,44 +1,42 @@
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
+import { createClient } from "@connectrpc/connect";
 import {
-  CreateNoteRequestSchema,
-  CreateNoteResponseSchema,
-  GetNoteResponseSchema,
-  ListNotesResponseSchema,
+  Notes,
   type Note,
   type ListNotesResponse,
 } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
+import {
+  UploadAttachmentResponseSchema,
+  type Attachment,
+} from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/attachments_pb";
 
-import { makeApiError, protoFetch } from "./client";
+import {
+  PROTO_READ_OPTIONS,
+  decodeApiError,
+  makeApiError,
+  transport,
+  uploadFile,
+} from "./client";
 
-export async function listNotes(): Promise<ListNotesResponse> {
-  return protoFetch("GET", "/notes", { responseSchema: ListNotesResponseSchema });
-}
+export const notesClient = createClient(Notes, transport);
 
-export interface CreateNoteInput {
-  title: string;
-  body?: string;
-}
+export async function uploadAttachment(noteId: string, file: File): Promise<Attachment> {
+  const formData = new FormData();
+  formData.set("file", file, file.name);
 
-export async function createNote(input: CreateNoteInput): Promise<Note> {
-  const decoded = await protoFetch("POST", "/notes", {
-    requestSchema: CreateNoteRequestSchema,
-    request: { title: input.title, body: input.body ?? "" },
-    responseSchema: CreateNoteResponseSchema,
-  });
-  if (!decoded.note) {
-    throw makeApiError("internal", "create returned no note");
+  const res = await uploadFile(`/notes/${encodeURIComponent(noteId)}/attachments`, formData);
+  if (!res.ok) {
+    throw await decodeApiError(res);
   }
-  return decoded.note;
-}
-
-export async function getNote(id: string): Promise<Note> {
-  const decoded = await protoFetch("GET", `/notes/${encodeURIComponent(id)}`, {
-    responseSchema: GetNoteResponseSchema,
-  });
-  if (!decoded.note) {
-    throw makeApiError("internal", "get returned no note");
+  const decoded = fromJson(
+    UploadAttachmentResponseSchema,
+    (await res.json()) as JsonValue,
+    PROTO_READ_OPTIONS,
+  );
+  if (!decoded.attachment) {
+    throw makeApiError("internal", "upload returned no attachment");
   }
-  return decoded.note;
+  return decoded.attachment;
 }
 
 export type { Note, ListNotesResponse };
-

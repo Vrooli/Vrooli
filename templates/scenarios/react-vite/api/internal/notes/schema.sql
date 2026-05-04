@@ -13,3 +13,15 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS attachments (
+  key         TEXT PRIMARY KEY,
+  note_id     TEXT NOT NULL,
+  mime_type   TEXT NOT NULL DEFAULT '',
+  size_bytes  INTEGER NOT NULL,
+  uploaded_at TEXT NOT NULL,
+  FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_note_uploaded
+  ON attachments(note_id, uploaded_at DESC, key DESC);

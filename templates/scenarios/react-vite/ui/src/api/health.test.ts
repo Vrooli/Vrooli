@@ -14,7 +14,7 @@ describe("api/health.fetchHealth", () => {
     vi.unstubAllGlobals();
   });
 
-  it("requests /health with cache: 'no-store' and JSON content-type", async () => {
+  it("requests /health with cache: 'no-store'", async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response('{"status":"healthy","service":"x","timestamp":"t","readiness":true}', {
         status: 200,
@@ -29,8 +29,6 @@ describe("api/health.fetchHealth", () => {
     expect(init).toMatchObject({
       method: "GET",
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
     });
   });
 });
-

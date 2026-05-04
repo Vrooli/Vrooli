@@ -2,87 +2,78 @@ package notes
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 
 	clitest "{{SCENARIO_ID}}/cli/internal/testutil"
 )
 
-// captured holds the inbound request and body the fake API saw.
-// Returned by reference from fakeAPI so tests assert on it after the
-// handler under test runs — not at the moment fakeAPI is constructed.
-//
-// Pointer-with-mutex (rather than `*http.Request` directly) is the
-// load-bearing shape: the handler closure mutates the struct's fields
-// when the request arrives; tests read them after dispatch returns.
-// The mutex covers the case where a future test fans out concurrent
-// CLI calls against one fake.
-type captured struct {
-	mu     sync.Mutex
-	method string
-	path   string
-	body   string
+type notesService struct {
+	mu           sync.Mutex
+	listResp     *notesv1.ListNotesResponse
+	createResp   *notesv1.CreateNoteResponse
+	getResp      *notesv1.GetNoteResponse
+	listErr      error
+	createErr    error
+	getErr       error
+	createInputs []*notesv1.CreateNoteRequest
+	getIDs       []string
 }
 
-// recorded is the lock-free, value-safe view returned by snapshot.
-// Distinct from captured so go vet's copylocks check stays quiet
-// (returning a struct embedding sync.Mutex by value is the canonical
-// vet violation; this carries the same fields without the lock).
-type recorded struct {
-	Method string
-	Path   string
-	Body   string
+func (s *notesService) List(context.Context, *connect.Request[notesv1.ListNotesRequest]) (*connect.Response[notesv1.ListNotesResponse], error) {
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
+	if s.listResp == nil {
+		s.listResp = &notesv1.ListNotesResponse{}
+	}
+	return connect.NewResponse(s.listResp), nil
 }
 
-// snapshot returns a copy of the captured fields safe to assert on
-// without holding the mutex across require.* calls.
-func (c *captured) snapshot() recorded {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return recorded{Method: c.method, Path: c.path, Body: c.body}
+func (s *notesService) Create(_ context.Context, req *connect.Request[notesv1.CreateNoteRequest]) (*connect.Response[notesv1.CreateNoteResponse], error) {
+	s.mu.Lock()
+	s.createInputs = append(s.createInputs, req.Msg)
+	s.mu.Unlock()
+	if s.createErr != nil {
+		return nil, s.createErr
+	}
+	if s.createResp == nil {
+		s.createResp = &notesv1.CreateNoteResponse{}
+	}
+	return connect.NewResponse(s.createResp), nil
 }
 
-// fakeAPI returns an http.Handler that serves (status, body) and
-// records the inbound request method, path, and body into the
-// returned *captured. The body argument should be proto-marshalled
-// (via clitest.MustMarshalProto) so test wire bodies stay in lockstep
-// with the proto schema — drift becomes a compile error rather than a
-// silent pass against stale JSON.
-func fakeAPI(t *testing.T, status int, body []byte) (http.Handler, *captured) {
-	t.Helper()
-	rec := &captured{}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rec.mu.Lock()
-		rec.method = r.Method
-		rec.path = r.URL.Path
-		if r.Body != nil {
-			b, _ := io.ReadAll(r.Body)
-			rec.body = string(b)
-		}
-		rec.mu.Unlock()
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_, _ = w.Write(body)
-	})
-	return handler, rec
+func (s *notesService) Get(_ context.Context, req *connect.Request[notesv1.GetNoteRequest]) (*connect.Response[notesv1.GetNoteResponse], error) {
+	s.mu.Lock()
+	s.getIDs = append(s.getIDs, req.Msg.Id)
+	s.mu.Unlock()
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	if s.getResp == nil {
+		s.getResp = &notesv1.GetNoteResponse{}
+	}
+	return connect.NewResponse(s.getResp), nil
 }
 
-// runCtx builds a captured-stdout RunContext bound to the given core.
-// Tests use this to drive RunCtx-style handlers without the full App
-// dispatcher. The buffer pointer is returned so tests can assert on
-// the rendered output.
+// runCtx builds a captured-stdout RunContext bound to the given core. Tests
+// use this to drive RunCtx-style handlers without the full App dispatcher.
 func runCtx(core *cliapp.ScenarioApp, schema cliapp.ArgSchema, opts cliapp.TestRunContextOptions) (cliapp.RunContext, *bytes.Buffer) {
 	var buf bytes.Buffer
 	opts.Schema = schema
@@ -91,15 +82,30 @@ func runCtx(core *cliapp.ScenarioApp, schema cliapp.ArgSchema, opts cliapp.TestR
 	return cliapp.NewTestRunContext(opts), &buf
 }
 
+func connectAPI(t *testing.T, svc *notesService) http.Handler {
+	t.Helper()
+	path, handler := notesconnect.NewNotesHandler(svc)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	return mux
+}
+
+func note(id, title string) *notesv1.Note {
+	ts := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	return &notesv1.Note{
+		Id:             id,
+		Title:          title,
+		CreatedAt:      ts,
+		UpdatedAt:      ts,
+		AttachmentKeys: []string{"notes/" + id + "/attachments/a.txt"},
+	}
+}
+
 func TestNotesList_RendersResults(t *testing.T) {
-	body := clitest.MustMarshalProto(t, &notesv1.ListNotesResponse{
-		Notes: []*notesv1.Note{
-			{Id: "a", Title: "first", Body: "", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
-			{Id: "b", Title: "second", Body: "x", CreatedAt: "2026-01-02T00:00:00Z", UpdatedAt: "2026-01-02T00:00:00Z"},
-		},
-	})
-	handler, _ := fakeAPI(t, http.StatusOK, body)
-	core := clitest.NewTestApp(t, handler)
+	svc := &notesService{listResp: &notesv1.ListNotesResponse{
+		Notes: []*notesv1.Note{note("a", "first"), note("b", "second")},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{})
 
@@ -107,45 +113,56 @@ func TestNotesList_RendersResults(t *testing.T) {
 	require.Contains(t, out.String(), "Found 2 note(s).")
 	require.Contains(t, out.String(), "first")
 	require.Contains(t, out.String(), "second")
+	require.Contains(t, out.String(), "attachments=1")
 }
 
-func TestNotesList_SurfacesEnvelopeErrors(t *testing.T) {
-	envelope := clitest.MustMarshalProto(t, &errorsv1.ErrorEnvelope{
-		Code:    "internal",
-		Message: "store down",
-	})
-	handler, _ := fakeAPI(t, http.StatusInternalServerError, envelope)
-	core := clitest.NewTestApp(t, handler)
+func TestNotesList_JSONIncludesMachineReadableNotes(t *testing.T) {
+	svc := &notesService{listResp: &notesv1.ListNotesResponse{
+		Notes: []*notesv1.Note{note("a", "first")},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{JSON: true})
+
+	require.NoError(t, h.list(ctx))
+
+	var got struct {
+		Notes []struct {
+			ID             string   `json:"id"`
+			Title          string   `json:"title"`
+			AttachmentKeys []string `json:"attachment_keys"`
+		} `json:"notes"`
+	}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &got))
+	require.Len(t, got.Notes, 1)
+	require.Equal(t, "a", got.Notes[0].ID)
+	require.Equal(t, "first", got.Notes[0].Title)
+	require.Equal(t, []string{"notes/a/attachments/a.txt"}, got.Notes[0].AttachmentKeys)
+}
+
+func TestNotesList_SurfacesConnectErrors(t *testing.T) {
+	svc := &notesService{listErr: connect.NewError(connect.CodeInternal, io.ErrUnexpectedEOF)}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{})
 
 	err := h.list(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "internal")
-	require.Contains(t, err.Error(), "store down")
+	require.Contains(t, err.Error(), "unexpected EOF")
 }
 
 func TestNotesCreate_RequiresTitle(t *testing.T) {
-	// Drives the same parser the production dispatcher uses, so this test
-	// verifies the full Required:true contract end-to-end (schema → parser
-	// → error) rather than just inspecting the schema declaration.
-	handler, _ := fakeAPI(t, http.StatusOK, []byte(`{}`))
-	core := clitest.NewTestApp(t, handler)
+	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	createCmd := findSubcommand(t, Register(core), "create")
 	_, err := cliapp.NewTestRunContextFromArgs(createCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required flag --title")
 }
 
-func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
-	respBody := clitest.MustMarshalProto(t, &notesv1.CreateNoteResponse{
-		Note: &notesv1.Note{
-			Id: "new", Title: "hello", Body: "world",
-			CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
-		},
-	})
-	handler, rec := fakeAPI(t, http.StatusCreated, respBody)
-	core := clitest.NewTestApp(t, handler)
+func TestNotesCreate_CallsConnectClient(t *testing.T) {
+	svc := &notesService{createResp: &notesv1.CreateNoteResponse{Note: note("new", "hello")}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := runCtx(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{{Name: "title"}, {Name: "body"}},
@@ -154,29 +171,40 @@ func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
 	})
 
 	require.NoError(t, h.create(ctx))
-	got := rec.snapshot()
-	require.Equal(t, http.MethodPost, got.Method)
-
-	// Decode the wire body via protojson so a future CreateNoteRequest
-	// schema change (renamed/added field) breaks at this assertion
-	// rather than silently passing against a stale map[string]string
-	// shape.
-	var sent notesv1.CreateNoteRequest
-	require.NoError(t, protojson.Unmarshal([]byte(got.Body), &sent))
-	require.Equal(t, "hello", sent.Title)
-	require.Equal(t, "world", sent.Body)
-
+	require.Len(t, svc.createInputs, 1)
+	require.Equal(t, "hello", svc.createInputs[0].Title)
+	require.Equal(t, "world", svc.createInputs[0].Body)
 	require.Contains(t, out.String(), "Created note new.")
 	require.Contains(t, out.String(), "hello")
 }
 
-func TestNotesGet_ReportsNotFoundEnvelope(t *testing.T) {
-	envelope := clitest.MustMarshalProto(t, &errorsv1.ErrorEnvelope{
-		Code:    "not_found",
-		Message: `note "ghost" not found`,
+func TestNotesCreate_JSONIncludesCreatedNote(t *testing.T) {
+	svc := &notesService{createResp: &notesv1.CreateNoteResponse{Note: note("new", "hello")}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := runCtx(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "title"}, {Name: "body"}},
+	}, cliapp.TestRunContextOptions{
+		Flags: map[string]string{"title": "hello", "body": "world"},
+		JSON:  true,
 	})
-	handler, _ := fakeAPI(t, http.StatusNotFound, envelope)
-	core := clitest.NewTestApp(t, handler)
+
+	require.NoError(t, h.create(ctx))
+
+	var got struct {
+		Note struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"note"`
+	}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &got))
+	require.Equal(t, "new", got.Note.ID)
+	require.Equal(t, "hello", got.Note.Title)
+}
+
+func TestNotesGet_ReportsNotFound(t *testing.T) {
+	svc := &notesService{getErr: connect.NewError(connect.CodeNotFound, io.ErrUnexpectedEOF)}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := runCtx(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
@@ -187,18 +215,11 @@ func TestNotesGet_ReportsNotFoundEnvelope(t *testing.T) {
 	err := h.get(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not_found")
-	require.Contains(t, err.Error(), "ghost")
 }
 
 func TestNotesGet_RendersNote(t *testing.T) {
-	respBody := clitest.MustMarshalProto(t, &notesv1.GetNoteResponse{
-		Note: &notesv1.Note{
-			Id: "abc", Title: "found", Body: "",
-			CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
-		},
-	})
-	handler, rec := fakeAPI(t, http.StatusOK, respBody)
-	core := clitest.NewTestApp(t, handler)
+	svc := &notesService{getResp: &notesv1.GetNoteResponse{Note: note("abc", "found")}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := runCtx(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
@@ -207,21 +228,68 @@ func TestNotesGet_RendersNote(t *testing.T) {
 	})
 
 	require.NoError(t, h.get(ctx))
-	got := rec.snapshot()
-	require.True(t, strings.HasSuffix(got.Path, "/notes/abc"),
-		"GET path = %q, want suffix /notes/abc", got.Path)
+	require.Equal(t, []string{"abc"}, svc.getIDs)
 	require.Contains(t, out.String(), "Fetched note abc.")
 	require.Contains(t, out.String(), "found")
 }
 
 func TestNotesGet_RequiresID(t *testing.T) {
-	// Same parser-driven shape as TestNotesCreate_RequiresTitle.
-	handler, _ := fakeAPI(t, http.StatusOK, []byte(`{}`))
-	core := clitest.NewTestApp(t, handler)
+	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	getCmd := findSubcommand(t, Register(core), "get")
 	_, err := cliapp.NewTestRunContextFromArgs(getCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required positional <id>")
+}
+
+func TestNotesAttach_UploadsMultipart(t *testing.T) {
+	var gotPath, gotBody string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.Equal(t, http.MethodPost, r.Method)
+		require.NoError(t, r.ParseMultipartForm(32<<20))
+		file, header, err := r.FormFile("file")
+		require.NoError(t, err)
+		defer file.Close()
+		require.Equal(t, "note.txt", header.Filename)
+		body, err := io.ReadAll(file)
+		require.NoError(t, err)
+		gotBody = string(body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write(clitest.MustMarshalProto(t, &notesv1.UploadAttachmentResponse{
+			Attachment: &notesv1.Attachment{
+				Key:       "notes/abc/attachments/note.txt",
+				MimeType:  "text/plain",
+				SizeBytes: 5,
+				NoteId:    "abc",
+			},
+		}))
+	})
+	core := clitest.NewTestApp(t, handler)
+	h := newHandlers(core)
+	tmp := t.TempDir() + "/note.txt"
+	require.NoError(t, os.WriteFile(tmp, []byte("hello"), 0o600))
+	ctx, out := runCtx(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "file"}},
+	}, cliapp.TestRunContextOptions{
+		Positionals: map[string]string{"id": "abc"},
+		Flags:       map[string]string{"file": tmp},
+	})
+
+	require.NoError(t, h.attach(ctx))
+	require.True(t, strings.HasSuffix(gotPath, "/api/v1/notes/abc/attachments"), gotPath)
+	require.Equal(t, "hello", gotBody)
+	require.Contains(t, out.String(), "Attached file to note abc.")
+	require.Contains(t, out.String(), "notes/abc/attachments/note.txt")
+}
+
+func TestNotesAttach_RequiresFile(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
+	attachCmd := findSubcommand(t, Register(core), "attach")
+	_, err := cliapp.NewTestRunContextFromArgs(attachCmd.Args, []string{"abc"}, core, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing required flag --file")
 }
 
 func findSubcommand(t *testing.T, group cliapp.SubcommandGroup, name string) cliapp.Command {
@@ -235,13 +303,8 @@ func findSubcommand(t *testing.T, group cliapp.SubcommandGroup, name string) cli
 	return cliapp.Command{}
 }
 
-// TestRegister_Wiring covers the SubcommandGroup the package exposes,
-// proving the surface is registered with the cli-core shape downstream
-// callers can dispatch through.
 func TestRegister_Wiring(t *testing.T) {
-	emptyList := clitest.MustMarshalProto(t, &notesv1.ListNotesResponse{})
-	handler, _ := fakeAPI(t, http.StatusOK, emptyList)
-	core := clitest.NewTestApp(t, handler)
+	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	group := Register(core)
 
 	require.Equal(t, "notes", group.Name)
@@ -250,7 +313,7 @@ func TestRegister_Wiring(t *testing.T) {
 	for _, sc := range group.Subcommands {
 		names = append(names, sc.Name)
 	}
-	require.ElementsMatch(t, []string{"list", "create", "get"}, names)
+	require.ElementsMatch(t, []string{"list", "create", "get", "attach"}, names)
 	for _, sc := range group.Subcommands {
 		require.NotNil(t, sc.RunCtx, "subcommand %s should use RunCtx", sc.Name)
 	}

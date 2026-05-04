@@ -86,6 +86,12 @@
           "audience": ["developers"]
         },
         {
+          "path": "internal/ERROR-HANDLING.md",
+          "title": "Error Handling",
+          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "audience": ["developers"]
+        },
+        {
           "path": "internal/TESTING.md",
           "title": "Testing",
           "description": "Layered test patterns, fixtures, and coverage expectations",

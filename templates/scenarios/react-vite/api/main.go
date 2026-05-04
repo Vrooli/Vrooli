@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -58,6 +59,25 @@ func sqliteDSN() (string, error) {
 	return sqliteFileDSN(path)
 }
 
+func attachmentsRoot() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "{{SCENARIO_ID}}"},
+		storage.ClassData,
+		"attachments",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve {{SCENARIO_ID}} attachments path: %w", err)
+	}
+	return path, nil
+}
+
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -96,11 +116,16 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	attachmentsPath, err := attachmentsRoot()
+	if err != nil {
+		log.Fatalf("attachment storage configuration failed: %v", err)
+	}
+	blobs := blobstore.NewFilesystemBlobStore(attachmentsPath)
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "{{SCENARIO_ID}}-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		notesH.Module(db, clock.System{}, blobs, log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

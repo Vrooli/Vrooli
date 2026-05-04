@@ -22,22 +22,23 @@ schemas/                            ← source .proto files
 vendor/googleapis/                  ← vendored BSR module (workspace member)
 vendor/protovalidate/               ← vendored BSR module (workspace member)
 buf.yaml                            ← lists 3 workspace modules
-buf.gen.yaml                        ← invokes 5 plugins on schemas/
+buf.gen.yaml                        ← invokes 6 plugins on schemas/
 gen/{go,typescript,typescript/js,python}/   ← committed output
 ```
 
 `buf.yaml` declares three workspace modules. The vendored BSR modules sit alongside `schemas/` so transitive imports (`buf/validate/validate.proto`, `google/api/annotations.proto`, ...) resolve locally — no BSR fetch.
 
-`buf.gen.yaml` runs five plugin invocations against the `schemas/` input:
+`buf.gen.yaml` runs six plugin invocations against the `schemas/` input:
 
 | Plugin reference | Output | Plugin binary |
 |---|---|---|
 | `local: protoc-gen-go` | `gen/go/` | `protoc-gen-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-go/tool.json`) |
-| `local: protoc-gen-es` (×2: ts + js) | `gen/typescript/`, `gen/typescript/js/` | `@bufbuild/protoc-gen-es` (npm, pinned in `internal/tools/protoc-gen-es/tool.json`) |
+| `local: protoc-gen-connect-go` | `gen/go/` | `protoc-gen-connect-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-connect-go/tool.json`) |
+| `local: protoc-gen-es` (×2: ts + js) | `gen/typescript/`, `gen/typescript/js/` | `@bufbuild/protoc-gen-es` (npm, pinned in `internal/tools/protoc-gen-es/tool.json`). Protobuf-ES v2 emits service descriptors consumed by Connect-ES v2; no separate Connect-ES plugin is used. |
 | `protoc_builtin: python` | `gen/python/*.py` | `protoc` built-in (pinned in `internal/tools/protoc/tool.json`) |
 | `protoc_builtin: pyi` | `gen/python/*.pyi` | `protoc` built-in |
 
-All five are local. `remote: buf.build/...` is **forbidden** — enforced by `internal/protocodegen/buf_gen_guard_test.go`.
+All six are local. `remote: buf.build/...` is **forbidden** — enforced by `internal/protocodegen/buf_gen_guard_test.go`.
 
 Why local? Two reasons:
 
@@ -102,7 +103,7 @@ The protoc-gen-es v2 series shipped a parsing regression in early 2.x patches (e
 
 ### `make check` shows comment-only diffs after a plugin upgrade
 
-Any plugin version bump (`protoc-gen-go`, `protoc-gen-es`, `protoc`) re-stamps the generator-version comment at the top of every generated file. Commit the diff alongside the manifest pin bump in the same PR. There is no special-casing of comment-only diffs — the version is part of the plugin's output contract.
+Any plugin version bump (`protoc-gen-go`, `protoc-gen-connect-go`, `protoc-gen-es`, `protoc`) re-stamps the generator-version comment at the top of every generated file. Commit the diff alongside the manifest pin bump in the same PR. There is no special-casing of comment-only diffs — the version is part of the plugin's output contract.
 
 ### "machine buf.build" is missing from ~/.netrc
 

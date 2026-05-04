@@ -2,9 +2,11 @@ package cliapp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -61,6 +63,11 @@ func WrapAPIError(action string, err error, body []byte) error {
 
 	if env, ok := DecodeEnvelope(body); ok {
 		return fmt.Errorf("%s: %s: %s", action, env.Code, env.Message)
+	}
+
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		return fmt.Errorf("%s: %s: %s", action, connectErr.Code().String(), connectErr.Message())
 	}
 
 	if apiErr, ok := err.(*cliutil.APIError); ok {

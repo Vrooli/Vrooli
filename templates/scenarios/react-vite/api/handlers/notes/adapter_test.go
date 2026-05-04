@@ -19,19 +19,21 @@ func TestDomainToProto_PopulatedFields(t *testing.T) {
 	updated := time.Date(2026, 5, 2, 9, 15, 0, 987_654_321, time.UTC)
 
 	got := domainToProto(notes.Note{
-		ID:        "abc",
-		Title:     "title",
-		Body:      "body",
-		CreatedAt: created,
-		UpdatedAt: updated,
+		ID:             "abc",
+		Title:          "title",
+		Body:           "body",
+		CreatedAt:      created,
+		UpdatedAt:      updated,
+		AttachmentKeys: []string{"notes/abc/a.txt"},
 	})
 
 	require.NotNil(t, got)
 	require.Equal(t, "abc", got.Id)
 	require.Equal(t, "title", got.Title)
 	require.Equal(t, "body", got.Body)
-	require.Equal(t, created.Format(time.RFC3339Nano), got.CreatedAt)
-	require.Equal(t, updated.Format(time.RFC3339Nano), got.UpdatedAt)
+	require.True(t, created.Equal(got.CreatedAt.AsTime()))
+	require.True(t, updated.Equal(got.UpdatedAt.AsTime()))
+	require.Equal(t, []string{"notes/abc/a.txt"}, got.AttachmentKeys)
 }
 
 // TestDomainToProto_NormalizesTimestampsToUTC pins the timezone
@@ -51,18 +53,9 @@ func TestDomainToProto_NormalizesTimestampsToUTC(t *testing.T) {
 		UpdatedAt: createdLocal,
 	})
 
-	// The wire timestamp must end in "Z" (UTC), not "+05:30".
-	require.Contains(t, got.CreatedAt, "Z",
-		"CreatedAt must be UTC-normalised; got %q", got.CreatedAt)
-	require.NotContains(t, got.CreatedAt, "+05:30",
-		"CreatedAt must not carry the source timezone offset; got %q", got.CreatedAt)
-
-	// Round-trip: the emitted string must parse back to the same
-	// instant the source represented.
-	parsed, err := time.Parse(time.RFC3339Nano, got.CreatedAt)
-	require.NoError(t, err)
-	require.True(t, parsed.Equal(createdLocal),
-		"round-tripped timestamp must equal source instant: parsed=%v src=%v", parsed, createdLocal)
+	require.Equal(t, time.UTC, got.CreatedAt.AsTime().Location())
+	require.True(t, got.CreatedAt.AsTime().Equal(createdLocal),
+		"round-tripped timestamp must equal source instant")
 }
 
 // TestDomainToProto_ZeroTimestamps pins the zero-time edge: a Note
@@ -75,13 +68,8 @@ func TestDomainToProto_ZeroTimestamps(t *testing.T) {
 	got := domainToProto(notes.Note{ID: "zero"})
 
 	require.Equal(t, "zero", got.Id)
-	require.Equal(t, "0001-01-01T00:00:00Z", got.CreatedAt)
-	require.Equal(t, "0001-01-01T00:00:00Z", got.UpdatedAt)
-
-	parsed, err := time.Parse(time.RFC3339Nano, got.CreatedAt)
-	require.NoError(t, err)
-	require.True(t, parsed.IsZero(),
-		"zero-time round-trip must remain the zero instant; got %v", parsed)
+	require.True(t, got.CreatedAt.AsTime().IsZero())
+	require.True(t, got.UpdatedAt.AsTime().IsZero())
 }
 
 // TestDomainToProto_EmptyOptionalFields pins the proto3-default

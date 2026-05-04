@@ -141,6 +141,19 @@
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`."
     },
     {
+      "name": "protoc-gen-connect-go",
+      "required": true,
+      "reason": "Local Connect-RPC protoc plugin for Go service codegen; keeps packages/proto generation offline",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`."
+    },
+    {
       "name": "protoc-gen-es",
       "required": true,
       "reason": "Local protoc plugin for TypeScript/JavaScript codegen; replaces the BSR remote plugin",

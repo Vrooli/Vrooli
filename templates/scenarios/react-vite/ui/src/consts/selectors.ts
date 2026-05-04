@@ -318,6 +318,12 @@ const literalSelectors = {
     empty: "notes-empty",
     error: "notes-error",
     createButton: "notes-create-button",
+    createdAt: "notes-created-at",
+    attachmentCount: "notes-attachment-count",
+    attachmentUpload: "notes-attachment-upload",
+    attachmentFile: "notes-attachment-file",
+    attachmentButton: "notes-attachment-button",
+    attachmentStatus: "notes-attachment-status",
   },
   locale: {
     switcher: "locale-switcher",

@@ -100,6 +100,8 @@ All scenario CLIs must use `cli-core` from `packages/cli-core/`. This provides:
 |-----------|---------|--------|
 | `ScenarioApp` | CLI scaffolding, command routing, global flags | `cliapp.ScenarioApp` |
 | `APIClient` | HTTP client with base URL, token, timeout handling | `cliutil.APIClient` |
+| `NewConnectHTTPClient` | Build generated Connect-RPC clients for proto-owned API calls | `cliapp.NewConnectHTTPClient` |
+| `UploadFile` | Multipart REST helper for opaque file uploads | `cliapp.UploadFile` |
 | `StandardScenarioEnv` | Derive conventional env var names | `cliapp.StandardScenarioEnv()` |
 | `ConfigFile` | JSON config persistence | `cliutil.ConfigFile` |
 | `DetectPortFromVrooli` | Auto-discover API port | `cliutil.DetectPortFromVrooli()` |
@@ -809,3 +811,5 @@ The `--dry-run` global flag is built into cli-core. When a user passes `--dry-ru
 #### Red Flags Checklist Addition
 
 - [ ] Mutating API endpoints without dry-run support
+
+Last updated: 2026-05-04 (Connect-RPC adoption)
