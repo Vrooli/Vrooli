@@ -64,6 +64,20 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "perf/2026-05-04-preview-workspace-audit.md",
+          "title": "Preview Workspace Performance Audit",
+          "description": "Profile-mode trace and recommendations for iframe panes, workspace controls, and scenario picker.",
+          "internal": true
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -99,6 +113,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "concepts", "guides"],
-    "secondary": ["plans", "internal"]
+    "secondary": ["plans", "perf", "internal"]
   }
 }

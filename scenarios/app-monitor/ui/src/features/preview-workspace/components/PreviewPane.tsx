@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
@@ -36,6 +36,7 @@ import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { isRunningStatus, locateAppByIdentifier, resolveAppIdentifier, resolvePreviewContext } from '@/utils/appPreview';
 import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
+import { onProfilerRender } from '@/lib/profiler';
 import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
 
@@ -61,7 +62,7 @@ export interface PreviewPaneProps {
   onArrangeDragStart: (paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
-const PreviewPane = memo(function PreviewPane({
+function PreviewPaneImpl({
   paneId,
   appId,
   isFocused,
@@ -869,6 +870,14 @@ const PreviewPane = memo(function PreviewPane({
         </ErrorBoundary>
       )}
     </div>
+  );
+}
+
+const PreviewPane = memo(function PreviewPane(props: PreviewPaneProps) {
+  return (
+    <Profiler id="PreviewPane" onRender={onProfilerRender}>
+      <PreviewPaneImpl {...props} />
+    </Profiler>
   );
 });
 

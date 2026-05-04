@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Profiler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
 import { useSearchParams } from 'react-router-dom';
@@ -19,6 +19,7 @@ import {
 } from '../utils/layout';
 import { clearWorkspaceIntent, readWorkspaceIntent } from '../utils/navigationIntent';
 import PreviewPane from './PreviewPane';
+import { onProfilerRender } from '@/lib/profiler';
 import './PreviewWorkspaceView.css';
 
 const SPLITTER_SIZE = 8;
@@ -120,7 +121,7 @@ const resolvePinnedColumnFractions = (fractions: number[]): [number, number] => 
   return [primary, 1 - primary];
 };
 
-export default function PreviewWorkspaceView() {
+function PreviewWorkspaceViewImpl() {
   const [searchParams, setSearchParams] = useSearchParams();
   const loadApps = useAppsStore((state) => state.loadApps);
   const loadingInitial = useAppsStore((state) => state.loadingInitial);
@@ -993,5 +994,13 @@ export default function PreviewWorkspaceView() {
         </aside>
       )}
     </div>
+  );
+}
+
+export default function PreviewWorkspaceView() {
+  return (
+    <Profiler id="PreviewWorkspaceView" onRender={onProfilerRender}>
+      <PreviewWorkspaceViewImpl />
+    </Profiler>
   );
 }

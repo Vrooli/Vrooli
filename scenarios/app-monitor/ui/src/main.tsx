@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App.tsx'
 import { SnackStackProvider } from '@/notifications/SnackStackProvider'
+import { onProfilerRender } from '@/lib/profiler'
 import './index.css'
 import './shared.css'
 import './components/app-modal/TabStateView.css'
@@ -116,7 +117,9 @@ if (currentDepth > APP_MONITOR_MAX_DEPTH) {
   ReactDOM.createRoot(rootEl).render(
     <React.StrictMode>
       <SnackStackProvider>
-        <App />
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
       </SnackStackProvider>
     </React.StrictMode>,
   )

@@ -6,7 +6,8 @@
   "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
   "scripts": {
     "dev": "VITE_PORT=${VITE_PORT} vrooli lifecycle protect -- vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build:profile": "tsc && vite build --mode profile",
     "preview": "vite preview",
     "start": "vrooli lifecycle protect -- node server.js",
     "lint": "eslint .",
