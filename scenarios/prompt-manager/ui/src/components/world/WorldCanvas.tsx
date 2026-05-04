@@ -6,7 +6,7 @@
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 // DOC: docs/internal/SEAMS.md#3d-world-testing-seams
 
-import { Suspense, useCallback, useState, useMemo, useEffect, useRef } from 'react'
+import { Profiler, Suspense, useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Skill } from '@/types'
@@ -45,6 +45,7 @@ import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useAgentPositionStore } from '@/stores/agentPositionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { selectors } from '@/constants/selectors'
+import { onProfilerRender } from '@/lib/profiler'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
@@ -94,6 +95,28 @@ interface WorldCanvasProps {
 }
 
 export function WorldCanvas({
+  skills,
+  onSelectSkill: _onSelectSkill,
+  onSelectTeam,
+  onDisplaySkills,
+  agentType = 'geometric',
+  className,
+}: WorldCanvasProps) {
+  return (
+    <Profiler id="WorldCanvas" onRender={onProfilerRender}>
+      <WorldCanvasImpl
+        skills={skills}
+        onSelectSkill={_onSelectSkill}
+        onSelectTeam={onSelectTeam}
+        onDisplaySkills={onDisplaySkills}
+        agentType={agentType}
+        className={className}
+      />
+    </Profiler>
+  )
+}
+
+function WorldCanvasImpl({
   skills,
   onSelectSkill: _onSelectSkill,
   onSelectTeam,

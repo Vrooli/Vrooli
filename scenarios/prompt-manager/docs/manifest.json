@@ -165,6 +165,19 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "gauge",
+      "documents": [
+        {
+          "path": "perf/2026-05-03-layout-world-graph-audit.md",
+          "title": "Layout, World, and Graph Performance Audit",
+          "description": "Profile-mode browser trace for Prompt Manager sidebar resizing, list surfaces, world view, and graph view",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
       "id": "plans",
       "title": "Plans",
       "icon": "map",
@@ -253,7 +266,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "plans", "reference"],
+    "primary": ["getting-started", "concepts", "guides", "perf", "plans", "reference"],
     "secondary": ["internal"]
   }
 }

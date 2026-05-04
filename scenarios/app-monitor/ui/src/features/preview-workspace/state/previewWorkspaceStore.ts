@@ -4,7 +4,7 @@ import { isAppMonitorScenarioId } from '@/utils/appPreview';
 import { fromPortablePreviewUrl, toPortablePreviewUrl } from '@/utils/previewUrl';
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
-// AI_CHECK: APP_MONITOR_RENDER_PERF=2 | LAST: 2026-02-13
+// AI_CHECK: APP_MONITOR_RENDER_PERF=3 | LAST: 2026-05-04
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
 export type PreviewWorkspacePinnedColumn = 'left' | 'right';
 export const PREVIEW_WORKSPACE_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5] as const;
@@ -83,7 +83,7 @@ const MIN_PANES = 1;
 const MAX_PANES = 50;
 const MAX_RUNTIME_HISTORY_ENTRIES = 50;
 const MAX_RUNTIME_URL_LENGTH = 8192;
-const MAX_PERSISTED_HISTORY_ENTRIES = 10;
+const MAX_PERSISTED_HISTORY_ENTRIES = 0;
 const MAX_PERSISTED_URL_LENGTH = 2048;
 const PREVIEW_WORKSPACE_STORAGE_KEY = 'app-monitor:preview-workspace-v1';
 
@@ -166,6 +166,9 @@ const normalizeHistoryForStorage = (
   maxEntries: number,
   maxUrlLength: number,
 ): Pick<PreviewWorkspacePaneViewState, 'history' | 'historyIndex'> => {
+  if (maxEntries <= 0) {
+    return { history: [], historyIndex: -1 };
+  }
   if (!Array.isArray(entries)) {
     return { history: [], historyIndex: -1 };
   }
@@ -260,7 +263,7 @@ const reconcileFractionsForWorkspace = (
   };
 };
 
-const createDefaultPaneViewState = (): PreviewWorkspacePaneViewState => ({
+export const createDefaultPaneViewState = (): PreviewWorkspacePaneViewState => ({
   previewUrl: null,
   previewUrlInput: '',
   hasCustomPreviewUrl: false,
@@ -300,7 +303,7 @@ const isPaneViewStateEqual = (
   && areStringArraysEqual(previous.history, next.history)
 );
 
-const normalizePersistedPaneViewState = (
+export const normalizePreviewPaneViewState = (
   value: unknown,
   options: {
     historyEntries?: number;
@@ -416,7 +419,7 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
         if (!allowedPaneIds.has(paneId)) {
           return accumulator;
         }
-        accumulator[paneId] = normalizePersistedPaneViewState(paneState);
+        accumulator[paneId] = normalizePreviewPaneViewState(paneState);
         return accumulator;
       }, {});
   const focusedPaneId = typeof record.focusedPaneId === 'string' && ensuredPanes.some((pane) => pane.id === record.focusedPaneId)
@@ -475,7 +478,7 @@ const compactPersistedWorkspaceState = (
     paneViewState: Object.fromEntries(
       Object.entries(normalized.paneViewState).map(([paneId, paneState]) => [
         paneId,
-        normalizePersistedPaneViewState(paneState, {
+        normalizePreviewPaneViewState(paneState, {
           historyEntries: options.historyEntries ?? MAX_PERSISTED_HISTORY_ENTRIES,
           urlLength: options.urlLength ?? MAX_PERSISTED_URL_LENGTH,
         }),
@@ -657,7 +660,7 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
       return state;
     }
     const previous = state.paneViewState[paneId] ?? createDefaultPaneViewState();
-    const merged = normalizePersistedPaneViewState({
+    const merged = normalizePreviewPaneViewState({
       ...previous,
       ...partial,
       history: Array.isArray(partial.history)

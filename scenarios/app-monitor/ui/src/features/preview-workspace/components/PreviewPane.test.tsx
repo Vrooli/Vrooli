@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { App } from '@/types';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
+import { usePreviewPaneRuntimeStore } from '../state/previewPaneRuntimeStore';
 import PreviewPane from './PreviewPane';
 
 const {
@@ -248,6 +249,8 @@ const renderPane = (options?: {
   onFocus?: (paneId: string) => void;
   onRemove?: (paneId: string) => void;
   isArrangeMode?: boolean;
+  isFocused?: boolean;
+  isPreviewEager?: boolean;
   canRemove?: boolean;
 }) => {
   const app = options?.app ?? createApp();
@@ -258,7 +261,8 @@ const renderPane = (options?: {
         paneId={paneId}
         appId={options?.appId ?? app.id}
         apps={[app]}
-        isFocused={true}
+        isFocused={options?.isFocused ?? true}
+        isPreviewEager={options?.isPreviewEager ?? true}
         isArrangeMode={options?.isArrangeMode ?? false}
         isBeingDragged={false}
         canRemove={options?.canRemove ?? true}
@@ -300,6 +304,7 @@ describe('PreviewPane', () => {
     await usePreviewWorkspaceStore.persist.clearStorage();
     await usePreviewWorkspaceStore.persist.rehydrate();
     usePreviewWorkspaceStore.getState().reset();
+    usePreviewPaneRuntimeStore.getState().reset();
   });
 
   it('renders toolbar and supports removing pane', async () => {
@@ -377,6 +382,52 @@ describe('PreviewPane', () => {
     renderPane({ paneId });
 
     expect(screen.getByTestId('app-logs-panel')).toBeInTheDocument();
+  });
+
+  it('defers iframe src for non-eager panes until they become visible', async () => {
+    const observeMock = vi.fn();
+    const disconnectMock = vi.fn();
+    let observerCallback: IntersectionObserverCallback | null = null;
+    const originalIntersectionObserver = window.IntersectionObserver;
+
+    class MockIntersectionObserver {
+      readonly root = null;
+      readonly rootMargin = '';
+      readonly thresholds = [];
+
+      constructor(callback: IntersectionObserverCallback) {
+        observerCallback = callback;
+      }
+
+      observe = observeMock;
+      unobserve = vi.fn();
+      disconnect = disconnectMock;
+      takeRecords = () => [];
+    }
+
+    window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+    try {
+      renderPane({ isFocused: false, isPreviewEager: false });
+
+      await waitFor(() => {
+        expect(screen.getByText(/preview will load when this pane is visible/i)).toBeInTheDocument();
+      });
+      expect(document.querySelector('iframe')).toBeNull();
+      expect(observeMock).toHaveBeenCalled();
+
+      act(() => {
+        observerCallback?.([
+          { isIntersecting: true } as IntersectionObserverEntry,
+        ], {} as IntersectionObserver);
+      });
+
+      await waitFor(() => {
+        expect(document.querySelector('iframe')?.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
+      });
+    } finally {
+      window.IntersectionObserver = originalIntersectionObserver;
+    }
   });
 
   it('invokes lifecycle control and refreshes app state on toggle action', async () => {

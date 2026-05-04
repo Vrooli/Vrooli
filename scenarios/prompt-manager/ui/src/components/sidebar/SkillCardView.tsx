@@ -2,12 +2,13 @@
  * SkillCardView — Card grid of skills with metadata and description preview.
  */
 
-import { type ReactNode } from 'react'
+import { Profiler, type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Skill } from '@/types'
 import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'
+import { onProfilerRender } from '@/lib/profiler'
 
 interface SkillCardViewProps {
   skills: Skill[]
@@ -29,6 +30,38 @@ interface SkillCardViewProps {
 }
 
 export function SkillCardView({
+  skills,
+  selectedItemId,
+  onSelectItem,
+  dirtyItemIds,
+  detailMode,
+  healthScoreMap,
+  renderItemIcon,
+  onSkillContextMenu,
+  combineMode = false,
+  combineSelectedIds,
+  onCombineToggleSkill,
+}: SkillCardViewProps) {
+  return (
+    <Profiler id="SkillCardView" onRender={onProfilerRender}>
+      <SkillCardViewImpl
+        skills={skills}
+        selectedItemId={selectedItemId}
+        onSelectItem={onSelectItem}
+        dirtyItemIds={dirtyItemIds}
+        detailMode={detailMode}
+        healthScoreMap={healthScoreMap}
+        renderItemIcon={renderItemIcon}
+        onSkillContextMenu={onSkillContextMenu}
+        combineMode={combineMode}
+        combineSelectedIds={combineSelectedIds}
+        onCombineToggleSkill={onCombineToggleSkill}
+      />
+    </Profiler>
+  )
+}
+
+function SkillCardViewImpl({
   skills,
   selectedItemId,
   onSelectItem,

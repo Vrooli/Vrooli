@@ -2,12 +2,13 @@
  * SkillListView — Flat sorted list of skills with metadata.
  */
 
-import { type ReactNode } from 'react'
+import { Profiler, type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Skill } from '@/types'
 import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'
+import { onProfilerRender } from '@/lib/profiler'
 
 interface SkillListViewProps {
   skills: Skill[]
@@ -29,6 +30,38 @@ interface SkillListViewProps {
 }
 
 export function SkillListView({
+  skills,
+  selectedItemId,
+  onSelectItem,
+  dirtyItemIds,
+  detailMode,
+  healthScoreMap,
+  renderItemIcon,
+  onSkillContextMenu,
+  combineMode = false,
+  combineSelectedIds,
+  onCombineToggleSkill,
+}: SkillListViewProps) {
+  return (
+    <Profiler id="SkillListView" onRender={onProfilerRender}>
+      <SkillListViewImpl
+        skills={skills}
+        selectedItemId={selectedItemId}
+        onSelectItem={onSelectItem}
+        dirtyItemIds={dirtyItemIds}
+        detailMode={detailMode}
+        healthScoreMap={healthScoreMap}
+        renderItemIcon={renderItemIcon}
+        onSkillContextMenu={onSkillContextMenu}
+        combineMode={combineMode}
+        combineSelectedIds={combineSelectedIds}
+        onCombineToggleSkill={onCombineToggleSkill}
+      />
+    </Profiler>
+  )
+}
+
+function SkillListViewImpl({
   skills,
   selectedItemId,
   onSelectItem,

@@ -7,7 +7,8 @@
   "scripts": {
     "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm run type-check && vite build",
+    "build": "pnpm run type-check && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build:profile": "pnpm run type-check && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

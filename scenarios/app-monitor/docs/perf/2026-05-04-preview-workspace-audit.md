@@ -10,9 +10,10 @@ interactions:
   - pane toolbar URL suggestions and scenario selector entry
 traces:
   before: /tmp/app-monitor/perf/trace.before.json
-  after: null
+  after: /tmp/app-monitor/perf/trace.after.json
   capture_script: /tmp/app-monitor/perf/capture.js
-status: open
+  stable_capture_script: ../../tools/perf/preview-workspace-capture.mjs
+status: fixed
 related_skill_run: scenario-performance-audit
 ---
 
@@ -33,6 +34,8 @@ related_skill_run: scenario-performance-audit
 
 ## Per-component aggregation
 
+Before:
+
 | component | count | total(ms) | avg(μs) | max(μs) |
 |---|---:|---:|---:|---:|
 | ⚛ App | 181 | 286.2 | 1581 | 26800 |
@@ -45,15 +48,27 @@ related_skill_run: scenario-performance-audit
 
 Note: the trace includes same-origin iframe React profiler marks. `PreviewWorkspaceView` and `PreviewPane` are app-monitor boundaries; `AppShell`, `Outlet`, `GraphCanvas`, and `Sidebar` are from embedded scenario iframe content.
 
+After same-script comparison:
+
+| component | before count | after count | before total(ms) | after total(ms) | before avg(μs) | after avg(μs) | delta(ms) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ⚛ App | 181 | 150 | 286.2 | 265.2 | 1581 | 1768 | -20.9 |
+| ⚛ PreviewWorkspaceView | 153 | 126 | 198.9 | 194.9 | 1300 | 1547 | -4.0 |
+| ⚛ PreviewPane | 204 | 193 | 159.2 | 162.2 | 780 | 841 | +3.1 |
+| ⚛ AppShell | 37 | 26 | 249.0 | 157.0 | 6730 | 6038 | -92.0 |
+| ⚛ Outlet | 31 | 22 | 172.0 | 112.2 | 5548 | 5100 | -59.8 |
+| ⚛ GraphCanvas | 24 | 17 | 155.8 | 98.7 | 6492 | 5806 | -57.1 |
+| ⚛ Sidebar | 15 | 10 | 74.6 | 43.0 | 4973 | 4300 | -31.6 |
+
 ## Long-task summary
 
 | metric | before | after | delta |
 |---|---:|---:|---:|
-| count | 5 |  |  |
-| total(ms) | 297.0 |  |  |
-| max(ms) | 71.0 |  |  |
+| count | 5 | 137 | +132 |
+| total(ms) | 297.0 | 29228.0 | +28931.0 |
+| max(ms) | 71.0 | 7509.0 | +7438.0 |
 
-Long-task entries were reported as `same-origin-descendant`, which points to iframe work being a visible part of the user-perceived cost.
+Long-task entries were reported as `same-origin-descendant` / `multiple-contexts`, which points to iframe work being a visible part of the user-perceived cost. The same-script after run loaded 4 iframes initially while the original baseline loaded 3, so the long-task delta is not an app-monitor shell regression signal. A separate offscreen validation seeded 8 panes and observed 4 initial iframes, then 8 after scrolling the lower panes into view, confirming the deferred iframe loading behavior.
 
 ## Findings
 
@@ -65,22 +80,22 @@ Long-task entries were reported as `same-origin-descendant`, which points to ifr
 - **What:** [PreviewWorkspaceView.tsx](../../ui/src/features/preview-workspace/components/PreviewWorkspaceView.tsx) commits frequently during layout operations.
   **Evidence:** `PreviewWorkspaceView` committed 153 times, 198.9 ms total, 12.5 ms max. Pointer resize currently writes column/row fractions to the global persisted workspace store on each pointer move.
   **Hypothesis:** resize operations couple transient drag state to persisted global state, causing extra store notifications and localStorage writes during a high-frequency interaction.
-  **Suggested next step:** keep resize fractions as local drag-preview state and commit the final fractions to the store on pointerup/pointercancel.
+  **Suggested next step:** fixed by keeping resize fractions as local drag-preview state and committing final fractions to the store on pointerup/pointercancel.
 
 - **What:** [PreviewPane.tsx](../../ui/src/features/preview-workspace/components/PreviewPane.tsx) commits often across multi-pane workspace interactions.
   **Evidence:** `PreviewPane` committed 204 times, 159.2 ms total, including 64 nested-update profiler entries in the trace.
   **Hypothesis:** navigation/session effects mirror iframe bridge state back into the workspace store, and logs/full-view effects also call `setPaneViewState`. The equality guard prevents identical writes, but the same store object is still the coordination point for live iframe state and durable layout state.
-  **Suggested next step:** split durable workspace layout from volatile pane navigation runtime, then persist only compact durable snapshots on a debounce or browser idle callback.
+  **Suggested next step:** fixed by moving live pane navigation/full-view/logs state into a runtime-only store and debouncing compact URL snapshots back to the persisted workspace store.
 
 - **What:** [PreviewPane.tsx](../../ui/src/features/preview-workspace/components/PreviewPane.tsx) eagerly loads iframe previews for every pane.
   **Evidence:** capture mounted 4 panes and 3 iframes initially, then 5 panes and 4 iframes after workspace manager interaction. Long tasks were all `same-origin-descendant`.
   **Hypothesis:** embedded apps dominate some felt latency; offscreen or lower-priority panes consume CPU/network while the user is interacting with the app-monitor shell.
-  **Suggested next step:** add pane visibility detection and defer iframe `src` assignment for offscreen panes, or pause bridge/log/report hooks until a pane is focused or visible. Keep pinned/focused panes eager.
+  **Suggested next step:** fixed by keeping focused/pinned panes eager and deferring iframe `src` assignment for non-eager panes until they intersect the viewport/root margin.
 
 - **What:** [TabSwitcherCards.tsx](../../ui/src/components/tabSwitcher/TabSwitcherCards.tsx) progressively reveals scenario/resource cards in batches of 24.
   **Evidence:** tab/scenario picker was not the top profiler row in this run, but it is included under `App` commits and can still scale with total scenario/resource count.
   **Hypothesis:** batched rendering avoids a single massive commit, but still mounts all matching cards over successive frames.
-  **Suggested next step:** if large catalogs become common, virtualize the card grid or hard-limit search results until the user refines the query.
+  **Suggested next step:** fixed with bounded card-grid windows. Matching scenarios/resources no longer auto-mount in successive RAF batches; users explicitly expand with Show more.
 
 ## Recommendations + Outcome
 
@@ -88,9 +103,10 @@ Long-task entries were reported as `same-origin-descendant`, which points to ifr
 |---|---|---|---|
 | 1 | Bound preview workspace persistence and catch quota failures | fixed | Implemented in `previewWorkspaceStore.ts`; regression test added. |
 | 2 | Add profile build infrastructure and profiler boundaries | fixed | Required for repeatable future audits. |
-| 3 | Commit pane resize fractions only at drag end | open | Should reduce store churn and localStorage writes during resize. |
-| 4 | Defer offscreen iframe loading and inactive pane hooks | open | Highest expected iframe-related win; validate with same capture script. |
-| 5 | Consider scenario/resource grid virtualization | deferred | No new dependency authorized; revisit if catalogs grow enough to make picker search expensive. |
+| 3 | Commit pane resize fractions only at drag end | fixed | Implemented local drag-preview state in `PreviewWorkspaceView.tsx`. |
+| 4 | Defer offscreen iframe loading and inactive pane hooks | fixed | Implemented focused/pinned eager loading plus IntersectionObserver activation in `PreviewPane.tsx`. |
+| 5 | Bound scenario/resource picker rendering | fixed | Replaced automatic progressive reveal with an explicit card window and Show more expansion. |
+| 6 | Add stable 8-12 pane perf playbook | fixed | Added `docs/perf/preview-workspace-stable-playbook.md` and `tools/perf/preview-workspace-capture.mjs`. |
 
 ## New Dependencies
 

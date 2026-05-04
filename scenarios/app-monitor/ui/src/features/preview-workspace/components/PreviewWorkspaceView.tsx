@@ -8,6 +8,7 @@ import {
   previewWorkspaceLimits,
   usePreviewWorkspaceStore,
 } from '../state/previewWorkspaceStore';
+import { usePreviewPaneRuntimeStore } from '../state/previewPaneRuntimeStore';
 import {
   buildWorkspaceMinimapRowMarkers,
   buildGridTrackTemplate,
@@ -43,6 +44,7 @@ type ActiveResize = {
   startPointer: number;
   containerSize: number;
   startValues: number[];
+  currentValues: number[];
 };
 
 type WorkspaceDropIntent = 'reorder' | 'pin-left' | 'pin-right' | 'scroll-column';
@@ -146,7 +148,9 @@ function PreviewWorkspaceViewImpl() {
   const clearPinnedPane = usePreviewWorkspaceStore((state) => state.clearPinnedPane);
   const setColumnFractions = usePreviewWorkspaceStore((state) => state.setColumnFractions);
   const setRowFractions = usePreviewWorkspaceStore((state) => state.setRowFractions);
-  const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
+  const setPaneViewState = usePreviewPaneRuntimeStore((state) => state.setPaneViewState);
+  const resetPaneViewState = usePreviewPaneRuntimeStore((state) => state.resetPaneViewState);
+  const removePaneViewState = usePreviewPaneRuntimeStore((state) => state.removePaneViewState);
 
   const panesContainerRef = useRef<HTMLDivElement | null>(null);
   const panesScrollRef = useRef<HTMLDivElement | null>(null);
@@ -155,25 +159,36 @@ function PreviewWorkspaceViewImpl() {
   const lastHandledIntentRef = useRef<string | null>(null);
   const [activeResize, setActiveResize] = useState<ActiveResize | null>(null);
   const [activeArrangeDrag, setActiveArrangeDrag] = useState<ActiveArrangeDrag | null>(null);
+  const activeResizeRef = useRef<ActiveResize | null>(null);
   const [workspaceScrollMetrics, setWorkspaceScrollMetrics] = useState<WorkspaceScrollMetrics>({
     scrollTop: 0,
     scrollHeight: 1,
     clientHeight: 1,
   });
+  const isResizing = Boolean(activeResize);
 
   const maxColumns = mobileLayout ? 1 : 2;
   const layoutDescriptor = useMemo(() => {
     return resolveWorkspaceLayoutWithMaxColumns(panes.length, maxColumns);
   }, [maxColumns, panes.length]);
   const effectiveColumnFractions = useMemo(() => {
+    if (activeResize?.axis === 'column' && activeResize.scope === 'normal') {
+      return reconcileTrackFractions(activeResize.currentValues, layoutDescriptor.columns);
+    }
     return reconcileTrackFractions(columnFractions, layoutDescriptor.columns);
-  }, [columnFractions, layoutDescriptor.columns]);
+  }, [activeResize, columnFractions, layoutDescriptor.columns]);
   const effectiveRowFractions = useMemo(() => {
+    if (activeResize?.axis === 'row' && activeResize.scope === 'normal') {
+      return reconcileTrackFractions(activeResize.currentValues, layoutDescriptor.rows);
+    }
     return reconcileTrackFractions(rowFractions, layoutDescriptor.rows);
-  }, [layoutDescriptor.rows, rowFractions]);
+  }, [activeResize, layoutDescriptor.rows, rowFractions]);
   const pinnedColumnFractions = useMemo<[number, number]>(() => {
+    if (activeResize?.axis === 'column' && activeResize.scope === 'pinned') {
+      return resolvePinnedColumnFractions(activeResize.currentValues);
+    }
     return resolvePinnedColumnFractions(columnFractions);
-  }, [columnFractions]);
+  }, [activeResize, columnFractions]);
   const pinnedPane = useMemo(() => {
     if (!pinnedPaneId || maxColumns < 2) {
       return null;
@@ -188,8 +203,11 @@ function PreviewWorkspaceViewImpl() {
   }, [panes, pinnedPane]);
   const isPinnedLayout = Boolean(pinnedPane && pinnedColumn && maxColumns >= 2);
   const effectivePinnedRowFractions = useMemo(() => {
+    if (activeResize?.axis === 'row' && activeResize.scope === 'pinned') {
+      return reconcileTrackFractions(activeResize.currentValues, scrollColumnPanes.length || 1);
+    }
     return reconcileTrackFractions(pinnedRowFractions, scrollColumnPanes.length || 1);
-  }, [pinnedRowFractions, scrollColumnPanes.length]);
+  }, [activeResize, pinnedRowFractions, scrollColumnPanes.length]);
   const dragDropTargetPaneId = useMemo(() => {
     if (!activeArrangeDrag || activeArrangeDrag.intent === 'pin-left' || activeArrangeDrag.intent === 'pin-right') {
       return null;
@@ -274,6 +292,7 @@ function PreviewWorkspaceViewImpl() {
       const targetPaneId = focusedPaneId ?? panes[0]?.id ?? null;
       if (targetPaneId) {
         setPaneApp(targetPaneId, intent.appId);
+        resetPaneViewState(targetPaneId);
         focusPane(targetPaneId);
         nextFocusedPaneId = targetPaneId;
       }
@@ -286,45 +305,64 @@ function PreviewWorkspaceViewImpl() {
     const nextParams = clearWorkspaceIntent(searchParams);
     nextParams.delete('paneLogs');
     setSearchParams(nextParams, { replace: true });
-  }, [addPane, focusPane, focusedPaneId, panes, searchParams, setPaneApp, setPaneViewState, setSearchParams]);
+  }, [addPane, focusPane, focusedPaneId, panes, resetPaneViewState, searchParams, setPaneApp, setPaneViewState, setSearchParams]);
+
+  useEffect(() => {
+    activeResizeRef.current = activeResize;
+  }, [activeResize]);
 
   useEffect(() => {
     if (!activeResize) {
       return;
     }
 
-    const handlePointerMove = (event: PointerEvent) => {
-      const delta = (activeResize.axis === 'column' ? event.clientX : event.clientY) - activeResize.startPointer;
+    const nextValuesFromPointer = (resize: ActiveResize, event: PointerEvent): number[] => {
+      const delta = (resize.axis === 'column' ? event.clientX : event.clientY) - resize.startPointer;
+      return updateAdjacentFractions({
+        startValues: resize.startValues,
+        index: resize.index,
+        delta,
+        containerSize: resize.containerSize,
+        splitterCount: Math.max(0, resize.startValues.length - 1),
+        minTrackPx: resize.axis === 'column' ? MIN_COLUMN_PX : MIN_ROW_PX,
+      });
+    };
 
-      if (activeResize.axis === 'column') {
-        const nextFractions = updateAdjacentFractions({
-          startValues: activeResize.startValues,
-          index: activeResize.index,
-          delta,
-          containerSize: activeResize.containerSize,
-          splitterCount: Math.max(0, activeResize.startValues.length - 1),
-          minTrackPx: MIN_COLUMN_PX,
-        });
-        setColumnFractions(nextFractions);
+    const handlePointerMove = (event: PointerEvent) => {
+      const resize = activeResizeRef.current;
+      if (!resize) {
         return;
       }
-
-      const nextFractions = updateAdjacentFractions({
-        startValues: activeResize.startValues,
-        index: activeResize.index,
-        delta,
-        containerSize: activeResize.containerSize,
-        splitterCount: Math.max(0, activeResize.startValues.length - 1),
-        minTrackPx: MIN_ROW_PX,
+      const nextValues = nextValuesFromPointer(resize, event);
+      setActiveResize((current) => {
+        if (!current) {
+          return null;
+        }
+        if (current.currentValues === nextValues || current.currentValues.every((value, index) => value === nextValues[index])) {
+          return current;
+        }
+        const nextResize = {
+          ...current,
+          currentValues: nextValues,
+        };
+        activeResizeRef.current = nextResize;
+        return nextResize;
       });
-      if (activeResize.scope === 'pinned') {
-        setPinnedRowFractions(nextFractions);
-      } else {
-        setRowFractions(nextFractions);
-      }
     };
 
     const stopResize = () => {
+      const resize = activeResizeRef.current;
+      if (!resize) {
+        return;
+      }
+      if (resize.axis === 'column') {
+        setColumnFractions(resize.currentValues);
+      } else if (resize.scope === 'pinned') {
+        setPinnedRowFractions(resize.currentValues);
+      } else {
+        setRowFractions(resize.currentValues);
+      }
+      activeResizeRef.current = null;
       setActiveResize(null);
     };
 
@@ -337,7 +375,7 @@ function PreviewWorkspaceViewImpl() {
       window.removeEventListener('pointerup', stopResize);
       window.removeEventListener('pointercancel', stopResize);
     };
-  }, [activeResize, setColumnFractions, setRowFractions]);
+  }, [isResizing, setColumnFractions, setRowFractions]);
 
   useEffect(() => {
     if (!activeArrangeDrag) {
@@ -507,14 +545,17 @@ function PreviewWorkspaceViewImpl() {
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setActiveResize({
+    const nextResize = {
       axis: 'column',
       scope: isPinnedLayout ? 'pinned' : 'normal',
       index,
       startPointer: event.clientX,
       containerSize: containerNode.clientWidth,
       startValues: isPinnedLayout ? pinnedColumnFractions : effectiveColumnFractions,
-    });
+      currentValues: isPinnedLayout ? pinnedColumnFractions : effectiveColumnFractions,
+    } satisfies ActiveResize;
+    activeResizeRef.current = nextResize;
+    setActiveResize(nextResize);
   }, [effectiveColumnFractions, isPinnedLayout, pinnedColumnFractions]);
 
   const startRowResize = useCallback((index: number, scope: 'normal' | 'pinned', event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -525,14 +566,17 @@ function PreviewWorkspaceViewImpl() {
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setActiveResize({
+    const nextResize = {
       axis: 'row',
       scope,
       index,
       startPointer: event.clientY,
       containerSize: containerNode.clientHeight,
       startValues: scope === 'pinned' ? effectivePinnedRowFractions : effectiveRowFractions,
-    });
+      currentValues: scope === 'pinned' ? effectivePinnedRowFractions : effectiveRowFractions,
+    } satisfies ActiveResize;
+    activeResizeRef.current = nextResize;
+    setActiveResize(nextResize);
   }, [effectivePinnedRowFractions, effectiveRowFractions]);
 
   const startArrangeDrag = useCallback((paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -741,16 +785,23 @@ function PreviewWorkspaceViewImpl() {
       scrollNode.scrollTo({ top: scrollNode.scrollHeight, behavior: 'auto' });
     }
   }, [resolveWorkspaceScrollNode]);
+
+  const handleRemovePane = useCallback((paneId: string) => {
+    removePaneViewState(paneId);
+    removePane(paneId);
+  }, [removePane, removePaneViewState]);
+
   const renderPane = (paneId: string, appId: string | null, isBeingDragged: boolean) => (
     <PreviewPane
       paneId={paneId}
       appId={appId}
       isFocused={focusedPaneId === paneId}
+      isPreviewEager={focusedPaneId === paneId || pinnedPaneId === paneId}
       canRemove={panes.length > previewWorkspaceLimits.minPanes}
       isArrangeMode={interactionMode === 'arrange'}
       isBeingDragged={isBeingDragged}
       onFocus={focusPane}
-      onRemove={removePane}
+      onRemove={handleRemovePane}
       onArrangeDragStart={startArrangeDrag}
     />
   );

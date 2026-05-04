@@ -11,7 +11,7 @@
  * Query panel and settings/help controls are rendered externally via ViewOverlay.
  */
 
-import { useCallback, useMemo, useEffect, useState, useRef, lazy, Suspense } from 'react'
+import { Profiler, useCallback, useMemo, useEffect, useState, useRef, lazy, Suspense } from 'react'
 import {
   ReactFlow,
   Background,
@@ -40,6 +40,7 @@ import { GraphNodePopover } from './GraphNodePopover'
 import { collectNeighborhood } from './graphNeighborhood'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
+import { onProfilerRender } from '@/lib/profiler'
 import { agentDetailPath, skillDetailPath, teamDetailPath } from '@/app/routes/route-paths'
 import type { GraphNode as GraphNodeType, GraphEdge as GraphEdgeType, HealthScore } from '@/lib/schemas'
 
@@ -817,8 +818,10 @@ interface GraphViewProps {
 
 export function GraphView({ className }: GraphViewProps) {
   return (
-    <ReactFlowProvider>
-      <GraphViewInner className={className} />
-    </ReactFlowProvider>
+    <Profiler id="GraphView" onRender={onProfilerRender}>
+      <ReactFlowProvider>
+        <GraphViewInner className={className} />
+      </ReactFlowProvider>
+    </Profiler>
   )
 }

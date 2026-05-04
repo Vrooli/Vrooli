@@ -4,6 +4,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { useAppsStore } from '@/state/appsStore';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
+import { usePreviewPaneRuntimeStore } from '../state/previewPaneRuntimeStore';
 import type { App } from '@/types';
 import PreviewWorkspaceView from './PreviewWorkspaceView';
 
@@ -82,6 +83,7 @@ describe('PreviewWorkspaceView', () => {
     await usePreviewWorkspaceStore.persist.clearStorage();
     await usePreviewWorkspaceStore.persist.rehydrate();
     usePreviewWorkspaceStore.getState().reset();
+    usePreviewPaneRuntimeStore.getState().reset();
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
       value: 1280,
@@ -391,7 +393,7 @@ describe('PreviewWorkspaceView', () => {
     );
 
     await waitFor(() => {
-      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
+      expect(usePreviewPaneRuntimeStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
     });
 
     await waitFor(() => {
@@ -415,7 +417,7 @@ describe('PreviewWorkspaceView', () => {
     );
 
     await waitFor(() => {
-      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
+      expect(usePreviewPaneRuntimeStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
     });
 
     await waitFor(() => {

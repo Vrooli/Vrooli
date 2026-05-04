@@ -14,7 +14,7 @@
  * - Resizable sidebar with localStorage persistence
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { Profiler, useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from '@/hooks/use-toast'
 import { Home, X, GripVertical, Settings } from 'lucide-react'
@@ -63,6 +63,7 @@ import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOption
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import type { HighlightRequest } from '@/lib/highlight'
 import { createHighlightMatch } from '@/lib/highlight'
+import { onProfilerRender } from '@/lib/profiler'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppBack } from '@/app/routes/useAppBack'
@@ -103,6 +104,14 @@ function highlightFromSearchParams(searchParams: URLSearchParams): HighlightRequ
  * Main layout component for the skill manager.
  */
 export function SkillManagerLayout() {
+  return (
+    <Profiler id="SkillManagerLayout" onRender={onProfilerRender}>
+      <SkillManagerLayoutImpl />
+    </Profiler>
+  )
+}
+
+function SkillManagerLayoutImpl() {
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams<{

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import { initSpatialNav } from '@vrooli/iframe-bridge/spatial'
 import App from './App.tsx'
+import { onProfilerRender } from './lib/profiler'
 import './styles/globals.css'
 
 declare global {
@@ -47,7 +48,9 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
     </QueryClientProvider>
   </React.StrictMode>,
 )
