@@ -383,7 +383,7 @@ export interface LandingConfigResponse {
 
 export interface MetricEvent {
   event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
-  variant_id: number;
+  variant_slug: string;
   session_id: string;
   visitor_id?: string;
   event_data?: Record<string, unknown>;

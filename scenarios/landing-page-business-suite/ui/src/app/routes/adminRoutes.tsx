@@ -1,38 +1,53 @@
-import { ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { ReactNode, lazy } from 'react';
 import { Route } from 'react-router-dom';
 import { ErrorBoundary } from '../../shared/ui/ErrorBoundary';
 import { ProtectedRoute } from '../../surfaces/admin-portal/components/ProtectedRoute';
-import { AdminHome } from '../../surfaces/admin-portal/routes/AdminHome';
-import { AdminAnalytics } from '../../surfaces/admin-portal/routes/AdminAnalytics';
-import { Customization } from '../../surfaces/admin-portal/routes/Customization';
-import { VariantEditor } from '../../surfaces/admin-portal/routes/VariantEditor';
-import { SectionEditor } from '../../surfaces/admin-portal/routes/SectionEditor';
-import { AgentCustomization } from '../../surfaces/admin-portal/routes/AgentCustomization';
-import { BillingSettings } from '../../surfaces/admin-portal/routes/BillingSettings';
-import { DownloadSettings } from '../../surfaces/admin-portal/routes/DownloadSettings';
-import { RemoteProfiles } from '../../surfaces/admin-portal/routes/RemoteProfiles';
-import { BrandingSettings } from '../../surfaces/admin-portal/routes/BrandingSettings';
-import { DocsViewer } from '../../surfaces/admin-portal/routes/DocsViewer';
-import { FeedbackManagement } from '../../surfaces/admin-portal/routes/FeedbackManagement';
-import { WaitlistManagement } from '../../surfaces/admin-portal/routes/WaitlistManagement';
-import { ProfileSettings } from '../../surfaces/admin-portal/routes/ProfileSettings';
-import { APIKeysSettings } from '../../surfaces/admin-portal/routes/APIKeysSettings';
-import { TierLimitsSettings } from '../../surfaces/admin-portal/routes/TierLimitsSettings';
-import { AppLimitsSettings } from '../../surfaces/admin-portal/routes/AppLimitsSettings';
-import { UsageDashboard } from '../../surfaces/admin-portal/routes/UsageDashboard';
-import { AppsManagement } from '../../surfaces/admin-portal/routes/AppsManagement';
-import { TiersManagement } from '../../surfaces/admin-portal/routes/TiersManagement';
-import { CouponsManagement } from '../../surfaces/admin-portal/routes/CouponsManagement';
-import { UserAccounts } from '../../surfaces/admin-portal/routes/UserAccounts';
-import { LandingDashboard } from '../../surfaces/admin-portal/routes/LandingDashboard';
-import { BillingDashboard } from '../../surfaces/admin-portal/routes/BillingDashboard';
-import { UsersDashboard } from '../../surfaces/admin-portal/routes/UsersDashboard';
+import { onProfilerRender } from '../../lib/profiler';
+
+const lazyRoute = <T extends Record<K, React.ComponentType>, K extends keyof T>(
+  loader: () => Promise<T>,
+  exportName: K,
+) =>
+  lazy(() =>
+    loader().then((module) => ({
+      default: module[exportName],
+    }))
+  );
+
+const AdminHome = lazyRoute(() => import('../../surfaces/admin-portal/routes/AdminHome'), 'AdminHome');
+const AdminAnalytics = lazyRoute(() => import('../../surfaces/admin-portal/routes/AdminAnalytics'), 'AdminAnalytics');
+const Customization = lazyRoute(() => import('../../surfaces/admin-portal/routes/Customization'), 'Customization');
+const VariantEditor = lazyRoute(() => import('../../surfaces/admin-portal/routes/VariantEditor'), 'VariantEditor');
+const SectionEditor = lazyRoute(() => import('../../surfaces/admin-portal/routes/SectionEditor'), 'SectionEditor');
+const AgentCustomization = lazyRoute(() => import('../../surfaces/admin-portal/routes/AgentCustomization'), 'AgentCustomization');
+const BillingSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/BillingSettings'), 'BillingSettings');
+const DownloadSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/DownloadSettings'), 'DownloadSettings');
+const RemoteProfiles = lazyRoute(() => import('../../surfaces/admin-portal/routes/RemoteProfiles'), 'RemoteProfiles');
+const BrandingSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/BrandingSettings'), 'BrandingSettings');
+const DocsViewer = lazyRoute(() => import('../../surfaces/admin-portal/routes/DocsViewer'), 'DocsViewer');
+const FeedbackManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/FeedbackManagement'), 'FeedbackManagement');
+const WaitlistManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/WaitlistManagement'), 'WaitlistManagement');
+const ProfileSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/ProfileSettings'), 'ProfileSettings');
+const APIKeysSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/APIKeysSettings'), 'APIKeysSettings');
+const TierLimitsSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/TierLimitsSettings'), 'TierLimitsSettings');
+const AppLimitsSettings = lazyRoute(() => import('../../surfaces/admin-portal/routes/AppLimitsSettings'), 'AppLimitsSettings');
+const UsageDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/UsageDashboard'), 'UsageDashboard');
+const AppsManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/AppsManagement'), 'AppsManagement');
+const TiersManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/TiersManagement'), 'TiersManagement');
+const CouponsManagement = lazyRoute(() => import('../../surfaces/admin-portal/routes/CouponsManagement'), 'CouponsManagement');
+const UserAccounts = lazyRoute(() => import('../../surfaces/admin-portal/routes/UserAccounts'), 'UserAccounts');
+const LandingDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/LandingDashboard'), 'LandingDashboard');
+const BillingDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/BillingDashboard'), 'BillingDashboard');
+const UsersDashboard = lazyRoute(() => import('../../surfaces/admin-portal/routes/UsersDashboard'), 'UsersDashboard');
 
 function AdminRoute({ name, children }: { name: string; children: ReactNode }) {
   return (
     <ProtectedRoute>
       <ErrorBoundary level="route" name={name}>
-        {children}
+        <React.Profiler id={name} onRender={onProfilerRender}>
+          {children}
+        </React.Profiler>
       </ErrorBoundary>
     </ProtectedRoute>
   );

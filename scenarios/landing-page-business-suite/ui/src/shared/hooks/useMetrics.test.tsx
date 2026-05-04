@@ -86,6 +86,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     }
     expect(event.session_id).toMatch(/^session_/);
     expect(event.visitor_id).toMatch(/^visitor_/);
+    expect(event.variant_slug).toBe('control');
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();

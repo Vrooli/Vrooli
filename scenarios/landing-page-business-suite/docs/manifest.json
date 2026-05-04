@@ -178,6 +178,20 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "perf/2026-05-04-user-facing-views.md",
+          "title": "User-Facing Views Perf Audit",
+          "description": "Profile-mode landing page and public route performance findings",
+          "internal": true
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -266,6 +280,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "guides", "concepts", "reference", "integrations"],
-    "secondary": ["internal"]
+    "secondary": ["perf", "internal"]
   }
 }
