@@ -24,6 +24,7 @@ import type { AgentProps } from '@/types/world'
 import type { Agent } from '@/types/agent'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { usePerformanceStore } from '@/stores/performanceStore'
+import { requestWorldRender } from '../performance/worldRenderLoop'
 
 const NONE_ACCESSORY = { type: 'none' as const }
 
@@ -185,6 +186,7 @@ export function AgentWithAccessories({
     const dz = tz - pos.z
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
+    let shouldContinueLocomotion = false
     if (dist < ARRIVAL_THRESHOLD) {
       pos.set(tx, ty, tz)
       // Smoothly lerp rotation toward desired yaw after arriving
@@ -194,8 +196,10 @@ export function AgentWithAccessories({
       while (yawDiff < -Math.PI) yawDiff += Math.PI * 2
       if (Math.abs(yawDiff) > 0.01) {
         locomotionRef.current.rotation.y += yawDiff * Math.min(1, 4 * delta)
+        shouldContinueLocomotion = true
       }
     } else {
+      shouldContinueLocomotion = true
       const step = Math.min(LOCOMOTION_SPEED * delta, dist)
       const ratio = step / dist
       pos.x += dx * ratio
@@ -227,6 +231,9 @@ export function AgentWithAccessories({
         'agent.locomotion',
         performance.now() - timingStart
       )
+    }
+    if (shouldContinueLocomotion) {
+      requestWorldRender('agent-locomotion', 1)
     }
   })
 

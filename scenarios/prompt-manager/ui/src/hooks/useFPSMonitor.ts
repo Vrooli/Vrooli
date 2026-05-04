@@ -14,6 +14,7 @@ import { usePerformanceStore } from '@/stores/performanceStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
+import { requestWorldRender } from '@/components/world/performance/worldRenderLoop'
 import type { PerformanceMetrics, TierAdjustment } from '@/types/performance'
 import type { PerformanceTier } from '@/types/graphics'
 
@@ -130,11 +131,13 @@ export function useFPSMonitor(
       usePerformanceStore.getState().setTabVisibility(isVisible)
       if (isVisible) {
         lastFrameTimeRef.current = performance.now()
+        requestWorldRender('visibility', 2)
       }
     }
 
     const handleFocus = () => {
       usePerformanceStore.getState().setWindowFocus(true)
+      requestWorldRender('visibility', 1)
     }
 
     const handleBlur = () => {

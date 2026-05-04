@@ -48,6 +48,8 @@ function markerColor(type: PerformanceTraceMarker['type']): string {
       return '#93c5fd'
     case 'camera-mode-change':
       return '#a78bfa'
+    case 'render-request':
+      return '#f472b6'
   }
 }
 
@@ -581,6 +583,17 @@ export function FPSOverlay({
                 Inv {sceneSnapshot.invalidateRateHz.toFixed(1)}/s
               </span>
             </div>
+            <div style={{ marginTop: '2px' }}>
+              Requests {sceneSnapshot.renderRequestRateHz.toFixed(1)}/s
+              <span style={{ marginLeft: '8px' }}>
+                Last {sceneSnapshot.lastRenderReason}
+              </span>
+            </div>
+            {sceneSnapshot.topRenderReasons && (
+              <div style={{ marginTop: '2px' }}>
+                Reasons {sceneSnapshot.topRenderReasons}
+              </div>
+            )}
             <div style={{ marginTop: '2px' }}>
               Hidden {sceneSnapshot.documentHidden ? 'yes' : 'no'}
               <span style={{ marginLeft: '8px' }}>

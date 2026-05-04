@@ -8,6 +8,7 @@ import { useFrame } from '@react-three/fiber'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
 import { usePerformanceStore } from '@/stores/performanceStore'
+import { requestWorldRender } from '../performance/worldRenderLoop'
 
 interface HoverGlowProps {
   /** Whether glow is active */
@@ -88,6 +89,7 @@ export function HoverGlow({
 
     perfWindowMsRef.current += performance.now() - t0
     perfWindowCallbacksRef.current += 1
+    requestWorldRender('hover-active', 1)
     if (perfWindowCallbacksRef.current >= 60) {
       usePerformanceStore.getState().recordFrameLoopAggregate(
         perfWindowMsRef.current,

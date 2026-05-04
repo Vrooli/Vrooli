@@ -10,6 +10,7 @@ import type { FurnitureType } from '@/types/furniture'
 import { DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import { usePerformanceStore } from '@/stores/performanceStore'
+import { requestWorldRender } from '../performance/worldRenderLoop'
 
 interface FurnitureItemProps {
   id: string
@@ -755,6 +756,7 @@ function Campfire({
       if (lightRef.current) {
         lightRef.current.intensity = 2.8 + Math.sin(t * 7) * 0.4 + Math.sin(t * 17) * 0.15 + Math.sin(t * 31) * 0.05
       }
+      requestWorldRender('furniture-light', 1)
     }
 
     perfWindowMsRef.current += performance.now() - t0

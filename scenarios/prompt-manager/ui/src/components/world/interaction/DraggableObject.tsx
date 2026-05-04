@@ -14,6 +14,7 @@ import * as THREE from 'three'
 import { useDragDrop } from '@/hooks/useDragDrop'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
+import { requestWorldRender } from '../performance/worldRenderLoop'
 
 interface DraggableObjectProps {
   /** Unique ID for this draggable object */
@@ -201,6 +202,9 @@ export function DraggableObject({
     const currentScale = groupRef.current.scale.x
     const newScale = THREE.MathUtils.damp(currentScale, targetScale, 12, delta)
     groupRef.current.scale.setScalar(newScale)
+    if (isDragging || Math.abs(newScale - targetScale) > 0.002) {
+      requestWorldRender('drag-active', 1)
+    }
 
     perfWindowMsRef.current += performance.now() - t0
     perfWindowCallbacksRef.current += 1

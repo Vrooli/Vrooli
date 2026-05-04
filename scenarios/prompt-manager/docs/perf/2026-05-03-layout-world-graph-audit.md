@@ -116,7 +116,16 @@ Paint/LCP from the same web-vitals capture:
 | 3 | Add seeded performance fixtures for populated skill rows and graph nodes before optimizing list/card/graph density. | deferred | Still needed for future graph-density work; not required for the implemented UI fixes. |
 | 4 | Virtualize `SkillListView` and `SkillCardView`; evaluate tree virtualization for expanded folders. | fixed | Added dependency-free row windowing for list/card and flattened virtual tree rows. |
 | 5 | Consolidate `GraphView` store selection and cache layout by stable graph/filter signatures. | fixed | Consolidated store selection, removed mirrored React Flow node/edge state, and reused one health-score map. |
-| 6 | Use R3F/GPU-specific profiling for the world view rather than React commit profiling. | deferred | React commit cost remains low; GPU/render-loop profiling is a separate audit if world lag persists. |
+| 6 | Use R3F/GPU-specific profiling for the world view rather than React commit profiling. | fixed | The world HUD now reports frame percentiles, renderer workload, scene complexity, interaction/raycast timing, demand-render rates, and named render reasons. |
+| 7 | Switch the canvas to demand-driven rendering where possible. | fixed | The Canvas now starts in `frameloop="demand"` and renders from named invalidation requests; `forceAlwaysFrameloop` remains as an explicit diagnostics toggle. |
+
+## World follow-up implementation
+
+- Added a named demand-render dispatcher for world-only profiling and render control.
+- Defaulted the R3F Canvas to demand rendering; scene, camera, controls, pointer, drag, placement, visibility, and diagnostics paths now request bounded frame bursts instead of keeping a continuous 60 FPS loop alive.
+- Active transition paths that still need frames, including drag easing, hover glow, agent locomotion/reactions, cursor tracking, and lit/animated world props, explicitly request the next demand frame while active.
+- Extended the performance store with render-request rate, last render reason, and top render-reason buckets so sluggish interactions can be tied to concrete event sources.
+- Rendered the detailed world performance HUD as a DOM overlay when the existing "Show FPS overlay" setting is enabled. It now includes request/invalidate rates and render reasons alongside FPS percentiles, draw calls, triangles, geometry/texture/program counts, scene object counts, raycast timing, long tasks, and useFrame timing.
 
 ## New dependencies
 

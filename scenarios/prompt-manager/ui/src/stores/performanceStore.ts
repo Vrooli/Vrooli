@@ -65,6 +65,12 @@ interface PerformanceState {
   sceneSnapshot: SceneComplexitySnapshot
   /** Number of invalidate() calls since last publish */
   invalidateWindowCount: number
+  /** Number of demand render requests since last publish */
+  renderRequestWindowCount: number
+  /** Demand render request reason buckets since last publish */
+  renderRequestReasonBuckets: Record<string, number>
+  /** Last named demand render reason */
+  lastRenderReason: string
   /** Start timestamp for invalidate-rate window */
   invalidateWindowStart: number
   /** Total sampled useFrame callback time accumulated in this publish window */
@@ -110,6 +116,8 @@ interface PerformanceActions {
   setSceneSnapshot: (snapshot: Partial<SceneComplexitySnapshot>) => void
   /** Record invalidate() usage from demand frameloop */
   recordInvalidate: () => void
+  /** Record a named demand-render request */
+  recordRenderRequest: (reason: string) => void
   /** Record sampled useFrame aggregate for a component */
   recordFrameLoopAggregate: (totalMs: number, callbackCount: number) => void
   /** Record pointer-move interaction event */
@@ -210,6 +218,9 @@ const initialSceneSnapshot: SceneComplexitySnapshot = {
   frameloopMode: 'always',
   forceAlwaysFrameloop: false,
   invalidateRateHz: 0,
+  renderRequestRateHz: 0,
+  lastRenderReason: 'initial',
+  topRenderReasons: '',
   documentHidden: false,
   windowFocused: true,
   eventLoopLagMs: 0,
@@ -239,6 +250,9 @@ const initialState: PerformanceState = {
   subsystemTimingBuckets: {},
   sceneSnapshot: initialSceneSnapshot,
   invalidateWindowCount: 0,
+  renderRequestWindowCount: 0,
+  renderRequestReasonBuckets: {},
+  lastRenderReason: 'initial',
   invalidateWindowStart: 0,
   frameLoopWindowTotalMs: 0,
   frameLoopWindowCallbackCount: 0,
@@ -341,6 +355,9 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
       longTaskWindowWorstMs: 0,
       subsystemTimingBuckets: {},
       invalidateWindowCount: 0,
+      renderRequestWindowCount: 0,
+      renderRequestReasonBuckets: {},
+      lastRenderReason: 'monitor-start',
       invalidateWindowStart: now,
       frameLoopWindowTotalMs: 0,
       frameLoopWindowCallbackCount: 0,
@@ -486,6 +503,14 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
       const longTaskCount = state.longTaskWindowCount
       const invalidateElapsedMs = Math.max(1, now - state.invalidateWindowStart)
       const invalidateRateHz = round2((state.invalidateWindowCount * 1000) / invalidateElapsedMs)
+      const renderRequestRateHz = round2(
+        (state.renderRequestWindowCount * 1000) / invalidateElapsedMs
+      )
+      const topRenderReasons = Object.entries(state.renderRequestReasonBuckets)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([reason, count]) => `${reason}:${count}`)
+        .join(', ')
       const windowElapsedMs = Math.max(1, now - state.diagnosticsWindowStart)
       const renderedFramesPerSecond = round2((frameWindowCount * 1000) / windowElapsedMs)
       const pointerMoveRateHz = round2((state.pointerMoveWindowCount * 1000) / windowElapsedMs)
@@ -526,6 +551,8 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
         longTaskWindowWorstMs: 0,
         subsystemTimingBuckets: {},
         invalidateWindowCount: 0,
+        renderRequestWindowCount: 0,
+        renderRequestReasonBuckets: {},
         invalidateWindowStart: now,
         frameLoopWindowTotalMs: 0,
         frameLoopWindowCallbackCount: 0,
@@ -539,6 +566,9 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
         sceneSnapshot: {
           ...state.sceneSnapshot,
           invalidateRateHz,
+          renderRequestRateHz,
+          lastRenderReason: state.lastRenderReason,
+          topRenderReasons,
         },
         metrics: {
           currentFps: Math.round(fps),
@@ -662,6 +692,19 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
     const state = get()
     if (!state.isMonitoring) return
     state.invalidateWindowCount += 1
+    if (state.invalidateWindowStart === 0) {
+      state.invalidateWindowStart = performance.now()
+    }
+  },
+
+  recordRenderRequest: (reason) => {
+    const state = get()
+    if (!state.isMonitoring) return
+    const normalizedReason = reason.trim() || 'unknown'
+    state.renderRequestWindowCount += 1
+    state.lastRenderReason = normalizedReason
+    state.renderRequestReasonBuckets[normalizedReason] =
+      (state.renderRequestReasonBuckets[normalizedReason] ?? 0) + 1
     if (state.invalidateWindowStart === 0) {
       state.invalidateWindowStart = performance.now()
     }
@@ -855,6 +898,9 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
       subsystemTimingBuckets: {},
       sceneSnapshot: initialSceneSnapshot,
       invalidateWindowCount: 0,
+      renderRequestWindowCount: 0,
+      renderRequestReasonBuckets: {},
+      lastRenderReason: 'reset',
       invalidateWindowStart: 0,
       frameLoopWindowTotalMs: 0,
       frameLoopWindowCallbackCount: 0,

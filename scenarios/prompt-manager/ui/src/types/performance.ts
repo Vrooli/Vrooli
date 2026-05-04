@@ -42,6 +42,7 @@ export interface PerformanceTraceMarker {
     | 'hover-end'
     | 'selection-change'
     | 'camera-mode-change'
+    | 'render-request'
   label: string
 }
 
@@ -96,6 +97,9 @@ export interface SceneComplexitySnapshot {
   frameloopMode: 'always' | 'demand'
   forceAlwaysFrameloop: boolean
   invalidateRateHz: number
+  renderRequestRateHz: number
+  lastRenderReason: string
+  topRenderReasons: string
   documentHidden: boolean
   windowFocused: boolean
   eventLoopLagMs: number

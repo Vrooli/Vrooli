@@ -96,6 +96,31 @@ describe('Performance Store', () => {
     })
   })
 
+  describe('demand render diagnostics', () => {
+    it('publishes render request rates and reasons', () => {
+      usePerformanceStore.getState().setConfig({
+        tracePublishIntervalFrames: 2,
+      })
+      usePerformanceStore.getState().startMonitoring()
+
+      usePerformanceStore.getState().recordRenderRequest('orbit-change')
+      usePerformanceStore.getState().recordRenderRequest('orbit-change')
+      usePerformanceStore.getState().recordRenderRequest('scene-data')
+      usePerformanceStore.getState().recordInvalidate()
+
+      for (let i = 0; i < 2; i++) {
+        usePerformanceStore.getState().recordFrame(16.67)
+      }
+
+      const snapshot = usePerformanceStore.getState().sceneSnapshot
+      expect(snapshot.renderRequestRateHz).toBeGreaterThan(0)
+      expect(snapshot.invalidateRateHz).toBeGreaterThan(0)
+      expect(snapshot.lastRenderReason).toBe('scene-data')
+      expect(snapshot.topRenderReasons).toContain('orbit-change:2')
+      expect(snapshot.topRenderReasons).toContain('scene-data:1')
+    })
+  })
+
   describe('config', () => {
     it('allows updating config', () => {
       usePerformanceStore.getState().setConfig({ targetFps: 30 })

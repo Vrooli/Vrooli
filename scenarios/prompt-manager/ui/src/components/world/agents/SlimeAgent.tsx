@@ -24,6 +24,7 @@ import { useGraphicsStore } from '@/stores/graphicsStore'
 import type { LODLevel } from '@/types/lod'
 import { bindSlimeShader, syncSlimeShader } from '@/lib/shaders/slimeShader'
 import { usePerformanceStore } from '@/stores/performanceStore'
+import { requestWorldRender } from '../performance/worldRenderLoop'
 
 // Body sphere radius - used for ground offset so bottom of sphere sits on ground
 const BODY_RADIUS = 0.4
@@ -318,14 +319,18 @@ export function SlimeAgent({
         }
       }
 
+      requestWorldRender('agent-animation', 1)
       return
     }
 
     // Reset scale when stopping
+    let shouldContinueAnimation = false
     if (groupRef.current.scale.x !== 1 || groupRef.current.scale.y !== 1) {
       groupRef.current.scale.lerp(UNIT_SCALE, 0.15)
       if (Math.abs(groupRef.current.scale.x - 1) < 0.001) {
         groupRef.current.scale.set(1, 1, 1)
+      } else {
+        shouldContinueAnimation = true
       }
     }
 
@@ -385,6 +390,7 @@ export function SlimeAgent({
         const leanTarget = cursorPosition.x * 0.1
         groupRef.current.rotation.y += (leanTarget - groupRef.current.rotation.y) * 0.05
       }
+      shouldContinueAnimation = true
     } else if (isFacingCamera === false) {
       // Smooth pupil decay toward center when not facing camera
       const decayRate = 1 - Math.min(1, 3 * delta)
@@ -396,6 +402,7 @@ export function SlimeAgent({
         rightPupilRef.current.position.x *= decayRate
         rightPupilRef.current.position.y *= decayRate
       }
+      shouldContinueAnimation = true
     }
 
     // ===== REACTION ANIMATIONS (high LOD only, skip when seated) =====
@@ -410,6 +417,8 @@ export function SlimeAgent({
           state.isWaving = false
           state.waveProgress = 0
           groupRef.current.rotation.z = 0
+        } else {
+          shouldContinueAnimation = true
         }
       }
 
@@ -432,6 +441,8 @@ export function SlimeAgent({
           state.celebrationProgress = 0
           groupRef.current.rotation.y = 0
           groupRef.current.scale.setScalar(1)
+        } else {
+          shouldContinueAnimation = true
         }
       }
     }
@@ -441,6 +452,9 @@ export function SlimeAgent({
         'agent.animation',
         performance.now() - frameStart
       )
+    }
+    if (shouldContinueAnimation) {
+      requestWorldRender('agent-animation', 1)
     }
   })
 

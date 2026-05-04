@@ -23,7 +23,7 @@ import { DragPlane, DraggableObject, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { TeamOverlayManager } from './overlays/TeamOverlayManager'
-import { PerformanceMonitor, FrameRateController } from './performance'
+import { PerformanceMonitor, FrameRateController, requestWorldRender } from './performance'
 import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, Moon, ProceduralClouds, GroundSurface } from './rendering'
 import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
@@ -259,6 +259,7 @@ export function WorldScene({
   const handleAgentPositionChange = useCallback(
     (agentId: string, newPosition: [number, number, number]) => {
       onAgentPositionChange?.(agentId, newPosition)
+      requestWorldRender('drag-active', 2)
     },
     [onAgentPositionChange]
   )
@@ -304,6 +305,7 @@ export function WorldScene({
     usePerformanceStore.getState().setSceneSnapshot({
       stars: showStars ? starCount : 0,
     })
+    requestWorldRender('scene-data', 2)
   }, [showStars, starCount])
 
   // Update camera position when state changes
@@ -313,7 +315,36 @@ export function WorldScene({
       controlsRef.current.target.set(...cameraState.target)
       controlsRef.current.update()
     }
+    requestWorldRender('camera-state', 8)
   }, [camera, cameraState])
+
+  useEffect(() => {
+    requestWorldRender('scene-data', 3)
+  }, [
+    agentsWithPositions,
+    boundarySize,
+    decorationList,
+    furnitureList,
+    groundConfig,
+    isDarkMode,
+    sceneType,
+    selectedNodeIds,
+    shadows,
+    shadowMapSize,
+    tier,
+  ])
+
+  useEffect(() => {
+    if (isDragging) {
+      requestWorldRender('drag-active', 8)
+    }
+  }, [isDragging])
+
+  useEffect(() => {
+    if (isPlacing) {
+      requestWorldRender('placement-active', 8)
+    }
+  }, [isPlacing])
 
   return (
     <>
@@ -368,6 +399,9 @@ export function WorldScene({
         maxDistance={30}
         maxPolarAngle={Math.PI * 0.45}
         minPolarAngle={Math.PI * 0.15}
+        onStart={() => requestWorldRender('orbit-start', 12)}
+        onChange={() => requestWorldRender('orbit-change', 3)}
+        onEnd={() => requestWorldRender('orbit-end', 24)}
         {...(isMobile ? {
           enableRotate: false,
           touches: {

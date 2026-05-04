@@ -15,6 +15,7 @@ import { DEFAULT_DECORATION_COLORS, DECORATION_CONFIGS } from '@/types/decoratio
 import { getAssetPath } from '@/config/assetManifest'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import { usePerformanceStore } from '@/stores/performanceStore'
+import { requestWorldRender } from '../performance/worldRenderLoop'
 
 interface DecorationItemProps {
   id: string
@@ -515,6 +516,7 @@ function Globe({ castShadow }: { castShadow: boolean }) {
     const t0 = performance.now()
     if (globeRef.current) {
       globeRef.current.rotation.y += delta * 0.2
+      requestWorldRender('decoration-animation', 1)
     }
     perfWindowMsRef.current += performance.now() - t0
     perfWindowCallbacksRef.current += 1

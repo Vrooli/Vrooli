@@ -41,6 +41,7 @@ import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { WorldErrorProvider } from './WorldErrorProvider'
 import { cursorRef } from './cursorRef'
+import { FPSOverlay, requestWorldRender } from './performance'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useAgentPositionStore } from '@/stores/agentPositionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
@@ -138,6 +139,7 @@ function WorldCanvasImpl({
   const materialQuality = useGraphicsStore((state) => state.config.materialQuality)
   const tier = useGraphicsStore((state) => state.tier)
   const maxFps = usePerformanceStore((state) => state.config.maxFps)
+  const showFpsOverlay = usePerformanceStore((state) => state.config.showOverlay)
 
   // Agent data (must be above useWorldDefaults so agents.length is available)
   const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
@@ -291,12 +293,14 @@ function WorldCanvasImpl({
     setSelectedFurniture(null) // Close furniture menu when clicking an agent
     setSelectedDecoration(null) // Close decoration menu too
     zoomToAgent(agentId, position)
+    requestWorldRender('overlay-open', 4)
   }, [zoomToAgent])
 
   // Handle furniture click - opens furniture context menu
   const handleFurnitureClick = useCallback((furniture: FurnitureInstance) => {
     setSelectedDecoration(null) // Close decoration menu when clicking furniture
     setSelectedFurniture(furniture)
+    requestWorldRender('overlay-open', 2)
   }, [])
 
   // Handle closing furniture context menu
@@ -308,6 +312,7 @@ function WorldCanvasImpl({
   const handleDecorationClick = useCallback((decoration: DecorationInstance) => {
     setSelectedFurniture(null) // Close furniture menu when clicking decoration
     setSelectedDecoration(decoration)
+    requestWorldRender('overlay-open', 2)
   }, [])
 
   // Handle closing decoration context menu
@@ -381,10 +386,13 @@ function WorldCanvasImpl({
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1
     const y = -((e.clientY - rect.top) / rect.height) * 2 + 1
     cursorRef.current = { x: x * 5, y: y * 3 }
+    usePerformanceStore.getState().recordPointerMoveEvent()
+    requestWorldRender('pointer-move', 1)
   }, [])
 
   const handleMouseLeave = useCallback(() => {
     cursorRef.current = null
+    requestWorldRender('pointer-leave', 1)
   }, [])
 
   // Handle display
@@ -444,6 +452,7 @@ function WorldCanvasImpl({
       <WorldErrorProvider>
         <WorldErrorBoundary componentName="WorldCanvas" className="absolute inset-0">
           <Canvas
+            frameloop="demand"
             shadows={shadowsEnabled}
             camera={{
               position: cameraState.position,
@@ -478,6 +487,12 @@ function WorldCanvasImpl({
           </Canvas>
         </WorldErrorBoundary>
       </WorldErrorProvider>
+
+      {showFpsOverlay && (
+        <div className="absolute top-4 right-4 z-20 pointer-events-auto">
+          <FPSOverlay detailed />
+        </div>
+      )}
 
       {/* Loading indicator */}
       <Loader
