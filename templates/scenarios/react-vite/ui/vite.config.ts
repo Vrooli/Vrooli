@@ -82,7 +82,7 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/i18n/locales/**',
         ],
         // 85% is the floor every canonical-surface file (App.tsx +
-        // button/input/textarea + consts + i18n + lib/api + lib/utils +
+        // button/input/textarea + consts + i18n + api/client + lib/utils +
         // hooks/{useGamepad,useSpatialNav,SpatialGroup}) clears with the
         // tests shipped in this template. Tightening beyond actual
         // coverage of a healthy template would make every new scenario

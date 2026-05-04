@@ -1,5 +1,5 @@
 /**
- * Mock builders for `lib/notes` — the UI ↔ API notes-CRUD boundary.
+ * Mock builders for `api/notes` — the UI ↔ API notes-CRUD boundary.
  * Co-located with the notes feature; deleting `features/notes/` takes
  * these mocks with it.
  *
@@ -8,14 +8,14 @@
  *
  *   import { makeNotesMocks } from "./mocks/notes";
  *
- *   vi.mock("../../lib/notes", async (importOriginal) => {
- *     const actual = await importOriginal<typeof import("../../lib/notes")>();
+ *   vi.mock("../../api/notes", async (importOriginal) => {
+ *     const actual = await importOriginal<typeof import("../../api/notes")>();
  *     return { ...actual, ...makeNotesMocks() };
  *   });
  *
  * The `...actual` spread keeps the re-exported proto types intact —
  * only the network-touching functions are substituted. `ApiError`
- * itself lives in `lib/api`; tests that need it import from there.
+ * itself lives in `api/client`; tests that need it import from there.
  *
  * Default behaviors:
  *

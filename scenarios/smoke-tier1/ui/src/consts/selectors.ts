@@ -311,6 +311,14 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
+  notes: {
+    card: "notes-card",
+    list: "notes-list",
+    loading: "notes-loading",
+    empty: "notes-empty",
+    error: "notes-error",
+    createButton: "notes-create-button",
+  },
   locale: {
     switcher: "locale-switcher",
   },

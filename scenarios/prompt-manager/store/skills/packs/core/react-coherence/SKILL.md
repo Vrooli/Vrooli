@@ -165,6 +165,10 @@ Use a structure that keeps visual-system ownership explicit:
 
 ```
 src/
+├── api/                       # UI ↔ API boundary; proto parse/serialize, fetch wrappers
+│   ├── client.ts              # shared transport/errors/proto JSON options
+│   └── <domain>.ts            # endpoint methods returning generated proto types
+│
 ├── shared/
 │   ├── theme/                 # Design tokens, themes, typography, motion scales
 │   │   ├── tokens.css
@@ -181,7 +185,7 @@ src/
 │   ├── components/            # Non-design-system shared widgets
 │   ├── hooks/                 # Domain-agnostic hooks
 │   ├── stores/                # App-wide stores (only when truly cross-surface)
-│   ├── services/              # API/services layer
+│   ├── services/              # non-API services for larger shared apps
 │   ├── controllers/           # Orchestration layer
 │   ├── schemas/               # Validation schemas
 │   └── lib/                   # Pure utilities
@@ -210,6 +214,9 @@ src/
 | `shared/components/` | Shared non-design-system widgets | ErrorBoundary, route shell wrappers |
 | `shared/hooks/` | Domain-agnostic hooks | useDebounce, useMediaQuery |
 | `shared/stores/` | Truly app-wide shared state | settingsStore, modalStore |
+| `api/` | UI API clients and wire contracts | protoFetch, fetchHealth, listNotes |
+| `shared/services/` | Shared non-wire services in larger apps | localStorage adapters, analytics wrappers |
+| `shared/lib/` or `lib/` | Pure utilities only | cn, formatters, math/string helpers |
 | `surfaces/X/components/` | Feature-specific render components | SearchResultsList |
 | `surfaces/X/hooks/` | Feature-specific behavior | useSearchFilters |
 
@@ -341,11 +348,11 @@ Use one canonical pattern for each repeated concern:
 |-----------|---------|----------|-------|
 | Error handling | ErrorBoundary + local recovery UX | `shared/components/` | Recovery actions, not dead ends |
 | Loading states | Skeleton/Suspense/inline loading contracts | shared + surface | Consistent user feedback |
-| API calls | Service layer | `shared/services/` | Typed results and centralized error shaping |
+| API calls | Proto boundary layer | `src/api/` | Generated types, proto JSON parse/serialize, centralized error shaping |
 | Forms | Local reducer or feature/app store based on scope | surface/shared | Match scope, avoid dogma |
 | Modals | Shared modal primitives + optional shared state | shared | Avoid duplicated modal frameworks |
 | Toasts/alerts | Single notification mechanism | shared | Do not mix multiple systems |
-| Validation | Schema-based at boundaries | `shared/schemas/` | Keep UI code lean |
+| Validation | Schema-based at boundaries | `src/api/` for proto, `shared/schemas/` for UI-only schemas | Keep UI code lean |
 
 ---
 

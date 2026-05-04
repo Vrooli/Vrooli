@@ -7,7 +7,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
-import { fetchHealth } from "../../lib/api";
+import { fetchHealth } from "../../api/health";
 
 /**
  * HealthCard is the canonical *system-status* feature: it polls

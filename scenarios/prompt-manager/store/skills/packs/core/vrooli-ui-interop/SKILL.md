@@ -42,7 +42,7 @@ This is the central organizing structure. Each interop concern maps to exactly o
 | **[C]** | `ui/server.js` | `startScenarioServer()` from `@vrooli/api-base/server` | Import of `startScenarioServer` |
 | **[D]** | `ui/src/main.tsx` | iframe-bridge init (before React mount) | Call to `initIframeBridgeChild` |
 | **[E]** | `ui/src/App.tsx` | Proxy-aware router basename via `getProxyInfo()` | Import of `getProxyInfo` + `basename` prop on router |
-| **[F]** | `ui/src/lib/api-client.ts` | API base resolution + URL building | Import of `resolveApiBase` + `buildApiUrl` |
+| **[F]** | `ui/src/api/client.ts` | API base resolution + URL building | Import of `resolveApiBase` + `buildApiUrl` |
 | **[G]** | `ui/src/hooks/useKeyboardShortcuts.ts` | Central shortcut manager with iframe relay | Import of `emitShortcutIntent` |
 | **[H]** | `ui/src/hooks/useSpatialNav.ts` | Spatial navigation hook with focus group registration | Import of `initSpatialNav` from `@vrooli/iframe-bridge/spatial` |
 | **[I]** | `ui/src/hooks/useGamepad.ts` | Raw gamepad input hook for custom handling | Import of `GamepadInputManager` from `@vrooli/iframe-bridge/spatial` |
@@ -184,7 +184,7 @@ Audit: `ast-grep --lang tsx --pattern '<BrowserRouter basename={$_}>' ui/src/App
 
 **Scenarios without React Router** (e.g., agent-inbox uses manual `pushState`, app-issue-tracker uses modals): This slot is N/A. The skill does not require React Router — only that IF a router is used, it must be proxy-aware.
 
-### [F] `ui/src/lib/api-client.ts` — API Base Resolution
+### [F] `ui/src/api/client.ts` — API Base Resolution
 
 **Allowed alternative path:** `ui/src/services/api.ts`
 

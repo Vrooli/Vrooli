@@ -10,20 +10,23 @@
 //
 // # Schema
 //
-// The template ships zero tables, so this helper currently returns a
-// blank database. Scenarios that add tables wrap NewSQLite with a
-// domain-specific helper that applies their schema, e.g.:
+// NewSQLite returns a *blank* handle. The canonical compose pattern
+// for repository tests pairs it with the production schema entry
+// point (`store.EnsureSchema`) so tests exercise the same shape
+// `main.go` ships:
 //
-//	func NewTaskDB(t *testing.T) *sql.DB {
-//	    db := db.NewSQLite(t)
-//	    if err := repository.EnsureSchema(context.Background(), db); err != nil {
-//	        t.Fatalf("ensure schema: %v", err)
-//	    }
-//	    return db
+//	func newSchemaDB(t *testing.T) *sql.DB {
+//	    d := db.NewSQLite(t)
+//	    require.NoError(t, store.EnsureSchema(context.Background(), d))
+//	    return d
 //	}
 //
-// Apply the same schema entry point main.go uses so test handles are
-// byte-identical to a fresh production install.
+// See `internal/store/notes_sqlite_test.go` for the worked example.
+// The two-line helper is intentionally inline at the consumer rather
+// than exported from this package — `db` lives under `testutil` and
+// `store` is the consumer, so an exported helper would invert the
+// dependency. Reach for it as a per-package convention; do not
+// generalise across packages.
 package db
 
 import (

@@ -31,14 +31,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { makeHealthResponse, renderWithProviders } from "./test-utils";
+import {
+  interp,
+  makeApiMocks,
+  makeListNotesResponse,
+  makeNote,
+  makeNotesMocks,
+  renderWithProviders,
+} from "./test-utils";
 
+// Mock-builder pattern: the `vi.mock` factory body stays inline (Vitest
+// hoisting requires it), but the *contents* of the substituted exports
+// come from `makeApiMocks()` / `makeNotesMocks()` so the contract for
+// each lib/* surface lives in one file. See `docs/internal/TESTING.md`
+// → "Mock builders for lib/api and lib/notes".
 vi.mock("./lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./lib/api")>();
-  return {
-    ...actual,
-    fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
-  };
+  return { ...actual, ...makeApiMocks() };
+});
+
+vi.mock("./lib/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/notes")>();
+  return { ...actual, ...makeNotesMocks() };
 });
 
 import App from "./App";
@@ -48,7 +62,6 @@ import { setLocale } from "./i18n";
 import ar from "./i18n/locales/ar.json";
 import en from "./i18n/locales/en.json";
 import ja from "./i18n/locales/ja.json";
-import { interp } from "./test-setup";
 
 describe("App rendering (cimode — copy-independent)", () => {
   // No beforeEach — the setup file already puts us in cimode.
@@ -98,6 +111,66 @@ describe("App rendering (cimode — copy-independent)", () => {
         strings.health.refreshCount,
       );
     });
+  });
+});
+
+describe("App Notes pane", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("renders the empty state when listNotes resolves with no notes", async () => {
+    const { listNotes } = await import("./lib/notes");
+    vi.mocked(listNotes).mockResolvedValueOnce(makeListNotesResponse());
+
+    renderWithProviders(<App />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.notes.empty)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId(selectors.notes.list)).not.toBeInTheDocument();
+  });
+
+  it("renders the list when listNotes returns items", async () => {
+    const { listNotes } = await import("./lib/notes");
+    vi.mocked(listNotes).mockResolvedValueOnce(
+      makeListNotesResponse({
+        notes: [
+          makeNote({ id: "a", title: "First persisted note" }),
+          makeNote({ id: "b", title: "Second persisted note" }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<App />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.notes.list)).toBeInTheDocument();
+    });
+    // Note titles are dynamic data (not user-facing copy); assert
+    // against the rendered list's textContent rather than calling
+    // getByText with copy literals.
+    const list = screen.getByTestId(selectors.notes.list);
+    expect(list.textContent).toContain("First persisted note");
+    expect(list.textContent).toContain("Second persisted note");
+  });
+
+  it("invokes createNote when the create button is clicked", async () => {
+    const { createNote, listNotes } = await import("./lib/notes");
+    vi.mocked(listNotes).mockResolvedValue(makeListNotesResponse());
+    vi.mocked(createNote).mockResolvedValueOnce(makeNote({ id: "new" }));
+
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.notes.createButton)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId(selectors.notes.createButton));
+
+    await waitFor(() => {
+      expect(createNote).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(createNote).mock.calls[0]?.[0]).toMatchObject({ title: expect.any(String) });
   });
 });
 

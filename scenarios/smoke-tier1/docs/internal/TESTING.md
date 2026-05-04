@@ -15,10 +15,12 @@ Three files are the source of truth. When in doubt, copy their shape:
 
 - **API**: `api/handlers/health/handler_test.go` — table-driven, real
   middleware via `httpx.NewLiveServer`, fake pinger from `mocks/`,
-  typed-fixture JSON decode via
-  `assertx.MustDecodeJSON[fixtures.HealthResponse]` (matches the
-  api-core/health wire shape field-for-field — assert on typed fields,
-  not `map[string]any` chains).
+  typed-proto decode via
+  `assertx.MustUnmarshalProto[healthv1.Response]` (the wire shape lives
+  in `packages/proto/schemas/smoke-tier1/v1/health/health.proto`;
+  assert on typed proto fields, not `map[string]any` chains). For
+  endpoints whose wire shape isn't in proto yet, `MustDecodeJSON[T]`
+  is the fallback — but adding the proto first is the right move.
 - **UI**: `ui/src/App.test.tsx` — `renderWithProviders` + factory data
   + inline `vi.mock` factory closure. Two describe blocks: cimode
   (copy-independent assertions) and real-locale (end-to-end i18n).
@@ -53,7 +55,7 @@ api/
     └── handler_test.go           # Canonical test
 ```
 
-### The four primitives every test uses
+### The five primitives every test uses
 
 1. **`mocks.FakeClock`** — substitutes `clock.Clock`. Construct with
    `mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))`,
@@ -73,12 +75,20 @@ api/
    in microseconds; the cost of the bug class it catches is measured
    in incidents.
 4. **`assertx`** — `AssertStatus(t, resp, want)` for status code
-   checks (dumps body on mismatch); `MustDecodeJSON[T any](t, body) T`
-   for typed JSON decoding. Pair the generic decode with a typed
-   fixture (`fixtures.HealthResponse`) so assertions read as
-   `got.Status` / `got.Dependencies["database"].Connected` rather than
-   `map[string]any` chains. Resist over-generalising; add helpers when
-   the third caller appears.
+   checks (dumps body on mismatch); `MustUnmarshalProto[T proto.Message]
+   (t, body) *T` for proto-typed JSON decoding (use this whenever the
+   endpoint's wire shape lives in `packages/proto/schemas/`);
+   `MustDecodeJSON[T any](t, body) T` for ad-hoc JSON when no proto
+   exists yet. Resist over-generalising; add helpers when the third
+   caller appears.
+5. **Generated proto types** — every endpoint's wire shape lives in
+   `packages/proto/schemas/smoke-tier1/v1/<domain>/<file>.proto`.
+   Tests import the generated Go type directly
+   (`healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/smoke-tier1/v1/health"`)
+   and decode wire bodies into it via `MustUnmarshalProto`. The
+   `fixtures` package re-exports the proto type as a short alias
+   (`fixtures.HealthResponse = healthv1.Response`) so test code reads
+   cleanly.
 
 ### Canonical test pattern
 
@@ -91,11 +101,11 @@ import (
     "testing"
 
     "github.com/stretchr/testify/require"
+    healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/smoke-tier1/v1/health"
 
     "smoke-tier1/internal/clock"
     "smoke-tier1/internal/server"
     "smoke-tier1/internal/testutil/assertx"
-    "smoke-tier1/internal/testutil/fixtures"
     "smoke-tier1/internal/testutil/httpx"
     "smoke-tier1/internal/testutil/mocks"
 )
@@ -120,7 +130,7 @@ func TestHealthHandler(t *testing.T) {
             resp, body := live.Do(t, http.MethodGet, "/health", nil)
 
             assertx.AssertStatus(t, resp, tc.wantCode)
-            got := assertx.MustDecodeJSON[fixtures.HealthResponse](t, body)
+            got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
             require.Equal(t, tc.wantStatus, got.Status)
             require.Equal(t, tc.wantConnected, got.Dependencies["database"].Connected)
             require.Equal(t, int64(1), pinger.Calls.Load())
@@ -129,9 +139,104 @@ func TestHealthHandler(t *testing.T) {
 }
 ```
 
-The fixture's JSON tags mirror `api-core/health.Response` exactly, so
-`MustDecodeJSON` round-trips the wire shape directly into the typed
-struct — no `map[string]any` chains, no per-test `interface{}` casts.
+The proto schema in `packages/proto/schemas/smoke-tier1/v1/health/health.proto`
+mirrors `api-core/health.Response` field-for-field, so `MustUnmarshalProto`
+round-trips the wire shape directly into the generated Go type — no
+`map[string]any` chains, no per-test `interface{}` casts, no parallel
+hand-written struct mirror to drift against. `DiscardUnknown:true` is
+wired in `MustUnmarshalProto` so the test keeps passing when the wire
+grows fields the proto hasn't caught up to.
+
+### CRUD reference — `notes` end-to-end
+
+The `notes` domain is the canonical CRUD reference. New scenarios add
+their first non-trivial mutation by copying its layering one file at a
+time. The pattern from wire to render:
+
+| Layer | File | What it owns |
+|---|---|---|
+| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/smoke-tier1/v1/notes/`) | `Note`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteResponse` |
+| Error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | One typed body for every non-2xx path, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| Request decode | `internal/httpx/decode.go::DecodeJSON[T]` | Strict input by default — `DisallowUnknownFields` rejects payloads carrying fields the schema hasn't caught up to |
+| Domain types | `internal/store/notes.go::{Note, NoteStore, ErrNoteNotFound}` | Domain-pure (no proto imports); the typed `ErrNoteNotFound` sentinel handlers translate into a 404 envelope |
+| Repository impl | `internal/store/notes_sqlite.go::NewSQLiteNoteStore` | sqlite-backed `NoteStore`; production wires it once in `main.go` |
+| Repository test | `internal/store/notes_sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `store.EnsureSchema(ctx, db)` (the canonical compose pattern) |
+| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeNoteStore` and exercises the full transport edge through `httpx.NewLiveServer` |
+| Mock | `internal/testutil/mocks/notes.go::FakeNoteStore` | In-memory slice + per-method error knobs (`CreateErr` / `GetErr` / `ListErr`) + atomic call counters |
+| UI client | `ui/src/lib/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
+| UI tests | `ui/src/lib/notes.test.ts` + the `App Notes pane` block in `App.test.tsx` | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./lib/notes", ...)` for the component test |
+| CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
+| CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
+
+#### Compose pattern: schema-applied repository test
+
+`db.NewSQLite(t)` returns a blank handle. Repository tests apply the
+production schema before the first query so the test exercises the
+same shape `main.go` ships:
+
+```go
+func newSchemaDB(t *testing.T) *sql.DB {
+    t.Helper()
+    d := db.NewSQLite(t)
+    require.NoError(t, store.EnsureSchema(context.Background(), d))
+    return d
+}
+```
+
+That two-line helper is the canonical entry point for every new
+domain's `*_sqlite_test.go`. Don't reach for migrations frameworks or
+in-test `CREATE TABLE` literals — the embedded `schema.sql` is the
+source of truth for both production and tests.
+
+### Buffer-backed logger pattern
+
+The production `*log.Logger` shouldn't write to stderr during tests —
+it pollutes the runner's output and makes failure messages harder to
+read. The canonical substitution is a `bytes.Buffer`-backed logger:
+
+```go
+logBuf := &bytes.Buffer{}
+srv := server.New(server.Deps{
+    Logger: log.New(logBuf, "", 0),
+    // …other deps
+})
+```
+
+Discard-only sinks (`log.New(io.Discard, "", 0)`) work for tests that
+don't need to inspect log output; reach for the buffer when the test
+asserts on what was logged (e.g., the 500-path test in
+`handlers/notes/handler_test.go::TestNotesHandler_GetInternalError`
+checks the underlying error reaches operator logs).
+
+### Testing context cancellation
+
+The template ships no streaming endpoints today, but the test
+infrastructure supports them. When a scenario adds an SSE / long-poll
+/ background-work endpoint, the canonical cancellation test is:
+
+```go
+live := httpx.NewLiveServer(t, srv)
+ctx, cancel := context.WithCancel(context.Background())
+req, _ := http.NewRequestWithContext(ctx, http.MethodGet, live.URL+"/stream", nil)
+resp, err := live.Client.Do(req)
+require.NoError(t, err)
+defer resp.Body.Close()
+
+// Read enough bytes to confirm the handler started writing.
+buf := make([]byte, 64)
+_, _ = resp.Body.Read(buf)
+
+cancel()
+// Expect the handler to observe r.Context().Done() and abort cleanly.
+// The fake (Pinger / NoteStore / future StreamProducer) records the
+// cancellation; assert on the recorded state.
+```
+
+`httpx.NewLiveServer` runs over a real socket (not `httptest.NewRecorder`),
+so `http.Flusher` and the request `Context()` plumbing match production
+behavior. Recorder-based tests would silently pass while production
+hangs on a never-cancelled handler — the same class of bug
+workspace-sandbox shipped on 2026-04-28.
 
 ### Production-import quarantine (`no_prod_import_test.go`)
 
@@ -148,6 +253,34 @@ package. If the rule fires:
 - ✅ **Move the helper out of testutil** into a non-test package.
 - ❌ **Don't add `// nolint`** — the production code path will then
    carry the test-only dep into the binary on every build.
+
+### Outbound HTTP — `httpc.Doer`
+
+Production callers consuming external services depend on the `Doer`
+interface declared at `internal/httpc/doer.go`. `*http.Client` satisfies
+it directly (compile-time-asserted in the same file); tests substitute
+`mocks.FakeDoer`. Reference test:
+`internal/httpc/doer_test.go::TestDoer_TestPath` exercises both the
+production-side and test-side wiring through one tiny inline caller —
+the canonical substitution shape.
+
+`mocks.FakeDoer` queues canned `*http.Response` (or errors) via
+`AddResponse(status, body) []byte` and records every inbound request
+into `.Requests` for after-the-fact assertions. The test fake is the
+same shape every scenario reaches for; resist hand-rolling per-feature
+HTTP fakes when this surface fits.
+
+The seam ships *unwired* in production by intent — there's no
+`server.Deps.Doer` field until the first scenario actually needs one.
+When you wire it, follow the canonical pattern:
+
+```go
+// main.go
+deps := server.Deps{
+    Doer: &http.Client{Timeout: 10 * time.Second},
+    // …other deps
+}
+```
 
 ## UI testing
 
@@ -179,7 +312,11 @@ Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
    `QueryClientProvider` (retries disabled — tests should fail fast,
    not paper over flakes) and `I18nextProvider` bound to the same
    singleton production uses. Returns a `RenderResult` plus the
-   `queryClient` for tests that need to seed cache state.
+   `queryClient` for tests that need to seed cache state. The helper
+   has its own self-test at `ui/src/test-utils/renderWithProviders.test.tsx`
+   pinning retries-disabled, queryClient identity, custom-client
+   override, and singleton i18n wiring — mirrors the API-side
+   `internal/testutil/httpx/server_test.go` pattern.
 2. **`make<Domain>(overrides?: Partial<Domain>)`** — typed factory for
    stable test data. `makeHealthResponse()` is the worked example;
    add new factories alongside it as new shapes appear. Defaults
@@ -243,6 +380,53 @@ update when canonical English copy changes — that's what they verify.
 
 See `App.test.tsx` for the full pattern and the CLDR plural variants
 (`refreshCount_one`, `notifications.summary_zero` / `_one` / base).
+
+### Mock builders for `lib/api` and `lib/notes`
+
+`vi.mock(path, factory)` is hoisted before any user import resolves;
+a wrapper imported from `test-utils` would be in the temporal dead
+zone at hoist time. The escape hatch is to keep the `vi.mock` call
+inline at the top of each test file, but move the *factory body* into
+a builder function that runs when the closure executes — which is
+*after* imports initialise.
+
+`@/test-utils` exports `makeApiMocks()` and `makeNotesMocks()` for
+exactly this. Canonical shape:
+
+```tsx
+import { makeApiMocks, makeNotesMocks } from "@/test-utils";
+
+vi.mock("./lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/api")>();
+  return { ...actual, ...makeApiMocks() };
+});
+
+vi.mock("./lib/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/notes")>();
+  return { ...actual, ...makeNotesMocks() };
+});
+```
+
+Defaults are picked so the most common test paths work no-args:
+`makeApiMocks().fetchHealth` resolves to a healthy response;
+`makeNotesMocks().listNotes` resolves to an empty list;
+`createNote({ title })` echoes the title back as a Note. Per-test
+overrides use vitest's standard pattern *after* the mock is wired:
+
+```tsx
+const { listNotes } = await import("./lib/notes");
+vi.mocked(listNotes).mockResolvedValueOnce(
+  makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
+);
+```
+
+The `...actual` spread keeps non-mocked exports (the `ApiError` class,
+re-exported proto types) intact — only network-touching functions are
+substituted.
+
+When a third lib/* surface lands (e.g., `lib/users.ts`), follow the
+same pattern: builder in `ui/src/test-utils/mocks/<surface>.ts`, self-
+test alongside, re-export from `test-utils/index.ts`.
 
 ### Test-utils quarantine
 
@@ -381,22 +565,151 @@ provably can't see it. If the test fires:
 | Change to `app.go` wiring | The smoke gate (`TestNewAppConstructs`) catches most regressions automatically. Add a focused test only when the wiring touches a non-default code path. |
 | New env var that affects API resolution | Extend or wrap `clitest.WithAPIBase` rather than calling `t.Setenv` inline. Keeps the env-var name in one place. |
 
+## How to add a new proto
+
+Wire shapes for new endpoints belong in `packages/proto/schemas/smoke-tier1/`,
+not in hand-written Go structs or TS interfaces. The `health.proto`
+shipped with this scenario is the canonical example.
+
+Steps:
+
+1. **Author the schema.** Add `packages/proto/schemas/smoke-tier1/v1/<domain>/<name>.proto`.
+   Use snake_case in the proto package directive
+   (`package vrooli.smoke_tier1.v1.<domain>;`) and add a
+   `go_package` option pointing at the per-scenario gen path:
+
+   ```protobuf
+   option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/smoke-tier1/v1/<domain>;<domain>_v1";
+   ```
+
+2. **Regenerate.** From the repo root:
+
+   ```bash
+   cd packages/proto && make generate && make lint
+   ```
+
+   New artifacts land at `packages/proto/gen/{go,typescript,python}/smoke-tier1/v1/<domain>/`.
+   Commit them alongside the schema — generated code is checked in so
+   downstream scenarios don't have to re-run codegen.
+
+3. **Wire it on the API side.** Import the generated Go type in your
+   handler test and decode via `assertx.MustUnmarshalProto`:
+
+   ```go
+   import notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/smoke-tier1/v1/notes"
+
+   got := assertx.MustUnmarshalProto[notesv1.ListResponse](t, body)
+   ```
+
+   For fixtures, follow the `fixtures/health.go` pattern — re-export
+   the proto type as a short alias and provide functional-options
+   builders:
+
+   ```go
+   type ListResponse = notesv1.ListResponse
+   func NewListResponse(opts ...ListOpt) *notesv1.ListResponse { /* ... */ }
+   ```
+
+4. **Wire it on the UI side.** Import the generated TS schema and use
+   `fromJson` for decode + `create` for fixtures:
+
+   ```ts
+   import { fromJson, create } from "@bufbuild/protobuf";
+   import { ListResponseSchema } from "@vrooli/proto-types/smoke-tier1/v1/notes/notes_pb";
+
+   // production
+   return fromJson(ListResponseSchema, json, { ignoreUnknownFields: true });
+
+   // tests
+   const fixture = create(ListResponseSchema, { items: [{ id: "n-1" }] });
+   ```
+
+5. **Tests follow.** Handler test uses `MustUnmarshalProto`; fixture
+   test asserts on the typed shape via `proto.Equal`. UI test mocks
+   `lib/api` and returns `makeListResponse()` from the factory.
+
+Don't add a new `mocks/Fake*` interface for the proto type — the proto
+isn't a seam, it's a contract. Seams are interfaces; protos are
+payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
+
+## E2E binary smoke gate
+
+`api/main_e2e_test.go` is a build-tag-isolated test (`//go:build e2e`)
+that:
+
+1. `go build -o <tmp> .` from the api directory
+2. Boots the binary with `API_PORT`, `SQLITE_PATH`, and
+   `VROOLI_LIFECYCLE_MANAGED=true` set
+3. Polls `/health` over a real socket
+4. Sends `SIGTERM` and asserts clean exit within 5s
+
+It catches regressions handler tests can't see:
+
+- main.go forgets to wire a new field into `server.Deps` (handler
+  tests construct `server.New` directly with a hand-built Deps;
+  main.go's wiring is unverified)
+- `preflight.Run` order changes break the boot path
+- `apiserver.Run` listener config drifts (SIGTERM cleanup hook,
+  port resolution from env)
+- `storage.NewResolver(ProfileAuto)` chooses an unwritable path on
+  the host
+
+Default `go test ./...` skips it (no `e2e` tag). The CI workflow
+runs it as a dedicated step via `go test -tags=e2e -run TestE2E .`.
+Local invocation: `cd api && go test -tags=e2e .`.
+
+This is the only test in the suite that exercises the actual binary
+entry point. As scenarios add streaming endpoints, websocket upgrades,
+or background workers, extend this file with matching `TestE2E_*`
+cases — one per top-level boot-path concern. Resist using it for
+feature-level coverage; that's what handler tests are for.
+
 ## Coverage thresholds
 
+| Module | Floor | Where it's enforced |
+|---|---|---|
+| UI (`ui/`) | 85% lines / branches / functions / statements | `ui/vite.config.ts` `test.coverage`; CI runs `pnpm test:coverage` |
+| API (`api/`) | 75% total | `.github/workflows/test.yml` `api` job |
+| CLI (`cli/`) | 75% total | `.github/workflows/test.yml` `cli` job |
+
+### UI
+
 Configured in `vite.config.ts` at the bottom of the `test.coverage`
-block. Currently 85% across lines, branches, functions, and statements.
+block. The `coverage.exclude` list covers test scaffolding and codegen
+only — production source under `src/` is exhaustively included. The
+default position is: every new `src/` file ships with its own
+`*.test.{ts,tsx}` and lands inside the include set. If a scenario adds
+genuinely-untestable code, prefer a narrow file exclusion with a
+one-line rationale comment in `vite.config.ts` over loosening the
+thresholds.
 
-The `coverage.exclude` list covers test scaffolding and codegen only —
-production source under `src/` is exhaustively included. The default
-position is: every new `src/` file ships with its own `*.test.{ts,tsx}`
-and lands inside the include set. If a scenario adds genuinely-untestable
-code, prefer a narrow file exclusion with a one-line rationale comment
-in `vite.config.ts` over loosening the thresholds.
+### Go (API + CLI)
 
-The CI workflow (`.github/workflows/test.yml`) runs
-`pnpm test:coverage`, which reads these thresholds. A drop below floor
-fails the gate immediately. Raise thresholds (toward 90+%) when real
-coverage clears the new floor for a full release.
+Both Go modules gate on a 75% total floor in CI. The threshold is
+intentionally lower than the UI's 85% because Go has more
+declaration-only surface (interfaces, generated proto types, struct
+types) that doesn't carry executable lines — 75% in Go is roughly
+equivalent to 85% in TypeScript by lines-per-meaningful-coverage.
+
+`internal/testutil/...` is excluded from the denominator. Those
+packages exist to support tests; including them would create the wrong
+incentive (writing tests *of* test helpers to inflate the gate). Each
+test-utils package has its own self-test (see
+`internal/testutil/db/sqlite_test.go`,
+`internal/testutil/httpx/server_test.go`, etc.) so the substrate
+itself is still verified — it's just not what the production-coverage
+number tracks.
+
+Raise toward 80%/85% as scenarios stabilise. Tighten the threshold
+rather than loosening it when a new file lands without tests; that's
+the signal that drives the test-first habit.
+
+### CI failure mode
+
+A drop below floor fails the relevant CI job immediately with the
+actual percentage in the error message (`::error::API coverage 71.4%
+< 75%`). The fix is to raise coverage in the missing file, not to
+lower the gate.
 
 ## Common patterns and anti-patterns
 

@@ -1,0 +1,2 @@
+{"id":"knw-d-1","at":"2026-04-10T12:00:00Z","by":"investigator","topic":"snapshot/10","content":"legacy"}
+{"id":"knw-d-2","at":"2026-04-15T12:00:00Z","topic":"snapshot/15","content":"already migrated","caller":"operator","caller_note":"hand-curated","attribution":{"kind":"operator-direct","member_id":null,"team_id":null,"run_id":null,"spawn_origin":"operator-cli","source_skill_id":null}}

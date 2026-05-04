@@ -1,5 +1,5 @@
 // Package notes is the CLI's notes-domain command surface. Mirrors
-// the API's /api/v1/notes endpoints and the UI's lib/notes.ts client
+// the API's /api/v1/notes endpoints and the UI's api/notes.ts client
 // — the three CLI commands (list/create/get) wrap the same wire
 // contract the other surfaces decode through.
 //

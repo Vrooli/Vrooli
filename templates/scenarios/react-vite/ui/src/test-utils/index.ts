@@ -30,8 +30,8 @@
  *
  *   import { makeHealthResponse } from "@/test-utils";
  *
- *   vi.mock("./lib/api", async (importOriginal) => {
- *     const actual = await importOriginal<typeof import("./lib/api")>();
+ *   vi.mock("./api/health", async (importOriginal) => {
+ *     const actual = await importOriginal<typeof import("./api/health")>();
  *     return {
  *       ...actual,
  *       fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
@@ -43,7 +43,7 @@
  * `makeHealthResponse()` is referenced from inside the factory closure,
  * which runs when vitest resolves the mock — *after* imports are
  * initialised. The pattern above is hoisting-safe and preserves every
- * non-overridden export of `./lib/api` via `importOriginal()`.
+ * non-overridden export of `./api/health` via `importOriginal()`.
  */
 export { renderWithProviders } from "./renderWithProviders";
 export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
@@ -75,7 +75,7 @@ export type {
 } from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
-// generic `lib/api` health/error path). Domain-specific mocks
+// generic `api/health` health/error path). Domain-specific mocks
 // (e.g. `makeNotesMocks`) live with their feature.
 // Use `...makeApiMocks()` *inside* the
 // `vi.mock(..., async (importOriginal) => …)` factory closure — never

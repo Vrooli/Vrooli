@@ -254,9 +254,13 @@ ui/src/
     notes/
       NotesCard.tsx     ◀── canonical CRUD reference; replace per scenario
   hooks/                ◀── custom hooks (spatial nav, gamepad)
+  api/
+    client.ts           ◀── substrate: protoFetch + ApiError + decodeApiError
+    health.ts           ◀── health endpoint wrapper
+    notes.ts            ◀── canonical CRUD wrapper (4 lines/method via api/client::protoFetch)
   lib/
-    api.ts              ◀── substrate: protoFetch + ApiError + decodeApiError
-    notes.ts            ◀── canonical CRUD wrapper (4 lines/method via lib/api::protoFetch)
+    profiler.ts         ◀── browser performance helpers
+    utils.ts            ◀── pure UI utilities
   i18n/
     index.ts            ◀── i18next singleton; locale persistence; <html lang>/<html dir>
     format.ts           ◀── Intl-based date/number/currency/list helpers
@@ -380,7 +384,7 @@ clean responsibility boundaries.
 | Time | `clock.Clock` interface | `mocks.FakeClock` (cross-domain) |
 | DB reachability | `database.Pinger` interface | `mocks.FakePinger` (cross-domain) |
 | Outbound HTTP | `httpc.Doer` interface | `mocks.FakeDoer` |
-| UI ↔ API | `lib/api.ts` / `lib/notes.ts` modules | inline `vi.mock` |
+| UI ↔ API | `api/client.ts` / `api/notes.ts` modules | inline `vi.mock` |
 | Render-error catch | `ErrorBoundary` (system under test) | controlled-throw fixture |
 
 The full register lives in [`SEAMS.md`](../internal/SEAMS.md). Test

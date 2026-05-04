@@ -184,8 +184,8 @@ rm -rf api/internal/notes \
        cli/domains/notes \
        proto/v1/notes \
        ui/src/features/notes \
-       ui/src/lib/notes.ts \
-       ui/src/lib/notes.test.ts
+       ui/src/api/notes.ts \
+       ui/src/api/notes.test.ts
 ```
 
 That single sweep takes the schema (`api/internal/notes/schema.{sql,go}`),

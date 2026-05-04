@@ -19,11 +19,12 @@ import (
 // concrete implementations (clock.System{}, *sql.DB) in main.go; tests
 // wire fakes from internal/testutil/mocks.
 type Deps struct {
-	Pinger  store.Pinger
-	Clock   clock.Clock
-	Logger  *log.Logger
-	Service string
-	Version string
+	Pinger    store.Pinger
+	Clock     clock.Clock
+	Logger    *log.Logger
+	NoteStore store.NoteStore
+	Service   string
+	Version   string
 }
 
 // Server is the wired HTTP application: dependencies + router. After

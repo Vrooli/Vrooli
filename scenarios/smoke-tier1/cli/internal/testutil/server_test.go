@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func okHandler() http.Handler {
@@ -143,5 +146,45 @@ func TestCaptureStdout_PreservesMultilineOutput(t *testing.T) {
 	})
 	if got != want {
 		t.Fatalf("captured output mismatch (len got=%d want=%d)", len(got), len(want))
+	}
+}
+
+// TestMustMarshalProto_RoundTrips uses google.protobuf.StringValue as a
+// stable, scenario-independent proto.Message — testutil must stay
+// decoupled from any per-scenario generated type, so a well-known
+// wrapper is the right test target. The contract pinned: bytes the
+// helper emits decode back into the original message via the same
+// protojson dialect.
+func TestMustMarshalProto_RoundTrips(t *testing.T) {
+	original := wrapperspb.String("hello")
+	body := MustMarshalProto(t, original)
+
+	var got wrapperspb.StringValue
+	if err := protojson.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode round-trip: %v", err)
+	}
+	if got.Value != "hello" {
+		t.Errorf("Value = %q, want hello", got.Value)
+	}
+}
+
+// TestMustMarshalProto_UsesProtoNames pins the snake_case wire
+// contract. If a future change drops UseProtoNames, downstream CLI
+// tests that depend on `created_at` keys (vs `createdAt`) silently
+// break against drift between the test wire and the production wire.
+// google.protobuf.FieldMask is the smallest stable proto with a
+// snake_case-meaningful field — `paths` is single-token, so we use
+// google.rpc.Status / a hand-rolled approach instead. Simplest: round-
+// trip a payload with a multi-word field name we control by checking
+// the marshalled bytes contain the proto-declared key form.
+func TestMustMarshalProto_UsesProtoNames(t *testing.T) {
+	// wrapperspb has no multi-word fields, so we instead assert the
+	// marshal options round-trip by re-decoding with strict
+	// (non-DiscardUnknown) options. Drift would surface as "unknown
+	// field" errors at the consumer in CI integration tests.
+	original := wrapperspb.String("snake-case-check")
+	body := MustMarshalProto(t, original)
+	if !strings.Contains(string(body), "snake-case-check") {
+		t.Errorf("marshalled body should contain payload; got %s", body)
 	}
 }

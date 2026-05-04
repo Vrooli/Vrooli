@@ -81,7 +81,7 @@ For each "hope" entry, propose a type-system or CI-check fix.
 
 Worked-example references:
 - Route paths declared in both `handler.go` (mux registrations) and `endpoints.go` (descriptor `Path`/`Method` fields). Enforcement: hope. Fix: `module_test.go` walks the router and asserts the registered set equals the descriptor set.
-- `lib/api.ts` throws `new Error(...)`; `lib/notes.ts` throws typed `ApiError`. Already drifted. Enforcement: hope. Fix: `ApiError` lifts to `lib/api.ts`; both surfaces use it.
+- `api/health.ts` throws `new Error(...)`; `api/notes.ts` throws typed `ApiError`. Already drifted. Enforcement: hope. Fix: `ApiError` lives in `api/client.ts`; every endpoint module uses it.
 - `cli_commands_seed.json` listing names that may or may not match `cli/domains/<dom>/register.go` registrations. Enforcement: partial (cross-check covers endpoints → seed but not seed → register). Fix: extend the cross-check.
 
 ---

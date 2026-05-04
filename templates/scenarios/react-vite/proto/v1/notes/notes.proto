@@ -22,8 +22,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 //   - API: handlers/notes/handler_test.go decodes responses via
 //          assertx.MustUnmarshalProto into the messages below and asserts
 //          on typed fields.
-//   - UI:  ui/src/lib/notes.ts wraps `fetch` with `fromJson(NoteSchema, ...)`
-//          using `useProtoNames: true` so the wire shape and the runtime
+//   - UI:  ui/src/api/notes.ts wraps `fetch` with `fromJson(NoteSchema, ...)`
+//          through the shared proto JSON client so the wire shape and runtime
 //          type agree.
 //   - CLI: cli/domains/notes/handlers.go decodes the same JSON via
 //          protojson.Unmarshal into the generated proto types and renders

@@ -132,7 +132,7 @@ Defined in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`.
 2. If this is a new domain: create `internal/<domain>/{types,repository,sqlite,service}.go`
    following the notes layout.
 3. Add the handler in `handlers/<domain>/handler.go`. Keep it thin —
-   parse, validate via `DecodeJSON[T]`, call the service, translate
+   parse structured proto JSON via `DecodeProtoJSON[T]`, call the service, translate
    typed sentinels to error envelopes, write the proto response.
 4. Register the route in `internal/server/routes.go`.
 5. Update [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) — path,

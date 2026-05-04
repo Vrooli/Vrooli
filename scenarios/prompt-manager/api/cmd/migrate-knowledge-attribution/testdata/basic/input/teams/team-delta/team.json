@@ -1,0 +1,10 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "team-delta",
+  "displayName": "Team Delta",
+  "enabled": true,
+  "operatingContract": {
+    "schemaVersion": 1
+  }
+}

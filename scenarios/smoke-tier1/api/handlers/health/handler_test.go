@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/smoke-tier1/v1/health"
 
 	"smoke-tier1/internal/clock"
 	"smoke-tier1/internal/server"
 	"smoke-tier1/internal/testutil/assertx"
-	"smoke-tier1/internal/testutil/fixtures"
 	"smoke-tier1/internal/testutil/httpx"
 	"smoke-tier1/internal/testutil/mocks"
 )
@@ -31,10 +31,12 @@ import (
 //
 // The pattern: spin up a *server.Server with mocked deps, wrap it in
 // httpx.NewLiveServer (real httptest.Server over real socket), issue a
-// real HTTP request, decode JSON straight into the typed
-// fixtures.HealthResponse mirror (which carries the api-core/health
-// JSON tags), assert on typed fields. Same shape every future handler
-// test in this scenario should follow.
+// real HTTP request, decode JSON straight into the generated proto
+// type via assertx.MustUnmarshalProto, assert on typed fields. Same
+// shape every future handler test in this scenario should follow —
+// when the endpoint's wire shape lives in packages/proto/, decode
+// through protojson; when it doesn't yet, MustDecodeJSON is the
+// fallback (but adding the proto first is the right move).
 func TestHealthHandler(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -68,18 +70,19 @@ func TestHealthHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
 			srv := server.New(server.Deps{
-				Pinger:  pinger,
-				Clock:   clock.System{},
-				Logger:  log.New(discardWriter{}, "", 0),
-				Service: "react-vite-test",
-				Version: "1.0.0",
+				Pinger:    pinger,
+				Clock:     clock.System{},
+				Logger:    log.New(discardWriter{}, "", 0),
+				NoteStore: &mocks.FakeNoteStore{},
+				Service:   "react-vite-test",
+				Version:   "1.0.0",
 			})
 			live := httpx.NewLiveServer(t, srv)
 
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
 			assertx.AssertStatus(t, resp, tc.wantStatusCode)
 
-			got := assertx.MustDecodeJSON[fixtures.HealthResponse](t, body)
+			got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")

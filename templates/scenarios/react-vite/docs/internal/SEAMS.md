@@ -219,25 +219,25 @@ never domain-specific interfaces.
 The UI uses different mechanisms (Vitest's `vi.mock` hoisting), but
 the goal is the same: production wires once, tests substitute.
 
-### `lib/api::protoFetch` (substrate: proto-typed network boundary)
+### `api/client::protoFetch` (substrate: proto-typed network boundary)
 
 | | |
 |---|---|
 | **Seam** | Single proto-typed fetch helper; substrate for every per-domain client |
-| **Module** | `ui/src/lib/api.ts` exports `protoFetch<RespDesc, ReqDesc>(method, path, opts)` plus `ApiError`, `decodeApiError`, `makeApiError`. `fetchHealth` and every `lib/<domain>.ts` file calls it. |
+| **Module** | `ui/src/api/client.ts` exports `protoFetch<RespDesc, ReqDesc>(method, path, opts)` plus `ApiError`, `decodeApiError`, `makeApiError`. `fetchHealth` and every `api/<domain>.ts` file calls it. |
 | **Production wiring** | Every domain client imports `protoFetch` and calls it once per method. Non-2xx responses throw `ApiError` carrying the typed `ErrorEnvelope.code`; 2xx responses decode through `fromJson(<RespSchema>, ..., { ignoreUnknownFields: true })`. |
-| **Test fake** | `lib/api.test.ts` stubs `global.fetch` directly via `vi.stubGlobal` to drive `protoFetch` against canned responses. Per-domain tests (`lib/notes.test.ts`) do the same; the substrate doesn't need its own mock — the seam is the call to `fetch`, which is already global. Component-level tests `vi.mock("./lib/<domain>", …)` instead, which substitutes one layer up and bypasses `protoFetch` entirely. |
+| **Test fake** | `api/client.test.ts` stubs `global.fetch` directly via `vi.stubGlobal` to drive `protoFetch` against canned responses. Per-domain tests (`api/notes.test.ts`) do the same; the substrate doesn't need its own mock — the seam is the call to `fetch`, which is already global. Component-level tests `vi.mock("./api/<domain>", …)` instead, which substitutes one layer up and bypasses `protoFetch` entirely. |
 | **Why it exists** | Per-domain clients used to repeat a 25-line ribbon (fetch + ok-check + `decodeApiError` + `fromJson` + missing-field guard) per method. Hoisting it into `protoFetch` collapses each method to a 4-line call site, and gives every UI client one error path: `fetchHealth` and `listNotes` now throw the same `ApiError` shape. New domain clients are 4 lines per method, not 25. |
 
-### `lib/<domain>` (per-domain client modules)
+### `api/<domain>` (per-domain client modules)
 
 | | |
 |---|---|
-| **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `lib/notes.ts`) |
-| **Module** | `ui/src/lib/notes.ts` (`listNotes`, `createNote`, `getNote`); re-exports `ApiError` from `./api` so existing imports keep working. |
+| **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/notes.ts`) |
+| **Module** | `ui/src/api/notes.ts` (`listNotes`, `createNote`, `getNote`); imports `ApiError` from `./client`. |
 | **Production wiring** | `App.tsx` and feature components import the per-domain functions directly and wire them through `useQuery` / `useMutation`. Each function is a single `protoFetch(...)` call plus an optional missing-field guard; no fetch ribbon, no decode ribbon, no per-domain error wrapper. |
-| **Test fake** | Component tests use inline `vi.mock("./lib/notes", async (importOriginal) => …)`; the factory closure uses `makeNote()` / `makeListNotesResponse()` from `@/test-utils`. Unit tests in `lib/notes.test.ts` stub `global.fetch` and exercise the real `listNotes` / `createNote` / `getNote` against `protoFetch`. |
-| **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client (e.g., `lib/tasks.ts`): import `{ protoFetch, ApiError, makeApiError }` from `./api`, expose one function per HTTP method, guard optional response fields with `makeApiError("internal", "...")`. |
+| **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => …)`; the factory closure uses `makeNote()` / `makeListNotesResponse()` from `@/test-utils`. Unit tests in `api/notes.test.ts` stub `global.fetch` and exercise the real `listNotes` / `createNote` / `getNote` against `protoFetch`. |
+| **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client (e.g., `api/tasks.ts`): import `{ protoFetch, ApiError, makeApiError }` from `./client`, expose one function per HTTP method, guard optional response fields with `makeApiError("internal", "...")`. |
 
 ### ErrorBoundary (render-error catch)
 

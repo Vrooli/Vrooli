@@ -82,7 +82,7 @@ func (h *handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// failure through the service would force the service to define an
 	// error type for "you sent garbage." Cleaner to keep the boundary
 	// tight.
-	req, err := httpx.DecodeJSON[notesv1.CreateNoteRequest](r)
+	req, err := httpx.DecodeProtoJSON[*notesv1.CreateNoteRequest](r)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
 		return

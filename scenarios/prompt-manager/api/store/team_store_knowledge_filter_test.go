@@ -10,10 +10,10 @@ func TestGetKnowledge_TopicFilters(t *testing.T) {
 	ctx := context.Background()
 
 	entries := []KnowledgeEntry{
-		{ID: "k1", At: "2026-05-01T00:00:00Z", By: "vision-walk", Topic: "research-inbox/audience/foo", Content: "a"},
-		{ID: "k2", At: "2026-05-01T00:00:01Z", By: "vision-walk", Topic: "research-inbox/hook/bar", Content: "b"},
-		{ID: "k3", At: "2026-05-01T00:00:02Z", By: "researcher", Topic: "audience-scan/foo", Content: "c"},
-		{ID: "k4", At: "2026-05-01T00:00:03Z", By: "researcher", Topic: "research-inbox", Content: "d"},
+		{ID: "k1", At: "2026-05-01T00:00:00Z", Caller: "vision-walk", Topic: "research-inbox/audience/foo", Content: "a"},
+		{ID: "k2", At: "2026-05-01T00:00:01Z", Caller: "vision-walk", Topic: "research-inbox/hook/bar", Content: "b"},
+		{ID: "k3", At: "2026-05-01T00:00:02Z", Caller: "researcher", Topic: "audience-scan/foo", Content: "c"},
+		{ID: "k4", At: "2026-05-01T00:00:03Z", Caller: "researcher", Topic: "research-inbox", Content: "d"},
 	}
 	for i := range entries {
 		if err := s.AppendKnowledge(ctx, "team-1", &entries[i]); err != nil {

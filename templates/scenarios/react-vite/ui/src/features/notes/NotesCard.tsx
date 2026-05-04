@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { createNote, listNotes } from "../../lib/notes";
+import { createNote, listNotes } from "../../api/notes";
 
 const NOTES_QUERY_KEY = ["notes"] as const;
 

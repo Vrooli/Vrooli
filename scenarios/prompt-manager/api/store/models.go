@@ -2,9 +2,10 @@ package store
 
 import (
 	"encoding/json"
+	"time"
+
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
-	"time"
 )
 
 // Skill represents a skill entity from skill.json
@@ -205,6 +206,16 @@ type Team struct {
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 	Shared            *TeamShared                     `json:"shared,omitempty"`
 	Retention         *RetentionConfig                `json:"retention,omitempty"`
+	// AttributionValidFrom is the per-team Pillar 3 cutoff. Knowledge
+	// entries written on or after this ISO-8601 date (YYYY-MM-DD) MUST
+	// carry runtime attribution conforming to docs/agent-system/RUNTIME_ATTRIBUTION.md;
+	// pre-cutoff entries are treated as kind="legacy" and skipped by
+	// ruleActualWriterUndeclared (P3.6). The value is set at migration time
+	// by cmd/migrate-knowledge-attribution and may be widened retroactively
+	// by the operator if a migration introduces unexpected drift.
+	// Empty string means the team has not yet adopted the runtime contract;
+	// the validator skips such teams entirely.
+	AttributionValidFrom string `json:"attributionValidFrom,omitempty"`
 	Timestamps
 }
 
@@ -646,13 +657,162 @@ type DecisionEntry struct {
 
 // --- Knowledge Log ---
 
+// Knowledge writer-kind enum. Closed vocabulary; new kinds require a
+// meta-optimization decision and a migration plan. The canon contract is
+// docs/agent-system/RUNTIME_ATTRIBUTION.md § kind enum.
+const (
+	// KnowledgeKindAgentMember is a team member's agent process running
+	// under agent-manager. Requires MemberID, TeamID, RunID on attribution.
+	KnowledgeKindAgentMember = "agent-member"
+	// KnowledgeKindWriterSkill is a registered writer skill (e.g. report-bug,
+	// report-friction, morning-vision-walk). Requires SourceSkillID and
+	// TeamID; MemberID/RunID are populated when invoked from a run.
+	KnowledgeKindWriterSkill = "writer-skill"
+	// KnowledgeKindOperatorDirect is a human at the CLI not running under
+	// any agent context. No required fields beyond Kind.
+	KnowledgeKindOperatorDirect = "operator-direct"
+	// KnowledgeKindExternal is a non-Vrooli system (webhook, future
+	// integration). No required fields beyond Kind.
+	KnowledgeKindExternal = "external"
+	// KnowledgeKindLegacy is set by the one-time P3.2 migration on every
+	// pre-cutoff entry. The original freeform `by` value is preserved on
+	// the entry's CallerNote field. Skipped by ruleActualWriterUndeclared.
+	KnowledgeKindLegacy = "legacy"
+	// KnowledgeKindInvestigation is a bug-investigator or root-cause-analysis
+	// run reproducing or annotating an existing entry. Requires RunID;
+	// treated as read-only relative to topic-flow declarations.
+	KnowledgeKindInvestigation = "investigation"
+)
+
+// KnowledgeKinds enumerates every valid AttributionInfo.Kind value. Used by
+// the API handler (P3.4) to reject unknown kinds at write time and by tests
+// to assert constant coverage.
+var KnowledgeKinds = []string{
+	KnowledgeKindAgentMember,
+	KnowledgeKindWriterSkill,
+	KnowledgeKindOperatorDirect,
+	KnowledgeKindExternal,
+	KnowledgeKindLegacy,
+	KnowledgeKindInvestigation,
+}
+
+// Spawn-origin enum. Closed vocabulary; informational signal for triage and
+// curation (debt-curator joins on this to spot patterns), not a gating field.
+// The canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md
+// § spawn_origin enum.
+const (
+	// SpawnOriginHeartbeat — run was spawned by prompt-manager's heartbeat
+	// scheduler.
+	SpawnOriginHeartbeat = "heartbeat"
+	// SpawnOriginOperatorCLI — run was spawned directly from an operator's
+	// terminal.
+	SpawnOriginOperatorCLI = "operator-cli"
+	// SpawnOriginSwarmTask — run was spawned as part of a swarm-manager
+	// initiative or sub-task.
+	SpawnOriginSwarmTask = "swarm-task"
+	// SpawnOriginVisionWalk — run was spawned from morning-vision-walk's
+	// seeded inbox entries.
+	SpawnOriginVisionWalk = "vision-walk"
+	// SpawnOriginInvestigation — run was spawned by another run's
+	// investigate action.
+	SpawnOriginInvestigation = "investigation"
+	// SpawnOriginLegacy — pre-cutoff entry; origin not recorded.
+	SpawnOriginLegacy = "legacy"
+	// SpawnOriginUnknown — origin could not be determined (e.g., a writer
+	// skill invoked outside any run context).
+	SpawnOriginUnknown = "unknown"
+)
+
+// SpawnOrigins enumerates every valid AttributionInfo.SpawnOrigin value.
+// Used by the API handler (P3.4) to reject unknown origins at write time
+// and by tests to assert constant coverage.
+var SpawnOrigins = []string{
+	SpawnOriginHeartbeat,
+	SpawnOriginOperatorCLI,
+	SpawnOriginSwarmTask,
+	SpawnOriginVisionWalk,
+	SpawnOriginInvestigation,
+	SpawnOriginLegacy,
+	SpawnOriginUnknown,
+}
+
+// AttributionInfo is the structured-attribution payload carried on every
+// post-cutoff knowledge entry. The API handler (P3.4) populates it at
+// write time from the X-Vrooli-Attribution HTTP header.
+//
+// The canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md
+// § The structured-attribution payload — that doc owns field semantics,
+// per-kind required-field rules, and the cryptographic-strengthening path.
+//
+// Optional pointer fields marshal as JSON null when nil; the canon
+// preserves null over omission to keep the on-disk shape uniform across
+// kinds (so every legacy entry has the same field set as every live
+// entry, with kind-driven nulls rather than missing keys).
+type AttributionInfo struct {
+	// Kind is the category of writer; required, closed vocabulary
+	// (KnowledgeKind*). Unknown values are rejected by the API at write
+	// time and surfaced as attribution_malformed by the validator.
+	Kind string `json:"kind"`
+	// MemberID is the team-scoped member id (matches
+	// store/teams/<team>/members/<id>/) for agent-member and writer-skill
+	// writes. Nil for operator-direct, external, legacy. Marshals as null.
+	MemberID *string `json:"member_id"`
+	// TeamID is the team id this write is attributed to; the API handler
+	// rejects mismatches against the URL path's team id (HTTP 400
+	// team_mismatch). Nil for operator-direct when the operator did not
+	// specify a team scope. Marshals as null.
+	TeamID *string `json:"team_id"`
+	// RunID is the agent-manager run UUID this write is attributed to —
+	// allows joining a write to its run lineage. Required for
+	// agent-member and investigation; optional for writer-skill (when
+	// invoked from a run); nil for operator-direct, external, legacy.
+	// Marshals as null.
+	RunID *string `json:"run_id"`
+	// SpawnOrigin is informational — how the writer process was started;
+	// required, closed vocabulary (SpawnOrigin*). Used by debt-curator
+	// to spot patterns ("most undeclared writes come from vision-walk
+	// spawns"); never gates writes.
+	SpawnOrigin string `json:"spawn_origin"`
+	// SourceSkillID names the skill that performed or mediated the
+	// write. Required for writer-skill; optional for others (when a
+	// skill mediated the write). Marshals as null.
+	SourceSkillID *string `json:"source_skill_id"`
+}
+
 // KnowledgeEntry represents a piece of team knowledge persisted across heartbeats.
+//
+// Identity: every post-cutoff entry carries structured Attribution that the
+// API populates from the X-Vrooli-Attribution HTTP header (P3.4). Caller is
+// a derived display string the API computes at write time — never accepted
+// as input. CallerNote is optional freeform context. The full contract is
+// docs/agent-system/RUNTIME_ATTRIBUTION.md.
+//
+// Pre-cutoff entries are migrated by P3.2 to kind=legacy with the original
+// `by` field value preserved on CallerNote. Post-cutoff entries with
+// kind=legacy are not produced — the migration runs once per team.
 type KnowledgeEntry struct {
 	ID         string `json:"id"`
 	At         string `json:"at"`
-	By         string `json:"by"`
 	Topic      string `json:"topic"`
 	Content    string `json:"content"`
 	Source     string `json:"source,omitempty"`
 	Supersedes string `json:"supersedes,omitempty"`
+	// Caller is the human-readable display label derived at write time
+	// from Attribution. Format depends on Attribution.Kind (see
+	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Derived display: caller).
+	// Persisted verbatim so list/search reads don't need to parse
+	// Attribution. NEVER accepted as input — clients send Attribution and
+	// the API derives Caller.
+	Caller string `json:"caller"`
+	// CallerNote is optional freeform context the writer may attach (debug
+	// breadcrumb, retry note, migration trail). Capped at 256 chars by the
+	// P3.4 handler. No identity meaning; never read by validators.
+	// P3.2 migration preserves the legacy `by` field's value here on every
+	// pre-cutoff entry.
+	CallerNote string `json:"caller_note,omitempty"`
+	// Attribution is the structured truth about who wrote this entry.
+	// Always present (post-cutoff and migrated entries alike). P3.4
+	// rejects mutating writes that lack the X-Vrooli-Attribution header
+	// or carry a malformed payload.
+	Attribution AttributionInfo `json:"attribution"`
 }

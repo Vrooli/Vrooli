@@ -18,6 +18,13 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
+  "notes": {
+    "title": "ノート",
+    "loading": "ノートを読み込み中…",
+    "empty": "まだノートはありません。",
+    "create": "ノートを作成",
+    "error": "ノートを読み込めませんでした。"
+  },
   "locale": {
     "switcherLabel": "言語"
   }

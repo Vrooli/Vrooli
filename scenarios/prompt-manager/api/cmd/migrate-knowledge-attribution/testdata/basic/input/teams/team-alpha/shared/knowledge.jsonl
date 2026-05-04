@@ -1,0 +1,3 @@
+{"id":"knw-a-1","at":"2026-04-01T12:00:00Z","by":"director","topic":"snapshot/01","content":"first"}
+{"id":"knw-a-2","at":"2026-04-02T12:00:00Z","by":"researcher","topic":"snapshot/02","content":"second","source":"https://example.com"}
+{"id":"knw-a-3","at":"2026-04-03T12:00:00Z","by":"","topic":"snapshot/03","content":"third","supersedes":"knw-a-1"}

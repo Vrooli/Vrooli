@@ -253,15 +253,38 @@ type AddDecisionRequest struct {
 	InitiativeMetadata *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
 }
 
-// KnowledgeEntry represents a knowledge log entry.
+// AttributionInfo mirrors the API-side store.AttributionInfo so the CLI can
+// deserialize knowledge-list responses cleanly. Field semantics, JSON tags,
+// and per-kind required-field rules are owned by
+// docs/agent-system/RUNTIME_ATTRIBUTION.md and the canonical Go struct in
+// scenarios/prompt-manager/api/store/models.go::AttributionInfo. Keep this
+// shape in lockstep with that struct — drift surfaces as silent JSON-decode
+// gaps. The CLI does not yet construct attribution payloads (P3.3 wires the
+// X-Vrooli-Attribution header path); it only renders received attribution
+// for now.
+type AttributionInfo struct {
+	Kind          string  `json:"kind"`
+	MemberID      *string `json:"member_id"`
+	TeamID        *string `json:"team_id"`
+	RunID         *string `json:"run_id"`
+	SpawnOrigin   string  `json:"spawn_origin"`
+	SourceSkillID *string `json:"source_skill_id"`
+}
+
+// KnowledgeEntry mirrors the API-side store.KnowledgeEntry. Caller is the
+// derived display string the API computes at write time; CallerNote is
+// optional freeform context; Attribution is the structured truth. See
+// docs/agent-system/RUNTIME_ATTRIBUTION.md for the contract.
 type KnowledgeEntry struct {
-	ID         string `json:"id"`
-	At         string `json:"at"`
-	By         string `json:"by"`
-	Topic      string `json:"topic"`
-	Content    string `json:"content"`
-	Source     string `json:"source,omitempty"`
-	Supersedes string `json:"supersedes,omitempty"`
+	ID          string          `json:"id"`
+	At          string          `json:"at"`
+	Topic       string          `json:"topic"`
+	Content     string          `json:"content"`
+	Source      string          `json:"source,omitempty"`
+	Supersedes  string          `json:"supersedes,omitempty"`
+	Caller      string          `json:"caller"`
+	CallerNote  string          `json:"caller_note,omitempty"`
+	Attribution AttributionInfo `json:"attribution"`
 }
 
 // KnowledgeListResponse represents the knowledge list API response.
@@ -271,10 +294,16 @@ type KnowledgeListResponse struct {
 }
 
 // AddKnowledgeRequest is the request body for adding a knowledge entry.
+//
+// Identity is carried out-of-band on the X-Vrooli-Attribution header
+// (set by cli-core's HTTPClient extra-header source — see app.go and
+// docs/agent-system/RUNTIME_ATTRIBUTION.md). The body never carries
+// caller identity. CallerNote is freeform context only — it cannot
+// override or contradict the header's attribution.
 type AddKnowledgeRequest struct {
-	By         string `json:"by"`
 	Topic      string `json:"topic"`
 	Content    string `json:"content"`
+	CallerNote string `json:"caller_note,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Supersedes string `json:"supersedes,omitempty"`
 }
@@ -3890,23 +3919,31 @@ func printDecisionModifications(m *DecisionModifications) {
 
 func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("knowledge-add", flag.ContinueOnError)
-	by := fs.String("by", "", "Agent ID (required)")
 	topic := fs.String("topic", "", "Topic/category tag (required)")
 	content := fs.String("content", "", "The knowledge content (required)")
 	source := fs.String("source", "", "Where this was learned from")
 	supersedes := fs.String("supersedes", "", "ID of knowledge entry this replaces")
+	callerNote := fs.String("caller-note", "", "Optional freeform context (debug breadcrumb, retry note). Does not carry identity — attribution is auto-derived from the runtime context. Capped at 256 chars by the API.")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+
+	// --by is removed in P3.3; identity now flows over the
+	// X-Vrooli-Attribution header (canon:
+	// docs/agent-system/RUNTIME_ATTRIBUTION.md). Defining the flag
+	// lets us emit a clean migration message instead of "flag
+	// provided but not defined".
+	by := fs.String("by", "", "[removed] use --caller-note for freeform context; identity is auto-attributed")
+
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	if strings.TrimSpace(*by) != "" {
+		return fmt.Errorf("--by is removed; identity is auto-attributed from the runtime context. Use --caller-note for freeform notes. See docs/agent-system/RUNTIME_ATTRIBUTION.md")
+	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team knowledge-add <team-id> --by=<id> --topic=\"...\" --content=\"...\"")
+		return fmt.Errorf("usage: team knowledge-add <team-id> --topic=\"...\" --content=\"...\" [--caller-note=\"...\"]")
 	}
 	teamID := fs.Arg(0)
 
-	if strings.TrimSpace(*by) == "" {
-		return fmt.Errorf("by is required")
-	}
 	if strings.TrimSpace(*topic) == "" {
 		return fmt.Errorf("topic is required")
 	}
@@ -3915,9 +3952,9 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 	}
 
 	req := AddKnowledgeRequest{
-		By:         *by,
 		Topic:      *topic,
 		Content:    *content,
+		CallerNote: *callerNote,
 		Source:     *source,
 		Supersedes: *supersedes,
 	}
@@ -3987,7 +4024,7 @@ func cmdKnowledgeList(ctx appctx.Context, args []string) error {
 		if entry.Source != "" {
 			sourceStr = fmt.Sprintf(" (source: %s)", entry.Source)
 		}
-		fmt.Printf("--- %s [%s] by %s%s%s ---\n", entry.ID, entry.Topic, entry.By, supersededStr, sourceStr)
+		fmt.Printf("--- %s [%s] by %s%s%s ---\n", entry.ID, entry.Topic, entry.Caller, supersededStr, sourceStr)
 		fmt.Printf("%s\n\n", entry.Content)
 	}
 	return nil

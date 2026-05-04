@@ -158,7 +158,7 @@ time. The pattern from wire to render:
 |---|---|---|
 | Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteResponse` |
 | Error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | One typed body for every non-2xx path, with canonical codes (`invalid_request`, `not_found`, `internal`) |
-| Request decode | `internal/httpx/decode.go::DecodeJSON[T]` | Strict input by default — `DisallowUnknownFields` rejects payloads carrying fields the schema hasn't caught up to |
+| Request decode | `internal/httpx/decode.go::DecodeProtoJSON[T]` | Structured proto ingress uses `protojson` and rejects unknown fields by default so schema drift fails at the boundary |
 | Domain types | `internal/notes/types.go::{Note, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels (`ErrInvalidNote` for validation, `ErrNoteNotFound` for misses) translate into 400/404 envelopes at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
@@ -168,8 +168,8 @@ time. The pattern from wire to render:
 | Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
 | Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeService` (from co-located `internal/notes/mocks/`) and exercises the full transport edge through `httpx.NewLiveServer` |
 | Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/lib/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
-| UI tests | `ui/src/lib/notes.test.ts` + the `App Notes pane` block in `App.test.tsx` | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./lib/notes", ...)` for the component test |
+| UI client | `ui/src/api/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
+| UI tests | `ui/src/api/notes.test.ts` + component tests | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./api/notes", ...)` for the component test |
 | CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
 | CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
 
@@ -358,7 +358,7 @@ Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
    add new factories alongside it as new shapes appear. Defaults
    should make the most common test path `make<Domain>()` with no
    args.
-3. **Inline `vi.mock("./lib/api", async (importOriginal) => …)`** —
+3. **Inline `vi.mock("./api/health", async (importOriginal) => …)`** —
    the canonical mocking shape. **Do not** wrap this in a helper
    function. Vitest hoists `vi.mock(...)` calls before any imports
    resolve; a wrapper function imported from `test-utils` would be in
@@ -375,8 +375,8 @@ import userEvent from "@testing-library/user-event";
 
 import { makeHealthResponse, renderWithProviders } from "./test-utils";
 
-vi.mock("./lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/api")>();
+vi.mock("./api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/health")>();
   return {
     ...actual,
     fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
@@ -417,7 +417,7 @@ update when canonical English copy changes — that's what they verify.
 See `App.test.tsx` for the full pattern and the CLDR plural variants
 (`refreshCount_one`, `notifications.summary_zero` / `_one` / base).
 
-### Mock builders for `lib/api` and `lib/notes`
+### Mock builders for `api/health` and `api/notes`
 
 `vi.mock(path, factory)` is hoisted before any user import resolves;
 a wrapper imported from `test-utils` would be in the temporal dead
@@ -432,13 +432,13 @@ exactly this. Canonical shape:
 ```tsx
 import { makeApiMocks, makeNotesMocks } from "@/test-utils";
 
-vi.mock("./lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/api")>();
+vi.mock("./api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
 
-vi.mock("./lib/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/notes")>();
+vi.mock("./api/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/notes")>();
   return { ...actual, ...makeNotesMocks() };
 });
 ```
@@ -450,7 +450,7 @@ Defaults are picked so the most common test paths work no-args:
 overrides use vitest's standard pattern *after* the mock is wired:
 
 ```tsx
-const { listNotes } = await import("./lib/notes");
+const { listNotes } = await import("./api/notes");
 vi.mocked(listNotes).mockResolvedValueOnce(
   makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
 );
@@ -689,7 +689,7 @@ Steps:
 
 5. **Tests follow.** Handler test uses `MustUnmarshalProto`; fixture
    test asserts on the typed shape via `proto.Equal`. UI test mocks
-   `lib/api` and returns `makeListResponse()` from the factory.
+   `api/notes` and returns `makeListResponse()` from the factory.
 
 Don't add a new `mocks/Fake*` interface for the proto type — the proto
 isn't a seam, it's a contract. Seams are interfaces; protos are
@@ -781,7 +781,7 @@ lower the gate.
 | `mocks.FakeClock` for time-dependent assertions | `time.Sleep(150 * time.Millisecond)` then assert on a fuzzy match |
 | `httpx.NewLiveServer` for handler tests | `httptest.NewRecorder` (hides SSE-flusher bugs) |
 | `getByTestId(selectors.x.y)` for stable selectors | `getByText("Save")` (breaks the moment copy changes) |
-| `vi.mock("./lib/api", async (importOriginal) => …)` inline at top of file | Helper-wrapped `vi.mock` (TDZ at hoist time) |
+| `vi.mock("./api/health", async (importOriginal) => …)` inline at top of file | Helper-wrapped `vi.mock` (TDZ at hoist time) |
 | `makeHealthResponse({ status: "degraded" })` for variants | Hardcoded literal payload in three different tests |
 | Per-method error knob (`PingErr error`) on fakes | Single global "fail mode" boolean across the fake |
 | `var _ Pinger = (*sql.DB)(nil)` to lock the contract at compile time | Runtime "does this satisfy" check in init |

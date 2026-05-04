@@ -219,7 +219,7 @@ function IntakeSection({ teamId, intake, output }: IntakeSectionProps) {
                   <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <code className="text-foreground/80">{entry.topic}</code>
                     <span>·</span>
-                    <span>by {entry.by || 'unknown'}</span>
+                    <span>by {entry.caller || 'unknown'}</span>
                     <span>·</span>
                     <span>{formatAge(entry.at)}</span>
                   </div>

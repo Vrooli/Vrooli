@@ -88,12 +88,12 @@ Hooks (React state management - calls controllers, handles UI state)
     ↓
 Controllers (Page-specific orchestration - coordinates services)
     ↓
-Services (Pure functions & API calls - handles validation, returns typed data)
+API/Services (boundary functions - parse/validate external data, return typed data)
 ```
 
 **Why this pattern:**
 - **Testing seams**: Each layer can be tested in isolation. Components test rendering, hooks test state transitions, controllers test orchestration, services test data transformation.
-- **Validation boundary**: Runtime validation (Zod) happens in the Service layer at the API boundary - once validated, data flows up as trusted types.
+- **Validation boundary**: Generated proto parsers validate proto API payloads in the API layer; Zod or equivalent schemas are reserved for UI-only forms and non-proto external data.
 - **Separation of concerns**: UI rendering is decoupled from data fetching and business logic.
 - **Customization without degradation**: You can swap out or customize any layer without breaking others.
 
@@ -104,9 +104,9 @@ Services (Pure functions & API calls - handles validation, returns typed data)
 | **Components** | Pure rendering, props → JSX | Snapshot/visual tests |
 | **Hooks** | UI state, context, call controllers | Hook unit tests |
 | **Controllers** | Orchestrate services, page-level logic | Integration tests |
-| **Services** | API calls, data transform, **runtime validation** | Unit tests, contract tests |
+| **API/Services** | API calls, data transform, **runtime boundary validation** | Unit tests, contract tests |
 
-**Key principle:** Components should never see invalid data. Validation failures are caught in the Service layer and surfaced as typed error states that the UI can handle gracefully.
+**Key principle:** Components should never see invalid data. Boundary parse/validation failures are caught in the API/service layer and surfaced as typed error states that the UI can handle gracefully.
 
 This pattern is **strongly recommended** for all React scenarios in Vrooli. The exact directory structure may vary (e.g., `src/services/`, `src/hooks/`, etc.), but the layer separation should be maintained.
 
@@ -291,7 +291,7 @@ Ensure components explicitly handle all states of async data:
 
 ---
 
-### **7. Runtime Validation with Protobuf + Zod (Recommended)**
+### **7. Runtime Validation with Protobuf at Boundaries**
 
 TypeScript types are erased at runtime - they cannot catch API shape mismatches, null values in unexpected places, or data corruption. For production reliability, use **runtime validation at system boundaries**.
 
@@ -301,68 +301,59 @@ TypeScript types are erased at runtime - they cannot catch API shape mismatches,
 Proto Definitions (packages/proto/schemas/)
     ↓ code generation
 Generated TS Types (@vrooli/proto-types)
-    ↓ derive validation schemas
-Zod Schemas (ui/src/shared/api/schemas/)
-    ↓ runtime validation in services
+    ↓ generated descriptor parse/serialize
+UI API Boundary (ui/src/api/)
+    ↓ typed results and typed error states
 Validated Data → Components
 ```
 
 **Why this chain:**
 - **Proto definitions** are the source of truth for API contracts (see `packages/proto/README.md`)
 - **Generated types** provide compile-time safety
-- **Zod schemas** provide runtime validation at the service layer
-- Once data passes Zod validation, it flows up as trusted typed data
+- **Generated descriptors** provide runtime parsing at the UI API boundary
+- Once data passes proto parsing, it flows up as trusted typed data
 
 #### **7.2 When to Validate**
 
 | Boundary | Validate? | Why |
 |----------|-----------|-----|
-| API responses | **YES** | External data, contract may drift |
-| WebSocket messages | **YES** | External data, parsing may fail |
-| User input | **YES** | Never trust user input |
+| Proto API responses | **YES, via `fromJson`** | External data, contract may drift |
+| Proto WebSocket messages | **YES, via `fromJson`** | External data, parsing may fail |
+| User input | **YES** | Never trust user input; validate before submit or rely on proto/API errors for proto-backed forms |
+| Non-proto external data | **YES, via Zod/equivalent** | No generated descriptor exists |
 | Internal service calls | No | Already validated at entry |
 | Component props | No | Data validated before reaching components |
 
-**Key principle:** Validate once at the system boundary (in Services), then trust the data as it flows through the application.
+**Key principle:** Validate once at the system boundary (`ui/src/api/` for proto API calls), then trust the data as it flows through the application.
 
 #### **7.3 Validation Pattern**
 
-Services should return a discriminated union that makes validation failures explicit:
+API boundary functions should return typed data or typed errors. Keep `fetch`, `fromJson`, `toJsonString`, and API error-envelope parsing centralized in `ui/src/api/`:
 
 ```typescript
-// In your service layer
-import { z } from 'zod';
-
-const PlanSchema = z.object({
-  plan_name: z.string(),
-  plan_tier: z.string(),
-  billing_interval: z.enum(['month', 'year', 'one_time']),
-  // ... derived from proto types
-});
-
 type ParseResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
 
-export function fetchPlan(id: string): Promise<ParseResult<Plan>> {
-  // Fetch, validate, return typed result or error
+export async function fetchPlan(id: string): Promise<ParseResult<Plan>> {
+  // Fetch, parse through fromJson(PlanSchema, payload), return typed result or error.
 }
 ```
 
 This pattern:
 - Makes validation failures **explicit** rather than crashing
 - Lets components handle errors gracefully with error UI
-- Keeps validation logic **centralized** in services
+- Keeps validation logic **centralized** in `ui/src/api/`
 
 #### **7.4 Proto Integration**
 
 When creating or modifying API contracts:
 1. Define the schema in `packages/proto/schemas/` (see `packages/proto/README.md` for guidance)
 2. Run `cd packages/proto && make generate` to regenerate types
-3. Create corresponding Zod schemas that mirror the proto structure
-4. Use the generated TS types for compile-time safety, Zod for runtime validation
+3. Use generated TS descriptors in `ui/src/api/` for `fromJson` response parsing and `toJsonString(..., { useProtoFieldName: true })` request serialization
+4. Add focused API-boundary tests that prove fields are not dropped across casing changes
 
-**Note:** Zod schemas should mirror proto types closely. If the proto has `optional string field`, the Zod schema should use `z.string().optional()`. This keeps the validation contract aligned with the API contract.
+**Note:** Add Zod schemas only for UI-only forms, non-proto third-party payloads, or other data with no generated descriptor. Do not mirror proto messages in Zod by default.
 
 ---
 
@@ -380,7 +371,7 @@ You may update:
 * Hook implementations (useEffect cleanup, dependency arrays, stable references)
 * Loading, error, and empty state handling in components
 * TypeScript types where they improve safety
-* Targeted Zod validation at high-risk boundaries (sparingly)
+* Proto parsing at API boundaries and targeted Zod validation for non-proto boundaries (sparingly)
 
 You **must**:
 * Keep the scenario fully functional and non-regressed

@@ -37,11 +37,16 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   const [showAddForm, setShowAddForm] = useState(false)
   const [supersededIds, setSupersededIds] = useState<Set<string>>(new Set())
 
-  // Add form state
+  // Add form state. Identity is no longer a form field — every UI
+  // write is attributed to `kind=operator-direct` and the API derives
+  // the `caller` display string. Operators can attach an optional
+  // freeform note (e.g., "acting-as researcher") via newCallerNote;
+  // it is never used by validators. Canon:
+  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
   const [newTopic, setNewTopic] = useState('')
   const [newContent, setNewContent] = useState('')
   const [newSource, setNewSource] = useState('')
-  const [newBy, setNewBy] = useState('')
+  const [newCallerNote, setNewCallerNote] = useState('')
   const [newSupersedes, setNewSupersedes] = useState('')
   const [addLoading, setAddLoading] = useState(false)
 
@@ -101,16 +106,16 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     clearMutationError()
     try {
       await heartbeatService.addKnowledge(teamId, {
-        by: newBy || 'ui-user',
         topic: newTopic,
         content: newContent,
+        caller_note: newCallerNote || undefined,
         source: newSource || undefined,
         supersedes: newSupersedes || undefined,
       })
       setNewTopic('')
       setNewContent('')
       setNewSource('')
-      setNewBy('')
+      setNewCallerNote('')
       setNewSupersedes('')
       setShowAddForm(false)
       void loadEntries()
@@ -186,10 +191,10 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     const query = searchQuery.trim().toLowerCase()
     if (!query) return entries
     return entries.filter((entry) => {
-      const agentName = getAgentName(entry.by)
+      const agentName = getAgentName(entry.caller)
       return [
         entry.id,
-        entry.by,
+        entry.caller,
         agentName,
         entry.topic,
         entry.content,
@@ -291,17 +296,15 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">By</label>
-                <select
-                  value={newBy}
-                  onChange={e => setNewBy(e.target.value)}
-                  className="w-full text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                >
-                  <option value="">Select agent</option>
-                  {members.map(m => (
-                    <option key={m.agentId} value={m.agentId}>{m.displayName}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-medium text-muted-foreground mb-1" title="Optional freeform note. Identity is auto-attributed as operator-direct.">Note</label>
+                <input
+                  type="text"
+                  placeholder="optional, e.g. acting-as researcher"
+                  value={newCallerNote}
+                  onChange={e => setNewCallerNote(e.target.value)}
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  maxLength={256}
+                />
               </div>
             </div>
             <div>
@@ -466,8 +469,8 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <AgentColorBadge appearance={getAgentAppearance(entry.by)} size="xs" />
-                                <span className="max-w-[12rem] truncate text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
+                                <AgentColorBadge appearance={getAgentAppearance(entry.caller)} size="xs" />
+                                <span className="max-w-[12rem] truncate text-xs text-muted-foreground">{getAgentName(entry.caller)}</span>
                               </div>
                             </div>
 

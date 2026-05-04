@@ -13,8 +13,8 @@ import { renderWithProviders } from "../../test-utils";
 import { makeListNotesResponse, makeNote } from "./mocks/factories";
 import { makeNotesMocks } from "./mocks/notes";
 
-vi.mock("../../lib/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/notes")>();
+vi.mock("../../api/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/notes")>();
   return { ...actual, ...makeNotesMocks() };
 });
 
@@ -28,7 +28,7 @@ describe("NotesCard", () => {
   });
 
   it("renders the empty state when listNotes resolves with no notes", async () => {
-    const { listNotes } = await import("../../lib/notes");
+    const { listNotes } = await import("../../api/notes");
     vi.mocked(listNotes).mockResolvedValueOnce(makeListNotesResponse());
 
     renderWithProviders(<NotesCard />);
@@ -39,7 +39,7 @@ describe("NotesCard", () => {
   });
 
   it("renders the list when listNotes returns items", async () => {
-    const { listNotes } = await import("../../lib/notes");
+    const { listNotes } = await import("../../api/notes");
     vi.mocked(listNotes).mockResolvedValueOnce(
       makeListNotesResponse({
         notes: [
@@ -59,7 +59,7 @@ describe("NotesCard", () => {
   });
 
   it("invokes createNote when the create button is clicked", async () => {
-    const { createNote, listNotes } = await import("../../lib/notes");
+    const { createNote, listNotes } = await import("../../api/notes");
     vi.mocked(listNotes).mockResolvedValue(makeListNotesResponse());
     vi.mocked(createNote).mockResolvedValueOnce(makeNote({ id: "new" }));
 

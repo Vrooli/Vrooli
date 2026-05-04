@@ -24,8 +24,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 // Consumed by:
 //   - API: handlers/health/handler_test.go decodes responses via protojson
 //          into Response and asserts on typed fields.
-//   - UI:  ui/src/lib/api.ts wraps `fetch` with `fromJson(ResponseSchema, ...)`
-//          using `useProtoNames: true` so the wire shape and the runtime
+//   - UI:  ui/src/api/health.ts wraps `fetch` with `fromJson(ResponseSchema, ...)`
+//          through the shared proto JSON client so the wire shape and runtime
 //          type agree.
 //   - Tests: ui/src/test-utils/factories.ts builds Response instances
 //          via `create(ResponseSchema, overrides)` for component tests.
