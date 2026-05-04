@@ -145,3 +145,27 @@ Markdown-file notebooks are a special case of synthesis — short-lived drafts l
 A full application or microservice — API + CLI + UI + tests + CI — that combines resources and other scenarios to deliver a reusable business capability. Scenarios are products in their own right and the substrate the agent system runs on. See `CLAUDE.md` for the scenario lifecycle (start, stop, restart, test) and the broader Vrooli vision.
 
 This file is concerned with scenarios only insofar as they host the agent system and are referenced as reference scenarios (`REFERENCE_SCENARIOS.md`).
+
+---
+
+## Three Pillars of Topic Validation
+
+The primitives above describe *what* the system is made of. This section describes the system-architectural surface that keeps the topic substrate honest as the substrate evolves: three independent validation pillars, each catching a class of drift the others structurally cannot. The substrate is professionally aligned only when all three pass.
+
+| Pillar | Source of truth | Catches | Anchor doc |
+|---|---|---|---|
+| **P1 — Declared graph** | `topics.json` per member (`intake[]`, `required_read[]`, `evidence_consumed[]`, `output[]`, `decisions_owned`, `decisions_consumed`, `external_producers`) | Cross-member declaration mismatches, dangling decision references, orphaned producers/consumers — anything derivable from a single load of the declared topology. | [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) |
+| **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, writer-skill `SKILL.md` files, and `docs/<domain>/`. | Hardcoded topic-prefix references (`prompt-manager team knowledge-add ... --topic=...` patterns, backticked topic strings in instructions) that contradict the declarations. Drift between what an agent's prose tells it to do and what its `topics.json` says it does. | `PROSE_SCAN_TARGETS.md` (forthcoming; P2.0 publishes this anchor doc) |
+| **P3 — Runtime attribution** | The `attribution` field on every post-cutoff `knowledge.jsonl` entry, scanned forward from each team's `attributionValidFrom`. | Observed writers/topics that no declaration accounts for. Agents writing to topics they don't declare; skills writing to topics not in `writes_to[]`; operator drift; legacy entries surfaced cleanly. | [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) |
+
+Why three rather than one or two: declarations alone (P1) catch declaration mismatches but cannot detect a real-world write that nobody declared. Prose scans (P2) catch the human-language layer but cannot see runtime writes. Runtime attribution (P3) catches the observed-truth layer but cannot tell whether a declaration is internally consistent. Each pillar's blind spots are the others' load-bearing surface.
+
+A new validation requirement should land in the existing pillar that fits its source-of-truth, not as a fourth pillar. The architecture is intentionally closed; widening it requires a `meta-optimization` decision and a workshop.
+
+Cross-cutting validator rules implemented in `scenarios/prompt-manager/api/memberflow/`:
+
+- **P1 rules** (errors in CI): `orphan_input`, `conflicting_drain`, `unknown_taxonomy`, `missing_taxonomy`, `non_portable_classifier` (legacy; P4 retires it), `dangling_por_sink`, `dangling_evidence_decision`. Warnings: `orphan_output`, `unread_required`, `wildcard_source_misuse`, `missing_destination_schema`, `topic_key_prefix_mismatch`, `stalled_drain`, `piling_inbox`.
+- **P2 rules**: `prose_topic_leak` (warning initially, error after P4.1).
+- **P3 rules**: `actual_writer_undeclared`, `attribution_malformed`.
+
+`prompt-manager graph topics` runs all three pillars together and emits a unified `findings.json` for CI.

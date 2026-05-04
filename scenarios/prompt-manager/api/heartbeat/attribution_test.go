@@ -143,12 +143,15 @@ func TestValidateAttribution_AgentMemberMissingFields(t *testing.T) {
 			want: "team_id",
 		},
 		{
-			name: "missing run_id",
+			// run_id is strict for non-heartbeat origins (P3.5 only relaxes
+			// the rule for spawn_origin=heartbeat — see § P3.5 in
+			// docs/agent-system/RUNTIME_ATTRIBUTION.md).
+			name: "missing run_id with non-heartbeat origin",
 			info: store.AttributionInfo{
 				Kind:        store.KnowledgeKindAgentMember,
 				MemberID:    ptr("m"),
 				TeamID:      ptr("team-x"),
-				SpawnOrigin: store.SpawnOriginHeartbeat,
+				SpawnOrigin: store.SpawnOriginSwarmTask,
 			},
 			want: "run_id",
 		},
@@ -163,6 +166,35 @@ func TestValidateAttribution_AgentMemberMissingFields(t *testing.T) {
 				t.Errorf("err = %v, want mention of %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// TestValidateAttribution_AgentMemberHeartbeatNullRunIDAccepted asserts the
+// P3.5-specified relaxation: agent-member kind with spawn_origin=heartbeat
+// is permitted to omit run_id (it cannot be known at CreateRunRequest
+// construction time; see RUNTIME_ATTRIBUTION.md § Env-var bridge step 1).
+// Other spawn origins remain strict — exercised by
+// TestValidateAttribution_AgentMemberMissingFields above.
+func TestValidateAttribution_AgentMemberHeartbeatNullRunIDAccepted(t *testing.T) {
+	info := store.AttributionInfo{
+		Kind:        store.KnowledgeKindAgentMember,
+		MemberID:    ptr("researcher"),
+		TeamID:      ptr("marketing-crew"),
+		SpawnOrigin: store.SpawnOriginHeartbeat,
+		// RunID intentionally nil — agent-manager assigns the UUID after
+		// CreateRun returns, so it is unavailable at attribution-construction
+		// time.
+	}
+	if err := validateAttribution(info, "marketing-crew"); err != nil {
+		t.Errorf("agent-member with spawn_origin=heartbeat must accept null run_id, got %v", err)
+	}
+
+	// Empty-string run_id is treated equivalently to nil (defensive against
+	// callers that send an explicit empty string instead of the JSON null).
+	empty := ""
+	info.RunID = &empty
+	if err := validateAttribution(info, "marketing-crew"); err != nil {
+		t.Errorf("agent-member with spawn_origin=heartbeat must accept empty-string run_id, got %v", err)
 	}
 }
 

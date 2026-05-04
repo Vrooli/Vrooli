@@ -101,11 +101,21 @@ type CreateTaskResponse struct {
 
 // CreateRunRequest is the request for creating a run.
 // JSON tags use snake_case to match agent-manager's protojson schema.
+//
+// Environment is a per-request map of `VROOLI_*`-prefixed env vars that
+// agent-manager merges into the spawned agent process's environment via
+// phases.MergeEnvVars. Agent-manager validates the prefix and a 4096-byte
+// total-size cap; see scenarios/agent-manager/api/internal/handlers/handlers.go
+// validateCustomEnvironment. Heartbeat callers use this to propagate
+// VROOLI_PROMPT_MANAGER_ATTRIBUTION (P3.5; see spawn_attribution.go); the
+// channel is generic and other prompt-manager spawn sites may add additional
+// VROOLI_-prefixed vars without a contract change.
 type CreateRunRequest struct {
-	TaskID     string      `json:"task_id"`
-	ProfileRef *ProfileRef `json:"profile_ref,omitempty"`
-	Tag        *string     `json:"tag,omitempty"`
-	RunMode    string      `json:"run_mode,omitempty"`
+	TaskID      string            `json:"task_id"`
+	ProfileRef  *ProfileRef       `json:"profile_ref,omitempty"`
+	Tag         *string           `json:"tag,omitempty"`
+	RunMode     string            `json:"run_mode,omitempty"`
+	Environment map[string]string `json:"environment,omitempty"`
 }
 
 // Run represents an agent run.

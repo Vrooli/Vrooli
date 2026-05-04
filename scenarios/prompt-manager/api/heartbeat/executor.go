@@ -171,7 +171,13 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// Create run — include Defaults so agent-manager can auto-create the
 	// profile if EnsureProfile failed at startup (e.g. agent-manager wasn't
 	// ready yet).
+	//
+	// Environment carries VROOLI_PROMPT_MANAGER_ATTRIBUTION so the spawned
+	// agent's CLI inherits structured attribution and forwards it as the
+	// X-Vrooli-Attribution header on every API write (P3.5; canon:
+	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	runTag := fmt.Sprintf("heartbeat-%s-%s-%s", teamID, agentID, timestamp)
+	attribKey, attribValue := buildHeartbeatAttributionEnv(teamID, agentID)
 	runReq := &CreateRunRequest{
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
@@ -180,6 +186,9 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		},
 		Tag:     &runTag,
 		RunMode: "RUN_MODE_IN_PLACE",
+		Environment: map[string]string{
+			attribKey: attribValue,
+		},
 	}
 
 	run, err := e.agentClient.CreateRun(ctx, runReq)

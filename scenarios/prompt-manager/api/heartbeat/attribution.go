@@ -83,8 +83,18 @@ func validateAttribution(info store.AttributionInfo, urlTeamID string) error {
 		if info.TeamID == nil || strings.TrimSpace(*info.TeamID) == "" {
 			return fmt.Errorf("attribution: kind=agent-member requires team_id")
 		}
-		if info.RunID == nil || strings.TrimSpace(*info.RunID) == "" {
-			return fmt.Errorf("attribution: kind=agent-member requires run_id")
+		// run_id is required for agent-member EXCEPT when spawn_origin=heartbeat:
+		// at heartbeat-spawn time prompt-manager constructs attribution before
+		// agent-manager assigns the run UUID (Environment is fixed at
+		// CreateRunRequest construction; the run_id only exists in the
+		// CreateRunResponse). Permitting null run_id for spawn_origin=heartbeat
+		// is the P3.5-specified resolution; future strengthening will overlay
+		// run_id from VROOLI_AGENT_IDENTITY_TOKEN claims at request time.
+		// Canon: docs/agent-system/RUNTIME_ATTRIBUTION.md § P3.5.
+		if info.SpawnOrigin != store.SpawnOriginHeartbeat {
+			if info.RunID == nil || strings.TrimSpace(*info.RunID) == "" {
+				return fmt.Errorf("attribution: kind=agent-member with spawn_origin=%q requires run_id", info.SpawnOrigin)
+			}
 		}
 	case store.KnowledgeKindWriterSkill:
 		if info.SourceSkillID == nil || strings.TrimSpace(*info.SourceSkillID) == "" {
