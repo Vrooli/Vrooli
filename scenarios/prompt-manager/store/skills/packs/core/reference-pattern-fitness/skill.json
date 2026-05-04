@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "reference-pattern-fitness",
+  "name": "Reference-Pattern Fitness",
+  "description": "Audit lens for artifacts that exist to be copied (templates, reference scenarios, canonical examples). Composes with single-instance audit lenses; surfaces multiplier-aware findings the others miss.",
+  "modes": [
+    "steer",
+    "meta-optimization",
+    "audits"
+  ],
+  "tags": [
+    "skill",
+    "template-fitness"
+  ],
+  "icon": "git-branch",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetToolId": "run-agent",
+  "revision": 1,
+  "createdAt": "2026-05-04T00:00:00Z",
+  "updatedAt": "2026-05-04T00:00:00Z"
+}
