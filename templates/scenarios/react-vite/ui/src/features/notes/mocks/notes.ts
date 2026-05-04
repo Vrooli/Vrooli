@@ -13,9 +13,9 @@
  *     return { ...actual, ...makeNotesMocks() };
  *   });
  *
- * The `...actual` spread keeps `ApiError` (a class) and the re-exported
- * proto types intact — only the network-touching functions are
- * substituted.
+ * The `...actual` spread keeps the re-exported proto types intact —
+ * only the network-touching functions are substituted. `ApiError`
+ * itself lives in `lib/api`; tests that need it import from there.
  *
  * Default behaviors:
  *

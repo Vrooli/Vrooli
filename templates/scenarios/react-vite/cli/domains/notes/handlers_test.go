@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"strings"
@@ -12,6 +13,8 @@ import (
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+
+	"github.com/vrooli/cli-core/cliapp"
 
 	clitest "{{SCENARIO_ID}}/cli/internal/testutil"
 )
@@ -76,10 +79,19 @@ func fakeAPI(t *testing.T, status int, body []byte) (http.Handler, *captured) {
 	return handler, rec
 }
 
+// runCtx builds a captured-stdout RunContext bound to the given core.
+// Tests use this to drive RunCtx-style handlers without the full App
+// dispatcher. The buffer pointer is returned so tests can assert on
+// the rendered output.
+func runCtx(core *cliapp.ScenarioApp, schema cliapp.ArgSchema, opts cliapp.TestRunContextOptions) (cliapp.RunContext, *bytes.Buffer) {
+	var buf bytes.Buffer
+	opts.Schema = schema
+	opts.Core = core
+	opts.Stdout = &buf
+	return cliapp.NewTestRunContext(opts), &buf
+}
+
 func TestNotesList_RendersResults(t *testing.T) {
-	// Proto-marshal the response so a future schema change (renamed
-	// field, added required field) breaks at the test rather than
-	// silently passing against stale JSON literals.
 	body := clitest.MustMarshalProto(t, &notesv1.ListNotesResponse{
 		Notes: []*notesv1.Note{
 			{Id: "a", Title: "first", Body: "", CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z"},
@@ -88,13 +100,13 @@ func TestNotesList_RendersResults(t *testing.T) {
 	})
 	handler, _ := fakeAPI(t, http.StatusOK, body)
 	core := clitest.NewTestApp(t, handler)
-
 	h := newHandlers(core)
-	out := clitest.CaptureStdout(t, func() error { return h.list(nil) })
+	ctx, out := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{})
 
-	require.Contains(t, out, "Found 2 note(s).")
-	require.Contains(t, out, "first")
-	require.Contains(t, out, "second")
+	require.NoError(t, h.list(ctx))
+	require.Contains(t, out.String(), "Found 2 note(s).")
+	require.Contains(t, out.String(), "first")
+	require.Contains(t, out.String(), "second")
 }
 
 func TestNotesList_SurfacesEnvelopeErrors(t *testing.T) {
@@ -104,22 +116,25 @@ func TestNotesList_SurfacesEnvelopeErrors(t *testing.T) {
 	})
 	handler, _ := fakeAPI(t, http.StatusInternalServerError, envelope)
 	core := clitest.NewTestApp(t, handler)
-
 	h := newHandlers(core)
-	err := h.list(nil)
+	ctx, _ := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{})
+
+	err := h.list(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "internal")
 	require.Contains(t, err.Error(), "store down")
 }
 
 func TestNotesCreate_RequiresTitle(t *testing.T) {
+	// Drives the same parser the production dispatcher uses, so this test
+	// verifies the full Required:true contract end-to-end (schema → parser
+	// → error) rather than just inspecting the schema declaration.
 	handler, _ := fakeAPI(t, http.StatusOK, []byte(`{}`))
 	core := clitest.NewTestApp(t, handler)
-
-	h := newHandlers(core)
-	err := h.create(nil)
+	createCmd := findSubcommand(t, Register(core), "create")
+	_, err := cliapp.NewTestRunContextFromArgs(createCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "--title")
+	require.Contains(t, err.Error(), "missing required flag --title")
 }
 
 func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
@@ -131,12 +146,14 @@ func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
 	})
 	handler, rec := fakeAPI(t, http.StatusCreated, respBody)
 	core := clitest.NewTestApp(t, handler)
-
 	h := newHandlers(core)
-	out := clitest.CaptureStdout(t, func() error {
-		return h.create([]string{"--title", "hello", "--body", "world"})
+	ctx, out := runCtx(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "title"}, {Name: "body"}},
+	}, cliapp.TestRunContextOptions{
+		Flags: map[string]string{"title": "hello", "body": "world"},
 	})
 
+	require.NoError(t, h.create(ctx))
 	got := rec.snapshot()
 	require.Equal(t, http.MethodPost, got.Method)
 
@@ -149,8 +166,8 @@ func TestNotesCreate_PostsTitleAndBody(t *testing.T) {
 	require.Equal(t, "hello", sent.Title)
 	require.Equal(t, "world", sent.Body)
 
-	require.Contains(t, out, "Created note new.")
-	require.Contains(t, out, "hello")
+	require.Contains(t, out.String(), "Created note new.")
+	require.Contains(t, out.String(), "hello")
 }
 
 func TestNotesGet_ReportsNotFoundEnvelope(t *testing.T) {
@@ -160,9 +177,14 @@ func TestNotesGet_ReportsNotFoundEnvelope(t *testing.T) {
 	})
 	handler, _ := fakeAPI(t, http.StatusNotFound, envelope)
 	core := clitest.NewTestApp(t, handler)
-
 	h := newHandlers(core)
-	err := h.get([]string{"ghost"})
+	ctx, _ := runCtx(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+	}, cliapp.TestRunContextOptions{
+		Positionals: map[string]string{"id": "ghost"},
+	})
+
+	err := h.get(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not_found")
 	require.Contains(t, err.Error(), "ghost")
@@ -177,24 +199,40 @@ func TestNotesGet_RendersNote(t *testing.T) {
 	})
 	handler, rec := fakeAPI(t, http.StatusOK, respBody)
 	core := clitest.NewTestApp(t, handler)
-
 	h := newHandlers(core)
-	out := clitest.CaptureStdout(t, func() error { return h.get([]string{"abc"}) })
+	ctx, out := runCtx(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+	}, cliapp.TestRunContextOptions{
+		Positionals: map[string]string{"id": "abc"},
+	})
 
+	require.NoError(t, h.get(ctx))
 	got := rec.snapshot()
 	require.True(t, strings.HasSuffix(got.Path, "/notes/abc"),
 		"GET path = %q, want suffix /notes/abc", got.Path)
-	require.Contains(t, out, "Fetched note abc.")
-	require.Contains(t, out, "found")
+	require.Contains(t, out.String(), "Fetched note abc.")
+	require.Contains(t, out.String(), "found")
 }
 
 func TestNotesGet_RequiresID(t *testing.T) {
+	// Same parser-driven shape as TestNotesCreate_RequiresTitle.
 	handler, _ := fakeAPI(t, http.StatusOK, []byte(`{}`))
 	core := clitest.NewTestApp(t, handler)
-	h := newHandlers(core)
-	err := h.get(nil)
+	getCmd := findSubcommand(t, Register(core), "get")
+	_, err := cliapp.NewTestRunContextFromArgs(getCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "missing note id")
+	require.Contains(t, err.Error(), "missing required positional <id>")
+}
+
+func findSubcommand(t *testing.T, group cliapp.SubcommandGroup, name string) cliapp.Command {
+	t.Helper()
+	for _, sc := range group.Subcommands {
+		if sc.Name == name {
+			return sc
+		}
+	}
+	t.Fatalf("subcommand %q not registered", name)
+	return cliapp.Command{}
 }
 
 // TestRegister_Wiring covers the SubcommandGroup the package exposes,
@@ -213,4 +251,7 @@ func TestRegister_Wiring(t *testing.T) {
 		names = append(names, sc.Name)
 	}
 	require.ElementsMatch(t, []string{"list", "create", "get"}, names)
+	for _, sc := range group.Subcommands {
+		require.NotNil(t, sc.RunCtx, "subcommand %s should use RunCtx", sc.Name)
+	}
 }

@@ -16,7 +16,7 @@ import (
 
 // Register returns the `notes` subcommand group. The handlers in
 // handlers.go close over `core` so they can issue versioned-API
-// requests via core.Get / core.Request.
+// requests via cliapp.Call helpers.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
@@ -27,17 +27,28 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{
 				Name:        "list",
 				Description: "List all notes",
-				Run:         h.list,
+				RunCtx:      h.list,
 			},
 			{
 				Name:        "create",
-				Description: "Create a note (--title TITLE [--body BODY])",
-				Run:         h.create,
+				Description: "Create a note",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "title", Required: true, Description: "Note title"},
+						{Name: "body", Description: "Note body"},
+					},
+				},
+				RunCtx: h.create,
 			},
 			{
 				Name:        "get",
-				Description: "Get a note by id (notes get ID)",
-				Run:         h.get,
+				Description: "Get a note by id",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "id", Required: true, Description: "Note id"},
+					},
+				},
+				RunCtx: h.get,
 			},
 		},
 	}

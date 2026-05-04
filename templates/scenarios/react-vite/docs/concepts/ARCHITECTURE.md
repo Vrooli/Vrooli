@@ -255,8 +255,8 @@ ui/src/
       NotesCard.tsx     ◀── canonical CRUD reference; replace per scenario
   hooks/                ◀── custom hooks (spatial nav, gamepad)
   lib/
-    api.ts              ◀── network boundary: fetch + proto-typed decode
-    notes.ts            ◀── canonical CRUD wrapper (ApiError + typed envelope code)
+    api.ts              ◀── substrate: protoFetch + ApiError + decodeApiError
+    notes.ts            ◀── canonical CRUD wrapper (4 lines/method via lib/api::protoFetch)
   i18n/
     index.ts            ◀── i18next singleton; locale persistence; <html lang>/<html dir>
     format.ts           ◀── Intl-based date/number/currency/list helpers
@@ -306,15 +306,29 @@ cli/
 ```
 
 The CLI **never embeds business logic**. Handlers exclusively call
-`core.Get(...)` / `core.Request(...)` and format the response. If a
-CLI command needs to make a decision the API doesn't expose, the
-correct fix is to add the API endpoint, not to compute it locally.
+the typed proto round-trip helpers `cliapp.Call[Req, Resp]` /
+`cliapp.CallQuery[Resp]` and format the response. If a CLI command
+needs to make a decision the API doesn't expose, the correct fix is
+to add the API endpoint, not to compute it locally.
 
 `cli-core` provides the scaffolding — global flags (`--api-base`,
 `--auto-start`, `--json`, `--no-color`), env-var precedence, config-file
 location, stale-binary detection, status/configure commands. The
 template's CLI is a few hundred lines because cli-core does the heavy
 lifting.
+
+**Declarative argument schemas.** Each `cliapp.Command` declares its
+flags and positionals as `Args cliapp.ArgSchema` and exposes a
+`RunCtx func(ctx cliapp.RunContext) error` handler. The schema is one
+source of truth: the parser (`--flag value`, `-f value`, `--flag=value`,
+positionals, `--`, `--help`) reads from it; `--help` output is
+generated from it; the runtime `RunContext` exposes typed accessors
+(`ctx.Flag("title")`, `ctx.Positional("id")`, `ctx.JSON()`) keyed by
+the same names. Adding a flag means adding a row to the schema —
+`flag.NewFlagSet`, manual `--help` strings, and per-handler proto
+marshal/unmarshal ribbon are all gone. The notes domain
+(`cli/domains/notes/{register,handlers}.go`) is the canonical worked
+example; mirror its shape when adding a second domain.
 
 See [`reference/cli-commands.md`](../reference/cli-commands.md) for
 the user-facing command set.

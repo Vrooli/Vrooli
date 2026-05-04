@@ -299,3 +299,222 @@ func TestAppSubcommandHelpSkipsStaleCheckAndPreflight(t *testing.T) {
 		t.Fatalf("preflight should not run for subcommand help")
 	}
 }
+
+// --- dispatchCommand routing (RunCtx vs Run vs neither) -------------------
+//
+// The dispatcher routes a Command's execution through either the declarative
+// RunCtx path (parser → RunContext → handler) or the legacy Run path
+// ([]string → handler). These tests pin the routing rules; their coverage
+// is the load-bearing assertion that iteration-1's substrate addition
+// didn't break the legacy path or mis-handle the new one.
+
+// TestDispatchCommand_RoutesToRunCtxWhenSet covers the canonical declarative
+// path. The legacy Run field is set too — RunCtx must win.
+func TestDispatchCommand_RoutesToRunCtxWhenSet(t *testing.T) {
+	var runCtxCalled, runCalled bool
+	var sawTitle string
+
+	cmd := Command{
+		Name: "create",
+		Args: ArgSchema{Flags: []Flag{{Name: "title", Required: true}}},
+		Run: func(args []string) error {
+			runCalled = true
+			return nil
+		},
+		RunCtx: func(ctx RunContext) error {
+			runCtxCalled = true
+			sawTitle = ctx.Flag("title")
+			return nil
+		},
+	}
+
+	app := NewApp(AppOptions{Name: "demo"})
+	if err := app.dispatchCommand("demo", cmd, []string{"--title", "hello"}); err != nil {
+		t.Fatalf("dispatchCommand: %v", err)
+	}
+	if !runCtxCalled {
+		t.Error("RunCtx not invoked")
+	}
+	if runCalled {
+		t.Error("legacy Run was invoked despite RunCtx being set")
+	}
+	if sawTitle != "hello" {
+		t.Errorf("RunCtx saw title=%q, want %q", sawTitle, "hello")
+	}
+}
+
+// TestDispatchCommand_HelpReturnsNilWithoutCallingHandler confirms the
+// dispatcher swallows ErrHelpRequested into a successful exit. The handler
+// must NOT run.
+func TestDispatchCommand_HelpReturnsNilWithoutCallingHandler(t *testing.T) {
+	var called bool
+	cmd := Command{
+		Name:        "create",
+		Description: "Create a thing",
+		Args:        ArgSchema{Flags: []Flag{{Name: "title", Required: true}}},
+		RunCtx: func(ctx RunContext) error {
+			called = true
+			return nil
+		},
+	}
+
+	app := NewApp(AppOptions{Name: "demo"})
+	if err := app.dispatchCommand("demo", cmd, []string{"--help"}); err != nil {
+		t.Fatalf("expected nil for --help, got %v", err)
+	}
+	if called {
+		t.Error("handler ran on --help; help should short-circuit")
+	}
+}
+
+// TestDispatchCommand_PropagatesParserErrors confirms the dispatcher does not
+// swallow other parser errors. These must reach the user so the CLI exits non-zero.
+func TestDispatchCommand_PropagatesParserErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		args     []string
+		contains string
+	}{
+		{
+			name:     "missing required flag",
+			args:     []string{},
+			contains: "missing required flag --title",
+		},
+		{
+			name:     "unknown option",
+			args:     []string{"--nope"},
+			contains: "unknown option: --nope",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := Command{
+				Name:   "create",
+				Args:   ArgSchema{Flags: []Flag{{Name: "title", Required: true}}},
+				RunCtx: func(ctx RunContext) error { return nil },
+			}
+			app := NewApp(AppOptions{Name: "demo"})
+			err := app.dispatchCommand("demo", cmd, tc.args)
+			if err == nil {
+				t.Fatal("expected parser error, got nil")
+			}
+			if errors.Is(err, ErrHelpRequested) {
+				t.Errorf("ErrHelpRequested should not propagate, got: %v", err)
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q did not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+// TestDispatchCommand_FallsBackToLegacyRun covers the additive-only contract:
+// Commands without RunCtx still dispatch through the original Run path so
+// scenarios that pre-date iteration-1 keep working unchanged.
+func TestDispatchCommand_FallsBackToLegacyRun(t *testing.T) {
+	var sawArgs []string
+	cmd := Command{
+		Name: "legacy",
+		Run: func(args []string) error {
+			sawArgs = args
+			return nil
+		},
+	}
+
+	app := NewApp(AppOptions{Name: "demo"})
+	if err := app.dispatchCommand("demo", cmd, []string{"a", "b"}); err != nil {
+		t.Fatalf("dispatchCommand: %v", err)
+	}
+	if len(sawArgs) != 2 || sawArgs[0] != "a" || sawArgs[1] != "b" {
+		t.Errorf("legacy Run saw args=%v, want [a b]", sawArgs)
+	}
+}
+
+// TestDispatchCommand_NeitherHandlerErrors guards against silently registering
+// a Command that can never run. The dispatcher must surface the misconfiguration.
+func TestDispatchCommand_NeitherHandlerErrors(t *testing.T) {
+	cmd := Command{Name: "broken"}
+	app := NewApp(AppOptions{Name: "demo"})
+	err := app.dispatchCommand("demo", cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error when neither Run nor RunCtx is set")
+	}
+	if !strings.Contains(err.Error(), "broken") {
+		t.Errorf("error did not name the offending command: %v", err)
+	}
+}
+
+// TestDispatchCommand_JSONFlagSurfacesViaRunContext covers the parser's
+// reserved --json pseudo-flag.
+func TestDispatchCommand_JSONFlagSurfacesViaRunContext(t *testing.T) {
+	var sawJSON bool
+	cmd := Command{
+		Name: "list",
+		RunCtx: func(ctx RunContext) error {
+			sawJSON = ctx.JSON()
+			return nil
+		},
+	}
+
+	app := NewApp(AppOptions{Name: "demo"})
+	if err := app.dispatchCommand("demo", cmd, []string{"--json"}); err != nil {
+		t.Fatalf("dispatchCommand: %v", err)
+	}
+	if !sawJSON {
+		t.Error("RunContext.JSON() = false despite --json being passed")
+	}
+}
+
+// TestAppRun_DispatchesRunCtxThroughEntryPoint exercises the production
+// callsite end-to-end and confirms RunCtx-style commands dispatch correctly.
+func TestAppRun_DispatchesRunCtxThroughEntryPoint(t *testing.T) {
+	var sawTitle string
+	app := NewApp(AppOptions{
+		Name: "demo",
+		Commands: []CommandGroup{{
+			Title: "Notes",
+			Commands: []Command{{
+				Name: "create",
+				Args: ArgSchema{Flags: []Flag{{Name: "title", Required: true}}},
+				RunCtx: func(ctx RunContext) error {
+					sawTitle = ctx.Flag("title")
+					return nil
+				},
+			}},
+		}},
+	})
+	if err := app.Run([]string{"create", "--title", "hello"}); err != nil {
+		t.Fatalf("App.Run: %v", err)
+	}
+	if sawTitle != "hello" {
+		t.Errorf("RunCtx saw title=%q, want hello", sawTitle)
+	}
+}
+
+// TestAppRun_RunCtxHelpDoesNotShortCircuitBeforeParser proves App.Run's
+// pre-dispatch help short-circuit (which exists for legacy Run commands)
+// does NOT swallow --help for RunCtx commands. The parser inside
+// dispatchCommand handles --help so renderHelp gets the ArgSchema.
+func TestAppRun_RunCtxHelpDoesNotShortCircuitBeforeParser(t *testing.T) {
+	var called bool
+	app := NewApp(AppOptions{
+		Name: "demo",
+		Commands: []CommandGroup{{
+			Title: "Notes",
+			Commands: []Command{{
+				Name: "create",
+				Args: ArgSchema{Flags: []Flag{{Name: "title", Required: true}}},
+				RunCtx: func(ctx RunContext) error {
+					called = true
+					return nil
+				},
+			}},
+		}},
+	})
+	if err := app.Run([]string{"create", "--help"}); err != nil {
+		t.Fatalf("App.Run --help: %v", err)
+	}
+	if called {
+		t.Error("handler ran on --help; help should short-circuit before RunCtx")
+	}
+}

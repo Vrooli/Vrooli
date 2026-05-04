@@ -11,14 +11,26 @@ import (
 )
 
 // Command represents a runnable CLI command.
+//
+// Two handler shapes are supported:
+//   - Run: the existing func([]string) error path. Used by commands that do
+//     their own arg parsing (typically with stdlib flag.NewFlagSet).
+//   - RunCtx + Args: the declarative path. The Args ArgSchema feeds both the
+//     parser and helpgen; the resulting RunContext is passed to RunCtx.
+//
+// When both are set, RunCtx wins. When neither is set, the dispatcher returns
+// an error. New scenarios should prefer RunCtx + Args.
 type Command struct {
-	Name        string
-	Aliases     []string
-	Description string
-	Usage       string
-	HelpText    string
-	NeedsAPI    bool
-	Run         func(args []string) error
+	Name            string
+	Aliases         []string
+	Description     string
+	Usage           string
+	HelpText        string
+	LongDescription string
+	NeedsAPI        bool
+	Args            ArgSchema
+	Run             func(args []string) error
+	RunCtx          func(ctx RunContext) error
 }
 
 // CommandGroup bundles related commands for help output.
@@ -74,6 +86,13 @@ type App struct {
 	commands              []Command
 	commandLookup         map[string]Command
 	subcommandGroupLookup map[string]*SubcommandGroup
+	scenario              *ScenarioApp
+}
+
+// AttachScenario records the ScenarioApp so RunCtx-style handlers can call
+// RunContext.Core() to reach the API client. Called by ScenarioApp.SetCommandsWithSubgroups.
+func (a *App) AttachScenario(s *ScenarioApp) {
+	a.scenario = s
 }
 
 // NewApp builds an App with meta commands (help/version) included automatically.
@@ -116,7 +135,7 @@ func (a *App) Run(args []string) error {
 	if !ok {
 		return fmt.Errorf("Unknown command: %s", remaining[0])
 	}
-	if wantsHelp(remaining[1:]) {
+	if cmd.RunCtx == nil && wantsHelp(remaining[1:]) {
 		a.printCommandHelp(a.opts.Name, cmd)
 		return nil
 	}
@@ -134,7 +153,7 @@ func (a *App) Run(args []string) error {
 		}
 	}
 
-	return cmd.Run(remaining[1:])
+	return a.dispatchCommand(a.opts.Name, cmd, remaining[1:])
 }
 
 // runSubcommand handles dispatch within a subcommand group.
@@ -165,7 +184,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	if cmd == nil {
 		return fmt.Errorf("Unknown subcommand: %s %s\nRun '%s %s help' for available subcommands", group.Name, args[0], a.opts.Name, group.Name)
 	}
-	if wantsHelp(args[1:]) {
+	if cmd.RunCtx == nil && wantsHelp(args[1:]) {
 		a.printCommandHelp(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd)
 		return nil
 	}
@@ -187,7 +206,28 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		}
 	}
 
-	return cmd.Run(args[1:])
+	return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args[1:])
+}
+
+// dispatchCommand routes a Command's execution through either the declarative
+// RunCtx path (when Args/RunCtx are set) or the legacy Run path. ErrHelpRequested
+// from the parser is caught here and converted to a help print with nil error.
+func (a *App) dispatchCommand(prefix string, cmd Command, cmdArgs []string) error {
+	if cmd.RunCtx != nil {
+		ctx, err := parseArgs(cmd.Args, cmdArgs, a.scenario, os.Stdout, os.Stderr)
+		if err != nil {
+			if errors.Is(err, ErrHelpRequested) {
+				a.printCommandHelp(prefix, cmd)
+				return nil
+			}
+			return err
+		}
+		return cmd.RunCtx(ctx)
+	}
+	if cmd.Run != nil {
+		return cmd.Run(cmdArgs)
+	}
+	return fmt.Errorf("command %q has no Run or RunCtx handler", cmd.Name)
 }
 
 // printSubcommandHelp prints help for a subcommand group.
@@ -203,6 +243,11 @@ func (a *App) printSubcommandHelp(group *SubcommandGroup) {
 }
 
 func (a *App) printCommandHelp(prefix string, cmd Command) {
+	if cmd.RunCtx != nil {
+		_ = renderHelp(prefix, cmd, os.Stdout)
+		return
+	}
+
 	fullName := strings.TrimSpace(prefix + " " + cmd.Name)
 	title := strings.TrimSpace(fullName)
 	if cmd.Description != "" {

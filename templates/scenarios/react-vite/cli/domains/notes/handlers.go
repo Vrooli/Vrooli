@@ -1,23 +1,17 @@
 package notes
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
-	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each
-// Run-func has typed access to the API client without re-resolving it.
+// RunCtx-func has typed access to the API client without re-resolving it.
 type handlers struct {
 	core *cliapp.ScenarioApp
 }
@@ -27,15 +21,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 // list issues GET /api/v1/notes and renders a ListReport on stdout.
-func (h *handlers) list(args []string) error {
-	body, err := h.core.Get("/notes", nil)
+func (h *handlers) list(ctx cliapp.RunContext) error {
+	resp, err := cliapp.CallQuery[*notesv1.ListNotesResponse](h.core, "/notes", nil)
 	if err != nil {
-		return apiError("list notes", err, body)
-	}
-
-	var resp notesv1.ListNotesResponse
-	if err := protojson.Unmarshal(body, &resp); err != nil {
-		return fmt.Errorf("decode ListNotesResponse: %w", err)
+		return cliapp.WrapAPIError("list notes", err, nil)
 	}
 
 	results := make([]string, 0, len(resp.Notes))
@@ -43,7 +32,7 @@ func (h *handlers) list(args []string) error {
 		results = append(results, formatNote(n))
 	}
 
-	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+	return ctx.RenderList(cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Found %d note(s).", len(resp.Notes))},
 		ResultsHeading: "Notes",
 		Results:        results,
@@ -54,43 +43,23 @@ func (h *handlers) list(args []string) error {
 	})
 }
 
-// create POSTs a note and renders a MutationReport.
-func (h *handlers) create(args []string) error {
-	fs := flag.NewFlagSet("notes create", flag.ContinueOnError)
-	title := fs.String("title", "", "Note title (required)")
-	body := fs.String("body", "", "Note body")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if *title == "" {
-		return fmt.Errorf("--title is required")
-	}
-
-	// Marshal via protojson so the wire shape stays in lockstep with the
-	// CreateNoteRequest schema. A future field addition / rename in
-	// notes.proto becomes a compile error here, where a hand-rolled
-	// map[string]string would silently send stale keys until the API
-	// rejected them at runtime.
-	reqMsg := &notesv1.CreateNoteRequest{Title: *title, Body: *body}
-	encoded, err := protojson.Marshal(reqMsg)
+// create POSTs a note and renders a MutationReport. Required-flag
+// enforcement (--title) is handled by cli-core's parser via the
+// ArgSchema declared in register.go; this handler is reached only when
+// the flag is present.
+func (h *handlers) create(ctx cliapp.RunContext) error {
+	resp, err := cliapp.Call[*notesv1.CreateNoteRequest, *notesv1.CreateNoteResponse](
+		h.core, http.MethodPost, "/notes",
+		&notesv1.CreateNoteRequest{Title: ctx.Flag("title"), Body: ctx.Flag("body")},
+	)
 	if err != nil {
-		return fmt.Errorf("marshal CreateNoteRequest: %w", err)
-	}
-
-	respBody, err := h.core.Request(http.MethodPost, "/notes", nil, encoded)
-	if err != nil {
-		return apiError("create note", err, respBody)
-	}
-
-	var resp notesv1.CreateNoteResponse
-	if err := protojson.Unmarshal(respBody, &resp); err != nil {
-		return fmt.Errorf("decode CreateNoteResponse: %w", err)
+		return cliapp.WrapAPIError("create note", err, nil)
 	}
 	if resp.Note == nil {
 		return fmt.Errorf("server returned no note")
 	}
 
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+	return ctx.RenderMutation(cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Created note %s.", resp.Note.Id)},
 		Changes: []string{formatNote(resp.Note)},
 		NextCommand: []string{
@@ -100,27 +69,20 @@ func (h *handlers) create(args []string) error {
 	})
 }
 
-// get fetches a single note by id (positional argument).
-func (h *handlers) get(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("missing note id; usage: notes get <id>")
-	}
-	id := args[0]
-
-	body, err := h.core.Get("/notes/"+url.PathEscape(id), nil)
+// get fetches a single note by id (positional argument). Required-positional
+// enforcement is handled by cli-core's parser via the ArgSchema declared in
+// register.go.
+func (h *handlers) get(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := cliapp.CallQuery[*notesv1.GetNoteResponse](h.core, "/notes/"+url.PathEscape(id), nil)
 	if err != nil {
-		return apiError(fmt.Sprintf("get note %q", id), err, body)
-	}
-
-	var resp notesv1.GetNoteResponse
-	if err := protojson.Unmarshal(body, &resp); err != nil {
-		return fmt.Errorf("decode GetNoteResponse: %w", err)
+		return cliapp.WrapAPIError(fmt.Sprintf("get note %q", id), err, nil)
 	}
 	if resp.Note == nil {
 		return fmt.Errorf("server returned no note")
 	}
 
-	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+	return ctx.RenderList(cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Fetched note %s.", resp.Note.Id)},
 		ResultsHeading: "Note",
 		Results:        []string{formatNote(resp.Note)},
@@ -134,45 +96,4 @@ func formatNote(n *notesv1.Note) string {
 		return "(nil)"
 	}
 	return fmt.Sprintf("%s — %s [created=%s]", n.Id, n.Title, n.CreatedAt)
-}
-
-// apiError surfaces a typed ErrorEnvelope when the response body
-// decodes as one; otherwise wraps the underlying transport error.
-//
-// The body parameter is the response body returned alongside err on
-// 2xx (typically empty when err != nil). On non-2xx, cli-core returns
-// a *cliutil.APIError carrying the raw response — that's the load-
-// bearing source for the typed envelope here.
-func apiError(action string, err error, body []byte) error {
-	if err == nil {
-		return nil
-	}
-
-	// 2xx-with-body callers can pre-pass the bytes; non-2xx callers
-	// rely on the APIError's RawResponse below.
-	if env, ok := decodeEnvelope(body); ok {
-		return fmt.Errorf("%s: %s: %s", action, env.Code, env.Message)
-	}
-
-	if apiErr, ok := err.(*cliutil.APIError); ok {
-		if env, ok := decodeEnvelope(apiErr.RawResponse); ok {
-			return fmt.Errorf("%s: %s: %s", action, env.Code, env.Message)
-		}
-		return fmt.Errorf("%s: %w", action, apiErr)
-	}
-	return fmt.Errorf("%s: %w", action, err)
-}
-
-func decodeEnvelope(body []byte) (*errorsv1.ErrorEnvelope, bool) {
-	if len(body) == 0 {
-		return nil, false
-	}
-	var env errorsv1.ErrorEnvelope
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, &env); err != nil {
-		return nil, false
-	}
-	if env.Code == "" {
-		return nil, false
-	}
-	return &env, true
 }

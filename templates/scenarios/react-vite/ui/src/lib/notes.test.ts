@@ -15,7 +15,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, createNote, getNote, listNotes } from "./notes";
+import { ApiError } from "./api";
+import { createNote, getNote, listNotes } from "./notes";
 
 describe("lib/notes", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;

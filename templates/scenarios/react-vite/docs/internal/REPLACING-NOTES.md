@@ -89,9 +89,43 @@ phase — it's how you learn the pattern by copying.
 
 5. **CLI domain.** Create `cli/domains/tasks/`:
    - `register.go` — `Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup`
-     mirroring `cli/domains/notes/register.go`.
-   - `handlers.go` — one function per subcommand, calling
-     `core.Get(...)` / `core.Request(...)` for `/api/v1/tasks`.
+     mirroring `cli/domains/notes/register.go`. Each `cliapp.Command`
+     declares its `Args cliapp.ArgSchema` (flags + positionals) and
+     binds `RunCtx` instead of `Run`. The schema feeds both the parser
+     and `--help`, so a flag added here automatically appears in
+     `tasks <sub> --help`.
+     ```go
+     {
+         Name: "create", Description: "Create a task",
+         Args: cliapp.ArgSchema{
+             Flags: []cliapp.Flag{
+                 {Name: "title", Required: true, Description: "Task title"},
+             },
+         },
+         RunCtx: h.create,
+     }
+     ```
+   - `handlers.go` — one `func(ctx cliapp.RunContext) error` per
+     subcommand. The body uses `cliapp.Call[Req, Resp]` (typed
+     proto round-trip) or `cliapp.CallQuery[Resp]` (GET); reads
+     `ctx.Flag(...)` / `ctx.Positional(...)`; routes output via
+     `ctx.RenderList` / `ctx.RenderMutation` (which honor the
+     built-in `--json` flag); wraps errors with `cliapp.WrapAPIError`.
+     ```go
+     func (h *handlers) create(ctx cliapp.RunContext) error {
+         resp, err := cliapp.Call[*tasksv1.CreateTaskRequest, *tasksv1.CreateTaskResponse](
+             h.core, http.MethodPost, "/tasks",
+             &tasksv1.CreateTaskRequest{Title: ctx.Flag("title")},
+         )
+         if err != nil { return cliapp.WrapAPIError("create task", err, nil) }
+         // ... render ...
+     }
+     ```
+     Don't reach for `flag.NewFlagSet`, `protojson.Marshal/Unmarshal`,
+     or a per-domain `apiError`/`decodeEnvelope` helper — those are
+     in `cli-core`'s declarative surface (since iteration 1 of the
+     react-vite-template fitness program). Re-deriving them per
+     domain is the boilerplate the substrate exists to delete.
 
 6. **Wire into CLI.** Add **one line** to `cli/domains/domains.go`'s
    `SubcommandGroups`:
