@@ -9,10 +9,10 @@ interactions:
   - header-resize-3-cycles
   - history-tab-second-visit
 traces:
-  before: /tmp/workspace-sandbox/perf/trace.json
-  after: /tmp/workspace-sandbox/perf/trace.json
+  before: /tmp/workspace-sandbox/perf/trace.before.json
+  after: /tmp/workspace-sandbox/perf/trace.after.json
   capture_script: /tmp/workspace-sandbox/perf/capture.js
-status: open
+status: fixed
 related_skill_run: scenario-performance-audit
 ---
 
@@ -135,18 +135,38 @@ No browser long-tasks (>50 ms single ticks) registered. The bottleneck is **comm
 
 | # | Recommendation | Status | Notes |
 |---|---|---|---|
-| 1 | F1 — Drive sidebar/header sizing via CSS custom property + RAF, commit only on mouseup | open | Highest leverage. Should drop App commit count from ~370 to ~5 in this scenario. |
-| 2 | F2 — Persist localStorage on mouseup, not on every step | open | Bundles naturally with #1. |
-| 3 | F3 — Wrap `DiffViewerImpl` in `React.memo`, stabilise its callback props | open | Profiler boundary already in place; verify with comparison run. |
-| 4 | F4 — Memoize `useSandboxes` `select`-side to return stable references when row set unchanged | open | Currently invisible at this dataset; load-bearing for any scaling. |
-| 5 | F5 — Wrap `SandboxItem` in `React.memo`; verify `consolidatedMessages` set is stable | open | Pairs with #4. |
-| 6 | F6 — Cut shiki preloaded language list to ~6; add result-cache for highlighter | open | Run a comparison capture against a sandbox containing files in `source` view to validate. |
-| 7 | F7 — Virtualize `FullFileView` / `SourceView` body | open | Out of scope for diff-mode; only relevant when source/full-file modes are exercised. |
-| 8 | F8 — Reattach `ResizeObserver` only on mount, not on `headerHeight` change | open | Small win on its own; cleans up after #1 lands. |
+| 1 | F1 — Drive sidebar/header sizing via CSS custom property + RAF, commit only on mouseup | fixed | `App.tsx:474` (sidebar handler), `SandboxDetail.tsx:259` (header handler). Width/height written to the pane via `style.setProperty` from a RAF-throttled mousemove; React state and localStorage update only on mouseup. |
+| 2 | F2 — Persist localStorage on mouseup, not on every step | fixed | Inlined into the mouseup branch in both handlers above; the `useEffect` that wrote on every change was removed. |
+| 3 | F3 — Wrap `DiffViewerImpl` in `React.memo`, stabilise its callback props | fixed | `DiffViewer.tsx:655` — `DiffViewerImpl = memo(DiffViewerImplInner)`. Callback props from App (`handleDiscardFile`, `setSelectedFileIds`, etc.) are already useCallback-stable or React-state-dispatch-stable. |
+| 4 | F4 — Memoize `useSandboxes` `select`-side to return stable references when row set unchanged | fixed | `lib/hooks.ts` — `useSandboxes` now passes a `select` that hashes `(id, status, fileCount, sizeBytes, mountHealth.healthy, lastUsedAt-bucketed-to-60s)` and returns the previous response object when the signature is unchanged. |
+| 5 | F5 — Wrap `SandboxItem` in `React.memo`; verify `consolidatedMessages` set is stable | fixed | `components/sidebar/SandboxItem.tsx:81` — `SandboxItem = memo(SandboxItemInner)`. `useBannerData` already memoizes its result by `sandboxes` reference, which F4 now keeps stable across polls. |
+| 6 | F6 — Cut shiki preloaded language list to ~6; add result-cache for highlighter | fixed | `lib/highlighter.ts` — `bundledLanguages` cut from 17 to 6 (js, ts, tsx, json, markdown, bash); a 64-entry FNV-1a-keyed Map memoizes `highlightCode` results so view-mode toggles and re-mounts skip the highlighter entirely. |
+| 7 | F7 — Virtualize `FullFileView` / `SourceView` body | fixed | `components/DiffViewer.tsx` — extracted `VirtualizedLineList` using `@tanstack/react-virtual`'s `useVirtualizer` (18 px estimate, 12-row overscan). Both `FullFileView` and `SourceView` now mount only the visible window. |
+| 8 | F8 — Reattach `ResizeObserver` only on mount, not on `headerHeight` change | fixed | `App.tsx` and `SandboxDetail.tsx` — clamp `useEffect` deps reduced to `[]`; latest width/height read via `sidebarWidthRef`/`headerHeightRef`. |
 
 ## New dependencies
 
-- `@tanstack/react-virtual` (only required by F7 if accepted; the rest of this audit's recommendations need no new packages).
+- `@tanstack/react-virtual ^3.13.24` — added for F7. Installed via `pnpm add @tanstack/react-virtual --ignore-workspace` in `scenarios/workspace-sandbox/ui/`.
+
+## Comparison run (post-fix validation)
+
+Trace pair: `/tmp/workspace-sandbox/perf/trace.before.json` vs `/tmp/workspace-sandbox/perf/trace.after.json`.
+Same `capture.js`, same dataset shape (9 active sandboxes, 8 history archives), same headless Chromium 1440×900.
+
+| component | b-cnt | a-cnt | before(ms) | after(ms) | b-avg(μs) | a-avg(μs) | delta(ms) | delta(%) |
+|---|---|---|---|---|---|---|---|---|
+| App | 369 | 26 | 723.9 | 62.0 | 1962 | 2385 | -661.9 | **-91%** |
+| SandboxDetail | 360 | 18 | 299.1 | 13.5 | 831 | 750 | -285.6 | **-95%** |
+| DiffViewer | 300 | 11 | 44.9 | 2.3 | 150 | 209 | -42.6 | **-95%** |
+| HistoryTab | 5 | 5 | 8.7 | 7.8 | 1741 | 1560 | -0.9 | -10% |
+
+Long-task summary unchanged at 0 / 0 / 0 — at this dataset the original work never crossed the long-task threshold either, so this signal is uninformative until the audit is re-run against a richer dataset (large source files in `source` view, 100+ active sandboxes).
+
+**Reading the table:**
+- `App` and `SandboxDetail` commit counts collapsed because the resize handlers no longer touch React state during a drag (F1/F2). The avg-per-commit *rose* slightly for App (1962 → 2385 µs) — that's the expected pattern when cardinality drops, since what's left is the genuinely heavier commits (mounts, real state transitions); average rises but total falls.
+- `DiffViewer`'s 300 → 11 collapse confirms F3's `memo` is holding: it now commits only when its own props actually change, not on every parent re-render.
+- `HistoryTab` is flat — at 8 archives the list was never the bottleneck. F5's `memo(SandboxItem)` is a load-bearing change for *future* scaling, not visible here.
+- F6 (highlighter cache + trimmed preload) and F7 (virtualization) cannot be measured against this dataset because no sandbox has files in `source`/`full_diff` view mode; they were verified by code change only. The doc should be re-validated against a richer dataset when one becomes available.
 
 ## Re-run checklist
 

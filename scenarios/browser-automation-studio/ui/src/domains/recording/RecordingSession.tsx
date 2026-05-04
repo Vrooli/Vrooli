@@ -20,7 +20,7 @@
  * - Action editing (selector and payload)
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
+import { Profiler, useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
@@ -51,7 +51,6 @@ import { mergeConsecutiveActions, type MergedAction } from './utils/mergeActions
 import { getConfig } from '@/config';
 import { useStreamSettings } from './capture/streamSettingsState';
 import type { StreamSettingsValues } from './capture/StreamSettings';
-import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
 import { mergeActionsWithAISteps } from './types/timeline-unified';
@@ -59,6 +58,7 @@ import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
 import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
+import { useSessionStore } from './stores/sessionStore';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
@@ -72,6 +72,7 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
+import { onProfilerRender } from '@/lib/profiler';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -274,8 +275,7 @@ export function RecordModePage({
   const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
   streamSettingsRef.current = streamSettings;
 
-  // Connection status for header indicator
-  const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
+  const setConnectionStatus = useSessionStore(s => s.setConnectionStatus);
 
   // Workflow selection and execution state
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(initialWorkflowId ?? null);
@@ -297,9 +297,14 @@ export function RecordModePage({
   const [showReplayStyle, setShowReplayStyle] = useState(false);
   const [showPreviewSettings, setShowPreviewSettings] = useState(false);
 
-  // Metadata from content panels for PreviewContainer's BrowserChrome
-  const [recordingPageTitle, setRecordingPageTitle] = useState<string>('');
-  const [recordingFrameStats, setRecordingFrameStats] = useState<FrameStats | null>(null);
+  // Live recording metadata is stored in sessionStore so stream updates do not rerender this whole page.
+  const setRecordingPageTitle = useSessionStore(s => s.setRecordingPageTitle);
+  const setRecordingFrameStats = useSessionStore(s => s.setRecordingFrameStats);
+  const clearLivePreviewMetadata = useSessionStore(s => s.clearLivePreviewMetadata);
+
+  useEffect(() => {
+    clearLivePreviewMetadata();
+  }, [clearLivePreviewMetadata, sessionId]);
   const [executionWorkflowName, setExecutionWorkflowName] = useState<string | null>(null);
   const [executionCurrentUrl, setExecutionCurrentUrl] = useState<string>('');
   const [executionFooter, setExecutionFooter] = useState<ReactNode>(null);
@@ -1234,6 +1239,7 @@ export function RecordModePage({
   const displayError = sessionError ?? error;
 
   return (
+    <Profiler id="RecordingSession" onRender={onProfilerRender}>
     <ViewportProvider sessionId={sessionId} actualViewport={sessionActualViewport}>
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
@@ -1254,7 +1260,6 @@ export function RecordModePage({
         selectedSessionProfileId={selectedProfileId}
         onSelectSessionProfile={handleSelectSessionProfile}
         onCreateSessionProfile={handleCreateSessionProfile}
-        connectionStatus={connectionStatus}
         onConfigureSession={handleConfigureSession}
         onNavigateToSessionSettings={handleNavigateToSessionSettings}
         workflowType={workflowType}
@@ -1440,9 +1445,7 @@ export function RecordModePage({
                   onFetchNavigationStack={handleFetchNavigationStack}
                   onNavigateToIndex={handleNavigateToIndex}
                   onOpenHistorySettings={handleOpenHistorySettings}
-                  pageTitle={recordingPageTitle || undefined}
                   placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
-                  frameStats={recordingFrameStats}
                   targetFps={streamSettings?.fps ?? DEFAULT_STREAM_FPS}
                   showStats={showStats}
                   mode="recording"
@@ -1557,5 +1560,6 @@ export function RecordModePage({
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
     </div>
     </ViewportProvider>
+    </Profiler>
   );
 }

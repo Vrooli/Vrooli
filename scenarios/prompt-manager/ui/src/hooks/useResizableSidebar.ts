@@ -31,8 +31,8 @@ interface UseResizableSidebarOptions {
 interface UseResizableSidebarResult {
   /** Current sidebar width in pixels */
   width: number
-  /** Whether currently resizing */
-  isResizing: boolean
+  /** Ref for the sidebar panel whose width is live-mutated during drag */
+  panelRef: React.RefObject<HTMLDivElement>
   /** Ref to attach to the container element for ResizeObserver */
   containerRef: React.RefObject<HTMLDivElement>
   /** Mouse down handler for the resize handle */
@@ -50,7 +50,8 @@ export function useResizableSidebar(
   } = options
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const resizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number; frame: number | null; latestWidth: number } | null>(null)
 
   // Initialize width from localStorage
   const [width, setWidth] = useState(() => {
@@ -65,14 +66,16 @@ export function useResizableSidebar(
     return defaultWidth
   })
 
-  const [isResizing, setIsResizing] = useState(false)
-
   // Persist width to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(storageKey, String(width))
     }
   }, [width, storageKey])
+
+  useEffect(() => {
+    panelRef.current?.style.setProperty('--pm-sidebar-width', `${width}px`)
+  }, [width])
 
   // ResizeObserver to clamp width when container resizes
   useEffect(() => {
@@ -84,8 +87,11 @@ export function useResizableSidebar(
       const maxWidth = Math.floor(containerWidth * maxWidthRatio)
 
       setWidth((prev) => {
-        if (prev > maxWidth) return Math.max(minWidth, maxWidth)
-        if (prev < minWidth) return minWidth
+        const next = Math.max(minWidth, Math.min(maxWidth, prev))
+        if (panelRef.current) {
+          panelRef.current.style.setProperty('--pm-sidebar-width', `${next}px`)
+        }
+        if (next !== prev) return next
         return prev
       })
     }
@@ -96,39 +102,6 @@ export function useResizableSidebar(
 
     return () => observer.disconnect()
   }, [minWidth, maxWidthRatio])
-
-  // Mouse event handlers for resizing
-  useEffect(() => {
-    if (!isResizing) return
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!resizeRef.current) return
-
-      const delta = e.clientX - resizeRef.current.startX
-      const newWidth = resizeRef.current.startWidth + delta
-      const clampedWidth = Math.max(minWidth, Math.min(resizeRef.current.maxWidth, newWidth))
-      setWidth(clampedWidth)
-    }
-
-    const handleMouseUp = () => {
-      setIsResizing(false)
-      resizeRef.current = null
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [isResizing, minWidth])
 
   // Handler to start resizing
   const handleResizeStart = useCallback(
@@ -143,15 +116,55 @@ export function useResizableSidebar(
         startX: e.clientX,
         startWidth: width,
         maxWidth,
+        frame: null,
+        latestWidth: width,
       }
-      setIsResizing(true)
+
+      const handleMouseMove = (event: MouseEvent) => {
+        const resize = resizeRef.current
+        if (!resize) return
+
+        const delta = event.clientX - resize.startX
+        resize.latestWidth = Math.max(minWidth, Math.min(resize.maxWidth, resize.startWidth + delta))
+        if (resize.frame !== null) return
+
+        resize.frame = window.requestAnimationFrame(() => {
+          const current = resizeRef.current
+          if (!current) return
+          panelRef.current?.style.setProperty('--pm-sidebar-width', `${current.latestWidth}px`)
+          current.frame = null
+        })
+      }
+
+      const finishResize = () => {
+        const resize = resizeRef.current
+        if (resize && resize.frame !== null) {
+          window.cancelAnimationFrame(resize.frame)
+        }
+        if (resize) {
+          panelRef.current?.style.setProperty('--pm-sidebar-width', `${resize.latestWidth}px`)
+          setWidth(resize.latestWidth)
+        }
+        resizeRef.current = null
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        panelRef.current?.removeAttribute('data-resizing')
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', finishResize)
+      }
+
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      panelRef.current?.setAttribute('data-resizing', 'true')
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', finishResize)
     },
-    [width, maxWidthRatio]
+    [width, maxWidthRatio, minWidth]
   )
 
   return {
     width,
-    isResizing,
+    panelRef,
     containerRef,
     handleResizeStart,
   }

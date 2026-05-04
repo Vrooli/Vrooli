@@ -41,6 +41,17 @@
         }
       ]
     },
+    "perf": {
+      "title": "Performance",
+      "description": "Browser performance audit findings and optimization plans.",
+      "docs": [
+        {
+          "path": "perf/2026-05-04-ui-lists-resize-graphs-audit.md",
+          "title": "UI Lists, Resize, and Graphs Audit",
+          "description": "Headless React profiler audit of agent-manager list, resize, run-detail, and stats graph interactions."
+        }
+      ]
+    },
     "internal": {
       "title": "Internal",
       "description": "Implementation notes for contributors.",

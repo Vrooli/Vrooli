@@ -8,7 +8,7 @@
  * before a user can even open the detail panel for a degraded mount.
  */
 
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import {
   AlertCircle,
   Box,
@@ -78,7 +78,9 @@ interface SandboxItemProps {
   trailingMeta?: React.ReactNode;
 }
 
-export function SandboxItem({
+export const SandboxItem = memo(SandboxItemInner);
+
+function SandboxItemInner({
   sandbox,
   selected,
   onSelect,

@@ -9,7 +9,7 @@
  * cell rather than misleading content.
  */
 
-import { useMemo } from "react";
+import { Profiler, useMemo } from "react";
 import { Archive, Loader2 } from "lucide-react";
 
 import type { DiffArchive, Sandbox } from "../../lib/api";
@@ -21,6 +21,7 @@ import {
 } from "./types";
 import { SandboxItem } from "./SandboxItem";
 import { SELECTORS } from "../../consts/selectors";
+import { onProfilerRender } from "../../lib/profiler";
 
 interface HistoryTabProps {
   archives: DiffArchive[];
@@ -59,7 +60,15 @@ function archiveAsSandbox(archive: DiffArchive): Sandbox {
   };
 }
 
-export function HistoryTab({
+export function HistoryTab(props: HistoryTabProps) {
+  return (
+    <Profiler id="HistoryTab" onRender={onProfilerRender}>
+      <HistoryTabImpl {...props} />
+    </Profiler>
+  );
+}
+
+function HistoryTabImpl({
   archives,
   selectedId,
   onSelect,

@@ -3,7 +3,7 @@ import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 import http from 'http';
 import path from 'path';
 import type { Connect, Plugin, ViteDevServer } from 'vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type UserConfig } from 'vite';
 import { defineProject } from 'vitest/config';
 
 // Get environment variables with fallbacks for build time
@@ -192,7 +192,10 @@ const ALIASES = {
   '@lib': path.resolve(__dirname, './src/lib'),
 };
 
-export default defineConfig({
+export default defineConfig(({ mode }): UserConfig => {
+  const isProfile = mode === 'profile';
+
+  return {
   // ╔══════════════════════════════════════════════════════════════╗
   // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
   // ║                                                              ║
@@ -207,8 +210,19 @@ export default defineConfig({
   base: './',
   plugins: [react(), healthEndpointPlugin()],
   resolve: {
-    alias: ALIASES,
+    alias: isProfile
+      ? {
+          ...ALIASES,
+          'react-dom/client': 'react-dom/profiling',
+          'react-dom$': 'react-dom/profiling',
+        }
+      : ALIASES,
   },
+  esbuild: isProfile
+    ? {
+        keepNames: true,
+      }
+    : undefined,
   test: {
     environment: 'jsdom',
     setupFiles: './src/test-utils/setupTests.ts',
@@ -519,4 +533,5 @@ export default defineConfig({
     include: ['lucide-react', 'react', 'react-dom', 'zustand'],
     exclude: ['@monaco-editor/react'],  // Lazy load Monaco Editor
   },
+  };
 });

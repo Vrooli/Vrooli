@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { Profiler, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   Plus,
   WifiOff,
@@ -14,6 +14,7 @@ import { useWebSocket } from "@/contexts/WebSocketContext";
 import { selectors } from "@constants/selectors";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
 import { GlobalSearchModal } from "./GlobalSearchModal";
+import { onProfilerRender } from "@/lib/profiler";
 import { TabNavigation, type DashboardTab } from "./DashboardTabs";
 import { HomeTab } from "./HomeSection";
 import { RunningExecutionsBadge } from "./RunningExecutionsBadge";
@@ -453,19 +454,21 @@ function Dashboard({
         role="region"
         aria-label="Dashboard content"
       >
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
-          </div>
-        ) : projects.length === 0 && activeTab === 'home' ? (
-          <WelcomeHero
-            onCreateFirstWorkflow={onCreateFirstWorkflow ?? onCreateProject}
-            onOpenTutorial={onOpenTutorial}
-            onStartRecording={onStartRecording}
-          />
-        ) : (
-          renderTabContent()
-        )}
+        <Profiler id="DashboardContent" onRender={onProfilerRender}>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+            </div>
+          ) : projects.length === 0 && activeTab === 'home' ? (
+            <WelcomeHero
+              onCreateFirstWorkflow={onCreateFirstWorkflow ?? onCreateProject}
+              onOpenTutorial={onOpenTutorial}
+              onStartRecording={onStartRecording}
+            />
+          ) : (
+            renderTabContent()
+          )}
+        </Profiler>
       </div>
 
       {/* Floating Action Button - Mobile */}

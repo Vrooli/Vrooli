@@ -20,7 +20,10 @@ import (
 	apierrors "vrooli-autoheal/internal/errors"
 )
 
-const statusFreshnessThreshold = 3 * time.Minute
+const (
+	statusFreshnessThreshold = 3 * time.Minute
+	healthDependencyTimeout  = 150 * time.Millisecond
+)
 
 // StoreInterface defines the database operations needed by handlers
 type StoreInterface interface {
@@ -105,7 +108,7 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	dbStatus := "connected"
 
-	if err := h.store.Ping(r.Context()); err != nil {
+	if err := h.pingStoreForHealth(); err != nil {
 		status = "unhealthy"
 		dbStatus = "disconnected"
 	}
@@ -124,6 +127,23 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		apierrors.LogError("health", "encode_response", err)
+	}
+}
+
+func (h *Handlers) pingStoreForHealth() error {
+	ctx, cancel := context.WithTimeout(context.Background(), healthDependencyTimeout)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- h.store.Ping(ctx)
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

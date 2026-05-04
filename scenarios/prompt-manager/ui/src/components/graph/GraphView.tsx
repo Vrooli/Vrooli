@@ -17,8 +17,6 @@ import {
   Background,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
   MarkerType,
   useReactFlow,
   ReactFlowProvider,
@@ -222,21 +220,39 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const hasInitializedViewport = useRef(false)
 
   // Store data
-  const graph = useGraphStore((s) => s.graph)
-  const loading = useGraphStore((s) => s.loading)
-  const error = useGraphStore((s) => s.error)
-  const fetchGraph = useGraphStore((s) => s.fetchGraph)
-  const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
-  const highlightSource = useGraphStore((s) => s.highlightSource)
-  const focusNodes = useGraphStore((s) => s.focusNodes)
-  const clearHighlights = useGraphStore((s) => s.clearHighlights)
-  const queryDisplayMode = useGraphStore((s) => s.queryDisplayMode)
-  const filters = useGraphStore((s) => s.filters)
-  const layoutDirection = useGraphStore((s) => s.layoutDirection)
-  const layoutMode = useGraphStore((s) => s.layoutMode)
-  const fitViewRequested = useGraphStore((s) => s.fitViewRequested)
-  const savedViewport = useGraphStore((s) => s.viewport)
-  const setSavedViewport = useGraphStore((s) => s.setViewport)
+  const {
+    graph,
+    loading,
+    error,
+    fetchGraph,
+    highlightedNodeIds,
+    highlightSource,
+    focusNodes,
+    clearHighlights,
+    queryDisplayMode,
+    filters,
+    layoutDirection,
+    layoutMode,
+    fitViewRequested,
+    savedViewport,
+    setSavedViewport,
+  } = useGraphStore(useShallow((s) => ({
+    graph: s.graph,
+    loading: s.loading,
+    error: s.error,
+    fetchGraph: s.fetchGraph,
+    highlightedNodeIds: s.highlightedNodeIds,
+    highlightSource: s.highlightSource,
+    focusNodes: s.focusNodes,
+    clearHighlights: s.clearHighlights,
+    queryDisplayMode: s.queryDisplayMode,
+    filters: s.filters,
+    layoutDirection: s.layoutDirection,
+    layoutMode: s.layoutMode,
+    fitViewRequested: s.fitViewRequested,
+    savedViewport: s.viewport,
+    setSavedViewport: s.setViewport,
+  })))
 
   // useShallow prevents infinite re-render: selectFilteredNodes returns a new
   // array reference on every call (.filter()), but useShallow compares elements
@@ -398,11 +414,11 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   // Build node ID set for filtering edges
   const renderedNodeIds = useMemo(() => new Set(nodesAfterQueryMode.map((n) => n.id)), [nodesAfterQueryMode])
 
-  // Build health score map from graph data
-  const healthMap = useMemo(() => {
-    const map = new Map<string, number>()
+  // Build health score map for nodes and popovers.
+  const healthScoreMap = useMemo(() => {
+    const map = new Map<string, HealthScore>()
     for (const hs of effectiveHealthScores) {
-      map.set(hs.nodeId, hs.score)
+      map.set(hs.nodeId, hs)
     }
     return map
   }, [effectiveHealthScores])
@@ -422,12 +438,12 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
         data: {
           label: node.label,
           nodeType: node.type,
-          healthScore: healthMap.get(node.id) ?? null,
+          healthScore: healthScoreMap.get(node.id)?.score ?? null,
           queryState,
         },
       }
     })
-  }, [nodesAfterQueryMode, querySelectedNodeIds, hasQuerySelection, dimNonSelected, healthMap])
+  }, [nodesAfterQueryMode, querySelectedNodeIds, hasQuerySelection, dimNonSelected, healthScoreMap])
 
   // Build flow edges (only between visible nodes)
   const useLightweightEdges = edgesAfterQueryMode.length > HEAVY_EDGE_COUNT_THRESHOLD
@@ -472,18 +488,9 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     [flowNodes, flowEdges, layoutDirection, layoutMode],
   )
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(layoutedNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(layoutedEdges)
+  const nodes = layoutedNodes
+  const edges = layoutedEdges
   const showMiniMap = nodes.length <= MINIMAP_NODE_THRESHOLD
-
-  // Update when layout/data changes
-  useEffect(() => {
-    setNodes(layoutedNodes)
-  }, [layoutedNodes, setNodes])
-
-  useEffect(() => {
-    setEdges(layoutedEdges)
-  }, [layoutedEdges, setEdges])
 
   const autoFitSignature = useMemo(() => {
     const highlighted = Array.from(highlightedNodeIds).sort().join('|')
@@ -548,15 +555,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const onMoveEnd = useCallback<OnMove>((_event, viewport) => {
     setSavedViewport(viewport)
   }, [setSavedViewport])
-
-  // Build health score map for popover
-  const healthScoreMap = useMemo(() => {
-    const map = new Map<string, HealthScore>()
-    for (const hs of effectiveHealthScores) {
-      map.set(hs.nodeId, hs)
-    }
-    return map
-  }, [effectiveHealthScores])
 
   // Build adjacency map for edge lookup
   const adjacentEdgesMap = useMemo(() => {
@@ -745,8 +743,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
             onMove={onMove}

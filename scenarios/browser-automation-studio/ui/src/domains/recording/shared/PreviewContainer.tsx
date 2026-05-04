@@ -24,7 +24,7 @@
  *    is visually scaled via CSS transforms, not by changing the browser viewport.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
+import { Profiler, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import clsx from 'clsx';
 import { BrowserChrome, type ExecutionStatus, type NavigationStackData } from '../capture/BrowserChrome';
 import type { FrameStats } from '../capture/PlaywrightView';
@@ -35,6 +35,8 @@ import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPr
 import { StablePreviewWrapper } from './StablePreviewWrapper';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
 import { useViewportOptional } from '../context';
+import { onProfilerRender } from '@/lib/profiler';
+import { useRecordingPageTitle } from '../stores/sessionStore';
 
 export interface PreviewContainerProps {
   // Replay style state (controlled from parent)
@@ -173,12 +175,15 @@ export function PreviewContainer({
   const previewBoundsRef = useRef<HTMLDivElement | null>(null);
   const internalViewportRef = useRef<HTMLDivElement | null>(null);
   const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
+  const recordingPageTitle = useRecordingPageTitle();
+  const lastReportedBrowserViewportRef = useRef<{ width: number; height: number } | null>(null);
 
   // Track if this is the first render to avoid initial viewport change callback
   const isFirstRenderRef = useRef(true);
 
   // Get viewport context if available (for recording mode with ViewportProvider)
   const viewportContext = useViewportOptional();
+  const updateViewportFromBounds = viewportContext?.updateFromBounds;
 
   // Get replay settings from store
   const { replay, setReplaySetting } = useSettingsStore();
@@ -281,24 +286,23 @@ export function PreviewContainer({
 
   // Notify parent AND context when browser viewport changes (for syncing to Playwright)
   useEffect(() => {
-    // Skip the first render to avoid initial viewport change callback
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      // Still call the callback/context on first render if we have bounds
-      if (browserViewport) {
-        onBrowserViewportChange?.(browserViewport);
-        viewportContext?.updateFromBounds(browserViewport);
-      }
+    if (!browserViewport) {
       return;
     }
 
-    if (browserViewport) {
-      // Call prop callback (for session creation in RecordingSession)
-      onBrowserViewportChange?.(browserViewport);
-      // Update context (for viewport sync to backend)
-      viewportContext?.updateFromBounds(browserViewport);
+    const last = lastReportedBrowserViewportRef.current;
+    const changed = !last || last.width !== browserViewport.width || last.height !== browserViewport.height;
+    if (!changed && !isFirstRenderRef.current) {
+      return;
     }
-  }, [browserViewport, onBrowserViewportChange, viewportContext]);
+    isFirstRenderRef.current = false;
+    lastReportedBrowserViewportRef.current = browserViewport;
+
+    // Call prop callback (for session creation in RecordingSession)
+    onBrowserViewportChange?.(browserViewport);
+    // Update context (for viewport sync to backend)
+    updateViewportFromBounds?.(browserViewport);
+  }, [browserViewport, onBrowserViewportChange, updateViewportFromBounds]);
 
   /**
    * Display dimensions for the presentation model.
@@ -320,7 +324,8 @@ export function PreviewContainer({
   }, [showReplayStyle, replay.presentationWidth, replay.presentationHeight, browserViewport]);
 
   // Compute presentation model for styled rendering
-  const previewTitle = pageTitle || previewUrl || 'Preview';
+  const effectivePageTitle = mode === 'recording' ? (recordingPageTitle || pageTitle) : pageTitle;
+  const previewTitle = effectivePageTitle || previewUrl || 'Preview';
   // Account for p-4 padding (16px each side = 32px) when replay style is shown
   const paddingOffset = showReplayStyle ? 32 : 0;
   const adjustedBounds = previewBounds
@@ -378,6 +383,7 @@ export function PreviewContainer({
   }, [replay.watermark]);
 
   return (
+    <Profiler id="PreviewContainer" onRender={onProfilerRender}>
     <div className={clsx('flex flex-col h-full', className)}>
       {/* Browser chrome header */}
       <BrowserChrome
@@ -385,7 +391,7 @@ export function PreviewContainer({
         onPreviewUrlChange={onPreviewUrlChange}
         onNavigate={onNavigate}
         placeholder={placeholder}
-        pageTitle={pageTitle}
+        pageTitle={effectivePageTitle}
         onGoBack={onGoBack}
         onGoForward={onGoForward}
         onRefresh={onRefresh}
@@ -450,5 +456,6 @@ export function PreviewContainer({
       {/* Footer (e.g., playback controls) - outside the presentation wrapper */}
       {footer}
     </div>
+    </Profiler>
   );
 }

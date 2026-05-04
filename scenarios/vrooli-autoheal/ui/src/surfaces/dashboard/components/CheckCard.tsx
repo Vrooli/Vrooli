@@ -1,6 +1,8 @@
 // Individual health check result card
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:HEAL-ACTION-001]
 import { Clock, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
+import { memo, useCallback } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { ActionButtons, StatusIcon } from "../../../shared/components";
 import { Card } from "../../../shared/ui/primitives";
 import { type HealthResult, type SubCheck, type CheckCategory } from "../../../lib/api";
@@ -29,7 +31,7 @@ function formatInterval(seconds: number): string {
   return `${hours}h`;
 }
 
-export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckCardProps) {
+function CheckCardImpl({ check, onInfoClick, mobileListItem = false }: CheckCardProps) {
   const score = check.metrics?.score;
   const subChecks = check.metrics?.subChecks ?? [];
   const hasSubChecks = subChecks.length > 0;
@@ -39,11 +41,23 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
   // Use title if available, fall back to checkId
   const displayTitle = check.title || check.checkId;
 
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     if (onInfoClick) {
       onInfoClick(check.checkId);
     }
-  };
+  }, [check.checkId, onInfoClick]);
+
+  const handleInfoClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onInfoClick?.(check.checkId);
+  }, [check.checkId, onInfoClick]);
+
+  const handleCardKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
+    if (onInfoClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onInfoClick(check.checkId);
+    }
+  }, [check.checkId, onInfoClick]);
 
   return (
     <Card
@@ -57,12 +71,7 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
       onClick={handleCardClick}
       role={onInfoClick ? "button" : undefined}
       tabIndex={onInfoClick ? 0 : undefined}
-      onKeyDown={(e) => {
-        if (onInfoClick && (e.key === "Enter" || e.key === " ")) {
-          e.preventDefault();
-          onInfoClick(check.checkId);
-        }
-      }}
+      onKeyDown={handleCardKeyDown}
     >
       <div className="flex items-start gap-3">
         <StatusIcon status={check.status} />
@@ -80,10 +89,7 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
               </div>
               {onInfoClick && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onInfoClick(check.checkId);
-                  }}
+                  onClick={handleInfoClick}
                   className="shrink-0 rounded p-1 text-text-muted transition-colors hover:bg-surface-overlay/70 hover:text-accent-primary"
                   title="View details"
                   aria-label="View check details"
@@ -159,6 +165,8 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
     </Card>
   );
 }
+
+export const CheckCard = memo(CheckCardImpl);
 
 // Renders a single sub-check as a pass/fail indicator
 function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {

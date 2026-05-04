@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import {
   fetchHealth,
   fetchDriverInfo,
@@ -102,12 +103,57 @@ export function useSelectDriver() {
   });
 }
 
-// List sandboxes
+// List sandboxes.
+//
+// Returns a reference-stable response object across polls when nothing
+// semantically changed, so downstream `useMemo` / `React.memo` consumers
+// (SandboxItem, ActiveTab's filter+sort, useBannerData) don't invalidate
+// on every 10s refetch. The dedup signature deliberately excludes
+// `lastUsedAt` second-level updates — bucket it to 60s so "X minutes ago"
+// labels still update without thrashing the list. See
+// docs/perf/2026-05-03-history-fileviewer-resize.md F4.
+function sandboxesSignature(sandboxes: ReadonlyArray<{
+  id: string;
+  status: string;
+  fileCount?: number;
+  sizeBytes?: number;
+  mountHealth?: { healthy?: boolean };
+  lastUsedAt?: string;
+}>) {
+  return sandboxes
+    .map((s) => {
+      const lastUsedBucket = s.lastUsedAt
+        ? Math.floor(new Date(s.lastUsedAt).getTime() / 60000)
+        : 0;
+      return [
+        s.id,
+        s.status,
+        s.fileCount ?? 0,
+        s.sizeBytes ?? 0,
+        s.mountHealth?.healthy === undefined ? "" : s.mountHealth.healthy ? "1" : "0",
+        lastUsedBucket,
+      ].join("|");
+    })
+    .join(",");
+}
+
 export function useSandboxes(filter?: ListFilter) {
+  const cacheRef = useRef<{ sig: string; data: Awaited<ReturnType<typeof listSandboxes>> | null }>({
+    sig: "",
+    data: null,
+  });
   return useQuery({
     queryKey: queryKeys.sandboxes(filter),
     queryFn: () => listSandboxes(filter),
     refetchInterval: isTestEnv ? false : 10000, // Refetch every 10 seconds for live updates
+    select: (data) => {
+      const sig = sandboxesSignature(data.sandboxes ?? []);
+      if (sig === cacheRef.current.sig && cacheRef.current.data) {
+        return cacheRef.current.data;
+      }
+      cacheRef.current = { sig, data };
+      return data;
+    },
   });
 }
 

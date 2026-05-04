@@ -20,7 +20,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -128,13 +127,8 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers, db *sq
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
-	// Health endpoints - use api-core/health for standardized response
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(db), health.Critical).
-		Handler()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", h.Health).Methods("GET")
+	router.HandleFunc("/api/v1/health", h.Health).Methods("GET")
 
 	// Platform info
 	router.HandleFunc("/api/v1/platform", h.Platform).Methods("GET")

@@ -228,6 +228,20 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "perf/2026-05-03-lists-resize-polling.md",
+          "title": "Lists, Resize, and Polling Audit",
+          "description": "Profile-mode browser performance audit for dashboard lists, record-mode sidebar resize, and polling/frame state churn",
+          "internal": true
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -364,6 +378,6 @@
   ],
   "navigation": {
     "primary": ["architecture", "nodes", "guides"],
-    "secondary": ["research", "internal", "plans"]
+    "secondary": ["research", "perf", "internal", "plans"]
   }
 }

@@ -1,5 +1,6 @@
 // Stats Page - main page component for the Stats tab
 
+import { Profiler, type ReactNode } from "react";
 import { TimeWindowProvider } from "./hooks/useTimeWindow";
 import { TimeWindowSelector } from "./components/controls/TimeWindowSelector";
 import { ExportButton } from "./components/controls/ExportButton";
@@ -11,6 +12,15 @@ import { ProfileActivityTable } from "./components/tables/ProfileActivityTable";
 import { ModelUsageBreakdown } from "./components/breakdown/ModelUsageBreakdown";
 import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
+import { onProfilerRender } from "../../lib/profiler";
+
+function ProfiledStatsSection({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <Profiler id={id} onRender={onProfilerRender}>
+      {children}
+    </Profiler>
+  );
+}
 
 export function StatsPage() {
   return (
@@ -26,28 +36,44 @@ export function StatsPage() {
         </div>
 
         {/* KPI Summary Row */}
-        <KPISummary />
+        <ProfiledStatsSection id="Stats:KPISummary">
+          <KPISummary />
+        </ProfiledStatsSection>
 
         {/* Charts Row */}
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
-          <RunStatusTrends />
-          <CostDurationTrends />
+          <ProfiledStatsSection id="Stats:RunStatusTrends">
+            <RunStatusTrends />
+          </ProfiledStatsSection>
+          <ProfiledStatsSection id="Stats:CostDurationTrends">
+            <CostDurationTrends />
+          </ProfiledStatsSection>
         </div>
 
         {/* Tables Row */}
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
-          <RunnerPerformanceTable />
-          <ProfileActivityTable />
+          <ProfiledStatsSection id="Stats:RunnerPerformanceTable">
+            <RunnerPerformanceTable />
+          </ProfiledStatsSection>
+          <ProfiledStatsSection id="Stats:ProfileActivityTable">
+            <ProfileActivityTable />
+          </ProfiledStatsSection>
         </div>
 
         {/* Breakdowns Row */}
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
-          <ModelUsageBreakdown />
-          <ToolUsageAnalytics />
+          <ProfiledStatsSection id="Stats:ModelUsageBreakdown">
+            <ModelUsageBreakdown />
+          </ProfiledStatsSection>
+          <ProfiledStatsSection id="Stats:ToolUsageAnalytics">
+            <ToolUsageAnalytics />
+          </ProfiledStatsSection>
         </div>
 
         {/* Error Analysis Section */}
-        <ErrorAnalysisSection />
+        <ProfiledStatsSection id="Stats:ErrorAnalysisSection">
+          <ErrorAnalysisSection />
+        </ProfiledStatsSection>
       </div>
     </TimeWindowProvider>
   );

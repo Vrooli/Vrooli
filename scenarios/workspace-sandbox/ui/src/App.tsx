@@ -99,7 +99,13 @@ export default function App() {
   // View mode state for DiffViewer
   const [viewMode, setViewMode] = useState<ViewMode>("diff");
 
-  // Sidebar resize state
+  // Sidebar resize state.
+  //
+  // During a drag we write the width directly to the sidebar element via a
+  // CSS custom property + RAF, bypassing React. Only the settled value at
+  // mouseup commits to React state (and to localStorage). This avoids
+  // ~30 setState calls per second cascading through the whole App tree —
+  // see docs/perf/2026-05-03-history-fileviewer-resize.md F1/F2.
   const SIDEBAR_MIN_WIDTH = 200;
   const DETAIL_MIN_WIDTH = 400;
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -107,9 +113,11 @@ export default function App() {
     const stored = Number(localStorage.getItem("wsb.sidebarWidth"));
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  sidebarWidthRef.current = sidebarWidth;
   const mainRef = useRef<HTMLDivElement | null>(null);
-  const sidebarResize = useRef<{ start: number; max: number } | null>(null);
+  const sidebarPaneRef = useRef<HTMLDivElement | null>(null);
+  const sidebarResize = useRef<{ start: number; max: number; current: number } | null>(null);
 
   // Queries
   const healthQuery = useHealth();
@@ -472,63 +480,73 @@ export default function App() {
     [selectedSandbox, execMutation, startProcessMutation]
   );
 
-  // Sidebar resize handler
+  // Sidebar resize handler. Installs window-level mousemove/mouseup directly
+  // (no isResizing state). Mousemove writes the width straight to the pane
+  // element via RAF — React state is touched only on mouseup.
   const handleSidebarResizeStart = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
-      if (!mainRef.current) return;
+      if (!mainRef.current || !sidebarPaneRef.current) return;
 
       const rect = mainRef.current.getBoundingClientRect();
+      const startWidth = sidebarPaneRef.current.getBoundingClientRect().width;
       sidebarResize.current = {
         start: rect.left,
         max: Math.max(SIDEBAR_MIN_WIDTH, rect.width - DETAIL_MIN_WIDTH),
+        current: startWidth,
       };
-      setIsResizingSidebar(true);
+
+      let rafId = 0;
+      let pendingWidth = startWidth;
+
+      const applyWidth = () => {
+        rafId = 0;
+        if (!sidebarPaneRef.current || !sidebarResize.current) return;
+        sidebarPaneRef.current.style.width = `${pendingWidth}px`;
+        sidebarResize.current.current = pendingWidth;
+      };
+
+      const handleMove = (e: MouseEvent) => {
+        if (!sidebarResize.current) return;
+        const nextWidth = e.clientX - sidebarResize.current.start;
+        pendingWidth = Math.max(
+          SIDEBAR_MIN_WIDTH,
+          Math.min(sidebarResize.current.max, nextWidth)
+        );
+        if (rafId === 0) rafId = requestAnimationFrame(applyWidth);
+      };
+
+      const handleUp = () => {
+        if (rafId !== 0) {
+          cancelAnimationFrame(rafId);
+          applyWidth();
+        }
+        const settled = sidebarResize.current?.current ?? startWidth;
+        sidebarResize.current = null;
+        window.removeEventListener("mousemove", handleMove);
+        window.removeEventListener("mouseup", handleUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setSidebarWidth(settled);
+        try {
+          localStorage.setItem("wsb.sidebarWidth", String(settled));
+        } catch {
+          // localStorage may be disabled or full; the in-memory width is
+          // still applied, so we silently skip persistence.
+        }
+      };
+
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleUp);
     },
     []
   );
 
-  // Sidebar resize mouse events
-  useEffect(() => {
-    if (!isResizingSidebar) return;
-
-    const handleMove = (event: MouseEvent) => {
-      if (!sidebarResize.current) return;
-      const nextWidth = event.clientX - sidebarResize.current.start;
-      const clampedWidth = Math.max(
-        SIDEBAR_MIN_WIDTH,
-        Math.min(sidebarResize.current.max, nextWidth)
-      );
-      setSidebarWidth(clampedWidth);
-    };
-
-    const handleUp = () => {
-      setIsResizingSidebar(false);
-      sidebarResize.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizingSidebar]);
-
-  // Persist sidebar width to localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("wsb.sidebarWidth", String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  // Constrain sidebar width when viewport shrinks
+  // Constrain sidebar width when viewport shrinks. The observer is installed
+  // once on mount; the latest width is read from a ref so we don't reattach
+  // the observer on every drag step (see F8).
   useEffect(() => {
     if (!mainRef.current || typeof ResizeObserver === "undefined") return;
 
@@ -536,7 +554,7 @@ export default function App() {
       if (!mainRef.current) return;
       const width = mainRef.current.clientWidth;
       const maxSidebar = Math.max(SIDEBAR_MIN_WIDTH, width - DETAIL_MIN_WIDTH);
-      if (sidebarWidth > maxSidebar) {
+      if (sidebarWidthRef.current > maxSidebar) {
         setSidebarWidth(maxSidebar);
       }
     };
@@ -545,7 +563,7 @@ export default function App() {
     const observer = new ResizeObserver(clamp);
     observer.observe(mainRef.current);
     return () => observer.disconnect();
-  }, [sidebarWidth]);
+  }, []);
 
   // Keep selected sandbox in sync with list updates
   const sandboxes = useMemo(
@@ -913,6 +931,7 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden" ref={mainRef}>
         {/* Left Panel - Sandbox List or File Tree (in review mode) */}
         <div
+          ref={sidebarPaneRef}
           className="flex-shrink-0 border-r border-slate-800 overflow-hidden"
           style={{ width: sidebarWidth }}
         >
@@ -942,6 +961,7 @@ export default function App() {
 
         {/* Sidebar Resize Handle */}
         <div
+          data-testid="sidebar-resize-handle"
           className="w-1 bg-slate-900 hover:bg-slate-700 cursor-col-resize flex-shrink-0"
           onMouseDown={handleSidebarResizeStart}
         />

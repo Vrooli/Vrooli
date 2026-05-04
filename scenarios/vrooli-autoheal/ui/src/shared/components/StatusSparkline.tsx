@@ -1,5 +1,6 @@
 // Mini sparkline bar showing recent status history
 // Shared component for trends grid and detail modal
+import { memo } from "react";
 import { HealthStatus } from "../../lib/api";
 
 interface StatusSparklineProps {
@@ -8,7 +9,7 @@ interface StatusSparklineProps {
   barHeight?: number;
 }
 
-export function StatusSparkline({ statuses, maxBars = 12, barHeight = 16 }: StatusSparklineProps) {
+function StatusSparklineImpl({ statuses, maxBars = 12, barHeight = 16 }: StatusSparklineProps) {
   // Show last N statuses as small bars
   const displayStatuses = statuses.slice(0, maxBars);
 
@@ -36,3 +37,5 @@ export function StatusSparkline({ statuses, maxBars = 12, barHeight = 16 }: Stat
     </div>
   );
 }
+
+export const StatusSparkline = memo(StatusSparklineImpl);

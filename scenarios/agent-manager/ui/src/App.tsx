@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks, useRunStatusCounts } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
@@ -10,6 +10,7 @@ import { AppHeader } from "./components/layout/AppHeader";
 import { MobileNav, type NavSection } from "./components/layout/MobileNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { jsonValueToPlain } from "./lib/utils";
+import { onProfilerRender } from "./lib/profiler";
 
 const DashboardPage = lazy(async () => ({ default: (await import("./pages/DashboardPage")).DashboardPage }));
 const ProfilesPage = lazy(async () => ({ default: (await import("./pages/ProfilesPage")).ProfilesPage }));
@@ -19,6 +20,15 @@ const StatsPage = lazy(async () => ({ default: (await import("./features/stats")
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
+
+// AI_CHECK: AGENT_MANAGER_RENDER_PERF=1 | LAST: 2026-05-04
+function ProfiledPage({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <Profiler id={id} onRender={onProfilerRender}>
+      {children}
+    </Profiler>
+  );
+}
 
 export default function App() {
   const navigate = useNavigate();
@@ -250,18 +260,20 @@ export default function App() {
               element={
                 <ErrorBoundary section="Dashboard">
                   <Suspense fallback={pageFallback}>
-                    <DashboardPage
-                      health={health.data}
-                      runs={mergedRuns}
-                      statusCounts={runStatusCounts.data}
-                      onRefresh={() => {
-                        health.refetch();
-                        runs.refetch();
-                        runStatusCounts.refetch();
-                      }}
-                      onGetTask={tasks.getTask}
-                      onNavigateToRun={(runId, tab) => navigate(`/runs/${runId}${tab ? `?tab=${tab}` : ""}`)}
-                    />
+                    <ProfiledPage id="DashboardPage">
+                      <DashboardPage
+                        health={health.data}
+                        runs={mergedRuns}
+                        statusCounts={runStatusCounts.data}
+                        onRefresh={() => {
+                          health.refetch();
+                          runs.refetch();
+                          runStatusCounts.refetch();
+                        }}
+                        onGetTask={tasks.getTask}
+                        onNavigateToRun={(runId, tab) => navigate(`/runs/${runId}${tab ? `?tab=${tab}` : ""}`)}
+                      />
+                    </ProfiledPage>
                   </Suspense>
                 </ErrorBoundary>
               }
@@ -271,17 +283,19 @@ export default function App() {
               element={
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Profiles">
-                    <ProfilesPage
-                      profiles={profiles.data || []}
-                      loading={profiles.loading}
-                      error={profiles.error}
-                      onCreateProfile={profiles.createProfile}
-                      onUpdateProfile={profiles.updateProfile}
-                      onDeleteProfile={profiles.deleteProfile}
-                      onRefresh={profiles.refetch}
-                      runners={runners.data ?? undefined}
-                      modelRegistry={modelRegistry.data ?? undefined}
-                    />
+                    <ProfiledPage id="ProfilesPage">
+                      <ProfilesPage
+                        profiles={profiles.data || []}
+                        loading={profiles.loading}
+                        error={profiles.error}
+                        onCreateProfile={profiles.createProfile}
+                        onUpdateProfile={profiles.updateProfile}
+                        onDeleteProfile={profiles.deleteProfile}
+                        onRefresh={profiles.refetch}
+                        runners={runners.data ?? undefined}
+                        modelRegistry={modelRegistry.data ?? undefined}
+                      />
+                    </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }
@@ -291,21 +305,23 @@ export default function App() {
               element={
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Tasks">
-                    <TasksPage
-                      tasks={tasks.data || []}
-                      profiles={profiles.data || []}
-                      loading={tasks.loading}
-                      error={tasks.error}
-                      onCreateTask={tasks.createTask}
-                      onUpdateTask={tasks.updateTask}
-                      onCancelTask={tasks.cancelTask}
-                      onDeleteTask={tasks.deleteTask}
-                      onCreateRun={runs.createRun}
-                      onCreateProfile={profiles.createProfile}
-                      onRefresh={tasks.refetch}
-                      runners={runners.data ?? undefined}
-                      modelRegistry={modelRegistry.data ?? undefined}
-                    />
+                    <ProfiledPage id="TasksPage">
+                      <TasksPage
+                        tasks={tasks.data || []}
+                        profiles={profiles.data || []}
+                        loading={tasks.loading}
+                        error={tasks.error}
+                        onCreateTask={tasks.createTask}
+                        onUpdateTask={tasks.updateTask}
+                        onCancelTask={tasks.cancelTask}
+                        onDeleteTask={tasks.deleteTask}
+                        onCreateRun={runs.createRun}
+                        onCreateProfile={profiles.createProfile}
+                        onRefresh={tasks.refetch}
+                        runners={runners.data ?? undefined}
+                        modelRegistry={modelRegistry.data ?? undefined}
+                      />
+                    </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }
@@ -315,32 +331,34 @@ export default function App() {
               element={
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Runs">
-                    <RunsPage
-                      runs={mergedRuns}
-                      tasks={tasks.data || []}
-                      profiles={profiles.data || []}
-                      loading={runs.loading}
-                      error={runs.error}
-                      onStopRun={runs.stopRun}
-                      onDeleteRun={runs.deleteRun}
-                      onRetryRun={runs.retryRun}
-                      onGetRun={runs.getRun}
-                      onGetEvents={runs.getRunEvents}
-                      onGetDiff={runs.getRunDiff}
-                      onGetTask={tasks.getTask}
-                      onApproveRun={runs.approveRun}
-                      onRejectRun={runs.rejectRun}
-                      onPartialApproveRun={runs.partialApproveRun}
-                      onInvestigateRuns={runs.investigateRuns}
-                      onApplyInvestigation={runs.applyInvestigation}
-                      onResumeFromFailedRun={runs.resumeFromFailedRun}
-                      onContinueRun={runs.continueRun}
-                      onDeleteRunMessage={runs.deleteRunMessage}
-                      onRefresh={runs.refetch}
-                      runEventStore={runEventStore}
-                      wsSubscribe={ws.subscribe}
-                      wsUnsubscribe={ws.unsubscribe}
-                    />
+                    <ProfiledPage id="RunsPage">
+                      <RunsPage
+                        runs={mergedRuns}
+                        tasks={tasks.data || []}
+                        profiles={profiles.data || []}
+                        loading={runs.loading}
+                        error={runs.error}
+                        onStopRun={runs.stopRun}
+                        onDeleteRun={runs.deleteRun}
+                        onRetryRun={runs.retryRun}
+                        onGetRun={runs.getRun}
+                        onGetEvents={runs.getRunEvents}
+                        onGetDiff={runs.getRunDiff}
+                        onGetTask={tasks.getTask}
+                        onApproveRun={runs.approveRun}
+                        onRejectRun={runs.rejectRun}
+                        onPartialApproveRun={runs.partialApproveRun}
+                        onInvestigateRuns={runs.investigateRuns}
+                        onApplyInvestigation={runs.applyInvestigation}
+                        onResumeFromFailedRun={runs.resumeFromFailedRun}
+                        onContinueRun={runs.continueRun}
+                        onDeleteRunMessage={runs.deleteRunMessage}
+                        onRefresh={runs.refetch}
+                        runEventStore={runEventStore}
+                        wsSubscribe={ws.subscribe}
+                        wsUnsubscribe={ws.unsubscribe}
+                      />
+                    </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }
@@ -350,7 +368,9 @@ export default function App() {
               element={
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Stats">
-                    <StatsPage />
+                    <ProfiledPage id="StatsPage">
+                      <StatsPage />
+                    </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }

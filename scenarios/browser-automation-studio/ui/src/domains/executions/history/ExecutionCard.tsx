@@ -137,7 +137,7 @@ const statusConfig: Record<ExecutionStatus, {
   },
 };
 
-export const ExecutionCard: React.FC<ExecutionCardProps> = ({
+export const ExecutionCard: React.FC<ExecutionCardProps> = React.memo(({
   execution,
   isRunning = false,
   isSelected = false,
@@ -317,6 +317,8 @@ export const ExecutionCard: React.FC<ExecutionCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ExecutionCard.displayName = 'ExecutionCard';
 
 export default ExecutionCard;

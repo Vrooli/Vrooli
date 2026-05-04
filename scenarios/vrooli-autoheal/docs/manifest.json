@@ -135,6 +135,20 @@
       ]
     },
     {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "perf/2026-05-03-list-resize-poll-audit.md",
+          "title": "List, Resize, and Poll Audit",
+          "description": "Profile-mode browser performance audit of autoheal list, resize, and polling surfaces",
+          "internal": true
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -169,6 +183,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "concepts", "checks", "recovery", "guides", "reference"],
-    "secondary": ["internal"]
+    "secondary": ["perf", "internal"]
   }
 }

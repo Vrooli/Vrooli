@@ -60,6 +60,7 @@ import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeS
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
 import { useEditorStore } from '@/stores/editorStore'
+import { useVirtualRows } from '@/hooks/useVirtualRows'
 
 const CONTENT_SNIPPET_LENGTH = 120
 const CONTENT_SEARCH_MIN_CHARS = 2
@@ -103,6 +104,19 @@ interface ContentMatchGroup {
   skillName: string
   folder: string
   matches: ContentSearchMatch[]
+}
+
+function flattenVisibleTree(nodes: TreeNode[], expandedNodes: Set<string>): TreeNode[] {
+  const rows: TreeNode[] = []
+
+  const visit = (node: TreeNode) => {
+    rows.push(node)
+    if (!node.isCategory || !expandedNodes.has(node.id)) return
+    node.children.forEach(visit)
+  }
+
+  nodes.forEach(visit)
+  return rows
 }
 
 function areMatchRangesEqual(a: { start: number; end: number }[], b: { start: number; end: number }[]): boolean {
@@ -783,6 +797,20 @@ export function SkillTreeSidebar({
     () => (combineMode ? buildSelectionStateIndex(treeNodes, combineSelectedIds) : undefined),
     [combineMode, treeNodes, combineSelectedIds]
   )
+
+  const visibleTreeRows = useMemo(
+    () => flattenVisibleTree(treeNodes, expandedNodes),
+    [treeNodes, expandedNodes]
+  )
+  const treeRowHeight = detailMode === 'full' ? 42 : 32
+  const {
+    containerRef: treeViewportRef,
+    totalHeight: treeTotalHeight,
+    virtualRows: virtualTreeRows,
+  } = useVirtualRows({
+    count: visibleTreeRows.length,
+    rowHeight: treeRowHeight,
+  })
 
   // Check AI search availability on mount
   useEffect(() => {
@@ -1743,9 +1771,9 @@ export function SkillTreeSidebar({
                     } : undefined}
                   />
                 ) : (
-                  <>
+                  <div className="flex h-full flex-col">
                     {/* Tree expand/collapse controls */}
-                    <div className="flex items-center gap-1 px-3 py-1 border-b border-border/50">
+                    <div className="flex flex-shrink-0 items-center gap-1 px-3 py-1 border-b border-border/50">
                       <button
                         type="button"
                         onClick={onExpandAll}
@@ -1766,29 +1794,43 @@ export function SkillTreeSidebar({
                         <span>Collapse</span>
                       </button>
                     </div>
-                    {treeNodes.map((node) => (
-                      <TreeNodeComponent
-                        key={node.id}
-                        node={node}
-                        skillsById={skillsById}
-                        editedNameById={editedNameById}
-                        selectedItemId={selectedItemId}
-                        onSelectItem={onSelectItem}
-                        dirtyItemIds={dirtyItemIds}
-                        dirtyCountByNodeId={dirtyCountByNodeId}
-                        expandedNodes={expandedNodes}
-                        onToggleNode={onToggleNode}
-                        renderItemIcon={renderItemIcon}
-                        showCheckbox={combineMode}
-                        onCheckboxChange={combineMode ? onCombineToggle : undefined}
-                        selectionStateByNodeId={selectionStateByNodeId}
-                        detailMode={detailMode}
-                        healthScoreMap={healthScoreMap}
-                        onCategoryContextMenu={handleCategoryContextMenu}
-                        onSkillContextMenu={handleSkillContextMenu}
-                      />
-                    ))}
-                  </>
+                    <div ref={treeViewportRef} className="min-h-0 flex-1 overflow-y-auto">
+                      <div className="relative" style={{ height: treeTotalHeight }}>
+                        {virtualTreeRows.map(({ index, offsetTop }) => {
+                          const node = visibleTreeRows[index]
+                          if (!node) return null
+                          return (
+                            <div
+                              key={node.id}
+                              className="absolute left-0 right-0"
+                              style={{ top: offsetTop, height: treeRowHeight }}
+                            >
+                              <TreeNodeComponent
+                                node={node}
+                                skillsById={skillsById}
+                                editedNameById={editedNameById}
+                                selectedItemId={selectedItemId}
+                                onSelectItem={onSelectItem}
+                                dirtyItemIds={dirtyItemIds}
+                                dirtyCountByNodeId={dirtyCountByNodeId}
+                                expandedNodes={expandedNodes}
+                                onToggleNode={onToggleNode}
+                                renderItemIcon={renderItemIcon}
+                                showCheckbox={combineMode}
+                                onCheckboxChange={combineMode ? onCombineToggle : undefined}
+                                selectionStateByNodeId={selectionStateByNodeId}
+                                detailMode={detailMode}
+                                healthScoreMap={healthScoreMap}
+                                onCategoryContextMenu={handleCategoryContextMenu}
+                                onSkillContextMenu={handleSkillContextMenu}
+                                renderChildren={false}
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* Folder context menu */}

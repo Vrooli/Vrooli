@@ -13,7 +13,8 @@
   ],
   "scripts": {
     "dev": "vrooli lifecycle protect -- npx vite",
-    "build": "tsc && npx vite build && node ./scripts/gzip-dist.mjs",
+    "build": "tsc && npx vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile) && node ./scripts/gzip-dist.mjs",
+    "build:profile": "tsc && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
     "preview": "npx vite preview",
     "test": "bash ./scripts/run-vitest.sh",
     "test:full": "BAS_VITEST_SUITE=full bash ./scripts/run-vitest.sh",

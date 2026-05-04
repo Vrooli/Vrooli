@@ -14,7 +14,7 @@
  * - Resizable sidebar with localStorage persistence
  */
 
-import { Profiler, useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { Profiler, useState, useCallback, useEffect, useRef, useMemo, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from '@/hooks/use-toast'
 import { Home, X, GripVertical, Settings } from 'lucide-react'
@@ -638,7 +638,7 @@ function SkillManagerLayoutImpl() {
   // Resizable sidebar
   const {
     width: sidebarWidth,
-    isResizing,
+    panelRef: sidebarPanelRef,
     containerRef,
     handleResizeStart,
   } = useResizableSidebar({
@@ -1391,8 +1391,9 @@ function SkillManagerLayoutImpl() {
       {/* Desktop sidebar with resize handle */}
       {!isMobile && (
         <div
-          className="relative flex-shrink-0 transition-[width] duration-200"
-          style={{ width: isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : sidebarWidth }}
+          ref={sidebarPanelRef}
+          className="relative flex-shrink-0 w-[var(--pm-sidebar-width)] data-[resizing=true]:transition-none"
+          style={{ '--pm-sidebar-width': `${isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : sidebarWidth}px` } as CSSProperties}
         >
           {sidebar}
           {/* Resize handle - wider hit area (12px) with narrow visual indicator */}
@@ -1406,20 +1407,19 @@ function SkillManagerLayoutImpl() {
               className={`
                 absolute top-0 right-0 h-full w-3 cursor-col-resize
                 flex items-center justify-center group
-                ${isResizing ? '' : ''}
               `}
             >
               {/* Visual indicator - narrow line with subtle visibility */}
               <div
                 className={`
                   absolute right-0 top-0 h-full w-0.5 transition-colors
-                  ${isResizing ? 'bg-primary' : 'bg-border group-hover:bg-primary/50'}
+                  bg-border group-hover:bg-primary/50 group-active:bg-primary
                 `}
               />
               <GripVertical
                 className={`
                   h-6 w-3 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity z-10
-                  ${isResizing ? 'opacity-100 text-primary' : ''}
+                  group-active:opacity-100 group-active:text-primary
                 `}
               />
             </div>
@@ -1428,7 +1428,7 @@ function SkillManagerLayoutImpl() {
       )}
 
       {/* Main content area */}
-      <div className={`flex-1 flex flex-col min-w-0 ${isResizing ? 'select-none' : ''}`}>
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">

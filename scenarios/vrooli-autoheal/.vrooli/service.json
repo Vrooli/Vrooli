@@ -158,8 +158,17 @@
       "description": "Execute phased test suite",
       "steps": [
         {
+          "name": "start-test-ui",
+          "run": "cd ui && pnpm run start",
+          "background": true,
+          "description": "Serve production UI bundle for smoke and Lighthouse phases",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
           "name": "run-tests",
-          "run": "test-genie execute vrooli-autoheal --preset comprehensive --ui-url http://localhost:${UI_PORT}",
+          "run": "for i in $(seq 1 30); do curl -fsS http://localhost:${UI_PORT}/health >/dev/null && break; sleep 1; done; curl -fsS http://localhost:${UI_PORT}/health >/dev/null && test-genie execute vrooli-autoheal --preset comprehensive --ui-url http://localhost:${UI_PORT}",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

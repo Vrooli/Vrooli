@@ -5,16 +5,17 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react
 import { AlertCircle, CheckCircle2, BookOpen, LayoutDashboard, Loader2, Play, RefreshCw, Settings, Shield, TrendingUp } from "lucide-react";
 import { Badge, Button, Card } from "./shared/ui/primitives";
 import { TabTrigger } from "./shared/ui/composites";
-import { APIError, fetchChecks, fetchStatus, groupChecksByStatus, runTick, sortChecksForDisplay, statusToEmoji } from "./lib/api";
-import type { CheckInfo } from "./lib/api";
+import { APIError, fetchStatus, groupChecksByStatus, runTick, sortChecksForDisplay, statusToEmoji } from "./lib/api";
 import { selectors } from "./consts/selectors";
 import { CheckDetailModal, ErrorDisplay, ReactErrorBoundary, SettingsDialog } from "./shared/components";
+import { useCheckMetadata } from "./shared/contexts/CheckMetadataContext";
 import { DashboardSurface, type CollapsedGroups, type EnrichedCheck } from "./surfaces/dashboard";
 
 const TrendsSurface = lazy(async () => import("./surfaces/trends").then((module) => ({ default: module.TrendsSurface })));
 const DocsSurface = lazy(async () => import("./surfaces/docs").then((module) => ({ default: module.DocsSurface })));
 
 const AUTO_REFRESH_INTERVAL = 30000;
+const EMPTY_METADATA_MAP = new Map<string, never>();
 
 type TabType = "dashboard" | "trends" | "docs";
 type TickNoticeTone = "info" | "success" | "warning" | "danger";
@@ -78,6 +79,9 @@ export default function App() {
   const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedState);
   const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
   const [tickNotice, setTickNotice] = useState<TickNotice | null>(null);
+  const metadataContext = useCheckMetadata();
+  const checksMetadata = metadataContext.checks ?? [];
+  const checksMetadataMap = metadataContext.metadataMap ?? EMPTY_METADATA_MAP;
 
   const toggleGroup = useCallback((group: keyof CollapsedGroups) => {
     setCollapsedGroups((prev) => {
@@ -111,22 +115,6 @@ export default function App() {
       return autoRefresh ? AUTO_REFRESH_INTERVAL : false;
     },
   });
-
-  const { data: checksMetadata } = useQuery({
-    queryKey: ["checks-metadata"],
-    queryFn: fetchChecks,
-    staleTime: 60000,
-  });
-
-  const checksMetadataMap = useMemo(() => {
-    const map: Record<string, CheckInfo> = {};
-    if (checksMetadata) {
-      for (const check of checksMetadata) {
-        map[check.id] = check;
-      }
-    }
-    return map;
-  }, [checksMetadata]);
 
   const tickMutation = useMutation({
     mutationFn: () => runTick(true),
@@ -189,7 +177,7 @@ export default function App() {
   const enrichedChecks: EnrichedCheck[] = useMemo(() => {
     const checks = data?.checks || [];
     return checks.map((check) => {
-      const metadata = checksMetadataMap[check.checkId];
+      const metadata = checksMetadataMap.get(check.checkId);
       return {
         ...check,
         title: metadata?.title,

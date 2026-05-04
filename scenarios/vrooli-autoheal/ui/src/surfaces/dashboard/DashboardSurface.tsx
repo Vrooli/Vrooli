@@ -1,7 +1,9 @@
 import { Activity, AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, HardDrive } from "lucide-react";
+import { memo, Profiler } from "react";
 import { CheckCard, EventsTimeline, PlatformInfo, SummaryCard, SystemProtection, UptimeStats } from "./components";
 import { Card } from "../../shared/ui/primitives";
 import type { CheckCategory, HealthResult, StatusResponse } from "../../lib/api";
+import { onProfilerRender } from "../../lib/profiler";
 
 export interface EnrichedCheck extends HealthResult {
   title?: string;
@@ -56,7 +58,7 @@ interface CheckGroupSectionProps {
   onSelectCheck: (checkId: string) => void;
 }
 
-function CheckGroupSection({
+const CheckGroupSection = memo(function CheckGroupSection({
   group,
   checks,
   collapsed,
@@ -97,7 +99,7 @@ function CheckGroupSection({
       )}
     </div>
   );
-}
+});
 
 interface DashboardSurfaceProps {
   data: StatusResponse | undefined;
@@ -116,7 +118,7 @@ interface DashboardSurfaceProps {
   onSelectCheck: (checkId: string) => void;
 }
 
-export function DashboardSurface({
+function DashboardSurfaceImpl({
   data,
   checksMetadataCount,
   enrichedChecks,
@@ -203,8 +205,18 @@ export function DashboardSurface({
       </div>
 
       <div className="mt-6">
-        <EventsTimeline />
+        <Profiler id="EventsTimeline" onRender={onProfilerRender}>
+          <EventsTimeline />
+        </Profiler>
       </div>
     </div>
+  );
+}
+
+export function DashboardSurface(props: DashboardSurfaceProps) {
+  return (
+    <Profiler id="DashboardSurface" onRender={onProfilerRender}>
+      <DashboardSurfaceImpl {...props} />
+    </Profiler>
   );
 }

@@ -1,11 +1,12 @@
 /**
  * RecordModeView - Route wrapper for browser recording mode.
  */
-import { lazy, Suspense, useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { Profiler, lazy, Suspense, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 import { getConfig } from '@/config';
+import { onProfilerRender } from '@/lib/profiler';
 import { logger } from '@utils/logger';
 import toast from 'react-hot-toast';
 
@@ -136,23 +137,25 @@ export default function RecordModeView() {
           </div>
         }
       >
-        <RecordModePage
-          sessionId={sessionId}
-          mode={templateParams.mode as 'recording' | 'execution'}
-          executionId={templateParams.executionId}
-          initialWorkflowId={templateParams.workflowId}
-          initialProjectId={templateParams.projectId}
-          onWorkflowGenerated={handleWorkflowGenerated}
-          onSessionReady={handleSessionReady}
-          onClose={handleClose}
-          initialUrl={templateParams.initialUrl}
-          aiPrompt={templateParams.aiPrompt}
-          aiModel={templateParams.aiModel}
-          aiMaxSteps={templateParams.aiMaxSteps}
-          autoStartAI={templateParams.autoStartAI}
-          workflowType={templateParams.workflowType}
-          initialFolder={templateParams.folder}
-        />
+        <Profiler id="RecordModePage" onRender={onProfilerRender}>
+          <RecordModePage
+            sessionId={sessionId}
+            mode={templateParams.mode as 'recording' | 'execution'}
+            executionId={templateParams.executionId}
+            initialWorkflowId={templateParams.workflowId}
+            initialProjectId={templateParams.projectId}
+            onWorkflowGenerated={handleWorkflowGenerated}
+            onSessionReady={handleSessionReady}
+            onClose={handleClose}
+            initialUrl={templateParams.initialUrl}
+            aiPrompt={templateParams.aiPrompt}
+            aiModel={templateParams.aiModel}
+            aiMaxSteps={templateParams.aiMaxSteps}
+            autoStartAI={templateParams.autoStartAI}
+            workflowType={templateParams.workflowType}
+            initialFolder={templateParams.folder}
+          />
+        </Profiler>
       </Suspense>
     </div>
   );

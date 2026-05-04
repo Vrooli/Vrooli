@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { Profiler, memo, useState, useMemo, useRef, useEffect } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   FileDiff,
   FilePlus,
@@ -25,6 +26,7 @@ import {
   type HighlightToken,
   type HighlightedLine,
 } from "../lib/highlighter";
+import { onProfilerRender } from "../lib/profiler";
 
 // Hunk selection type for approval workflow
 export interface HunkSelection {
@@ -308,18 +310,22 @@ function FullFileView({ annotatedLines, highlightedLines, filePath: _filePath }:
   }, [highlightedLines]);
 
   return (
-    <div data-testid="full-file-content">
-      {annotatedLines.map((line, index) => (
-        <HighlightedCodeLine
-          key={index}
-          lineNumber={line.number}
-          tokens={line.number > 0 ? highlightMap.get(line.number) : undefined}
-          content={line.content}
-          change={line.change || ""}
-          showChangeMarker={true}
-        />
-      ))}
-    </div>
+    <VirtualizedLineList
+      testId="full-file-content"
+      count={annotatedLines.length}
+      renderLine={(index) => {
+        const line = annotatedLines[index];
+        return (
+          <HighlightedCodeLine
+            lineNumber={line.number}
+            tokens={line.number > 0 ? highlightMap.get(line.number) : undefined}
+            content={line.content}
+            change={line.change || ""}
+            showChangeMarker={true}
+          />
+        );
+      }}
+    />
   );
 }
 
@@ -344,16 +350,72 @@ function SourceView({ content, highlightedLines, filePath: _filePath }: SourceVi
   }, [highlightedLines]);
 
   return (
-    <div data-testid="source-content">
-      {lines.map((line, index) => (
+    <VirtualizedLineList
+      testId="source-content"
+      count={lines.length}
+      renderLine={(index) => (
         <HighlightedCodeLine
-          key={index}
           lineNumber={index + 1}
           tokens={highlightMap.get(index + 1)}
-          content={line}
+          content={lines[index]}
           showChangeMarker={false}
         />
-      ))}
+      )}
+    />
+  );
+}
+
+// Virtualizes a sequence of HighlightedCodeLine rows. The container is the
+// scroll parent (height: 100%); the inner spacer div is sized to the total
+// virtualized height so the scrollbar reflects full content extent. Only the
+// rows in the visible window mount — large markdown / source files no longer
+// emit thousands of DOM nodes. See F7.
+const VIRTUAL_ROW_HEIGHT = 18; // px — matches `text-xs` line-height
+const VIRTUAL_OVERSCAN = 12;   // ~half a viewport of pre-rendered rows
+
+interface VirtualizedLineListProps {
+  testId: string;
+  count: number;
+  renderLine: (index: number) => React.ReactNode;
+}
+
+function VirtualizedLineList({ testId, count, renderLine }: VirtualizedLineListProps) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const virtualizer = useVirtualizer({
+    count,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => VIRTUAL_ROW_HEIGHT,
+    overscan: VIRTUAL_OVERSCAN,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      data-testid={testId}
+      className="h-full overflow-auto"
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((vRow) => (
+          <div
+            key={vRow.key}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${vRow.start}px)`,
+            }}
+          >
+            {renderLine(vRow.index)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -643,7 +705,17 @@ function FileDiffSection({
   );
 }
 
-export function DiffViewer({
+export function DiffViewer(props: DiffViewerProps) {
+  return (
+    <Profiler id="DiffViewer" onRender={onProfilerRender}>
+      <DiffViewerImpl {...props} />
+    </Profiler>
+  );
+}
+
+const DiffViewerImpl = memo(DiffViewerImplInner);
+
+function DiffViewerImplInner({
   diff,
   isLoading,
   error,

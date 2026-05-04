@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm run type-check && vite build",
+    "build": "pnpm run type-check && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build:profile": "pnpm run type-check && vite build --mode profile",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "preview": "vite preview",

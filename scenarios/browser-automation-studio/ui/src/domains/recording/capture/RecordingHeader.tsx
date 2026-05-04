@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TimelineMode } from '../types/timeline-unified';
 import type { RecordingSessionProfile } from '../types/types';
-import type { StreamConnectionStatus } from './PlaywrightView';
+import { useRecordingConnectionStatus, type StreamConnectionStatus } from '../stores/sessionStore';
 
 /** Workflow type being created (from AI modal or template) */
 type WorkflowTypeParam = 'action' | 'flow' | 'case';
@@ -75,6 +75,8 @@ export function RecordingHeader({
   onNavigateToSessionSettings,
   workflowType,
 }: RecordingHeaderProps) {
+  const recordingConnectionStatus = useRecordingConnectionStatus();
+  const effectiveConnectionStatus = connectionStatus ?? recordingConnectionStatus;
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
   const selectedSession = useMemo(
@@ -187,7 +189,7 @@ export function RecordingHeader({
         {mode === 'recording' && isRecording && (
           <span
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full cursor-help border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
-            title={connectionStatus?.isWebSocket
+            title={effectiveConnectionStatus?.isWebSocket
               ? "Recording via WebSocket (real-time)"
               : "Recording via polling (fallback)"
             }
@@ -201,15 +203,15 @@ export function RecordingHeader({
 
             {/* Connection status dot (green for WS, yellow for polling) */}
             <span className={`w-1.5 h-1.5 rounded-full ${
-              connectionStatus?.isConnected
-                ? connectionStatus?.isWebSocket
+              effectiveConnectionStatus?.isConnected
+                ? effectiveConnectionStatus?.isWebSocket
                   ? 'bg-green-500'
                   : 'bg-yellow-500'
                 : 'bg-gray-400'
             }`} />
             <span className="text-gray-600 dark:text-gray-300">
-              {connectionStatus?.isConnected
-                ? connectionStatus?.isWebSocket
+              {effectiveConnectionStatus?.isConnected
+                ? effectiveConnectionStatus?.isWebSocket
                   ? 'Live'
                   : 'Polling'
                 : 'Connecting…'

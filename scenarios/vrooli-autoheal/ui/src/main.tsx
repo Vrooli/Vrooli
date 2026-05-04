@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild, initSpatialNav } from "@vrooli/iframe-bridge";
 import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import { CheckMetadataProvider } from "./shared/contexts/CheckMetadataContext";
 import "./shared/theme/tokens.css";
 import "./styles.css";
@@ -31,7 +32,9 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <CheckMetadataProvider>
-        <App />
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
       </CheckMetadataProvider>
     </QueryClientProvider>
   </React.StrictMode>

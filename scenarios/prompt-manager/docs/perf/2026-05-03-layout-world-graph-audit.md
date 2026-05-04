@@ -8,8 +8,9 @@ interactions:
   - graph route visual/json toggle and canvas input
 traces:
   before: /tmp/prompt-manager/perf/trace.json
+  after: /tmp/prompt-manager/perf/trace.after.json
   capture_script: /tmp/prompt-manager/perf/capture.js
-status: open
+status: fixed
 related_skill_run: scenario-performance-audit
 ---
 
@@ -44,13 +45,31 @@ Trace sanity:
 - Paired React commits: 413
 - CPU profile chunks: 5,703
 
+Implementation validation run:
+
+| component | count | total(ms) | avg(μs) | max(μs) |
+|---|---:|---:|---:|---:|
+| App | 69 | 313.6 | 4545 | 145900 |
+| SkillManagerLayout | 69 | 310.8 | 4504 | 145901 |
+| GraphView | 17 | 249.4 | 14670 | 142801 |
+| WorldCanvas | 50 | 16.8 | 336 | 1499 |
+
+Validation trace sanity:
+
+- Trace: `/tmp/prompt-manager/perf/trace.after.json` (23 MB)
+- Capture script: `/tmp/prompt-manager/perf/capture-after.js`
+- React user-timing entries: 434
+- Paired React commits: 205
+- CPU profile chunks: 2,300
+- Note: the validation script uses bounded DOM-triggered list/card/tree toggles because Playwright role-click auto-wait hung on the icon-only view controls. The interaction still covers the same optimized surfaces.
+
 ## Long-task summary
 
 | metric | before | after | delta |
 |---|---:|---:|---:|
-| count | 5 |  |  |
-| total(ms) | 481 |  |  |
-| max(ms) | 180 |  |  |
+| count | 5 | 4 | -1 |
+| total(ms) | 481 | 448 | -33 |
+| max(ms) | 180 | 210 | +30 |
 
 Paint/LCP from the same web-vitals capture:
 
@@ -92,13 +111,13 @@ Paint/LCP from the same web-vitals capture:
 
 | # | Recommendation | Status | Notes |
 |---|---|---|---|
-| 1 | Throttle or imperative-buffer sidebar resizing; commit width once per animation frame or on pointer-up. | open | Highest-confidence fix from this trace. |
-| 2 | Remove width transition during active resize. | open | Reduces layout animation work during drag. |
-| 3 | Add seeded performance fixtures for populated skill rows and graph nodes before optimizing list/card/graph density. | open | Current capture measured empty list/card and empty graph data. |
-| 4 | Virtualize `SkillListView` and `SkillCardView`; evaluate tree virtualization for expanded folders. | open | New dependency likely needed unless implemented locally. |
-| 5 | Consolidate `GraphView` store selection and cache layout by stable graph/filter signatures. | open | Consider workerizing Dagre only after a populated graph trace confirms layout dominates. |
-| 6 | Use R3F/GPU-specific profiling for the world view rather than React commit profiling. | open | React commit cost was low. |
+| 1 | Throttle or imperative-buffer sidebar resizing; commit width once per animation frame or on pointer-up. | fixed | `useResizableSidebar` live-mutates the sidebar CSS variable during drag and commits React state on mouse-up. |
+| 2 | Remove width transition during active resize. | fixed | Sidebar width no longer uses a width transition during pointer drag. |
+| 3 | Add seeded performance fixtures for populated skill rows and graph nodes before optimizing list/card/graph density. | deferred | Still needed for future graph-density work; not required for the implemented UI fixes. |
+| 4 | Virtualize `SkillListView` and `SkillCardView`; evaluate tree virtualization for expanded folders. | fixed | Added dependency-free row windowing for list/card and flattened virtual tree rows. |
+| 5 | Consolidate `GraphView` store selection and cache layout by stable graph/filter signatures. | fixed | Consolidated store selection, removed mirrored React Flow node/edge state, and reused one health-score map. |
+| 6 | Use R3F/GPU-specific profiling for the world view rather than React commit profiling. | deferred | React commit cost remains low; GPU/render-loop profiling is a separate audit if world lag persists. |
 
 ## New dependencies
 
-- `@tanstack/react-virtual` or equivalent windowing library would be useful for list/card virtualization. Do not add it without explicit approval.
+- (none) — virtualization was implemented locally without adding packages.

@@ -8,6 +8,7 @@ import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import { AppWithUpdates, ReadyMarker } from './AppShell';
 import { WebSocketProvider } from './contexts/WebSocketProvider';
 import './index.css';
+import { onProfilerRender } from './lib/profiler';
 import { logger } from './utils/logger';
 
 declare global {
@@ -69,7 +70,9 @@ function renderTree(): ReactNode {
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
         <ReadyMarker />
-        <AppWithUpdates />
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <AppWithUpdates />
+        </React.Profiler>
         <Toaster
           position="bottom-right"
           toastOptions={{

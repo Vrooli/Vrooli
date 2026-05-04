@@ -55,7 +55,7 @@ export const TAB_CONFIGS: TabConfig[] = [
   {
     id: 'timeline',
     label: 'Timeline',
-    tooltip: 'View recorded or executed actions',
+    tooltip: 'View recorded actions and executed actions',
     visibleIn: ['recording', 'execution'],
   },
   {

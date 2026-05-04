@@ -5,6 +5,7 @@ import { getProxyInfo } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles/global.css";
 
 declare global {
@@ -50,7 +51,9 @@ initSpatialNav();
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter basename={routerBasename}>
-      <App />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
     </BrowserRouter>
   </React.StrictMode>
 );
