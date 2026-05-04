@@ -1,7 +1,25 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "runtime-health-audit/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "runtime-health-finding",
+        "instrumentation-gap",
+        "capability-gap",
+        "reliability-target-update"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "runtime-health-audit/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "runtime-health-audit/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "runtime-health-finding",
@@ -9,7 +27,8 @@
     "capability-gap",
     "reliability-target-update"
   ],
-  "decisions_consumed": [],
   "raises_capability_gaps": true,
-  "external_producers": ["operator"]
+  "external_producers": [
+    "operator"
+  ]
 }

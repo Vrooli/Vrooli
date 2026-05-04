@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"prompt-manager/memberflow"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
@@ -328,9 +329,6 @@ Owned decision contexts:
 Decision caps:
 - max new decisions this heartbeat: 1
 - skip new decisions when 3+ owned-context decisions are already pending
-
-Required knowledge topics:
-- heartbeat-note; append-only, do not set supersedes
 
 ## Document Authority
 
@@ -976,6 +974,125 @@ func memberCanWriteKindOrPath(member teamcontract.MemberContract, kind, pathSuff
 		}
 	}
 	return false
+}
+
+// TestRequiredMemorySectionMatchesTopicsJSON locks in the contract that the
+// rendered "## Required Memory" block of the active task brief is a
+// deterministic rendering of the member's topics.json `required_read[]`
+// prefixes (sorted). The assertion is strict — it covers the entire block
+// including the trailing blank line — so any drift in formatting (spacing,
+// ordering, headings) surfaces as a failure rather than a silent regression.
+func TestRequiredMemorySectionMatchesTopicsJSON(t *testing.T) {
+	ctx := context.Background()
+	fileStore := store.NewFileStore("../../store")
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	builder := NewPromptBuilder(teamStore, agentStore)
+
+	teams, err := teamStore.List(ctx)
+	if err != nil {
+		t.Fatalf("list teams: %v", err)
+	}
+	sort.Slice(teams, func(i, j int) bool { return teams[i].ID < teams[j].ID })
+
+	storeDir := teamStore.StoreDir()
+
+	for _, team := range teams {
+		team := team
+		if !team.Enabled || team.OperatingContract == nil {
+			continue
+		}
+		t.Run(team.ID, func(t *testing.T) {
+			members, err := teamStore.GetMembers(ctx, team.ID)
+			if err != nil {
+				t.Fatalf("list members: %v", err)
+			}
+			sort.Slice(members, func(i, j int) bool { return members[i].AgentID < members[j].AgentID })
+
+			for _, relation := range members {
+				relation := relation
+				if relation.Status != "" && relation.Status != store.MemberStatusActive {
+					continue
+				}
+				if _, ok := team.OperatingContract.Members[relation.AgentID]; !ok {
+					continue
+				}
+				t.Run(relation.AgentID, func(t *testing.T) {
+					sections, err := builder.BuildStructured(ctx, PromptBuildRequest{
+						TeamID:  team.ID,
+						AgentID: relation.AgentID,
+					})
+					if err != nil {
+						t.Fatalf("build structured prompt: %v", err)
+					}
+					brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
+					if brief == "" {
+						t.Fatalf("active task brief section not found")
+					}
+
+					got := extractRequiredMemoryBlock(brief)
+					want := expectedRequiredMemoryBlock(t, storeDir, team.ID, relation.AgentID)
+					if got != want {
+						t.Fatalf("required memory mismatch for %s/%s\n--- want ---\n%q\n--- got ---\n%q",
+							team.ID, relation.AgentID, want, got)
+					}
+				})
+			}
+		})
+	}
+}
+
+// extractRequiredMemoryBlock returns the "Knowledge topics" subsection of
+// the brief's "## Required Memory" heading. The full ## Required Memory
+// section also includes Handoff and Decision-cap subsections (rendered
+// from independent contract data); those are out of scope for this
+// snapshot, which exists to lock down the topics-list rendering driven by
+// topics.json::required_read[].
+func extractRequiredMemoryBlock(brief string) string {
+	const heading = "## Required Memory\n\n"
+	start := strings.Index(brief, heading)
+	if start == -1 {
+		return ""
+	}
+	rest := brief[start+len(heading):]
+	// The Knowledge topics subsection ends where the next subsection
+	// ("Handoff:") begins. The trailing blank line that separates them is
+	// part of the topics-block rendering, so include it.
+	end := strings.Index(rest, "Handoff:")
+	if end == -1 {
+		return heading + rest
+	}
+	return heading + rest[:end]
+}
+
+// expectedRequiredMemoryBlock computes the rendered Required Memory block
+// from the member's topics.json `required_read[]` prefixes, sorted. Mirrors
+// the rendering in prompt_builder.go's buildActiveTaskBriefSection so the
+// snapshot test stays a one-line change if the rendering template changes.
+func expectedRequiredMemoryBlock(t *testing.T, storeDir, teamID, agentID string) string {
+	t.Helper()
+	mt, err := memberflow.LoadMember(storeDir, teamID, agentID)
+	if err != nil {
+		t.Fatalf("load member topics for %s/%s: %v", teamID, agentID, err)
+	}
+	prefixes := make([]string, 0, len(mt.Topics.RequiredRead))
+	for _, e := range mt.Topics.RequiredRead {
+		prefixes = append(prefixes, e.Prefix)
+	}
+	sort.Strings(prefixes)
+
+	var b strings.Builder
+	b.WriteString("## Required Memory\n\n")
+	if len(prefixes) == 0 {
+		b.WriteString("Knowledge topics: none declared\n\n")
+		return b.String()
+	}
+	b.WriteString("Knowledge topics:\n")
+	for _, prefix := range prefixes {
+		b.WriteString("- `" + prefix + "`\n")
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {

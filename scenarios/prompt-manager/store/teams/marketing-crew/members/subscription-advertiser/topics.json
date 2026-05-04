@@ -1,13 +1,35 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "subscription-ad-run/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "content-publish-proposal",
+        "coverage-gap",
+        "capability-gap"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "campaign-draft/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "campaign-draft/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "content-publish-proposal",
     "coverage-gap"
   ],
-  "decisions_consumed": ["capability-gap"],
+  "decisions_consumed": [
+    "capability-gap"
+  ],
   "raises_capability_gaps": true,
-  "external_producers": ["operator", "vision-walk"]
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
 }

@@ -6,11 +6,33 @@
       "source_team": "*"
     }
   ],
-  "output": [
-    { "prefix": "bug-investigation-report/*", "destination_kind": "knowledge", "destination_team": null }
+  "required_read": [
+    {
+      "prefix": "bug-investigation-report/<slug>"
+    }
   ],
-  "decisions_owned": ["bug-resolution-proposal"],
-  "decisions_consumed": ["capability-gap"],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "bug-resolution-proposal"
+      ]
+    }
+  ],
+  "output": [
+    {
+      "prefix": "bug-investigation-report/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "decisions_owned": [
+    "bug-resolution-proposal"
+  ],
+  "decisions_consumed": [
+    "capability-gap"
+  ],
   "raises_capability_gaps": true,
-  "external_producers": ["report-bug"]
+  "external_producers": [
+    "report-bug"
+  ]
 }

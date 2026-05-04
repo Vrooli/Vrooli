@@ -57,7 +57,13 @@ Do **not** create a topic for:
 - Pure logging without intent to drain (scenario logs or telemetry).
 - Parallel naming for an existing topic (e.g., creating `competitor-scan/*` when `competitor/*` already exists). Naming inconsistencies that survive go in § Naming conventions to be reconciled, not minted as new topics.
 
-When you do create one: declare it in the producer's `topics.json#output[]` and the drainer's `topics.json#intake[]` — both sides. If no drainer is identified yet, that's a smell: file a `capability-gap` decision or onboard a new drainer. Don't let an undrained topic accumulate orphaned entries; the validator will flag it as `orphan_output`.
+When you do create one: declare it in the producer's `topics.json#output[]` and on the consuming side. The consumer-side declaration is whichever fits:
+
+- `intake[]` if the consumer drains and routes entries through the inbox-router-drain pattern.
+- `required_read[]` if the consumer must read entries every heartbeat without draining (rendered into "## Required Memory").
+- `evidence_consumed[]` if the consumer cites entries as evidence on a named decision context.
+
+If no consumer is identified yet, that's a smell: file a `capability-gap` decision or onboard a consumer. Don't let an undrained topic accumulate orphaned entries; the validator will flag it as `orphan_output`. Conversely, if a consumer's `required_read[]` references a prefix nobody outputs, the validator surfaces it as `unread_required`. Both rules read from the same declaration substrate; see `TOPICS_SCHEMA.md` § Validation rules for the full set.
 
 ---
 

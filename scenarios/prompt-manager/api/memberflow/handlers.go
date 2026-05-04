@@ -185,6 +185,7 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	taxonomies, _ := LoadAllTaxonomies(repoRoot)
 	val := Validate(all, ValidationOptions{
 		RepoRoot:   repoRoot,
+		StoreDir:   h.storeDir,
 		SkillIDs:   skillIDs,
 		SkillPaths: skillPaths,
 		Taxonomies: taxonomies,

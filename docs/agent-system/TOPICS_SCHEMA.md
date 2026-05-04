@@ -119,18 +119,24 @@ Implemented in `scenarios/prompt-manager/api/memberflow/validation.go`. Run via 
 
 | Rule | Smell | Severity | Detection |
 |---|---|---|---|
-| `orphan_output` | Output prefix has no consumer | error | For each output: another member's intake prefix overlaps, or destination_kind is non-member sink |
-| `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it |
+| `orphan_output` | Knowledge output prefix has no consumer | warning | For each `destination_kind=knowledge` output: any member declares the prefix on `intake[]`, `required_read[]`, or `evidence_consumed[]`. Non-knowledge sinks (decision, por_file, capability_gap, skill_proposal, backlog) are never orphans. |
+| `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it, or `source_team == "*"` |
+| `unread_required` | `required_read[]` prefix has no producer | warning | For each required_read entry (excluding `source_team == "*"`): some member's `output[]` overlaps. Member-level `external_producers` is intentionally NOT honored here so the rule surfaces drift between declared read and write prefixes. |
 | `conflicting_drain` | Two members' intake prefixes overlap | error | Pairwise overlap check |
+| `wildcard_source_misuse` | `source_team == "*"` intake without any documented `external_producers` | warning | Universal-source declarations need a producer-side anchor (writer skill, external system) for auditability. |
 | `unknown_taxonomy` | `intake[].taxonomy` does not resolve in the registry | error | Cross-check against `LoadAllTaxonomies` |
 | `missing_taxonomy` | `intake[].taxonomy` is unset | error | Surfaces intake entries that have not been migrated to the inbox-flow taxonomy model. |
 | `non_portable_classifier` | `intake[].classifier_skill` SKILL.md contains forbidden coupling content | error | Forbidden-pattern grep against the skill's SKILL.md |
 | `missing_destination_schema` | `output[].schema` doesn't resolve under any taxonomy | warning | Cross-check against `taxonomy.schemas.<id>` across the registry |
 | `dangling_por_sink` | `destination_kind=por_file` references missing `destination_path` | error | Filesystem stat |
+| `dangling_evidence_decision` | `evidence_consumed[].for_decisions[]` references a decision-context id not declared in any team.json | error | Cross-check against `LoadAllTeamContracts` |
+| `topic_key_prefix_mismatch` | Knowledge entry's `topic` doesn't match any declared prefix on its team | warning | Per-entry cross-check against the team's combined intake/output prefix set |
 | `stalled_drain` | Intake has unrouted entries older than threshold (default 7d) | warning | Cross-check against `team knowledge-list` timestamps |
 | `piling_inbox` | Intake has > N unrouted entries (default 50) | warning | Same query |
 
 Errors fail `prompt-manager graph topics` with exit code 1. Warnings do not affect exit code.
+
+`unread_required` is the producer-side mirror of `orphan_output`: when both fire on a related prefix pair (declared output `X/*` with no consumer, declared required_read `Y/*` with no producer, where X ≠ Y), the operator's reconciliation is a rename — pick one canonical prefix and align both sides. New declarations should land already-aligned; reconciling pre-existing drift is the explicit job of the topic-validation refactor's reconciliation phase.
 
 ## Prefix-match semantics
 

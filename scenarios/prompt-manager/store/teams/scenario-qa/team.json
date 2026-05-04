@@ -170,11 +170,6 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "quality-audit/<scenario-id>/<skill-id>": {
-        "ownerMemberId": "quality-auditor",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
       "bug-inbox/<signal-type>/<slug>": {
         "ownerMemberId": "bug-investigator",
         "supersedesPrevious": false,
@@ -201,10 +196,6 @@
           "preemptive-qa-backlog"
         ],
         "pendingOwnedDecisionCap": 6,
-        "requiredKnowledgeTopics": [
-          "reviewed-scenario/<scenario-id>",
-          "dependency-wiring"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -248,9 +239,6 @@
           "deep-audit-backlog"
         ],
         "pendingOwnedDecisionCap": 6,
-        "requiredKnowledgeTopics": [
-          "deep-audit/<scenario-id>/<skill-id>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -301,9 +289,6 @@
           "bug-resolution-proposal"
         ],
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "bug-investigation-report/<slug>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -346,9 +331,6 @@
         "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write challenge-report/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
         "ownedDecisionContexts": [],
         "pendingOwnedDecisionCap": 0,
-        "requiredKnowledgeTopics": [
-          "challenge-report/<slug>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -373,7 +355,7 @@
           "Every challenge-note must cite a specific failure mode from a registered technique's PoR doc 'What the qa-contrarian watches for' section. Free-form challenges are forbidden.",
           "Quiet heartbeats are valid; manufactured challenge is forbidden.",
           "Cap at 3 challenge-notes per heartbeat.",
-          "Only write to challenge-report/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/, qa-run/). The constraint is enforced by the topics.json output declaration (output prefix is challenge-report/* only) and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
+          "Only write to challenge-report/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, deep-audit/, qa-run/). The constraint is enforced by the topics.json output declaration (output prefix is challenge-report/* only) and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -386,7 +368,7 @@
           "challengeNotesPerHeartbeatCap": 3,
           "peerOutputsToReview": [
             "bug-investigation-report/*",
-            "quality-audit/*",
+            "deep-audit/*",
             "qa-run/*"
           ]
         }

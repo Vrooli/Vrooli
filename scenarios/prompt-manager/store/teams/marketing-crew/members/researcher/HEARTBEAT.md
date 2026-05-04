@@ -6,7 +6,7 @@
 3. Append distinct observations with source references and honesty flags before proposing interpretation.
 4. Write cross-team benchmark-adjacent entries when useful.
 5. Check supersession on owned pending decisions.
-6. Raise decisions only when warranted by the taxonomy's evidence rules.
+6. Author decisions only when warranted by the taxonomy's evidence rules.
 
 ## Handoff Shape
 ### Inputs reviewed

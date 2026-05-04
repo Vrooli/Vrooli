@@ -17,7 +17,7 @@ Do not attempt all of these every heartbeat. 1-2 queue items + the staleness swe
 3. **Drain your queues per the generated `# Inbox Flow` section.** Pick the 1-2 highest-leverage items per the reasoning framework above. Defer the rest with a note.
 4. **Apply the method skill.** For pricing-dimension requests, use `pricing-comp-capture`. For other dimensions, follow inline guidance from `docs/monetization/VALIDATION_TAXONOMY.md` until a dedicated method skill emerges.
 5. **Run supersession** against existing owned-context decisions before proposing replacements.
-6. **Raise decisions only when material.** Materiality thresholds live in `docs/monetization/VALIDATION_TAXONOMY.md`.
+6. **Author decisions only when material.** Materiality thresholds live in `docs/monetization/VALIDATION_TAXONOMY.md`.
 
 (Queue/inbox draining commands and destination prefixes are in the generated `# Inbox Flow` section above; do not duplicate them here.)
 

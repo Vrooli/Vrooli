@@ -392,9 +392,6 @@
         ],
         "newDecisionCapPerHeartbeat": 3,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "catalog-snapshot/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -442,9 +439,6 @@
         ],
         "newDecisionCapPerHeartbeat": 3,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "scout-scan/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -499,9 +493,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "ledger-snapshot/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -558,9 +549,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "monetization/market-scan/<slug>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -609,9 +597,6 @@
           "decision-rejection-proposed": 2,
           "framework-update": 1
         },
-        "requiredKnowledgeTopics": [
-          "challenge-report/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",

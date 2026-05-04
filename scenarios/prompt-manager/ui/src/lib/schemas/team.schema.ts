@@ -129,7 +129,6 @@ export const OperatingContractSchema = z.object({
     newDecisionCapPerHeartbeat: z.number().int().nonnegative().optional(),
     newDecisionCapsByContext: z.record(z.string(), z.number().int().nonnegative()).optional(),
     pendingOwnedDecisionCap: z.number().int().nonnegative().optional(),
-    requiredKnowledgeTopics: z.array(z.string()).optional(),
     allowedWrites: z.array(WriteRefSchema).optional(),
     forbiddenWrites: z.array(WriteRefSchema).optional(),
     safetyCriticalRules: z.array(z.string()).optional(),

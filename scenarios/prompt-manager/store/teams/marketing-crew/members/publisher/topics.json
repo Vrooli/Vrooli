@@ -1,14 +1,45 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "coverage-snapshot/YYYY-MM-DD"
+    },
+    {
+      "prefix": "decision-application/<decision-id>"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "campaign-draft/*",
+      "for_decisions": [
+        "content-publish-proposal"
+      ]
+    },
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "content-publish-proposal",
+        "channel-update",
+        "coverage-gap",
+        "capability-gap"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "publish-log/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "publish-log/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "content-publish-proposal",
     "channel-update",
     "coverage-gap"
   ],
-  "decisions_consumed": ["capability-gap"],
+  "decisions_consumed": [
+    "capability-gap"
+  ],
   "raises_capability_gaps": true,
-  "external_producers": ["operator"]
+  "external_producers": [
+    "operator"
+  ]
 }

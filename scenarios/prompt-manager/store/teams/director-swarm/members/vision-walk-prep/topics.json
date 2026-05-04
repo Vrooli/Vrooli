@@ -1,13 +1,34 @@
 {
-  "intake": [],
-  "output": [
-    { "prefix": "research-inbox/*", "destination_kind": "knowledge", "destination_team": "marketing-crew" },
-    { "prefix": "opportunity-inbox/*", "destination_kind": "knowledge", "destination_team": "monetization" },
-    { "prefix": "validation-inbox/*", "destination_kind": "knowledge", "destination_team": "monetization" },
-    { "prefix": "vision-walk-prep/*", "destination_kind": "knowledge", "destination_team": null }
+  "required_read": [
+    {
+      "prefix": "vision-walk/<date>/<slug>"
+    }
   ],
-  "decisions_owned": ["vision-update"],
-  "decisions_consumed": [],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator"]
+  "output": [
+    {
+      "prefix": "research-inbox/*",
+      "destination_kind": "knowledge",
+      "destination_team": "marketing-crew"
+    },
+    {
+      "prefix": "opportunity-inbox/*",
+      "destination_kind": "knowledge",
+      "destination_team": "monetization"
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "destination_kind": "knowledge",
+      "destination_team": "monetization"
+    },
+    {
+      "prefix": "vision-walk/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "decisions_owned": [
+    "vision-update"
+  ],
+  "external_producers": [
+    "operator"
+  ]
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"prompt-manager/interop"
+	"prompt-manager/memberflow"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
@@ -284,7 +285,7 @@ type memberStoragePolicy struct {
 	CanWriteWorkingStatePaths []string
 	AllowedWriteLabels        []string
 	ForbiddenWriteLabels      []string
-	RequiredKnowledgeTopics   []string
+	RequiredReadPrefixes      []string
 	DecisionCapPerHeartbeat   *int
 	PendingOwnedDecisionCap   *int
 }
@@ -351,11 +352,11 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 		section.WriteString("\n")
 	}
 	section.WriteString("## Required Memory\n\n")
-	if len(policy.RequiredKnowledgeTopics) == 0 {
+	if len(policy.RequiredReadPrefixes) == 0 {
 		section.WriteString("Knowledge topics: none declared\n\n")
 	} else {
 		section.WriteString("Knowledge topics:\n")
-		for _, topic := range policy.RequiredKnowledgeTopics {
+		for _, topic := range policy.RequiredReadPrefixes {
 			section.WriteString("- `" + topic + "`\n")
 		}
 		section.WriteString("\n")
@@ -456,7 +457,7 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 	}
 	policy := memberStoragePolicy{
 		RequiresHandoff:         teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
-		RequiredKnowledgeTopics: append([]string(nil), member.RequiredKnowledgeTopics...),
+		RequiredReadPrefixes:    loadRequiredReadPrefixes(storeDir, team.ID, agentID),
 		DecisionCapPerHeartbeat: member.NewDecisionCapPerHeartbeat,
 		PendingOwnedDecisionCap: member.PendingOwnedDecisionCap,
 	}
@@ -514,9 +515,40 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 	}
 	policy.AllowedWriteLabels = sortedUniqueStrings(policy.AllowedWriteLabels)
 	policy.ForbiddenWriteLabels = sortedUniqueStrings(policy.ForbiddenWriteLabels)
-	sort.Strings(policy.RequiredKnowledgeTopics)
+	sort.Strings(policy.RequiredReadPrefixes)
 	sort.Strings(policy.CanWriteWorkingStatePaths)
 	return policy
+}
+
+// loadRequiredReadPrefixes returns the topic prefixes the member must keep
+// in working memory every heartbeat. The list comes from the member's
+// topics.json `required_read[]` declaration — the single declaration source
+// of truth for read relationships (Phase 1.5 of the topic-validation
+// refactor). When storeDir is empty (e.g., the task-reminder section,
+// which only needs decision/handoff hints) or topics.json is absent
+// (a positive empty declaration), the function returns nil and the
+// rendering falls back to "Knowledge topics: none declared".
+//
+// Errors loading topics.json are intentionally swallowed as "no required
+// reads" rather than propagated: the prompt builder must not refuse to
+// emit a heartbeat just because a topics.json read failed. The validator
+// (api/memberflow/validation.go) catches malformed topics.json on every
+// `prompt-manager team validate` run so drift surfaces there, not here.
+func loadRequiredReadPrefixes(storeDir, teamID, agentID string) []string {
+	if strings.TrimSpace(storeDir) == "" {
+		return nil
+	}
+	mt, err := memberflow.LoadMember(storeDir, teamID, agentID)
+	if err != nil || len(mt.Topics.RequiredRead) == 0 {
+		return nil
+	}
+	prefixes := make([]string, 0, len(mt.Topics.RequiredRead))
+	for _, e := range mt.Topics.RequiredRead {
+		if p := strings.TrimSpace(e.Prefix); p != "" {
+			prefixes = append(prefixes, p)
+		}
+	}
+	return prefixes
 }
 
 func sortedUniqueStrings(values []string) []string {

@@ -1,7 +1,25 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "platform-code-audit/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "platform-code-finding",
+        "cross-platform-debt",
+        "instrumentation-gap",
+        "capability-gap"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "platform-code-audit/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "platform-code-audit/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "platform-code-finding",
@@ -9,7 +27,8 @@
     "instrumentation-gap",
     "capability-gap"
   ],
-  "decisions_consumed": [],
   "raises_capability_gaps": true,
-  "external_producers": ["operator"]
+  "external_producers": [
+    "operator"
+  ]
 }

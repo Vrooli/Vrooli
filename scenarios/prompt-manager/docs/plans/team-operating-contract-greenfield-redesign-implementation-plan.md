@@ -1,6 +1,6 @@
 # Team Operating Contract Greenfield Redesign Implementation Plan
 
-> Supersession note: this is a historical implementation plan. The live heartbeat prompt now renders the generated contract body inside `Operating Policy`, not as a standalone `Resolved Operating Contract` section.
+> Supersession note: this is a historical implementation plan. The live heartbeat prompt now renders the generated contract body inside `Operating Policy`, not as a standalone `Resolved Operating Contract` section. Member-level read relationships live in each member's `topics.json::required_read[]` (see `docs/agent-system/TOPICS_SCHEMA.md`); they do not appear on the team contract.
 
 Status: draft for workshop refinement.
 
@@ -387,7 +387,6 @@ Rules:
     "ownedDecisionContexts": ["meta-self-improvement"],
     "newDecisionCapPerHeartbeat": 1,
     "pendingOwnedDecisionCap": 2,
-    "requiredKnowledgeTopics": ["debt-scan-YYYY-MM-DD"],
     "allowedWrites": [
       { "base": "team-shared", "path": "knowledge.jsonl" },
       { "base": "team-shared", "path": "decisions.jsonl" },
@@ -412,7 +411,6 @@ Rules:
 - One member entry is required for every active team member.
 - Member IDs must match real `store/relations/team-member` agent IDs.
 - `ownedDecisionContexts` must be declared at team level.
-- `requiredKnowledgeTopics` must exist in `knowledgeTopics`.
 - `allowedWrites` and `forbiddenWrites` may contain `PathRef` entries or special entries with `kind`.
 
 Allowed special write `kind` values:
@@ -496,7 +494,6 @@ Representative persisted shape using the V1 schema:
         "ownedDecisionContexts": ["meta-self-improvement"],
         "newDecisionCapPerHeartbeat": 1,
         "pendingOwnedDecisionCap": 2,
-        "requiredKnowledgeTopics": ["debt-scan-YYYY-MM-DD"],
         "allowedWrites": [
           { "base": "team-shared", "path": "knowledge.jsonl" },
           { "base": "team-shared", "path": "decisions.jsonl" },
@@ -846,7 +843,6 @@ Representative member contract:
   "ownedDecisionContexts": ["meta-self-improvement"],
   "newDecisionCapPerHeartbeat": 1,
   "pendingOwnedDecisionCap": 2,
-  "requiredKnowledgeTopics": ["debt-scan-YYYY-MM-DD"],
   "allowedWrites": [
     { "base": "team-shared", "path": "knowledge.jsonl" },
     { "base": "team-shared", "path": "decisions.jsonl" },

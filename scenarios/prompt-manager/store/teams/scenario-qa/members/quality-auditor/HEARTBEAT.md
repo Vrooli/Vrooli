@@ -11,7 +11,7 @@ If during the audit you observe a bug that's outside structural scope (broken co
 4. Read the paired strategic-canon doc, then load the skill.
 5. Inspect architecture docs, code structure, and tests.
 6. Create an execute backlog item only for non-trivial structural findings.
-7. Record the audit in `quality-audit/<scenario-id>/<skill-id>` knowledge.
+7. Record the audit in `deep-audit/<scenario-id>/<skill-id>` knowledge.
 
 ## Handoff Shape
 ### Scenario audited

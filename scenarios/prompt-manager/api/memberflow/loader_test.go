@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -273,4 +274,32 @@ func containsAny(b []byte, needle byte) bool {
 		}
 	}
 	return false
+}
+
+// TestWriteMember_PreservesPlaceholderChars pins that prefixes containing
+// `<`, `>`, or `&` (e.g. `decision-application/<decision-id>`) survive a
+// round-trip through WriteMember without being escaped to Unicode literals.
+// Operators read topics.json in PR review; `<…>` is unreadable.
+func TestWriteMember_PreservesPlaceholderChars(t *testing.T) {
+	root := t.TempDir()
+	src := Topics{
+		RequiredRead: []RequiredReadEntry{
+			{Prefix: "decision-application/<decision-id>"},
+			{Prefix: "team-visited/<team-id>"},
+		},
+	}
+	if err := WriteMember(root, "t", "m", src); err != nil {
+		t.Fatalf("WriteMember: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "teams", "t", "members", "m", "topics.json"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	asString := string(data)
+	if !strings.Contains(asString, "<decision-id>") {
+		t.Errorf("expected raw `<decision-id>` in output, got:\n%s", asString)
+	}
+	if strings.Contains(asString, `\u003c`) || strings.Contains(asString, `\u003e`) {
+		t.Errorf("found Unicode escape in output (HTML-safe escaping not disabled):\n%s", asString)
+	}
 }

@@ -597,7 +597,7 @@ Templated from `marketing-contrarian` (closest analogue).
 **Files (modified):**
 - `scenarios/prompt-manager/store/teams/scenario-qa/team.json`:
   - Mission rewritten (per §6.3)
-  - Member roster: add `bug-investigator`, `qa-contrarian` to `members{}` block with full `lane`, `ownedDecisionContexts`, `pendingOwnedDecisionCap`, `requiredKnowledgeTopics`, `allowedWrites`, `forbiddenWrites`, `safetyCriticalRules`, `readOnlyModeBehavior`, `newDecisionCapPerHeartbeat`, `taskParameters` blocks
+  - Member roster: add `bug-investigator`, `qa-contrarian` to `members{}` block with full `lane`, `ownedDecisionContexts`, `pendingOwnedDecisionCap`, `allowedWrites`, `forbiddenWrites`, `safetyCriticalRules`, `readOnlyModeBehavior`, `newDecisionCapPerHeartbeat`, `taskParameters` blocks (member-level topic flow lives in `topics.json`, not on the contract)
   - `decisionContexts{}` block: add `bug-resolution-proposal` (owner: `bug-investigator`)
   - `knowledgeTopics{}` block: add `bug-investigation-report/<slug>` (owner: `bug-investigator`), `challenge-report/<slug>` (owner: `qa-contrarian`)
   - Bump `revision` (currently 2 → 3) and `updatedAt`

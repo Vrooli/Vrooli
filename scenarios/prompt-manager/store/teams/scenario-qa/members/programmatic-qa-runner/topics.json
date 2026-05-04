@@ -1,10 +1,30 @@
 {
-  "intake": [],
-  "output": [
-    { "prefix": "qa-run/*", "destination_kind": "knowledge", "destination_team": null }
+  "required_read": [
+    {
+      "prefix": "reviewed-scenario/<scenario-id>"
+    },
+    {
+      "prefix": "dependency-wiring"
+    }
   ],
-  "decisions_owned": ["preemptive-qa-backlog"],
-  "decisions_consumed": [],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator"]
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "preemptive-qa-backlog"
+      ]
+    }
+  ],
+  "output": [
+    {
+      "prefix": "qa-run/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "decisions_owned": [
+    "preemptive-qa-backlog"
+  ],
+  "external_producers": [
+    "operator"
+  ]
 }

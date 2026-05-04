@@ -233,9 +233,16 @@ These apply at every stage of the pipeline:
 
 ## How `topics.json` connects
 
-`topics.json` is the structural declaration of how each member participates in the pipeline. Its loader (Phase 2 of the agent-system migration) builds a directed graph from these declarations; the validation rules (Phase 3) detect orphan inputs, orphan outputs, drain conflicts, dangling sinks, stalled drains, and piling inboxes.
+`topics.json` is the structural declaration of how each member participates in the pipeline. Each member declares topic-prefix relationships across four kinds:
 
-The audit skill (Phase 5) consumes `topics.json` programmatically to derive Intake / Collection / Promotion / Routing scores instead of prose grep — closing the loop where the layered architecture audits itself structurally rather than narratively.
+- `intake[]` — prefixes the member drains. The classifier/triage skill named here owns routing for those entries.
+- `required_read[]` — prefixes the member must read every heartbeat (rendered into the active-task brief's "## Required Memory" section). Reading without draining.
+- `evidence_consumed[]` — prefixes the member cites as evidence when authoring decisions in a named `for_decisions[]` context. Reading with explicit decision provenance.
+- `output[]` — prefixes the member writes (with `destination_kind`, optional `destination_team`, schema, and supersession policy).
+
+The graph loader builds a directed graph from these declarations across all teams; the validator (`prompt-manager graph topics`) cross-checks the graph for orphan_input, orphan_output, conflicting_drain, unread_required, dangling_evidence_decision, dangling_por_sink, missing_destination_schema, wildcard_source_misuse, topic_key_prefix_mismatch, stalled_drain, and piling_inbox. The full rule list and severities live in `TOPICS_SCHEMA.md` § Validation rules.
+
+The layer-audit skill consumes `topics.json` programmatically to derive Intake / Collection / Promotion / Routing scores instead of prose grep — closing the loop where the layered architecture audits itself structurally rather than narratively.
 
 ---
 

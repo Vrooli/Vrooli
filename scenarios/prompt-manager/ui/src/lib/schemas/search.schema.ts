@@ -48,6 +48,34 @@ export const SearchMethodSchema = z.enum(['ai', 'text'])
 export type SearchMethod = z.infer<typeof SearchMethodSchema>
 
 /**
+ * Text search result item from /search/skills.
+ */
+export const SkillSearchResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional().transform((val) => val ?? ''),
+  content: z.string().nullable().optional().transform((val) => val ?? ''),
+  folder: z.string(),
+  tags: nullableStringArray,
+  modes: nullableStringArray,
+  score: z.number().nullable().optional().transform((val) => val ?? 0),
+  highlight: z.string().nullable().optional().transform((val) => val ?? ''),
+})
+
+export type SkillSearchResult = z.infer<typeof SkillSearchResultSchema>
+
+/**
+ * Text search response from /search/skills.
+ */
+export const SkillSearchResponseSchema = z.object({
+  results: z.array(SkillSearchResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+})
+
+export type SkillSearchResponse = z.infer<typeof SkillSearchResponseSchema>
+
+/**
  * AI search response from the API.
  */
 export const AISearchResponseSchema = z.object({

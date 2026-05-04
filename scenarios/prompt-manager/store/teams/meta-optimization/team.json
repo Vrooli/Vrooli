@@ -62,18 +62,51 @@
       "planOfRecord": [
         {
           "id": "agent-system-canon",
-          "hub": {"base": "repo-root", "path": "docs/agent-system/README.md"},
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/agent-system/README.md"
+          },
           "paths": [
-            {"base": "repo-root", "path": "docs/agent-system/README.md"},
-            {"base": "repo-root", "path": "docs/agent-system/PRIMITIVES.md"},
-            {"base": "repo-root", "path": "docs/agent-system/LAYERS.md"},
-            {"base": "repo-root", "path": "docs/agent-system/PROMOTION_LADDER.md"},
-            {"base": "repo-root", "path": "docs/agent-system/TEAM_DOCS_PATTERNS.md"},
-            {"base": "repo-root", "path": "docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md"},
-            {"base": "repo-root", "path": "docs/agent-system/INTAKE_PIPELINE.md"},
-            {"base": "repo-root", "path": "docs/agent-system/SKILL_AUTHORING.md"},
-            {"base": "repo-root", "path": "docs/agent-system/DEPRECATION_POLICY.md"},
-            {"base": "repo-root", "path": "docs/agent-system/REFERENCE_SCENARIOS.md"}
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/PRIMITIVES.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/LAYERS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/PROMOTION_LADDER.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/TEAM_DOCS_PATTERNS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/INTAKE_PIPELINE.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/SKILL_AUTHORING.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/DEPRECATION_POLICY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/REFERENCE_SCENARIOS.md"
+            }
           ],
           "posture": "canon",
           "writePolicy": "operator-curated-via-decision",
@@ -91,10 +124,19 @@
         },
         {
           "id": "meta-optimization-friction-canon",
-          "hub": {"base": "repo-root", "path": "docs/meta-optimization/README.md"},
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/meta-optimization/README.md"
+          },
           "paths": [
-            {"base": "repo-root", "path": "docs/meta-optimization/README.md"},
-            {"base": "repo-root", "path": "docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md"}
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md"
+            }
           ],
           "posture": "canon",
           "writePolicy": "operator-curated-via-decision",
@@ -429,10 +471,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "toolchain-audit/YYYY-MM-DD",
-          "friction-report/toolchain/<YYYY-MM-DD>/<slug>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -467,12 +505,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "skill-audit/YYYY-MM-DD",
-          "skill-visited/<skill-id>",
-          "action-audit/YYYY-MM-DD",
-          "action-visited/<action-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -524,13 +556,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "team-audit/YYYY-MM-DD",
-          "agent-audit/YYYY-MM-DD",
-          "team-visited/<team-id>",
-          "agent-visited/<agent-id>",
-          "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -561,10 +586,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "run-lesson-report/YYYY-MM-DD",
-          "friction-report/run-execution/<YYYY-MM-DD>/<slug>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -609,9 +630,6 @@
           "framework-update"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "challenge-report/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -655,11 +673,6 @@
         ],
         "newDecisionCapPerHeartbeat": 1,
         "pendingOwnedDecisionCap": 2,
-        "requiredKnowledgeTopics": [
-          "debt-scan/YYYY-MM-DD",
-          "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>",
-          "friction-triage-record/<YYYY-MM-DD>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -725,10 +738,6 @@
         "ownedDecisionContexts": [],
         "newDecisionCapPerHeartbeat": 0,
         "pendingOwnedDecisionCap": 0,
-        "requiredKnowledgeTopics": [
-          "friction-inbox/<scope>/<slug>",
-          "friction-triage-record/<YYYY-MM-DD>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",

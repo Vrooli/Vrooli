@@ -1,7 +1,17 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "contrarian-scan/YYYY-MM-DD"
+    },
+    {
+      "prefix": "challenge-report/<decision-id>"
+    }
+  ],
   "output": [
-    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "challenge-report/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "decision-rejection-proposed",
@@ -14,7 +24,5 @@
     "instrumentation-gap",
     "reliability-target-update",
     "capability-gap"
-  ],
-  "raises_capability_gaps": false,
-  "external_producers": []
+  ]
 }

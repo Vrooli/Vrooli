@@ -3,15 +3,51 @@
     {
       "prefix": "research-inbox/*",
       "taxonomy": "marketing-research",
-      "classifier_skill": "marketing-signal-classifier",
-      "source_team": null
+      "classifier_skill": "marketing-signal-classifier"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "audience-scan/YYYY-MM-DD"
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/<topic>"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "audience-update",
+        "channel-strategy-update",
+        "post-type-proposal",
+        "hook-candidate-promotion",
+        "capability-gap"
+      ]
     }
   ],
   "output": [
-    { "prefix": "audience-scan/*",                          "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
-    { "prefix": "competitor-record/*",                      "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
-    { "prefix": "hook-record/*",                            "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
-    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
+    {
+      "prefix": "audience-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "audience-scan"
+    },
+    {
+      "prefix": "competitor-record/*",
+      "destination_kind": "knowledge",
+      "schema": "competitor-observation"
+    },
+    {
+      "prefix": "hook-record/*",
+      "destination_kind": "knowledge",
+      "schema": "hook"
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "destination_kind": "knowledge",
+      "destination_team": "monetization",
+      "schema": "monetization-benchmark-adjacent"
+    }
   ],
   "decisions_owned": [
     "audience-update",
@@ -19,7 +55,13 @@
     "post-type-proposal",
     "hook-candidate-promotion"
   ],
-  "decisions_consumed": ["capability-gap"],
+  "decisions_consumed": [
+    "capability-gap"
+  ],
   "raises_capability_gaps": true,
-  "external_producers": ["vision-walk", "operator", "bookmark-intelligence-hub"]
+  "external_producers": [
+    "vision-walk",
+    "operator",
+    "bookmark-intelligence-hub"
+  ]
 }

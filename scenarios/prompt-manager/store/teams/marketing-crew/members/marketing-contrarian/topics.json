@@ -1,7 +1,17 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "challenge-report/<decision-id>"
+    },
+    {
+      "prefix": "aging-scan-note/<decision-id>"
+    }
+  ],
   "output": [
-    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "challenge-report/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "decision-rejection-proposed",
@@ -20,7 +30,5 @@
     "notebook-promotion",
     "notebook-retirement",
     "capability-gap"
-  ],
-  "raises_capability_gaps": false,
-  "external_producers": []
+  ]
 }

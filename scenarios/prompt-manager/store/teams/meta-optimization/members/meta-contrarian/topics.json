@@ -1,7 +1,14 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "challenge-report/<decision-id>"
+    }
+  ],
   "output": [
-    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "challenge-report/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "decision-rejection-proposed",
@@ -22,7 +29,5 @@
     "run-lesson",
     "capability-gap",
     "meta-self-improvement"
-  ],
-  "raises_capability_gaps": false,
-  "external_producers": []
+  ]
 }

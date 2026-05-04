@@ -2,15 +2,38 @@
   "intake": [
     {
       "prefix": "meta-optimization/notebook/*",
-      "taxonomy": "notebook-debt",
-      "source_team": null
+      "taxonomy": "notebook-debt"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "debt-scan/YYYY-MM-DD"
+    },
+    {
+      "prefix": "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>"
+    },
+    {
+      "prefix": "friction-triage-record/<YYYY-MM-DD>"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "meta-self-improvement"
+      ]
     }
   ],
   "output": [
-    { "prefix": "debt-scan/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "debt-scan/*",
+      "destination_kind": "knowledge"
+    }
   ],
-  "decisions_owned": ["meta-self-improvement"],
-  "decisions_consumed": [],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator"]
+  "decisions_owned": [
+    "meta-self-improvement"
+  ],
+  "external_producers": [
+    "operator"
+  ]
 }

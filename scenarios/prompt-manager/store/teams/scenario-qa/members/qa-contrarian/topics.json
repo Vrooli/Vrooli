@@ -1,15 +1,19 @@
 {
-  "intake": [],
-  "output": [
-    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
+  "required_read": [
+    {
+      "prefix": "challenge-report/<slug>"
+    }
   ],
-  "decisions_owned": [],
+  "output": [
+    {
+      "prefix": "challenge-report/*",
+      "destination_kind": "knowledge"
+    }
+  ],
   "decisions_consumed": [
     "bug-resolution-proposal",
     "preemptive-qa-backlog",
     "deep-audit-backlog",
     "capability-gap"
-  ],
-  "raises_capability_gaps": false,
-  "external_producers": []
+  ]
 }

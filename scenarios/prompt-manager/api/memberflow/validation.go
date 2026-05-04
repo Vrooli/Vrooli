@@ -28,15 +28,23 @@ type Finding struct {
 }
 
 // ValidationOptions configures runtime checks that depend on filesystem state
-// (taxonomy registry, classifier-skill files, PoR file existence). Repo root
-// is required for dangling_por_sink, unknown_taxonomy, and
-// non_portable_classifier checks.
+// (taxonomy registry, team-contract registry, classifier-skill files, PoR
+// file existence). Repo root is required for dangling_por_sink,
+// unknown_taxonomy, and non_portable_classifier checks; StoreDir is
+// required for the team-contract registry lazy-load.
 type ValidationOptions struct {
 	// RepoRoot is the absolute path to the repository root (the parent of
 	// docs/, scenarios/, etc.). Used for por_file existence,
 	// classifier-skill content scans, and as a fallback location for
 	// taxonomies when Taxonomies is nil.
 	RepoRoot string
+
+	// StoreDir is the absolute path to the prompt-manager store
+	// (scenarios/prompt-manager/store/). Used as the fallback location
+	// for team contracts when TeamContracts is nil; ignored when set
+	// explicitly. When both StoreDir and TeamContracts are empty, the
+	// dangling_evidence_decision rule is skipped.
+	StoreDir string
 
 	// SkillIDs is the set of skill ids known to the skill registry.
 	// Empty disables skill-existence cross-checks.
@@ -51,6 +59,13 @@ type ValidationOptions struct {
 	// ruleUnknownTaxonomy and ruleMissingDestinationSchema. When nil and
 	// RepoRoot is set, Validate loads taxonomies on demand.
 	Taxonomies TaxonomyRegistry
+
+	// TeamContracts is the loaded team-contract registry used by
+	// ruleDanglingEvidenceDecision. When nil and StoreDir is set,
+	// Validate loads contracts on demand. An explicit empty registry
+	// disables the rule (lets tests assert behavior without contracts
+	// without needing a store on disk).
+	TeamContracts TeamContractRegistry
 }
 
 // ValidationResult bundles findings with summary counts.
@@ -78,17 +93,24 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 			opts.Taxonomies = reg
 		}
 	}
+	if opts.TeamContracts == nil && strings.TrimSpace(opts.StoreDir) != "" {
+		if reg, err := LoadAllTeamContracts(opts.StoreDir); err == nil {
+			opts.TeamContracts = reg
+		}
+	}
 
 	var findings []Finding
 
 	findings = append(findings, ruleConflictingDrain(members)...)
 	findings = append(findings, ruleOrphanOutput(members, opts)...)
 	findings = append(findings, ruleOrphanInput(members)...)
+	findings = append(findings, ruleUnreadRequired(members)...)
 	findings = append(findings, ruleWildcardSourceMisuse(members)...)
 	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
 	findings = append(findings, ruleNonPortableClassifier(members, opts)...)
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
 	findings = append(findings, ruleDanglingPORSink(members, opts)...)
+	findings = append(findings, ruleDanglingEvidenceDecision(members, opts)...)
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
 	// age; those are computed by the CLI layer (which has access to the
@@ -168,25 +190,22 @@ func ruleConflictingDrain(members []MemberTopics) []Finding {
 
 // ruleOrphanOutput — a member's output prefix has no consumer.
 //
-// Consumer types:
-//   - another member's intake prefix overlaps the output prefix
-//   - the output destination_kind is non-knowledge (decision, por_file,
-//     capability_gap, skill_proposal, backlog) — those are sinks, not orphans
+// "Consumer" is whatever consumerSet (consumer_set.go) recognizes as a
+// reader of a topic prefix. The set aggregates every read-side
+// declaration on every member's topics.json: `intake[]` (drain),
+// `required_read[]` (heartbeat-prompt context), and `evidence_consumed[]`
+// (decision rationale). This rule is intentionally agnostic about which
+// kinds of consumer exist — that knowledge lives in the set, so adding a
+// new consumer kind is a one-line change in buildConsumerSet.
+//
+// Non-knowledge destinations (decision, por_file, capability_gap,
+// skill_proposal, backlog) are sinks, never orphans, and are skipped
+// before consulting the consumer set.
 func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding {
 	_ = opts
 	var out []Finding
 
-	// Build set of intake prefixes for quick lookup.
-	type intakeClaim struct {
-		ref    MemberRef
-		prefix string
-	}
-	var intakes []intakeClaim
-	for _, m := range members {
-		for _, e := range m.Topics.Intake {
-			intakes = append(intakes, intakeClaim{m.Ref, e.Prefix})
-		}
-	}
+	consumers := buildConsumerSet(members)
 
 	for _, m := range members {
 		for _, o := range m.Topics.Output {
@@ -194,28 +213,21 @@ func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding 
 			if o.DestinationKind != DestinationKnowledge {
 				continue
 			}
-			// Same-team self-consumption counts as a consumer.
-			matched := false
-			for _, in := range intakes {
-				if Overlap(in.prefix, o.Prefix) {
-					matched = true
-					break
-				}
+			if consumers.Overlaps(o.Prefix) {
+				continue
 			}
-			if !matched {
-				// Warning, not error: many knowledge outputs are
-				// operator-read snapshots (audits, ledgers, run
-				// lessons) that have no member-level drain. The
-				// smell is "no peer member claims this prefix" —
-				// operators decide whether that's intentional.
-				out = append(out, Finding{
-					Rule:     "orphan_output",
-					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   o.Prefix,
-					Detail:   fmt.Sprintf("output prefix %q has no peer-member consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
-				})
-			}
+			// Warning, not error: many knowledge outputs are
+			// operator-read snapshots (audits, ledgers, run
+			// lessons) that have no member-level drain. The
+			// smell is "no peer member claims this prefix" —
+			// operators decide whether that's intentional.
+			out = append(out, Finding{
+				Rule:     "orphan_output",
+				Severity: SeverityWarning,
+				Member:   m.Ref,
+				Prefix:   o.Prefix,
+				Detail:   fmt.Sprintf("output prefix %q has no peer-member consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
+			})
 		}
 	}
 	return out
@@ -270,6 +282,83 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 					Detail:   fmt.Sprintf("intake prefix %q has no producer (no member's output overlaps and no external_producer is declared)", in.Prefix),
 				})
 			}
+		}
+	}
+	return out
+}
+
+// ruleUnreadRequired — a member's required_read[] prefix has no producer.
+//
+// Mirrors ruleOrphanInput's producer-discovery walk but for `required_read[]`
+// entries. A required_read prefix says "I need this prefix's recent state
+// rendered into my heartbeat prompt every tick"; a finding here means no
+// member's `output[]` declares the prefix, so the agent will load an empty
+// (or stale) section and the operator's mental model has drifted from the
+// declared graph.
+//
+// Two design points distinguish this rule from ruleOrphanInput:
+//
+//  1. Severity is warning, not error. A required_read with no peer producer
+//     is information ("you've declared you read this prefix; document its
+//     producer or rename to match a real one"), not a structural fault that
+//     blocks routing. Phase 4.1 promotes the rule to error after the
+//     ecosystem is reconciled.
+//
+//  2. Member-level `external_producers` is not treated as a satisfying
+//     anchor here. Where ruleOrphanInput is a hard gate and uses
+//     external_producers as a coarse-grained "trust the operator's
+//     producer-side documentation" escape hatch, this rule's purpose is to
+//     surface drift between declared read prefixes and declared write
+//     prefixes — drift that ruleOrphanInput's coarse skip would mask. The
+//     plan calls out specific drift cases the rule must catch
+//     (vision-walk-prep, portfolio-snapshot, outcome-snapshot, deep-audit,
+//     etc.) where the consuming members do declare external_producers.
+//     Honoring the loose skip would silently hide them. Per-prefix anchors
+//     are a future refinement; until then, the warning is the operator's
+//     prompt to either rename to match a producer (Phase 1.7) or accept
+//     the warning as documenting an external-only write.
+//
+// Skipped per-entry conditions:
+//   - source_team == "*" (universal-source read): any team may write, so
+//     producer existence is not enforced. Mirrors ruleOrphanInput's
+//     wildcard treatment; the corresponding misuse pattern (wildcard with
+//     no documented external anchor) is caught by ruleWildcardSourceMisuse.
+func ruleUnreadRequired(members []MemberTopics) []Finding {
+	var out []Finding
+
+	type outputClaim struct {
+		ref    MemberRef
+		prefix string
+	}
+	var outputs []outputClaim
+	for _, m := range members {
+		for _, o := range m.Topics.Output {
+			outputs = append(outputs, outputClaim{m.Ref, o.Prefix})
+		}
+	}
+
+	for _, m := range members {
+		for _, r := range m.Topics.RequiredRead {
+			if r.SourceTeam != nil && *r.SourceTeam == SourceTeamWildcard {
+				continue
+			}
+			matched := false
+			for _, o := range outputs {
+				if Overlap(o.prefix, r.Prefix) {
+					matched = true
+					break
+				}
+			}
+			if matched {
+				continue
+			}
+			out = append(out, Finding{
+				Rule:     "unread_required",
+				Severity: SeverityWarning,
+				Member:   m.Ref,
+				Prefix:   r.Prefix,
+				Detail:   fmt.Sprintf("required_read prefix %q has no peer-member producer (no member's output[] overlaps; rename to match a producer's declared prefix or add a member that writes this prefix)", r.Prefix),
+			})
 		}
 	}
 	return out
@@ -491,6 +580,55 @@ func ruleDanglingPORSink(members []MemberTopics, opts ValidationOptions) []Findi
 					Member:   m.Ref,
 					Prefix:   o.Prefix,
 					Detail:   fmt.Sprintf("destination_path %q does not exist (resolved: %s)", *o.DestinationPath, full),
+				})
+			}
+		}
+	}
+	return out
+}
+
+// ruleDanglingEvidenceDecision — every `evidence_consumed[].for_decisions[]`
+// id on every member's topics.json must resolve against some team's
+// `team.json::operatingContract.decisionContexts`. A typo or a context that
+// has been removed from team.json without scrubbing the consuming
+// member's topics.json shows up here as an error finding.
+//
+// Skipped (no findings) when the team-contract registry is empty: this
+// happens in unit tests that don't fixture team contracts and on
+// scaffolds that haven't yet defined any team. The plan's intent is to
+// reject silent dead references, not to demand contracts exist.
+//
+// Severity is error: a dangling decision-context id is a structural
+// declaration drift the operator must reconcile (rename the id, remove the
+// evidence entry, or add the missing decision-context to team.json).
+func ruleDanglingEvidenceDecision(members []MemberTopics, opts ValidationOptions) []Finding {
+	if len(opts.TeamContracts) == 0 {
+		return nil
+	}
+	var out []Finding
+	for _, m := range members {
+		for _, ev := range m.Topics.EvidenceConsumed {
+			seen := map[string]bool{}
+			for _, decisionID := range ev.ForDecisions {
+				id := strings.TrimSpace(decisionID)
+				if id == "" {
+					// shape-level error; covered by Topics.Validate.
+					continue
+				}
+				if seen[id] {
+					// One finding per (member, prefix, id).
+					continue
+				}
+				seen[id] = true
+				if opts.TeamContracts.HasDecisionContext(id) {
+					continue
+				}
+				out = append(out, Finding{
+					Rule:     "dangling_evidence_decision",
+					Severity: SeverityError,
+					Member:   m.Ref,
+					Prefix:   ev.Prefix,
+					Detail:   fmt.Sprintf("evidence_consumed[].for_decisions references decision-context %q which is not declared in any team.json::operatingContract.decisionContexts", id),
 				})
 			}
 		}

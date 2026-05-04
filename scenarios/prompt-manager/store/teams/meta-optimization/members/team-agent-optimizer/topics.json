@@ -1,8 +1,42 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "team-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "agent-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "team-visited/<team-id>"
+    },
+    {
+      "prefix": "agent-visited/<agent-id>"
+    },
+    {
+      "prefix": "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "agent-improvement",
+        "agent-deprecation",
+        "team-structure-change",
+        "team-deprecation",
+        "capability-gap"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "team-audit/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "agent-audit/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "team-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "agent-audit/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "agent-improvement",
@@ -11,7 +45,8 @@
     "team-deprecation",
     "capability-gap"
   ],
-  "decisions_consumed": [],
   "raises_capability_gaps": true,
-  "external_producers": ["operator"]
+  "external_producers": [
+    "operator"
+  ]
 }

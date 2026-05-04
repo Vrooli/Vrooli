@@ -548,9 +548,6 @@
           "notebook-retirement"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "brand-snapshot/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -606,9 +603,6 @@
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "subscription-ad-run/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -663,9 +657,6 @@
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "oss-ad-run/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -720,10 +711,6 @@
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "coverage-snapshot/YYYY-MM-DD",
-          "decision-application/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -792,10 +779,6 @@
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 2,
-        "requiredKnowledgeTopics": [
-          "audience-scan/YYYY-MM-DD",
-          "monetization-benchmark-adjacent-record/<topic>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -851,10 +834,6 @@
           "framework-update"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "challenge-report/<decision-id>",
-          "aging-scan-note/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"

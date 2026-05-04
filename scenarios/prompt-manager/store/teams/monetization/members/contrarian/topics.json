@@ -1,7 +1,14 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "challenge-report/<decision-id>"
+    }
+  ],
   "output": [
-    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "challenge-report/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "decision-rejection-proposed",
@@ -23,7 +30,5 @@
     "funnel-bottleneck",
     "retention-concern",
     "channel-attribution-gap"
-  ],
-  "raises_capability_gaps": false,
-  "external_producers": []
+  ]
 }

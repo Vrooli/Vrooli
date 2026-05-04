@@ -19,7 +19,7 @@ Bug taxonomy: [`docs/scenario-qa/BUG_REPORT_TAXONOMY.md`](../../../../../../docs
 ## Roster
 The canonical list lives in `team.json` (`operatingContract.members`). Roles, in summary:
 - `programmatic-qa-runner` — runs GCT readiness reviews; produces `qa-run/*` knowledge and `preemptive-qa-backlog` decisions.
-- `quality-auditor` — applies the seven-lens audit rotation; produces `quality-audit/*` knowledge and `deep-audit-backlog` decisions.
+- `quality-auditor` — applies the seven-lens audit rotation; produces `deep-audit/*` knowledge and `deep-audit-backlog` decisions.
 - `bug-investigator` — drains `bug-inbox/*` (universal-source); applies investigation techniques; produces `bug-investigation-report/*` audit log and `bug-resolution-proposal` decisions.
 - `qa-contrarian` — reads peer outputs; produces `challenge-report/*` citing specific failure modes from the technique registries.
 
@@ -30,7 +30,6 @@ The canonical list lives in `team.json` (`operatingContract.members`). Roles, in
 | `qa-run/<scenario-id>` | programmatic-qa-runner | self | append-only |
 | `reviewed-scenario/<scenario-id>` | programmatic-qa-runner | self | append-only |
 | `dependency-wiring` | programmatic-qa-runner | self | append-only |
-| `quality-audit/<scenario-id>/<skill-id>` | quality-auditor | self | append-only |
 | `deep-audit/<scenario-id>/<skill-id>` | quality-auditor | self | append-only |
 | `bug-inbox/<signal-type>/<slug>` | bug-investigator | **any team via `report-bug` skill** (universal-source intake) | drained-on-close |
 | `bug-investigation-report/<slug>` | bug-investigator | self | append-only |

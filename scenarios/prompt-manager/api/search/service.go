@@ -3,9 +3,10 @@ package search
 
 import (
 	"errors"
-	"prompt-manager/skills"
 	"regexp"
 	"strings"
+
+	"prompt-manager/skills"
 )
 
 // Service handles search logic.
@@ -195,6 +196,16 @@ func (s *Service) calculateScore(skill skills.Metadata, queryLower string) float
 			score += 3.0
 		} else if strings.Contains(strings.ToLower(tag), queryLower) {
 			score += 1.5
+		}
+	}
+
+	// Mode matches
+	for _, mode := range skill.Modes {
+		modeLower := strings.ToLower(mode)
+		if modeLower == queryLower {
+			score += 2.5
+		} else if strings.Contains(modeLower, queryLower) {
+			score += 1.25
 		}
 	}
 

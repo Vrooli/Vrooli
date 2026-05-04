@@ -60,6 +60,7 @@ import {
   TeamPromptMatrixResponseSchema,
   AgentTeamsResponseSchema,
   AISearchResponseSchema,
+  SkillSearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
   ContentSearchResponseSchema,
@@ -146,6 +147,7 @@ import {
   type TeamPromptMatrixResponse,
   type AgentTeamsResponse,
   type AISearchResponse,
+  type SkillSearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
   type ContentSearchResponse,
@@ -532,17 +534,32 @@ class ApiClient {
     )
   }
 
-  // Search - client-side filtering since no dedicated search endpoint
-  async searchSkills(query: string, filters?: SearchFilters): Promise<Skill[]> {
-    const allSkills = await this.getSkills(filters)
-    const lowerQuery = query.toLowerCase()
+  async searchSkillResults(query: string, filters?: SearchFilters): Promise<SkillSearchResponse> {
+    const params = new URLSearchParams()
+    params.set('q', query)
+    if (filters?.tag) params.append('tag', filters.tag)
+    if (filters?.folder) params.append('folder', filters.folder)
 
-    return allSkills.filter(skill =>
-      skill.name.toLowerCase().includes(lowerQuery) ||
-      skill.description.toLowerCase().includes(lowerQuery) ||
-      skill.content.toLowerCase().includes(lowerQuery) ||
-      skill.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+    const queryString = params.toString()
+    return this.request<SkillSearchResponse>(
+      `/search/skills${queryString ? `?${queryString}` : ''}`,
+      undefined,
+      SkillSearchResponseSchema
     )
+  }
+
+  // Search via the API so content-only matches are included. The server returns
+  // lightweight search rows; map them back onto list skills for existing callers.
+  async searchSkills(query: string, filters?: SearchFilters): Promise<Skill[]> {
+    const [searchResponse, allSkills] = await Promise.all([
+      this.searchSkillResults(query, filters),
+      this.getSkills(filters),
+    ])
+
+    const skillsById = new Map(allSkills.map((skill) => [skill.id, skill]))
+    return searchResponse.results
+      .map((result) => skillsById.get(result.id))
+      .filter((skill): skill is Skill => skill != null)
   }
 
   // Content Search - line-level content matches

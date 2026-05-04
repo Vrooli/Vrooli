@@ -300,6 +300,44 @@ describe('useSkillTree', () => {
       expect(result.current.expandedNodes.has('development')).toBe(true)
       expect(result.current.expandedNodes.has('development/react')).toBe(false)
     })
+
+    it('should keep server-backed content-only search matches', () => {
+      const skills = [
+        createTestSkill({ id: '1', name: 'Alpha Skill', content: '' }),
+        createTestSkill({ id: '2', name: 'Beta Skill', content: '' }),
+      ]
+
+      const { result } = renderHook(() =>
+        useSkillTree({
+          skills,
+          initialSearchQuery: 'content-only',
+          searchMatchedSkillIds: new Set(['2']),
+        })
+      )
+
+      expect(result.current.filteredSortedSkills).toHaveLength(1)
+      expect(result.current.filteredSortedSkills[0]?.id).toBe('2')
+      expect(result.current.filteredTreeNodes[0]?.children[0]?.itemId).toBe('2')
+    })
+
+    it('should keep local name matches when server-backed search returns no IDs', () => {
+      const skills = [
+        createTestSkill({ id: '1', name: 'Tests Skill', description: 'Alpha description', content: '' }),
+        createTestSkill({ id: '2', name: 'Beta Skill', description: 'Beta description', content: '' }),
+      ]
+
+      const { result } = renderHook(() =>
+        useSkillTree({
+          skills,
+          initialSearchQuery: 'test',
+          searchMatchedSkillIds: new Set(),
+        })
+      )
+
+      expect(result.current.filteredSortedSkills).toHaveLength(1)
+      expect(result.current.filteredSortedSkills[0]?.id).toBe('1')
+      expect(result.current.filteredTreeNodes[0]?.children[0]?.itemId).toBe('1')
+    })
   })
 
   describe('sidebar collapse', () => {
