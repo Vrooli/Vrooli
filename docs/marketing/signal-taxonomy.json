@@ -16,14 +16,14 @@
       "id": "competitor",
       "definition": "Competitor pricing, packaging, positioning, or changelog.",
       "defaultMethod": "competitor-positioning-scan",
-      "defaultDestinationPrefix": "competitor/<slug>",
+      "defaultDestinationPrefix": "competitor-record/<slug>",
       "evidenceMinimum": "single-snapshot allowed"
     },
     {
       "id": "hook",
       "definition": "Reusable opening, framing, or copy pattern observed working.",
       "defaultMethod": "hook-pattern-mining",
-      "defaultDestinationPrefix": "hook/<slug>",
+      "defaultDestinationPrefix": "hook-record/<slug>",
       "evidenceMinimum": "single-snapshot allowed; converging required for hook-candidate-promotion"
     },
     {
@@ -58,7 +58,7 @@
       "id": "benchmark-adjacent",
       "definition": "Pricing or market fact relevant to monetization (cross-team to monetization).",
       "defaultMethod": "benchmark-adjacent-scan",
-      "defaultDestinationPrefix": "monetization-benchmark-adjacent/<slug>",
+      "defaultDestinationPrefix": "monetization-benchmark-adjacent-record/<slug>",
       "evidenceMinimum": "single-snapshot allowed; cross-team handoff to monetization"
     }
   ],

@@ -8,7 +8,7 @@
     }
   ],
   "output": [
-    { "prefix": "candidate-sku/*", "destination_kind": "knowledge", "destination_team": null, "schema": "candidate-sku" }
+    { "prefix": "candidate-sku-record/*", "destination_kind": "knowledge", "destination_team": null, "schema": "candidate-sku" }
   ],
   "decisions_owned": [
     "catalog-promotion",

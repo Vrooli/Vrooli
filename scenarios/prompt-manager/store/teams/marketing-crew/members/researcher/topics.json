@@ -8,10 +8,10 @@
     }
   ],
   "output": [
-    { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
-    { "prefix": "competitor/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
-    { "prefix": "hook/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
+    { "prefix": "audience-scan/*",                          "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
+    { "prefix": "competitor-record/*",                      "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
+    { "prefix": "hook-record/*",                            "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
+    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": [
     "audience-update",

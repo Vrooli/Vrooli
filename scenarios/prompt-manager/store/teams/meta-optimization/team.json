@@ -367,17 +367,17 @@
         "supersedesPrevious": true,
         "retention": "visited-tracker"
       },
-      "friction/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>": {
+      "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>": {
         "ownerMemberId": "team-agent-optimizer",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "run-lessons/YYYY-MM-DD": {
+      "run-lesson-report/YYYY-MM-DD": {
         "ownerMemberId": "run-introspector",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "friction/run-execution/<YYYY-MM-DD>/<slug>": {
+      "friction-report/run-execution/<YYYY-MM-DD>/<slug>": {
         "ownerMemberId": "run-introspector",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -387,7 +387,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "friction/toolchain/<YYYY-MM-DD>/<slug>": {
+      "friction-report/toolchain/<YYYY-MM-DD>/<slug>": {
         "ownerMemberId": "toolchain-validator",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -397,12 +397,12 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "friction/recurring-workaround/<YYYY-MM-DD>/<slug>": {
+      "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>": {
         "ownerMemberId": "debt-curator",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "challenge-note/<decision-id>": {
+      "challenge-report/<decision-id>": {
         "ownerMemberId": "meta-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -411,9 +411,9 @@
         "ownerMemberId": "friction-curator",
         "supersedesPrevious": false,
         "retention": "drained-on-close",
-        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction/<scope>/<date>/<slug> on the owning sub-member's behalf."
+        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction-report/<scope>/<date>/<slug> on the owning sub-member's behalf."
       },
-      "friction-triage/<YYYY-MM-DD>": {
+      "friction-triage-record/<YYYY-MM-DD>": {
         "ownerMemberId": "friction-curator",
         "supersedesPrevious": true,
         "retention": "snapshot",
@@ -431,7 +431,7 @@
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
           "toolchain-audit/YYYY-MM-DD",
-          "friction/toolchain/<YYYY-MM-DD>/<slug>"
+          "friction-report/toolchain/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {
@@ -529,7 +529,7 @@
           "agent-audit/YYYY-MM-DD",
           "team-visited/<team-id>",
           "agent-visited/<agent-id>",
-          "friction/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
+          "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {
@@ -562,8 +562,8 @@
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
         "requiredKnowledgeTopics": [
-          "run-lessons/YYYY-MM-DD",
-          "friction/run-execution/<YYYY-MM-DD>/<slug>"
+          "run-lesson-report/YYYY-MM-DD",
+          "friction-report/run-execution/<YYYY-MM-DD>/<slug>"
         ],
         "allowedWrites": [
           {
@@ -610,7 +610,7 @@
         ],
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "challenge-note/<decision-id>"
+          "challenge-report/<decision-id>"
         ],
         "allowedWrites": [
           {
@@ -657,8 +657,8 @@
         "pendingOwnedDecisionCap": 2,
         "requiredKnowledgeTopics": [
           "debt-scan/YYYY-MM-DD",
-          "friction/recurring-workaround/<YYYY-MM-DD>/<slug>",
-          "friction-triage/<YYYY-MM-DD>"
+          "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>",
+          "friction-triage-record/<YYYY-MM-DD>"
         ],
         "allowedWrites": [
           {
@@ -721,13 +721,13 @@
         }
       },
       "friction-curator": {
-        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage/<YYYY-MM-DD> snapshot. Router, not analyst.",
+        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction-report/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage-record/<YYYY-MM-DD> snapshot. Router, not analyst.",
         "ownedDecisionContexts": [],
         "newDecisionCapPerHeartbeat": 0,
         "pendingOwnedDecisionCap": 0,
         "requiredKnowledgeTopics": [
           "friction-inbox/<scope>/<slug>",
-          "friction-triage/<YYYY-MM-DD>"
+          "friction-triage-record/<YYYY-MM-DD>"
         ],
         "allowedWrites": [
           {
@@ -745,9 +745,9 @@
           }
         ],
         "safetyCriticalRules": [
-          "Never originate friction/<scope>/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
-          "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage/<YYYY-MM-DD> (routed, dropped, reclassified, or handed off).",
-          "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator — never direct-write friction/recurring-workaround/* from unknown.",
+          "Never originate friction-report/<scope>/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
+          "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage-record/<YYYY-MM-DD> (routed, dropped, reclassified, or handed off).",
+          "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator — never direct-write friction-report/recurring-workaround/* from unknown.",
           "Cap daily inbox drain at dailyInboxDrainCap; above that, emit inbox-overflow triage entry, handoff to debt-curator, and pause further routing this heartbeat."
         ],
         "readOnlyModeBehavior": {

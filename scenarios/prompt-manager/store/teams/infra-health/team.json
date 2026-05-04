@@ -234,7 +234,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "challenge-note/<decision-id>": {
+      "challenge-report/<decision-id>": {
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -377,7 +377,7 @@
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
           "contrarian-scan/YYYY-MM-DD",
-          "challenge-note/<decision-id>"
+          "challenge-report/<decision-id>"
         ],
         "allowedWrites": [
           {

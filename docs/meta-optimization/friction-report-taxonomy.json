@@ -7,31 +7,31 @@
   "signalTypes": [
     {
       "id": "toolchain",
-      "definition": "CLI/command/tool gap, confusing flag, missing capability, output that forced manual interpretation, or a tool that returned a misleading shape. Maps 1-to-1 to friction/toolchain/<date>/<slug> on toolchain-validator.",
-      "defaultDestinationPrefix": "friction/toolchain/",
+      "definition": "CLI/command/tool gap, confusing flag, missing capability, output that forced manual interpretation, or a tool that returned a misleading shape. Maps 1-to-1 to friction-report/toolchain/<date>/<slug> on toolchain-validator.",
+      "defaultDestinationPrefix": "friction-report/toolchain/",
       "evidenceMinimum": "the command invoked, the observed output, and the expected output (or the missing capability the operator wanted)"
     },
     {
       "id": "run-execution",
-      "definition": "Run-loop, heartbeat, or coordination friction — a place where agent execution stalled, looped, or required an extra heartbeat to make progress. Maps 1-to-1 to friction/run-execution/<date>/<slug> on run-introspector.",
-      "defaultDestinationPrefix": "friction/run-execution/",
+      "definition": "Run-loop, heartbeat, or coordination friction — a place where agent execution stalled, looped, or required an extra heartbeat to make progress. Maps 1-to-1 to friction-report/run-execution/<date>/<slug> on run-introspector.",
+      "defaultDestinationPrefix": "friction-report/run-execution/",
       "evidenceMinimum": "the run/heartbeat reference, the stall or loop pattern observed, and what would have unblocked the run"
     },
     {
       "id": "prompt-team-agent-storage",
-      "definition": "Storage-map ambiguity, write-target confusion, decision-vs-knowledge-vs-handoff misrouting, or team/agent role boundaries that produced the wrong artifact. Maps 1-to-1 to friction/prompt-team-agent-storage/<date>/<slug> on team-agent-optimizer.",
-      "defaultDestinationPrefix": "friction/prompt-team-agent-storage/",
+      "definition": "Storage-map ambiguity, write-target confusion, decision-vs-knowledge-vs-handoff misrouting, or team/agent role boundaries that produced the wrong artifact. Maps 1-to-1 to friction-report/prompt-team-agent-storage/<date>/<slug> on team-agent-optimizer.",
+      "defaultDestinationPrefix": "friction-report/prompt-team-agent-storage/",
       "evidenceMinimum": "the storage decision the reporter faced, what they wrote (or didn't), and what they think the correct destination would have been"
     },
     {
       "id": "recurring-workaround",
-      "definition": "A workaround the reporter has applied multiple times across heartbeats or runs — a pattern that's costing recurring tokens or attention. Maps 1-to-1 to friction/recurring-workaround/<date>/<slug> on debt-curator for synthesis.",
-      "defaultDestinationPrefix": "friction/recurring-workaround/",
+      "definition": "A workaround the reporter has applied multiple times across heartbeats or runs — a pattern that's costing recurring tokens or attention. Maps 1-to-1 to friction-report/recurring-workaround/<date>/<slug> on debt-curator for synthesis.",
+      "defaultDestinationPrefix": "friction-report/recurring-workaround/",
       "evidenceMinimum": "the workaround applied, the count or recurrence frequency observed, and the underlying gap the workaround compensates for"
     },
     {
       "id": "unknown",
-      "definition": "Scope unclear at report time; curator reclassifies during triage. The curator is required to reclassify into one of the four real scopes before routing — never write to friction/recurring-workaround/* directly from unknown (that would corrupt debt-curator's synthesis input).",
+      "definition": "Scope unclear at report time; curator reclassifies during triage. The curator is required to reclassify into one of the four real scopes before routing — never write to friction-report/recurring-workaround/* directly from unknown (that would corrupt debt-curator's synthesis input).",
       "defaultDestinationPrefix": "friction/unknown/",
       "evidenceMinimum": "any observation the reporter could capture; the curator owns classification"
     }
@@ -42,7 +42,7 @@
     "`one-off` severity entries are dropped by the curator with a triage note; reporters should mention one-off friction in handoff instead of filing.",
     "`recurring` severity requires evidence of recurrence: count of past occurrences, or a pointer to a prior friction entry the reporter is amplifying.",
     "`blocking` severity requires that the reporter is currently stopped (not just slowed); blockers route via handoff or capability-gap depending on whether a fix exists.",
-    "`unknown` scope requires the curator to reclassify before routing; if reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-writes to friction/recurring-workaround/* from unknown.",
+    "`unknown` scope requires the curator to reclassify before routing; if reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-writes to friction-report/recurring-workaround/* from unknown.",
     "Friction entries are observation, not authority. The destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decide what action follows; the original friction-inbox entry is closed on routing."
   ],
   "actionSelection": {

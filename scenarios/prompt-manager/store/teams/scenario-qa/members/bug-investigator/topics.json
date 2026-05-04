@@ -7,7 +7,7 @@
     }
   ],
   "output": [
-    { "prefix": "bug-investigation/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "bug-investigation-report/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": ["bug-resolution-proposal"],
   "decisions_consumed": ["capability-gap"],

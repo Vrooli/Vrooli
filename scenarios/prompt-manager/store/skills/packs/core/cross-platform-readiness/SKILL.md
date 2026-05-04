@@ -7,7 +7,9 @@ Your goal is to ensure `{{TARGET}}` can be **bundled, distributed, and run** on 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's portability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read storage-steer visited-tracker-tools`
+
+`storage-steer` is the storage-architecture authority — this skill picks *which* engine each tier needs; `storage-steer` decides *how* to architect it (per-domain schema, repository pattern, migration tier). The two skills share boundaries deliberately and cross-reference each other.
 
 Optional reading:
 - `prompt-manager skill read brand-manager` (draft — branding validation for deployment readiness)
@@ -66,7 +68,7 @@ This skill ensures scenarios work across **all tiers** by eliminating tier-speci
 **Out of scope:**
 - Tier-specific UI implementation (Electron IPC, mobile native) → tier guides
 - Code signing and distribution → scenario-to-desktop skill
-- Database schema design → storage-steer skill
+- Storage architecture (per-domain schema, repository pattern, migration tier) → storage-steer skill
 - Performance optimization → performance skills
 - Actual bundle creation → deployment-manager
 
@@ -224,6 +226,8 @@ func getSQLitePath() string {
 ```
 
 Use `modernc.org/sqlite` with the `sqlite` driver name for embedded scenario storage. For scenario runtime architecture, prefer embedded SQLite in the scenario rather than a standalone SQLite resource.
+
+Once the engine is chosen, `storage-steer` covers the architecture: schema lives next to the code that interprets it (`internal/<dom>/schema.sql` embedded via `go:embed`, applied at boot via `database.EnsureSchemas` from `packages/api-core/database`), repository interfaces hide the engine, and the same per-domain rule applies to Qdrant collections and Redis namespaces.
 
 #### 3.3 Full Replacement vs Runtime Swap
 

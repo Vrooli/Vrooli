@@ -9,42 +9,42 @@
       "id": "code-defect",
       "definition": "Broken code or scenario behavior — the implementation does not match the documented or intended behavior.",
       "defaultMethod": "scientific-debugging",
-      "defaultDestinationPrefix": "bug-investigation/",
+      "defaultDestinationPrefix": "bug-investigation-report/",
       "evidenceMinimum": "reproduction steps that fail predictably; expected vs actual behavior"
     },
     {
       "id": "regression",
       "definition": "Behavior that worked previously and now does not. The bug has a known-good prior state.",
       "defaultMethod": "scientific-debugging",
-      "defaultDestinationPrefix": "bug-investigation/",
+      "defaultDestinationPrefix": "bug-investigation-report/",
       "evidenceMinimum": "reproduction steps + reference to the working prior state (commit, release, dated observation)"
     },
     {
       "id": "prompt-confusion",
       "definition": "Agent misled by ambiguous or contradictory prompt content (skill instructions, RESPONSIBILITIES.md, heartbeat injection, decision-context description).",
       "defaultMethod": "scientific-debugging",
-      "defaultDestinationPrefix": "bug-investigation/",
+      "defaultDestinationPrefix": "bug-investigation-report/",
       "evidenceMinimum": "the prompt fragment that misled, the resulting behavior, and the contradicting fragment or correct intent"
     },
     {
       "id": "data-shape-mismatch",
       "definition": "Observed payload (CLI output, HTTP response, file contents) did not match the documented schema.",
       "defaultMethod": "scientific-debugging",
-      "defaultDestinationPrefix": "bug-investigation/",
+      "defaultDestinationPrefix": "bug-investigation-report/",
       "evidenceMinimum": "documented schema reference + the observed payload"
     },
     {
       "id": "unexpected-error",
       "definition": "Error not documented anywhere — error code, exception class, or failure mode that no skill or doc anticipated.",
       "defaultMethod": "scientific-debugging",
-      "defaultDestinationPrefix": "bug-investigation/",
+      "defaultDestinationPrefix": "bug-investigation-report/",
       "evidenceMinimum": "the error text/stack trace + the operation that produced it"
     },
     {
       "id": "unknown",
       "definition": "Type unclear at report time; investigator classifies during triage.",
       "defaultMethod": "scientific-debugging",
-      "defaultDestinationPrefix": "bug-investigation/",
+      "defaultDestinationPrefix": "bug-investigation-report/",
       "evidenceMinimum": "any reproduction or symptom evidence the reporter could capture"
     }
   ],
@@ -53,11 +53,11 @@
     "Severity is the producer's claim; the investigator may overrule based on actual scope of impact discovered during investigation.",
     "Honesty flags must include `repro-not-attempted` if the producer did not try to reproduce before reporting.",
     "Investigation outcomes must reference the technique applied (e.g., `scientific-debugging`) so the audit log can drive technique-graduation decisions on `meta-self-improvement`.",
-    "Bug entries are debt against the system, not authority. Investigation outcomes (`bug-investigation/<slug>`) become the durable audit log; the original bug-inbox entry is moved or deleted on close."
+    "Bug entries are debt against the system, not authority. Investigation outcomes (`bug-investigation-report/<slug>`) become the durable audit log; the original bug-inbox entry is moved or deleted on close."
   ],
   "actionSelection": {
     "drop": "Cannot reproduce + no clear scope; weak one-off. The investigator deletes the entry after a short investigation log explaining the drop.",
-    "observe": "Confirmed bug; route findings to `bug-investigation/<slug>` and continue (no fix required this heartbeat — e.g., the bug is in a deprecated path or the fix is queued elsewhere).",
+    "observe": "Confirmed bug; route findings to `bug-investigation-report/<slug>` and continue (no fix required this heartbeat — e.g., the bug is in a deprecated path or the fix is queued elsewhere).",
     "file-backlog": "Reproducible; investigator hands off a `swarm-manager` backlog item with full evidence, then closes the bug-inbox entry.",
     "file-decision": "Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb).",
     "route-to-another-topic": "Misclassified — actually a documentation gap, capability-gap, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision.",

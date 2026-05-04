@@ -29,7 +29,7 @@ Three members today drain topic-prefix inboxes via dedicated "router" skills:
 |---|---|---|
 | `marketing-crew/researcher` | `research-inbox/*` | `marketing-research-router` |
 | `monetization/opportunity-scout` | `opportunity-inbox/*` | `monetization-opportunity-router` |
-| `monetization/market-validator` | `validation-queue/*`, `monetization-benchmark-adjacent/*` | `market-validation-router` | <!-- validation-queue/* was renamed to validation-inbox/* on 2026-05-03 (post-refactor naming pass) -->
+| `monetization/market-validator` | `validation-queue/*`, `monetization-benchmark-adjacent-record/*` | `market-validation-router` | <!-- validation-queue/* was renamed to validation-inbox/* on 2026-05-03 (post-refactor naming pass) -->
 
 Each router skill conflates six concerns: (1) draining mechanics, (2) action-selection skeleton, (3) domain signal taxonomy, (4) domain thresholds and quality rules, (5) destination data schemas, (6) signal-type → method dispatch. Concerns (1) and (2) are universal procedure; (3)–(6) are domain doctrine. Mashing them inside a "skill" is the steer-skill equivalent of hardcoding a scenario path — it kills portability and makes adoption expensive (~70% of each router skill is structural restatement that would generate from `topics.json`).
 
@@ -130,7 +130,7 @@ A taxonomy JSON file lives next to its human-readable PoR doc. The heartbeat bui
       "id": "competitor",
       "definition": "Competitor pricing, packaging, positioning",
       "defaultMethod": "competitor-positioning-scan",
-      "defaultDestinationPrefix": "competitor/<slug>",
+      "defaultDestinationPrefix": "competitor-record/<slug>",
       "evidenceMinimum": "single-snapshot allowed"
     }
     // ...
@@ -226,9 +226,9 @@ For each entry:
 | Prefix | Schema | Cross-team to |
 |---|---|---|
 | `audience-scan/<slug>` | audience-scan | — |
-| `competitor/<slug>` | competitor-observation | — |
-| `hook/<slug>` | hook | — |
-| `monetization-benchmark-adjacent/<slug>` | monetization-benchmark-adjacent | monetization |
+| `competitor-record/<slug>` | competitor-observation | — |
+| `hook-record/<slug>` | hook | — |
+| `monetization-benchmark-adjacent-record/<slug>` | monetization-benchmark-adjacent | monetization |
 
 Schemas: `docs/marketing/SIGNAL_TAXONOMY.md#schemas`.
 
@@ -299,7 +299,7 @@ in the taxonomy PoR until one is authored.
 
 Content sources: lift directly from the current router SKILL.md files, recategorized by concern. Each `.json` carries: signal types + definitions + default methods + default destination prefix + evidence rules + action selection + schemas + honesty flags. Each `.md` is the human-readable narration of the JSON, plus operator-facing notes.
 
-**Cross-team owner-of-schema rule (refinement from prior turn's contradiction)**: a destination prefix's schema is owned by the *producer's* taxonomy. So `monetization-benchmark-adjacent/*` schema lives in `marketing-research` (since the marketing researcher writes it), not in `monetization-validation`. The receiving member's `intake[].taxonomy` can still be `monetization-validation` for routing purposes; it doesn't redefine the schema.
+**Cross-team owner-of-schema rule (refinement from prior turn's contradiction)**: a destination prefix's schema is owned by the *producer's* taxonomy. So `monetization-benchmark-adjacent-record/*` schema lives in `marketing-research` (since the marketing researcher writes it), not in `monetization-validation`. The receiving member's `intake[].taxonomy` can still be `monetization-validation` for routing purposes; it doesn't redefine the schema.
 
 **Tests**:
 - `taxonomy_authoring_test.go` (new, light-weight): for each taxonomy file, assert (a) loadable, (b) all `defaultMethod` references either exist in the skill registry OR are explicitly listed in a `pendingMethodSkills` field on the taxonomy, (c) every `output[].schema` referenced from any `topics.json` resolves to a `schemas{}` entry on *some* taxonomy.
@@ -405,9 +405,9 @@ Concrete diffs:
   ],
   "output": [
     { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
-    { "prefix": "competitor/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
-    { "prefix": "hook/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
+    { "prefix": "competitor-record/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
+    { "prefix": "hook-record/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
+    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update", "post-type-proposal", "hook-candidate-promotion"],
   "decisions_consumed": ["capability-gap"],
@@ -429,7 +429,7 @@ Concrete diffs:
     }
   ],
   "output": [
-    { "prefix": "candidate-sku/*", "destination_kind": "knowledge", "destination_team": null, "schema": "candidate-sku" }
+    { "prefix": "candidate-sku-record/*", "destination_kind": "knowledge", "destination_team": null, "schema": "candidate-sku" }
   ],
   "decisions_owned": ["catalog-promotion", "channel-activation", "services-activation"],
   "decisions_consumed": ["capability-gap"],
@@ -450,14 +450,14 @@ Concrete diffs:
       "source_team": null
     },
     {
-      "prefix": "monetization-benchmark-adjacent/*",
+      "prefix": "monetization-benchmark-adjacent-record/*",
       "taxonomy": "monetization-validation",
       "classifier_skill": "market-validation-triage",
       "source_team": "marketing-crew"
     }
   ],
   "output": [
-    { "prefix": "monetization-benchmark/*", "destination_kind": "knowledge", "destination_team": null, "schema": "market-scan" }
+    { "prefix": "monetization-benchmark-record/*", "destination_kind": "knowledge", "destination_team": null, "schema": "market-scan" }
   ],
   "decisions_owned": ["benchmark-update", "pricing-decision", "financial-model-assumption-update"],
   "decisions_consumed": ["capability-gap"],
@@ -511,7 +511,7 @@ Frontend:
   - For each `intake[]` prefix on the member: header row (prefix, age summary, count, piling/stalled banner from `getDrainStatus`).
   - Below: a table of unrouted entries — columns: signal-type (parsed from prefix), `--by`, age, source URL (link), preview of content.
   - Inline actions per row: "Promote → \<destination select\>" (populated from `output[].prefix` matching the producer/taxonomy match) and "Drop". Both call the new `routeInboxEntry` endpoint, which under the hood invokes `prompt-manager team knowledge-update` / `knowledge-delete`.
-  - Sidebar: "Out: routed to `audience-scan/*` (count), `competitor/*` (count), …" — same prefixes shown as "sent mail" via knowledge-list under those prefixes.
+  - Sidebar: "Out: routed to `audience-scan/*` (count), `competitor-record/*` (count), …" — same prefixes shown as "sent mail" via knowledge-list under those prefixes.
 - `ui/src/components/editor/MemberInboxTab.test.tsx` (new) — covers (a) renders empty state, (b) renders unrouted entries, (c) promote action calls service, (d) drop action calls service, (e) hides tab when no intake declared.
 
 UI scope guard: this is the v1 of the inbox tab; bulk operations and search are out of scope. Single-row promote/drop is enough to validate the affordance.
@@ -608,7 +608,7 @@ Per project feedback memory, every plan that touches a scenario ends with:
 
 ## 12. Risks
 
-1. **Cross-team schema ownership confusion.** A producer's taxonomy owns the schema for prefixes it writes, even when the consumer is on another team. The validator must follow the *producer's* taxonomy when resolving `output[].schema`. Mitigation: explicit test for cross-team flow (researcher writing `monetization-benchmark-adjacent/*` with schema resolved via marketing's taxonomy).
+1. **Cross-team schema ownership confusion.** A producer's taxonomy owns the schema for prefixes it writes, even when the consumer is on another team. The validator must follow the *producer's* taxonomy when resolving `output[].schema`. Mitigation: explicit test for cross-team flow (researcher writing `monetization-benchmark-adjacent-record/*` with schema resolved via marketing's taxonomy).
 2. **Generated prompt size growth.** The Inbox Flow section adds ~60-100 lines to each member's heartbeat prompt. For prompt-budget-sensitive heartbeats, this matters. Mitigation: snapshot tests verify size; if it grows unacceptably, factor the universal procedure into a single doc the section links to rather than repeating in each render.
 3. **JSON-vs-markdown sync risk in taxonomy PoR.** If the `.json` and `.md` are both hand-curated, they can drift. Mitigation: ship a `prompt-manager taxonomy render <id>` CLI verb that regenerates the `.md` from the `.json`; the `.md` becomes a derived artifact. Initial implementation may keep both hand-curated; plan a follow-up to add the renderer.
 4. **`non_portable_classifier` rule false positives.** A classifier skill that legitimately mentions "audience-scan" (a destination prefix) in a *judgment* context (e.g., "if the producer assigned `audience-scan` already, treat as hint") would trip the rule. Mitigation: forbidden patterns target `*-inbox/`, `validation-queue/`, and the explicit knowledge-CLI verbs — not destination-prefix names. Verify with the rewritten classifier skills.

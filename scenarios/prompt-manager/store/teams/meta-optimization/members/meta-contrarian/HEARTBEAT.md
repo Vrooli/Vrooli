@@ -38,7 +38,7 @@ You are the meta-optimization team's mandatory skeptic. Your heartbeat scores pe
 - Or: "None (read-only mode / no proposal warranted)."
 
 ### Knowledge entries written
-- challenge-note/<decision-id> entries as applicable
+- challenge-report/<decision-id> entries as applicable
 ```
 
 ## Stop Conditions

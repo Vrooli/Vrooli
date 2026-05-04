@@ -16,7 +16,7 @@ func TestTopicsValidate_ValidCanonical(t *testing.T) {
 		],
 		"output": [
 			{"prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null, "schema": "audience-scan"},
-			{"prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent"}
+			{"prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent"}
 		],
 		"decisions_owned": ["audience-update", "channel-strategy-update"],
 		"decisions_consumed": ["capability-gap"],
@@ -194,7 +194,7 @@ func TestOutputValidation(t *testing.T) {
 		{
 			name: "valid cross-team knowledge",
 			entry: OutputEntry{
-				Prefix:          "monetization-benchmark-adjacent/*",
+				Prefix:          "monetization-benchmark-adjacent-record/*",
 				DestinationKind: DestinationKnowledge,
 				DestinationTeam: ptr("monetization"),
 			},

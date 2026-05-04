@@ -4,7 +4,7 @@
 - Drain `bug-inbox/*` (universal-source intake — any team's members may write via the `report-bug` skill).
 - Apply a registered investigation technique from the [investigation-techniques registry](../../../../../../../docs/scenario-qa/investigation-techniques/README.md) to find root cause.
 - Take the smallest useful action from the taxonomy's `actionSelection` set; do not over-escalate.
-- Close every drained entry with a `bug-investigation/<slug>` audit-log entry naming the technique applied and outcome taken. The audit log drives technique-graduation decisions on `meta-self-improvement`.
+- Close every drained entry with a `bug-investigation-report/<slug>` audit-log entry naming the technique applied and outcome taken. The audit log drives technique-graduation decisions on `meta-self-improvement`.
 - Raise `capability-gap` decisions when reproduction or investigation is blocked by a missing tool/scenario/CLI.
 - Raise `bug-resolution-proposal` decisions when a bug's root cause is cross-cutting and requires operator approval (e.g., "rename this CLI verb because three bugs trace to its ambiguous name").
 - Surface technique-graduation candidates: when an investigation's approach doesn't match any registered technique, propose the new technique via `meta-self-improvement`.

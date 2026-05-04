@@ -16,14 +16,14 @@
       "id": "capability-arrival",
       "definition": "Vrooli gained a scenario or resource that unlocks a new SKU/bundle.",
       "defaultMethod": "capability-arrival-scan",
-      "defaultDestinationPrefix": "candidate-sku/<slug>",
+      "defaultDestinationPrefix": "candidate-sku-record/<slug>",
       "evidenceMinimum": "single-snapshot from internal capability ledger"
     },
     {
       "id": "customer-ask",
       "definition": "Operator-fed signal that someone asked for a specific capability or SKU.",
       "defaultMethod": "customer-ask-shaping",
-      "defaultDestinationPrefix": "candidate-sku/<slug>",
+      "defaultDestinationPrefix": "candidate-sku-record/<slug>",
       "evidenceMinimum": "single ask is observation; multiple distinct asks meet promotion threshold"
     },
     {
@@ -37,7 +37,7 @@
       "id": "bundle-hint",
       "definition": "Signal that two existing things should be packaged together.",
       "defaultMethod": "bundle-hint-shaping",
-      "defaultDestinationPrefix": "candidate-sku/<slug>",
+      "defaultDestinationPrefix": "candidate-sku-record/<slug>",
       "evidenceMinimum": "single-snapshot allowed when capability_reuse=high"
     },
     {
@@ -65,7 +65,7 @@
   "actionSelection": {
     "drop": "Weak one-off / no Vrooli capability fit / out of scope. Delete the inbox row.",
     "observe": "Single-snapshot market fact (benchmark / competitor pricing). Retag inbox row to `monetization/market-scan/<slug>`.",
-    "promote-to-canon": "Plausible SKU-shaped idea with classifiable fit. Retag inbox row to `candidate-sku/<slug>` with required front-matter.",
+    "promote-to-canon": "Plausible SKU-shaped idea with classifiable fit. Retag inbox row to `candidate-sku-record/<slug>` with required front-matter.",
     "file-decision": "Strong signal, clear fit, evidence threshold met. Promote AND raise the matching owned-context decision (`catalog-promotion`, `channel-activation`, `services-activation`).",
     "capability-gap": "Source / tool / scenario missing. File `capability-gap`; leave the inbox entry until the gap is closed."
   },

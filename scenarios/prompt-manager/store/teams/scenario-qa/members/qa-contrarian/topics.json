@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": [],
   "decisions_consumed": [

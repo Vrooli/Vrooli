@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "initiative-portfolio/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "initiative-portfolio-record/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": [
     "initiative-portfolio",

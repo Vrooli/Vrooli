@@ -46,7 +46,7 @@ You curate meta-optimization's own debt. Notebook entries are not failures; they
 
 ### Knowledge entries written
 - debt-scan/YYYY-MM-DD (supersedes prior)
-- friction/recurring-workaround/<YYYY-MM-DD>/<slug> when recurring friction was found
+- friction-report/recurring-workaround/<YYYY-MM-DD>/<slug> when recurring friction was found
 ```
 
 ## Stop Conditions

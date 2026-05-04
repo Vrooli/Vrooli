@@ -12,7 +12,7 @@ Bug investigation is not one monolithic workflow. Different bugs benefit from di
 
 - Reason about each technique's applicability in one place rather than across a mega-skill's branching.
 - Compress each skill independently as Vrooli's substrate (CLIs, debug tooling, reproduction harnesses) absorbs more of the work. A unified `bug-investigate` mega-skill that branches on technique would compress worse — same argument the marketing team uses for one skill per post type.
-- Surface graduation candidates from observed patterns: when the bug-investigator's audit log (`bug-investigation/<slug>` entries) shows a recurring approach that doesn't fit any registered technique, that approach graduates to a new entry here.
+- Surface graduation candidates from observed patterns: when the bug-investigator's audit log (`bug-investigation-report/<slug>` entries) shows a recurring approach that doesn't fit any registered technique, that approach graduates to a new entry here.
 
 This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md): each technique is its own entity. It also mirrors `docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `bug-investigator/RESPONSIBILITIES.md` Available Skills table).
 
@@ -45,7 +45,7 @@ Compression happens per-technique once active: each skill compresses independent
 
 New techniques enter the registry via a `meta-self-improvement` decision filed on `meta-optimization`. The decision must include:
 
-1. **Why a new technique?** What pattern recurred in `bug-investigation/<slug>` audit entries that doesn't fit any registered technique.
+1. **Why a new technique?** What pattern recurred in `bug-investigation-report/<slug>` audit entries that doesn't fit any registered technique.
 2. **Strategic-canon doc draft.** A `<slug>.md` for this folder following the structure of `scientific-debugging.md`: definition, when-applies, when-backfires, qa-contrarian failure modes, paired-skill citation.
 3. **Skill draft.** A `scenarios/prompt-manager/store/skills/packs/core/<slug>/{skill.json,SKILL.md}` with `tags: ["investigation-technique"]` and required-reading citing the PoR doc.
 4. **Activation step.** Update `bug-investigator/RESPONSIBILITIES.md` Available Skills table to include the new technique.

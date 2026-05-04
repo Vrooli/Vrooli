@@ -7,14 +7,14 @@
       "source_team": null
     },
     {
-      "prefix": "monetization-benchmark-adjacent/*",
+      "prefix": "monetization-benchmark-adjacent-record/*",
       "taxonomy": "monetization-validation",
       "classifier_skill": "market-validation-triage",
       "source_team": "marketing-crew"
     }
   ],
   "output": [
-    { "prefix": "monetization-benchmark/*", "destination_kind": "knowledge", "destination_team": null, "schema": "market-scan" }
+    { "prefix": "monetization-benchmark-record/*", "destination_kind": "knowledge", "destination_team": null, "schema": "market-scan" }
   ],
   "decisions_owned": [
     "benchmark-update",

@@ -39,7 +39,7 @@ const intake: TopicIntakeEntry[] = [
 
 const output: TopicOutputEntry[] = [
   { prefix: 'audience-scan/*', destination_kind: 'knowledge', destination_team: null, schema: 'audience-scan' },
-  { prefix: 'competitor/*', destination_kind: 'knowledge', destination_team: null, schema: 'competitor-observation' },
+  { prefix: 'competitor-record/*', destination_kind: 'knowledge', destination_team: null, schema: 'competitor-observation' },
 ]
 
 const sampleEntry: KnowledgeEntry = {
@@ -127,7 +127,7 @@ describe('MemberInboxTab', () => {
 
   it('promote uses the user-selected destination prefix', async () => {
     mockedList.mockResolvedValue([sampleEntry])
-    mockedPromote.mockResolvedValue({ ...sampleEntry, topic: 'competitor/foo-pain' })
+    mockedPromote.mockResolvedValue({ ...sampleEntry, topic: 'competitor-record/foo-pain' })
 
     render(<MemberInboxTab teamId="marketing-crew" intake={intake} output={output} />)
 
@@ -136,7 +136,7 @@ describe('MemberInboxTab', () => {
     })
 
     fireEvent.change(screen.getByTestId(`inbox-destination-${sampleEntry.id}`), {
-      target: { value: 'competitor/*' },
+      target: { value: 'competitor-record/*' },
     })
 
     fireEvent.click(screen.getByTestId(`inbox-promote-${sampleEntry.id}`))
@@ -145,7 +145,7 @@ describe('MemberInboxTab', () => {
       expect(mockedPromote).toHaveBeenCalledWith(
         'marketing-crew',
         sampleEntry.id,
-        'competitor/foo-pain',
+        'competitor-record/foo-pain',
       )
     })
   })

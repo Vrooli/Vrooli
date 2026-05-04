@@ -4,10 +4,10 @@
 // topic prefixes declared in `topics.json` (intake[].prefix and
 // output[].prefix) across all members of a team. Surfaces entries whose
 // topic key isn't covered by any declared prefix, which means either:
-//   1. The producer wrote to a prefix it didn't declare in topics.json
-//      (declaration drift), or
-//   2. The prefix is a system / one-off topic that should be added to a
-//      member's declarations or accepted as a documented exception.
+//  1. The producer wrote to a prefix it didn't declare in topics.json
+//     (declaration drift), or
+//  2. The prefix is a system / one-off topic that should be added to a
+//     member's declarations or accepted as a documented exception.
 //
 // The rule is severity=warning, never error — a real entry under an
 // undeclared prefix is data, not a structural fault that breaks the system.

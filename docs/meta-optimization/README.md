@@ -35,14 +35,15 @@ any-team/* ─[report-friction skill]──▶ meta-optimization/friction-inbox/
                                                   │
        ┌──────────────┬──────────────┬────────────┴───────────┬──────────────┐
        ▼              ▼              ▼                        ▼              ▼
-friction/toolchain  friction/        friction/prompt-         friction/      handoff to
-  /<date>/<slug>    run-execution    team-agent-storage       recurring-    debt-curator
-  (toolchain-       /<date>/<slug>   /<date>/<slug>           workaround    (unknown +
-  validator)        (run-            (team-agent-             /<date>/<slug> reclass failed,
-                    introspector)    optimizer)               (debt-curator) or overflow)
+friction-report/    friction-report/ friction-report/         friction-      handoff to
+  toolchain         run-execution    prompt-team-agent-       report/       debt-curator
+  /<date>/<slug>    /<date>/<slug>   storage                  recurring-    (unknown +
+  (toolchain-       (run-            /<date>/<slug>           workaround    reclass failed,
+  validator)        introspector)    (team-agent-             /<date>/<slug> or overflow)
+                                     optimizer)               (debt-curator)
                                                   │
                                                   ▼
-                                  friction-triage/<YYYY-MM-DD>
+                                  friction-triage-record/<YYYY-MM-DD>
                                   (daily snapshot, supersedesPrevious)
 ```
 
@@ -58,14 +59,14 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 ## Editing rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `meta-self-improvement` (owned by debt-curator on meta-optimization) covers `FRICTION_REPORT_TAXONOMY.md` updates and friction-report taxonomy schema changes. Scope additions go through the same decision flow with empirical evidence from `friction-triage/*` snapshots.
+- **Edit context:** `meta-self-improvement` (owned by debt-curator on meta-optimization) covers `FRICTION_REPORT_TAXONOMY.md` updates and friction-report taxonomy schema changes. Scope additions go through the same decision flow with empirical evidence from `friction-triage-record/*` snapshots.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
 - **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `docs/agent-system/drafts/`); files in this folder are stable PoR.
 
 ## Cross-references
 
 - [`docs/agent-system/INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern used by the friction-curator.
-- [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — registry of every active topic prefix; meta-optimization entries (including friction-inbox and friction-triage) live there.
+- [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — registry of every active topic prefix; meta-optimization entries (including friction-inbox and friction-triage-record) live there.
 - [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics that friction-inbox uses.
 - [`docs/scenario-qa/BUG_REPORT_TAXONOMY.md`](../scenario-qa/BUG_REPORT_TAXONOMY.md) — the sister universal observation flow on scenario-qa.
 - [`docs/scenario-qa/README.md`](../scenario-qa/README.md) — pattern this folder mirrors (paired-doc-and-skill discipline applies).
@@ -74,13 +75,13 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 
 ## Changelog
 
-- **2026-05-03 — Friction observation flow landed.** Added `friction-curator` agent on meta-optimization, `friction-inbox/<scope>/<slug>` universal-source intake, `report-friction` writer skill, and `friction-triage/<YYYY-MM-DD>` daily snapshot topic. Heartbeat trigger paragraph in the Storage Map / Observe subsection now points all agents at `report-friction` for structural friction (with one-off-in-handoff guidance preserved). Producers should prefer the skill over ad-hoc friction notebook entries; the curator routes to the existing scoped friction sub-topics owned by toolchain-validator, run-introspector, team-agent-optimizer, and debt-curator. Sister flow to scenario-qa's bug-inbox; together they establish the universal-observation-flow primitive.
+- **2026-05-03 — Friction observation flow landed.** Added `friction-curator` agent on meta-optimization, `friction-inbox/<scope>/<slug>` universal-source intake, `report-friction` writer skill, and `friction-triage-record/<YYYY-MM-DD>` daily snapshot topic. Heartbeat trigger paragraph in the Storage Map / Observe subsection now points all agents at `report-friction` for structural friction (with one-off-in-handoff guidance preserved). Producers should prefer the skill over ad-hoc friction notebook entries; the curator routes to the existing scoped friction sub-topics owned by toolchain-validator, run-introspector, team-agent-optimizer, and debt-curator. Sister flow to scenario-qa's bug-inbox; together they establish the universal-observation-flow primitive.
 
 ## Future PoR work
 
 Flagged here so future operator-curated decisions can promote them when the substrate calls for it:
 
 - **Friction-routing decision context.** If routing becomes non-determinate (e.g., a sixth scope arrives without a natural sub-member owner), the friction-curator may need a `friction-routing` decision context. Today routing is determinate; defer until real pressure shows.
-- **Additional scoped friction topics.** If `unknown` scope exceeds 30% of total intake during the observation window (Phase M of the implementation plan), add new scoped friction topics on existing sub-members — candidates include `friction/skill/*` on skill-optimizer, `friction/docs/*` on a doc owner, `friction/policy/*` on meta-contrarian. Empirical, not speculative.
+- **Additional scoped friction topics.** If `unknown` scope exceeds 30% of total intake during the observation window (Phase M of the implementation plan), add new scoped friction topics on existing sub-members — candidates include `friction-report/skill/*` on skill-optimizer, `friction-report/docs/*` on a doc owner, `friction-report/policy/*` on meta-contrarian. Empirical, not speculative.
 - **Universal observation flow primitive.** With two instances (bug-inbox, friction-inbox), the pattern becomes worth documenting in [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) as a named primitive with three parts: universal-source intake + writer skill + drainer agent + trigger paragraph.
 - **Cross-team merge of duplicate friction.** Today the curator may flag `repeats-existing-friction-topic` honestly; future work may add automatic merge of duplicate inbox entries before routing.

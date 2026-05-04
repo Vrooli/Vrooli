@@ -4,7 +4,7 @@ Raw, pre-structured audience / competitor / trend observations that don't yet me
 
 **Promotion target:**
 - If an observation stabilizes and attaches to a persona → `audience-update` decision → `AUDIENCES.md` edit.
-- If an observation is benchmark-adjacent for monetization → cross-team knowledge entry under `monetization-benchmark-adjacent/<topic>`.
+- If an observation is benchmark-adjacent for monetization → cross-team knowledge entry under `monetization-benchmark-adjacent-record/<topic>`.
 - If an observation is a pattern about how to do research itself → `documentation-health` skill update or new skill proposal.
 
 **Retirement signal:** observation has been promoted into a structured scan, an `AUDIENCES.md` revision, or a market-validator-consumed entry — AND ≥30 heartbeats have passed without the observation being cited again.
@@ -67,6 +67,6 @@ Append new entries in the shape below:
 **Source:** <URL, post ref, repo link>
 **Interpretation flag:** observation | light-interpretation | heavy-interpretation
 **Possible persona attachment:** <persona-key-or-null>
-**Cross-team relevance:** <null or "monetization-benchmark-adjacent/<topic>">
+**Cross-team relevance:** <null or "monetization-benchmark-adjacent-record/<topic>">
 **Revisit marker:** revisit after N heartbeats
 ```

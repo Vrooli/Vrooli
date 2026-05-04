@@ -1,6 +1,6 @@
 ## Tools focus: Report Bug
 
-Universal writer skill any agent on any team may invoke when they observe a bug — broken code, broken scenario behavior, prompt confusion, data-shape mismatch, unexpected error, or anything that looks defective. The skill writes a structured entry to `scenario-qa`'s `bug-inbox/<signal-type>/<slug>` topic; the `scenario-qa/bug-investigator` member drains the inbox, applies a registered investigation technique, and closes the entry with a `bug-investigation/<slug>` audit-log entry.
+Universal writer skill any agent on any team may invoke when they observe a bug — broken code, broken scenario behavior, prompt confusion, data-shape mismatch, unexpected error, or anything that looks defective. The skill writes a structured entry to `scenario-qa`'s `bug-inbox/<signal-type>/<slug>` topic; the `scenario-qa/bug-investigator` member drains the inbox, applies a registered investigation technique, and closes the entry with a `bug-investigation-report/<slug>` audit-log entry.
 
 This skill is **destination-coupled by design** — writer skills always are. The portability rule (`non_portable_classifier`) applies to classifier skills, not to writers. Bug reporting is a one-way producer pattern.
 

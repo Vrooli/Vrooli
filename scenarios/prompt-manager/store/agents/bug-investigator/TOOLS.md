@@ -3,7 +3,7 @@
 ## Tool Access
 - `prompt-manager team member-context scenario-qa bug-investigator`
 - `prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/...`
-- `prompt-manager team knowledge-update scenario-qa <id> ...` — used to re-tag entries on `route-to-another-topic` and to write `bug-investigation/<slug>` close entries
+- `prompt-manager team knowledge-update scenario-qa <id> ...` — used to re-tag entries on `route-to-another-topic` and to write `bug-investigation-report/<slug>` close entries
 - `prompt-manager team knowledge-delete scenario-qa <id>` — used on `drop` outcomes after the bug-investigation entry is written
 - `prompt-manager team decision-list scenario-qa ...`
 - `prompt-manager skill read scientific-debugging` — and any other skill registered in `docs/scenario-qa/investigation-techniques/`

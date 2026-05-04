@@ -3,27 +3,30 @@
   "schemaVersion": 1,
   "id": "storage-steer",
   "name": "Storage Architecture",
-  "description": "Ensures persistent storage mechanisms (PostgreSQL, Redis, Qdrant, filesystem) are properly configured with environment-driven connections, scenario-isolated databases, idempotent schema initialization, repository abstractions, and filesystem runtime state routed through api-core/storage.",
+  "description": "Steers scenarios toward engine-independent, per-domain storage architecture: schema embedded next to the code that interprets it (SchemaProvider/EnsureSchemas substrate in api-core/database), repository interfaces hide the engine, the same per-domain rule applies to Qdrant collections and Redis namespaces, and migrations follow a three-tier story (declarative greenfield, out-of-tree scripts for greenfield-with-data, versioned migrations only when production schema evolution earns them).",
   "modes": [
     "steer"
   ],
   "tags": [
     "storage",
     "database",
-    "postgres",
-    "redis",
-    "qdrant",
-    "filesystem",
-    "api-core-storage",
+    "schema-architecture",
+    "per-domain-schema",
+    "schema-provider",
+    "ensure-schemas",
     "migrations",
     "repository-pattern",
-    "connection-pooling",
-    "environment-variables"
+    "sqlite",
+    "postgres",
+    "qdrant",
+    "redis",
+    "isolation",
+    "greenfield"
   ],
   "status": "active",
   "entry": "SKILL.md",
   "defaultScope": "architecture-scope",
-  "revision": 48,
+  "revision": 50,
   "createdAt": "2026-01-30T20:00:00-05:00",
-  "updatedAt": "2026-02-07T04:16:18Z"
+  "updatedAt": "2026-05-04T03:03:29Z"
 }

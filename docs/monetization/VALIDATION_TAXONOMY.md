@@ -5,7 +5,7 @@ Cross-team-readable canon for how monetization validation requests are partition
 **Owner team:** monetization. **Status:** canon. Operator-curated via monetization decisions.
 
 Cited by:
-- `topics.json` for `monetization/market-validator` (`intake[].taxonomy = "monetization-validation"` — both for `validation-inbox/*` and the cross-team `monetization-benchmark-adjacent/*` intake).
+- `topics.json` for `monetization/market-validator` (`intake[].taxonomy = "monetization-validation"` — both for `validation-inbox/*` and the cross-team `monetization-benchmark-adjacent-record/*` intake).
 - The `market-validation-triage` skill (pure judgment).
 
 ## Editing rules
@@ -18,13 +18,13 @@ The 5-slot taxonomy:
 
 | Request type        | Definition                                                       | Default method                | Default destination                 |
 |---------------------|------------------------------------------------------------------|-------------------------------|-------------------------------------|
-| pricing-comp-needed | A specific competitor pricing comp is requested.                 | pricing-comp-capture          | `monetization-benchmark/<slug>`     |
-| assumption-check    | Validate a financial-model assumption.                           | assumption-grounding          | `monetization-benchmark/<slug>`     |
-| benchmark-staleness | Auto-populated by benchmark-staleness-sweep; refresh.            | stale-refresh                 | `monetization-benchmark/<slug>`     |
-| competitor-deep-dive| Broad capture across pricing + packaging + retention.            | competitor-deep-dive-capture  | `monetization-benchmark/<slug>`     |
-| channel-validation  | Comp CAC / conversion / payback for a channel.                   | channel-validation-capture    | `monetization-benchmark/<slug>`     |
+| pricing-comp-needed | A specific competitor pricing comp is requested.                 | pricing-comp-capture          | `monetization-benchmark-record/<slug>`     |
+| assumption-check    | Validate a financial-model assumption.                           | assumption-grounding          | `monetization-benchmark-record/<slug>`     |
+| benchmark-staleness | Auto-populated by benchmark-staleness-sweep; refresh.            | stale-refresh                 | `monetization-benchmark-record/<slug>`     |
+| competitor-deep-dive| Broad capture across pricing + packaging + retention.            | competitor-deep-dive-capture  | `monetization-benchmark-record/<slug>`     |
+| channel-validation  | Comp CAC / conversion / payback for a channel.                   | channel-validation-capture    | `monetization-benchmark-record/<slug>`     |
 
-Validation-queue entries arrive with a `request_type` set by the producer (opportunity-scout, financial-tracker, vision-walk, or `benchmark-staleness-sweep`). The triage skill classifies (sanity-checks the type), prioritizes by leverage, and recommends a method. The `monetization-benchmark-adjacent/*` cross-team intake shares this taxonomy because the validator triages it the same way (the producer's marketing taxonomy owns the front-matter schema for that prefix; see `docs/marketing/SIGNAL_TAXONOMY.md`).
+Validation-queue entries arrive with a `request_type` set by the producer (opportunity-scout, financial-tracker, vision-walk, or `benchmark-staleness-sweep`). The triage skill classifies (sanity-checks the type), prioritizes by leverage, and recommends a method. The `monetization-benchmark-adjacent-record/*` cross-team intake shares this taxonomy because the validator triages it the same way (the producer's marketing taxonomy owns the front-matter schema for that prefix; see `docs/marketing/SIGNAL_TAXONOMY.md`).
 
 ## Evidence rules
 
@@ -51,7 +51,7 @@ Below threshold: write the scan, no decision. Above threshold: raise `benchmark-
 | Action            | When                                                                                          |
 |-------------------|-----------------------------------------------------------------------------------------------|
 | drop              | Duplicate / out of scope / low-leverage.                                                      |
-| observe           | Single-snapshot fact below threshold. Retag to `monetization-benchmark/<slug>`; no decision.  |
+| observe           | Single-snapshot fact below threshold. Retag to `monetization-benchmark-record/<slug>`; no decision.  |
 | promote-to-canon  | Scan crosses materiality. Retag plus raise the matching owned decision.                       |
 | file-decision     | Decision-only outcome (e.g., assumption invalidated, no scan). Raise; delete the queue entry. |
 | capability-gap    | Source / tool / scenario missing.                                                             |

@@ -20,4 +20,4 @@
 - none
 
 ### Surface for technique graduation
-- none — the audit log starts empty; graduation candidates emerge as `bug-investigation/*` entries accumulate.
+- none — the audit log starts empty; graduation candidates emerge as `bug-investigation-report/*` entries accumulate.

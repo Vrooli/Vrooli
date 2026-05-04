@@ -309,7 +309,7 @@ All notebook files ship with an intentionally thin starter entry (a sentence or 
 
 Add phase 4.6 to `vision-walk-prep/AGENTS.md` (between monetization and meta-optimization):
 
-> **4.6 Gather pending marketing decisions** — Query pending decisions across marketing-crew contexts: `content-publish-proposal`, `campaign-launch-proposal`, `brand-guideline-update`, `audience-update`, `channel-update`, `coverage-gap`, `notebook-promotion`, `notebook-retirement`. Fetch `challenge-note/<decision-id>` knowledge entries and attach inline to their target decisions. Select top 3 with context diversity (not 3 from one bucket). For each decision, record the proposing member. If the marketing-crew team has `"enabled": false` in `teams/marketing-crew/team.json`, note that and skip. `capability-gap` decisions raised by marketing-crew members are grouped with existing capability-gap items in phase 2 (they have the same consumer — director-swarm).
+> **4.6 Gather pending marketing decisions** — Query pending decisions across marketing-crew contexts: `content-publish-proposal`, `campaign-launch-proposal`, `brand-guideline-update`, `audience-update`, `channel-update`, `coverage-gap`, `notebook-promotion`, `notebook-retirement`. Fetch `challenge-report/<decision-id>` knowledge entries and attach inline to their target decisions. Select top 3 with context diversity (not 3 from one bucket). For each decision, record the proposing member. If the marketing-crew team has `"enabled": false` in `teams/marketing-crew/team.json`, note that and skip. `capability-gap` decisions raised by marketing-crew members are grouped with existing capability-gap items in phase 2 (they have the same consumer — director-swarm).
 
 ### Meta-optimization handoff for `capability-gap`
 
@@ -457,7 +457,7 @@ Density target: AGENTS.md = 30-60 lines; SOUL.md = 20-40 lines; TOOLS.md = 30-60
 #### 2f. `marketing-contrarian`
 
 - **SOUL.md:** mandatory skeptic across all marketing-crew member proposals. Owns the aging scan. Domain-specific failure modes (not monetization's). Same structural role as `contrarian` / `meta-contrarian`.
-- **AGENTS.md workflow:** team-ceiling check → fetch pending decisions → score against marketing failure-mode list → write `challenge-note/<decision-id>` knowledge entries → aging scan on decisions >14 heartbeats → supersession check on own prior decisions → optionally `decision-rejection-proposed` or `framework-update`.
+- **AGENTS.md workflow:** team-ceiling check → fetch pending decisions → score against marketing failure-mode list → write `challenge-report/<decision-id>` knowledge entries → aging scan on decisions >14 heartbeats → supersession check on own prior decisions → optionally `decision-rejection-proposed` or `framework-update`.
 - **Marketing failure-mode list** (to be stated in SOUL.md, mirrored in TEAM.md):
   1. Hype drift — overpromising features, claiming "soon" without a committed date.
   2. Voice drift — tone migrating from builder/honest to SaaS-marketer.
@@ -582,7 +582,7 @@ Covered in Testing Plan section.
 
 5. **marketing-crew → landing-page-business-suite:** none directly. Marketing-crew's plan-of-record may reference positioning that lands-page-business-suite consumes, but the consumption wire is via `docs/monetization/`.
 
-6. **vision-walk-prep → marketing-crew:** read-only queries over pending decisions and `challenge-note/*` knowledge entries. No writes.
+6. **vision-walk-prep → marketing-crew:** read-only queries over pending decisions and `challenge-report/*` knowledge entries. No writes.
 
 ### Coverage file contract
 

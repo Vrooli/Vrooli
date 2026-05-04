@@ -45,15 +45,15 @@ The investigator may overrule severity based on actual scope of impact discovere
 
 - **A repro is mandatory.** If absent, the investigator first tries to reproduce. If reproduction fails, the action is `file-decision` asking the reporter or operator to supply repro — not `drop`.
 - **Honesty flags are required when applicable.** If the reporter didn't try to reproduce, the entry must include `repro-not-attempted`. Other flags: `speculative-cause` (the reporter guessed at a cause), `minimal-context` (the reporter shipped a short report under time pressure), `ai-generated-summary` (the description was machine-summarized).
-- **Investigation outcomes cite the technique applied.** The `bug-investigation/<slug>` entry's `technique` front-matter field must name a registered investigation technique. This drives technique-graduation decisions on `meta-self-improvement` (e.g., "bisect-debugging recurred 8 times this month — promote to a registered technique").
-- **Bug entries are debt, not authority.** Investigation outcomes (`bug-investigation/<slug>`) are the durable audit log; the original bug-inbox entry is moved or deleted on close.
+- **Investigation outcomes cite the technique applied.** The `bug-investigation-report/<slug>` entry's `technique` front-matter field must name a registered investigation technique. This drives technique-graduation decisions on `meta-self-improvement` (e.g., "bisect-debugging recurred 8 times this month — promote to a registered technique").
+- **Bug entries are debt, not authority.** Investigation outcomes (`bug-investigation-report/<slug>`) are the durable audit log; the original bug-inbox entry is moved or deleted on close.
 
 ## Action selection
 
 | Action                  | When                                                                                                            |
 |-------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `drop`                  | Cannot reproduce + no clear scope; weak one-off. The investigator writes a short bug-investigation entry explaining the drop and deletes the bug-inbox entry. |
-| `observe`               | Confirmed bug; findings recorded in `bug-investigation/<slug>` but no fix this heartbeat (deprecated path, queued elsewhere, etc.). |
+| `observe`               | Confirmed bug; findings recorded in `bug-investigation-report/<slug>` but no fix this heartbeat (deprecated path, queued elsewhere, etc.). |
 | `file-backlog`          | Reproducible; investigator hands off a `swarm-manager` backlog item with full evidence, then closes the bug-inbox entry. |
 | `file-decision`         | Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb). |
 | `route-to-another-topic`| Misclassified — actually a documentation gap, capability-gap, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision. |

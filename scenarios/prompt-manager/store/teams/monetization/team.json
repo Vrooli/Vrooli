@@ -367,7 +367,7 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "challenge-note/<decision-id>": {
+      "challenge-report/<decision-id>": {
         "ownerMemberId": "contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -610,7 +610,7 @@
           "framework-update": 1
         },
         "requiredKnowledgeTopics": [
-          "challenge-note/<decision-id>"
+          "challenge-report/<decision-id>"
         ],
         "allowedWrites": [
           {

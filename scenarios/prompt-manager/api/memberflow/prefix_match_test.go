@@ -53,7 +53,7 @@ func TestEnrichWithKeyPrefixMismatch_FlagsUndeclaredEntry(t *testing.T) {
 		allByTeam: map[string][]InboxEntry{
 			"alpha": {
 				{ID: "knw-1", Topic: "audience-scan/foo"},   // declared
-				{ID: "knw-2", Topic: "competitor/bar"},      // NOT declared
+				{ID: "knw-2", Topic: "competitor-record/bar"},      // NOT declared
 				{ID: "knw-3", Topic: "audience-scan-flat-1"}, // would be flat-form, not slash-form
 			},
 		},
@@ -82,15 +82,15 @@ func TestEnrichWithKeyPrefixMismatch_ScopesByTeam(t *testing.T) {
 		{
 			Ref:    MemberRef{Team: "beta", Member: "b"},
 			Exists: true,
-			Topics: Topics{Output: []OutputEntry{{Prefix: "competitor/*", DestinationKind: "knowledge"}}},
+			Topics: Topics{Output: []OutputEntry{{Prefix: "competitor-record/*", DestinationKind: "knowledge"}}},
 		},
 	}
 	q := stubKnowledgeQuery{
 		allByTeam: map[string][]InboxEntry{
-			// "competitor/x" is declared in team beta but NOT in team alpha.
+			// "competitor-record/x" is declared in team beta but NOT in team alpha.
 			// alpha-side it should fire; beta-side it's fine.
-			"alpha": {{ID: "knw-1", Topic: "competitor/x"}},
-			"beta":  {{ID: "knw-2", Topic: "competitor/y"}},
+			"alpha": {{ID: "knw-1", Topic: "competitor-record/x"}},
+			"beta":  {{ID: "knw-2", Topic: "competitor-record/y"}},
 		},
 	}
 	findings := EnrichWithKeyPrefixMismatch(members, q)

@@ -179,7 +179,7 @@ Goal: settle the two contracts that everything else depends on, without writing 
   ],
   "output": [
     { "prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization" }
+    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization" }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update"],
   "decisions_consumed": ["capability-gap"],

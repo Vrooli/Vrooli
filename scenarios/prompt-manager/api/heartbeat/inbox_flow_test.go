@@ -34,7 +34,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 		PoRPath: "docs/marketing/SIGNAL_TAXONOMY.md",
 		SignalTypes: []memberflow.TaxonomySignalType{
 			{ID: "audience-pain", DefaultMethod: "audience-pain-mining", DefaultDestinationPrefix: "audience-scan/<slug>"},
-			{ID: "competitor", DefaultMethod: "competitor-positioning-scan", DefaultDestinationPrefix: "competitor/<slug>"},
+			{ID: "competitor", DefaultMethod: "competitor-positioning-scan", DefaultDestinationPrefix: "competitor-record/<slug>"},
 		},
 		PendingMethodSkills: []string{"audience-pain-mining", "competitor-positioning-scan"},
 	}
@@ -47,7 +47,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 			}},
 			Output: []memberflow.OutputEntry{
 				{Prefix: "audience-scan/*", DestinationKind: memberflow.DestinationKnowledge, Schema: "audience-scan"},
-				{Prefix: "monetization-benchmark-adjacent/*", DestinationKind: memberflow.DestinationKnowledge, DestinationTeam: ptr("monetization"), Schema: "monetization-benchmark-adjacent"},
+				{Prefix: "monetization-benchmark-adjacent-record/*", DestinationKind: memberflow.DestinationKnowledge, DestinationTeam: ptr("monetization"), Schema: "monetization-benchmark-adjacent"},
 			},
 			DecisionsOwned:       []string{"audience-update", "channel-strategy-update"},
 			DecisionsConsumed:    []string{"capability-gap"},
@@ -71,7 +71,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 		"prompt-manager team knowledge-delete marketing-crew",
 		"## Destinations",
 		"audience-scan/*",
-		"monetization-benchmark-adjacent/*",
+		"monetization-benchmark-adjacent-record/*",
 		"`monetization`",
 		"## Decisions",
 		"audience-update",
@@ -100,10 +100,10 @@ func TestRenderInboxFlow_TwoIntakes_CrossTeam(t *testing.T) {
 		memberflow.Topics{
 			Intake: []memberflow.IntakeEntry{
 				{Prefix: "validation-inbox/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage"},
-				{Prefix: "monetization-benchmark-adjacent/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage", SourceTeam: ptr("marketing-crew")},
+				{Prefix: "monetization-benchmark-adjacent-record/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage", SourceTeam: ptr("marketing-crew")},
 			},
 			Output: []memberflow.OutputEntry{
-				{Prefix: "monetization-benchmark/*", DestinationKind: memberflow.DestinationKnowledge, Schema: "market-scan"},
+				{Prefix: "monetization-benchmark-record/*", DestinationKind: memberflow.DestinationKnowledge, Schema: "market-scan"},
 			},
 		},
 		map[string]*memberflow.Taxonomy{"monetization-validation": tx},
@@ -112,7 +112,7 @@ func TestRenderInboxFlow_TwoIntakes_CrossTeam(t *testing.T) {
 	if !strings.Contains(out, "## Inbox: `validation-inbox/*`") {
 		t.Errorf("missing first inbox header:\n%s", out)
 	}
-	if !strings.Contains(out, "## Inbox: `monetization-benchmark-adjacent/*`") {
+	if !strings.Contains(out, "## Inbox: `monetization-benchmark-adjacent-record/*`") {
 		t.Errorf("missing second inbox header:\n%s", out)
 	}
 	if !strings.Contains(out, "Source team | `marketing-crew`") {

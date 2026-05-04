@@ -358,7 +358,7 @@ Rules:
     "supersedesPrevious": true,
     "retention": "snapshot"
   },
-  "challenge-note/<decision-id>": {
+  "challenge-report/<decision-id>": {
     "ownerMemberId": "meta-contrarian",
     "supersedesPrevious": false,
     "retention": "append-only"
@@ -485,7 +485,7 @@ Representative persisted shape using the V1 schema:
         "ownerMemberId": "debt-curator",
         "supersedesPrevious": true
       },
-      "challenge-note/<decision-id>": {
+      "challenge-report/<decision-id>": {
         "ownerMemberId": "meta-contrarian",
         "supersedesPrevious": false
       }
@@ -789,7 +789,7 @@ Knowledge topic families:
 | `run-lessons-YYYY-MM-DD` | `run-introspector` | supersedes previous |
 | `toolchain-audit-YYYY-MM-DD` | `toolchain-validator` | supersedes previous (renamed from `toolchain-scan-YYYY-MM-DD` 2026-05-03 per audit-vs-scan rule) |
 | `debt-scan-YYYY-MM-DD` | `debt-curator` | supersedes previous |
-| `challenge-note/<decision-id>` | `meta-contrarian` | append-only, no supersedes |
+| `challenge-report/<decision-id>` | `meta-contrarian` | append-only, no supersedes |
 
 Notebook docs:
 

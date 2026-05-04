@@ -54,8 +54,8 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 - Or: "None (read-only mode / no actionable lesson)."
 
 ### Knowledge entries written
-- run-lessons/YYYY-MM-DD (supersedes prior)
-- friction/run-execution/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
+- run-lesson-report/YYYY-MM-DD (supersedes prior)
+- friction-report/run-execution/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
 ```
 
 ## Stop Conditions

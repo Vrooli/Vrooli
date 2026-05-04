@@ -63,7 +63,7 @@ After the router classifies an entry, it must either retag or delete it:
   prompt-manager team knowledge-update marketing-crew <id> --topic="<destination-topic>"
   ```
 
-  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor/<slug>`, `hook/<slug>`, `monetization-benchmark-adjacent/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, notebook debt, capability-gap), delete the inbox row instead of retagging.
+  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, notebook debt, capability-gap), delete the inbox row instead of retagging.
 
 - **Delete** when the entry was weak, duplicate, or otherwise dropped:
 
@@ -120,7 +120,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 | Stable reusable hook | `hook-candidate-promotion` decision. |
 | External skill/workflow worth operationalizing | skill/action/scenario proposal routed through the right team. |
 | Missing source access, CLI, action, or scenario blocks research | `capability-gap` decision. |
-| Monetization-relevant but not marketing-owned fact | `monetization-benchmark-adjacent/<topic>` knowledge entry. |
+| Monetization-relevant but not marketing-owned fact | `monetization-benchmark-adjacent-record/<topic>` knowledge entry. |
 
 ## Evidence Rules
 

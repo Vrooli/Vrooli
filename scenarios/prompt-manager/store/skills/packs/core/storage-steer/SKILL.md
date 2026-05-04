@@ -1,839 +1,437 @@
 ## Steer focus: Storage Architecture
 
-Prioritize **hardening persistent storage mechanisms** in `scenarios/{{TARGET}}/` to ensure reliable, isolated, and professionally structured data persistence. This skill steers toward storage that is correctly configured, properly abstracted, and follows Vrooli resource conventions.
+Prioritize **engine-independent, per-domain storage architecture** in `scenarios/{{TARGET}}/`. Schema lives next to the code that interprets it. Repository interfaces hide the engine. Cross-store ownership (SQL tables, Qdrant collections, Redis namespaces) follows the same per-domain rule. Greenfield by default; brownfield substrate appears only when production data evolution demands it.
 
-Your goal is to ensure the target scenario's storage layer is **production-ready**: using environment-driven configuration, scenario-isolated databases, proper schema management, and clean abstraction boundaries that allow storage mechanisms to change without affecting business logic.
+Your goal is to make the target scenario's storage layer **production-ready and engine-portable**: any single domain can be added by creating files in one folder; any single domain can be deleted by removing one folder; any engine can be swapped behind the repository interface without business-logic churn.
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's storage architecture.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read cross-platform-readiness visited-tracker-tools`
+
+`cross-platform-readiness` is the engine-selection authority — its §3 fitness table decides *which* store to use; this skill decides *how* to architect it. The two skills share boundaries deliberately and cross-reference each other.
 
 ---
 
 ### 0. Why This Skill Exists
 
-Storage problems are invisible until they cause outages, data corruption, or cross-scenario pollution:
+Storage problems are invisible until they cause outages, data corruption, or cross-scenario pollution. The deeper problems are *architectural*:
 
-- **Shared database collisions:** Scenarios using default "vrooli" database overwrite each other's tables
-- **Hard-coded connection strings:** Credentials in code, impossible to configure per environment
-- **Missing schema initialization:** Manual database setup required, deployment failures
-- **Tight coupling:** Business logic directly depends on PostgreSQL, cannot swap to SQLite for testing
-- **No retry logic:** Transient database failures cause cascading application crashes
-- **Redis key collisions:** Multiple scenarios write to same keys, unpredictable behavior
-- **Filesystem sprawl:** Data written to arbitrary paths, security and cleanup issues
-- **Redeploy stale file drift:** Old files survive deployments when mutable state is stored in app targets
-- **Data-loss risk on cleanup:** Clearing deploy targets can delete real runtime data when storage lives under scenario folders
+- **Schema scattered across a central file is shotgun surgery for adds and a deletability bug for removes.** A domain whose tables live in a project-wide `schema.sql` can never be deleted by removing its folder — the table definition stays, becomes orphaned, and is recreated on every boot.
+- **Tight coupling between business logic and a single engine** prevents swapping SQLite for Postgres (or vice versa) when deployment tier changes — even though both speak SQL.
+- **Missing isolation** between scenarios sharing infrastructure (one Postgres instance, one Redis cluster) creates collisions: tables overwrite, keys collide, debug sessions read each other's state.
+- **Brownfield-by-default migration accretion** leaves every scenario carrying dozens of `001_…sql`, `002_…sql` files no one reads, when most scenarios never needed versioned migrations in the first place.
+- **Filesystem sprawl** — runtime files written to arbitrary paths or under deploy directories — causes data loss on redeploy and breaks portability across desktop, mobile, sandboxed, or container deployments.
 
-**The Vrooli resource system solves this** by providing:
-- Shared resources (postgres, redis, qdrant) with environment variable injection
-- Scenario-specific schema isolation via service.json configuration
-- Standard initialization patterns for schema and seed data
+The architecture this skill steers toward solves all five:
 
-But "using resources" alone isn't enough. This skill ensures storage is:
-- **Properly declared** in service.json with correct schema naming
-- **Environment-driven** using injected variables, never hard-coded
-- **Well-abstracted** behind repository/service interfaces
-- **Correctly initialized** with idempotent schema files
-- **Properly isolated** to prevent cross-scenario data pollution
-- **Filesystem-safe by default** via `github.com/vrooli/api-core/storage`
+- **Cohesion**: every change to a domain (add a column, add a Redis key, add a Qdrant collection) lands in one folder.
+- **Locality of change**: one logical change → one diff location.
+- **Deletability**: removing a domain is `rm -rf internal/<dom>/` plus a few registry edits — never an archaeology dig.
+- **Bounded contexts**: each domain owns its data; cross-domain coupling is explicit (soft IDs, not hard FKs).
+- **Strategy-appropriate migrations**: declarative for greenfield (with optional one-shot temp scripts for personal data preservation), versioned migrations only when real users exist.
 
 ---
 
 ### 1. Scope Boundaries
 
 **In scope**
-- service.json resource dependency declaration and schema naming
-- Environment variable usage for database connections
-- Connection patterns: retries, pooling, health checks
-- Schema initialization files and idempotency patterns
-- Storage abstraction: repository/service layer design
-- Redis key namespacing and Qdrant collection naming
-- Filesystem storage standardized on `api-core/storage`
-- Greenfield-first storage posture and brownfield migration exceptions
+- Per-domain schema architecture (the canonical pattern; SQL, Qdrant, Redis, anything else)
+- Repository / service abstraction so business logic doesn't know the engine
+- The greenfield-vs-brownfield migration strategy (declarative + one-shot temp scripts vs versioned migrations folder)
+- Cross-store ownership patterns and namespacing for isolation
+- Greenfield-by-default posture; brownfield exception path
+- Storage architecture audit and documentation
+- Cross-domain coupling guidance (soft FKs preferred)
 
 **Out of scope**
-- Database query optimization or indexing strategy -> see performance skills
-- Data modeling and domain design -> see domain architecture skills
-- Backup and disaster recovery -> operational concern
-- Database administration (users, roles, permissions) -> infrastructure concern
-- Specific ORM/driver selection -> implementation choice
+- *Which* storage engine to pick → `cross-platform-readiness` §3 fitness table
+- Filesystem runtime contract → `cross-platform-readiness` §4 + `api-core/storage`
+- Database query optimization, indexing strategy → performance skills
+- Data modeling, domain design → domain architecture skills
+- Backup, disaster recovery, DBA concerns → operational skills
+- ORM / driver selection details → implementation choice
 
 ---
 
-### 2. The Vrooli Storage Hierarchy
+### 2. The Canonical Pattern: Domain-Owned Storage
 
-Understanding how Vrooli manages storage prevents configuration mistakes:
+Every domain owns the bits of every store it touches. Not just SQL tables — also Qdrant collections, Redis key namespaces, anything else the domain wires to. The architecture pattern is the same regardless of which engine is behind it.
 
 ```
-                    VROOLI STORAGE HIERARCHY
-┌─────────────────────────────────────────────────────────┐
-│  resources/*/config/defaults.sh                         │
-│  ─────────────────────────────                          │
-│  RESOURCE CONFIGURATION                                 │
-│  • Defines environment variables (POSTGRES_HOST, etc.)  │
-│  • Sets defaults (ports, users, container names)        │
-│  • Vrooli lifecycle injects these into scenario env     │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼ lifecycle injection
-┌─────────────────────────────────────────────────────────┐
-│  scenarios/{{TARGET}}/.vrooli/service.json              │
-│  ─────────────────────────────────────────              │
-│  RESOURCE DEPENDENCIES                                  │
-│  • Declares which resources scenario needs              │
-│  • Specifies schema name for database isolation         │
-│  • Points to initialization files                       │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼ on first startup
-┌─────────────────────────────────────────────────────────┐
-│  initialization/storage/postgres/schema.sql             │
-│  ─────────────────────────────────────────              │
-│  SCHEMA INITIALIZATION                                  │
-│  • Creates tables, indexes, triggers                    │
-│  • Must be idempotent (IF NOT EXISTS patterns)          │
-│  • Executed by API on first startup                     │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼ at runtime
-┌─────────────────────────────────────────────────────────┐
-│  Scenario Code (API, CLI, Services)                     │
-│  ─────────────────────────────────                      │
-│  STORAGE CONSUMERS                                      │
-│  • Connect using environment variables                  │
-│  • Access through repository/service abstraction        │
-│  • Use api-core/storage for filesystem runtime state    │
-│  • Never hard-code connection details                   │
-└─────────────────────────────────────────────────────────┘
+                     DOMAIN-OWNED STORAGE
+                     ───────────────────────────
+internal/<dom>/schema.sql   ─┐
+internal/<dom>/qdrant.go    ─┼─→ Schema() / Setup() functions
+internal/<dom>/redis.go     ─┘                  │
+                                                ▼
+                          internal/modules/registry.go
+                            (AllSchemas, AllSetups)
+                                                │
+                                                ▼
+                  api/main.go: database.EnsureSchemas(...)
+                              + qdrant/redis equivalents
+                                  (called at boot)
 ```
 
-**Steer:** Configuration flows downward. Scenarios consume what Vrooli provides. Never bypass the resource system.
+Why this shape:
+
+- **Cohesion** — schema lives next to the code that interprets it; one diff per logical change.
+- **Locality of change** — adding a column = one file edit; adding a domain = one folder; removing a domain = `rm -rf` that folder.
+- **Deletability** — a domain's footprint is bounded by its folder; no central files to scrub.
+- **Bounded contexts** — each domain owns its data, mirroring the rest of the per-domain stack (handlers, services, types).
+
+**Worked examples** to cross-reference rather than reinventing:
+- `templates/scenarios/react-vite/api/internal/notes/` — canonical SQL-only example (the react-vite template).
+- `scenarios/agent-manager/api/internal/database/` — second real-world example.
+- `templates/scenarios/react-vite/api/internal/database/system.sql` — the system home pattern.
+
+**System home for cross-cutting infrastructure.** Some bits don't belong to any one domain — postgres extensions, custom types, cross-domain views. They live in a `system.sql` (e.g., `internal/database/system.sql`), empty by default in SQLite scenarios. Tested for emptiness as a tripwire so it doesn't become a dumping ground; if you find yourself adding a `CREATE TABLE` there, ask whether the table belongs to a domain that doesn't exist yet, and create the domain first.
 
 ---
 
-### 3. service.json Resource Declaration
+### 3. Engine Selection
 
-#### 3.1 Database Resource Pattern
+Engine choice is `cross-platform-readiness`'s job — its §3 fitness table scores each store across deployment tiers and converges on the right default. Don't restate the reasoning; defer to it.
 
-Every scenario using persistent storage MUST declare it in service.json:
+Cheat-sheet for fast decisions:
 
-```json
-{
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary storage for [describe data]",
-        "schema": "{{TARGET}}"
-      }
-    }
-  }
-}
-```
+| Need | Default | Why |
+|---|---|---|
+| Structured / relational data (most cases) | **SQLite** via `modernc.org/sqlite` | Pure-Go, CGO-free, embedded, portable across all tiers |
+| Concurrent multi-writer load + managed-DB ops at scale | **PostgreSQL** | Real concurrency story; managed-DB ecosystem; still per-domain |
+| Vector embeddings / semantic search | **Qdrant** alongside relational store | Specialized vector engine; hybrid pattern (Qdrant + SQLite/Postgres) |
+| Ephemeral cache / session / rate-limit | **Redis** alongside relational store | TTL-native; memory-resident |
+| Large blobs (images, video, documents) | **MinIO / filesystem** alongside relational store | Metadata in DB; content in object storage |
 
-**Schema naming convention:**
-- Use the scenario slug (the folder name) as the schema name
-- Prefer hyphens for consistency: `agent-manager`, `browser-automation-studio`
-- This creates an isolated database/schema that won't conflict with other scenarios
-
-#### 3.2 Initialization Declaration
-
-For scenarios with complex schemas, declare initialization files:
-
-```json
-{
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "...",
-        "schema": "{{TARGET}}",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-#### 3.3 Multiple Storage Resources
-
-Scenarios may use multiple storage types:
-
-```json
-{
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Structured data and indexes",
-        "schema": "{{TARGET}}"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "description": "Caching and session storage"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": false,
-        "description": "Vector embeddings for semantic search"
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": false,
-        "description": "Object storage for large files"
-      }
-    }
-  }
-}
-```
-
-**Convergence Pattern: Resource Selection**
-
-```
-What type of data are you storing?
-│
-├─ Structured, relational, queryable?
-│   └─ PostgreSQL (primary choice for most data)
-│
-├─ Key-value, ephemeral, cached?
-│   └─ Redis (sessions, rate limits, real-time state)
-│
-├─ Vector embeddings for similarity search?
-│   └─ Qdrant (semantic search, recommendations)
-│
-├─ Large binary files (images, videos, documents)?
-│   └─ MinIO/S3 or filesystem (with DB index)
-│
-└─ Small, simple, single-user storage?
-    └─ SQLite (desktop deployments, testing)
-```
+Per-domain ownership applies to all of them. The pattern doesn't care which engine you picked.
 
 ---
 
-### 4. Environment Variable Usage
+### 4. Per-Domain Architecture (Worked Spec)
 
-#### 4.1 PostgreSQL Environment Variables
+#### 4.1 SQL schema
 
-The Vrooli resource system exports these variables (from `resources/postgres/config/defaults.sh`):
+Each domain ships its schema next to its code:
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `POSTGRES_HOST` | Database hostname | `localhost` |
-| `POSTGRES_PORT` | Database port | `5433` (Vrooli default, not 5432) |
-| `POSTGRES_USER` | Database user | `vrooli` |
-| `POSTGRES_PASSWORD` | Database password | (generated) |
-| `POSTGRES_DB` | Database name | `vrooli` (override with schema) |
-| `DATABASE_URL` | Full connection string | (constructed) |
+```
+internal/<dom>/
+  schema.sql      # tables, indexes, triggers this domain owns
+  schema.go       # //go:embed schema.sql; func Schema() string
+  types.go
+  repository.go   # interface
+  sqlite.go       # SQLite implementation (or postgres.go)
+  service.go
+```
 
-#### 4.2 Correct Connection Pattern (Go)
+**`schema.sql`** holds only this domain's tables. Forward-only declarative — `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`. Idempotent re-runs are required: `EnsureSchemas` is called on every boot.
+
+**`schema.go`** embeds the SQL via `//go:embed` and exports `func Schema() string`. The function is the seam; the file is its substrate.
+
+**Handler-side re-export.** `handlers/<dom>/module.go` re-exports `Schema()`:
 
 ```go
-// ✅ CORRECT: Use environment variables, override DB name with scenario schema
-func connectPostgres() (*sql.DB, error) {
-    host := os.Getenv("POSTGRES_HOST")
-    port := os.Getenv("POSTGRES_PORT")
-    user := os.Getenv("POSTGRES_USER")
-    password := os.Getenv("POSTGRES_PASSWORD")
-    dbName := os.Getenv("POSTGRES_DB")
+// handlers/<dom>/module.go
+func Schema() string { return internalDom.Schema() }
+```
 
-    // Override with scenario-specific database if using default
-    if dbName == "" || dbName == "vrooli" {
-        dbName = "{{TARGET}}"  // Use scenario slug
-    }
+This keeps the registry's import surface narrow — it imports handler packages, not their internal peers.
 
-    connStr := fmt.Sprintf(
-        "postgres://%s:%s@%s:%s/%s?sslmode=disable",
-        user, password, host, port, dbName,
-    )
+**Boot wiring.** The API binary calls `database.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from `packages/api-core/database`. The `modules.AllSchemas()` registry assembles the providers (system home first, then per-domain in stable order).
 
-    return sql.Open("postgres", connStr)
+**Substrate.** The `SchemaProvider` interface, `SchemaProviderFunc` adapter, and `EnsureSchemas` function live in `packages/api-core/database/schemas.go`. `EnsureSchemas` accepts a small `SchemaExecer` interface — `*sql.DB` satisfies it, but tests don't need a real driver to exercise the helper. Empty schemas (`Schema() == ""`) skip silently so the system home can ship empty without complaint.
+
+**System home.** `internal/database/system.sql` for cross-cutting bits (postgres extensions, custom types, cross-domain views). Empty by default in SQLite scenarios. Tested for emptiness — if you add to it, the test fails and forces a deliberate "yes, this is genuinely cross-cutting" decision.
+
+#### 4.2 Qdrant collections
+
+Each domain that uses vectors ships its collection setup in `internal/<dom>/qdrant.go`. Collection names are scenario-and-domain-prefixed:
+
+```go
+// internal/notes/qdrant.go
+const CollectionName = "{{TARGET}}_notes_embeddings"
+
+func SetupQdrant(ctx context.Context, client *qdrant.Client) error {
+    return client.EnsureCollection(ctx, CollectionName, vectorSize, distance)
 }
 ```
 
-```go
-// ❌ WRONG: Hard-coded values
-func connectPostgres() (*sql.DB, error) {
-    return sql.Open("postgres",
-        "postgres://vrooli:password123@localhost:5432/vrooli?sslmode=disable")
-}
-```
+`SetupQdrant` registers in `modules.AllQdrantSetups()` (or equivalent) and runs at API boot, after `EnsureSchemas` for SQL. The pattern is symmetric: providers register, applied at boot, idempotent.
 
-#### 4.3 Correct Connection Pattern (TypeScript)
+When a Qdrant collection is genuinely shared across multiple domains (rare — a single embeddings collection that several domains read but no one owns), it's a system-home case. Put the setup in `internal/database/system.go` and apply the same tripwire reasoning: ask whether it actually belongs to a domain that doesn't exist yet.
 
-```typescript
-// ✅ CORRECT: Environment-driven configuration
-const dbConfig = {
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5433', 10),
-    user: process.env.POSTGRES_USER || 'vrooli',
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB || '{{TARGET}}',
-};
+#### 4.3 Redis namespacing
 
-// Or using DATABASE_URL
-const connectionString = process.env.DATABASE_URL;
-```
-
-```typescript
-// ❌ WRONG: Hard-coded credentials
-const pool = new Pool({
-    connectionString: 'postgres://vrooli:secret@localhost:5432/mydb'
-});
-```
-
-#### 4.4 Connection Retry with Exponential Backoff
-
-Database connections should use exponential backoff with jitter:
+Each domain that uses Redis owns its key namespace constants in `internal/<dom>/redis.go`:
 
 ```go
-// ✅ CORRECT: Exponential backoff with jitter
+// internal/auth/redis.go
 const (
-    maxRetries        = 10
-    baseDelay         = 1 * time.Second
-    maxDelay          = 30 * time.Second
-    jitterFactor      = 0.25
+    SessionPrefix = "{{TARGET}}:auth:session:"
+    LockPrefix    = "{{TARGET}}:auth:lock:"
 )
 
-func connectWithRetry() (*sql.DB, error) {
-    var db *sql.DB
-    var err error
-
-    for attempt := 0; attempt < maxRetries; attempt++ {
-        db, err = connectPostgres()
-        if err == nil {
-            if err = db.Ping(); err == nil {
-                return db, nil
-            }
-        }
-
-        // Calculate delay with exponential backoff and jitter
-        delay := baseDelay * time.Duration(1<<attempt)
-        if delay > maxDelay {
-            delay = maxDelay
-        }
-        jitter := time.Duration(float64(delay) * jitterFactor * rand.Float64())
-
-        log.Printf("Connection attempt %d failed, retrying in %v: %v",
-            attempt+1, delay+jitter, err)
-        time.Sleep(delay + jitter)
-    }
-
-    return nil, fmt.Errorf("failed to connect after %d attempts: %w", maxRetries, err)
-}
+func SessionKey(id string) string { return SessionPrefix + id }
 ```
 
-#### 4.5 Connection Pool Configuration
+Standard key-pattern shapes:
 
-```go
-// ✅ CORRECT: Configurable connection pool
-db.SetMaxOpenConns(getEnvInt("DB_MAX_OPEN_CONNS", 25))
-db.SetMaxIdleConns(getEnvInt("DB_MAX_IDLE_CONNS", 5))
-db.SetConnMaxLifetime(time.Duration(getEnvInt("DB_CONN_MAX_LIFETIME_MS", 300000)) * time.Millisecond)
+| Pattern | Example |
+|---|---|
+| `{scenario}:{domain}:session:{id}` | `lpbs:auth:session:abc123` |
+| `{scenario}:{domain}:cache:{entity}:{id}` | `lpbs:notes:cache:note:42` |
+| `{scenario}:{domain}:rate:{resource}:{id}` | `lpbs:downloads:rate:api:user-7` |
+| `{scenario}:{domain}:lock:{resource}` | `lpbs:migrations:lock:run` |
 
-// SQLite special case: single connection only
-if dialect == DialectSQLite {
-    db.SetMaxOpenConns(1)
-}
-```
+The scenario prefix prevents cross-scenario collisions on a shared Redis. The domain prefix prevents cross-domain collisions within one scenario.
+
+#### 4.4 The pattern as a rule, not a recipe
+
+**Whatever store the domain touches, the domain owns the setup.** If a domain wires to a new store tomorrow (Neo4j, ClickHouse, MinIO), the new file goes in `internal/<dom>/`, gets a `Setup()` function, gets registered in the modules registry, gets applied at boot. Same shape, every time.
+
+The rule's purpose is to make the architecture *uniform* so agents (and humans) don't have to invent a new pattern per engine.
 
 ---
 
-### 5. Schema Initialization Patterns
+### 5. Migration Strategy: Greenfield vs Brownfield
 
-#### 5.1 Standard File Location
+There are exactly two strategies. The dividing line is **whether the scenario has real users in production** — not whether the dev database has data, not whether you're about to drop a column. Greenfield covers everything before real users; brownfield begins the moment they exist.
+
+#### Greenfield — `Schema()` only, with optional one-shot scripts for personal data
+
+The default. The repo never gains a `migrations/` folder. `internal/<dom>/schema.sql` describes the desired clean state at all times.
+
+**Use when:** scenario hasn't shipped to real users yet. Includes new scenarios, scenarios with only your own dev data, scenarios you've been using personally for weeks. Comfort evolving the schema is the whole point — you're allowed to change anything.
+
+**How to add, drop, rename, or change a column:** edit `internal/<dom>/schema.sql` to reflect the desired final shape. For additive changes (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`), the next boot's `EnsureSchemas` applies them and you're done.
+
+**For destructive changes (drop, rename, type change) where you want to preserve your personal/local data**, write a one-shot script in `/tmp/<scenario-slug>/migrate-<short-descriptor>.<ext>`:
 
 ```
-scenarios/{{TARGET}}/
-├── initialization/
-│   └── storage/
-│       └── postgres/
-│           ├── schema.sql      # Table definitions
-│           ├── seed.sql        # Optional: default data
-│           └── migrations/     # Optional: versioned migrations
-│               ├── 001_initial.sql
-│               └── 002_add_indexes.sql
+/tmp/<scenario-slug>/migrate-add-status-column.sql
+/tmp/<scenario-slug>/migrate-rename-users-table.go
+/tmp/<scenario-slug>/migrate-split-orders-into-line-items.sh
 ```
 
-#### 5.2 Idempotent Schema Pattern
+Extension matches the script type:
+- `.sql` for pure data shuffles you can express in SQL (`UPDATE … SET new_col = …`, `INSERT INTO new_table SELECT … FROM old_table`).
+- `.go` for transforms needing logic (parsing fields, calling external APIs, conditional rewrites).
+- `.sh` for orchestration (sqlite3/psql calls, file moves, sequenced steps).
 
-Schema files MUST be idempotent (safe to run multiple times):
+For multi-session work where `/tmp` clears on reboot, use `~/.cache/vrooli/<scenario-slug>/` instead. Either way, the script is **personal scratch** — never committed, never tracked, discarded after the data lands cleanly.
+
+**Pattern:**
+1. Update `internal/<dom>/schema.sql` to describe the new desired state.
+2. Write the migration script in the temp location.
+3. Stop the scenario; run the script against the local DB; restart the scenario.
+4. Boot's `EnsureSchemas` confirms the new schema; the script is no longer needed; delete it.
+
+**Why this exists:** so you can comfortably evolve the database after starting to use a scenario locally — without polluting the codebase with version-history files that no one will read. The script handles your personal data; the repo only ever describes the clean state.
+
+#### Brownfield — versioned migrations folder
+
+Real users exist. Their data is the source of truth. Schema evolution must be auditable, ordered, transactional, and applied exactly once per environment.
+
+**Use when:** scenario has shipped to real users with persisted data. Once you cross this line, you don't go back — every schema change from this point is a versioned migration.
+
+**Layout:**
+
+```
+internal/notes/
+  migrations.go        # Migrations() embed.FS; DomainID() = "notes"
+  migrations/
+    001_initial.sql    # was schema.sql, renumbered as the baseline
+    002_add_status.sql
+    003_drop_archived_at.sql
+```
+
+The per-domain `schema.sql` is replaced by `migrations/001_initial.sql` (the baseline) the moment the scenario crosses to brownfield. From then on, every change is a new file.
+
+**Conventions:**
+- **Numbering:** prefer timestamps (e.g., `20260503T1400_add_status.sql`) to avoid merge collisions when two contributors add migration #002 the same week. Strict numeric ordering is fine for solo work.
+- **Direction:** up-only by default. Down migrations are usually misleading — recovery is from backup, not reverse-migration. Don't ship them unless you have a real rollback story.
+- **Granularity:** each file is one logical change. Easier to read, easier to revert by writing a corrective migration.
+- **Transactions:** wrap each migration in a transaction so partial-apply doesn't corrupt state.
+- **Per-domain version space:** `schema_migrations_notes` is separate from `schema_migrations_users`. Two domains can land migration #002 the same week without collision.
+
+**The substrate for brownfield migrations is deferred — see §6.** Don't invent ad-hoc tooling.
+
+#### Signal: which strategy am I in?
+
+The skill *consumes* this signal from upstream — it doesn't decide it. Sources:
+
+- **Explicit user instruction** ("this scenario hasn't shipped yet"; "we have 200 users on this").
+- **Production deployment evidence** — running scenario with users, public URL, anything that says real people depend on the data.
+- **`PROGRESS.md` or `STORAGE_AUDIT.md` reference** documenting the data state.
+
+If unclear, **ask the user**. Misclassifying greenfield as brownfield burdens the codebase with unneeded migrations forever; misclassifying brownfield as greenfield risks user data on the next schema change.
+
+---
+
+### 6. The Deferred `MigrationProvider` Substrate
+
+The brownfield substrate doesn't ship in `api-core/database` yet. Documented here so agents know what to ask for when they need it — not promising vapor; naming the seam.
+
+**Today (the greenfield substrate, already shipped):**
+- `packages/api-core/database/schemas.go` — `SchemaProvider` interface, `SchemaProviderFunc` adapter, `EnsureSchemas(ctx, db, providers...)`.
+
+**When the first scenario crosses to brownfield** (real users with persisted data + ongoing schema evolution), build:
+- `packages/api-core/database/migrations.go` — `MigrationProvider` interface (`Migrations() fs.FS`, `DomainID() string`), and a `RunMigrations(ctx, db, providers...)` helper.
+
+**Implementation choice when we build it:** **wrap `pressly/goose`.** It is the de-facto Go migration library — lightweight, embeddable via `go:embed`, programmatic Go API (not just CLI), no external service dependency. Don't reinvent the migration runner; do design the per-domain integration on top of it.
+
+**Action when an agent hits this need before the substrate exists:**
+1. **Stop.** Do not implement ad-hoc migration tooling inline in the scenario.
+2. **Escalate to the user.** Describe the change needed (which column, which transform).
+3. **Request the substrate be built** as a separate plan.
+4. The two-step (substrate first, then use it) is faster overall than a one-off scenario migration that drifts from every other scenario's approach.
+
+This is a hard rule. One ad-hoc migration tool per scenario is exactly what `MigrationProvider` exists to prevent.
+
+---
+
+### 7. Engine Boundaries: Cross-Domain Coupling
+
+**Prefer soft FKs across domain boundaries.** Store the ID, no `REFERENCES` constraint:
 
 ```sql
--- ✅ CORRECT: Idempotent schema
--- Enable extensions (idempotent)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Create types with existence check
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_type') THEN
-        CREATE TYPE status_type AS ENUM ('pending', 'active', 'completed');
-    END IF;
-END$$;
-
--- Create tables (idempotent)
-CREATE TABLE IF NOT EXISTS tasks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    status status_type DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create indexes (idempotent)
-CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
-
--- Upsert seed data (idempotent)
-INSERT INTO tasks (id, name, status)
-VALUES ('00000000-0000-0000-0000-000000000001', 'Default Task', 'pending')
-ON CONFLICT (id) DO NOTHING;
-```
-
-```sql
--- ❌ WRONG: Non-idempotent schema (fails on second run)
-CREATE TYPE status_type AS ENUM ('pending', 'active', 'completed');
-CREATE TABLE tasks (...);
-INSERT INTO tasks VALUES (...);
-```
-
-#### 5.3 Migration Patterns for Existing Schemas
-
-Use migration logic only when the task is explicitly brownfield (or when existing persisted data must be preserved). Otherwise assume greenfield and skip migration shims:
-
-```go
-// Check and add columns if missing (migration pattern)
-func ensureColumnExists(db *sql.DB, table, column, colType string) error {
-    var exists bool
-    err := db.QueryRow(`
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = $1 AND column_name = $2
-        )`, table, column).Scan(&exists)
-
-    if err != nil {
-        return err
-    }
-
-    if !exists {
-        _, err = db.Exec(fmt.Sprintf(
-            "ALTER TABLE %s ADD COLUMN %s %s", table, column, colType))
-    }
-    return err
-}
-```
-
----
-
-### 6. Storage Abstraction Patterns
-
-#### 6.1 The Repository Pattern
-
-Business logic should NOT directly depend on storage implementation:
-
-```go
-// ✅ CORRECT: Repository interface abstracts storage
-type TaskRepository interface {
-    Create(ctx context.Context, task *Task) error
-    FindByID(ctx context.Context, id string) (*Task, error)
-    FindByStatus(ctx context.Context, status Status) ([]*Task, error)
-    Update(ctx context.Context, task *Task) error
-    Delete(ctx context.Context, id string) error
-}
-
-// PostgreSQL implementation
-type PostgresTaskRepository struct {
-    db *sql.DB
-}
-
-func (r *PostgresTaskRepository) FindByID(ctx context.Context, id string) (*Task, error) {
-    // PostgreSQL-specific query
-}
-
-// SQLite implementation (for testing/desktop)
-type SQLiteTaskRepository struct {
-    db *sql.DB
-}
-
-// In-memory implementation (for unit tests)
-type InMemoryTaskRepository struct {
-    tasks map[string]*Task
-}
-
-// Service uses the interface, not concrete implementation
-type TaskService struct {
-    repo TaskRepository  // Can be any implementation
-}
-```
-
-```go
-// ❌ WRONG: Business logic directly uses database
-type TaskService struct {
-    db *sql.DB  // Tight coupling to PostgreSQL
-}
-
-func (s *TaskService) GetTask(id string) (*Task, error) {
-    row := s.db.QueryRow("SELECT * FROM tasks WHERE id = $1", id)
-    // Direct SQL in business logic
-}
-```
-
-#### 6.2 Abstraction Decision Tree
-
-```
-Where should this storage logic live?
-│
-├─ Is it a database query or storage operation?
-│   └─ Repository layer (e.g., TaskRepository)
-│
-├─ Is it business logic using stored data?
-│   └─ Service layer (e.g., TaskService using TaskRepository)
-│
-├─ Is it data validation or transformation?
-│   └─ Domain layer (entity methods or validation functions)
-│
-└─ Is it API request/response handling?
-    └─ Handler layer (uses Service, never Repository directly)
-```
-
-#### 6.3 Multi-Storage Abstraction
-
-For scenarios using multiple storage systems:
-
-```go
-// Storage service that coordinates multiple backends
-type StorageService struct {
-    postgres *PostgresRepository  // Structured data
-    redis    *RedisCache          // Caching
-    minio    *MinioClient         // Large files
-}
-
-// Hybrid pattern: DB for metadata, filesystem/S3 for content
-type DocumentService struct {
-    metadataRepo DocumentMetadataRepository  // PostgreSQL
-    contentStore DocumentContentStore        // MinIO/Filesystem
-}
-
-func (s *DocumentService) Save(doc *Document) error {
-    // Save content to object storage
-    contentPath, err := s.contentStore.Upload(doc.Content)
-    if err != nil {
-        return err
-    }
-
-    // Save metadata with reference to content
-    doc.ContentPath = contentPath
-    return s.metadataRepo.Save(doc.Metadata)
-}
-```
-
----
-
-### 7. Redis Key Namespacing
-
-Prevent key collisions between scenarios:
-
-```go
-// ✅ CORRECT: Namespaced keys
-const redisKeyPrefix = "{{TARGET}}:"
-
-func cacheKey(key string) string {
-    return redisKeyPrefix + key
-}
-
-// Usage
-client.Set(ctx, cacheKey("user:123"), userData, ttl)
-// Actual key: "{{TARGET}}:user:123"
-```
-
-```go
-// ❌ WRONG: Global keys (collision risk)
-client.Set(ctx, "user:123", userData, ttl)  // Might conflict with other scenarios
-```
-
-**Standard key patterns:**
-
-| Pattern | Example | Purpose |
-|---------|---------|---------|
-| `{scenario}:session:{id}` | `agent-manager:session:abc123` | User sessions |
-| `{scenario}:cache:{entity}:{id}` | `agent-manager:cache:task:456` | Entity caching |
-| `{scenario}:rate:{resource}:{id}` | `agent-manager:rate:api:user-789` | Rate limiting |
-| `{scenario}:lock:{resource}` | `agent-manager:lock:migration` | Distributed locks |
-
----
-
-### 8. Qdrant Collection Naming
-
-```go
-// ✅ CORRECT: Scenario-prefixed collection names
-const (
-    collectionPrefix = "{{TARGET}}_"
-    WorkflowEmbeddings = collectionPrefix + "workflow_embeddings"
-    DocumentEmbeddings = collectionPrefix + "document_embeddings"
-)
-```
-
----
-
-### 9. Filesystem Storage Standard (`api-core/storage`)
-
-#### 9.1 Core Rule
-
-Scenario deploy directories are disposable. Mutable runtime state must live outside app targets and be resolved through `github.com/vrooli/api-core/storage`.
-
-This prevents both:
-- stale-file drift during redeploys/auto-updates
-- accidental data loss when app directories are replaced
-
-#### 9.2 Required Adoption Pattern (Go)
-
-```go
-import (
-    "path/filepath"
-
-    "github.com/vrooli/api-core/storage"
-)
-
-resolver, err := storage.NewResolver(storage.ResolverConfig{
-    AppID:   "vrooli",
-    Profile: storage.ProfileAuto,
-})
-if err != nil {
-    return err
-}
-
-paths, err := storage.EnsureAllDirs(resolver, storage.Options{
-    ScenarioID: "{{TARGET}}",
-}, 0)
-if err != nil {
-    return err
-}
-
-runtimePath, err := resolver.Path(
-    storage.Options{ScenarioID: "{{TARGET}}"},
-    storage.ClassState,
-    "runtime.json",
-)
-if err != nil {
-    return err
-}
-
-if err := storage.WriteFileAtomic(runtimePath, payload, storage.DefaultFilePerm); err != nil {
-    return err
-}
-```
-
-#### 9.3 Filesystem Anti-Patterns
-
-```go
-// ❌ WRONG: scenario-local mutable writes in app tree
-path := filepath.Join(".", "data", "runtime.json")
-_ = os.WriteFile(path, payload, 0o644)
-```
-
-```go
-// ❌ WRONG: ad hoc custom path policy instead of api-core/storage
-base := os.Getenv("DATA_DIR")
-if base == "" {
-    base = filepath.Join(".", "data")
-}
-```
-
-#### 9.4 Hybrid Database + Filesystem Pattern
-
-For large payloads (media/documents), store metadata in DB and content on disk, but resolve disk paths via `api-core/storage` classes (`data`/`cache`/`state`) rather than scenario-local folders.
-
-```sql
--- Database stores metadata and index (fast queries)
-CREATE TABLE documents (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    content_path VARCHAR(1000) NOT NULL,  -- Relative path under resolved storage class
-    content_hash VARCHAR(64),
-    size_bytes BIGINT,
-    mime_type VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- internal/orders/schema.sql
+CREATE TABLE IF NOT EXISTS orders (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,           -- soft FK to users.id; no constraint
+    -- ...
 );
 ```
 
-#### 9.5 Tracked Scenario Assets vs Runtime State
+**Within-domain FKs are fine and encouraged** — they enforce the domain's own invariants:
 
-Not every UI-edited file belongs in runtime storage.
+```sql
+-- internal/orders/schema.sql
+CREATE TABLE IF NOT EXISTS order_items (
+    id        TEXT PRIMARY KEY,
+    order_id  TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    -- ...
+);
+```
 
-Before moving a file out of the source tree, ask:
+**Why:** hard FKs across domains create a coupling smell — you can't delete the users domain without breaking orders' constraint, can't bootstrap orders' schema before users', can't even run `EnsureSchemas` providers in the wrong order without an error. If you genuinely need referential integrity across domains, that's signal that the two should merge into one or that a third domain should own both.
 
-Is this file meant to be shared through git as part of the scenario's authored behavior?
-
-- Yes:
-  - keep it in the repo in an explicit source directory such as `config/`, or `policy/`
-  - do not treat it as runtime state just because a UI edits it
-- No:
-  - move it to `api-core/storage`
-
-Use this 3-way model:
-
-- repo metadata
-  - structural files such as `.vrooli/service.json`
-- tracked scenario-authored assets
-  - versioned defaults, policy, plans, and other shared source artifacts
-- runtime mutable state
-  - queues, runs, locks, telemetry, databases, caches, and user-local mutable config
-
-Do not use `.vrooli/` as a generic bucket for checked-in authoring content. Reserve it for repo-owned metadata unless the repo contract explicitly says otherwise.
+The system home (`internal/database/system.sql`) is *not* the answer. It absorbs cross-cutting infrastructure (extensions, types) — not domain coupling.
 
 ---
 
-### 10. Greenfield Default, Brownfield Exception
+### 8. Repository Pattern (Engine-Neutral)
 
-Assume greenfield unless explicitly stated otherwise.
-
-Default behavior:
-- Do not add migration compatibility layers by default.
-- Build clean storage paths and schema state directly.
-- Prefer consolidation over carrying forward legacy scaffolding.
-
-Brownfield behavior (only when explicitly requested or existing persisted data must be preserved):
-- Add migration and compatibility logic needed to preserve data continuity.
-- Make migrations idempotent and removable after cutover.
-- Document migration constraints in `docs/internal/STORAGE_AUDIT.md`.
-
-#### 10.1 Greenfield Consolidation Pattern
-
-```
-BEFORE (accumulated migrations):
-initialization/storage/postgres/migrations/
-├── 001_initial.sql
-├── 002_add_status_column.sql
-├── 003_rename_status.sql
-├── 004_add_index.sql
-├── 005_fix_constraint.sql
-└── 006_add_another_column.sql
-
-AFTER (consolidated):
-initialization/storage/postgres/
-├── schema.sql                    # Clean, complete schema
-└── seed.sql                      # Essential seed data only
-```
-
-#### 10.2 Brownfield-Only Migration Pattern
-
-Use this only for explicitly brownfield work:
+Business logic depends on repository interfaces. Concrete implementations (SQLite, Postgres, in-memory for tests) live in the same `internal/<dom>/` folder. Mirror the canonical layout:
 
 ```go
-// Check and add columns if missing (migration pattern)
-func ensureColumnExists(db *sql.DB, table, column, colType string) error {
-    var exists bool
-    err := db.QueryRow(`
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = $1 AND column_name = $2
-        )`, table, column).Scan(&exists)
+// internal/notes/repository.go — the interface
+type Repository interface {
+    Create(ctx context.Context, n Note) error
+    Get(ctx context.Context, id string) (Note, error)
+    List(ctx context.Context) ([]Note, error)
+}
 
-    if err != nil {
-        return err
-    }
+// internal/notes/sqlite.go — the production implementation
+type SqliteRepository struct {
+    db *sql.DB
+}
 
-    if !exists {
-        _, err = db.Exec(fmt.Sprintf(
-            "ALTER TABLE %s ADD COLUMN %s %s", table, column, colType))
-    }
-    return err
+func (r *SqliteRepository) Get(ctx context.Context, id string) (Note, error) {
+    // SQLite-specific query
+}
+
+// internal/notes/mocks/repository.go — the test fake (co-located)
+type FakeRepository struct {
+    notes map[string]Note
+}
+
+// internal/notes/service.go — business logic depends on the interface
+type Service struct {
+    repo Repository  // any implementation
 }
 ```
 
-#### 10.3 Compatibility Code Removal
+**Service consumers depend on `Service`, not on `Repository` directly.** Handlers, CLI commands, and other domains call `Service` methods. The repository is an implementation detail of the domain.
 
-```go
-// REMOVE: Compatibility shims for old schema
-// if oldColumnExists { migrateOldData() }
+**Engine swap is free.** Want to add Postgres support later? Add `internal/notes/postgres.go` implementing `Repository`; switch the constructor in `module.go`. No business-logic edits.
 
-// REMOVE: Feature flags for storage backends
-// if useNewStorage { ... } else { ... }
-
-// REMOVE: Deprecated table references
-// Legacy: SELECT * FROM old_tasks
-```
+**Test fakes are co-located** in `internal/<dom>/mocks/` — sub-package of the domain so deletion takes them with it. (See the Pass-3 worked example in `templates/scenarios/react-vite/api/internal/notes/mocks/`.)
 
 ---
 
-### 11. Storage Architecture Audit
+### 9. Isolation
 
-Before making changes, assess `{{TARGET}}`'s current storage posture.
+Three isolation concerns, each handled by its respective per-domain pattern from §4.
 
-#### 11.1 Audit Commands
+- **Database isolation.** SQLite scenarios get their own DB file under `api-core/storage`-resolved paths (cross-reference `cross-platform-readiness` §4 for the filesystem contract). Postgres scenarios use a scenario-named schema (e.g., `SET search_path TO {{TARGET}}`) declared in `service.json`'s resource block. Either way, two scenarios sharing the same DB instance never collide.
+- **Redis isolation.** Per-domain key prefix `{scenario}:{domain}:` (see §4.3). The scenario prefix isolates scenarios; the domain prefix isolates domains within one scenario.
+- **Qdrant isolation.** Collection names prefixed `{scenario}_{domain}_{purpose}` (see §4.2). Same two-level isolation.
+
+If a scenario is the only consumer of its DB / Redis / Qdrant, the isolation is automatic. Apply the prefix anyway — the scenario will eventually share infrastructure with another, and the cost of fixing it later is more than the cost of doing it right now.
+
+---
+
+### 10. Storage Architecture Audit
+
+Before making changes, assess `{{TARGET}}`'s current storage posture against the canonical pattern.
+
+#### 10.1 Audit Commands
 
 ```bash
-# Check service.json resource declarations
-cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
+# Per-domain schema files (should find one per domain that owns SQL).
+find scenarios/{{TARGET}}/api/internal -name 'schema.sql' -not -path '*/database/system.sql'
 
-# Find database connection code
-rg "sql\.Open|NewConnection|DATABASE_URL|POSTGRES_" scenarios/{{TARGET}}/api --type go
+# Substrate usage (should find usage at boot).
+rg "EnsureSchemas|SchemaProvider" scenarios/{{TARGET}}/api --type go
 
-# Find hard-coded credentials (anti-pattern)
+# Resource-applied schema (presence is a flag).
+rg "initialization/storage" scenarios/{{TARGET}}/.vrooli/
+
+# Per-domain repository interfaces (should find one per domain).
+rg "type \w+Repository interface" scenarios/{{TARGET}}/api --type go
+
+# Direct SQL in handlers (anti-pattern — handlers should call services).
+rg "db\.(Query|Exec|QueryRow)" scenarios/{{TARGET}}/api/handlers --type go
+
+# Hardcoded credentials anywhere.
 rg "postgres://[^$]" scenarios/{{TARGET}}/ --type go
 rg "password.*=.*['\"]" scenarios/{{TARGET}}/ --type go
 
-# Check for proper repository pattern
-rg "interface.*Repository" scenarios/{{TARGET}}/api --type go
+# Filesystem storage contract (cross-platform-readiness's domain).
+rg "storage\.NewResolver|storage\.EnsureAllDirs" scenarios/{{TARGET}}/api --type go
 
-# Find direct SQL in handlers (anti-pattern)
-rg "db\.Query|db\.Exec" scenarios/{{TARGET}}/api/handlers --type go
+# Redis namespacing (should always have scenario prefix).
+rg "client\.(Set|Get|Del)\(" scenarios/{{TARGET}}/ --type go -A 1
 
-# Check schema initialization
-ls -la scenarios/{{TARGET}}/initialization/storage/postgres/
-
-# Check filesystem storage standard adoption
-rg "storage\\.NewResolver|storage\\.EnsureAllDirs|storage\\.EnsureClassDir|storage\\.WriteFileAtomic|\\.Path\\(" scenarios/{{TARGET}}/api --type go
-
-# Find direct filesystem writes (anti-pattern)
-rg "os\\.WriteFile|ioutil\\.WriteFile|os\\.Create\\(|os\\.OpenFile\\(" scenarios/{{TARGET}}/api --type go
-
-# Find scenario-local data path conventions (anti-pattern)
-rg "filepath\\.Join\\(\\s*\"\\.\"\\s*,\\s*\"data\"|DATA_DIR|/data/" scenarios/{{TARGET}}/ --type go
-
-# Find Redis key usage (check for namespacing)
-rg "redis\.(Set|Get|Del)" scenarios/{{TARGET}}/ --type go -A 1
-
-# Check for environment variable usage
-rg "os\.Getenv.*POSTGRES" scenarios/{{TARGET}}/ --type go
+# Qdrant collection naming (should always have scenario prefix).
+rg "CollectionName|EnsureCollection" scenarios/{{TARGET}}/ --type go
 ```
 
-#### 11.2 Red Flags Checklist
+#### 10.2 Red-Flags Checklist
 
-- [ ] No `postgres` resource in service.json `dependencies.resources`
-- [ ] Missing `schema` field in postgres resource declaration
-- [ ] Hard-coded database credentials in code
-- [ ] Using `POSTGRES_DB=vrooli` without override (shared database)
-- [ ] No connection retry logic (single connection attempt)
-- [ ] No connection pool configuration
-- [ ] Missing `initialization/storage/postgres/schema.sql`
-- [ ] Non-idempotent schema files (no `IF NOT EXISTS`)
-- [ ] Direct SQL in handler/controller code (no repository abstraction)
-- [ ] Redis keys without scenario prefix
-- [ ] Filesystem runtime writes bypass `api-core/storage`
-- [ ] Mutable files stored under scenario deploy directories
-- [ ] Multiple dialect support without abstraction
+- [ ] No per-domain `internal/<dom>/schema.sql` files (schema is centralized somewhere)
+- [ ] `internal/store/` or `internal/db/` package present with schema content (deprecated naming)
+- [ ] `initialization/storage/postgres/schema.sql` exists in `.vrooli/` (resource-applied path)
+- [ ] Schema files are not idempotent (missing `IF NOT EXISTS`)
+- [ ] Direct SQL in handler / controller code (no repository abstraction)
+- [ ] Hard cross-domain FKs (constraint-based, not soft)
+- [ ] Brownfield substrate (versioned migrations folder) used in a greenfield scenario (no real users)
+- [ ] Greenfield substrate used in a brownfield scenario (destructive schema change on production user data without versioned migration)
+- [ ] Redis keys without scenario+domain prefix
+- [ ] Qdrant collections without scenario prefix
+- [ ] Hardcoded credentials anywhere
+- [ ] Filesystem runtime writes bypass `api-core/storage` (also a `cross-platform-readiness` flag)
 
-#### 11.3 Document Findings
+#### 10.3 Posture for Non-Conforming Scenarios
+
+If `{{TARGET}}` doesn't match the canonical pattern, **strongly recommend refactoring to one of the documented patterns** for maintainability and extensibility. Surface findings in `docs/internal/STORAGE_AUDIT.md` (template in §11). Do **not** pre-emptively rewrite — refactoring is a separate decision, made per scenario, with the user.
+
+The skill describes ideals; it does not narrate older shapes or document migration steps from them. If an agent picks up a real legacy scenario and needs migration help, escalate to the user — the answer comes from human judgment, not from the skill.
+
+---
+
+### 11. Document Findings
 
 Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 
@@ -843,41 +441,40 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 ## Last Updated
 [Date]
 
-## Resource Configuration Status
-- [ ] postgres declared in service.json
-- [ ] schema field uses scenario slug
-- [ ] initialization files referenced
-- [ ] redis/qdrant properly configured (if used)
+## Current Pattern
+- [ ] Per-domain schema files (canonical)
+- [ ] Centralized schema (refactor recommended)
+- [ ] Resource-applied schema (refactor recommended)
 
-## Connection Pattern Status
-- [ ] Environment variables used (no hard-coded values)
-- [ ] Connection retry with exponential backoff
-- [ ] Connection pool configured
-- [ ] Health check implemented
+## Migration Strategy
+- [ ] Greenfield (no real users) — `Schema()` only; one-shot `/tmp/<scenario>/migrate-*.{sql,go,sh}` scripts when local data preservation needed
+- [ ] Brownfield (real users with persisted data) — versioned migrations folder per domain (substrate deferred)
+- Current data state: [empty / dev-only / personal use / shipped to N users]
 
-## Schema Status
-- [ ] schema.sql exists and is idempotent
-- [ ] Tables use proper constraints and indexes
-- [ ] Greenfield default applied unless brownfield was explicitly requested
-- [ ] Brownfield migrations documented only when required
-
-## Abstraction Status
-- [ ] Repository interfaces defined
+## Architecture Status
+- [ ] All domains own their SQL schema (`internal/<dom>/schema.sql` + `Schema()`)
+- [ ] Repository interfaces per domain
 - [ ] Business logic uses interfaces, not direct DB
-- [ ] Multiple storage backends abstracted (if applicable)
+- [ ] System home (`internal/database/system.sql`) is empty or contains only cross-cutting bits
 
-## Filesystem Status
-- [ ] Runtime filesystem writes go through `api-core/storage`
-- [ ] Deploy directory treated as disposable
-- [ ] Atomic writes used for persisted files
+## Engine Status
+- [ ] SQLite via `modernc.org/sqlite` (CGO-free)  /  PostgreSQL  /  hybrid
+- [ ] Qdrant collections per-domain (if used)
+- [ ] Redis keys per-domain prefixed (if used)
+- [ ] Filesystem writes routed through `api-core/storage`
 
 ## Issues Found
 1. [File:line] - Issue description
 2. ...
 
-## Priority Fixes
-1. [Highest impact] - Why
+## Refactor Recommendations (if non-conforming)
+1. [Highest-impact change] — Why
 2. ...
+
+## Cross-References
+- `cross-platform-readiness` → engine selection, filesystem contract
+- `packages/api-core/database/schemas.go` → substrate
+- `templates/scenarios/react-vite/api/internal/notes/` → canonical worked example
 ```
 
 ---
@@ -893,18 +490,19 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 #### 13.1 At Session Start
 
 Read existing storage documentation:
-- `scenarios/{{TARGET}}/.vrooli/service.json` - Resource declarations
-- `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md` - Prior audit findings (if exists)
-- `resources/postgres/config/defaults.sh` - Available environment variables
-- `packages/api-core/docs/storage.md` - Canonical filesystem storage contract
+- `scenarios/{{TARGET}}/.vrooli/service.json` — resource declarations, scenario isolation config
+- `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md` — prior audit findings (if exists)
+- `packages/api-core/database/schemas.go` — current substrate surface
+- `packages/api-core/docs/storage.md` — filesystem storage contract (cross-platform-readiness's territory)
 
 #### 13.2 At Session End
 
 Update `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
-- The code is the source of truth. Verify existing claims against actual code.
+- Code is the source of truth — verify existing claims against actual code.
 - Correct any inaccuracies discovered.
-- Add new anti-pattern instances found.
-- Update priority fixes based on work completed.
+- Update the migration-strategy classification if the data state changed (greenfield ↔ brownfield).
+- Add new architectural findings.
+- Update refactor recommendations based on work completed.
 - Note areas not yet audited.
 - Create the `docs/internal/` directory if needed.
 
@@ -913,32 +511,30 @@ Update `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 ### 14. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
-- Add or modify service.json resource declarations
-- Add initialization/storage/postgres/schema.sql (or other storage types)
-- Refactor connection code to use environment variables
-- Add connection retry logic with exponential backoff
-- Add repository interfaces and implementations
-- Add storage service abstractions
-- Namespace Redis keys and Qdrant collections
-- Adopt `api-core/storage` for runtime filesystem paths
+- Add per-domain `schema.sql` + `schema.go` files
+- Add per-domain `qdrant.go` / `redis.go` files for non-SQL stores
+- Refactor centralized schema into per-domain layout when scope permits
+- Add or refine repository interfaces and implementations
+- Add the modules registry (`internal/modules/registry.go`) if missing
+- Namespace Redis keys and Qdrant collections per scenario+domain
+- Surface findings and recommendations in `STORAGE_AUDIT.md`
 
 You must:
 - Keep `{{TARGET}}` fully functional and non-regressed
-- Use environment variables for all database configuration
-- Override `POSTGRES_DB` with scenario slug (not default "vrooli")
-- Make schema files idempotent (IF NOT EXISTS patterns)
-- Abstract storage behind interfaces when business logic uses it
-- Prefix Redis keys and Qdrant collections with scenario slug
-- Route mutable filesystem storage through `api-core/storage`
-- Assume greenfield by default; only add migrations when brownfield is explicitly required
+- Make all schema files idempotent (`IF NOT EXISTS` patterns)
+- Place schema next to the code that interprets it (per-domain ownership)
+- Pick the right migration strategy based on whether the scenario has real users (greenfield) or not (brownfield)
+- Use environment variables for connection details (no hardcoded credentials)
+- Route mutable filesystem state through `api-core/storage`
+- Escalate to the user if the scenario needs brownfield versioned migrations (the substrate is deferred)
 
 You must NOT:
-- Hard-code database credentials or connection strings
-- Use the default "vrooli" database without scenario-specific override
-- Write SQL directly in handler or controller code
-- Store mutable runtime files under scenario deploy directories
-- Replace `api-core/storage` path policy with custom `DATA_DIR` schemes
-- Remove retry/backoff logic from database connections
-- Create non-idempotent schema migrations
+- Invent ad-hoc versioned-migration tooling inline in a scenario (escalate instead)
+- Centralize schema across domains (`internal/store/schema.sql`, `initialization/storage/postgres/schema.sql`, etc.)
+- Pre-emptively refactor a non-conforming scenario without the user's approval
+- Write SQL directly in handler / controller code
+- Hardcode database credentials or connection strings
+- Add hard cross-domain FKs (use soft FKs — store the ID, no constraint)
+- Skip scenario+domain prefixes on Redis keys or Qdrant collections
 
 **Avoid superficial changes that rename variables or restructure code without materially improving storage architecture.**

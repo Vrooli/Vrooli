@@ -104,7 +104,7 @@ After routing, the entry must leave the inbox view (must no longer carry an `<in
   prompt-manager team knowledge-update <team> <id> --topic="<destination-topic>"
   ```
 
-  e.g., `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface (`audience-scan/<slug>`, `competitor/<slug>`, `hook/<slug>`, `monetization-benchmark-adjacent/<slug>`, etc.).
+  e.g., `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface (`audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc.).
 
   If the routed action creates a *new* entry on a different surface (decision, capability-gap), delete the inbox row instead of retagging.
 
@@ -174,7 +174,7 @@ The draining member (using its taxonomy's `actionSelection` set, possibly inform
 | Condition | Action |
 |---|---|
 | Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
-| Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor/<slug>`). |
+| Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor-record/<slug>`). |
 | Capability already exists for this signal | Run the existing skill or Action; route the output as a knowledge observation. |
 | Trivial automation, no LLM judgment needed | Create + run a new Action (no decision required — see `DECISIONS.md` §4). |
 | Repeated but unresolved pattern | File a `meta-self-improvement` decision proposing a skill / scenario / config change. The "notebook debt" surface is, in the live architecture, this kind of decision — not a markdown file. |
@@ -191,7 +191,7 @@ Each member declares structurally what it produces:
 {
   "output": [
     { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
+    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update"],
   "decisions_consumed": ["capability-gap"],
@@ -212,7 +212,7 @@ When a prefix crosses team boundaries, **the producer's taxonomy owns the front-
 | Owns dispatch / routing on read | no | yes |
 | Validator behavior | `missing_destination_schema` resolves `output[].schema` against the producer's taxonomy | `unknown_taxonomy` resolves the consumer's intake taxonomy independently |
 
-Worked example. `marketing-crew/researcher` writes `monetization-benchmark-adjacent/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
+Worked example. `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent-record/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent-record/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
 
 Why this rule: the on-disk shape is fixed at write time. The producer is the only party who can guarantee shape consistency; if the consumer redefined the schema, the producer would be unable to validate its own writes. Routing is a read-side concern and may legitimately differ across consumers (a single prefix could be drained by multiple consumers under different taxonomies later). Schemas can't.
 

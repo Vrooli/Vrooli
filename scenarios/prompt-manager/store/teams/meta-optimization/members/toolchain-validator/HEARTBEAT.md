@@ -53,7 +53,7 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 
 ### Knowledge entries written
 - toolchain-audit/YYYY-MM-DD (supersedes prior)
-- friction/toolchain/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
+- friction-report/toolchain/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
 ```
 
 ## Stop Conditions

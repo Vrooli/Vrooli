@@ -27,8 +27,8 @@ scenario-qa runs four members:
 |---|---|---|
 | `programmatic-qa-runner` | GCT-driven readiness reviews; creates fix/chore/execute backlog items | `qa-run/<scenario-id>` knowledge entries |
 | `quality-auditor` | Judgment-based structural audits using a rotation of seven audit lenses | `quality-audit/<scenario-id>/<skill-id>` knowledge entries |
-| `bug-investigator` | Drains `bug-inbox/*` (universal-source), applies investigation techniques, writes audit log | `bug-investigation/<slug>` knowledge entries |
-| `qa-contrarian` | Challenges QA outcomes (audits, investigations, readiness backlog) — surfaces gaps in reasoning | `challenge-note/*` knowledge entries |
+| `bug-investigator` | Drains `bug-inbox/*` (universal-source), applies investigation techniques, writes audit log | `bug-investigation-report/<slug>` knowledge entries |
+| `qa-contrarian` | Challenges QA outcomes (audits, investigations, readiness backlog) — surfaces gaps in reasoning | `challenge-report/*` knowledge entries |
 
 Decision contexts owned by the team:
 
@@ -62,11 +62,11 @@ any-team/* ─[report-bug skill]──▶ scenario-qa/bug-inbox/<signal-type>/<s
                                           │
                 ┌─────────────────────────┼─────────────────────────┐
                 ▼                         ▼                         ▼
-       bug-investigation/<slug>  swarm-manager/backlog    decision: bug-resolution-proposal
+       bug-investigation-report/<slug>  swarm-manager/backlog    decision: bug-resolution-proposal
        (audit log; append-only)  (fix/chore items)        (operator review for cross-cutting fixes)
 ```
 
-The `qa-contrarian` reads peer-team decisions and member outputs (including bug-investigation entries and audit findings) and writes `challenge-note/*` entries — challenge to QA outcomes is a first-class output, not a side-channel comment. Cross-team drain of `challenge-note/*` is currently workshop-pending (see `docs/agent-system/TOPICS.md` § known inconsistencies).
+The `qa-contrarian` reads peer-team decisions and member outputs (including bug-investigation entries and audit findings) and writes `challenge-report/*` entries — challenge to QA outcomes is a first-class output, not a side-channel comment. Cross-team drain of `challenge-report/*` is currently workshop-pending (see `docs/agent-system/TOPICS.md` § known inconsistencies).
 
 ## Editing rules
 
@@ -102,4 +102,4 @@ Flagged here so future operator-curated decisions can promote them when the subs
 - **Full readiness-checks registry.** Stub README only today; entries graduate once GCT readiness dimensions stabilize.
 - **Future investigation techniques.** `scientific-debugging` is the only registered technique at landing time. Candidates surfaced by the bug-investigator's audit log: bisect-debugging, minimal-reproduction, differential-trace, comparative-environments, 5-whys, fishbone analysis. Each enters via `meta-self-improvement` decision.
 - **Future audit techniques.** Beyond the seven existing skills: performance-audit, security-audit, deprecation-audit, accessibility-audit, observability-audit. Same graduation flow.
-- **Cross-team drain of `challenge-note/*`.** Possible that one team's contrarian (e.g., `meta-contrarian`) drains every team's `challenge-note/*` cross-team. Out of scope for the current plan; revisit as a future workshop decision.
+- **Cross-team drain of `challenge-report/*`.** Possible that one team's contrarian (e.g., `meta-contrarian`) drains every team's `challenge-report/*` cross-team. Out of scope for the current plan; revisit as a future workshop decision.

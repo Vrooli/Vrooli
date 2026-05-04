@@ -71,23 +71,39 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
 - **Wildcard.** `<prefix>/*` matches any entry whose key starts with `<prefix>/`. Bare `*` is disallowed by the validator.
 - **Slug last.** Every full entry key ends in a unique slug under the prefix (e.g., `audience-scan/<slug>`). Slugs are short, kebab-case, descriptive.
 - **One topic, one purpose.** A topic prefix is for one kind of work. Don't co-mingle audience observations and competitor pricing under a single prefix because they're in the same domain — they're different signal types and need different routing.
-- **Slash-slug entry keys.** Every knowledge entry's `topic` field is `<declared-prefix>/<slug>` — the prefix matches some member's `topics.json` declaration with any trailing `/*` stripped, the slug names the entry under that prefix. Date-rotated snapshots use the date as the slug (`audience-scan/2026-04-23`); per-case reports use a descriptive slug (`bug-investigation/login-500-2026-05-03`). Flat-hyphenated keys (`audience-scan-2026-04-23`) and bare tokens with no slash structure are forbidden — they don't match prefix-based queries (`prompt-manager team knowledge-list <team> --topic-prefix=<prefix>/` returns nothing for a flat key). The `topic_key_prefix_mismatch` validation rule (severity warning) flags any entry whose topic doesn't match a declared prefix on its team.
-- **`-audit` vs `-scan` suffix.** Adversarial / compliance topics — those whose owned-decision contexts are findings, violations, or other "X is broken against a standard" shapes — use `-audit`. Survey / observation topics — those whose entries are just observations of a domain without an implicit standard — use `-scan`. Mechanical test: look at the producing member's `decisions_owned` in `topics.json`; if any context is named `*-finding`, `*-violation`, `*-gap` against a standard, it's audit. Examples: `platform-code-audit/*`, `team-audit/*`, `toolchain-audit/*` are adversarial; `audience-scan/*`, `debt-scan/*` are survey. The suffix is optional only when the bare domain name already unambiguously names the surface (e.g., `competitor/*`, `hook/*` are durable observation surfaces with no `-scan` suffix); when in doubt, add the suffix.
-- **Team name in the prefix only when the team name is part of the *concept*.** Team scoping is implicit — every entry already lives in some team's knowledge store, and cross-team flow is declared explicitly via `destination_team` / `source_team`. Adding a team name to the prefix is therefore redundant by default, and *coupling* the topic to a particular team makes it harder to reorganize (re-assign a topic to a different drainer, move it between teams, or have multiple teams share a concept). The default is **no team in the prefix** — `audience-scan/*`, `competitor/*`, `bug-inbox/*`, `qa-run/*`. Add the team only when the team name is genuinely part of the concept (e.g., `marketing-canon/*` and `monetization-canon/*` are two distinct PoR-write surfaces that need to coexist as named concepts), or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/<signal-type>/<slug>` — the notebook IS team-internal and signal types nest under it). When team appears, use the **short domain name** (`marketing`, not `marketing-crew`); the only abbreviation in active use is `marketing-crew` → `marketing` (others — `monetization`, `meta-optimization`, `scenario-qa`, `infra-health`, `director-swarm` — match team id verbatim).
+- **Slash-slug entry keys.** Every knowledge entry's `topic` field is `<declared-prefix>/<slug>` — the prefix matches some member's `topics.json` declaration with any trailing `/*` stripped, the slug names the entry under that prefix. Date-rotated snapshots use the date as the slug (`audience-scan/2026-04-23`); per-case reports use a descriptive slug (`bug-investigation-report/login-500-2026-05-03`). Flat-hyphenated keys (`audience-scan-2026-04-23`) and bare tokens with no slash structure are forbidden — they don't match prefix-based queries (`prompt-manager team knowledge-list <team> --topic-prefix=<prefix>/` returns nothing for a flat key). The `topic_key_prefix_mismatch` validation rule (severity warning) flags any entry whose topic doesn't match a declared prefix on its team.
+- **Closed-vocabulary type suffix on canonical surfaces.** Every canonical-surface (durable) topic prefix has the shape `<subject>-<type>/*`, where `<type>` is drawn from a fixed eight-word vocabulary and `<subject>` is any kebab-case noun phrase that is not itself in the vocabulary. The vocabulary:
+    | Suffix | Entry shape | Schema family |
+    |---|---|---|
+    | `-scan` | Sampled / survey-shaped observation, single-snapshot or batch | scan-shaped front-matter |
+    | `-audit` | Exhaustive / adversarial review with findings against a standard | audit-shaped |
+    | `-record` | Durable entity record (one entity per entry) | record-shaped |
+    | `-draft` | In-flight artifact that becomes a record or canon edit | draft-shaped |
+    | `-log` | Append-only event entries | log-shaped |
+    | `-canon` | Proposed / applied PoR edit (`destination_kind = por_file`) | canon-edit-shaped |
+    | `-report` | Investigative finding with structured rationale | report-shaped |
+    | `-prep` | Synthesis briefing for a downstream consumer | prep-shaped |
+    Mechanical constraint: the `<subject>` must NOT itself be a vocabulary word, so `quality-audit/*` is fine (`quality` is the subject, `audit` is the suffix), but `audit-audit/*` is rejected. Picking the right suffix is structural, not aesthetic — `*-audit/*` carries audit-shaped front-matter; `*-scan/*` carries scan-shaped; etc. Audit vs. scan: look at the producing member's `decisions_owned` — `*-finding` / `*-violation` / `*-gap` contexts mean adversarial (audit), pure observation collection means survey (scan). Reports vs. records: a report carries reasoning (a finding + evidence + rationale); a record carries one entity's state (one row, no narrative). Logs are append-only event streams; preps are synthesis briefings explicitly authored for a downstream consumer.
+- **Inbox / synthesis topics use purpose suffixes, not type suffixes.** The vocabulary above is for *canonical* surfaces. Transient and synthesis surfaces use a different convention:
+    - `*-inbox/*` — transient queue, drained per entry (see § Topic shapes Inbox row)
+    - `<short-domain>/notebook/*` — team-scoped curation surface (see § Topic shapes Notebook row)
+- **Team name in the prefix only when the team name is part of the *concept*.** Team scoping is implicit — every entry already lives in some team's knowledge store, and cross-team flow is declared explicitly via `destination_team` / `source_team`. Adding a team name to the prefix is therefore redundant by default, and *coupling* the topic to a particular team makes it harder to reorganize (re-assign a topic to a different drainer, move it between teams, or have multiple teams share a concept). The default is **no team in the prefix** — `audience-scan/*`, `competitor-record/*`, `bug-inbox/*`, `qa-run/*`. Add the team only when the team name is genuinely part of the concept (e.g., `marketing-canon/*` and `monetization-canon/*` are two distinct PoR-write surfaces that need to coexist as named concepts), or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/<signal-type>/<slug>` — the notebook IS team-internal and signal types nest under it). When team appears, use the **short domain name** (`marketing`, not `marketing-crew`); the only abbreviation in active use is `marketing-crew` → `marketing` (others — `monetization`, `meta-optimization`, `scenario-qa`, `infra-health`, `director-swarm` — match team id verbatim).
 
 ### Topic shapes (current usage)
 
 | Shape | Pattern | Examples | Lifetime |
 |---|---|---|---|
-| **Inbox (transient)** | `<inbox-name>/<signal-type>/<slug>` | `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar` | drained → entry retagged or deleted |
+| **Inbox (transient)** | `<inbox-name>/<signal-type>/<slug>` | `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar`, `bug-inbox/regression/baz`, `friction-inbox/toolchain/qux` | drained → entry retagged or deleted |
 | **Notebook debt** | `<short-domain>/notebook/<signal-type>/<slug>` | `marketing/notebook/audience-question/foo`, `meta-optimization/notebook/skill-debt/bar` | drained → promoted, retired, or aged |
-| **Canonical surface (knowledge)** | `<surface>/<slug>` | `audience-scan/foo`, `competitor/bar`, `hook/baz`, `candidate-sku/qux` | durable; the entry's permanent home |
-| **Cross-team flow** | same as inbox or canonical, with explicit `destination_team` / `source_team` | `monetization-benchmark-adjacent/foo` (marketing → monetization) | depends on the receiving member's drain |
-| **Audit output** | `<purpose>-audit/<slug>` | `quality-audit/foo`, `toolchain-audit/bar`, `runtime-health-audit/baz` | adversarial / compliance findings; durable, not retagged |
-| **Scan output** | `<purpose>-scan/<slug>` | `audience-scan/foo`, `debt-scan/bar` | survey / observation collection; durable, not retagged |
-| **PoR-write topic** | `<team>-canon/<slug>` | `marketing-canon/foo`, `monetization-canon/bar` | translates to a PoR markdown edit; `destination_kind = por_file` |
-| **Decision-prep / synthesis** | `<purpose>/<slug>` | `vision-walk-prep/foo`, `workshop-decision-prep/bar`, `initiative-portfolio/baz`, `outcome-targets/qux` | durable; consumed by another member's intake or by the operator |
-| **Local audit log** | `<purpose>/<slug>` | `publish-log/foo`, `qa-run/bar`, `run-lessons/baz`, `debt-scan/qux`, `monetization-ledger/quux` | durable; usually not drained, just queryable |
+| **Scan (survey-shaped observation)** | `<subject>-scan/<slug>` | `audience-scan/foo`, `debt-scan/bar`, `quality-audit/baz` (audit, not scan — see below) | durable; the entry's permanent home |
+| **Audit (adversarial / compliance review)** | `<subject>-audit/<slug>` | `quality-audit/foo`, `toolchain-audit/bar`, `runtime-health-audit/baz`, `platform-code-audit/qux`, `skill-audit/quux`, `action-audit/...`, `team-audit/...`, `agent-audit/...` | durable; not retagged |
+| **Record (entity record)** | `<subject>-record/<slug>` | `competitor-record/foo`, `hook-record/bar`, `candidate-sku-record/baz`, `monetization-benchmark-record/qux`, `outcome-target-record/quux`, `initiative-portfolio-record/...`, `friction-triage-record/...` | durable; one entity per entry |
+| **Draft (in-flight artifact)** | `<subject>-draft/<slug>` | `campaign-draft/foo` | durable until promotion to canon or record; mutable until then |
+| **Log (append-only events)** | `<subject>-log/<slug>` | `publish-log/foo`, `monetization-ledger-log/bar`, `qa-run/baz` (run is implicit log; treated as such) | durable, append-only |
+| **Canon (PoR edit)** | `<team>-canon/<slug>` | `marketing-canon/foo` (→ docs/marketing/STRATEGY.md or AUDIENCES.md), `monetization-canon/bar` (→ docs/monetization/CATALOG.md) | translates to a PoR markdown edit; `destination_kind = por_file` |
+| **Report (investigative finding)** | `<subject>-report/<slug>` | `bug-investigation-report/login-500-2026-05-03`, `friction-report/toolchain/2026-05-03/cli-flag-confusion`, `run-lesson-report/2026-04-25`, `challenge-report/dec-1777060904331053267` | durable; one finding per entry, with rationale |
+| **Prep (synthesis briefing)** | `<subject>-prep/<slug>` | `vision-walk-prep/2026-05-03`, `workshop-decision-prep/2026-05-03` | durable; consumed by a downstream synthesizer or operator |
+| **Cross-team flow** | same as any of the above, with explicit `destination_team` / `source_team` | `monetization-benchmark-adjacent-record/foo` (marketing → monetization) | depends on the receiving member's drain |
 
 ### Notebook vs typed inbox
 
@@ -102,8 +118,9 @@ These are real today; they should be reconciled via meta-optimization decisions 
 1. ~~**Inbox-naming drift.**~~ **Resolved 2026-05-03.** Standardized on `*-inbox/*` for external/cross-team intake; `validation-queue/*` was renamed to `validation-inbox/*`. `<team>/notebook/*` stays as-is — it's a team-scoped curation surface (notebook-debt taxonomy), not a producer→consumer intake, so the different shape is intentional.
 2. ~~**Audit vs. scan suffix.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: `-audit` for adversarial / compliance-shaped findings, `-scan` for survey / observation collection. Two renames executed: `toolchain-scan/*` → `toolchain-audit/*` (toolchain-validator produces `toolchain-violation` decisions — adversarial) and `runtime-health/*` → `runtime-health-audit/*` (runtime-health-scanner produces `runtime-health-finding` decisions — adversarial). The `TOOLCHAIN_SCAN.md` shared snapshot was renamed to `TOOLCHAIN_AUDIT.md` for parity with sibling files.
 3. ~~**Slash-slug vs flat-hyphenated entry keys.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: every entry uses `<prefix>/<slug>` form, no flat-hyphenated keys (`<prefix>-<slug>`). 21 `team.json` declarations migrated to slash form, 60+ live knowledge entries renamed across 5 teams (marketing-crew, meta-optimization, monetization, scenario-qa, director-swarm), 6 HEARTBEAT.md files updated, 2 prefix mismatches fixed during migration (`runtime-health` → `runtime-health-audit`, `platform-audit` → `platform-code-audit` — both align team.json with declared topics.json prefixes), 12 atypical legacy entries cleaned up (Portfolio entries → `portfolio-snapshot/<date>`, scenario-qa daily logs → `qa-run/<topic>` or `quality-audit/<topic>`, `dev-log-narrative-principles` → `principles/dev-log-narrative`, `State persistence issue …` → `legacy-note/state-persistence-resolved`). New validator rule `topic_key_prefix_mismatch` (warning) cross-checks each entry's topic against declared prefixes per team — running it now will surface the next layer of gaps (entries under prefixes not yet declared in any `topics.json` output, e.g., `vision-walk/*`, `agent-visited/*`, `principles/*`, `legacy-note/*`, plus snapshot prefixes like `brand-snapshot/*` and `portfolio-snapshot/*` that need `topics.json` declarations or rename). Those become follow-up decisions.
-4. **`challenge-note/*` is shared by five contrarians (one per team) but is purely team-local.** Every team's contrarian writes `challenge-note/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. The shared name is fine (it's a *kind* of topic, not a shared surface), but it has no documented consumer. **Recommendation:** either add a drainer (e.g., `meta-contrarian` consumes peer-team `challenge-note/*` cross-team) or document explicitly that `challenge-note/*` is operator-read-only and should be flagged as `orphan_output: warning, by-design`.
-5. ~~**Domain-prefix vs team-prefix on canon surfaces.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: team name appears in the prefix only when the team name is part of the concept (e.g., distinct PoR-write surfaces `marketing-canon/*` vs `monetization-canon/*`) or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/*`). Default is no team prefix. The only abbreviation enforced is `marketing-crew` → `marketing` in topic prefixes; rename of `marketing-crew/notebook/*` → `marketing/notebook/*` landed at the same time.
+4. ~~**Closed-vocabulary type suffix on canonical surfaces.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: every canonical-surface prefix uses `<subject>-<type>/*` with `<type>` from the fixed eight-word vocabulary {`scan`, `audit`, `record`, `draft`, `log`, `canon`, `report`, `prep`}. 14 prefix renames executed (commit summary): `competitor/*` → `competitor-record/*`; `hook/*` → `hook-record/*`; `candidate-sku/*` → `candidate-sku-record/*`; `outcome-targets/*` → `outcome-target-record/*` (also singularized); `monetization-benchmark/*` → `monetization-benchmark-record/*`; `monetization-benchmark-adjacent/*` → `monetization-benchmark-adjacent-record/*`; `monetization-ledger/*` → `monetization-ledger-log/*`; `initiative-portfolio/*` → `initiative-portfolio-record/*`; `campaign-drafts/*` → `campaign-draft/*` (singularized); `run-lessons/*` → `run-lesson-report/*` (singularized); `challenge-note/*` → `challenge-report/*`; `bug-investigation/*` → `bug-investigation-report/*`; `friction-triage/*` → `friction-triage-record/*`; `friction/<scope>/*` → `friction-report/<scope>/*` (4 sub-scopes). Touched 16 `topics.json` files, 5 taxonomy JSON sidecars, 5 team.json files, 2 roles.json, 28 knowledge.jsonl entries (data migration), 6 audience-scans.jsonl `cross_team` references, ~30 doc/skill/test files. Validator + canon test pass.
+5. **`challenge-report/*` is shared by six contrarians (one per team) but is purely team-local.** Every team's contrarian writes `challenge-report/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. (Renamed from `challenge-note/*` in the type-suffix work above; the orphan-output question is unchanged.) The shared name is fine — it's a *kind* of topic, not a shared surface — but it has no documented consumer. **Recommendation:** either add a drainer (e.g., `meta-contrarian` consumes peer-team `challenge-report/*` cross-team) or document explicitly that `challenge-report/*` is operator-read-only and should be flagged as `orphan_output: warning, by-design`. Workshop-pending.
+6. ~~**Domain-prefix vs team-prefix on canon surfaces.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: team name appears in the prefix only when the team name is part of the concept (e.g., distinct PoR-write surfaces `marketing-canon/*` vs `monetization-canon/*`) or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/*`). Default is no team prefix. The only abbreviation enforced is `marketing-crew` → `marketing` in topic prefixes; rename of `marketing-crew/notebook/*` → `marketing/notebook/*` landed at the same time.
 
 ---
 
@@ -117,15 +134,15 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `outcome-strategist` | _(none — proactive; reads decisions)_ | `outcome-targets/*` | — |
-| `portfolio-manager` | _(none — proactive; reads decisions)_ | `initiative-portfolio/*` | — |
+| `outcome-strategist` | _(none — proactive; reads decisions)_ | `outcome-target-record/*` | — |
+| `portfolio-manager` | _(none — proactive; reads decisions)_ | `initiative-portfolio-record/*` | — |
 | `vision-walk-prep` | _(none — proactive; reads decisions)_ | `vision-walk-prep/*`, plus produces into other teams' inboxes (see below) | writes `research-inbox/*` → marketing-crew, `opportunity-inbox/*` → monetization, `validation-inbox/*` → monetization |
 | `workshop-decision-prep` | _(none — proactive; reads decisions)_ | `workshop-decision-prep/*` | — |
 
 **Observations (draft):**
 - `vision-walk-prep` is the canonical example of a **synthesis pipeline** member: it consumes decision state from other teams and produces (a) its own `vision-walk-prep/*` artifact for the operator, and (b) seeded entries directly into other teams' inboxes for those teams to drain after the walk. INPUTS.md will document this pattern as a first-class flow.
 - No director-swarm member has `intake[]` — confirms the user's mental model that director teams pull decisions rather than drain topics. This is correct, not a gap.
-- `outcome-targets/*` and `initiative-portfolio/*` are consumed by the operator (and possibly by `swarm-manager`) but no `topics.json` declares the consumer. If a future member or scenario consumes them programmatically, declare it via `intake[].source_team = "director-swarm"`.
+- `outcome-target-record/*` and `initiative-portfolio-record/*` are consumed by the operator (and possibly by `swarm-manager`) but no `topics.json` declares the consumer. If a future member or scenario consumes them programmatically, declare it via `intake[].source_team = "director-swarm"`.
 
 ### infra-health
 
@@ -135,12 +152,12 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `runtime-health-scanner` | _(none — proactive)_ | `runtime-health-audit/*` | — |
 | `platform-code-auditor` | _(none — proactive)_ | `platform-code-audit/*` | — |
-| `infra-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
+| `infra-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
 
 **Observations (draft):**
 - All three members are pure proactive producers; none have `intake[]`. This is consistent with infra-health's mission (audit-driven, not signal-driven).
 - No `infra-inbox/*` exists. If the operator wants to push infra-relevant alpha into this team, no current topic catches it. **Possible gap:** an `infra-inbox/*` for operator-fed runtime/platform alpha, drained by `runtime-health-scanner` or a new triage member. Workshop.
-- `challenge-note/*` orphan-output applies here (see § Known inconsistencies #3).
+- `challenge-report/*` orphan-output applies here (see § Known inconsistencies #5).
 
 ### marketing-crew
 
@@ -148,16 +165,16 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor/*`, `hook/*`, `monetization-benchmark-adjacent/*` | writes `monetization-benchmark-adjacent/*` → monetization |
+| `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
 | `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `docs/marketing/STRATEGY.md`, `docs/marketing/AUDIENCES.md`) | — |
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
-| `oss-advertiser` | _(none — proactive)_ | `campaign-drafts/*` | — |
-| `subscription-advertiser` | _(none — proactive)_ | `campaign-drafts/*` | — |
-| `marketing-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
+| `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
+| `subscription-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
+| `marketing-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
 
 **Observations (draft):**
-- `campaign-drafts/*` is written by both `oss-advertiser` and `subscription-advertiser` but has no declared drainer. `publisher` *should* be the drainer (it owns content publishing) but its `topics.json` doesn't declare `intake: [{ prefix: "campaign-drafts/*", ... }]`. **Likely gap:** `publisher` should drain `campaign-drafts/*`, picking from drafts and producing publish-log entries. Workshop.
-- The two advertisers (`oss-advertiser`, `subscription-advertiser`) are proactive but have no input shape — they generate from operator/vision-walk only. **Possible gap:** a `marketing-brief/*` inbox or similar for cross-team handoff (e.g., monetization → marketing for SKU-launch coverage). Workshop.
+- `campaign-draft/*` is written by both `oss-advertiser` and `subscription-advertiser` but has no declared drainer. `publisher` *should* be the drainer (it owns content publishing) but its `topics.json` doesn't declare `intake: [{ prefix: "campaign-draft/*", ... }]`. **Likely gap:** `publisher` should drain `campaign-draft/*`, picking from drafts and producing publish-log entries. Workshop.
+- The two advertisers (`oss-advertiser`, `subscription-advertiser`) are proactive but have no input shape — they generate from operator/vision-walk only. **Possible gap:** a `marketing-brief-inbox/*` (or similar) for cross-team handoff (e.g., monetization → marketing for SKU-launch coverage). Workshop.
 - `marketing-canon/*` is unusual: two `output[]` entries on the same prefix with different `destination_path` values (one to STRATEGY.md, one to AUDIENCES.md). This is a known pattern for por_file topics — the prefix names the *category*, the destination_path names the file. Document the pattern explicitly in § Stable conventions if it's the intended design.
 
 ### meta-optimization
@@ -170,17 +187,16 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `skill-optimizer` | _(none — proactive)_ | `skill-audit/*`, `action-audit/*` | — |
 | `team-agent-optimizer` | _(none — proactive)_ | `team-audit/*`, `agent-audit/*` | — |
 | `toolchain-validator` | _(none — proactive)_ | `toolchain-audit/*` | — |
-| `run-introspector` | _(none — proactive)_ | `run-lessons/*` | — |
-| `meta-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
-| `friction-curator` | `friction-inbox/*` (taxonomy: `friction-report`, source: `*` — universal-source) | `friction/<scope>/*` (delivered to scoped sub-member topics), `friction-triage/<YYYY-MM-DD>` | producers: every team via the `report-friction` writer skill |
+| `run-introspector` | _(none — proactive)_ | `run-lesson-report/*` | — |
+| `meta-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
+| `friction-curator` | `friction-inbox/*` (taxonomy: `friction-report`, source: `*` — universal-source) | `friction-report/<scope>/*` (delivered to scoped sub-member topics), `friction-triage-record/<YYYY-MM-DD>` | producers: every team via the `report-friction` writer skill |
 
 **Observations (draft):**
 - Five proactive auditors plus one notebook-debt drainer plus one contrarian plus one friction router. This is the densest team.
-- `friction-inbox/*` is the system's second **universal-source intake** (the first is `bug-inbox/*` on scenario-qa). Any team's members may write via the `report-friction` skill (declared as `external_producers`). The friction-curator validates scope, reclassifies `unknown`, and routes by writing to the existing `friction/<scope>/<date>/<slug>` topics on the scoped-topic owners' behalf. Curator owns no decision contexts — routing is determinate; capability-gaps are still raised by the scoped-topic owners.
-- `friction-triage/<YYYY-MM-DD>` is a daily snapshot, supersedesPrevious=true, drained by debt-curator (synthesis input) and by operator review. `orphan_output` warning is by-design here (no peer drainer).
-- `*-audit/*` (skill, action, team, agent) vs `*-scan/*` (toolchain, debt) inconsistency — see § Known inconsistencies #2.
-- `run-lessons/*` is heavily consumed by `meta-contrarian` (via `decisions_consumed: ["run-lesson", ...]`) and by other optimizers' input gathering, but no `intake[]` declares it. The flow goes through decisions, not direct topic-drain. Document this as the canonical example of "topic → decision-consumer" flow rather than "topic → topic-drainer."
-- The four scoped friction topics (`friction/toolchain/*`, `friction/run-execution/*`, `friction/prompt-team-agent-storage/*`, `friction/recurring-workaround/*`) are now multi-producer: each scoped sub-member writes their own observations *and* receives routed entries from the friction-curator. Intentional architectural choice — curator delivers cross-team observations into the scoped topic; sub-member synthesizes patterns. Documented on team.json's knowledgeTopics comments.
+- `friction-inbox/*` is the system's second **universal-source intake** (the first is `bug-inbox/*` on scenario-qa). Any team's members may write via the `report-friction` skill (declared as `external_producers`). The friction-curator validates scope, reclassifies `unknown`, and routes by writing to the existing `friction-report/<scope>/<date>/<slug>` topics on the scoped-topic owners' behalf. Curator owns no decision contexts — routing is determinate; capability-gaps are still raised by the scoped-topic owners.
+- `friction-triage-record/<YYYY-MM-DD>` is a daily snapshot, supersedesPrevious=true, drained by debt-curator (synthesis input) and by operator review. `orphan_output` warning is by-design here (no peer drainer).
+- `run-lesson-report/*` is heavily consumed by `meta-contrarian` (via `decisions_consumed: ["run-lesson", ...]`) and by other optimizers' input gathering, but no `intake[]` declares it. The flow goes through decisions, not direct topic-drain. Document this as the canonical example of "topic → decision-consumer" flow rather than "topic → topic-drainer."
+- The four scoped friction topics (`friction-report/toolchain/*`, `friction-report/run-execution/*`, `friction-report/prompt-team-agent-storage/*`, `friction-report/recurring-workaround/*`) are now multi-producer: each scoped sub-member writes their own observations *and* receives routed entries from the friction-curator. Intentional architectural choice — curator delivers cross-team observations into the scoped topic; sub-member synthesizes patterns. Documented on team.json's knowledgeTopics comments.
 
 ### monetization
 
@@ -188,15 +204,15 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: monetization-signal-classifier) | `candidate-sku/*` | — |
-| `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent/*` (cross-team from marketing) | `monetization-benchmark/*` | reads `monetization-benchmark-adjacent/*` ← marketing-crew |
+| `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: monetization-signal-classifier) | `candidate-sku-record/*` | — |
+| `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent-record/*` (cross-team from marketing) | `monetization-benchmark-record/*` | reads `monetization-benchmark-adjacent-record/*` ← marketing-crew |
 | `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `docs/monetization/CATALOG.md`) | — |
-| `financial-tracker` | _(none — proactive)_ | `monetization-ledger/*` | — |
-| `contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-note/*` | — |
+| `financial-tracker` | _(none — proactive)_ | `monetization-ledger-log/*` | — |
+| `contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
 
 **Observations (draft):**
-- `candidate-sku/*` and `monetization-benchmark/*` have no documented consumer. `catalog-strategist` likely *should* consume `candidate-sku/*` (it owns catalog promotion); declare it as `intake[].source_team = "monetization"` (same-team) once confirmed. Workshop.
-- `financial-tracker` produces a ledger-shaped log (`monetization-ledger/*`). No drainer; consumed by operator and by decision-flow. Same pattern as `run-lessons/*` (see meta-optimization observations).
+- `candidate-sku-record/*` and `monetization-benchmark-record/*` have no documented consumer. `catalog-strategist` likely *should* consume `candidate-sku-record/*` (it owns catalog promotion); declare it as `intake[].source_team = "monetization"` (same-team) once confirmed. Workshop.
+- `financial-tracker` produces a ledger-shaped log (`monetization-ledger-log/*`). No drainer; consumed by operator and by decision-flow. Same pattern as `run-lesson-report/*` (see meta-optimization observations).
 
 ### scenario-qa
 
@@ -208,13 +224,13 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `programmatic-qa-runner` | _(none — proactive)_ | `qa-run/*`, `reviewed-scenario/*`, `dependency-wiring` | — |
 | `quality-auditor` | _(none — proactive)_ | `quality-audit/*`, `deep-audit/*` | — |
-| `bug-investigator` | `bug-inbox/*` (taxonomy: `bug-report`, source: `*` — universal-source) | `bug-investigation/*` | producers: every team via the `report-bug` writer skill |
-| `qa-contrarian` | _(none — proactive)_ | `challenge-note/*` | — |
+| `bug-investigator` | `bug-inbox/*` (taxonomy: `bug-report`, source: `*` — universal-source) | `bug-investigation-report/*` | producers: every team via the `report-bug` writer skill |
+| `qa-contrarian` | _(none — proactive)_ | `challenge-report/*` | — |
 
 **Observations:**
 - `bug-inbox/*` is one of two **universal-source intakes** in the system; the other is `friction-inbox/*` on meta-optimization. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
-- `bug-investigation/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
-- `challenge-note/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Known inconsistencies #3). Workshop-pending.
+- `bug-investigation-report/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
+- `challenge-report/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Known inconsistencies #5). Workshop-pending.
 - **Possible future gap:** `qa-inbox/*` / `audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
 
 ---

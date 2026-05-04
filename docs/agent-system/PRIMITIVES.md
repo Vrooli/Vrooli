@@ -116,7 +116,7 @@ The full taxonomy of contexts, the lifecycle (proposed → accepted → executed
 A team-scoped key/value record under a topic prefix. Used for both:
 
 - **Inbox material** under `<inbox-name>/<signal-type>/<slug>` — debt, awaiting routing.
-- **Permanent observations** under canonical surface prefixes (`audience-scan/<slug>`, `competitor/<slug>`, `monetization-benchmark-adjacent/<slug>`, etc.) — observations promoted from inbox to canon.
+- **Permanent observations** under canonical surface prefixes (`audience-scan/<slug>`, `competitor-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc.) — observations promoted from inbox to canon.
 
 Knowledge entries are the fine-grained granularity for evidence and observations. They support concurrency-safe append, retention, and querying via `prompt-manager team knowledge-*` commands.
 

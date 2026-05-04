@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "monetization-ledger/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "monetization-ledger-log/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": [
     "runway-warning",

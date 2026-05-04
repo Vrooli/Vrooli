@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "run-lessons/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "run-lesson-report/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": ["run-lesson", "capability-gap"],
   "decisions_consumed": [],

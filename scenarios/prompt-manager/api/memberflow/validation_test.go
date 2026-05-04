@@ -220,7 +220,7 @@ func TestRule_WildcardSourceMisuse_QuietForNonWildcardSources(t *testing.T) {
 	members := []MemberTopics{
 		mkMember("monetization", "market-validator", Topics{
 			Intake: []IntakeEntry{{
-				Prefix:     "monetization-benchmark-adjacent/*",
+				Prefix:     "monetization-benchmark-adjacent-record/*",
 				Taxonomy:   "monetization-validation",
 				SourceTeam: &specific,
 			}},

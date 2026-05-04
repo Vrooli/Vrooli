@@ -40,7 +40,7 @@ Sibling to `HEARTBEAT.md`, `RESPONSIBILITIES.md`, `last-handoff.md`. One file pe
       "schema": "audience-scan"
     },
     {
-      "prefix": "monetization-benchmark-adjacent/*",
+      "prefix": "monetization-benchmark-adjacent-record/*",
       "destination_kind": "knowledge",
       "destination_team": "monetization",
       "schema": "monetization-benchmark-adjacent"
@@ -183,7 +183,7 @@ Worked example: `scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team'
 
 Sister example: `meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `friction/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
 
-Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjacent/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
+Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
 
 ## Example: marketing-crew researcher
 
@@ -199,9 +199,9 @@ Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjac
   ],
   "output": [
     { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
-    { "prefix": "competitor/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
-    { "prefix": "hook/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
-    { "prefix": "monetization-benchmark-adjacent/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
+    { "prefix": "competitor-record/*",                     "destination_kind": "knowledge", "destination_team": null,           "schema": "competitor-observation" },
+    { "prefix": "hook-record/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
+    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
   "decisions_owned": ["audience-update", "channel-strategy-update", "post-type-proposal", "hook-candidate-promotion"],
   "decisions_consumed": ["capability-gap"],
@@ -216,7 +216,7 @@ When loaded, `prompt-manager graph topics --team marketing-crew` should:
 - Validate that `marketing-research` taxonomy exists and resolves to `docs/marketing/signal-taxonomy.json`.
 - Validate that `marketing-signal-classifier` is a registered, portable skill (no forbidden coupling content).
 - Validate every `output[].schema` resolves against the producer's taxonomy.
-- Cross-validate `monetization-benchmark-adjacent/*` against the monetization team's intake (some monetization member should declare this prefix in their `intake` with `source_team: "marketing-crew"`).
+- Cross-validate `monetization-benchmark-adjacent-record/*` against the monetization team's intake (some monetization member should declare this prefix in their `intake` with `source_team: "marketing-crew"`).
 
 ## Stability gate
 

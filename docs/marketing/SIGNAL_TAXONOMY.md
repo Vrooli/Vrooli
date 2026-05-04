@@ -17,13 +17,13 @@ When the JSON sidecar changes, update this markdown to match — they are paired
 | Signal type        | Definition                                                       | Default method skill        | Default destination prefix              |
 |--------------------|------------------------------------------------------------------|-----------------------------|-----------------------------------------|
 | audience-pain      | Audience frustration, buying trigger, vocabulary, unmet need.    | audience-pain-mining        | `audience-scan/<slug>`                  |
-| competitor         | Competitor pricing, packaging, positioning, changelog.           | competitor-positioning-scan | `competitor/<slug>`                     |
-| hook               | Reusable opening, framing, or copy pattern.                      | hook-pattern-mining         | `hook/<slug>`                           |
+| competitor         | Competitor pricing, packaging, positioning, changelog.           | competitor-positioning-scan | `competitor-record/<slug>`              |
+| hook               | Reusable opening, framing, or copy pattern.                      | hook-pattern-mining         | `hook-record/<slug>`                    |
 | workflow           | External process, playbook, agent setup worth deconstructing.    | workflow-deconstruction     | `workflow-scan/<slug>`                  |
 | skill              | External skill or reusable prompt/process.                       | skill-opportunity-scan      | `skill-scan/<slug>` (capability-gap if blocking) |
 | channel            | New acquisition channel observed working in market.              | channel-format-scan         | `channel-scan/<slug>` (channel-strategy-update when material) |
 | format             | New marketing post format or channel-native format.              | post-type-discovery         | `format-scan/<slug>` (post-type-proposal when material) |
-| benchmark-adjacent | Pricing/market fact relevant to monetization (cross-team).       | benchmark-adjacent-scan     | `monetization-benchmark-adjacent/<slug>` (cross-team to monetization) |
+| benchmark-adjacent | Pricing/market fact relevant to monetization (cross-team).       | benchmark-adjacent-scan     | `monetization-benchmark-adjacent-record/<slug>` (cross-team to monetization) |
 
 ## Evidence rules
 

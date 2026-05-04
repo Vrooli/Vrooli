@@ -16,7 +16,7 @@
 - None this heartbeat.
 
 ### Triage snapshot
-- friction-triage/<YYYY-MM-DD> not yet written — will be created on first heartbeat with non-zero activity.
+- friction-triage-record/<YYYY-MM-DD> not yet written — will be created on first heartbeat with non-zero activity.
 
 ### Patterns surfaced to debt-curator
 - None this heartbeat.

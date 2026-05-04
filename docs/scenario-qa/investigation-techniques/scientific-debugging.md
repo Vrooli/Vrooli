@@ -16,7 +16,7 @@ The full procedure (Phase 0 prior-art check → Observe → Hypothesize → Test
 
 ✅ **Multiple interacting components.** The bug spans services, scenarios, or boundaries. The technique's "minimal reproduction" exit criterion forces the investigator to narrow the surface.
 
-✅ **The bug must be explained, not just patched.** Other agents will read the `bug-investigation/<slug>` audit log and need to understand why the bug happened. The technique's mandatory root-cause documentation supports this.
+✅ **The bug must be explained, not just patched.** Other agents will read the `bug-investigation-report/<slug>` audit log and need to understand why the bug happened. The technique's mandatory root-cause documentation supports this.
 
 ✅ **You want to prevent recurrence.** The mandatory regression test captures the bug as a permanent guardrail.
 

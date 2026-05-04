@@ -1,7 +1,7 @@
 {
   "intake": [],
   "output": [
-    { "prefix": "campaign-drafts/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "campaign-draft/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": [
     "content-publish-proposal",

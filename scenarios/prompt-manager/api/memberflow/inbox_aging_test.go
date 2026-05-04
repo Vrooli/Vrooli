@@ -7,9 +7,9 @@ import (
 )
 
 type stubKnowledgeQuery struct {
-	byPrefix map[string][]InboxEntry
+	byPrefix  map[string][]InboxEntry
 	allByTeam map[string][]InboxEntry
-	err      error
+	err       error
 }
 
 func (s stubKnowledgeQuery) ListUnrouted(_ string, prefix string) ([]InboxEntry, error) {

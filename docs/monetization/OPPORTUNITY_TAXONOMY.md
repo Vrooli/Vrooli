@@ -18,12 +18,12 @@ The 7-slot taxonomy (matches morning-vision-walk Phase 8 routing):
 
 | Signal type        | Definition                                                       | Default method                | Default destination                 |
 |--------------------|------------------------------------------------------------------|-------------------------------|-------------------------------------|
-| competitor-move    | Competitor pricing/packaging/positioning/changelog change.       | competitor-move-capture       | `monetization/market-scan/<slug>` (or `candidate-sku/` if SKU-shaped) |
-| capability-arrival | Vrooli gained a scenario/resource that unlocks a SKU/bundle.     | capability-arrival-scan       | `candidate-sku/<slug>` (almost always) |
-| customer-ask       | Operator-fed: someone asked for X.                               | customer-ask-shaping          | `candidate-sku/<slug>` (if SKU-shaped) |
-| channel            | New acquisition channel observed working.                        | channel-fit-scan              | `monetization/market-scan/<slug>` (`candidate-sku/` if Vrooli can ship into it) |
-| bundle-hint        | Two existing things should be packaged together.                 | bundle-hint-shaping           | `candidate-sku/<slug>`              |
-| retention-signal   | Observed retention lever (own or competitor).                    | retention-signal-capture      | `monetization/market-scan/<slug>` (`candidate-sku/` if it implies an addon) |
+| competitor-move    | Competitor pricing/packaging/positioning/changelog change.       | competitor-move-capture       | `monetization/market-scan/<slug>` (or `candidate-sku-record/` if SKU-shaped) |
+| capability-arrival | Vrooli gained a scenario/resource that unlocks a SKU/bundle.     | capability-arrival-scan       | `candidate-sku-record/<slug>` (almost always) |
+| customer-ask       | Operator-fed: someone asked for X.                               | customer-ask-shaping          | `candidate-sku-record/<slug>` (if SKU-shaped) |
+| channel            | New acquisition channel observed working.                        | channel-fit-scan              | `monetization/market-scan/<slug>` (`candidate-sku-record/` if Vrooli can ship into it) |
+| bundle-hint        | Two existing things should be packaged together.                 | bundle-hint-shaping           | `candidate-sku-record/<slug>`              |
+| retention-signal   | Observed retention lever (own or competitor).                    | retention-signal-capture      | `monetization/market-scan/<slug>` (`candidate-sku-record/` if it implies an addon) |
 | benchmark          | Comparable pricing / market fact.                                | pricing-comp-capture          | `monetization/market-scan/<slug>`   |
 
 ## Evidence rules
@@ -40,7 +40,7 @@ The 7-slot taxonomy (matches morning-vision-walk Phase 8 routing):
 |-------------------|-----------------------------------------------------------------------------------------------|
 | drop              | Weak one-off / no fit / out of scope.                                                         |
 | observe           | Single-snapshot market fact. Retag inbox row to `monetization/market-scan/<slug>`.            |
-| promote-to-canon  | Plausible SKU-shaped idea. Retag to `candidate-sku/<slug>`.                                   |
+| promote-to-canon  | Plausible SKU-shaped idea. Retag to `candidate-sku-record/<slug>`.                                   |
 | file-decision     | Strong signal + clear fit + threshold met. Promote AND raise `catalog-promotion`, `channel-activation`, or `services-activation`. |
 | capability-gap    | Source / tool / scenario missing. File `capability-gap` and leave the inbox row.              |
 

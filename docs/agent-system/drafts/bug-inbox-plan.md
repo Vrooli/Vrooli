@@ -56,7 +56,7 @@ A schema gap also surfaced during planning: `bug-inbox/*` will receive writes fr
 4. **Readiness-checks registry (skeleton).** `docs/scenario-qa/readiness-checks/README.md` — stub now; full population deferred until GCT dimensions stabilize. Documented as future PoR work.
 5. **Universal bug capture.** Any agent on any team records a bug observation in one skill invocation, regardless of which scenario, skill, or component is broken.
 6. **Specialist triage with extensible methodology.** A new `bug-investigator` member on scenario-qa drains the inbox using the investigation-techniques registry. New techniques graduate via `meta-self-improvement` decisions.
-7. **Contrarian challenge.** A new `qa-contrarian` matches the cross-team pattern; reads peer-team decisions; writes `challenge-note/*` that surfaces gaps in QA reasoning, false-positive findings, and over-reach.
+7. **Contrarian challenge.** A new `qa-contrarian` matches the cross-team pattern; reads peer-team decisions; writes `challenge-report/*` that surfaces gaps in QA reasoning, false-positive findings, and over-reach.
 8. **Existing members updated to the new standard.** `quality-auditor` and `programmatic-qa-runner` get RESPONSIBILITIES.md updates that reference the technique registries; their `topics.json` files reviewed against the 9-layer model.
 9. **Schema upgrade for universal-source intakes.** `intake[].source_team: "*"` becomes a first-class declaration meaning "any team's members may write." Validator handles correctly. Documented in `TOPICS_SCHEMA.md`.
 10. **bug-report taxonomy.** Six signal types, schemas for both bug-report and bug-investigation entries, action-selection rules, evidence rules. JSON sidecar + markdown PoR pair.
@@ -97,8 +97,8 @@ A schema gap also surfaced during planning: `bug-inbox/*` will receive writes fr
 | Drain procedure | `scenario-qa/bug-investigator` member's heartbeat — Inbox Flow section generated from `topics.json` |
 | Triage outcomes | bug-report taxonomy's `actionSelection` (drop / observe / file-backlog / file-decision / route-to-another-topic / capability-gap) |
 | Universal-source declaration | `intake[].source_team: "*"` in `topics.json` (new schema semantics) |
-| Bug investigation audit log | `bug-investigation/<slug>` knowledge entries (one per closed bug — root cause, technique applied, action taken) |
-| Cross-team contrarian challenge | `qa-contrarian` — writes `challenge-note/*` per the cross-team contrarian pattern |
+| Bug investigation audit log | `bug-investigation-report/<slug>` knowledge entries (one per closed bug — root cause, technique applied, action taken) |
+| Cross-team contrarian challenge | `qa-contrarian` — writes `challenge-report/*` per the cross-team contrarian pattern |
 
 ### 6.2 `docs/scenario-qa/` folder structure
 
@@ -208,7 +208,7 @@ Mirrors `docs/marketing/post-techniques/` exactly:
 - **One technique, one folder location.** Cross-cutting techniques (those a `bug-investigator` may apply across multiple signal types) get a single canonical home.
 - **Lifecycle: v0 (doc-only stub) → v1 (doc + skill, active).** v0 means strategic canon is documented but the technique is not yet active. Activation requires (1) skill is authored, (2) skill cites the technique doc as required reading, (3) doc Status line bumped to v1, (4) `bug-investigator/RESPONSIBILITIES.md` references the skill in its Available Skills table.
 - **Compression operates per-skill.** Each technique's skill compresses independently as Vrooli's substrate (CLIs, debug tooling) absorbs more of the work. A unified `bug-investigate` mega-skill that branches on technique would compress worse — same argument the marketing team uses for one skill per post type.
-- **Adding a technique.** New techniques enter via `meta-self-improvement` decision proposing the addition. The bug-investigator surfaces graduation candidates from observed patterns in `bug-investigation/<slug>` audit entries.
+- **Adding a technique.** New techniques enter via `meta-self-improvement` decision proposing the addition. The bug-investigator surfaces graduation candidates from observed patterns in `bug-investigation-report/<slug>` audit entries.
 
 `scientific-debugging.md` is the first entry. The existing `scientific-debugging` skill is updated to add `docs/scenario-qa/investigation-techniques/scientific-debugging.md` to its required-reading list.
 
@@ -278,7 +278,7 @@ Single-team binding to scenario-qa.
     }
   ],
   "output": [
-    { "prefix": "bug-investigation/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "bug-investigation-report/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": ["bug-resolution-proposal"],
   "decisions_consumed": ["capability-gap"],
@@ -287,14 +287,14 @@ Single-team binding to scenario-qa.
 }
 ```
 
-`bug-investigation/<slug>` is the durable audit log — one entry per closed bug, capturing the technique applied, root cause, and action taken. Used to surface graduation candidates for new investigation techniques and to detect repeat bugs.
+`bug-investigation-report/<slug>` is the durable audit log — one entry per closed bug, capturing the technique applied, root cause, and action taken. Used to surface graduation candidates for new investigation techniques and to detect repeat bugs.
 
 `bug-resolution-proposal` decision context covers cross-cutting fixes that require operator approval (e.g., "rename this CLI verb because three bugs trace to its ambiguous name").
 
 Member files created from the quality-auditor template:
 
 - `store/agents/bug-investigator/SOUL.md` — identity (specialist scientific-debugger; calm, methodical, no speculation; honest when investigation is blocked)
-- `store/agents/bug-investigator/AGENTS.md` — workflow contract (load technique skill from registry, drain top of inbox, investigate, classify outcome, write `bug-investigation/<slug>` log, hand off via swarm-manager / decision / route)
+- `store/agents/bug-investigator/AGENTS.md` — workflow contract (load technique skill from registry, drain top of inbox, investigate, classify outcome, write `bug-investigation-report/<slug>` log, hand off via swarm-manager / decision / route)
 - `store/agents/bug-investigator/TOOLS.md` — bindings: every technique skill from the investigation-techniques registry (currently `scientific-debugging`), swarm-manager CLI, prompt-manager team knowledge-list/update/delete (no add — bug-investigator never writes to its own inbox)
 - `store/agents/bug-investigator/agent.json` — metadata
 - `store/teams/scenario-qa/members/bug-investigator/topics.json` — above
@@ -304,7 +304,7 @@ Member files created from the quality-auditor template:
 
 ### 6.13 `qa-contrarian` member
 
-Matches the cross-team contrarian pattern (`marketing-contrarian`, `monetization/contrarian`, `meta-contrarian`, `infra-contrarian`). Proactive — reads peer-team decisions and member outputs; writes `challenge-note/*` to scenario-qa's knowledge store.
+Matches the cross-team contrarian pattern (`marketing-contrarian`, `monetization/contrarian`, `meta-contrarian`, `infra-contrarian`). Proactive — reads peer-team decisions and member outputs; writes `challenge-report/*` to scenario-qa's knowledge store.
 
 `topics.json`:
 
@@ -312,7 +312,7 @@ Matches the cross-team contrarian pattern (`marketing-contrarian`, `monetization
 {
   "intake": [],
   "output": [
-    { "prefix": "challenge-note/*", "destination_kind": "knowledge", "destination_team": null }
+    { "prefix": "challenge-report/*", "destination_kind": "knowledge", "destination_team": null }
   ],
   "decisions_owned": [],
   "decisions_consumed": [],
@@ -330,7 +330,7 @@ The qa-contrarian's job is to challenge:
 Member files created from the marketing-contrarian template:
 
 - `store/agents/qa-contrarian/SOUL.md` — identity (skeptical, first-principles, allergic to consensus, honest when no challenge is warranted)
-- `store/agents/qa-contrarian/AGENTS.md` — workflow contract (read peer decisions on cadence, surface specific failure modes, write challenge-note/<slug>)
+- `store/agents/qa-contrarian/AGENTS.md` — workflow contract (read peer decisions on cadence, surface specific failure modes, write challenge-report/<slug>)
 - `store/agents/qa-contrarian/TOOLS.md` — bindings: prompt-manager team decision-list/knowledge-list, swarm-manager CLI for backlog-item review
 - `store/agents/qa-contrarian/agent.json` — metadata
 - `store/teams/scenario-qa/members/qa-contrarian/topics.json` — above
@@ -338,7 +338,7 @@ Member files created from the marketing-contrarian template:
 - `store/teams/scenario-qa/members/qa-contrarian/RESPONSIBILITIES.md` — challenge discipline; signal-vs-noise rules; what NOT to challenge
 - `store/teams/scenario-qa/members/qa-contrarian/last-handoff.md` — initialized empty
 
-`challenge-note/*` orphan-output applies (per TOPICS.md known inconsistency #3 — the cross-team contrarian-drain question is workshop-pending and out of scope).
+`challenge-report/*` orphan-output applies (per TOPICS.md known inconsistency #3 — the cross-team contrarian-drain question is workshop-pending and out of scope).
 
 ### 6.14 `quality-auditor` updates
 
@@ -407,7 +407,7 @@ The skill is destination-coupled by design (writer skills always are; the `non_p
   ],
   "actionSelection": {
     "drop": "Cannot reproduce + no clear scope; weak one-off.",
-    "observe": "Confirmed bug; route findings to `bug-investigation/<slug>` and continue (no fix required this heartbeat).",
+    "observe": "Confirmed bug; route findings to `bug-investigation-report/<slug>` and continue (no fix required this heartbeat).",
     "file-backlog": "Reproducible; investigator hands off swarm-manager backlog item with full evidence.",
     "file-decision": "Cross-cutting; investigator raises `bug-resolution-proposal` for operator review.",
     "route-to-another-topic": "Misclassified — actually a documentation gap, capability-gap, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision.",
@@ -599,7 +599,7 @@ Templated from `marketing-contrarian` (closest analogue).
   - Mission rewritten (per §6.3)
   - Member roster: add `bug-investigator`, `qa-contrarian` to `members{}` block with full `lane`, `ownedDecisionContexts`, `pendingOwnedDecisionCap`, `requiredKnowledgeTopics`, `allowedWrites`, `forbiddenWrites`, `safetyCriticalRules`, `readOnlyModeBehavior`, `newDecisionCapPerHeartbeat`, `taskParameters` blocks
   - `decisionContexts{}` block: add `bug-resolution-proposal` (owner: `bug-investigator`)
-  - `knowledgeTopics{}` block: add `bug-investigation/<slug>` (owner: `bug-investigator`), `challenge-note/<slug>` (owner: `qa-contrarian`)
+  - `knowledgeTopics{}` block: add `bug-investigation-report/<slug>` (owner: `bug-investigator`), `challenge-report/<slug>` (owner: `qa-contrarian`)
   - Bump `revision` (currently 2 → 3) and `updatedAt`
 - `scenarios/prompt-manager/store/teams/scenario-qa/roles.json`:
   - Add `bug-investigator` role with description
@@ -607,7 +607,7 @@ Templated from `marketing-contrarian` (closest analogue).
 - `scenarios/prompt-manager/store/teams/scenario-qa/shared/TEAM.md`:
   - Mission line updated to match `team.json`
   - Member list updated (add bug-investigator, qa-contrarian with one-line summary)
-  - Add `bug-inbox/*` and `bug-investigation/*` and `challenge-note/*` to knowledge-topic table
+  - Add `bug-inbox/*` and `bug-investigation-report/*` and `challenge-report/*` to knowledge-topic table
   - Document universal-source pattern + investigation/audit/readiness technique registry pointers
   - Team-specific principles list expanded to mention investigation rigor and contrarian discipline
 
@@ -625,8 +625,8 @@ Templated from `marketing-contrarian` (closest analogue).
 **Files (modified):**
 - `docs/agent-system/TOPICS.md`:
   - Update scenario-qa team section in § Per-team topic registry:
-    - Add `bug-investigator` row with `bug-inbox/*` intake (taxonomy: bug-report, source: `*`) and `bug-investigation/*` output
-    - Add `qa-contrarian` row with `challenge-note/*` output
+    - Add `bug-investigator` row with `bug-inbox/*` intake (taxonomy: bug-report, source: `*`) and `bug-investigation-report/*` output
+    - Add `qa-contrarian` row with `challenge-report/*` output
     - Update programmatic-qa-runner and quality-auditor cross-references to new docs
     - Remove "no contrarian" gap from Observations
     - Remove "no inbox" gap from Observations (bug-investigator covers it)
@@ -729,7 +729,7 @@ Per project feedback memory:
    - Go: `cd scenarios/prompt-manager/api && gofumpt -w . && golangci-lint run && go test ./... -timeout 300s`
 2. **Restart the scenario.** `vrooli scenario restart prompt-manager`
 3. **Verify health.**
-   - `prompt-manager graph topics` returns 0 errors; shows `bug-inbox/*` with `source_team: "*"`, `bug-investigation/*`, `challenge-note/*` for scenario-qa
+   - `prompt-manager graph topics` returns 0 errors; shows `bug-inbox/*` with `source_team: "*"`, `bug-investigation-report/*`, `challenge-report/*` for scenario-qa
    - `prompt-manager graph drain-status` shows scenario-qa/bug-investigator
    - `prompt-manager team member-context scenario-qa bug-investigator` renders Inbox Flow correctly
    - `prompt-manager team member-context scenario-qa qa-contrarian` renders proactive section correctly
@@ -748,13 +748,13 @@ Per project feedback memory:
 7. **bug-investigation log topic isn't drained.** It's an audit log, not an inbox. Mitigation: documented as intentional in TOPICS.md § Topic shapes; `orphan_output` warning is by-design here, same as `quality-audit/*` and other audit logs.
 8. **`report-bug` skill on-demand discoverability.** If agents don't know to look for it, bugs still go to notebook. Mitigation: Storage Map points to it explicitly in every agent's heartbeat; over time, observed mismatch (bugs in notebook that should have been in bug-inbox) gets flagged by the curator and routed correctly.
 9. **Technique-registry growth.** Adding new techniques requires `meta-self-improvement` decisions, paired doc + skill, registry table updates. Mitigation: same lifecycle the marketing post-techniques registry uses; the canon coherence test enforces pairing.
-10. **`challenge-note/*` orphan-output applies to qa-contrarian like every other contrarian.** No drainer for cross-team contrarian writes. Mitigation: documented in TOPICS.md known inconsistency #3; out of scope for this plan; revisited as a future workshop decision (e.g., `meta-contrarian` cross-drains peer `challenge-note/*`).
+10. **`challenge-report/*` orphan-output applies to qa-contrarian like every other contrarian.** No drainer for cross-team contrarian writes. Mitigation: documented in TOPICS.md known inconsistency #3; out of scope for this plan; revisited as a future workshop decision (e.g., `meta-contrarian` cross-drains peer `challenge-report/*`).
 
 ## 13. Open Questions
 
 All architectural decisions in this plan are settled. The remaining items are genuinely future scope, not deferrals:
 
-1. **Cross-cutting drain of `challenge-note/*`.** From TOPICS.md known inconsistency #3. Plausible that one team's contrarian (e.g., meta-contrarian) drains every team's `challenge-note/*` cross-team, but out of scope; revisit as a future workshop decision.
+1. **Cross-cutting drain of `challenge-report/*`.** From TOPICS.md known inconsistency #3. Plausible that one team's contrarian (e.g., meta-contrarian) drains every team's `challenge-report/*` cross-team, but out of scope; revisit as a future workshop decision.
 2. **`qa-inbox/*` / `audit-inbox/*` for existing members.** Operator-fed alpha for QA review and deep audits. Currently no producer; would orphan_input. Document as future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
 3. **Filling out scenario-qa's full PoR** beyond the README + three registries. Quality principles, scenario-classification heuristics — flagged as future operator-curated decisions in the team README's "Future PoR work" section.
 4. **Future investigation techniques.** `scientific-debugging` is the only registered technique at landing time. Future candidates the bug-investigator's audit log will surface graduation candidates for: bisect-debugging (binary-search git history), minimal-reproduction (reduce complex case to smallest repro), differential-trace (compare working vs broken), comparative-environments (test in different envs), 5-whys, fishbone analysis. Each enters via `meta-self-improvement` decision.

@@ -38,10 +38,10 @@ If your observation doesn't fit anywhere clean, prefer `report-friction` over si
 
 | Scope                          | Definition                                                                  | Routes to                                               |
 |--------------------------------|-----------------------------------------------------------------------------|---------------------------------------------------------|
-| `toolchain`                    | CLI/command/tool gap, confusing flag, missing capability, misleading output | `friction/toolchain/<date>/<slug>` (toolchain-validator)|
-| `run-execution`                | Run-loop, heartbeat, or coordination friction; stalls and loops             | `friction/run-execution/<date>/<slug>` (run-introspector)|
-| `prompt-team-agent-storage`    | Storage-map ambiguity, write-target confusion, role-boundary issues         | `friction/prompt-team-agent-storage/<date>/<slug>` (team-agent-optimizer)|
-| `recurring-workaround`         | A workaround applied multiple times — a pattern costing recurring attention | `friction/recurring-workaround/<date>/<slug>` (debt-curator)|
+| `toolchain`                    | CLI/command/tool gap, confusing flag, missing capability, misleading output | `friction-report/toolchain/<date>/<slug>` (toolchain-validator)|
+| `run-execution`                | Run-loop, heartbeat, or coordination friction; stalls and loops             | `friction-report/run-execution/<date>/<slug>` (run-introspector)|
+| `prompt-team-agent-storage`    | Storage-map ambiguity, write-target confusion, role-boundary issues         | `friction-report/prompt-team-agent-storage/<date>/<slug>` (team-agent-optimizer)|
+| `recurring-workaround`         | A workaround applied multiple times — a pattern costing recurring attention | `friction-report/recurring-workaround/<date>/<slug>` (debt-curator)|
 | `unknown`                      | Scope unclear; curator reclassifies during triage                           | reclassified → one of the four above; if not reclassifiable, handoff to debt-curator |
 
 Scope choice is made by the producer at file time. If the producer is uncertain, `unknown` is the honest choice; the curator owns reclassification.
@@ -62,14 +62,14 @@ The curator may overrule severity based on observed scope or recurrence (e.g., a
 - **Honesty flags are required when applicable.** `speculative-cause` (the reporter guessed at why the friction happened); `repeats-existing-friction-topic` (this is the same friction the reporter or another agent has filed before — the curator may merge); `minimal-context` (the report was filed under time pressure with reduced context); `auto-generated` (the description was machine-summarized or produced by a skill, not a human-shaped sentence).
 - **`recurring` severity requires evidence of recurrence**: count of past occurrences, or pointer to a prior friction entry being amplified.
 - **`blocking` severity requires the reporter is currently stopped** (not just slowed). Blockers route via handoff or capability-gap depending on whether a fix exists.
-- **`unknown` scope requires curator reclassification before routing.** If reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-writes to `friction/recurring-workaround/*` from `unknown` (that would corrupt debt-curator's synthesis input).
-- **Friction entries are observation, not authority.** The destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decide what action follows. The original `friction-inbox/*` entry is closed on routing; the routing record lives in `friction-triage/<YYYY-MM-DD>`.
+- **`unknown` scope requires curator reclassification before routing.** If reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-writes to `friction-report/recurring-workaround/*` from `unknown` (that would corrupt debt-curator's synthesis input).
+- **Friction entries are observation, not authority.** The destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decide what action follows. The original `friction-inbox/*` entry is closed on routing; the routing record lives in `friction-triage-record/<YYYY-MM-DD>`.
 
 ## Action selection
 
 | Action                  | When                                                                                        |
 |-------------------------|---------------------------------------------------------------------------------------------|
-| `route`                 | Default. Curator writes the entry to `friction/<scope>/<date>/<slug>` on the owner's behalf and closes the inbox entry. Routing record lands in friction-triage. |
+| `route`                 | Default. Curator writes the entry to `friction-report/<scope>/<date>/<slug>` on the owner's behalf and closes the inbox entry. Routing record lands in friction-triage. |
 | `drop`                  | Severity = `one-off` + no clear recurrence pattern. Curator writes a short triage note explaining the drop and removes the inbox entry. Reporter should use handoff next time. |
 | `reclassify`            | Scope = `unknown` but evidence supports a clear reclassification. Curator rewrites the topic to `friction-inbox/<real-scope>/<slug>`, then routes on the next heartbeat. |
 | `handoff-debt-curator`  | Scope = `unknown` and reclassification failed after one heartbeat, OR `friction-inbox` overflows past `dailyInboxDrainCap`. Curator hands off to debt-curator for synthesis. |

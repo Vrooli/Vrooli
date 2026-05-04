@@ -9,8 +9,8 @@
 - None raised (reason: no convergence possible on first content-scan heartbeat — `audience-update` requires ≥3 converging scans).
 
 ### Cross-team entries written
-- `monetization-benchmark-adjacent/dev-tool-pricing-credit-model` (knw-1777062783356547283): Cursor credit-model tiers + per-model request economics. Sources: costbench.com, vantage.sh, nxcode.io.
-- `monetization-benchmark-adjacent/byok-vs-subscription-threshold` (knw-1777062797398752073): BYOK (Cline, Aider) vs subscription decision-frame at ~$40/mo API spend. Sources: morphllm.com, awesomeagents.ai.
+- `monetization-benchmark-adjacent-record/dev-tool-pricing-credit-model` (knw-1777062783356547283): Cursor credit-model tiers + per-model request economics. Sources: costbench.com, vantage.sh, nxcode.io.
+- `monetization-benchmark-adjacent-record/byok-vs-subscription-threshold` (knw-1777062797398752073): BYOK (Cline, Aider) vs subscription decision-frame at ~$40/mo API spend. Sources: morphllm.com, awesomeagents.ai.
 
 ### Capability-gap raised
 - None raised this heartbeat (prior in-run researcher already raised `capability-gap` earlier this heartbeat; I confirm its scope narrows from "no scanning" to "no structured-tracking" and append notebook note at `docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md#2026-04-24 — WebSearch provides baseline, not structured, scanning` rather than stacking a new decision).

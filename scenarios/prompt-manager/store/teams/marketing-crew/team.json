@@ -517,12 +517,12 @@
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "monetization-benchmark-adjacent/<topic>": {
+      "monetization-benchmark-adjacent-record/<topic>": {
         "ownerMemberId": "researcher",
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "challenge-note/<decision-id>": {
+      "challenge-report/<decision-id>": {
         "ownerMemberId": "marketing-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -794,7 +794,7 @@
         "pendingOwnedDecisionCap": 2,
         "requiredKnowledgeTopics": [
           "audience-scan/YYYY-MM-DD",
-          "monetization-benchmark-adjacent/<topic>"
+          "monetization-benchmark-adjacent-record/<topic>"
         ],
         "allowedWrites": [
           {
@@ -852,7 +852,7 @@
         ],
         "pendingOwnedDecisionCap": 3,
         "requiredKnowledgeTopics": [
-          "challenge-note/<decision-id>",
+          "challenge-report/<decision-id>",
           "aging-scan-note/<decision-id>"
         ],
         "allowedWrites": [
