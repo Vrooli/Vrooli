@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
+import { Profiler, useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
+import { onProfilerRender } from "../lib/profiler";
 import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
@@ -581,7 +582,7 @@ function SourceView({
   );
 }
 
-export function DiffViewer({
+function DiffViewerImpl({
   diff,
   selectedFile,
   isStaged,
@@ -1770,5 +1771,13 @@ export function DiffViewer({
         </BottomSheet>
       )}
     </Card>
+  );
+}
+
+export function DiffViewer(props: DiffViewerProps) {
+  return (
+    <Profiler id="DiffViewer" onRender={onProfilerRender}>
+      <DiffViewerImpl {...props} />
+    </Profiler>
   );
 }

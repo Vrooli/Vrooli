@@ -1,10 +1,12 @@
 import {
+  Profiler,
   useState,
   useEffect,
   useRef,
   useMemo,
   useCallback,
 } from "react";
+import { onProfilerRender } from "../lib/profiler";
 import {
   File,
   FilePlus,
@@ -40,7 +42,7 @@ import { FileSection } from "./FileSection";
 
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
 
-export function FileList({
+function FileListImpl({
   files,
   fileStats,
   selectedFiles,
@@ -1391,5 +1393,13 @@ export function FileList({
         fileHotspots={fileHotspots}
       />
     </MobileContext.Provider>
+  );
+}
+
+export function FileList(props: FileListProps) {
+  return (
+    <Profiler id="FileList" onRender={onProfilerRender}>
+      <FileListImpl {...props} />
+    </Profiler>
   );
 }

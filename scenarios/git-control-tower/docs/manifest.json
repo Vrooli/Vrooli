@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "title": "git-control-tower Documentation",
+  "description": "REST API + CLI + UI for safe, audited git operations on the local Vrooli working tree.",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "documents": [
+        { "id": "quickstart", "title": "Quickstart", "path": "QUICKSTART.md" }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "documents": [
+        { "id": "architecture", "title": "Architecture", "path": "concepts/ARCHITECTURE.md" },
+        { "id": "glossary",     "title": "Glossary",     "path": "concepts/GLOSSARY.md" }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "documents": [
+        { "id": "api-endpoints", "title": "API Endpoints", "path": "reference/api-endpoints.md" },
+        { "id": "cli-commands",  "title": "CLI Commands",  "path": "reference/cli-commands.md" },
+        { "id": "configuration", "title": "Configuration", "path": "reference/configuration.md" }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal Notes",
+      "documents": [
+        { "id": "seams",            "title": "Seams",                 "path": "internal/SEAMS.md" },
+        { "id": "problems",         "title": "Problems",              "path": "internal/PROBLEMS.md" },
+        { "id": "progress",         "title": "Progress",              "path": "internal/PROGRESS.md" },
+        { "id": "research",         "title": "Research",              "path": "internal/RESEARCH.md" },
+        { "id": "invariants",       "title": "Invariants",            "path": "internal/INVARIANTS.md" },
+        { "id": "assumptions",      "title": "Assumptions",           "path": "internal/ASSUMPTIONS.md" },
+        { "id": "error-semantics",  "title": "Error Semantics",       "path": "internal/ERROR-SEMANTICS.md" },
+        { "id": "security-posture", "title": "Security Posture",      "path": "internal/SECURITY-POSTURE.md" },
+        { "id": "temporal-flows",   "title": "Temporal Flows",        "path": "internal/TEMPORAL-FLOWS.md" },
+        { "id": "coherence-notes",  "title": "React Coherence Notes", "path": "internal/COHERENCE-NOTES.md" },
+        { "id": "experience-audit", "title": "Experience Audit",      "path": "internal/EXPERIENCE-AUDIT.md" }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Plans",
+      "documents": [
+        { "id": "branching-plan",            "title": "Branching Plan",                     "path": "plans/BRANCHING_PLAN.md" },
+        { "id": "test-architecture",         "title": "Test Architecture Improvement Plan", "path": "plans/test-architecture-improvement-plan.md" },
+        { "id": "workspace-sandbox",         "title": "Workspace Sandbox Integration Plan", "path": "plans/workspace-sandbox-integration-plan.md" }
+      ]
+    },
+    {
+      "id": "perf",
+      "title": "Performance",
+      "documents": [
+        { "id": "perf-2026-05-03-discovery", "title": "2026-05-03 Discovery Audit", "path": "perf/2026-05-03-history-markdown-resize.md" },
+        { "id": "perf-2026-05-03-after",     "title": "2026-05-03 After-Fixes Comparison", "path": "perf/2026-05-03-after-fixes.md" }
+      ]
+    }
+  ]
+}

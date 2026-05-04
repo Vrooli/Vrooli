@@ -1,5 +1,7 @@
 import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X, StepForward, Filter, MoreVertical } from "lucide-react";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Profiler, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { onProfilerRender } from "../lib/profiler";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
@@ -119,7 +121,7 @@ function normalizePrefix(prefix: string) {
   return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
 }
 
-export function GitHistory({
+function GitHistoryImpl({
   lines = [],
   entries = [],
   isLoading,
@@ -415,6 +417,17 @@ export function GitHistory({
     workingSetSet
   ]);
 
+  // Virtualize visibleEntries so a multi-thousand-commit history doesn't pay
+  // O(n) per render. Variable row heights (badges + multi-line messages)
+  // require measureElement; estimateSize ~80px is the median per the
+  // 2026-05-03 perf audit.
+  const rowVirtualizer = useVirtualizer({
+    count: visibleEntries.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 80,
+    overscan: 8,
+  });
+
   const countLabel = hasActiveFilters
     ? `${visibleEntries.length}/${totalLines}`
     : `${totalLines}`;
@@ -536,8 +549,14 @@ export function GitHistory({
                 </div>
               )}
               {!isLoading && !error && hasLines && hasVisibleEntries && (
-                <div className="relative space-y-1 font-mono text-xs text-slate-200">
-                  {visibleEntries.map((entry, index) => {
+                <div
+                  className="relative font-mono text-xs text-slate-200"
+                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const index = virtualRow.index;
+                    const entry = visibleEntries[index];
+                    if (!entry) return null;
                     const isUnpushed = entry.hash && !entry.isPushed;
                     const isSelected = entry.hash && (
                       selectedCommitHash === entry.hash ||
@@ -558,7 +577,17 @@ export function GitHistory({
                     return (
                       <div
                         key={`${entry.raw}-${index}`}
-                        className={`group relative rounded-lg border px-2 py-2 text-slate-200 transition-colors ${
+                        ref={rowVirtualizer.measureElement}
+                        data-index={index}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          paddingBottom: 4,
+                        }}
+                        className={`group rounded-lg border px-2 py-2 text-slate-200 transition-colors ${
                           isSelected
                             ? "border-amber-500/60 bg-amber-950/40 ring-1 ring-amber-500/30"
                             : "border-slate-800/70 bg-slate-950/30 hover:bg-slate-900/60"
@@ -729,5 +758,13 @@ export function GitHistory({
         </BottomSheet>
       )}
     </>
+  );
+}
+
+export function GitHistory(props: GitHistoryProps) {
+  return (
+    <Profiler id="GitHistory" onRender={onProfilerRender}>
+      <GitHistoryImpl {...props} />
+    </Profiler>
   );
 }

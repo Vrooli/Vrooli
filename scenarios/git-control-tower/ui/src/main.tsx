@@ -5,6 +5,7 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -34,7 +35,12 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <App />
+        {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+            the profiling hook); emits user_timing entries via onProfilerRender
+            when the perf-build channel is active. See lib/profiler.ts. */}
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>

@@ -1,3 +1,7 @@
+// DOC: docs/reference/cli-commands.md
+// Package domains aggregates the CLI subcommand groups exposed by
+// git-control-tower. When adding or removing a group here, update
+// docs/reference/cli-commands.md in the same change.
 package domains
 
 import (

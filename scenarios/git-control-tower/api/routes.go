@@ -6,6 +6,10 @@ import (
 	"github.com/vrooli/api-core/health"
 )
 
+// DOC: docs/reference/api-endpoints.md
+// setupRoutes wires every HTTP endpoint exposed by git-control-tower.
+// When adding or removing routes here, update docs/reference/api-endpoints.md
+// in the same change so the catalog stays accurate.
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)

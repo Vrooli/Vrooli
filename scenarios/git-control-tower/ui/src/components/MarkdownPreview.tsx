@@ -1,7 +1,9 @@
 import { Check, Copy } from "lucide-react";
 import {
+  Profiler,
   memo,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useState,
@@ -11,6 +13,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { BundledLanguage, Highlighter } from "shiki";
+import { onProfilerRender } from "../lib/profiler";
 import { MermaidDiagram } from "./MermaidDiagram";
 
 interface MarkdownPreviewProps {
@@ -244,9 +247,14 @@ function extractTextContent(children: ReactNode): string {
   return "";
 }
 
-export const MarkdownPreview = memo(function MarkdownPreview({
+const MarkdownPreviewImpl = memo(function MarkdownPreviewImpl({
   content,
 }: MarkdownPreviewProps) {
+  // Defer the actual markdown render so a large doc doesn't block input.
+  // The 2026-05-03 audit measured a 39 ms first-render commit (62 ms long-
+  // task). React schedules the parse at low priority via this deferred
+  // value, letting urgent updates (typing, clicks) yield in between.
+  const deferredContent = useDeferredValue(content);
   const components = useMemo(
     () => ({
       // Headers
@@ -379,8 +387,16 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       data-testid="markdown-preview"
     >
       <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
-        {content}
+        {deferredContent}
       </ReactMarkdown>
     </div>
   );
 });
+
+export function MarkdownPreview(props: MarkdownPreviewProps) {
+  return (
+    <Profiler id="MarkdownPreview" onRender={onProfilerRender}>
+      <MarkdownPreviewImpl {...props} />
+    </Profiler>
+  );
+}

@@ -1,3 +1,8 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// App orchestrates the 3-pane git-control-tower UI. See the Architecture
+// doc for component boundaries and the operational targets (OT-P1-002 etc.)
+// driving future work; performance characteristics are tracked in
+// docs/perf/.
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
@@ -83,6 +88,12 @@ export default function App() {
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
+  // Refs for inner grid containers driven by changesHeight / historyHeight.
+  // During panel drag we write style.gridTemplateRows imperatively on these
+  // refs so App's React state isn't updated on every mousemove. The state is
+  // committed once on mouseup so it still persists to localStorage.
+  const sidebarGridRef = useRef<HTMLDivElement | null>(null);
+  const topStackGridRef = useRef<HTMLDivElement | null>(null);
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return 320;
@@ -1731,6 +1742,12 @@ export default function App() {
   useEffect(() => {
     if (!isResizingStack) return;
 
+    // Track the latest clamped value during drag so handleUp can commit it
+    // to React state once. handleMove writes to the DOM imperatively to
+    // avoid one App re-render per mouse event.
+    let latestHeight: number | null = null;
+    let latestWidth: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!stackResize.current) return;
       if (stackResize.current.mode === "bottom") {
@@ -1740,7 +1757,8 @@ export default function App() {
           stackResize.current.height - (event.clientY - stackResize.current.top);
         const maxHeight = stackResize.current.height - minMain;
         const clampedHeight = Math.max(minStack, Math.min(maxHeight, nextHeight));
-        setStackHeight(clampedHeight);
+        latestHeight = clampedHeight;
+        if (stackRef.current) stackRef.current.style.height = `${clampedHeight}px`;
         return;
       }
 
@@ -1750,10 +1768,13 @@ export default function App() {
           ? event.clientX - stackResize.current.start
           : stackResize.current.start - event.clientX;
       const clampedWidth = Math.max(minWidth, Math.min(stackResize.current.max, nextWidth));
-      setSidebarWidth(clampedWidth);
+      latestWidth = clampedWidth;
+      if (stackRef.current) stackRef.current.style.width = `${clampedWidth}px`;
     };
 
     const handleUp = () => {
+      if (latestHeight !== null) setStackHeight(latestHeight);
+      if (latestWidth !== null) setSidebarWidth(latestWidth);
       setIsResizingStack(false);
       stackResize.current = null;
       document.body.style.cursor = "";
@@ -1776,6 +1797,8 @@ export default function App() {
   useEffect(() => {
     if (!isResizingSplit) return;
 
+    let latestHeight: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!splitResize.current) return;
       const minTop = 200;
@@ -1783,10 +1806,16 @@ export default function App() {
       const nextHeight = event.clientY - splitResize.current.top;
       const maxHeight = splitResize.current.height - minBottom;
       const clampedHeight = Math.max(minTop, Math.min(maxHeight, nextHeight));
-      setChangesHeight(clampedHeight);
+      latestHeight = clampedHeight;
+      // Imperatively rewrite the inner grid's row template; the React render
+      // path computes the same string from sidebarRows on commit (handleUp).
+      if (sidebarGridRef.current) {
+        sidebarGridRef.current.style.gridTemplateRows = `minmax(0, ${clampedHeight}px) 6px minmax(0, 1fr)`;
+      }
     };
 
     const handleUp = () => {
+      if (latestHeight !== null) setChangesHeight(latestHeight);
       setIsResizingSplit(false);
       splitResize.current = null;
       document.body.style.cursor = "";
@@ -1809,6 +1838,8 @@ export default function App() {
   useEffect(() => {
     if (!isResizingHistory) return;
 
+    let latestHeight: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!historyResize.current) return;
       const minHistory = 140;
@@ -1816,10 +1847,14 @@ export default function App() {
       const nextHeight = historyResize.current.bottom - event.clientY;
       const maxHeight = Math.max(minHistory, changesHeight - minChanges);
       const clampedHeight = Math.max(minHistory, Math.min(maxHeight, nextHeight));
-      setHistoryHeight(clampedHeight);
+      latestHeight = clampedHeight;
+      if (topStackGridRef.current) {
+        topStackGridRef.current.style.gridTemplateRows = `minmax(0, 1fr) 6px minmax(0, ${clampedHeight}px)`;
+      }
     };
 
     const handleUp = () => {
+      if (latestHeight !== null) setHistoryHeight(latestHeight);
       setIsResizingHistory(false);
       historyResize.current = null;
       document.body.style.cursor = "";
@@ -2107,9 +2142,9 @@ export default function App() {
       }
       ref={stackRef}
     >
-      <div className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
+      <div ref={sidebarGridRef} className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
         <div className="min-h-0 min-w-0 overflow-hidden">
-          <div className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
+          <div ref={topStackGridRef} className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
             <div className="min-h-0 min-w-0">{renderPanel(topPanel, "top")}</div>
             <div
               className={`${
