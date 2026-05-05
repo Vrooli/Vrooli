@@ -12,7 +12,7 @@
 
 ### 1.1 What this plan is
 
-The first iteration of a multi-iteration program to maximize the **reference-pattern fitness** of `templates/scenarios/react-vite/` — i.e. its quality *as a copy source* for every scenario the template will generate. The lens, its sub-lenses, and the prior audit findings are codified at [`docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md). This plan implements the substrate fix the lens flagged as the highest-multiplier finding (Tier-1 #1 in the worked example) and establishes the **measurement harness** every future iteration runs against.
+The first iteration of a multi-iteration program to maximize the **reference-pattern fitness** of `path:templates/scenarios/react-vite/` — i.e. its quality *as a copy source* for every scenario the template will generate. The lens, its sub-lenses, and the prior audit findings are codified at [`path:docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md). This plan implements the substrate fix the lens flagged as the highest-multiplier finding (Tier-1 #1 in the worked example) and establishes the **measurement harness** every future iteration runs against.
 
 This plan delivers two coupled deliverables:
 1. **A measurement harness** that gives every future iteration the same yardstick. Without it, "did this iteration improve fitness?" is a vibe, not a measurement.
@@ -31,7 +31,7 @@ The agent executing this plan must understand: **shipping iteration 1 is success
 
 ### 1.3 Why this matters
 
-The react-vite template is the canonical scaffold for every scenario Vrooli generates. The reference-pattern-fitness audit found that adding a domain to a generated scenario costs ~250 lines of pure infrastructure boilerplate per domain — `apiError`/`decodeEnvelope`/`formatX`/protojson decode-ribbon in the CLI, `decodeApiError`/`if (!res.ok)` ribbon in the UI lib. Multiplied across N future scenarios × M domains per scenario, this is the largest known ongoing tax in the codebase that's *fixable at the substrate layer*. The right home for the fix is `cli-core` (substrate, cross-scenario) plus a small in-template helper (`ui/src/lib/api.ts`).
+The react-vite template is the canonical scaffold for every scenario Vrooli generates. The reference-pattern-fitness audit found that adding a domain to a generated scenario costs ~250 lines of pure infrastructure boilerplate per domain — `apiError`/`decodeEnvelope`/`formatX`/protojson decode-ribbon in the CLI, `decodeApiError`/`if (!res.ok)` ribbon in the UI lib. Multiplied across N future scenarios × M domains per scenario, this is the largest known ongoing tax in the codebase that's *fixable at the substrate layer*. The right home for the fix is `cli-core` (substrate, cross-scenario) plus a small in-template helper (`path:ui/src/lib/api.ts`).
 
 ---
 
@@ -49,7 +49,7 @@ These rules constrain every phase. Repeat them in the Definition of Done; failur
 
 Templates are regenerated, not migrated. Existing scenarios already generated from older templates are out of scope — they catch up per scenario when each is next touched.
 
-In template-side code (`templates/scenarios/react-vite/**`):
+In template-side code (`path:templates/scenarios/react-vite/**`):
 - **No compatibility shims**, deprecation wrappers, or "old + new path" branches. The template ships one shape; the old per-handler `flag.NewFlagSet` style is deleted, not aliased.
 - **No `// Deprecated:`, `// legacy`, `// compat`, `type Old…= New…` markers.**
 - **Failed approaches surface immediately** — if a phase fails its checklist, fix the substrate; do not paper over.
@@ -80,17 +80,17 @@ prompt-manager skill read reference-pattern-fitness
 
 Reference files to read top-to-bottom:
 
-- [`docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md) — strategic-canon home for the audit lens this iteration operates under. The four sub-lenses (per-replica cost, drift surface map, contract location audit, coordinated-edit count) are the metrics the harness records.
-- [`docs/plans/cmd-thin-cli-overhaul-plan.md`](../../docs/plans/cmd-thin-cli-overhaul-plan.md) — the analogous declarative refactor for the root vrooli CLI. Phases 2 (declarative command-definition), 3 (shared arg-spec), 4 (unified help generation), 5 (collapse handler boilerplate) are the *exact pattern shape* this iteration applies to cli-core. **The agent should mirror `internal/cli/commandtree`'s shape into cli-core, not invent a new model.** Specifically:
-  - `internal/cli/commandtree/commandtree.go` → cli-core's `cliapp.Spec` analogue (already partially exists as `Command` + `SubcommandGroup`).
-  - `internal/cli/commandtree/args.go` → cli-core's new `cliapp.ArgSchema` + parser.
-  - `internal/cli/commandtree/action.go` → cli-core's new `cliapp.RunContext` + shared action pipeline.
-- [`packages/cli-core/cliapp/app.go`](../../packages/cli-core/cliapp/app.go) — the surface the agent extends. Confirms `Command.Run func([]string) error` is the existing dispatcher signature that must stay supported.
-- [`packages/cli-core/cliutil/httpclient.go`](../../packages/cli-core/cliutil/httpclient.go) — `APIError` type and `ParseAPIError` already exist. The new envelope helper composes on top of these; do not replace them.
-- [`templates/scenarios/react-vite/cli/domains/notes/handlers.go`](../../templates/scenarios/react-vite/cli/domains/notes/handlers.go) — current 178-line handler is the canonical refactor target. Read end-to-end before designing the substitute.
-- [`templates/scenarios/react-vite/cli/domains/notes/handlers_test.go`](../../templates/scenarios/react-vite/cli/domains/notes/handlers_test.go) — tests that must continue passing after the refactor (test seam stays; only the implementation under it changes).
-- [`templates/scenarios/react-vite/ui/src/lib/notes.ts`](../../templates/scenarios/react-vite/ui/src/lib/notes.ts) — current 142-line client. Half is shared infrastructure misfiled in the notes domain; the refactor moves it to `lib/api.ts`.
-- [`templates/scenarios/react-vite/ui/src/lib/api.ts`](../../templates/scenarios/react-vite/ui/src/lib/api.ts) — 44-line file that will grow to host shared `protoFetch`, `ApiError`, `decodeApiError`. Today's `fetchHealth` uses a different (less typed) error path than notes; the refactor unifies them.
+- [`path:docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md) — strategic-canon home for the audit lens this iteration operates under. The four sub-lenses (per-replica cost, drift surface map, contract location audit, coordinated-edit count) are the metrics the harness records.
+- [`path:docs/plans/cmd-thin-cli-overhaul-plan.md`](../../docs/plans/cmd-thin-cli-overhaul-plan.md) — the analogous declarative refactor for the root vrooli CLI. Phases 2 (declarative command-definition), 3 (shared arg-spec), 4 (unified help generation), 5 (collapse handler boilerplate) are the *exact pattern shape* this iteration applies to cli-core. **The agent should mirror `path:internal/cli/commandtree`'s shape into cli-core, not invent a new model.** Specifically:
+  - `path:internal/cli/commandtree/commandtree.go` → cli-core's `cliapp.Spec` analogue (already partially exists as `Command` + `SubcommandGroup`).
+  - `path:internal/cli/commandtree/args.go` → cli-core's new `cliapp.ArgSchema` + parser.
+  - `path:internal/cli/commandtree/action.go` → cli-core's new `cliapp.RunContext` + shared action pipeline.
+- [`path:packages/cli-core/cliapp/app.go`](../../packages/cli-core/cliapp/app.go) — the surface the agent extends. Confirms `Command.Run func([]string) error` is the existing dispatcher signature that must stay supported.
+- [`path:packages/cli-core/cliutil/httpclient.go`](../../packages/cli-core/cliutil/httpclient.go) — `APIError` type and `ParseAPIError` already exist. The new envelope helper composes on top of these; do not replace them.
+- [`path:templates/scenarios/react-vite/cli/domains/notes/handlers.go`](../../templates/scenarios/react-vite/cli/domains/notes/handlers.go) — current 178-line handler is the canonical refactor target. Read end-to-end before designing the substitute.
+- [`path:templates/scenarios/react-vite/cli/domains/notes/handlers_test.go`](../../templates/scenarios/react-vite/cli/domains/notes/handlers_test.go) — tests that must continue passing after the refactor (test seam stays; only the implementation under it changes).
+- [`path:templates/scenarios/react-vite/ui/src/lib/notes.ts`](../../templates/scenarios/react-vite/ui/src/lib/notes.ts) — current 142-line client. Half is shared infrastructure misfiled in the notes domain; the refactor moves it to `lib/api.ts`.
+- [`path:templates/scenarios/react-vite/ui/src/lib/api.ts`](../../templates/scenarios/react-vite/ui/src/lib/api.ts) — 44-line file that will grow to host shared `protoFetch`, `ApiError`, `decodeApiError`. Today's `fetchHealth` uses a different (less typed) error path than notes; the refactor unifies them.
 
 ---
 
@@ -98,17 +98,17 @@ Reference files to read top-to-bottom:
 
 ### 4.1 What the reference-pattern-fitness audit established
 
-A 2026-05-04 audit of `templates/scenarios/react-vite/` (recorded in [`docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md) "Worked example") surfaced six tiered findings. The two this iteration addresses:
+A 2026-05-04 audit of `path:templates/scenarios/react-vite/` (recorded in [`path:docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md) "Worked example") surfaced six tiered findings. The two this iteration addresses:
 
 **Tier-1 #1 — CLI per-domain client boilerplate.**
-[`cli/domains/notes/handlers.go`](../../templates/scenarios/react-vite/cli/domains/notes/handlers.go) is 178 lines for one CRUD domain. Of those, ~50 lines are pure infrastructure that every future domain will copy: `apiError` (lines 146–164), `decodeEnvelope` (166–178), the `flag.NewFlagSet` ribbon per handler (~6 lines × 3 = ~18), the `protojson.Marshal → core.Request → protojson.Unmarshal` ribbon per method (~10 lines × 3 = ~30), and `formatNote` (132–137; legitimate domain code, stays).
+[`path:cli/domains/notes/handlers.go`](../../templates/scenarios/react-vite/cli/domains/notes/handlers.go) is 178 lines for one CRUD domain. Of those, ~50 lines are pure infrastructure that every future domain will copy: `apiError` (lines 146–164), `decodeEnvelope` (166–178), the `flag.NewFlagSet` ribbon per handler (~6 lines × 3 = ~18), the `protojson.Marshal → core.Request → protojson.Unmarshal` ribbon per method (~10 lines × 3 = ~30), and `formatNote` (132–137; legitimate domain code, stays).
 
 Replication factor: every scenario × every domain. For a hypothetical scenario with 3 domains, that's ~150 lines of boilerplate; 5 domains, ~250.
 
 Substrate home: cli-core. The substrate exists; the helpers don't.
 
 **Tier-1 #2 — UI per-domain lib boilerplate.**
-[`ui/src/lib/notes.ts`](../../templates/scenarios/react-vite/ui/src/lib/notes.ts) is 142 lines for the same domain. The pattern `if (!res.ok) throw await decodeApiError(res); const json = await res.json(); return fromJson(Schema, json, { ignoreUnknownFields: true });` repeats 3× (once per method). `ApiError` and `decodeApiError` *live in `lib/notes.ts`* despite being domain-agnostic — when `lib/tasks.ts` lands, it will either import them from notes (coupling) or duplicate them (drift, already drifted: `lib/api.ts::fetchHealth` throws plain `Error` instead of typed `ApiError`).
+[`path:ui/src/lib/notes.ts`](../../templates/scenarios/react-vite/ui/src/lib/notes.ts) is 142 lines for the same domain. The pattern `if (!res.ok) throw await decodeApiError(res); const json = await res.json(); return fromJson(Schema, json, { ignoreUnknownFields: true });` repeats 3× (once per method). `ApiError` and `decodeApiError` *live in `lib/notes.ts`* despite being domain-agnostic — when `lib/tasks.ts` lands, it will either import them from notes (coupling) or duplicate them (drift, already drifted: `lib/api.ts::fetchHealth` throws plain `Error` instead of typed `ApiError`).
 
 Replication factor: every scenario × every UI domain.
 
@@ -152,11 +152,11 @@ With this iteration:
 
 **Phase B — baseline.** Run the 6 scenarios against the *current* template tree (pre-substrate-change) using the recipes from `SCENARIOS.md`. Record numbers in `BASELINE.md`. Each scenario's recipe must be deterministic — the executing agent records the exact commands, branch names, and artifacts.
 
-**Phase C — cli-core additive surface.** New files in `packages/cli-core/cliapp/`:
+**Phase C — cli-core additive surface.** New files in `path:packages/cli-core/cliapp/`:
 - `argschema.go` — `ArgSchema`, `Flag`, `Positional` types; descriptive only.
 - `runcontext.go` — `RunContext` interface; methods `Flag(name) string`, `BoolFlag(name) bool`, `Positional(name) string`, `Args() []string` (raw fallback), `Render*(report)` methods that route to JSON or human based on global `--json`, `Core() *ScenarioApp` for direct API client access when needed.
-- `parser.go` — internal parser that turns `(ArgSchema, []string) → RunContext + error`. Handles boolean flags, valued flags, required/optional positionals, repeated positionals, `--help`, unknown-option/missing-value/arity errors. Mirrors `internal/cli/commandtree/args.go` semantics.
-- `helpgen.go` — generates `--help` output from `ArgSchema` + `Command` metadata. Mirrors `internal/cli/commandtree/help_*.go` shape.
+- `parser.go` — internal parser that turns `(ArgSchema, []string) → RunContext + error`. Handles boolean flags, valued flags, required/optional positionals, repeated positionals, `--help`, unknown-option/missing-value/arity errors. Mirrors `path:internal/cli/commandtree/args.go` semantics.
+- `helpgen.go` — generates `--help` output from `ArgSchema` + `Command` metadata. Mirrors `path:internal/cli/commandtree/help_*.go` shape.
 - `call.go` — `Call[Req, Resp proto.Message](app *ScenarioApp, method, path string, req Req) (Resp, error)`. Marshals `req` via `protojson`, calls `app.Request`, decodes envelope on non-2xx (returning a typed `*cliutil.APIError` already populated by `ParseAPIError`), unmarshals 2xx body via `protojson`. Generic, works for any proto message.
 - `envelope.go` — exports `DecodeEnvelope(body []byte) (*errorsv1.ErrorEnvelope, bool)` (currently scenario-local) and a thin `WrapAPIError(action string, err error, body []byte) error` that produces the same envelope-aware error string the scenario `apiError` produces today.
 
@@ -168,17 +168,17 @@ With this iteration:
 Tests for every new file (next to it; `_test.go`). Style matches existing cli-core tests (stdlib + the existing testify usage where present in `cliapp` tests).
 
 **Phase D — react-vite template refactor.** Notes domain rewritten against the new surface:
-- `cli/domains/notes/handlers.go` shrinks from 178 → ~80 lines. `apiError` and `decodeEnvelope` deleted (now in cli-core). Each handler uses `cliapp.Call[Req, Resp]` and `RunContext.Flag`/`Positional`. `formatNote` stays (it's domain code).
-- `cli/domains/notes/register.go` grows from 44 → ~75 lines. Each `Command` gains an `Args` schema and the `RunCtx` field.
-- `cli/domains/notes/handlers_test.go` updated to drive handlers through the `RunCtx` path. Existing tests must keep their assertions (output strings, captured request bodies) — only the entry point changes.
-- `ui/src/lib/api.ts` grows from 44 → ~110 lines. Hosts `ApiError`, `decodeApiError`, `protoFetch<Req, Resp>(method, path, opts)`. `fetchHealth` rewritten on top of `protoFetch` so the template ships only one error path.
-- `ui/src/lib/notes.ts` shrinks from 142 → ~50 lines. Each function calls `protoFetch` and adds the missing-field guard. Re-exports `ApiError` from `./api` for compatibility with existing imports.
-- `ui/src/lib/notes.test.ts`, `ui/src/lib/api.test.ts` updated where assertions reference the old shape; behavior coverage unchanged.
+- `path:cli/domains/notes/handlers.go` shrinks from 178 → ~80 lines. `apiError` and `decodeEnvelope` deleted (now in cli-core). Each handler uses `cliapp.Call[Req, Resp]` and `RunContext.Flag`/`Positional`. `formatNote` stays (it's domain code).
+- `path:cli/domains/notes/register.go` grows from 44 → ~75 lines. Each `Command` gains an `Args` schema and the `RunCtx` field.
+- `path:cli/domains/notes/handlers_test.go` updated to drive handlers through the `RunCtx` path. Existing tests must keep their assertions (output strings, captured request bodies) — only the entry point changes.
+- `path:ui/src/lib/api.ts` grows from 44 → ~110 lines. Hosts `ApiError`, `decodeApiError`, `protoFetch<Req, Resp>(method, path, opts)`. `fetchHealth` rewritten on top of `protoFetch` so the template ships only one error path.
+- `path:ui/src/lib/notes.ts` shrinks from 142 → ~50 lines. Each function calls `protoFetch` and adds the missing-field guard. Re-exports `ApiError` from `./api` for compatibility with existing imports.
+- `path:ui/src/lib/notes.test.ts`, `path:ui/src/lib/api.test.ts` updated where assertions reference the old shape; behavior coverage unchanged.
 
 **Documentation updates** (template-side, supporting the refactor):
-- `docs/internal/REPLACING-NOTES.md` — section "5. CLI domain" gets a reduced template showing the `Args` + `RunCtx` shape and the `cliapp.Call[Req,Resp]` pattern.
-- `docs/internal/SEAMS.md` — new row for the `protoFetch` seam in `lib/api.ts`; new row for `cliapp.RunContext` if it's worth surfacing.
-- `docs/concepts/ARCHITECTURE.md` — "CLI thin-wrapper" subsection gains one paragraph about the declarative arg-schema; one line about the `protoFetch` pattern.
+- `path:docs/internal/REPLACING-NOTES.md` — section "5. CLI domain" gets a reduced template showing the `Args` + `RunCtx` shape and the `cliapp.Call[Req,Resp]` pattern.
+- `path:docs/internal/SEAMS.md` — new row for the `protoFetch` seam in `lib/api.ts`; new row for `cliapp.RunContext` if it's worth surfacing.
+- `path:docs/concepts/ARCHITECTURE.md` — "CLI thin-wrapper" subsection gains one paragraph about the declarative arg-schema; one line about the `protoFetch` pattern.
 
 **Phase E — re-measurement.** Run the same 6 scenarios against the post-substrate tree. Record numbers in `RESULTS.md`. Compare against `BASELINE.md`. Grade `HYPOTHESIS.md`. Write `ITERATION_2_PROPOSAL.md` summarizing what to attack next.
 
@@ -227,7 +227,7 @@ A 5th meta-metric is recorded but not optimized: **"could a junior do this from 
 
 ### 6.1 cli-core surface today
 
-Located at [`packages/cli-core/`](../../packages/cli-core/) as a separate Go module. Scenarios pin via `replace` directive in their own `go.mod` (so cli-core changes propagate immediately to anything regenerated; no version-bump dance).
+Located at [`path:packages/cli-core/`](../../packages/cli-core/) as a separate Go module. Scenarios pin via `replace` directive in their own `go.mod` (so cli-core changes propagate immediately to anything regenerated; no version-bump dance).
 
 Public surface relevant to this iteration:
 
@@ -239,13 +239,13 @@ Public surface relevant to this iteration:
 - `cliutil.APIError` (struct with StatusCode, Message, Code, Category, Details, Recovery, RecoveryHint, AutoFix, ManualSteps, RawResponse). `cliutil.ParseAPIError(statusCode, data) *APIError` does envelope detection.
 - `cliutil.ParseInterspersed(fs *flag.FlagSet, args []string) error` — reorders args so flags come before positionals; called per handler today.
 
-Tests live at `packages/cli-core/cliapp/*_test.go` and `packages/cli-core/cliutil/*_test.go`. Style: stdlib `testing.T` with mixed `require` (testify) usage in some files. Match the surrounding file's style when adding tests.
+Tests live at `path:packages/cli-core/cliapp/*_test.go` and `path:packages/cli-core/cliutil/*_test.go`. Style: stdlib `testing.T` with mixed `require` (testify) usage in some files. Match the surrounding file's style when adding tests.
 
 **No existing arg-spec, parser, help generator, envelope-helper, or proto-typed call helper.** Greenfield additions.
 
 ### 6.2 Template CLI surface today
 
-`cli/domains/notes/handlers.go` (178 lines):
+`path:cli/domains/notes/handlers.go` (178 lines):
 - `handlers` struct holds `*cliapp.ScenarioApp`.
 - Three handlers (`list`, `create`, `get`) — each is `func(args []string) error`.
 - `create` builds a `flag.FlagSet`, parses `--title` and `--body`, validates required, marshals proto request via `protojson.Marshal`, calls `core.Request`, unmarshals response, calls `RenderMutationReport`.
@@ -255,19 +255,19 @@ Tests live at `packages/cli-core/cliapp/*_test.go` and `packages/cli-core/cliuti
 - `decodeEnvelope(body)` — decodes `errorsv1.ErrorEnvelope`, returns `(*ErrorEnvelope, bool)`.
 - `formatNote(*notesv1.Note) string` — domain-specific row formatter (legitimately stays).
 
-`cli/domains/notes/register.go` (44 lines):
+`path:cli/domains/notes/register.go` (44 lines):
 - `Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup` — declares `Name`, `Description`, `NeedsAPI: true`, `Subcommands: []cliapp.Command{ {Name, Description, Run: h.list}, {Name, Description, Run: h.create}, {Name, Description, Run: h.get} }`.
 
-`cli/domains/notes/handlers_test.go` (216 lines):
+`path:cli/domains/notes/handlers_test.go` (216 lines):
 - `fakeAPI(t, status, body)` — `http.Handler` + recording struct with mutex.
 - 8 tests covering list/create/get success and error paths plus `Register` wiring.
 
 ### 6.3 Template UI surface today
 
-`ui/src/lib/api.ts` (44 lines):
+`path:ui/src/lib/api.ts` (44 lines):
 - `fetchHealth(): Promise<HealthResponse>` — does its own fetch + ok-check + `fromJson`. Throws plain `Error("API health check failed: 401")` on non-2xx — different shape than notes' `ApiError`.
 
-`ui/src/lib/notes.ts` (142 lines):
+`path:ui/src/lib/notes.ts` (142 lines):
 - `class ApiError extends Error` — held here; logically shared.
 - `async function decodeApiError(res)` — held here; logically shared.
 - `listNotes()`, `createNote(input)`, `getNote(id)` — three functions, each ~25 lines repeating the `fetch → !res.ok → fromJson → guard` ribbon.
@@ -276,7 +276,7 @@ Tests live at `packages/cli-core/cliapp/*_test.go` and `packages/cli-core/cliuti
 
 Two viable locations:
 
-1. **Recommended**: `scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite/2026-05-04/`. The fitness PoR doc explicitly names this as the canonical home for fitness audits. Tracked in git, citable from future docs, durable across machines/iterations. The notebook already has retention conventions (date-stamped subfolders).
+1. **Recommended**: `path:scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite/2026-05-04/`. The fitness PoR doc explicitly names this as the canonical home for fitness audits. Tracked in git, citable from future docs, durable across machines/iterations. The notebook already has retention conventions (date-stamped subfolders).
 2. **Alternative requested by user**: an untracked path under `~/.claude/template-fitness/react-vite/iteration-1/`. Forces cleanup-by-disuse. Cost: machine-bound; iteration N+1 must re-baseline if the machine is wiped.
 
 This plan recommends location #1 for iteration durability, and adds an explicit cleanup checklist item to the *final* iteration's Definition of Done (whichever iteration concludes the program). The agent executing this plan should use location #1 unless the user adjudicates otherwise. If the user prefers #2, the only change is `mkdir -p $LOCATION` in Phase A; everything else in this plan stays.
@@ -297,7 +297,7 @@ After this plan executes, the following are true:
 
 ### 7.2 cli-core additive surface
 
-6. New files exist in `packages/cli-core/cliapp/`:
+6. New files exist in `path:packages/cli-core/cliapp/`:
    - `argschema.go`, `argschema_test.go`
    - `runcontext.go`, `runcontext_test.go`
    - `parser.go`, `parser_test.go`
@@ -314,14 +314,14 @@ After this plan executes, the following are true:
 
 ### 7.3 react-vite template refactor
 
-10. `templates/scenarios/react-vite/cli/domains/notes/handlers.go` is ≤ 90 lines, contains no `apiError` or `decodeEnvelope` helpers, uses `cliapp.Call[Req,Resp]` for every method, uses `RunContext` accessors instead of `flag.FlagSet`.
-11. `templates/scenarios/react-vite/cli/domains/notes/register.go` declares `Args ArgSchema` per command and binds `RunCtx`. Pre-existing `Run` field is not used (greenfield: only one path in the template).
-12. `templates/scenarios/react-vite/cli/domains/notes/handlers_test.go` exercises the `RunCtx` path. Captured-request and rendered-stdout assertions are unchanged in intent.
-13. `templates/scenarios/react-vite/ui/src/lib/api.ts` exports `ApiError`, `decodeApiError`, `protoFetch<Req,Resp>`. `fetchHealth` is rewritten on top of `protoFetch` so health and notes share one error path.
-14. `templates/scenarios/react-vite/ui/src/lib/notes.ts` is ≤ 60 lines. Each function is ≤ 8 lines. `ApiError`, `decodeApiError` deleted from this file.
-15. `templates/scenarios/react-vite/ui/src/lib/api.test.ts` and `ui/src/lib/notes.test.ts` cover the new surface. Specifically: `protoFetch` envelope-decode tests; `protoFetch` proto-marshal/unmarshal tests; `notes.ts` per-method tests still pass.
-16. `templates/scenarios/react-vite/docs/internal/REPLACING-NOTES.md` step 5 ("CLI domain") is updated. The "Steps to add your domain" walkthrough reflects the new declarative shape and shows fewer / shorter code blocks.
-17. `templates/scenarios/react-vite/docs/internal/SEAMS.md` includes the `protoFetch` row.
+10. `path:templates/scenarios/react-vite/cli/domains/notes/handlers.go` is ≤ 90 lines, contains no `apiError` or `decodeEnvelope` helpers, uses `cliapp.Call[Req,Resp]` for every method, uses `RunContext` accessors instead of `flag.FlagSet`.
+11. `path:templates/scenarios/react-vite/cli/domains/notes/register.go` declares `Args ArgSchema` per command and binds `RunCtx`. Pre-existing `Run` field is not used (greenfield: only one path in the template).
+12. `path:templates/scenarios/react-vite/cli/domains/notes/handlers_test.go` exercises the `RunCtx` path. Captured-request and rendered-stdout assertions are unchanged in intent.
+13. `path:templates/scenarios/react-vite/ui/src/lib/api.ts` exports `ApiError`, `decodeApiError`, `protoFetch<Req,Resp>`. `fetchHealth` is rewritten on top of `protoFetch` so health and notes share one error path.
+14. `path:templates/scenarios/react-vite/ui/src/lib/notes.ts` is ≤ 60 lines. Each function is ≤ 8 lines. `ApiError`, `decodeApiError` deleted from this file.
+15. `path:templates/scenarios/react-vite/ui/src/lib/api.test.ts` and `path:ui/src/lib/notes.test.ts` cover the new surface. Specifically: `protoFetch` envelope-decode tests; `protoFetch` proto-marshal/unmarshal tests; `notes.ts` per-method tests still pass.
+16. `path:templates/scenarios/react-vite/docs/internal/REPLACING-NOTES.md` step 5 ("CLI domain") is updated. The "Steps to add your domain" walkthrough reflects the new declarative shape and shows fewer / shorter code blocks.
+17. `path:templates/scenarios/react-vite/docs/internal/SEAMS.md` includes the `protoFetch` row.
 
 ### 7.4 End-to-end validation gate
 
@@ -345,7 +345,7 @@ Five phases. Phases A → B → C → D → E run strictly in order. Phase B gat
 
 #### A.1 Choose location
 
-Default to `scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite/2026-05-04/` per §6.4. If the user has communicated the alternative untracked path before this phase starts, use that and update `README.md` to point at it.
+Default to `path:scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite/2026-05-04/` per §6.4. If the user has communicated the alternative untracked path before this phase starts, use that and update `README.md` to point at it.
 
 #### A.2 Create the seven files
 
@@ -373,7 +373,7 @@ Populate `HYPOTHESIS.md` with the testable claim from §7.1 #3. Be explicit abou
 - All seven files exist at the chosen location.
 - `README.md` is self-contained — an agent with no prior context can read it, find `SCENARIOS.md`, and run the measurement.
 - `HYPOTHESIS.md` is testable.
-- No code has been changed in `packages/cli-core/` or `templates/scenarios/react-vite/`. Phase A is purely additive and outside those trees.
+- No code has been changed in `path:packages/cli-core/` or `path:templates/scenarios/react-vite/`. Phase A is purely additive and outside those trees.
 
 ### Phase B — Baseline measurement
 
@@ -398,13 +398,13 @@ For each scenario, the agent records the yes/no judgment for "could a junior do 
 
 - `BASELINE.md` has a complete row per scenario × per metric.
 - Every cell cites the command that produced it.
-- No code in `packages/cli-core/` or template prod code has been mutated outside scenario-implementation branches that are now discarded.
+- No code in `path:packages/cli-core/` or template prod code has been mutated outside scenario-implementation branches that are now discarded.
 
 ### Phase C — cli-core additive surface
 
 **Gate**: Phase B complete; baseline frozen.
 
-This phase mirrors `internal/cli/commandtree`'s shape into cli-core. The agent should read `internal/cli/commandtree/{commandtree,args,action,help_*}.go` for design reference but write *new* code in cli-core (greenfield-within-cli-core: don't copy code; copy *patterns*).
+This phase mirrors `path:internal/cli/commandtree`'s shape into cli-core. The agent should read `path:internal/cli/commandtree/{commandtree,args,action,help_*}.go` for design reference but write *new* code in cli-core (greenfield-within-cli-core: don't copy code; copy *patterns*).
 
 #### C.1 `argschema.go`
 
@@ -472,7 +472,7 @@ Concrete impl is unexported. Constructed by the parser. Test: each accessor; Ren
 
 `func parseArgs(schema ArgSchema, args []string, globals *GlobalOptions) (RunContext, error)` — internal.
 
-Behavior parity with `internal/cli/commandtree/args.go`:
+Behavior parity with `path:internal/cli/commandtree/args.go`:
 - Boolean flags accept `--name` (no value); valued flags accept `--name=value` or `--name value`.
 - `--help` / `-h` short-circuits to a "help requested" sentinel handled by the dispatcher (returns a typed `ErrHelpRequested` so the dispatcher prints help and exits 0).
 - `--` ends flag parsing; remaining args are positionals.
@@ -505,7 +505,7 @@ func Call[Req, Resp proto.Message](
 }
 ```
 
-The generic constraint is `proto.Message` from `google.golang.org/protobuf/proto`. The `Resp` allocation uses `proto.Clone` of the type's zero value or reflection — pick the cleanest pattern; `internal/cli/commandtree`'s analogous code (if any) shows what works at the same Go version.
+The generic constraint is `proto.Message` from `google.golang.org/protobuf/proto`. The `Resp` allocation uses `proto.Clone` of the type's zero value or reflection — pick the cleanest pattern; `path:internal/cli/commandtree`'s analogous code (if any) shows what works at the same Go version.
 
 Test: success with proto fixtures (use `errorsv1.ErrorEnvelope` itself as a proto fixture since it's already imported); 4xx with envelope; 4xx without envelope; transport error; nil request (pass-through).
 
@@ -549,7 +549,7 @@ All existing tests still pass. New tests cover everything in §C.1–C.7. No exp
 
 This phase rewrites the notes domain (CLI + UI) against the new substrate. The greenfield rule applies: the old apiError / decodeEnvelope / per-handler FlagSet code is *deleted*, not aliased.
 
-#### D.1 Rewrite `cli/domains/notes/handlers.go`
+#### D.1 Rewrite `path:cli/domains/notes/handlers.go`
 
 Replace the file with handlers using `cliapp.Call[Req,Resp]`, `RunContext.Flag`, `RunContext.Positional`, and the existing `RenderMutation` / `RenderList` patterns. Delete `apiError` and `decodeEnvelope` entirely. `formatNote` stays.
 
@@ -581,7 +581,7 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 }
 ```
 
-#### D.2 Rewrite `cli/domains/notes/register.go`
+#### D.2 Rewrite `path:cli/domains/notes/register.go`
 
 Each `Command` declares its `Args ArgSchema` and binds `RunCtx`:
 
@@ -601,7 +601,7 @@ Each `Command` declares its `Args ArgSchema` and binds `RunCtx`:
 
 The `Run` field is left unset on each command (greenfield: one path only).
 
-#### D.3 Update `cli/domains/notes/handlers_test.go`
+#### D.3 Update `path:cli/domains/notes/handlers_test.go`
 
 Existing tests construct `*handlers` and call `h.list(args)` directly with raw `[]string`. Update them to either:
 - Build a `RunContext` directly via a cli-core test helper (preferred), OR
@@ -609,9 +609,9 @@ Existing tests construct `*handlers` and call `h.list(args)` directly with raw `
 
 The captured-request and rendered-stdout assertions (`require.Contains(t, out, "Found 2 note(s).")`, etc.) are unchanged in intent. Update the call site only.
 
-If cli-core's test infrastructure doesn't expose a `NewTestRunContext` helper, add one in `packages/cli-core/cliapp/runcontext.go` (under a `// Exported for tests in scenarios that use this package` comment) — this is part of Phase C scope; pull it forward if Phase D discovers the gap.
+If cli-core's test infrastructure doesn't expose a `NewTestRunContext` helper, add one in `path:packages/cli-core/cliapp/runcontext.go` (under a `// Exported for tests in scenarios that use this package` comment) — this is part of Phase C scope; pull it forward if Phase D discovers the gap.
 
-#### D.4 Rewrite `ui/src/lib/api.ts`
+#### D.4 Rewrite `path:ui/src/lib/api.ts`
 
 Add `ApiError` (moved from notes.ts), `decodeApiError` (moved from notes.ts), and `protoFetch`:
 
@@ -656,20 +656,20 @@ export async function fetchHealth(): Promise<HealthResponse> {
 
 Type details (`GenSchema`, `Partial<Req>`) match `@bufbuild/protobuf`'s generated-schema typing; the agent should verify against the actual generated `.pb.ts` types and adjust the generic constraints. The shape above is illustrative.
 
-#### D.5 Rewrite `ui/src/lib/notes.ts`
+#### D.5 Rewrite `path:ui/src/lib/notes.ts`
 
 Each function becomes a `protoFetch` call plus the missing-field guard. ApiError is re-imported from `./api` (single source of truth). Re-export `ApiError` from notes.ts so existing callers in `features/notes/` don't break.
 
 #### D.6 Update tests
 
-- `ui/src/lib/api.test.ts` — add coverage for `protoFetch` (success path, 4xx with envelope, 4xx without envelope, missing required schema field). The existing `fetchHealth` tests should still pass.
-- `ui/src/lib/notes.test.ts` — assertions unchanged. If they `vi.mock` `lib/api`, the mock surface gains `protoFetch`.
+- `path:ui/src/lib/api.test.ts` — add coverage for `protoFetch` (success path, 4xx with envelope, 4xx without envelope, missing required schema field). The existing `fetchHealth` tests should still pass.
+- `path:ui/src/lib/notes.test.ts` — assertions unchanged. If they `vi.mock` `lib/api`, the mock surface gains `protoFetch`.
 
 #### D.7 Update template docs
 
-- `docs/internal/REPLACING-NOTES.md` — step 5 ("CLI domain") replaced with the new declarative shape. Step 8 (UI) references `protoFetch`.
-- `docs/internal/SEAMS.md` — new row under UI: `lib/api.ts::protoFetch` — substrate seam, no production-vs-test split since it's a thin fetch wrapper.
-- `docs/concepts/ARCHITECTURE.md` — "CLI thin-wrapper, domain-organized" subsection gains a paragraph about the declarative arg-schema; "UI feature-shaped" subsection notes that lib/ files use `protoFetch` for proto-typed I/O.
+- `path:docs/internal/REPLACING-NOTES.md` — step 5 ("CLI domain") replaced with the new declarative shape. Step 8 (UI) references `protoFetch`.
+- `path:docs/internal/SEAMS.md` — new row under UI: `lib/api.ts::protoFetch` — substrate seam, no production-vs-test split since it's a thin fetch wrapper.
+- `path:docs/concepts/ARCHITECTURE.md` — "CLI thin-wrapper, domain-organized" subsection gains a paragraph about the declarative arg-schema; "UI feature-shaped" subsection notes that lib/ files use `protoFetch` for proto-typed I/O.
 
 #### D.8 Phase D validation
 
@@ -745,7 +745,7 @@ If the user prefers the untracked alternative, the only mechanical difference is
 
 ### 9.7 The template ships only the new path; old generated scenarios catch up per-scenario
 
-Greenfield rule. The template's `cli/domains/notes/handlers.go` post-iteration uses `RunCtx`; agents who regenerate from the new template get the new shape. Existing generated scenarios that still use `Run` keep working (cli-core supports both); they migrate when next touched.
+Greenfield rule. The template's `path:cli/domains/notes/handlers.go` post-iteration uses `RunCtx`; agents who regenerate from the new template get the new shape. Existing generated scenarios that still use `Run` keep working (cli-core supports both); they migrate when next touched.
 
 ---
 
@@ -753,7 +753,7 @@ Greenfield rule. The template's `cli/domains/notes/handlers.go` post-iteration u
 
 ### 10.1 cli-core unit tests (Phase C)
 
-Per §C.1–C.7. All in `packages/cli-core/cliapp/*_test.go`. Style: match adjacent files (stdlib + testify mixed).
+Per §C.1–C.7. All in `path:packages/cli-core/cliapp/*_test.go`. Style: match adjacent files (stdlib + testify mixed).
 
 Coverage targets:
 - `argschema.go`: 100% — small surface, all branches reachable.
@@ -765,9 +765,9 @@ Coverage targets:
 
 ### 10.2 Template unit/integration tests (Phase D)
 
-- `cli/domains/notes/handlers_test.go` — same 8 tests; updated entry point.
-- `ui/src/lib/api.test.ts` — gains `protoFetch` coverage.
-- `ui/src/lib/notes.test.ts` — entry-point updates only.
+- `path:cli/domains/notes/handlers_test.go` — same 8 tests; updated entry point.
+- `path:ui/src/lib/api.test.ts` — gains `protoFetch` coverage.
+- `path:ui/src/lib/notes.test.ts` — entry-point updates only.
 
 Coverage holds prior gates: API ≥ 75%, UI ≥ 85%.
 
@@ -856,12 +856,12 @@ Every step must succeed first try.
   - [ ] `go test ./packages/cli-core/...` green; no regressions.
   - [ ] Coverage targets per §10.1 met.
 - [ ] **Phase D — template refactor**:
-  - [ ] `cli/domains/notes/handlers.go` ≤ 90 lines; `apiError`/`decodeEnvelope` deleted.
-  - [ ] `cli/domains/notes/register.go` declares `Args` per command and uses `RunCtx`.
-  - [ ] `cli/domains/notes/handlers_test.go` updated; existing 8 tests pass.
-  - [ ] `ui/src/lib/api.ts` exports `protoFetch`, `ApiError`, `decodeApiError`; `fetchHealth` rewritten on top.
-  - [ ] `ui/src/lib/notes.ts` ≤ 60 lines; `ApiError`/`decodeApiError` deleted from this file (re-export still allowed).
-  - [ ] `docs/internal/REPLACING-NOTES.md` step 5 updated; `docs/internal/SEAMS.md` row added; `docs/concepts/ARCHITECTURE.md` updated.
+  - [ ] `path:cli/domains/notes/handlers.go` ≤ 90 lines; `apiError`/`decodeEnvelope` deleted.
+  - [ ] `path:cli/domains/notes/register.go` declares `Args` per command and uses `RunCtx`.
+  - [ ] `path:cli/domains/notes/handlers_test.go` updated; existing 8 tests pass.
+  - [ ] `path:ui/src/lib/api.ts` exports `protoFetch`, `ApiError`, `decodeApiError`; `fetchHealth` rewritten on top.
+  - [ ] `path:ui/src/lib/notes.ts` ≤ 60 lines; `ApiError`/`decodeApiError` deleted from this file (re-export still allowed).
+  - [ ] `path:docs/internal/REPLACING-NOTES.md` step 5 updated; `path:docs/internal/SEAMS.md` row added; `path:docs/concepts/ARCHITECTURE.md` updated.
   - [ ] All template tests green; coverage gates hold.
 - [ ] **Phase E — re-measurement**:
   - [ ] All 6 scenarios run against the post-substrate template.
@@ -914,8 +914,8 @@ The plan is done when **all** of the following are true:
 2. **End-to-end gate (§10.4) passes** on a throwaway-generated scenario with zero residue after cleanup.
 3. **The harness exists and is discoverable.** `BASELINE.md` and `RESULTS.md` are populated; `HYPOTHESIS.md` is graded; `ITERATION_2_PROPOSAL.md` is written.
 4. **The greenfield self-audit (§7.5) passes.** No legacy/compat markers in the template; only additions in cli-core.
-5. **`git diff` of `templates/scenarios/react-vite/cli/domains/notes/handlers.go`** shows the file shrinking from 178 lines to ≤ 90 lines, with `apiError` and `decodeEnvelope` deleted.
-6. **`git diff` of `templates/scenarios/react-vite/ui/src/lib/notes.ts`** shows the file shrinking from 142 lines to ≤ 60 lines, with `class ApiError` and `async function decodeApiError` deleted (now in `lib/api.ts`).
+5. **`git diff` of `path:templates/scenarios/react-vite/cli/domains/notes/handlers.go`** shows the file shrinking from 178 lines to ≤ 90 lines, with `apiError` and `decodeEnvelope` deleted.
+6. **`git diff` of `path:templates/scenarios/react-vite/ui/src/lib/notes.ts`** shows the file shrinking from 142 lines to ≤ 60 lines, with `class ApiError` and `async function decodeApiError` deleted (now in `lib/api.ts`).
 7. **All test gates green.** cli-core suite + template (api/cli/ui) suites + end-to-end gate.
 8. **The plan's "Deviations during execution" section (§15) is populated** (with `(none)` if there were truly none — explicit so iteration 2's agent doesn't wonder).
 
@@ -965,36 +965,36 @@ For Phase D (template), the files modified:
 
 | Path | Change |
 |---|---|
-| `templates/scenarios/react-vite/cli/domains/notes/handlers.go` | Rewrite |
-| `templates/scenarios/react-vite/cli/domains/notes/register.go` | Rewrite |
-| `templates/scenarios/react-vite/cli/domains/notes/handlers_test.go` | Update test entry points |
-| `templates/scenarios/react-vite/ui/src/lib/api.ts` | Rewrite (grow) |
-| `templates/scenarios/react-vite/ui/src/lib/notes.ts` | Rewrite (shrink) |
-| `templates/scenarios/react-vite/ui/src/lib/api.test.ts` | Add protoFetch coverage |
-| `templates/scenarios/react-vite/ui/src/lib/notes.test.ts` | Update entry points |
-| `templates/scenarios/react-vite/docs/internal/REPLACING-NOTES.md` | Update step 5 |
-| `templates/scenarios/react-vite/docs/internal/SEAMS.md` | Add `protoFetch` row |
-| `templates/scenarios/react-vite/docs/concepts/ARCHITECTURE.md` | Update CLI subsection |
+| `path:templates/scenarios/react-vite/cli/domains/notes/handlers.go` | Rewrite |
+| `path:templates/scenarios/react-vite/cli/domains/notes/register.go` | Rewrite |
+| `path:templates/scenarios/react-vite/cli/domains/notes/handlers_test.go` | Update test entry points |
+| `path:templates/scenarios/react-vite/ui/src/lib/api.ts` | Rewrite (grow) |
+| `path:templates/scenarios/react-vite/ui/src/lib/notes.ts` | Rewrite (shrink) |
+| `path:templates/scenarios/react-vite/ui/src/lib/api.test.ts` | Add protoFetch coverage |
+| `path:templates/scenarios/react-vite/ui/src/lib/notes.test.ts` | Update entry points |
+| `path:templates/scenarios/react-vite/docs/internal/REPLACING-NOTES.md` | Update step 5 |
+| `path:templates/scenarios/react-vite/docs/internal/SEAMS.md` | Add `protoFetch` row |
+| `path:templates/scenarios/react-vite/docs/concepts/ARCHITECTURE.md` | Update CLI subsection |
 
 For Phase C (cli-core), the files added:
 
 | Path | Change |
 |---|---|
-| `packages/cli-core/cliapp/argschema.go` | New |
-| `packages/cli-core/cliapp/argschema_test.go` | New |
-| `packages/cli-core/cliapp/runcontext.go` | New |
-| `packages/cli-core/cliapp/runcontext_test.go` | New |
-| `packages/cli-core/cliapp/parser.go` | New |
-| `packages/cli-core/cliapp/parser_test.go` | New |
-| `packages/cli-core/cliapp/helpgen.go` | New |
-| `packages/cli-core/cliapp/helpgen_test.go` | New |
-| `packages/cli-core/cliapp/helpgen_testdata/` | New (golden files) |
-| `packages/cli-core/cliapp/call.go` | New |
-| `packages/cli-core/cliapp/call_test.go` | New |
-| `packages/cli-core/cliapp/envelope.go` | New |
-| `packages/cli-core/cliapp/envelope_test.go` | New |
-| `packages/cli-core/cliapp/app.go` | Edit: add `Args`, `RunCtx`, `LongDescription` to `Command` struct |
-| `packages/cli-core/cliapp/dispatcher.go` (or wherever Run dispatch lives) | Edit: route on `Args`/`RunCtx` presence |
+| `path:packages/cli-core/cliapp/argschema.go` | New |
+| `path:packages/cli-core/cliapp/argschema_test.go` | New |
+| `path:packages/cli-core/cliapp/runcontext.go` | New |
+| `path:packages/cli-core/cliapp/runcontext_test.go` | New |
+| `path:packages/cli-core/cliapp/parser.go` | New |
+| `path:packages/cli-core/cliapp/parser_test.go` | New |
+| `path:packages/cli-core/cliapp/helpgen.go` | New |
+| `path:packages/cli-core/cliapp/helpgen_test.go` | New |
+| `path:packages/cli-core/cliapp/helpgen_testdata/` | New (golden files) |
+| `path:packages/cli-core/cliapp/call.go` | New |
+| `path:packages/cli-core/cliapp/call_test.go` | New |
+| `path:packages/cli-core/cliapp/envelope.go` | New |
+| `path:packages/cli-core/cliapp/envelope_test.go` | New |
+| `path:packages/cli-core/cliapp/app.go` | Edit: add `Args`, `RunCtx`, `LongDescription` to `Command` struct |
+| `path:packages/cli-core/cliapp/dispatcher.go` (or wherever Run dispatch lives) | Edit: route on `Args`/`RunCtx` presence |
 
 For Phase A (harness), the files added at the location chosen in §6.4:
 

@@ -1,7 +1,7 @@
 # Agent Sandbox — Completion + Protected Mode Implementation Plan
 
 > Generated: 2026-04-27. Successor to
-> `docs/plans/agent-sandbox-audit-cutover-implementation-plan.md` (Phases 3a/3b/4
+> `path:docs/plans/agent-sandbox-audit-cutover-implementation-plan.md` (Phases 3a/3b/4
 > complete) and gates the rollout (`agent-sandbox-validation-matrix-readiness.md`).
 > This plan finishes everything the two locked initiatives still need —
 > `agent-sandbox-audit-foundation` (3 of 10 items pending) **and**
@@ -97,7 +97,7 @@ the data-layer follow-throughs were intentionally deferred:
 
 | # | Pending item | Concrete gap |
 |---|---|---|
-| 1 | `agent-manager-default-sandboxing-rollout` | UI `QuickRunDialog` defaults `runMode = RunMode.IN_PLACE` (`scenarios/agent-manager/ui/src/components/QuickRunDialog.tsx:167,227`); `useTasksRunDialogState` defaults `SANDBOXED`. No adoption metric. No "non-sandboxed escape hatch is intentional, not accidental" copy. swarm-manager queue spawn (`scenarios/swarm-manager/api/internal/agentmanager/service.go:271-281`) never sets `RunMode` — relies on agent-manager's `valueOrDefault(req.RunMode, RunModeSandboxed)` default at `service.go:1044,1063`. That default is correct, but it's silent — there's no "intentional in-place" distinction. |
+| 1 | `agent-manager-default-sandboxing-rollout` | UI `QuickRunDialog` defaults `runMode = RunMode.IN_PLACE` (`path:scenarios/agent-manager/ui/src/components/QuickRunDialog.tsx:167,227`); `useTasksRunDialogState` defaults `SANDBOXED`. No adoption metric. No "non-sandboxed escape hatch is intentional, not accidental" copy. swarm-manager queue spawn (`path:scenarios/swarm-manager/api/internal/agentmanager/service.go:271-281`) never sets `RunMode` — relies on agent-manager's `valueOrDefault(req.RunMode, RunModeSandboxed)` default at `service.go:1044,1063`. That default is correct, but it's silent — there's no "intentional in-place" distinction. |
 | 2 | `sandbox-provenance-schema-version-shared-package` | Contract fields `runOutcome`, `state`, `conversationId`, `costUsd` round-trip on the wire (Phase 3b), but workspace-sandbox does NOT persist them. Provenance readers see empty values. Decision 3 in the contract names a shared schema-version package; it doesn't exist yet. |
 | 3 | `agent-manager-spawn-surface-conversation-id-population` | `Run.ConversationID` / `Run.ParentRunID` are populated only by the inheritance fallback. swarm-manager queue, web-console, cron, direct-CLI never set them explicitly. Item description also calls for "DB read-time normalization for legacy persisted runs that still carry `Acceptance.AutoApprove==true` / `RequiresApproval`" — under the greenfield constraint, that requirement is **inverted**: drop the column and any persisted legacy values via migration; do not normalize. |
 
@@ -107,29 +107,29 @@ Code scan (2026-04-27) shows:
 
 | Site | Status | Disposition |
 |---|---|---|
-| `scenarios/agent-manager/api/internal/policy/interface.go:89-90` `Decision.RequiresApproval` | Returned by Evaluator but never consumed (not on `Run`, not on `RunConfig`, not on `Decision` callers' apply paths) | **Delete the field**. Update `policy.Decision`, `policy/interface_test.go`, and any constructor that sets it. |
-| `scenarios/agent-manager/api/internal/database/repository.go:94,109-115,170-173,214,227,230,301` | DB still has `requires_approval` column; read-time shim sets `manualReview=true` if true; writes always set `false` | **Drop the column** via migration; remove the shim and all references. |
-| `scenarios/agent-manager/api/internal/database/schema.sql:24` `requires_approval INTEGER DEFAULT 1` | Schema source-of-truth still defines it | Remove from `schema.sql`; the migration in `connection.go` does the production drop. |
-| `scenarios/agent-manager/api/internal/database/connection.go` | No `ensureProfileRequiresApprovalDrop` migration exists yet | Add one (idempotent `ALTER TABLE … DROP COLUMN IF EXISTS`). |
-| `scenarios/agent-manager/api/internal/domain/types.go:53,690,1379` | `// RequiresApproval was removed in agent-sandbox-audit-foundation Phase 3b.` comments + `InPlaceRequiresApproval *bool` field on `RunConfigOverrides` (line 1379) | Comments: delete. The `InPlaceRequiresApproval` override field: investigate — if not consumed, delete; if consumed, rename to `InPlaceManualReview`. |
-| `scenarios/agent-manager/api/internal/domain/types_test.go:220` | Test comment references removed field | Delete the comment; verify the test still asserts the right behavior. |
-| `scenarios/agent-manager/api/internal/orchestration/{service.go:230, investigation.go:1349, run_executor_test.go:1833, sandbox_config_test.go:3-4}` | Comment trails | Delete. |
-| `scenarios/agent-manager/api/internal/handlers/handlers.go:1366` | Comment trail | Delete. |
-| `scenarios/agent-manager/ui/src/{types.ts:112,146; hooks/useApi.ts:314,389; pages/ProfilesPage.tsx:656; pages/TasksPage.tsx:1191}` | Comment trails | Delete. |
-| `scenarios/ecosystem-manager/api/pkg/agentmanager/service.go:372` and `scenarios/app-issue-tracker/api/internal/agentmanager/service.go:216` | Comment trails | Delete. |
-| `scenarios/agent-manager/api/internal/orchestration/sandbox_config_test.go` (entire file header comment) | Refers to "retired" fields | Either delete the file (if tests duplicate `auto_approval_test.go`) or replace the header with the live test purpose. |
-| `scenarios/swarm-manager/api/internal/settings/adapters.go:17` `LoadAgentSettings(...) (... requiresApproval bool ...)` and `scenarios/swarm-manager/cli/cmd_settings.go:39,72`, `scenarios/swarm-manager/ui/src/{services/settings-service.ts:45,80,129; services/proto/settings-contracts.ts:58; types/settings.ts:52; components/settings/ExecutionTab.tsx:177,209,214}` | swarm-manager exposes a global `agentRequiresApproval` setting that no longer maps to anything in agent-manager (the run-level field was deleted) | **Delete the setting end-to-end** (CLI, API, UI, proto, store) OR — if user wants a global "always set ManualReview=true on spawned runs" toggle — rename to `agentManualReview` and wire it through `AgentService.{SpawnResearch,SpawnBacklog,SpawnInitiative}` to populate `SandboxConfig.ManualReview` on the `CreateRunRequest`. **Default to delete** under the wrap-not-use principle: per-profile `SandboxConfig.ManualReview` is the right grain. |
+| `path:scenarios/agent-manager/api/internal/policy/interface.go:89-90` `Decision.RequiresApproval` | Returned by Evaluator but never consumed (not on `Run`, not on `RunConfig`, not on `Decision` callers' apply paths) | **Delete the field**. Update `policy.Decision`, `policy/interface_test.go`, and any constructor that sets it. |
+| `path:scenarios/agent-manager/api/internal/database/repository.go:94,109-115,170-173,214,227,230,301` | DB still has `requires_approval` column; read-time shim sets `manualReview=true` if true; writes always set `false` | **Drop the column** via migration; remove the shim and all references. |
+| `path:scenarios/agent-manager/api/internal/database/schema.sql:24` `requires_approval INTEGER DEFAULT 1` | Schema source-of-truth still defines it | Remove from `schema.sql`; the migration in `connection.go` does the production drop. |
+| `path:scenarios/agent-manager/api/internal/database/connection.go` | No `ensureProfileRequiresApprovalDrop` migration exists yet | Add one (idempotent `ALTER TABLE … DROP COLUMN IF EXISTS`). |
+| `path:scenarios/agent-manager/api/internal/domain/types.go:53,690,1379` | `// RequiresApproval was removed in agent-sandbox-audit-foundation Phase 3b.` comments + `InPlaceRequiresApproval *bool` field on `RunConfigOverrides` (line 1379) | Comments: delete. The `InPlaceRequiresApproval` override field: investigate — if not consumed, delete; if consumed, rename to `InPlaceManualReview`. |
+| `path:scenarios/agent-manager/api/internal/domain/types_test.go:220` | Test comment references removed field | Delete the comment; verify the test still asserts the right behavior. |
+| `path:scenarios/agent-manager/api/internal/orchestration/{service.go:230, investigation.go:1349, run_executor_test.go:1833, sandbox_config_test.go:3-4}` | Comment trails | Delete. |
+| `path:scenarios/agent-manager/api/internal/handlers/handlers.go:1366` | Comment trail | Delete. |
+| `path:scenarios/agent-manager/ui/src/{types.ts:112,146; hooks/useApi.ts:314,389; pages/ProfilesPage.tsx:656; pages/TasksPage.tsx:1191}` | Comment trails | Delete. |
+| `path:scenarios/ecosystem-manager/api/pkg/agentmanager/service.go:372` and `path:scenarios/app-issue-tracker/api/internal/agentmanager/service.go:216` | Comment trails | Delete. |
+| `path:scenarios/agent-manager/api/internal/orchestration/sandbox_config_test.go` (entire file header comment) | Refers to "retired" fields | Either delete the file (if tests duplicate `auto_approval_test.go`) or replace the header with the live test purpose. |
+| `path:scenarios/swarm-manager/api/internal/settings/adapters.go:17` `LoadAgentSettings(...) (... requiresApproval bool ...)` and `path:scenarios/swarm-manager/cli/cmd_settings.go:39,72`, `path:scenarios/swarm-manager/ui/src/{services/settings-service.ts:45,80,129; services/proto/settings-contracts.ts:58; types/settings.ts:52; components/settings/ExecutionTab.tsx:177,209,214}` | swarm-manager exposes a global `agentRequiresApproval` setting that no longer maps to anything in agent-manager (the run-level field was deleted) | **Delete the setting end-to-end** (CLI, API, UI, proto, store) OR — if user wants a global "always set ManualReview=true on spawned runs" toggle — rename to `agentManualReview` and wire it through `AgentService.{SpawnResearch,SpawnBacklog,SpawnInitiative}` to populate `SandboxConfig.ManualReview` on the `CreateRunRequest`. **Default to delete** under the wrap-not-use principle: per-profile `SandboxConfig.ManualReview` is the right grain. |
 
 ### 4.3 Workspace-sandbox — legacy code still in the tree
 
 | Site | Status | Disposition |
 |---|---|---|
-| `scenarios/workspace-sandbox/api/internal/types/types.go:128-136` `AcceptanceConfig.AutoApprove`, `AutoReject` | Set in JSON, never read by `apply-at-run-end` or any other handler | **Delete both fields**. Verify no callers (search shows zero non-test callers). |
-| `scenarios/workspace-sandbox/api/internal/policy/{policy.go,approval.go,policy_test.go}` `ApprovalPolicy` interface + `DefaultApprovalPolicy` + `RequireHumanApprovalPolicy` + `CanAutoApprove` | Interface and impls only have callers inside the policy package (tests) | **Delete the interface and both impls** along with their tests. The new contract makes the agent-manager-driven `apply-at-run-end` the single decision point; sandbox-side approval policy is dead. |
-| `scenarios/workspace-sandbox/api/internal/config/config.go:188-198,435-436,523-524` `AutoApproveThresholdFiles/Lines` + env var wiring | No production caller after the policy interface is removed | **Delete the config fields, defaults, and `WORKSPACE_SANDBOX_AUTO_APPROVE_*` env vars.** |
-| `scenarios/workspace-sandbox/api/internal/logging/logging_test.go:386,400` `PolicyValidation("auto_approve", …)` test labels | Tests for `Logger.PolicyValidation` use `"auto_approve"` as a string label | If the policy code is removed and `PolicyValidation` has no remaining production callers using that label, switch the label to a still-used policy event (e.g. `"acceptance_deny"` or `"manual_review_ttl"`) so the test mirrors a real call site. |
-| `scenarios/workspace-sandbox/api/internal/sandbox/manual_review_ttl_test.go` (5 sites) | gofumpt formatting violations introduced by Phase 4 | `gofumpt -w` |
-| `scenarios/workspace-sandbox/api/internal/types/{types.go:279,281, auditability_contract_test.go:43}` | gofumpt formatting | `gofumpt -w` |
+| `path:scenarios/workspace-sandbox/api/internal/types/types.go:128-136` `AcceptanceConfig.AutoApprove`, `AutoReject` | Set in JSON, never read by `apply-at-run-end` or any other handler | **Delete both fields**. Verify no callers (search shows zero non-test callers). |
+| `path:scenarios/workspace-sandbox/api/internal/policy/{policy.go,approval.go,policy_test.go}` `ApprovalPolicy` interface + `DefaultApprovalPolicy` + `RequireHumanApprovalPolicy` + `CanAutoApprove` | Interface and impls only have callers inside the policy package (tests) | **Delete the interface and both impls** along with their tests. The new contract makes the agent-manager-driven `apply-at-run-end` the single decision point; sandbox-side approval policy is dead. |
+| `path:scenarios/workspace-sandbox/api/internal/config/config.go:188-198,435-436,523-524` `AutoApproveThresholdFiles/Lines` + env var wiring | No production caller after the policy interface is removed | **Delete the config fields, defaults, and `WORKSPACE_SANDBOX_AUTO_APPROVE_*` env vars.** |
+| `path:scenarios/workspace-sandbox/api/internal/logging/logging_test.go:386,400` `PolicyValidation("auto_approve", …)` test labels | Tests for `Logger.PolicyValidation` use `"auto_approve"` as a string label | If the policy code is removed and `PolicyValidation` has no remaining production callers using that label, switch the label to a still-used policy event (e.g. `"acceptance_deny"` or `"manual_review_ttl"`) so the test mirrors a real call site. |
+| `path:scenarios/workspace-sandbox/api/internal/sandbox/manual_review_ttl_test.go` (5 sites) | gofumpt formatting violations introduced by Phase 4 | `gofumpt -w` |
+| `path:scenarios/workspace-sandbox/api/internal/types/{types.go:279,281, auditability_contract_test.go:43}` | gofumpt formatting | `gofumpt -w` |
 
 ### 4.4 Lint / format issues
 
@@ -158,12 +158,12 @@ inside the merged overlay. Current state:
 
 | Surface | Current implementation | Gap |
 |---|---|---|
-| `scenarios/agent-manager/api/internal/adapters/runner/claude_code.go` | Spawns `claude` directly on the host with `cmd.Dir = sandbox.MergedPath` and host env injection | Must dispatch through `workspace-sandbox` `/exec` (sync) or `/processes` (async with streaming) when `SandboxConfig.Mode == SandboxModeProtected`. |
-| `scenarios/agent-manager/api/internal/adapters/runner/codex_runner.go` | Same shape; also branches on `cfg.NetworkAccess.Effective()` to compute Codex `--full-auto` flags | Network-mode flag handling stays, but launch path forks on `Mode`. Codex `--full-auto` is the *current* enforcement mechanism for `none`; it remains for tracking mode (per memory). |
-| `scenarios/agent-manager/api/internal/adapters/runner/opencode_runner.go` | Direct host launch | Same. |
-| `scenarios/workspace-sandbox/api/internal/handlers/{process.go,interactive.go}` | Already implements `/processes` async and `/interactive` PTY-over-WebSocket | No change required; this is the seam. |
-| `scenarios/workspace-sandbox/api/internal/driver/bwrap.go:480-497` | Switches `NetworkAccess` "none"/"localhost"/"full" via bwrap network namespace flags | Already supports the three modes. |
-| `scenarios/agent-manager/api/internal/adapters/sandbox/interface.go` | Provider has `ApplyAtRunEnd`, `Create`, etc., but no `ExecProcess` / `LaunchInteractive` | Add provider methods that proxy to workspace-sandbox `/processes` and `/interactive`. |
+| `path:scenarios/agent-manager/api/internal/adapters/runner/claude_code.go` | Spawns `claude` directly on the host with `cmd.Dir = sandbox.MergedPath` and host env injection | Must dispatch through `workspace-sandbox` `/exec` (sync) or `/processes` (async with streaming) when `SandboxConfig.Mode == SandboxModeProtected`. |
+| `path:scenarios/agent-manager/api/internal/adapters/runner/codex_runner.go` | Same shape; also branches on `cfg.NetworkAccess.Effective()` to compute Codex `--full-auto` flags | Network-mode flag handling stays, but launch path forks on `Mode`. Codex `--full-auto` is the *current* enforcement mechanism for `none`; it remains for tracking mode (per memory). |
+| `path:scenarios/agent-manager/api/internal/adapters/runner/opencode_runner.go` | Direct host launch | Same. |
+| `path:scenarios/workspace-sandbox/api/internal/handlers/{process.go,interactive.go}` | Already implements `/processes` async and `/interactive` PTY-over-WebSocket | No change required; this is the seam. |
+| `path:scenarios/workspace-sandbox/api/internal/driver/bwrap.go:480-497` | Switches `NetworkAccess` "none"/"localhost"/"full" via bwrap network namespace flags | Already supports the three modes. |
+| `path:scenarios/agent-manager/api/internal/adapters/sandbox/interface.go` | Provider has `ApplyAtRunEnd`, `Create`, etc., but no `ExecProcess` / `LaunchInteractive` | Add provider methods that proxy to workspace-sandbox `/processes` and `/interactive`. |
 
 For `execute/protected-sandbox-git-and-network-guardrails`:
 
@@ -177,7 +177,7 @@ For `fix/protected-sandbox-policy-enforcement-surface`:
 
 | Surface | Current implementation | Gap |
 |---|---|---|
-| `scenarios/agent-manager/api/internal/policy/**` `Decision.RequiresApproval`, `Decision.RequiresSandbox`, `Decision.AllowedPaths` (et al.) | Decision struct returns `RequiresApproval` (now dead), `RequiresSandbox`, `EffectiveTimeout`, `EffectiveMaxFiles`, `EffectiveMaxSize` | Decision: which controls become **real protected-mode enforcement** vs. **deleted as misleading**. Locked stance from the backlog item: enforce path/resource boundaries at the sandbox layer; remove anything the runtime cannot enforce. |
+| `path:scenarios/agent-manager/api/internal/policy/**` `Decision.RequiresApproval`, `Decision.RequiresSandbox`, `Decision.AllowedPaths` (et al.) | Decision struct returns `RequiresApproval` (now dead), `RequiresSandbox`, `EffectiveTimeout`, `EffectiveMaxFiles`, `EffectiveMaxSize` | Decision: which controls become **real protected-mode enforcement** vs. **deleted as misleading**. Locked stance from the backlog item: enforce path/resource boundaries at the sandbox layer; remove anything the runtime cannot enforce. |
 | `policy.Evaluator` interface | Stub-quality — `RequiresApproval` is dead-on-arrival now | Slim the interface to only what runners + sandbox enforce; document the seam. |
 | `Profile.AllowedPaths` / `DeniedPaths` | Stored in DB and `Profile`, passed to runners as advisory env (not enforced) | In protected mode, push these to workspace-sandbox `Behavior.AcceptanceAllow/Deny` (already enforced in apply-at-run-end) and bwrap mount filters where applicable. |
 
@@ -207,7 +207,7 @@ These two initiatives must land in this plan together because:
 - Persistence migration for `runOutcome` / `state` / `conversationId` / `costUsd`
   on workspace-sandbox provenance and the `requires_approval` column drop on
   agent-manager.
-- A shared schema-version package (`packages/sandbox-provenance`) consumed by
+- A shared schema-version package (`path:packages/sandbox-provenance`) consumed by
   both workspace-sandbox and the GCT pending-AI hardening initiative.
 - Adoption metrics on the agent-manager `/metrics` endpoint and a swarm-manager
   `swarm-manager stats sandbox-adoption` CLI subcommand.
@@ -221,7 +221,7 @@ These two initiatives must land in this plan together because:
 - Cron-driven and direct-CLI spawn-surface flips — explicitly deferred per the
   default-rollout backlog item description (Phase D handles UI + swarm-manager
   queue only).
-- Tool-level `inbox.ToolMeta.RequiresApproval` (`packages/proto/schemas/agent-inbox/v1/domain/tool.proto:152`)
+- Tool-level `inbox.ToolMeta.RequiresApproval` (`path:packages/proto/schemas/agent-inbox/v1/domain/tool.proto:152`)
   — different concept, governs per-tool human-in-the-loop, **not** a legacy of
   this initiative. Untouched.
 
@@ -296,14 +296,14 @@ When this plan is complete:
 1. `swarm-manager initiatives get --name agent-sandbox-audit-foundation` reports
    10/10 completed; `--name protected-agent-sandboxing` reports 3/3 completed.
 2. `git grep -n 'RequiresApproval\|AutoApprove\|AutoReject\|DisableAutoApproveIfEmpty'`
-   inside `scenarios/agent-manager`, `scenarios/workspace-sandbox`,
-   `scenarios/swarm-manager`, `scenarios/ecosystem-manager`,
-   `scenarios/app-issue-tracker`, `scenarios/scenario-auditor`,
-   `scenarios/test-genie` returns **only**:
+   inside `path:scenarios/agent-manager`, `path:scenarios/workspace-sandbox`,
+   `path:scenarios/swarm-manager`, `path:scenarios/ecosystem-manager`,
+   `path:scenarios/app-issue-tracker`, `path:scenarios/scenario-auditor`,
+   `path:scenarios/test-genie` returns **only**:
    - per-tool `inbox.ToolMeta.RequiresApproval` references in `toolregistry/`
      directories (legitimate, different concern), AND
-   - `reserved` markers in `packages/proto/schemas/agent-manager/`.
-3. `scenarios/agent-manager/api/internal/database/schema.sql` no longer has the
+   - `reserved` markers in `path:packages/proto/schemas/agent-manager/`.
+3. `path:scenarios/agent-manager/api/internal/database/schema.sql` no longer has the
    `requires_approval` column; production DBs have it dropped via migration
    added to `connection.go`.
 4. `golangci-lint run ./...` is clean on agent-manager and workspace-sandbox.
@@ -316,7 +316,7 @@ When this plan is complete:
    explicitly populates `ConversationID` and `ParentRunID` on every
    `CreateRunRequest`; agent-manager no longer has to fall back to inheritance.
 8. workspace-sandbox persists `runOutcome`, `state`, `conversationId`,
-   `costUsd` on provenance records via the `packages/sandbox-provenance`
+   `costUsd` on provenance records via the `path:packages/sandbox-provenance`
    schema-version package; readers (web-console + GCT) see populated fields.
 9. Protected mode is real:
    - `SandboxConfig.Mode == SandboxModeProtected` causes runners to launch
@@ -332,7 +332,7 @@ When this plan is complete:
     `agent_manager_runs_total{run_mode,sandbox_mode,manual_review}` and
     `agent_manager_runs_with_provenance_total`. swarm-manager `stats` exposes
     them via `swarm-manager stats sandbox-adoption`.
-11. `docs/plans/agent-sandbox-validation-matrix-readiness.md` is updated to
+11. `path:docs/plans/agent-sandbox-validation-matrix-readiness.md` is updated to
     mark all 9 contract behaviors ✅ (the 3 🟡 integration tests land in
     Phase D); rollout flip is recorded as completed.
 
@@ -351,63 +351,63 @@ Goal: delete all dead/legacy/comment-trail surfaces enumerated in §§4.2-4.3
 in one atomic landing so the codebase is clean before the rollout flip.
 
 A1. **Delete `policy.Decision.RequiresApproval` and all callers.**
-- `scenarios/agent-manager/api/internal/policy/interface.go:89-90` — remove
+- `path:scenarios/agent-manager/api/internal/policy/interface.go:89-90` — remove
   the field.
-- `scenarios/agent-manager/api/internal/policy/interface_test.go:28,41` —
+- `path:scenarios/agent-manager/api/internal/policy/interface_test.go:28,41` —
   remove the assertion.
 - `git grep` shows no other consumers (verify before merging).
 
 A2. **Drop the `requires_approval` DB column.**
 - Add `ensureProfileRequiresApprovalDropped(ctx)` to
-  `scenarios/agent-manager/api/internal/database/connection.go` (idempotent
+  `path:scenarios/agent-manager/api/internal/database/connection.go` (idempotent
   `ALTER TABLE agent_profiles DROP COLUMN IF EXISTS requires_approval`).
 - Wire it into the migration sequence after
   `ensureProfileNetworkAccessColumn`.
 - Remove `RequiresApproval` from the `profileRow` struct, the read shim
   (lines 109-115), the write defaults (lines 170-173), and all SQL strings
   (lines 214, 227, 230, 301).
-- Remove the column from `scenarios/agent-manager/api/internal/database/schema.sql:24`.
+- Remove the column from `path:scenarios/agent-manager/api/internal/database/schema.sql:24`.
 
 A3. **Delete the `// removed in Phase 3b` comment trails.**
 - Files in §4.2 row 4 and rows 5-9 + UI rows. Comment-only deletes; the
   removed-field statement is implicit once the field is gone.
 
 A4. **Delete `RunConfigOverrides.InPlaceRequiresApproval`** at
-`scenarios/agent-manager/api/internal/domain/types.go:1379` if `git grep`
+`path:scenarios/agent-manager/api/internal/domain/types.go:1379` if `git grep`
 shows zero consumers. (If there are consumers, rename to `InPlaceManualReview`
 and wire it through to `SandboxConfig.ManualReview`. Strong prior is
 **delete** — the override predates the contract.)
 
 A5. **Delete swarm-manager `agentRequiresApproval`** end-to-end:
-- `scenarios/swarm-manager/cli/cmd_settings.go:39,72`
-- `scenarios/swarm-manager/api/internal/settings/adapters.go:17` (slim the
+- `path:scenarios/swarm-manager/cli/cmd_settings.go:39,72`
+- `path:scenarios/swarm-manager/api/internal/settings/adapters.go:17` (slim the
   function signature)
-- `scenarios/swarm-manager/api/internal/settings/adapters_test.go:54`
-- `scenarios/swarm-manager/ui/src/services/settings-service.ts:45,80,129`
-- `scenarios/swarm-manager/ui/src/services/proto/settings-contracts.ts:58`
-- `scenarios/swarm-manager/ui/src/types/settings.ts:52`
-- `scenarios/swarm-manager/ui/src/components/settings/ExecutionTab.tsx:177,209,214`
+- `path:scenarios/swarm-manager/api/internal/settings/adapters_test.go:54`
+- `path:scenarios/swarm-manager/ui/src/services/settings-service.ts:45,80,129`
+- `path:scenarios/swarm-manager/ui/src/services/proto/settings-contracts.ts:58`
+- `path:scenarios/swarm-manager/ui/src/types/settings.ts:52`
+- `path:scenarios/swarm-manager/ui/src/components/settings/ExecutionTab.tsx:177,209,214`
 - Settings proto schema if the field is defined there — mark `reserved`.
 - Update any swarm-manager docs/skills that reference `agent_requires_approval`.
 
 A6. **Delete `workspace-sandbox` `AcceptanceConfig.AutoApprove`/`AutoReject`** at
-`scenarios/workspace-sandbox/api/internal/types/types.go:128-136`.
+`path:scenarios/workspace-sandbox/api/internal/types/types.go:128-136`.
 
 A7. **Delete `workspace-sandbox.policy.ApprovalPolicy` interface and impls.**
-- `scenarios/workspace-sandbox/api/internal/policy/policy.go` — remove the
+- `path:scenarios/workspace-sandbox/api/internal/policy/policy.go` — remove the
   `CanAutoApprove` line from the interface; if the interface becomes empty,
   delete the file.
-- `scenarios/workspace-sandbox/api/internal/policy/approval.go` — delete.
-- `scenarios/workspace-sandbox/api/internal/policy/policy_test.go` — delete
+- `path:scenarios/workspace-sandbox/api/internal/policy/approval.go` — delete.
+- `path:scenarios/workspace-sandbox/api/internal/policy/policy_test.go` — delete
   the `TestDefaultApprovalPolicy_CanAutoApprove`,
   `TestRequireHumanApprovalPolicy_CanAutoApprove` cases (and the helper at
   line 918) but keep tests for any policy responsibilities that survive
   (acceptance-allow/deny enforcement).
-- `scenarios/workspace-sandbox/api/internal/config/config.go:188-198,435-436,523-524`
+- `path:scenarios/workspace-sandbox/api/internal/config/config.go:188-198,435-436,523-524`
   — remove the `AutoApproveThreshold*` fields, defaults, and env-var loaders.
-- `scenarios/workspace-sandbox/api/internal/config/config_test.go:72-76` —
+- `path:scenarios/workspace-sandbox/api/internal/config/config_test.go:72-76` —
   remove asserts.
-- `scenarios/workspace-sandbox/api/internal/logging/logging_test.go:386,400`
+- `path:scenarios/workspace-sandbox/api/internal/logging/logging_test.go:386,400`
   — change the `"auto_approve"` test label to a still-live event label
   (e.g. `"acceptance_deny"` or `"manual_review_ttl"`).
 
@@ -425,25 +425,25 @@ still round-trips.
 
 Closes `execute/sandbox-provenance-schema-version-shared-package`.
 
-B1. **Create `packages/sandbox-provenance`** as a Go module + TS package:
-- `packages/sandbox-provenance/go/schema.go` exporting `SchemaVersion = "1.0.0"`,
+B1. **Create `path:packages/sandbox-provenance`** as a Go module + TS package:
+- `path:packages/sandbox-provenance/go/schema.go` exporting `SchemaVersion = "1.0.0"`,
   the four canonical field names (`runOutcome`, `state`, `conversationId`,
   `costUsd`), and a `Validate(record map[string]any) error` helper.
-- `packages/sandbox-provenance/ts/schema.ts` mirroring the constants for the
+- `path:packages/sandbox-provenance/ts/schema.ts` mirroring the constants for the
   web-console and GCT UI consumers.
-- Tag the package version 1.0.0 in `packages/sandbox-provenance/go/go.mod`
+- Tag the package version 1.0.0 in `path:packages/sandbox-provenance/go/go.mod`
   and root `package.json` workspaces.
 
 B2. **Coordinate with `gct-pending-ai-provenance-hardening`** by writing a
 short coordination note at
-`packages/sandbox-provenance/COORDINATION.md` describing the contract
+`path:packages/sandbox-provenance/COORDINATION.md` describing the contract
 (field names, types, schema version) so the GCT initiative can vendor the
 package on its own branch.
 
 B3. **Wire workspace-sandbox to persist** `runOutcome`, `state`,
 `conversationId`, `costUsd`:
 - Add columns to the provenance table (likely
-  `scenarios/workspace-sandbox/api/internal/database/schema.sql`); add an
+  `path:scenarios/workspace-sandbox/api/internal/database/schema.sql`); add an
   idempotent migration in `connection.go` style.
 - Update `apply-at-run-end` handler to write all four fields when present
   on the request body.
@@ -452,9 +452,9 @@ B3. **Wire workspace-sandbox to persist** `runOutcome`, `state`,
 - Validate against `sandbox-provenance/go/Validate` on write.
 
 B4. **Tests**:
-- Unit: `packages/sandbox-provenance/go/schema_test.go` — round-trip and
+- Unit: `path:packages/sandbox-provenance/go/schema_test.go` — round-trip and
   `Validate` rejection cases.
-- Integration: `scenarios/workspace-sandbox/api/internal/sandbox/apply_at_run_end_persistence_test.go`
+- Integration: `path:scenarios/workspace-sandbox/api/internal/sandbox/apply_at_run_end_persistence_test.go`
   — POST → DB row contains all four populated fields; subsequent GET
   surfaces them.
 
@@ -465,14 +465,14 @@ Closes `execute/agent-manager-spawn-surface-conversation-id-population`
 addressed by deleting the column).
 
 C1. **swarm-manager queue spawn** —
-`scenarios/swarm-manager/api/internal/agentmanager/service.go`:
+`path:scenarios/swarm-manager/api/internal/agentmanager/service.go`:
 - All three `runReq := &apipb.CreateRunRequest{...}` sites (lines 271, 332,
   415) must populate `ConversationId` and `ParentRunId`.
 - ConversationID source: derive from the queue item's
   `correlation_id` if set, else mint `uuid.New()`. ParentRunID:
   for re-runs, the originating run's ID; otherwise nil.
 
-C2. **agent-manager web-console spawn** — `scenarios/agent-manager/ui/src/`
+C2. **agent-manager web-console spawn** — `path:scenarios/agent-manager/ui/src/`
 hooks that POST `CreateRunRequest`:
 - `useApi.ts` and `useTasksRunDialogState.ts`: ensure
   `conversationId` and `parentRunId` are populated from a `useConversationId()`
@@ -480,17 +480,17 @@ hooks that POST `CreateRunRequest`:
 - `QuickRunDialog.tsx`: thread these through `request` payload.
 
 C3. **Cron-driven spawn** — search for `cron`-prefixed Go files in
-`scenarios/agent-manager/api/internal` (none exist as of inventory; cron is
+`path:scenarios/agent-manager/api/internal` (none exist as of inventory; cron is
 part of the swarm-manager backlog meta-orchestrator). If swarm-manager has a
 cron path that spawns runs, populate fields there too.
 
-C4. **Direct CLI** — `scenarios/agent-manager/cli/`: any `run create`
+C4. **Direct CLI** — `path:scenarios/agent-manager/cli/`: any `run create`
 subcommand must accept `--conversation-id` and `--parent-run-id` and default
 to a freshly-minted conversation ID.
 
 C5. **agent-manager** — once all spawn surfaces populate explicitly, remove
 the inheritance fallback in
-`scenarios/agent-manager/api/internal/orchestration/service.go` (search for
+`path:scenarios/agent-manager/api/internal/orchestration/service.go` (search for
 `ConversationID`/`ParentRunID` defaulting). The fallback was scaffolding;
 its removal is greenfield-aligned.
 
@@ -505,7 +505,7 @@ C6. **Tests**:
 Closes `execute/agent-manager-default-sandboxing-rollout`.
 
 D1. **UI default flip** —
-`scenarios/agent-manager/ui/src/components/QuickRunDialog.tsx:167,227`:
+`path:scenarios/agent-manager/ui/src/components/QuickRunDialog.tsx:167,227`:
 flip the default in both `useState` initializers from `RunMode.IN_PLACE`
 to `RunMode.SANDBOXED`. `useTasksRunDialogState.ts:33` is already correct.
 
@@ -525,7 +525,7 @@ structured `WARN` event ("falling back to in_place: <reason>") rather than
 silently downgrading. Drop the silent fallback if any.
 
 D5. **Adoption metrics** —
-`scenarios/agent-manager/api/internal/orchestration/run_executor.go` (or a
+`path:scenarios/agent-manager/api/internal/orchestration/run_executor.go` (or a
 new `metrics/sandbox_adoption.go`): expose Prometheus counters
 - `agent_manager_runs_total{run_mode,sandbox_mode,manual_review}`
 - `agent_manager_runs_with_provenance_total`
@@ -533,11 +533,11 @@ on the existing `/metrics` endpoint.
 
 D6. **swarm-manager stats** — add
 `swarm-manager stats sandbox-adoption` subcommand
-(`scenarios/swarm-manager/cli/cmd_stats.go`) that scrapes the counters and
+(`path:scenarios/swarm-manager/cli/cmd_stats.go`) that scrapes the counters and
 prints a human-readable adoption breakdown.
 
 D7. **Readiness checklist closeout** — update
-`docs/plans/agent-sandbox-validation-matrix-readiness.md`:
+`path:docs/plans/agent-sandbox-validation-matrix-readiness.md`:
 - Land the three 🟡 integration tests called out in the checklist
   (behaviors 3, 4, 8).
 - Mark all 9 behaviors ✅.
@@ -555,7 +555,7 @@ D8. **Restart + smoke**:
 Closes `execute/protected-sandbox-agent-launch`.
 
 E1. **Provider seam extension** —
-`scenarios/agent-manager/api/internal/adapters/sandbox/interface.go`:
+`path:scenarios/agent-manager/api/internal/adapters/sandbox/interface.go`:
 add `ExecProcess(ctx, sandboxID, ExecRequest) (ExecResult, error)` and
 `LaunchProcess(ctx, sandboxID, LaunchRequest) (ProcessHandle, error)` and
 `AttachInteractive(ctx, sandboxID, InteractiveOpts) (InteractiveSession, error)`
@@ -580,12 +580,12 @@ E4. **Tracking-mode preservation** — when `Mode == Tracking` (or
 unspecified), the existing host-exec path is unchanged.
 
 E5. **Capability matrix** — write
-`scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` documenting per-runner
+`path:scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` documenting per-runner
 support for: streaming output, interactive REPL, env injection, working
 directory control, cleanup, network mode, timeout.
 
 E6. **E2E test** —
-`scenarios/agent-manager/api/internal/orchestration/protected_mode_e2e_test.go`:
+`path:scenarios/agent-manager/api/internal/orchestration/protected_mode_e2e_test.go`:
 spawn a fake runner via the workspace-sandbox `/exec` path against an
 httptest.Server emulating workspace-sandbox; assert the same auditability
 contract (provenance write, apply-at-run-end behavior) holds as in tracking
@@ -596,7 +596,7 @@ mode.
 Closes `execute/protected-sandbox-git-and-network-guardrails`.
 
 F1. **Workspace-sandbox `/exec` argv enforcement** —
-`scenarios/workspace-sandbox/api/internal/handlers/process.go` (and `/exec`
+`path:scenarios/workspace-sandbox/api/internal/handlers/process.go` (and `/exec`
 handler if separate): when the request's parent sandbox has
 `Behavior.Protected.GitAllowlist` non-empty AND `argv[0]` is `git` (or any
 path resolving to `git`), reject any verb not in the allowlist.
@@ -604,7 +604,7 @@ Default allowlist: `status, diff, log, show, rev-parse`.
 Response: 403 `{"error":"git_verb_blocked", "verb":"<v>", "message":"…"}`.
 
 F2. **Bwrap network mode wiring** —
-`scenarios/workspace-sandbox/api/internal/driver/bwrap.go:480-497` already
+`path:scenarios/workspace-sandbox/api/internal/driver/bwrap.go:480-497` already
 honors `NetworkAccess`. Verify protected-mode requests propagate
 `SandboxConfig.NetworkMode` from the agent-manager side (Phase 3b added
 `NetworkMode` to the proto SandboxConfig; ensure
@@ -617,7 +617,7 @@ translates it into a typed `ErrToolBlocked{Verb, Reason}` and the runner
 emits a `tool.blocked` event surfaced in the run timeline.
 
 F4. **Documentation** —
-`scenarios/workspace-sandbox/docs/EXECUTION_MODES.md` already documents
+`path:scenarios/workspace-sandbox/docs/EXECUTION_MODES.md` already documents
 Vrooli-Aware mode (`localhost`); add a "Protected Git + Network" section
 documenting the allowlist, the 403 shape, and the rationale (wrap-not-use:
 agent uses GCT for mutations, not direct git).
@@ -635,7 +635,7 @@ F5. **Tests**:
 Closes `fix/protected-sandbox-policy-enforcement-surface`.
 
 G1. **Policy interface slim** —
-`scenarios/agent-manager/api/internal/policy/interface.go`:
+`path:scenarios/agent-manager/api/internal/policy/interface.go`:
 - Already deleted `Decision.RequiresApproval` in Phase A.
 - Decide for each remaining field whether it's enforced or advisory:
   - `RequiresSandbox` — enforced (router gates `RunMode`). Keep.
@@ -665,7 +665,7 @@ G4. **Tests**:
   forwarded to the LaunchProcess request.
 
 G5. **Documentation** —
-`scenarios/agent-manager/api/internal/policy/README.md` (new):
+`path:scenarios/agent-manager/api/internal/policy/README.md` (new):
 "agent-manager policy is now a thin layer that resolves
 profile + per-run overrides into `SandboxConfig`. Real enforcement happens
 at workspace-sandbox apply-at-run-end (acceptance) and in protected-mode
@@ -792,7 +792,7 @@ After the final phase:
       reports 10/10 completed.
 - [ ] `swarm-manager initiatives get --name protected-agent-sandboxing`
       reports 3/3 completed.
-- [ ] `docs/plans/agent-sandbox-validation-matrix-readiness.md` shows all 9
+- [ ] `path:docs/plans/agent-sandbox-validation-matrix-readiness.md` shows all 9
       behaviors ✅ and a rollout-flipped date.
 - [ ] No references to `RequiresApproval`, `AutoApprove`, `AutoReject`,
       `DisableAutoApproveIfEmpty` remain outside (a) per-tool inbox usage
@@ -852,13 +852,13 @@ All of the following must be true for this plan to be considered complete:
 3. `git grep -nE 'RequiresApproval|AutoApprove|AutoReject|DisableAutoApproveIfEmpty'`
    inside the seven affected scenarios returns **only** per-tool
    `inbox.ToolMeta.RequiresApproval` references in `toolregistry/` directories
-   and `reserved` markers in `packages/proto/schemas/agent-manager/`.
+   and `reserved` markers in `path:packages/proto/schemas/agent-manager/`.
 4. `git grep 'removed in Phase'` returns **zero** hits.
 5. `requires_approval` is gone from `schema.sql`, `repository.go`,
    `connection.go`, and any production database after migration runs.
 6. `golangci-lint run ./...` is clean on agent-manager + workspace-sandbox.
 7. `go test ./...` is green on all seven affected scenarios + the new
-   `packages/sandbox-provenance/go` package.
+   `path:packages/sandbox-provenance/go` package.
 8. `npx tsc --noEmit` is green on agent-manager UI, swarm-manager UI, and
    web-console UI.
 9. `agent-manager`, `workspace-sandbox`, `swarm-manager`, `web-console` have
@@ -870,11 +870,11 @@ All of the following must be true for this plan to be considered complete:
 12. Live wire smokes pass for: tracking-mode apply-at-run-end (existing),
     protected-mode launch of a trivial command, git-verb block, network-mode
     `none` block.
-13. `docs/plans/agent-sandbox-validation-matrix-readiness.md` shows all 9
+13. `path:docs/plans/agent-sandbox-validation-matrix-readiness.md` shows all 9
     behaviors ✅ and a "Rollout flipped: 2026-XX-XX" line.
 14. No backwards-compatibility shims, dual-name fields, `// removed` comments,
     or `_unused` aliases were introduced.
-15. The `packages/sandbox-provenance` package exists, is versioned 1.0.0,
+15. The `path:packages/sandbox-provenance` package exists, is versioned 1.0.0,
     has a `COORDINATION.md` for the GCT branch, and is consumed by
     workspace-sandbox.
 16. The user has reviewed the resulting diffs and approved.

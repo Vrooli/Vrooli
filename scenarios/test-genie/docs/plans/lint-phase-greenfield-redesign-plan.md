@@ -109,11 +109,9 @@ This causes environment-sensitive behavior and invalid test fixtures to look lik
 
 The redesign must make command execution injectable from day one.
 
-### 5. The existing plan is now the wrong architecture
+### 5. The previous plan used the wrong architecture
 
-The original plan at [docs/plans/lint-phase-implementation.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/plans/lint-phase-implementation.md:1) is useful historical context, but it is based on the same language/folder assumptions as the current implementation and should not guide the redesign.
-
-This new plan supersedes it.
+The previous lint-phase implementation plan used the same language/folder assumptions as the old implementation. This greenfield plan supersedes it and is the only plan that should guide current lint-phase work.
 
 ## Target End State
 
@@ -583,7 +581,7 @@ Tasks:
 - update [docs/phases/README.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/phases/README.md:1)
 - update API/CLI docs that describe lint behavior
 - replace references that describe lint as only "Go/TS/Python" where no longer true
-- mark [docs/plans/lint-phase-implementation.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/plans/lint-phase-implementation.md:1) as superseded or remove it during cleanup
+- remove the superseded lint-phase implementation plan during cleanup
 
 Validation:
 
@@ -717,7 +715,6 @@ Schema/config/docs:
 - [docs/reference/api-endpoints.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/reference/api-endpoints.md:1)
 - [docs/reference/cli-commands.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/reference/cli-commands.md:1)
 - [docs/reference/presets.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/reference/presets.md:1)
-- [docs/plans/lint-phase-implementation.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/plans/lint-phase-implementation.md:1)
 
 Repo-level adopters likely affected:
 

@@ -18,21 +18,21 @@ prompt-manager skill read implementation-plan-authoring documentation-health dec
 
 Also read:
 
-- `docs/plans/swarm-manager-initiative-operating-mode-implementation.md`
-- `docs/plans/swarm-manager-operating-mode-hardening-plan.md`
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
-- `scenarios/swarm-manager/docs/internal/SEAMS.md`
-- `scenarios/swarm-manager/api/internal/operatingmode/registry.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/state.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/phase_runner.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/round_refresher.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/artifact_applier.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/backlog_reconciler.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/handler.go`
-- `scenarios/swarm-manager/api/routes_operating_mode.go`
-- `scenarios/swarm-manager/ui/src/components/initiative/operating-mode-panel.tsx`
-- `scenarios/swarm-manager/ui/src/components/initiative/operating-mode/round-card.tsx`
-- `scenarios/swarm-manager/ui/src/services/initiative-mode-service.ts`
+- `path:docs/plans/swarm-manager-initiative-operating-mode-implementation.md`
+- `path:docs/plans/swarm-manager-operating-mode-hardening-plan.md`
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/registry.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/state.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/phase_runner.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/round_refresher.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/artifact_applier.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/backlog_reconciler.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/handler.go`
+- `path:scenarios/swarm-manager/api/routes_operating_mode.go`
+- `path:scenarios/swarm-manager/ui/src/components/initiative/operating-mode-panel.tsx`
+- `path:scenarios/swarm-manager/ui/src/components/initiative/operating-mode/round-card.tsx`
+- `path:scenarios/swarm-manager/ui/src/services/initiative-mode-service.ts`
 
 ## 3. Greenfield Constraint
 
@@ -109,7 +109,7 @@ After this plan lands:
 
 ### Decision A - Phase Lifecycle Has One Owner
 
-Create a clear lifecycle owner inside `api/internal/operatingmode/`, likely `phase_lifecycle.go` or a refactored `phase_runner.go`.
+Create a clear lifecycle owner inside `path:api/internal/operatingmode/`, likely `phase_lifecycle.go` or a refactored `phase_runner.go`.
 
 It owns:
 
@@ -228,11 +228,11 @@ UI tests:
 
 Files:
 
-- `api/internal/operatingmode/phase_runner.go`
-- `api/internal/operatingmode/round_refresher.go`
-- `api/internal/operatingmode/rounds.go`
-- new `api/internal/operatingmode/phase_lifecycle.go` if useful
-- tests in `api/internal/operatingmode/`
+- `path:api/internal/operatingmode/phase_runner.go`
+- `path:api/internal/operatingmode/round_refresher.go`
+- `path:api/internal/operatingmode/rounds.go`
+- new `path:api/internal/operatingmode/phase_lifecycle.go` if useful
+- tests in `path:api/internal/operatingmode/`
 
 Tasks:
 
@@ -253,11 +253,11 @@ Acceptance criteria:
 
 Files:
 
-- `api/internal/operatingmode/registry.go`
-- `api/internal/operatingmode/output.go`
-- `api/internal/operatingmode/artifact_applier.go`
-- `api/internal/operatingmode/round_refresher.go`
-- new `api/internal/operatingmode/output_contract.go`
+- `path:api/internal/operatingmode/registry.go`
+- `path:api/internal/operatingmode/output.go`
+- `path:api/internal/operatingmode/artifact_applier.go`
+- `path:api/internal/operatingmode/round_refresher.go`
+- new `path:api/internal/operatingmode/output_contract.go`
 - tests
 
 Tasks:
@@ -283,9 +283,9 @@ Acceptance criteria:
 
 Files:
 
-- `api/internal/operatingmode/registry.go`
-- `api/internal/promptcatalog/catalog.go`
-- server startup in `api/main.go`
+- `path:api/internal/operatingmode/registry.go`
+- `path:api/internal/promptcatalog/catalog.go`
+- server startup in `path:api/main.go`
 - tests
 
 Tasks:
@@ -306,9 +306,9 @@ Acceptance criteria:
 
 Files:
 
-- `api/internal/operatingmode/handler.go`
-- `api/routes_operating_mode.go`
-- `api/internal/operatingmode/service.go`
+- `path:api/internal/operatingmode/handler.go`
+- `path:api/routes_operating_mode.go`
+- `path:api/internal/operatingmode/service.go`
 - CLI and UI services
 - docs/reference
 
@@ -332,10 +332,10 @@ Acceptance criteria:
 
 Files:
 
-- `api/internal/operatingmode/rounds.go`
-- `api/internal/operatingmode/events.go`
-- `api/internal/operatingmode/backlog_reconciler.go`
-- `api/internal/stats/engine.go`
+- `path:api/internal/operatingmode/rounds.go`
+- `path:api/internal/operatingmode/events.go`
+- `path:api/internal/operatingmode/backlog_reconciler.go`
+- `path:api/internal/stats/engine.go`
 - tests
 
 Tasks:
@@ -364,11 +364,11 @@ Acceptance criteria:
 
 Files:
 
-- `ui/src/components/initiative/operating-mode/round-card.tsx`
-- new `ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx`
-- new `ui/src/components/initiative/operating-mode/round-view-model.ts`
-- `ui/src/services/initiative-mode-service.ts`
-- `ui/src/types/operating-mode.ts`
+- `path:ui/src/components/initiative/operating-mode/round-card.tsx`
+- new `path:ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx`
+- new `path:ui/src/components/initiative/operating-mode/round-view-model.ts`
+- `path:ui/src/services/initiative-mode-service.ts`
+- `path:ui/src/types/operating-mode.ts`
 - tests
 
 Tasks:
@@ -394,13 +394,13 @@ Acceptance criteria:
 
 Files:
 
-- `scenarios/swarm-manager/docs/internal/SEAMS.md`
-- `scenarios/swarm-manager/docs/internal/INVARIANTS.md`
-- `scenarios/swarm-manager/docs/internal/TEMPORAL-FLOWS.md`
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
-- `scenarios/swarm-manager/docs/reference/api-endpoints.md`
-- `scenarios/swarm-manager/docs/reference/cli-commands.md`
-- `scenarios/swarm-manager/docs/manifest.json`
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `path:scenarios/swarm-manager/docs/internal/INVARIANTS.md`
+- `path:scenarios/swarm-manager/docs/internal/TEMPORAL-FLOWS.md`
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
+- `path:scenarios/swarm-manager/docs/reference/api-endpoints.md`
+- `path:scenarios/swarm-manager/docs/reference/cli-commands.md`
+- `path:scenarios/swarm-manager/docs/manifest.json`
 
 Tasks:
 
@@ -618,10 +618,10 @@ Recommended next pass:
 
 Completed in this pass:
 
-- Phase 6 partial: extracted operating-mode round payload parsing, pending/applied backlog-sync decisions, default mutation selection, mutation summaries, and action availability into `ui/src/components/initiative/operating-mode/round-view-model.ts`.
-- Phase 6 partial: extracted proposal mutation selection and apply controls into `ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx`, leaving `round-card.tsx` focused on round presentation, status controls, handoffs, timestamps, and delegated action slots.
+- Phase 6 partial: extracted operating-mode round payload parsing, pending/applied backlog-sync decisions, default mutation selection, mutation summaries, and action availability into `path:ui/src/components/initiative/operating-mode/round-view-model.ts`.
+- Phase 6 partial: extracted proposal mutation selection and apply controls into `path:ui/src/components/initiative/operating-mode/backlog-sync-actions.tsx`, leaving `round-card.tsx` focused on round presentation, status controls, handoffs, timestamps, and delegated action slots.
 - Phase 6 partial: added non-React view-model tests covering snake_case and camelCase completed-item plans, applied-sync hiding, malformed proposal mutation filtering, missing run ID action blocking, default selection, and mutation summaries.
-- Phase 7 partial: updated `scenarios/swarm-manager/docs/internal/SEAMS.md`, `INVARIANTS.md`, and `TEMPORAL-FLOWS.md` to document the backend lifecycle invariants and the new UI view-model/action seams.
+- Phase 7 partial: updated `path:scenarios/swarm-manager/docs/internal/SEAMS.md`, `INVARIANTS.md`, and `TEMPORAL-FLOWS.md` to document the backend lifecycle invariants and the new UI view-model/action seams.
 
 Validation run:
 
@@ -647,7 +647,7 @@ Completed in this pass:
 
 - Phase 1 completion: `operatingmode.Service` now depends on a narrow initiative-lock interface instead of the concrete file-lock type, allowing lifecycle tests to inject lock failures at exact control points without weakening production behavior.
 - Phase 1 completion: added a run-ID lock swap regression test proving a spawned run is stopped, the round is persisted as failed with audit context, and the initiative lock is released when the provisional lock cannot be swapped to the real AgentManager run ID.
-- Phase 7 partial: updated `reference/api-endpoints.md`, `reference/cli-commands.md`, `concepts/EXECUTION-MODES.md`, and `internal/SEAMS.md` to document strict non-default round-control mode requirements, phase-output contract behavior, the fail-closed phase start lifecycle, and the injectable lock seam.
+- Phase 7 partial: updated `reference/api-endpoints.md`, `reference/cli-commands.md`, `concepts/EXECUTION-MODES.md`, and `path:internal/SEAMS.md` to document strict non-default round-control mode requirements, phase-output contract behavior, the fail-closed phase start lifecycle, and the injectable lock seam.
 
 Validation run:
 
@@ -668,7 +668,7 @@ npm run type-check
 Recommended next pass:
 
 - Run the broader backend, CLI, and UI targeted suites in this combined worktree.
-- Finish any remaining Phase 7 reference cleanup by checking `docs/reference/api-endpoints.md`, `docs/reference/cli-commands.md`, `docs/concepts/EXECUTION-MODES.md`, and `docs/manifest.json` with documentation-health tooling if available.
+- Finish any remaining Phase 7 reference cleanup by checking `path:docs/reference/api-endpoints.md`, `path:docs/reference/cli-commands.md`, `path:docs/concepts/EXECUTION-MODES.md`, and `path:docs/manifest.json` with documentation-health tooling if available.
 - Attempt full `cd scenarios/swarm-manager && make test` once cross-scenario dependency setup is stable.
 
 ### 2026-04-30 Full Scenario Validation
@@ -707,6 +707,6 @@ Result:
 Residual warnings observed in full scenario validation:
 
 - `phase-structure`: registry may be stale, seed directory informational warning, playbook informational warnings.
-- `phase-standards`: dangerous TypeScript pattern warning, incomplete Makefile quality target warning, missing test file warning for `api/internal/dispatch`.
-- `phase-business`: `REQ-P0-009-DESKTOP` references missing `ui/src/components/layout/MainLayout.test.tsx`.
+- `phase-standards`: dangerous TypeScript pattern warning, incomplete Makefile quality target warning, missing test file warning for `path:api/internal/dispatch`.
+- `phase-business`: `REQ-P0-009-DESKTOP` references missing `path:ui/src/components/layout/MainLayout.test.tsx`.
 - `phase-performance`: Lighthouse home performance was 78% versus 85% threshold, but performance phase still passed.

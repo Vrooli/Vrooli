@@ -11,7 +11,7 @@ The result is a system where rescoping is *largely possible but not discoverable
 
 This plan adds the missing `merge_items` op, audits and surfaces the operator-facing op set in the skill prompt, and replaces the current free-form-only dialog with a **selection-driven Quick Actions surface** scoped to operations that genuinely need LLM judgment (the rest belong on direct item / graph UIs and are explicitly out of scope here).
 
-This is a **companion** to Plan B (`docs/plans/swarm-manager-initiative-operating-mode-implementation.md`), not a replacement. Plan A improves backlog-item-level mode for cases where the items are correctly chosen as the unit of execution but were initially mis-scoped or have drifted from code reality. Plan B introduces a second execution mode for cases where backlog-items are not the right unit at all. The conceptual framing for both lives in [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](../../scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
+This is a **companion** to Plan B (`path:docs/plans/swarm-manager-initiative-operating-mode-implementation.md`), not a replacement. Plan A improves backlog-item-level mode for cases where the items are correctly chosen as the unit of execution but were initially mis-scoped or have drifted from code reality. Plan B introduces a second execution mode for cases where backlog-items are not the right unit at all. The conceptual framing for both lives in [`path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](../../scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
 
 ## 2. Required Reading
 
@@ -24,27 +24,27 @@ prompt-manager skill read swarm-manager-initiative-context
 
 Required file reads (no chat context required to follow this plan):
 
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` — framework framing this plan operates within.
-- `scenarios/swarm-manager/api/internal/proposals/types.go` — current ops, mutation shape, validation envelope.
-- `scenarios/swarm-manager/api/internal/proposals/apply.go` and `apply_test.go` — current apply flow including `split_item`'s atomic create-then-archive pattern that `merge_items` will mirror.
-- `scenarios/swarm-manager/api/internal/proposals/validate.go` — per-op validation (in-progress gating used by `validateInterrupt` is the precedent for merge's strict-rejection rule).
-- `scenarios/swarm-manager/api/routes_feedback.go` — wiring of the feedback agent and event-emit shape (`feedbackEventEmitter`, `proposalEventTarget`).
-- `scenarios/swarm-manager/api/internal/eventlog/types.go` — `ProposalAppliedPayload`; merge gains optional `Sources []string`.
-- `scenarios/swarm-manager/ui/src/components/initiative/feedback-dialog.tsx` — current dialog (free-form text + image attachments + round-type chips).
-- `scenarios/swarm-manager/ui/src/components/initiative/feedback-panel.tsx` and `feedback-round-card.tsx` — current proposal-rendering surfaces (downstream of dialog).
-- `scenarios/swarm-manager/ui/src/types/feedback.ts` — wire types.
-- `scenarios/swarm-manager/ui/src/consts/selectors.ts` — centralized selector registry; new affordances register here.
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md` — agent prompt; receives merge row, intent-mapping table, well-scoped-item examples, requested-actions interpretation guidance, and a fix to the existing-but-incorrect split-retargeting claim on line 106.
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` — framework framing this plan operates within.
+- `path:scenarios/swarm-manager/api/internal/proposals/types.go` — current ops, mutation shape, validation envelope.
+- `path:scenarios/swarm-manager/api/internal/proposals/apply.go` and `apply_test.go` — current apply flow including `split_item`'s atomic create-then-archive pattern that `merge_items` will mirror.
+- `path:scenarios/swarm-manager/api/internal/proposals/validate.go` — per-op validation (in-progress gating used by `validateInterrupt` is the precedent for merge's strict-rejection rule).
+- `path:scenarios/swarm-manager/api/routes_feedback.go` — wiring of the feedback agent and event-emit shape (`feedbackEventEmitter`, `proposalEventTarget`).
+- `path:scenarios/swarm-manager/api/internal/eventlog/types.go` — `ProposalAppliedPayload`; merge gains optional `Sources []string`.
+- `path:scenarios/swarm-manager/ui/src/components/initiative/feedback-dialog.tsx` — current dialog (free-form text + image attachments + round-type chips).
+- `path:scenarios/swarm-manager/ui/src/components/initiative/feedback-panel.tsx` and `feedback-round-card.tsx` — current proposal-rendering surfaces (downstream of dialog).
+- `path:scenarios/swarm-manager/ui/src/types/feedback.ts` — wire types.
+- `path:scenarios/swarm-manager/ui/src/consts/selectors.ts` — centralized selector registry; new affordances register here.
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md` — agent prompt; receives merge row, intent-mapping table, well-scoped-item examples, requested-actions interpretation guidance, and a fix to the existing-but-incorrect split-retargeting claim on line 106.
 
 ## 3. Problem Statement
 
 ### Op-level asymmetry
 
-`api/internal/proposals/types.go` declares 10 ops: `add_item`, `update_item`, `change_status`, `change_priority`, `add_edge`, `remove_edge`, `move_initiative`, `archive_item`, `interrupt_in_progress`, `split_item`. Of these, `split_item` lets one item become N. There is no `merge_items` op letting M items become one. Today, an agent attempting to express "merge execute/foo and execute/bar into execute/foobar" must emit (a) an `add_item` for the new merged item, (b) `archive_item` for each source, and (c) `add_edge`/`remove_edge` mutations to retarget every dependent of every source. This is correct but not atomic — partial application leaves the graph in a broken intermediate state — and is harder for the agent to author correctly than `split_item`.
+`path:api/internal/proposals/types.go` declares 10 ops: `add_item`, `update_item`, `change_status`, `change_priority`, `add_edge`, `remove_edge`, `move_initiative`, `archive_item`, `interrupt_in_progress`, `split_item`. Of these, `split_item` lets one item become N. There is no `merge_items` op letting M items become one. Today, an agent attempting to express "merge execute/foo and execute/bar into execute/foobar" must emit (a) an `add_item` for the new merged item, (b) `archive_item` for each source, and (c) `add_edge`/`remove_edge` mutations to retarget every dependent of every source. This is correct but not atomic — partial application leaves the graph in a broken intermediate state — and is harder for the agent to author correctly than `split_item`.
 
 ### Operator-side discoverability
 
-`ui/src/components/initiative/feedback-dialog.tsx` exposes a free-form textarea, image attachments, and three round-type chips (`feedback`, `research` (disabled), `note`). It does not surface what kinds of feedback are productive, what operations the agent can investigate, or any path for selecting the items the operator wants to talk about. The operator must already know what feedback can do to direct it usefully.
+`path:ui/src/components/initiative/feedback-dialog.tsx` exposes a free-form textarea, image attachments, and three round-type chips (`feedback`, `research` (disabled), `note`). It does not surface what kinds of feedback are productive, what operations the agent can investigate, or any path for selecting the items the operator wants to talk about. The operator must already know what feedback can do to direct it usefully.
 
 ### The original use case has no surfaced path
 
@@ -52,7 +52,7 @@ The most common operator use of feedback today is *gap and drift analysis*: an i
 
 ### Skill-prompt accuracy and completeness
 
-`scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md` lists supported ops in a table. The table is correct but does not connect ops to *operator-phrased intents* — there is no guidance like "if the user says 'combine these items', use `merge_items`". This makes the agent's mapping from feedback text to mutations less reliable than it could be.
+`path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md` lists supported ops in a table. The table is correct but does not connect ops to *operator-phrased intents* — there is no guidance like "if the user says 'combine these items', use `merge_items`". This makes the agent's mapping from feedback text to mutations less reliable than it could be.
 
 Additionally, the existing `split_item` row (line 106) currently claims "Dependents of the source repoint to the first new item automatically; emit add_edge / remove_edge for the rest." This is **false** — `apply.go::applySplit` explicitly does *not* retarget dependents (see the OpSplitItem comment in `types.go`). The skill prompt has been giving the agent a wrong rule. This plan corrects it as part of the same edit.
 
@@ -98,17 +98,17 @@ The two sandboxing initiatives (`agent-sandbox-audit-foundation`, `protected-age
 
 ### Proposals package
 
-`api/internal/proposals/types.go` defines `Op`, `Mutation`, `ItemSpec`, `ItemPatch`, `Proposal`, and `Source`. `AllOps()` returns the canonical list. The `split_item` op uses the `Into []ItemSpec` field to carry new items, with the source named in `Target`. Apply is atomic: child creates run first, source archive runs last, and any failure rolls back already-created children. Dependents of the source are *not* automatically retargeted.
+`path:api/internal/proposals/types.go` defines `Op`, `Mutation`, `ItemSpec`, `ItemPatch`, `Proposal`, and `Source`. `AllOps()` returns the canonical list. The `split_item` op uses the `Into []ItemSpec` field to carry new items, with the source named in `Target`. Apply is atomic: child creates run first, source archive runs last, and any failure rolls back already-created children. Dependents of the source are *not* automatically retargeted.
 
-`api/internal/proposals/apply.go` contains the per-op handlers and the orchestration that ensures atomicity. The Applier holds `Store BacklogStore`, `Assigner InitiativeAssigner`, `Creator ItemCreator`, `cancel ExecutionCanceller`, `invalidator GraphInvalidator`, and `events EventEmitter`.
+`path:api/internal/proposals/apply.go` contains the per-op handlers and the orchestration that ensures atomicity. The Applier holds `Store BacklogStore`, `Assigner InitiativeAssigner`, `Creator ItemCreator`, `cancel ExecutionCanceller`, `invalidator GraphInvalidator`, and `events EventEmitter`.
 
-`api/internal/proposals/apply_test.go` covers each op including split's rollback behavior. New op tests follow this shape.
+`path:api/internal/proposals/apply_test.go` covers each op including split's rollback behavior. New op tests follow this shape.
 
-`api/internal/proposals/validate.go` contains per-op validators. `validateInterrupt` already gates on `state.InProgressRefs` — that is the precedent for merge's strict-rejection-on-in-progress rule.
+`path:api/internal/proposals/validate.go` contains per-op validators. `validateInterrupt` already gates on `state.InProgressRefs` — that is the precedent for merge's strict-rejection-on-in-progress rule.
 
 ### Feedback wiring
 
-`api/routes_feedback.go::registerFeedbackRoutes` wires:
+`path:api/routes_feedback.go::registerFeedbackRoutes` wires:
 - `proposals.Applier` over the backlog store + initiatives assigner + execution canceller adapter.
 - `feedback.Service` over a spawner that loads the initiative-feedback skill via prompt-manager, hydrates the prompt with current graph + items + prior rounds + attachments, and spawns through agent-manager (with activity tracking).
 
@@ -116,19 +116,19 @@ The `feedbackEventEmitter` records each applied mutation against the affected ba
 
 ### Eventlog payload
 
-`eventlog.ProposalAppliedPayload` (in `internal/eventlog/types.go`) currently has no `Sources` field. Merge gains an optional `Sources []string` so each source-ref's per-item history records "this item was merged into X" (sources are recorded as a payload field; the event itself attaches to the merged item per the convention below).
+`eventlog.ProposalAppliedPayload` (in `path:internal/eventlog/types.go`) currently has no `Sources` field. Merge gains an optional `Sources []string` so each source-ref's per-item history records "this item was merged into X" (sources are recorded as a payload field; the event itself attaches to the merged item per the convention below).
 
 ### UI
 
-`ui/src/components/initiative/feedback-dialog.tsx` is a controlled dialog component: text state, attachment state via `useIndexedDBAttachments`, blocker state from preflight lock query, type state (`feedback` | `research` | `note`). Submission goes through `feedbackService.start`. The dialog already handles draft persistence, lock-conflict UX, and override.
+`path:ui/src/components/initiative/feedback-dialog.tsx` is a controlled dialog component: text state, attachment state via `useIndexedDBAttachments`, blocker state from preflight lock query, type state (`feedback` | `research` | `note`). Submission goes through `feedbackService.start`. The dialog already handles draft persistence, lock-conflict UX, and override.
 
-`ui/src/components/initiative/feedback-panel.tsx` renders the rounds list and the operator's checklist UI for proposed mutations. It is the *downstream* surface where mutations become accept/reject decisions; this plan does not modify it (the UI changes are in the entry-point dialog, not the proposal review).
+`path:ui/src/components/initiative/feedback-panel.tsx` renders the rounds list and the operator's checklist UI for proposed mutations. It is the *downstream* surface where mutations become accept/reject decisions; this plan does not modify it (the UI changes are in the entry-point dialog, not the proposal review).
 
-`ui/src/consts/selectors.ts` centralizes test-id strings under a `feedback` namespace; new affordances register here.
+`path:ui/src/consts/selectors.ts` centralizes test-id strings under a `feedback` namespace; new affordances register here.
 
 ### Skill prompt
 
-`scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md` is rendered by prompt-manager with variable substitution at spawn time. The "Supported ops" table and the "Rules you must follow" sections are the contract surface.
+`path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md` is rendered by prompt-manager with variable substitution at spawn time. The "Supported ops" table and the "Rules you must follow" sections are the contract surface.
 
 ## 6. Target End State
 
@@ -138,7 +138,7 @@ After this plan lands:
 - The skill prompt advertises `merge_items` alongside the existing ops, includes a phrase-to-op intent-mapping table, includes a `<requested_actions>` interpretation section, includes well-scoped-item examples, and corrects the existing wrong claim about split's edge-retargeting behavior.
 - The feedback dialog opens to a selection-driven surface: type chips, an item-selection picker, a Quick actions row of five LLM-judgment buttons, a "What can feedback do?" help block, the existing textarea, and the existing attachment / submit row. Selecting actions composes an XML envelope; selecting no actions falls through to today's raw-text path.
 - All new behavior is covered by automated tests (Go unit/integration + Vitest/RTL).
-- `docs/reference/api-endpoints.md` lists the new op.
+- `path:docs/reference/api-endpoints.md` lists the new op.
 - swarm-manager scenario restarts cleanly (`vrooli scenario restart swarm-manager`) and `make test` passes.
 
 ## 7. Implementation Strategy
@@ -168,7 +168,7 @@ After this plan lands:
 
 ### Phase 2 — Skill prompt updates
 
-In `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md`:
+In `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-feedback/SKILL.md`:
 
 1. **Fix the wrong split claim**. Edit the `split_item` row of the Supported ops table: dependents of the source are *not* automatically retargeted; if the agent wants to repoint dependents, it must emit explicit `add_edge` / `remove_edge` mutations alongside the split.
 2. **Add the `merge_items` row** with example wire shape:
@@ -202,7 +202,7 @@ In `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-initiative-fe
 5. **Add a "Well-scoped item criteria" section** the agent anchors on. Short list (each ≤ one line):
    - One agent run can plausibly converge it to `plan.md` in one workshop pass.
    - Acceptance is testable in isolation, ideally with one or two automated tests.
-   - The acceptance globs cover one cohesive code area; an item that touches `scenarios/foo/**` and `scenarios/bar/**` is suspect.
+   - The acceptance globs cover one cohesive code area; an item that touches `path:scenarios/foo/**` and `path:scenarios/bar/**` is suspect.
    - Description fits in a paragraph; if it needs sections, it's probably two items.
    - Title names the *change*, not the *area* ("Add merge_items op to proposals", not "proposals work").
    - No internal ordering — if step 1 must complete before step 2 can be designed, those are two items joined by a `depends_on` edge.
@@ -287,7 +287,7 @@ Each new affordance gets a stable `data-testid` registered in `consts/selectors.
    - `Validate_MergeItems_RejectsNonMemberSource` — source not in `state.Nodes`, rejected.
    - `proposalEventTarget` test extended to cover `OpMergeItems` returning the merged item ref.
    - `feedbackEventEmitter` test extended to cover `Sources` payload field round-trip.
-2. **Go E2E** (`api/e2e_initiative_feedback_test.go` style): submit a feedback round whose proposal includes a `merge_items` mutation, accept it via the proposal handler, verify the resulting initiative graph state (merged item present, sources archived, edges retargeted).
+2. **Go E2E** (`path:api/e2e_initiative_feedback_test.go` style): submit a feedback round whose proposal includes a `merge_items` mutation, accept it via the proposal handler, verify the resulting initiative graph state (merged item present, sources archived, edges retargeted).
 3. **Vitest/RTL** (`feedback-dialog.test.tsx`):
    - Item-selection picker: open/close persists; `Select all` / `Select none` work; selection persists across re-render.
    - Quick action gating: Split disabled when 0 items selected; Merge disabled when <2 items; Reframe-solo behavior; Split/Merge mutual exclusion; Identify+Reconcile stack.
@@ -299,9 +299,9 @@ Each new affordance gets a stable `data-testid` registered in `consts/selectors.
 
 ### Phase 5 — Docs and scenario restart
 
-1. Add the `merge_items` row (with shape, validation rules, and edge-handling semantics) to `scenarios/swarm-manager/docs/reference/api-endpoints.md` (proposals/feedback section; create the section if it does not exist).
-2. Update `scenarios/swarm-manager/docs/internal/SEAMS.md` if the proposals seam is documented there (verify; only edit if a seam entry exists for the apply layer).
-3. `vrooli scenario restart swarm-manager` and verify health (`make test` from `scenarios/swarm-manager/`). Plan must leave the scenario healthy.
+1. Add the `merge_items` row (with shape, validation rules, and edge-handling semantics) to `path:scenarios/swarm-manager/docs/reference/api-endpoints.md` (proposals/feedback section; create the section if it does not exist).
+2. Update `path:scenarios/swarm-manager/docs/internal/SEAMS.md` if the proposals seam is documented there (verify; only edit if a seam entry exists for the apply layer).
+3. `vrooli scenario restart swarm-manager` and verify health (`make test` from `path:scenarios/swarm-manager/`). Plan must leave the scenario healthy.
 
 ## 8. Contract Decisions
 
@@ -326,14 +326,14 @@ Each new affordance gets a stable `data-testid` registered in `consts/selectors.
 
 All verification is automated. No manual test checklists.
 
-### Go (`scenarios/swarm-manager/`)
+### Go (`path:scenarios/swarm-manager/`)
 
 - Unit tests for `proposals.Applier.applyMergeItems` covering happy path, all rollback paths, all edge-handling invariants, and all validation rejections. Run via `cd scenarios/swarm-manager/api && go test ./internal/proposals/... -timeout 120s`.
 - Unit test extension for `proposalEventTarget` and `feedbackEventEmitter` (Sources payload).
-- E2E test in `api/e2e_initiative_feedback_test.go` style covering "submit feedback with merge mutation → accept → graph reflects merge". Run via `cd scenarios/swarm-manager/api && go test ./... -run E2E -timeout 300s`.
+- E2E test in `path:api/e2e_initiative_feedback_test.go` style covering "submit feedback with merge mutation → accept → graph reflects merge". Run via `cd scenarios/swarm-manager/api && go test ./... -run E2E -timeout 300s`.
 - Scenario-wide test pass: `cd scenarios/swarm-manager && make test`.
 
-### TypeScript (`scenarios/swarm-manager/ui/`)
+### TypeScript (`path:scenarios/swarm-manager/ui/`)
 
 - Vitest tests for `feedback-dialog.test.tsx` covering item picker, Quick action gating and combinability, help block, and XML envelope assembly. Run via `cd scenarios/swarm-manager/ui && npm test -- feedback-dialog`.
 - Type-check pass: `cd scenarios/swarm-manager/ui && npm run typecheck`.
@@ -358,8 +358,8 @@ All verification is automated. No manual test checklists.
 - [ ] FeedbackDialog renders item-selection picker, five Quick action buttons with documented gating and combinability, and the help block.
 - [ ] XML envelope is emitted when ≥1 action or ≥1 item is selected; raw text passes through otherwise.
 - [ ] Vitest tests cover all UI affordances.
-- [ ] `docs/reference/api-endpoints.md` updated to list `merge_items`.
-- [ ] `scenarios/swarm-manager` scenario passes `make test`.
+- [ ] `path:docs/reference/api-endpoints.md` updated to list `merge_items`.
+- [ ] `path:scenarios/swarm-manager` scenario passes `make test`.
 - [ ] `vrooli scenario restart swarm-manager` succeeds; the dialog renders the new affordances at runtime.
 - [ ] No other scenarios regress (`vrooli scenario test prompt-manager`, `vrooli scenario test agent-manager` baseline pass).
 
@@ -403,7 +403,7 @@ The plan is done when **all** of the following hold:
 3. All Phase 4 tests are written, present in the repo, and pass.
 4. The swarm-manager-initiative-feedback skill advertises `merge_items` with the intent-mapping table, the corrected split row, the requested-actions interpretation section, and the well-scoped-item criteria.
 5. `FeedbackDialog` renders the item-selection picker, the five Quick action buttons (with documented gating and combinability), the help block, and assembles the XML envelope on submission per §7 Phase 3 — all covered by automated tests.
-6. `docs/reference/api-endpoints.md` lists `merge_items`.
+6. `path:docs/reference/api-endpoints.md` lists `merge_items`.
 7. `cd scenarios/swarm-manager && make test` exits 0.
 8. `vrooli scenario restart swarm-manager` succeeds; the dialog at runtime shows the new affordances.
 9. No regressions in adjacent scenarios (`prompt-manager`, `agent-manager`) — verified by their respective `vrooli scenario test` runs.

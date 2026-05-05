@@ -10,7 +10,7 @@ This is the live plan-of-record for the prompt-manager agent system. The Phase 1
 
 The topic-flow data layer is implemented as per-member `topics.json` files and surfaced through `prompt-manager graph topics`. The schema canon lives at `TOPICS_SCHEMA.md` (promoted from drafts during the inbox-flow refactor); the human registry of every topic in active use lives at `TOPICS.md`. The inbox-flow refactor split per-member router skills into portable classifier skills + per-domain taxonomies; see `INTAKE_PIPELINE.md` and the [Active taxonomies](#active-taxonomies) registry below.
 
-Four teams now own a full plan-of-record at `docs/<domain>/`: `marketing-crew`, `monetization`, `meta-optimization` (this folder, plus the friction-report canon at `docs/meta-optimization/`), and `scenario-qa`. Each PoR follows the same paired-doc-and-skill discipline for its technique registries (e.g., marketing's `post-techniques/`, scenario-qa's `investigation-techniques/` and `audit-techniques/`). The agent system has two **universal observation flows** — universal-source intakes (`source_team: "*"`) fed by writer skills available to every team's members: scenario-qa's `bug-investigator` drains `bug-inbox/*` (fed by `report-bug`) for code/scenario defects, and meta-optimization's `friction-curator` drains `friction-inbox/*` (fed by `report-friction`) for system-level capture-leak. Together they establish the universal-observation-flow primitive (see `TOPICS_SCHEMA.md` § Universal-source intakes).
+Four teams now own a full plan-of-record at `path:docs/<domain>/`: `marketing-crew`, `monetization`, `meta-optimization` (this folder, plus the friction-report canon at `path:docs/meta-optimization/`), and `scenario-qa`. Each PoR follows the same paired-doc-and-skill discipline for its technique registries (e.g., marketing's `post-techniques/`, scenario-qa's `investigation-techniques/` and `audit-techniques/`). The agent system has two **universal observation flows** — universal-source intakes (`source_team: "*"`) fed by writer skills available to every team's members: scenario-qa's `bug-investigator` drains `bug-inbox/*` (fed by `report-bug`) for code/scenario defects, and meta-optimization's `friction-curator` drains `friction-inbox/*` (fed by `report-friction`) for system-level capture-leak. Together they establish the universal-observation-flow primitive (see `TOPICS_SCHEMA.md` § Universal-source intakes).
 
 ## Mental Model
 
@@ -92,7 +92,7 @@ For a first read, use this order:
 | `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record vs working-notebook patterns, the four axes, both-patterns rules |
 | `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
 | `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; two routing modes (classifier-required vs deterministic-prefix); cross-team schema ownership; topic-prefix conventions |
-| `TOPICS_SCHEMA.md` | canon | `topics.json` schema reference — paired with `scenarios/prompt-manager/api/memberflow/schema.go`. Pillar 1 of topic validation (declared graph). |
+| `TOPICS_SCHEMA.md` | canon | `topics.json` schema reference — paired with `path:scenarios/prompt-manager/api/memberflow/schema.go`. Pillar 1 of topic validation (declared graph). |
 | `TOPICS.md` | canon | Human registry of every topic prefix in active use — definition, conventions, per-team registry, adoption checklist |
 | `RUNTIME_ATTRIBUTION.md` | canon | Pillar 3 of topic validation: structured-attribution contract, `X-Vrooli-Attribution` HTTP header, `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env-var bridge, per-team `attributionValidFrom` cutoff, threat model |
 | `DECISIONS.md` | canon | Decision contexts, lifecycle, direct-write vs swarm-manager routing, capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure |
@@ -111,27 +111,27 @@ A taxonomy is the per-domain signal vocabulary, dispatch table, evidence rules, 
 
 | Taxonomy id | Owner team | Sidecar | PoR | Drainers |
 |---|---|---|---|---|
-| `marketing-research` | `marketing-crew` | `docs/marketing/signal-taxonomy.json` | `docs/marketing/SIGNAL_TAXONOMY.md` | `marketing-crew/researcher` |
-| `monetization-opportunity` | `monetization` | `docs/monetization/opportunity-taxonomy.json` | `docs/monetization/OPPORTUNITY_TAXONOMY.md` | `monetization/opportunity-scout` |
-| `monetization-validation` | `monetization` | `docs/monetization/validation-taxonomy.json` | `docs/monetization/VALIDATION_TAXONOMY.md` | `monetization/market-validator` |
-| `notebook-debt` | `meta-optimization` | `docs/agent-system/notebook-debt-taxonomy.json` | `docs/agent-system/NOTEBOOK_DEBT_TAXONOMY.md` | `marketing-crew/brand-manager`, `meta-optimization/debt-curator` |
-| `bug-report` | `scenario-qa` | `docs/scenario-qa/bug-report-taxonomy.json` | `docs/scenario-qa/BUG_REPORT_TAXONOMY.md` | `scenario-qa/bug-investigator` (universal-source intake — any team's members may write via the `report-bug` skill) |
-| `friction-report` | `meta-optimization` | `docs/meta-optimization/friction-report-taxonomy.json` | `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md` | `meta-optimization/friction-curator` (universal-source intake — any team's members may write via the `report-friction` skill; curator routes to scoped friction sub-topics) |
+| `marketing-research` | `marketing-crew` | `path:docs/marketing/signal-taxonomy.json` | `path:docs/marketing/SIGNAL_TAXONOMY.md` | `marketing-crew/researcher` |
+| `monetization-opportunity` | `monetization` | `path:docs/monetization/opportunity-taxonomy.json` | `path:docs/monetization/OPPORTUNITY_TAXONOMY.md` | `monetization/opportunity-scout` |
+| `monetization-validation` | `monetization` | `path:docs/monetization/validation-taxonomy.json` | `path:docs/monetization/VALIDATION_TAXONOMY.md` | `monetization/market-validator` |
+| `notebook-debt` | `meta-optimization` | `path:docs/agent-system/notebook-debt-taxonomy.json` | `path:docs/agent-system/NOTEBOOK_DEBT_TAXONOMY.md` | `marketing-crew/brand-manager`, `meta-optimization/debt-curator` |
+| `bug-report` | `scenario-qa` | `path:docs/scenario-qa/bug-report-taxonomy.json` | `path:docs/scenario-qa/BUG_REPORT_TAXONOMY.md` | `scenario-qa/bug-investigator` (universal-source intake — any team's members may write via the `report-bug` skill) |
+| `friction-report` | `meta-optimization` | `path:docs/meta-optimization/friction-report-taxonomy.json` | `path:docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md` | `meta-optimization/friction-curator` (universal-source intake — any team's members may write via the `report-friction` skill; curator routes to scoped friction sub-topics) |
 
-Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy: drop a `*-taxonomy.json` (or `signal-taxonomy.json` / `opportunity-taxonomy.json` / `validation-taxonomy.json`) under `docs/<domain>/` with a unique `id` field — the loader at `scenarios/prompt-manager/api/memberflow/taxonomy.go` walks `docs/` and indexes by id. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
+Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy: drop a `*-taxonomy.json` (or `signal-taxonomy.json` / `opportunity-taxonomy.json` / `validation-taxonomy.json`) under `path:docs/<domain>/` with a unique `id` field — the loader at `path:scenarios/prompt-manager/api/memberflow/taxonomy.go` walks `docs/` and indexes by id. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
 
 ## Editing rules
 
 1. **Approval-gated.** Operator-curated via `meta-optimization` decisions. Agents propose diffs; they never edit directly.
 2. **Cross-team-readable.** Any team's members may cite a file here as required reading.
-3. **One concept, one file.** No double residency. The PoR coherence test (`scenarios/prompt-manager/test/agent_system_canon_test.sh`) enforces this.
+3. **One concept, one file.** No double residency. The PoR coherence test (`path:scenarios/prompt-manager/test/agent_system_canon_test.sh`) enforces this.
 4. **Skills cite, never restate.** Any skill that previously contained doctrine in this folder must drop it and add a `Required reading: docs/agent-system/<file>` line.
 5. **Drafts are not canon.** `drafts/` exists for content that is being workshopped before it becomes a stable PoR file. Drafts may be cited only by the same team's draft skills, not by external consumers.
 
-## Naming note: `topics.json` vs `api/topics/` package
+## Naming note: `topics.json` vs `path:api/topics/` package
 
-The per-member data file is `topics.json` (declares intake/output topic-prefixes for the inbox-router-drain pattern). The Go implementation lives at `scenarios/prompt-manager/api/memberflow/` because the existing `scenarios/prompt-manager/api/topics/` package serves a different concern (content-taxonomy topics with parent/child relationships and attached skills). Keeping the data-file name as `topics.json` matches the inbox topic-prefix vocabulary; the package is renamed to avoid collision.
+The per-member data file is `topics.json` (declares intake/output topic-prefixes for the inbox-router-drain pattern). The Go implementation lives at `path:scenarios/prompt-manager/api/memberflow/` because the existing `path:scenarios/prompt-manager/api/topics/` package serves a different concern (content-taxonomy topics with parent/child relationships and attached skills). Keeping the data-file name as `topics.json` matches the inbox topic-prefix vocabulary; the package is renamed to avoid collision.
 
 ## Folder origin
 
-Migrated from `docs/meta-optimization/` (which previously declared itself a "working notebook" but actually contained framework canon — see Phase 1 of the migration plan for the resolution).
+Migrated from `path:docs/meta-optimization/` (which previously declared itself a "working notebook" but actually contained framework canon — see Phase 1 of the migration plan for the resolution).

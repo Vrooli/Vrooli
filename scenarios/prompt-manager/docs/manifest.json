@@ -183,30 +183,6 @@
       "icon": "map",
       "documents": [
         {
-          "path": "plans/team-coordination-greenfield-redesign-implementation-plan.md",
-          "title": "Team Coordination Greenfield Redesign",
-          "description": "Greenfield implementation plan for decoupling runtime, coordination, and concurrency in Prompt Manager teams",
-          "audience": ["developers"]
-        },
-        {
-          "path": "plans/team-operating-contract-greenfield-redesign-implementation-plan.md",
-          "title": "Team Operating Contract Greenfield Redesign",
-          "description": "Greenfield implementation plan for moving durable team/member operating policy into a structured contract rendered into heartbeat prompts",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/team-storage-ontology-greenfield-implementation-plan.md",
-          "title": "Team Storage Ontology Greenfield Implementation",
-          "description": "Greenfield implementation plan for contract-derived Continue, Observe, Propose, Operate storage prompts, typed team working state, friction capture, and prompt prose cleanup",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/prompt-pipeline-preview-and-ergonomics-implementation-plan.md",
-          "title": "Prompt Pipeline Preview and Ergonomics Implementation",
-          "description": "Implementation plan for making heartbeat prompt previews structured, drift-resistant, CLI-accessible, and easier for agents to execute",
-          "audience": ["developers", "operators"]
-        },
-        {
           "path": "plans/action-entity-and-memory-promotion-rfc.md",
           "title": "Action Entity and Memory Promotion RFC",
           "description": "Proposed ontology and rollout framing for Actions and notebook promotion",

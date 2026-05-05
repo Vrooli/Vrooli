@@ -52,7 +52,7 @@ Use the owning boundary to decide where test utilities live:
 - Helpers exported for consumers of a shared package live in `<pkg>test`.
 - Helpers used only by the shared package's own tests stay close to those
   tests: unexported helpers in `_test.go`, fixtures in `testdata/`, or a
-  module-local `internal/testutil` only when repeated across several internal
+  module-local `path:internal/testutil` only when repeated across several internal
   packages.
 
 Do not mirror scenario-local UI-style `test-utils` folders in Go shared

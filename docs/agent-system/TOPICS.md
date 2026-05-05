@@ -19,7 +19,7 @@ Topics are **scoped to a team**. Each team has its own knowledge store; when a p
 - **Not a database table.** Entries are key/value records in team knowledge, not relational rows.
 - **Not a folder.** Topics don't nest like filesystem paths despite the slashes; they're flat strings interpreted as prefixes.
 - **Not a queue.** No head/tail semantics; the drainer routes per entry in any order.
-- **Not the same as the `api/topics/` package's "topics."** That package serves a different concept (parent/child content-taxonomy trees with attached skills) and predates the inbox-flow data layer. Naming collision; different concern. See `README.md` § Naming note.
+- **Not the same as the `path:api/topics/` package's "topics."** That package serves a different concept (parent/child content-taxonomy trees with attached skills) and predates the inbox-flow data layer. Naming collision; different concern. See `README.md` § Naming note.
 
 ## How topics are processed
 
@@ -38,9 +38,9 @@ Every topic that has a drainer — any topic declared in some member's `intake[]
 
 This is the load-bearing claim that makes the substrate auditable. Adding a new input shape doesn't require new architecture — only a topic + a drainer + a taxonomy entry. See `INTAKE_PIPELINE.md` § Promotion / Routing for the full table of when each outcome is allowed, and `DECISIONS.md` §4 for the direct-write-vs-swarm-manager threshold.
 
-The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Topics with deterministic prefixes (e.g., `notebook-debt`-taxonomy intakes) need no classifier — the prefix segment after the inbox name *is* the signal type.
+The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `path:scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Topics with deterministic prefixes (e.g., `notebook-debt`-taxonomy intakes) need no classifier — the prefix segment after the inbox name *is* the signal type.
 
-For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*` on scenario-qa, `friction-inbox/*` on meta-optimization), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention. With two universal observation flows now in place (bugs and friction), the pattern (intake + writer skill + drainer + trigger paragraph) is at the threshold where a data-driven rendering off `intake[].source_team == "*"` declarations becomes worth exploring rather than a third hardcoded paragraph.
+For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*` on scenario-qa, `friction-inbox/*` on meta-optimization), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention. With two universal observation flows now in place (bugs and friction), the pattern (intake + writer skill + drainer + trigger paragraph) is at the threshold where a data-driven rendering off `intake[].source_team == "*"` declarations becomes worth exploring rather than a third hardcoded paragraph.
 
 ## When to create a topic
 
@@ -172,7 +172,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
 | `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
-| `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `docs/marketing/STRATEGY.md`, `docs/marketing/AUDIENCES.md`) | — |
+| `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `path:docs/marketing/STRATEGY.md`, `path:docs/marketing/AUDIENCES.md`) | — |
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
 | `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
 | `subscription-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
@@ -212,7 +212,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: monetization-signal-classifier) | `candidate-sku-record/*` | — |
 | `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent-record/*` (cross-team from marketing) | `monetization-benchmark-record/*` | reads `monetization-benchmark-adjacent-record/*` ← marketing-crew |
-| `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `docs/monetization/CATALOG.md`) | — |
+| `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `path:docs/monetization/CATALOG.md`) | — |
 | `financial-tracker` | _(none — proactive)_ | `monetization-ledger-log/*` | — |
 | `contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
 
@@ -224,7 +224,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 **Mission:** ensure scenario quality through deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes.
 
-**Plan of record:** [`docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`), `BUG_REPORT_TAXONOMY.md`. Owner-curated like every other team PoR.
+**Plan of record:** [`path:docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`), `BUG_REPORT_TAXONOMY.md`. Owner-curated like every other team PoR.
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
@@ -237,7 +237,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 - `bug-inbox/*` is one of two **universal-source intakes** in the system; the other is `friction-inbox/*` on meta-optimization. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
 - `bug-investigation-report/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
 - `challenge-report/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Known inconsistencies #5). Workshop-pending.
-- **Possible future gap:** `qa-inbox/*` / `audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
+- **Possible future gap:** `qa-inbox/*` / `audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `path:docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
 
 ---
 

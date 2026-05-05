@@ -128,7 +128,7 @@ must be a single atomic commit (or PR) that flips all call sites.
 ## 5. Current Technical Context
 
 **agent-manager (this repo):**
-- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor.go`
   - `handleSuccessfulCompletion` (~line 1403) — gated on
     `ResolvedConfig.RequiresApproval`; calls `tryAutoApproval`.
   - `handleFailure` (~line 1454) — does not apply.
@@ -136,46 +136,46 @@ must be a single atomic commit (or PR) that flips all call sites.
     `Acceptance.AutoApprove` / `AutoReject` /
     `DisableAutoApproveIfEmpty`.
   - `applySandboxLifecycle` is already invoked at terminal events.
-- `scenarios/agent-manager/api/internal/adapters/sandbox/interface.go`
+- `path:scenarios/agent-manager/api/internal/adapters/sandbox/interface.go`
   - `Provider` interface has `Approve`, `Reject`, `PartialApprove`,
     `GetDiff`, etc. — does **not** have `ApplyAtRunEnd`.
-- `scenarios/agent-manager/api/internal/adapters/sandbox/workspace_sandbox.go`
+- `path:scenarios/agent-manager/api/internal/adapters/sandbox/workspace_sandbox.go`
   - HTTP adapter; `doRequest` helper exists; pattern for new endpoint
     follows existing `Approve` / `Reject` calls.
-- `scenarios/agent-manager/api/internal/domain/types.go`
+- `path:scenarios/agent-manager/api/internal/domain/types.go`
   - `SandboxAcceptanceConfig` (line 204) holds the deprecated trio
     (autoApprove / autoReject / disableAutoApproveIfEmpty).
   - `SandboxConfig` (line 276) holds the new contract levers and is the
     target shape after cutover.
   - `DefaultSandboxConfig()` (line 332) returns the locked defaults.
   - `RunConfig.RequiresApproval` (line 54) is the legacy gate to remove.
-- `scenarios/agent-manager/api/internal/domain/decisions.go`
+- `path:scenarios/agent-manager/api/internal/domain/decisions.go`
   - `RunOutcome` (line 232) — 7 values.
   - `ContractRunOutcome` (line 286) — 4 values.
   - `RunOutcome.ToContract()` exists per `auditability_contract_test.go`.
-- `scenarios/agent-manager/api/internal/orchestration/sandbox_config_test.go`
+- `path:scenarios/agent-manager/api/internal/orchestration/sandbox_config_test.go`
   - Fixtures exercise the deprecated fields; will need refactoring.
 
 **workspace-sandbox:**
-- `scenarios/workspace-sandbox/api/internal/sandbox/service.go`
+- `path:scenarios/workspace-sandbox/api/internal/sandbox/service.go`
   - `ApplyAtRunEnd` (line 1763) — implemented; validates request and
     routes through the same apply pipeline as operator approval, with
     `Source=SourceAgentManagerAutoApply`.
-- `scenarios/workspace-sandbox/api/internal/handlers/handlers.go`
+- `path:scenarios/workspace-sandbox/api/internal/handlers/handlers.go`
   - Route `POST /api/v1/sandboxes/{id}/apply-at-run-end` registered
     (line 207).
-- `scenarios/workspace-sandbox/api/internal/types/auditability_contract_test.go`
+- `path:scenarios/workspace-sandbox/api/internal/types/auditability_contract_test.go`
   - `ApplyAtRunEndRequest` JSON contract is locked and tested.
-- `scenarios/workspace-sandbox/api/internal/lifecycle/` (TBD path —
+- `path:scenarios/workspace-sandbox/api/internal/lifecycle/` (TBD path —
   verify with `rg -l LifecycleReconciler scenarios/workspace-sandbox`)
   - Hosts `LifecycleReconciler.ReconcileLifecycle`; needs a TTL branch.
-- `scenarios/workspace-sandbox/api/internal/config/config.go`
+- `path:scenarios/workspace-sandbox/api/internal/config/config.go`
   - Already exposes `LifecycleConfig.ManualReviewTTL` and
     `WORKSPACE_SANDBOX_MANUAL_REVIEW_TTL`.
 
 **Cross-cutting:**
 - The locked contract is mirrored at
-  `scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md` and the
+  `path:scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md` and the
   conclusion file inside the research backlog item. Treat both as
   source-of-truth; if they disagree, the conclusion.md wins.
 
@@ -220,7 +220,7 @@ build + tests; only Phase 3b removes the legacy fields.
 Effort: M. No behavior change.
 
 1. Extend `Provider` in
-   `scenarios/agent-manager/api/internal/adapters/sandbox/interface.go`
+   `path:scenarios/agent-manager/api/internal/adapters/sandbox/interface.go`
    with `ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyResult, error)`.
    - Define `ApplyAtRunEndRequest` and `ApplyResult` mirroring the
      workspace-sandbox `types.ApplyAtRunEndRequest` and
@@ -306,7 +306,7 @@ Order within the phase:
      is empty but `Run.ParentRunID` is set, conversation id is inherited
      from the parent for the apply call.
 8. **DB read-time normalization** — in the run repository (likely
-   `scenarios/agent-manager/api/internal/database/repository_run.go`),
+   `path:scenarios/agent-manager/api/internal/database/repository_run.go`),
    on row decode, if a persisted JSON config still carries
    `acceptance.autoApprove==true` or `requiresApproval` flags, map them
    onto the new contract levers (`AutoApply`, `ManualReview`) so legacy
@@ -334,7 +334,7 @@ shared types changed.
 3. Test with a clock-injection fixture (the codebase already uses
    `clock.Clock` style injection in `gc/`; mirror that pattern).
 4. Document the new env var behavior in
-   `scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md` (it is
+   `path:scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md` (it is
    already mentioned; tighten to "enforced by reconciler since YYYY-MM-DD").
 
 Exit criteria: workspace-sandbox tests green; new TTL test exercises
@@ -354,12 +354,12 @@ The deliverable structure (mirrors the spec verbatim):
 
 1. `tests/e2e/sandbox/` (or scenario-level integration tests) — nine
    test cases, one per locked behavior.
-2. Focused regression tests around `packages/cli-core/cliutil/sandbox.go`
-   and the Go scenario-restart code in `internal/scenario`,
-   `internal/scenarioexec`, `internal/cli/vroolicli`,
-   `internal/repocontractcheck`.
+2. Focused regression tests around `path:packages/cli-core/cliutil/sandbox.go`
+   and the Go scenario-restart code in `path:internal/scenario`,
+   `path:internal/scenarioexec`, `path:internal/cli/vroolicli`,
+   `path:internal/repocontractcheck`.
 3. A pass/fail readiness checklist file at
-   `docs/plans/agent-sandbox-validation-matrix-readiness.md` updated by
+   `path:docs/plans/agent-sandbox-validation-matrix-readiness.md` updated by
    the test runner output. The default-rollout item consumes this file
    verbatim.
 4. Documentation of any behavior that cannot yet be covered automatically,
@@ -393,7 +393,7 @@ automated test, not a manual checklist.
 | agent-manager run-executor | 6 cases listed in Phase 3b step 7 |
 | workspace-sandbox lifecycle | Clock-injected `ManualReviewTTL` expiry → auto-deny → teardown |
 | Cross-scenario E2E | 9 validation-matrix cases × 2 spawn surfaces (Phase E2E) |
-| cli-core / scenario-restart | Regression tests around `cliutil/sandbox.go` and `internal/scenario*` (Phase E2E deliverable 2) |
+| cli-core / scenario-restart | Regression tests around `cliutil/sandbox.go` and `path:internal/scenario*` (Phase E2E deliverable 2) |
 
 Long-running command timeouts (per CLAUDE.md guidance): set `--timeout
 600s` for full agent-manager `go test ./...` runs.
@@ -411,7 +411,7 @@ Long-running command timeouts (per CLAUDE.md guidance): set `--timeout
 - [ ] `rg "RequiresApproval|AutoApprove|DisableAutoApproveIfEmpty"
       scenarios/agent-manager` returns zero hits.
 - [ ] Validation matrix readiness checklist written to
-      `docs/plans/agent-sandbox-validation-matrix-readiness.md` with
+      `path:docs/plans/agent-sandbox-validation-matrix-readiness.md` with
       9/9 behaviors green on both spawn surfaces.
 - [ ] swarm-manager queue spawn surface still drives runs end-to-end
       (since this plan touches the foundation it depends on).
@@ -425,10 +425,10 @@ Long-running command timeouts (per CLAUDE.md guidance): set `--timeout
 |------|------------|--------|------------|
 | Phase 3b breaks swarm-manager mid-cutover (it depends on agent-manager) | M | High | Land Phase 3a first (no behavior change). Phase 3b lands as one atomic commit; restart agent-manager + swarm-manager together; smoke a swarm-manager queue spawn before pushing. |
 | Persisted runs in DB still carry deprecated fields | High | M | DB read-time normalization shim in `repository_run.go` (Phase 3b step 8). Fixture-tested. |
-| Proto / generated code drift hides callers | M | M | Regenerate, then `rg` over the whole tree (not just `scenarios/agent-manager`) for the deprecated names before merge. |
+| Proto / generated code drift hides callers | M | M | Regenerate, then `rg` over the whole tree (not just `path:scenarios/agent-manager`) for the deprecated names before merge. |
 | `ApplyAtRunEnd` and `Approve` race (operator approves while terminal handler also auto-applies) | L | M | workspace-sandbox `ApplyAtRunEnd` is idempotent on already-applied sandboxes (verify in adapter test); on conflict, log warn and continue. |
 | `manualReview=true` runs leak before Phase 4 lands | L | M | Phase 4 is parallelizable; land alongside or before Phase 3b. |
-| Phase 5 schema-version package coordination delays persistence | M | M | Out of scope; new fields are wire-level and survive the round trip even if persistence lags. Document in `docs/plans/agent-sandbox-validation-matrix-readiness.md` as a known gap. |
+| Phase 5 schema-version package coordination delays persistence | M | M | Out of scope; new fields are wire-level and survive the round trip even if persistence lags. Document in `path:docs/plans/agent-sandbox-validation-matrix-readiness.md` as a known gap. |
 | Protected-mode initiative changes process-launch path mid-flight | L | High | Protected mode is sequenced strictly after the default rollout (see § 12). Plan does not implement it. |
 
 ## 12. Coupling With `protected-agent-sandboxing`

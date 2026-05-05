@@ -9,10 +9,10 @@ These items may still exist in the repository or in active code paths, but they 
 The following paths are excluded from the canonical contract:
 
 - `cli/`
-- `cli/commands/`
-- `cli/lib/`
-- `scripts/lib/`
-- `scripts/manage.sh`
+- `path:cli/commands/`
+- `path:cli/lib/`
+- `path:scripts/lib/`
+- `path:scripts/manage.sh`
 - project-level shell helper locations
 - project-level shell dispatch assumptions
 
@@ -55,7 +55,7 @@ The following resource assumptions are excluded from the canonical contract:
 
 Reason:
 
-- the future-state resource contract centers on `resources/<name>/resource.json` and Go-native control-plane behavior, not shell-era implementation details
+- the future-state resource contract centers on `path:resources/<name>/resource.json` and Go-native control-plane behavior, not shell-era implementation details
 
 ## Excluded Bundle/Profile Inputs
 

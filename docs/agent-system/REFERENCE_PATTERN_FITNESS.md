@@ -1,22 +1,22 @@
 # Audit Lens: Reference-Pattern Fitness
 
-**Status:** v1 (paired with new `reference-pattern-fitness` skill, 2026-05-04). Established by a `meta-self-improvement` decision filed against [`scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`](../../scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl). Owned by the `toolchain-validator` member of the `meta-optimization` team.
+**Status:** v1 (paired with new `reference-pattern-fitness` skill, 2026-05-04). Established by a `meta-self-improvement` decision filed against [`path:scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`](../../scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl). Owned by the `toolchain-validator` member of the `meta-optimization` team.
 
 ## Definition
 
 Audit whether an artifact that **exists to be copied** is fit to be a copy source. The lens applies only to a specific class of artifacts:
 
-- **Templates** — `templates/scenarios/<name>/`, fed into `vrooli scenario generate`. Every choice multiplies across N future scenarios.
+- **Templates** — `path:templates/scenarios/<name>/`, fed into `vrooli scenario generate`. Every choice multiplies across N future scenarios.
 - **Reference scenarios** — entries in [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md). The reference's quality is bounded above by the template it was generated from.
-- **Canonical examples** inside scenarios — patterns documented as "copy this when adding X" (e.g., the `notes` CRUD reference inside `templates/scenarios/react-vite/`, accompanied by a `REPLACING-NOTES.md`-style guide).
+- **Canonical examples** inside scenarios — patterns documented as "copy this when adding X" (e.g., the `notes` CRUD reference inside `path:templates/scenarios/react-vite/`, accompanied by a `REPLACING-NOTES.md`-style guide).
 
-The lens does **not** ask *"is this code good?"* — that is what the seven single-instance audit lenses in [`docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) are for. This lens asks the multiplier-aware question: *"is this code good **as a copy source**?"* A 50-line CLI helper duplicated per domain isn't 50 lines of debt — it's 50 × D × S lines across the portfolio. A contract encoded in a doc comment survives a careful read but not a copy/paste/modify cycle. A "delete this with sed" guide proves the architecture's removal promise wasn't real.
+The lens does **not** ask *"is this code good?"* — that is what the seven single-instance audit lenses in [`path:docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) are for. This lens asks the multiplier-aware question: *"is this code good **as a copy source**?"* A 50-line CLI helper duplicated per domain isn't 50 lines of debt — it's 50 × D × S lines across the portfolio. A contract encoded in a doc comment survives a careful read but not a copy/paste/modify cycle. A "delete this with sed" guide proves the architecture's removal promise wasn't real.
 
 The full procedure (applicability gate → run single-instance lenses first → four sub-lenses → tier findings → categorize substrate-vs-template → notebook entry → optional decision proposal) lives in the paired skill. This document is the strategic-canon side: when the lens applies, when it backfires, what the meta-contrarian challenges, and how it composes with the existing audit lenses.
 
 ## When it applies
 
-✅ **The artifact is registered as a template.** Anything under `templates/scenarios/<name>/`. Every defect multiplies across every scenario generated from it.
+✅ **The artifact is registered as a template.** Anything under `path:templates/scenarios/<name>/`. Every defect multiplies across every scenario generated from it.
 
 ✅ **The artifact is registered in [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md).** Gold-star or secondary references are the substrate the `toolchain-validator` validates tools and skills against; their quality directly shapes the validator's signal.
 
@@ -72,17 +72,17 @@ The `contrarian` member of the `meta-optimization` team is the mandatory skeptic
 
 This lens **runs after** the relevant single-instance lenses on the same artifact, not instead of them. Multiplier-framed findings are only correct *given that the artifact is otherwise structurally sound*. Asking *"is this fit to be copied?"* before *"is this code structurally sound?"* produces noise.
 
-The auditor selects from [`docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in their notebook entry.
+The auditor selects from [`path:docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in their notebook entry.
 
-This lens does **not** belong in the [`docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) registry. That registry is scoped to the `quality-auditor` member of the `scenario-qa` team, which audits real scenarios where multiplier framing would mislead. Promotion to its own registry — `docs/agent-system/audit-techniques/` — is deferred until a second similar lens lands.
+This lens does **not** belong in the [`path:docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) registry. That registry is scoped to the `quality-auditor` member of the `scenario-qa` team, which audits real scenarios where multiplier framing would mislead. Promotion to its own registry — `path:docs/agent-system/audit-techniques/` — is deferred until a second similar lens lands.
 
 ## Worked example: react-vite template (2026-05-04)
 
-The first concrete application of this lens. A long-form session audited `templates/scenarios/react-vite/` after the seven single-instance lenses had each been applied to the same artifact at various points without surfacing multiplier-aware findings. The lens produced six tiered findings:
+The first concrete application of this lens. A long-form session audited `path:templates/scenarios/react-vite/` after the seven single-instance lenses had each been applied to the same artifact at various points without surfacing multiplier-aware findings. The lens produced six tiered findings:
 
 **Tier 1 — per-replica cost / coordinated-edit count > threshold:**
 1. CLI per-domain client boilerplate (`apiError`, `decodeEnvelope`, `formatX`, protojson decode ribbon) — ~50 lines duplicated per domain. Substrate home: cli-core (`cliapp.DecodeEnvelope`, `cliapp.WrapAPIError`). Substrate exists.
-2. UI per-domain lib boilerplate (`decodeApiError`, `if (!res.ok)` ribbon, `fromJson + guard`) — ~30 lines per method × 3 methods × N domains. Substrate home: in-template `ui/src/lib/api.ts` (a `protoFetch<Req,Resp>` helper). Substrate exists; in-template fix.
+2. UI per-domain lib boilerplate (`decodeApiError`, `if (!res.ok)` ribbon, `fromJson + guard`) — ~30 lines per method × 3 methods × N domains. Substrate home: in-template `path:ui/src/lib/api.ts` (a `protoFetch<Req,Resp>` helper). Substrate exists; in-template fix.
 3. Wire-path duplicated between `handler.go` and `endpoints.go` — drift surface; route descriptors and registered routes can disagree silently. CI check missing. Fix: a `module_test.go`-level walk-the-router parity assertion. Substrate exists.
 
 **Tier 2 — drift surfaces, contract leakage:**
@@ -100,7 +100,7 @@ This worked example is frozen as of 2026-05-04. Future audits create new noteboo
 
 ## Paired skill
 
-`scenarios/prompt-manager/store/skills/packs/core/reference-pattern-fitness/SKILL.md` — the executable spec. Tagged `template-fitness` (deliberately not `audit-technique` — keeps the skill out of scenario-qa's registry coherence test). Required reading: this PoR doc, [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md), `prompt-manager skills read knowledge-observatory-tools`, plus the single-instance lens(es) appropriate to the artifact.
+`path:scenarios/prompt-manager/store/skills/packs/core/reference-pattern-fitness/SKILL.md` — the executable spec. Tagged `template-fitness` (deliberately not `audit-technique` — keeps the skill out of scenario-qa's registry coherence test). Required reading: this PoR doc, [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md), `prompt-manager skills read knowledge-observatory-tools`, plus the single-instance lens(es) appropriate to the artifact.
 
 ## Cross-references
 

@@ -31,7 +31,7 @@ cat scenarios/prompt-manager/store/skills/packs/core/morning-vision-walk/SKILL.m
 
 ## 3. Problem Statement
 
-**Observed 2026-04-24 vision walk**: `portfolio-manager` proposed creating a `web-console-readiness` initiative (`dec-1776982737575948642`) claiming web-console had *no* dedicated readiness coverage. This was factually wrong — the scenario has **7 active backlog items** under the `continuous-audio-platform` initiative targeting `scenarios/web-console/**` globs, plus one fresh item (`execute/web-console-tts-code-tick-handling`). The agent did not enumerate existing coverage before proposing.
+**Observed 2026-04-24 vision walk**: `portfolio-manager` proposed creating a `web-console-readiness` initiative (`dec-1776982737575948642`) claiming web-console had *no* dedicated readiness coverage. This was factually wrong — the scenario has **7 active backlog items** under the `continuous-audio-platform` initiative targeting `path:scenarios/web-console/**` globs, plus one fresh item (`execute/web-console-tts-code-tick-handling`). The agent did not enumerate existing coverage before proposing.
 
 **Root cause (layered):**
 
@@ -73,9 +73,9 @@ If a task surfaces an existing bug (e.g., `ScenariosFromGlobs` misparsing a glob
 
 ### 6.1 Data model (how scenario targeting is stored)
 
-- Backlog items: `acceptance_allow []string` field in `scenarios/swarm-manager/api/internal/backlog/types.go:96-117`. Glob patterns like `scenarios/web-console/**`.
-- Initiatives: `Items []string` (kind/name refs) in `scenarios/swarm-manager/api/internal/initiatives/model.go:7-19`. Initiatives have no direct scenario-targeting field — their "targeted scenarios" are **derived** by union-ing their member items' `acceptance_allow` globs.
-- Derivation helper: `pathutil.ScenariosFromGlobs()` in `scenarios/swarm-manager/api/internal/pathutil/root.go:49-71`.
+- Backlog items: `acceptance_allow []string` field in `path:scenarios/swarm-manager/api/internal/backlog/types.go:96-117`. Glob patterns like `path:scenarios/web-console/**`.
+- Initiatives: `Items []string` (kind/name refs) in `path:scenarios/swarm-manager/api/internal/initiatives/model.go:7-19`. Initiatives have no direct scenario-targeting field — their "targeted scenarios" are **derived** by union-ing their member items' `acceptance_allow` globs.
+- Derivation helper: `pathutil.ScenariosFromGlobs()` in `path:scenarios/swarm-manager/api/internal/pathutil/root.go:49-71`.
 
 ### 6.2 Existing scenario-filter precedent (DO emulate)
 
@@ -88,18 +88,18 @@ If a task surfaces an existing bug (e.g., `ScenariosFromGlobs` misparsing a glob
 
 ### 6.4 UI surfaces
 
-- `scenarios/swarm-manager/ui/src/pages/ScenarioDetailsPage.tsx` — page exists; needs new section.
-- `scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx` — page exists; needs new section.
-- `scenarios/swarm-manager/ui/src/components/backlog/backlog-scenarios-panel.tsx` — reusable chip panel. Used at `BacklogDetailsPage.tsx:469, 548` via `<BacklogScenariosPanel targetScenarios={targetScenarios} />`.
+- `path:scenarios/swarm-manager/ui/src/pages/ScenarioDetailsPage.tsx` — page exists; needs new section.
+- `path:scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx` — page exists; needs new section.
+- `path:scenarios/swarm-manager/ui/src/components/backlog/backlog-scenarios-panel.tsx` — reusable chip panel. Used at `BacklogDetailsPage.tsx:469, 548` via `<BacklogScenariosPanel targetScenarios={targetScenarios} />`.
 
 ### 6.5 Agent files
 
-- `scenarios/prompt-manager/store/agents/portfolio-manager/TOOLS.md` — toolkit surface.
-- `scenarios/prompt-manager/store/agents/portfolio-manager/AGENTS.md` — workflow (step 4 proposes new initiatives; no pre-check step exists).
+- `path:scenarios/prompt-manager/store/agents/portfolio-manager/TOOLS.md` — toolkit surface.
+- `path:scenarios/prompt-manager/store/agents/portfolio-manager/AGENTS.md` — workflow (step 4 proposes new initiatives; no pre-check step exists).
 
 ### 6.6 Walk-prep agent
 
-- `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/HEARTBEAT.md` — instructions for the 5 AM `last-handoff.md` regeneration. Must be updated to preserve `## Walk Checkpoint` sections.
+- `path:scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/HEARTBEAT.md` — instructions for the 5 AM `last-handoff.md` regeneration. Must be updated to preserve `## Walk Checkpoint` sections.
 
 ## 7. Target End State
 
@@ -120,8 +120,8 @@ Phases are ordered so each phase is independently mergeable and incrementally im
 ### Phase 1 — Agent-skill updates (small; unblocks today's behavior)
 
 **Files**
-- `scenarios/prompt-manager/store/agents/portfolio-manager/TOOLS.md`
-- `scenarios/prompt-manager/store/agents/portfolio-manager/AGENTS.md`
+- `path:scenarios/prompt-manager/store/agents/portfolio-manager/TOOLS.md`
+- `path:scenarios/prompt-manager/store/agents/portfolio-manager/AGENTS.md`
 
 **Changes**
 1. `TOOLS.md`: add a "Scenario coverage enumeration" section listing:
@@ -135,9 +135,9 @@ Phases are ordered so each phase is independently mergeable and incrementally im
 ### Phase 2 — `swarm-manager initiatives list --scenario` (API + CLI)
 
 **Files**
-- API handler: `scenarios/swarm-manager/api/internal/initiatives/handler.go` (add scenario filter to list endpoint).
+- API handler: `path:scenarios/swarm-manager/api/internal/initiatives/handler.go` (add scenario filter to list endpoint).
 - API query logic: reuse/extend `pathutil.ScenariosFromGlobs` to resolve each initiative's aggregated targeted scenarios (union of member items' `acceptance_allow`).
-- CLI: `scenarios/swarm-manager/cli/cmd_initiatives.go:26` — add `scenarioFlag := fs.String("scenario", "", "Comma-separated scenario names to filter by")`; pass as `?scenario=...` query param.
+- CLI: `path:scenarios/swarm-manager/cli/cmd_initiatives.go:26` — add `scenarioFlag := fs.String("scenario", "", "Comma-separated scenario names to filter by")`; pass as `?scenario=...` query param.
 
 **Behavior**
 - `GET /initiatives?scenario=web-console,command-center` returns initiatives where at least one member item's `acceptance_allow` globs, when resolved by `ScenariosFromGlobs`, include any of the requested scenarios.
@@ -147,10 +147,10 @@ Phases are ordered so each phase is independently mergeable and incrementally im
 ### Phase 3 — `swarm-manager initiatives context --scenario <name>` (API + CLI)
 
 **Files**
-- API: new endpoint `GET /scenarios/<name>/context` (preferred — matches REST resource shape per api-steer §3.1) in `scenarios/swarm-manager/api/internal/initiatives/handler.go` or a new `handler_scenario_context.go`. Alternative: overload `GET /initiatives/<name>/context` with a `?mode=scenario` param. **Recommended: new endpoint** for clarity.
-- CLI: `scenarios/swarm-manager/cli/cmd_initiatives.go:152` — rework `cmdInitiativesContext` so `--name` and `--scenario` are mutually exclusive; when `--scenario` is set, call the new endpoint.
+- API: new endpoint `GET /scenarios/<name>/context` (preferred — matches REST resource shape per api-steer §3.1) in `path:scenarios/swarm-manager/api/internal/initiatives/handler.go` or a new `handler_scenario_context.go`. Alternative: overload `GET /initiatives/<name>/context` with a `?mode=scenario` param. **Recommended: new endpoint** for clarity.
+- CLI: `path:scenarios/swarm-manager/cli/cmd_initiatives.go:152` — rework `cmdInitiativesContext` so `--name` and `--scenario` are mutually exclusive; when `--scenario` is set, call the new endpoint.
 
-**Response shape** (proto-first; add message to `packages/proto/.../initiatives_service.proto` or equivalent):
+**Response shape** (proto-first; add message to `path:packages/proto/.../initiatives_service.proto` or equivalent):
 
 ```proto
 message ScenarioContextResponse {
@@ -169,8 +169,8 @@ message ScenarioContextResponse {
 ### Phase 4 — UI: Initiative details page — "Targeted scenarios" section
 
 **Files**
-- `scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx`
-- `scenarios/swarm-manager/ui/src/components/backlog/backlog-scenarios-panel.tsx` — reuse as-is; do not duplicate.
+- `path:scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx`
+- `path:scenarios/swarm-manager/ui/src/components/backlog/backlog-scenarios-panel.tsx` — reuse as-is; do not duplicate.
 
 **Changes**
 - Compute `targetScenarios` as union of member items' derived scenarios (API should return this as part of initiative context — Phase 2 ships this, confirm the `InitiativeContextResponse` includes per-item scenario lists or a top-level `target_scenarios` aggregation).
@@ -182,7 +182,7 @@ message ScenarioContextResponse {
 ### Phase 5 — UI: Scenario details page — "Associated initiatives & backlog items" section
 
 **Files**
-- `scenarios/swarm-manager/ui/src/pages/ScenarioDetailsPage.tsx`
+- `path:scenarios/swarm-manager/ui/src/pages/ScenarioDetailsPage.tsx`
 
 **Changes**
 - Call the new `GET /scenarios/<name>/context` endpoint from Phase 3.
@@ -195,7 +195,7 @@ message ScenarioContextResponse {
 ### Phase 6 — `vision-walk-prep` agent: preserve `## Walk Checkpoint`
 
 **Files**
-- `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/HEARTBEAT.md`
+- `path:scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/HEARTBEAT.md`
 
 **Changes**
 - Before generating the new `last-handoff.md`, read the existing `last-handoff.md` (if present).
@@ -224,7 +224,7 @@ message ScenarioContextResponse {
 
 ### 10.1 API tests (Go, testcontainers where applicable)
 
-- `scenarios/swarm-manager/api/internal/initiatives/handler_test.go`
+- `path:scenarios/swarm-manager/api/internal/initiatives/handler_test.go`
   - `TestListInitiatives_ScenarioFilter_ReturnsMatchingInitiatives` — seeds two initiatives, one with items targeting `web-console`, one not; asserts filter returns only the former.
   - `TestListInitiatives_ScenarioFilter_MultipleValues_CSV` — seeds three; `?scenario=a,b`; asserts returns initiatives targeting a OR b.
   - `TestListInitiatives_ScenarioFilter_NoMatches_EmptyList` — asserts graceful empty list, not 404.
@@ -236,17 +236,17 @@ message ScenarioContextResponse {
 
 ### 10.2 CLI tests (Go)
 
-- `scenarios/swarm-manager/cli/cmd_initiatives_test.go` (extend) — new cases:
+- `path:scenarios/swarm-manager/cli/cmd_initiatives_test.go` (extend) — new cases:
   - `cmdInitiativesList` with `--scenario` flag → asserts `?scenario=...` query string is sent (table-driven test over CSV forms).
   - `cmdInitiativesContext` with `--scenario` → asserts call hits `/scenarios/<name>/context`, not `/initiatives/<name>/context`.
   - Mutual exclusion: `--name` and `--scenario` together → asserts error message before any HTTP call.
 
 ### 10.3 UI tests (React Testing Library)
 
-- `scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.test.tsx` (extend):
+- `path:scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.test.tsx` (extend):
   - `renders BacklogScenariosPanel with aggregated target scenarios` — mock API returns initiative context with 3 items targeting 2 distinct scenarios; assert both chips present.
   - `empty target scenarios shows no panel` — mock empty; assert section not rendered (or rendered with empty-state copy).
-- `scenarios/swarm-manager/ui/src/pages/ScenarioDetailsPage.test.tsx` (extend):
+- `path:scenarios/swarm-manager/ui/src/pages/ScenarioDetailsPage.test.tsx` (extend):
   - `renders associated initiatives section with rollup` — mock scenario context returning 2 initiatives; assert both cards, status badges, rollup numbers.
   - `renders orphan items section` — mock with 3 orphan items; assert they appear in the orphan section, not under any initiative.
   - `empty state renders helpful guidance` — mock empty response; assert section shows "no coverage yet" copy with a "create initiative" CTA.
@@ -259,7 +259,7 @@ message ScenarioContextResponse {
 
 ### 10.5 Prep-agent checkpoint preservation
 
-- Add a test to `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/` (or a parent test harness if one exists):
+- Add a test to `path:scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/` (or a parent test harness if one exists):
   - Pre-populate `last-handoff.md` with a known `## Walk Checkpoint (2026-04-24T10:40-04:00)` section.
   - Invoke the prep regeneration.
   - Assert the new file contains the checkpoint section verbatim (byte-for-byte) and appears after the generated content.
@@ -301,7 +301,7 @@ Execute in order. Each `✅` gate must pass before proceeding.
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| `ScenariosFromGlobs` has a parsing bug that surfaces under new call sites | Low | Medium | Phase 2/3 tests include glob edge cases (`scenarios/*/**`, bare `scenarios/x`, globs with `!` negation). Fix bugs in place per §5 constraint. |
+| `ScenariosFromGlobs` has a parsing bug that surfaces under new call sites | Low | Medium | Phase 2/3 tests include glob edge cases (`path:scenarios/*/**`, bare `path:scenarios/x`, globs with `!` negation). Fix bugs in place per §5 constraint. |
 | Scenario list response grows large (many items/initiatives) | Low now, growing | Medium | Pagination per api-steer §6.2. Default `page_size=50`. Defer only if Phase 3 response exceeds threshold in practice — document decision inline. |
 | Portfolio-manager ignores new AGENTS.md step | Medium | High (behavior unchanged) | Phase 1 step 2 must be *imperative* and placed at the top of the propose-initiative workflow, not appended. Add an explicit failure mode in the step: "If you did not run the enumeration, your proposal is invalid." |
 | Vision-walk-prep regeneration runs while a divergent walk is active and removes the checkpoint before Phase 6 lands | Medium (24h window) | High (lose walk state) | Checkpoint was written to `last-handoff.md` on 2026-04-24 at 10:40 EDT. Prep runs at 5 AM. Operator should complete Phase 6 (prep-agent change) **before the next 5 AM regeneration** or manually re-inject the checkpoint if it's wiped. Add this to Phase 6 acceptance. |
@@ -319,7 +319,7 @@ Execute in order. Each `✅` gate must pass before proceeding.
 - Commit proto regen alongside logic changes in the same commit — keep them separate for reviewability.
 - Introduce feature flags, A/B gates, or migration windows for any of the new behavior. This is greenfield per §5.
 - Reuse `acceptance_allow` globs for anything other than their current purpose (path filter during execution). The derivation to scenario names is read-only.
-- Hard-enforce agent behavior from the swarm-manager side (e.g., "reject `initiative create` calls from portfolio-manager if it didn't first call `scenarios/<x>/context`"). Agent compliance is a soft/doc contract.
+- Hard-enforce agent behavior from the swarm-manager side (e.g., "reject `initiative create` calls from portfolio-manager if it didn't first call `path:scenarios/<x>/context`"). Agent compliance is a soft/doc contract.
 - Update `portfolio-manager` to *also* reason about orphan items that aren't scenario-specific (e.g., cross-scenario audit items). Its proposal workflow change is scoped to scenario-named initiatives only; anything broader is out of scope.
 
 ## 14. Definition of Done
@@ -346,7 +346,7 @@ Execute in order. Each `✅` gate must pass before proceeding.
 
 ## Appendix A: Operator Handoff Note
 
-This plan was authored during a morning-vision-walk divergence on 2026-04-24 (walk date 2026-04-24, plan authored ~11:00 EDT). The divergence was captured in `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md` under `## Walk Checkpoint (2026-04-24T10:40-04:00)`. When the operator resumes the walk:
+This plan was authored during a morning-vision-walk divergence on 2026-04-24 (walk date 2026-04-24, plan authored ~11:00 EDT). The divergence was captured in `path:scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md` under `## Walk Checkpoint (2026-04-24T10:40-04:00)`. When the operator resumes the walk:
 
 1. Re-read the checkpoint.
 2. Skip Phases 1–3 (covered).

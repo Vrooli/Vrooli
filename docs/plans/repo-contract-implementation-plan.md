@@ -48,12 +48,12 @@ The contract must treat those sources as higher authority than legacy implementa
 The following project-level shell-era paths are excluded from the canonical repo contract:
 
 - `cli/` (deleted)
-- `scripts/lib/` (remaining shared helpers are out of scope for the contract)
-- `scripts/manage.sh` (deleted)
+- `path:scripts/lib/` (remaining shared helpers are out of scope for the contract)
+- `path:scripts/manage.sh` (deleted)
 - project-level shell dispatch assumptions
 - project-level shell helper locations
 
-New consumers must not depend on any of these, and the `scripts/lib/**` / `scripts/manage.sh` globs remain in the bundle profile exclude list to block reintroduction.
+New consumers must not depend on any of these, and the `path:scripts/lib/**` / `path:scripts/manage.sh` globs remain in the bundle profile exclude list to block reintroduction.
 
 The contract should also exclude:
 - incidental paths used only in tests
@@ -76,10 +76,10 @@ This is the language-agnostic source of truth.
 ### 4.2 Language Adapters
 
 Initial adapter:
-- `packages/repo-contract-go`
+- `path:packages/repo-contract-go`
 
 Future adapters:
-- `packages/repo-contract-ts`
+- `path:packages/repo-contract-ts`
 - other language adapters as needed
 
 Optional future tooling:
@@ -88,9 +88,9 @@ Optional future tooling:
 ### 4.3 Consumers
 
 Primary consumers:
-- `packages/api-core`
-- `packages/cli-core`
-- selected `internal/*`
+- `path:packages/api-core`
+- `path:packages/cli-core`
+- selected `path:internal/*`
 - repo-aware scenarios and tools such as:
   - `scenario-to-cloud`
   - `swarm-manager`
@@ -338,8 +338,8 @@ Deliverables:
 **Implementation status (2026-04-11):** Core artifacts for Phase 1 are already landed:
 - `.vrooli/repo-contract.json`
 - `.vrooli/schemas/repo-contract.schema.json`
-- `docs/repo-contract.md`
-- `internal/repocontract` conformance tests
+- `path:docs/repo-contract.md`
+- `path:internal/repocontract` conformance tests
 - `make validate-repo-contract`
 
 Remaining Phase 1 work should be treated as cleanup and hardening only:
@@ -372,7 +372,7 @@ Exit criteria for fully closed Phase 1:
 
 ### Phase 2 — Go Adapter Implementation
 
-**Goal:** Ship `packages/repo-contract-go` as the first adapter.
+**Goal:** Ship `path:packages/repo-contract-go` as the first adapter.
 
 Core responsibilities:
 - load and validate the contract
@@ -401,7 +401,7 @@ Implementation rules:
 - fail loudly on unsupported versions
 
 Deliverables:
-- `packages/repo-contract-go`
+- `path:packages/repo-contract-go`
 - unit tests
 - fixture contracts
 
@@ -409,7 +409,7 @@ Deliverables:
 
 **Goal:** Make shared packages consume the contract where appropriate.
 
-#### `packages/cli-core`
+#### `path:packages/cli-core`
 
 Should use the contract for:
 - repo root defaults
@@ -421,7 +421,7 @@ Should keep its own responsibilities for:
 - merged-path redirection
 - CLI ergonomics
 
-#### `packages/api-core`
+#### `path:packages/api-core`
 
 Should use the contract for:
 - repo-layout-aware path and file resolution where that is part of a shared API concern
@@ -583,12 +583,12 @@ Initial implementation can be grep-based or targeted static checks.
 
 1. Define scope and exclusions
 2. Define schema and initial contract
-3. Implement `packages/repo-contract-go`
+3. Implement `path:packages/repo-contract-go`
 4. Migrate `swarm-manager` glob semantics
 5. Migrate `tidiness-manager` root/scenario resolution
 6. Migrate `scenario-to-cloud` repo-root and bundle profile logic
-7. Integrate `packages/cli-core`
-8. Integrate selected `packages/api-core` path consumers
+7. Integrate `path:packages/cli-core`
+8. Integrate selected `path:packages/api-core` path consumers
 9. Add CLI tooling and CI drift checks
 10. Expand to remaining repo-aware scenarios/tools
 
@@ -614,8 +614,8 @@ If any of those are false, keep it out of the contract.
 This initiative should be considered complete when:
 
 - the contract spec and schema exist and are versioned
-- `packages/repo-contract-go` is implemented and tested cross-platform
-- `packages/cli-core` consumes it for repo/scenario path composition
+- `path:packages/repo-contract-go` is implemented and tested cross-platform
+- `path:packages/cli-core` consumes it for repo/scenario path composition
 - high-risk repo-aware consumers use it instead of duplicating layout rules
 - `swarm-manager` uses one canonical glob engine/policy
 - `scenario-to-cloud` bundle composition is profile-driven from the contract

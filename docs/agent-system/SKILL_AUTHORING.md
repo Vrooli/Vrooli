@@ -128,8 +128,8 @@ Categories: `Steer`, `Platform`, `Search`, `Tools`, `Practice`, `Meta` (per `PRI
 The summary should answer: "If I only read this sentence, what would I prioritize?"
 
 Examples:
-- "Prioritize hardening React UI components against runtime crashes in `scenarios/{{TARGET}}/`."
-- "Focus on test coverage for critical user journeys in `scenarios/{{TARGET}}/` rather than superficial coverage metrics."
+- "Prioritize hardening React UI components against runtime crashes in `path:scenarios/{{TARGET}}/`."
+- "Focus on test coverage for critical user journeys in `path:scenarios/{{TARGET}}/` rather than superficial coverage metrics."
 
 (Steer-specific: the `{{TARGET}}` placeholder is required and is the subject of `skill-authoring`'s Steer-only guidance.)
 
@@ -156,7 +156,7 @@ Session-level constraints (do not add features, preserve behavior, etc.) are han
 Skills follow a consistent structure that makes them scannable and predictable:
 
 1. **Focus statement** — what this skill steers toward
-2. **Required reading** (when applicable) — `prompt-manager skill read <skill-id>` and `docs/...` citations
+2. **Required reading** (when applicable) — `prompt-manager skill read <skill-id>` and `path:docs/...` citations
 3. **Tooling prerequisites** — required setup (optional)
 4. **Core principles** — numbered sections with convergence patterns where applicable
 5. **Audit section** — assessment checklist for existing codebases (optional, see below)
@@ -230,7 +230,7 @@ Skills that involve investigation should specify:
 
 The specific documents depend on the skill's purpose. A skill might use an existing doc pattern (e.g., `SEAMS.md` for boundary discovery), define a new doc type specific to its needs, or use multiple documents for different types of findings.
 
-**Conventional location:** `docs/internal/` for agent-produced findings (not user-facing docs).
+**Conventional location:** `path:docs/internal/` for agent-produced findings (not user-facing docs).
 
 ### Relationship to `visited-tracker`
 
@@ -290,7 +290,7 @@ Optional reading:
 Only require what is essential; keep optional lists short and relevant. PoR citations look like:
 
 ```
-- `docs/agent-system/<file>.md`
+- `path:docs/agent-system/<file>.md`
 ```
 
 ---
@@ -299,7 +299,7 @@ Only require what is essential; keep optional lists short and relevant. PoR cita
 
 To publish a skill:
 
-1. Create the skill directory in `scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
+1. Create the skill directory in `path:scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
 2. Add the following files:
    - `SKILL.md` — skill content
    - `skill.json` — metadata with `id`, `name`, `description`, `modes`, `tags`
@@ -321,8 +321,8 @@ Before creating a new skill:
 ## Skill system constraints
 
 - Do **not** create skills for one-off tasks (use direct instructions instead).
-- Do **not** duplicate guidance that belongs in `CLAUDE.md`, scenario-specific docs, or canon (`docs/agent-system/`, `docs/<domain>/`).
-- Do **not** restate framework canon (the layer mantra, the promotion ladder, the 9-layer model, the inbox-router-drain pattern). Cite `docs/agent-system/<file>.md` instead. The `team-member-capability-architecture-audit` skill flags this as the "skillless canon residue" smell.
+- Do **not** duplicate guidance that belongs in `CLAUDE.md`, scenario-specific docs, or canon (`path:docs/agent-system/`, `path:docs/<domain>/`).
+- Do **not** restate framework canon (the layer mantra, the promotion ladder, the 9-layer model, the inbox-router-drain pattern). Cite `path:docs/agent-system/<file>.md` instead. The `team-member-capability-architecture-audit` skill flags this as the "skillless canon residue" smell.
 - Prefer **updating existing skills** when guidance can be naturally extended.
 - Skills should be **transferable** across scenarios via the `{{TARGET}}` substitution pattern (Steer skills only; see `skill-authoring`).
 
@@ -358,7 +358,7 @@ You must:
 - Keep skills transferable across scenarios.
 - Include scope boundaries and output expectations.
 - Use convergence patterns when decision consistency matters.
-- Cite canon (`docs/agent-system/<file>.md`) instead of restating it.
+- Cite canon (`path:docs/agent-system/<file>.md`) instead of restating it.
 
 You must NOT:
 

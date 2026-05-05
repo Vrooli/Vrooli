@@ -33,29 +33,29 @@ prompt-manager skill read implementation-plan-authoring documentation-health int
 
 Also read:
 
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` - current conceptual framing; update it to include the operating-mode model and both shipped non-default modes.
-- `scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md` - Swarm Manager's staging/review mental model and existing seams.
-- `scenarios/swarm-manager/docs/guides/workshop-workflow.md` - item-level workshop loop, readiness model, and per-item plan handoff.
-- `scenarios/swarm-manager/docs/internal/SEAMS.md` - current seam inventory; update it with the new Operating Mode Boundary.
-- `scenarios/swarm-manager/api/internal/initiatives/model.go` - initiative metadata currently has no mode or acceptance criteria.
-- `scenarios/swarm-manager/api/internal/initiatives/service.go` and `handler.go` - initiative CRUD, rollup, membership, and event dispatch.
-- `scenarios/swarm-manager/api/internal/initiativelock/lock.go` - existing single-agent-per-initiative lock using `.feedback-lock`.
-- `scenarios/swarm-manager/api/internal/feedback/service.go` and `routes_feedback.go` - proven initiative-scoped spawn/poll/cancel/state-builder patterns.
-- `scenarios/swarm-manager/api/internal/initiativereview/` - existing decision-oriented initiative review, intentionally distinct from holistic-loop acceptance review.
-- `scenarios/swarm-manager/api/internal/execution/` - current backlog-item execution lifecycle, finalization, retry/follow-up, and GCT review integration.
-- `scenarios/swarm-manager/.vrooli/service.json` - scenario dependency config that declares AgentManager profile source files.
-- `scenarios/swarm-manager/.vrooli/agent-profiles/default.json` - current single Swarm Manager AgentManager profile.
-- `scenarios/swarm-manager/api/internal/agentmanager/service.go` and `profile.go` - AgentManager integration seam, scenario profile reconciliation, and default profile ref selection.
-- `scenarios/swarm-manager/api/internal/agentactivity/types.go` and `service.go` - canonical tracked AgentManager usage.
-- `scenarios/swarm-manager/api/internal/eventlog/types.go` and `emitter.go` - append-only analytics source; extend for operating mode events.
-- `scenarios/swarm-manager/api/internal/stats/` - event-log-derived metrics engine and stats response.
-- `scenarios/swarm-manager/api/internal/promptcatalog/catalog.go` - prompt/skill catalog; current initiative resolver is hardcoded around feedback/review.
-- `scenarios/agent-manager/api/internal/orchestration/profile_reconcile.go` - source-of-truth behavior for reconciling scenario-owned profile JSON files.
-- `scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx` - current initiative detail route and tab composition.
-- `scenarios/swarm-manager/ui/src/surfaces/graph/components/StatsPanel.tsx` - existing stats UI.
-- `scenarios/swarm-manager/ui/src/services/initiative-service.ts` and `ui/src/types/initiative.ts` - UI initiative API seam and type surface.
-- `scenarios/swarm-manager/ui/src/types/stats.ts` and `ui/src/services/stats-service.ts` - stats API seam.
-- `scenarios/swarm-manager/ui/src/consts/selectors.ts` - selector registry for new UI affordances.
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` - current conceptual framing; update it to include the operating-mode model and both shipped non-default modes.
+- `path:scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md` - Swarm Manager's staging/review mental model and existing seams.
+- `path:scenarios/swarm-manager/docs/guides/workshop-workflow.md` - item-level workshop loop, readiness model, and per-item plan handoff.
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md` - current seam inventory; update it with the new Operating Mode Boundary.
+- `path:scenarios/swarm-manager/api/internal/initiatives/model.go` - initiative metadata currently has no mode or acceptance criteria.
+- `path:scenarios/swarm-manager/api/internal/initiatives/service.go` and `handler.go` - initiative CRUD, rollup, membership, and event dispatch.
+- `path:scenarios/swarm-manager/api/internal/initiativelock/lock.go` - existing single-agent-per-initiative lock using `.feedback-lock`.
+- `path:scenarios/swarm-manager/api/internal/feedback/service.go` and `routes_feedback.go` - proven initiative-scoped spawn/poll/cancel/state-builder patterns.
+- `path:scenarios/swarm-manager/api/internal/initiativereview/` - existing decision-oriented initiative review, intentionally distinct from holistic-loop acceptance review.
+- `path:scenarios/swarm-manager/api/internal/execution/` - current backlog-item execution lifecycle, finalization, retry/follow-up, and GCT review integration.
+- `path:scenarios/swarm-manager/.vrooli/service.json` - scenario dependency config that declares AgentManager profile source files.
+- `path:scenarios/swarm-manager/.vrooli/agent-profiles/default.json` - current single Swarm Manager AgentManager profile.
+- `path:scenarios/swarm-manager/api/internal/agentmanager/service.go` and `profile.go` - AgentManager integration seam, scenario profile reconciliation, and default profile ref selection.
+- `path:scenarios/swarm-manager/api/internal/agentactivity/types.go` and `service.go` - canonical tracked AgentManager usage.
+- `path:scenarios/swarm-manager/api/internal/eventlog/types.go` and `emitter.go` - append-only analytics source; extend for operating mode events.
+- `path:scenarios/swarm-manager/api/internal/stats/` - event-log-derived metrics engine and stats response.
+- `path:scenarios/swarm-manager/api/internal/promptcatalog/catalog.go` - prompt/skill catalog; current initiative resolver is hardcoded around feedback/review.
+- `path:scenarios/agent-manager/api/internal/orchestration/profile_reconcile.go` - source-of-truth behavior for reconciling scenario-owned profile JSON files.
+- `path:scenarios/swarm-manager/ui/src/pages/InitiativeDetailsPage.tsx` - current initiative detail route and tab composition.
+- `path:scenarios/swarm-manager/ui/src/surfaces/graph/components/StatsPanel.tsx` - existing stats UI.
+- `path:scenarios/swarm-manager/ui/src/services/initiative-service.ts` and `path:ui/src/types/initiative.ts` - UI initiative API seam and type surface.
+- `path:scenarios/swarm-manager/ui/src/types/stats.ts` and `path:ui/src/services/stats-service.ts` - stats API seam.
+- `path:scenarios/swarm-manager/ui/src/consts/selectors.ts` - selector registry for new UI affordances.
 
 ## 3. Problem Statement
 
@@ -120,8 +120,8 @@ The implementation must recognize those axes now. Shipping both `holistic-loop` 
   - audit policy: backlog reconciliation runs after each progress classification, so completed phases and follow-up work are reflected in Swarm Manager entities
 - Add mode-switch API/CLI/UI behavior, including explicit cancellation of in-flight item-level executions when entering holistic-loop or phased-plan-drain mode.
 - Add phase-level AgentManager profile selection:
-  - declare multiple Swarm Manager-owned profiles under `scenarios/swarm-manager/.vrooli/agent-profiles/`
-  - register those profile source files in `scenarios/swarm-manager/.vrooli/service.json`
+  - declare multiple Swarm Manager-owned profiles under `path:scenarios/swarm-manager/.vrooli/agent-profiles/`
+  - register those profile source files in `path:scenarios/swarm-manager/.vrooli/service.json`
   - let each operating-mode phase select a profile by stable `profileKey`
   - record selected profile keys in agent activity, event payloads, round envelopes, and stats
 - Add mode event logging and stats:
@@ -146,12 +146,12 @@ The implementation must recognize those axes now. Shipping both `holistic-loop` 
 - Keep existing decision-oriented `swarm-manager-initiative-review` intact and separate.
 - Update docs:
   - `EXECUTION-MODES.md`
-  - `docs/guides/holistic-loop-mode.md`
-  - `docs/guides/phased-plan-drain-mode.md`
-  - `docs/reference/api-endpoints.md`
-  - `docs/reference/cli-commands.md`
-  - `docs/internal/SEAMS.md`
-  - `docs/manifest.json`
+  - `path:docs/guides/holistic-loop-mode.md`
+  - `path:docs/guides/phased-plan-drain-mode.md`
+  - `path:docs/reference/api-endpoints.md`
+  - `path:docs/reference/cli-commands.md`
+  - `path:docs/internal/SEAMS.md`
+  - `path:docs/manifest.json`
 - Automated tests for backend, UI, skills, stats, docs, and cross-scenario validation.
 
 ### Out of Scope
@@ -175,7 +175,7 @@ The implementation must recognize those axes now. Shipping both `holistic-loop` 
 
 ### Initiative Metadata
 
-`api/internal/initiatives/model.go` currently stores initiative name, title, description, status, priority, dependency refs, item refs, timestamps, notes, and archive state. It does not store mode or acceptance criteria.
+`path:api/internal/initiatives/model.go` currently stores initiative name, title, description, status, priority, dependency refs, item refs, timestamps, notes, and archive state. It does not store mode or acceptance criteria.
 
 Status currently supports `active`, `in_review`, `review_pending`, `completed`, `failed`, and `needs_followup`.
 
@@ -188,17 +188,17 @@ Mode is orthogonal to status. Status answers lifecycle/result state; mode answer
 
 ### Initiative Service and Handler
 
-`api/internal/initiatives/service.go` owns CRUD, rollup aggregation, item membership, and event dispatch. It should own metadata updates and thin mode metadata lifecycle calls, but not phase orchestration, run strategy, prompt building, polling, or artifact parsing.
+`path:api/internal/initiatives/service.go` owns CRUD, rollup aggregation, item membership, and event dispatch. It should own metadata updates and thin mode metadata lifecycle calls, but not phase orchestration, run strategy, prompt building, polling, or artifact parsing.
 
 ### Existing Lock
 
-`api/internal/initiativelock/lock.go` implements a single-agent-per-initiative lock using `.feedback-lock`. The lock holder stores `RunID`, `Purpose`, `RoundNumber`, `AcquiredBy`, and initiative name.
+`path:api/internal/initiativelock/lock.go` implements a single-agent-per-initiative lock using `.feedback-lock`. The lock holder stores `RunID`, `Purpose`, `RoundNumber`, `AcquiredBy`, and initiative name.
 
 The implementation should not introduce a parallel lock. It should broaden vocabulary from feedback/review to operating-mode purposes while preserving the filename unless a deliberate migration is chosen.
 
 ### Existing Feedback Flow
 
-`api/internal/feedback/service.go` has a useful initiative-scoped lifecycle:
+`path:api/internal/feedback/service.go` has a useful initiative-scoped lifecycle:
 
 - reserve round directory
 - persist provisional round
@@ -210,7 +210,7 @@ The implementation should not introduce a parallel lock. It should broaden vocab
 - parse/validate proposals
 - apply accepted mutations through the proposals layer
 
-`api/routes_feedback.go` also contains useful adapters:
+`path:api/routes_feedback.go` also contains useful adapters:
 
 - prompt/context collection
 - agentactivity-backed initiative spawn
@@ -223,7 +223,7 @@ The new operating mode framework should extract or mirror the patterns behind na
 
 ### Current Backlog-Item Execution
 
-`api/internal/execution/` owns the governed backlog-item run lifecycle. It creates execution records, builds prompts from per-item deliverables, routes AgentManager spawns through agentactivity, runs finalization/GCT review, supports cancellation, retry, and follow-up, and emits execution events.
+`path:api/internal/execution/` owns the governed backlog-item run lifecycle. It creates execution records, builds prompts from per-item deliverables, routes AgentManager spawns through agentactivity, runs finalization/GCT review, supports cancellation, retry, and follow-up, and emits execution events.
 
 For this plan:
 
@@ -233,19 +233,19 @@ For this plan:
 
 ### Current Initiative Review
 
-`api/internal/initiativereview/` is decision-oriented. It asks whether completed member items collectively justify a terminal initiative decision and may propose follow-up mutations. It can run fresh GCT checks against affected scenarios.
+`path:api/internal/initiativereview/` is decision-oriented. It asks whether completed member items collectively justify a terminal initiative decision and may propose follow-up mutations. It can run fresh GCT checks against affected scenarios.
 
 Holistic-loop acceptance review is different: it evaluates the system against `AcceptanceCriteria`, `modes/holistic-loop/initiative-plan.md`, execute rounds, code state, and optionally fresh GCT/control-tower evidence. Phased-plan-drain review similarly evaluates `AcceptanceCriteria`, `modes/phased-plan-drain/phased-plan.md`, progress state, handoffs, and code state. These flows must remain separate from decision-oriented initiative review even if they share small infrastructure.
 
 ### Prompt Catalog
 
-`api/internal/promptcatalog/catalog.go` has `initiative-feedback` and `initiative-review`, with `ResolveInitiativeSkill(purpose)` hardcoded for `"feedback"`, `"feedback_continue"`, and `"review"`.
+`path:api/internal/promptcatalog/catalog.go` has `initiative-feedback` and `initiative-review`, with `ResolveInitiativeSkill(purpose)` hardcoded for `"feedback"`, `"feedback_continue"`, and `"review"`.
 
 This is a decision boundary. Future modes should not require another switch that only understands a few initiative purposes. The catalog should resolve by registered mode+phase, or by a structured purpose registered by the mode definition.
 
 ### Agent Activity
 
-`api/internal/agentactivity/` is the canonical tracked AgentManager seam. It already supports `OwnerInitiative`, `PurposeFeedback`, `PurposeFeedbackContinue`, and `PurposeInitiativeReview`, with free-form `Metadata`.
+`path:api/internal/agentactivity/` is the canonical tracked AgentManager seam. It already supports `OwnerInitiative`, `PurposeFeedback`, `PurposeFeedbackContinue`, and `PurposeInitiativeReview`, with free-form `Metadata`.
 
 This plan adds mode/phase/run-strategy purposes and requires operating-mode spawns to flow through `agentactivity.Service.SpawnInitiative`. Records should always include metadata keys such as:
 
@@ -259,11 +259,11 @@ This plan adds mode/phase/run-strategy purposes and requires operating-mode spaw
 
 ### AgentManager Profiles
 
-Swarm Manager currently declares one scenario-owned AgentManager profile source at `scenarios/swarm-manager/.vrooli/agent-profiles/default.json`. The scenario dependency config in `scenarios/swarm-manager/.vrooli/service.json` lists that file under `dependencies.scenarios.agent-manager.config.profiles.sources`.
+Swarm Manager currently declares one scenario-owned AgentManager profile source at `path:scenarios/swarm-manager/.vrooli/agent-profiles/default.json`. The scenario dependency config in `path:scenarios/swarm-manager/.vrooli/service.json` lists that file under `dependencies.scenarios.agent-manager.config.profiles.sources`.
 
-`api/internal/agentmanager/service.go` reconciles scenario profile sources by calling AgentManager's `/api/v1/profiles/reconcile-scenario` endpoint, then all current spawn paths call `defaultProfileRef()`, which returns `ProfileRef{ProfileKey: "swarm-manager/default"}`. `SpawnResearch`, `SpawnBacklog`, and `SpawnInitiative` therefore all use the same runner/model/tool policy today.
+`path:api/internal/agentmanager/service.go` reconciles scenario profile sources by calling AgentManager's `/api/v1/profiles/reconcile-scenario` endpoint, then all current spawn paths call `defaultProfileRef()`, which returns `ProfileRef{ProfileKey: "swarm-manager/default"}`. `SpawnResearch`, `SpawnBacklog`, and `SpawnInitiative` therefore all use the same runner/model/tool policy today.
 
-AgentManager already supports multiple scenario-owned profile source files. `scenarios/agent-manager/api/internal/orchestration/profile_reconcile.go` reads every source listed in the scenario manifest, requires each `profileKey` to start with the owning scenario prefix, and records owner/source metadata. The operating-mode work should use that existing profile-source contract instead of creating profiles at runtime or sending inline defaults on every run.
+AgentManager already supports multiple scenario-owned profile source files. `path:scenarios/agent-manager/api/internal/orchestration/profile_reconcile.go` reads every source listed in the scenario manifest, requires each `profileKey` to start with the owning scenario prefix, and records owner/source metadata. The operating-mode work should use that existing profile-source contract instead of creating profiles at runtime or sending inline defaults on every run.
 
 The missing Swarm Manager seam is phase-level profile selection:
 
@@ -274,19 +274,19 @@ The missing Swarm Manager seam is phase-level profile selection:
 
 ### Event Log and Stats
 
-`api/internal/eventlog/` is the append-only source for stats. The current event catalog includes backlog, initiative, execution, queue, workshop, clarification, review, view, and system migration events. It has no operating-mode events.
+`path:api/internal/eventlog/` is the append-only source for stats. The current event catalog includes backlog, initiative, execution, queue, workshop, clarification, review, view, and system migration events. It has no operating-mode events.
 
-`api/internal/stats/` derives analytics from the event log. Current `StatsResponse` contains history, throughput, timing, scope, blocking, agent, dashboard, and review sections. It has no mode-level metrics.
+`path:api/internal/stats/` derives analytics from the event log. Current `StatsResponse` contains history, throughput, timing, scope, blocking, agent, dashboard, and review sections. It has no mode-level metrics.
 
 Operating modes must be observable at the event-log layer, not only inferred from UI state or agentactivity metadata.
 
 ### UI
 
-`ui/src/pages/InitiativeDetailsPage.tsx` currently owns the initiative detail route and tabs: `info`, `feedback`, `review`, and `files`. It is already large. New mode behavior should be extracted into mode workspace components/hooks/services.
+`path:ui/src/pages/InitiativeDetailsPage.tsx` currently owns the initiative detail route and tabs: `info`, `feedback`, `review`, and `files`. It is already large. New mode behavior should be extracted into mode workspace components/hooks/services.
 
-`ui/src/services/initiative-service.ts` is the right seam for initiative metadata. Add a separate `initiative-mode-service.ts` for phase/workspace operations if the surface grows.
+`path:ui/src/services/initiative-service.ts` is the right seam for initiative metadata. Add a separate `initiative-mode-service.ts` for phase/workspace operations if the surface grows.
 
-`ui/src/surfaces/graph/components/StatsPanel.tsx` renders stats tabs. Add mode metrics there or in extracted stats components, without turning the panel into an unbounded monolith.
+`path:ui/src/surfaces/graph/components/StatsPanel.tsx` renders stats tabs. Add mode metrics there or in extracted stats components, without turning the panel into an unbounded monolith.
 
 ## 6. Target End State
 
@@ -382,13 +382,13 @@ This package should own:
 
 It should depend on narrow interfaces for initiatives, backlog, agent activity, AgentManager profile resolution, prompt rendering, graph/current state, execution cancellation, event emission, stats-relevant event logging, and locks.
 
-`api/internal/initiatives/` remains CRUD + rollup + membership.
+`path:api/internal/initiatives/` remains CRUD + rollup + membership.
 
-`api/internal/feedback/` remains feedback rounds/proposals.
+`path:api/internal/feedback/` remains feedback rounds/proposals.
 
-`api/internal/initiativereview/` remains decision-oriented terminal review.
+`path:api/internal/initiativereview/` remains decision-oriented terminal review.
 
-`api/internal/execution/` remains backlog-item execution.
+`path:api/internal/execution/` remains backlog-item execution.
 
 Shared code can live in `operatingmode` or a smaller helper package only when multiple callers truly need the same primitive.
 
@@ -634,7 +634,7 @@ Before code edits:
 
 1. Run the required skill-read command from this plan.
 2. Inspect the files listed in Required Reading.
-3. Update `scenarios/swarm-manager/docs/internal/SEAMS.md` with an "Operating Mode Boundary" section before implementing the package.
+3. Update `path:scenarios/swarm-manager/docs/internal/SEAMS.md` with an "Operating Mode Boundary" section before implementing the package.
 4. Record current decision points:
    - mode selection
    - phase transition
@@ -652,11 +652,11 @@ Contract:
 
 Files:
 
-- `api/internal/initiatives/model.go`
-- `api/internal/initiatives/service.go`
-- `api/internal/initiatives/store.go`
-- `api/internal/initiatives/*_test.go`
-- `ui/src/types/initiative.ts`
+- `path:api/internal/initiatives/model.go`
+- `path:api/internal/initiatives/service.go`
+- `path:api/internal/initiatives/store.go`
+- `path:api/internal/initiatives/*_test.go`
+- `path:ui/src/types/initiative.ts`
 - proto/type mapping files if initiative types are proto-backed in this repo version
 
 Tasks:
@@ -680,19 +680,19 @@ Contract:
 
 Files:
 
-- `api/internal/operatingmode/definition.go`
-- `api/internal/operatingmode/registry.go`
-- `api/internal/operatingmode/scope.go`
-- `api/internal/operatingmode/phase_graph.go`
-- `api/internal/operatingmode/run_strategy.go`
-- `api/internal/operatingmode/profile_policy.go`
-- `api/internal/operatingmode/backlog_sync.go`
-- `api/internal/operatingmode/metrics.go`
-- `api/internal/operatingmode/*_test.go`
-- `api/internal/promptcatalog/catalog.go`
-- `api/internal/promptcatalog/catalog_test.go`
-- `api/internal/agentactivity/types.go`
-- `api/internal/agentactivity/service_test.go`
+- `path:api/internal/operatingmode/definition.go`
+- `path:api/internal/operatingmode/registry.go`
+- `path:api/internal/operatingmode/scope.go`
+- `path:api/internal/operatingmode/phase_graph.go`
+- `path:api/internal/operatingmode/run_strategy.go`
+- `path:api/internal/operatingmode/profile_policy.go`
+- `path:api/internal/operatingmode/backlog_sync.go`
+- `path:api/internal/operatingmode/metrics.go`
+- `path:api/internal/operatingmode/*_test.go`
+- `path:api/internal/promptcatalog/catalog.go`
+- `path:api/internal/promptcatalog/catalog_test.go`
+- `path:api/internal/agentactivity/types.go`
+- `path:api/internal/agentactivity/service_test.go`
 
 Tasks:
 
@@ -724,16 +724,16 @@ Contract:
 
 Files:
 
-- `scenarios/swarm-manager/.vrooli/service.json`
-- `scenarios/swarm-manager/.vrooli/agent-profiles/default.json`
-- `scenarios/swarm-manager/.vrooli/agent-profiles/deep-work.json`
-- `scenarios/swarm-manager/.vrooli/agent-profiles/analysis.json`
-- `api/internal/agentmanager/service.go`
-- `api/internal/agentmanager/profile.go`
-- `api/internal/agentmanager/*_test.go`
-- `api/internal/agentactivity/service.go`
-- `api/internal/agentactivity/types.go`
-- `api/internal/agentactivity/*_test.go`
+- `path:scenarios/swarm-manager/.vrooli/service.json`
+- `path:scenarios/swarm-manager/.vrooli/agent-profiles/default.json`
+- `path:scenarios/swarm-manager/.vrooli/agent-profiles/deep-work.json`
+- `path:scenarios/swarm-manager/.vrooli/agent-profiles/analysis.json`
+- `path:api/internal/agentmanager/service.go`
+- `path:api/internal/agentmanager/profile.go`
+- `path:api/internal/agentmanager/*_test.go`
+- `path:api/internal/agentactivity/service.go`
+- `path:api/internal/agentactivity/types.go`
+- `path:api/internal/agentactivity/*_test.go`
 
 Tasks:
 
@@ -763,15 +763,15 @@ Contract:
 
 Files:
 
-- `api/internal/eventlog/types.go`
-- `api/internal/eventlog/emitter.go`
-- `api/internal/eventlog/*_test.go`
-- `api/internal/stats/types.go`
-- `api/internal/stats/engine.go`
-- `api/internal/stats/metrics.go`
-- `api/internal/stats/*_test.go`
-- `ui/src/types/stats.ts`
-- `ui/src/surfaces/graph/components/StatsPanel.tsx`
+- `path:api/internal/eventlog/types.go`
+- `path:api/internal/eventlog/emitter.go`
+- `path:api/internal/eventlog/*_test.go`
+- `path:api/internal/stats/types.go`
+- `path:api/internal/stats/engine.go`
+- `path:api/internal/stats/metrics.go`
+- `path:api/internal/stats/*_test.go`
+- `path:ui/src/types/stats.ts`
+- `path:ui/src/surfaces/graph/components/StatsPanel.tsx`
 - stats component tests
 
 Tasks:
@@ -794,10 +794,10 @@ Contract:
 
 Files:
 
-- `api/internal/initiativelock/lock.go`
-- `api/internal/feedback/service.go`
-- `api/internal/initiativereview/service.go`
-- `api/internal/operatingmode/service.go`
+- `path:api/internal/initiativelock/lock.go`
+- `path:api/internal/feedback/service.go`
+- `path:api/internal/initiativereview/service.go`
+- `path:api/internal/operatingmode/service.go`
 - tests for all three callers
 
 Tasks:
@@ -825,14 +825,14 @@ Contract:
 
 Files:
 
-- `api/internal/operatingmode/service.go`
-- `api/internal/operatingmode/artifacts.go`
-- `api/internal/operatingmode/rounds.go`
-- `api/internal/operatingmode/context.go`
-- `api/internal/operatingmode/poller.go`
-- `api/internal/operatingmode/backlog_reconcile.go`
-- `api/internal/operatingmode/handler.go`
-- `api/routes_operating_mode.go` or equivalent server wiring
+- `path:api/internal/operatingmode/service.go`
+- `path:api/internal/operatingmode/artifacts.go`
+- `path:api/internal/operatingmode/rounds.go`
+- `path:api/internal/operatingmode/context.go`
+- `path:api/internal/operatingmode/poller.go`
+- `path:api/internal/operatingmode/backlog_reconcile.go`
+- `path:api/internal/operatingmode/handler.go`
+- `path:api/routes_operating_mode.go` or equivalent server wiring
 
 Tasks:
 
@@ -872,10 +872,10 @@ Contract:
 
 Files:
 
-- `api/internal/operatingmode/artifacts.go`
-- `api/internal/operatingmode/rounds.go`
-- `api/internal/operatingmode/readiness.go`
-- `scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `path:api/internal/operatingmode/artifacts.go`
+- `path:api/internal/operatingmode/rounds.go`
+- `path:api/internal/operatingmode/readiness.go`
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md`
 
 Tasks:
 
@@ -928,14 +928,14 @@ Contract:
 
 Files:
 
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-investigate/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-plan/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-execute/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-review/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-prepare/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-execute-next/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-classify-progress/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-review/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-investigate/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-plan/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-execute/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-holistic-loop-review/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-prepare/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-execute-next/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-classify-progress/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/swarm-manager-phased-plan-review/SKILL.md`
 - prompt catalog tests/simulations
 
 Holistic-loop skill contracts:
@@ -994,10 +994,10 @@ Phased-plan-drain skill contracts:
 
 Files:
 
-- `api/internal/operatingmode/handler.go`
-- `api/routes_operating_mode.go`
-- `ui/src/lib/api-endpoints.ts`
-- `docs/reference/api-endpoints.md`
+- `path:api/internal/operatingmode/handler.go`
+- `path:api/routes_operating_mode.go`
+- `path:ui/src/lib/api-endpoints.ts`
+- `path:docs/reference/api-endpoints.md`
 
 Endpoints:
 
@@ -1084,8 +1084,8 @@ Contract:
 
 Files:
 
-- `scenarios/swarm-manager/cli` sources (`cli/app.go` or current command package)
-- `docs/reference/cli-commands.md`
+- `path:scenarios/swarm-manager/cli` sources (`path:cli/app.go` or current command package)
+- `path:docs/reference/cli-commands.md`
 
 Commands:
 
@@ -1107,13 +1107,13 @@ CLI commands should call the API rather than duplicating filesystem writes.
 
 Files:
 
-- `ui/src/types/initiative.ts`
-- `ui/src/types/initiative-mode.ts` if useful
-- `ui/src/services/initiative-service.ts`
-- `ui/src/services/initiative-mode-service.ts`
-- `ui/src/services/stats-service.ts`
-- `ui/src/types/stats.ts`
-- `ui/src/lib/api-endpoints.ts`
+- `path:ui/src/types/initiative.ts`
+- `path:ui/src/types/initiative-mode.ts` if useful
+- `path:ui/src/services/initiative-service.ts`
+- `path:ui/src/services/initiative-mode-service.ts`
+- `path:ui/src/services/stats-service.ts`
+- `path:ui/src/types/stats.ts`
+- `path:ui/src/lib/api-endpoints.ts`
 - service tests
 
 Tasks:
@@ -1129,14 +1129,14 @@ Tasks:
 
 Files:
 
-- `ui/src/pages/InitiativeDetailsPage.tsx`
-- `ui/src/components/initiative/initiative-mode-chip.tsx`
-- `ui/src/components/initiative/initiative-mode-switch-dialog.tsx`
-- `ui/src/components/initiative/initiative-workspace.tsx`
-- `ui/src/components/initiative/initiative-acceptance-criteria-editor.tsx`
-- `ui/src/components/initiative/initiative-phase-controls.tsx`
-- `ui/src/components/initiative/initiative-round-timeline.tsx`
-- `ui/src/consts/selectors.ts`
+- `path:ui/src/pages/InitiativeDetailsPage.tsx`
+- `path:ui/src/components/initiative/initiative-mode-chip.tsx`
+- `path:ui/src/components/initiative/initiative-mode-switch-dialog.tsx`
+- `path:ui/src/components/initiative/initiative-workspace.tsx`
+- `path:ui/src/components/initiative/initiative-acceptance-criteria-editor.tsx`
+- `path:ui/src/components/initiative/initiative-phase-controls.tsx`
+- `path:ui/src/components/initiative/initiative-round-timeline.tsx`
+- `path:ui/src/consts/selectors.ts`
 
 Tasks:
 
@@ -1167,9 +1167,9 @@ React coherence constraints:
 
 Files:
 
-- `ui/src/surfaces/graph/components/StatsPanel.tsx`
+- `path:ui/src/surfaces/graph/components/StatsPanel.tsx`
 - extracted stats components if needed
-- `ui/src/types/stats.ts`
+- `path:ui/src/types/stats.ts`
 - stats tests
 
 Tasks:
@@ -1190,13 +1190,13 @@ Tasks:
 
 Files:
 
-- `scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
-- `scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
-- `scenarios/swarm-manager/docs/reference/api-endpoints.md`
-- `scenarios/swarm-manager/docs/reference/cli-commands.md`
-- `scenarios/swarm-manager/docs/internal/SEAMS.md`
-- `scenarios/swarm-manager/docs/manifest.json`
+- `path:scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
+- `path:scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
+- `path:scenarios/swarm-manager/docs/reference/api-endpoints.md`
+- `path:scenarios/swarm-manager/docs/reference/cli-commands.md`
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `path:scenarios/swarm-manager/docs/manifest.json`
 
 Tasks:
 
@@ -1332,7 +1332,7 @@ Use longer timeouts where needed; full scenario tests can take several minutes.
 - [ ] UI has Mode chip, mode-switch dialog, Initiative Workspace, acceptance criteria editor, phase controls, round timeline, and cost hint.
 - [ ] New skills are present and simulate successfully.
 - [ ] Docs and manifest are updated.
-- [ ] `make test` passes in `scenarios/swarm-manager`.
+- [ ] `make test` passes in `path:scenarios/swarm-manager`.
 - [ ] `vrooli scenario restart swarm-manager` succeeds.
 - [ ] `vrooli scenario test swarm-manager`, `prompt-manager`, and `agent-manager` pass.
 

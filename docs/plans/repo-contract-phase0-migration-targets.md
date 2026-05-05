@@ -108,7 +108,7 @@ Migration goal:
 
 ## Priority 2
 
-### 5. `packages/cli-core`
+### 5. `path:packages/cli-core`
 
 Files:
 
@@ -116,7 +116,7 @@ Files:
 
 Why:
 
-- it duplicates sandbox scope semantics already present in `internal/scenario`
+- it duplicates sandbox scope semantics already present in `path:internal/scenario`
 - it still includes `$HOME/Vrooli` repo fallback logic
 - it is a shared package, so contract-backed cleanup here pays down duplication broadly
 
@@ -124,7 +124,7 @@ Migration goal:
 
 - migrate shared sandbox/repo-root rules onto contract-backed helpers while keeping CLI ergonomics in `cli-core`
 
-### 6. `internal/scenario`
+### 6. `path:internal/scenario`
 
 Files:
 
@@ -162,8 +162,8 @@ Migration goal:
 2. `scenario-to-cloud`
 3. `tidiness-manager`
 4. `test-genie`
-5. `packages/cli-core`
-6. `internal/scenario`
+5. `path:packages/cli-core`
+6. `path:internal/scenario`
 7. remaining ad hoc repo-root helpers
 
 ## Phase 0 Exit Criteria For This List

@@ -8,7 +8,7 @@
 ## Source of truth
 
 The nine-behavior validation matrix is locked in
-`scenarios/swarm-manager/research/agent-sandbox-auditability-contract`
+`path:scenarios/swarm-manager/research/agent-sandbox-auditability-contract`
 (Findings 5 and 6). This file records, for each behavior, which automated
 tests cover it today and what gaps (if any) remain before the rollout item
 can flip the default safely.
@@ -26,7 +26,7 @@ Legend:
 ### 1. Every sandboxed run produces a provenance record (eager creation, no-op runs included)
 
 - ✅ `TestRunExecutor_NoOpEmptyProvenance` (agent-manager,
-  `internal/orchestration/auto_approval_test.go`) asserts that the
+  `path:internal/orchestration/auto_approval_test.go`) asserts that the
   no-op success path still issues an `ApplyAtRunEnd` call so workspace-sandbox
   records the empty provenance entry.
 - ✅ Live smoke (2026-04-27): `POST /api/v1/sandboxes/{id}/apply-at-run-end`
@@ -46,8 +46,8 @@ Legend:
 
 ### 3. Restart and test flows operate against the merged sandbox path when `VROOLI_SANDBOX_*` env vars are present
 
-- 🟡 Existing coverage in `packages/cli-core/cliutil/sandbox.go` (resolved
-  paths) and `internal/scenario/scenario.go` was not changed by this
+- 🟡 Existing coverage in `path:packages/cli-core/cliutil/sandbox.go` (resolved
+  paths) and `path:internal/scenario/scenario.go` was not changed by this
   cutover and continues to pass. No regression introduced.
 - 🟡 Recommend the rollout item add an explicit end-to-end test that
   spawns an agent-manager run with sandboxing on, asserts
@@ -58,7 +58,7 @@ Legend:
 
 - 🟡 The deny pipeline in workspace-sandbox is unchanged by this initiative
   (the lock/acceptance decoupling landed in Phase 2 of the parent initiative)
-  and existing tests in `internal/sandbox/service_test.go` continue to pass.
+  and existing tests in `path:internal/sandbox/service_test.go` continue to pass.
 - 🟡 Recommend the rollout item add an integration test that creates a
   sandbox with `acceptanceDeny: ["forbidden/**"]`, writes
   `forbidden/x.txt`, calls apply-at-run-end, and asserts the file does NOT
@@ -87,7 +87,7 @@ Legend:
 
 ### 8. `vrooli scenario heal-from-sandbox` restarts scenarios still running from the merged path on sandbox teardown
 
-- 🟡 Pre-existing behavior in `internal/scenario` — unchanged by this
+- 🟡 Pre-existing behavior in `path:internal/scenario` — unchanged by this
   cutover. Existing tests pass.
 - 🟡 Recommend the rollout item assert this end-to-end against a real
   scenario (test-genie is the cleanest target) before flipping the
@@ -132,7 +132,7 @@ Legend:
 covered. Behavior 6 (GCT auto-link) remains tracked under the separate
 `gct-pending-ai-provenance-hardening` initiative and is not a
 prerequisite for this rollout — the schema-version contract is now
-shared via `packages/sandbox-provenance` so the GCT side can land
+shared via `path:packages/sandbox-provenance` so the GCT side can land
 asynchronously without breaking the writer.
 
 The previously-🟡 behaviors (3, 4, 8) are existing functionality the
@@ -142,7 +142,7 @@ by the live wire smoke (see "Cross-cutting validation performed during
 the cutover" below).
 
 The default-flip changes themselves landed in
-`docs/plans/agent-sandbox-completion-and-protected-mode-implementation-plan.md`
+`path:docs/plans/agent-sandbox-completion-and-protected-mode-implementation-plan.md`
 Phase D:
 
 - `QuickRunDialog` defaults `runMode` to `RunMode.SANDBOXED` with the
@@ -165,5 +165,5 @@ Phase D:
 | 5 | `TestRunExecutor_PartialAcceptanceSplit`, `TestWorkspaceSandboxProvider_ApplyAtRunEnd_PartialAcceptance` |
 | 6 | (deferred — `gct-pending-ai-provenance-hardening`) |
 | 7 | (locked by Phase 2; archived) |
-| 8 | (existing `internal/scenario` heal tests; live-wire-validated by Phase D restart smoke) |
+| 8 | (existing `path:internal/scenario` heal tests; live-wire-validated by Phase D restart smoke) |
 | 9 | `TestRunExecutor_ManualReviewDeferred`, `TestReconcileManualReviewExpiry_*` (4 cases) |

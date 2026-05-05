@@ -2,9 +2,9 @@
 
 ## 1. Purpose
 
-Consolidate the prompt-manager self-improvement framework into a single coherent plan-of-record at `docs/agent-system/`, strip duplicated canon from skills, and add a structural data layer (`topics.json` + `prompt-manager graph topics` CLI + UI dual-mode graph) so agent message-flow is declared, validated, and visualized rather than implied through prose.
+Consolidate the prompt-manager self-improvement framework into a single coherent plan-of-record at `path:docs/agent-system/`, strip duplicated canon from skills, and add a structural data layer (`topics.json` + `prompt-manager graph topics` CLI + UI dual-mode graph) so agent message-flow is declared, validated, and visualized rather than implied through prose.
 
-This is the system eating its own dog food: doctrine that today lives scattered across 7+ skills (and partially mis-classified as "notebook" in `docs/meta-optimization/`) becomes plan-of-record once, with skills reduced to procedure-only artifacts that cite it.
+This is the system eating its own dog food: doctrine that today lives scattered across 7+ skills (and partially mis-classified as "notebook" in `path:docs/meta-optimization/`) becomes plan-of-record once, with skills reduced to procedure-only artifacts that cite it.
 
 ---
 
@@ -24,23 +24,23 @@ prompt-manager skill read skill-principles team-shared-docs-design team-member-c
 
 Files that are the **source material** for canon extraction (read these to understand what's moving):
 
-- `scenarios/prompt-manager/store/skills/packs/core/skill-principles/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/team-member-capability-architecture-audit/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/capability-extraction/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/skill-authoring/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/skill-authoring-{meta,platform,practice,search,tools}/SKILL.md`
-- `docs/meta-optimization/README.md`
-- `docs/meta-optimization/CONVERSION_PLAYBOOK.md`
-- `docs/meta-optimization/DEPRECATION_POLICY.md`
-- `docs/meta-optimization/REFERENCE_SCENARIOS.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/skill-principles/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/team-member-capability-architecture-audit/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/capability-extraction/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/skill-authoring/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/skill-authoring-{meta,platform,practice,search,tools}/SKILL.md`
+- `path:docs/meta-optimization/README.md`
+- `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md`
+- `path:docs/meta-optimization/DEPRECATION_POLICY.md`
+- `path:docs/meta-optimization/REFERENCE_SCENARIOS.md`
 
 Worked examples of the inbox/router pattern that informed the topics data model:
 
-- `scenarios/prompt-manager/store/skills/packs/core/marketing-research-router/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/monetization-opportunity-router/SKILL.md`
-- `scenarios/prompt-manager/store/skills/packs/core/market-validation-router/SKILL.md`
-- `docs/marketing/research/README.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/marketing-research-router/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/monetization-opportunity-router/SKILL.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/market-validation-router/SKILL.md`
+- `path:docs/marketing/research/README.md`
 
 ---
 
@@ -52,20 +52,20 @@ This is greenfield work. Do not include compatibility shims, legacy wrappers, de
 
 ### Paired moves, not sequential phases
 
-For every piece of canon migrated to `docs/agent-system/`, the source skill is updated **in the same commit/atomic step** to remove the relocated content and add a `Required reading: docs/agent-system/<file>` line. At no point does the same canon live in two places. This rule is enforced per piece — not per file, not per phase.
+For every piece of canon migrated to `path:docs/agent-system/`, the source skill is updated **in the same commit/atomic step** to remove the relocated content and add a `Required reading: docs/agent-system/<file>` line. At no point does the same canon live in two places. This rule is enforced per piece — not per file, not per phase.
 
 ### Skills cite PoR, never restate
 
-Any skill whose content includes definitions of "Plan of Record", "Skill", "Action", "CLI", "Notebook", the layer mantra, the promotion ladder, or the 9-layer audit model must drop those definitions and cite `docs/agent-system/`. This becomes a lint rule for `team-agent-optimizer` audits going forward.
+Any skill whose content includes definitions of "Plan of Record", "Skill", "Action", "CLI", "Notebook", the layer mantra, the promotion ladder, or the 9-layer audit model must drop those definitions and cite `path:docs/agent-system/`. This becomes a lint rule for `team-agent-optimizer` audits going forward.
 
 ---
 
 ## 4. Problem Statement
 
-The prompt-manager framework — definitions of skill / agent / team / Plan of Record / Action / CLI / notebook, the promotion ladder, the 9-layer team-member architecture model, the intake/collection/analysis/promotion pipeline, skill authoring rules, and the deprecation policy — is currently scattered across 7+ skills with verbatim duplication, three competing framings of the same promotion ladder, and a `docs/meta-optimization/` folder that declares itself a notebook but actually contains canon.
+The prompt-manager framework — definitions of skill / agent / team / Plan of Record / Action / CLI / notebook, the promotion ladder, the 9-layer team-member architecture model, the intake/collection/analysis/promotion pipeline, skill authoring rules, and the deprecation policy — is currently scattered across 7+ skills with verbatim duplication, three competing framings of the same promotion ladder, and a `path:docs/meta-optimization/` folder that declares itself a notebook but actually contains canon.
 
 Concrete duplication evidence:
-- Layer mantra ("Truth lives in Plan of Record. Judgment lives in Skills. Execution lives in Actions...") appears verbatim in `skill-principles/SKILL.md` and `team-member-capability-architecture-audit/SKILL.md`, and rephrased in `team-shared-docs-design/SKILL.md` and `docs/meta-optimization/README.md`.
+- Layer mantra ("Truth lives in Plan of Record. Judgment lives in Skills. Execution lives in Actions...") appears verbatim in `skill-principles/SKILL.md` and `team-member-capability-architecture-audit/SKILL.md`, and rephrased in `team-shared-docs-design/SKILL.md` and `path:docs/meta-optimization/README.md`.
 - Three names for one ladder: "Promotion-Retirement Lifecycle" (skill-principles), "Layer Model" (audit skill), "three-tier mental model" (meta-opt README).
 
 Separately, agent-to-agent message flow within and across teams is declared only in prose (router skills name their input/output prefixes, but no machine-readable contract exists). This means: orphan output prefixes, dangling intake claims, conflicting drain duty, and stalled inboxes are not detectable structurally. The prompt-manager UI's team graph view, which renders edges from `managerId`, degenerates to disconnected nodes for leaderless teams (the current preferred pattern).
@@ -76,11 +76,11 @@ Separately, agent-to-agent message flow within and across teams is declared only
 
 ### In scope
 
-- Author `docs/agent-system/` plan-of-record (8–10 canonical files + `drafts/` subfolder).
+- Author `path:docs/agent-system/` plan-of-record (8–10 canonical files + `drafts/` subfolder).
 - Strip relocated canon from existing skills; mark fully-absorbed skills deprecated and delete them.
-- Migrate `docs/meta-optimization/` content into `docs/agent-system/`; reduce or delete the meta-optim folder.
+- Migrate `path:docs/meta-optimization/` content into `path:docs/agent-system/`; reduce or delete the meta-optim folder.
 - Update every meta-optimization team member's `TOOLS.md` / `HEARTBEAT.md` to read from the new locations.
-- Define and implement `topics.json` schema at `store/teams/<team>/members/<member>/topics.json`.
+- Define and implement `topics.json` schema at `path:store/teams/<team>/members/<member>/topics.json`.
 - Backfill `topics.json` for every member of every active team (~30+ files).
 - Add API endpoints in prompt-manager API for reading/listing/updating topics.
 - Add `prompt-manager graph topics` (and `graph drain-status`) CLI verbs with validation rules.
@@ -95,7 +95,7 @@ Separately, agent-to-agent message flow within and across teams is declared only
 - Drain-metrics historical graphing and trendlines.
 - Auto-promotion / auto-routing of inbox entries.
 - Centralized topic registry / namespace governance.
-- Renaming / restructuring `docs/meta-optimization/` consumers in scenarios outside prompt-manager (only update the consumers we own).
+- Renaming / restructuring `path:docs/meta-optimization/` consumers in scenarios outside prompt-manager (only update the consumers we own).
 - Adoption of the inbox/router pattern by teams that haven't already done it (marketing-crew and monetization are done; this plan does not expand the pattern).
 
 ---
@@ -104,29 +104,29 @@ Separately, agent-to-agent message flow within and across teams is declared only
 
 ### Doctrine sources (read-only; will be edited per paired-move rule)
 
-- `scenarios/prompt-manager/store/skills/packs/core/skill-principles/` (181 lines)
-- `scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/` (105 lines)
-- `scenarios/prompt-manager/store/skills/packs/core/team-member-capability-architecture-audit/` (243 lines)
-- `scenarios/prompt-manager/store/skills/packs/core/capability-extraction/` (305 lines)
-- `scenarios/prompt-manager/store/skills/packs/core/skill-authoring{,-meta,-platform,-practice,-search,-tools}/` (six files, 79–392 lines each)
-- `docs/meta-optimization/README.md`, `CONVERSION_PLAYBOOK.md`, `DEPRECATION_POLICY.md`, `REFERENCE_SCENARIOS.md`
+- `path:scenarios/prompt-manager/store/skills/packs/core/skill-principles/` (181 lines)
+- `path:scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/` (105 lines)
+- `path:scenarios/prompt-manager/store/skills/packs/core/team-member-capability-architecture-audit/` (243 lines)
+- `path:scenarios/prompt-manager/store/skills/packs/core/capability-extraction/` (305 lines)
+- `path:scenarios/prompt-manager/store/skills/packs/core/skill-authoring{,-meta,-platform,-practice,-search,-tools}/` (six files, 79–392 lines each)
+- `path:docs/meta-optimization/README.md`, `CONVERSION_PLAYBOOK.md`, `DEPRECATION_POLICY.md`, `REFERENCE_SCENARIOS.md`
 
 ### Topics data layer
 
-- New file location: `scenarios/prompt-manager/store/teams/<team>/members/<member>/topics.json`
+- New file location: `path:scenarios/prompt-manager/store/teams/<team>/members/<member>/topics.json`
 - Sibling to existing per-member files (`HEARTBEAT.md`, `RESPONSIBILITIES.md`, `last-handoff.md`)
 - Loader/parser will live in prompt-manager API alongside existing graph queries (`graph health`, `graph node`, `graph skillless-agents`, `graph empty-teams`)
 
 ### Existing API/CLI surfaces to extend
 
-- `scenarios/prompt-manager/api/` — Go service exposing graph + team + skill endpoints
-- `scenarios/prompt-manager/cli/` — `prompt-manager` CLI (Cobra-style)
-- `scenarios/prompt-manager/ui/src/components/editor/OrgChartPanel.tsx` (558 lines) — React Flow + dagre layout for hierarchy view
-- `scenarios/prompt-manager/ui/src/types/orgChart.ts` — current types (`managerId`, `OrgEdge`)
+- `path:scenarios/prompt-manager/api/` — Go service exposing graph + team + skill endpoints
+- `path:scenarios/prompt-manager/cli/` — `prompt-manager` CLI (Cobra-style)
+- `path:scenarios/prompt-manager/ui/src/components/editor/OrgChartPanel.tsx` (558 lines) — React Flow + dagre layout for hierarchy view
+- `path:scenarios/prompt-manager/ui/src/types/orgChart.ts` — current types (`managerId`, `OrgEdge`)
 
 ### Teams to backfill
 
-Active teams (from `store/teams/`):
+Active teams (from `path:store/teams/`):
 - `director-swarm` (incl. `vision-walk-prep`)
 - `marketing-crew` (researcher already drains `research-inbox/*`; backfill formalizes other members)
 - `monetization` (opportunity-router and market-validator already documented)
@@ -141,9 +141,9 @@ Approximate member count: 30+. Schema must be stable before bulk backfill.
 
 After this plan completes:
 
-1. `docs/agent-system/` exists as the single home for framework canon, with 8–10 short PoR files plus `drafts/`.
-2. `docs/meta-optimization/` either does not exist, or contains only a stub README pointing at `docs/agent-system/` (decision in Phase 1).
-3. No skill in `scenarios/prompt-manager/store/skills/packs/core/` restates layered-architecture canon. Every skill that previously did either (a) is deleted, or (b) cites `docs/agent-system/<file>` as required reading.
+1. `path:docs/agent-system/` exists as the single home for framework canon, with 8–10 short PoR files plus `drafts/`.
+2. `path:docs/meta-optimization/` either does not exist, or contains only a stub README pointing at `path:docs/agent-system/` (decision in Phase 1).
+3. No skill in `path:scenarios/prompt-manager/store/skills/packs/core/` restates layered-architecture canon. Every skill that previously did either (a) is deleted, or (b) cites `path:docs/agent-system/<file>` as required reading.
 4. Every active team member has a `topics.json` declaring intake prefixes, output prefixes, decisions owned, and capability-gap raise capability.
 5. `prompt-manager graph topics` returns a directed graph and validation report (orphan output, orphan input, conflicting drain, dangling sink, stalled drain, piling inbox). Exit code is non-zero when any team has unresolved smells.
 6. The UI team graph page renders both Hierarchy and Topics modes; mode auto-defaults based on whether any `managerId` edges exist; Topics mode shows validation overlays.
@@ -161,10 +161,10 @@ Six phases. Phases 1 and 2 run **concurrently** (different surfaces, no shared f
 Goal: settle the two contracts that everything else depends on, without writing content.
 
 **Deliverables:**
-- `docs/agent-system/README.md` skeleton — index page listing intended files, no content yet. Establishes the folder.
-- `docs/agent-system/_outline.md` — table mapping each PoR file to its source skill(s) and which sections move where. Used as the migration manifest for Phase 1.
-- `scenarios/prompt-manager/api/internal/topics/schema.go` (or equivalent) — the `topics.json` schema as a Go struct + JSON Schema validator. No loader yet, no endpoints yet.
-- `docs/agent-system/TOPICS_SCHEMA.md` — human-readable schema doc used as PoR for the data model. (Originally drafted at `docs/agent-system/drafts/topics-schema.md` in Phase 0; promoted to canon during the inbox-flow refactor.)
+- `path:docs/agent-system/README.md` skeleton — index page listing intended files, no content yet. Establishes the folder.
+- `path:docs/agent-system/_outline.md` — table mapping each PoR file to its source skill(s) and which sections move where. Used as the migration manifest for Phase 1.
+- `path:scenarios/prompt-manager/api/internal/topics/schema.go` (or equivalent) — the `topics.json` schema as a Go struct + JSON Schema validator. No loader yet, no endpoints yet.
+- `path:docs/agent-system/TOPICS_SCHEMA.md` — human-readable schema doc used as PoR for the data model. (Originally drafted at `path:docs/agent-system/drafts/topics-schema.md` in Phase 0; promoted to canon during the inbox-flow refactor.)
 
 **`topics.json` schema (canonical for the rest of the plan):**
 
@@ -191,7 +191,7 @@ Goal: settle the two contracts that everything else depends on, without writing 
 `destination_kind` ∈ `{knowledge, decision, por_file, capability_gap, skill_proposal, backlog}`. When `por_file`, an additional `destination_path` field names the target file under `docs/`.
 
 **Exit criteria:**
-- [ ] `docs/agent-system/README.md` exists with file list
+- [ ] `path:docs/agent-system/README.md` exists with file list
 - [ ] `_outline.md` migration manifest is reviewed and accepted by an operator (this is a `meta-optimization` decision)
 - [ ] `topics.json` schema validates the marketing-crew researcher's expected declaration without modification
 
@@ -203,15 +203,15 @@ For each row in `_outline.md`, do an atomic move: extract content from source sk
 
 | PoR file | Sources |
 |---|---|
-| `docs/agent-system/PRIMITIVES.md` | `skill-principles` §1; `team-shared-docs-design` definitions; `team-member-capability-architecture-audit` §2 layer table |
-| `docs/agent-system/LAYERS.md` | The layer mantra (canonical home, all duplicates removed); `skill-principles` §6 layering rule; audit skill §2 |
-| `docs/agent-system/PROMOTION_LADDER.md` | `skill-principles` §6 lifecycle; `docs/meta-optimization/CONVERSION_PLAYBOOK.md` |
-| `docs/agent-system/TEAM_DOCS_PATTERNS.md` | `team-shared-docs-design` wholesale (skill is then deprecated/deleted) |
-| `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` | `team-member-capability-architecture-audit` §2 layer model + §4 pipeline (skill keeps Phase 1–4 procedure + output contract) |
-| `docs/agent-system/SKILL_AUTHORING.md` | `skill-principles` universal quality bars; `skill-authoring` (and its category siblings) commonalities |
-| `docs/agent-system/INTAKE_PIPELINE.md` | Intake → Collection → Analysis → Promotion model from audit skill; inbox-router-drain pattern from marketing-crew worked example |
-| `docs/agent-system/DEPRECATION_POLICY.md` | `docs/meta-optimization/DEPRECATION_POLICY.md` (relocated) |
-| `docs/agent-system/REFERENCE_SCENARIOS.md` | `docs/meta-optimization/REFERENCE_SCENARIOS.md` (relocated) |
+| `path:docs/agent-system/PRIMITIVES.md` | `skill-principles` §1; `team-shared-docs-design` definitions; `team-member-capability-architecture-audit` §2 layer table |
+| `path:docs/agent-system/LAYERS.md` | The layer mantra (canonical home, all duplicates removed); `skill-principles` §6 layering rule; audit skill §2 |
+| `path:docs/agent-system/PROMOTION_LADDER.md` | `skill-principles` §6 lifecycle; `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` |
+| `path:docs/agent-system/TEAM_DOCS_PATTERNS.md` | `team-shared-docs-design` wholesale (skill is then deprecated/deleted) |
+| `path:docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` | `team-member-capability-architecture-audit` §2 layer model + §4 pipeline (skill keeps Phase 1–4 procedure + output contract) |
+| `path:docs/agent-system/SKILL_AUTHORING.md` | `skill-principles` universal quality bars; `skill-authoring` (and its category siblings) commonalities |
+| `path:docs/agent-system/INTAKE_PIPELINE.md` | Intake → Collection → Analysis → Promotion model from audit skill; inbox-router-drain pattern from marketing-crew worked example |
+| `path:docs/agent-system/DEPRECATION_POLICY.md` | `path:docs/meta-optimization/DEPRECATION_POLICY.md` (relocated) |
+| `path:docs/agent-system/REFERENCE_SCENARIOS.md` | `path:docs/meta-optimization/REFERENCE_SCENARIOS.md` (relocated) |
 
 **Skill outcomes after migration:**
 
@@ -224,7 +224,7 @@ For each row in `_outline.md`, do an atomic move: extract content from source sk
 | `skill-authoring` | Kept. Common-quality content removed; per-category specifics retained. |
 | `skill-authoring-{meta,platform,practice,search,tools}` | Kept. Common-quality content removed; category-specific content retained. |
 
-**`docs/meta-optimization/` decision:** delete the folder entirely. Its three content files migrate; the README's "notebook" framing was a fiction that this plan retires. If a small amount of genuinely team-specific running notebook material survives, it lives as team knowledge entries under topic prefix `meta-optimization/notebook/<slug>` (per the inbox-router-drain pattern) — not as markdown files.
+**`path:docs/meta-optimization/` decision:** delete the folder entirely. Its three content files migrate; the README's "notebook" framing was a fiction that this plan retires. If a small amount of genuinely team-specific running notebook material survives, it lives as team knowledge entries under topic prefix `meta-optimization/notebook/<slug>` (per the inbox-router-drain pattern) — not as markdown files.
 
 **Per-piece atomicity check:** before each commit in this phase, grep the entire skills tree for the canonical sentence being relocated and confirm zero residual occurrences after the commit.
 
@@ -232,9 +232,9 @@ For each row in `_outline.md`, do an atomic move: extract content from source sk
 - [ ] All PoR files exist with content
 - [ ] `grep -r "Truth lives in Plan of Record" scenarios/prompt-manager/store/skills/` returns no matches
 - [ ] `grep -r "Truth lives in Plan of Record" docs/agent-system/` returns exactly one match
-- [ ] `docs/meta-optimization/` is deleted
+- [ ] `path:docs/meta-optimization/` is deleted
 - [ ] Every consumer of a relocated skill (grep `TOOLS.md`, `HEARTBEAT.md`, `AGENTS.md` for the skill IDs) has been updated
-- [ ] Tests in `scenarios/prompt-manager/api/...` and `scenarios/prompt-manager/cli/...` that load skills by ID pass after the deletions
+- [ ] Tests in `path:scenarios/prompt-manager/api/...` and `path:scenarios/prompt-manager/cli/...` that load skills by ID pass after the deletions
 
 ### Phase 2 — Topics data layer (concurrent with Phase 1)
 
@@ -242,9 +242,9 @@ Goal: ship a working `topics.json` loader, API, and one team's backfill, before 
 
 **Steps:**
 
-1. **Loader + validator** (`scenarios/prompt-manager/api/internal/topics/`):
+1. **Loader + validator** (`path:scenarios/prompt-manager/api/internal/topics/`):
    - `schema.go` — Go struct + JSON Schema (from Phase 0)
-   - `loader.go` — read all `topics.json` across `store/teams/*/members/*/`
+   - `loader.go` — read all `topics.json` across `path:store/teams/*/members/*/`
    - `loader_test.go` — automated tests covering valid file, missing file, malformed JSON, schema violations
 
 2. **API endpoints** (extend existing team handler):
@@ -318,11 +318,11 @@ Depends on Phase 3 (API + CLI proven stable; graph data is correct).
 
 **File-level changes:**
 
-- `scenarios/prompt-manager/ui/src/types/orgChart.ts` — extend with topic-edge types (`TopicEdge`, `BoundaryNode`, `ValidationOverlay`)
-- `scenarios/prompt-manager/ui/src/services/teamService.ts` — add `getTopicsGraph(teamId)`, `getDrainStatus(teamId)`
-- `scenarios/prompt-manager/ui/src/components/editor/OrgChartPanel.tsx` — add mode toggle (`Hierarchy | Topics | Both`), conditional renderer, validation overlay
-- `scenarios/prompt-manager/ui/src/components/editor/TopicEdgeDetail.tsx` — new side panel for queue inspection on edge click
-- `scenarios/prompt-manager/ui/src/components/editor/TopicsValidationPanel.tsx` — new sidebar listing smells
+- `path:scenarios/prompt-manager/ui/src/types/orgChart.ts` — extend with topic-edge types (`TopicEdge`, `BoundaryNode`, `ValidationOverlay`)
+- `path:scenarios/prompt-manager/ui/src/services/teamService.ts` — add `getTopicsGraph(teamId)`, `getDrainStatus(teamId)`
+- `path:scenarios/prompt-manager/ui/src/components/editor/OrgChartPanel.tsx` — add mode toggle (`Hierarchy | Topics | Both`), conditional renderer, validation overlay
+- `path:scenarios/prompt-manager/ui/src/components/editor/TopicEdgeDetail.tsx` — new side panel for queue inspection on edge click
+- `path:scenarios/prompt-manager/ui/src/components/editor/TopicsValidationPanel.tsx` — new sidebar listing smells
 
 **Behavioral spec:**
 
@@ -374,8 +374,8 @@ Depends on Phases 1, 2, 3 (PoR exists, topics.json exists everywhere, validation
 
 Per the user's standing requirement (`feedback_planning_guidelines`):
 
-1. Run `go build ./...` and `go test ./...` on `scenarios/prompt-manager/api/`; fix all errors and warnings, including pre-existing.
-2. Run `npx tsc --noEmit` and `eslint` on `scenarios/prompt-manager/ui/`; fix all errors and warnings in modified files, including pre-existing.
+1. Run `go build ./...` and `go test ./...` on `path:scenarios/prompt-manager/api/`; fix all errors and warnings, including pre-existing.
+2. Run `npx tsc --noEmit` and `eslint` on `path:scenarios/prompt-manager/ui/`; fix all errors and warnings in modified files, including pre-existing.
 3. Run unit tests on the whole prompt-manager scenario; fix all failures.
 4. `vrooli scenario restart prompt-manager`
 5. Verify health: API health endpoint returns 200, UI loads, team graph page renders for one team in each mode, `prompt-manager graph topics` returns clean exit code.
@@ -404,13 +404,13 @@ Authoritative shape defined in Phase 0. Backwards-incompatible changes after Pha
 
 All under existing `/teams/...` and new `/topics/...` namespaces. Read endpoints public to authenticated UI; write endpoints follow same auth pattern as existing team mutation endpoints.
 
-### `docs/agent-system/` is plan-of-record
+### `path:docs/agent-system/` is plan-of-record
 
 - Approval-gated (file edits go through `meta-optimization` decisions; agents propose diffs, never edit directly)
 - Cross-team-readable (any team's members may cite it as required reading)
 - One concept lives in exactly one file (the "no double residency" rule from `team-shared-docs-design`)
 
-### `docs/meta-optimization/` is deleted
+### `path:docs/meta-optimization/` is deleted
 
 Existing content fully migrated. Future genuinely-transient meta-optim observations live as team knowledge entries under `meta-optimization/notebook/<slug>` topic prefix, drained by an existing or future meta-optim router skill.
 
@@ -422,18 +422,18 @@ All verification is automated. No manual checklists.
 
 | Layer | Test type | Location |
 |---|---|---|
-| `topics.json` schema | Unit (Go) | `scenarios/prompt-manager/api/internal/topics/schema_test.go` |
-| Topics loader | Unit (Go) | `scenarios/prompt-manager/api/internal/topics/loader_test.go` |
-| API endpoints | Handler tests (Go) | `scenarios/prompt-manager/api/internal/topics/handler_test.go` |
-| Validation rules | Unit (Go), one fixture per rule | `scenarios/prompt-manager/api/internal/topics/validation_test.go` |
-| `graph topics` CLI | Integration (Go), exit-code + output assertions | `scenarios/prompt-manager/cli/cmd_graph_test.go` (or equivalent) |
+| `topics.json` schema | Unit (Go) | `path:scenarios/prompt-manager/api/internal/topics/schema_test.go` |
+| Topics loader | Unit (Go) | `path:scenarios/prompt-manager/api/internal/topics/loader_test.go` |
+| API endpoints | Handler tests (Go) | `path:scenarios/prompt-manager/api/internal/topics/handler_test.go` |
+| Validation rules | Unit (Go), one fixture per rule | `path:scenarios/prompt-manager/api/internal/topics/validation_test.go` |
+| `graph topics` CLI | Integration (Go), exit-code + output assertions | `path:scenarios/prompt-manager/cli/cmd_graph_test.go` (or equivalent) |
 | `graph drain-status` CLI | Integration | same |
 | UI types | TS compile | `npx tsc --noEmit` |
-| UI components | Vitest component tests | `scenarios/prompt-manager/ui/src/components/editor/__tests__/` |
-| UI e2e | Scenario UI smoke (Playwright via existing harness) | `scenarios/prompt-manager/coverage/ui-smoke/` |
-| PoR coherence | grep-based regression test | `scenarios/prompt-manager/test/agent_system_canon_test.sh` (new) — asserts no canon residue in skills, no double residency |
+| UI components | Vitest component tests | `path:scenarios/prompt-manager/ui/src/components/editor/__tests__/` |
+| UI e2e | Scenario UI smoke (Playwright via existing harness) | `path:scenarios/prompt-manager/coverage/ui-smoke/` |
+| PoR coherence | grep-based regression test | `path:scenarios/prompt-manager/test/agent_system_canon_test.sh` (new) — asserts no canon residue in skills, no double residency |
 
-The PoR coherence test is the dogfooding lint: it greps for the canonical layer-mantra sentence and ensures it appears in `docs/agent-system/LAYERS.md` and nowhere else under `scenarios/prompt-manager/store/skills/`. If a future skill drifts and restates canon, this test fails.
+The PoR coherence test is the dogfooding lint: it greps for the canonical layer-mantra sentence and ensures it appears in `path:docs/agent-system/LAYERS.md` and nowhere else under `path:scenarios/prompt-manager/store/skills/`. If a future skill drifts and restates canon, this test fails.
 
 ---
 
@@ -442,7 +442,7 @@ The PoR coherence test is the dogfooding lint: it greps for the canonical layer-
 Per phase, gated:
 
 - [ ] Phase 0: schema approved, outline approved (meta-optimization decision)
-- [ ] Phase 1: PoR coherence test passes; all skill consumers updated; `docs/meta-optimization/` deleted
+- [ ] Phase 1: PoR coherence test passes; all skill consumers updated; `path:docs/meta-optimization/` deleted
 - [ ] Phase 2: marketing-crew canary clean; schema-stable decision accepted; full backfill complete; loader + API tests pass
 - [ ] Phase 3: all validation rule tests pass; `graph topics` returns 0 across all teams (or exceptions documented)
 - [ ] Phase 4: UI tests pass; mode toggle works; validation panel matches CLI output
@@ -459,7 +459,7 @@ Per phase, gated:
 | Three framings of the promotion ladder genuinely disagree (not just editorial drift) | Medium | Phase 0 outline review explicitly looks for semantic conflicts; surface them as `meta-optimization` decisions before authoring |
 | UI complexity creep (force-directed layout + boundary nodes + validation overlay + side panels in one phase) | High | Phase 4 split: ship Topics-mode rendering first with read-only edges and basic validation; defer side-panel queue inspection if it slips |
 | Skills referenced from many `TOOLS.md` files; deleting `skill-principles` breaks consumers silently | Medium | Phase 1 includes a tree-wide grep for every deleted skill ID and an update to every consumer; the PoR coherence test catches residual references |
-| `docs/meta-optimization/` consumers outside prompt-manager scenario | Low-Medium | Tree-wide grep for `docs/meta-optimization/` references at start of Phase 1; update or document each |
+| `path:docs/meta-optimization/` consumers outside prompt-manager scenario | Low-Medium | Tree-wide grep for `path:docs/meta-optimization/` references at start of Phase 1; update or document each |
 | Operator acceptance gates (Phase 0, Phase 2 schema-stable) block progress | Low | Surface decisions early; both gates sized to be one-walk decisions during the morning vision walk |
 | Phase 1 and Phase 2 concurrent execution causes merge conflicts on `team-member-capability-architecture-audit` skill (Phase 1 strips canon; Phase 5 rewires) | Low | Phase 5 explicitly waits on Phase 1 completion; Phase 1 leaves the skill's procedure intact for Phase 5 to extend |
 
@@ -481,15 +481,15 @@ Per phase, gated:
 
 All of the following must be true:
 
-1. `docs/agent-system/` exists with all 8–10 PoR files; `drafts/` subfolder exists for synthesis-in-flux.
-2. `docs/meta-optimization/` is deleted; tree-wide grep finds no references to it under `docs/`, `scenarios/prompt-manager/`.
-3. PoR coherence test (`scenarios/prompt-manager/test/agent_system_canon_test.sh`) passes — layer mantra appears in exactly one file under `docs/agent-system/`, zero residue elsewhere.
+1. `path:docs/agent-system/` exists with all 8–10 PoR files; `drafts/` subfolder exists for synthesis-in-flux.
+2. `path:docs/meta-optimization/` is deleted; tree-wide grep finds no references to it under `docs/`, `path:scenarios/prompt-manager/`.
+3. PoR coherence test (`path:scenarios/prompt-manager/test/agent_system_canon_test.sh`) passes — layer mantra appears in exactly one file under `path:docs/agent-system/`, zero residue elsewhere.
 4. `skill-principles` and `team-shared-docs-design` skills are deleted; remaining skills have required-reading lines pointing at PoR.
 5. Every member of every active team has a `topics.json` validating against the schema.
 6. `prompt-manager graph topics` exits 0 across all teams; `prompt-manager graph drain-status` runs without error.
 7. UI team graph page renders Hierarchy and Topics modes; validation overlay matches CLI output.
 8. `team-member-capability-architecture-audit` skill consumes `topics.json` for the four pipeline layers.
 9. `vrooli scenario restart prompt-manager` succeeds; API health and UI smoke pass.
-10. All Go builds, type checks, lints, and tests pass on `scenarios/prompt-manager/` — including pre-existing.
-11. All TS type checks, lints, and component tests pass on `scenarios/prompt-manager/ui/`.
+10. All Go builds, type checks, lints, and tests pass on `path:scenarios/prompt-manager/` — including pre-existing.
+11. All TS type checks, lints, and component tests pass on `path:scenarios/prompt-manager/ui/`.
 12. The greenfield constraint held: no shims, no `// removed`, no re-exports, no renamed `_unused` variables introduced.

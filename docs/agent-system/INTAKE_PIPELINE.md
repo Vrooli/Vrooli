@@ -41,7 +41,7 @@ Each intake channel a member drains is declared structurally in `topics.json`:
 }
 ```
 
-`prefix` names the topic-prefix the member drains; `taxonomy` names the JSON sidecar (`docs/<domain>/<id>.json`) that owns the signal vocabulary, dispatch table, evidence rules, and destination schemas; `classifier_skill` is the optional pure-judgment skill loaded when assignment of `signal_type` requires interpretation; `source_team` is set when the prefix is fed by another team's members. The heartbeat builder generates the universal drain procedure into the member's prompt as the `# Inbox Flow` section.
+`prefix` names the topic-prefix the member drains; `taxonomy` names the JSON sidecar (`path:docs/<domain>/<id>.json`) that owns the signal vocabulary, dispatch table, evidence rules, and destination schemas; `classifier_skill` is the optional pure-judgment skill loaded when assignment of `signal_type` requires interpretation; `source_team` is set when the prefix is fed by another team's members. The heartbeat builder generates the universal drain procedure into the member's prompt as the `# Inbox Flow` section.
 
 ---
 
@@ -212,7 +212,7 @@ When a prefix crosses team boundaries, **the producer's taxonomy owns the front-
 | Owns dispatch / routing on read | no | yes |
 | Validator behavior | `missing_destination_schema` resolves `output[].schema` against the producer's taxonomy | `unknown_taxonomy` resolves the consumer's intake taxonomy independently |
 
-Worked example. `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent-record/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent-record/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
+Worked example. `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent-record/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`path:docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent-record/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
 
 Why this rule: the on-disk shape is fixed at write time. The producer is the only party who can guarantee shape consistency; if the consumer redefined the schema, the producer would be unable to validate its own writes. Routing is a read-side concern and may legitimately differ across consumers (a single prefix could be drained by multiple consumers under different taxonomies later). Schemas can't.
 

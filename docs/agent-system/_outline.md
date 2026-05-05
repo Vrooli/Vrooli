@@ -1,6 +1,6 @@
 # Agent-System Migration Outline
 
-This file is the **Phase 1 migration manifest** for `docs/plans/agent-system-migration-implementation-plan.md`. Each row maps a canonical paragraph in an existing skill or doc to a destination PoR file in `docs/agent-system/`. Phase 1 executes paired atomic moves: extract content → place in PoR file → strip source of relocated section → add `Required reading: docs/agent-system/<file>` line.
+This file is the **Phase 1 migration manifest** for `path:docs/plans/agent-system-migration-implementation-plan.md`. Each row maps a canonical paragraph in an existing skill or doc to a destination PoR file in `path:docs/agent-system/`. Phase 1 executes paired atomic moves: extract content → place in PoR file → strip source of relocated section → add `Required reading: docs/agent-system/<file>` line.
 
 ## Status
 
@@ -23,8 +23,8 @@ The promotion ladder is currently described in three places with conflicting voc
 |---|---|---|
 | `skill-principles/SKILL.md` §6 | "Promotion-Retirement Lifecycle" — 4-step lifecycle (interim prose → CLI/tool contract → Action → retire prose) | Most operationally specific |
 | `team-member-capability-architecture-audit/SKILL.md` §2 | "Layer Model" — 9-layer table mixed with the layer mantra | Most conceptually clean; canonical mantra source |
-| `docs/meta-optimization/README.md` "three-tier mental model" | Hot buffer → Living notebook → Permanent structure | Frames notebook as a permanent layer (which the migration plan retires) |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` "Promotion Classifier" | "If it says X → Y" classifier (truth → PoR, decide → skill, run → Action, etc.) | Cleanest formulation, but lives in a notebook file |
+| `path:docs/meta-optimization/README.md` "three-tier mental model" | Hot buffer → Living notebook → Permanent structure | Frames notebook as a permanent layer (which the migration plan retires) |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` "Promotion Classifier" | "If it says X → Y" classifier (truth → PoR, decide → skill, run → Action, etc.) | Cleanest formulation, but lives in a notebook file |
 
 **Resolution direction (proposed; needs operator confirmation):**
 
@@ -38,7 +38,7 @@ Operator: please confirm or redirect during the Phase 0 review decision.
 
 Rows are listed by destination PoR file. Each row's "action on source" column states what happens to that source after Phase 1 completes.
 
-### `docs/agent-system/PRIMITIVES.md`
+### `path:docs/agent-system/PRIMITIVES.md`
 
 Defines the eight primitives: skill, agent, team (incl. member), plan-of-record, decision, knowledge, action, CLI. Plus three runtime concepts: notebook, capability-gap, scenario.
 
@@ -49,9 +49,9 @@ Defines the eight primitives: skill, agent, team (incl. member), plan-of-record,
 | `skill-principles/SKILL.md` | §3 "Choose the Right Category" + decision check | Move (this is a primitive-typology question) |
 | `team-shared-docs-design/SKILL.md` | "Pattern A — Plan-of-record" + "Pattern B — Working notebook" definitions | Move (just the definitions; the four-axis discussion lives in `TEAM_DOCS_PATTERNS.md`) |
 | `team-member-capability-architecture-audit/SKILL.md` | §2 "Layer Model" table — column "Belongs in" | Move (this is what each primitive holds) |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Promotion Classifier" (8 lines) | Move (also referenced by `LAYERS.md`; lives once here, cited from `LAYERS.md`) |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Promotion Classifier" (8 lines) | Move (also referenced by `LAYERS.md`; lives once here, cited from `LAYERS.md`) |
 
-### `docs/agent-system/LAYERS.md`
+### `path:docs/agent-system/LAYERS.md`
 
 Single canonical home for the layering rule. Cites `PROMOTION_LADDER.md` for the lifecycle and `PRIMITIVES.md` for the typology.
 
@@ -60,12 +60,12 @@ Single canonical home for the layering rule. Cites `PROMOTION_LADDER.md` for the
 | `skill-principles/SKILL.md` | §6 "Layering rule" block (the layer mantra) | Move (single canonical home) |
 | `team-member-capability-architecture-audit/SKILL.md` | §2 "Keep the layers separate" 8-line block | Move (it's the same mantra rephrased) |
 | `team-shared-docs-design/SKILL.md` | "Use the right permanent structure" bullet | Move (yet another rephrasing) |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Promotion Classifier" cross-reference | Cite-only |
-| `docs/meta-optimization/README.md` | "three-tier mental model" diagram | Retire (replaced by the inbox-pipeline model in `INTAKE_PIPELINE.md`); see "Three-framings conflict" |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Promotion Classifier" cross-reference | Cite-only |
+| `path:docs/meta-optimization/README.md` | "three-tier mental model" diagram | Retire (replaced by the inbox-pipeline model in `INTAKE_PIPELINE.md`); see "Three-framings conflict" |
 
-**Test gate:** after Phase 1, the canonical layer-mantra sentence (the one beginning "Truth ... in Plan of Record") appears exactly once under `docs/agent-system/` (in `LAYERS.md`) and zero times under `scenarios/prompt-manager/store/skills/`. Enforced by `scenarios/prompt-manager/test/agent_system_canon_test.sh`.
+**Test gate:** after Phase 1, the canonical layer-mantra sentence (the one beginning "Truth ... in Plan of Record") appears exactly once under `path:docs/agent-system/` (in `LAYERS.md`) and zero times under `path:scenarios/prompt-manager/store/skills/`. Enforced by `path:scenarios/prompt-manager/test/agent_system_canon_test.sh`.
 
-### `docs/agent-system/PROMOTION_LADDER.md`
+### `path:docs/agent-system/PROMOTION_LADDER.md`
 
 Lifecycle of a guidance from raw observation to retired prose. Cites `LAYERS.md` and `INTAKE_PIPELINE.md`.
 
@@ -74,11 +74,11 @@ Lifecycle of a guidance from raw observation to retired prose. Cites `LAYERS.md`
 | `skill-principles/SKILL.md` | §6 "Promotion-Retirement Lifecycle" 4-step block | Move (canonical home) |
 | `skill-principles/SKILL.md` | §6 "Retirement criteria" + "Retention criteria" | Move |
 | `skill-principles/SKILL.md` | §6 "Output requirement for meta analyses" | Move |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "When to Attempt Conversion" (3 prerequisites) | Move |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Conversion Procedure" 8-step block | Move |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Patterns" + "Anti-Patterns" + "Conversion Log" + "Open Questions" | Retire (these were notebook-mode entries; the conversion log can be replaced by a structured `actions` index if it has continued value, otherwise it dies) |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "When to Attempt Conversion" (3 prerequisites) | Move |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Conversion Procedure" 8-step block | Move |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` | "Patterns" + "Anti-Patterns" + "Conversion Log" + "Open Questions" | Retire (these were notebook-mode entries; the conversion log can be replaced by a structured `actions` index if it has continued value, otherwise it dies) |
 
-### `docs/agent-system/TEAM_DOCS_PATTERNS.md`
+### `path:docs/agent-system/TEAM_DOCS_PATTERNS.md`
 
 Wholesale absorption of `team-shared-docs-design`. The skill is then deleted.
 
@@ -86,9 +86,9 @@ Wholesale absorption of `team-shared-docs-design`. The skill is then deleted.
 |---|---|---|
 | `team-shared-docs-design/SKILL.md` | All sections except primitive definitions (which moved to `PRIMITIVES.md`) | Move (skill deleted in same commit) |
 
-**Skill outcome:** `team-shared-docs-design` is deleted. Tree-wide grep for `team-shared-docs-design` ID is run; every consumer's `TOOLS.md` / `HEARTBEAT.md` / `AGENTS.md` is updated to cite `docs/agent-system/TEAM_DOCS_PATTERNS.md` instead.
+**Skill outcome:** `team-shared-docs-design` is deleted. Tree-wide grep for `team-shared-docs-design` ID is run; every consumer's `TOOLS.md` / `HEARTBEAT.md` / `AGENTS.md` is updated to cite `path:docs/agent-system/TEAM_DOCS_PATTERNS.md` instead.
 
-### `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`
+### `path:docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`
 
 The 9-layer member capability model. Sourced from the audit skill, but stripped of audit-procedure specifics (those stay in the skill).
 
@@ -100,7 +100,7 @@ The 9-layer member capability model. Sourced from the audit skill, but stripped 
 
 **Skill outcome:** `team-member-capability-architecture-audit` is kept. §2 + §4 are replaced by `Required reading: docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Phase 5 of the migration plan additionally rewires the skill's Phase 2 scoring to consume `topics.json` programmatically.
 
-### `docs/agent-system/INTAKE_PIPELINE.md`
+### `path:docs/agent-system/INTAKE_PIPELINE.md`
 
 The Intake → Collection → Analysis → Promotion pipeline. Inbox-router-drain pattern. Topic-prefix conventions. Cites `LAYERS.md` and `TEAM_MEMBER_ARCHITECTURE.md`.
 
@@ -110,9 +110,9 @@ The Intake → Collection → Analysis → Promotion pipeline. Inbox-router-drai
 | `marketing-research-router/SKILL.md` | "Routing Process" steps 1–5 — the **generic** parts (normalize, classify, choose smallest action, apply collection discipline, resolve inbox entry under topic-prefix retag/delete) | Move (the routing-process *pattern* is canon; the marketing-specific signal-type table and method registry stay in the skill) |
 | `monetization-opportunity-router/SKILL.md` | (TBD — analogous router pattern) | Cite-only (pattern lives once in `INTAKE_PIPELINE.md`; the skill keeps monetization-specific tables) |
 | `market-validation-router/SKILL.md` | (TBD — analogous) | Cite-only |
-| `docs/marketing/research/README.md` | "Pipeline" + "Intake" + "Inbox convention" + "Routing inbox entries" + "Collection" + "Analysis Methods" + "Promotion Matrix" + "Evidence Rules" | Move the **generic** patterns; keep the marketing-specific registry in `docs/marketing/research/README.md`, which becomes a marketing-specific instantiation citing `docs/agent-system/INTAKE_PIPELINE.md` |
+| `path:docs/marketing/research/README.md` | "Pipeline" + "Intake" + "Inbox convention" + "Routing inbox entries" + "Collection" + "Analysis Methods" + "Promotion Matrix" + "Evidence Rules" | Move the **generic** patterns; keep the marketing-specific registry in `path:docs/marketing/research/README.md`, which becomes a marketing-specific instantiation citing `path:docs/agent-system/INTAKE_PIPELINE.md` |
 
-### `docs/agent-system/SKILL_AUTHORING.md`
+### `path:docs/agent-system/SKILL_AUTHORING.md`
 
 Universal quality bars for any skill. Per-category specifics (steer, search, tools, practice, meta) stay in the per-category authoring skills.
 
@@ -144,25 +144,25 @@ Universal quality bars for any skill. Per-category specifics (steer, search, too
 - `skill-authoring` is **kept**, slimmed to just §4.1 (Steer-specific opening pattern), §10 (registration cite), §12 (per-session output expectations); plus a `Required reading: docs/agent-system/SKILL_AUTHORING.md` line.
 - `skill-authoring-{meta,platform,practice,search,tools}` are **kept**, each slimmed to category-specific content with a required-reading line pointing at `SKILL_AUTHORING.md`.
 
-### `docs/agent-system/DEPRECATION_POLICY.md`
+### `path:docs/agent-system/DEPRECATION_POLICY.md`
 
-Wholesale relocation of `docs/meta-optimization/DEPRECATION_POLICY.md`.
-
-| Source | Section | Action on source |
-|---|---|---|
-| `docs/meta-optimization/DEPRECATION_POLICY.md` | All sections | Move (file deleted) |
-
-### `docs/agent-system/REFERENCE_SCENARIOS.md`
-
-Wholesale relocation of `docs/meta-optimization/REFERENCE_SCENARIOS.md`.
+Wholesale relocation of `path:docs/meta-optimization/DEPRECATION_POLICY.md`.
 
 | Source | Section | Action on source |
 |---|---|---|
-| `docs/meta-optimization/REFERENCE_SCENARIOS.md` | All sections | Move (file deleted) |
+| `path:docs/meta-optimization/DEPRECATION_POLICY.md` | All sections | Move (file deleted) |
 
-### `docs/agent-system/TOPICS_SCHEMA.md` (originally `drafts/topics-schema.md`)
+### `path:docs/agent-system/REFERENCE_SCENARIOS.md`
 
-Authored fresh in Phase 0 as `drafts/topics-schema.md`; promoted to canon at `TOPICS_SCHEMA.md` during the inbox-flow refactor. Paired with the Go schema at `scenarios/prompt-manager/api/memberflow/schema.go`. Documents the per-member topic declarations data layer (intake / output / decisions_owned / decisions_consumed / raises_capability_gaps / external_producers).
+Wholesale relocation of `path:docs/meta-optimization/REFERENCE_SCENARIOS.md`.
+
+| Source | Section | Action on source |
+|---|---|---|
+| `path:docs/meta-optimization/REFERENCE_SCENARIOS.md` | All sections | Move (file deleted) |
+
+### `path:docs/agent-system/TOPICS_SCHEMA.md` (originally `drafts/topics-schema.md`)
+
+Authored fresh in Phase 0 as `drafts/topics-schema.md`; promoted to canon at `TOPICS_SCHEMA.md` during the inbox-flow refactor. Paired with the Go schema at `path:scenarios/prompt-manager/api/memberflow/schema.go`. Documents the per-member topic declarations data layer (intake / output / decisions_owned / decisions_consumed / raises_capability_gaps / external_producers).
 
 | Source | Action on source |
 |---|---|
@@ -172,30 +172,30 @@ Authored fresh in Phase 0 as `drafts/topics-schema.md`; promoted to canon at `TO
 
 | Skill ID | Reason | Consumer-update plan |
 |---|---|---|
-| `skill-principles` | Fully absorbed into `LAYERS.md`, `PRIMITIVES.md`, `PROMOTION_LADDER.md`, `SKILL_AUTHORING.md` | Tree-wide grep for `skill-principles` in `TOOLS.md` / `HEARTBEAT.md` / `AGENTS.md`; replace with `docs/agent-system/<file>` cites |
+| `skill-principles` | Fully absorbed into `LAYERS.md`, `PRIMITIVES.md`, `PROMOTION_LADDER.md`, `SKILL_AUTHORING.md` | Tree-wide grep for `skill-principles` in `TOOLS.md` / `HEARTBEAT.md` / `AGENTS.md`; replace with `path:docs/agent-system/<file>` cites |
 | `team-shared-docs-design` | Fully absorbed into `TEAM_DOCS_PATTERNS.md` and `PRIMITIVES.md` | Same grep + replace |
 
 ## Files relocated in Phase 1
 
 | Source path | Destination path | Note |
 |---|---|---|
-| `docs/meta-optimization/README.md` | (none — deleted) | Replaced by `docs/agent-system/README.md` |
-| `docs/meta-optimization/CONVERSION_PLAYBOOK.md` | content split between `LAYERS.md` and `PROMOTION_LADDER.md`; file deleted | Notebook entries (Patterns, Anti-Patterns, Log, Open Questions) retired or moved to team knowledge entries under `meta-optimization/notebook/<slug>` |
-| `docs/meta-optimization/DEPRECATION_POLICY.md` | `docs/agent-system/DEPRECATION_POLICY.md` | Wholesale move |
-| `docs/meta-optimization/REFERENCE_SCENARIOS.md` | `docs/agent-system/REFERENCE_SCENARIOS.md` | Wholesale move |
-| `docs/meta-optimization/` (folder) | n/a | Deleted at end of Phase 1 |
+| `path:docs/meta-optimization/README.md` | (none — deleted) | Replaced by `path:docs/agent-system/README.md` |
+| `path:docs/meta-optimization/CONVERSION_PLAYBOOK.md` | content split between `LAYERS.md` and `PROMOTION_LADDER.md`; file deleted | Notebook entries (Patterns, Anti-Patterns, Log, Open Questions) retired or moved to team knowledge entries under `meta-optimization/notebook/<slug>` |
+| `path:docs/meta-optimization/DEPRECATION_POLICY.md` | `path:docs/agent-system/DEPRECATION_POLICY.md` | Wholesale move |
+| `path:docs/meta-optimization/REFERENCE_SCENARIOS.md` | `path:docs/agent-system/REFERENCE_SCENARIOS.md` | Wholesale move |
+| `path:docs/meta-optimization/` (folder) | n/a | Deleted at end of Phase 1 |
 
 ## Consumers to update in Phase 1
 
 Anything in this list must be re-pointed before the source is removed. The Phase 1 atomicity rule still applies: per **piece** of canon, the same commit that creates the PoR file removes the source content and updates consumers. Bulk consumer updates may be a separate commit when the consumer change is purely a citation rewrite (no content drift).
 
-- `scenarios/prompt-manager/store/skills/packs/core/*/SKILL.md` — any skill that lists `skill-principles` or `team-shared-docs-design` as required/optional reading
-- `scenarios/prompt-manager/store/teams/*/members/*/HEARTBEAT.md` — same grep
-- `scenarios/prompt-manager/store/teams/*/members/*/RESPONSIBILITIES.md` — same
-- `scenarios/prompt-manager/store/agents/*/AGENTS.md` and `TOOLS.md` — same
-- `scenarios/prompt-manager/store/teams/*/shared/TEAM.md` — any team that cites a relocated doc
-- `docs/marketing/research/README.md` — already plan-of-record; will gain a citation line to `docs/agent-system/INTAKE_PIPELINE.md` and lose any duplicated framing
-- Top-level `CLAUDE.md` — currently references `docs/meta-optimization/` indirectly via prompt-manager skill paths; check for direct mentions
+- `path:scenarios/prompt-manager/store/skills/packs/core/*/SKILL.md` — any skill that lists `skill-principles` or `team-shared-docs-design` as required/optional reading
+- `path:scenarios/prompt-manager/store/teams/*/members/*/HEARTBEAT.md` — same grep
+- `path:scenarios/prompt-manager/store/teams/*/members/*/RESPONSIBILITIES.md` — same
+- `path:scenarios/prompt-manager/store/agents/*/AGENTS.md` and `TOOLS.md` — same
+- `path:scenarios/prompt-manager/store/teams/*/shared/TEAM.md` — any team that cites a relocated doc
+- `path:docs/marketing/research/README.md` — already plan-of-record; will gain a citation line to `path:docs/agent-system/INTAKE_PIPELINE.md` and lose any duplicated framing
+- Top-level `CLAUDE.md` — currently references `path:docs/meta-optimization/` indirectly via prompt-manager skill paths; check for direct mentions
 
 ## Out of scope for Phase 1
 

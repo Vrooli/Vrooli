@@ -52,22 +52,22 @@ prompt-manager skill read scientific-debugging
 
 Then read the prior context this plan continues:
 
-- `docs/plans/sandbox-auto-approve-and-profile-reconcile-plan.md` (2026-04-24
+- `path:docs/plans/sandbox-auto-approve-and-profile-reconcile-plan.md` (2026-04-24
   predecessor — defines `resolveSandboxConfig` non-nil contract,
   `defaultProfileRef.UpdateExisting=true`, diff-stats wire shape).
-- `scenarios/agent-manager/docs/AUDITABILITY_CONTRACT.md` (locked contract;
+- `path:scenarios/agent-manager/docs/AUDITABILITY_CONTRACT.md` (locked contract;
   do not violate).
-- `scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md` (locked contract).
-- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`
+- `path:scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md` (locked contract).
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor.go`
   (around `applyAtRunEnd`, `useSandboxedWorkspace`, the env-var injection at
   line ~1254).
-- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`
+- `path:scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`
   (entire file).
-- `scenarios/workspace-sandbox/api/internal/driver/bwrap.go` (especially
+- `path:scenarios/workspace-sandbox/api/internal/driver/bwrap.go` (especially
   `buildBwrapArgs`, `BuildExecCommand`).
-- `scenarios/workspace-sandbox/api/internal/handlers/process.go`
+- `path:scenarios/workspace-sandbox/api/internal/handlers/process.go`
   (`StreamProcessLogs`, the OnExit closure starting around line 389).
-- `scenarios/swarm-manager/api/internal/agentmanager/profile.go`.
+- `path:scenarios/swarm-manager/api/internal/agentmanager/profile.go`.
 
 ---
 
@@ -156,7 +156,7 @@ so the bwrap diagnostic is silently dropped.
 
 **RC-3 — `ManualReview=true` default forces NEEDS_REVIEW even on silent
 failures (UX/contract).**
-`scenarios/swarm-manager/.../agentmanager/profile.go:82` hardcodes
+`path:scenarios/swarm-manager/.../agentmanager/profile.go:82` hardcodes
 `ManualReview: true` for every swarm-manager profile. Combined with
 `defaultProfileRef.UpdateExisting=true` (which overwrites the DB row on
 every dispatch), every swarm-manager run lands in `needs_review` regardless
@@ -220,37 +220,37 @@ of "launch failed; here is the bwrap stderr."
 
 ## 5. Current Technical Context (key files & components)
 
-### 5.1 agent-manager (`scenarios/agent-manager/api/`)
+### 5.1 agent-manager (`path:scenarios/agent-manager/api/`)
 
 | Path | Role |
 |---|---|
-| `internal/orchestration/run_executor.go` | Owns `e.workDir`, `e.sandboxID`, the env-var injection at line ~1254, and `applyAtRunEnd` at line ~1698 (manualReview defer). |
-| `internal/orchestration/service.go` | Calls `GetWorkspacePath` at lines 1127, 2004, 2374. |
-| `internal/adapters/sandbox/sandbox_launcher.go` | `Launch` posts `workingDir` to `/processes`. `runStream` parses SSE. `finalizeWaitErr` decides `waitErr`. |
-| `internal/adapters/sandbox/workspace_sandbox.go` | `GetWorkspacePath` returns host path. |
-| `internal/adapters/runner/claude_code.go` | Lines 200-321: stderr capture and Wait-error type-switch. |
-| `internal/adapters/runner/exit_code.go` | `extractExitCode` uniform error decoder. |
-| `internal/domain/types.go` | `SandboxConfig.ManualReview` (line 298). |
+| `path:internal/orchestration/run_executor.go` | Owns `e.workDir`, `e.sandboxID`, the env-var injection at line ~1254, and `applyAtRunEnd` at line ~1698 (manualReview defer). |
+| `path:internal/orchestration/service.go` | Calls `GetWorkspacePath` at lines 1127, 2004, 2374. |
+| `path:internal/adapters/sandbox/sandbox_launcher.go` | `Launch` posts `workingDir` to `/processes`. `runStream` parses SSE. `finalizeWaitErr` decides `waitErr`. |
+| `path:internal/adapters/sandbox/workspace_sandbox.go` | `GetWorkspacePath` returns host path. |
+| `path:internal/adapters/runner/claude_code.go` | Lines 200-321: stderr capture and Wait-error type-switch. |
+| `path:internal/adapters/runner/exit_code.go` | `extractExitCode` uniform error decoder. |
+| `path:internal/domain/types.go` | `SandboxConfig.ManualReview` (line 298). |
 
-### 5.2 workspace-sandbox (`scenarios/workspace-sandbox/api/`)
-
-| Path | Role |
-|---|---|
-| `internal/driver/bwrap.go` | `buildBwrapArgs` (line 303), `BuildExecCommand` (line 624), `StartProcess` (line 674), `spawnExitReaper`. The merged dir is bind-mounted at `/workspace` at line 334. |
-| `internal/handlers/process.go` | `StartProcess` handler (OnExit closure ~line 389), `StreamProcessLogs` (line 711). |
-| `internal/process/tracker.go` | `ExitInfo` shape (line 40), `RecordExit`, `GetExitInfo`. |
-
-### 5.3 swarm-manager (`scenarios/swarm-manager/api/`)
+### 5.2 workspace-sandbox (`path:scenarios/workspace-sandbox/api/`)
 
 | Path | Role |
 |---|---|
-| `internal/agentmanager/profile.go` | `DefaultProfileConfig` line 65 — sets `ManualReview: true` at line 82. |
+| `path:internal/driver/bwrap.go` | `buildBwrapArgs` (line 303), `BuildExecCommand` (line 624), `StartProcess` (line 674), `spawnExitReaper`. The merged dir is bind-mounted at `/workspace` at line 334. |
+| `path:internal/handlers/process.go` | `StartProcess` handler (OnExit closure ~line 389), `StreamProcessLogs` (line 711). |
+| `path:internal/process/tracker.go` | `ExitInfo` shape (line 40), `RecordExit`, `GetExitInfo`. |
+
+### 5.3 swarm-manager (`path:scenarios/swarm-manager/api/`)
+
+| Path | Role |
+|---|---|
+| `path:internal/agentmanager/profile.go` | `DefaultProfileConfig` line 65 — sets `ManualReview: true` at line 82. |
 
 ### 5.4 Run-time evidence locations
 
 | Path | What's there |
 |---|---|
-| `scenarios/agent-manager/data/runs/<run_id>/` | `meta.json`, `transcript.ndjson`, `stderr.log`, `cursor.json`. |
+| `path:scenarios/agent-manager/data/runs/<run_id>/` | `meta.json`, `transcript.ndjson`, `stderr.log`, `cursor.json`. |
 | `/home/matthalloran8/.local/share/workspace-sandbox/<sb>/logs/<pid>.stderr.log` | The actual bwrap stderr we are missing in run events. |
 
 ---
@@ -293,9 +293,9 @@ launcher reconnects to the new server.
 ### Phase A — RC-1: WorkingDir + env-var translation at the SandboxLauncher boundary
 
 **Files:**
-- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`
-- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher_test.go`
-- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`
+- `path:scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`
+- `path:scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher_test.go`
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor.go`
 
 **Steps:**
 
@@ -336,9 +336,9 @@ launcher reconnects to the new server.
 ### Phase B — RC-2 server-side: deterministic exit-event delivery in workspace-sandbox
 
 **Files:**
-- `scenarios/workspace-sandbox/api/internal/handlers/process.go`
-- `scenarios/workspace-sandbox/api/internal/process/tracker.go`
-- `scenarios/workspace-sandbox/api/internal/handlers/process_test.go` (new
+- `path:scenarios/workspace-sandbox/api/internal/handlers/process.go`
+- `path:scenarios/workspace-sandbox/api/internal/process/tracker.go`
+- `path:scenarios/workspace-sandbox/api/internal/handlers/process_test.go` (new
   or extended)
 
 **Steps:**
@@ -373,8 +373,8 @@ launcher reconnects to the new server.
 ### Phase C — RC-2 client-side: never silently treat "no exit event" as success
 
 **Files:**
-- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`
-- `scenarios/agent-manager/api/internal/adapters/runner/claude_code.go`
+- `path:scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go`
+- `path:scenarios/agent-manager/api/internal/adapters/runner/claude_code.go`
 - `sandbox_launcher_test.go`, `claude_code_test.go`
 
 **Steps:**
@@ -406,9 +406,9 @@ launcher reconnects to the new server.
 ### Phase D — RC-4: "launch-likely-failed" categorizer in the run executor
 
 **Files:**
-- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`
-- `scenarios/agent-manager/api/internal/orchestration/run_executor_test.go`
-- `scenarios/agent-manager/api/internal/domain/errors.go` (or wherever
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor.go`
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor_test.go`
+- `path:scenarios/agent-manager/api/internal/domain/errors.go` (or wherever
   the RUN_FAILED error codes live — verify by `rg "RunErrorCode\b"`).
 
 **Steps:**
@@ -445,7 +445,7 @@ launcher reconnects to the new server.
 | Connectivity | new `RUN_ERROR_CODE_SANDBOX_NO_EXIT_INFO` | SSE stream closed without exit event despite Phase B fix | Bug indicator. Logs alert; investigate workspace-sandbox health. |
 
 Document this table in
-`scenarios/agent-manager/docs/internal/ERROR-SEMANTICS.md`.
+`path:scenarios/agent-manager/docs/internal/ERROR-SEMANTICS.md`.
 
 ### Phase E — RC-3: remove `ManualReview` from the swarm-manager profile entirely
 
@@ -458,8 +458,8 @@ later workflow needs operator-gated apply, that's a separate plan and a
 separate scenario.
 
 **Files:**
-- `scenarios/swarm-manager/api/internal/agentmanager/profile.go`
-- `scenarios/swarm-manager/api/internal/agentmanager/service_test.go`
+- `path:scenarios/swarm-manager/api/internal/agentmanager/profile.go`
+- `path:scenarios/swarm-manager/api/internal/agentmanager/service_test.go`
 - Any other swarm-manager file the audit (step 4 below) finds.
 
 **Steps:**
@@ -496,7 +496,7 @@ separate scenario.
    ```bash
    rg "ManualReview" scenarios/swarm-manager/ --type go
    ```
-   Only matches that should remain are in `cli/cmd_stats.go` (which
+   Only matches that should remain are in `path:cli/cmd_stats.go` (which
    reads the `manual_review` Prometheus label from agent-manager's
    metrics — read-only, leave alone). If anything else matches,
    delete it.
@@ -504,7 +504,7 @@ separate scenario.
    (`profile.go:143-147`) is unchanged. That's how the new shape
    overwrites the existing DB row on the next dispatch.
 5. **Drain script** (separate from the source change). Create
-   `scripts/cleanup/2026-04-28-drain-needs-review-launch-failures.sh`:
+   `path:scripts/cleanup/2026-04-28-drain-needs-review-launch-failures.sh`:
    - Lists every `agent-manager run` with status=needs_review.
    - For each, fetches events; classifies as silent-launch-failure
      when `0 RUN_EVENT_TYPE_MESSAGE events AND duration <2s`.
@@ -526,13 +526,13 @@ separate scenario.
 ### Phase F — Documentation health (per documentation-health skill)
 
 **Files:**
-- `scenarios/agent-manager/docs/internal/SEAMS.md`
-- `scenarios/agent-manager/docs/internal/ERROR-SEMANTICS.md`
-- `scenarios/agent-manager/docs/internal/PROBLEMS.md`
-- `scenarios/workspace-sandbox/docs/internal/SEAMS.md`
-- `scenarios/workspace-sandbox/docs/internal/ERROR-SEMANTICS.md`
-- `scenarios/workspace-sandbox/docs/internal/PROBLEMS.md`
-- `docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md` (this file
+- `path:scenarios/agent-manager/docs/internal/SEAMS.md`
+- `path:scenarios/agent-manager/docs/internal/ERROR-SEMANTICS.md`
+- `path:scenarios/agent-manager/docs/internal/PROBLEMS.md`
+- `path:scenarios/workspace-sandbox/docs/internal/SEAMS.md`
+- `path:scenarios/workspace-sandbox/docs/internal/ERROR-SEMANTICS.md`
+- `path:scenarios/workspace-sandbox/docs/internal/PROBLEMS.md`
+- `path:docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md` (this file
   — mark complete on close-out).
 
 **Steps:**
@@ -555,7 +555,7 @@ separate scenario.
 ### Phase G — Final integration test + smoke verification
 
 **Files:**
-- `scenarios/agent-manager/api/internal/orchestration/run_executor_e2e_test.go`
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor_e2e_test.go`
   (new, optional if existing e2e is already comprehensive — verify
   before adding).
 - Manual smoke checklist (below).
@@ -581,7 +581,7 @@ separate scenario.
      complete, approval_state approved.
    - `transcript.ndjson` is non-empty.
    - The feedback round file in
-     `scenarios/swarm-manager/initiatives/git-control-tower-ai-provenance/feedback/`
+     `path:scenarios/swarm-manager/initiatives/git-control-tower-ai-provenance/feedback/`
      contains a real `mutation_list` proposal.
 
 ---

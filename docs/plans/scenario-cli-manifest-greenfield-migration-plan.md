@@ -13,9 +13,9 @@ This migration should be treated as a repo-wide breaking change, not an incremen
    - invocation contract
    - freshness inputs
 3. Explicitly reject legacy inference rules:
-   - no `cli/go.mod` detection
-   - no `cli/<scenario-name>` detection
-   - no implicit `cli/install.sh` contract
+   - no `path:cli/go.mod` detection
+   - no `path:cli/<scenario-name>` detection
+   - no implicit `path:cli/install.sh` contract
 4. Decide whether CLI is required or optional per scenario.
 5. Decide whether `vrooli` can execute scenario CLIs directly from source via adapter, or only via installed command.
 6. Write a short ADR in `docs/` because this is a platform contract change.
@@ -31,7 +31,7 @@ This migration should be treated as a repo-wide breaking change, not an incremen
    - `cli.install[]`
    - `cli.invoke`
    - `cli.freshness`
-3. Remove schema assumptions that tie setup to `install-cli` or `cli/install.sh`.
+3. Remove schema assumptions that tie setup to `install-cli` or `path:cli/install.sh`.
 4. Update repo contract docs and scenario docs so the manifest, not folder heuristics, defines the CLI.
 5. Add schema examples for:
    - Go module CLI
@@ -41,7 +41,7 @@ This migration should be treated as a repo-wide breaking change, not an incremen
 
 ## Phase 2: Replace Platform Discovery With Manifest-Driven Adapters
 
-1. Replace `internal/cliinstall` discovery logic with manifest parsing.
+1. Replace `path:internal/cliinstall` discovery logic with manifest parsing.
 2. Introduce a small adapter interface:
    - `Validate(manifestCLI)`
    - `Install(ctx, scenarioRoot, home)`
@@ -61,7 +61,7 @@ This migration should be treated as a repo-wide breaking change, not an incremen
 3. Update `vrooli scenario start/run/test` pre-install logic to use the new adapter path only.
 4. Update hard-coded CLI locators like `test-genie` and `scenario-completeness-scoring` to use the same manifest-driven resolver.
 5. Update any direct `exec.LookPath("<scenario-cli>")` consumers to go through a shared scenario CLI resolution service.
-6. Delete any logic that special-cases Go CLI freshness by scanning `cli/*.go` unless the adapter declares that as its freshness model.
+6. Delete any logic that special-cases Go CLI freshness by scanning `path:cli/*.go` unless the adapter declares that as its freshness model.
 
 ## Phase 4: Update Validation Tooling
 
@@ -70,7 +70,7 @@ This migration should be treated as a repo-wide breaking change, not an incremen
 3. Update `scenario-auditor` rules so they stop enforcing:
    - `install-cli`
    - `cd cli && ./install.sh`
-   - `cli/install.sh`
+   - `path:cli/install.sh`
 4. Replace those rules with:
    - valid `cli` manifest section
    - valid adapter config
@@ -82,15 +82,15 @@ This migration should be treated as a repo-wide breaking change, not an incremen
 1. Update all scenario templates to emit the new `cli` manifest block.
 2. Update Go-based templates to use the `go_module` adapter config.
 3. Update Bash-based templates to use the `shell_script` adapter config.
-4. Remove template text that implies `cli/install.sh` is the platform contract.
+4. Remove template text that implies `path:cli/install.sh` is the platform contract.
 5. Keep install scripts only as adapter implementation assets, not as what the platform validates.
 
 ## Phase 6: Build The Migration Script
 
 1. Write a script that inspects each scenario and proposes a `cli` manifest block based on actual implementation.
 2. Inputs for classification:
-   - `cli/go.mod` present => `go_module`
-   - executable `cli/<scenario-name>` text script => `shell_script`
+   - `path:cli/go.mod` present => `go_module`
+   - executable `path:cli/<scenario-name>` text script => `shell_script`
 3. The script should not directly mutate everything blindly on first pass.
 4. Better workflow:
    - generate a report of intended changes
@@ -118,7 +118,7 @@ This migration should be treated as a repo-wide breaking change, not an incremen
 ## Phase 8: Delete Legacy Code
 
 1. Remove compatibility branches from:
-   - `internal/cliinstall`
+   - `path:internal/cliinstall`
    - lifecycle CLI checks
    - validator code
    - auditor rules
@@ -146,7 +146,7 @@ This migration should be treated as a repo-wide breaking change, not an incremen
    - every declared CLI command resolves or fails with a precise error
 4. Repo-wide checks:
    - grep confirms no remaining layout inference code
-   - grep confirms no remaining auditor rules tied to `cli/install.sh`
+   - grep confirms no remaining auditor rules tied to `path:cli/install.sh`
    - grep confirms templates all emit the new manifest block
 
 ## Recommended Execution Order

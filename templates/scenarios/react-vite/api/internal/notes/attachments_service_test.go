@@ -17,7 +17,8 @@ import (
 // re-arranging the parent.
 func newAttachmentsServiceWithNote(t *testing.T, noteID string) (notes.AttachmentsService, *mocks.FakeRepository, *mocks.FakeAttachmentsRepository) {
 	t.Helper()
-	notesRepo := &mocks.FakeRepository{Notes: []notes.Note{{ID: noteID, Title: "parent"}}}
+	notesRepo := mocks.NewFakeRepository()
+	notesRepo.Items = []notes.Note{{ID: noteID, Title: "parent"}}
 	attachmentsRepo := &mocks.FakeAttachmentsRepository{}
 	svc := notes.NewAttachmentsService(notesRepo, attachmentsRepo)
 	return svc, notesRepo, attachmentsRepo
@@ -112,7 +113,7 @@ func TestAttachmentsService_Create_RejectsNegativeSize(t *testing.T) {
 }
 
 func TestAttachmentsService_Create_PropagatesNotFoundFromNotesRepo(t *testing.T) {
-	notesRepo := &mocks.FakeRepository{}
+	notesRepo := mocks.NewFakeRepository()
 	svc := notes.NewAttachmentsService(notesRepo, &mocks.FakeAttachmentsRepository{})
 
 	_, err := svc.Create(context.Background(), notes.CreateAttachmentInput{
@@ -128,7 +129,8 @@ func TestAttachmentsService_Create_PropagatesNotFoundFromNotesRepo(t *testing.T)
 
 func TestAttachmentsService_Create_PropagatesArbitraryNotesRepoError(t *testing.T) {
 	want := errors.New("get boom")
-	notesRepo := &mocks.FakeRepository{GetErr: want}
+	notesRepo := mocks.NewFakeRepository()
+	notesRepo.GetErr = want
 	attachmentsRepo := &mocks.FakeAttachmentsRepository{}
 	svc := notes.NewAttachmentsService(notesRepo, attachmentsRepo)
 
@@ -162,7 +164,8 @@ func TestAttachmentsService_Create_DelegatesTrimmedFieldsToRepo(t *testing.T) {
 
 func TestAttachmentsService_Create_PropagatesAttachmentsRepoError(t *testing.T) {
 	want := errors.New("repo boom")
-	notesRepo := &mocks.FakeRepository{Notes: []notes.Note{{ID: "n"}}}
+	notesRepo := mocks.NewFakeRepository()
+	notesRepo.Items = []notes.Note{{ID: "n"}}
 	attachmentsRepo := &mocks.FakeAttachmentsRepository{CreateErr: want}
 	svc := notes.NewAttachmentsService(notesRepo, attachmentsRepo)
 

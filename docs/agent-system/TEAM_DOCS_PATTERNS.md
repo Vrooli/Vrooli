@@ -20,7 +20,7 @@ The docs **are** the plan. The team and other consumers read them as the durable
 - **Growth direction:** grows over time as the plan expands.
 - **Health signal:** entries are *stable*. High churn = something wrong with the plan.
 - **Shape:** structured. One entity per file where possible, with an index at the top.
-- **Example:** `docs/monetization/` — catalog bundles and add-ons are per-entity files; `CATALOG.md` and `REVENUE_LINES.md` are indexes. Also `docs/agent-system/` (this folder).
+- **Example:** `path:docs/monetization/` — catalog bundles and add-ons are per-entity files; `CATALOG.md` and `REVENUE_LINES.md` are indexes. Also `path:docs/agent-system/` (this folder).
 
 ### Pattern B — Working notebook (debt docs) — historical
 
@@ -30,7 +30,7 @@ In the current architecture, **most working-notebook material has been replaced 
 
 Notebook-as-markdown-file survives only in two narrow cases:
 
-1. **Drafts adjacent to canon** — a `docs/<domain>/drafts/` subfolder where structure is being workshopped before being promoted to a permanent PoR file. These are short-lived: a draft either becomes canon or is deleted.
+1. **Drafts adjacent to canon** — a `path:docs/<domain>/drafts/` subfolder where structure is being workshopped before being promoted to a permanent PoR file. These are short-lived: a draft either becomes canon or is deleted.
 2. **Per-team running notes** that the team itself owns and that don't fit the inbox-router shape (e.g., a sequence of long-form workshop notes that aren't observation-shaped). These should still have a curator role and a clear retirement path; without those, they are guaranteed to become a debt junkyard.
 
 When neither narrow case applies, prefer team knowledge entries under a topic prefix and a router skill that drains them.
@@ -77,7 +77,7 @@ If any of these fail, skip the notebook.
 
 A mature team may run both. They coexist under two hard rules:
 
-1. **Separate folders.** Plan-of-record lives at `docs/<team>/`; notebook lives at `docs/<team>/drafts/` or `docs/<team>/notebook/`. The folder separation is the primary disambiguator.
+1. **Separate folders.** Plan-of-record lives at `path:docs/<team>/`; notebook lives at `path:docs/<team>/drafts/` or `path:docs/<team>/notebook/`. The folder separation is the primary disambiguator.
 2. **An entry never lives in both at once.** When a notebook pattern is promoted into plan-of-record (or into permanent structure), it is **deleted from the notebook** as part of the promotion decision. Double-residency muddies the source of truth and both surfaces rot.
 
 Supporting conventions:

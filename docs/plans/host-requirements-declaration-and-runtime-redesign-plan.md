@@ -8,9 +8,9 @@
 
 Vrooli's setup story is currently in an awkward transitional state:
 
-- Top-level `vrooli setup` is now native Go via `internal/setup.RunSetup`.
+- Top-level `vrooli setup` is now native Go via `path:internal/setup.RunSetup`.
 - The native runtime layer only knows about a small hardcoded tool list (`docker`, `go`, `node`, `python`, `helm`).
-- Old shell setup logic under `scripts/lib/setup.sh` used to install a much wider set of tools, helpers, and machine safeguards.
+- Old shell setup logic under `path:scripts/lib/setup.sh` used to install a much wider set of tools, helpers, and machine safeguards.
 - Ownership of tool requirements is mostly implicit and scattered across shell scripts, resource scripts, scenario package scripts, and historical setup behavior.
 - Some old shell setup surfaces are already stale, partially deleted, or no longer on the main execution path.
 - There is no single declarative source of truth for:
@@ -26,7 +26,7 @@ This creates multiple problems:
 - resource/scenario owners cannot cleanly declare their actual host requirements;
 - minimal or subset installs are harder than they should be;
 - setup logging is not explicit enough about declared vs. unsupported vs. skipped;
-- shell compatibility helpers (`scripts/lib/setup.sh`, `setup-conditions`, `ui-guard.sh`, `cli-install.sh`, old deps installers, etc.) remain mixed into the architecture;
+- shell compatibility helpers (`path:scripts/lib/setup.sh`, `setup-conditions`, `ui-guard.sh`, `cli-install.sh`, old deps installers, etc.) remain mixed into the architecture;
 - cleanup decisions are risky because requirements are not modeled explicitly.
 
 ## Goal
@@ -43,7 +43,7 @@ Replace the current hardcoded and partially shell-derived setup/runtime model wi
 
 ## Non-Goals
 
-- Re-creating `scripts/lib/setup.sh` behavior in Go one-to-one.
+- Re-creating `path:scripts/lib/setup.sh` behavior in Go one-to-one.
 - Preserving historical `deps/`, `runtimes/`, `system/`, or `network/` directory taxonomy as a first-class architecture.
 - Keeping old shell compatibility surfaces indefinitely.
 - Solving every resource migration problem in this plan; resource runtime/control migration remains its own track. This plan owns host requirement declaration, resolution, setup execution, and cleanup of old host setup approaches.
@@ -80,28 +80,28 @@ When this plan is complete:
 Today, top-level setup is native:
 
 - `make setup` invokes the installed `vrooli` binary.
-- `cmd/vrooli` dispatches top-level `setup` to `internal/setup.RunSetup`.
-- `internal/setup.RunSetup`:
+- `path:cmd/vrooli` dispatches top-level `setup` to `path:internal/setup.RunSetup`.
+- `path:internal/setup.RunSetup`:
   - validates host support,
   - creates project/home state directories,
   - marks shell scripts executable,
   - resolves manifest-owned host requirements,
-  - calls `internal/runtime.EnsureRequirements(...)`,
+  - calls `path:internal/runtime.EnsureRequirements(...)`,
   - configures git,
-  - optionally installs resources via `internal/resources.Controller`.
+  - optionally installs resources via `path:internal/resources.Controller`.
 
 ### Current Native Runtime Limitations
 
-`internal/runtime` currently:
+`path:internal/runtime` currently:
 
-- consumes manifest-owned host requirement resolutions from `internal/hostreq`;
+- consumes manifest-owned host requirement resolutions from `path:internal/hostreq`;
 - dispatches through a native registry for tools and safeguards;
 - supports explicit support classification (`supported`, `unsupported`, `not_applicable`, `manual_only`);
 - still needs broader setup UX/reporting work and later-phase migration/cleanup.
 
 ### Current Shell-era Setup Debt
 
-The previously listed shell-era setup surfaces (`scripts/lib/setup.sh`, `scripts/lib/setup-conditions/*`, `scripts/lib/utils/setup.sh`, `scripts/lib/utils/cli-install.sh`, `scripts/lib/deps/*`, `scripts/lib/system/remote_session_protect.sh`) are removed from the tree, and the in-tree references (root `base-setup` step, `internal/lifecycle` fallback to `scripts/lib/setup-conditions/<type>-check.sh`) have also been cleaned up. UI lifecycle entrypoints run through the hidden native `vrooli lifecycle protect -- ...` command.
+The previously listed shell-era setup surfaces (`path:scripts/lib/setup.sh`, `path:scripts/lib/setup-conditions/*`, `path:scripts/lib/utils/setup.sh`, `path:scripts/lib/utils/cli-install.sh`, `path:scripts/lib/deps/*`, `path:scripts/lib/system/remote_session_protect.sh`) are removed from the tree, and the in-tree references (root `base-setup` step, `path:internal/lifecycle` fallback to `path:scripts/lib/setup-conditions/<type>-check.sh`) have also been cleaned up. UI lifecycle entrypoints run through the hidden native `vrooli lifecycle protect -- ...` command.
 
 Remaining host-requirements debt is captured in the Cleanup Targets list below and in the adjacent resource/scenario cross-platform tracks.
 
@@ -124,8 +124,8 @@ These are intentionally separate:
 Allow declarations in:
 
 - root project manifest: `.vrooli/service.json`
-- scenario manifests: `scenarios/*/.vrooli/service.json`
-- resource manifests: `resources/*/resource.json`
+- scenario manifests: `path:scenarios/*/.vrooli/service.json`
+- resource manifests: `path:resources/*/resource.json`
 
 The same conceptual model should be used everywhere, with ownership determined by manifest location.
 
@@ -133,7 +133,7 @@ The same conceptual model should be used everywhere, with ownership determined b
 
 Add a dedicated native resolver package, e.g.:
 
-- `internal/hostreq`
+- `path:internal/hostreq`
 
 Responsibilities:
 
@@ -150,21 +150,21 @@ Responsibilities:
 
 ### 4. Native Runtime Execution Layer
 
-Evolve `internal/runtime` into a registry-driven execution layer.
+Evolve `path:internal/runtime` into a registry-driven execution layer.
 
 Recommended package layout:
 
-- `internal/runtime/`
-- `internal/runtime/tools/`
-- `internal/runtime/safeguards/`
+- `path:internal/runtime/`
+- `path:internal/runtime/tools/`
+- `path:internal/runtime/safeguards/`
 
 Each tool/safeguard gets its own implementation file.
 
 Examples:
 
-- `internal/runtime/tools/docker.go`
-- `internal/runtime/tools/stripe.go`
-- `internal/runtime/safeguards/remote_session_protection.go`
+- `path:internal/runtime/tools/docker.go`
+- `path:internal/runtime/tools/stripe.go`
+- `path:internal/runtime/safeguards/remote_session_protection.go`
 
 ### 5. Shared Runtime Helpers
 
@@ -461,8 +461,8 @@ The implementation work should not begin migrating large batches of tools until 
 - [x] Extend `.vrooli/schemas/service.schema.json` with `hostTools` and `hostSafeguards`.
 - [x] Extend `.vrooli/schemas/resource.schema.json` with `hostTools` and `hostSafeguards`.
 - [x] Extend native manifest structs/parsers:
-  - `internal/scenario`
-  - `internal/resources`
+  - `path:internal/scenario`
+  - `path:internal/resources`
   - root project manifest loading if separate handling is needed
 - [x] Add a new native resolver package:
   - load root/scenario/resource declarations,
@@ -492,7 +492,7 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [x] Refactor `internal/runtime` to separate:
+- [x] Refactor `path:internal/runtime` to separate:
   - host detection,
   - resolution input,
   - tool inspection,
@@ -525,7 +525,7 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Acceptance
 
-- [x] `internal/runtime` no longer depends on a hardcoded `toolSpecs()` list as the core architecture.
+- [x] `path:internal/runtime` no longer depends on a hardcoded `toolSpecs()` list as the core architecture.
 - [x] Tools and safeguards are registry-driven.
 - [x] Per-tool/per-safeguard implementations are small and focused.
 
@@ -538,7 +538,7 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [x] Update `internal/setup` to:
+- [x] Update `path:internal/setup` to:
   - request declarations from the resolver,
   - build a full setup plan,
   - execute tools and safeguards through the runtime registry.
@@ -628,18 +628,18 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [x] Remove stale root `base-setup` reference to `scripts/lib/setup.sh`.
-- [x] Delete `scripts/lib/setup.sh` once no live path depends on it.
-- [x] Delete obsolete `scripts/lib/deps/*` tool installers/helpers whose responsibilities moved native or were intentionally retired.
+- [x] Remove stale root `base-setup` reference to `path:scripts/lib/setup.sh`.
+- [x] Delete `path:scripts/lib/setup.sh` once no live path depends on it.
+- [x] Delete obsolete `path:scripts/lib/deps/*` tool installers/helpers whose responsibilities moved native or were intentionally retired.
 - [x] Delete obsolete safeguard shell scripts that were replaced natively or intentionally retired.
-- [x] Replace `scripts/lib/setup-conditions/*` external setup checkers with native equivalents or explicit deprecation.
+- [x] Replace `path:scripts/lib/setup-conditions/*` external setup checkers with native equivalents or explicit deprecation.
 - [x] Remove or replace stale scenario/resource shell helpers that this redesign makes obsolete.
 - [x] Remove tests, fixtures, and docs that anchor old shell setup behavior.
 - [x] Update validation targets to fail on reintroduction of deleted setup surfaces.
 
 ### Acceptance
 
-- [x] No production setup path depends on `scripts/lib/setup.sh`.
+- [x] No production setup path depends on `path:scripts/lib/setup.sh`.
 - [x] No active host requirement depends on shell-era installer helpers.
 - [x] Setup conditions no longer depend on shell check scripts for native-owned behavior.
 
@@ -652,8 +652,8 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [x] Replace or redesign `scripts/lib/ui-guard.sh`.
-- [x] Replace `scripts/lib/utils/cli-install.sh` (the helper is deleted; remaining scenario CLI installers use `packages/cli-core/install.sh`).
+- [x] Replace or redesign `path:scripts/lib/ui-guard.sh`.
+- [x] Replace `path:scripts/lib/utils/cli-install.sh` (the helper is deleted; remaining scenario CLI installers use `path:packages/cli-core/install.sh`).
 - [x] Remove or modernize scenario package/CLI references to those helpers.
 - [x] Decide whether these become:
   - native CLI subcommands,
@@ -662,13 +662,13 @@ The implementation work should not begin migrating large batches of tools until 
   - or are deleted entirely.
 - [x] Update scaffolding/templates so new scenarios/resources do not reintroduce old helper patterns.
 
-`scripts/lib/utils/cli-install.sh` has been removed; scenario CLI installers now use `packages/cli-core/install.sh`.
+`path:scripts/lib/utils/cli-install.sh` has been removed; scenario CLI installers now use `path:packages/cli-core/install.sh`.
 
 ### Acceptance
 
 - [x] New scenarios/resources do not depend on old shared shell helper patterns.
 - [x] Existing `ui-guard.sh` consumers are migrated or intentionally quarantined behind explicit compatibility boundaries.
-- [x] `scripts/lib/utils/cli-install.sh` is removed; no active host requirement depends on it.
+- [x] `path:scripts/lib/utils/cli-install.sh` is removed; no active host requirement depends on it.
 
 ## Phase 8: Validation, Docs, And Enforcement
 
@@ -732,8 +732,8 @@ The implementation must be:
 This plan is not complete until the following are either deleted or intentionally replaced:
 
 - [x] stale shell `base-setup` path in root manifest
-- [x] `scripts/lib/setup.sh`
-- [x] obsolete `scripts/lib/deps/*`
+- [x] `path:scripts/lib/setup.sh`
+- [x] obsolete `path:scripts/lib/deps/*`
 - [x] obsolete shell safeguard scripts
 - [x] shell `setup-conditions` infrastructure for native-owned behavior
 - [x] stale tests/docs asserting old setup behavior

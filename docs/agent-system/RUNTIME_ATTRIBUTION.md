@@ -45,7 +45,7 @@ The honest-drift threat model is the load-bearing simplification that lets attri
 
 ## The structured-attribution payload
 
-Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the on-disk shape (see `scenarios/prompt-manager/api/store/models.go`):
+Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the on-disk shape (see `path:scenarios/prompt-manager/api/store/models.go`):
 
 ```jsonc
 {
@@ -61,7 +61,7 @@ Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the 
 | Field | Type | Required by `kind` | Meaning |
 |---|---|---|---|
 | `kind` | enum (see below) | always | The category of writer; drives display, validator joins, and consumer expectations. |
-| `member_id` | string \| null | required for `agent-member`, `writer-skill`; otherwise null | The team-scoped member id (matches `store/teams/<team>/members/<id>/`). |
+| `member_id` | string \| null | required for `agent-member`, `writer-skill`; otherwise null | The team-scoped member id (matches `path:store/teams/<team>/members/<id>/`). |
 | `team_id` | string \| null | required for `agent-member`, `writer-skill`; otherwise null | The team id (matches the URL path on `/teams/<team>/knowledge`). |
 | `run_id` | string \| null | required for `agent-member` *unless* `spawn_origin=heartbeat` (see § Env-var bridge for why); required for `investigation`; optional for `writer-skill` (when invoked from a run) | The agent-manager run UUID this write is attributed to. Allows joining a write to its run lineage. |
 | `spawn_origin` | enum (see below) | always | How this writer came into existence — distinguishes heartbeat-spawned agents from operator-spawned ones, etc. |
@@ -186,7 +186,7 @@ The caller is responsible for being honest about who they are. The server does n
 
 ## Env-var bridge: `VROOLI_PROMPT_MANAGER_ATTRIBUTION`
 
-Agent processes spawned by agent-manager don't inherit shell environment from prompt-manager; they receive only what agent-manager's `Environment` map per-request injects (see `scenarios/agent-manager/api/internal/orchestration/phases/env.go::MergeEnvVars`). The bridge that gets attribution from prompt-manager (the spawner) into the agent's CLI process is therefore a **per-request env var**:
+Agent processes spawned by agent-manager don't inherit shell environment from prompt-manager; they receive only what agent-manager's `Environment` map per-request injects (see `path:scenarios/agent-manager/api/internal/orchestration/phases/env.go::MergeEnvVars`). The bridge that gets attribution from prompt-manager (the spawner) into the agent's CLI process is therefore a **per-request env var**:
 
 ```
 VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64-encoded JSON, same format as the HTTP header>
@@ -194,7 +194,7 @@ VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64-encoded JSON, same format as the HTTP 
 
 ### Lifecycle
 
-1. **Spawner** (prompt-manager's heartbeat executor; see `scenarios/prompt-manager/api/heartbeat/executor.go` and the helper at `api/heartbeat/spawn_attribution.go::buildHeartbeatAttributionEnv`) constructs an attribution object describing the agent it is about to spawn:
+1. **Spawner** (prompt-manager's heartbeat executor; see `path:scenarios/prompt-manager/api/heartbeat/executor.go` and the helper at `path:api/heartbeat/spawn_attribution.go::buildHeartbeatAttributionEnv`) constructs an attribution object describing the agent it is about to spawn:
    ```jsonc
    {
      "kind": "agent-member",
@@ -205,7 +205,7 @@ VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64-encoded JSON, same format as the HTTP 
      "source_skill_id": null
    }
    ```
-   `run_id` is **null** at construction time. Agent-manager assigns the run UUID after `CreateRun` returns, but the `Environment` map is fixed before the request lands — so the run id can't yet be in the env. The API validator (`validateAttribution` in `api/heartbeat/attribution.go`) permits null `run_id` for `kind=agent-member` specifically when `spawn_origin=heartbeat`. § Future strengthening describes the path for closing the gap (overlay run_id from `VROOLI_AGENT_IDENTITY_TOKEN` claims at request time).
+   `run_id` is **null** at construction time. Agent-manager assigns the run UUID after `CreateRun` returns, but the `Environment` map is fixed before the request lands — so the run id can't yet be in the env. The API validator (`validateAttribution` in `path:api/heartbeat/attribution.go`) permits null `run_id` for `kind=agent-member` specifically when `spawn_origin=heartbeat`. § Future strengthening describes the path for closing the gap (overlay run_id from `VROOLI_AGENT_IDENTITY_TOKEN` claims at request time).
 
 2. **Spawner** base64-encodes the JSON and includes it in `CreateRunRequest.Environment`:
    ```go
@@ -311,14 +311,14 @@ These are paths the contract explicitly leaves open. Each requires its own works
 
 Today, attribution leaves `run_id` null on heartbeat-spawned writes because agent-manager assigns the UUID after `CreateRun` returns. The strengthening path closes that gap **without** a re-issue or post-spawn env-injection mechanism:
 
-Agent-manager already issues `VROOLI_AGENT_IDENTITY_TOKEN` to every spawned run, with `claims.RunID` populated (see `scenarios/agent-manager/api/internal/identity/`). The CLI's attribution forwarder can read the token, decode-only its JWT body (no signature verification needed for self-identification), extract `claims.RunID`, and overlay it into the attribution payload at request time:
+Agent-manager already issues `VROOLI_AGENT_IDENTITY_TOKEN` to every spawned run, with `claims.RunID` populated (see `path:scenarios/agent-manager/api/internal/identity/`). The CLI's attribution forwarder can read the token, decode-only its JWT body (no signature verification needed for self-identification), extract `claims.RunID`, and overlay it into the attribution payload at request time:
 
 - If `VROOLI_PROMPT_MANAGER_ATTRIBUTION` carries `run_id=null` AND `VROOLI_AGENT_IDENTITY_TOKEN` is set, the CLI parses the token's `RunID` claim and substitutes it into the header value.
 - If both env vars are missing, the CLI falls back to `operator-direct` as today.
 
 The contract change is small: the CLI's "pure passthrough" property (the env var IS the header value) is relaxed to "passthrough with run_id overlay" — but only for the run_id field, only when source-of-truth (the signed token) is available. Cleaner than re-issuing or injecting post-spawn.
 
-Cost: one decode-only JWT parse per CLI invocation; one new code path in `cli/internal/attribution`; updated tests. No agent-manager change. No on-disk data shape change.
+Cost: one decode-only JWT parse per CLI invocation; one new code path in `path:cli/internal/attribution`; updated tests. No agent-manager change. No on-disk data shape change.
 
 When this lands, the validator's per-kind rule reverts to the strict form (`agent-member` always requires `run_id`); the `spawn_origin=heartbeat` exemption is removed.
 
@@ -347,7 +347,7 @@ The Knowledge tab in the prompt-manager UI currently renders `caller`. Surfacing
 
 ## On-disk shape
 
-The full `KnowledgeEntry` shape, with attribution, is defined in `scenarios/prompt-manager/api/store/models.go::KnowledgeEntry`. Reproduced here for cross-reference (the Go struct is canonical):
+The full `KnowledgeEntry` shape, with attribution, is defined in `path:scenarios/prompt-manager/api/store/models.go::KnowledgeEntry`. Reproduced here for cross-reference (the Go struct is canonical):
 
 ```jsonc
 {
@@ -376,10 +376,10 @@ The full `KnowledgeEntry` shape, with attribution, is defined in `scenarios/prom
 
 ## Components and entry points
 
-- **Storage shape** — `KnowledgeEntry.Caller`, `CallerNote`, `Attribution`: `scenarios/prompt-manager/api/store/models.go`.
-- **Migration tool** — `scenarios/prompt-manager/api/cmd/migrate-knowledge-attribution/` (sets `kind=legacy`, populates `caller_note` from prior `by` value, sets per-team `attributionValidFrom`).
-- **API handler validation** — `scenarios/prompt-manager/api/heartbeat/handlers.go::AddKnowledge` plus `scenarios/prompt-manager/api/heartbeat/attribution.go` (header decode, `validateAttribution`, conflict policy).
-- **CLI attribution forwarding** — `scenarios/prompt-manager/cli/internal/attribution` (env-var read, header set, `--caller-note` flag).
-- **Heartbeat executor propagation** — `scenarios/prompt-manager/api/heartbeat/spawn_attribution.go::buildHeartbeatAttributionEnv` and the call site in `executor.go` that injects it into `CreateRunRequest.Environment`.
-- **Validator rule** — `scenarios/prompt-manager/api/memberflow/runtime_attribution.go::ruleActualWriterUndeclared` (consumes `attributionValidFrom`, joins post-cutoff entries against declarations).
-- **Findings telemetry artifact** — `scenarios/prompt-manager/cli/graph/findings_artifact.go` (stable `schema_version: 1` shape; opt-in via `prompt-manager graph topics --findings-out=<path>`).
+- **Storage shape** — `KnowledgeEntry.Caller`, `CallerNote`, `Attribution`: `path:scenarios/prompt-manager/api/store/models.go`.
+- **Migration tool** — `path:scenarios/prompt-manager/api/cmd/migrate-knowledge-attribution/` (sets `kind=legacy`, populates `caller_note` from prior `by` value, sets per-team `attributionValidFrom`).
+- **API handler validation** — `path:scenarios/prompt-manager/api/heartbeat/handlers.go::AddKnowledge` plus `path:scenarios/prompt-manager/api/heartbeat/attribution.go` (header decode, `validateAttribution`, conflict policy).
+- **CLI attribution forwarding** — `path:scenarios/prompt-manager/cli/internal/attribution` (env-var read, header set, `--caller-note` flag).
+- **Heartbeat executor propagation** — `path:scenarios/prompt-manager/api/heartbeat/spawn_attribution.go::buildHeartbeatAttributionEnv` and the call site in `executor.go` that injects it into `CreateRunRequest.Environment`.
+- **Validator rule** — `path:scenarios/prompt-manager/api/memberflow/runtime_attribution.go::ruleActualWriterUndeclared` (consumes `attributionValidFrom`, joins post-cutoff entries against declarations).
+- **Findings telemetry artifact** — `path:scenarios/prompt-manager/cli/graph/findings_artifact.go` (stable `schema_version: 1` shape; opt-in via `prompt-manager graph topics --findings-out=<path>`).

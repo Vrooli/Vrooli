@@ -50,7 +50,7 @@ Authoring quality bars live in `SKILL_AUTHORING.md`.
 
 A persistent identity with a `SOUL.md` (who it is), an `AGENTS.md` (its workflow contract), a `TOOLS.md` (its tool/skill bindings), and an `agent.json` (machine-readable metadata). Agents are the unit of action: every run is an agent invocation.
 
-The same agent template can be bound to multiple teams. The team-specific binding lives at `store/teams/<team>/members/<member>/`, where `<member>` is typically the same id as the agent. The team binding owns runtime state (heartbeat, last-handoff, topics declarations) — see `TEAM_MEMBER_ARCHITECTURE.md`.
+The same agent template can be bound to multiple teams. The team-specific binding lives at `path:store/teams/<team>/members/<member>/`, where `<member>` is typically the same id as the agent. The team binding owns runtime state (heartbeat, last-handoff, topics declarations) — see `TEAM_MEMBER_ARCHITECTURE.md`.
 
 Identity stays in `SOUL.md`; methodology should not. Capability extraction (the practice skill of the same name) audits `AGENTS.md` for embedded methodology that belongs in a reusable skill.
 
@@ -71,7 +71,7 @@ Coordination patterns (orthogonal to doc architecture): independent, leader-led,
 
 ## Plan of Record (PoR)
 
-Doctrine — durable, operator-curated documentation that defines what is true. Lives at `docs/<domain>/` (e.g., `docs/monetization/`, `docs/marketing/research/`, `docs/agent-system/`).
+Doctrine — durable, operator-curated documentation that defines what is true. Lives at `path:docs/<domain>/` (e.g., `path:docs/monetization/`, `path:docs/marketing/research/`, `path:docs/agent-system/`).
 
 Properties:
 - **Approval-gated:** operator-curated via approved decisions. Agents propose diffs; they never edit directly.
@@ -134,9 +134,9 @@ The distinction: backlog is "we plan to build X." Capability-gap is "we are bloc
 
 The first stage where raw observations land before they have permanent structure. In the agent system, this is **not** a markdown notebook — it is team knowledge entries under the topic prefix `<inbox-name>/<signal-type>/<slug>`.
 
-The draining member resolves each entry by retagging it to its destination prefix or deleting it as duplicate/weak. The procedure is universal (rendered into the heartbeat as a generated `# Inbox Flow` section); the per-domain signal vocabulary, dispatch table, evidence rules, and destination schemas live as a taxonomy JSON sidecar (e.g., `docs/marketing/signal-taxonomy.json`); pure-judgment classification (when the topic-prefix isn't deterministic) lives as a portable classifier skill (e.g., `marketing-signal-classifier`). The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
+The draining member resolves each entry by retagging it to its destination prefix or deleting it as duplicate/weak. The procedure is universal (rendered into the heartbeat as a generated `# Inbox Flow` section); the per-domain signal vocabulary, dispatch table, evidence rules, and destination schemas live as a taxonomy JSON sidecar (e.g., `path:docs/marketing/signal-taxonomy.json`); pure-judgment classification (when the topic-prefix isn't deterministic) lives as a portable classifier skill (e.g., `marketing-signal-classifier`). The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
 
-Markdown-file notebooks are a special case of synthesis — short-lived drafts living adjacent to canon (`docs/agent-system/drafts/`, for example) where structure is being workshopped before promotion. They are not a permanent layer; the historical "three-tier model" (hot buffer / notebook / permanent) is replaced by the inbox-router-drain model in the current architecture.
+Markdown-file notebooks are a special case of synthesis — short-lived drafts living adjacent to canon (`path:docs/agent-system/drafts/`, for example) where structure is being workshopped before promotion. They are not a permanent layer; the historical "three-tier model" (hot buffer / notebook / permanent) is replaced by the inbox-router-drain model in the current architecture.
 
 ---
 
@@ -155,17 +155,17 @@ The primitives above describe *what* the system is made of. This section describ
 | Pillar | Source of truth | Catches | Anchor doc |
 |---|---|---|---|
 | **P1 — Declared graph** | `topics.json` per member (`intake[]`, `required_read[]`, `evidence_consumed[]`, `output[]`, `decisions_owned`, `decisions_consumed`, `external_producers`) | Cross-member declaration mismatches, dangling decision references, orphaned producers/consumers — anything derivable from a single load of the declared topology. | [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) |
-| **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, writer-skill `SKILL.md` files, and `docs/<domain>/`. | Hardcoded topic-prefix references (`prompt-manager team knowledge-add ... --topic=...` patterns, backticked topic strings in instructions) that contradict the declarations. Drift between what an agent's prose tells it to do and what its `topics.json` says it does. | [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) |
+| **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, writer-skill `SKILL.md` files, and `path:docs/<domain>/`. | Hardcoded topic-prefix references (`prompt-manager team knowledge-add ... --topic=...` patterns, backticked topic strings in instructions) that contradict the declarations. Drift between what an agent's prose tells it to do and what its `topics.json` says it does. | [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) |
 | **P3 — Runtime attribution** | The `attribution` field on every post-cutoff `knowledge.jsonl` entry, scanned forward from each team's `attributionValidFrom`. | Observed writers/topics that no declaration accounts for. Agents writing to topics they don't declare; skills writing to topics not in `writes_to[]`; operator drift; legacy entries surfaced cleanly. | [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) |
 
 Why three rather than one or two: declarations alone (P1) catch declaration mismatches but cannot detect a real-world write that nobody declared. Prose scans (P2) catch the human-language layer but cannot see runtime writes. Runtime attribution (P3) catches the observed-truth layer but cannot tell whether a declaration is internally consistent. Each pillar's blind spots are the others' load-bearing surface.
 
 A new validation requirement should land in the existing pillar that fits its source-of-truth, not as a fourth pillar. The architecture is intentionally closed; widening it requires a `meta-optimization` decision and a workshop.
 
-Cross-cutting validator rules implemented in `scenarios/prompt-manager/api/memberflow/`:
+Cross-cutting validator rules implemented in `path:scenarios/prompt-manager/api/memberflow/`:
 
 - **P1 rules** (errors in CI): `orphan_input`, `conflicting_drain`, `unknown_taxonomy`, `missing_taxonomy`, `dangling_por_sink`, `dangling_evidence_decision`, `unread_required`. Warnings: `orphan_output`, `wildcard_source_misuse`, `missing_destination_schema`, `topic_key_prefix_mismatch`, `stalled_drain`, `piling_inbox`.
 - **P2 rules**: `prose_topic_leak`. Subpattern severity is split: `cli-knowledge-*` matches are errors (declarations have a place to land); `marked-topic-ref` and `inferred-backtick-topic-ref` stay warnings. Inferred unmarked matches are a permanent backstop because agents may omit markers and backticks are also used for file paths, code symbols, and other slashed identifiers. See `PROSE_SCAN_TARGETS.md` § Severity by subpattern.
 - **P3 rules**: `actual_writer_undeclared` (error for the agent-member subcase, warning for the external-threshold subcase), `attribution_malformed` (error).
 
-`prompt-manager graph topics` runs all three pillars together. CI captures a stable JSON artifact via `--findings-out=<path>` for diff-against-previous-run telemetry; without the flag the command is human-output-only (no surprise file writes for interactive use). The artifact's on-disk shape is versioned (`schema_version: 1`); see `scenarios/prompt-manager/cli/graph/findings_artifact.go` for the contract.
+`prompt-manager graph topics` runs all three pillars together. CI captures a stable JSON artifact via `--findings-out=<path>` for diff-against-previous-run telemetry; without the flag the command is human-output-only (no surprise file writes for interactive use). The artifact's on-disk shape is versioned (`schema_version: 1`); see `path:scenarios/prompt-manager/cli/graph/findings_artifact.go` for the contract.

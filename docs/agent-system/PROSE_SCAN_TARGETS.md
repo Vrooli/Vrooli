@@ -24,7 +24,7 @@ The scanner walks every file matching the rules below. Each target carries an **
 
 ### Per-member prose
 
-Path: `scenarios/prompt-manager/store/teams/<team>/members/<member>/`
+Path: `path:scenarios/prompt-manager/store/teams/<team>/members/<member>/`
 
 | File | Included | Owner | Notes |
 |---|---|---|---|
@@ -37,7 +37,7 @@ Path: `scenarios/prompt-manager/store/teams/<team>/members/<member>/`
 
 ### Per-team prose
 
-Path: `scenarios/prompt-manager/store/teams/<team>/`
+Path: `path:scenarios/prompt-manager/store/teams/<team>/`
 
 | File | Included | Owner | Notes |
 |---|---|---|---|
@@ -49,7 +49,7 @@ Path: `scenarios/prompt-manager/store/teams/<team>/`
 
 ### Per-agent prose (identity templates)
 
-Path: `scenarios/prompt-manager/store/agents/<agent-id>/`
+Path: `path:scenarios/prompt-manager/store/agents/<agent-id>/`
 
 | File | Included | Owner | Notes |
 |---|---|---|---|
@@ -58,11 +58,11 @@ Path: `scenarios/prompt-manager/store/agents/<agent-id>/`
 | `TOOLS.md` | ✅ | `agent:<agent-id>` | Tool/skill bindings. May reference topic prefixes when documenting `team knowledge-*` invocations the agent issues. The bindings are team-bound at runtime; references should be portable (`<team>` placeholder) or qualified to a known team. |
 | `agent.json` | n/a | machine config | Not prose. |
 
-**Owner-derivation note:** an agent identity template is **not** itself bound to a team. References in agent prose are checked against the union of `topics.json` declarations across every team that binds this agent (via `store/teams/<team>/members/<agent-id>/topics.json` existence). If the reference matches a declaration on **any** binding team, the reference is clean. If it matches none, the finding fires under the agent's owner key.
+**Owner-derivation note:** an agent identity template is **not** itself bound to a team. References in agent prose are checked against the union of `topics.json` declarations across every team that binds this agent (via `path:store/teams/<team>/members/<agent-id>/topics.json` existence). If the reference matches a declaration on **any** binding team, the reference is clean. If it matches none, the finding fires under the agent's owner key.
 
 ### Per-skill prose
 
-Path: `scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/`
+Path: `path:scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/`
 
 Skill scanning is **conditional on skill kind** — the prose layer is held to a different bar depending on whether the skill is allowed to know about topics:
 
@@ -85,13 +85,13 @@ Every skill that effectively writes is tagged `writer-skill` and carries a `writ
 
 ### Domain documentation
 
-Path: `docs/<domain>/**/*.md` (e.g. `docs/agent-system/`, `docs/marketing/`, `docs/monetization/`)
+Path: `path:docs/<domain>/**/*.md` (e.g. `path:docs/agent-system/`, `path:docs/marketing/`, `path:docs/monetization/`)
 
 | Inclusion rule | Owner | Notes |
 |---|---|---|
 | All `.md` files under `docs/` | `docs:<domain>` (first path segment after `docs/`) | Topic references must resolve to **some** declaration somewhere in the system. Cross-team references are permitted (these are operator-facing PoR docs). |
-| `docs/agent-system/` canon docs (this file, RUNTIME_ATTRIBUTION.md, TOPICS.md, TOPICS_SCHEMA.md, INTAKE_PIPELINE.md, PRIMITIVES.md, README.md) | `docs:agent-system` | These docs **describe** the topic system, so they reference example prefixes pedagogically. The scanner respects fenced code blocks (see § Code-block exclusion); examples inside ` ```jsonc ` and similar fences are ignored. Backticked references in body prose still get checked but only at warning severity. |
-| `docs/agent-system/drafts/` and `docs/agent-system/_outline.md` | excluded | Working notebooks; not authority. |
+| `path:docs/agent-system/` canon docs (this file, RUNTIME_ATTRIBUTION.md, TOPICS.md, TOPICS_SCHEMA.md, INTAKE_PIPELINE.md, PRIMITIVES.md, README.md) | `docs:agent-system` | These docs **describe** the topic system, so they reference example prefixes pedagogically. The scanner respects fenced code blocks (see § Code-block exclusion); examples inside ` ```jsonc ` and similar fences are ignored. Backticked references in body prose still get checked but only at warning severity. |
+| `path:docs/agent-system/drafts/` and `path:docs/agent-system/_outline.md` | excluded | Working notebooks; not authority. |
 
 ---
 
@@ -104,10 +104,10 @@ The scanner skips these explicitly. Each exclusion has a reason; relaxing one re
 | `**/last-handoff.md` | Ephemeral run state. |
 | `**/logs/**` | Per-run output. |
 | `**/coverage/**`, `**/dist/**`, `**/node_modules/**`, `**/__pycache__/**` | Build / dependency output. |
-| `scenarios/prompt-manager/store/teams/*/shared/*.jsonl` | Data files, not prose. P3 handles these. |
-| `scenarios/prompt-manager/store/teams/*/shared/*.jsonl.backup` | Migration artifacts. |
-| `docs/agent-system/drafts/**` | Working drafts; not canon. |
-| `docs/agent-system/_outline.md` | Working outline. |
+| `path:scenarios/prompt-manager/store/teams/*/shared/*.jsonl` | Data files, not prose. P3 handles these. |
+| `path:scenarios/prompt-manager/store/teams/*/shared/*.jsonl.backup` | Migration artifacts. |
+| `path:docs/agent-system/drafts/**` | Working drafts; not canon. |
+| `path:docs/agent-system/_outline.md` | Working outline. |
 | `**/*.json`, `**/*.json.backup`, `**/*.go`, `**/*.tsx`, `**/*.ts` | Not prose; type-system or P1 handles these. |
 | Files larger than 1 MB | Defense against accidental binary inclusion. |
 
@@ -147,11 +147,11 @@ The discriminator is the literal substring `team knowledge-` immediately precedi
 
 For regex-backed patterns, captured group `1` is the topic prefix. For `marked-topic-ref`, the value after the `topic:` marker is the topic prefix. The scanner treats segments containing `<...>` placeholders or trailing `*` as wildcards when joining against declarations (e.g., `audience-scan/<date>/<slug>` joins against the declared `audience-scan/*` output prefix).
 
-Marked topic references use the shared project syntax in `docs/reference/machine-readable-references.md`. The scanner validates only required `topic` refs. Qualified refs such as `topic[example]:...`, `topic[old]:...`, `topic[future]:...`, `topic[optional]:...`, `topic[external]:...`, and `topic[literal]:...` are parsed but do not require current topic declarations.
+Marked topic references use the shared project syntax in `path:docs/reference/machine-readable-references.md`. The scanner validates only required `topic` refs. Qualified refs such as `topic[example]:...`, `topic[old]:...`, `topic[future]:...`, `topic[optional]:...`, `topic[external]:...`, and `topic[literal]:...` are parsed but do not require current topic declarations.
 
 ### What the scanner does **not** match
 
-- Topic strings inside fenced code blocks (` ``` ... ``` ` or ` ```lang ... ``` `) in `docs/agent-system/` files. See § Code-block exclusion.
+- Topic strings inside fenced code blocks (` ``` ... ``` ` or ` ```lang ... ``` `) in `path:docs/agent-system/` files. See § Code-block exclusion.
 - Topic strings inside HTML comments (`<!-- ... -->`).
 - URL paths that happen to contain slashes (`https://example.com/a/b/c` does not look like a topic prefix because it has scheme-like prefixes; the regex requires lower-kebab segment shape and the absence of `://`).
 - Identifier strings without `/` (e.g. `audience-scan`) — bare prefixes are too generic to attribute.
@@ -160,13 +160,13 @@ Marked topic references use the shared project syntax in `docs/reference/machine
 
 ### Code-block exclusion
 
-`docs/agent-system/*.md` files describe the system pedagogically and contain many example topic prefixes inside fenced code blocks. The scanner respects markdown's fenced-code-block syntax:
+`path:docs/agent-system/*.md` files describe the system pedagogically and contain many example topic prefixes inside fenced code blocks. The scanner respects markdown's fenced-code-block syntax:
 
 - A line whose stripped content equals ` ``` ` or matches ` ```<lang> ` opens a code block.
 - The next line beginning with ` ``` ` closes it.
 - Patterns inside the open/close pair are skipped entirely.
 
-`docs/agent-system/` is scanned with code-block exclusion enabled. Other targets (member prose, agent prose, writer-skill SKILL.md, non-`docs/agent-system/` docs) are scanned **without** code-block exclusion — those files have no pedagogical-example use case. This is the only target-conditional scanner setting.
+`path:docs/agent-system/` is scanned with code-block exclusion enabled. Other targets (member prose, agent prose, writer-skill SKILL.md, non-`path:docs/agent-system/` docs) are scanned **without** code-block exclusion — those files have no pedagogical-example use case. This is the only target-conditional scanner setting.
 
 Marked topic references (`marked-topic-ref`) and inferred unmarked references (`inferred-backtick-topic-ref`) remain at **warning** severity globally, even outside code blocks. Marked topic refs are explicit, but they are still documentation references rather than executable commands. Inferred refs are useful as a permanent safety net for ambiguous or agent-generated prose, but the scanner had to guess their meaning.
 
@@ -182,15 +182,15 @@ This is the matrix the scanner consumes when joining a detected reference back t
 | `members/<id>/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | "Is this prefix declared by **some** team member?" | Team-wide union of all members' `topics.json` declarations (warning severity). |
 | `shared/TEAM.md` `shared/<other>.md` | any `cli-knowledge-*` pattern | "Is this prefix declared by some member of this team?" | Team-wide union of all members' `topics.json` declarations. |
 | `shared/<other>.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
-| `agents/<id>/SOUL.md` `agents/<id>/AGENTS.md` `agents/<id>/TOOLS.md` | any `cli-knowledge-*` pattern | "Is this prefix declared by **some** team that binds this agent?" | Union of `topics.json` declarations across every `store/teams/<team>/members/<id>/topics.json` matching this agent id. |
+| `agents/<id>/SOUL.md` `agents/<id>/AGENTS.md` `agents/<id>/TOOLS.md` | any `cli-knowledge-*` pattern | "Is this prefix declared by **some** team that binds this agent?" | Union of `topics.json` declarations across every `path:store/teams/<team>/members/<id>/topics.json` matching this agent id. |
 | `agents/<id>/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
 | `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `cli-knowledge-add-topic`, `cli-knowledge-update-topic` (write patterns) | "Is this prefix in this skill's `writes_to[]`?" | The skill's `skill.json::writes_to[]`. Strict — prefixes declared elsewhere do NOT satisfy a write-pattern check. |
 | `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `cli-knowledge-list-topic`, `cli-knowledge-list-prefix` (read patterns) | "Is this prefix in this skill's `writes_to[]` OR declared by any team?" | Union of the skill's own `writes_to[]` and the global declaration set. Drift fires only when neither covers the prefix. |
 | `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `marked-topic-ref`, `inferred-backtick-topic-ref` | same as read patterns above (warning severity). | Union of `writes_to[]` and global declaration set. |
 | `skills/packs/<pack>/<id>/SKILL.md` (classifier or generic skill) | any pattern (CLI or backtick) | "Are there ANY topic references at all? (There must not be.)" | None — every match is a finding. |
-| `docs/<domain>/**/*.md` | any `cli-knowledge-*` pattern | "Is this prefix declared **anywhere** in the system?" | Global union of all members' `topics.json` declarations across all teams. |
-| `docs/<domain>/**/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
-| `docs/agent-system/*.md` | any pattern, **inside fenced code block** | n/a (excluded by code-block rule) | n/a |
+| `path:docs/<domain>/**/*.md` | any `cli-knowledge-*` pattern | "Is this prefix declared **anywhere** in the system?" | Global union of all members' `topics.json` declarations across all teams. |
+| `path:docs/<domain>/**/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
+| `path:docs/agent-system/*.md` | any pattern, **inside fenced code block** | n/a (excluded by code-block rule) | n/a |
 
 **No-match outcome:** the scanner emits a `prose_topic_leak` finding with the file path, line number, the captured prefix, the owner key, and the consulted declaration set's hash (so the operator can reproduce). Severity is per the matrix above; warnings flow to `findings.json` but don't fail CI; errors do.
 
@@ -265,7 +265,7 @@ Captured against the live store — this is the size the scanner is built for, n
 | Skills total | 144 |
 | Writer-skill `SKILL.md` (scanned with `writes_to[]` consultation) | 3 (`report-bug`, `report-friction`, `morning-vision-walk`) |
 | Classifier / generic skill `SKILL.md` (scanned with strict no-topic rule) | 141 |
-| `docs/<domain>/**/*.md` files | varies; `docs/agent-system/` alone has ~17 canon files |
+| `path:docs/<domain>/**/*.md` files | varies; `path:docs/agent-system/` alone has ~17 canon files |
 
 The scanner's runtime is well under one second on this corpus; budget concerns belong to a later workshop, not this one.
 
@@ -286,7 +286,7 @@ These patterns explicitly do **not** appear in the scanner. Each requires a deci
 ## Components and entry points
 
 - **This document** — scan target inventory + canonical CLI patterns; the normative spec for what the scanner walks and matches.
-- **Scanner implementation** — `scenarios/prompt-manager/api/memberflow/prose_scan.go` (`ruleProseTopicLeak`, `joinProseMatch`, `normalizePlaceholderPrefix`).
+- **Scanner implementation** — `path:scenarios/prompt-manager/api/memberflow/prose_scan.go` (`ruleProseTopicLeak`, `joinProseMatch`, `normalizePlaceholderPrefix`).
 - **Writer-skill registry** — `skill.json::writes_to[]`, populated on every writer-skill (`report-bug`, `report-friction`, `morning-vision-walk`).
-- **Golden-fixture tests** — `scenarios/prompt-manager/api/memberflow/prose_scan_golden_test.go`.
-- **Subsumption proof for the retired `non_portable_classifier` rule** — `scenarios/prompt-manager/api/memberflow/non_portable_classifier_subsumption_test.go`.
+- **Golden-fixture tests** — `path:scenarios/prompt-manager/api/memberflow/prose_scan_golden_test.go`.
+- **Subsumption proof for the retired `non_portable_classifier` rule** — `path:scenarios/prompt-manager/api/memberflow/non_portable_classifier_subsumption_test.go`.

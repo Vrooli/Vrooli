@@ -57,7 +57,6 @@
 **Second Pass:**
 - PRD.md: Corrected polling intervals, added agent config fields, documented UI maintenance state behavior
 - README.md: Corrected polling descriptions, clarified CLI label
-- api/REFACTORING.md: Updated module structure diagram
 - docs/manifest.json: Created initial manifest
 
 **First Pass:**

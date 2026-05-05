@@ -183,7 +183,7 @@ Expected design:
 
 - `resource.json` still owns install/invoke/freshness/runtime metadata
 - `cli/main.go` stays thin
-- `cli/internal/app` owns command registration and app wiring
+- `path:cli/internal/app` owns command registration and app wiring
 - resource-local Go packages under `cli/internal/...` own the actual implementation
 - the control plane treats the installed binary as the managed interface instead of pretending the resource is a third-party host executable
 
@@ -243,8 +243,8 @@ Phase 2 defines what each canonical template kind is expected to converge toward
 ### `native-cli`
 
 - repo-owned Go binary is the design center
-- `cli/internal/app` owns the operator command surface
-- `cli/internal/<domain>` owns resource-local implementation logic
+- `path:cli/internal/app` owns the operator command surface
+- `path:cli/internal/<domain>` owns resource-local implementation logic
 - the manifest still owns command/install/invoke/freshness metadata
 
 ### `cloud-api`
@@ -281,7 +281,7 @@ Do not treat `legacy-adapter` as the normal starting point for new resources.
 
 For future resource work:
 
-- do not start from copying an old `resources/<name>/` directory
+- do not start from copying an old `path:resources/<name>/` directory
 - start from blueprint -> template -> implementation
 - prefer shared Go control-plane packages over resource-local reinvention
 - keep `cli/` thin when possible
@@ -320,7 +320,7 @@ This architecture document assumes the resource storage policy in:
 
 Short version:
 
-- resources should not standardize on `api-core/storage`
+- resources should not standardize on `package:api-core/storage`
 - resources should converge on a resource-specific shared storage/runtime layer
 - repo-local `data/` is transitional, not target architecture
 
@@ -330,7 +330,7 @@ This architecture is intentionally separate from scenario runtime architecture.
 
 Recommended split:
 
-- scenarios use `api-core/storage`
+- scenarios use `package:api-core/storage`
 - resources use a resource-specific shared control-plane storage/runtime layer
 
 That separation preserves clean domain boundaries while still allowing similar class vocabulary and portability expectations.

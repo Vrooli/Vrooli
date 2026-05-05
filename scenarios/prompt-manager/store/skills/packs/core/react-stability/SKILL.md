@@ -53,10 +53,10 @@ The following rules exist because **UI crashes are the #1 production issue**. Th
 |------|----------|------------------|
 | `strict: true` | tsconfig.json | Entire class of null/undefined bugs |
 | `noUncheckedIndexedAccess: true` | tsconfig.json | `arr[0].method()` crashes when array is empty |
-| `react-hooks/rules-of-hooks` | eslint.config.js | React Error #310 (early returns before hooks) |
+| `literal:react-hooks/rules-of-hooks` | eslint.config.js | React Error #310 (early returns before hooks) |
 | `@typescript-eslint/no-non-null-assertion` | eslint.config.js | `!` operator that hides null bugs |
 | `@typescript-eslint/no-explicit-any` | eslint.config.js | `any` type that disables all checking |
-| `import/no-cycle` | eslint.config.js | Circular dependencies causing "Cannot access X before initialization" |
+| `literal:import/no-cycle` | eslint.config.js | Circular dependencies causing "Cannot access X before initialization" |
 
 **When you encounter errors from these rules:**
 
@@ -108,7 +108,7 @@ API/Services (boundary functions - parse/validate external data, return typed da
 
 **Key principle:** Components should never see invalid data. Boundary parse/validation failures are caught in the API/service layer and surfaced as typed error states that the UI can handle gracefully.
 
-This pattern is **strongly recommended** for all React scenarios in Vrooli. The exact directory structure may vary (e.g., `src/services/`, `src/hooks/`, etc.), but the layer separation should be maintained.
+This pattern is **strongly recommended** for all React scenarios in Vrooli. The exact directory structure may vary (e.g., `path:src/services/`, `path:src/hooks/`, etc.), but the layer separation should be maintained.
 
 ---
 
@@ -325,16 +325,16 @@ Validated Data → Components
 | Internal service calls | No | Already validated at entry |
 | Component props | No | Data validated before reaching components |
 
-**Key principle:** Validate once at the system boundary (`ui/src/api/` for
+**Key principle:** Validate once at the system boundary (`path:ui/src/api/` for
 API calls), then trust the data as it flows through the application.
 
 #### **7.3 Validation Pattern**
 
 API boundary functions should return typed data or typed errors. For
 proto-owned calls, construct and export generated Connect clients in
-`ui/src/api/`. For REST exceptions or external APIs, keep `fetch`,
+`path:ui/src/api/`. For REST exceptions or external APIs, keep `fetch`,
 `fromJson`, `toJsonString`, and API error-envelope parsing centralized in
-`ui/src/api/`:
+`path:ui/src/api/`:
 
 ```typescript
 type ParseResult<T> =
@@ -350,15 +350,15 @@ export async function fetchPlan(id: string): Promise<ParseResult<Plan>> {
 This pattern:
 - Makes validation failures **explicit** rather than crashing
 - Lets components handle errors gracefully with error UI
-- Keeps validation logic **centralized** in `ui/src/api/`
+- Keeps validation logic **centralized** in `path:ui/src/api/`
 
 #### **7.4 Proto Integration**
 
 When creating or modifying API contracts:
-1. Define the schema in `packages/proto/schemas/` (see `packages/proto/README.md` for guidance)
+1. Define the schema in `path:packages/proto/schemas/` (see `packages/proto/README.md` for guidance)
 2. Run `cd packages/proto && make generate` to regenerate types
-3. Use generated Connect clients in `ui/src/api/` for proto-owned API calls
-4. Use generated TS descriptors in `ui/src/api/` for REST-exception
+3. Use generated Connect clients in `path:ui/src/api/` for proto-owned API calls
+4. Use generated TS descriptors in `path:ui/src/api/` for REST-exception
    `fromJson` response parsing and `toJsonString(..., { useProtoFieldName: true })`
    request serialization
 5. Add focused API-boundary tests that prove fields are not dropped across

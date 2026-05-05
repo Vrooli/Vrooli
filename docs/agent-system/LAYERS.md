@@ -56,16 +56,16 @@ When canon lives in the wrong home — typically when a skill restates doctrine 
 
 | Layer | Location | Examples |
 |---|---|---|
-| Plan of Record | `docs/<domain>/` and `docs/agent-system/` | `docs/monetization/`, `docs/marketing/research/README.md`, this file |
-| Skills | `scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/SKILL.md` | `marketing-signal-classifier`, `team-member-capability-architecture-audit` |
-| Actions | `scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, `team.decisions.list` |
-| CLIs | `scenarios/<scenario>/cli/` and resource CLIs | `prompt-manager`, `swarm-manager`, `resource-postgres` |
+| Plan of Record | `path:docs/<domain>/` and `path:docs/agent-system/` | `path:docs/monetization/`, `path:docs/marketing/research/README.md`, this file |
+| Skills | `path:scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/SKILL.md` | `marketing-signal-classifier`, `team-member-capability-architecture-audit` |
+| Actions | `path:scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, `team.decisions.list` |
+| CLIs | `path:scenarios/<scenario>/cli/` and resource CLIs | `prompt-manager`, `swarm-manager`, `resource-postgres` |
 | Backlog / capability-gap | swarm-manager backlog + `capability-gap` decisions | filed via `swarm-manager` or as decisions |
 | Inbox / synthesis | team knowledge entries under topic prefix | `research-inbox/<signal-type>/<slug>` |
-| Identity | `store/agents/<id>/SOUL.md` | per-agent identity prose |
-| Ownership | `store/teams/<team>/shared/TEAM.md`, `RESPONSIBILITIES.md`, `roles.json` | per-team contracts |
-| Topic flow declarations | `store/teams/<team>/members/<member>/topics.json` (per-member); schema canon at `docs/agent-system/TOPICS_SCHEMA.md` | intake/output prefixes, taxonomy bindings, decision-context ownership |
-| Signal taxonomies | `docs/<domain>/<id>-taxonomy.json` + `docs/<domain>/<NAME>_TAXONOMY.md` | per-domain signal vocabulary, dispatch table, evidence rules, destination schemas |
+| Identity | `path:store/agents/<id>/SOUL.md` | per-agent identity prose |
+| Ownership | `path:store/teams/<team>/shared/TEAM.md`, `RESPONSIBILITIES.md`, `roles.json` | per-team contracts |
+| Topic flow declarations | `path:store/teams/<team>/members/<member>/topics.json` (per-member); schema canon at `path:docs/agent-system/TOPICS_SCHEMA.md` | intake/output prefixes, taxonomy bindings, decision-context ownership |
+| Signal taxonomies | `path:docs/<domain>/<id>-taxonomy.json` + `path:docs/<domain>/<NAME>_TAXONOMY.md` | per-domain signal vocabulary, dispatch table, evidence rules, destination schemas |
 
 When a topic-prefix crosses team boundaries, the producer's taxonomy owns the front-matter schema; the consumer's taxonomy governs only its own routing. See `INTAKE_PIPELINE.md` § Cross-team schema ownership for the load-bearing rule and `TOPICS_SCHEMA.md` for the validator's resolution semantics.
 
@@ -80,4 +80,4 @@ When a topic-prefix crosses team boundaries, the producer's taxonomy owns the fr
 - the promotion ladder steps (interim → CLI/tool → Action → retire) without citing `PROMOTION_LADDER.md`
 - the 9-layer table without citing `TEAM_MEMBER_ARCHITECTURE.md`
 
-Skills carrying canon residue must drop the prose and add `Required reading: docs/agent-system/<file>`. The PoR coherence test in `scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces this.
+Skills carrying canon residue must drop the prose and add `Required reading: docs/agent-system/<file>`. The PoR coherence test in `path:scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces this.

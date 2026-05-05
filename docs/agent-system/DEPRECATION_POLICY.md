@@ -25,8 +25,8 @@ Staleness windows — below these, do not propose deprecation:
 Before filing any `skill-deprecation`, `agent-deprecation`, or `team-deprecation` decision, the proposer must check:
 
 1. **Director-swarm initiatives.** Is this entity referenced by any active initiative? (`swarm-manager initiatives list --json` and grep.)
-2. **Monetization catalog.** Is this entity load-bearing for any candidate or active SKU? (Search `docs/monetization/scenario-sku-map.json` and `catalog/`.)
-3. **Cross-team relations.** Does any other team's member file reference it? (`grep` across `store/teams/*/members/*/`.)
+2. **Monetization catalog.** Is this entity load-bearing for any candidate or active SKU? (Search `path:docs/monetization/scenario-sku-map.json` and `catalog/`.)
+3. **Cross-team relations.** Does any other team's member file reference it? (`grep` across `path:store/teams/*/members/*/`.)
 4. **Capability coverage.** Is this entity the *only* covering of a capability the system needs? If yes, the deprecation must include a successor or be rejected.
 
 If any of 1–4 hits, do not file deprecation. Instead, file a `skill-improvement` / `agent-improvement` / `team-structure-change` to revitalize the entity, or escalate as `capability-gap` if the entity is broken beyond repair but still needed.
@@ -39,7 +39,7 @@ Once a deprecation decision is accepted by the operator:
 
 1. **Soft archive first.** Set `status: archived` in the entity's manifest (agent.json / team.json / skill manifest). Do NOT delete files yet.
 2. **Keep for 30 heartbeats.** During this grace period, any member that hits a "this used to work" error from the archive can file a `meta-self-improvement` decision to un-archive.
-3. **Hard archive after 30 heartbeats.** Move the entity's files to a `store/archived/<entity-type>/<id>/` folder (to be created on first use). Update indexes. The entity no longer appears in `prompt-manager <entity> list`.
+3. **Hard archive after 30 heartbeats.** Move the entity's files to a `path:store/archived/<entity-type>/<id>/` folder (to be created on first use). Update indexes. The entity no longer appears in `prompt-manager <entity> list`.
 4. **Hard delete after 180 heartbeats.** Remove the archived folder. By this point nothing should reference it, and the relation files have been cleaned up.
 
 The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting points. Edge cases that suggest tightening or relaxing these numbers are tracked as team knowledge entries under topic prefix `meta-optimization/notebook/deprecation-edges/<slug>` and reviewed at the next deprecation cadence.

@@ -44,7 +44,7 @@ Scenarios should keep using `github.com/vrooli/api-core/storage` for mutable run
 Scenario rules:
 
 - all mutable filesystem writes go through `api-core/storage`
-- structured persistence is declared in `scenarios/<name>/.vrooli/service.json`
+- structured persistence is declared in `path:scenarios/<name>/.vrooli/service.json`
 - schema/init files live under `initialization/`
 - scenario folders are deployable source trees, not runtime data roots
 
@@ -69,7 +69,7 @@ Resources need a resource-specific shared storage/path package because:
 
 Recommended shared package target:
 
-- `internal/resources/runtime/storage`
+- `path:internal/resources/runtime/storage`
 
 If it later needs to be consumed outside `internal/`, promote it intentionally. Do not start by putting it in `api-core`.
 
@@ -142,8 +142,8 @@ Write and land canonical docs for:
 
 Recommended outputs:
 
-- `docs/scenarios/storage.md`
-- `docs/resources/storage.md`
+- `path:docs/scenarios/storage.md`
+- `path:docs/resources/storage.md`
 
 Do not overfit scenario-private runtime details into the repo contract unless they are truly shared, stable, and version-worthy.
 
@@ -263,7 +263,7 @@ For each resource:
 
 Prioritize scenarios that still write to:
 
-- `scenarios/<name>/data/...`
+- `path:scenarios/<name>/data/...`
 - `../data/...`
 - repo-relative mutable storage roots
 
@@ -278,7 +278,7 @@ For each scenario:
 
 - route file state through `api-core/storage`
 - keep DB/init in `service.json` + `initialization/`
-- add or update `docs/internal/STORAGE_AUDIT.md`
+- add or update `path:docs/internal/STORAGE_AUDIT.md`
 - remove assumptions that the repo tree is a writable runtime storage root
 
 ### Phase 9: Cut over env semantics
@@ -420,7 +420,7 @@ scenarios/
 
 - no scenario-owned runtime `data/` directory
 - no mutable runtime logs/state/cache under the scenario tree
-- no SQLite DB under `scenarios/example-scenario/data/...`
+- no SQLite DB under `path:scenarios/example-scenario/data/...`
 - no repo-local uploads/session files/temp files
 
 ### Runtime state location

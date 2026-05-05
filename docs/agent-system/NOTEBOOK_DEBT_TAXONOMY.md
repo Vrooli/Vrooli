@@ -1,6 +1,6 @@
 # Notebook Debt Curation Taxonomy
 
-Cross-team-readable canon for how notebook-debt curators (members that drain `<team>/notebook/*` prefixes) classify and resolve entries. Human-readable view of `docs/agent-system/notebook-debt-taxonomy.json`.
+Cross-team-readable canon for how notebook-debt curators (members that drain `<team>/notebook/*` prefixes) classify and resolve entries. Human-readable view of `path:docs/agent-system/notebook-debt-taxonomy.json`.
 
 **Owner team:** meta-optimization. **Status:** canon. Operator-curated via meta-optimization decisions.
 
@@ -9,7 +9,7 @@ Cited by:
 
 Notebook-debt curation is a *generic* drain pattern: the entries are not new external signals (so no classifier skill is required) but they still need an explicit decision-style outcome on each pass. The curator member iterates, picks one of {promotion-candidate, retirement-candidate, still-debt}, and acts.
 
-**Use the notebook only when no typed inbox fits.** If an observation is a bug, capability gap, friction report with a concrete owner, or any other signal whose destination is known, write it to the appropriate typed inbox via `prompt-manager team knowledge-add` — see `docs/agent-system/TOPICS.md` for the registry. The notebook absorbs only the residual: half-formed ideas, workarounds without a clear owner, observations that don't fit existing taxonomies. Concrete observation types that recur should graduate from the notebook to their own typed inbox via `meta-self-improvement` decision; spotting graduation candidates is part of the curator's job.
+**Use the notebook only when no typed inbox fits.** If an observation is a bug, capability gap, friction report with a concrete owner, or any other signal whose destination is known, write it to the appropriate typed inbox via `prompt-manager team knowledge-add` — see `path:docs/agent-system/TOPICS.md` for the registry. The notebook absorbs only the residual: half-formed ideas, workarounds without a clear owner, observations that don't fit existing taxonomies. Concrete observation types that recur should graduate from the notebook to their own typed inbox via `meta-self-improvement` decision; spotting graduation candidates is part of the curator's job.
 
 ## Signal types
 

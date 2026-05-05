@@ -159,7 +159,7 @@ Capability-gaps are consumed by **director-swarm during vision-walk Phase 3**. T
 
 The gap-filer **may** hint a preferred kind in the decision body, but the consumer makes the call. If a `research` item produces a clear scope, it graduates into an `idea` item via a follow-on decision; the original research item retires.
 
-For backlog item kinds (`idea | research | fix | execute | chore`) and the initiative-vs-backlog-item distinction, see `scenarios/swarm-manager/docs/concepts/`.
+For backlog item kinds (`idea | research | fix | execute | chore`) and the initiative-vs-backlog-item distinction, see `path:scenarios/swarm-manager/docs/concepts/`.
 
 ---
 

@@ -261,13 +261,13 @@ Use a scannable structure to reduce drift.
 | [G] | `scenarios/{{TARGET}}/ui/src/api/` | UI↔API contract clients | generated Connect clients, REST-exception helpers |
 
 Flexibility:
-- Keep one canonical location per concern. New React scenarios use `ui/src/api/` for UI API clients; `ui/src/lib/` remains for pure utilities.
+- Keep one canonical location per concern. New React scenarios use `path:ui/src/api/` for UI API clients; `path:ui/src/lib/` remains for pure utilities.
 
 ---
 
 ### 9. Discovery and Addressing Rules
 
-1. Resolve scenario URLs via `api-core/discovery`.
+1. Resolve scenario URLs via `package:api-core/discovery`.
 2. Do not hardcode `localhost:<port>` for scenario-to-scenario calls in production paths.
 3. Do not rely on one-time startup URL capture for long-lived clients.
 4. Re-resolve URL on connection/refused/transport failures (bounded attempts).
@@ -340,7 +340,7 @@ Call fails
 - UI fetch/axios calls for proto-owned operations instead of generated
   Connect clients.
 - UI REST-exception helpers parsing responses without `fromJson` in
-  `ui/src/api/`.
+  `path:ui/src/api/`.
 - UI REST-exception submissions sending raw metadata objects instead of
   proto-serialized payloads.
 
@@ -395,7 +395,7 @@ cd packages/proto && make check
 - [ ] unsafe casts bypassing schema validation.
 - [ ] hand-written UI interfaces duplicating proto message shapes.
 - [ ] UI calling proto-owned operations without generated Connect clients.
-- [ ] UI parsing REST-exception responses without `fromJson` in `ui/src/api/`.
+- [ ] UI parsing REST-exception responses without `fromJson` in `path:ui/src/api/`.
 - [ ] UI sending REST-exception metadata without proto serialization.
 
 #### 14.3 Findings Template
@@ -463,8 +463,8 @@ A scenario's interop setup is considered proper/complete when:
 | successful run marked cancelled/unknown | envelope parsing mismatch | parser path (`status` vs `run.status`) | parse canonical path in adapter |
 | works only if dependency starts first | startup-only client wiring | startup logs + nil client path | lazy init/retry/recover strategy |
 | feature silently no-ops | optional dependency degrade not surfaced | logs/health/status route | add explicit degrade telemetry and user-visible state |
-| UI shows stale/missing fields after API change | hand-written UI interface not updated | search for duplicated interfaces in `ui/src` | replace with generated proto type imports |
-| API returns data but UI renders blank/wrong values | manual casing mismatch, bypassed Connect client, or missing proto parse on a REST exception | check `ui/src/api/` for generated Connect clients or REST helper parsing | use generated Connect clients for proto-owned calls; centralize REST exceptions in `ui/src/api/` |
+| UI shows stale/missing fields after API change | hand-written UI interface not updated | search for duplicated interfaces in `path:ui/src` | replace with generated proto type imports |
+| API returns data but UI renders blank/wrong values | manual casing mismatch, bypassed Connect client, or missing proto parse on a REST exception | check `path:ui/src/api/` for generated Connect clients or REST helper parsing | use generated Connect clients for proto-owned calls; centralize REST exceptions in `path:ui/src/api/` |
 
 ---
 

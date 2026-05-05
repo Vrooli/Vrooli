@@ -21,7 +21,7 @@ Last updated: 2026-04-30
 Completed in the first implementation pass:
 
 - Phase 0 baseline contract tests for the phase-state and mode-switch boundaries.
-- Phase 1 backend phase state machine extraction in `api/internal/operatingmode/state.go`.
+- Phase 1 backend phase state machine extraction in `path:api/internal/operatingmode/state.go`.
 - Backend phase start validation before round reservation, lock acquisition, prompt rendering, or AgentManager spawn.
 - Workspace phase action state (`startable`, `reason`, `next`) exposed by the API and consumed by the UI.
 - Phase 2 mode-switch boundary hardening for generic initiative create/update:
@@ -53,7 +53,7 @@ Completed in the first implementation pass:
   - operating-mode acceptance verdict matching is centralized and normalized
   - UI Modes-tab coverage asserts replan and acceptance rates render with sample sizes
 - Phase 7 backend responsibility refactor:
-  - `api/internal/operatingmode/service.go` now owns public service contracts and dependency wiring only
+  - `path:api/internal/operatingmode/service.go` now owns public service contracts and dependency wiring only
   - mode switching moved to `switcher.go`
   - phase start orchestration and context collection moved to `phase_runner.go`
   - prompt catalog validation/rendering moved to `prompt.go`
@@ -64,17 +64,17 @@ Completed in the first implementation pass:
   - operating-mode event helpers moved to `events.go`
   - shared local helpers moved to `utils.go`
 - Phase 8 UI workspace refactor:
-  - `ui/src/components/initiative/operating-mode-panel.tsx` is now composition-only
+  - `path:ui/src/components/initiative/operating-mode-panel.tsx` is now composition-only
   - React Query orchestration, mutations, and panel-local state moved to `operating-mode/use-operating-mode-workspace.ts`
   - mode switching, acceptance criteria, phase controls, artifact list, round timeline, and round card rendering moved to focused `operating-mode/` components
   - backend-provided phase `startable`, `reason`, and `next` state remains the only phase enablement source
   - existing test selectors were preserved through the component split
 - Phase 9 documentation and seam health:
-  - `scenarios/swarm-manager/docs/internal/SEAMS.md` now documents phase-state ownership, lifecycle-only mode switching, audited backlog reconciliation, fail-closed prompt rendering, startup profile policy, and the refactored backend/UI boundary files
-  - `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` now describes the implemented `item-level`, `holistic-loop`, and `phased-plan-drain` model instead of target/open-question implementation language
-  - added `scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
-  - added `scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
-  - `scenarios/swarm-manager/docs/manifest.json` now registers the new guides and no longer references missing historical internal docs
+  - `path:scenarios/swarm-manager/docs/internal/SEAMS.md` now documents phase-state ownership, lifecycle-only mode switching, audited backlog reconciliation, fail-closed prompt rendering, startup profile policy, and the refactored backend/UI boundary files
+  - `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` now describes the implemented `item-level`, `holistic-loop`, and `phased-plan-drain` model instead of target/open-question implementation language
+  - added `path:scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
+  - added `path:scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
+  - `path:scenarios/swarm-manager/docs/manifest.json` now registers the new guides and no longer references missing historical internal docs
 - API, CLI, concept, guide, manifest, and seam docs updated for the completed boundaries.
 
 Validated commands:
@@ -131,23 +131,23 @@ prompt-manager skill read implementation-plan-authoring documentation-health int
 
 Also read:
 
-- `docs/plans/swarm-manager-initiative-operating-mode-implementation.md`
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
-- `scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md`
-- `scenarios/swarm-manager/docs/internal/SEAMS.md`
-- `scenarios/swarm-manager/api/internal/operatingmode/registry.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/service.go`
-- `scenarios/swarm-manager/api/internal/operatingmode/handler.go`
-- `scenarios/swarm-manager/api/routes_operating_mode.go`
-- `scenarios/swarm-manager/api/internal/initiatives/service.go`
-- `scenarios/swarm-manager/api/internal/agentmanager/service.go`
-- `scenarios/swarm-manager/api/internal/agentmanager/profile.go`
-- `scenarios/swarm-manager/api/internal/eventlog/types.go`
-- `scenarios/swarm-manager/api/internal/stats/engine.go`
-- `scenarios/swarm-manager/api/internal/stats/metrics.go`
-- `scenarios/swarm-manager/ui/src/components/initiative/operating-mode-panel.tsx`
-- `scenarios/swarm-manager/ui/src/services/initiative-mode-service.ts`
-- `scenarios/swarm-manager/ui/src/surfaces/graph/components/StatsPanel.tsx`
+- `path:docs/plans/swarm-manager-initiative-operating-mode-implementation.md`
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
+- `path:scenarios/swarm-manager/docs/concepts/ARCHITECTURE.md`
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/registry.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/service.go`
+- `path:scenarios/swarm-manager/api/internal/operatingmode/handler.go`
+- `path:scenarios/swarm-manager/api/routes_operating_mode.go`
+- `path:scenarios/swarm-manager/api/internal/initiatives/service.go`
+- `path:scenarios/swarm-manager/api/internal/agentmanager/service.go`
+- `path:scenarios/swarm-manager/api/internal/agentmanager/profile.go`
+- `path:scenarios/swarm-manager/api/internal/eventlog/types.go`
+- `path:scenarios/swarm-manager/api/internal/stats/engine.go`
+- `path:scenarios/swarm-manager/api/internal/stats/metrics.go`
+- `path:scenarios/swarm-manager/ui/src/components/initiative/operating-mode-panel.tsx`
+- `path:scenarios/swarm-manager/ui/src/services/initiative-mode-service.ts`
+- `path:scenarios/swarm-manager/ui/src/surfaces/graph/components/StatsPanel.tsx`
 
 ## 3. Problem Statement
 
@@ -171,8 +171,8 @@ This is dangerous because Swarm Manager is the primary project-management app fo
 - Fail closed when a registered operating-mode prompt skill cannot be rendered.
 - Validate every registry-referenced AgentManager profile key at startup.
 - Fix replan stats double counting.
-- Refactor `api/internal/operatingmode/service.go` into smaller responsibility-owned units.
-- Refactor `ui/src/components/initiative/operating-mode-panel.tsx` into workspace components and hooks.
+- Refactor `path:api/internal/operatingmode/service.go` into smaller responsibility-owned units.
+- Refactor `path:ui/src/components/initiative/operating-mode-panel.tsx` into workspace components and hooks.
 - Update API, CLI, UI, stats, and internal seam docs to match the hardened architecture.
 - Add backend, UI, and CLI regression tests for the new invariants.
 
@@ -192,7 +192,7 @@ This is dangerous because Swarm Manager is the primary project-management app fo
 
 ### Phase Graph Is Descriptive, Not Enforced
 
-`api/internal/operatingmode/registry.go` declares phase graphs for `holistic-loop` and `phased-plan-drain`, but `api/internal/operatingmode/service.go:338` only validates that a requested phase exists. The UI renders every phase button as startable whenever no round is active.
+`path:api/internal/operatingmode/registry.go` declares phase graphs for `holistic-loop` and `phased-plan-drain`, but `path:api/internal/operatingmode/service.go:338` only validates that a requested phase exists. The UI renders every phase button as startable whenever no round is active.
 
 Risk:
 
@@ -202,7 +202,7 @@ Risk:
 
 ### Mode Mutation Has Two Public Paths
 
-`api/internal/initiatives/service.go` still accepts `UpdateRequest.Mode`. The operating-mode switch endpoint also updates mode.
+`path:api/internal/initiatives/service.go` still accepts `UpdateRequest.Mode`. The operating-mode switch endpoint also updates mode.
 
 Risk:
 
@@ -247,7 +247,7 @@ Risk:
 
 ### Monolith Pressure
 
-`api/internal/operatingmode/service.go` is over 1,100 lines and owns switching, phase start, prompt rendering, spawning, polling, artifact application, event emission, backlog sync, and workspace shaping. `ui/src/components/initiative/operating-mode-panel.tsx` is over 500 lines and owns every workspace concern.
+`path:api/internal/operatingmode/service.go` is over 1,100 lines and owns switching, phase start, prompt rendering, spawning, polling, artifact application, event emission, backlog sync, and workspace shaping. `path:ui/src/components/initiative/operating-mode-panel.tsx` is over 500 lines and owns every workspace concern.
 
 Risk:
 
@@ -358,11 +358,11 @@ UI tests:
 
 Files:
 
-- `api/internal/operatingmode/registry.go`
-- `api/internal/operatingmode/service.go`
-- new `api/internal/operatingmode/state.go`
-- new `api/internal/operatingmode/run_strategy.go`
-- tests in `api/internal/operatingmode/*_test.go`
+- `path:api/internal/operatingmode/registry.go`
+- `path:api/internal/operatingmode/service.go`
+- new `path:api/internal/operatingmode/state.go`
+- new `path:api/internal/operatingmode/run_strategy.go`
+- tests in `path:api/internal/operatingmode/*_test.go`
 
 Tasks:
 
@@ -405,15 +405,15 @@ Contract:
 
 Files:
 
-- `api/internal/initiatives/model.go`
-- `api/internal/initiatives/service.go`
-- `api/internal/initiatives/handler.go`
-- `api/internal/operatingmode/service.go`
-- `api/internal/operatingmode/handler.go`
-- `api/routes_operating_mode.go`
-- `ui/src/services/initiative-service.ts`
-- `ui/src/services/initiative-mode-service.ts`
-- `cli/cmd_initiatives_operating_mode.go`
+- `path:api/internal/initiatives/model.go`
+- `path:api/internal/initiatives/service.go`
+- `path:api/internal/initiatives/handler.go`
+- `path:api/internal/operatingmode/service.go`
+- `path:api/internal/operatingmode/handler.go`
+- `path:api/routes_operating_mode.go`
+- `path:ui/src/services/initiative-service.ts`
+- `path:ui/src/services/initiative-mode-service.ts`
+- `path:cli/cmd_initiatives_operating_mode.go`
 - docs and tests
 
 Tasks:
@@ -439,12 +439,12 @@ Contract:
 
 Files:
 
-- `api/routes_operating_mode.go`
-- `api/internal/operatingmode/service.go`
-- `api/internal/eventlog/types.go`
-- `api/internal/eventlog/emitter.go`
-- `api/internal/stats/engine.go`
-- `api/internal/backlog` event surfaces if needed
+- `path:api/routes_operating_mode.go`
+- `path:api/internal/operatingmode/service.go`
+- `path:api/internal/eventlog/types.go`
+- `path:api/internal/eventlog/emitter.go`
+- `path:api/internal/stats/engine.go`
+- `path:api/internal/backlog` event surfaces if needed
 - tests
 
 Tasks:
@@ -478,9 +478,9 @@ Contract:
 
 Files:
 
-- `api/internal/operatingmode/service.go`
-- `api/internal/promptcatalog/catalog.go`
-- `api/internal/promptcatalog/catalog_test.go`
+- `path:api/internal/operatingmode/service.go`
+- `path:api/internal/promptcatalog/catalog.go`
+- `path:api/internal/promptcatalog/catalog_test.go`
 - prompt-manager skill files
 - tests
 
@@ -504,9 +504,9 @@ Contract:
 
 Files:
 
-- `api/internal/agentmanager/service.go`
-- `api/internal/agentmanager/profile.go`
-- `api/internal/operatingmode/registry.go`
+- `path:api/internal/agentmanager/service.go`
+- `path:api/internal/agentmanager/profile.go`
+- `path:api/internal/operatingmode/registry.go`
 - server startup wiring
 - `.vrooli/agent-profiles/*.json`
 - tests
@@ -532,10 +532,10 @@ Contract:
 
 Files:
 
-- `api/internal/stats/engine.go`
-- `api/internal/stats/metrics.go`
-- `api/internal/stats/*_test.go`
-- `ui/src/surfaces/graph/components/StatsPanel.tsx`
+- `path:api/internal/stats/engine.go`
+- `path:api/internal/stats/metrics.go`
+- `path:api/internal/stats/*_test.go`
+- `path:ui/src/surfaces/graph/components/StatsPanel.tsx`
 
 Tasks:
 
@@ -557,8 +557,8 @@ Contract:
 
 Files:
 
-- `api/internal/operatingmode/service.go`
-- new files under `api/internal/operatingmode/`
+- `path:api/internal/operatingmode/service.go`
+- new files under `path:api/internal/operatingmode/`
 - tests
 
 Refactor target:
@@ -590,10 +590,10 @@ Contract:
 
 Files:
 
-- `ui/src/components/initiative/operating-mode-panel.tsx`
-- new components/hooks under `ui/src/components/initiative/operating-mode/`
-- `ui/src/services/initiative-mode-service.ts`
-- `ui/src/types/operating-mode.ts`
+- `path:ui/src/components/initiative/operating-mode-panel.tsx`
+- new components/hooks under `path:ui/src/components/initiative/operating-mode/`
+- `path:ui/src/services/initiative-mode-service.ts`
+- `path:ui/src/types/operating-mode.ts`
 - tests
 
 Refactor target:
@@ -631,13 +631,13 @@ Contract:
 
 Files:
 
-- `scenarios/swarm-manager/docs/internal/SEAMS.md`
-- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
-- `scenarios/swarm-manager/docs/reference/api-endpoints.md`
-- `scenarios/swarm-manager/docs/reference/cli-commands.md`
-- `scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
-- `scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
-- `scenarios/swarm-manager/docs/manifest.json`
+- `path:scenarios/swarm-manager/docs/internal/SEAMS.md`
+- `path:scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`
+- `path:scenarios/swarm-manager/docs/reference/api-endpoints.md`
+- `path:scenarios/swarm-manager/docs/reference/cli-commands.md`
+- `path:scenarios/swarm-manager/docs/guides/holistic-loop-mode.md`
+- `path:scenarios/swarm-manager/docs/guides/phased-plan-drain-mode.md`
+- `path:scenarios/swarm-manager/docs/manifest.json`
 
 Tasks:
 

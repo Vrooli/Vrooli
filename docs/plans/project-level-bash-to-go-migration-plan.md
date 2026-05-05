@@ -350,7 +350,7 @@ Strangler pattern. Each week delivered value standalone while the Bash fallback 
     - `runtime_darwin.go` — brew, stub sysctl
     - `runtime_windows.go` — mostly stubs with clear "unsupported" errors
 - [x] `path:internal/setup` package:
-  - Port `scripts/manage.sh setup` logic
+  - Port `path:scripts/manage.sh setup` logic
   - Delegates platform-specific bits to `path:internal/runtime`
 - [x] Migrate subcommands:
   - `vrooli setup`

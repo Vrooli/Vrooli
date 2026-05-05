@@ -15,15 +15,15 @@ implementation begins.
 
 ## Current Ground Truth
 
-- [`internal/runtime/runtime.go`](/home/matthalloran8/Vrooli/internal/runtime/runtime.go) still owns a fixed five-tool runtime model: `docker`, `go`, `node`, `python`, `helm`.
-- [`internal/setup/setup.go`](/home/matthalloran8/Vrooli/internal/setup/setup.go) still calls that runtime layer directly; there is no manifest-driven resolver yet.
-- Root [`.vrooli/service.json`](/home/matthalloran8/Vrooli/.vrooli/service.json) still shells out to `scripts/lib/setup.sh` via the `base-setup` lifecycle step.
-- [`internal/lifecycle/lifecycle.go`](/home/matthalloran8/Vrooli/internal/lifecycle/lifecycle.go) still falls back to `scripts/lib/setup-conditions/<type>-check.sh` for unknown setup condition types.
-- The shell-era setup layer still installs a broader host surface in the historical `scripts/lib/setup.sh` path, including `git`, `curl`, `jq`, `buf`, `sqlite`, `shellcheck`, `bats`, `lychee`, `ast-grep`, `js-yaml`, `ajv`, `tmux`, `yq`, `ffmpeg`, `Xvfb`, `xdotool`, `x11vnc`, `websockify`, and `openbox`.
+- [`path:internal/runtime/runtime.go`](/home/matthalloran8/Vrooli/internal/runtime/runtime.go) still owns a fixed five-tool runtime model: `docker`, `go`, `node`, `python`, `helm`.
+- [`path:internal/setup/setup.go`](/home/matthalloran8/Vrooli/internal/setup/setup.go) still calls that runtime layer directly; there is no manifest-driven resolver yet.
+- Root [`.vrooli/service.json`](/home/matthalloran8/Vrooli/.vrooli/service.json) still shells out to `path:scripts/lib/setup.sh` via the `base-setup` lifecycle step.
+- [`path:internal/lifecycle/lifecycle.go`](/home/matthalloran8/Vrooli/internal/lifecycle/lifecycle.go) still falls back to `path:scripts/lib/setup-conditions/<type>-check.sh` for unknown setup condition types.
+- The shell-era setup layer still installs a broader host surface in the historical `path:scripts/lib/setup.sh` path, including `git`, `curl`, `jq`, `buf`, `sqlite`, `shellcheck`, `bats`, `lychee`, `ast-grep`, `js-yaml`, `ajv`, `tmux`, `yq`, `ffmpeg`, `Xvfb`, `xdotool`, `x11vnc`, `websockify`, and `openbox`.
 - Shared shell helper debt is still live:
-  - `55` scenario package manifests/scripts reference `scripts/lib/ui-guard.sh`
-  - `64` scenario CLI installers reference `scripts/lib/utils/cli-install.sh`
-  - `8` shell setup-condition checkers still exist under `scripts/lib/setup-conditions/`
+  - `55` scenario package manifests/scripts reference `path:scripts/lib/ui-guard.sh`
+  - `64` scenario CLI installers reference `path:scripts/lib/utils/cli-install.sh`
+  - `8` shell setup-condition checkers still exist under `path:scripts/lib/setup-conditions/`
 
 ## Approved Ownership Rules
 
@@ -121,22 +121,22 @@ Approved status vocabulary:
 
 ## Approved Package Boundaries
 
-- `internal/hostreq`
+- `path:internal/hostreq`
   - manifest loading inputs
   - merge and dedupe
   - selector logic
   - provenance capture
   - host-facing classification inputs for runtime
-- `internal/runtime`
+- `path:internal/runtime`
   - planner/executor orchestration
   - shared result model
   - host and package-manager detection helpers
-- `internal/runtime/tools`
+- `path:internal/runtime/tools`
   - one implementation file per tool
-- `internal/runtime/safeguards`
+- `path:internal/runtime/safeguards`
   - one implementation file per safeguard
 
-`internal/runtime` should stop owning the canonical requirement list. That
+`path:internal/runtime` should stop owning the canonical requirement list. That
 belongs to declarations plus the resolver.
 
 ## Audit Table
@@ -145,20 +145,20 @@ This table is the Phase 0 source of truth for implementation ordering.
 
 | name | type | current path or assumption | current live consumers | proposed owner | proposed classification | native implementation needed | delete/replace/defer decision |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `docker` | tool | hardcoded in `internal/runtime`; shell-installed in `scripts/lib/setup.sh` | root setup; manifest-backed docker-service resources | root project | `core` | yes | keep and migrate first |
+| `docker` | tool | hardcoded in `path:internal/runtime`; shell-installed in `path:scripts/lib/setup.sh` | root setup; manifest-backed docker-service resources | root project | `core` | yes | keep and migrate first |
 | `git` | tool | shell-era common dependency; native setup already configures git | root bootstrap; repo hygiene | root project | `core` | yes | keep |
 | `curl` | tool | shell-era common dependency | shell resource/setup flows; network and download helpers | root project | `core` | yes | keep |
 | `jq` | tool | shell-era common dependency | shell manifest parsing across setup/resource helpers | root project | `core` | yes | keep |
-| `node` | tool | hardcoded in `internal/runtime`; shell-installed in `scripts/lib/setup.sh` | root JS/TS workspace; many scenario UIs and package scripts | root project | `core` for `development`; not core for `minimal` | yes | keep |
-| `go` | tool | hardcoded in `internal/runtime`; shell-installed in `scripts/lib/setup.sh` | native CLI/control-plane build and many Go scenarios | root project | `core` for `development`; not core for `minimal` | yes | keep |
-| `python` | tool | hardcoded in `internal/runtime`; shell-installed in `scripts/lib/setup.sh` | repo validation helpers and Python-based scenario/resource flows | root project | `core` for `development`; declared elsewhere if scenario-specific | yes | keep, but not global/minimal |
-| `helm` | tool | hardcoded in `internal/runtime`; shell-installed in `scripts/lib/setup.sh` | packaging/deployment flows only | root or scenario manifests | `declared tool` | yes | keep, remove from implicit core |
+| `node` | tool | hardcoded in `path:internal/runtime`; shell-installed in `path:scripts/lib/setup.sh` | root JS/TS workspace; many scenario UIs and package scripts | root project | `core` for `development`; not core for `minimal` | yes | keep |
+| `go` | tool | hardcoded in `path:internal/runtime`; shell-installed in `path:scripts/lib/setup.sh` | native CLI/control-plane build and many Go scenarios | root project | `core` for `development`; not core for `minimal` | yes | keep |
+| `python` | tool | hardcoded in `path:internal/runtime`; shell-installed in `path:scripts/lib/setup.sh` | repo validation helpers and Python-based scenario/resource flows | root project | `core` for `development`; declared elsewhere if scenario-specific | yes | keep, but not global/minimal |
+| `helm` | tool | hardcoded in `path:internal/runtime`; shell-installed in `path:scripts/lib/setup.sh` | packaging/deployment flows only | root or scenario manifests | `declared tool` | yes | keep, remove from implicit core |
 | `tmux` | tool | optional shell-era common dependency | operator workflows; active implementation work appears scenario-specific rather than repo-critical | scenario manifests or future profile | `declared tool` | later | defer from early migration |
-| `yq` | tool | optional shell-era common dependency; ad hoc binary installer exists | shell YAML utilities in `scripts/resources` and `scripts/lib/service` | scenario/resource manifests only if still needed | `declared tool` | later | defer; do not make core |
+| `yq` | tool | optional shell-era common dependency; ad hoc binary installer exists | shell YAML utilities in `path:scripts/resources` and `path:scripts/lib/service` | scenario/resource manifests only if still needed | `declared tool` | later | defer; do not make core |
 | `stripe` | tool | not part of native runtime; appears as scenario/business tooling | payment and webhook-oriented scenarios | scenario manifests | `declared tool` | yes | keep and declare for landing-page scenarios/templates |
 | `vault` | tool | not in native runtime; root also has a `vault` resource | host Vault CLI usage is retired in favor of `resource-vault` | none | `delete` | no | permanently retire host `vault` ownership |
-| `buf` | tool | shell-installed via `scripts/lib/tools/buf.sh` | protobuf/codegen owners | root or scenario manifests | `declared tool` | yes | keep, but not default core |
-| `sqlite` | tool | shell-installed via `scripts/lib/runtimes/sqlite.sh` | sqlite-using resources/tests and external-cli resource flows | resource/scenario manifests | `declared tool` | yes | keep as explicit non-core tool |
+| `buf` | tool | shell-installed via `path:scripts/lib/tools/buf.sh` | protobuf/codegen owners | root or scenario manifests | `declared tool` | yes | keep, but not default core |
+| `sqlite` | tool | shell-installed via `path:scripts/lib/runtimes/sqlite.sh` | sqlite-using resources/tests and external-cli resource flows | resource/scenario manifests | `declared tool` | yes | keep as explicit non-core tool |
 | `shellcheck` | tool | shell-installed dev dependency | shell lint/test workflows | root dev/test profile or scenario manifests | `declared tool` | yes | keep as non-core dev tooling |
 | `bats` | tool | shell-installed dev dependency | shell scenario/resource tests | root dev/test profile or scenario manifests | `declared tool` | yes | keep as non-core dev tooling |
 | `lychee` | tool | shell-installed dev dependency | docs validation workflows | root dev/test profile | `declared tool` | yes | keep as non-core dev tooling |
@@ -179,10 +179,10 @@ These are live migration targets but not host requirements themselves.
 
 | surface | current live evidence | phase interpretation | owner after redesign |
 | --- | --- | --- | --- |
-| `scripts/lib/setup.sh` | root `base-setup` still invokes it | legacy compatibility path to delete in Phase 6 | none |
-| `scripts/lib/setup-conditions/*` | `internal/lifecycle` still shells out to them for unknown checks | native lifecycle debt to replace | lifecycle package |
-| `scripts/lib/ui-guard.sh` | `55` scenario references | shared scenario helper debt, not host requirement | Phase 7 redesign target |
-| `scripts/lib/utils/cli-install.sh` | `64` scenario references | shared installer helper debt, not host requirement | Phase 7 redesign target |
+| `path:scripts/lib/setup.sh` | root `base-setup` still invokes it | legacy compatibility path to delete in Phase 6 | none |
+| `path:scripts/lib/setup-conditions/*` | `path:internal/lifecycle` still shells out to them for unknown checks | native lifecycle debt to replace | lifecycle package |
+| `path:scripts/lib/ui-guard.sh` | `55` scenario references | shared scenario helper debt, not host requirement | Phase 7 redesign target |
+| `path:scripts/lib/utils/cli-install.sh` | `64` scenario references | shared installer helper debt, not host requirement | Phase 7 redesign target |
 
 ## Resolved Phase 0 Decisions
 

@@ -75,9 +75,9 @@ At the end of this plan, scenario Go CLIs should converge on this standard:
 
 - domain packages are the default shape
 - top-level CLI package contains only bootstrap and aggregation
-- domain registrations are aggregated from `cli/domains/domains.go`
+- domain registrations are aggregated from `path:cli/domains/domains.go`
 - command-rich scenarios prefer `SubcommandGroup`
-- CLI-only helper code lives under `cli/internal/...`
+- CLI-only helper code lives under `path:cli/internal/...`
 
 Target structure:
 
@@ -242,7 +242,7 @@ The repo is no longer at the untouched-starting-point described above. Current p
     - already-domainized CLIs now use `NewStandardScenarioApp(...)` where appropriate without preserving legacy top-level alias surfaces
     - built-in `status` / `configure` replace scenario-local health/config plumbing when no richer diagnostic surface is justified
     - richer custom `status` surfaces, such as `browser-automation-studio`, now render through `RenderOperationalReport(...)` instead of ad hoc headings
-    - command registration is aggregated from `cli/domains/...` so the app bootstrap matches the template standard even when domain implementations remain command-rich
+    - command registration is aggregated from `path:cli/domains/...` so the app bootstrap matches the template standard even when domain implementations remain command-rich
     - greenfield migration means legacy alias entrypoints are removed and tests are updated to assert the canonical command surface instead
 - Phase 6 is complete:
   - completed target batch:
@@ -269,13 +269,13 @@ The repo is no longer at the untouched-starting-point described above. Current p
     - remaining work is now validation/audit, not bootstrap migration
 - Phase 8 is complete:
   - repo-wide CLI `go test ./...` audit passed for:
-    - `packages/cli-core`
+    - `path:packages/cli-core`
     - every `go_module` scenario CLI (`28/28`)
   - stale example cleanup completed:
     - `cli-steer` now demonstrates `NewStandardScenarioApp(...)` for the canonical stale-detection/bootstrap snippet
   - structural audit completed:
-    - `0` `NewScenarioApp(...)` references remain under `scenarios/*/cli`, including tests
-    - `0` production `apiPath(...)`, `getV1(...)`, or `requestV1(...)` references remain under `scenarios/*/cli`
+    - `0` `NewScenarioApp(...)` references remain under `path:scenarios/*/cli`, including tests
+    - `0` production `apiPath(...)`, `getV1(...)`, or `requestV1(...)` references remain under `path:scenarios/*/cli`
     - docs/templates/skills continue to describe domain packages as the greenfield default rather than flat `cmd_<domain>.go`
   - remaining non-CLI validation caveats:
     - broader scenario-level `vrooli scenario test ...` coverage is still partially blocked by pre-existing non-CLI runtime issues such as:
@@ -331,7 +331,7 @@ Tasks:
    - `app.go`
    - `domains/domains.go`
    - `domains/<domain>/...`
-   - `internal/...` as needed
+   - `path:internal/...` as needed
 
 3. Confirm CLI steer and template README language reject old shapes as defaults.
 
@@ -369,7 +369,7 @@ Tasks:
 
 4. Ensure built-in status remains stable and human-first.
 
-5. Document all relevant helpers in `packages/cli-core/README.md`.
+5. Document all relevant helpers in `path:packages/cli-core/README.md`.
 
 Acceptance criteria:
 

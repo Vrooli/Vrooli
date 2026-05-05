@@ -59,7 +59,7 @@ This skill ensures scenarios work across **all tiers** by eliminating tier-speci
 **In scope:**
 - Environment variable usage patterns (fallbacks, detection flags)
 - Resource dependency analysis and swap recommendations
-- Filesystem runtime storage portability via `api-core/storage`
+- Filesystem runtime storage portability via `package:api-core/storage`
 - Build configuration (CGO, static binaries, cross-compilation)
 - Network/IPC patterns (localhost variants, port allocation)
 - Data storage portability (postgres→sqlite swaps)
@@ -129,7 +129,7 @@ func getConfig() string {
 // Crashes in desktop mode: VROOLI_ROOT is empty
 ```
 
-When code genuinely needs canonical monorepo layout semantics in a Go runtime, use repo-contract-backed helpers instead of joining `VROOLI_ROOT` with `scenarios/...` manually. The canonical Go adapter is `packages/repo-contract-go`.
+When code genuinely needs canonical monorepo layout semantics in a Go runtime, use repo-contract-backed helpers instead of joining `VROOLI_ROOT` with `scenarios/...` manually. The canonical Go adapter is `path:packages/repo-contract-go`.
 
 #### 2.3 Decision Tree: Environment Variable Usage
 
@@ -227,7 +227,7 @@ func getSQLitePath() string {
 
 Use `modernc.org/sqlite` with the `sqlite` driver name for embedded scenario storage. For scenario runtime architecture, prefer embedded SQLite in the scenario rather than a standalone SQLite resource.
 
-Once the engine is chosen, `storage-steer` covers the architecture: schema lives next to the code that interprets it (`internal/<dom>/schema.sql` embedded via `go:embed`, applied at boot via `database.EnsureSchemas` from `packages/api-core/database`), repository interfaces hide the engine, and the same per-domain rule applies to Qdrant collections and Redis namespaces.
+Once the engine is chosen, `storage-steer` covers the architecture: schema lives next to the code that interprets it (`internal/<dom>/schema.sql` embedded via `go:embed`, applied at boot via `database.EnsureSchemas` from `path:packages/api-core/database`), repository interfaces hide the engine, and the same per-domain rule applies to Qdrant collections and Redis namespaces.
 
 #### 3.3 Full Replacement vs Runtime Swap
 
@@ -401,7 +401,7 @@ return storage.WriteFileAtomic(path, payload, storage.DefaultFilePerm)
 
 - Hardcoded absolute paths (`$HOME/...`, `os.TempDir()/...`, `C:\\...`)
 - Scenario-local mutable writes (`./data`, `./state`) under app/deploy targets
-- Hand-rolled `DATA_DIR` resolution or custom traversal checks when `api-core/storage` is available
+- Hand-rolled `DATA_DIR` resolution or custom traversal checks when `package:api-core/storage` is available
 
 #### 4.4 Tracked Source Assets
 
@@ -412,7 +412,7 @@ If a file is edited through a UI or tool but the intended result is a shared, re
 - `config/`
 - `policy/`
 
-Use `api-core/storage` only for local runtime state, not for versioned source artifacts.
+Use `package:api-core/storage` only for local runtime state, not for versioned source artifacts.
 
 Reserve `.vrooli/` for repo or manifest metadata rather than as a generic bucket for checked-in configuration.
 
@@ -605,7 +605,7 @@ cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
 - [ ] `CGO_ENABLED=0 go build` fails
 
 **Filesystem & Paths:**
-- [ ] Runtime filesystem writes bypass `api-core/storage`
+- [ ] Runtime filesystem writes bypass `package:api-core/storage`
 - [ ] Mutable files stored under scenario deploy/app directories
 - [ ] Custom `DATA_DIR` policy used instead of shared storage resolver
 
@@ -699,7 +699,7 @@ Update `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md`:
 - Correct any inaccuracies discovered.
 - Update tier compatibility status based on work completed.
 - Note resource swaps implemented or still needed.
-- Create the `docs/internal/` directory if needed.
+- Create the `path:docs/internal/` directory if needed.
 
 ---
 
@@ -711,7 +711,7 @@ You may update in `scenarios/{{TARGET}}/`:
 - Swap database drivers (postgres→sqlite with modernc.org driver)
 - Add resource abstraction interfaces for swappable backends
 - Update service.json with `offline_capable` flag and limitations
-- Adopt `api-core/storage` for runtime filesystem paths
+- Adopt `package:api-core/storage` for runtime filesystem paths
 - Update CORS to accept both localhost variants
 - Update Makefile/build scripts for static builds
 
@@ -719,7 +719,7 @@ You must:
 - Preserve all Tier 1 (local stack) functionality
 - Use `modernc.org/sqlite` for SQLite (not `go-sqlite3`)
 - Ensure `CGO_ENABLED=0 go build` works after changes
-- Route mutable runtime filesystem state through `api-core/storage`
+- Route mutable runtime filesystem state through `package:api-core/storage`
 - Document resource swap limitations in manifest
 - Update `PORTABILITY_AUDIT.md` with changes made
 

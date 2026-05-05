@@ -91,7 +91,7 @@ Prompt-manager's heartbeat scheduler configures `RequiresSandbox: false, Require
 
 Exact file:line anchors for the edit targets. Line numbers are against the `agi` branch as of 2026-04-24; executing agent should re-grep to confirm before editing.
 
-### Agent-manager (`scenarios/agent-manager/api/internal/`)
+### Agent-manager (`path:scenarios/agent-manager/api/internal/`)
 
 | Concern | Path | Line | Current behavior |
 |---|---|---|---|
@@ -106,7 +106,7 @@ Exact file:line anchors for the edit targets. Line numbers are against the `agi`
 | Profile resolution | `orchestration/service.go` | 746-811 | `EnsureProfile` ignores `Defaults` when row exists and `UpdateExisting=false` |
 | Run-event logger | `orchestration/run_executor.go` | 1494-1505 | `emitSystemEvent`; used to add missing warn event |
 
-### Workspace-sandbox (`scenarios/workspace-sandbox/api/internal/`)
+### Workspace-sandbox (`path:scenarios/workspace-sandbox/api/internal/`)
 
 | Concern | Path | Line | Current behavior |
 |---|---|---|---|
@@ -114,7 +114,7 @@ Exact file:line anchors for the edit targets. Line numbers are against the `agi`
 | Diff builder | `diff/diff.go` | 209-217 | Populates the above totals |
 | Diff handler | `handlers/diff.go` | 18-85 | Passes result straight through `JSONSuccess` |
 
-### Swarm-manager (`scenarios/swarm-manager/api/internal/agentmanager/`)
+### Swarm-manager (`path:scenarios/swarm-manager/api/internal/agentmanager/`)
 
 | Concern | Path | Line | Current behavior |
 |---|---|---|---|
@@ -217,10 +217,10 @@ Phased by component to avoid large simultaneous blast radius. Each phase builds 
 
 Dependencies: none. Do this first so Phase 2's tests can trust `FilesChanged`.
 
-1. In `scenarios/workspace-sandbox/api/internal/types/types.go`, change `DiffResult` to carry a `Stats` field (match the agent-manager `wsDiffStats` shape). Delete `TotalAdded`, `TotalDeleted`, `TotalModified`.
-2. In `scenarios/workspace-sandbox/api/internal/diff/diff.go:209-217`, populate `Stats` from the existing `added/deleted/modified` counters plus `LinesAdded/LinesRemoved` (sum from per-file diffs) and a `TotalBytes` sum.
+1. In `path:scenarios/workspace-sandbox/api/internal/types/types.go`, change `DiffResult` to carry a `Stats` field (match the agent-manager `wsDiffStats` shape). Delete `TotalAdded`, `TotalDeleted`, `TotalModified`.
+2. In `path:scenarios/workspace-sandbox/api/internal/diff/diff.go:209-217`, populate `Stats` from the existing `added/deleted/modified` counters plus `LinesAdded/LinesRemoved` (sum from per-file diffs) and a `TotalBytes` sum.
 3. `grep -rn 'TotalAdded\|TotalDeleted\|TotalModified' scenarios/workspace-sandbox/` and update every internal reader. Delete unused code.
-4. In `scenarios/agent-manager/api/internal/adapters/sandbox/workspace_sandbox_test.go:136-191`, replace the hand-rolled mock server with a contract test that either (a) spins up the real workspace-sandbox binary via testcontainers or (b) reuses a shared fixture file that both server tests and client tests load from. Option (a) is preferred per `seam-discovery-and-enforcement`.
+4. In `path:scenarios/agent-manager/api/internal/adapters/sandbox/workspace_sandbox_test.go:136-191`, replace the hand-rolled mock server with a contract test that either (a) spins up the real workspace-sandbox binary via testcontainers or (b) reuses a shared fixture file that both server tests and client tests load from. Option (a) is preferred per `seam-discovery-and-enforcement`.
 5. Build both scenarios: `cd scenarios/workspace-sandbox/api && go build ./... && go test ./...`, same for agent-manager.
 6. `vrooli scenario restart workspace-sandbox && vrooli scenario restart agent-manager`.
 7. Verify: `curl -s http://localhost:15120/api/v1/sandboxes/<any>/diff | jq '.stats.filesChanged'` returns a number.
@@ -229,14 +229,14 @@ Dependencies: none. Do this first so Phase 2's tests can trust `FilesChanged`.
 
 Dependencies: Phase 1 (tests rely on correct `FilesChanged`).
 
-1. In `scenarios/agent-manager/api/internal/orchestration/service.go`:
+1. In `path:scenarios/agent-manager/api/internal/orchestration/service.go`:
    - Delete the `DefaultSandboxConfig *domain.SandboxConfig` field (line 495) and every reader. `grep -rn DefaultSandboxConfig scenarios/agent-manager/` should return no hits after this step.
    - In `resolveSandboxConfig` (line 1444): if after the three cascading assignments `cfg == nil` and the run is sandboxed, allocate `cfg = &domain.SandboxConfig{}`. Then run `normalizeSandboxConfig` as today. The returned value is always non-nil for sandboxed runs.
    - Caller at line 1022 should not need to change; both branches now return non-nil.
-2. In `scenarios/agent-manager/api/internal/orchestration/run_executor.go`:
+2. In `path:scenarios/agent-manager/api/internal/orchestration/run_executor.go`:
    - `tryAutoApproval` (line 1593): keep the `if cfg == nil` guard but emit a warn event with the text in Section 8.5 before returning false. In production this should never fire.
    - `autoApproveIfEmpty` (line 1664): when `FilesChanged > 0`, emit an info event `fmt.Sprintf("auto-approval skipped: %d files changed — review required", diff.Stats.FilesChanged)` before returning false.
-3. In `scenarios/agent-manager/api/internal/orchestration/investigation.go:434-435`: the read of `o.config.DefaultSandboxConfig` disappears with the field. Replace with a local `domain.SandboxConfig{}` literal if that function needs a config, or delete if it doesn't.
+3. In `path:scenarios/agent-manager/api/internal/orchestration/investigation.go:434-435`: the read of `o.config.DefaultSandboxConfig` disappears with the field. Replace with a local `domain.SandboxConfig{}` literal if that function needs a config, or delete if it doesn't.
 4. Unit tests:
    - New table-driven test for `handleSuccessfulCompletion` covering (InPlace), (Sandboxed + RequiresApproval=false), (Sandboxed + empty diff + auto-approve success), (Sandboxed + non-empty diff → NEEDS_REVIEW + info event emitted), (Sandboxed + GetDiff error → NEEDS_REVIEW + warn event), (Sandboxed + Approve error → NEEDS_REVIEW + warn event).
    - Assertion for the previously-silent path: emit a warn event when SandboxConfig is nil in a sandboxed run.
@@ -247,11 +247,11 @@ Dependencies: Phase 1 (tests rely on correct `FilesChanged`).
 
 Dependencies: Phases 1 and 2 (tests assume diff-parity and live auto-approval).
 
-1. In `scenarios/swarm-manager/api/internal/agentmanager/profile.go:53-72`, change `DefaultProfileConfig`:
+1. In `path:scenarios/swarm-manager/api/internal/agentmanager/profile.go:53-72`, change `DefaultProfileConfig`:
    - `RequiresSandbox: true` (align to decision 8.1).
    - `RequiresApproval: true` (unchanged).
-2. In the same file at `defaultProfileRef` (line 119), change the returned `apipb.ProfileRef` to include `UpdateExisting: true`. If the field does not exist on `ProfileRef`, add it to the proto at `packages/proto/schemas/agent-manager/v1/api/` (follow `interoperability-steer` §4–§5 for proto workflow, then `make generate`).
-3. `scenarios/agent-manager/api/internal/orchestration/service.go:759-761` (EnsureProfile): already honors `UpdateExisting`; just make sure `req.UpdateExisting` flows from the proto through `EnsureProfileRequest`. Grep to confirm.
+2. In the same file at `defaultProfileRef` (line 119), change the returned `apipb.ProfileRef` to include `UpdateExisting: true`. If the field does not exist on `ProfileRef`, add it to the proto at `path:packages/proto/schemas/agent-manager/v1/api/` (follow `interoperability-steer` §4–§5 for proto workflow, then `make generate`).
+3. `path:scenarios/agent-manager/api/internal/orchestration/service.go:759-761` (EnsureProfile): already honors `UpdateExisting`; just make sure `req.UpdateExisting` flows from the proto through `EnsureProfileRequest`. Grep to confirm.
 4. Unit test: new test asserting that `SpawnBacklog` with a pre-existing DB profile and updated code-side defaults results in the DB row being updated to match the code values on the next call.
 5. Build + test both scenarios.
 6. Restart both: `vrooli scenario restart agent-manager && vrooli scenario restart swarm-manager`.
@@ -263,7 +263,7 @@ Dependencies: Phases 1–3 in production, verified by at least one fresh SwarmMa
 
 1. Enumerate currently-stuck runs: `agent-manager run list --status needs_review --limit 500 --json` → filter to tag prefix `swarm-manager:` → for each, fetch the sandbox diff and confirm it is empty.
 2. For empty-diff runs: use the existing `agent-manager` CLI to approve or mark complete. Prefer `agent-manager run approve <id>` (verify the CLI has this; if not, add it as a thin wrapper over the HTTP approve endpoint — do not script raw `curl` per memory `feedback_skills_use_cli_never_api`).
-3. Keep a short script at `scripts/approve-empty-swarm-runs.sh` for auditability; remove after the backlog is drained.
+3. Keep a short script at `path:scripts/approve-empty-swarm-runs.sh` for auditability; remove after the backlog is drained.
 4. Spot-check the Runs tab in the SwarmManager UI; no empty runs should show the clock icon.
 
 ### Phase 5 — Final cleanup & verification
@@ -286,15 +286,15 @@ Per user memory `feedback_testing_over_manual`, favor automated tests over manua
 
 ### 10.1 Unit tests (Go)
 
-- `scenarios/workspace-sandbox/api/internal/diff/diff_test.go`: extend existing tests to assert the new `Stats.FilesChanged/FilesAdded/FilesModified/FilesDeleted` values against canned upper/lower-dir fixtures covering add, modify, delete, and no-change scenarios.
-- `scenarios/agent-manager/api/internal/orchestration/run_executor_test.go`: table-driven test for `handleSuccessfulCompletion`/`tryAutoApproval` across the six cases in Phase 2 step 4. Assert both terminal state *and* emitted events (use an in-memory event sink).
-- `scenarios/agent-manager/api/internal/orchestration/service_test.go`: new test for `resolveSandboxConfig` confirming it returns a non-nil, normalized config with `Acceptance.Mode="allowlist"` when all inputs are nil.
-- `scenarios/agent-manager/api/internal/orchestration/service_test.go`: new test for `EnsureProfile` covering `UpdateExisting: true` updating an existing row, `UpdateExisting: false` ignoring defaults.
-- `scenarios/swarm-manager/api/internal/agentmanager/service_test.go`: new test asserting `defaultProfileRef()` returns a `ProfileRef` with `UpdateExisting=true` and the profile defaults matching `DefaultProfileConfig()`.
+- `path:scenarios/workspace-sandbox/api/internal/diff/diff_test.go`: extend existing tests to assert the new `Stats.FilesChanged/FilesAdded/FilesModified/FilesDeleted` values against canned upper/lower-dir fixtures covering add, modify, delete, and no-change scenarios.
+- `path:scenarios/agent-manager/api/internal/orchestration/run_executor_test.go`: table-driven test for `handleSuccessfulCompletion`/`tryAutoApproval` across the six cases in Phase 2 step 4. Assert both terminal state *and* emitted events (use an in-memory event sink).
+- `path:scenarios/agent-manager/api/internal/orchestration/service_test.go`: new test for `resolveSandboxConfig` confirming it returns a non-nil, normalized config with `Acceptance.Mode="allowlist"` when all inputs are nil.
+- `path:scenarios/agent-manager/api/internal/orchestration/service_test.go`: new test for `EnsureProfile` covering `UpdateExisting: true` updating an existing row, `UpdateExisting: false` ignoring defaults.
+- `path:scenarios/swarm-manager/api/internal/agentmanager/service_test.go`: new test asserting `defaultProfileRef()` returns a `ProfileRef` with `UpdateExisting=true` and the profile defaults matching `DefaultProfileConfig()`.
 
 ### 10.2 Contract test (agent-manager ↔ workspace-sandbox)
 
-Replace the fake-server unit test at `scenarios/agent-manager/api/internal/adapters/sandbox/workspace_sandbox_test.go:136-191` with a real-binary contract test. Pattern:
+Replace the fake-server unit test at `path:scenarios/agent-manager/api/internal/adapters/sandbox/workspace_sandbox_test.go:136-191` with a real-binary contract test. Pattern:
 - Start the workspace-sandbox binary via `testcontainers-go` (or reuse an existing scenario-integration pattern if one already exists — grep before adding a new dependency).
 - Create a sandbox, write known files into the upper dir, call `GET /diff` via the real adapter, assert that every field in `DiffResult.Stats` matches expectations.
 - Also assert the empty-sandbox case: creating a sandbox and immediately calling diff yields `FilesChanged=0` and `len(Files)=0`.
@@ -336,7 +336,7 @@ In order. Check each before moving on.
 |---|---|---|---|
 | Phase 1 breaks another consumer of `totalAdded/totalDeleted/totalModified` that grep missed | Medium | Medium — breaks the UI diff view or a CLI | Grep the whole monorepo (not just workspace-sandbox) for those three field names before deleting. Touch UIs or other Go consumers in the same PR. |
 | `EnsureProfile` with `UpdateExisting: true` clobbers a profile an admin hand-edited via the UI | Low | Medium — admin tweaks get reverted on next dispatch | Document the semantic change in the PR body. If admins need to edit this profile, they should edit the code defaults, not the DB row. Alternative: `UpdateExisting: true` only overlays fields declared in `Defaults`, leaves others alone — confirm this during implementation. |
-| Flipping SwarmManager to `RequiresSandbox: true` changes the execution surface for existing backlog items | High | Low — agents will now run in a sandbox whose scope is `scenarios/agent-manager/api`, which may be wrong for some tasks | Section 8.1 matches the current DB state, which is what production has been doing for weeks — this is a code-catches-up-to-prod change, not a behavioral change. Verify by running a representative set of existing skills in a test environment. |
+| Flipping SwarmManager to `RequiresSandbox: true` changes the execution surface for existing backlog items | High | Low — agents will now run in a sandbox whose scope is `path:scenarios/agent-manager/api`, which may be wrong for some tasks | Section 8.1 matches the current DB state, which is what production has been doing for weeks — this is a code-catches-up-to-prod change, not a behavioral change. Verify by running a representative set of existing skills in a test environment. |
 | Contract test (10.2) requires a binary build at test time — slows CI | Medium | Low — longer feedback loop | Build once per CI job, cache between tests. If too slow, shrink to a "shape parity" assertion that decodes a captured real response against the client struct and asserts no zero-valued fields that should be populated. |
 | Phase 4 bulk approve accidentally approves runs that *do* have diffs (script bug) | Low | High — unreviewed changes applied to canonical repo | The script must filter by `files == []` from the live diff endpoint, not just by run status. Dry-run mode first; human-visible confirmation on count before mutation. Better: use the agent-manager `run approve` CLI which already invokes the sandbox Approve endpoint — it will only approve what's in the sandbox. |
 | Event-log emission for non-empty sandboxes spams long-running runs | Very low | Very low — one extra log line per run | Non-concern; it's one line per terminal decision per run. |

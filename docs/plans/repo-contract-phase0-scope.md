@@ -46,7 +46,7 @@ Higher-authority sources for this classification:
 
 | Assumption | Classification | Why |
 |---|---|---|
-| Repo root contains `go.mod` | `canonical` | Current Go-native project root marker and used by `internal/buildinfo` source-root discovery. |
+| Repo root contains `go.mod` | `canonical` | Current Go-native project root marker and used by `path:internal/buildinfo` source-root discovery. |
 | Repo root contains `.vrooli/`, `cmd/`, `internal/`, `packages/`, `scenarios/`, `resources/` | `canonical` | Matches the future-state project layout described in the migration plans. |
 | `VROOLI_SOURCE_ROOT` identifies the source checkout root | `canonical` | Already part of project-level root resolution and stale-check behavior. |
 | `VROOLI_ROOT` identifies the effective runtime repo root | `canonical` | Already exported by the Go CLI and consumed by shared/runtime code. |
@@ -73,8 +73,8 @@ Higher-authority sources for this classification:
 
 | Assumption | Classification | Why |
 |---|---|---|
-| Scenario root is `scenarios/<name>` | `canonical` | Shared assumption across the repo and already implemented in `internal/scenario`. |
-| Scenario existence is determined by `scenarios/<name>/.vrooli/service.json` | `canonical` | This is the current discovery rule in the Go-native `internal/scenario` package. |
+| Scenario root is `path:scenarios/<name>` | `canonical` | Shared assumption across the repo and already implemented in `path:internal/scenario`. |
+| Scenario existence is determined by `path:scenarios/<name>/.vrooli/service.json` | `canonical` | This is the current discovery rule in the Go-native `path:internal/scenario` package. |
 | `.vrooli/service.json` is the canonical shared scenario manifest path | `canonical` | Used across the platform and already part of shared logic. |
 | `api`, `ui`, `cli`, `docs`, `requirements`, `initialization` are well-known scenario subpaths | `canonical` | These are cross-scenario conventions already referenced by repo-aware tooling. |
 | `.vrooli/metadata.json` is a universally shared scenario file | `private` | Some scenarios use it, but it is not yet a stable repo-wide invariant. |
@@ -85,8 +85,8 @@ Higher-authority sources for this classification:
 
 | Assumption | Classification | Why |
 |---|---|---|
-| Resource root is `resources/<name>` | `canonical` | Stable future-state root for active resources. |
-| Resource manifest path is `resources/<name>/resource.json` | `canonical` | This is the current live manifest location for implemented resources. |
+| Resource root is `path:resources/<name>` | `canonical` | Stable future-state root for active resources. |
+| Resource manifest path is `path:resources/<name>/resource.json` | `canonical` | This is the current live manifest location for implemented resources. |
 | Resource `docs/` and `initialization/` are well-known subpaths where present | `canonical` | Stable enough to carry as low-risk optional well-known paths. |
 | `.vrooli/resource.json` is the resource manifest path | `legacy` | Proposed in the draft shape, but not reflected by current live resources. |
 | Resource shell entrypoints such as `cli.sh`, `config/defaults.sh`, `lib/*.sh` | `legacy` | Transitional implementation details covered by the resource migration plan, not future-state contract. |
@@ -99,7 +99,7 @@ Higher-authority sources for this classification:
 | `VROOLI_SANDBOX_MERGED` | `canonical` | Shared overlay mount root for sandbox-aware path resolution. |
 | `VROOLI_SANDBOX_SCOPE` | `canonical` | Shared sandbox scope contract already duplicated in multiple Go packages. |
 | Full-repo sandbox scope is `""`, `"."`, or `"/"` | `canonical` | Shared semantic already encoded in current sandbox logic. |
-| Scenario scope semantics rooted under `scenarios/<name>` | `canonical` | Shared sandbox meaning already present in `internal/scenario` and `cli-core`. |
+| Scenario scope semantics rooted under `path:scenarios/<name>` | `canonical` | Shared sandbox meaning already present in `path:internal/scenario` and `cli-core`. |
 | `APP_ROOT` as a fallback repo-root contract variable | `legacy` | Seen in some scenario code, but not part of the future-state cross-platform platform contract. |
 
 ### Glob Semantics
@@ -124,7 +124,7 @@ Higher-authority sources for this classification:
 
 ### Findings That Should Shape Phase 1
 
-- The initial draft shape should be corrected so resource manifests live at `resources/<name>/resource.json`, not `.vrooli/resource.json`.
+- The initial draft shape should be corrected so resource manifests live at `path:resources/<name>/resource.json`, not `.vrooli/resource.json`.
 - The contract should distinguish `VROOLI_SOURCE_ROOT` and `VROOLI_ROOT`; they are both shared env vars, but they serve different roles.
 - `.vrooli/metadata.json` should be treated as optional or deferred until there is clearer repo-wide adoption.
 - Root detection in the future adapter must be stricter than current ad hoc fallbacks. Phase 1 should prefer future-state structural markers over generic workspace heuristics.

@@ -1,7 +1,7 @@
 # Desktop Bundle Health/Readiness Alignment Plan
 
 ## Context
-- `vrooli scenario status <scenario>` uses standard health endpoints at `http://localhost:${UI_PORT}/health` and `http://localhost:${API_PORT}/health` and validates schema compliance (see the native status implementation under `internal/cli/scenariohandlers/`).
+- `vrooli scenario status <scenario>` uses standard health endpoints at `http://localhost:${UI_PORT}/health` and `http://localhost:${API_PORT}/health` and validates schema compliance (see the native status implementation under `path:internal/cli/scenariohandlers/`).
 - Desktop bundle preflight readiness is driven by the bundle manifest and the runtime readiness checker, but:
   - API readiness in the generated manifest currently uses `port_open` even though `/health` is available.
   - UI manifest health path is currently `/`, not `/health`.
@@ -14,7 +14,7 @@
 - Health timing values: **Keep existing defaults**.
 - Runtime scope: **Apply to all UI bundles** (no opt-in metadata).
 - Tests: **Add unit tests + runtime test** for ui-bundle readiness behavior.
-- Plan file location: **`docs/plans/`**.
+- Plan file location: **`path:docs/plans/`**.
 
 ## Goals
 - Preflight readiness uses the same health endpoints and semantics as `vrooli scenario status`.
@@ -28,18 +28,18 @@
 - Introduce new service types or metadata flags for health behavior.
 
 ## Files to Change
-- `scenarios/scenario-dependency-analyzer/api/internal/deployment/manifest.go`
+- `path:scenarios/scenario-dependency-analyzer/api/internal/deployment/manifest.go`
   - API readiness: change `readiness.type` to `health_success`.
   - UI health path: change from `/` to `/health`.
   - UI readiness remains `health_success`.
-- `scenarios/scenario-to-desktop/runtime/service_launcher.go`
+- `path:scenarios/scenario-to-desktop/runtime/service_launcher.go`
   - `ui-bundle` startup should run the health checker loop (same readiness mechanism as other services).
   - Ready state should only be set after health_success check passes.
-- `scenarios/scenario-to-desktop/runtime/health/checker.go`
+- `path:scenarios/scenario-to-desktop/runtime/health/checker.go`
   - Ensure UI log path usage and check semantics remain correct for ui-bundle; no schema changes.
 - Tests:
-  - `scenarios/scenario-dependency-analyzer/api/internal/app/deployment_manifest_test.go` (or related manifest tests)
-  - `scenarios/scenario-to-desktop/runtime/service_launcher_test.go` (or runtime readiness tests)
+  - `path:scenarios/scenario-dependency-analyzer/api/internal/app/deployment_manifest_test.go` (or related manifest tests)
+  - `path:scenarios/scenario-to-desktop/runtime/service_launcher_test.go` (or runtime readiness tests)
 
 ## Implementation Steps
 1) Manifest generation (scenario-dependency-analyzer)

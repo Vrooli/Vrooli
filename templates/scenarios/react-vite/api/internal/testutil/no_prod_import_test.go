@@ -44,6 +44,9 @@ func TestNoProductionImports(t *testing.T) {
 		if strings.Contains(rel, "/vendor/") {
 			return
 		}
+		if isInMocksDir(rel) {
+			return
+		}
 
 		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
 		if err != nil {
@@ -110,4 +113,23 @@ func walk(t *testing.T, root string, fn func(path string)) {
 		}
 		fn(full)
 	}
+}
+
+// isInMocksDir reports whether path lives inside a `mocks/` directory.
+// Per-domain mocks/ folders hold test-only fakes that must lack the
+// _test.go suffix (so sibling _test.go files in other packages can
+// import them), but they're never linked into production binaries:
+// production code never imports `<dom>/mocks`, and the
+// TestNoProductionImports walker catches any production file that
+// reaches for testutil directly. mocks files themselves are exempt
+// from the testutil-import rule because they ARE test scaffolding,
+// just sharing-shape rather than _test.go-shape.
+func isInMocksDir(rel string) bool {
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	for _, p := range parts[:len(parts)-1] {
+		if p == "mocks" {
+			return true
+		}
+	}
+	return false
 }
