@@ -14,6 +14,9 @@ import (
 	"github.com/vrooli/api-core/blobstore"
 	apidb "github.com/vrooli/api-core/database"
 
+	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
+
 	"{{SCENARIO_ID}}/handlers/notes"
 	"{{SCENARIO_ID}}/internal/clock"
 	localdb "{{SCENARIO_ID}}/internal/database"
@@ -59,7 +62,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "list_empty",
 			method:       http.MethodPost,
-			path:         "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List",
+			path:         notesconnect.NotesListProcedure,
 			body:         `{}`,
 			wantStatus:   http.StatusOK,
 			wantContains: `{`,
@@ -67,7 +70,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "create_happy",
 			method:       http.MethodPost,
-			path:         "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create",
+			path:         notesconnect.NotesCreateProcedure,
 			body:         `{"title":"first","body":"hello"}`,
 			wantStatus:   http.StatusOK,
 			wantContains: `"note"`,
@@ -75,7 +78,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "create_rejects_empty_title",
 			method:       http.MethodPost,
-			path:         "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create",
+			path:         notesconnect.NotesCreateProcedure,
 			body:         `{"title":""}`,
 			wantStatus:   http.StatusBadRequest,
 			wantContains: `"invalid_argument"`,
@@ -83,7 +86,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "get_not_found",
 			method:       http.MethodPost,
-			path:         "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get",
+			path:         notesconnect.NotesGetProcedure,
 			body:         `{"id":"missing"}`,
 			wantStatus:   http.StatusNotFound,
 			wantContains: `"not_found"`,
@@ -106,5 +109,36 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 				"unexpected status; body=%s", rw.Body.String())
 			require.Contains(t, rw.Body.String(), tc.wantContains)
 		})
+	}
+}
+
+// TestEndpoints_ParityWithProtoService is the drift-killer for the
+// hand-authored Endpoints metadata. Path strings already link to the
+// generated *Procedure constants so renames break compilation; this test
+// closes the remaining hole — adding `rpc Foo(...)` to notes.proto without
+// adding a notes_foo Endpoints entry would otherwise silently ship a
+// .vrooli/endpoints.json that disagrees with the running server.
+//
+// The proto's notes.Notes service is the source of truth: every method it
+// declares must have exactly one matching Endpoints entry, identified by
+// the Connect procedure path.
+func TestEndpoints_ParityWithProtoService(t *testing.T) {
+	svc := notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto.
+		Services().ByName("Notes")
+	require.NotNil(t, svc, "notes proto must declare a Notes service")
+
+	byPath := make(map[string]int, len(notes.Endpoints))
+	for _, ep := range notes.Endpoints {
+		byPath[ep.Path]++
+	}
+
+	methods := svc.Methods()
+	for i := 0; i < methods.Len(); i++ {
+		m := methods.Get(i)
+		wantPath := "/" + string(svc.FullName()) + "/" + string(m.Name())
+		count := byPath[wantPath]
+		require.Equal(t, 1, count,
+			"proto method %q (path %q) must have exactly one Endpoints entry; found %d",
+			m.Name(), wantPath, count)
 	}
 }

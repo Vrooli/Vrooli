@@ -11,6 +11,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"prompt-manager/cli/internal/appctx"
 
@@ -65,10 +66,21 @@ type topicsGraphResponse struct {
 // cmdTopics handles `prompt-manager graph topics`. Default output is
 // human-readable; --json available for programmatic consumers. Exit code 1
 // when any error-severity finding is present.
+//
+// --findings-out=<path> writes a stable JSON artifact (see
+// findings_artifact.go) for CI diff-against-previous-run telemetry. The
+// artifact is opt-in: empty value (the default) leaves the filesystem
+// untouched. CI scripts that consume the diff pass an explicit path.
+//
+// Artifact-write failures are surfaced as a stderr warning, not a fatal
+// error: the validation result on stdout (and the exit code derived
+// from it) is the primary contract; the artifact is telemetry that must
+// not block CI from observing the validation outcome.
 func cmdTopics(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("topics", flag.ContinueOnError)
 	team := fs.String("team", "", "Filter to one team")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	findingsOut := fs.String("findings-out", "", "Write findings JSON artifact to this path (empty disables the write). CI uses this for diff-against-previous-run telemetry; see docs/agent-system/RUNTIME_ATTRIBUTION.md.")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -88,6 +100,18 @@ func cmdTopics(ctx appctx.Context, args []string) error {
 		_ = enc.Encode(resp)
 	} else {
 		printTopicsHuman(resp, *team)
+	}
+
+	if err := writeFindingsArtifact(*findingsOut, resp, *team, time.Now()); err != nil {
+		// Telemetry path: warn on stderr but do not change the
+		// validation exit code. CI's diff step will notice the
+		// missing/stale artifact on its own and surface a separate
+		// signal.
+		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	} else if !*jsonOut && *findingsOut != "" {
+		// Echo the artifact write under human output only; --json
+		// callers parse stdout strictly and get nothing extra.
+		fmt.Printf("Findings artifact written to %s\n", *findingsOut)
 	}
 
 	if resp.Validation.Errors > 0 {

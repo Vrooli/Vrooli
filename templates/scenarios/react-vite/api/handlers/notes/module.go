@@ -52,13 +52,16 @@ func Module(db *sql.DB, clk clock.Clock, blobs blobstore.BlobStore, logger *log.
 func Schema() string { return internalnotes.Schema() }
 
 // Endpoints is the machine-readable description of the notes module's public
-// surface. Connect-RPC method paths come from the proto service descriptor at
-// runtime; this slice exists for .vrooli/endpoints.json documentation and for
-// the REST multipart exception that is not expressible as a Connect service.
+// surface. Connect-RPC method paths reference the generated *Procedure
+// constants from notesconnect, so adding or renaming an RPC in notes.proto
+// breaks this file at compile time. The complementary parity test in
+// module_test.go enforces that every RPC in the proto service has a matching
+// entry here. The REST multipart exception is the one entry whose path is
+// hand-authored because the proto can't express it.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "notes_list",
-		Path:        "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List",
+		Path:        notesconnect.NotesListProcedure,
 		Method:      "POST",
 		Summary:     "List notes",
 		Description: "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
@@ -81,7 +84,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "notes_create",
-		Path:        "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create",
+		Path:        notesconnect.NotesCreateProcedure,
 		Method:      "POST",
 		Summary:     "Create a note",
 		Description: "Persists a new note. Title is required and validated by notes.Service; body is optional.",
@@ -113,7 +116,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "notes_get",
-		Path:        "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get",
+		Path:        notesconnect.NotesGetProcedure,
 		Method:      "POST",
 		Summary:     "Get a note by id",
 		Description: "Returns the note matching the request id through the generated Connect-RPC Notes service.",

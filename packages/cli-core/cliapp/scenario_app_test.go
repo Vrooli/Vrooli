@@ -687,6 +687,13 @@ func TestResolveScenarioLocalCLIContextUsesContractDefinedLayout(t *testing.T) {
 func writeScenarioRepoFixture(t *testing.T, scenarioDir string) string {
 	t.Helper()
 
+	// Ensure FindRepoRootFromEnvOrCWD doesn't pick up a developer's locally
+	// exported VROOLI_SOURCE_ROOT (which is checked before VROOLI_ROOT) and
+	// resolve to the live repo instead of this fixture. The caller follows
+	// up with t.Setenv("VROOLI_ROOT", root); both env vars must point at the
+	// fixture for resolution to land here.
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
+
 	fixture := testkitgo.NewRepoFixture(t, testkitgo.WithScenarioDir(scenarioDir))
 	fixture.WriteRepoContract(t)
 	for _, scenario := range []string{"swarm-manager", "scenario-to-desktop"} {

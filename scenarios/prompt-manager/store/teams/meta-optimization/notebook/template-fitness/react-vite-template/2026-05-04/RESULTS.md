@@ -161,7 +161,7 @@ Recommendation: **option 2** for iteration 2. Iteration 1 demonstrated that in-t
 
 A separate iteration (3+) can then revisit `cli_commands_seed.json` (Tier-2 #4 — needs cli-core to expose a dump-commands binary first), `RepositoryCreateInput` DTO (Tier-2 #5), and `module_test.go` route-vs-endpoint parity (Tier-1 #3).
 
-See `ITERATION_2_PROPOSAL.md` for the full proposal.
+See `ITERATION_2_PROPOSAL_PRE_CONNECT.md` for the superseded pre-Connect proposal.
 
 ---
 

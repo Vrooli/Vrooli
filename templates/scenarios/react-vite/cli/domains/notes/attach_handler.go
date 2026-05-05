@@ -7,14 +7,15 @@ import (
 	"path/filepath"
 
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 // attach uploads opaque file bytes through the notes REST multipart exception.
-// The response body is still proto-typed metadata, so the CLI decodes it with
-// protojson after cli-core's UploadFile helper returns the raw response body.
+// The response body is still proto-typed metadata; cli-core's
+// DecodeUploadResponse handles the protojson decode so this handler stays
+// transport-aware only at the boundary (UploadFile + DecodeUploadResponse),
+// not the wire-format layer.
 func (h *handlers) attach(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	path := ctx.Flag("file")
@@ -31,9 +32,9 @@ func (h *handlers) attach(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("attach file to note %q", id), err, nil)
 	}
-	var resp notesv1.UploadAttachmentResponse
-	if err := protojson.Unmarshal(respBody, &resp); err != nil {
-		return fmt.Errorf("decode attachment response: %w", err)
+	resp, err := cliapp.DecodeUploadResponse[*notesv1.UploadAttachmentResponse](respBody)
+	if err != nil {
+		return err
 	}
 	if resp.Attachment == nil {
 		return fmt.Errorf("server returned no attachment")

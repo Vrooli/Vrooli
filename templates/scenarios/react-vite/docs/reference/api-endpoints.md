@@ -32,6 +32,9 @@ REST-exception failure mode appears.
 
 Service health check. Returns API readiness plus dependency status.
 Also mounted at `/api/v1/health` for client callers.
+This is an operational REST exception by design: lifecycle systems,
+load balancers, and curl probes must be able to read it without a Connect
+client.
 
 | | |
 |---|---|

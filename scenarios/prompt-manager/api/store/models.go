@@ -216,7 +216,40 @@ type Team struct {
 	// Empty string means the team has not yet adopted the runtime contract;
 	// the validator skips such teams entirely.
 	AttributionValidFrom string `json:"attributionValidFrom,omitempty"`
+	// Policy carries opt-in per-team thresholds the runtime-attribution
+	// validators consult. Nil / omitted means "every default applies"; in
+	// particular, nil disables the per-week thresholds (external writes
+	// are tracked but never flagged). See docs/agent-system/RUNTIME_ATTRIBUTION.md
+	// § kind enum for the field-by-field semantics, and the TeamPolicy
+	// struct below for the active set.
+	Policy *TeamPolicy `json:"policy,omitempty"`
 	Timestamps
+}
+
+// TeamPolicy holds opt-in thresholds and toggles consulted by the Pillar 3
+// runtime-attribution validator (and any future runtime-only validators
+// that a team can dial up or down without changing topics.json shape).
+//
+// Every field is "off" at zero — adding a new field never silently changes
+// existing teams' validator behavior. The whole struct is optional on
+// team.json; the validator treats a missing Policy as if every threshold
+// were zero.
+type TeamPolicy struct {
+	// FlagExternalWritesPerWeek is the per-week count above which
+	// kind="external" knowledge writes fire `actual_writer_undeclared`
+	// findings. Zero (or omitted) means "track but never flag" — the
+	// expected default for teams that are not yet routing external
+	// writers through prompt-manager. Set to a positive integer to opt
+	// in; the validator emits one warning per entry past the threshold
+	// in any ISO week from `attributionValidFrom` forward.
+	//
+	// The "per week" semantics are deterministic and side-effect-free:
+	// each entry's ISO week (year-week, derived from the entry's `at`
+	// timestamp) is the bucket; the threshold is compared against the
+	// bucket's count. No rolling clock, no `time.Now()` dependency —
+	// `prompt-manager graph topics` produces the same findings on a
+	// frozen knowledge.jsonl regardless of when it runs.
+	FlagExternalWritesPerWeek int `json:"flagExternalWritesPerWeek,omitempty"`
 }
 
 // TeamShared configures shared document access

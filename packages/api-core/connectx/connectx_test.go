@@ -45,3 +45,25 @@ func TestRegisterServicesSkipsInvalidMounts(t *testing.T) {
 		t.Fatalf("status = %d", resp.Code)
 	}
 }
+
+func TestRegisterServicesNormalizesBarePathAndNilRouter(t *testing.T) {
+	RegisterServices(nil, ServiceMount{Path: "ignored", Handler: http.NotFoundHandler()})
+
+	router := mux.NewRouter()
+	RegisterServices(router, ServiceMount{
+		Path: "demo.v1.Bare",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.WriteString(w, "bare")
+		}),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/demo.v1.Bare/Call", nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %q", resp.Code, resp.Body.String())
+	}
+	if resp.Body.String() != "bare" {
+		t.Fatalf("body = %q", resp.Body.String())
+	}
+}

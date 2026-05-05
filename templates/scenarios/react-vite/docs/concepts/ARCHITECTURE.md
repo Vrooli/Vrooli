@@ -94,6 +94,9 @@ Use REST only when the payload shape is not Vrooli-owned proto data:
   describes metadata only.
 - Webhook receivers and third-party APIs: REST/JSON in the shape the
   external system requires.
+- Operational endpoints that must be reachable by lifecycle systems,
+  load balancers, and curl probes without a generated client: REST.
+  `/health` is the template's canonical example.
 
 If an internal endpoint would be "REST because it is simple", add a
 proto service method instead. That keeps route, request type, response

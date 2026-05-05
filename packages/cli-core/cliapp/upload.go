@@ -10,6 +10,9 @@ import (
 	"net/url"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -108,4 +111,24 @@ func defaultUploadContentType(contentType string) string {
 func escapeMultipartQuote(value string) string {
 	value = strings.ReplaceAll(value, "\\", "\\\\")
 	return strings.ReplaceAll(value, `"`, "\\\"")
+}
+
+// DecodeUploadResponse decodes a multipart upload response body into a fresh
+// proto message of type T using protojson. Pairs with UploadFile, which
+// returns the raw response body for REST-multipart exceptions where Connect-RPC
+// is not the right transport.
+//
+// T is a pointer-to-proto-message type (e.g.
+// *notesv1.UploadAttachmentResponse). On decode failure, the error includes
+// the type name for easier debugging.
+//
+// Mirrors the proto-decode half of Call so attach handlers don't redo the
+// `protojson.Unmarshal(body, &resp)` ribbon per multipart endpoint.
+func DecodeUploadResponse[T proto.Message](body []byte) (T, error) {
+	resp := newProto[T]()
+	if err := protojson.Unmarshal(body, resp); err != nil {
+		var zero T
+		return zero, fmt.Errorf("decode %T: %w", resp, err)
+	}
+	return resp, nil
 }

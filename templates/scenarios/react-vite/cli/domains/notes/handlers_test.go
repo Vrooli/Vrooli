@@ -3,7 +3,6 @@ package notes
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -14,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
@@ -116,7 +116,12 @@ func TestNotesList_RendersResults(t *testing.T) {
 	require.Contains(t, out.String(), "attachments=1")
 }
 
-func TestNotesList_JSONIncludesMachineReadableNotes(t *testing.T) {
+// TestNotesList_JSONIsProtoWireShape pins the contract that --json output is
+// the proto-typed ListNotesResponse wire shape (round-trips through
+// protojson.Unmarshal), with no summary/retrieval_hints wrapper. Machine
+// consumers parse the same JSON `cli notes list --json` and `curl /Notes/List`
+// produce.
+func TestNotesList_JSONIsProtoWireShape(t *testing.T) {
 	svc := &notesService{listResp: &notesv1.ListNotesResponse{
 		Notes: []*notesv1.Note{note("a", "first")},
 	}}
@@ -126,16 +131,18 @@ func TestNotesList_JSONIncludesMachineReadableNotes(t *testing.T) {
 
 	require.NoError(t, h.list(ctx))
 
-	var got struct {
-		Notes []struct {
-			ID             string   `json:"id"`
-			Title          string   `json:"title"`
-			AttachmentKeys []string `json:"attachment_keys"`
-		} `json:"notes"`
-	}
-	require.NoError(t, json.Unmarshal(out.Bytes(), &got))
+	body := out.String()
+	require.NotContains(t, body, "summary",
+		"--json output must be proto wire shape, not the human ListReport wrapper")
+	require.NotContains(t, body, "retrieval_hints",
+		"--json output must be proto wire shape, not the human ListReport wrapper")
+
+	// Round-trip through the generated proto type — proves the wire format
+	// matches what any Connect-RPC client would parse.
+	var got notesv1.ListNotesResponse
+	require.NoError(t, protojson.Unmarshal(out.Bytes(), &got))
 	require.Len(t, got.Notes, 1)
-	require.Equal(t, "a", got.Notes[0].ID)
+	require.Equal(t, "a", got.Notes[0].Id)
 	require.Equal(t, "first", got.Notes[0].Title)
 	require.Equal(t, []string{"notes/a/attachments/a.txt"}, got.Notes[0].AttachmentKeys)
 }
@@ -178,7 +185,10 @@ func TestNotesCreate_CallsConnectClient(t *testing.T) {
 	require.Contains(t, out.String(), "hello")
 }
 
-func TestNotesCreate_JSONIncludesCreatedNote(t *testing.T) {
+// TestNotesCreate_JSONIsProtoWireShape pins the contract that --json output
+// is the proto-typed CreateNoteResponse wire shape, not the human
+// MutationReport wrapper.
+func TestNotesCreate_JSONIsProtoWireShape(t *testing.T) {
 	svc := &notesService{createResp: &notesv1.CreateNoteResponse{Note: note("new", "hello")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
@@ -191,15 +201,43 @@ func TestNotesCreate_JSONIncludesCreatedNote(t *testing.T) {
 
 	require.NoError(t, h.create(ctx))
 
-	var got struct {
-		Note struct {
-			ID    string `json:"id"`
-			Title string `json:"title"`
-		} `json:"note"`
-	}
-	require.NoError(t, json.Unmarshal(out.Bytes(), &got))
-	require.Equal(t, "new", got.Note.ID)
+	body := out.String()
+	require.NotContains(t, body, "result",
+		"--json output must be proto wire shape, not the human MutationReport wrapper")
+	require.NotContains(t, body, "next_command",
+		"--json output must be proto wire shape, not the human MutationReport wrapper")
+
+	var got notesv1.CreateNoteResponse
+	require.NoError(t, protojson.Unmarshal(out.Bytes(), &got))
+	require.NotNil(t, got.Note)
+	require.Equal(t, "new", got.Note.Id)
 	require.Equal(t, "hello", got.Note.Title)
+}
+
+// TestNotesGet_JSONIsProtoWireShape pins the same contract for the get path,
+// which routes through RenderProtoList.
+func TestNotesGet_JSONIsProtoWireShape(t *testing.T) {
+	svc := &notesService{getResp: &notesv1.GetNoteResponse{Note: note("abc", "found")}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := runCtx(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+	}, cliapp.TestRunContextOptions{
+		Positionals: map[string]string{"id": "abc"},
+		JSON:        true,
+	})
+
+	require.NoError(t, h.get(ctx))
+
+	body := out.String()
+	require.NotContains(t, body, "summary",
+		"--json output must be proto wire shape, not the human ListReport wrapper")
+
+	var got notesv1.GetNoteResponse
+	require.NoError(t, protojson.Unmarshal(out.Bytes(), &got))
+	require.NotNil(t, got.Note)
+	require.Equal(t, "abc", got.Note.Id)
+	require.Equal(t, "found", got.Note.Title)
 }
 
 func TestNotesGet_ReportsNotFound(t *testing.T) {

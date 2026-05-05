@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -73,5 +74,27 @@ func TestConnectWrapAPIError(t *testing.T) {
 	wrapped := WrapAPIError("create note", err, nil)
 	if !strings.Contains(wrapped.Error(), "create note: invalid_argument: unexpected EOF") {
 		t.Fatalf("wrapped = %v", wrapped)
+	}
+}
+
+func TestNewConnectHTTPClientRejectsInvalidConfiguration(t *testing.T) {
+	httpClient, baseURL := NewConnectHTTPClient(nil)
+	if baseURL != "" {
+		t.Fatalf("baseURL = %q, want empty", baseURL)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://example.test/service/Method", nil)
+	if _, err := httpClient.Do(req); err == nil {
+		t.Fatal("expected nil app error")
+	}
+
+	app := callTestApp(t, httptest.NewServer(http.NotFoundHandler()))
+	client := &scenarioConnectHTTPClient{app: app}
+	req = httptest.NewRequest(http.MethodPost, "/", nil)
+	req.URL = &url.URL{Path: "/relative"}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected relative URL error")
+	}
+	if _, err := client.Do(nil); err == nil {
+		t.Fatal("expected nil request error")
 	}
 }

@@ -28,10 +28,30 @@ import (
 // LoadedTeamContract pairs a team id with its parsed operating contract
 // and the source path the contract was read from. Used by validation rules
 // that need to attribute findings back to the originating team.json.
+//
+// The runtime-attribution Pillar 3 fields (AttributionValidFrom,
+// FlagExternalWritesPerWeek) are projected from the team.json top-level
+// shape (`attributionValidFrom`, `policy.flagExternalWritesPerWeek`). They
+// are kept as direct fields rather than nested under a Policy struct so
+// rules consume them without per-rule nil checks; absence on disk is
+// canonicalized to zero values here. See docs/agent-system/RUNTIME_ATTRIBUTION.md
+// § Per-team `attributionValidFrom` for the contract.
 type LoadedTeamContract struct {
 	TeamID     string
 	Contract   *teamcontract.OperatingContract
 	SourcePath string
+	// AttributionValidFrom is the ISO-8601 (YYYY-MM-DD) cutoff for
+	// Pillar 3 attribution checks. Empty when the team has not adopted
+	// the runtime contract; ruleActualWriterUndeclared skips such teams
+	// entirely so a still-migrating team never produces drift findings.
+	AttributionValidFrom string
+	// FlagExternalWritesPerWeek is the per-team opt-in threshold for
+	// kind="external" knowledge writes, sourced from
+	// `policy.flagExternalWritesPerWeek` on team.json. Zero means "track
+	// but never flag" (the expected default); positive values enable
+	// per-ISO-week count-vs-threshold findings on
+	// ruleActualWriterUndeclared.
+	FlagExternalWritesPerWeek int
 }
 
 // TeamContractRegistry indexes loaded contracts by team id. Methods on the
@@ -46,9 +66,22 @@ type TeamContractRegistry map[string]*LoadedTeamContract
 // teamFile is a minimal slice of team.json — only the fields the
 // memberflow validators need. Decoding into this rather than store.Team
 // keeps memberflow free of store dependencies.
+//
+// Pillar 3 fields (AttributionValidFrom and the nested Policy) are
+// optional on disk; they are zero-valued when omitted. The struct mirrors
+// the on-disk JSON shape; LoadedTeamContract flattens it for validators.
 type teamFile struct {
-	ID                string                          `json:"id"`
-	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
+	ID                   string                          `json:"id"`
+	OperatingContract    *teamcontract.OperatingContract `json:"operatingContract"`
+	AttributionValidFrom string                          `json:"attributionValidFrom,omitempty"`
+	Policy               *teamFilePolicy                 `json:"policy,omitempty"`
+}
+
+// teamFilePolicy mirrors store.TeamPolicy under memberflow's narrower
+// JSON-only view of team.json. Kept in sync with store.TeamPolicy by the
+// runtime_attribution_test.go drift-detector test.
+type teamFilePolicy struct {
+	FlagExternalWritesPerWeek int `json:"flagExternalWritesPerWeek,omitempty"`
 }
 
 // LoadAllTeamContracts walks <storeDir>/teams/*/team.json and returns a
@@ -120,10 +153,16 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 	// scaffolded; the validator treats that as "no decision contexts to
 	// match," which is preferable to crashing. The dangling-evidence rule
 	// will then report unresolved references in detail.
+	flag := 0
+	if tf.Policy != nil {
+		flag = tf.Policy.FlagExternalWritesPerWeek
+	}
 	return &LoadedTeamContract{
-		TeamID:     tf.ID,
-		Contract:   tf.OperatingContract,
-		SourcePath: path,
+		TeamID:                    tf.ID,
+		Contract:                  tf.OperatingContract,
+		SourcePath:                path,
+		AttributionValidFrom:      strings.TrimSpace(tf.AttributionValidFrom),
+		FlagExternalWritesPerWeek: flag,
 	}, nil
 }
 

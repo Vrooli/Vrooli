@@ -5,17 +5,19 @@ package vrooli.{{SCENARIO_ID_SNAKE}}.v1.errors;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors;errors_v1";
 
 // =============================================================================
-// ERROR ENVELOPE — canonical non-2xx body
+// ERROR ENVELOPE — canonical REST-exception non-2xx body
 // =============================================================================
 //
 // @layer 5  (api surface)
 // @domain errors
 // @stability stable
 //
-// Every scenario API returns this shape for non-2xx responses. The thin
-// writer at api/internal/httpx/errors.go::WriteError marshals it with
-// protojson; UI and CLI clients decode via fromJson / protojson.Unmarshal
-// and surface the typed `code` + `message` to callers.
+// Connect-RPC methods use Connect's canonical error envelope and code set.
+// Deliberate REST exceptions, such as multipart uploads and operational
+// endpoints, return this shape for non-2xx responses. The thin writer at
+// api/internal/httpx/errors.go::WriteError marshals it with protojson; UI and
+// CLI REST clients decode via fromJson / protojson.Unmarshal and surface the
+// typed `code` + `message` to callers.
 //
 // Codes are short snake_case strings categorising the failure ("invalid_request",
 // "not_found", "internal"). Add new codes by extending the canonical list

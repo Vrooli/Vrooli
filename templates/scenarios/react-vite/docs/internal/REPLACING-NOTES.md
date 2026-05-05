@@ -136,19 +136,35 @@ phase — it's how you learn the pattern by copying.
      `cliapp.NewConnectHTTPClient(core)` plus the generated
      `tasksconnect.NewTasksClient`. Each handler calls the typed client,
      reads `ctx.Flag(...)` / `ctx.Positional(...)`, routes output via
-     `ctx.RenderList` / `ctx.RenderMutation` (which honor the built-in
-     `--json` flag), and wraps errors with `cliapp.WrapAPIError`.
+     `cliapp.RenderProtoList` / `cliapp.RenderProtoMutation`, and wraps
+     errors with `cliapp.WrapAPIError`.
      ```go
      func (h *handlers) create(ctx cliapp.RunContext) error {
          resp, err := h.client.Create(context.Background(),
              connect.NewRequest(&tasksv1.CreateTaskRequest{Title: ctx.Flag("title")}))
          if err != nil { return cliapp.WrapAPIError("create task", err, nil) }
-         // ... render ...
+         return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+             Result:  []string{fmt.Sprintf("Created task %s.", resp.Msg.Task.Id)},
+             Changes: []string{formatTask(resp.Msg.Task)},
+         })
      }
      ```
-     Don't reach for `flag.NewFlagSet`, hand-written HTTP calls, or a
-     per-domain `apiError` helper. cli-core owns the parser, rendering,
-     Connect HTTP client setup, and error wrapping.
+     `RenderProtoList` / `RenderProtoMutation` honor the built-in `--json`
+     flag: human consumers see the report; `--json` consumers see the
+     proto-typed response wire shape (no `summary` / `next_command`
+     wrapper) — identical to what `curl /Tasks/Create` returns. Machine
+     consumers parse the same JSON the API speaks.
+
+     Don't reach for `flag.NewFlagSet`, hand-written HTTP calls, a
+     per-domain `apiError` helper, or hand-typed `<thing>JSON` structs
+     mirroring the proto shape. cli-core owns the parser, rendering,
+     Connect HTTP client setup, error wrapping, and proto-typed JSON
+     output.
+
+     If a handler needs the human `ctx.RenderList` / `ctx.RenderMutation`
+     path without proto-typed JSON (e.g., it aggregates multiple sources
+     into one report), use those directly — `RenderProto*` is the
+     proto-payload shortcut, not a hard requirement.
 
 6. **Multipart endpoint, when the domain needs opaque bytes.** Keep
    binary upload as REST multipart and keep metadata proto-typed:

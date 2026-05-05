@@ -111,6 +111,7 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
 	findings = append(findings, ruleDanglingPORSink(members, opts)...)
 	findings = append(findings, ruleDanglingEvidenceDecision(members, opts)...)
+	findings = append(findings, ruleActualWriterUndeclared(members, opts)...)
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
 	// age; those are computed by the CLI layer (which has access to the
