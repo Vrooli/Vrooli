@@ -180,14 +180,12 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 	// resolve correctly, then findings are filtered down to the requested
 	// team for the response.
 	skillIDs, _ := LoadSkillIDs(h.storeDir)
-	skillPaths, _ := LoadSkillPaths(h.storeDir)
 	repoRoot := h.repoRoot()
 	taxonomies, _ := LoadAllTaxonomies(repoRoot)
 	val := Validate(all, ValidationOptions{
 		RepoRoot:   repoRoot,
 		StoreDir:   h.storeDir,
 		SkillIDs:   skillIDs,
-		SkillPaths: skillPaths,
 		Taxonomies: taxonomies,
 	})
 

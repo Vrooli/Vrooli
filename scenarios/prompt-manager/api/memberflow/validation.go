@@ -19,24 +19,31 @@ const (
 
 // Finding is one validation result. Multiple findings may apply to a single
 // member or prefix.
+//
+// OwnerKey is the canonical owner string from the prose-scan owner-derivation
+// rules (`team:<team>/<member>`, `team:<team>`, `agent:<id>`, `skill:<id>`,
+// `docs:<domain>`). Populated by Pillar 2 (`ruleProseTopicLeak`) so CI
+// summary scripts can group findings by surface owner. Other rules leave it
+// empty; consumers that group by owner should fall back to Member when
+// OwnerKey is absent.
 type Finding struct {
 	Rule     string    `json:"rule"`
 	Severity Severity  `json:"severity"`
 	Member   MemberRef `json:"member,omitempty"`
 	Prefix   string    `json:"prefix,omitempty"`
+	OwnerKey string    `json:"owner_key,omitempty"`
 	Detail   string    `json:"detail"`
 }
 
 // ValidationOptions configures runtime checks that depend on filesystem state
-// (taxonomy registry, team-contract registry, classifier-skill files, PoR
-// file existence). Repo root is required for dangling_por_sink,
-// unknown_taxonomy, and non_portable_classifier checks; StoreDir is
-// required for the team-contract registry lazy-load.
+// (taxonomy registry, team-contract registry, prose-scan roots, PoR file
+// existence). Repo root is required for dangling_por_sink and
+// unknown_taxonomy checks; StoreDir is required for the team-contract
+// registry lazy-load.
 type ValidationOptions struct {
 	// RepoRoot is the absolute path to the repository root (the parent of
-	// docs/, scenarios/, etc.). Used for por_file existence,
-	// classifier-skill content scans, and as a fallback location for
-	// taxonomies when Taxonomies is nil.
+	// docs/, scenarios/, etc.). Used for por_file existence and as a
+	// fallback location for taxonomies when Taxonomies is nil.
 	RepoRoot string
 
 	// StoreDir is the absolute path to the prompt-manager store
@@ -50,11 +57,6 @@ type ValidationOptions struct {
 	// Empty disables skill-existence cross-checks.
 	SkillIDs map[string]bool
 
-	// SkillPaths maps skill id -> absolute path to its SKILL.md content,
-	// used by ruleNonPortableClassifier to grep classifier skills for
-	// forbidden coupling. Optional: empty disables the rule.
-	SkillPaths map[string]string
-
 	// Taxonomies is the loaded taxonomy registry used by
 	// ruleUnknownTaxonomy and ruleMissingDestinationSchema. When nil and
 	// RepoRoot is set, Validate loads taxonomies on demand.
@@ -66,6 +68,17 @@ type ValidationOptions struct {
 	// disables the rule (lets tests assert behavior without contracts
 	// without needing a store on disk).
 	TeamContracts TeamContractRegistry
+
+	// ScanRoots are absolute filesystem roots the Pillar 2 prose scanner
+	// (ruleProseTopicLeak) walks. When empty AND RepoRoot is empty, the
+	// rule is silent (unit tests that pass synthetic members[] without a
+	// backing tree get this). When ScanRoots is empty AND RepoRoot is
+	// set, the scanner derives its targets from RepoRoot's
+	// `scenarios/prompt-manager/store/` and `docs/` subtrees per
+	// docs/agent-system/PROSE_SCAN_TARGETS.md. Tests that need a focused
+	// scan (e.g., a temp-dir fixture rooted somewhere other than the live
+	// repo) supply ScanRoots explicitly.
+	ScanRoots []string
 }
 
 // ValidationResult bundles findings with summary counts.
@@ -107,11 +120,11 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 	findings = append(findings, ruleUnreadRequired(members)...)
 	findings = append(findings, ruleWildcardSourceMisuse(members)...)
 	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
-	findings = append(findings, ruleNonPortableClassifier(members, opts)...)
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
 	findings = append(findings, ruleDanglingPORSink(members, opts)...)
 	findings = append(findings, ruleDanglingEvidenceDecision(members, opts)...)
 	findings = append(findings, ruleActualWriterUndeclared(members, opts)...)
+	findings = append(findings, ruleProseTopicLeak(members, opts)...)
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
 	// age; those are computed by the CLI layer (which has access to the
@@ -439,97 +452,6 @@ func ruleUnknownTaxonomy(members []MemberTopics, opts ValidationOptions) []Findi
 	return out
 }
 
-// classifierForbiddenSubstrings are patterns a portable classifier skill
-// must NOT contain. They mark coupling to a specific inbox prefix,
-// drain-procedure command, or team store — content that belongs in the
-// generated heartbeat section, not in a reusable judgment skill. Hits fire
-// `non_portable_classifier`.
-//
-// Note: legitimate documentation paths under docs/<domain>/ (e.g.
-// docs/monetization/CATALOG.md) are *not* coupling and are not flagged.
-// The patterns target either the specific inbox topic-prefix conventions
-// or the knowledge-CLI write/delete verbs that perform routing.
-var classifierForbiddenSubstrings = []string{
-	// Inbox topic-prefix coupling.
-	"research-inbox/",
-	"opportunity-inbox/",
-	"validation-inbox/",
-	// Knowledge CLI verbs that perform routing (read-only knowledge-list
-	// is fine in member prose, but a portable judgment skill should not
-	// invoke these).
-	"prompt-manager team knowledge-update",
-	"prompt-manager team knowledge-delete",
-	"prompt-manager team knowledge-add",
-	"team knowledge-update",
-	"team knowledge-delete",
-	"team knowledge-add",
-	// Team-store filesystem coupling. The `teams/<id>/members/<id>`
-	// pattern only appears when a skill is reaching into a specific
-	// team's per-member directory — exactly the coupling we want to
-	// forbid.
-	"teams/marketing-crew/members",
-	"teams/monetization/members",
-}
-
-// ruleNonPortableClassifier scans each intake's classifier skill for
-// forbidden coupling content. Skipped when SkillPaths is empty.
-func ruleNonPortableClassifier(members []MemberTopics, opts ValidationOptions) []Finding {
-	if len(opts.SkillPaths) == 0 {
-		return nil
-	}
-	var out []Finding
-	scanned := map[string]bool{}
-	for _, m := range members {
-		for _, in := range m.Topics.Intake {
-			id := strings.TrimSpace(in.ClassifierSkill)
-			if id == "" {
-				continue
-			}
-			if scanned[id] {
-				continue
-			}
-			scanned[id] = true
-
-			path, ok := opts.SkillPaths[id]
-			if !ok {
-				out = append(out, Finding{
-					Rule:     "non_portable_classifier",
-					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("classifier_skill %q is not in the skill registry", id),
-				})
-				continue
-			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				out = append(out, Finding{
-					Rule:     "non_portable_classifier",
-					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("classifier_skill %q SKILL.md not readable at %s: %v", id, path, err),
-				})
-				continue
-			}
-			content := string(data)
-			for _, sub := range classifierForbiddenSubstrings {
-				if strings.Contains(content, sub) {
-					out = append(out, Finding{
-						Rule:     "non_portable_classifier",
-						Severity: SeverityError,
-						Member:   m.Ref,
-						Prefix:   in.Prefix,
-						Detail:   fmt.Sprintf("classifier_skill %q SKILL.md contains forbidden pattern %q (judgment skills must be member-agnostic)", id, sub),
-					})
-					break
-				}
-			}
-		}
-	}
-	return out
-}
-
 // ruleMissingDestinationSchema warns when an output entry names a schema
 // that no taxonomy declares. Skipped when Taxonomies is empty.
 func ruleMissingDestinationSchema(members []MemberTopics, opts ValidationOptions) []Finding {
@@ -670,45 +592,6 @@ func LoadSkillIDs(storeDir string) (map[string]bool, error) {
 			if _, err := os.Stat(filepath.Join(packsDir, p.Name(), s.Name(), "skill.json")); err == nil {
 				out[s.Name()] = true
 			}
-		}
-	}
-	return out, nil
-}
-
-// LoadSkillPaths returns skill id -> absolute path to its SKILL.md file,
-// for every skill in the registry that has both a skill.json and a SKILL.md.
-// Used by ruleNonPortableClassifier.
-func LoadSkillPaths(storeDir string) (map[string]string, error) {
-	out := make(map[string]string)
-	packsDir := filepath.Join(storeDir, "skills", "packs")
-	packs, err := os.ReadDir(packsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return out, nil
-		}
-		return nil, fmt.Errorf("memberflow: read packs %q: %w", packsDir, err)
-	}
-	for _, p := range packs {
-		if !p.IsDir() {
-			continue
-		}
-		skillRoots, err := os.ReadDir(filepath.Join(packsDir, p.Name()))
-		if err != nil {
-			continue
-		}
-		for _, s := range skillRoots {
-			if !s.IsDir() {
-				continue
-			}
-			skillJSON := filepath.Join(packsDir, p.Name(), s.Name(), "skill.json")
-			skillMD := filepath.Join(packsDir, p.Name(), s.Name(), "SKILL.md")
-			if _, err := os.Stat(skillJSON); err != nil {
-				continue
-			}
-			if _, err := os.Stat(skillMD); err != nil {
-				continue
-			}
-			out[s.Name()] = skillMD
 		}
 	}
 	return out, nil

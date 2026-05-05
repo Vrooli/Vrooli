@@ -40,10 +40,10 @@ describe("api/client REST helpers", () => {
     formData.set("file", new File(["hello"], "hello.txt", { type: "text/plain" }));
     fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 200 }));
 
-    await uploadFile("/notes/note-1/attachments", formData);
+    await uploadFile("/things/thing-1/attachments", formData);
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/api\/v1\/notes\/note-1\/attachments$/);
+    expect(url).toMatch(/\/api\/v1\/things\/thing-1\/attachments$/);
     expect(init).toMatchObject({ method: "POST", body: formData, cache: "no-store" });
     expect(init.headers).toBeUndefined();
   });

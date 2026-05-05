@@ -36,7 +36,7 @@ type notesService struct {
 	getIDs       []string
 }
 
-func (s *notesService) List(context.Context, *connect.Request[notesv1.ListNotesRequest]) (*connect.Response[notesv1.ListNotesResponse], error) {
+func (s *notesService) ListNotes(context.Context, *connect.Request[notesv1.ListNotesRequest]) (*connect.Response[notesv1.ListNotesResponse], error) {
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
@@ -46,7 +46,7 @@ func (s *notesService) List(context.Context, *connect.Request[notesv1.ListNotesR
 	return connect.NewResponse(s.listResp), nil
 }
 
-func (s *notesService) Create(_ context.Context, req *connect.Request[notesv1.CreateNoteRequest]) (*connect.Response[notesv1.CreateNoteResponse], error) {
+func (s *notesService) CreateNote(_ context.Context, req *connect.Request[notesv1.CreateNoteRequest]) (*connect.Response[notesv1.CreateNoteResponse], error) {
 	s.mu.Lock()
 	s.createInputs = append(s.createInputs, req.Msg)
 	s.mu.Unlock()
@@ -59,7 +59,7 @@ func (s *notesService) Create(_ context.Context, req *connect.Request[notesv1.Cr
 	return connect.NewResponse(s.createResp), nil
 }
 
-func (s *notesService) Get(_ context.Context, req *connect.Request[notesv1.GetNoteRequest]) (*connect.Response[notesv1.GetNoteResponse], error) {
+func (s *notesService) GetNote(_ context.Context, req *connect.Request[notesv1.GetNoteRequest]) (*connect.Response[notesv1.GetNoteResponse], error) {
 	s.mu.Lock()
 	s.getIDs = append(s.getIDs, req.Msg.Id)
 	s.mu.Unlock()
@@ -84,7 +84,7 @@ func runCtx(core *cliapp.ScenarioApp, schema cliapp.ArgSchema, opts cliapp.TestR
 
 func connectAPI(t *testing.T, svc *notesService) http.Handler {
 	t.Helper()
-	path, handler := notesconnect.NewNotesHandler(svc)
+	path, handler := notesconnect.NewNotesServiceHandler(svc)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 	return mux

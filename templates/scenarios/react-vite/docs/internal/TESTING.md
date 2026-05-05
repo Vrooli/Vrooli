@@ -156,7 +156,7 @@ time. The pattern from wire to render:
 
 | Layer | File | What it owns |
 |---|---|---|
-| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `service Notes`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
+| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
 | REST metadata contract | `proto/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
 | Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
 | REST error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
@@ -170,7 +170,7 @@ time. The pattern from wire to render:
 | Connect handler test | `handlers/notes/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
 | Multipart handler test | `handlers/notes/attachments_handler_test.go` | Uses `blobstore.MemoryBlobStore` plus test metadata repositories to exercise file-upload success and error paths |
 | Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(Notes, transport)` plus `uploadAttachment` for multipart metadata |
+| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(NotesService, transport)` plus `uploadAttachment` for multipart metadata |
 | UI tests | `ui/src/api/notes.test.ts` + component tests | Mock generated client methods and `uploadAttachment`; REST helper tests stub `global.fetch` |
 | CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
 | CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
@@ -447,13 +447,13 @@ vi.mock("./api/notes", async (importOriginal) => {
 
 Defaults are picked so the most common test paths work no-args:
 `makeApiMocks().fetchHealth` resolves to a healthy response;
-`makeNotesMocks().notesClient.list` resolves to an empty list;
-`notesClient.create({ title })` echoes the title back as a Note.
+`makeNotesMocks().notesClient.listNotes` resolves to an empty list;
+`notesClient.createNote({ title })` echoes the title back as a Note.
 Per-test overrides use vitest's standard pattern *after* the mock is wired:
 
 ```tsx
 const { notesClient } = await import("./api/notes");
-vi.mocked(notesClient.list).mockResolvedValueOnce(
+vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
   makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
 );
 ```

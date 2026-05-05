@@ -1,7 +1,7 @@
 import { fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { createClient } from "@connectrpc/connect";
 import {
-  Notes,
+  NotesService,
   type Note,
   type ListNotesResponse,
 } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
@@ -18,7 +18,7 @@ import {
   uploadFile,
 } from "./client";
 
-export const notesClient = createClient(Notes, transport);
+export const notesClient = createClient(NotesService, transport);
 
 export async function uploadAttachment(noteId: string, file: File): Promise<Attachment> {
   const formData = new FormData();

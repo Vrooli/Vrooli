@@ -30,11 +30,11 @@ export function NotesCard() {
 
   const notesQuery = useQuery({
     queryKey: NOTES_QUERY_KEY,
-    queryFn: () => notesClient.list({}),
+    queryFn: () => notesClient.listNotes({}),
   });
 
   const createNoteMutation = useMutation({
-    mutationFn: (input: MessageInitShape<typeof CreateNoteRequestSchema>) => notesClient.create(input),
+    mutationFn: (input: MessageInitShape<typeof CreateNoteRequestSchema>) => notesClient.createNote(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: NOTES_QUERY_KEY });
     },

@@ -500,101 +500,12 @@ func TestRule_UnknownTaxonomy_SkippedWhenNoRegistryAndNoRepoRoot(t *testing.T) {
 	}
 }
 
-func TestRule_NonPortableClassifier_DetectsForbiddenContent(t *testing.T) {
-	dir := t.TempDir()
-	skillPath := filepath.Join(dir, "SKILL.md")
-	body := `## Tools focus
-
-This classifier is great. Look at research-inbox/foo for examples.
-Run prompt-manager team knowledge-update to retag.
-`
-	if err := os.WriteFile(skillPath, []byte(body), 0o644); err != nil {
-		t.Fatalf("write skill: %v", err)
-	}
-	members := []MemberTopics{
-		mkMember("team-a", "consumer", Topics{
-			Intake: []IntakeEntry{{
-				Prefix:          "y/*",
-				Taxonomy:        "tx",
-				ClassifierSkill: "leaky-classifier",
-			}},
-			ExternalProducers: []string{"operator"},
-		}),
-	}
-	opts := ValidationOptions{
-		Taxonomies: TaxonomyRegistry{"tx": &Taxonomy{ID: "tx"}},
-		SkillPaths: map[string]string{"leaky-classifier": skillPath},
-	}
-	r := Validate(members, opts)
-	hits := 0
-	for _, f := range r.Findings {
-		if f.Rule == "non_portable_classifier" && f.Severity == SeverityError {
-			hits++
-		}
-	}
-	if hits == 0 {
-		t.Errorf("expected non_portable_classifier error; findings=%v", r.Findings)
-	}
-}
-
-func TestRule_NonPortableClassifier_CleanSkill(t *testing.T) {
-	dir := t.TempDir()
-	skillPath := filepath.Join(dir, "SKILL.md")
-	body := `## Tools focus: Marketing Signal Classifier
-
-Pure judgment. Read the taxonomy, score evidence, return a recommendation.
-`
-	if err := os.WriteFile(skillPath, []byte(body), 0o644); err != nil {
-		t.Fatalf("write skill: %v", err)
-	}
-	members := []MemberTopics{
-		mkMember("team-a", "consumer", Topics{
-			Intake: []IntakeEntry{{
-				Prefix:          "y/*",
-				Taxonomy:        "tx",
-				ClassifierSkill: "clean-classifier",
-			}},
-			ExternalProducers: []string{"operator"},
-		}),
-	}
-	opts := ValidationOptions{
-		Taxonomies: TaxonomyRegistry{"tx": &Taxonomy{ID: "tx"}},
-		SkillPaths: map[string]string{"clean-classifier": skillPath},
-	}
-	r := Validate(members, opts)
-	for _, f := range r.Findings {
-		if f.Rule == "non_portable_classifier" {
-			t.Errorf("clean classifier should not trip rule; got %v", f)
-		}
-	}
-}
-
-func TestRule_NonPortableClassifier_MissingFromRegistry(t *testing.T) {
-	members := []MemberTopics{
-		mkMember("team-a", "consumer", Topics{
-			Intake: []IntakeEntry{{
-				Prefix:          "y/*",
-				Taxonomy:        "tx",
-				ClassifierSkill: "ghost-classifier",
-			}},
-			ExternalProducers: []string{"operator"},
-		}),
-	}
-	opts := ValidationOptions{
-		Taxonomies: TaxonomyRegistry{"tx": &Taxonomy{ID: "tx"}},
-		SkillPaths: map[string]string{"some-other-classifier": "/dev/null"},
-	}
-	r := Validate(members, opts)
-	hits := 0
-	for _, f := range r.Findings {
-		if f.Rule == "non_portable_classifier" && f.Severity == SeverityError {
-			hits++
-		}
-	}
-	if hits == 0 {
-		t.Errorf("expected non_portable_classifier error for missing skill; findings=%v", r.Findings)
-	}
-}
+// Pre-P4.0 this file held three TestRule_NonPortableClassifier_* tests
+// that exercised a substring-coupling rule against a synthetic
+// classifier skill. P4.0 retired ruleNonPortableClassifier in favor of
+// ruleProseTopicLeak's broader, file-walking coverage; the subsumption
+// proof lives in non_portable_classifier_subsumption_test.go and the
+// belt-and-suspenders live-store check in classifier_purity_test.go.
 
 func TestRule_MissingDestinationSchema(t *testing.T) {
 	members := []MemberTopics{
@@ -663,10 +574,11 @@ func TestRule_DanglingPORSink(t *testing.T) {
 func TestValidate_RealStoreCanary(t *testing.T) {
 	// The canary backfill (marketing-crew + monetization + meta-opt + ...) on
 	// the real store should validate clean for orphan rules and the new
-	// taxonomy/classifier rules. dangling_por_sink will fire only if a
-	// member declares a por_file destination with a missing path.
-	// dangling_evidence_decision relies on the team-contract registry,
-	// which the canary loads via StoreDir lazy-load.
+	// taxonomy rules. dangling_por_sink will fire only if a member declares
+	// a por_file destination with a missing path. dangling_evidence_decision
+	// relies on the team-contract registry, which the canary loads via
+	// StoreDir lazy-load. Pillar 2 prose-scan coverage is exercised
+	// separately by TestClassifierPurity_RegisteredClassifiers_NoProseTopicLeak.
 	storeDir := "/home/matthalloran8/Vrooli/scenarios/prompt-manager/store"
 	if _, err := os.Stat(storeDir); err != nil {
 		t.Skip("real store not available in this environment")
@@ -675,16 +587,11 @@ func TestValidate_RealStoreCanary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
-	skillPaths, err := LoadSkillPaths(storeDir)
-	if err != nil {
-		t.Fatalf("LoadSkillPaths: %v", err)
-	}
 	repoRoot := filepath.Join(storeDir, "..", "..", "..")
 	repoRoot, _ = filepath.Abs(repoRoot)
 	r := Validate(members, ValidationOptions{
-		RepoRoot:   repoRoot,
-		StoreDir:   storeDir,
-		SkillPaths: skillPaths,
+		RepoRoot: repoRoot,
+		StoreDir: storeDir,
 	})
 	if r.Errors > 0 {
 		for _, f := range r.Findings {

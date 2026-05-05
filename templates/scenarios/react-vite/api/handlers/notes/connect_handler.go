@@ -28,10 +28,10 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-func (h *connectHandler) List(ctx context.Context, req *connect.Request[notesv1.ListNotesRequest]) (*connect.Response[notesv1.ListNotesResponse], error) {
+func (h *connectHandler) ListNotes(ctx context.Context, req *connect.Request[notesv1.ListNotesRequest]) (*connect.Response[notesv1.ListNotesResponse], error) {
 	results, err := h.deps.Service.List(ctx, 0)
 	if err != nil {
-		h.deps.Logger.Printf("notes.List: %v", err)
+		h.deps.Logger.Printf("notes.ListNotes: %v", err)
 		return nil, notes.ToConnectError(err)
 	}
 
@@ -44,7 +44,7 @@ func (h *connectHandler) List(ctx context.Context, req *connect.Request[notesv1.
 	return connect.NewResponse(resp), nil
 }
 
-func (h *connectHandler) Create(ctx context.Context, req *connect.Request[notesv1.CreateNoteRequest]) (*connect.Response[notesv1.CreateNoteResponse], error) {
+func (h *connectHandler) CreateNote(ctx context.Context, req *connect.Request[notesv1.CreateNoteRequest]) (*connect.Response[notesv1.CreateNoteResponse], error) {
 	created, err := h.deps.Service.Create(ctx, notes.CreateInput{
 		Title: req.Msg.Title,
 		Body:  req.Msg.Body,
@@ -52,19 +52,19 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[notesv
 	if err != nil {
 		connectErr := notes.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("notes.Create: %v", err)
+			h.deps.Logger.Printf("notes.CreateNote: %v", err)
 		}
 		return nil, connectErr
 	}
 	return connect.NewResponse(&notesv1.CreateNoteResponse{Note: domainToProto(created)}), nil
 }
 
-func (h *connectHandler) Get(ctx context.Context, req *connect.Request[notesv1.GetNoteRequest]) (*connect.Response[notesv1.GetNoteResponse], error) {
+func (h *connectHandler) GetNote(ctx context.Context, req *connect.Request[notesv1.GetNoteRequest]) (*connect.Response[notesv1.GetNoteResponse], error) {
 	got, err := h.deps.Service.Get(ctx, req.Msg.Id)
 	if err != nil {
 		connectErr := notes.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("notes.Get(%q): %v", req.Msg.Id, err)
+			h.deps.Logger.Printf("notes.GetNote(%q): %v", req.Msg.Id, err)
 		}
 		return nil, connectErr
 	}

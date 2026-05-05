@@ -14,24 +14,27 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 // @domain notes
 // @stability stable
 //
-// Wire contract for the Notes Connect-RPC service. Ships as the canonical CRUD
-// reference: every layer downstream of this proto (handler, store, UI client,
-// CLI domain) is the pattern new scenarios copy when they add their first
-// non-trivial mutation. Keep that role in mind when extending — additions land
-// here, then ripple to the layers in turn.
+// Wire contract for the NotesService Connect-RPC service. Ships as the
+// canonical CRUD reference: every layer downstream of this proto (handler,
+// store, UI client, CLI domain) is the pattern new scenarios copy when they
+// add their first non-trivial mutation. Keep that role in mind when extending
+// — additions land here, then ripple to the layers in turn.
+//
+// Naming convention: the `Service` suffix and `<Service><Verb>Request` request
+// shape match buf's DEFAULT lint rules and the rest of `packages/proto/`.
 //
 // Consumed by:
 //   - API: handlers/notes/connect_handler.go implements the generated
-//          NotesHandler interface from the notes_v1connect Go package.
+//          NotesServiceHandler interface from the notes_v1connect Go package.
 //   - UI:  ui/src/api/notes.ts exposes the generated Connect-Web client.
 //   - CLI: cli/domains/notes/handlers.go calls the generated Connect-Go client
 //          and renders via cliapp.ListReport / MutationReport.
 // =============================================================================
 
-service Notes {
-  rpc List(ListNotesRequest) returns (ListNotesResponse);
-  rpc Create(CreateNoteRequest) returns (CreateNoteResponse);
-  rpc Get(GetNoteRequest) returns (GetNoteResponse);
+service NotesService {
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+  rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
+  rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
 }
 
 // Note is the canonical wire shape for a single note resource.
@@ -60,13 +63,13 @@ message Note {
 message ListNotesRequest {
 }
 
-// ListNotesResponse is the body returned by GET /api/v1/notes.
+// ListNotesResponse is the body returned by NotesService.ListNotes.
 message ListNotesResponse {
   // Notes ordered newest-first by created_at.
   repeated Note notes = 1;
 }
 
-// CreateNoteRequest is the body accepted by POST /api/v1/notes.
+// CreateNoteRequest is the body accepted by NotesService.CreateNote.
 message CreateNoteRequest {
   string title = 1;
   string body = 2;
@@ -82,7 +85,7 @@ message GetNoteRequest {
   string id = 1;
 }
 
-// GetNoteResponse is the body returned by GET /api/v1/notes/{id}.
+// GetNoteResponse is the body returned by NotesService.GetNote.
 message GetNoteResponse {
   Note note = 1;
 }

@@ -4,9 +4,9 @@ import "{{SCENARIO_ID}}/internal/module"
 
 // Endpoints is the machine-readable description of every route this
 // module mounts. The codegen at api/cmd/gen-endpoints reads this slice
-// (plus notes.Endpoints, plus future domains) to emit the canonical
-// .vrooli/endpoints.json. Adding or removing a route here without
-// regenerating fails the CI drift check.
+// (and every other domain's Endpoints slice via the modules registry)
+// to emit the canonical .vrooli/endpoints.json. Adding or removing a
+// route here without regenerating fails the CI drift check.
 //
 // The /api/v1/health alias mounted by Module is intentionally not a
 // separate descriptor — both paths return the same envelope and serve

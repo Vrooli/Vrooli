@@ -4,9 +4,9 @@ import { ApiError } from "./client";
 
 const mocks = vi.hoisted(() => ({
   client: {
-    list: vi.fn(),
-    create: vi.fn(),
-    get: vi.fn(),
+    listNotes: vi.fn(),
+    createNote: vi.fn(),
+    getNote: vi.fn(),
   },
 }));
 
@@ -30,9 +30,9 @@ describe("api/notes", () => {
   it("exports the generated Connect client", async () => {
     const { notesClient } = await import("./notes");
 
-    await notesClient.list({});
+    await notesClient.listNotes({});
 
-    expect(mocks.client.list).toHaveBeenCalledWith({});
+    expect(mocks.client.listNotes).toHaveBeenCalledWith({});
   });
 
   describe("uploadAttachment", () => {

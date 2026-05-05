@@ -34,7 +34,7 @@ describe("NotesCard", () => {
 
   it("renders the empty state when listNotes resolves with no notes", async () => {
     const { notesClient } = await import("../../api/notes");
-    vi.mocked(notesClient.list).mockResolvedValueOnce(makeListNotesResponse());
+    vi.mocked(notesClient.listNotes).mockResolvedValueOnce(makeListNotesResponse());
 
     renderWithProviders(<NotesCard />);
     await waitFor(() => {
@@ -45,7 +45,7 @@ describe("NotesCard", () => {
 
   it("renders the list when listNotes returns items", async () => {
     const { notesClient } = await import("../../api/notes");
-    vi.mocked(notesClient.list).mockResolvedValueOnce(
+    vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
       makeListNotesResponse({
         notes: [
           makeNote({ id: "a", title: "First persisted note", attachmentKeys: ["a.txt"] }),
@@ -67,8 +67,8 @@ describe("NotesCard", () => {
 
   it("invokes createNote when the create button is clicked", async () => {
     const { notesClient } = await import("../../api/notes");
-    vi.mocked(notesClient.list).mockResolvedValue(makeListNotesResponse());
-    vi.mocked(notesClient.create).mockResolvedValueOnce(
+    vi.mocked(notesClient.listNotes).mockResolvedValue(makeListNotesResponse());
+    vi.mocked(notesClient.createNote).mockResolvedValueOnce(
       makeCreateNoteResponse({ note: makeNote({ id: "new" }) }),
     );
 
@@ -81,8 +81,8 @@ describe("NotesCard", () => {
     await user.click(screen.getByTestId(selectors.notes.createButton));
 
     await waitFor(() => {
-      expect(notesClient.create).toHaveBeenCalledTimes(1);
+      expect(notesClient.createNote).toHaveBeenCalledTimes(1);
     });
-    expect(vi.mocked(notesClient.create).mock.calls[0]?.[0]).toMatchObject({ title: expect.any(String) });
+    expect(vi.mocked(notesClient.createNote).mock.calls[0]?.[0]).toMatchObject({ title: expect.any(String) });
   });
 });

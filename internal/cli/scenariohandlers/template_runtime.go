@@ -869,7 +869,14 @@ func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info Temp
 		}
 		// `buf lint --path` is now scoped to the temp dir which lives
 		// inside the buf module, so the lint succeeds.
-		var stderr bytes.Buffer
+		//
+		// `buf lint` writes lint diagnostics to stdout (one per line) and
+		// exits non-zero. We capture both streams and prefer stdout for the
+		// surfaced message because that's where the actionable detail lives.
+		// The temp-dir path prefix in each diagnostic line is also stripped
+		// so the surfaced message matches what an author would see if they
+		// ran `buf lint` directly against the template's proto/.
+		var stdout, stderr bytes.Buffer
 		relTmp, err := filepath.Rel(protoPackageDir, tmpDir)
 		if err != nil {
 			relTmp = tmpDir
@@ -879,14 +886,21 @@ func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info Temp
 			Args:   []string{"-lc", fmt.Sprintf("buf lint --path %s", shellQuote(relTmp))},
 			Dir:    protoPackageDir,
 			Env:    deps.CommandEnv(ctx),
-			Stdout: io.Discard,
+			Stdout: &stdout,
 			Stderr: &stderr,
 		})
 		if err != nil {
-			msg := strings.TrimSpace(stderr.String())
+			msg := strings.TrimSpace(stdout.String())
+			if msg == "" {
+				msg = strings.TrimSpace(stderr.String())
+			}
 			if msg == "" {
 				msg = err.Error()
 			}
+			// Strip the temp-dir prefix so diagnostics read as if buf lint
+			// had been run against the template's source proto/ directly.
+			fromPrefix := strings.TrimRight(filepath.ToSlash(from), "/") + "/"
+			msg = strings.ReplaceAll(msg, filepath.ToSlash(relTmp)+"/", fromPrefix)
 			issues = append(issues, TemplateValidationIssue{
 				Template: info.Name,
 				Path:     filepath.ToSlash(from),

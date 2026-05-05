@@ -179,6 +179,18 @@ phase — it's how you learn the pattern by copying.
    - In the UI, build `FormData` and call the shared `uploadFile()`
      helper, then parse the metadata response with the generated proto
      descriptor.
+   - **Own your blob storage inside `handlers/tasks/module.go`.** Mirror
+     `handlers/notes/module.go`'s `Module(db, clk, logger)` /
+     `ModuleWithBlobStore(db, clk, blobs, logger)` pair: production
+     `Module` calls a private `defaultBlobStore()` helper, tests pass
+     an in-memory blobstore via `ModuleWithBlobStore`. This keeps
+     `api/main.go` blob-storage-free, so a future delete of `tasks`
+     leaves no orphan `blobstore` plumbing in `main.go`.
+
+   You can add a multipart endpoint without breaking later deletion
+   because the substrate already enforces the cleanup contract: the
+   notes domain ships exactly this pattern, and `handlers/notes/module.go`
+   is the worked example.
 
 7. **Wire into CLI.** Add **one line** to `cli/domains/domains.go`'s
    `SubcommandGroups`:
@@ -286,30 +298,62 @@ make endpoints
 `ui/src/i18n/locales/*.json` (search for `"notes":` blocks) and
 re-run `pnpm strings:gen` from `ui/`.
 
+**5. Drop the notes selectors block.** `ui/src/consts/selectors.ts`
+groups data-testids by domain (`app`, `health`, `notes`, …). The
+notes block (including its attachment-related entries
+`attachmentUpload`, `attachmentFile`, `attachmentButton`,
+`attachmentStatus`, `attachmentCount`) is dead code after step 1
+deletes `features/notes/`. Open `ui/src/consts/selectors.ts` and
+delete the entire `notes: { … },` block. Type-check stays green
+either way (the selectors file is an exported object), but the
+verification grep below catches the residue if you skip this step.
+
 The remaining surface is your domain plus health. No notes residue —
-including no orphan `notes` table created on every boot (Pass-3 moved
-schema ownership to `internal/notes/`, deleted with the folder).
+including no orphan `notes` table created on every boot (schema
+ownership lives in `internal/notes/`, deleted with the folder), no
+orphan filesystem blobstore in `api/main.go` (the notes module owns
+its own blob storage; deleting `notesH.Module(...)` takes the entire
+attachments plumbing along), and no orphan `attachments_*` mocks
+(co-located in `internal/notes/mocks/`, deleted with the folder).
 
 > **Why these steps?** Step 1 is folder-deletion (schema, mocks,
-> factories, tests come along). Step 2 deletes three central
-> registration lines per surface. Steps 3–4 update two files codegen
-> can't reach. The cohesion gain shows up here: where prior versions
-> needed nine deletions across four locations, the surface is now
-> mostly `rm -rf`.
+> factories, tests, and the entire attachments sub-resource come
+> along — `attach_handler.go`, `attachments_*.go`, `AttachmentUpload.tsx`,
+> `attachments.proto`). Step 2 deletes three central registration
+> lines per surface — and because `notesH.Module(db, clk, logger)`
+> is the only consumer of attachments-side blob storage, removing
+> that one call removes the only `blobstore` import in `api/main.go`.
+> Steps 3–4 update two files codegen can't reach. Step 5 is the one
+> place a domain leaks beyond its folder by design (centralised
+> `data-testid` table for cross-cutting test queries).
 
 ## Verify the deletion is complete
 
+The verification grep skips comment lines and shipped substrate
+documentation. Substrate files (`api/internal/{database,module,
+modules,server,httpx,httpc,testutil}/...`, `cli/internal/testutil/`,
+`ui/src/test-utils/`, `docs/`) ship with educational doc-comments
+that name `notes` as the canonical example — those are *intended* to
+mention notes even after you delete the domain, so they're filtered
+out. Anything that surfaces below is real residue you need to clean.
+
 ```bash
-grep -rn "notes\|Notes\|NOTES" \
-  api/ cli/ ui/src/ proto/ docs/ .vrooli/ \
-  --exclude-dir=node_modules \
-  --exclude-dir=dist \
-  --exclude-dir=internal/notes-template-* \
-  | grep -v "REPLACING-NOTES\|README"
+grep -rn 'notes\|Notes\|NOTES' \
+    api/ cli/ ui/src/ proto/ .vrooli/ \
+    --exclude-dir=node_modules \
+    --exclude-dir=dist \
+  | grep -v 'REPLACING-NOTES\|README' \
+  | grep -vE '^[^:]+:[0-9]+:\s*(//|\*)' \
+  | grep -vE '^api/cmd/gen-endpoints/main_test\.go:' \
+  | grep -vE '^api/internal/(database|module|modules|server|httpx|httpc|testutil)/' \
+  | grep -vE '^cli/internal/testutil/' \
+  | grep -vE '^ui/src/test-utils/'
 ```
 
 Expected: zero output. If any line surfaces, it's a residue you
-need to clean.
+need to clean. (The `gen-endpoints` test fixture exception is
+because that test uses literal `notes`-prefixed strings as test
+data for the codegen logic itself — they're not stale references.)
 
 ## Cross-references
 

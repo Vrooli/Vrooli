@@ -208,7 +208,7 @@ func (t Topics) IsEmpty() bool {
 //   - destination_kind == por_file with empty destination_path
 //
 // Cross-member errors (orphan_input, conflicting_drain, unknown_taxonomy,
-// non_portable_classifier, missing_destination_schema, etc.) require the full
+// missing_destination_schema, prose_topic_leak, etc.) require the full
 // graph and are computed by Validate (validation.go), not by this method.
 func (t Topics) Validate() error {
 	errs := t.ValidateAll()

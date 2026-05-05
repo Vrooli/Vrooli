@@ -16,14 +16,14 @@ import (
 // RunCtx-func has typed access to the API client without re-resolving it.
 type handlers struct {
 	core   *cliapp.ScenarioApp
-	client notesconnect.NotesClient
+	client notesconnect.NotesServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
-		client: notesconnect.NewNotesClient(httpClient, baseURL),
+		client: notesconnect.NewNotesServiceClient(httpClient, baseURL),
 	}
 }
 
@@ -31,7 +31,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // human consumers see a ListReport; --json consumers see the proto-typed
 // ListNotesResponse wire shape, identical to what `curl /Notes/List` returns.
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	resp, err := h.client.List(context.Background(), connect.NewRequest(&notesv1.ListNotesRequest{}))
+	resp, err := h.client.ListNotes(context.Background(), connect.NewRequest(&notesv1.ListNotesRequest{}))
 	if err != nil {
 		return cliapp.WrapAPIError("list notes", err, nil)
 	}
@@ -60,7 +60,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 // declared in register.go; this handler is reached only when the flag is
 // present.
 func (h *handlers) create(ctx cliapp.RunContext) error {
-	resp, err := h.client.Create(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{
+	resp, err := h.client.CreateNote(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{
 		Title: ctx.Flag("title"),
 		Body:  ctx.Flag("body"),
 	}))
@@ -85,7 +85,7 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 // ArgSchema declared in register.go.
 func (h *handlers) get(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.Get(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: id}))
+	resp, err := h.client.GetNote(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: id}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("get note %q", id), err, nil)
 	}

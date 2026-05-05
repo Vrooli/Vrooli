@@ -2,11 +2,13 @@ package notes
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/storage"
 
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
@@ -18,15 +20,31 @@ import (
 // Module returns the notes domain's contribution to the API: the generated
 // Connect-RPC service handler plus the deliberate REST multipart exception.
 //
+// Production callers use this entry point; it owns its own blob storage so
+// scenarios that don't use notes (or scenarios deleting notes per
+// REPLACING-NOTES.md) don't carry an orphan blobstore in api/main.go.
+// Tests inject an in-memory blob store via ModuleWithBlobStore.
+//
 // Adding a real domain to a scenario means copying this file into
 // handlers/<dom>/module.go and pointing it at <dom>'s proto-generated handler
 // and service. The center (server.New) does not change.
-func Module(db *sql.DB, clk clock.Clock, blobs blobstore.BlobStore, logger *log.Logger) module.Module {
+func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
+	blobs, err := defaultBlobStore()
+	if err != nil {
+		logger.Fatalf("notes attachments storage: %v", err)
+	}
+	return ModuleWithBlobStore(db, clk, blobs, logger)
+}
+
+// ModuleWithBlobStore is the explicit-injection variant used by tests
+// (typically with blobstore.NewMemoryBlobStore()) and by callers that
+// want to swap the blob backend.
+func ModuleWithBlobStore(db *sql.DB, clk clock.Clock, blobs blobstore.BlobStore, logger *log.Logger) module.Module {
 	repo := internalnotes.NewSQLiteRepository(db, clk)
 	attachmentsRepo := internalnotes.NewSQLiteAttachmentsRepository(db, clk)
 	svc := internalnotes.NewService(repo)
 	attachmentsSvc := internalnotes.NewAttachmentsService(repo, attachmentsRepo)
-	connectPath, connectHandler := notesconnect.NewNotesHandler(NewConnectHandler(Deps{
+	connectPath, connectHandler := notesconnect.NewNotesServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
@@ -45,6 +63,30 @@ func Module(db *sql.DB, clk clock.Clock, blobs blobstore.BlobStore, logger *log.
 	}
 }
 
+// defaultBlobStore resolves the storage-steer-mandated attachments
+// directory and returns a filesystem-backed blobstore rooted there.
+// Lives in this package so attachments storage travels with the notes
+// domain — scenarios that don't ship notes never see a "blobstore"
+// import in main.go.
+func defaultBlobStore() (blobstore.BlobStore, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create storage resolver: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "{{SCENARIO_ID}}"},
+		storage.ClassData,
+		"attachments",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("resolve attachments path: %w", err)
+	}
+	return blobstore.NewFilesystemBlobStore(path), nil
+}
+
 // Schema re-exports internalnotes.Schema so the modules registry can
 // collect both endpoint descriptors and schema from one symbol per
 // handler package. Keeps the registry's per-domain shape uniform:
@@ -61,7 +103,7 @@ func Schema() string { return internalnotes.Schema() }
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "notes_list",
-		Path:        notesconnect.NotesListProcedure,
+		Path:        notesconnect.NotesServiceListNotesProcedure,
 		Method:      "POST",
 		Summary:     "List notes",
 		Description: "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
@@ -76,7 +118,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
 		Examples: []module.Example{
-			{Name: "List notes", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List -H 'Content-Type: application/json' -d '{}'"},
+			{Name: "List notes", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "{{SCENARIO_ID}} notes list",
@@ -84,7 +126,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "notes_create",
-		Path:        notesconnect.NotesCreateProcedure,
+		Path:        notesconnect.NotesServiceCreateNoteProcedure,
 		Method:      "POST",
 		Summary:     "Create a note",
 		Description: "Persists a new note. Title is required and validated by notes.Service; body is optional.",
@@ -107,7 +149,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Create note", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"},
+			{Name: "Create note", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "{{SCENARIO_ID}} notes create",
@@ -116,7 +158,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "notes_get",
-		Path:        notesconnect.NotesGetProcedure,
+		Path:        notesconnect.NotesServiceGetNoteProcedure,
 		Method:      "POST",
 		Summary:     "Get a note by id",
 		Description: "Returns the note matching the request id through the generated Connect-RPC Notes service.",
@@ -138,7 +180,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Get note", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"},
+			{Name: "Get note", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "{{SCENARIO_ID}} notes get",

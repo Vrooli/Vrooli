@@ -48,7 +48,12 @@ type topicFinding struct {
 	Severity string         `json:"severity"`
 	Member   topicMemberRef `json:"member,omitempty"`
 	Prefix   string         `json:"prefix,omitempty"`
-	Detail   string         `json:"detail"`
+	// OwnerKey is the canonical surface owner (`team:<t>/<m>`,
+	// `team:<t>`, `agent:<id>`, `skill:<id>`, `docs:<domain>`)
+	// populated by Pillar 2 (`prose_topic_leak`). Other rules leave
+	// it empty.
+	OwnerKey string `json:"owner_key,omitempty"`
+	Detail   string `json:"detail"`
 }
 
 type topicValidation struct {

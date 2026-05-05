@@ -280,8 +280,8 @@ the goal is the same: production wires once, tests substitute.
 | | |
 |---|---|
 | **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/notes.ts`) |
-| **Module** | `ui/src/api/notes.ts` exports `notesClient = createClient(Notes, transport)` and `uploadAttachment(...)` for the multipart REST exception. |
-| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `notesClient.list({})` and `notesClient.create({ title, body })`. Multipart flows call `uploadAttachment`, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
+| **Module** | `ui/src/api/notes.ts` exports `notesClient = createClient(NotesService, transport)` and `uploadAttachment(...)` for the multipart REST exception. |
+| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `notesClient.listNotes({})` and `notesClient.createNote({ title, body })`. Multipart flows call `uploadAttachment`, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
 | **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => ...)` and replace `notesClient` methods or `uploadAttachment`. Factories build generated proto types, including `Timestamp` values. |
 | **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client: export the generated Connect client, keep binary-upload helpers beside it when needed, and let components consume typed results rather than hand-written response interfaces. |
 

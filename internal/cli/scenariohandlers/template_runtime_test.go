@@ -2,6 +2,7 @@ package scenariohandlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -512,6 +513,38 @@ func TestValidateRelocationProtoSources_DetectsProtoDir(t *testing.T) {
 		t.Fatalf("call dir = %q, want packages/proto", capture.calls[0].Dir)
 	}
 	_ = issues
+}
+
+// TestValidateRelocationProtoSources_SurfacesStdoutOnLintFailure pins the
+// stdout-capture fix: `buf lint` writes diagnostics to stdout, not stderr,
+// so the validator must surface stdout in the issue Message. Pre-fix,
+// failures collapsed to a useless "buf lint failed: exit status 100" string.
+func TestValidateRelocationProtoSources_SurfacesStdoutOnLintFailure(t *testing.T) {
+	repoRoot, info := writeRelocationTemplate(t, "reloc-lint-fail", nil)
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "proto", "schemas"), 0o755); err != nil {
+		t.Fatalf("mkdir packages/proto/schemas: %v", err)
+	}
+
+	const lintDiagnostic = `Service name "Notes" should be suffixed with "Service".`
+	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, &capturedSubprocess{})
+	deps.RunSubprocess = func(_ struct{}, spec scenarioexec.SubprocessSpec) error {
+		if spec.Stdout != nil {
+			_, _ = io.WriteString(spec.Stdout, lintDiagnostic+"\n")
+		}
+		return errors.New("exit status 100")
+	}
+
+	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	if len(issues) != 1 {
+		t.Fatalf("issues = %#v, want exactly 1", issues)
+	}
+	msg := issues[0].Message
+	if !strings.Contains(msg, lintDiagnostic) {
+		t.Fatalf("issue message %q must surface the stdout diagnostic %q", msg, lintDiagnostic)
+	}
+	if strings.Contains(msg, ".tmp-validate-") {
+		t.Fatalf("issue message %q must rewrite the temp-dir prefix back to the template path; got raw temp dir", msg)
+	}
 }
 
 func TestValidateRelocationProtoSources_SkipsWhenSchemasDirAbsent(t *testing.T) {

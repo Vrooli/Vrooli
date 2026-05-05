@@ -29,7 +29,7 @@
     },
     {
       "id": "notes_list",
-      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes",
       "method": "POST",
       "summary": "List notes",
       "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
@@ -50,7 +50,7 @@
       "examples": [
         {
           "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List -H 'Content-Type: application/json' -d '{}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
         }
       ],
       "cli_mapping": {
@@ -59,7 +59,7 @@
     },
     {
       "id": "notes_create",
-      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote",
       "method": "POST",
       "summary": "Create a note",
       "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
@@ -92,7 +92,7 @@
       "examples": [
         {
           "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
         }
       ],
       "cli_mapping": {
@@ -107,7 +107,7 @@
     },
     {
       "id": "notes_get",
-      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote",
       "method": "POST",
       "summary": "Get a note by id",
       "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
@@ -139,7 +139,7 @@
       "examples": [
         {
           "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
         }
       ],
       "cli_mapping": {

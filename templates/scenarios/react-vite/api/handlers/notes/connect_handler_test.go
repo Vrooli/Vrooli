@@ -22,17 +22,17 @@ import (
 	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
 )
 
-func newNotesClient(t *testing.T, fake *mocks.FakeService, logger *log.Logger) notesconnect.NotesClient {
+func newNotesClient(t *testing.T, fake *mocks.FakeService, logger *log.Logger) notesconnect.NotesServiceClient {
 	t.Helper()
 	if logger == nil {
 		logger = log.New(&bytes.Buffer{}, "", 0)
 	}
-	path, handler := notesconnect.NewNotesHandler(notes.NewConnectHandler(notes.Deps{Service: fake, Logger: logger}))
+	path, handler := notesconnect.NewNotesServiceHandler(notes.NewConnectHandler(notes.Deps{Service: fake, Logger: logger}))
 	router := mux.NewRouter()
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
-	return notesconnect.NewNotesClient(server.Client(), server.URL)
+	return notesconnect.NewNotesServiceClient(server.Client(), server.URL)
 }
 
 func TestConnectHandlerListReturnsItems(t *testing.T) {
@@ -44,7 +44,7 @@ func TestConnectHandlerListReturnsItems(t *testing.T) {
 		},
 	}, nil)
 
-	resp, err := client.List(context.Background(), connect.NewRequest(&notesv1.ListNotesRequest{}))
+	resp, err := client.ListNotes(context.Background(), connect.NewRequest(&notesv1.ListNotesRequest{}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.Notes, 2)
 	require.Equal(t, "first", resp.Msg.Notes[0].Title)
@@ -59,7 +59,7 @@ func TestConnectHandlerCreateSuccess(t *testing.T) {
 	}
 	client := newNotesClient(t, fake, nil)
 
-	resp, err := client.Create(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{
+	resp, err := client.CreateNote(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{
 		Title: "first",
 		Body:  "hello",
 	}))
@@ -74,7 +74,7 @@ func TestConnectHandlerCreateInvalidArgument(t *testing.T) {
 		CreateErr: internalnotes.ErrInvalidNote{Field: "title", Reason: "required"},
 	}, nil)
 
-	_, err := client.Create(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{Title: ""}))
+	_, err := client.CreateNote(context.Background(), connect.NewRequest(&notesv1.CreateNoteRequest{Title: ""}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	require.Contains(t, err.Error(), "title")
@@ -83,7 +83,7 @@ func TestConnectHandlerCreateInvalidArgument(t *testing.T) {
 func TestConnectHandlerGetReturnsNotFound(t *testing.T) {
 	client := newNotesClient(t, &mocks.FakeService{GetErr: internalnotes.ErrNoteNotFound{ID: "ghost"}}, nil)
 
-	_, err := client.Get(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: "ghost"}))
+	_, err := client.GetNote(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: "ghost"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
@@ -92,7 +92,7 @@ func TestConnectHandlerGetInternalErrorLogs(t *testing.T) {
 	logBuf := &bytes.Buffer{}
 	client := newNotesClient(t, &mocks.FakeService{GetErr: errors.New("boom")}, log.New(logBuf, "", 0))
 
-	_, err := client.Get(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: "x"}))
+	_, err := client.GetNote(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: "x"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 	require.Contains(t, logBuf.String(), "boom")

@@ -19,9 +19,9 @@
  *
  * Default behaviors:
  *
- *   - `notesClient.list` resolves to an empty list
- *   - `notesClient.create({ title, body })` echoes the input back as a Note
- *   - `notesClient.get({ id })` echoes the id back as a Note
+ *   - `notesClient.listNotes` resolves to an empty list
+ *   - `notesClient.createNote({ title, body })` echoes the input back as a Note
+ *   - `notesClient.getNote({ id })` echoes the id back as a Note
  *   - `uploadAttachment` resolves to stable attachment metadata
  */
 import { vi } from "vitest";
@@ -35,22 +35,22 @@ export interface NotesMockCreateInput {
 
 export interface NotesMocks {
   notesClient: {
-    list: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
-    get: ReturnType<typeof vi.fn>;
+    listNotes: ReturnType<typeof vi.fn>;
+    createNote: ReturnType<typeof vi.fn>;
+    getNote: ReturnType<typeof vi.fn>;
   };
   uploadAttachment: ReturnType<typeof vi.fn>;
 }
 
 export const makeNotesMocks = (): NotesMocks => ({
   notesClient: {
-    list: vi.fn().mockResolvedValue(makeListNotesResponse()),
-    create: vi
+    listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
+    createNote: vi
       .fn()
       .mockImplementation((input: NotesMockCreateInput) =>
         Promise.resolve(makeCreateNoteResponse({ note: makeNote({ title: input.title, body: input.body ?? "" }) })),
       ),
-    get: vi
+    getNote: vi
       .fn()
       .mockImplementation((input: { id: string }) => Promise.resolve({ note: makeNote({ id: input.id }) })),
   },

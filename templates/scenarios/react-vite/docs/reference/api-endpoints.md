@@ -57,7 +57,7 @@ and mirrors `api-core/health.Response` field-for-field.
 The `notes` domain is the canonical worked example. Copy its layering
 when adding the first non-trivial mutation in your scenario.
 
-### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List`
+### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes`
 
 List notes through the generated Connect-RPC service, newest-first.
 
@@ -69,7 +69,7 @@ List notes through the generated Connect-RPC service, newest-first.
 | **CLI** | `{{SCENARIO_ID}} notes list` |
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/List" \
+curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes" \
   -H 'Content-Type: application/json' \
   -d '{}'
 ```
@@ -77,7 +77,7 @@ curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes
 UI and CLI code should normally use the generated client instead of
 calling this path by hand.
 
-### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create`
+### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote`
 
 Create a note through the generated Connect-RPC service.
 
@@ -90,7 +90,7 @@ Create a note through the generated Connect-RPC service.
 | **CLI** | `{{SCENARIO_ID}} notes create --title <title> [--body <body>]` |
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Create" \
+curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote" \
   -H 'Content-Type: application/json' \
   -d '{"title":"first","body":"hello"}'
 ```
@@ -99,7 +99,7 @@ Title validation (non-empty after whitespace trim) lives in
 `internal/notes/service.go`, **not** the handler. The Connect handler
 only translates `notes.ErrInvalidNote` into `invalid_argument`.
 
-### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get`
+### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote`
 
 Fetch a note by id through the generated Connect-RPC service.
 
@@ -112,7 +112,7 @@ Fetch a note by id through the generated Connect-RPC service.
 | **CLI** | `{{SCENARIO_ID}} notes get <id>` |
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.Notes/Get" \
+curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote" \
   -H 'Content-Type: application/json' \
   -d '{"id":"abc123"}'
 ```

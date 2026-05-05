@@ -31,7 +31,7 @@ func TestModule_Shape(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.Module(d, clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(d, clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 
 	require.Equal(t, "notes", m.Name)
 	require.NotNil(t, m.Mount, "Mount closure must be set")
@@ -47,7 +47,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.Module(d, clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(d, clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 
@@ -62,7 +62,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "list_empty",
 			method:       http.MethodPost,
-			path:         notesconnect.NotesListProcedure,
+			path:         notesconnect.NotesServiceListNotesProcedure,
 			body:         `{}`,
 			wantStatus:   http.StatusOK,
 			wantContains: `{`,
@@ -70,7 +70,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "create_happy",
 			method:       http.MethodPost,
-			path:         notesconnect.NotesCreateProcedure,
+			path:         notesconnect.NotesServiceCreateNoteProcedure,
 			body:         `{"title":"first","body":"hello"}`,
 			wantStatus:   http.StatusOK,
 			wantContains: `"note"`,
@@ -78,7 +78,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "create_rejects_empty_title",
 			method:       http.MethodPost,
-			path:         notesconnect.NotesCreateProcedure,
+			path:         notesconnect.NotesServiceCreateNoteProcedure,
 			body:         `{"title":""}`,
 			wantStatus:   http.StatusBadRequest,
 			wantContains: `"invalid_argument"`,
@@ -86,7 +86,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		{
 			name:         "get_not_found",
 			method:       http.MethodPost,
-			path:         notesconnect.NotesGetProcedure,
+			path:         notesconnect.NotesServiceGetNoteProcedure,
 			body:         `{"id":"missing"}`,
 			wantStatus:   http.StatusNotFound,
 			wantContains: `"not_found"`,
@@ -119,13 +119,13 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 // adding a notes_foo Endpoints entry would otherwise silently ship a
 // .vrooli/endpoints.json that disagrees with the running server.
 //
-// The proto's notes.Notes service is the source of truth: every method it
+// The proto's notes.NotesService is the source of truth: every method it
 // declares must have exactly one matching Endpoints entry, identified by
 // the Connect procedure path.
 func TestEndpoints_ParityWithProtoService(t *testing.T) {
 	svc := notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto.
-		Services().ByName("Notes")
-	require.NotNil(t, svc, "notes proto must declare a Notes service")
+		Services().ByName("NotesService")
+	require.NotNil(t, svc, "notes proto must declare a NotesService service")
 
 	byPath := make(map[string]int, len(notes.Endpoints))
 	for _, ep := range notes.Endpoints {
