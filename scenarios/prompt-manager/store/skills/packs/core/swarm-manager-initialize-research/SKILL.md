@@ -113,7 +113,7 @@ You are initializing a Swarm Manager research backlog item. Your goal is to boot
 
    Read `acceptance_allow`, `acceptance_deny`, and `creates` from `spec.json`:
    - If `acceptance_allow` is **set**, validate every glob against the current repo. For globs whose literal-prefix path does not exist on disk, decide whether the path is genuinely missing (stale — remove from `acceptance_allow`) or whether the research will create it (add to `creates` instead). The artifact `acceptance-validation.json` (if present in the item directory) lists exactly which globs are problematic.
-   - If `acceptance_allow` is **empty**, include an acceptance decision in round-001.json asking: "What file paths will this research touch or produce?" with options: A) broad scenario-level globs (e.g., `scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
+   - If `acceptance_allow` is **empty**, include an acceptance decision in round-001.json asking: "What file paths will this research touch or produce?" with options: A) broad scenario-level globs (e.g., `path:scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
 
 3. **Create conclusion.md scaffold**
 

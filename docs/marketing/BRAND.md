@@ -15,7 +15,7 @@ This file is the navigation hub. The actual canonical content lives in dedicated
 | **AI image generation style** (palette, aesthetic, prompt directives) | [`IMAGE_STYLE.md`](IMAGE_STYLE.md) |
 | **Audience personas** | [`AUDIENCES.md`](AUDIENCES.md) |
 | **Channel rules** | [`CHANNELS.md`](CHANNELS.md) |
-| **Project-identity narrative** (pitch, story, FAQ, press kit, deck outline) | [`docs/narrative/`](../narrative/) |
+| **Project-identity narrative** (pitch, story, FAQ, press kit, deck outline) | [`path:docs/narrative/`](../narrative/) |
 
 Single-source-of-truth discipline — do not duplicate content here that lives in the dedicated files.
 

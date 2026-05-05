@@ -133,7 +133,7 @@ Attribution flows over HTTP as a single base64-encoded JSON header:
 X-Vrooli-Attribution: eyJraW5kIjoiYWdlbnQtbWVtYmVyIiwibWVtYmVyX2lkIjoicmVzZWFyY2hlciIsInRlYW1faWQiOiJtYXJrZXRpbmctY3JldyIsInJ1bl9pZCI6IjVmOWMxYjJhLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwYzAiLCJzcGF3bl9vcmlnaW4iOiJoZWFydGJlYXQiLCJzb3VyY2Vfc2tpbGxfaWQiOm51bGx9
 ```
 
-The header value is the standard base64 encoding (`encoding/base64` in Go, `base64.b64encode` in Python — no URL-safe variant) of the canonical JSON form of the attribution object.
+The header value is the standard base64 encoding (`package:encoding/base64` in Go, `base64.b64encode` in Python — no URL-safe variant) of the canonical JSON form of the attribution object.
 
 ### Naming choice
 
@@ -263,7 +263,7 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 
 ### Example 1: Heartbeat-spawned agent writes a knowledge entry
 
-1. Prompt-manager's heartbeat executor schedules a run for `marketing-crew/researcher`. The helper `buildHeartbeatAttributionEnv` constructs the attribution payload:
+1. Prompt-manager's heartbeat executor schedules a run for `literal:marketing-crew/researcher`. The helper `buildHeartbeatAttributionEnv` constructs the attribution payload:
    ```json
    {"kind":"agent-member","member_id":"researcher","team_id":"marketing-crew","run_id":null,"spawn_origin":"heartbeat","source_skill_id":null}
    ```
@@ -276,7 +276,7 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 
 ### Example 2: Writer-skill `report-bug` invoked by an agent
 
-1. The agent (e.g., `monetization/opportunity-scout`) runs and decides to file a bug.
+1. The agent (e.g., `literal:monetization/opportunity-scout`) runs and decides to file a bug.
 2. The agent invokes the `report-bug` skill, which writes via `prompt-manager team knowledge-add scenario-qa --topic=bug-inbox/regression/cli-flag-confusion --content="..."`.
 3. The skill knows it's a writer skill — its CLI invocation logic constructs **writer-skill attribution** by inheriting agent context from `VROOLI_PROMPT_MANAGER_ATTRIBUTION` and overlaying `kind=writer-skill` and `source_skill_id=report-bug`:
    ```json

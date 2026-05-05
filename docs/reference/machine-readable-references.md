@@ -52,8 +52,8 @@ The marker and qualifier are metadata. They are not part of the literal value. F
 | `decision` | Decision context or decision id. |
 | `cli` | CLI command or subcommand. |
 | `env` | Environment variable. |
-| `platform` | OS / architecture / runtime target such as `darwin/arm64`. |
-| `mime` | MIME or media type such as `application/json`. |
+| `platform` | OS / architecture / runtime target such as `platform:darwin/arm64`. |
+| `mime` | MIME or media type such as `mime:application/json`. |
 | `route` | HTTP, API, or UI route path. |
 | `package` | Package, module, or import path. |
 | `literal` | A string that looks machine-readable but should not be semantically validated. |

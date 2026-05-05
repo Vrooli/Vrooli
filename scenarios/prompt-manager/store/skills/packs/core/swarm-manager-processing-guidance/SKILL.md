@@ -42,7 +42,7 @@ See `swarm-manager-backlog-tools` for the full reading order and decision hierar
 
 For idea processing that initializes or updates scenarios:
 
-- If structured spec artifacts exist in backlog (`archive/PRD.md`, `archive/requirements/`), treat them as baseline source material.
+- If structured spec artifacts exist in backlog (`archive/PRD.md`, `path:archive/requirements/`), treat them as baseline source material.
 - Copy/merge those artifacts first, then run `prd-control-tower` validation/fix loops.
 - Use `prd-control-tower ... generate` only as fallback when baseline artifacts are missing or irreparably invalid.
 - For existing scenarios, default to merge-with-backup, not overwrite.
@@ -101,7 +101,7 @@ Example completion summary:
 # Completion Summary
 
 ## Actions Taken
-- Created ecosystem-manager task for `scenarios/my-scenario/`
+- Created ecosystem-manager task for `path:scenarios/my-scenario/`
 - Selected steering profile: `balanced` (standard new scenario scope)
 - Started queue processor
 

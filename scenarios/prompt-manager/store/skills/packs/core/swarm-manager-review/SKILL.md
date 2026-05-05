@@ -283,7 +283,7 @@ If a scenario is not running:
 
 **Must produce:**
 - A `review/round-{{ ROUND_NUMBER }}.json` file following the schema above
-- Binary captures in `review/captures/` for any screenshot, recording, or output evidence
+- Binary captures in `path:review/captures/` for any screenshot, recording, or output evidence
 - An honest `agent_assessment` comparing evidence to plan expectations
 - A `classification` reflecting the evidence quality
 

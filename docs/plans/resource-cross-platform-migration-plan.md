@@ -19,7 +19,7 @@ If you are an agent resuming this work in a future session, read this section fi
 - **What success looks like:** Vrooli ends up with:
   - the current active retained resource set managed through a cross-platform-capable control plane
   - a first-class `resource blueprint` catalog for future capabilities
-  - a built-in `deprecate/archive/restore` lifecycle
+  - a built-in `literal:deprecate/archive/restore` lifecycle
   - a Go-native resource control plane with platform-aware drivers and templates
 - **How to resume work:** Find the first unchecked item in the phase checklist, re-read that phase, and execute only that bounded slice. This plan is intended to be completed piecemeal across multiple conversations.
 - **Important bias:** Do not re-open broad resource triage unless requirements have changed. Assume the active `resources/` tree is already the curated set that should receive native migration work.

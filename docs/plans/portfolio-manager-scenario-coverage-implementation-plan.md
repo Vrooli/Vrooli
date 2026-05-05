@@ -31,7 +31,7 @@ cat scenarios/prompt-manager/store/skills/packs/core/morning-vision-walk/SKILL.m
 
 ## 3. Problem Statement
 
-**Observed 2026-04-24 vision walk**: `portfolio-manager` proposed creating a `web-console-readiness` initiative (`dec-1776982737575948642`) claiming web-console had *no* dedicated readiness coverage. This was factually wrong — the scenario has **7 active backlog items** under the `continuous-audio-platform` initiative targeting `path:scenarios/web-console/**` globs, plus one fresh item (`execute/web-console-tts-code-tick-handling`). The agent did not enumerate existing coverage before proposing.
+**Observed 2026-04-24 vision walk**: `portfolio-manager` proposed creating a `web-console-readiness` initiative (`dec-1776982737575948642`) claiming web-console had *no* dedicated readiness coverage. This was factually wrong — the scenario has **7 active backlog items** under the `continuous-audio-platform` initiative targeting `path:scenarios/web-console/**` globs, plus one fresh item (`literal:execute/web-console-tts-code-tick-handling`). The agent did not enumerate existing coverage before proposing.
 
 **Root cause (layered):**
 
@@ -56,7 +56,7 @@ cat scenarios/prompt-manager/store/skills/packs/core/morning-vision-walk/SKILL.m
 - Graph topology lens changes (already works; not touching it).
 - Retroactive re-tagging of existing web-console items under a new initiative (that's a *portfolio-manager* decision for its next heartbeat, not a plan task here).
 - Resolving `dec-1776982737575948642` itself (will re-surface naturally after portfolio-manager's next heartbeat; operator decides then).
-- Refactoring `swarm-manager/cli/` flat `cmd_*.go` files into cli-steer's preferred domain-package layout (per cli-steer Section 4: "`cmd_<domain>.go` may exist in legacy CLIs" — don't refactor just for this change).
+- Refactoring `path:swarm-manager/cli/` flat `cmd_*.go` files into cli-steer's preferred domain-package layout (per cli-steer Section 4: "`cmd_<domain>.go` may exist in legacy CLIs" — don't refactor just for this change).
 
 ## 5. Hard Constraints (Greenfield)
 

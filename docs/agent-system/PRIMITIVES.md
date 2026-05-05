@@ -62,8 +62,8 @@ A coordinated group of agents (members) sharing a team-level contract, role conf
 
 - `team.json` and `roles.json` — machine-readable team config
 - `shared/TEAM.md` — operating rules (write rules, coordination pattern, boundaries)
-- `shared/<various>` — per-team shared state (knowledge, decisions, audit logs, run lessons)
-- `members/<id>/` — per-member binding (heartbeat, responsibilities, last-handoff, topics declarations)
+- `path[example]:shared/<various>` — per-team shared state (knowledge, decisions, audit logs, run lessons)
+- `path[example]:members/<id>/` — per-member binding (heartbeat, responsibilities, last-handoff, topics declarations)
 
 Coordination patterns (orthogonal to doc architecture): independent, leader-led, or peer. Doc architecture patterns (orthogonal to coordination): plan-of-record, working notebook, or both — see `TEAM_DOCS_PATTERNS.md`.
 

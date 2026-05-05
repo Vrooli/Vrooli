@@ -1,6 +1,6 @@
 # Marketing — Working Notebook
 
-This folder is the **working notebook** of the `marketing-crew` team. Unlike [`docs/marketing/`](../) (the plan-of-record — canon the team is bound to), these files are a living record of workarounds, techniques, and one-off observations the team accumulates as it runs.
+This folder is the **working notebook** of the `marketing-crew` team. Unlike [`path:docs/marketing/`](../) (the plan-of-record — canon the team is bound to), these files are a living record of workarounds, techniques, and one-off observations the team accumulates as it runs.
 
 ## Posture: debt, not gospel
 
@@ -10,8 +10,8 @@ Entries are **technical debt**. They exist because the permanent solution — a 
 
 A notebook entry has exactly **three promotion targets** (per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md)) — and the curator picks the right one per entry, not all entries go to the same target:
 
-1. **A skill** in `scenarios/prompt-manager/store/skills/packs/core/<skill>/` — when the pattern is *executable agent guidance* (e.g., "x-dev-log should mine X when Y is unavailable" → edit to `x-dev-log` SKILL.md). Most `*_CRAFT.md` entries promote here.
-2. **A plan-of-record file** under `docs/marketing/` (including `post-types/` and `post-techniques/` sub-folders) — when the pattern is *strategic canon* the operator reads to make decisions (audience refinements, new technique rules, new failure mode at type level).
+1. **A skill** in `path:scenarios/prompt-manager/store/skills/packs/core/<skill>/` — when the pattern is *executable agent guidance* (e.g., "x-dev-log should mine X when Y is unavailable" → edit to `x-dev-log` SKILL.md). Most `*_CRAFT.md` entries promote here.
+2. **A plan-of-record file** under `path:docs/marketing/` (including `post-types/` and `post-techniques/` sub-folders) — when the pattern is *strategic canon* the operator reads to make decisions (audience refinements, new technique rules, new failure mode at type level).
 3. **A scenario / config change** — when the pattern reflects something the harness or a scenario should do automatically (e.g., a `social-media-scheduler` feature replacing a manual workaround in `POSTING_WORKAROUNDS.md`).
 
 Promotion to *any* target deletes the notebook entry as part of the same `notebook-promotion` decision. An entry never lives in both notebook and promoted form simultaneously. Retirement (no promotion, just delete) is the fourth outcome when the pattern proves transient.
@@ -40,7 +40,7 @@ This split avoids the failure mode where members edit each other's notes and the
 
 - **Team operating rules** — those live in `scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md` because they define the team's structure. They're part of the code, not the notebook.
 - **Brand / voice canon** — those live in `docs/marketing/STRATEGY.md`, `AUDIENCES.md`, etc. Plan-of-record is the home for anything other teams / scenarios read as authoritative.
-- **Per-heartbeat state** — campaign-drafts, publish-log, audience-scans, knowledge snapshots live under `scenarios/prompt-manager/store/teams/marketing-crew/shared/`. That's the *hot buffer*. When a pattern in the hot buffer stabilizes, it may get distilled into these docs; when a doc entry matures, the `brand-manager` proposes it for promotion into permanent structure.
+- **Per-heartbeat state** — campaign-drafts, publish-log, audience-scans, knowledge snapshots live under `path:scenarios/prompt-manager/store/teams/marketing-crew/shared/`. That's the *hot buffer*. When a pattern in the hot buffer stabilizes, it may get distilled into these docs; when a doc entry matures, the `brand-manager` proposes it for promotion into permanent structure.
 
 ## The three-tier mental model
 

@@ -48,7 +48,7 @@ Initiative metadata is supplied separately in the batch-create request's top-lev
 - `priority`: `1-10` (optional; `0` means unprioritized — same scale as items)
 - `depends_on`: `["<initiative-name>", ...]` (optional)
 
-`depends_on` on an initiative takes **bare initiative names**, not `kind/name` (that form is for item-level deps). Every entry must resolve to another initiative in the same batch or an already-existing initiative on disk. Batch apply is topologically ordered, so it is safe to declare a dependent initiative before its dependency in the `initiatives` array.
+`depends_on` on an initiative takes **bare initiative names**, not `literal:kind/name` (that form is for item-level deps). Every entry must resolve to another initiative in the same batch or an already-existing initiative on disk. Batch apply is topologically ordered, so it is safe to declare a dependent initiative before its dependency in the `initiatives` array.
 
 ## Scope
 
@@ -326,7 +326,7 @@ Show per-initiative priority and depends_on when set. Keep the two layers separa
 - do not ask one tiny question at a time for long planning sessions
 - do not preserve a legacy scenario by inertia when the actual need is a greenfield replacement
 - do not flatten initiative sequencing into item-level `depends_on` when cross-initiative ordering is what's actually being expressed — use initiative `depends_on` instead
-- do not put `kind/name` values in an initiative's `depends_on`; that form is only valid on items
+- do not put `literal:kind/name` values in an initiative's `depends_on`; that form is only valid on items
 
 ## Troubleshooting
 

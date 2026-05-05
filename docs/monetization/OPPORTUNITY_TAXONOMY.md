@@ -5,7 +5,7 @@ Cross-team-readable canon for how monetization-opportunity signals are partition
 **Owner team:** monetization. **Status:** canon. Operator-curated via monetization decisions.
 
 Cited by:
-- `topics.json` for `monetization/opportunity-scout` (`intake[].taxonomy = "monetization-opportunity"`).
+- `topics.json` for `literal:monetization/opportunity-scout` (`intake[].taxonomy = "monetization-opportunity"`).
 - The `monetization-signal-classifier` skill (pure judgment).
 
 ## Editing rules

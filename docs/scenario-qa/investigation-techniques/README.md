@@ -14,7 +14,7 @@ Bug investigation is not one monolithic workflow. Different bugs benefit from di
 - Compress each skill independently as Vrooli's substrate (CLIs, debug tooling, reproduction harnesses) absorbs more of the work. A unified `bug-investigate` mega-skill that branches on technique would compress worse — same argument the marketing team uses for one skill per post type.
 - Surface graduation candidates from observed patterns: when the bug-investigator's audit log (`bug-investigation-report/<slug>` entries) shows a recurring approach that doesn't fit any registered technique, that approach graduates to a new entry here.
 
-This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md): each technique is its own entity. It also mirrors `docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `bug-investigator/RESPONSIBILITIES.md` Available Skills table).
+This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md): each technique is its own entity. It also mirrors `path:docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `bug-investigator/RESPONSIBILITIES.md` Available Skills table).
 
 ## Doc + paired skill discipline
 
@@ -28,7 +28,7 @@ Each technique has a status:
 
 - **v0** — Strategic canon documented, but the technique is **not yet active**. The PoR doc exists; the paired skill is missing or incomplete; the bug-investigator must not apply it yet.
 - **v1** — Active. Four activation requirements:
-  1. Skill is authored at `scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
+  1. Skill is authored at `path:scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
   2. Skill cites this technique's PoR doc as required reading.
   3. PoR doc Status line bumped to `v1`.
   4. `bug-investigator/RESPONSIBILITIES.md` references the skill in its Available Skills table.

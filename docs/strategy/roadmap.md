@@ -90,6 +90,6 @@ This roadmap is not:
 
 - a promise that every tier is currently production-ready
 - a generic feature wishlist
-- a substitute for active plans in `docs/plans/`
+- a substitute for active plans in `path:docs/plans/`
 
 Use it to understand direction. Use canonical docs and plan documents to understand current truth and active implementation work.

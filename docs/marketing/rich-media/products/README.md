@@ -10,7 +10,7 @@ Copy [`_template.json`](_template.json) and fill in. Field-by-field:
 
 ### Required
 
-- **`slug`** — string; URL-safe slug; matches filename without extension. Typically matches the scenario slug under `scenarios/<slug>/`.
+- **`slug`** — string; URL-safe slug; matches filename without extension. Typically matches the scenario slug under `path:scenarios/<slug>/`.
 - **`display_name`** — human-readable scenario / product / bundle name.
 - **`product_kind`** — "scenario" | "bundle" | "platform" | "merchandise"
 - **`physical_descriptors`** — object. Whatever applies:

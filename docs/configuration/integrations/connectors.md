@@ -94,7 +94,7 @@ scenarios/integration-hub/connectors/
   ...
 ```
 
-Mirroring how `internal/tools/` and `internal/safeguards/` work today: one folder per connector, manifest plus assets, drift-protected by tests asserting manifest-handler invariants. The manifests are source-controlled; the connection *instances* (real tokens) are not.
+Mirroring how `path:internal/tools/` and `path:internal/safeguards/` work today: one folder per connector, manifest plus assets, drift-protected by tests asserting manifest-handler invariants. The manifests are source-controlled; the connection *instances* (real tokens) are not.
 
 ## Connector vs resource — when to use which
 
@@ -103,7 +103,7 @@ Some integrations could plausibly be modeled either way. Guidance:
 - **Resource** — when the integration provides a *runtime capability the system depends on*: a model server (Ollama), a database (Postgres), a workflow engine. Resources have lifecycle (start, stop, health), live in `resources/`, and are typically singletons per install.
 - **Connector** — when the integration provides *access to an external account or service*: GitHub, Slack, a TikTok account, a paid API. Connections are not lifecycle-managed by Vrooli; they're authenticated sessions Vrooli holds on behalf of the operator.
 
-A pay-per-use AI API (fal.ai, OpenAI) is a borderline case. Today `resources/openrouter/` and `resources/gemini/` model these as resources because the credential is just a paste-string and resources already had the credential plumbing. As `integration-hub` matures, these may migrate to `api_key`-pattern connectors — but that's a future-conversation decision, not a current concern. Don't pre-migrate.
+A pay-per-use AI API (fal.ai, OpenAI) is a borderline case. Today `path:resources/openrouter/` and `path:resources/gemini/` model these as resources because the credential is just a paste-string and resources already had the credential plumbing. As `integration-hub` matures, these may migrate to `api_key`-pattern connectors — but that's a future-conversation decision, not a current concern. Don't pre-migrate.
 
 ## Capabilities a scenario declares
 

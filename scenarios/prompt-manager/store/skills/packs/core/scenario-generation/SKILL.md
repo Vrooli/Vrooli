@@ -104,14 +104,14 @@ Backlog items may contain refined materials that should be incorporated into the
    - `enhance/requirements-context.md` — ready-to-use requirements context
    - `enhance/doc-outlines.md` — documentation structure outlines
 2. **`archive/` raw materials** (fallback) — user-provided files when staging doesn't exist:
-   - `archive/PRD.md`, `archive/requirements/` — structured baselines
+   - `archive/PRD.md`, `path:archive/requirements/` — structured baselines
    - Other archive files — reference configs, design docs, prior work
 
 ### Incorporation Rules
 
 - Always prefer `enhance/` staging when available — it incorporates answered questions, accepted suggestions, and resolved conflicts
 - When updating an existing scenario's PRD/requirements, **merge with backup** — do not blindly overwrite
-- Documentation materials → `scenarios/<name>/docs/`
+- Documentation materials → `path:scenarios/<name>/docs/`
 - Reference configs → `scenarios/<name>/.vrooli/` or noted in README
 
 ## Swarm-Manager Idea Handoff

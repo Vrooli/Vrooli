@@ -125,7 +125,7 @@ Update `docs/concepts/ARCHITECTURE.md` (user-facing) to document the compressed 
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/concepts/` directory if needed.
+* Create the `path:docs/concepts/` directory if needed.
 
 Include:
 * Core domain model: essential entities, primary actions, key states

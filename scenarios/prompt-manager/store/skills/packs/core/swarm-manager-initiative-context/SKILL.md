@@ -60,7 +60,7 @@ Only when neither path fits should you propose `Create`. When you do, state in t
 
 You do **not** need to think about cascade bookkeeping. When you delete an item, the server automatically removes it from every other item's `depends_on` and from the enclosing initiative's `items[]`. When you move an item between initiatives via PATCH, both initiatives are kept in sync. When an initiative is deleted, its members are orphaned (the items persist; their `initiative` field is cleared) and dependent initiatives have the deleted name scrubbed from their `depends_on`.
 
-Consequence: describe the action you want, not the bookkeeping. If the conclusion says *delete `idea/obsolete-cache-audit`*, the executor runs one delete call and the membership and dependency cleanups happen for free.
+Consequence: describe the action you want, not the bookkeeping. If the conclusion says *delete `literal:idea/obsolete-cache-audit`*, the executor runs one delete call and the membership and dependency cleanups happen for free.
 
 ## Anti-patterns
 

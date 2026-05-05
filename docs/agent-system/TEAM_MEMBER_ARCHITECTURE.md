@@ -101,7 +101,7 @@ Layers are scored on this scale:
 | `1 weak` | Present but vague, stale, or implicit |
 | `2 adequate` | Good enough for current usage |
 | `3 strong` | Clear, reusable, and easy to optimize |
-| `n/a` | Not relevant for this member |
+| `literal:n/a` | Not relevant for this member |
 
 Do not penalize simple members for missing layers they do not need. For example, a pure reviewer may not need proactive collection. A market researcher probably does.
 

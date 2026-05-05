@@ -33,7 +33,7 @@ Multiple revenue lines, in priority order:
 
 The principle: subscription is convenience, not a paywall. Every scenario is self-hostable for free. Free / self-host users are brand credibility, not lost revenue.
 
-See [`docs/monetization/`](../monetization/) for the full plan.
+See [`path:docs/monetization/`](../monetization/) for the full plan.
 
 ## How long until it makes money?
 
@@ -55,7 +55,7 @@ Useful today: as a local development and orchestration environment. As a persona
 
 Not yet useful for: non-technical end users (no managed-cloud SKU yet), production-critical business workflows without operator-level technical comfort, mobile-first users.
 
-See [`docs/QUICKSTART.md`](../QUICKSTART.md) and [`docs/deployment/`](../deployment/) for current operating reality.
+See [`docs/QUICKSTART.md`](../QUICKSTART.md) and [`path:docs/deployment/`](../deployment/) for current operating reality.
 
 ## How is Vrooli different from agent frameworks like OpenClaw, Hermes, OpenHands, or Cline?
 

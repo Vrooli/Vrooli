@@ -4,7 +4,7 @@ Canonical registry of Vrooli's brand assets — logos, favicons, social previews
 
 **Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose updates (new asset added, asset deprecated, usage rule changed); they do not edit directly.
 
-**Status:** Inventory of current assets in `assets/public/` and surrounding paths. **Eventually subsumed by the `brand-manager` scenario** when it ships (see [`prompt-manager skill read brand-manager`](../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md)). Until then, this markdown file is the registry of record.
+**Status:** Inventory of current assets in `path:assets/public/` and surrounding paths. **Eventually subsumed by the `brand-manager` scenario** when it ships (see [`prompt-manager skill read brand-manager`](../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md)). Until then, this markdown file is the registry of record.
 
 ---
 
@@ -66,7 +66,7 @@ Canonical registry of Vrooli's brand assets — logos, favicons, social previews
 
 | File | Use |
 |---|---|
-| [`assets/public/icons/`](../../assets/public/icons/) | App-specific shortcut icons (create / inbox / search variants in light + dark) |
+| [`path:assets/public/icons/`](../../assets/public/icons/) | App-specific shortcut icons (create / inbox / search variants in light + dark) |
 | [`assets/public/robots.txt`](../../assets/public/robots.txt) | Crawler directives |
 | [`assets/public/humans.txt`](../../assets/public/humans.txt) | Credits |
 | [`assets/postgresql.svg`](../../assets/postgresql.svg) | PostgreSQL logo (third-party, used in resource-related materials) |

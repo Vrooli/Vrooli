@@ -142,7 +142,7 @@ When the operator chooses an option:
 POST /api/v1/backlog/{kind}/{name}/workshop/save
 ```
 
-The implementation surface may use the CLI, API client, or file helpers available in the environment, but the semantic contract must remain fetch-patch-save through `workshop/save`.
+The implementation surface may use the CLI, API client, or file helpers available in the environment, but the semantic contract must remain fetch-patch-save through `route:workshop/save`.
 
 After a successful save:
 - confirm the selected option briefly

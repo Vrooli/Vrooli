@@ -1,6 +1,6 @@
 # Bug Report Triage Taxonomy
 
-Cross-team-readable canon for how the `scenario-qa/bug-investigator` member classifies and resolves entries written to `bug-inbox/*`. Human-readable view of [`bug-report-taxonomy.json`](bug-report-taxonomy.json).
+Cross-team-readable canon for how the `literal:scenario-qa/bug-investigator` member classifies and resolves entries written to `bug-inbox/*`. Human-readable view of [`bug-report-taxonomy.json`](bug-report-taxonomy.json).
 
 **Owner team:** scenario-qa. **Status:** canon. Operator-curated via `bug-resolution-proposal` decisions on the scenario-qa team.
 

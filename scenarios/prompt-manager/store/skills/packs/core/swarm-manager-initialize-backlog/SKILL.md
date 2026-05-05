@@ -115,7 +115,7 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
 
    Read `acceptance_allow` and `acceptance_deny` from `spec.json`:
    - If `acceptance_allow` is **set**, use the patterns to determine target directories and read their structure (e.g., `ls` the matched directories) to inform the plan's technical context, file layout, and approach sections.
-   - If `acceptance_allow` is **empty**, include an acceptance decision in round-001.json asking: "What file paths are expected to change?" with options: A) broad scenario-level globs (e.g., `scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
+   - If `acceptance_allow` is **empty**, include an acceptance decision in round-001.json asking: "What file paths are expected to change?" with options: A) broad scenario-level globs (e.g., `path:scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
 
 3. **Create plan.md scaffold**
 

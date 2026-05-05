@@ -69,7 +69,7 @@ vrooli build --help
 
 Installed scenario CLI freshness and scenario runtime freshness are intentionally separate.
 
-- Installed scenario CLIs are owned by `internal/cliinstall`.
+- Installed scenario CLIs are owned by `path:internal/cliinstall`.
 - `vrooli scenario ...` command entrypoints ensure the scenario CLI is installed and current before use.
 - Lifecycle runtime setup checks (`lifecycle.setup.condition.checks`) should only describe artifacts that affect the running scenario itself, such as API binaries, UI bundles, data directories, or required files.
 

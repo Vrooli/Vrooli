@@ -903,8 +903,8 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 ### 10. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
-- Add mock packages (`api/*/mocks/`, `ui/src/test-utils/mocks/`)
-- Add test utility packages (`api/internal/testutil/`, `ui/src/test-utils/`)
+- Add mock packages (`path:api/*/mocks/`, `path:ui/src/test-utils/mocks/`)
+- Add test utility packages (`path:api/internal/testutil/`, `path:ui/src/test-utils/`)
 - Add test configuration files (`vitest.config.ts`, test setup files)
 - Refactor production code for testability (add interfaces, DI patterns)
 - Move test files to proper co-located positions

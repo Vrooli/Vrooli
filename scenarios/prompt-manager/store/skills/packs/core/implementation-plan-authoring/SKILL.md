@@ -92,7 +92,7 @@ Default location:
 - `docs/plans/<topic>-implementation-plan.md`
 
 Scenario-local location:
-- Use `scenarios/<scenario>/docs/plans/` only when plan is tightly scoped to one scenario.
+- Use `path:scenarios/<scenario>/docs/plans/` only when plan is tightly scoped to one scenario.
 
 #### Step C: Write the plan with mandatory sections
 

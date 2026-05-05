@@ -94,7 +94,7 @@ This skill steers toward CLIs that are:
 
 ### 3. cli-core: The Shared Foundation
 
-All scenario CLIs must use `cli-core` from `packages/cli-core/`. This provides:
+All scenario CLIs must use `cli-core` from `path:packages/cli-core/`. This provides:
 
 | Component | Purpose | Import |
 |-----------|---------|--------|
@@ -139,7 +139,7 @@ Is there an existing CLI for {{TARGET}}?
 
 ### 4. CLI Project Structure
 
-**Template location:** `templates/scenarios/react-vite/cli/`
+**Template location:** `path:templates/scenarios/react-vite/cli/`
 
 **Standard structure:**
 ```

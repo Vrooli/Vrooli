@@ -28,7 +28,7 @@ The full procedure (identify accumulation patterns → search detection patterns
 
 ⚠️ **Removal without verification.** The skill is unambiguous: never remove without checking all usages, test dependencies, and cross-scenario imports. A misapplied audit deletes code that downstream scenarios import — outage.
 
-⚠️ **Touching `packages/*`.** The skill explicitly forbids modifying shared packages because external consumers may exist outside the visible repo. A misapplied audit reaches into shared code; consumers break.
+⚠️ **Touching `path:packages/*`.** The skill explicitly forbids modifying shared packages because external consumers may exist outside the visible repo. A misapplied audit reaches into shared code; consumers break.
 
 ⚠️ **Removing active feature flags.** A flag in a "rollout" state may be off in production but on for partners or beta users. The skill calls these out as do-not-remove.
 
@@ -46,7 +46,7 @@ The `qa-contrarian` member challenges audit outcomes; for `code-cleanup` specifi
 
 - **Removal without verification trace.** The audit says "removed X (200 lines)" but doesn't show which `rg`/`ast-grep` queries verified zero usage. Challenge: was every category of consumer (in-tree, cross-scenario, packages, tests, docs) actually checked?
 - **Cross-scenario consumer missed.** A removal in scenario A breaks scenario B because the audit didn't grep across `scenarios/`. Challenge: was the `rg "name" scenarios/` (with `--glob '!scenarios/<self>/**'`) check actually run?
-- **`packages/*` touched.** The skill forbids this; an audit that crosses the line is a contract violation regardless of justification. Challenge: did the removal touch any `packages/*` file?
+- **`path:packages/*` touched.** The skill forbids this; an audit that crosses the line is a contract violation regardless of justification. Challenge: did the removal touch any `path:packages/*` file?
 - **TODO removed without investigation.** A `// FIXME: workaround for race in X` was deleted because "it looks stale," but the race condition was never fixed. Challenge: was the underlying condition verified resolved?
 - **Test coverage hole.** Code was removed and tests still pass — but the tests didn't exercise the removed code, so passing isn't evidence of safe removal. Challenge: did the test suite actually exercise the deleted path?
 - **Bulk removal hiding behavior change.** A 1000-line removal includes a few lines that did real work. Challenge: did the audit batch removals into reviewable chunks (one logical removal per commit)?

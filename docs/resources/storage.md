@@ -26,7 +26,7 @@ That flag is a migration marker, not a design endorsement.
 
 Resources should converge on a resource-specific shared storage/runtime layer owned by the resource control plane.
 
-Resources should **not** standardize on `api-core/storage` as their final storage abstraction.
+Resources should **not** standardize on `package:api-core/storage` as their final storage abstraction.
 
 Reason:
 
@@ -37,7 +37,7 @@ Reason:
 
 Recommended shared implementation target:
 
-- `internal/resources/runtime/storage`
+- `path:internal/resources/runtime/storage`
 
 If this later needs to move to a promoted shared package, that should be an intentional follow-up rather than an assumption.
 
@@ -134,7 +134,7 @@ Resources and scenarios should align philosophically but not share the same impl
 
 Recommended split:
 
-- scenarios use `api-core/storage`
+- scenarios use `package:api-core/storage`
 - resources use a resource-specific control-plane storage layer
 
 This keeps scenario app-runtime concerns separate from resource service/control-plane concerns.

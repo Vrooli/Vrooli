@@ -732,7 +732,7 @@ rg -n "LPBS_BASE_URL\|JWT_SECRET\|JWT_ISSUER" scenarios/{{TARGET}}/
 **At session end**, update findings:
 * The code and LPBS database are the source of truth. Verify existing claims before extending.
 * If the file exists, correct inaccuracies and add new findings.
-* Create the `docs/internal/` directory if needed.
+* Create the `path:docs/internal/` directory if needed.
 
 **Template:**
 

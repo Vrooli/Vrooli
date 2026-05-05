@@ -1,6 +1,6 @@
 # Narrative — Project Identity Canon
 
-This folder is the **plan-of-record** for Vrooli's project identity: the canonical pitch, story, FAQ, press kit, and pitch-deck outline that every team consumes. Unlike `docs/marketing/` (which holds *marketing canon* — voice, audiences, channels, campaigns), the docs in here are *project-identity artifacts* — the canonical answers to "what is Vrooli, and why?"
+This folder is the **plan-of-record** for Vrooli's project identity: the canonical pitch, story, FAQ, press kit, and pitch-deck outline that every team consumes. Unlike `path:docs/marketing/` (which holds *marketing canon* — voice, audiences, channels, campaigns), the docs in here are *project-identity artifacts* — the canonical answers to "what is Vrooli, and why?"
 
 Cross-team consumers:
 - `marketing-crew` advertisers pull from PITCH and NARRATIVE before drafting.

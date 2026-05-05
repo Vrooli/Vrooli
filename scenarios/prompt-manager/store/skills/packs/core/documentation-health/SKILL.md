@@ -336,7 +336,7 @@ Focus on **documentation that helps agents quickly understand the scenario** and
 
 ### **11. Internal Document Templates**
 
-The `docs/internal/` directory serves as **persistent agent memory** - documents written by agents to share findings with future agents. These are NOT user-facing documentation.
+The `path:docs/internal/` directory serves as **persistent agent memory** - documents written by agents to share findings with future agents. These are NOT user-facing documentation.
 
 Fetch templates and their purposes on demand via the knowledge-observatory CLI:
 

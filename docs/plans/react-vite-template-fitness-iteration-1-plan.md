@@ -658,12 +658,12 @@ Type details (`GenSchema`, `Partial<Req>`) match `@bufbuild/protobuf`'s generate
 
 #### D.5 Rewrite `path:ui/src/lib/notes.ts`
 
-Each function becomes a `protoFetch` call plus the missing-field guard. ApiError is re-imported from `./api` (single source of truth). Re-export `ApiError` from notes.ts so existing callers in `features/notes/` don't break.
+Each function becomes a `protoFetch` call plus the missing-field guard. ApiError is re-imported from `./api` (single source of truth). Re-export `ApiError` from notes.ts so existing callers in `path:features/notes/` don't break.
 
 #### D.6 Update tests
 
 - `path:ui/src/lib/api.test.ts` — add coverage for `protoFetch` (success path, 4xx with envelope, 4xx without envelope, missing required schema field). The existing `fetchHealth` tests should still pass.
-- `path:ui/src/lib/notes.test.ts` — assertions unchanged. If they `vi.mock` `lib/api`, the mock surface gains `protoFetch`.
+- `path:ui/src/lib/notes.test.ts` — assertions unchanged. If they `vi.mock` `path:lib/api`, the mock surface gains `protoFetch`.
 
 #### D.7 Update template docs
 
@@ -944,7 +944,7 @@ After this plan completes, the next agent picking up template-fitness work:
    - Phase D — apply to template.
    - Phase E — re-measure; grade hypothesis; write `ITERATION_3_PROPOSAL.md`.
 4. Re-runs the same 6 measurement scenarios so RESULTS.md grows a column per iteration.
-5. **For the end-to-end gate's smoke-scenario cleanup**: link to the canonical recipe in the harness README ("Smoke-scenario cleanup recipe" section). Do NOT copy the inline snippet from this plan's §10.4 verbatim — the iteration-1 polish pass found the inline form was missing Python-underscored gen and the `gen/typescript/js/` mirror, leaving 62 orphan-file deletions to be retroactively cleaned. The harness recipe is the source of truth; future plans cite it.
+5. **For the end-to-end gate's smoke-scenario cleanup**: link to the canonical recipe in the harness README ("Smoke-scenario cleanup recipe" section). Do NOT copy the inline snippet from this plan's §10.4 verbatim — the iteration-1 polish pass found the inline form was missing Python-underscored gen and the `path:gen/typescript/js/` mirror, leaving 62 orphan-file deletions to be retroactively cleaned. The harness recipe is the source of truth; future plans cite it.
 
 The `STOPPING_RULE.md` adjudicates whether iteration N+1 should happen at all.
 

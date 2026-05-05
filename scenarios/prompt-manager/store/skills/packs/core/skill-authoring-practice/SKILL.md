@@ -248,7 +248,7 @@ Be specific about scope to prevent misapplication.
 
 To publish a Practice skill:
 
-1. **Create the directory** in `scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`
+1. **Create the directory** in `path:scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`
 2. **Add SKILL.md** with the skill content
 3. **Add skill.json** with metadata including `modes: ["practice"]`
 4. **Run sync** via `prompt-manager skill sync`

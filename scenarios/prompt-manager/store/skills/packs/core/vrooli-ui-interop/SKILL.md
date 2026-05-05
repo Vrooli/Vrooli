@@ -237,7 +237,7 @@ export function buildUrl(path: string): string {
 Key rules:
 - `resolveApiBase()` is called in at most 2 production files (ideally 1; a second is acceptable when SSE/streaming connections need a separate base, e.g. `resolveApiBase({ appendSuffix: false })`)
 - All other files import `buildUrl` (or the equivalent helper) from the primary API client file
-- No file anywhere in `ui/src/` should contain hardcoded `localhost:PORT` URLs for API calls
+- No file anywhere in `path:ui/src/` should contain hardcoded `localhost:PORT` URLs for API calls
 - Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded from these audits — mock data in tests commonly references localhost URLs
 
 Audit: `rg "resolveApiBase" ui/src/ --files-with-matches` — must return at most 2 files (excluding test files). `rg "localhost:\d+" ui/src/` — must return 0 matches in production files (excluding comments/docs/tests).

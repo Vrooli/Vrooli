@@ -26,7 +26,7 @@ Latest audit result from `toolchain-validator`. Supersedes on each heartbeat. (R
   - 2 `go-quality` (missing `api/.golangci.yml` and `cli/.golangci.yml`)
   - 1 `type-safety` ESLINT_TYPED_CONFIG on `ui/eslint.config.js`
   - (count is 13 by-rule; severity tally rolls some sub-rules into 9; the 36-total figure is the canonical number)
-- Medium: 5 (was 2; the 2 from 2026-04-27 stay — `testing-standards-v1` on `cli/domains/`, `ui-interop-v1` on `ui/src/main.tsx:2` — plus 3 reappear: `TS_DANGEROUS_PATTERNS` on UI test/lib files, `MAKEFILE_QUALITY_GATES` on Makefile placeholders, `ESLINT_SAFETY_RULES` missing CRITICAL comments on `ui/eslint.config.js`)
+- Medium: 5 (was 2; the 2 from 2026-04-27 stay — `testing-standards-v1` on `path:cli/domains/`, `ui-interop-v1` on `ui/src/main.tsx:2` — plus 3 reappear: `TS_DANGEROUS_PATTERNS` on UI test/lib files, `MAKEFILE_QUALITY_GATES` on Makefile placeholders, `ESLINT_SAFETY_RULES` missing CRITICAL comments on `ui/eslint.config.js`)
 - Low: 20 (unchanged: 17 ui-a11y focus-visible + 3 prd-template)
 - Info: 1 (unchanged)
 - **Total: 36** (was 24 reported 2026-04-27; was 36 reported 2026-04-26)

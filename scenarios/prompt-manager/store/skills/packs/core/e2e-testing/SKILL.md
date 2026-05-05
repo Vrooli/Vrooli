@@ -494,7 +494,7 @@ Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARG
 ### **10. Output Expectations**
 
 You may update:
-* Workflow JSON files in `bas/cases/`, `bas/flows/`, `bas/actions/`
+* Workflow JSON files in `path:bas/cases/`, `path:bas/flows/`, `path:bas/actions/`
 * Selector registry in `ui/src/constants/selectors.ts`
 * Component `data-testid` attributes
 * Requirements validation references

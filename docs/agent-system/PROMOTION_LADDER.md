@@ -56,7 +56,7 @@ The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is per
 
 A skill section is eligible for retirement when **all** of the following hold:
 
-- The CLI/tool returns a deterministic status for the workflow decision (`pass/fail` or equivalent).
+- The CLI/tool returns a deterministic status for the workflow decision (`literal:pass/fail` or equivalent).
 - The CLI/tool output contains actionable next steps for common failures.
 - The Action contract is discoverable and validated when the workflow is a single executable operation.
 - Keeping both the tool contract and the detailed skill prose would duplicate volatile operational logic.

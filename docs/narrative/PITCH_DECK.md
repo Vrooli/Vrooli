@@ -145,7 +145,7 @@ For fundraising: emphasize the compounding-cost-per-bundle thesis.
 
 **Voice notes:** Honesty flags everywhere. No claimed revenue numbers without `aspirational` or `pending-telemetry` framing.
 
-See [`docs/monetization/`](../monetization/) for the full plan.
+See [`path:docs/monetization/`](../monetization/) for the full plan.
 
 ---
 

@@ -56,7 +56,7 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 
 ## Goal alignment
 
-**Project goals served** (referencing `docs/strategy/`):
+**Project goals served** (referencing `path:docs/strategy/`):
 
 - **Headliner-pre-default-alive revenue lever** (per `monetization/REVENUE_LINES.md` Phase posture): services lines are expected to actively produce revenue in the window between core bundles shipping and subscriptions crossing default-alive. This scenario is one of the strongest near-term services-line candidates because of high capability reuse with the property-services add-on.
 - **Customer acquisition for the business bundle** (per `monetization/STRATEGY.md`): service-clients are the most legible upgrade path to subscriptions ("we built you a tool; now subscribe to run it yourself"). This scenario operationalizes that path for a specific vertical.
@@ -70,7 +70,7 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 
 - 2026-04-28: captured during walk #5 divergence #5 from social-media-alpha (Post 2 — MapiLeads). Hype-discounted: per `marketing/STRATEGY.md` Source-material discipline, the source's quantitative claims ("works in 221 countries", "30+ data fields", "single dev built it in 2 weeks") are upper-bound aspirational and require independent measurement before pricing or sizing decisions.
 - 2026-04-28: gated on (a) headliner-bundle-shipped, (b) at least one property-services scenario deployable as a thin tool, (c) one local-service prospect signed for pilot. Per existing `lead-generation.md` revisit trigger.
-- 2026-04-28: the archived `scenarios/swarm-manager/ideas/email-outreach-manager-archived` covers part of this scope (outreach + personalization) but not Maps-scraping or review-mining. When this is eventually promoted to swarm-manager, it should be a fresh scenario under current templates, not a revival of the archived one.
+- 2026-04-28: the archived `path:scenarios/swarm-manager/ideas/email-outreach-manager-archived` covers part of this scope (outreach + personalization) but not Maps-scraping or review-mining. When this is eventually promoted to swarm-manager, it should be a fresh scenario under current templates, not a revival of the archived one.
 
 ## Cross-references
 
@@ -78,6 +78,6 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 - [`../../monetization/catalog/addons/property-services.md`](../../monetization/catalog/addons/property-services.md) — productization target's SKU.
 - [`../../monetization/REVENUE_LINES.md`](../../monetization/REVENUE_LINES.md) — services-trap discipline, conversion-rate metric, 30%-time-budget cap.
 - [`../../marketing/STRATEGY.md`](../../marketing/STRATEGY.md) — Source-material-discipline section; applies to all numbers borrowed from MapiLeads source.
-- `scenarios/bas/` — substrate for Maps scraping (wrap-not-use).
-- `scenarios/swarm-manager/ideas/email-outreach-manager-archived/` — partial-overlap archived scenario; not to be revived.
+- `path:scenarios/bas/` — substrate for Maps scraping (wrap-not-use).
+- `path:scenarios/swarm-manager/ideas/email-outreach-manager-archived/` — partial-overlap archived scenario; not to be revived.
 - `monetization` team knowledge under `monetization/opportunity/<slug>` — no paired opportunity-scout entry yet (this idea was captured operator-direct from walk #5 alpha; opportunity-scout may surface a paired entry on a future heartbeat).

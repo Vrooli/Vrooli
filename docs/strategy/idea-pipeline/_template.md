@@ -91,6 +91,6 @@ Link relevant existing surfaces. Examples:
 - `docs/monetization/CATALOG.md#<sku>` — productization target
 - `docs/monetization/revenue-lines/<line>.md` — relevant revenue line
 - `docs/marketing/AUDIENCES.md#<persona>` — primary audience
-- `scenarios/<existing-scenario>/` — capability-multiplier upstream/downstream
+- `path:scenarios/<existing-scenario>/` — capability-multiplier upstream/downstream
 - `monetization` team knowledge entry under `monetization/opportunity/<slug>` — paired opportunity-scout entry, if any (`prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/<slug>`)
 -->

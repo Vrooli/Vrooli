@@ -77,5 +77,5 @@ Honesty flags (mirrors scenario-spotlight):
 
 - [`../text/scenario-spotlight.md`](../text/scenario-spotlight.md) — text-led sibling; often consumes a demo-recording as its attached asset.
 - [`../../ASSETS.md`](../../ASSETS.md), [`../../IMAGE_STYLE.md`](../../IMAGE_STYLE.md).
-- Browser Automation Studio scenario at `scenarios/bas/` — asset substrate.
+- Browser Automation Studio scenario at `path:scenarios/bas/` — asset substrate.
 - Sibling video types: [`narrative-talking-head.md`](narrative-talking-head.md), [`comparison-reel.md`](comparison-reel.md).

@@ -124,7 +124,7 @@ Prefer fixes that:
 #### Step E: Map Fixes to Owners and Artifacts
 
 Every recommendation must specify:
-- owner layer (`skill`, `cli/tool`, `docs`, `policy`)
+- owner layer (`skill`, `path:cli/tool`, `docs`, `policy`)
 - target artifact (file/command/module)
 - expected behavior change
 - verification method

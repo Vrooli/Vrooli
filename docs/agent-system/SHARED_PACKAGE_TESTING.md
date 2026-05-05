@@ -13,8 +13,8 @@ utility bags.
 
 - Use a top-level sibling package named `<pkg>test`.
 - Do not create `<pkg>/test/` subpackages.
-- Do not create umbrella packages such as `api-core/testing` or
-  `cli-core/testkit`.
+- Do not create umbrella packages such as `package:api-core/testing` or
+  `package:cli-core/testkit`.
 - Do not use `*kit`, `*util`, or broad helper suffixes for canonical test
   companions.
 

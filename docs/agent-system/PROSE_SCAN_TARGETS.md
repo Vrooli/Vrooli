@@ -12,7 +12,7 @@ P1 (`topics.json`) catches declaration mismatches. P3 (runtime attribution) catc
 
 Concrete failure mode this pillar exists to catch:
 
-- A member's `RESPONSIBILITIES.md` instructs `prompt-manager team knowledge-add marketing-crew --topic="campaign-draft/<slug>"`, but the member's `topics.json::output[]` declares `campaign/*`. The agent will write to `campaign-draft/*`; the P1 validator sees nothing wrong (the declaration is internally consistent); the P3 runtime scanner eventually fires `actual_writer_undeclared` after the write happens. P2 catches it before the first wrong write — at the source of the confusion — by surfacing the prose/declaration mismatch.
+- A member's `RESPONSIBILITIES.md` instructs `prompt-manager team knowledge-add marketing-crew --topic="campaign-draft/<slug>"`, but the member's `topics.json::output[]` declares `literal:campaign/*`. The agent will write to `campaign-draft/*`; the P1 validator sees nothing wrong (the declaration is internally consistent); the P3 runtime scanner eventually fires `actual_writer_undeclared` after the write happens. P2 catches it before the first wrong write — at the source of the confusion — by surfacing the prose/declaration mismatch.
 
 P1 is the plan. P2 is the prose adjacent to the plan. P3 is the receipts. Each catches drift the others cannot.
 
@@ -142,7 +142,7 @@ The discriminator is the literal substring `team knowledge-` immediately precedi
 | `cli-knowledge-list-topic` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic="campaign-draft/q2"` | **error** |
 | `cli-knowledge-list-prefix` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic-prefix[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)*/?)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic-prefix=audience-scan/` | **error** |
 | `cli-knowledge-update-topic` | ` `prompt-manager team knowledge-update\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-update marketing-crew knw-abc --topic="audience-scan/keep"` | **error** |
-| `marked-topic-ref` | parser-backed marked inline reference from `api-core/markedrefs` | `` `topic[example]:audience-scan/<date>/<slug>` `` for illustrative syntax; unqualified `topic:` refs require current declarations | **warning** |
+| `marked-topic-ref` | parser-backed marked inline reference from `package:api-core/markedrefs` | `` `topic[example]:audience-scan/<date>/<slug>` `` for illustrative syntax; unqualified `topic:` refs require current declarations | **warning** |
 | `inferred-backtick-topic-ref` | `` `([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)` `` (an unmarked backticked string with at least one `/`, lower-kebab segments, optional `<>` placeholders, `*` wildcard) | `` `audience-scan/<date>/<slug>` ``, `` `bug-inbox/regression/cli-flag-confusion` `` | **warning** (inferred; high false-positive risk) |
 
 For regex-backed patterns, captured group `1` is the topic prefix. For `marked-topic-ref`, the value after the `topic:` marker is the topic prefix. The scanner treats segments containing `<...>` placeholders or trailing `*` as wildcards when joining against declarations (e.g., `audience-scan/<date>/<slug>` joins against the declared `audience-scan/*` output prefix).

@@ -70,7 +70,7 @@ Tools do not currently have a `risk` field on their manifest (unlike safeguards 
 ## Adding a new tool
 
 1. Create `internal/tools/<name>/tool.json` conforming to [`tool.schema.json`](../../../.vrooli/schemas/tool.schema.json).
-2. If the tool needs custom install logic (not just a package install), add a Go handler under `internal/tools/<name>/`, register it in `internal/runtime/registry.go` `customToolHandlers`, and reference the handler name in the manifest.
+2. If the tool needs custom install logic (not just a package install), add a Go handler under `path:internal/tools/<name>/`, register it in `internal/runtime/registry.go` `customToolHandlers`, and reference the handler name in the manifest.
 3. Reference the tool from the consuming `service.json` or `resource.json` `hostTools[]` array using a `hostRequirement` entry.
 4. Verify with `go test ./internal/runtime/...` that the manifest-vs-handler invariant passes.
 
@@ -78,7 +78,7 @@ The wizard surfaces the new tool automatically once the manifest and any consume
 
 ## Sign-in state for host tools
 
-Some tools are runtime-authenticated rather than just installed — the operator runs a sign-in command (`buf registry login`, `claude /login`, future: `codex login`, `gh auth login`, ...) and the tool stores its own credentials in its own config dir. These follow the [`external_sign_in_command`](../integrations/external-auth.md#external_sign_in_command) integration pattern, with a per-tool integration page under [`docs/configuration/integrations/`](../integrations/README.md) (e.g. [`buf-bsr.md`](../integrations/buf-bsr.md)).
+Some tools are runtime-authenticated rather than just installed — the operator runs a sign-in command (`buf registry login`, `claude /login`, future: `codex login`, `gh auth login`, ...) and the tool stores its own credentials in its own config dir. These follow the [`external_sign_in_command`](../integrations/external-auth.md#external_sign_in_command) integration pattern, with a per-tool integration page under [`path:docs/configuration/integrations/`](../integrations/README.md) (e.g. [`buf-bsr.md`](../integrations/buf-bsr.md)).
 
 The host-level surface for inspecting sign-in state is the **`vrooli auth status`** command. It runs each registered probe in name order and reports `signed_in` / `signed_out` / `expired` / `unknown`. Default invocations are offline; `--check-expiry` enables an authenticated upstream call to distinguish a present-but-stale token from a healthy one.
 
@@ -88,7 +88,7 @@ vrooli auth status --json            # JSON for scripting
 vrooli auth status --check-expiry    # additionally validate against upstream
 ```
 
-New tools register a probe by implementing `auth.SignInProbe` in `internal/app/auth/` and adding it to `auth.DefaultProbes()`. The CLI surface stays fixed; only the probe set grows.
+New tools register a probe by implementing `auth.SignInProbe` in `path:internal/app/auth/` and adding it to `auth.DefaultProbes()`. The CLI surface stays fixed; only the probe set grows.
 
 ## See also
 

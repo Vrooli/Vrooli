@@ -437,7 +437,7 @@ Use short, category-specific delta checks here. Baseline authoring structure bel
 #### **Meta skills**
 
 * [ ] Has clear decision rules for ambiguous cases
-* [ ] Governance rules do not duplicate canonical policy from `docs/agent-system/SKILL_AUTHORING.md` or other PoR files under `docs/agent-system/`
+* [ ] Governance rules do not duplicate canonical policy from `docs/agent-system/SKILL_AUTHORING.md` or other PoR files under `path:docs/agent-system/`
 * [ ] Meta guidance defines boundaries and ownership clearly
 
 ---

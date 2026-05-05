@@ -16,7 +16,7 @@ Early-stage market research has diminishing returns. Per-heartbeat: 1-2 highest-
 - Do not propose pricing directly for dormant SKUs.
 - Do not produce pricing matrices or revenue projections.
 - Do not generate ideas (that's opportunity-scout).
-- Do not write to `docs/monetization/` — propose via `benchmark-update` decision instead.
+- Do not write to `path:docs/monetization/` — propose via `benchmark-update` decision instead.
 - Do not invent values when sources fail; raise a `capability-gap` decision.
 - Do not delete a stale scan during sweep — only the router/method skills supersede or retire.
 

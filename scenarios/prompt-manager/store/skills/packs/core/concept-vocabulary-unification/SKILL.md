@@ -108,7 +108,7 @@ Update `docs/concepts/GLOSSARY.md` (user-facing) to record the unified vocabular
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/concepts/` directory if needed.
+* Create the `path:docs/concepts/` directory if needed.
 
 Include:
 * New canonical terms and their definitions

@@ -153,7 +153,7 @@ Update the **Replay/Idempotency Invariants** section of `docs/internal/INVARIANT
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
+* Create the `path:docs/internal/` directory if needed.
 
 Include:
 * State-mutating operations and their idempotency status

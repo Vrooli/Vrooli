@@ -4,7 +4,7 @@ This section explains the resource ecosystem at the platform level.
 
 Resources are one of Vrooli's core primitives. They provide the raw capabilities that scenarios compose into products, tools, and operator workflows.
 
-Resource CLI behavior is manifest-driven. Implemented resources declare their CLI contract explicitly in `resources/<name>/resource.json` rather than relying on `resources/<name>/cli` layout folklore.
+Resource CLI behavior is manifest-driven. Implemented resources declare their CLI contract explicitly in `resources/<name>/resource.json` rather than relying on `path:resources/<name>/cli` layout folklore.
 
 ## Start Here
 

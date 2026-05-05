@@ -113,7 +113,7 @@ Example:
 - **Initiative**: performance-improvements
 - **Priority**: high
 - **Effort**: medium
-- **Reason for creating (vs updating an existing sibling)**: No member item in `performance-improvements` covered response caching; the closest (`idea/query-plan-audit`) is scoped to SQL-level optimization.
+- **Reason for creating (vs updating an existing sibling)**: No member item in `performance-improvements` covered response caching; the closest (`literal:idea/query-plan-audit`) is scoped to SQL-level optimization.
 ```
 
 #### `Update backlog item`
@@ -129,7 +129,7 @@ Example:
 - **Name**: auth-oauth-integration
 - **Changes**:
   - Priority: 6 → 3
-  - Depends on: remove `fix/legacy-cookie-cleanup` (Finding 3 shows it is no longer on the critical path)
+  - Depends on: remove `literal:fix/legacy-cookie-cleanup` (Finding 3 shows it is no longer on the critical path)
 - **Reason**: Finding 3 shows this item unblocks three downstream initiatives and is no longer gated by the cookie cleanup work; sequencing needs to reflect that.
 ```
 

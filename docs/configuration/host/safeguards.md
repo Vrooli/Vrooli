@@ -60,7 +60,7 @@ A safeguard that can't be made idempotent doesn't belong in this system; it shou
 
 1. Create `internal/safeguards/<name>/safeguard.json` conforming to [`safeguard.schema.json`](../../../.vrooli/schemas/safeguard.schema.json).
 2. **Set `risk` honestly.** Operators rely on this; understating the risk is worse than running without the safeguard.
-3. Add a Go handler implementing `Inspect` and `Apply` under `internal/safeguards/<name>/`, register it in `internal/runtime/registry.go` `customSafeguardHandlers`.
+3. Add a Go handler implementing `Inspect` and `Apply` under `path:internal/safeguards/<name>/`, register it in `internal/runtime/registry.go` `customSafeguardHandlers`.
 4. Reference the safeguard from the consuming `service.json` or `resource.json` `hostSafeguards[]` array.
 5. Verify `go test ./internal/runtime/...` passes the manifest-vs-handler invariant.
 

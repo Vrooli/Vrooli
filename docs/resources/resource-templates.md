@@ -20,7 +20,7 @@ New resource work should start from:
 2. template
 3. implementation
 
-It should not start from copying an old `resources/<name>/` directory unless you are explicitly working in transitional cleanup.
+It should not start from copying an old `path:resources/<name>/` directory unless you are explicitly working in transitional cleanup.
 
 ## Canonical Template Kinds
 

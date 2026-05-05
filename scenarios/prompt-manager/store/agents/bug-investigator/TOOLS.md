@@ -6,7 +6,7 @@
 - `prompt-manager team knowledge-update scenario-qa <id> ...` — used to re-tag entries on `route-to-another-topic` and to write `bug-investigation-report/<slug>` close entries
 - `prompt-manager team knowledge-delete scenario-qa <id>` — used on `drop` outcomes after the bug-investigation entry is written
 - `prompt-manager team decision-list scenario-qa ...`
-- `prompt-manager skill read scientific-debugging` — and any other skill registered in `docs/scenario-qa/investigation-techniques/`
+- `prompt-manager skill read scientific-debugging` — and any other skill registered in `path:docs/scenario-qa/investigation-techniques/`
 - `swarm-manager` CLI — used for `file-backlog` outcomes (creating a fix/chore/execute backlog item with the bug evidence) and for Phase 0 prior-art checks during scientific-debugging
 - `vrooli help`
 

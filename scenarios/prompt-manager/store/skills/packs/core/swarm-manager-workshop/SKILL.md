@@ -174,7 +174,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    Read `acceptance_allow` and `acceptance_deny` from `spec.json`:
    - If `acceptance_allow` is **empty**, infer the target scenario(s) from the item's title, description, tags, and plan content. Then auto-set `acceptance_allow` using `swarm-manager backlog update`:
-     - Default to broad scenario-level globs: `scenarios/<scenario-name>/**`
+     - Default to broad scenario-level globs: `path:scenarios/<scenario-name>/**`
      - If the plan is specific enough to identify subdirectories (e.g., only `api/` or `ui/`), use targeted globs instead
      - Example: `swarm-manager backlog update --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --data '{"acceptance_allow":["scenarios/<scenario-name>/**"]}'`
      - Do NOT generate a decision for this — determine the patterns autonomously from context

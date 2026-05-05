@@ -31,7 +31,7 @@ For a typical UI scenario:
 The exact commands can vary by toolchain, but the lifecycle intent should remain stable:
 
 - install dependencies first
-- build `ui/dist` or the equivalent production artifact
+- build `path:ui/dist` or the equivalent production artifact
 - make the runtime use the built artifact
 - keep scenario-local docs explicit about where the built output lives and how it is served
 
