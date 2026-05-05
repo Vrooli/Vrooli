@@ -174,7 +174,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	//
 	// Environment carries VROOLI_PROMPT_MANAGER_ATTRIBUTION so the spawned
 	// agent's CLI inherits structured attribution and forwards it as the
-	// X-Vrooli-Attribution header on every API write (P3.5; canon:
+	// X-Vrooli-Attribution header on every API write (canon:
 	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	runTag := fmt.Sprintf("heartbeat-%s-%s-%s", teamID, agentID, timestamp)
 	attribKey, attribValue := buildHeartbeatAttributionEnv(teamID, agentID)

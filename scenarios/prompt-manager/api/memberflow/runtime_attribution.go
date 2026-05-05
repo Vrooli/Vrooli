@@ -8,40 +8,52 @@
 // (§ Validator behavior at the boundary, § kind enum, § Per-team
 // attributionValidFrom).
 //
-// Scope of this file (P3.6):
+// Scope of this file:
 //
-//  1. ruleActualWriterUndeclared — emits warnings for `agent-member`
-//     entries whose declaring member's topics.json does not declare an
-//     output[] prefix overlapping the entry's topic; emits warnings for
-//     `external` entries that exceed the team's per-week threshold; and
-//     emits a defensive `attribution_malformed` error when a post-cutoff
-//     entry's attribution shape is structurally broken (the API rejects
-//     this at write time, but the validator still surfaces it as a
-//     defense-in-depth check).
+//  1. ruleActualWriterUndeclared — emits errors for `agent-member`
+//     drift (an entry whose declaring member's topics.json does not
+//     declare an output[] prefix overlapping the entry's topic; or an
+//     entry claiming a member id that does not exist on the team).
+//     An agent-member writing where it has no producer-side declaration
+//     is concrete drift between observed runtime behavior and the
+//     topics.json contract — the kind of thing only Pillar 3 can catch.
+//
+//     Emits warnings (not errors) for `external` entries that exceed
+//     the team's per-week threshold. The threshold is operator-tunable
+//     (`policy.flagExternalWritesPerWeek` on team.json) and the finding
+//     is an alert, not a structural fault — keeping it at warning
+//     leaves the CI gate scoped to true drift while preserving the
+//     operator-facing signal for tuning.
+//
+//     Emits a defensive `attribution_malformed` error when a
+//     post-cutoff entry's attribution shape is structurally broken
+//     (the API rejects this at write time, but the validator still
+//     surfaces it as a defense-in-depth check).
 //
 //  2. The two helpers loadKnowledgeJSONL (resilient line-by-line parser
 //     that skips blanks and tolerates trailing junk) and isoWeekKey
 //     (deterministic ISO year-week derivation from a timestamp string).
 //
-// Out of scope here (other phases own them):
+// Out of scope here (owned elsewhere):
 //
-//   - writer-skill kind: deferred to P2.2's writes_to[] declaration on
-//     skill.json. We track but never flag writer-skill writes.
+//   - writer-skill kind: governed by writes_to[] on skill.json (loaded
+//     via WriterSkillProducers). We track but never flag writer-skill
+//     writes here.
 //   - operator-direct + flagOperatorWritesPerWeek: documented in
-//     RUNTIME_ATTRIBUTION.md as a future opt-in; threshold field is not
-//     wired in P3.6 to keep scope tight. Operator-direct entries are
-//     skipped entirely.
+//     RUNTIME_ATTRIBUTION.md as a future opt-in; the threshold field is
+//     not wired today to keep this rule's scope tight. Operator-direct
+//     entries are skipped entirely.
 //   - investigation kind: read-only relative to topic-flow declarations
 //     by spec; skipped.
-//   - findings.json telemetry artifact: P3.7.
+//   - findings.json telemetry artifact: cli/graph/findings_artifact.go.
 //
-// Severity policy: warning at landing (per Plan-agent's land-as-warning,
-// promote-to-error pattern in the keen-growing-whisper plan, § Pillar 4).
-// Promotion to error is Phase 4.1 once the observation window passes
-// clean on every team. The defensive `attribution_malformed` check is
-// the single exception — it lands at error severity because the API
-// already enforces the same rule at write time, so a finding here means
-// the on-disk file was hand-edited or a migration broke.
+// Severity policy. The agent-member subcase fires at error (a CI gate —
+// concrete drift between observed runtime behavior and declared
+// topics.json). The external-threshold subcase fires at warning (an
+// operator-tunable alert, not a structural fault). The defensive
+// `attribution_malformed` check is at error severity because the API
+// enforces the same rule at write time, so a finding here means the
+// on-disk file was hand-edited or a migration broke.
 package memberflow
 
 import (
@@ -189,7 +201,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 		case store.KnowledgeKindWriterSkill,
 			store.KnowledgeKindOperatorDirect,
 			store.KnowledgeKindInvestigation:
-			// Out of scope for P3.6 — see file header.
+			// Out of scope for this rule — see file header.
 
 		case "":
 			findings = append(findings, Finding{
@@ -216,8 +228,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 
 	// External-threshold pass. Findings are emitted in stable order
 	// (week ascending, then entry index within the week) so list
-	// output is diff-friendly and findings.json (P3.7) renders
-	// deterministically.
+	// output is diff-friendly and findings.json renders deterministically.
 	if threshold > 0 && len(externalByWeek) > 0 {
 		findings = append(findings, externalThresholdFindings(teamID, externalByWeek, threshold)...)
 	}
@@ -252,7 +263,7 @@ func checkAgentMemberDeclaration(teamID string, teamMembers map[string]MemberTop
 	if !ok {
 		return Finding{
 			Rule:     "actual_writer_undeclared",
-			Severity: SeverityWarning,
+			Severity: SeverityError,
 			Member:   MemberRef{Team: teamID, Member: memberID},
 			Prefix:   e.Topic,
 			Detail:   fmt.Sprintf("entry %q claims kind=agent-member writer %q but no team member of that id exists in the store", e.ID, memberID),
@@ -267,7 +278,7 @@ func checkAgentMemberDeclaration(teamID string, teamMembers map[string]MemberTop
 
 	return Finding{
 		Rule:     "actual_writer_undeclared",
-		Severity: SeverityWarning,
+		Severity: SeverityError,
 		Member:   MemberRef{Team: teamID, Member: memberID},
 		Prefix:   e.Topic,
 		Detail:   fmt.Sprintf("agent-member %s/%s wrote topic %q (entry %q) but member's output[] declares no overlapping prefix; either declare it on topics.json or correct the writer", teamID, memberID, e.Topic, e.ID),
@@ -277,7 +288,7 @@ func checkAgentMemberDeclaration(teamID string, teamMembers map[string]MemberTop
 // externalThresholdFindings groups external-kind entries by ISO week and
 // emits a warning for each entry past the team's threshold. Findings are
 // per-entry rather than per-week so diff-against-previous-run telemetry
-// (P3.7) can show exactly which entries crossed.
+// can show exactly which entries crossed.
 //
 // Within a week, entries are sorted by `at` ascending. Findings fire on
 // entries with index >= threshold (i.e., the first `threshold` entries

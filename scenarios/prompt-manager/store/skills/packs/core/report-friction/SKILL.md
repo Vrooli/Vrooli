@@ -107,7 +107,7 @@ Gather before invoking the writer:
    )"
    ```
 
-7. **Confirm the write.** Capture the `knw-...` id returned by the CLI. Include it in your heartbeat output ("Filed friction-inbox/<scope>/<slug> as <id>") so the operator and the curator can trace. You can later track where the curator routed it via `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction/`.
+7. **Confirm the write.** Capture the `knw-...` id returned by the CLI. Include it in your heartbeat output ("Filed friction-inbox/<scope>/<slug> as <id>") so the operator and the curator can trace. You can later track where the curator routed it via `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction-report/`.
 
 ---
 

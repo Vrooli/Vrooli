@@ -11,7 +11,7 @@ import (
 	"prompt-manager/store"
 )
 
-// TestExecute_PropagatesAttributionInCreateRunEnv asserts the P3.5
+// TestExecute_PropagatesAttributionInCreateRunEnv asserts the spawner-side
 // integration: when the heartbeat executor calls CreateRun, the request's
 // Environment map carries VROOLI_PROMPT_MANAGER_ATTRIBUTION with a
 // well-formed agent-member payload describing the spawned member's identity.
@@ -79,9 +79,10 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	if info.TeamID == nil || *info.TeamID != "team-1" {
 		t.Errorf("TeamID = %v, want team-1", info.TeamID)
 	}
-	// run_id is intentionally null at construction time (P3.5 design choice;
-	// the validator's heartbeat-relax permits this; canon:
-	// docs/agent-system/RUNTIME_ATTRIBUTION.md § P3.5).
+	// run_id is intentionally null at construction time: agent-manager
+	// assigns the run UUID after CreateRun returns, and the validator's
+	// heartbeat-relax permits this (canon:
+	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	if info.RunID != nil {
 		t.Errorf("RunID = %v, want nil", info.RunID)
 	}

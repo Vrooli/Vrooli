@@ -32,6 +32,11 @@
       "prefix": "monetization-benchmark-record/*",
       "destination_kind": "knowledge",
       "schema": "market-scan"
+    },
+    {
+      "prefix": "monetization/market-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "market-scan"
     }
   ],
   "decisions_owned": [

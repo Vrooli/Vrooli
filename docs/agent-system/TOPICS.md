@@ -241,6 +241,36 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 ---
 
+## Validator rules and CI severity
+
+`prompt-manager graph topics` runs every cross-graph rule on every load. Rules are split between **error** severity (CI gate — non-zero exit code) and **warning** severity (advisory). The split follows the rule lifecycle pattern: rules land at warning, the existing population of findings is reconciled, and severity is promoted to error in lockstep with code + doc updates so CI catches regressions thereafter.
+
+| Rule | Severity | What it catches |
+|---|---|---|
+| `conflicting_drain` | error | Two members declare overlapping intake prefixes (would race the drain). |
+| `orphan_input` | error | Intake prefix has no producer (no member output, no `external_producers`, no wildcard source_team). |
+| `missing_taxonomy` / `unknown_taxonomy` | error | Intake declares no taxonomy or names one that doesn't resolve in the registry. |
+| `dangling_por_sink` | error | `destination_kind=por_file` references a `destination_path` that does not exist. |
+| `dangling_evidence_decision` | error | `evidence_consumed[].for_decisions[]` references a decision-context id no team's `team.json` declares. |
+| `attribution_malformed` | error | Post-cutoff knowledge entry has structurally broken attribution (defense in depth — API rejects this at write time). |
+| `unread_required` | error | `required_read[]` prefix has no producer. Producer = any member's `output[]` overlap or any writer-skill `writes_to[]` overlap. |
+| `actual_writer_undeclared` (agent-member subcase) | error | A `kind=agent-member` knowledge entry's topic does not overlap that member's declared `output[]`, or the entry claims a member id that doesn't exist on the team. |
+| `prose_topic_leak` (cli-knowledge-* subpatterns) | error | Markdown prose contains a `prompt-manager team knowledge-*` invocation (`-add`, `-list`, `-list --topic-prefix`, `-update`) whose topic prefix does not resolve against the relevant declaration set per `PROSE_SCAN_TARGETS.md` § Cross-reference matrix. |
+| `actual_writer_undeclared` (external-threshold subcase) | warning | A team's `policy.flagExternalWritesPerWeek` cap was exceeded in some ISO week. Operator-tunable, not concrete drift. |
+| `prose_topic_leak` (`backtick-topic-ref` pattern) | warning | A backticked topic-shaped string has no matching declaration. Kept at warning permanently — the regex over-matches (file paths, code symbols), so promotion would be too lossy. |
+| `topic_key_prefix_mismatch` | warning | Knowledge entry's topic does not match any declared prefix on its team. Surfaces real-data drift; resolved by either adding the declaration or renaming the entry. Not promoted because remediation often spans multiple PRs and the data is real. |
+| `orphan_output` | warning | Output prefix has no peer-member consumer. Operator-only snapshots are legitimate (audit logs, ledgers); the warning is the prompt to either add an intake or accept by-design. |
+| `missing_destination_schema` | warning | Output names a schema not declared by any taxonomy. Soft signal — frequently a missing taxonomy entry, not drift. |
+| `wildcard_source_misuse` | warning | A `source_team=*` intake without an `external_producers` anchor. |
+
+**Severity flip discipline.** Promoting a rule to error is an explicit, decision-gated change, not a one-off edit. The contract is: a rule lands at warning, every existing finding is reconciled, then the severity is changed in code AND the relevant canon doc (this file plus the rule's home doc, e.g., `PROSE_SCAN_TARGETS.md` for `prose_topic_leak`). After promotion, *new* findings break CI; reverting to warning to silence drift is forbidden — fix the underlying drift instead.
+
+**Why writer-skill consultation is part of `unread_required`.** Writer-skill `writes_to[]` is the producer-side declaration for skill-written prefixes. A required_read prefix that overlaps a writer-skill's writes_to[] has a documented producer; demanding a member-side output[] in addition would force false declarations (e.g., friction-curator does not write `friction-inbox/*`; the report-friction skill does). The rule consults both sources.
+
+**Why the prose scanner has read/write split.** Writer skills legitimately read other teams' topics (queue depth, source data) — those references must resolve against any team's declaration set, not the skill's own writes_to[]. Only `knowledge-add` / `knowledge-update` (write patterns) require writes_to[] coverage. See `PROSE_SCAN_TARGETS.md` § Cross-reference matrix and `prose_scan.go::joinProseMatch::proseTargetSkill`.
+
+---
+
 ## Adoption checklist
 
 For someone adding a new topic to a member:

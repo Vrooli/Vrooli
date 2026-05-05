@@ -1,8 +1,8 @@
 # Prose Scan Targets
 
-**Status:** canon. The plan-of-record for Pillar 2 of topic validation. Anchor doc for the `prose_topic_leak` validator rule (P2.1) and the writer-skill `writes_to[]` registry (P2.2). Pairs with `TOPICS_SCHEMA.md` (declarations) and `RUNTIME_ATTRIBUTION.md` (receipts).
+**Status:** canon. Anchor doc for the `prose_topic_leak` validator rule and the writer-skill `writes_to[]` registry. Pairs with `TOPICS_SCHEMA.md` (declarations) and `RUNTIME_ATTRIBUTION.md` (receipts).
 
-This document defines **what files the scanner walks, what patterns it detects, how owners are derived from file paths, and how each finding maps back to a declaration the writer should have made**. It is the input the P2.1 scanner consumes — its file-path globs, regex set, and severity guidance are normative; changes here are decision-gated.
+This document defines **what files the scanner walks, what patterns it detects, how owners are derived from file paths, and how each finding maps back to a declaration the writer should have made**. It is the input the scanner consumes — its file-path globs, regex set, and severity guidance are normative; changes here are decision-gated.
 
 ---
 
@@ -12,7 +12,7 @@ P1 (`topics.json`) catches declaration mismatches. P3 (runtime attribution) catc
 
 Concrete failure mode this pillar exists to catch:
 
-- A member's `RESPONSIBILITIES.md` instructs `prompt-manager team knowledge-add marketing-crew --topic="campaign-draft/<slug>"`, but the member's `topics.json::output[]` declares `campaign/*`. The agent will write to `campaign-draft/*`; the validator (P1) sees nothing wrong (the declaration is internally consistent); the runtime scanner (P3) eventually fires `actual_writer_undeclared` after the write happens. P2 catches it before the first wrong write — at the source of the confusion — by surfacing the prose/declaration mismatch.
+- A member's `RESPONSIBILITIES.md` instructs `prompt-manager team knowledge-add marketing-crew --topic="campaign-draft/<slug>"`, but the member's `topics.json::output[]` declares `campaign/*`. The agent will write to `campaign-draft/*`; the P1 validator sees nothing wrong (the declaration is internally consistent); the P3 runtime scanner eventually fires `actual_writer_undeclared` after the write happens. P2 catches it before the first wrong write — at the source of the confusion — by surfacing the prose/declaration mismatch.
 
 P1 is the plan. P2 is the prose adjacent to the plan. P3 is the receipts. Each catches drift the others cannot.
 
@@ -68,20 +68,20 @@ Skill scanning is **conditional on skill kind** — the prose layer is held to a
 
 | Skill kind | Detection rule | Treatment |
 |---|---|---|
-| **Writer skill** — `skill.json::tags` contains `writer-skill` | `report-bug`, `report-friction`, `morning-vision-walk` (after P2.2 tagging); see § The writer-skill set | `SKILL.md` is **scanned**. Topic references must be a subset of the skill's `writes_to[]` declaration in `skill.json` (P2.2). Mismatch → `prose_topic_leak`. |
-| **Classifier skill** — id matches `*-classifier` or `*-triage`, e.g. `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage` | Hand-curated list lives at `validation.go::classifierForbiddenSubstrings` until P4.0 retires it | `SKILL.md` is **scanned with stricter rule** — *any* topic reference (declared or not) is forbidden, because classifier skills must be portable across teams. Existing rule is `non_portable_classifier` (P1); P2.1 subsumes it via P4.0's subsumption proof. |
-| **Generic skill** (everything else; ~140 of 144 skills) | Default | `SKILL.md` is **scanned** with the classifier-skill rule (any topic reference is a finding) — generic skills should not embed team-specific topic strings. P4.0 ratifies this. |
+| **Writer skill** — `skill.json::tags` contains `writer-skill` | `report-bug`, `report-friction`, `morning-vision-walk`; see § The writer-skill set | `SKILL.md` is **scanned**. Topic references must be a subset of the skill's `writes_to[]` declaration in `skill.json`. Mismatch → `prose_topic_leak`. |
+| **Classifier skill** — id matches `*-classifier` or `*-triage`, e.g. `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage` | Subject to the stricter rule by the kind-conditional join | `SKILL.md` is **scanned with stricter rule** — *any* topic reference (declared or not) is forbidden, because classifier skills must be portable across teams. The legacy `non_portable_classifier` P1 rule has been retired; coverage is subsumed by `prose_topic_leak`. |
+| **Generic skill** (everything else; the bulk of the ~144-skill catalog) | Default | `SKILL.md` is **scanned** with the classifier-skill rule (any topic reference is a finding) — generic skills should not embed team-specific topic strings. |
 | **Pack-level docs** (e.g. `local/`, `drafts/` packs) | Default | Same as generic skills. |
 
-**The writer-skill set** as of P2.0 inventory:
+**The writer-skill set:**
 
-| Skill id | `writer-skill` tag in `skill.json`? | Effective today? | P2.2 action |
-|---|---|---|---|
-| `report-bug` | ✅ tagged | ✅ writes via `team knowledge-add scenario-qa --topic=bug-inbox/...` | populate `writes_to[]` with `bug-inbox/*` |
-| `report-friction` | ✅ tagged | ✅ writes via `team knowledge-add meta-optimization --topic=friction-inbox/...` | populate `writes_to[]` with `friction-inbox/*` |
-| `morning-vision-walk` | ❌ not yet tagged | ✅ writes to `research-inbox/*`, `opportunity-inbox/*`, `validation-inbox/*`, `vision-walk/*` across multiple teams | P2.2 must add `writer-skill` tag and populate `writes_to[]` with all four prefixes |
+| Skill id | `writer-skill` tag in `skill.json` | What it writes |
+|---|---|---|
+| `report-bug` | ✅ tagged | `bug-inbox/*` via `team knowledge-add scenario-qa` |
+| `report-friction` | ✅ tagged | `friction-inbox/*` via `team knowledge-add meta-optimization` |
+| `morning-vision-walk` | ✅ tagged | `research-inbox/*`, `opportunity-inbox/*`, `validation-inbox/*`, `vision-walk/*` across multiple teams |
 
-P2.2 reconciles the gap: every skill that effectively writes must be tagged `writer-skill` and carry a `writes_to[]` declaration. Until then, `morning-vision-walk` is on the wishlist below — its `SKILL.md` will fire `prose_topic_leak` findings until P2.2 lands its tag and writes_to set, which is the intended pressure.
+Every skill that effectively writes is tagged `writer-skill` and carries a `writes_to[]` declaration. Adding a new writer skill means tagging it and populating its `writes_to[]` set in the same change.
 
 ### Domain documentation
 
@@ -134,14 +134,14 @@ Topic prefixes appear in prose almost exclusively as arguments to the prompt-man
 
 The discriminator is the literal substring `team knowledge-` immediately preceding the verb on the same logical command line.
 
-### Pattern set (P2.1 normative)
+### Pattern set
 
 | Pattern id | Regex (Go RE2 syntax) | Matches | Severity |
 |---|---|---|---|
-| `cli-knowledge-add-topic` | ` `prompt-manager team knowledge-add\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-add <team> --topic="audience-scan/2026-05-04/q2-creators"` | **error**-eligible (P4.1 promotes from warning) |
-| `cli-knowledge-list-topic` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic="campaign-draft/q2"` | **error**-eligible |
-| `cli-knowledge-list-prefix` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic-prefix[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)*/?)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic-prefix=audience-scan/` | **error**-eligible |
-| `cli-knowledge-update-topic` | ` `prompt-manager team knowledge-update\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-update marketing-crew knw-abc --topic="audience-scan/keep"` | **error**-eligible |
+| `cli-knowledge-add-topic` | ` `prompt-manager team knowledge-add\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-add <team> --topic="audience-scan/2026-05-04/q2-creators"` | **error** |
+| `cli-knowledge-list-topic` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic="campaign-draft/q2"` | **error** |
+| `cli-knowledge-list-prefix` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic-prefix[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)*/?)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic-prefix=audience-scan/` | **error** |
+| `cli-knowledge-update-topic` | ` `prompt-manager team knowledge-update\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-update marketing-crew knw-abc --topic="audience-scan/keep"` | **error** |
 | `backtick-topic-ref` | `` `([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)` `` (a backticked string with at least one `/`, lower-kebab segments, optional `<>` placeholders, `*` wildcard) | `` `audience-scan/<date>/<slug>` ``, `` `bug-inbox/regression/cli-flag-confusion` `` | **warning** (looser; high false-positive risk) |
 
 Captured group `1` is the topic prefix. The scanner treats segments containing `<...>` placeholders or trailing `*` as wildcards when joining against declarations (e.g., `audience-scan/<date>/<slug>` joins against the declared `audience-scan/*` output prefix).
@@ -170,7 +170,7 @@ Backticked-string references (`backtick-topic-ref` pattern) remain at **warning*
 
 ## Cross-reference matrix
 
-This is the matrix the P2.1 scanner consumes when joining a detected reference back to a declaration. For each (target × pattern) combination, the validation question and the consulted declaration set are:
+This is the matrix the scanner consumes when joining a detected reference back to a declaration. For each (target × pattern) combination, the validation question and the consulted declaration set are:
 
 | Target | Detected pattern | Validation question | Declaration consulted |
 |---|---|---|---|
@@ -180,27 +180,42 @@ This is the matrix the P2.1 scanner consumes when joining a detected reference b
 | `shared/<other>.md` | `backtick-topic-ref` | same | same (warning severity). |
 | `agents/<id>/SOUL.md` `agents/<id>/AGENTS.md` `agents/<id>/TOOLS.md` | any `cli-knowledge-*` pattern | "Is this prefix declared by **some** team that binds this agent?" | Union of `topics.json` declarations across every `store/teams/<team>/members/<id>/topics.json` matching this agent id. |
 | `agents/<id>/*.md` | `backtick-topic-ref` | same | same (warning severity). |
-| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | any `cli-knowledge-*` pattern | "Is this prefix in this skill's `writes_to[]`?" | The skill's `skill.json::writes_to[]` (P2.2). |
-| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `backtick-topic-ref` | same | same (warning severity). |
+| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `cli-knowledge-add-topic`, `cli-knowledge-update-topic` (write patterns) | "Is this prefix in this skill's `writes_to[]`?" | The skill's `skill.json::writes_to[]`. Strict — prefixes declared elsewhere do NOT satisfy a write-pattern check. |
+| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `cli-knowledge-list-topic`, `cli-knowledge-list-prefix` (read patterns) | "Is this prefix in this skill's `writes_to[]` OR declared by any team?" | Union of the skill's own `writes_to[]` and the global declaration set. Drift fires only when neither covers the prefix. |
+| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `backtick-topic-ref` | same as read patterns above (warning severity). | Union of `writes_to[]` and global declaration set. |
 | `skills/packs/<pack>/<id>/SKILL.md` (classifier or generic skill) | any pattern (CLI or backtick) | "Are there ANY topic references at all? (There must not be.)" | None — every match is a finding. |
 | `docs/<domain>/**/*.md` | any `cli-knowledge-*` pattern | "Is this prefix declared **anywhere** in the system?" | Global union of all members' `topics.json` declarations across all teams. |
 | `docs/<domain>/**/*.md` | `backtick-topic-ref` | same | same (warning severity). |
 | `docs/agent-system/*.md` | any pattern, **inside fenced code block** | n/a (excluded by code-block rule) | n/a |
 
-**No-match outcome:** the scanner emits a `prose_topic_leak` finding with the file path, line number, the captured prefix, the owner key, and the consulted declaration set's hash (so the operator can reproduce). Severity is per the matrix above; warnings flow to `findings.json` (P3.7) but don't fail CI; errors do (after P4.1 promotes the CLI patterns).
+**No-match outcome:** the scanner emits a `prose_topic_leak` finding with the file path, line number, the captured prefix, the owner key, and the consulted declaration set's hash (so the operator can reproduce). Severity is per the matrix above; warnings flow to `findings.json` but don't fail CI; errors do.
 
-**Special case — writer skill that has no `writes_to[]` yet:** if the SKILL.md is in the writer-skill set but `skill.json::writes_to[]` is missing or empty, every CLI-pattern match is a `prose_topic_leak` finding pointing the reader at P2.2. This is the pressure that gets `morning-vision-walk` tagged.
+**Special case — writer skill that has no `writes_to[]`:** if the SKILL.md is in the writer-skill set but `skill.json::writes_to[]` is missing or empty, every CLI-pattern match is a `prose_topic_leak` finding. The remediation is to populate `writes_to[]` on the skill.
 
 ---
 
 ## Severity guidance
 
-| Rule lifecycle stage | Severity for `cli-knowledge-*` | Severity for `backtick-topic-ref` |
-|---|---|---|
-| **Initial ship (P2.1)** | warning | warning |
-| **Post-bake-in (P4.1)** | error | warning (kept at warning permanently — too lossy to enforce) |
+`cli-knowledge-*` patterns fire at **error** severity; `backtick-topic-ref` fires at **warning**. The split exists because backticks are also used for non-topic identifiers (file paths, code symbols, slashed identifiers that happen to look like topic prefixes) — the false-positive rate is too high to gate CI on. `prompt-manager graph topics` exits non-zero on any new `cli-knowledge-*` finding; CI uses this as a regression gate. The `backtick-topic-ref` pattern is a perpetual hint rather than a CI gate.
 
-`prose_topic_leak` follows the standard Pillar rule lifecycle: ship at warning, bake for one observation cycle, promote to error after the ecosystem is clean and the warning count has dropped to zero. The `backtick-topic-ref` pattern is **not promoted** — its false-positive rate (file paths, code symbols, slashed identifiers that happen to look like topic prefixes) makes it a perpetual hint rather than a CI gate.
+### Placeholder-segment normalization
+
+Captured prefixes containing `<...>` segments (the parameterized form agents use in TOOLS.md and HEARTBEAT.md to document a CLI invocation shape, e.g., `friction-report/<scope>/<date>/<slug>`) are normalized at join time: the first `<...>`-segment and everything after it collapse into a trailing `/*` wildcard. Without this, `friction-report/<scope>/<date>/<slug>` would not overlap a declared `friction-report/toolchain/*` because `Overlap` (in `schema.go`) treats `<scope>` literally.
+
+The normalization is applied to the join key only; the original prose substring is preserved verbatim in the finding's `Prefix` field so operators see the exact source-file text. Implementation: `prose_scan.go::normalizePlaceholderPrefix`.
+
+### `--topic-prefix` is a wildcard match
+
+The `cli-knowledge-list-prefix` pattern captures `--topic-prefix=foo/`, which the CLI semantically treats as "list anything under `foo/`." When joining, the captured prefix is appended with `/*` (if not already wildcarded) so it matches longer concrete declarations. Example: a `--topic-prefix=friction-report/` invocation overlaps a declared `friction-report/toolchain/*` output because the join key becomes `friction-report/*`.
+
+### Read/write split for writer-skill SKILL.md
+
+Writer-skill prose distinguishes write patterns (`cli-knowledge-add-topic`, `cli-knowledge-update-topic`) from read patterns (`cli-knowledge-list-topic`, `cli-knowledge-list-prefix`, `backtick-topic-ref`):
+
+- **Write pattern:** must overlap the skill's own `skill.json::writes_to[]`. A reference to a prefix declared elsewhere does not satisfy this — the skill is claiming producer-side authority it does not have.
+- **Read pattern:** clean if the prefix overlaps the skill's own `writes_to[]` (the skill may read its own past writes) **or** any team's declaration set (the skill is documenting the storage shape of a topic some member already owns). Drift fires only when the prefix is undeclared anywhere.
+
+Without this split, every legitimate read reference in writer-skill prose ("read the queue you're appending to," "consult the pool you're flipping status on") would force authors to drop CLI prose for legitimate reads — a worse outcome than allowing the read. Implementation: `prose_scan.go::joinProseMatch::proseTargetSkill`.
 
 ---
 
@@ -232,9 +247,9 @@ The owner string appears verbatim in the `Finding.OwnerKey` field. CI summary sc
 
 ---
 
-## Inventory snapshot (P2.0)
+## Inventory snapshot
 
-Captured at P2.0 against the live store — this is the size the P2.1 scanner is built for, not a hard cap.
+Captured against the live store — this is the size the scanner is built for, not a hard cap.
 
 | Surface | Count |
 |---|---|
@@ -244,11 +259,11 @@ Captured at P2.0 against the live store — this is the size the P2.1 scanner is
 | Per-team shared files scanned | 18 (TEAM.md ×6 + meta-optimization audits ×9 + infra-health snapshots ×3) |
 | Agent identity templates (SOUL.md + AGENTS.md + TOOLS.md per agent) | 28 agents × 3 files = 84 |
 | Skills total | 144 |
-| Writer-skill `SKILL.md` (scanned with `writes_to[]` consultation) | 2 today (`report-bug`, `report-friction`); 3 after P2.2 tags `morning-vision-walk` |
-| Classifier / generic skill `SKILL.md` (scanned with strict no-topic rule) | 142 (post-P2.2: 141) |
+| Writer-skill `SKILL.md` (scanned with `writes_to[]` consultation) | 3 (`report-bug`, `report-friction`, `morning-vision-walk`) |
+| Classifier / generic skill `SKILL.md` (scanned with strict no-topic rule) | 141 |
 | `docs/<domain>/**/*.md` files | varies; `docs/agent-system/` alone has ~17 canon files |
 
-The scanner's expected runtime is well under one second on this corpus; budget concerns belong to a later workshop, not this one.
+The scanner's runtime is well under one second on this corpus; budget concerns belong to a later workshop, not this one.
 
 ---
 
@@ -264,15 +279,10 @@ These patterns explicitly do **not** appear in the scanner. Each requires a deci
 
 ---
 
-## Migration plan reference
+## Components and entry points
 
-Pillar 2 ships across four phases:
-
-- **P2.0** (this document) — Scan-target inventory + canonical CLI patterns. No code change; pure documentation.
-- **P2.1** — `ruleProseTopicLeak` implementation in `scenarios/prompt-manager/api/memberflow/prose_scan.go`. Consumes this doc's pattern set, target list, and owner-derivation rules verbatim.
-- **P2.2** — Writer-skill `writes_to[]` registry in `skill.json`. Adds the field, populates the three writer skills, and tags `morning-vision-walk` as `writer-skill`.
-- **P2.3** — Golden-fixture tests covering the scanner's failure modes.
-- **P4.0** — Subsumption proof for `non_portable_classifier` (the legacy P1 rule covering classifier-skill topic-purity); demonstrates strict-superset coverage by P2.1, then deletes the legacy rule.
-- **P4.1** — Promotes `cli-knowledge-*` `prose_topic_leak` findings from warning to error. `backtick-topic-ref` stays at warning permanently.
-
-See `/home/matthalloran8/.claude/plans/keen-growing-whisper.md` for the full plan and per-phase definition-of-done criteria. This file is the contract for what the scanner reads; that file is the rollout for when it ships.
+- **This document** — scan target inventory + canonical CLI patterns; the normative spec for what the scanner walks and matches.
+- **Scanner implementation** — `scenarios/prompt-manager/api/memberflow/prose_scan.go` (`ruleProseTopicLeak`, `joinProseMatch`, `normalizePlaceholderPrefix`).
+- **Writer-skill registry** — `skill.json::writes_to[]`, populated on every writer-skill (`report-bug`, `report-friction`, `morning-vision-walk`).
+- **Golden-fixture tests** — `scenarios/prompt-manager/api/memberflow/prose_scan_golden_test.go`.
+- **Subsumption proof for the retired `non_portable_classifier` rule** — `scenarios/prompt-manager/api/memberflow/non_portable_classifier_subsumption_test.go`.

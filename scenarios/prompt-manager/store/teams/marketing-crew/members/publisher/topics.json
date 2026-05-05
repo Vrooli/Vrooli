@@ -28,6 +28,10 @@
     {
       "prefix": "publish-log/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "coverage-snapshot/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

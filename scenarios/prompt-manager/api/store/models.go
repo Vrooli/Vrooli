@@ -210,7 +210,7 @@ type Team struct {
 	// entries written on or after this ISO-8601 date (YYYY-MM-DD) MUST
 	// carry runtime attribution conforming to docs/agent-system/RUNTIME_ATTRIBUTION.md;
 	// pre-cutoff entries are treated as kind="legacy" and skipped by
-	// ruleActualWriterUndeclared (P3.6). The value is set at migration time
+	// ruleActualWriterUndeclared. The value is set at migration time
 	// by cmd/migrate-knowledge-attribution and may be widened retroactively
 	// by the operator if a migration introduces unexpected drift.
 	// Empty string means the team has not yet adopted the runtime contract;
@@ -707,7 +707,7 @@ const (
 	// KnowledgeKindExternal is a non-Vrooli system (webhook, future
 	// integration). No required fields beyond Kind.
 	KnowledgeKindExternal = "external"
-	// KnowledgeKindLegacy is set by the one-time P3.2 migration on every
+	// KnowledgeKindLegacy is set by the one-time migration tool on every
 	// pre-cutoff entry. The original freeform `by` value is preserved on
 	// the entry's CallerNote field. Skipped by ruleActualWriterUndeclared.
 	KnowledgeKindLegacy = "legacy"
@@ -718,7 +718,7 @@ const (
 )
 
 // KnowledgeKinds enumerates every valid AttributionInfo.Kind value. Used by
-// the API handler (P3.4) to reject unknown kinds at write time and by tests
+// the API handler to reject unknown kinds at write time and by tests
 // to assert constant coverage.
 var KnowledgeKinds = []string{
 	KnowledgeKindAgentMember,
@@ -757,7 +757,7 @@ const (
 )
 
 // SpawnOrigins enumerates every valid AttributionInfo.SpawnOrigin value.
-// Used by the API handler (P3.4) to reject unknown origins at write time
+// Used by the API handler to reject unknown origins at write time
 // and by tests to assert constant coverage.
 var SpawnOrigins = []string{
 	SpawnOriginHeartbeat,
@@ -770,8 +770,8 @@ var SpawnOrigins = []string{
 }
 
 // AttributionInfo is the structured-attribution payload carried on every
-// post-cutoff knowledge entry. The API handler (P3.4) populates it at
-// write time from the X-Vrooli-Attribution HTTP header.
+// post-cutoff knowledge entry. The API handler populates it at write time
+// from the X-Vrooli-Attribution HTTP header.
 //
 // The canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md
 // § The structured-attribution payload — that doc owns field semantics,
@@ -815,14 +815,15 @@ type AttributionInfo struct {
 // KnowledgeEntry represents a piece of team knowledge persisted across heartbeats.
 //
 // Identity: every post-cutoff entry carries structured Attribution that the
-// API populates from the X-Vrooli-Attribution HTTP header (P3.4). Caller is
-// a derived display string the API computes at write time — never accepted
+// API populates from the X-Vrooli-Attribution HTTP header. Caller is a
+// derived display string the API computes at write time — never accepted
 // as input. CallerNote is optional freeform context. The full contract is
 // docs/agent-system/RUNTIME_ATTRIBUTION.md.
 //
-// Pre-cutoff entries are migrated by P3.2 to kind=legacy with the original
-// `by` field value preserved on CallerNote. Post-cutoff entries with
-// kind=legacy are not produced — the migration runs once per team.
+// Pre-cutoff entries are migrated by cmd/migrate-knowledge-attribution to
+// kind=legacy with the original `by` field value preserved on CallerNote.
+// Post-cutoff entries with kind=legacy are not produced — the migration
+// runs once per team.
 type KnowledgeEntry struct {
 	ID         string `json:"id"`
 	At         string `json:"at"`
@@ -839,12 +840,12 @@ type KnowledgeEntry struct {
 	Caller string `json:"caller"`
 	// CallerNote is optional freeform context the writer may attach (debug
 	// breadcrumb, retry note, migration trail). Capped at 256 chars by the
-	// P3.4 handler. No identity meaning; never read by validators.
-	// P3.2 migration preserves the legacy `by` field's value here on every
-	// pre-cutoff entry.
+	// API handler. No identity meaning; never read by validators.
+	// The legacy-knowledge migration preserves the original `by` field's
+	// value here on every pre-cutoff entry.
 	CallerNote string `json:"caller_note,omitempty"`
 	// Attribution is the structured truth about who wrote this entry.
-	// Always present (post-cutoff and migrated entries alike). P3.4
+	// Always present (post-cutoff and migrated entries alike). The API
 	// rejects mutating writes that lack the X-Vrooli-Attribution header
 	// or carry a malformed payload.
 	Attribution AttributionInfo `json:"attribution"`

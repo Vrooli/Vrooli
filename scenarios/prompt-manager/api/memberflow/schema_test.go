@@ -10,8 +10,8 @@ func ptr(s string) *string { return &s }
 
 func TestTopicsValidate_ValidCanonical(t *testing.T) {
 	// The canonical worked example from docs/agent-system/TOPICS_SCHEMA.md.
-	// Includes the Phase 1.1 fields (required_read, evidence_consumed) so
-	// the canonical example exercises the full schema.
+	// Includes required_read and evidence_consumed so the canonical
+	// example exercises the full schema.
 	raw := `{
 		"intake": [
 			{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "marketing-signal-classifier", "source_team": null}
@@ -421,7 +421,7 @@ func TestEvidenceConsumedValidation(t *testing.T) {
 }
 
 func TestIsEmpty_NewFields(t *testing.T) {
-	// Each Phase 1.1 field independently flips IsEmpty to false.
+	// Each of required_read[]/evidence_consumed[] independently flips IsEmpty to false.
 	cases := []struct {
 		name   string
 		topics Topics

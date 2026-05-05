@@ -197,8 +197,8 @@ type KnowledgeTopic struct {
 // contract: decision-graph position, write surfaces, safety rules, and
 // read-only-mode behavior. Per-member message-flow declarations
 // (intake/required_read/evidence_consumed/output) live in topics.json,
-// not here — see api/memberflow/schema.go and Phase 1.5 of the
-// topic-validation refactor for the cut-over rationale.
+// not here — see api/memberflow/schema.go for the canonical declaration
+// and api/memberflow/validation.go for the rules that enforce it.
 type MemberContract struct {
 	Lane                       string           `json:"lane"`
 	OwnedDecisionContexts      []string         `json:"ownedDecisionContexts"`

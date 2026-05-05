@@ -13,7 +13,7 @@
 // below are derived from that doc; changes there are decision-gated
 // (changes here must keep parity).
 //
-// Scope of this file (P2.1):
+// Scope of this file:
 //
 //  1. Public rule entry point: ruleProseTopicLeak — the ValidationOptions
 //     gate, target discovery, scan, and join-against-declarations pass.
@@ -22,9 +22,8 @@
 //     include-list from RepoRoot/ScanRoots per the doc's target table.
 //
 //  3. Pattern matchers (proseRegexes) — the five regexes from the doc's
-//     pattern set, locked at warning severity for the P2.1 ship per the
-//     doc's severity guidance (P4.1 promotes cli-knowledge-* to error;
-//     backtick-topic-ref stays at warning permanently).
+//     pattern set. cli-knowledge-* patterns are at error severity;
+//     backtick-topic-ref stays at warning permanently.
 //
 //  4. Code-block exclusion — line-by-line fenced-code-block tracker,
 //     enabled only for files under docs/agent-system/ per the doc's
@@ -33,19 +32,16 @@
 //
 //  5. Owner-derivation — file path → owner key per the doc's rules.
 //
-// Out of scope here (other phases own them):
+// Out of scope here (other code owns them):
 //
-//   - Writer-skill `writes_to[]` declaration: lives on skill.json since
-//     P2.2 (the kind-conditional join in this file consults it via
+//   - Writer-skill `writes_to[]` declaration: lives on skill.json
+//     (the kind-conditional join in this file consults it via
 //     buildProseSkillIndex; no logic in this file owns the field).
 //
 //   - Subsumption proof for the retired `non_portable_classifier` rule:
 //     non_portable_classifier_subsumption_test.go is the permanent
 //     regression record demonstrating that every realistic legacy
 //     coupling pattern is caught here.
-//
-//   - Severity promotion: P4.1 promotes cli-knowledge-* matches from
-//     warning to error.
 package memberflow
 
 import (
@@ -91,9 +87,9 @@ type proseTarget struct {
 	AllowCodeBlock bool   // when true, content inside fenced code blocks is skipped (true for docs/agent-system/ only)
 }
 
-// proseRegex is one scanner pattern. Severity here is the ship-time
-// severity per docs/agent-system/PROSE_SCAN_TARGETS.md § Severity guidance;
-// P4.1 promotes cli-* patterns to error.
+// proseRegex is one scanner pattern. Severity here follows
+// docs/agent-system/PROSE_SCAN_TARGETS.md § Severity guidance; cli-*
+// patterns are at error severity, backtick-topic-ref at warning.
 type proseRegex struct {
 	Name     string
 	Severity Severity
@@ -103,36 +99,42 @@ type proseRegex struct {
 }
 
 // proseRegexes is the locked pattern set from docs/agent-system/PROSE_SCAN_TARGETS.md
-// § Pattern set (P2.1 normative). Adding a pattern requires a doc change.
+// § Pattern set. Adding a pattern requires a doc change.
 //
 // All five patterns capture the topic prefix in group 1; the captured
 // string may include `<...>` placeholders (treated as wildcard segments
 // by Overlap) and trailing `*` / `/`.
 var proseRegexes = []proseRegex{
 	{
+		// Error severity: a `knowledge-add --topic` invocation in
+		// prose that does not overlap a real declaration is concrete
+		// drift the agent will execute on the next tick.
 		Name:     "cli-knowledge-add-topic",
-		Severity: SeverityWarning,
+		Severity: SeverityError,
 		Re:       regexp.MustCompile(`prompt-manager team knowledge-add\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?`),
 		IsCLI:    true,
 		IsWrite:  true,
 	},
 	{
+		// Error severity.
 		Name:     "cli-knowledge-list-topic",
-		Severity: SeverityWarning,
+		Severity: SeverityError,
 		Re:       regexp.MustCompile(`prompt-manager team knowledge-list\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?`),
 		IsCLI:    true,
 		IsWrite:  false,
 	},
 	{
+		// Error severity.
 		Name:     "cli-knowledge-list-prefix",
-		Severity: SeverityWarning,
+		Severity: SeverityError,
 		Re:       regexp.MustCompile(`prompt-manager team knowledge-list\b[^\n]*?--topic-prefix[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)*/?)"?`),
 		IsCLI:    true,
 		IsWrite:  false,
 	},
 	{
+		// Error severity.
 		Name:     "cli-knowledge-update-topic",
-		Severity: SeverityWarning,
+		Severity: SeverityError,
 		Re:       regexp.MustCompile(`prompt-manager team knowledge-update\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?`),
 		IsCLI:    true,
 		IsWrite:  true,
@@ -674,7 +676,31 @@ func buildProseDeclarationIndex(members []MemberTopics) proseDeclarationIndex {
 // the match is drift, or (Finding{}, false) when the match is satisfied
 // by some declaration.
 func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIndex) (Finding, bool) {
+	// candidate is the prose-original prefix used in finding details so
+	// operators see the exact text from the source file. joinKey is the
+	// placeholder-normalized form used for the actual overlap check.
+	// Two normalizations apply:
+	//
+	//   1. `<...>` placeholder segments collapse to a trailing wildcard
+	//      so prose like `friction-report/<scope>/<date>/<slug>`
+	//      overlaps `friction-report/toolchain/*`. PROSE_SCAN_TARGETS.md
+	//      guarantees this behavior; a parameterized CLI invocation
+	//      shape is the canonical TOOLS.md / HEARTBEAT.md form.
+	//
+	//   2. `cli-knowledge-list-prefix` (the `--topic-prefix=foo/`
+	//      pattern) is *prefix-match* in CLI semantics — it matches
+	//      anything under `foo/` — so the captured prefix joins as if
+	//      it ended in `/*`. The literal CLI flag implies the wildcard;
+	//      Overlap is segment-based and needs the wildcard suffix on
+	//      one side to consider a longer declared prefix as covered.
+	//      Without this, `--topic-prefix=friction-report/` does not
+	//      overlap `friction-report/toolchain/*` even though the CLI
+	//      would clearly list entries written there.
 	candidate := m.Prefix
+	joinKey := normalizePlaceholderPrefix(candidate)
+	if m.Pattern.Name == "cli-knowledge-list-prefix" && joinKey != "" && !strings.HasSuffix(joinKey, "/*") && joinKey != "*" {
+		joinKey += "/*"
+	}
 	switch m.Target.Kind {
 	case proseTargetMember:
 		// Writes (knowledge-add / knowledge-update) join against the
@@ -688,7 +714,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		var declared []string
 		if m.Pattern.IsWrite {
 			declared = idx.memberOutputs[m.Target.TeamID][m.Target.MemberID]
-			if anyOverlaps(declared, candidate) {
+			if anyOverlaps(declared, joinKey) {
 				return Finding{}, false
 			}
 			// Fall back to team-wide outputs: a member document
@@ -700,22 +726,22 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 			// declare it; for now this is not flagged at the
 			// member level — but note we return drift only when
 			// the prefix is undeclared anywhere on the team.
-			if anyOverlaps(idx.teamPrefixes[m.Target.TeamID], candidate) {
+			if anyOverlaps(idx.teamPrefixes[m.Target.TeamID], joinKey) {
 				return Finding{}, false
 			}
 		} else {
 			declared = idx.memberReads[m.Target.TeamID][m.Target.MemberID]
-			if anyOverlaps(declared, candidate) {
+			if anyOverlaps(declared, joinKey) {
 				return Finding{}, false
 			}
-			if anyOverlaps(idx.teamPrefixes[m.Target.TeamID], candidate) {
+			if anyOverlaps(idx.teamPrefixes[m.Target.TeamID], joinKey) {
 				return Finding{}, false
 			}
 		}
 		return memberFinding(m, candidate), true
 
 	case proseTargetTeam:
-		if anyOverlaps(idx.teamPrefixes[m.Target.TeamID], candidate) {
+		if anyOverlaps(idx.teamPrefixes[m.Target.TeamID], joinKey) {
 			return Finding{}, false
 		}
 		return Finding{
@@ -735,7 +761,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		// classifier-style coupling problem).
 		teams := idx.agentTeams[m.Target.AgentID]
 		for _, teamID := range teams {
-			if anyOverlaps(idx.teamPrefixes[teamID], candidate) {
+			if anyOverlaps(idx.teamPrefixes[teamID], joinKey) {
 				return Finding{}, false
 			}
 		}
@@ -752,27 +778,63 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 		}, true
 
 	case proseTargetSkill:
-		// Kind-conditional rule per the doc. Writer skills (tagged
-		// `writer-skill`) consult their own skill.json::writes_to[]
-		// (P2.2 field — empty/absent today, which means every CLI
-		// hit is a finding pointing at P2.2). Classifier and generic
-		// skills are held to the strict no-topic rule: any topic
-		// reference fires.
+		// Kind-conditional rule per the doc:
+		//
+		//   - Writer skills (tagged `writer-skill`) are explicitly
+		//     topic-aware. Their **write** patterns
+		//     (`knowledge-add` / `knowledge-update`) must overlap
+		//     `skill.json::writes_to[]` — that is the producer-side
+		//     declaration the rest of the system trusts. Their
+		//     **read** patterns (`knowledge-list` / -prefix /
+		//     backtick) document where to look in the store; those
+		//     references must resolve against the global declaration
+		//     set (any team's topics.json), but are not constrained
+		//     to writes_to[]. Without this read/write split, the
+		//     rule punishes every legitimate read reference
+		//     ("read the queue you're appending to," "consult the
+		//     pool you're flipping status on"), which would force
+		//     authors to drop CLI prose for legitimate reads.
+		//
+		//   - Classifier or generic skills are held to the strict
+		//     portability rule: any topic reference (read or write)
+		//     fires. They must not embed team-specific topic strings.
 		entry := skills[m.Target.SkillID]
 		if entry.IsWriter {
-			if anyOverlaps(entry.WritesTo, candidate) {
+			if m.Pattern.IsWrite {
+				if anyOverlaps(entry.WritesTo, joinKey) {
+					return Finding{}, false
+				}
+				detail := fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern, but writer skill %q does not declare it in skill.json::writes_to[]", m.Target.Path, m.Line, candidate, m.Pattern.Name, m.Target.SkillID)
+				if len(entry.WritesTo) == 0 {
+					detail += " — writes_to[] is missing or empty"
+				}
+				return Finding{
+					Rule:     proseScanRule,
+					Severity: m.Pattern.Severity,
+					Prefix:   candidate,
+					OwnerKey: m.Target.OwnerKey,
+					Detail:   detail,
+				}, true
+			}
+			// Read pattern on a writer skill: clean if either
+			// (a) the prefix overlaps the skill's own
+			// writes_to[] (the skill is allowed to read its
+			// own past writes), or (b) the prefix overlaps
+			// any team's declared prefix (the skill is
+			// documenting the storage shape of a topic some
+			// member already owns). Drift = neither.
+			if anyOverlaps(entry.WritesTo, joinKey) {
 				return Finding{}, false
 			}
-			detail := fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern, but writer skill %q does not declare it in skill.json::writes_to[]", m.Target.Path, m.Line, candidate, m.Pattern.Name, m.Target.SkillID)
-			if len(entry.WritesTo) == 0 {
-				detail += " — writes_to[] is missing or empty (see Phase 2.2 in /home/matthalloran8/.claude/plans/keen-growing-whisper.md)"
+			if anyOverlaps(idx.allPrefixes, joinKey) {
+				return Finding{}, false
 			}
 			return Finding{
 				Rule:     proseScanRule,
 				Severity: m.Pattern.Severity,
 				Prefix:   candidate,
 				OwnerKey: m.Target.OwnerKey,
-				Detail:   detail,
+				Detail:   fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern (read), but no member on any team declares an overlapping prefix in topics.json", m.Target.Path, m.Line, candidate, m.Pattern.Name),
 			}, true
 		}
 		// Classifier or generic skill: any topic reference fires.
@@ -786,7 +848,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 
 	case proseTargetDocs:
 		// Domain docs: any-team-anywhere union.
-		if anyOverlaps(idx.allPrefixes, candidate) {
+		if anyOverlaps(idx.allPrefixes, joinKey) {
 			return Finding{}, false
 		}
 		return Finding{
@@ -815,6 +877,58 @@ func memberFinding(m proseMatch, candidate string) Finding {
 	}
 }
 
+// normalizePlaceholderPrefix collapses `<...>` placeholder segments into a
+// trailing wildcard `*` so prose-captured prefixes join against
+// declarations using the standard Overlap semantics.
+//
+// PROSE_SCAN_TARGETS.md guarantees this behavior:
+//
+//	"The scanner treats segments containing `<...>` placeholders or
+//	trailing `*` as wildcards when joining against declarations
+//	(e.g., `audience-scan/<date>/<slug>` joins against the declared
+//	`audience-scan/*` output prefix)."
+//
+// Without this normalization, a prose reference like
+// `friction-report/<scope>/<date>/<slug>` (the canonical placeholder form
+// agents use in TOOLS.md and HEARTBEAT.md to document a parameterized CLI
+// invocation) does not overlap a declaration like
+// `friction-report/toolchain/*` because Overlap treats `<scope>` as a
+// literal string segment, not a wildcard. The result was spurious
+// prose_topic_leak findings on every parameterized prose reference.
+//
+// Strategy: segments through (but not including) the first `<...>` segment
+// are preserved literally; the `<...>` segment and everything after it
+// become a single trailing `/*`. Examples:
+//
+//   - `friction-report/<scope>/<date>/<slug>` → `friction-report/*`
+//   - `audience-scan/<date>`                → `audience-scan/*`
+//   - `audience-scan/2026-04-23/q2`         → unchanged (no placeholder)
+//   - `<placeholder>`                        → `*`
+//   - empty                                  → empty (callers handle empty)
+//
+// The truncation choice (rather than per-segment wildcard substitution)
+// avoids producing multi-segment patterns like `foo/*/*/*` that Overlap
+// does not handle. The semantic loss — that a reference like
+// `audience-scan/<date>/q2-creators` matches `audience-scan/*` instead of
+// requiring a `audience-scan/*/q2-creators` declaration — is intentional:
+// the placeholder convention is for parameterized invocations, and the
+// wildcard tail is the convention's natural mapping.
+func normalizePlaceholderPrefix(prefix string) string {
+	if prefix == "" {
+		return prefix
+	}
+	segments := strings.Split(prefix, "/")
+	for i, seg := range segments {
+		if strings.ContainsAny(seg, "<>") {
+			if i == 0 {
+				return "*"
+			}
+			return strings.Join(segments[:i], "/") + "/*"
+		}
+	}
+	return prefix
+}
+
 // anyOverlaps reports whether any declared prefix overlaps the observed
 // prefix. Empty list returns false; empty observed string returns false.
 func anyOverlaps(declared []string, observed string) bool {
@@ -836,7 +950,7 @@ func anyOverlaps(declared []string, observed string) bool {
 // proseSkillEntry is the per-skill data the join pass needs.
 type proseSkillEntry struct {
 	IsWriter bool
-	WritesTo []string // populated by P2.2's skill.json::writes_to[] field; empty until then
+	WritesTo []string // populated from skill.json::writes_to[]
 }
 
 // proseSkillIndex maps skill id -> proseSkillEntry. Empty when no scan
@@ -846,12 +960,9 @@ type proseSkillIndex map[string]proseSkillEntry
 
 // buildProseSkillIndex walks each scan root's skills/packs/<pack>/<id>/skill.json
 // and returns the index. A skill is `IsWriter=true` when its `tags` array
-// contains the literal "writer-skill".
-//
-// `writes_to[]` is read pre-emptively so P2.2 needs only to populate the
-// field on disk — no scanner change required at that point. Until P2.2
-// lands, the field is missing on every writer skill, so writes_to is empty
-// and every CLI hit on a writer-skill SKILL.md fires (intended pressure).
+// contains the literal "writer-skill". `writes_to[]` is read straight off
+// skill.json; when missing or empty, every CLI hit on a writer-skill
+// SKILL.md fires (the writer must declare its writes).
 func buildProseSkillIndex(roots []string) proseSkillIndex {
 	idx := proseSkillIndex{}
 	for _, root := range roots {

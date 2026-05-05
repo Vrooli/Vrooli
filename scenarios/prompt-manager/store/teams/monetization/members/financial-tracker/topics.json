@@ -22,6 +22,10 @@
     {
       "prefix": "monetization-ledger-log/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "ledger-snapshot/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

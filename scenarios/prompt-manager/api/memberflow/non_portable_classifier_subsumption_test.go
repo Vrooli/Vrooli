@@ -1,13 +1,12 @@
-// P4.0 subsumption proof: every realistic legacy-detectable classifier
+// Subsumption proof: every realistic legacy-detectable classifier
 // coupling pattern is also caught by ruleProseTopicLeak. This file is the
 // permanent regression record that motivates the deletion of
 // ruleNonPortableClassifier and the classifierForbiddenSubstrings list:
 // the legacy rule has been retired, but the contract it enforced lives on
 // here as a synthetic-fixture pass.
 //
-// What "subsumption" means in P4.0 — every realistic SKILL.md prose form
-// the legacy rule was authored to forbid is now caught by the broader
-// Pillar 2 prose scanner:
+// Every realistic SKILL.md prose form the legacy rule was authored to
+// forbid is now caught by the broader Pillar 2 prose scanner:
 //
 //   - Inbox topic-prefix coupling (e.g. `research-inbox/<date>`) — caught
 //     by `backtick-topic-ref` for backticked references and by the
@@ -63,7 +62,7 @@ type classifierSubsumptionFixture struct {
 	SkillID string
 	// SkillBody is the SKILL.md content shipped with this fixture.
 	SkillBody string
-	// LegacyExpectedSubstring is the pre-P4.0 substring the legacy
+	// LegacyExpectedSubstring is the substring the retired
 	// non_portable_classifier rule was authored to catch in this body.
 	// The test sanity-checks the substring is actually present in the
 	// fixture so future readers see exactly which legacy intent each

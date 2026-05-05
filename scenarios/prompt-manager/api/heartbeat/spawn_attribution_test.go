@@ -43,7 +43,7 @@ func TestBuildHeartbeatAttributionEnv_HappyPath(t *testing.T) {
 		t.Errorf("TeamID = %v, want marketing-crew", info.TeamID)
 	}
 	if info.RunID != nil {
-		t.Errorf("RunID = %v, want nil (P3.5 leaves run_id unset; canon: RUNTIME_ATTRIBUTION.md § P3.5)", info.RunID)
+		t.Errorf("RunID = %v, want nil (heartbeat-spawn leaves run_id unset; canon: RUNTIME_ATTRIBUTION.md § Env-var bridge)", info.RunID)
 	}
 	if info.SourceSkillID != nil {
 		t.Errorf("SourceSkillID = %v, want nil (no skill mediates a heartbeat spawn)", info.SourceSkillID)

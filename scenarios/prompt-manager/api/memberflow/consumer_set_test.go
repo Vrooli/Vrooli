@@ -118,7 +118,7 @@ func TestConsumerSet_PreservesDeclarationOrder(t *testing.T) {
 	// Entry order is deterministic: members are visited in input order,
 	// and intakes within a member are appended in declaration order.
 	// Stability matters for reproducible diagnostic output in future
-	// findings (Phase 1.6 may surface "consumed by ..." details).
+	// findings that surface "consumed by ..." details.
 	var s consumerSet
 	s.add(MemberRef{Team: "team-a", Member: "alice"}, "first/*", consumerSourceIntake)
 	s.add(MemberRef{Team: "team-a", Member: "alice"}, "second/*", consumerSourceIntake)
@@ -172,8 +172,7 @@ func TestBuildConsumerSet_RegistersRequiredRead(t *testing.T) {
 	// Required-read prefixes must be in the consumer set so a writer
 	// declaring `output[].prefix = campaign-draft/*` does not get flagged
 	// orphan_output when the only reader has it on `required_read[]`
-	// rather than `intake[]`. Phase 1.4 populates real data; this test
-	// asserts the wiring exists today.
+	// rather than `intake[]`.
 	members := []MemberTopics{
 		mkMember("marketing-crew", "publisher", Topics{
 			RequiredRead: []RequiredReadEntry{
@@ -315,10 +314,10 @@ func TestBuildConsumerSet_PreservesDeclarationOrderAcrossKinds(t *testing.T) {
 }
 
 func TestBuildConsumerSet_DropsEmptyPrefixesFromAllSources(t *testing.T) {
-	// Phase 1.1 sources, like intake, drop empty/whitespace prefixes
-	// silently. Topics.Validate is the layer that surfaces these as
-	// shape errors; buildConsumerSet's contract is "robust against
-	// malformed input."
+	// Every consumer source (intake, required_read, evidence_consumed)
+	// drops empty/whitespace prefixes silently. Topics.Validate is the
+	// layer that surfaces these as shape errors; buildConsumerSet's
+	// contract is "robust against malformed input."
 	members := []MemberTopics{
 		mkMember("team-a", "alice", Topics{
 			Intake: []IntakeEntry{{Prefix: "good-intake/*", Taxonomy: "tx"}},

@@ -259,7 +259,7 @@ func TestRule_OrphanOutput_EvidenceConsumedSatisfies(t *testing.T) {
 	// An evidence_consumed[] entry on any member that overlaps a knowledge
 	// output prefix counts as a consumer. The for_decisions field stays
 	// validator-shape-only at this layer; the cross-check on decision-context
-	// existence is ruleDanglingEvidenceDecision (Phase 1.2), which needs a
+	// existence is ruleDanglingEvidenceDecision, which needs a
 	// team-contract registry — irrelevant to consumer-set membership.
 	members := []MemberTopics{
 		mkMember("monetization", "opportunity-scout", Topics{
@@ -295,8 +295,8 @@ func TestRule_UnreadRequired_NoProducer(t *testing.T) {
 			continue
 		}
 		hits++
-		if f.Severity != SeverityWarning {
-			t.Errorf("unread_required must be warning severity; got %s", f.Severity)
+		if f.Severity != SeverityError {
+			t.Errorf("unread_required must be error severity; got %s", f.Severity)
 		}
 		if f.Member.Member != "reader" {
 			t.Errorf("unread_required should attribute to declaring member; got %v", f.Member)
@@ -352,8 +352,8 @@ func TestRule_UnreadRequired_WildcardSourceTeamSkipsCheck(t *testing.T) {
 	// read: any team may write. The check is skipped for the same reason
 	// orphan_input skips wildcard intakes — the topology is intentionally
 	// open. ruleWildcardSourceMisuse covers the missing-anchor case
-	// independently for intake, but not (today) for required_read; tightening
-	// that is out-of-scope for P1.6 and tracked as future work.
+	// independently for intake, but not (today) for required_read;
+	// tightening that is tracked as future work.
 	wildcard := SourceTeamWildcard
 	members := []MemberTopics{
 		mkMember("meta-optimization", "skill-optimizer", Topics{
@@ -376,11 +376,10 @@ func TestRule_UnreadRequired_ExternalProducersDoesNotSuppress(t *testing.T) {
 	// anchor for unread_required. The rule's purpose is to surface drift
 	// between declared read prefixes and declared write prefixes; the
 	// loose external_producers skip used by ruleOrphanInput would mask
-	// exactly the drift cases the plan calls out (vision-walk-prep,
-	// outcome-snapshot, portfolio-snapshot, deep-audit). Severity is
-	// warning so the operator can either rename to match a producer
-	// (Phase 1.7) or accept the warning as documenting an external-only
-	// write.
+	// the same drift cases the rule was created to surface (e.g.
+	// vision-walk-prep, outcome-snapshot, portfolio-snapshot,
+	// deep-audit). The operator can either rename to match a producer
+	// or accept the finding as documenting an external-only write.
 	members := []MemberTopics{
 		mkMember("director-swarm", "vision-walk-prep", Topics{
 			RequiredRead:      []RequiredReadEntry{{Prefix: "vision-walk/<date>/<slug>"}},
@@ -396,6 +395,76 @@ func TestRule_UnreadRequired_ExternalProducersDoesNotSuppress(t *testing.T) {
 	}
 	if hits != 1 {
 		t.Errorf("external_producers must NOT suppress unread_required; expected 1 finding, got %d (findings=%v)", hits, r.Findings)
+	}
+}
+
+func TestRule_UnreadRequired_WriterSkillProducerSatisfies(t *testing.T) {
+	// A required_read prefix is satisfied when an explicitly-loaded
+	// writer-skill writes_to[] declaration overlaps it. This is the
+	// Contract Decision C7 path: writer-skill writes_to[] is the
+	// producer-side declaration for skill-written prefixes, and the rule
+	// treats it as a first-class declared write alongside member output[].
+	members := []MemberTopics{
+		mkMember("meta-optimization", "friction-curator", Topics{
+			RequiredRead: []RequiredReadEntry{{Prefix: "friction-inbox/<scope>/<slug>"}},
+		}),
+	}
+	r := Validate(members, ValidationOptions{
+		WriterSkillProducers: []string{"friction-inbox/*"},
+	})
+	for _, f := range r.Findings {
+		if f.Rule == "unread_required" {
+			t.Errorf("writer-skill writes_to should satisfy required_read; got %v", f)
+		}
+	}
+}
+
+func TestRule_UnreadRequired_WriterSkillProducerEmptyDoesNotSuppress(t *testing.T) {
+	// With no writer-skill producers loaded (e.g., a unit test that
+	// passes synthetic members without a backing skills tree and an
+	// empty WriterSkillProducers), the rule must still fire on a
+	// no-output prefix. This guards against the rule accidentally going
+	// silent when the registry is empty.
+	members := []MemberTopics{
+		mkMember("meta-optimization", "friction-curator", Topics{
+			RequiredRead: []RequiredReadEntry{{Prefix: "friction-inbox/<scope>/<slug>"}},
+		}),
+	}
+	r := Validate(members, ValidationOptions{
+		WriterSkillProducers: []string{}, // explicitly empty disables lazy-load
+	})
+	hits := 0
+	for _, f := range r.Findings {
+		if f.Rule == "unread_required" {
+			hits++
+		}
+	}
+	if hits != 1 {
+		t.Errorf("empty writer-skill producers must NOT suppress unread_required; got %d findings (findings=%v)", hits, r.Findings)
+	}
+}
+
+func TestRule_UnreadRequired_WriterSkillProducerNonOverlappingDoesNotSuppress(t *testing.T) {
+	// A writer-skill writes_to[] entry for a different prefix must not
+	// satisfy a required_read for an unrelated prefix. The Overlap check
+	// applies the same prefix-match semantics used elsewhere; the
+	// finding fires for the unmatched prefix.
+	members := []MemberTopics{
+		mkMember("team-a", "reader", Topics{
+			RequiredRead: []RequiredReadEntry{{Prefix: "expected-prefix/YYYY-MM-DD"}},
+		}),
+	}
+	r := Validate(members, ValidationOptions{
+		WriterSkillProducers: []string{"unrelated-prefix/*"},
+	})
+	hits := 0
+	for _, f := range r.Findings {
+		if f.Rule == "unread_required" && f.Prefix == "expected-prefix/YYYY-MM-DD" {
+			hits++
+		}
+	}
+	if hits != 1 {
+		t.Errorf("non-overlapping writer-skill prefix must NOT suppress; got %d findings (findings=%v)", hits, r.Findings)
 	}
 }
 
@@ -500,9 +569,9 @@ func TestRule_UnknownTaxonomy_SkippedWhenNoRegistryAndNoRepoRoot(t *testing.T) {
 	}
 }
 
-// Pre-P4.0 this file held three TestRule_NonPortableClassifier_* tests
+// This file used to hold three TestRule_NonPortableClassifier_* tests
 // that exercised a substring-coupling rule against a synthetic
-// classifier skill. P4.0 retired ruleNonPortableClassifier in favor of
+// classifier skill. ruleNonPortableClassifier was retired in favor of
 // ruleProseTopicLeak's broader, file-walking coverage; the subsumption
 // proof lives in non_portable_classifier_subsumption_test.go and the
 // belt-and-suspenders live-store check in classifier_purity_test.go.

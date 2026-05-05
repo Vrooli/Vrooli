@@ -12,7 +12,11 @@
     "monetization",
     "validation",
     "hygiene",
-    "maintenance"
+    "maintenance",
+    "writer-skill"
+  ],
+  "writes_to": [
+    "validation-inbox/benchmark-staleness/*"
   ],
   "icon": "clock",
   "status": "active",

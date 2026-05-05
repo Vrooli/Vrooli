@@ -2,7 +2,7 @@
 // to the post-cutoff KnowledgeEntry shape (Caller, CallerNote, Attribution)
 // and stamps each team.json with `attributionValidFrom`. The tool is a
 // one-time migration: see docs/agent-system/RUNTIME_ATTRIBUTION.md for the
-// contract and Phase 3.2 of the keen-growing-whisper plan for the rollout.
+// contract.
 //
 // Usage (run from anywhere; --root must point at the prompt-manager store):
 //

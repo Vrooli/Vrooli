@@ -10,7 +10,7 @@
   },
   {
     "rule": "prose_topic_leak",
-    "severity": "warning",
+    "severity": "error",
     "owner_key": "team:marketing-crew/researcher",
     "pattern": "cli-knowledge-add-topic",
     "team": "marketing-crew",

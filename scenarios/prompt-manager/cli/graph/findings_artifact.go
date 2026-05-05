@@ -20,7 +20,7 @@
 //     leaves either the previous file or no file — never a half-written
 //     file CI would mis-parse.
 //
-// DOC: docs/agent-system/RUNTIME_ATTRIBUTION.md (P3.7 telemetry)
+// DOC: docs/agent-system/RUNTIME_ATTRIBUTION.md (telemetry artifact).
 // DOC: docs/agent-system/PRIMITIVES.md ("Three Pillars" section).
 package graph
 

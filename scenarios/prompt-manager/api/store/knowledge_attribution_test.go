@@ -228,8 +228,9 @@ func TestKnowledgeEntry_OptionalFieldsOmitWhenEmpty(t *testing.T) {
 
 // TestKnowledgeEntry_AttributionAlwaysPresent guards the contract that
 // every entry — even one with a zero-valued attribution struct — emits
-// the attribution object. Validators (P3.6) rely on attribution being
-// structurally present to surface attribution_malformed findings.
+// the attribution object. The runtime-attribution validator relies on
+// attribution being structurally present to surface attribution_malformed
+// findings.
 func TestKnowledgeEntry_AttributionAlwaysPresent(t *testing.T) {
 	entry := KnowledgeEntry{ID: "knw-zero", At: "2026-05-04T15:32:11Z", Topic: "t", Content: "c", Caller: "c"}
 	b, err := json.Marshal(entry)
@@ -243,9 +244,9 @@ func TestKnowledgeEntry_AttributionAlwaysPresent(t *testing.T) {
 
 // TestKnowledgeKinds_ConstantCoverage asserts that every named kind
 // constant is enumerated by the KnowledgeKinds slice. The slice is what
-// the API handler (P3.4) iterates to validate incoming attribution; if
-// this test fails it means a new constant was added without updating
-// the validation slice (or vice versa).
+// the API handler iterates to validate incoming attribution; if this
+// test fails it means a new constant was added without updating the
+// validation slice (or vice versa).
 func TestKnowledgeKinds_ConstantCoverage(t *testing.T) {
 	want := map[string]bool{
 		KnowledgeKindAgentMember:    true,
@@ -340,15 +341,15 @@ func TestSpawnOrigins_StringValuesMatchCanon(t *testing.T) {
 }
 
 // TestKnowledgeEntry_LegacyMigrationFidelity exercises the on-disk
-// shape P3.2's migration tool will produce for every pre-cutoff entry.
-// The original `by` value MUST survive on CallerNote (it is the only
+// shape the migration tool produces for every pre-cutoff entry. The
+// original `by` value MUST survive on CallerNote (it is the only
 // historical-attribution signal a legacy entry carries); the derived
 // caller MUST encode the legacy provenance with the documented
 // "legacy:<original-by>" prefix; attribution.kind MUST be "legacy" so
-// ruleActualWriterUndeclared (P3.6) skips the entry.
+// ruleActualWriterUndeclared skips the entry.
 //
-// If P3.2's migration tool diverges from this fidelity contract, this
-// test fails and the divergence becomes a P3.2 review blocker.
+// If the migration tool diverges from this fidelity contract, this
+// test fails and the divergence becomes a review blocker.
 func TestKnowledgeEntry_LegacyMigrationFidelity(t *testing.T) {
 	entry := KnowledgeEntry{
 		ID:         "knw-legacy-fidelity",

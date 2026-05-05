@@ -153,7 +153,7 @@ func strPtr(s string) *string { return &s }
 
 // agentMemberRow constructs a canonical post-cutoff agent-member row
 // with the optional run_id (heartbeat-spawned writes have null run_id
-// per the P3.5 contract).
+// by contract; see docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 func agentMemberRow(id, at, topic, teamID, memberID, runID string) knowledgeEntryRow {
 	row := knowledgeEntryRow{
 		ID:    id,
@@ -189,12 +189,13 @@ func TestRuntimeAttribution_AgentMemberDeclared_NoFindings(t *testing.T) {
 	}
 }
 
-// TestRuntimeAttribution_HeartbeatNullRunID_NoFindings pins the P3.5
-// handoff: heartbeat-spawned attribution carries null run_id by design
-// (RUNTIME_ATTRIBUTION.md § Env-var bridge / Run-id resolution). The
-// runtime scanner must accept null run_id on agent-member entries — it
-// is the canonical post-P3.5 shape. If this test ever starts firing, a
-// validator change has broken the contract.
+// TestRuntimeAttribution_HeartbeatNullRunID_NoFindings pins the
+// heartbeat-spawn handoff: heartbeat-spawned attribution carries null
+// run_id by design (RUNTIME_ATTRIBUTION.md § Env-var bridge / Run-id
+// resolution). The runtime scanner must accept null run_id on
+// agent-member entries — it is the canonical heartbeat-spawned shape.
+// If this test ever starts firing, a validator change has broken the
+// contract.
 func TestRuntimeAttribution_HeartbeatNullRunID_NoFindings(t *testing.T) {
 	rf := newRuntimeFixture(t)
 	rf.writeTeam(t, "alpha", "2026-05-04", 0)
@@ -218,7 +219,7 @@ func TestRuntimeAttribution_HeartbeatNullRunID_NoFindings(t *testing.T) {
 // Undeclared agent-member writer
 // ---------------------------------------------------------------------
 
-func TestRuntimeAttribution_AgentMemberUndeclared_FiresWarning(t *testing.T) {
+func TestRuntimeAttribution_AgentMemberUndeclared_FiresError(t *testing.T) {
 	rf := newRuntimeFixture(t)
 	rf.writeTeam(t, "alpha", "2026-05-04", 0)
 	rf.writeMember(t, "alpha", "researcher", "audience-scan/*")
@@ -234,8 +235,8 @@ func TestRuntimeAttribution_AgentMemberUndeclared_FiresWarning(t *testing.T) {
 	if got.Rule != "actual_writer_undeclared" {
 		t.Errorf("Rule = %q, want %q", got.Rule, "actual_writer_undeclared")
 	}
-	if got.Severity != SeverityWarning {
-		t.Errorf("Severity = %q, want %q (warning at landing per Plan-agent guidance)", got.Severity, SeverityWarning)
+	if got.Severity != SeverityError {
+		t.Errorf("Severity = %q, want %q (agent-member output drift is concrete, not advisory)", got.Severity, SeverityError)
 	}
 	if got.Member != (MemberRef{Team: "alpha", Member: "researcher"}) {
 		t.Errorf("Member = %v, want alpha/researcher", got.Member)
@@ -331,7 +332,7 @@ func TestRuntimeAttribution_LegacyPostCutoff_FiresAttributionMalformed(t *testin
 }
 
 // ---------------------------------------------------------------------
-// Operator-direct, writer-skill, investigation: silently skipped (P3.6 scope)
+// Operator-direct, writer-skill, investigation: silently skipped (this rule's scope)
 // ---------------------------------------------------------------------
 
 func TestRuntimeAttribution_NonAgentKinds_Silent(t *testing.T) {
@@ -355,7 +356,7 @@ func TestRuntimeAttribution_NonAgentKinds_Silent(t *testing.T) {
 
 	findings := rf.run(t)
 	if len(findings) != 0 {
-		t.Fatalf("non-agent-member kinds should be silent in P3.6; got:\n%v", formatFindings(findings))
+		t.Fatalf("non-agent-member kinds should be silent in this rule's scope; got:\n%v", formatFindings(findings))
 	}
 }
 
@@ -823,12 +824,12 @@ func formatFindings(fs []Finding) string {
 	return b.String()
 }
 
-// TestRuntimeAttribution_RealStoreCanary pins the P3.6 Definition of
-// Done: the runtime-attribution rule must produce zero findings on the
-// live store post-cutoff. The canary is the durable signal that no
-// future change has accidentally introduced drift the rule was supposed
-// to catch — or, if the rule's scope changed, that the store has been
-// updated to match.
+// TestRuntimeAttribution_RealStoreCanary pins the runtime-attribution
+// rule's invariant: it must produce zero findings on the live store
+// post-cutoff. The canary is the durable signal that no future change
+// has accidentally introduced drift the rule was supposed to catch —
+// or, if the rule's scope changed, that the store has been updated to
+// match.
 //
 // Scope of assertion: zero `actual_writer_undeclared` findings AND zero
 // `attribution_malformed` findings. Other rules' findings (orphan_*,
@@ -857,7 +858,7 @@ func TestRuntimeAttribution_RealStoreCanary(t *testing.T) {
 	})
 	for _, f := range findings {
 		if f.Rule == "actual_writer_undeclared" || f.Rule == "attribution_malformed" {
-			t.Errorf("real-store P3.6 finding: %s [%s] %s prefix=%q detail=%s",
+			t.Errorf("real-store runtime-attribution finding: %s [%s] %s prefix=%q detail=%s",
 				f.Rule, f.Severity, f.Member, f.Prefix, f.Detail)
 		}
 	}

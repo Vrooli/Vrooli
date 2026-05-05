@@ -2697,7 +2697,7 @@ func (h *Handlers) DeleteDecisionHandler(w http.ResponseWriter, r *http.Request)
 
 // AddKnowledge handles POST /teams/{id}/knowledge.
 //
-// Validates the X-Vrooli-Attribution header (P3.4 / canon:
+// Validates the X-Vrooli-Attribution header (canon:
 // docs/agent-system/RUNTIME_ATTRIBUTION.md), derives the display
 // `Caller`, and persists the structured `Attribution` alongside the
 // entry. Mutating writes without the header are rejected with HTTP

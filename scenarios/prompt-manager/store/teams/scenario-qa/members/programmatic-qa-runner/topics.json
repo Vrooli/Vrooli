@@ -19,6 +19,14 @@
     {
       "prefix": "qa-run/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "reviewed-scenario/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "dependency-wiring/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

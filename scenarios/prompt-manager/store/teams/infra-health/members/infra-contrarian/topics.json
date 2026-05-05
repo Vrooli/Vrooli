@@ -11,6 +11,10 @@
     {
       "prefix": "challenge-report/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "contrarian-scan/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

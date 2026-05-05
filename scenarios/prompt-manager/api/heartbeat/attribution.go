@@ -66,7 +66,7 @@ func validateAttribution(info store.AttributionInfo, urlTeamID string) error {
 		return fmt.Errorf("attribution: unknown kind %q (allowed: %s)", info.Kind, strings.Join(store.KnowledgeKinds, ", "))
 	}
 	if info.Kind == store.KnowledgeKindLegacy {
-		// `legacy` is produced exclusively by the P3.2 migration;
+		// `legacy` is produced exclusively by the migration tool;
 		// clients cannot write legacy entries post-cutoff.
 		return fmt.Errorf("attribution: kind %q is reserved for the migration tool, not for live writes", store.KnowledgeKindLegacy)
 	}
@@ -88,9 +88,9 @@ func validateAttribution(info store.AttributionInfo, urlTeamID string) error {
 		// agent-manager assigns the run UUID (Environment is fixed at
 		// CreateRunRequest construction; the run_id only exists in the
 		// CreateRunResponse). Permitting null run_id for spawn_origin=heartbeat
-		// is the P3.5-specified resolution; future strengthening will overlay
+		// resolves that chicken-and-egg; future strengthening will overlay
 		// run_id from VROOLI_AGENT_IDENTITY_TOKEN claims at request time.
-		// Canon: docs/agent-system/RUNTIME_ATTRIBUTION.md § P3.5.
+		// Canon: docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge.
 		if info.SpawnOrigin != store.SpawnOriginHeartbeat {
 			if info.RunID == nil || strings.TrimSpace(*info.RunID) == "" {
 				return fmt.Errorf("attribution: kind=agent-member with spawn_origin=%q requires run_id", info.SpawnOrigin)

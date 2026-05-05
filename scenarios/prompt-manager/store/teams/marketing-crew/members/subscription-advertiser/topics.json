@@ -18,6 +18,10 @@
     {
       "prefix": "campaign-draft/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "subscription-ad-run/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

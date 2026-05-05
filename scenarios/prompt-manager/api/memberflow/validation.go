@@ -79,6 +79,17 @@ type ValidationOptions struct {
 	// scan (e.g., a temp-dir fixture rooted somewhere other than the live
 	// repo) supply ScanRoots explicitly.
 	ScanRoots []string
+
+	// WriterSkillProducers is the union of `writes_to[]` prefixes
+	// declared by every skill tagged "writer-skill". Used by
+	// ruleUnreadRequired to resolve required_read[] entries against
+	// writer-skill producers — Contract Decision C7 (the writer-skill
+	// registry is the producer-side declaration for skill-written
+	// prefixes; classifier and generic skills must be portable). When
+	// nil and RepoRoot is set, Validate lazy-loads via
+	// LoadWriterSkillProducers. An explicit empty slice disables the
+	// lookup; a nil with RepoRoot empty is also a silent no-op.
+	WriterSkillProducers []string
 }
 
 // ValidationResult bundles findings with summary counts.
@@ -111,13 +122,18 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 			opts.TeamContracts = reg
 		}
 	}
+	if opts.WriterSkillProducers == nil && strings.TrimSpace(opts.RepoRoot) != "" {
+		if producers, err := LoadWriterSkillProducers(opts.RepoRoot); err == nil {
+			opts.WriterSkillProducers = producers
+		}
+	}
 
 	var findings []Finding
 
 	findings = append(findings, ruleConflictingDrain(members)...)
 	findings = append(findings, ruleOrphanOutput(members, opts)...)
 	findings = append(findings, ruleOrphanInput(members)...)
-	findings = append(findings, ruleUnreadRequired(members)...)
+	findings = append(findings, ruleUnreadRequired(members, opts)...)
 	findings = append(findings, ruleWildcardSourceMisuse(members)...)
 	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
@@ -306,38 +322,47 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 // Mirrors ruleOrphanInput's producer-discovery walk but for `required_read[]`
 // entries. A required_read prefix says "I need this prefix's recent state
 // rendered into my heartbeat prompt every tick"; a finding here means no
-// member's `output[]` declares the prefix, so the agent will load an empty
-// (or stale) section and the operator's mental model has drifted from the
-// declared graph.
+// member's `output[]` and no writer-skill `writes_to[]` declares the prefix,
+// so the agent will load an empty (or stale) section and the operator's
+// mental model has drifted from the declared graph.
 //
-// Two design points distinguish this rule from ruleOrphanInput:
+// Producer sources consulted, in order:
 //
-//  1. Severity is warning, not error. A required_read with no peer producer
-//     is information ("you've declared you read this prefix; document its
-//     producer or rename to match a real one"), not a structural fault that
-//     blocks routing. Phase 4.1 promotes the rule to error after the
-//     ecosystem is reconciled.
+//  1. Any member's `output[]` whose prefix overlaps the required_read prefix
+//     (cross-team allowed; producer-side ownership is enforced elsewhere).
 //
-//  2. Member-level `external_producers` is not treated as a satisfying
-//     anchor here. Where ruleOrphanInput is a hard gate and uses
-//     external_producers as a coarse-grained "trust the operator's
-//     producer-side documentation" escape hatch, this rule's purpose is to
-//     surface drift between declared read prefixes and declared write
-//     prefixes — drift that ruleOrphanInput's coarse skip would mask. The
-//     plan calls out specific drift cases the rule must catch
-//     (vision-walk-prep, portfolio-snapshot, outcome-snapshot, deep-audit,
-//     etc.) where the consuming members do declare external_producers.
-//     Honoring the loose skip would silently hide them. Per-prefix anchors
-//     are a future refinement; until then, the warning is the operator's
-//     prompt to either rename to match a producer (Phase 1.7) or accept
-//     the warning as documenting an external-only write.
+//  2. Any writer-skill `writes_to[]` entry whose prefix overlaps the
+//     required_read prefix. Writer-skill writes_to is the producer-side
+//     declaration for skill-written prefixes — treating it as a
+//     first-class declared write keeps the rule's intent ("declared
+//     reads must overlap declared writes") coherent across both members
+//     and skills. The skill registry is loaded via
+//     opts.WriterSkillProducers; tests that pass synthetic members
+//     without WriterSkillProducers see writer-skill consultation as a
+//     no-op.
+//
+// Severity is error. The rule is a CI gate:
+// any unmatched required_read fails `prompt-manager graph topics` and
+// must be resolved by renaming the read to overlap a producer, adding
+// a member output, or adding the prefix to a writer-skill writes_to[].
+//
+// Member-level `external_producers` is intentionally NOT a satisfying
+// anchor here. Where ruleOrphanInput is a hard gate and uses
+// external_producers as a coarse-grained "trust the operator's producer-side
+// documentation" escape hatch, this rule's purpose is to surface drift
+// between declared read prefixes and declared write prefixes. external_producers
+// is a freeform list of names without a writes_to[] equivalent; honoring it
+// would silently hide drift the writer-skill writes_to[] consultation
+// (above) is designed to catch. The contrast: writer-skill writes_to[] is a
+// concrete declared-write list checkable against the read; external_producers
+// is a textual hint without that structure.
 //
 // Skipped per-entry conditions:
 //   - source_team == "*" (universal-source read): any team may write, so
 //     producer existence is not enforced. Mirrors ruleOrphanInput's
 //     wildcard treatment; the corresponding misuse pattern (wildcard with
 //     no documented external anchor) is caught by ruleWildcardSourceMisuse.
-func ruleUnreadRequired(members []MemberTopics) []Finding {
+func ruleUnreadRequired(members []MemberTopics, opts ValidationOptions) []Finding {
 	var out []Finding
 
 	type outputClaim struct {
@@ -363,15 +388,23 @@ func ruleUnreadRequired(members []MemberTopics) []Finding {
 					break
 				}
 			}
+			if !matched {
+				for _, p := range opts.WriterSkillProducers {
+					if Overlap(p, r.Prefix) {
+						matched = true
+						break
+					}
+				}
+			}
 			if matched {
 				continue
 			}
 			out = append(out, Finding{
 				Rule:     "unread_required",
-				Severity: SeverityWarning,
+				Severity: SeverityError,
 				Member:   m.Ref,
 				Prefix:   r.Prefix,
-				Detail:   fmt.Sprintf("required_read prefix %q has no peer-member producer (no member's output[] overlaps; rename to match a producer's declared prefix or add a member that writes this prefix)", r.Prefix),
+				Detail:   fmt.Sprintf("required_read prefix %q has no producer (no member's output[] overlaps and no writer-skill declares it in skill.json::writes_to[]; rename to match a producer's declared prefix, add a member that writes it, or add it to a writer skill's writes_to[])", r.Prefix),
 			})
 		}
 	}

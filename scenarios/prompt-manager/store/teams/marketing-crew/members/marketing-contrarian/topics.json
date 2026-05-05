@@ -11,6 +11,10 @@
     {
       "prefix": "challenge-report/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "aging-scan-note/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

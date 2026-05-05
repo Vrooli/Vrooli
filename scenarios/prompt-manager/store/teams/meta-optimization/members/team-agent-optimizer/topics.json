@@ -36,6 +36,14 @@
     {
       "prefix": "agent-audit/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "team-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "agent-visited/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

@@ -89,10 +89,9 @@ const SourceTeamWildcard = "*"
 // and a required_read[] for always-on context.
 //
 // Read relationships used to live on team.json's per-member contract
-// (under a member-level field that was invisible to the validator).
-// Phase 1.5 of the topic-validation refactor moved them here so a single
-// load surfaces every read relationship to the consumer-set used by
-// ruleOrphanOutput (see consumer_set.go).
+// (under a member-level field that was invisible to the validator); they
+// now live here so a single load surfaces every read relationship to the
+// consumer-set used by ruleOrphanOutput (see consumer_set.go).
 type RequiredReadEntry struct {
 	// Prefix is a topic-prefix string. Wildcard suffix `/*` indicates a
 	// prefix match; a string without `/*` matches only that exact topic.
@@ -115,7 +114,7 @@ type RequiredReadEntry struct {
 // names the decision-context ids that consume it.
 //
 // Where IntakeEntry says "I drain new entries", EvidenceConsumedEntry says
-// "when authoring decision X, I cite entries from this prefix." Phase 1.2's
+// "when authoring decision X, I cite entries from this prefix."
 // ruleDanglingEvidenceDecision cross-checks each ForDecisions id against
 // team.json::decisionContexts so typo'd or removed decision ids surface as
 // findings rather than silent dead references.
@@ -131,9 +130,9 @@ type EvidenceConsumedEntry struct {
 
 	// ForDecisions names the decision-context ids that cite this prefix
 	// as evidence. Required and non-empty: an evidence relationship with
-	// no consumer is not a relationship. Phase 1.2's
-	// ruleDanglingEvidenceDecision validates each id resolves against
-	// some team's team.json::decisionContexts.
+	// no consumer is not a relationship. ruleDanglingEvidenceDecision
+	// validates each id resolves against some team's
+	// team.json::decisionContexts.
 	ForDecisions []string `json:"for_decisions"`
 }
 

@@ -1,13 +1,13 @@
-// P2.1 unit tests for the Pillar 2 prose scanner. Each test uses a
+// Unit tests for the Pillar 2 prose scanner. Each test uses a
 // throwaway temp directory styled to match the real repo layout
 // (scenarios/prompt-manager/store/, docs/) so the discovery + join
 // passes exercise the same paths they walk in production.
 //
 // Comprehensive failure-mode coverage with hand-crafted store fixtures
-// is P2.3 (separate phase, golden-file pattern). These tests focus on
-// the mechanics: regex set, code-block exclusion, owner derivation,
-// kind-conditional skill rule, declaration-set selection per
-// target-kind.
+// lives in prose_scan_golden_test.go (golden-file pattern). These tests
+// focus on the mechanics: regex set, code-block exclusion, owner
+// derivation, kind-conditional skill rule, declaration-set selection
+// per target-kind.
 package memberflow
 
 import (
@@ -18,6 +18,55 @@ import (
 	"strings"
 	"testing"
 )
+
+// ---------------------------------------------------------------------------
+// Placeholder normalization: PROSE_SCAN_TARGETS.md guarantees that prose
+// references containing `<...>` segments are joined against declarations
+// using a trailing-wildcard form. This isolates that contract; the join-side
+// integration is exercised separately by the rule tests below.
+// ---------------------------------------------------------------------------
+
+func TestNormalizePlaceholderPrefix_TruncatesAtFirstPlaceholderSegment(t *testing.T) {
+	cases := map[string]string{
+		"":                                      "",
+		"audience-scan/2026-04-23/q2":           "audience-scan/2026-04-23/q2",
+		"audience-scan/<date>":                  "audience-scan/*",
+		"audience-scan/<date>/<slug>":           "audience-scan/*",
+		"friction-report/<scope>/<date>/<slug>": "friction-report/*",
+		"<placeholder>":                         "*",
+		"single-segment":                        "single-segment",
+		"<scope>/concrete":                      "*",
+		"prefix/<bracketed-mid>/tail":           "prefix/*",
+		"prefix/contains>only-close":            "prefix/*", // ContainsAny <,> matches > too
+		"prefix/contains<only-open":             "prefix/*",
+	}
+	for in, want := range cases {
+		got := normalizePlaceholderPrefix(in)
+		if got != want {
+			t.Errorf("normalizePlaceholderPrefix(%q) = %q; want %q", in, got, want)
+		}
+	}
+}
+
+func TestNormalizePlaceholderPrefix_EnablesOverlapWithDeclaration(t *testing.T) {
+	// Real-store regression: friction-curator/TOOLS.md uses
+	// `friction-report/<scope>/<date>/<slug>` to document a parameterized
+	// CLI invocation. The friction-curator member declares concrete
+	// scopes (e.g., `friction-report/toolchain/*`). Without
+	// normalization the join misses; with normalization the prose
+	// reference's `<scope>` segment collapses to a wildcard tail and
+	// Overlap accepts it.
+	prose := "friction-report/<scope>/<date>/<slug>"
+	declaration := "friction-report/toolchain/*"
+
+	if Overlap(declaration, prose) {
+		t.Fatal("setup invariant broken: raw Overlap should NOT match before normalization (otherwise this regression case is gone and the test no longer guards anything)")
+	}
+	normalized := normalizePlaceholderPrefix(prose)
+	if !Overlap(declaration, normalized) {
+		t.Errorf("normalized prose %q should overlap declaration %q (got false)", normalized, declaration)
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Regex set: each pattern matches only its intended invocation shape.
@@ -342,7 +391,108 @@ func TestRuleProseTopicLeak_WriterSkillWithoutWritesToFires(t *testing.T) {
 		t.Fatalf("expected prose_topic_leak for writer skill without writes_to[], got %s", debugFindings(findings))
 	}
 	if !strings.Contains(got.Detail, "writes_to[] is missing or empty") {
-		t.Errorf("detail should point at P2.2: %q", got.Detail)
+		t.Errorf("detail should point at writes_to[]: %q", got.Detail)
+	}
+}
+
+func TestRuleProseTopicLeak_WriterSkill_WritePatternRequiresWritesTo(t *testing.T) {
+	// A `knowledge-add` (write pattern) on a writer-skill SKILL.md must
+	// land on a prefix declared in the skill's own writes_to[]. A
+	// reference to a prefix declared by SOMEONE ELSE on a write pattern
+	// is still drift — the skill is claiming to write where it does not
+	// have producer-side authority.
+	root := buildSyntheticRepo(t)
+	skillJSON := filepath.Join(root, "scenarios", "prompt-manager", "store",
+		"skills", "packs", "core", "report-friction", "skill.json")
+	mustWriteFile(t, skillJSON,
+		`{"id":"report-friction","tags":["writer-skill"],"writes_to":["friction-inbox/*"]}`)
+	// SKILL.md does a knowledge-add on a different prefix that IS
+	// globally declared (audience-scan/* via the synthetic researcher
+	// member in buildSyntheticRepo). That global declaration must NOT
+	// satisfy the write-pattern check.
+	skillSKILL := filepath.Join(root, "scenarios", "prompt-manager", "store",
+		"skills", "packs", "core", "report-friction", "SKILL.md")
+	mustWriteFile(t, skillSKILL,
+		"`prompt-manager team knowledge-add marketing-crew --topic=\"audience-scan/2026-05-04/x\"`.\n")
+
+	findings := ruleProseTopicLeak(nil, ValidationOptions{ScanRoots: []string{root}})
+	hits := 0
+	for _, f := range findings {
+		if f.OwnerKey == "skill:report-friction" && strings.Contains(f.Detail, "cli-knowledge-add-topic") {
+			hits++
+			if !strings.Contains(f.Detail, "writes_to[]") {
+				t.Errorf("write-pattern detail should reference writes_to[]; got %q", f.Detail)
+			}
+		}
+	}
+	if hits != 1 {
+		t.Errorf("write-pattern on undeclared writes_to prefix should fire; got %d findings (findings=%v)", hits, findings)
+	}
+}
+
+func TestRuleProseTopicLeak_WriterSkill_ReadPatternAcceptsGlobalDeclaration(t *testing.T) {
+	// A `knowledge-list-prefix` (read pattern) on a writer-skill
+	// SKILL.md must NOT require the prefix to be in the skill's own
+	// writes_to[]. Writer skills legitimately read other topics
+	// (queue depth checks, source data lookup). The reference is clean
+	// when the prefix is declared by some member somewhere; only refs
+	// to entirely undeclared prefixes are drift.
+	root := buildSyntheticRepo(t)
+	// Researcher member declares audience-scan/* output so the read
+	// pattern below has a global producer to resolve against.
+	mustWriteFile(t,
+		filepath.Join(root, "scenarios", "prompt-manager", "store",
+			"teams", "marketing-crew", "members", "researcher", "topics.json"),
+		`{"output":[{"prefix":"audience-scan/*","destination_kind":"knowledge"}]}`)
+	skillJSON := filepath.Join(root, "scenarios", "prompt-manager", "store",
+		"skills", "packs", "core", "report-friction", "skill.json")
+	mustWriteFile(t, skillJSON,
+		`{"id":"report-friction","tags":["writer-skill"],"writes_to":["friction-inbox/*"]}`)
+	// SKILL.md reads from a prefix declared on team marketing-crew.
+	// Since it's a list-prefix (read), the global declaration suffices.
+	skillSKILL := filepath.Join(root, "scenarios", "prompt-manager", "store",
+		"skills", "packs", "core", "report-friction", "SKILL.md")
+	mustWriteFile(t, skillSKILL,
+		"`prompt-manager team knowledge-list marketing-crew --topic-prefix=audience-scan/`.\n")
+
+	storeDir := filepath.Join(root, "scenarios", "prompt-manager", "store")
+	members, err := LoadAll(storeDir)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+	findings := ruleProseTopicLeak(members, ValidationOptions{ScanRoots: []string{root}})
+	for _, f := range findings {
+		if f.OwnerKey == "skill:report-friction" && strings.Contains(f.Detail, "cli-knowledge-list-prefix") {
+			t.Errorf("read pattern on globally-declared prefix should be clean; got %+v", f)
+		}
+	}
+}
+
+func TestRuleProseTopicLeak_WriterSkill_ReadPatternRejectsUndeclared(t *testing.T) {
+	// Read pattern on a prefix that no team declares anywhere — drift.
+	// Guards against the read-side check accidentally being a no-op.
+	root := buildSyntheticRepo(t)
+	skillJSON := filepath.Join(root, "scenarios", "prompt-manager", "store",
+		"skills", "packs", "core", "report-friction", "skill.json")
+	mustWriteFile(t, skillJSON,
+		`{"id":"report-friction","tags":["writer-skill"],"writes_to":["friction-inbox/*"]}`)
+	skillSKILL := filepath.Join(root, "scenarios", "prompt-manager", "store",
+		"skills", "packs", "core", "report-friction", "SKILL.md")
+	mustWriteFile(t, skillSKILL,
+		"`prompt-manager team knowledge-list marketing-crew --topic-prefix=does-not-exist/`.\n")
+
+	findings := ruleProseTopicLeak(nil, ValidationOptions{ScanRoots: []string{root}})
+	hits := 0
+	for _, f := range findings {
+		if f.OwnerKey == "skill:report-friction" && strings.Contains(f.Detail, "cli-knowledge-list-prefix") {
+			hits++
+			if !strings.Contains(f.Detail, "(read)") {
+				t.Errorf("read-pattern detail should annotate read; got %q", f.Detail)
+			}
+		}
+	}
+	if hits != 1 {
+		t.Errorf("read pattern on undeclared prefix should fire; got %d findings (findings=%v)", hits, findings)
 	}
 }
 
@@ -492,8 +642,8 @@ func sortedKeys(m map[string]bool) []string {
 }
 
 // jsonRoundTrip is a paranoia helper: ensures the public Finding shape
-// (with OwnerKey added in P2.1) marshals/unmarshals cleanly so the
-// findings.json telemetry artifact (P3.7) keeps working.
+// (including OwnerKey) marshals/unmarshals cleanly so the findings.json
+// telemetry artifact keeps working.
 func TestFinding_JSONRoundTrip_OwnerKey(t *testing.T) {
 	in := Finding{
 		Rule:     proseScanRule,

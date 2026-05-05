@@ -12,7 +12,11 @@
     "monetization",
     "opportunity",
     "hygiene",
-    "maintenance"
+    "maintenance",
+    "writer-skill"
+  ],
+  "writes_to": [
+    "monetization/opportunity/*"
   ],
   "icon": "broom",
   "status": "active",

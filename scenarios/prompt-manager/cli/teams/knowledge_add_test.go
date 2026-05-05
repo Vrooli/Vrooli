@@ -49,7 +49,8 @@ func TestCmdKnowledgeAddOmitsCallerNoteWhenAbsent(t *testing.T) {
 		t.Errorf("caller_note must be omitted when absent, got payload: %s", fc.gotPayload)
 	}
 	// `by` must not appear in the wire shape — the field is gone from
-	// AddKnowledgeRequest entirely (P3.3).
+	// AddKnowledgeRequest entirely; identity flows via the
+	// X-Vrooli-Attribution header.
 	if strings.Contains(string(fc.gotPayload), `"by"`) {
 		t.Errorf("payload must not include legacy 'by' field, got: %s", fc.gotPayload)
 	}

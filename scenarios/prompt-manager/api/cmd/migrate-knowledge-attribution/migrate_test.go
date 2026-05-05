@@ -332,8 +332,8 @@ func TestInsertTeamAttributionValidFrom_RejectsNonObject(t *testing.T) {
 // store-package canon test (TestKnowledgeEntry_LegacyMigrationFidelity)
 // requires, but exercised through the migration tool's transformer
 // rather than via direct struct construction. If this test diverges from
-// the canon test, P3.2 is producing a shape ruleActualWriterUndeclared
-// (P3.6) won't recognize.
+// the canon test, the migration tool is producing a shape
+// ruleActualWriterUndeclared won't recognize.
 func TestMigrateKnowledgeLine_LegacyFidelity(t *testing.T) {
 	in := []byte(`{"id":"knw-l-1","at":"2026-04-01T12:00:00Z","by":"director","topic":"snapshot/01","content":"hello"}`)
 	out, changed, err := migrateKnowledgeLine(in)

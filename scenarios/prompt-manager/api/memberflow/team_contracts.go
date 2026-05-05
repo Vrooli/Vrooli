@@ -4,9 +4,9 @@
 // reaching into the broader store package — it keeps memberflow a leaf
 // dependency and lets validation tests fixture team contracts directly.
 //
-// Today the only consumer is ruleDanglingEvidenceDecision (Phase 1.2),
-// which verifies that every `evidence_consumed[].for_decisions[]` id on
-// every member's topics.json resolves against some team's
+// Today the only consumer is ruleDanglingEvidenceDecision, which
+// verifies that every `evidence_consumed[].for_decisions[]` id on every
+// member's topics.json resolves against some team's
 // `team.json::operatingContract.decisionContexts`.
 //
 // Loader semantics mirror LoadAllTaxonomies (taxonomy.go): a missing

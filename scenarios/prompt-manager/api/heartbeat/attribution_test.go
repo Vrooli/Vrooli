@@ -143,9 +143,9 @@ func TestValidateAttribution_AgentMemberMissingFields(t *testing.T) {
 			want: "team_id",
 		},
 		{
-			// run_id is strict for non-heartbeat origins (P3.5 only relaxes
-			// the rule for spawn_origin=heartbeat — see § P3.5 in
-			// docs/agent-system/RUNTIME_ATTRIBUTION.md).
+			// run_id is strict for non-heartbeat origins; the rule is
+			// relaxed only for spawn_origin=heartbeat (see
+			// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 			name: "missing run_id with non-heartbeat origin",
 			info: store.AttributionInfo{
 				Kind:        store.KnowledgeKindAgentMember,
@@ -170,7 +170,7 @@ func TestValidateAttribution_AgentMemberMissingFields(t *testing.T) {
 }
 
 // TestValidateAttribution_AgentMemberHeartbeatNullRunIDAccepted asserts the
-// P3.5-specified relaxation: agent-member kind with spawn_origin=heartbeat
+// heartbeat-spawn relaxation: agent-member kind with spawn_origin=heartbeat
 // is permitted to omit run_id (it cannot be known at CreateRunRequest
 // construction time; see RUNTIME_ATTRIBUTION.md § Env-var bridge step 1).
 // Other spawn origins remain strict — exercised by

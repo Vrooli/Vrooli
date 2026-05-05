@@ -259,9 +259,9 @@ type AddDecisionRequest struct {
 // docs/agent-system/RUNTIME_ATTRIBUTION.md and the canonical Go struct in
 // scenarios/prompt-manager/api/store/models.go::AttributionInfo. Keep this
 // shape in lockstep with that struct — drift surfaces as silent JSON-decode
-// gaps. The CLI does not yet construct attribution payloads (P3.3 wires the
-// X-Vrooli-Attribution header path); it only renders received attribution
-// for now.
+// gaps. Construction of outgoing attribution payloads lives in
+// cli/internal/attribution; this struct is read-only — it deserializes
+// attribution objects on knowledge-list responses for display.
 type AttributionInfo struct {
 	Kind          string  `json:"kind"`
 	MemberID      *string `json:"member_id"`
@@ -3926,7 +3926,7 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 	callerNote := fs.String("caller-note", "", "Optional freeform context (debug breadcrumb, retry note). Does not carry identity — attribution is auto-derived from the runtime context. Capped at 256 chars by the API.")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 
-	// --by is removed in P3.3; identity now flows over the
+	// --by is removed; identity now flows over the
 	// X-Vrooli-Attribution header (canon:
 	// docs/agent-system/RUNTIME_ATTRIBUTION.md). Defining the flag
 	// lets us emit a clean migration message instead of "flag

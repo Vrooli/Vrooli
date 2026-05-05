@@ -39,6 +39,10 @@
       "prefix": "monetization-canon/*",
       "destination_kind": "por_file",
       "destination_path": "docs/monetization/CATALOG.md"
+    },
+    {
+      "prefix": "catalog-snapshot/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

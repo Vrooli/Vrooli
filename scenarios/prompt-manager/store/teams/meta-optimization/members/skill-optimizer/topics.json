@@ -34,6 +34,14 @@
     {
       "prefix": "action-audit/*",
       "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "skill-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "action-visited/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

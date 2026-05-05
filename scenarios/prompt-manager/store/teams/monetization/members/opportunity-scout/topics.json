@@ -26,6 +26,14 @@
       "prefix": "candidate-sku-record/*",
       "destination_kind": "knowledge",
       "schema": "candidate-sku"
+    },
+    {
+      "prefix": "scout-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "monetization/opportunity/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

@@ -31,6 +31,10 @@
       "prefix": "marketing-canon/*",
       "destination_kind": "por_file",
       "destination_path": "docs/marketing/AUDIENCES.md"
+    },
+    {
+      "prefix": "brand-snapshot/*",
+      "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [

@@ -9,10 +9,10 @@ import (
 
 // TestClassifierPurity_RegisteredClassifiers_NoProseTopicLeak is the
 // belt-and-suspenders live-store check that every registered classifier
-// or triage skill stays portable. Pre-P4.0 this lived as a substring
-// scan against the legacy classifierForbiddenSubstrings list; that list
-// has been retired in favor of the broader Pillar 2 prose scanner, which
-// catches every realistic legacy-detectable coupling pattern (proven by
+// or triage skill stays portable. The previous incarnation was a
+// substring scan against a hand-curated forbidden list; that list was
+// retired in favor of the broader Pillar 2 prose scanner, which catches
+// every realistic coupling pattern (proven by
 // non_portable_classifier_subsumption_test.go).
 //
 // What the test now asserts:

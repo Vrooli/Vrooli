@@ -523,11 +523,11 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, storeDir string)
 // loadRequiredReadPrefixes returns the topic prefixes the member must keep
 // in working memory every heartbeat. The list comes from the member's
 // topics.json `required_read[]` declaration — the single declaration source
-// of truth for read relationships (Phase 1.5 of the topic-validation
-// refactor). When storeDir is empty (e.g., the task-reminder section,
-// which only needs decision/handoff hints) or topics.json is absent
-// (a positive empty declaration), the function returns nil and the
-// rendering falls back to "Knowledge topics: none declared".
+// of truth for read relationships. When storeDir is empty (e.g., the
+// task-reminder section, which only needs decision/handoff hints) or
+// topics.json is absent (a positive empty declaration), the function
+// returns nil and the rendering falls back to "Knowledge topics: none
+// declared".
 //
 // Errors loading topics.json are intentionally swallowed as "no required
 // reads" rather than propagated: the prompt builder must not refuse to

@@ -4,14 +4,15 @@
 // The contract — header name, env-var bridge, payload shape, conflict
 // policy — lives in docs/agent-system/RUNTIME_ATTRIBUTION.md (canon).
 // This package implements the requesting-side half (CLI → API). The
-// receiving side lives in api/heartbeat/handlers.go (P3.4).
+// receiving side lives in api/heartbeat/handlers.go.
 //
 // Design note: the env-var IS the header value. When
 // VROOLI_PROMPT_MANAGER_ATTRIBUTION is set (by an agent-manager-spawned
-// prompt-manager process; see P3.5), the CLI forwards its value
-// verbatim — no decode-and-re-encode, no field reconstruction. This is
-// load-bearing: it keeps the CLI a pure passthrough so a future
-// payload-shape change requires no CLI update.
+// prompt-manager process — the heartbeat executor populates it on every
+// CreateRunRequest.Environment), the CLI forwards its value verbatim —
+// no decode-and-re-encode, no field reconstruction. This is load-bearing:
+// it keeps the CLI a pure passthrough so a future payload-shape change
+// requires no CLI update.
 package attribution
 
 import (

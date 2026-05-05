@@ -107,7 +107,7 @@ type CreateTaskResponse struct {
 // phases.MergeEnvVars. Agent-manager validates the prefix and a 4096-byte
 // total-size cap; see scenarios/agent-manager/api/internal/handlers/handlers.go
 // validateCustomEnvironment. Heartbeat callers use this to propagate
-// VROOLI_PROMPT_MANAGER_ATTRIBUTION (P3.5; see spawn_attribution.go); the
+// VROOLI_PROMPT_MANAGER_ATTRIBUTION (see spawn_attribution.go); the
 // channel is generic and other prompt-manager spawn sites may add additional
 // VROOLI_-prefixed vars without a contract change.
 type CreateRunRequest struct {

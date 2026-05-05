@@ -1,6 +1,6 @@
 // Package heartbeat — spawn_attribution.go builds the structured
 // attribution payload prompt-manager propagates into agent-manager-spawned
-// processes via CreateRunRequest.Environment (P3.5).
+// processes via CreateRunRequest.Environment.
 //
 // This file is the spawner-side mirror of
 // scenarios/prompt-manager/cli/internal/attribution — the CLI consumes the
@@ -17,10 +17,9 @@
 //     agent-manager assigns the run UUID after the request lands. Per
 //     RUNTIME_ATTRIBUTION.md § Per-kind required fields, the validator
 //     accepts a null run_id for kind=agent-member specifically when
-//     spawn_origin=heartbeat — this is the P3.5-specified resolution of
-//     the chicken-and-egg between request construction and run-id
-//     assignment. Future strengthening (token-derived run_id) is documented
-//     under § Future strengthening.
+//     spawn_origin=heartbeat — this resolves the chicken-and-egg between
+//     request construction and run-id assignment. Future strengthening
+//     (token-derived run_id) is documented under § Future strengthening.
 //   - The env-var key MUST match cli/internal/attribution.EnvVar. Drift
 //     surfaces as TestSpawnAttributionEnvVarMatchesCLI in the test file.
 package heartbeat
