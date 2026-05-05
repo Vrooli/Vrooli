@@ -13,7 +13,7 @@ It is the third leg of the three-pillar validation architecture; without it, a `
 | Pillar | Source | What it catches | Anchor doc |
 |---|---|---|---|
 | **P1 — Declared graph** | `topics.json` `intake[]` / `required_read[]` / `evidence_consumed[]` / `output[]` | Cross-member declaration mismatches, dangling decision references, orphaned producers/consumers | `TOPICS_SCHEMA.md` |
-| **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, `skills/`, `docs/` | Hardcoded topic-prefix references in prose that contradict declarations | `PROSE_SCAN_TARGETS.md` (P2.0) |
+| **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, `skills/`, `docs/` | Hardcoded topic-prefix references in prose that contradict declarations | [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) |
 | **P3 — Runtime attribution** | `attribution` field on every post-cutoff `knowledge.jsonl` entry | Observed writers/topics not accounted for by any declaration | this file |
 
 P1 is the plan. P2 is the prose adjacent to the plan. P3 is the receipts. Each catches a class of drift the others structurally cannot. Errors should land on the right pillar — for example, an undeclared writer is a P3 finding (`actual_writer_undeclared`), an undeclared cross-member read is a P1 finding (`unread_required`), and a stale code-block topic-prefix in a SKILL.md is a P2 finding (`prose_topic_leak`).

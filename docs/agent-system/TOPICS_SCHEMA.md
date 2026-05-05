@@ -1,6 +1,6 @@
 # `topics.json` — per-member message-flow declarations
 
-**Status:** canon. This document is the plan-of-record for the `topics.json` data layer. It pairs with the Go implementation at `scenarios/prompt-manager/api/memberflow/schema.go`. Cross-team-readable; cited by `INTAKE_PIPELINE.md`, `LAYERS.md`, and the heartbeat builder.
+**Status:** canon. This document is the plan-of-record for the `topics.json` data layer — Pillar 1 of [topic validation](PRIMITIVES.md#three-pillars-of-topic-validation). It pairs with the Go implementation at `scenarios/prompt-manager/api/memberflow/schema.go`. Cross-team-readable; cited by `INTAKE_PIPELINE.md`, `LAYERS.md`, and the heartbeat builder. Sibling pillars: [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (P2 — prose scan) and [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (P3 — observed writes).
 
 Promoted from `drafts/topics-schema.md` after the inbox-flow refactor stabilized the schema across five in-prod adopters. Backwards-incompatible changes from this point require a `meta-optimization` decision and a migration plan (see [Stability gate](#stability-gate)).
 

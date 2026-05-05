@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "prose_topic_leak",
+    "severity": "warning",
+    "owner_key": "agent:reviewer",
+    "pattern": "backtick-topic-ref",
+    "prefix": "audit-report/<date>/<slug>"
+  }
+]

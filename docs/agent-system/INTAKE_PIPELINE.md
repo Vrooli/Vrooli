@@ -1,6 +1,6 @@
 # Intake Pipeline
 
-The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision).
+The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision). Validated by the [three pillars](PRIMITIVES.md#three-pillars-of-topic-validation): [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) (declarations), [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (prose drift), [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (observed writes).
 
 This is the live model. The historical "hot buffer / living notebook / permanent structure" three-tier framing is retired in favor of this one.
 
