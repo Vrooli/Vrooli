@@ -168,4 +168,4 @@ Cross-cutting validator rules implemented in `scenarios/prompt-manager/api/membe
 - **P2 rules**: `prose_topic_leak` (warning initially, error after P4.1).
 - **P3 rules**: `actual_writer_undeclared`, `attribution_malformed`.
 
-`prompt-manager graph topics` runs all three pillars together and emits a unified `findings.json` for CI.
+`prompt-manager graph topics` runs all three pillars together. CI captures a stable JSON artifact via `--findings-out=<path>` for diff-against-previous-run telemetry; without the flag the command is human-output-only (no surprise file writes for interactive use). The artifact's on-disk shape is versioned (`schema_version: 1`); see `scenarios/prompt-manager/cli/graph/findings_artifact.go` for the contract.

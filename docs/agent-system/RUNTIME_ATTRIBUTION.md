@@ -384,6 +384,6 @@ The hard-cut migration to this contract spans three phases:
 - **P3.4** — API handler validation; replaces `X-Caller-ID` reads with attribution-derived member id; rejects unattributed mutating writes.
 - **P3.5** — Heartbeat-executor attribution propagation; sets `VROOLI_PROMPT_MANAGER_ATTRIBUTION` on every `CreateRunRequest.Environment`.
 - **P3.6** — `actual_writer_undeclared` validator rule; reads each team's `attributionValidFrom`, scans entries forward, joins against declarations.
-- **P3.7** — `findings.json` telemetry artifact for CI diff-against-previous-run.
+- **P3.7** — `findings.json` telemetry artifact for CI diff-against-previous-run. Opt-in via `prompt-manager graph topics --findings-out=<path>`. Stable on-disk shape (`schema_version: 1`); see `scenarios/prompt-manager/cli/graph/findings_artifact.go`.
 
 See `/home/matthalloran8/.claude/plans/keen-growing-whisper.md` for the full plan and per-phase definition-of-done criteria. This file is the contract; that file is the rollout.
