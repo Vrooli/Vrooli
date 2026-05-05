@@ -220,17 +220,17 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "portfolio-snapshot/YYYY-MM-DD": {
+      "initiative-portfolio-record/YYYY-MM-DD": {
         "ownerMemberId": "portfolio-manager",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "outcome-snapshot/YYYY-MM-DD": {
+      "outcome-target-record/YYYY-MM-DD": {
         "ownerMemberId": "outcome-strategist",
         "supersedesPrevious": true,
         "retention": "snapshot"
       },
-      "vision-walk/<date>/<slug>": {
+      "vision-walk-record/<date>/<slug>": {
         "ownerMemberId": "vision-walk-prep",
         "supersedesPrevious": false,
         "retention": "append-only"

@@ -30,7 +30,7 @@ func sampleResponse() topicsGraphResponse {
 					Rule:     "unread_required",
 					Severity: "warning",
 					Member:   topicMemberRef{Team: "marketing-crew", Member: "researcher"},
-					Prefix:   "vision-walk/*",
+					Prefix:   "vision-walk-record/*",
 					Detail:   "no producer",
 				},
 			},

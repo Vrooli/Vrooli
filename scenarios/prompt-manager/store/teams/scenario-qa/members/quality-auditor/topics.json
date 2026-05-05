@@ -1,25 +1,25 @@
 {
   "required_read": [
     {
-      "prefix": "deep-audit/<scenario-id>/<skill-id>"
+      "prefix": "quality-audit/<scenario-id>/<skill-id>"
     }
   ],
   "evidence_consumed": [
     {
       "prefix": "challenge-report/*",
       "for_decisions": [
-        "deep-audit-backlog"
+        "quality-audit-backlog"
       ]
     }
   ],
   "output": [
     {
-      "prefix": "deep-audit/*",
+      "prefix": "quality-audit/*",
       "destination_kind": "knowledge"
     }
   ],
   "decisions_owned": [
-    "deep-audit-backlog"
+    "quality-audit-backlog"
   ],
   "external_producers": [
     "operator"

@@ -6,12 +6,12 @@ If during the audit you observe a bug that's outside structural scope (broken co
 
 ## Task Loop
 1. Select one scenario from the review queue.
-2. Check recent deep-audit knowledge for recency (per `team.json` `recencyWindowDays`).
+2. Check recent quality-audit knowledge for recency (per `team.json` `recencyWindowDays`).
 3. Select the next audit-technique skill from rotation (`team.json` `taskParameters.skillRotation`).
 4. Read the paired strategic-canon doc, then load the skill.
 5. Inspect architecture docs, code structure, and tests.
 6. Create an execute backlog item only for non-trivial structural findings.
-7. Record the audit in `deep-audit/<scenario-id>/<skill-id>` knowledge.
+7. Record the audit in `quality-audit/<scenario-id>/<skill-id>` knowledge.
 
 ## Handoff Shape
 ### Scenario audited

@@ -1,6 +1,6 @@
 # Scenario QA — Plan of Record
 
-This folder is the **plan-of-record** for Vrooli's scenario-quality discipline: deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes. It's maintained by the `scenario-qa` team and consumed by its members every heartbeat.
+This folder is the **plan-of-record** for Vrooli's scenario-quality discipline: structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes. It's maintained by the `scenario-qa` team and consumed by its members every heartbeat.
 
 The team's live operating rules are at [`scenarios/prompt-manager/store/teams/scenario-qa/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/scenario-qa/shared/TEAM.md). This folder is the strategic-canon side; that file is the runtime contract.
 
@@ -35,7 +35,7 @@ Decision contexts owned by the team:
 | Context | Owner | Purpose |
 |---|---|---|
 | `preemptive-qa-backlog` | programmatic-qa-runner | GCT-driven QA findings → Swarm Manager fix/chore/execute backlog items |
-| `deep-audit-backlog` | quality-auditor | Judgment-based structural audit findings → Swarm Manager execute backlog items |
+| `quality-audit-backlog` | quality-auditor | Judgment-based structural audit findings → Swarm Manager execute backlog items |
 | `bug-resolution-proposal` | bug-investigator | Cross-cutting fixes that require operator approval (e.g., rename a CLI verb because three bugs trace to its ambiguous name) |
 
 ## Folder map
@@ -97,7 +97,7 @@ Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_sys
 Flagged here so future operator-curated decisions can promote them when the substrate calls for it:
 
 - **Quality principles.** A `PRINCIPLES.md` codifying the team's quality philosophy (behavior-oriented evidence, root-cause-over-symptom, contrarian-by-default). Workshop-pending; a few iterations of contrarian challenge-notes will surface the right principles.
-- **Scenario-classification heuristics.** A `SCENARIO_CLASSES.md` declaring how scenarios are bucketed for QA priority (revenue-critical, capability-uplift, internal-tool, archived). Drives queue policy for both readiness reviews and deep audits.
+- **Scenario-classification heuristics.** A `SCENARIO_CLASSES.md` declaring how scenarios are bucketed for QA priority (revenue-critical, capability-uplift, internal-tool, archived). Drives queue policy for both readiness reviews and quality audits.
 - **`topic[future]:qa-inbox/*` and `topic[future]:audit-inbox/*` operator-fed inboxes.** Today there is no producer for these prefixes; adding them would create `orphan_input`. If `vision-walk-prep` or another future producer adds them as output, the `programmatic-qa-runner` and `quality-auditor` members gain an intake to drain.
 - **Full readiness-checks registry.** Stub README only today; entries graduate once GCT readiness dimensions stabilize.
 - **Future investigation techniques.** `scientific-debugging` is the only registered technique at landing time. Candidates surfaced by the bug-investigator's audit log: bisect-debugging, minimal-reproduction, differential-trace, comparative-environments, 5-whys, fishbone analysis. Each enters via `meta-self-improvement` decision.

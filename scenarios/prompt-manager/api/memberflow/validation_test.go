@@ -377,12 +377,12 @@ func TestRule_UnreadRequired_ExternalProducersDoesNotSuppress(t *testing.T) {
 	// between declared read prefixes and declared write prefixes; the
 	// loose external_producers skip used by ruleOrphanInput would mask
 	// the same drift cases the rule was created to surface (e.g.
-	// vision-walk-prep, outcome-snapshot, portfolio-snapshot,
-	// deep-audit). The operator can either rename to match a producer
+	// vision-walk-record, outcome-target-record, initiative-portfolio-record,
+	// quality-audit). The operator can either rename to match a producer
 	// or accept the finding as documenting an external-only write.
 	members := []MemberTopics{
 		mkMember("director-swarm", "vision-walk-prep", Topics{
-			RequiredRead:      []RequiredReadEntry{{Prefix: "vision-walk/<date>/<slug>"}},
+			RequiredRead:      []RequiredReadEntry{{Prefix: "vision-walk-record/<date>/<slug>"}},
 			ExternalProducers: []string{"operator", "morning-vision-walk"},
 		}),
 	}

@@ -79,7 +79,7 @@ Skill scanning is **conditional on skill kind** — the prose layer is held to a
 |---|---|---|
 | `report-bug` | ✅ tagged | `bug-inbox/*` via `team knowledge-add scenario-qa` |
 | `report-friction` | ✅ tagged | `friction-inbox/*` via `team knowledge-add meta-optimization` |
-| `morning-vision-walk` | ✅ tagged | `research-inbox/*`, `opportunity-inbox/*`, `validation-inbox/*`, `vision-walk/*` across multiple teams |
+| `morning-vision-walk` | ✅ tagged | `research-inbox/*`, `opportunity-inbox/*`, `validation-inbox/*`, `vision-walk-record/*` across multiple teams |
 
 Every skill that effectively writes is tagged `writer-skill` and carries a `writes_to[]` declaration. Adding a new writer skill means tagging it and populating its `writes_to[]` set in the same change.
 

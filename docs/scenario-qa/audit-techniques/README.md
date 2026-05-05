@@ -1,6 +1,6 @@
 # Scenario QA Audit Techniques — Plan of Record
 
-This folder is the **strategic canon** for the audit lenses the `quality-auditor` member applies during deep structural audits. One paired doc + skill per technique.
+This folder is the **strategic canon** for the audit lenses the `quality-auditor` member applies during structural quality audits. One paired doc + skill per technique.
 
 These docs answer: *what is this audit lens, when does it apply, when does it backfire, what's the failure mode the qa-contrarian watches for?*
 
@@ -13,7 +13,7 @@ Deep structural audit is not one workflow. Different audits answer different que
 Keeping each lens in its own canonical home — and pairing it with a focused skill — makes it possible to:
 
 - Reason about each lens's applicability without scrolling through a mega-skill that branches on lens.
-- Compress each skill independently as Vrooli's substrate (CLIs, lint integrations, audit-specific tooling) absorbs more of the work. A unified `deep-audit` mega-skill would compress worse — same argument the marketing team uses for one skill per post type.
+- Compress each skill independently as Vrooli's substrate (CLIs, lint integrations, audit-specific tooling) absorbs more of the work. A unified `quality-audit` mega-skill would compress worse — same argument the marketing team uses for one skill per post type.
 - Surface graduation candidates from observed patterns: when a recurring kind of audit doesn't fit any registered lens, that approach graduates to a new entry here.
 
 This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md): each lens is its own entity. It also mirrors `docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `quality-auditor/RESPONSIBILITIES.md` Available Skills table; the rotation order is in `team.json`'s `skillRotation`).

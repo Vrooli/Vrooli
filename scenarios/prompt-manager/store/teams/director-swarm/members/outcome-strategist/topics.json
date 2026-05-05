@@ -1,7 +1,7 @@
 {
   "required_read": [
     {
-      "prefix": "outcome-snapshot/YYYY-MM-DD"
+      "prefix": "outcome-target-record/YYYY-MM-DD"
     },
     {
       "prefix": "decision-application/<decision-id>"
@@ -9,7 +9,7 @@
   ],
   "output": [
     {
-      "prefix": "outcome-snapshot/*",
+      "prefix": "outcome-target-record/*",
       "destination_kind": "knowledge"
     }
   ],

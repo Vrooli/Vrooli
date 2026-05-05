@@ -300,7 +300,7 @@ func TestRequiredReadValidation(t *testing.T) {
 		},
 		{
 			name:  "valid exact prefix",
-			entry: RequiredReadEntry{Prefix: "vision-walk/2026-05-04"},
+			entry: RequiredReadEntry{Prefix: "vision-walk-record/2026-05-04"},
 		},
 		{
 			name: "valid with cross-team source and comment",
@@ -536,7 +536,7 @@ func TestRoundTripJSON(t *testing.T) {
 		},
 		RequiredRead: []RequiredReadEntry{
 			{Prefix: "campaign-draft/*", SourceTeam: ptr("marketing-crew"), Comment: "needed for publish-proposal"},
-			{Prefix: "vision-walk/2026-05-04"},
+			{Prefix: "vision-walk-record/2026-05-04"},
 		},
 		EvidenceConsumed: []EvidenceConsumedEntry{
 			{

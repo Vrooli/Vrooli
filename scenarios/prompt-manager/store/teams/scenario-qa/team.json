@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "scenario-qa",
   "displayName": "Scenario QA Team",
-  "mission": "Ensure scenario quality through deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
+  "mission": "Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -136,7 +136,7 @@
         ],
         "description": "GCT-driven QA findings converted into Swarm Manager fix/chore/execute backlog items."
       },
-      "deep-audit-backlog": {
+      "quality-audit-backlog": {
         "ownerMemberIds": [
           "quality-auditor"
         ],
@@ -165,7 +165,7 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "deep-audit/<scenario-id>/<skill-id>": {
+      "quality-audit/<scenario-id>/<skill-id>": {
         "ownerMemberId": "quality-auditor",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -234,9 +234,9 @@
         }
       },
       "quality-auditor": {
-        "lane": "Perform deep structural audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
+        "lane": "Perform structural quality audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
         "ownedDecisionContexts": [
-          "deep-audit-backlog"
+          "quality-audit-backlog"
         ],
         "pendingOwnedDecisionCap": 6,
         "allowedWrites": [
@@ -261,7 +261,7 @@
         ],
         "safetyCriticalRules": [
           "Do not modify target scenario code directly.",
-          "Do not repeat a scenario/skill deep audit within seven days."
+          "Do not repeat a scenario/skill quality audit within seven days."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -355,7 +355,7 @@
           "Every challenge-note must cite a specific failure mode from a registered technique's PoR doc 'What the qa-contrarian watches for' section. Free-form challenges are forbidden.",
           "Quiet heartbeats are valid; manufactured challenge is forbidden.",
           "Cap at 3 challenge-notes per heartbeat.",
-          "Only write to challenge-report/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, deep-audit/, qa-run/). The constraint is enforced by the topics.json output declaration (output prefix is challenge-report/* only) and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
+          "Only write to challenge-report/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/, qa-run/). The constraint is enforced by the topics.json output declaration (output prefix is challenge-report/* only) and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -368,7 +368,7 @@
           "challengeNotesPerHeartbeatCap": 3,
           "peerOutputsToReview": [
             "bug-investigation-report/*",
-            "deep-audit/*",
+            "quality-audit/*",
             "qa-run/*"
           ]
         }

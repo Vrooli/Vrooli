@@ -4,12 +4,12 @@
       "prefix": "decision-application/<decision-id>"
     },
     {
-      "prefix": "portfolio-snapshot/YYYY-MM-DD"
+      "prefix": "initiative-portfolio-record/YYYY-MM-DD"
     }
   ],
   "output": [
     {
-      "prefix": "portfolio-snapshot/*",
+      "prefix": "initiative-portfolio-record/*",
       "destination_kind": "knowledge"
     },
     {

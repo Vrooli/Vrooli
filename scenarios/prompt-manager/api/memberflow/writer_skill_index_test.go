@@ -35,7 +35,7 @@ func TestLoadWriterSkillProducers_UnionsTaggedWritesTo(t *testing.T) {
 		`{"id":"report-friction","tags":["writer-skill","observability"],"writes_to":["friction-inbox/*"]}`)
 	// Multi-prefix writer skill exercises the full union.
 	writeSkill("core", "morning-vision-walk",
-		`{"id":"morning-vision-walk","tags":["practice","writer-skill"],"writes_to":["research-inbox/*","opportunity-inbox/*","validation-inbox/*","vision-walk/*"]}`)
+		`{"id":"morning-vision-walk","tags":["practice","writer-skill"],"writes_to":["research-inbox/*","opportunity-inbox/*","validation-inbox/*","vision-walk-record/*"]}`)
 	// Non-writer skill with writes_to should be ignored.
 	writeSkill("core", "non-writer-skill",
 		`{"id":"non-writer","tags":["skill"],"writes_to":["should-be-ignored/*"]}`)
@@ -57,7 +57,7 @@ func TestLoadWriterSkillProducers_UnionsTaggedWritesTo(t *testing.T) {
 		"research-inbox/*",
 		"valid/*",
 		"validation-inbox/*",
-		"vision-walk/*",
+		"vision-walk-record/*",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("LoadWriterSkillProducers returned wrong set:\n  got:  %v\n  want: %v", got, want)

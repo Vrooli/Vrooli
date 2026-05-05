@@ -55,7 +55,7 @@ Do **not** create a topic for:
 - One-off communication between agents (use direct member-to-member channels or the team-inbox messaging system, which is a different surface — see `PRIMITIVES.md`).
 - Configuration or static documentation (PoR or member files).
 - Pure logging without intent to drain (scenario logs or telemetry).
-- Parallel naming for an existing topic (e.g., creating `topic[old]:competitor-scan/*` when `topic[old]:competitor/*` already exists). Naming inconsistencies that survive go in § Naming conventions to be reconciled, not minted as new topics.
+- Parallel naming for an existing topic (e.g., creating `topic[example]:competitor-scan/*` when `topic[example]:competitor-record/*` already exists). Naming inconsistencies that survive go in § Naming conventions to be reconciled, not minted as new topics.
 
 When you do create one: declare it in the producer's `topics.json#output[]` and on the consuming side. The consumer-side declaration is whichever fits:
 
@@ -108,7 +108,7 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
 | **Log (append-only events)** | `<subject>-log/<slug>` | `publish-log/foo`, `monetization-ledger-log/bar`, `qa-run/baz` (run is implicit log; treated as such) | durable, append-only |
 | **Canon (PoR edit)** | `<team>-canon/<slug>` | `marketing-canon/foo` (→ docs/marketing/STRATEGY.md or AUDIENCES.md), `monetization-canon/bar` (→ docs/monetization/CATALOG.md) | translates to a PoR markdown edit; `destination_kind = por_file` |
 | **Report (investigative finding)** | `<subject>-report/<slug>` | `bug-investigation-report/login-500-2026-05-03`, `friction-report/toolchain/2026-05-03/cli-flag-confusion`, `run-lesson-report/2026-04-25`, `challenge-report/dec-1777060904331053267` | durable; one finding per entry, with rationale |
-| **Prep (synthesis briefing)** | `<subject>-prep/<slug>` | `topic[example]:vision-walk-prep/2026-05-03`, `topic[example]:workshop-decision-prep/2026-05-03` | durable; consumed by a downstream synthesizer or operator |
+| **Prep (synthesis briefing)** | `<subject>-prep/<slug>` | `topic[example]:workshop-decision-prep/2026-05-03` | durable; consumed by a downstream synthesizer or operator |
 | **Cross-team flow** | same as any of the above, with explicit `destination_team` / `source_team` | `monetization-benchmark-adjacent-record/foo` (marketing → monetization) | depends on the receiving member's drain |
 
 ### Notebook vs typed inbox
@@ -117,16 +117,11 @@ Both are kinds of intake but serve different roles. A typed inbox (`*-inbox/*`) 
 
 The producer-side rule that follows from this: if you discover something with a clear typed destination, write to that inbox directly. Use the notebook only when no typed inbox fits. The curator's job includes spotting recurring notebook signal-types and proposing graduation to a typed inbox via `meta-self-improvement` decision.
 
-### Known inconsistencies
+### Open design questions
 
-These are real today; they should be reconciled via meta-optimization decisions before the registry below is treated as steady-state.
+These are target-state questions that still need explicit ownership decisions. Historical migration notes belong in changelogs, not in this registry.
 
-1. ~~**Inbox-naming drift.**~~ **Resolved 2026-05-03.** Standardized on `*-inbox/*` for external/cross-team intake; `validation-queue/*` was renamed to `validation-inbox/*`. `<team>/notebook/*` stays as-is — it's a team-scoped curation surface (notebook-debt taxonomy), not a producer→consumer intake, so the different shape is intentional.
-2. ~~**Audit vs. scan suffix.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: `-audit` for adversarial / compliance-shaped findings, `-scan` for survey / observation collection. Two renames executed: `topic[old]:toolchain-scan/*` → `toolchain-audit/*` (toolchain-validator produces `toolchain-violation` decisions — adversarial) and `topic[old]:runtime-health/*` → `runtime-health-audit/*` (runtime-health-scanner produces `runtime-health-finding` decisions — adversarial). The `TOOLCHAIN_SCAN.md` shared snapshot was renamed to `TOOLCHAIN_AUDIT.md` for parity with sibling files.
-3. ~~**Slash-slug vs flat-hyphenated entry keys.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: every entry uses `<prefix>/<slug>` form, no flat-hyphenated keys (`<prefix>-<slug>`). 21 `team.json` declarations migrated to slash form, 60+ live knowledge entries renamed across 5 teams (marketing-crew, meta-optimization, monetization, scenario-qa, director-swarm), 6 HEARTBEAT.md files updated, 2 prefix mismatches fixed during migration (`topic[old]:runtime-health` → `runtime-health-audit`, `topic[old]:platform-audit` → `platform-code-audit` — both align team.json with declared topics.json prefixes), 12 atypical legacy entries cleaned up (Portfolio entries → `portfolio-snapshot/<date>`, scenario-qa daily logs → `qa-run/<topic>` or `topic[example]:quality-audit/<topic>`, `dev-log-narrative-principles` → `topic[old]:principles/dev-log-narrative`, `State persistence issue …` → `topic[old]:legacy-note/state-persistence-resolved`). New validator rule `topic_key_prefix_mismatch` (warning) cross-checks each entry's topic against declared prefixes per team — running it now will surface the next layer of gaps (entries under prefixes not yet declared in any `topics.json` output, e.g., `vision-walk/*`, `agent-visited/*`, `topic[old]:principles/*`, `topic[old]:legacy-note/*`, plus snapshot prefixes like `brand-snapshot/*` and `portfolio-snapshot/*` that need `topics.json` declarations or rename). Those become follow-up decisions.
-4. ~~**Closed-vocabulary type suffix on canonical surfaces.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: every canonical-surface prefix uses `<subject>-<type>/*` with `<type>` from the fixed eight-word vocabulary {`scan`, `audit`, `record`, `draft`, `log`, `canon`, `report`, `prep`}. 14 prefix renames executed (commit summary): `topic[old]:competitor/*` → `competitor-record/*`; `topic[old]:hook/*` → `hook-record/*`; `topic[old]:candidate-sku/*` → `candidate-sku-record/*`; `topic[old]:outcome-targets/*` → `outcome-target-record/*` (also singularized); `topic[old]:monetization-benchmark/*` → `monetization-benchmark-record/*`; `topic[old]:monetization-benchmark-adjacent/*` → `monetization-benchmark-adjacent-record/*`; `topic[old]:monetization-ledger/*` → `monetization-ledger-log/*`; `topic[old]:initiative-portfolio/*` → `initiative-portfolio-record/*`; `topic[old]:campaign-drafts/*` → `campaign-draft/*` (singularized); `topic[old]:run-lessons/*` → `run-lesson-report/*` (singularized); `topic[old]:challenge-note/*` → `challenge-report/*`; `topic[old]:bug-investigation/*` → `bug-investigation-report/*`; `topic[old]:friction-triage/*` → `friction-triage-record/*`; `topic[old]:friction/<scope>/*` → `friction-report/<scope>/*` (4 sub-scopes). Touched 16 `topics.json` files, 5 taxonomy JSON sidecars, 5 team.json files, 2 roles.json, 28 knowledge.jsonl entries (data migration), 6 audience-scans.jsonl `cross_team` references, ~30 doc/skill/test files. Validator + canon test pass.
-5. **`challenge-report/*` is shared by six contrarians (one per team) but is purely team-local.** Every team's contrarian writes `challenge-report/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. (Renamed from `challenge-note/*` in the type-suffix work above; the orphan-output question is unchanged.) The shared name is fine — it's a *kind* of topic, not a shared surface — but it has no documented consumer. **Recommendation:** either add a drainer (e.g., `meta-contrarian` consumes peer-team `challenge-report/*` cross-team) or document explicitly that `challenge-report/*` is operator-read-only and should be flagged as `orphan_output: warning, by-design`. Workshop-pending.
-6. ~~**Domain-prefix vs team-prefix on canon surfaces.**~~ **Resolved 2026-05-03.** Rule landed in § Stable conventions: team name appears in the prefix only when the team name is part of the concept (e.g., distinct PoR-write surfaces `marketing-canon/*` vs `monetization-canon/*`) or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/*`). Default is no team prefix. The only abbreviation enforced is `marketing-crew` → `marketing` in topic prefixes; rename of `marketing-crew/notebook/*` → `marketing/notebook/*` landed at the same time.
+1. **`challenge-report/*` consumer.** Every team's contrarian writes `challenge-report/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. The shared name is fine because it names a kind of output, not a shared surface. Decide whether to add a drainer, such as a cross-team `meta-contrarian`, or document `challenge-report/*` as operator-read-only and intentionally warning-only for `orphan_output`.
 
 ---
 
@@ -142,11 +137,11 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `outcome-strategist` | _(none — proactive; reads decisions)_ | `outcome-target-record/*` | — |
 | `portfolio-manager` | _(none — proactive; reads decisions)_ | `initiative-portfolio-record/*` | — |
-| `vision-walk-prep` | _(none — proactive; reads decisions)_ | `vision-walk-prep/*`, plus produces into other teams' inboxes (see below) | writes `research-inbox/*` → marketing-crew, `opportunity-inbox/*` → monetization, `validation-inbox/*` → monetization |
+| `vision-walk-prep` | _(none — proactive; reads decisions)_ | `vision-walk-record/*`, plus produces into other teams' inboxes (see below) | writes `research-inbox/*` → marketing-crew, `opportunity-inbox/*` → monetization, `validation-inbox/*` → monetization |
 | `workshop-decision-prep` | _(none — proactive; reads decisions)_ | `workshop-decision-prep/*` | — |
 
 **Observations (draft):**
-- `vision-walk-prep` is the canonical example of a **synthesis pipeline** member: it consumes decision state from other teams and produces (a) its own `vision-walk-prep/*` artifact for the operator, and (b) seeded entries directly into other teams' inboxes for those teams to drain after the walk. INPUTS.md will document this pattern as a first-class flow.
+- `vision-walk-prep` is the canonical example of a **synthesis pipeline** member: it consumes decision state from other teams and produces (a) its own `vision-walk-record/*` artifact for the operator, and (b) seeded entries directly into other teams' inboxes for those teams to drain after the walk. INPUTS.md will document this pattern as a first-class flow.
 - No director-swarm member has `intake[]` — confirms the user's mental model that director teams pull decisions rather than drain topics. This is correct, not a gap.
 - `outcome-target-record/*` and `initiative-portfolio-record/*` are consumed by the operator (and possibly by `swarm-manager`) but no `topics.json` declares the consumer. If a future member or scenario consumes them programmatically, declare it via `intake[].source_team = "director-swarm"`.
 
@@ -163,7 +158,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 **Observations (draft):**
 - All three members are pure proactive producers; none have `intake[]`. This is consistent with infra-health's mission (audit-driven, not signal-driven).
 - No `topic[future]:infra-inbox/*` exists. If the operator wants to push infra-relevant alpha into this team, no current topic catches it. **Possible gap:** a `topic[future]:infra-inbox/*` for operator-fed runtime/platform alpha, drained by `runtime-health-scanner` or a new triage member. Workshop.
-- `challenge-report/*` orphan-output applies here (see § Known inconsistencies #5).
+- `challenge-report/*` orphan-output applies here (see § Open design questions).
 
 ### marketing-crew
 
@@ -222,21 +217,21 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 ### scenario-qa
 
-**Mission:** ensure scenario quality through deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes.
+**Mission:** ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes.
 
 **Plan of record:** [`path:docs/scenario-qa/`](../scenario-qa/) — README, three paired-doc-and-skill registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`), `BUG_REPORT_TAXONOMY.md`. Owner-curated like every other team PoR.
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
 | `programmatic-qa-runner` | _(none — proactive)_ | `qa-run/*`, `reviewed-scenario/*`, `dependency-wiring` | — |
-| `quality-auditor` | _(none — proactive)_ | `quality-audit/*`, `deep-audit/*` | — |
+| `quality-auditor` | _(none — proactive)_ | `quality-audit/*` | — |
 | `bug-investigator` | `bug-inbox/*` (taxonomy: `bug-report`, source: `*` — universal-source) | `bug-investigation-report/*` | producers: every team via the `report-bug` writer skill |
 | `qa-contrarian` | _(none — proactive)_ | `challenge-report/*` | — |
 
 **Observations:**
 - `bug-inbox/*` is one of two **universal-source intakes** in the system; the other is `friction-inbox/*` on meta-optimization. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
 - `bug-investigation-report/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
-- `challenge-report/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Known inconsistencies #5). Workshop-pending.
+- `challenge-report/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Open design questions). Workshop-pending.
 - **Possible future gap:** `topic[future]:qa-inbox/*` / `topic[future]:audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `path:docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
 
 ---

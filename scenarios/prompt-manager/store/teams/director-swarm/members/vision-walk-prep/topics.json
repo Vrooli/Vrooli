@@ -1,7 +1,7 @@
 {
   "required_read": [
     {
-      "prefix": "vision-walk/<date>/<slug>"
+      "prefix": "vision-walk-record/<date>/<slug>"
     }
   ],
   "output": [
@@ -21,7 +21,7 @@
       "destination_team": "monetization"
     },
     {
-      "prefix": "vision-walk/*",
+      "prefix": "vision-walk-record/*",
       "destination_kind": "knowledge"
     }
   ],

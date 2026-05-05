@@ -21,7 +21,7 @@
     "research-inbox/*",
     "opportunity-inbox/*",
     "validation-inbox/*",
-    "vision-walk/*"
+    "vision-walk-record/*"
   ],
   "icon": "sunrise",
   "status": "active",

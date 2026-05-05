@@ -13,7 +13,7 @@
   "decisions_consumed": [
     "bug-resolution-proposal",
     "preemptive-qa-backlog",
-    "deep-audit-backlog",
+    "quality-audit-backlog",
     "capability-gap"
   ]
 }

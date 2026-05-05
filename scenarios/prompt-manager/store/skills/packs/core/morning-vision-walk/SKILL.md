@@ -385,7 +385,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Marketing audience, channel, hook, post-type, workflow, competitor, funnel, or skill opportunity | `prompt-manager team knowledge-add marketing-crew --by=vision-walk --topic="research-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `audience\|hook\|channel\|competitor\|workflow\|skill\|format\|funnel\|benchmark\|unknown`. |
 | Monetization SKU/bundle/add-on/services-line/channel candidate, capability-arrival, customer-ask, competitor move, bundle hint, retention signal, or pricing benchmark | `prompt-manager team knowledge-add monetization --by=vision-walk --topic="opportunity-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `competitor-move\|capability-arrival\|customer-ask\|channel\|bundle-hint\|retention-signal\|benchmark\|unknown`. The `monetization-signal-classifier` skill triages; promoted entries retag to `monetization/opportunity/<slug>` (SKU-shaped bets) or `monetization/market-scan/<slug>` (single-snapshot facts). |
 | Monetization validation request — operator wants a comp captured, an assumption checked, or a competitor deep-dived | `prompt-manager team knowledge-add monetization --by=vision-walk --topic="validation-inbox/<request-type>/<short-slug>" --content "<request: who asked, what target, what urgency>" --source="<url-if-known>"`. Request-type ∈ `pricing-comp-needed\|assumption-check\|benchmark-staleness\|competitor-deep-dive\|channel-validation\|unknown`. The `market-validation-triage` skill triages; converted entries retag to `monetization/market-scan/<slug>`. |
-| Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
+| Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk-record/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
 | Product/scenario idea ready for execution pipeline | Swarm-manager backlog item. |
 | Unclear strategic residue or no owner exists yet | Director-swarm knowledge fallback. |
 | Missing source collection, automation, CLI, or scenario blocks follow-up | Capability-gap decision or backlog item for the owning team. |
@@ -418,7 +418,7 @@ When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that s
    ```
 5. For ideas that need more refinement before becoming backlog items and do not fit a team inbox, note them as knowledge entries for the next vision walk:
    ```bash
-   prompt-manager team knowledge-add director-swarm --topic "vision-walk/chore-audit/<topic>" --content "<what was discussed and where it left off>"
+   prompt-manager team knowledge-add director-swarm --topic "vision-walk-record/chore-audit/<topic>" --content "<what was discussed and where it left off>"
    ```
 6. Optionally kick off the idea hardening pipeline for created items:
    ```bash
@@ -440,7 +440,7 @@ When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that s
 2. Ask: "Any final thoughts or feedback on how this session went?"
 3. If the user has feedback about the walk itself (too long, wrong order, missing something), capture it as a knowledge entry for process improvement:
    ```bash
-   prompt-manager team knowledge-add director-swarm --topic "vision-walk/process-feedback" --content "<feedback>"
+   prompt-manager team knowledge-add director-swarm --topic "vision-walk-record/process-feedback" --content "<feedback>"
    ```
 4. Close warmly: "Have a good walk. The agents will take it from here."
 
