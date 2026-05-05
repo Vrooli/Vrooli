@@ -566,9 +566,8 @@ func TestValidateRelocationProtoSources_SkipsWhenSchemasDirAbsent(t *testing.T) 
 }
 
 // TestValidateRelocationProtoSources_RunsOfflineWithBSRUnreachable proves
-// that template proto validation does not contact BSR — the change that
-// CD-1 (local plugins) and CD-2 (vendored modules) were meant to deliver.
-// See docs/plans/proto-codegen-local-and-bsr-login-implementation-plan.md.
+// that template proto validation does not contact BSR after the local-plugin
+// and vendored-module cutover.
 //
 // Mechanism: invoke validateRelocationProtoSources end-to-end against the
 // real packages/proto/ module with HTTPS_PROXY=http://127.0.0.1:9 forced
@@ -727,4 +726,3 @@ func TestValidateRelocationProtoSources_SkipsNonProtoRelocations(t *testing.T) {
 		t.Fatalf("non-proto relocation invoked %d subprocess calls; should not run buf lint", len(capture.calls))
 	}
 }
-

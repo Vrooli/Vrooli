@@ -7,7 +7,6 @@
 // HEARTBEAT.md must NOT duplicate any content rendered here.
 //
 // DOC: docs/agent-system/INTAKE_PIPELINE.md
-// DOC: docs/agent-system/drafts/inbox-flow-refactor-plan.md §6.5
 package heartbeat
 
 import (

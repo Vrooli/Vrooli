@@ -68,9 +68,7 @@
       "title": "Implementation Plans",
       "icon": "map",
       "description": "Detailed implementation plans for features",
-      "documents": [
-        { "path": "plans/lint-phase-greenfield-redesign-plan.md", "title": "Lint Phase Greenfield Redesign", "description": "Authoritative greenfield plan for component-based lint validation" }
-      ]
+      "documents": []
     },
     {
       "id": "guides",

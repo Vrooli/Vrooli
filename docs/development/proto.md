@@ -118,4 +118,5 @@ Re-run `make generate`. The committed `gen/` tree is the canonical baseline; any
 ## See also
 
 - [`../configuration/host/tools.md`](../configuration/host/tools.md) — host-tool model that backs the plugins
-- [`../configuration/integrations/buf-bsr.md`](../configuration/integrations/buf-bsr.md) — optional BSR sign-in (vendor refresh only)- [`../../packages/proto/buf.yaml`](../../packages/proto/buf.yaml), [`../../packages/proto/buf.gen.yaml`](../../packages/proto/buf.gen.yaml) — pipeline source-of-truth
+- [`../configuration/integrations/buf-bsr.md`](../configuration/integrations/buf-bsr.md) — optional BSR sign-in (vendor refresh only)
+- [`../../packages/proto/buf.yaml`](../../packages/proto/buf.yaml), [`../../packages/proto/buf.gen.yaml`](../../packages/proto/buf.gen.yaml) — pipeline source-of-truth

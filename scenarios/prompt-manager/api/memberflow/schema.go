@@ -8,7 +8,7 @@
 // counterpart to prose router skills and feeds the heartbeat builder's
 // generated Inbox Flow section.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md, docs/agent-system/drafts/inbox-flow-refactor-plan.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
 package memberflow
 
 import (
