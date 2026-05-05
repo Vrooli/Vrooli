@@ -207,13 +207,12 @@ phase — it's how you learn the pattern by copying.
    }
    ```
 
-8. **CLI commands seed.** Connect-RPC endpoints are described from the
-   proto service metadata kept in `module.go`; the seed file is only
-   for REST exceptions that have no proto service descriptor. Add a
-   `tasks attach` entry to `api/cmd/gen-endpoints/cli_commands_seed.json`
-   if you added a multipart endpoint. Run `make endpoints` to regenerate
-   `.vrooli/endpoints.json`. The codegen cross-check fails if a
-   `cli_mapping.command` from a REST exception isn't in the seed.
+8. **CLI commands seed.** Add one row to
+   `api/cmd/gen-endpoints/cli_commands_seed.json` for every CLI command
+   your endpoint metadata maps to, including Connect-RPC commands and
+   REST multipart exceptions. Run `make endpoints` to regenerate
+   `.vrooli/endpoints.json`. The codegen cross-check fails if an
+   endpoint `cli_mapping.command` is missing from the seed.
 
 9. **UI feature.** Create `ui/src/features/tasks/`:
    - `TasksCard.tsx` — function component, mirrors
@@ -250,7 +249,7 @@ phase — it's how you learn the pattern by copying.
 
 Once your domain is green, delete notes. Each folder owns its own
 schema, mocks, factories, tests, and helpers — folder deletion is the
-fundamental: there's no central residue per Pass 3.
+fundamental: there's no central residue.
 
 **1. Delete the four domain folders + the lib files.**
 
@@ -291,12 +290,11 @@ sed -i '/notes\.Register/d' cli/domains/domains.go
 sed -i '/NotesCard/d' ui/src/App.tsx
 ```
 
-**3. Drop notes REST-exception entries from the codegen seed and regenerate:**
+**3. Drop notes command entries from the codegen seed and regenerate:**
 
 ```bash
 # Edit api/cmd/gen-endpoints/cli_commands_seed.json by hand: remove
-# the `notes attach` entry. Connect-RPC commands are described from
-# the proto service metadata, not manually seeded.
+# the `notes list`, `notes create`, `notes get`, and `notes attach` entries.
 make endpoints
 ```
 

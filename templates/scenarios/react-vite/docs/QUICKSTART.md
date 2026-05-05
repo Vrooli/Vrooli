@@ -7,7 +7,7 @@ not need to set anything by hand.
 ## Prerequisites
 
 - **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
-- **Go 1.22+** for the API and CLI binaries
+- **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
 - **Node 20+ and pnpm 9+** for the UI bundle
 
 If `vrooli` is not on your `PATH`, run `make setup` from the workspace
@@ -21,13 +21,10 @@ From this scenario's directory:
 make setup
 ```
 
-This runs `vrooli scenario setup` which:
-
-- installs UI dependencies (`pnpm install --ignore-workspace`)
-- runs `go mod tidy` for `api/` and `cli/`
-- builds the API binary and the production UI bundle
-- regenerates proto types if `proto/` has changed
-- installs the scenario CLI to `~/.vrooli/bin/`
+This runs the scenario's setup lifecycle: dependencies are prepared,
+the API/CLI/UI are built as needed, and the scenario CLI is installed.
+Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
+only the user-facing path.
 
 Run this once after generation, and again whenever dependencies change.
 
@@ -38,9 +35,8 @@ make start
 ```
 
 This starts the API, UI, and any declared resources. The lifecycle
-allocates ports automatically (`API_PORT` in `15000-19999`,
-`UI_PORT` in `20000-24999`) and exposes them through the scenario's
-CLI.
+allocates ports automatically and exposes them through scenario
+commands such as `make status` and `vrooli scenario port`.
 
 ## 3 — Open
 
@@ -84,11 +80,9 @@ curl -s -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.no
 make test
 ```
 
-This runs the full local gate: UI lint + type-check + Vitest with
-coverage; Go vet + race-detector tests + coverage; the API E2E binary
-smoke; and the structure checks declared in `.vrooli/testing.json`.
-Coverage floors are 85% for UI and 75% for Go (see
-[`internal/TESTING.md`](internal/TESTING.md)).
+This runs the scenario test lifecycle. The current phase list and
+coverage expectations live in `.vrooli/testing.json`,
+`.github/workflows/test.yml`, and [`internal/TESTING.md`](internal/TESTING.md).
 
 ## Common follow-up commands
 

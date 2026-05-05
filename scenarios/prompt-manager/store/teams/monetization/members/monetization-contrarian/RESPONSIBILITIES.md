@@ -1,9 +1,10 @@
-# Responsibilities: Contrarian
+# Responsibilities: Monetization Contrarian
 
 ## Primary Duties
 - Challenge material proposals before the operator's vision walk.
 - Defend against the seven named failure modes plus the channel-activation guardrail.
 - Attach specific challenge notes to pending decisions.
+- Maintain `challenge-resolution-record/<decision-id>` state for open challenges; see `docs/agent-system/CONTRARIAN_REVIEW.md`.
 - Recommend rejection or revision when a proposal fails cleanly.
 - Run the stale-decision scan required by the contract.
 

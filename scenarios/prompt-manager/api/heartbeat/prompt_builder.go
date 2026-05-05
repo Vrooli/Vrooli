@@ -190,6 +190,15 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
+		if section := b.buildChallengeReviewSection(ctx, team, agentID); section != "" {
+			sections = append(sections, PromptSection{
+				Kind:       promptSectionKindChallengeReview,
+				Label:      promptSectionLabelChallengeReview,
+				SourcePath: fmt.Sprintf("teams/%s/shared/knowledge.jsonl", teamID),
+				Content:    section,
+			})
+		}
+
 		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
 			return nil, err
 		} else if section != "" {
@@ -430,6 +439,159 @@ func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstruc
 		section.WriteString("4. End with `## HANDOFF` when required, then stop.")
 	}
 	return section.String()
+}
+
+type pendingChallengeView struct {
+	Decision   store.DecisionEntry
+	Report     *store.KnowledgeEntry
+	Resolution *store.KnowledgeEntry
+	Status     string
+}
+
+func (b *PromptBuilder) buildChallengeReviewSection(ctx context.Context, team *store.Team, agentID string) string {
+	if b == nil || b.teamStore == nil || team == nil || team.OperatingContract == nil {
+		return ""
+	}
+	member, ok := team.OperatingContract.Members[agentID]
+	if !ok {
+		return ""
+	}
+
+	ownedContexts := make(map[string]struct{}, len(member.OwnedDecisionContexts))
+	for _, contextID := range member.OwnedDecisionContexts {
+		contextID = strings.TrimSpace(contextID)
+		if contextID != "" {
+			ownedContexts[contextID] = struct{}{}
+		}
+	}
+
+	decisions, _, err := b.teamStore.GetDecisions(ctx, team.ID, "", store.DecisionStatusPending, 0)
+	if err != nil || len(decisions) == 0 {
+		return ""
+	}
+
+	challenges := make([]pendingChallengeView, 0)
+	for _, decision := range decisions {
+		if strings.TrimSpace(decision.ID) == "" || !memberOwnsChallengeTarget(decision, agentID, ownedContexts) {
+			continue
+		}
+		reports, err := b.teamStore.GetKnowledge(ctx, team.ID, "challenge-report/"+decision.ID, "", 0)
+		if err != nil || len(reports) == 0 {
+			continue
+		}
+		resolutions, err := b.teamStore.GetKnowledge(ctx, team.ID, "challenge-resolution-record/"+decision.ID, "", 0)
+		if err != nil {
+			continue
+		}
+
+		view := pendingChallengeView{
+			Decision: decision,
+			Report:   &reports[len(reports)-1],
+			Status:   "open",
+		}
+		if len(resolutions) > 0 {
+			view.Resolution = &resolutions[len(resolutions)-1]
+			view.Status = challengeResolutionStatus(view.Resolution.Content)
+			if view.Status == "" {
+				view.Status = "open"
+			}
+		}
+		if challengeStatusClosed(view.Status) {
+			continue
+		}
+		challenges = append(challenges, view)
+	}
+	if len(challenges) == 0 {
+		return ""
+	}
+
+	var section strings.Builder
+	section.WriteString(promptHeadingChallengeReview + "\n\n")
+	section.WriteString("These pending decisions you authored or own by context have unresolved contrarian challenges. Respond before filing unrelated new decisions when possible.\n\n")
+	for _, challenge := range challenges {
+		section.WriteString(fmt.Sprintf("## `%s`\n\n", challenge.Decision.ID))
+		section.WriteString(fmt.Sprintf("- Context: `%s`\n", emptyAs(challenge.Decision.Context, "none")))
+		section.WriteString(fmt.Sprintf("- Author: `%s`\n", emptyAs(challenge.Decision.By, "unknown")))
+		section.WriteString(fmt.Sprintf("- Challenge report: `%s`", challenge.Report.Topic))
+		if challenge.Report.ID != "" {
+			section.WriteString(fmt.Sprintf(" (`%s`)", challenge.Report.ID))
+		}
+		section.WriteString("\n")
+		if challenge.Resolution != nil {
+			section.WriteString(fmt.Sprintf("- Latest resolution: `%s`", challenge.Resolution.Topic))
+			if challenge.Resolution.ID != "" {
+				section.WriteString(fmt.Sprintf(" (`%s`)", challenge.Resolution.ID))
+			}
+			section.WriteString(fmt.Sprintf(" status `%s`\n", challenge.Status))
+		} else {
+			section.WriteString("- Latest resolution: none yet; treat status as `open`\n")
+		}
+		if summary := firstContentLine(challenge.Report.Content); summary != "" {
+			section.WriteString("- Report summary: " + summary + "\n")
+		}
+		section.WriteString("- Response path: revise or supersede the decision, accept the challenge, or disagree with evidence; if you cannot attach the response to the decision, write `challenge-resolution-record/" + challenge.Decision.ID + "` with `status: author-responded`.\n")
+		section.WriteString("- Inspect with: `prompt-manager team knowledge-list " + team.ID + " --topic challenge-report/" + challenge.Decision.ID + "` and `prompt-manager team knowledge-list " + team.ID + " --topic challenge-resolution-record/" + challenge.Decision.ID + "`.\n\n")
+	}
+	section.WriteString("Challenge lifecycle canon: `docs/agent-system/CONTRARIAN_REVIEW.md`.")
+	return section.String()
+}
+
+func memberOwnsChallengeTarget(decision store.DecisionEntry, agentID string, ownedContexts map[string]struct{}) bool {
+	if strings.TrimSpace(decision.By) == agentID {
+		return true
+	}
+	if _, ok := ownedContexts[strings.TrimSpace(decision.Context)]; ok {
+		return true
+	}
+	return false
+}
+
+func challengeResolutionStatus(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "status:") {
+			return strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "status:")), `"'`)
+		}
+		if strings.HasPrefix(line, `"status"`) {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				return strings.Trim(strings.TrimSpace(strings.TrimRight(parts[1], ",")), `"'`)
+			}
+		}
+	}
+	return ""
+}
+
+func challengeStatusClosed(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "resolved", "overridden", "stale":
+		return true
+	default:
+		return false
+	}
+}
+
+func firstContentLine(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "- ")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		const maxLen = 220
+		if len(line) > maxLen {
+			line = line[:maxLen] + "..."
+		}
+		return line
+	}
+	return ""
+}
+
+func emptyAs(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }
 
 func firstHeartbeatTaskHeading(markdown string) string {

@@ -169,8 +169,8 @@ Defined in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`.
    `connectx.RegisterServices`.
 5. Keep [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
    current by updating endpoint metadata and running `make endpoints`.
-   REST exceptions also need a `cli_commands_seed.json` entry for the
-   mirrored CLI command.
+   Any endpoint with a `cli_mapping` also needs a matching
+   `api/cmd/gen-endpoints/cli_commands_seed.json` row.
 6. Update this document.
 7. Add tests at every layer per [`internal/TESTING.md`](../internal/TESTING.md).
 8. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you

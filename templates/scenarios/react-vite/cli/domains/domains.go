@@ -33,11 +33,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //
 // For API-backed commands:
 //   - set NeedsAPI: true so stale-check + --auto-start preflight works
-//   - call core.Get(...) / core.Request(...) for versioned /api/v1 routes
-//   - use cliapp.RenderOperationalReport / RenderListReport /
-//     RenderMutationReport for default human output contracts
-//   - use cliapp.PrintReportJSON(...) when a --json mode should mirror the
-//     same structured report
+//   - declare flags and positionals with cliapp.ArgSchema
+//   - implement RunCtx handlers and read values from cliapp.RunContext
+//   - use generated Connect clients for proto-typed operations
+//   - use cliapp.UploadFile only for documented multipart REST exceptions
+//   - render proto responses with cliapp.RenderProtoList or RenderProtoMutation
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		notes.Register(core),

@@ -183,6 +183,19 @@ When *not* to use:
 - The intake is intra-team only — leave `source_team: null`.
 - You don't yet have a writer skill — author the skill first; declare `source_team: "*"` and `external_producers: ["<skill-id>"]` together.
 
+### Evidence-consumed sidecars
+
+Some topics are not drained as inboxes but still must be visible to members when they own a related decision. Declare those with `evidence_consumed[]`, not `intake[]`.
+
+The canonical example is contrarian review:
+
+- a contrarian writes `challenge-report/<decision-id>` as append-only evidence;
+- the same contrarian writes `challenge-resolution-record/<decision-id>` as the latest state;
+- the challenged decision's author consumes both prefixes as evidence for its owned decision contexts;
+- the author does not drain or delete the entries.
+
+This distinction matters for validation and prompt generation. `orphan_output` treats `evidence_consumed[]` as a real consumer because the topic has a reader, even though no router skill drains it. The lifecycle is documented in [`CONTRARIAN_REVIEW.md`](CONTRARIAN_REVIEW.md).
+
 **Trigger guidance — where agents learn to invoke the writer.** The trigger paragraph that tells every agent when to load and invoke the writer skill is rendered into every member's heartbeat prompt as part of the Storage Map's `## Observe` subsection — see `path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go` (`buildStorageMapSection`). When you add a new universal-source intake, add a matching paragraph there alongside the existing typed-topic-routing, bug-reporting (`report-bug`), and friction-reporting (`report-friction`) paragraphs so producers actually receive the trigger. The rendering is currently hardcoded prose for the two existing flows (bugs, friction); a third universal-source intake would push this past the worth-keeping-hardcoded threshold and into data-driven rendering off `intake[].source_team == "*"` declarations on member topics.json. Surface the refactor proposal as a `meta-self-improvement` decision when that third instance is in flight.
 
 Worked example: `team:scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).

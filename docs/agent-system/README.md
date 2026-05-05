@@ -14,7 +14,7 @@ Four teams now own a full plan-of-record at `path:docs/<domain>/`: `marketing-cr
 
 ## Mental Model
 
-The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; accepted decisions either land directly or route through swarm-manager for execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
+The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; pending decisions pass through team-local contrarian review before acceptance; accepted decisions either land directly or route through swarm-manager for execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
 
 ```mermaid
 flowchart TB
@@ -37,7 +37,13 @@ flowchart TB
     RUN --> OBS
     NEWACT --> OBS
 
-    DEC --> ACCEPT{Accepted?}
+    DEC --> CONTRA{Team contrarian<br/>review}
+    CONTRA -->|clean| ACCEPT{Accepted?}
+    CONTRA -->|challenge| CHAL[challenge-report<br/>+ resolution record]
+    CHAL --> AUTHOR[Author response<br/>revise / supersede / defend]
+    AUTHOR --> CONTRA
+    CONTRA -->|escalate| ESC[decision-rejection-proposed<br/>or framework-update]
+    ESC --> ACCEPT
     ACCEPT -->|no / superseded| ARCH((archive))
     ACCEPT -->|yes — direct-write eligible| DW[Direct write<br/>+ execution record]
     ACCEPT -->|yes — execution work| WORK[Swarm-manager:<br/>backlog item or initiative]
@@ -79,8 +85,9 @@ For a first read, use this order:
 3. `TEAM_DOCS_PATTERNS.md` — when a team owns a plan-of-record (and the hub-and-spokes shape) vs. a working notebook.
 4. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
 5. `DECISIONS.md` — what happens after the router files a decision: contexts, lifecycle, direct-write vs swarm-manager, action graduation, stale-decision policy.
-6. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
-7. `PROMOTION_LADDER.md` — how prose guidance matures (or doesn't) into CLI contracts, Actions, and retired prose.
+6. `CONTRARIAN_REVIEW.md` — how team-local contrarians challenge decisions, how authors respond, and how unresolved challenges return to decision review.
+7. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
+8. `PROMOTION_LADDER.md` — how prose guidance matures (or doesn't) into CLI contracts, Actions, and retired prose.
 
 ## Files
 
@@ -96,6 +103,7 @@ For a first read, use this order:
 | `TOPICS.md` | canon | Human registry of every topic prefix in active use — definition, conventions, per-team registry, adoption checklist |
 | `RUNTIME_ATTRIBUTION.md` | canon | Pillar 3 of topic validation: structured-attribution contract, `X-Vrooli-Attribution` HTTP header, `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env-var bridge, per-team `attributionValidFrom` cutoff, threat model |
 | `DECISIONS.md` | canon | Decision contexts, lifecycle, direct-write vs swarm-manager routing, capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure |
+| `CONTRARIAN_REVIEW.md` | canon | Team-local contrarian lifecycle: challenge reports, resolution records, author response, escalation, vision-walk consumption |
 | `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry (template→reference pair, generation date, audit cadence), nomination + demotion rules, rot triage including template-rot |

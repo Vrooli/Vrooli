@@ -13,6 +13,15 @@
         "capability-gap",
         "reliability-target-update"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "runtime-health-finding",
+        "instrumentation-gap",
+        "capability-gap",
+        "reliability-target-update"
+      ]
     }
   ],
   "output": [

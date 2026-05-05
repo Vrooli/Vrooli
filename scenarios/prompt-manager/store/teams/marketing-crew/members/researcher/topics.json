@@ -24,6 +24,16 @@
         "hook-candidate-promotion",
         "capability-gap"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "audience-update",
+        "channel-strategy-update",
+        "post-type-proposal",
+        "hook-candidate-promotion",
+        "capability-gap"
+      ]
     }
   ],
   "output": [

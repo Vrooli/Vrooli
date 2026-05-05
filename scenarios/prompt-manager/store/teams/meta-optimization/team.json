@@ -449,6 +449,11 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
+      "challenge-resolution-record/<decision-id>": {
+        "ownerMemberId": "meta-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
       "friction-inbox/<scope>/<slug>": {
         "ownerMemberId": "friction-curator",
         "supersedesPrevious": false,

@@ -527,6 +527,11 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
+      "challenge-resolution-record/<decision-id>": {
+        "ownerMemberId": "marketing-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
       "aging-scan-note/<decision-id>": {
         "ownerMemberId": "marketing-contrarian",
         "supersedesPrevious": false,

@@ -13,6 +13,12 @@
       "for_decisions": [
         "preemptive-qa-backlog"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "preemptive-qa-backlog"
+      ]
     }
   ],
   "output": [

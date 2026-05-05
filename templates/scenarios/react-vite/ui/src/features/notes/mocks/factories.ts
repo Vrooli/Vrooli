@@ -1,7 +1,7 @@
 /**
  * Test data factories for the notes domain. Co-located with the feature
  * so deleting `features/notes/` takes the factories with it (no central
- * residue per Pass 3).
+ * residue).
  *
  * Each `make<Domain>(overrides?)` returns a stable default instance that
  * tests selectively override via `MessageInitShape<Schema>`.

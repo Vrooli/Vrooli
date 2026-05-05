@@ -14,6 +14,13 @@
         "toolchain-violation",
         "capability-gap"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "toolchain-violation",
+        "capability-gap"
+      ]
     }
   ],
   "output": [

@@ -238,6 +238,11 @@
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "challenge-resolution-record/<decision-id>": {
+        "ownerMemberId": "infra-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
       }
     },
     "members": {

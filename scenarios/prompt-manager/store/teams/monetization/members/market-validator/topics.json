@@ -25,6 +25,14 @@
         "financial-model-assumption-update",
         "benchmark-update"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "pricing-decision",
+        "financial-model-assumption-update",
+        "benchmark-update"
+      ]
     }
   ],
   "output": [

@@ -26,6 +26,16 @@
         "team-deprecation",
         "capability-gap"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "agent-improvement",
+        "agent-deprecation",
+        "team-structure-change",
+        "team-deprecation",
+        "capability-gap"
+      ]
     }
   ],
   "output": [

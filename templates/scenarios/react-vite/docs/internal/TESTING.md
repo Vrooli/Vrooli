@@ -39,7 +39,7 @@ shipping.
 api/
 ├── internal/
 │   ├── clock/clock.go            # Clock interface + clock.System
-│   ├── store/store.go            # Pinger interface
+│   ├── database/pinger.go        # Pinger interface
 │   ├── middleware/logging.go     # Uses clock.Clock — no time.Now()
 │   ├── server/                   # Server wires Pinger + Clock + Logger
 │   └── testutil/
@@ -607,10 +607,10 @@ Why each piece:
 2. **Real httptest.Server**, not a Recorder. Same reasoning as the API
    side: Recorder fakes `Flusher`/`Hijacker`; a real socket catches
    SSE/streaming bugs that have shipped before.
-3. **`CaptureStdout`** captures the human output that
-   `cli-core.RenderOperationalReport` / `RenderListReport` /
-   `RenderMutationReport` write. Use it instead of `--json` when you
-   want to assert on the contract scenario users actually see.
+3. **`CaptureStdout`** captures the human output written by
+   `RenderProtoList`, `RenderProtoMutation`, or the `RunContext`
+   report helpers. Use it instead of `--json` when you want to assert
+   on the contract scenario users actually see.
 4. **`go test -race`** is enforced by CI (`.github/workflows/test.yml`).
    `CaptureStdout` swaps `os.Stdout` and the test server runs in a
    separate goroutine; race coverage keeps both honest.
@@ -639,13 +639,17 @@ provably can't see it. If the test fires:
 
 ## How to add a new proto
 
-Wire shapes for new endpoints belong in `packages/proto/schemas/{{SCENARIO_ID}}/`,
-not in hand-written Go structs or TS interfaces. The `health.proto`
-shipped with this scenario is the canonical example.
+Wire shapes for new endpoints belong in proto, not in hand-written Go
+structs or TS interfaces. After generation, the canonical source lives
+under `packages/proto/schemas/{{SCENARIO_ID}}/`. In this template tree,
+the relocation source is `proto/v1/`.
 
 Steps:
 
-1. **Author the schema.** Add `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<name>.proto`.
+1. **Author the schema.** In a generated scenario, add
+   `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<name>.proto`.
+   While editing this template itself, add the source file under
+   `proto/v1/<domain>/<name>.proto`.
    Use snake_case in the proto package directive
    (`package vrooli.{{SCENARIO_ID_SNAKE}}.v1.<domain>;`) and add a
    `go_package` option pointing at the per-scenario gen path:

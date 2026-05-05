@@ -195,8 +195,8 @@ module's constructor.
 5. Create `cli/domains/tasks/{register,handlers}.go`.
 6. Add **one line** to `cli/domains/domains.go`'s
    `SubcommandGroups`: `tasks.Register(core)`.
-7. Add entries to `api/cmd/gen-endpoints/cli_commands_seed.json` only
-   for REST exceptions such as multipart uploads; run `make endpoints`.
+7. Add matching CLI command rows to
+   `api/cmd/gen-endpoints/cli_commands_seed.json`; run `make endpoints`.
 8. Create `ui/src/api/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`
    plus `ui/src/features/tasks/mocks/{factories,tasks}.ts` for
    co-located UI fakes; add **one import + one render line** in
@@ -261,10 +261,9 @@ scenario hits the pain).
 
 **The trade-off:** one layer of indirection (the `Module` data type)
 pays for the open–closed property. For a template that gets forked
-many times, the cost is paid once and saved per scenario. The CLI
-side has used this pattern since Pass 1 (`SubcommandGroup`
-registrations); Pass 3 brought the API + UI + endpoints manifest up
-to the same standard.
+many times, the cost is paid once and saved per scenario. The CLI,
+API, UI, and endpoint manifest all use the same principle: domains own
+their local files, while the center gets only small registration lines.
 
 ## Inside the UI: feature-shaped React
 

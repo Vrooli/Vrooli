@@ -12,6 +12,14 @@
         "coverage-gap",
         "capability-gap"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "content-publish-proposal",
+        "coverage-gap",
+        "capability-gap"
+      ]
     }
   ],
   "output": [

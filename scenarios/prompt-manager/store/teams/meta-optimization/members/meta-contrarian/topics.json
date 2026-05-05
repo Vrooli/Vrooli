@@ -2,11 +2,18 @@
   "required_read": [
     {
       "prefix": "challenge-report/<decision-id>"
+    },
+    {
+      "prefix": "challenge-resolution-record/<decision-id>"
     }
   ],
   "output": [
     {
       "prefix": "challenge-report/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
       "destination_kind": "knowledge"
     }
   ],

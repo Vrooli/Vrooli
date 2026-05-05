@@ -32,6 +32,18 @@
         "services-conversion",
         "services-sunset"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "catalog-mapping-update",
+        "channel-activation",
+        "sku-retirement",
+        "services-activation",
+        "services-conversion",
+        "services-sunset"
+      ]
     }
   ],
   "output": [

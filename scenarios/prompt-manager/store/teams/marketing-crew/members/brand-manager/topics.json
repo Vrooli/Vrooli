@@ -19,6 +19,15 @@
         "notebook-promotion",
         "notebook-retirement"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "campaign-launch-proposal",
+        "brand-guideline-update",
+        "notebook-promotion",
+        "notebook-retirement"
+      ]
     }
   ],
   "output": [

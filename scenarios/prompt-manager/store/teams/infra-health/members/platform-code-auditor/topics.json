@@ -13,6 +13,15 @@
         "instrumentation-gap",
         "capability-gap"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "platform-code-finding",
+        "cross-platform-debt",
+        "instrumentation-gap",
+        "capability-gap"
+      ]
     }
   ],
   "output": [

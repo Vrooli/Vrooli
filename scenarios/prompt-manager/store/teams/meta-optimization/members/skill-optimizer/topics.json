@@ -24,6 +24,17 @@
         "action-improvement",
         "action-deprecation"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "skill-conversion-candidate",
+        "skill-improvement",
+        "skill-deprecation",
+        "action-candidate",
+        "action-improvement",
+        "action-deprecation"
+      ]
     }
   ],
   "output": [

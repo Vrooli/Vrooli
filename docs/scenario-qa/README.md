@@ -66,7 +66,7 @@ any-team/* ─[report-bug skill]──▶ scenario-qa/bug-inbox/<signal-type>/<s
        (audit log; append-only)  (fix/chore items)        (operator review for cross-cutting fixes)
 ```
 
-The `qa-contrarian` reads peer-team decisions and member outputs (including bug-investigation entries and audit findings) and writes `challenge-report/*` entries — challenge to QA outcomes is a first-class output, not a side-channel comment. Cross-team drain of `challenge-report/*` is currently workshop-pending (see `docs/agent-system/TOPICS.md` § known inconsistencies).
+The `qa-contrarian` reads peer-team decisions and member outputs (including bug-investigation entries and audit findings) and writes `challenge-report/*` plus `challenge-resolution-record/*` entries — challenge to QA outcomes is a first-class output, not a side-channel comment. The lifecycle follows `docs/agent-system/CONTRARIAN_REVIEW.md`: reports are append-only evidence, resolution records carry latest state, and quiet reviews write no challenge report.
 
 ## Editing rules
 
@@ -102,4 +102,3 @@ Flagged here so future operator-curated decisions can promote them when the subs
 - **Full readiness-checks registry.** Stub README only today; entries graduate once GCT readiness dimensions stabilize.
 - **Future investigation techniques.** `scientific-debugging` is the only registered technique at landing time. Candidates surfaced by the bug-investigator's audit log: bisect-debugging, minimal-reproduction, differential-trace, comparative-environments, 5-whys, fishbone analysis. Each enters via `meta-self-improvement` decision.
 - **Future audit techniques.** Beyond the seven existing skills: performance-audit, security-audit, deprecation-audit, accessibility-audit, observability-audit. Same graduation flow.
-- **Cross-team drain of `challenge-report/*`.** Possible that one team's contrarian (e.g., `meta-contrarian`) drains every team's `challenge-report/*` cross-team. Out of scope for the current plan; revisit as a future workshop decision.

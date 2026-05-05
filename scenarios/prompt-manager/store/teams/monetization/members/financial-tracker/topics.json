@@ -16,6 +16,18 @@
         "funnel-bottleneck",
         "retention-concern"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "channel-attribution-gap",
+        "pricing-decision",
+        "financial-model-assumption-update",
+        "runway-warning",
+        "services-trap-warning",
+        "funnel-bottleneck",
+        "retention-concern"
+      ]
     }
   ],
   "output": [

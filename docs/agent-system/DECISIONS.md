@@ -59,6 +59,14 @@ proposed -> accepted -> executed -> superseded -> stale
 
 A team's `operatingContract.governance.supersession.requiredBeforeNewDecision` enforces that two open decisions in the same context cannot exist at once. If a new proposal arrives while an open decision exists, the old one must be superseded or rejected first.
 
+### Contrarian review sidecar
+
+Team-local contrarian review runs while a decision is pending. It does not add new decision states; it attaches a sidecar lifecycle through `challenge-report/<decision-id>` and `challenge-resolution-record/<decision-id>` knowledge topics. The decision remains pending until the operator or approving team accepts, rejects, defers, or supersedes it.
+
+If the contrarian finds no concrete failure-mode hit, no challenge report is written. If it finds a material issue, it writes a challenge report and keeps the latest state in the matching resolution record. The author responds by revising, superseding, accepting the challenge, or disagreeing with evidence; the contrarian then closes, escalates, or files an owned follow-on decision (`decision-rejection-proposed` or `framework-update`).
+
+See [`CONTRARIAN_REVIEW.md`](CONTRARIAN_REVIEW.md) for the full flow and topic contract.
+
 ---
 
 ## 3. Direct-write vs swarm-manager — the routing policy
@@ -304,6 +312,7 @@ Otherwise                      -> file backlog item or initiative in swarm-manag
 
 - `PRIMITIVES.md` — bare definitions of Decision, Capability-gap, Backlog item, Inbox / synthesis
 - `INTAKE_PIPELINE.md` — how observations enter, get routed, and what each routing outcome means at the topic-prefix level
+- `CONTRARIAN_REVIEW.md` — decision challenge sidecar: challenge reports, resolution records, author response, escalation
 - `PROMOTION_LADDER.md` — the prose → CLI → Action lifecycle that `action-candidate` decisions drive
 - `LAYERS.md` — where each artifact (decision, skill, action, knowledge, POR) lives
 - `TEAM_DOCS_PATTERNS.md` — plan-of-record vs working-notebook patterns; informs which surfaces are direct-write-eligible

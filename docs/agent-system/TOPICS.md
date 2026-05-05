@@ -117,11 +117,14 @@ Both are kinds of intake but serve different roles. A typed inbox (`*-inbox/*`) 
 
 The producer-side rule that follows from this: if you discover something with a clear typed destination, write to that inbox directly. Use the notebook only when no typed inbox fits. The curator's job includes spotting recurring notebook signal-types and proposing graduation to a typed inbox via `meta-self-improvement` decision.
 
-### Open design questions
+### Contrarian challenge topics
 
-These are target-state questions that still need explicit ownership decisions. Historical migration notes belong in changelogs, not in this registry.
+Contrarian topics are decision-feedback surfaces, not a global operator inbox. The canonical lifecycle lives in [`CONTRARIAN_REVIEW.md`](CONTRARIAN_REVIEW.md).
 
-1. **`challenge-report/*` consumer.** Every team's contrarian writes `challenge-report/*` into its own knowledge store; nobody drains it; no `destination_team` is declared. The shared name is fine because it names a kind of output, not a shared surface. Decide whether to add a drainer, such as a cross-team `meta-contrarian`, or document `challenge-report/*` as operator-read-only and intentionally warning-only for `orphan_output`.
+- `challenge-report/<decision-id>` is an append-only report-shaped topic. It exists only when a contrarian found a concrete failure-mode hit on the target decision.
+- `challenge-resolution-record/<decision-id>` is a record-shaped latest-state topic. It is owned by the same contrarian, declares `supersedesPrevious: true`, and records whether the challenge is `open`, `author-responded`, `resolved`, `escalated`, `overridden`, or `stale`.
+- Authors do not drain these topics as `intake[]`. They consume them as decision evidence via `evidence_consumed[]` for the contexts they own.
+- Vision walk summarizes unresolved or escalated challenge state as part of decision review; it does not scrape `challenge-report/*` as a standalone task queue.
 
 ---
 
@@ -153,12 +156,12 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `runtime-health-scanner` | _(none — proactive)_ | `runtime-health-audit/*` | — |
 | `platform-code-auditor` | _(none — proactive)_ | `platform-code-audit/*` | — |
-| `infra-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
+| `infra-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 
 **Observations (draft):**
 - All three members are pure proactive producers; none have `intake[]`. This is consistent with infra-health's mission (audit-driven, not signal-driven).
 - No `topic[future]:infra-inbox/*` exists. If the operator wants to push infra-relevant alpha into this team, no current topic catches it. **Possible gap:** a `topic[future]:infra-inbox/*` for operator-fed runtime/platform alpha, drained by `runtime-health-scanner` or a new triage member. Workshop.
-- `challenge-report/*` orphan-output applies here (see § Open design questions).
+- Contrarian output follows the shared challenge lifecycle in § Contrarian challenge topics.
 
 ### marketing-crew
 
@@ -171,7 +174,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
 | `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
 | `subscription-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
-| `marketing-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
+| `marketing-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 
 **Observations (draft):**
 - `campaign-draft/*` is written by both `oss-advertiser` and `subscription-advertiser` but has no declared drainer. `publisher` *should* be the drainer (it owns content publishing) but its `topics.json` doesn't declare `intake: [{ prefix: "campaign-draft/*", ... }]`. **Likely gap:** `publisher` should drain `campaign-draft/*`, picking from drafts and producing publish-log entries. Workshop.
@@ -189,7 +192,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `team-agent-optimizer` | _(none — proactive)_ | `team-audit/*`, `agent-audit/*` | — |
 | `toolchain-validator` | _(none — proactive)_ | `toolchain-audit/*` | — |
 | `run-introspector` | _(none — proactive)_ | `run-lesson-report/*` | — |
-| `meta-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
+| `meta-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 | `friction-curator` | `friction-inbox/*` (taxonomy: `friction-report`, source: `*` — universal-source) | `friction-report/<scope>/*` (delivered to scoped sub-member topics), `friction-triage-record/<YYYY-MM-DD>` | producers: every team via the `report-friction` writer skill |
 
 **Observations (draft):**
@@ -209,7 +212,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent-record/*` (cross-team from marketing) | `monetization-benchmark-record/*` | reads `monetization-benchmark-adjacent-record/*` ← marketing-crew |
 | `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `path:docs/monetization/CATALOG.md`) | — |
 | `financial-tracker` | _(none — proactive)_ | `monetization-ledger-log/*` | — |
-| `contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*` | — |
+| `monetization-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 
 **Observations (draft):**
 - `candidate-sku-record/*` and `monetization-benchmark-record/*` have no documented consumer. `catalog-strategist` likely *should* consume `candidate-sku-record/*` (it owns catalog promotion); declare it as `intake[].source_team = "monetization"` (same-team) once confirmed. Workshop.
@@ -226,12 +229,12 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `programmatic-qa-runner` | _(none — proactive)_ | `qa-run/*`, `reviewed-scenario/*`, `dependency-wiring` | — |
 | `quality-auditor` | _(none — proactive)_ | `quality-audit/*` | — |
 | `bug-investigator` | `bug-inbox/*` (taxonomy: `bug-report`, source: `*` — universal-source) | `bug-investigation-report/*` | producers: every team via the `report-bug` writer skill |
-| `qa-contrarian` | _(none — proactive)_ | `challenge-report/*` | — |
+| `qa-contrarian` | _(none — proactive)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 
 **Observations:**
 - `bug-inbox/*` is one of two **universal-source intakes** in the system; the other is `friction-inbox/*` on meta-optimization. Any team's members may write via the `report-bug` skill (declared as `external_producers`). The investigator validates the producer's signal-type assignment as the first sub-step of investigation; deterministic-prefix routing, no separate classifier skill.
 - `bug-investigation-report/*` is an audit log, not an inbox. Append-only; one entry per closed bug; drives technique-graduation decisions on `meta-self-improvement`. No drainer; `orphan_output` warning is by-design here.
-- `challenge-report/*` shares the cross-team contrarian-orphan pattern with `marketing-crew`, `monetization`, `meta-optimization`, and `infra-health` (see § Open design questions). Workshop-pending.
+- `challenge-report/*` and `challenge-resolution-record/*` follow the shared contrarian challenge lifecycle in § Contrarian challenge topics.
 - **Possible future gap:** `topic[future]:qa-inbox/*` / `topic[future]:audit-inbox/*` for operator-fed "look at this scenario" alpha. No producer today; would `orphan_input`. Documented as future PoR work in `path:docs/scenario-qa/README.md` § Future PoR work; revisit when (e.g.) `vision-walk-prep` adds them as output prefixes.
 
 ---

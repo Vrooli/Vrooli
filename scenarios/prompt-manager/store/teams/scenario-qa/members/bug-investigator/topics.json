@@ -17,6 +17,12 @@
       "for_decisions": [
         "bug-resolution-proposal"
       ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "bug-resolution-proposal"
+      ]
     }
   ],
   "output": [

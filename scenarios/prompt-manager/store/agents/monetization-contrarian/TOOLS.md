@@ -2,7 +2,7 @@
 
 ## Tool Access
 - `prompt-manager skill read <skill-id>`
-- `prompt-manager team member-context monetization contrarian`
+- `prompt-manager team member-context monetization monetization-contrarian`
 - `prompt-manager team decision-list monetization ...`
 - `prompt-manager team knowledge-list monetization ...`
 

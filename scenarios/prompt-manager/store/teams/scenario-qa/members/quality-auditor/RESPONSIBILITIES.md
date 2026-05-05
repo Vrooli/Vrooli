@@ -27,5 +27,5 @@ Adding a new lens: file a `meta-self-improvement` decision (paired doc + skill +
 
 ## Forbidden
 - Modifying target scenario code directly. Findings become execute backlog items with draft plans, not patches.
-- Repeating a scenario/skill deep audit within the recency window (per `team.json` `safetyCriticalRules`).
+- Repeating a scenario/skill quality audit within the recency window (per `team.json` `safetyCriticalRules`).
 - Filing into the wrong inbox: bugs observed during the audit go to `bug-inbox/*` via the `report-bug` skill; only structural findings become backlog items.

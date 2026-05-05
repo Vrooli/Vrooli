@@ -110,10 +110,10 @@ is proto-typed attachment metadata.
 
 ## Output contracts
 
-Every scenario command should render through one of three contracts.
-Use `cliapp.RenderOperationalReport`, `RenderListReport`, or
-`RenderMutationReport` so the human shape stays consistent across all
-Vrooli scenarios.
+Every scenario command should render through one of three human
+contracts. Proto-backed commands should use `cliapp.RenderProtoList`
+or `cliapp.RenderProtoMutation`: human consumers see the report, while
+`--json` consumers receive the proto JSON response shape.
 
 | Contract | Used by | Structure |
 |---|---|---|
@@ -121,9 +121,10 @@ Vrooli scenarios.
 | **Data Retrieval** | `list`, `get`, `view`, `search` | Summary → Results → Retrieval Hints |
 | **Mutation** | `create`, `update`, `delete`, `start`, `stop` | Result → What Changed → Next Command |
 
-When a command supports `--json`, render the **same** structured
-report through `cliapp.PrintReportJSON` instead of inventing a second
-output shape.
+For commands that aggregate multiple API calls or produce a
+non-proto report, use the `RunContext` render helpers directly
+(`ctx.RenderList`, `ctx.RenderMutation`, or the operational report
+helpers).
 
 ## Adding a new command
 
@@ -133,20 +134,25 @@ output shape.
    `cli/domains/<domain>/{register,handlers}.go`. Mirror the `notes`
    layout exactly.
 3. The handler should:
-   - Use `cliutil.ParseInterspersed(fs, args)` (not `fs.Parse`) so
-     `notes get abc123 --json` parses correctly
-   - Call `core.Get(...)` / `core.Request(...)` for `/api/v1/...`
-     paths, or `core.GetRoot(...)` / `core.RequestRoot(...)` for
-     root paths like `/health`
+   - Declare flags and positionals in `cliapp.ArgSchema`; cli-core
+     uses the schema for parsing and help output.
+   - Implement `RunCtx func(ctx cliapp.RunContext) error`, then read
+     values with `ctx.Flag(...)`, `ctx.Positional(...)`, and
+     `ctx.JSON()`.
+   - Construct generated Connect clients with
+     `cliapp.NewConnectHTTPClient(core)` for proto-typed operations.
+   - Use `cliapp.UploadFile` only for documented multipart REST
+     exceptions.
    - Mark the command with `NeedsAPI: true` so stale-checking,
      token validation, and `--auto-start` preflight all stay
      connected automatically
-   - Render via `cliapp.Render*Report` (default human) and
-     `cliapp.PrintReportJSON` when `--json` is set
+   - Render proto-backed responses with `cliapp.RenderProtoList` or
+     `cliapp.RenderProtoMutation`.
 4. Register the domain in `cli/domains/domains.go::SubcommandGroups`.
-5. Update [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) so
-   the endpoint's `cli_mapping` points at the new command. The CI
-   gate fails if a registered command has no mapping or vice versa.
+5. Add endpoint metadata in the API handler module and add a matching
+   row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
+   `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
+   by hand.
 6. Add a row to this document.
 7. Add a handler test in
    `cli/domains/<domain>/handlers_test.go` using `clitest.NewTestApp`

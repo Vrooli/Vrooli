@@ -2,7 +2,9 @@
 
 A **seam** is a deliberate boundary where production code calls an
 interface, not a concrete dependency. The fake substitutes through that
-interface in tests; production wires the real implementation in `main.go`.
+interface in tests; production wires the real implementation once at the
+composition edge (`main.go` for cross-cutting dependencies, or the
+domain's `handlers/<domain>/module.go` for domain-local dependencies).
 
 This document is the authoritative list of seams in this scenario. Add
 to it whenever you introduce a new interface that production wires once
@@ -85,7 +87,7 @@ test ergonomics fall out for free.
 |---|---|
 | **Seam** | Notes persistence (CRUD) |
 | **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
-| **Production wiring** | `main.go` constructs `notes.NewSQLiteRepository(db, clock.System{})`, then wraps it with `notes.NewService(repo)` (see next row) before passing the service via `server.Deps.NoteService`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
+| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteRepository(db, clk)` and passes it into `notes.NewService(repo)`. `main.go` only sees the returned `module.Module`; note-specific dependencies do not appear on `server.Deps`. Wire shape lives in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`. |
 | **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
 | **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
 
@@ -95,7 +97,7 @@ test ergonomics fall out for free.
 |---|---|
 | **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
 | **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
-| **Production wiring** | `handlers/notes/module.go::Module(db, clk, blobs, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
+| **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
 | **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/connect_handler_test.go` to drive the handler without validation/repository plumbing in scope. |
 | **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (batch jobs, scheduled imports, additional RPCs) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
 
@@ -145,7 +147,7 @@ test ergonomics fall out for free.
 |---|---|
 | **Seam** | Binary object storage for REST multipart edges |
 | **Interface** | `api-core/blobstore::BlobStore` (`Put`, `Get`, `Delete`) |
-| **Production wiring** | `main.go` constructs the filesystem-backed blob store from the scenario storage root and passes it into modules that expose multipart endpoints. |
+| **Production wiring** | A domain module that exposes multipart endpoints owns its blob store. The notes reference resolves filesystem-backed storage in `handlers/notes/module.go::defaultBlobStore()`; tests inject `blobstore.NewMemoryBlobStore()` through `ModuleWithBlobStore(...)`. |
 | **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
 | **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
@@ -177,7 +179,7 @@ test ergonomics fall out for free.
 | **Interface** | `internal/database/system.go::SystemSchema() string` (consumed via `api-core/database.SchemaProvider`) |
 | **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(localdb.SystemSchema)` first; `main.go` passes the slice into `apidb.EnsureSchemas`. |
 | **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
-| **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership; a central `internal/store/schema.sql` was what Pass-3 deleted. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
+| **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
 
 ### notes.Schema (per-domain schema)
 
@@ -187,7 +189,7 @@ test ergonomics fall out for free.
 | **Interface** | `internal/notes/schema.go::Schema() string` (consumed via `handlers/notes/module.go::Schema` re-export, then `api-core/database.SchemaProvider`) |
 | **Production wiring** | `internal/modules/registry.go::AllSchemas()` includes `apidb.SchemaProviderFunc(notesH.Schema)`; applied at boot via `apidb.EnsureSchemas`. |
 | **Test fake** | `internal/notes/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + notes providers. Repository tests get a fresh table without touching the central registry. |
-| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it (no orphan table created on boot — the Pass-3 smoking-gun bug). The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
+| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
 
 ### Doer (outbound HTTP)
 
@@ -355,9 +357,8 @@ Connect service metadata plus each handler module's
 2. Keep the descriptor metadata in `api/handlers/<dom>/module.go`
    aligned with the operation. Connect paths use the generated service
    path; REST exceptions use the explicit REST path and error envelope.
-3. If the change touches a REST-exception CLI command, update
-   `api/cmd/gen-endpoints/cli_commands_seed.json`. Connect-RPC commands
-   are described from proto service metadata and do not need a seed row.
+3. If the operation has a CLI mirror, add or update the matching row in
+   `api/cmd/gen-endpoints/cli_commands_seed.json`.
 4. Run `make endpoints` to regenerate `.vrooli/endpoints.json`.
 5. Commit both the descriptor edit AND the regenerated manifest.
 
