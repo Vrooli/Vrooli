@@ -15,7 +15,11 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
 	"test-genie/internal/shared"
+
+	"github.com/vrooli/api-core/markedrefs"
+	"github.com/vrooli/api-core/relationshiprefs"
 )
 
 // Config controls docs validation.
@@ -176,6 +180,10 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		summary.DocRefsFound = refSummary.DocRefsFound
 		summary.DocRefsBroken = refSummary.DocRefsBroken
 		summary.CodeFilesScanned = refSummary.CodeFilesScanned
+		summary.MarkedRefsFound = refSummary.MarkedRefsFound
+		summary.MarkedRefsBroken = refSummary.MarkedRefsBroken
+		summary.MarkedRefsSkipped = refSummary.MarkedRefsSkipped
+		summary.MarkedRefsUnknown = refSummary.MarkedRefsUnknown
 	}
 
 	// Manifest coverage check
@@ -201,7 +209,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	// Calculate reference failures based on strict mode
 	referenceFailures := 0
 	if r.settings.referencesEnabled() && r.settings.referencesStrict() {
-		referenceFailures = summary.CodeRefsBroken + summary.DocRefsBroken
+		referenceFailures = summary.CodeRefsBroken + summary.DocRefsBroken + summary.MarkedRefsBroken + summary.MarkedRefsUnknown
 	}
 
 	success := summary.MarkdownFailures == 0 &&
@@ -212,7 +220,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		len(allErrors) == 0
 
 	summaryLine := fmt.Sprintf(
-		"Docs summary: files=%d mermaid=%d validated (%d failures) markdown(warn=%d, fail=%d) links(local=%d external=%d broken=%d) absolute(hits=%d blocked=%d) refs(code=%d/%d doc=%d/%d)",
+		"Docs summary: files=%d mermaid=%d validated (%d failures) markdown(warn=%d, fail=%d) links(local=%d external=%d broken=%d) absolute(hits=%d blocked=%d) refs(code=%d/%d doc=%d/%d marked=%d/%d skipped=%d unknown=%d)",
 		summary.FilesChecked,
 		summary.MermaidValidated, summary.MermaidFailures,
 		summary.MarkdownWarnings, summary.MarkdownFailures,
@@ -220,6 +228,8 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		summary.AbsolutePathHits, summary.AbsoluteFailures,
 		summary.CodeRefsFound, summary.CodeRefsBroken,
 		summary.DocRefsFound, summary.DocRefsBroken,
+		summary.MarkedRefsFound, summary.MarkedRefsBroken,
+		summary.MarkedRefsSkipped, summary.MarkedRefsUnknown,
 	)
 	shared.LogInfo(r.log, "%s", summaryLine)
 	fmt.Fprintln(r.log, summaryLine)
@@ -267,16 +277,9 @@ type linkTarget struct {
 var (
 	markdownLinkPattern   = regexp.MustCompile(`!?\[[^\]]*\]\(([^)]+)\)`)
 	codeFencePattern      = regexp.MustCompile("^(```|~~~)([a-zA-Z0-9_-]+)?")
-	inlineCodePattern     = regexp.MustCompile("`[^`]*`")
 	absUnixPathPattern    = regexp.MustCompile(`/(Users|home|var|etc|opt|srv|private|Volumes)/`)
 	absWindowsPathPattern = regexp.MustCompile(`^[A-Za-z]:\\`)
 	mermaidHeaderPattern  = regexp.MustCompile(`^(graph|flowchart|flowchart\s+(TB|TD|LR|RL)|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|gantt|journey|erDiagram|pie)\b`)
-
-	// Bidirectional reference patterns
-	// Matches [CODE: path/to/file.go] or [CODE: path/to/file.go#FunctionName] or [CODE: path/to/file.go:42]
-	codeRefPattern = regexp.MustCompile(`\[CODE:\s*([^\]]+)\]`)
-	// Matches standalone // DOC: path/to/doc.md or /* DOC: path/to/doc.md */ or # DOC: path/to/doc.md
-	docRefPattern = regexp.MustCompile(`^\s*(?://|/\*|#)\s*DOC:\s*([^\s\*\n]+)`)
 )
 
 // codeRefTarget represents a [CODE: ...] reference found in documentation.
@@ -416,12 +419,13 @@ func (r *Runner) inspectFile(path string) ([]Observation, fileSummary, []linkTar
 
 		// Absolute path detection
 		if r.settings.pathsEnabled() {
+			scanLine := lineForAbsolutePathScan(line, lineNum)
 			var absMatch string
 			switch {
-			case absUnixPathPattern.MatchString(line):
-				absMatch = absUnixPathPattern.FindString(line)
-			case absWindowsPathPattern.MatchString(line):
-				absMatch = absWindowsPathPattern.FindString(line)
+			case absUnixPathPattern.MatchString(scanLine):
+				absMatch = absUnixPathPattern.FindString(scanLine)
+			case absWindowsPathPattern.MatchString(scanLine):
+				absMatch = absWindowsPathPattern.FindString(scanLine)
 			}
 			if absMatch != "" {
 				summary.AbsoluteHits++
@@ -445,6 +449,20 @@ func (r *Runner) inspectFile(path string) ([]Observation, fileSummary, []linkTar
 	}
 
 	return obs, summary, links, errors
+}
+
+func lineForAbsolutePathScan(line string, lineNum int) string {
+	scanLine := line
+	for _, ref := range markedrefs.ParseInlineCode(line, lineNum) {
+		if markedrefs.UnknownMarker(ref) {
+			continue
+		}
+		if markedrefs.RequiresExistence(ref) {
+			continue
+		}
+		scanLine = strings.Replace(scanLine, ref.Raw, "", 1)
+	}
+	return scanLine
 }
 
 func (r *Runner) validateMermaidBlock(file string, line int, content string, obs *[]Observation, summary *fileSummary) {
@@ -642,11 +660,15 @@ func (r *Runner) shouldIgnoreLink(target string) bool {
 
 // refSummary tracks bidirectional reference validation metrics.
 type refSummary struct {
-	CodeRefsFound    int
-	CodeRefsBroken   int
-	DocRefsFound     int
-	DocRefsBroken    int
-	CodeFilesScanned int
+	CodeRefsFound     int
+	CodeRefsBroken    int
+	DocRefsFound      int
+	DocRefsBroken     int
+	CodeFilesScanned  int
+	MarkedRefsFound   int
+	MarkedRefsBroken  int
+	MarkedRefsSkipped int
+	MarkedRefsUnknown int
 }
 
 // DOC: docs/phases/docs/README.md#bidirectional-reference-validation
@@ -673,6 +695,44 @@ func (r *Runner) validateBidirectionalRefs(ctx context.Context, markdownFiles []
 						obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken code reference [CODE: %s]: %v", location, ref.Ref, err)))
 					} else {
 						obs = append(obs, NewWarningObservation(fmt.Sprintf("%s broken code reference [CODE: %s]: %v", location, ref.Ref, err)))
+					}
+				}
+			}
+		}
+	}
+
+	// Validate marked path/doc references in markdown files.
+	if r.settings.markedRefsEnabled() {
+		for _, file := range markdownFiles {
+			content, err := os.ReadFile(file)
+			if err != nil {
+				continue
+			}
+			refs := extractMarkedRefs(file, string(content))
+			summary.MarkedRefsFound += len(refs)
+
+			for _, ref := range refs {
+				status, err := r.validateMarkedRef(ref)
+				switch status {
+				case markedRefSkipped:
+					summary.MarkedRefsSkipped++
+				case markedRefUnknown:
+					summary.MarkedRefsUnknown++
+					location := fmt.Sprintf("%s:%d", ref.File, ref.Ref.Line)
+					msg := fmt.Sprintf("%s unknown marked reference marker %q in %s", location, ref.Ref.Marker, ref.Ref.Raw)
+					if r.settings.referencesStrict() {
+						obs = append(obs, NewErrorObservation(msg))
+					} else {
+						obs = append(obs, NewWarningObservation(msg))
+					}
+				case markedRefBroken:
+					summary.MarkedRefsBroken++
+					location := fmt.Sprintf("%s:%d", ref.File, ref.Ref.Line)
+					msg := fmt.Sprintf("%s broken marked reference %s: %v", location, ref.Ref.Raw, err)
+					if r.settings.referencesStrict() {
+						obs = append(obs, NewErrorObservation(msg))
+					} else {
+						obs = append(obs, NewWarningObservation(msg))
 					}
 				}
 			}
@@ -786,9 +846,77 @@ func doublestarMatch(glob, value string) bool {
 	return re.MatchString(value)
 }
 
+type markedRefStatus int
+
+const (
+	markedRefOK markedRefStatus = iota
+	markedRefSkipped
+	markedRefUnknown
+	markedRefBroken
+)
+
+// markedRefTarget represents a marked inline reference found in documentation.
+type markedRefTarget struct {
+	File string
+	Ref  markedrefs.Reference
+}
+
 // extractCodeRefs extracts [CODE: ...] references from markdown content.
 func extractCodeRefs(file, content string) []codeRefTarget {
 	var refs []codeRefTarget
+	for _, ref := range relationshiprefs.ExtractMarkdownRefs(content) {
+		if ref.Kind != relationshiprefs.KindCode {
+			continue
+		}
+		rawRef := strings.TrimSpace(ref.Value)
+		refs = append(refs, codeRefTarget{
+			File:     file,
+			Ref:      rawRef,
+			FilePath: relationshiprefs.TargetPath(rawRef),
+			Line:     ref.Line,
+		})
+	}
+	return refs
+}
+
+// extractFilePath extracts the file path from a reference, handling path#func and path:line formats.
+func extractFilePath(ref string) string {
+	return relationshiprefs.TargetPath(ref)
+}
+
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// extractDocRefsFromFile reads a code file and extracts DOC: comments.
+func extractDocRefsFromFile(path string) ([]docRefTarget, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var refs []docRefTarget
+	for _, ref := range relationshiprefs.ExtractDocCommentRefs(string(content)) {
+		rawRef := strings.TrimSpace(ref.Value)
+		refs = append(refs, docRefTarget{
+			File:    path,
+			Ref:     rawRef,
+			DocPath: relationshiprefs.TargetPath(rawRef),
+			Line:    ref.Line,
+		})
+	}
+	return refs, nil
+}
+
+// extractMarkedRefs extracts marked inline references from markdown content
+// outside fenced code blocks.
+func extractMarkedRefs(file, content string) []markedRefTarget {
+	var refs []markedRefTarget
 	lines := strings.Split(content, "\n")
 	inFence := false
 	fenceMarker := ""
@@ -809,79 +937,44 @@ func extractCodeRefs(file, content string) []codeRefTarget {
 			continue
 		}
 
-		searchLine := inlineCodePattern.ReplaceAllString(line, "")
-		for _, match := range codeRefPattern.FindAllStringSubmatch(searchLine, -1) {
-			if len(match) < 2 {
-				continue
-			}
-			rawRef := strings.TrimSpace(match[1])
-			filePath := extractFilePath(rawRef)
-			refs = append(refs, codeRefTarget{
-				File:     file,
-				Ref:      rawRef,
-				FilePath: filePath,
-				Line:     i + 1,
-			})
+		for _, ref := range markedrefs.ParseInlineCode(line, i+1) {
+			refs = append(refs, markedRefTarget{File: file, Ref: ref})
 		}
 	}
 	return refs
 }
 
-// extractFilePath extracts the file path from a reference, handling path#func and path:line formats.
-func extractFilePath(ref string) string {
-	// Strip anchor (#section or #FunctionName)
-	if idx := strings.Index(ref, "#"); idx != -1 {
-		ref = ref[:idx]
+func (r *Runner) validateMarkedRef(ref markedRefTarget) (markedRefStatus, error) {
+	if markedrefs.UnknownMarker(ref.Ref) {
+		return markedRefUnknown, nil
 	}
-	// Strip line number (:42)
-	if idx := strings.LastIndex(ref, ":"); idx != -1 {
-		// Make sure it's actually a line number (digits after colon)
-		suffix := ref[idx+1:]
-		if len(suffix) > 0 && isDigits(suffix) {
-			ref = ref[:idx]
-		}
+	if ref.Ref.Marker != markedrefs.MarkerPath && ref.Ref.Marker != markedrefs.MarkerDoc {
+		return markedRefSkipped, nil
 	}
-	return strings.TrimSpace(ref)
-}
+	if !markedrefs.RequiresExistence(ref.Ref) {
+		return markedRefSkipped, nil
+	}
 
-func isDigits(s string) bool {
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
+	targetValue := relationshiprefs.TargetPath(ref.Ref.Value)
+	if targetValue == "" {
+		return markedRefBroken, fmt.Errorf("empty reference target")
 	}
-	return true
-}
-
-// extractDocRefsFromFile reads a code file and extracts DOC: comments.
-func extractDocRefsFromFile(path string) ([]docRefTarget, error) {
-	content, err := os.ReadFile(path)
+	target := r.resolvePath(targetValue, "")
+	info, err := os.Stat(target)
 	if err != nil {
-		return nil, err
+		return markedRefBroken, fmt.Errorf("target not found: %s", targetValue)
 	}
-
-	var refs []docRefTarget
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		for _, match := range docRefPattern.FindAllStringSubmatch(line, -1) {
-			if len(match) < 2 {
-				continue
-			}
-			rawRef := strings.TrimSpace(match[1])
-			// Strip anchor if present
-			docPath := rawRef
-			if idx := strings.Index(docPath, "#"); idx != -1 {
-				docPath = docPath[:idx]
-			}
-			refs = append(refs, docRefTarget{
-				File:    path,
-				Ref:     rawRef,
-				DocPath: docPath,
-				Line:    i + 1,
-			})
+	if ref.Ref.Marker == markedrefs.MarkerDoc {
+		if info.IsDir() {
+			return markedRefBroken, fmt.Errorf("doc reference points to directory, not file: %s", targetValue)
 		}
+		ext := strings.ToLower(filepath.Ext(targetValue))
+		if ext != ".md" && ext != ".mdx" {
+			return markedRefBroken, fmt.Errorf("doc reference must point to .md or .mdx file: %s", targetValue)
+		}
+		return markedRefOK, nil
 	}
-	return refs, nil
+	return markedRefOK, nil
 }
 
 // validateCodeRef checks if the referenced code file exists.

@@ -1,9 +1,19 @@
 {
-  "generatedAt": "2026-05-03T02:29:44Z",
+  "generatedAt": "2026-05-05T13:58:01Z",
   "items": [
+    {
+      "id": "agent-29",
+      "displayName": "Agent 29",
+      "status": "active"
+    },
     {
       "id": "brand-manager",
       "displayName": "Brand Manager",
+      "status": "active"
+    },
+    {
+      "id": "bug-investigator",
+      "displayName": "Bug Investigator",
       "status": "active"
     },
     {
@@ -24,6 +34,11 @@
     {
       "id": "financial-tracker",
       "displayName": "Financial Tracker",
+      "status": "active"
+    },
+    {
+      "id": "friction-curator",
+      "displayName": "Friction Curator",
       "status": "active"
     },
     {
@@ -79,6 +94,11 @@
     {
       "id": "publisher",
       "displayName": "Publisher",
+      "status": "active"
+    },
+    {
+      "id": "qa-contrarian",
+      "displayName": "QA Contrarian",
       "status": "active"
     },
     {

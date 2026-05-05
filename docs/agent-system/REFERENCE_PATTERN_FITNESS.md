@@ -46,6 +46,13 @@ These are the substantive content the lens applies to a qualifying artifact. The
 
 **Drift surface map.** Enumerate every place where N future copies must agree but only convention enforces it. For each: type-system, CI check, or hope? Examples surfaced on the react-vite template (2026-05-04): `lib/api.ts`'s plain `Error` vs `lib/notes.ts`'s typed `ApiError` (already drifted inside the template); `cli_commands_seed.json` as a third source of truth for CLI commands beyond `register.go` and `cli_mapping.command`.
 
+Hand-rolled fakes of shared-package interfaces are also drift surfaces. When a
+shared package owns a public surface that consumers need to fake or harness in
+tests, the canonical mitigation is a top-level `<pkg>test` sibling package
+documented in [`SHARED_PACKAGE_TESTING.md`](SHARED_PACKAGE_TESTING.md). Scenario
+and template code should consume those companions instead of copying local
+fakes for `api-core` or `cli-core` interfaces.
+
 **Contract location audit.** For every non-trivial contract (precondition, invariant, "callers must / must-not"), where does it live — type signature, code comment, or docs? Comment-only contracts are debt at scale because they don't survive copy-paste-and-modify. Example surfaced on the react-vite template: `Repository.Create` takes a `Note` with caller-zero ID/timestamps; the contract *"callers must leave these zero-valued"* is encoded in a doc comment, not in the type system. The fix is a `RepositoryCreateInput { Title, Body }` DTO that makes the contract type-level.
 
 **Coordinated-edit count for add/delete.** Perform the canonical add-domain and delete-domain walkthroughs (or the artifact's analogues — add-feature, replace-example). Report the count of central files touched. Anything > 5 is a substrate finding. The react-vite template's earlier "9 coordinated edits to delete the notes reference" was the canonical instance of this finding; a Pass-3 module-pattern refactor reduced add-domain to 5 central edits and delete-domain to mostly `rm -rf`.

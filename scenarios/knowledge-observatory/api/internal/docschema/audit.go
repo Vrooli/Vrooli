@@ -2,12 +2,16 @@ package docschema
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/markedrefs"
+	"github.com/vrooli/api-core/relationshiprefs"
 )
 
 // UndocumentedFile represents a code file with exported symbols but no DOC: references.
@@ -21,6 +25,16 @@ type BrokenRef struct {
 	DocPath string `json:"doc_path"`
 	Line    int    `json:"line"`
 	Target  string `json:"target"`
+}
+
+// MarkedRefIssue represents a marked inline reference that needs attention.
+type MarkedRefIssue struct {
+	DocPath string `json:"doc_path"`
+	Line    int    `json:"line"`
+	Marker  string `json:"marker"`
+	Target  string `json:"target"`
+	Raw     string `json:"raw"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // DuplicateTitle represents a heading title that appears in multiple documentation files.
@@ -37,6 +51,10 @@ type AuditResult struct {
 	Infrastructure      *ValidationResult  `json:"infrastructure"`
 	CodeWithoutDocRefs  []UndocumentedFile `json:"code_without_doc_refs"`
 	BrokenCodeRefs      []BrokenRef        `json:"broken_code_refs"`
+	MarkedRefsFound     int                `json:"marked_refs_found"`
+	MarkedRefsSkipped   int                `json:"marked_refs_skipped"`
+	BrokenMarkedRefs    []MarkedRefIssue   `json:"broken_marked_refs"`
+	UnknownMarkedRefs   []MarkedRefIssue   `json:"unknown_marked_refs"`
 	OrphanedDocs        []string           `json:"orphaned_docs"`
 	DuplicateTitles     []DuplicateTitle   `json:"duplicate_titles"`
 	UndocumentedTargets []string           `json:"undocumented_targets"`
@@ -50,9 +68,6 @@ var (
 
 	// Matches exported symbols in TypeScript/JavaScript files.
 	tsExportedSymbol = regexp.MustCompile(`^export\s+(?:default\s+)?(?:function|class|const|let|var|interface|type|enum)\s+`)
-
-	// Matches DOC: comments in code.
-	docRefPattern = regexp.MustCompile(`(?i)//\s*DOC:`)
 
 	// Matches heading lines in markdown.
 	headingPattern = regexp.MustCompile(`^#{1,6}\s+(.+)$`)
@@ -107,16 +122,19 @@ func AuditScenarioDocumentation(scenarioPath string) (*AuditResult, error) {
 	// Step 3: Find broken [CODE: ...] references in docs.
 	result.BrokenCodeRefs = findBrokenCodeRefs(scenarioPath)
 
-	// Step 4: Find orphaned docs not in manifest.
+	// Step 4: Validate marked inline path/doc references.
+	result.MarkedRefsFound, result.MarkedRefsSkipped, result.BrokenMarkedRefs, result.UnknownMarkedRefs = findMarkedRefIssues(scenarioPath)
+
+	// Step 5: Find orphaned docs not in manifest.
 	result.OrphanedDocs = findOrphanedDocs(scenarioPath)
 
-	// Step 5: Find duplicate titles.
+	// Step 6: Find duplicate titles.
 	result.DuplicateTitles = findDuplicateTitles(scenarioPath)
 
-	// Step 6: Find undocumented PRD targets.
+	// Step 7: Find undocumented PRD targets.
 	result.UndocumentedTargets = findUndocumentedTargets(scenarioPath)
 
-	// Step 7: Validate perf-audit docs (frontmatter + per-component table).
+	// Step 8: Validate perf-audit docs (frontmatter + per-component table).
 	result.PerfAuditIssues = auditPerfDocs(scenarioPath)
 
 	return result, nil
@@ -172,8 +190,8 @@ func findCodeWithoutDocRefs(scenarioPath string) []UndocumentedFile {
 				return nil
 			}
 
-			// Check for DOC: references.
-			if docRefPattern.MatchString(content) {
+			// Check for anchored DOC: references.
+			if len(relationshiprefs.ExtractDocCommentRefs(content)) > 0 {
 				return nil
 			}
 
@@ -250,11 +268,7 @@ func findBrokenCodeRefs(scenarioPath string) []BrokenRef {
 				continue
 			}
 			// Extract the file path from the target (strip #fragment and :line).
-			target := ref.Target
-			if idx := strings.IndexAny(target, "#:"); idx >= 0 {
-				target = target[:idx]
-			}
-			target = strings.TrimSpace(target)
+			target := relationshiprefs.TargetPath(ref.Target)
 			if target == "" {
 				continue
 			}
@@ -278,6 +292,149 @@ func findBrokenCodeRefs(scenarioPath string) []BrokenRef {
 		return broken[i].Line < broken[j].Line
 	})
 	return broken
+}
+
+// findMarkedRefIssues validates required marked inline path/doc references in
+// scenario documentation. Other known marker domains are counted as skipped so
+// the observatory can report adoption without pretending to own validation for
+// topics, scenarios, resources, or other domain-specific references.
+func findMarkedRefIssues(scenarioPath string) (found int, skipped int, broken []MarkedRefIssue, unknown []MarkedRefIssue) {
+	for _, docPath := range markdownAuditFiles(scenarioPath) {
+		data, err := os.ReadFile(docPath)
+		if err != nil {
+			continue
+		}
+		docRel, _ := filepath.Rel(scenarioPath, docPath)
+		docRel = filepath.ToSlash(docRel)
+
+		for _, ref := range extractMarkedRefs(string(data)) {
+			found++
+			issue := markedRefIssue(docRel, ref, "")
+			if markedrefs.UnknownMarker(ref) {
+				unknown = append(unknown, issue)
+				continue
+			}
+			if ref.Marker != markedrefs.MarkerPath && ref.Marker != markedrefs.MarkerDoc {
+				skipped++
+				continue
+			}
+			if !markedrefs.RequiresExistence(ref) {
+				skipped++
+				continue
+			}
+			if err := validateMarkedPathRef(scenarioPath, ref); err != nil {
+				issue.Reason = err.Error()
+				broken = append(broken, issue)
+			}
+		}
+	}
+
+	sortMarkedRefIssues(broken)
+	sortMarkedRefIssues(unknown)
+	return found, skipped, broken, unknown
+}
+
+func markdownAuditFiles(scenarioPath string) []string {
+	var files []string
+	for _, name := range []string{"README.md", "PRD.md"} {
+		path := filepath.Join(scenarioPath, name)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			files = append(files, path)
+		}
+	}
+
+	docsDir := filepath.Join(scenarioPath, "docs")
+	if info, err := os.Stat(docsDir); err == nil && info.IsDir() {
+		_ = filepath.WalkDir(docsDir, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				if strings.HasPrefix(d.Name(), ".") {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(d.Name()))
+			if ext == ".md" || ext == ".mdx" {
+				files = append(files, path)
+			}
+			return nil
+		})
+	}
+	sort.Strings(files)
+	return files
+}
+
+func extractMarkedRefs(content string) []markedrefs.Reference {
+	var refs []markedrefs.Reference
+	lines := strings.Split(content, "\n")
+	inFence := false
+	fenceMarker := ""
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			marker := trimmed[:3]
+			if inFence && marker == fenceMarker {
+				inFence = false
+				fenceMarker = ""
+			} else if !inFence {
+				inFence = true
+				fenceMarker = marker
+			}
+			continue
+		}
+		if inFence {
+			continue
+		}
+		refs = append(refs, markedrefs.ParseInlineCode(line, i+1)...)
+	}
+	return refs
+}
+
+func validateMarkedPathRef(scenarioPath string, ref markedrefs.Reference) error {
+	targetValue := relationshiprefs.TargetPath(ref.Value)
+	if targetValue == "" {
+		return fmt.Errorf("empty reference target")
+	}
+	target := filepath.Join(scenarioPath, filepath.FromSlash(targetValue))
+	info, err := os.Stat(target)
+	if err != nil {
+		return fmt.Errorf("target not found: %s", targetValue)
+	}
+	if ref.Marker == markedrefs.MarkerDoc {
+		if info.IsDir() {
+			return fmt.Errorf("doc reference points to directory, not file: %s", targetValue)
+		}
+		ext := strings.ToLower(filepath.Ext(targetValue))
+		if ext != ".md" && ext != ".mdx" {
+			return fmt.Errorf("doc reference must point to .md or .mdx file: %s", targetValue)
+		}
+	}
+	return nil
+}
+
+func markedRefIssue(docPath string, ref markedrefs.Reference, reason string) MarkedRefIssue {
+	return MarkedRefIssue{
+		DocPath: docPath,
+		Line:    ref.Line,
+		Marker:  ref.Marker,
+		Target:  ref.Value,
+		Raw:     ref.Raw,
+		Reason:  reason,
+	}
+}
+
+func sortMarkedRefIssues(issues []MarkedRefIssue) {
+	sort.Slice(issues, func(i, j int) bool {
+		if issues[i].DocPath != issues[j].DocPath {
+			return issues[i].DocPath < issues[j].DocPath
+		}
+		if issues[i].Line != issues[j].Line {
+			return issues[i].Line < issues[j].Line
+		}
+		return issues[i].Target < issues[j].Target
+	})
 }
 
 // findOrphanedDocs finds docs not registered in manifest.json.

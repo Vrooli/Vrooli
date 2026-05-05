@@ -4,6 +4,8 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 
+/* eslint-disable react-refresh/only-export-components -- class error boundaries are component exports by design. */
+
 type Props = {
   children: ReactNode;
   fallback?: ReactNode;

@@ -1,7 +1,6 @@
 package notes
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
 	clitest "{{SCENARIO_ID}}/cli/internal/testutil"
 )
@@ -72,16 +72,6 @@ func (s *notesService) GetNote(_ context.Context, req *connect.Request[notesv1.G
 	return connect.NewResponse(s.getResp), nil
 }
 
-// runCtx builds a captured-stdout RunContext bound to the given core. Tests
-// use this to drive RunCtx-style handlers without the full App dispatcher.
-func runCtx(core *cliapp.ScenarioApp, schema cliapp.ArgSchema, opts cliapp.TestRunContextOptions) (cliapp.RunContext, *bytes.Buffer) {
-	var buf bytes.Buffer
-	opts.Schema = schema
-	opts.Core = core
-	opts.Stdout = &buf
-	return cliapp.NewTestRunContext(opts), &buf
-}
-
 func connectAPI(t *testing.T, svc *notesService) http.Handler {
 	t.Helper()
 	path, handler := notesconnect.NewNotesServiceHandler(svc)
@@ -107,7 +97,7 @@ func TestNotesList_RendersResults(t *testing.T) {
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{})
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
 
 	require.NoError(t, h.list(ctx))
 	require.Contains(t, out.String(), "Found 2 note(s).")
@@ -127,7 +117,7 @@ func TestNotesList_JSONIsProtoWireShape(t *testing.T) {
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{JSON: true})
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{JSON: true})
 
 	require.NoError(t, h.list(ctx))
 
@@ -151,7 +141,7 @@ func TestNotesList_SurfacesConnectErrors(t *testing.T) {
 	svc := &notesService{listErr: connect.NewError(connect.CodeInternal, io.ErrUnexpectedEOF)}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, _ := runCtx(core, cliapp.ArgSchema{}, cliapp.TestRunContextOptions{})
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
 
 	err := h.list(ctx)
 	require.Error(t, err)
@@ -162,7 +152,7 @@ func TestNotesList_SurfacesConnectErrors(t *testing.T) {
 func TestNotesCreate_RequiresTitle(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	createCmd := findSubcommand(t, Register(core), "create")
-	_, err := cliapp.NewTestRunContextFromArgs(createCmd.Args, []string{}, core, nil, nil)
+	_, err := cliapptest.NewTestRunContextFromArgs(createCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required flag --title")
 }
@@ -171,9 +161,9 @@ func TestNotesCreate_CallsConnectClient(t *testing.T) {
 	svc := &notesService{createResp: &notesv1.CreateNoteResponse{Note: note("new", "hello")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := runCtx(core, cliapp.ArgSchema{
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{{Name: "title"}, {Name: "body"}},
-	}, cliapp.TestRunContextOptions{
+	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"title": "hello", "body": "world"},
 	})
 
@@ -192,9 +182,9 @@ func TestNotesCreate_JSONIsProtoWireShape(t *testing.T) {
 	svc := &notesService{createResp: &notesv1.CreateNoteResponse{Note: note("new", "hello")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := runCtx(core, cliapp.ArgSchema{
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{{Name: "title"}, {Name: "body"}},
-	}, cliapp.TestRunContextOptions{
+	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"title": "hello", "body": "world"},
 		JSON:  true,
 	})
@@ -220,9 +210,9 @@ func TestNotesGet_JSONIsProtoWireShape(t *testing.T) {
 	svc := &notesService{getResp: &notesv1.GetNoteResponse{Note: note("abc", "found")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := runCtx(core, cliapp.ArgSchema{
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
-	}, cliapp.TestRunContextOptions{
+	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"id": "abc"},
 		JSON:        true,
 	})
@@ -244,9 +234,9 @@ func TestNotesGet_ReportsNotFound(t *testing.T) {
 	svc := &notesService{getErr: connect.NewError(connect.CodeNotFound, io.ErrUnexpectedEOF)}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, _ := runCtx(core, cliapp.ArgSchema{
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
-	}, cliapp.TestRunContextOptions{
+	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"id": "ghost"},
 	})
 
@@ -259,9 +249,9 @@ func TestNotesGet_RendersNote(t *testing.T) {
 	svc := &notesService{getResp: &notesv1.GetNoteResponse{Note: note("abc", "found")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := runCtx(core, cliapp.ArgSchema{
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
-	}, cliapp.TestRunContextOptions{
+	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"id": "abc"},
 	})
 
@@ -274,7 +264,7 @@ func TestNotesGet_RendersNote(t *testing.T) {
 func TestNotesGet_RequiresID(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	getCmd := findSubcommand(t, Register(core), "get")
-	_, err := cliapp.NewTestRunContextFromArgs(getCmd.Args, []string{}, core, nil, nil)
+	_, err := cliapptest.NewTestRunContextFromArgs(getCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required positional <id>")
 }
@@ -294,7 +284,7 @@ func TestNotesAttach_UploadsMultipart(t *testing.T) {
 		gotBody = string(body)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write(clitest.MustMarshalProto(t, &notesv1.UploadAttachmentResponse{
+		_, _ = w.Write(cliapptest.MustMarshalProto(t, &notesv1.UploadAttachmentResponse{
 			Attachment: &notesv1.Attachment{
 				Key:       "notes/abc/attachments/note.txt",
 				MimeType:  "text/plain",
@@ -307,10 +297,10 @@ func TestNotesAttach_UploadsMultipart(t *testing.T) {
 	h := newHandlers(core)
 	tmp := t.TempDir() + "/note.txt"
 	require.NoError(t, os.WriteFile(tmp, []byte("hello"), 0o600))
-	ctx, out := runCtx(core, cliapp.ArgSchema{
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
 		Flags:       []cliapp.Flag{{Name: "file"}},
-	}, cliapp.TestRunContextOptions{
+	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"id": "abc"},
 		Flags:       map[string]string{"file": tmp},
 	})
@@ -325,7 +315,7 @@ func TestNotesAttach_UploadsMultipart(t *testing.T) {
 func TestNotesAttach_RequiresFile(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
 	attachCmd := findSubcommand(t, Register(core), "attach")
-	_, err := cliapp.NewTestRunContextFromArgs(attachCmd.Args, []string{"abc"}, core, nil, nil)
+	_, err := cliapptest.NewTestRunContextFromArgs(attachCmd.Args, []string{"abc"}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required flag --file")
 }

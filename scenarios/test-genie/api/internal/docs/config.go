@@ -1,8 +1,9 @@
 package docs
 
 import (
-	"test-genie/internal/shared"
 	"time"
+
+	"test-genie/internal/shared"
 )
 
 // DOC: docs/phases/docs/README.md#configuration
@@ -65,6 +66,8 @@ type ReferencesConfig struct {
 	ValidateCodeRefs *bool `json:"validate_code_refs"`
 	// ValidateDocRefs checks // DOC: comments in code point to valid docs. Default: true.
 	ValidateDocRefs *bool `json:"validate_doc_refs"`
+	// ValidateMarkedRefs checks marked path/doc inline refs in docs. Default: true.
+	ValidateMarkedRefs *bool `json:"validate_marked_refs"`
 	// CodeExtensions lists file extensions to scan for DOC: comments.
 	CodeExtensions []string `json:"code_extensions"`
 	// Strict fails on broken references (default: false = warnings only).
@@ -109,12 +112,13 @@ func DefaultSettings() *Settings {
 			Enabled: boolPtr(true),
 		},
 		References: &ReferencesConfig{
-			Enabled:          boolPtr(true),
-			ValidateCodeRefs: boolPtr(true),
-			ValidateDocRefs:  boolPtr(true),
-			CodeExtensions:   []string{".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"},
-			Strict:           boolPtr(false),
-			SkipDirs:         nil,
+			Enabled:            boolPtr(true),
+			ValidateCodeRefs:   boolPtr(true),
+			ValidateDocRefs:    boolPtr(true),
+			ValidateMarkedRefs: boolPtr(true),
+			CodeExtensions:     []string{".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"},
+			Strict:             boolPtr(false),
+			SkipDirs:           nil,
 		},
 		Manifest: &ManifestConfig{
 			Enabled:                  boolPtr(false),
@@ -200,6 +204,13 @@ func (s *Settings) docRefsEnabled() bool {
 		return true
 	}
 	return *s.References.ValidateDocRefs
+}
+
+func (s *Settings) markedRefsEnabled() bool {
+	if s == nil || s.References == nil || s.References.ValidateMarkedRefs == nil {
+		return true
+	}
+	return *s.References.ValidateMarkedRefs
 }
 
 func (s *Settings) referencesStrict() bool {

@@ -22,6 +22,7 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 - [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md) for the current platform mental model
 - [concepts/GLOSSARY.md](concepts/GLOSSARY.md) for shared vocabulary
 - [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
+- [reference/machine-readable-references.md](reference/machine-readable-references.md) for `[CODE:]` / `[DOC:]` traceability references and marked inline references such as `path:...` and `topic:...`
 
 ## Canonical Areas
 
@@ -29,6 +30,7 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 - [marketing/](marketing/) — voice, audiences, channels, campaigns, brand assets, image-style guide
 - [guides/README.md](guides/README.md) for contributor and operator workflows
 - [reference/cli-commands.md](reference/cli-commands.md) for CLI and control-plane reference
+- [reference/machine-readable-references.md](reference/machine-readable-references.md) for machine-readable reference syntax used by docs scanners and agent instructions
 - [operations/README.md](operations/README.md) for live operational guidance
 - [deployment/README.md](deployment/README.md) for deployment tiers and maturity
 - [scenarios/README.md](scenarios/README.md) for the scenario ecosystem

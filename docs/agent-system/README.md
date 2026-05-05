@@ -100,6 +100,7 @@ For a first read, use this order:
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry (template→reference pair, generation date, audit cadence), nomination + demotion rules, rot triage including template-rot |
 | `REFERENCE_PATTERN_FITNESS.md` | canon | Audit lens for artifacts that exist to be copied (templates, references, canonical examples). Composes with scenario-qa's single-instance audit lenses; owned by `toolchain-validator` on `meta-optimization` |
+| `SHARED_PACKAGE_TESTING.md` | canon | `<pkg>test` sibling-package convention for shared Go package fakes, harnesses, and consumer-facing test helpers |
 | `NOTEBOOK_DEBT_TAXONOMY.md` | canon (taxonomy) | Cross-team taxonomy for notebook-debt curation; cited by any member whose intake taxonomy is `notebook-debt` |
 | `_outline.md` | migration record | Historical migration manifest mapping source-skill sections to destination PoR files |
 | `drafts/` | folder | Synthesis-in-flux content not yet promoted to canon. Subject to faster churn; reviewed by meta-optimization before promotion |

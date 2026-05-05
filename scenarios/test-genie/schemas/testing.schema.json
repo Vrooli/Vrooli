@@ -500,6 +500,11 @@
               "type": "boolean",
               "default": true
             },
+            "validate_marked_refs": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate marked inline path/doc references such as `path:...` and `doc:...`"
+            },
             "code_extensions": {
               "type": "array",
               "items": {

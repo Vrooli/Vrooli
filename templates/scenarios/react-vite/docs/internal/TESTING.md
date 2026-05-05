@@ -76,12 +76,11 @@ api/
    in microseconds; the cost of the bug class it catches is measured
    in incidents.
 4. **`assertx`** — `AssertStatus(t, resp, want)` for status code
-   checks (dumps body on mismatch); `MustUnmarshalProto[T proto.Message]
-   (t, body) *T` for proto-typed JSON decoding (use this whenever the
+   checks (dumps body on mismatch); `MustUnmarshalProto` for proto-typed JSON
+   decoding (use this whenever the
    endpoint's wire shape lives in `packages/proto/schemas/`);
-   `MustDecodeJSON[T any](t, body) T` for ad-hoc JSON when no proto
-   exists yet. Resist over-generalising; add helpers when the third
-   caller appears.
+   `MustDecodeJSON` for ad-hoc JSON when no proto exists yet. Resist
+   over-generalising; add helpers when the third caller appears.
 5. **Generated proto types** — every endpoint's wire shape lives in
    `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<file>.proto`.
    Tests import the generated Go type directly
@@ -230,7 +229,15 @@ layer's tests focused on what that layer owns.
 
 The production `*log.Logger` shouldn't write to stderr during tests —
 it pollutes the runner's output and makes failure messages harder to
-read. The canonical substitution is a `bytes.Buffer`-backed logger:
+read. Connect handler tests should use the shared helper:
+
+```go
+logger, logBuf := connectxtest.NewLogger(t)
+client := newNotesClient(t, fakeService, logger)
+```
+
+For scenario-local helpers that do not consume `api-core/connectx`, the same
+shape is a `bytes.Buffer`-backed logger:
 
 ```go
 logBuf := &bytes.Buffer{}

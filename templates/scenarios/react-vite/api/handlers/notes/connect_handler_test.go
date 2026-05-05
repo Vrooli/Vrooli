@@ -1,18 +1,16 @@
 package notes_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"log"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/connectx"
+	connectxtest "github.com/vrooli/api-core/connectxtest"
 
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
@@ -25,13 +23,10 @@ import (
 func newNotesClient(t *testing.T, fake *mocks.FakeService, logger *log.Logger) notesconnect.NotesServiceClient {
 	t.Helper()
 	if logger == nil {
-		logger = log.New(&bytes.Buffer{}, "", 0)
+		logger, _ = connectxtest.NewLogger(t)
 	}
 	path, handler := notesconnect.NewNotesServiceHandler(notes.NewConnectHandler(notes.Deps{Service: fake, Logger: logger}))
-	router := mux.NewRouter()
-	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
-	server := httptest.NewServer(router)
-	t.Cleanup(server.Close)
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 	return notesconnect.NewNotesServiceClient(server.Client(), server.URL)
 }
 
@@ -89,8 +84,8 @@ func TestConnectHandlerGetReturnsNotFound(t *testing.T) {
 }
 
 func TestConnectHandlerGetInternalErrorLogs(t *testing.T) {
-	logBuf := &bytes.Buffer{}
-	client := newNotesClient(t, &mocks.FakeService{GetErr: errors.New("boom")}, log.New(logBuf, "", 0))
+	logger, logBuf := connectxtest.NewLogger(t)
+	client := newNotesClient(t, &mocks.FakeService{GetErr: errors.New("boom")}, logger)
 
 	_, err := client.GetNote(context.Background(), connect.NewRequest(&notesv1.GetNoteRequest{Id: "x"}))
 	require.Error(t, err)

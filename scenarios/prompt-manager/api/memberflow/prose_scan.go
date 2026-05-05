@@ -21,9 +21,10 @@
 //  2. Target enumeration (discoverProseTargets) — derives the explicit
 //     include-list from RepoRoot/ScanRoots per the doc's target table.
 //
-//  3. Pattern matchers (proseRegexes) — the five regexes from the doc's
-//     pattern set. cli-knowledge-* patterns are at error severity;
-//     backtick-topic-ref stays at warning permanently.
+//  3. Pattern matchers — the CLI regexes plus parser-backed marked topic
+//     refs and inferred unmarked backtick refs. cli-knowledge-* patterns
+//     are at error severity; topic refs inferred from backticks stay at
+//     warning permanently.
 //
 //  4. Code-block exclusion — line-by-line fenced-code-block tracker,
 //     enabled only for files under docs/agent-system/ per the doc's
@@ -54,6 +55,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/markedrefs"
 )
 
 // proseScanRule names this rule in Finding.Rule. Single source of truth
@@ -89,19 +92,21 @@ type proseTarget struct {
 
 // proseRegex is one scanner pattern. Severity here follows
 // docs/agent-system/PROSE_SCAN_TARGETS.md § Severity guidance; cli-*
-// patterns are at error severity, backtick-topic-ref at warning.
+// patterns are at error severity, marked/inferred topic refs at warning.
 type proseRegex struct {
 	Name     string
 	Severity Severity
-	Re       *regexp.Regexp
-	IsCLI    bool // true for cli-knowledge-*; false for backtick-topic-ref
-	IsWrite  bool // true when the pattern represents a write (knowledge-add / knowledge-update); false for reads
+	Re       *regexp.Regexp // nil for parser-backed patterns
+	IsCLI    bool           // true for cli-knowledge-*; false for marked/inferred refs
+	IsWrite  bool           // true when the pattern represents a write (knowledge-add / knowledge-update); false for reads
 }
 
-// proseRegexes is the locked pattern set from docs/agent-system/PROSE_SCAN_TARGETS.md
-// § Pattern set. Adding a pattern requires a doc change.
+// proseRegexes is the locked CLI regex set from docs/agent-system/PROSE_SCAN_TARGETS.md
+// § Pattern set. Parser-backed marked refs and inferred backtick refs are
+// appended by scanProseFile helpers below. Adding a pattern requires a doc
+// change.
 //
-// All five patterns capture the topic prefix in group 1; the captured
+// All CLI patterns capture the topic prefix in group 1; the captured
 // string may include `<...>` placeholders (treated as wildcard segments
 // by Overlap) and trailing `*` / `/`.
 var proseRegexes = []proseRegex{
@@ -139,20 +144,29 @@ var proseRegexes = []proseRegex{
 		IsCLI:    true,
 		IsWrite:  true,
 	},
-	{
+}
+
+var (
+	markedTopicPattern = proseRegex{
+		Name:     "marked-topic-ref",
+		Severity: SeverityWarning,
+		IsCLI:    false,
+		IsWrite:  false,
+	}
+	inferredBacktickTopicPattern = proseRegex{
 		// Note: this regex is built from an interpreted string, not
 		// a raw string, because a Go raw-string literal cannot
 		// contain a backtick. The two literal backticks at start /
 		// end of the body anchor the match to a backticked prose
 		// reference; the captured group requires at least one '/'
 		// to avoid matching bare identifiers like `audience-scan`.
-		Name:     "backtick-topic-ref",
+		Name:     "inferred-backtick-topic-ref",
 		Severity: SeverityWarning,
 		Re:       regexp.MustCompile("`([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)`"),
 		IsCLI:    false,
 		IsWrite:  false,
-	},
-}
+	}
+)
 
 // proseMatch is one regex hit on one file.
 type proseMatch struct {
@@ -557,29 +571,82 @@ func scanProseFile(t proseTarget) ([]proseMatch, error) {
 			continue
 		}
 
-		for _, pr := range proseRegexes {
-			for _, m := range pr.Re.FindAllStringSubmatch(line, -1) {
-				if len(m) < 2 {
-					continue
-				}
-				prefix := normalizeObservedPrefix(m[1])
-				if prefix == "" {
-					continue
-				}
-				out = append(out, proseMatch{
-					Target:  t,
-					Pattern: pr,
-					Prefix:  prefix,
-					Line:    lineNo,
-					RawLine: line,
-				})
-			}
-		}
+		out = append(out, scanProseLineCLI(t, line, lineNo)...)
+		out = append(out, scanProseLineMarkedTopicRefs(t, line, lineNo)...)
+		out = append(out, scanProseLineInferredBacktickTopicRefs(t, line, lineNo)...)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+func scanProseLineCLI(t proseTarget, line string, lineNo int) []proseMatch {
+	var out []proseMatch
+	for _, pr := range proseRegexes {
+		for _, m := range pr.Re.FindAllStringSubmatch(line, -1) {
+			if len(m) < 2 {
+				continue
+			}
+			prefix := normalizeObservedPrefix(m[1])
+			if prefix == "" {
+				continue
+			}
+			out = append(out, proseMatch{
+				Target:  t,
+				Pattern: pr,
+				Prefix:  prefix,
+				Line:    lineNo,
+				RawLine: line,
+			})
+		}
+	}
+	return out
+}
+
+func scanProseLineMarkedTopicRefs(t proseTarget, line string, lineNo int) []proseMatch {
+	var out []proseMatch
+	for _, ref := range markedrefs.ParseInlineCode(line, lineNo) {
+		if ref.Marker != markedrefs.MarkerTopic {
+			continue
+		}
+		if !markedrefs.RequiresExistence(ref) {
+			continue
+		}
+		prefix := normalizeObservedPrefix(ref.Value)
+		if prefix == "" {
+			continue
+		}
+		out = append(out, proseMatch{
+			Target:  t,
+			Pattern: markedTopicPattern,
+			Prefix:  prefix,
+			Line:    lineNo,
+			RawLine: line,
+		})
+	}
+	return out
+}
+
+func scanProseLineInferredBacktickTopicRefs(t proseTarget, line string, lineNo int) []proseMatch {
+	var out []proseMatch
+	for _, m := range inferredBacktickTopicPattern.Re.FindAllStringSubmatch(line, -1) {
+		if len(m) < 2 {
+			continue
+		}
+		prefix := normalizeObservedPrefix(m[1])
+		if prefix == "" {
+			continue
+		}
+		out = append(out, proseMatch{
+			Target:  t,
+			Pattern: inferredBacktickTopicPattern,
+			Prefix:  prefix,
+			Line:    lineNo,
+			RawLine: line,
+		})
+	}
+	return out
 }
 
 // normalizeObservedPrefix trims surrounding quotes the regex may have

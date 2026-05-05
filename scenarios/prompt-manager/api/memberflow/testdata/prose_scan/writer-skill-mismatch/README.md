@@ -12,7 +12,7 @@ Setup:
 
 Expected: a single `prose_topic_leak` warning rooted at
 `skill:report-friction` with prefix `bug-inbox/<scope>/<slug>`, matched by
-the `backtick-topic-ref` pattern.
+the `inferred-backtick-topic-ref` pattern.
 
 This fixture proves that writer-skill drift is caught even when the skill
 *does* declare some writes — i.e., the join is per-prefix, not per-skill.

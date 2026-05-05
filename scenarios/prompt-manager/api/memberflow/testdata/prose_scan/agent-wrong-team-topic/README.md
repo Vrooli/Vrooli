@@ -16,5 +16,5 @@ Setup:
 
 Expected: a single `prose_topic_leak` warning rooted at `agent:reviewer`
 with prefix `audit-report/<date>/<slug>`, matched by the
-`backtick-topic-ref` pattern. The detail string identifies the file and
+`inferred-backtick-topic-ref` pattern. The detail string identifies the file and
 line; the golden checks only the deterministic fields.

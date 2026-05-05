@@ -2,6 +2,7 @@ package docs
 
 import (
 	"fmt"
+
 	"test-genie/internal/shared"
 )
 
@@ -53,11 +54,15 @@ type Summary struct {
 	AbsoluteFailures int `json:"absoluteFailures"`
 
 	// Bidirectional reference tracking
-	CodeRefsFound    int `json:"codeRefsFound"`
-	CodeRefsBroken   int `json:"codeRefsBroken"`
-	DocRefsFound     int `json:"docRefsFound"`
-	DocRefsBroken    int `json:"docRefsBroken"`
-	CodeFilesScanned int `json:"codeFilesScanned"`
+	CodeRefsFound     int `json:"codeRefsFound"`
+	CodeRefsBroken    int `json:"codeRefsBroken"`
+	DocRefsFound      int `json:"docRefsFound"`
+	DocRefsBroken     int `json:"docRefsBroken"`
+	CodeFilesScanned  int `json:"codeFilesScanned"`
+	MarkedRefsFound   int `json:"markedRefsFound"`
+	MarkedRefsBroken  int `json:"markedRefsBroken"`
+	MarkedRefsSkipped int `json:"markedRefsSkipped"`
+	MarkedRefsUnknown int `json:"markedRefsUnknown"`
 
 	// Manifest tracking
 	DocsInManifest    int `json:"docsInManifest"`
@@ -70,9 +75,9 @@ func (s Summary) String() string {
 		s.FilesChecked, s.BrokenLinks, s.MermaidFailures, s.MarkdownFailures)
 
 	// Add reference metrics if any were found
-	if s.CodeRefsFound > 0 || s.DocRefsFound > 0 {
-		base += fmt.Sprintf(", code refs: %d found/%d broken, doc refs: %d found/%d broken",
-			s.CodeRefsFound, s.CodeRefsBroken, s.DocRefsFound, s.DocRefsBroken)
+	if s.CodeRefsFound > 0 || s.DocRefsFound > 0 || s.MarkedRefsFound > 0 {
+		base += fmt.Sprintf(", code refs: %d found/%d broken, doc refs: %d found/%d broken, marked refs: %d found/%d broken",
+			s.CodeRefsFound, s.CodeRefsBroken, s.DocRefsFound, s.DocRefsBroken, s.MarkedRefsFound, s.MarkedRefsBroken)
 	}
 
 	return base

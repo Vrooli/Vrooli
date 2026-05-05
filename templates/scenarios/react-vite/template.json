@@ -55,6 +55,16 @@
       "description": "Sync Go modules (go mod tidy)",
       "cmd": "GOWORK=off go mod tidy",
       "cwd": "api"
+    },
+    {
+      "description": "Format API Go sources (golangci-lint --fix)",
+      "cmd": "golangci-lint run --fix ./...",
+      "cwd": "api"
+    },
+    {
+      "description": "Format CLI Go sources (gofumpt)",
+      "cmd": "gofumpt -w .",
+      "cwd": "cli"
     }
   ],
   "relocations": [

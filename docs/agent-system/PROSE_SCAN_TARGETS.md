@@ -142,9 +142,12 @@ The discriminator is the literal substring `team knowledge-` immediately precedi
 | `cli-knowledge-list-topic` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic="campaign-draft/q2"` | **error** |
 | `cli-knowledge-list-prefix` | ` `prompt-manager team knowledge-list\b[^\n]*?--topic-prefix[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)*/?)"?` ` | `prompt-manager team knowledge-list marketing-crew --topic-prefix=audience-scan/` | **error** |
 | `cli-knowledge-update-topic` | ` `prompt-manager team knowledge-update\b[^\n]*?--topic[= ]"?([a-z][a-z0-9-]*(?:/[a-z0-9<>_*-]+)+)"?` ` | `prompt-manager team knowledge-update marketing-crew knw-abc --topic="audience-scan/keep"` | **error** |
-| `backtick-topic-ref` | `` `([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)` `` (a backticked string with at least one `/`, lower-kebab segments, optional `<>` placeholders, `*` wildcard) | `` `audience-scan/<date>/<slug>` ``, `` `bug-inbox/regression/cli-flag-confusion` `` | **warning** (looser; high false-positive risk) |
+| `marked-topic-ref` | parser-backed marked inline reference from `api-core/markedrefs` | `` `topic[example]:audience-scan/<date>/<slug>` `` for illustrative syntax; unqualified `topic:` refs require current declarations | **warning** |
+| `inferred-backtick-topic-ref` | `` `([a-z][a-z0-9-]*/[a-z0-9<>_*/-]+)` `` (an unmarked backticked string with at least one `/`, lower-kebab segments, optional `<>` placeholders, `*` wildcard) | `` `audience-scan/<date>/<slug>` ``, `` `bug-inbox/regression/cli-flag-confusion` `` | **warning** (inferred; high false-positive risk) |
 
-Captured group `1` is the topic prefix. The scanner treats segments containing `<...>` placeholders or trailing `*` as wildcards when joining against declarations (e.g., `audience-scan/<date>/<slug>` joins against the declared `audience-scan/*` output prefix).
+For regex-backed patterns, captured group `1` is the topic prefix. For `marked-topic-ref`, the value after the `topic:` marker is the topic prefix. The scanner treats segments containing `<...>` placeholders or trailing `*` as wildcards when joining against declarations (e.g., `audience-scan/<date>/<slug>` joins against the declared `audience-scan/*` output prefix).
+
+Marked topic references use the shared project syntax in `docs/reference/machine-readable-references.md`. The scanner validates only required `topic` refs. Qualified refs such as `topic[example]:...`, `topic[old]:...`, `topic[future]:...`, `topic[optional]:...`, `topic[external]:...`, and `topic[literal]:...` are parsed but do not require current topic declarations.
 
 ### What the scanner does **not** match
 
@@ -152,6 +155,7 @@ Captured group `1` is the topic prefix. The scanner treats segments containing `
 - Topic strings inside HTML comments (`<!-- ... -->`).
 - URL paths that happen to contain slashes (`https://example.com/a/b/c` does not look like a topic prefix because it has scheme-like prefixes; the regex requires lower-kebab segment shape and the absence of `://`).
 - Identifier strings without `/` (e.g. `audience-scan`) — bare prefixes are too generic to attribute.
+- Marked non-topic references such as `path:docs/agent-system/TOPICS.md`, `platform:darwin/arm64`, and `literal:if/else`.
 - Decision contexts and skill ids — these have their own validators.
 
 ### Code-block exclusion
@@ -164,7 +168,7 @@ Captured group `1` is the topic prefix. The scanner treats segments containing `
 
 `docs/agent-system/` is scanned with code-block exclusion enabled. Other targets (member prose, agent prose, writer-skill SKILL.md, non-`docs/agent-system/` docs) are scanned **without** code-block exclusion — those files have no pedagogical-example use case. This is the only target-conditional scanner setting.
 
-Backticked-string references (`backtick-topic-ref` pattern) remain at **warning** severity globally, even outside code blocks, because backticks are also used for non-topic identifiers (file paths, code symbols) and the regex over-matches.
+Marked topic references (`marked-topic-ref`) and inferred unmarked references (`inferred-backtick-topic-ref`) remain at **warning** severity globally, even outside code blocks. Marked topic refs are explicit, but they are still documentation references rather than executable commands. Inferred refs are useful as a permanent safety net for ambiguous or agent-generated prose, but the scanner had to guess their meaning.
 
 ---
 
@@ -175,17 +179,17 @@ This is the matrix the scanner consumes when joining a detected reference back t
 | Target | Detected pattern | Validation question | Declaration consulted |
 |---|---|---|---|
 | `members/<id>/RESPONSIBILITIES.md` `members/<id>/HEARTBEAT.md` | any `cli-knowledge-*` pattern | "Does this member's own `topics.json` declare a write/read for this prefix?" | The member's `output[]` (for `knowledge-add` / `knowledge-update`); the union of `intake[] ∪ required_read[] ∪ evidence_consumed[]` (for `knowledge-list`). |
-| `members/<id>/*.md` | `backtick-topic-ref` | "Is this prefix declared by **some** team member?" | Team-wide union of all members' `topics.json` declarations (warning severity). |
+| `members/<id>/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | "Is this prefix declared by **some** team member?" | Team-wide union of all members' `topics.json` declarations (warning severity). |
 | `shared/TEAM.md` `shared/<other>.md` | any `cli-knowledge-*` pattern | "Is this prefix declared by some member of this team?" | Team-wide union of all members' `topics.json` declarations. |
-| `shared/<other>.md` | `backtick-topic-ref` | same | same (warning severity). |
+| `shared/<other>.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
 | `agents/<id>/SOUL.md` `agents/<id>/AGENTS.md` `agents/<id>/TOOLS.md` | any `cli-knowledge-*` pattern | "Is this prefix declared by **some** team that binds this agent?" | Union of `topics.json` declarations across every `store/teams/<team>/members/<id>/topics.json` matching this agent id. |
-| `agents/<id>/*.md` | `backtick-topic-ref` | same | same (warning severity). |
+| `agents/<id>/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
 | `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `cli-knowledge-add-topic`, `cli-knowledge-update-topic` (write patterns) | "Is this prefix in this skill's `writes_to[]`?" | The skill's `skill.json::writes_to[]`. Strict — prefixes declared elsewhere do NOT satisfy a write-pattern check. |
 | `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `cli-knowledge-list-topic`, `cli-knowledge-list-prefix` (read patterns) | "Is this prefix in this skill's `writes_to[]` OR declared by any team?" | Union of the skill's own `writes_to[]` and the global declaration set. Drift fires only when neither covers the prefix. |
-| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `backtick-topic-ref` | same as read patterns above (warning severity). | Union of `writes_to[]` and global declaration set. |
+| `skills/packs/<pack>/<id>/SKILL.md` (writer skill) | `marked-topic-ref`, `inferred-backtick-topic-ref` | same as read patterns above (warning severity). | Union of `writes_to[]` and global declaration set. |
 | `skills/packs/<pack>/<id>/SKILL.md` (classifier or generic skill) | any pattern (CLI or backtick) | "Are there ANY topic references at all? (There must not be.)" | None — every match is a finding. |
 | `docs/<domain>/**/*.md` | any `cli-knowledge-*` pattern | "Is this prefix declared **anywhere** in the system?" | Global union of all members' `topics.json` declarations across all teams. |
-| `docs/<domain>/**/*.md` | `backtick-topic-ref` | same | same (warning severity). |
+| `docs/<domain>/**/*.md` | `marked-topic-ref`, `inferred-backtick-topic-ref` | same | same (warning severity). |
 | `docs/agent-system/*.md` | any pattern, **inside fenced code block** | n/a (excluded by code-block rule) | n/a |
 
 **No-match outcome:** the scanner emits a `prose_topic_leak` finding with the file path, line number, the captured prefix, the owner key, and the consulted declaration set's hash (so the operator can reproduce). Severity is per the matrix above; warnings flow to `findings.json` but don't fail CI; errors do.
@@ -196,7 +200,7 @@ This is the matrix the scanner consumes when joining a detected reference back t
 
 ## Severity guidance
 
-`cli-knowledge-*` patterns fire at **error** severity; `backtick-topic-ref` fires at **warning**. The split exists because backticks are also used for non-topic identifiers (file paths, code symbols, slashed identifiers that happen to look like topic prefixes) — the false-positive rate is too high to gate CI on. `prompt-manager graph topics` exits non-zero on any new `cli-knowledge-*` finding; CI uses this as a regression gate. The `backtick-topic-ref` pattern is a perpetual hint rather than a CI gate.
+`cli-knowledge-*` patterns fire at **error** severity; `marked-topic-ref` and `inferred-backtick-topic-ref` fire at **warning**. The split exists because CLI references are executable instructions, while inline topic references are documentation references. Inferred backtick refs also have a higher false-positive risk because backticks are used for file paths, code symbols, and slashed identifiers that happen to look like topic prefixes. `prompt-manager graph topics` exits non-zero on any new `cli-knowledge-*` finding; CI uses this as a regression gate. Inferred backtick refs are a perpetual safety net rather than a temporary migration rule.
 
 ### Placeholder-segment normalization
 
@@ -210,7 +214,7 @@ The `cli-knowledge-list-prefix` pattern captures `--topic-prefix=foo/`, which th
 
 ### Read/write split for writer-skill SKILL.md
 
-Writer-skill prose distinguishes write patterns (`cli-knowledge-add-topic`, `cli-knowledge-update-topic`) from read patterns (`cli-knowledge-list-topic`, `cli-knowledge-list-prefix`, `backtick-topic-ref`):
+Writer-skill prose distinguishes write patterns (`cli-knowledge-add-topic`, `cli-knowledge-update-topic`) from read patterns (`cli-knowledge-list-topic`, `cli-knowledge-list-prefix`, `marked-topic-ref`, `inferred-backtick-topic-ref`):
 
 - **Write pattern:** must overlap the skill's own `skill.json::writes_to[]`. A reference to a prefix declared elsewhere does not satisfy this — the skill is claiming producer-side authority it does not have.
 - **Read pattern:** clean if the prefix overlaps the skill's own `writes_to[]` (the skill may read its own past writes) **or** any team's declaration set (the skill is documenting the storage shape of a topic some member already owns). Drift fires only when the prefix is undeclared anywhere.

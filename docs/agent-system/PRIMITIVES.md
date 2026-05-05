@@ -165,7 +165,7 @@ A new validation requirement should land in the existing pillar that fits its so
 Cross-cutting validator rules implemented in `scenarios/prompt-manager/api/memberflow/`:
 
 - **P1 rules** (errors in CI): `orphan_input`, `conflicting_drain`, `unknown_taxonomy`, `missing_taxonomy`, `dangling_por_sink`, `dangling_evidence_decision`, `unread_required`. Warnings: `orphan_output`, `wildcard_source_misuse`, `missing_destination_schema`, `topic_key_prefix_mismatch`, `stalled_drain`, `piling_inbox`.
-- **P2 rules**: `prose_topic_leak`. Subpattern severity is split: `cli-knowledge-*` matches are errors (declarations have a place to land); `backtick-topic-ref` stays a warning (false-positive prone). See `PROSE_SCAN_TARGETS.md` § Severity by subpattern.
+- **P2 rules**: `prose_topic_leak`. Subpattern severity is split: `cli-knowledge-*` matches are errors (declarations have a place to land); `marked-topic-ref` and `inferred-backtick-topic-ref` stay warnings. Inferred unmarked matches are a permanent backstop because agents may omit markers and backticks are also used for file paths, code symbols, and other slashed identifiers. See `PROSE_SCAN_TARGETS.md` § Severity by subpattern.
 - **P3 rules**: `actual_writer_undeclared` (error for the agent-member subcase, warning for the external-threshold subcase), `attribution_malformed` (error).
 
 `prompt-manager graph topics` runs all three pillars together. CI captures a stable JSON artifact via `--findings-out=<path>` for diff-against-previous-run telemetry; without the flag the command is human-output-only (no surprise file writes for interactive use). The artifact's on-disk shape is versioned (`schema_version: 1`); see `scenarios/prompt-manager/cli/graph/findings_artifact.go` for the contract.

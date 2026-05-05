@@ -7,6 +7,8 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Scenario discovery** - Runtime port resolution for inter-scenario communication
 - **Secrets access** - Contract-backed local plaintext secret loading with trust validation
 - **Storage path resolution** - Profile-aware runtime directories with safe joins and atomic writes
+- **Marked references** - Shared parser for typed inline references such as `path:...` and `topic:...`
+- **Relationship references** - Shared parser for `[CODE:]`, `[DOC:]`, and `[REQ:]` documentation edges
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
 
 ## Quick Start
@@ -59,7 +61,17 @@ vrooli package dependents api-core
 vrooli package refresh api-core all --no-restart
 ```
 
-Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
+Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. See [docs/package-governance.md](../../docs/package-governance.md) for the canonical policy.
+
+## Test Companions
+
+Shared-package consumer test helpers live in top-level `<pkg>test` sibling
+packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_PACKAGE_TESTING.md).
+
+- `databasetest` provides `FakeExecer`, the canonical fake for
+  `database.SchemaExecer`.
+- `connectxtest` provides Connect handler server and logger harnesses for
+  tests that consume `connectx`.
 
 ## Database Connections
 

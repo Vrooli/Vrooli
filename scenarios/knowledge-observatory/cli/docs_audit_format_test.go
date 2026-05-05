@@ -121,6 +121,33 @@ func TestRenderDocsAuditReport_WarnAutoFixOnly(t *testing.T) {
 	}
 }
 
+func TestRenderDocsAuditReport_MarkedRefFindings(t *testing.T) {
+	report := docsdomain.RenderAuditReport(docsdomain.AuditResponse{
+		ScenarioName:      "delta",
+		HealthScore:       0.99,
+		TotalDocs:         7,
+		MarkedRefsFound:   4,
+		MarkedRefsSkipped: 1,
+		BrokenMarkedRefs: []docsdomain.AuditMarkedRefIssue{
+			{DocPath: "docs/guide.md", Line: 12, Marker: "path", Target: "missing.go", Raw: "`path:missing.go`", Reason: "target not found: missing.go"},
+		},
+		UnknownMarkedRefs: []docsdomain.AuditMarkedRefIssue{
+			{DocPath: "README.md", Line: 4, Marker: "made-up", Target: "value", Raw: "`made-up:value`"},
+		},
+	}, "")
+
+	assertContainsAll(t, report,
+		"Status: FAIL (drivers: 1 broken marked refs, 1 unknown marked refs)",
+		"Findings: 2 total",
+		"Manual review (2)",
+		"Broken marked refs (1)",
+		"docs/guide.md:12 -> `path:missing.go` (target not found: missing.go)",
+		"Unknown marked refs (1)",
+		"README.md:4 -> `made-up:value`",
+		"knowledge-observatory docs audit delta --json",
+	)
+}
+
 func TestRenderDocsAuditReport_ManualOverflowShowsPlusMore(t *testing.T) {
 	manual := make([]docsdomain.AuditUndocumentedFile, 0, 12)
 	for i := 0; i < 12; i++ {

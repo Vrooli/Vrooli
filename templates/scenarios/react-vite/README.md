@@ -70,7 +70,7 @@ The lifecycle exports everything automatically when you run `make start` (`vrool
 | `API_TOKEN` | — | Shared secret the CLI/API uses for authentication (only enforce in deployed scenarios) |
 | `VITE_API_BASE_URL` | — | UI → API bridge. Default: `http://localhost:${API_PORT}/api/v1`. |
 
-> Canonical bands sit below 32768 so Linux never hands the ports out as outbound source ports. See [docs/reference/port-allocation.md](../../../docs/reference/port-allocation.md) for the full policy. Scenarios that add WebSocket channels declare a `websocket` port (canonical band `25000-29999`) under `.vrooli/service.json` `ports`.
+> Canonical bands sit below 32768 so Linux never hands the ports out as outbound source ports. See [docs/reference/port-allocation.md](../../docs/reference/port-allocation.md) for the full policy. Scenarios that add WebSocket channels declare a `websocket` port (canonical band `25000-29999`) under `.vrooli/service.json` `ports`.
 
 > Tip: when running outside the lifecycle, fetch ports with `vrooli scenario port <name> API_PORT` (or `UI_PORT`) and then export `VITE_API_BASE_URL` accordingly:
 

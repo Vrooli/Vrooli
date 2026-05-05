@@ -78,7 +78,10 @@ phase — it's how you learn the pattern by copying.
    There is no per-domain hand-written JSON decode/encode ribbon and
    no separate `endpoints.go`. The proto service is the wire contract;
    `module.go` keeps the generated endpoint metadata local for the
-   manifest.
+   manifest. In Connect handler tests, keep only the domain-specific
+   client helper and delegate shared server/logger plumbing to
+   `api-core/connectxtest.StartTestServer` and
+   `api-core/connectxtest.NewLogger`.
 
 4. **Wire into the registry + main.** Three single-line edits.
 
@@ -164,7 +167,10 @@ phase — it's how you learn the pattern by copying.
      If a handler needs the human `ctx.RenderList` / `ctx.RenderMutation`
      path without proto-typed JSON (e.g., it aggregates multiple sources
      into one report), use those directly — `RenderProto*` is the
-     proto-payload shortcut, not a hard requirement.
+     proto-payload shortcut, not a hard requirement. In CLI handler
+     tests, build contexts through `cli-core/cliapptest.NewTestRunContext`
+     or `NewTestRunContextFromArgs`; keep `cliapp` for production types
+     and behavior, not as the test-helper import path.
 
 6. **Multipart endpoint, when the domain needs opaque bytes.** Keep
    binary upload as REST multipart and keep metadata proto-typed:

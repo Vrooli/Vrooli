@@ -104,22 +104,63 @@ func TestProseRegex_KnowledgeUpdateTopic_Matches(t *testing.T) {
 	}
 }
 
-func TestProseRegex_BacktickRef_Matches(t *testing.T) {
+func TestProseScanner_InferredBacktickRef_Matches(t *testing.T) {
 	line := "Drain entries on `audience-scan/<date>/<slug>` every tick."
-	got := findFirstByName(t, "backtick-topic-ref", line)
-	if got != "audience-scan/<date>/<slug>" {
-		t.Fatalf("got %q", got)
+	matches := scanProseLineInferredBacktickTopicRefs(proseTarget{}, line, 1)
+	if len(matches) != 1 {
+		t.Fatalf("expected one inferred topic ref, got %+v", matches)
+	}
+	if matches[0].Pattern.Name != "inferred-backtick-topic-ref" {
+		t.Fatalf("pattern = %q", matches[0].Pattern.Name)
+	}
+	if matches[0].Prefix != "audience-scan/<date>/<slug>" {
+		t.Fatalf("prefix = %q", matches[0].Prefix)
 	}
 }
 
-func TestProseRegex_BacktickRef_RejectsBareIdentifier(t *testing.T) {
+func TestProseScanner_InferredBacktickRef_RejectsBareIdentifier(t *testing.T) {
 	// Bare identifier without a slash must not fire — too generic to
 	// attribute, per PROSE_SCAN_TARGETS.md § What the scanner does not
 	// match.
 	line := "The `audience-scan` taxonomy lives under docs/marketing/."
-	got := findFirstByName(t, "backtick-topic-ref", line)
-	if got != "" {
-		t.Fatalf("expected no match for bare id, got %q", got)
+	matches := scanProseLineInferredBacktickTopicRefs(proseTarget{}, line, 1)
+	if len(matches) != 0 {
+		t.Fatalf("expected no match for bare id, got %+v", matches)
+	}
+}
+
+func TestProseScanner_MarkedTopicRef_Matches(t *testing.T) {
+	line := "Drain entries on `topic:audience-scan/<date>/<slug>` every tick."
+	matches := scanProseLineMarkedTopicRefs(proseTarget{}, line, 1)
+	if len(matches) != 1 {
+		t.Fatalf("expected one marked topic ref, got %+v", matches)
+	}
+	if matches[0].Pattern.Name != "marked-topic-ref" {
+		t.Fatalf("pattern = %q", matches[0].Pattern.Name)
+	}
+	if matches[0].Prefix != "audience-scan/<date>/<slug>" {
+		t.Fatalf("prefix = %q", matches[0].Prefix)
+	}
+}
+
+func TestProseScanner_MarkedTopicRef_QualifiedExamplesDoNotRequireExistence(t *testing.T) {
+	for _, line := range []string{
+		"Use `topic[example]:audience-scan/<date>/<slug>` in examples.",
+		"Old docs may mention `topic[old]:retired-inbox/foo`.",
+		"Literal text can be `topic[literal]:if/else`.",
+	} {
+		matches := scanProseLineMarkedTopicRefs(proseTarget{}, line, 1)
+		if len(matches) != 0 {
+			t.Fatalf("expected qualified marked topic not to validate for line %q, got %+v", line, matches)
+		}
+	}
+}
+
+func TestProseScanner_MarkedNonTopicRefsDoNotMatchTopics(t *testing.T) {
+	line := "See `path:docs/agent-system/TOPICS.md`, `platform:darwin/arm64`, and `literal:if/else`."
+	matches := scanProseLineMarkedTopicRefs(proseTarget{}, line, 1)
+	if len(matches) != 0 {
+		t.Fatalf("expected non-topic marked refs to be ignored, got %+v", matches)
 	}
 }
 
@@ -539,6 +580,46 @@ func TestRuleProseTopicLeak_AgentTemplateJoinsAcrossBindingTeams(t *testing.T) {
 	for _, f := range findings {
 		if f.OwnerKey == "agent:researcher" {
 			t.Errorf("agent ref for prefix declared by binding team should be clean, got %+v", f)
+		}
+	}
+}
+
+func TestRuleProseTopicLeak_MarkedTopicRefFiresWhenUndeclared(t *testing.T) {
+	root := buildSyntheticRepo(t)
+	mustWriteFile(t,
+		filepath.Join(root, "scenarios", "prompt-manager", "store",
+			"teams", "marketing-crew", "members", "researcher", "RESPONSIBILITIES.md"),
+		"Drain `topic:campaign-draft/<slug>` when campaign drafts arrive.\n",
+	)
+
+	findings := ruleProseTopicLeak(nil, ValidationOptions{ScanRoots: []string{root}})
+
+	var got Finding
+	for _, f := range findings {
+		if f.OwnerKey == "team:marketing-crew/researcher" && f.Prefix == "campaign-draft/<slug>" {
+			got = f
+			break
+		}
+	}
+	if got.Rule == "" {
+		t.Fatalf("expected marked topic ref finding, got %s", debugFindings(findings))
+	}
+	if got.Severity != SeverityWarning || !strings.Contains(got.Detail, "marked-topic-ref") {
+		t.Fatalf("unexpected marked topic finding: %+v", got)
+	}
+}
+
+func TestRuleProseTopicLeak_MarkedNonTopicRefsStayClean(t *testing.T) {
+	root := buildSyntheticRepo(t)
+	mustWriteFile(t,
+		filepath.Join(root, "docs", "agent-system", "PRIMITIVES.md"),
+		"See `path:docs/agent-system/TOPICS.md`, `platform:darwin/arm64`, and `literal:if/else`.\n",
+	)
+
+	findings := ruleProseTopicLeak(nil, ValidationOptions{ScanRoots: []string{root}})
+	for _, f := range findings {
+		if strings.Contains(f.Detail, "marked-topic-ref") || strings.Contains(f.Detail, "inferred-backtick-topic-ref") {
+			t.Fatalf("non-topic marked refs should stay clean, got %+v", f)
 		}
 	}
 }

@@ -77,7 +77,7 @@ mirror exists to drift.
 
 The codegen pipeline runs entirely on local plugins (no BSR network
 calls), so it works in CI, on flight Wi-Fi, and inside firewalled
-runners. See [`proto/README.md`](../../proto/README.md) and the
+runners. See [`packages/proto/schemas/{{SCENARIO_ID}}/README.md`](../../../../packages/proto/schemas/{{SCENARIO_ID}}/README.md) and the
 project-level proto pipeline guide for details.
 
 ### Connect-RPC vs REST

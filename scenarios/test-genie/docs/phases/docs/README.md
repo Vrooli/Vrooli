@@ -5,7 +5,7 @@
 **Optional**: No
 **Requires Runtime**: No
 
-The docs phase validates Markdown health before any runtime-dependent tests run. It catches broken docs that block agents: malformed Markdown, invalid mermaid diagrams, broken links (local and external), absolute filesystem paths that hurt portability, and broken bidirectional code↔documentation references.
+The docs phase validates Markdown health before any runtime-dependent tests run. It catches broken docs that block agents: malformed Markdown, invalid mermaid diagrams, broken links (local and external), absolute filesystem paths that hurt portability, broken bidirectional code↔documentation references, and broken marked inline `path` / `doc` references.
 
 ## Pipeline Position
 
@@ -32,7 +32,7 @@ graph TB
         MERMAID[Mermaid<br/>Header + bracket sanity]
         LINKS[Links<br/>Local + external checks]
         ABS[Absolute Paths<br/>Block OS-rooted paths]
-        REFS[Bidirectional Refs<br/>CODE: ↔ DOC: validation]
+        REFS[References<br/>CODE: ↔ DOC + marked refs]
         MANIFEST[Manifest<br/>Coverage tracking]
     end
 
@@ -63,6 +63,7 @@ The docs phase performs 6 validation checks:
 | Link integrity | Local paths must exist; external URLs HTTP-checked | Enabled |
 | Absolute paths | Reject OS-rooted paths unless allowlisted | Enabled |
 | **Bidirectional refs** | Validate `[CODE: ...]` in docs and `// DOC:` in code | Enabled (warn) |
+| **Marked refs** | Validate required `path:...` and `doc:...` inline refs | Enabled (warn) |
 | **Manifest coverage** | Track docs registered in `docs/manifest.json` | Disabled |
 
 ## Bidirectional Reference Validation
@@ -87,6 +88,15 @@ The docs phase validates bidirectional references between code and documentation
 | `[CODE: path/file.ext]` | `// DOC: docs/file.md` |
 | `[CODE: path/file.ext#Function]` | `/* DOC: docs/file.md */` |
 | `[CODE: path/file.ext:42]` | `# DOC: docs/file.md#section` |
+
+Marked inline references use the project-level syntax from `docs/reference/machine-readable-references.md`. Test Genie validates required `path` and `doc` refs against the scenario directory:
+
+| Syntax | Behavior |
+|--------|----------|
+| `` `path:src/main.go` `` | Target file or directory must exist |
+| `` `doc:docs/guide.md#section` `` | Target `.md` / `.mdx` file must exist |
+| `` `path[example]:missing.go` `` | Parsed and counted, but current existence is not required |
+| `` `topic:team/foo` `` | Parsed and skipped by Test Genie; prompt-manager owns topic validation |
 
 ### Checks
 
@@ -116,6 +126,7 @@ The docs phase validates bidirectional references between code and documentation
       "enabled": true,
       "validate_code_refs": true,
       "validate_doc_refs": true,
+      "validate_marked_refs": true,
       "code_extensions": [".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"],
       "strict": false,
       "skip_dirs": ["generated"]
@@ -146,6 +157,7 @@ The docs phase validates bidirectional references between code and documentation
 | `references.enabled` | `true` | Toggle bidirectional reference validation |
 | `references.validate_code_refs` | `true` | Check `[CODE: ...]` references in docs |
 | `references.validate_doc_refs` | `true` | Check `// DOC:` comments in code |
+| `references.validate_marked_refs` | `true` | Check required marked `path` and `doc` refs in docs |
 | `references.code_extensions` | `[".ts", ".go", ...]` | File extensions to scan for DOC: comments |
 | `references.strict` | `false` | Fail on broken references (warn only when `false`) |
 | `references.skip_dirs` | `[]` | Additional directories to skip when scanning code |
@@ -190,4 +202,6 @@ The phase returns a `Summary` struct with these metrics:
 | `codeRefsFound` / `codeRefsBroken` | `[CODE: ...]` reference results |
 | `docRefsFound` / `docRefsBroken` | `// DOC:` comment results |
 | `codeFilesScanned` | Code files scanned for DOC: comments |
+| `markedRefsFound` / `markedRefsBroken` | Marked inline reference results |
+| `markedRefsSkipped` / `markedRefsUnknown` | Marked refs skipped by qualifier/domain and refs with unknown markers |
 | `docsInManifest` / `docsNotInManifest` | Manifest coverage |

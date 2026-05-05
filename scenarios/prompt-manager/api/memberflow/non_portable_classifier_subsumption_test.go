@@ -9,7 +9,7 @@
 // forbid is now caught by the broader Pillar 2 prose scanner:
 //
 //   - Inbox topic-prefix coupling (e.g. `research-inbox/<date>`) — caught
-//     by `backtick-topic-ref` for backticked references and by the
+//     by `inferred-backtick-topic-ref` for backticked references and by the
 //     `cli-knowledge-*` regexes for full CLI invocations.
 //
 //   - Knowledge-write CLI invocations with a `--topic` flag (the only
@@ -19,7 +19,7 @@
 //
 //   - Per-team filesystem-path coupling (e.g.
 //     `teams/marketing-crew/members/...`) expressed as a backticked
-//     directory reference — caught by `backtick-topic-ref`. Note: the
+//     directory reference — caught by `inferred-backtick-topic-ref`. Note: the
 //     trailing `.json` form (`.../topics.json`) is not captured because
 //     the topic-character class deliberately excludes dots; SKILL.md
 //     authors who want to point at a specific file backtick the
