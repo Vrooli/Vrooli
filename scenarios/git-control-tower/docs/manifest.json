@@ -48,11 +48,7 @@
     {
       "id": "plans",
       "title": "Plans",
-      "documents": [
-        { "id": "branching-plan",            "title": "Branching Plan",                     "path": "plans/BRANCHING_PLAN.md" },
-        { "id": "test-architecture",         "title": "Test Architecture Improvement Plan", "path": "plans/test-architecture-improvement-plan.md" },
-        { "id": "workspace-sandbox",         "title": "Workspace Sandbox Integration Plan", "path": "plans/workspace-sandbox-integration-plan.md" }
-      ]
+      "documents": []
     },
     {
       "id": "perf",

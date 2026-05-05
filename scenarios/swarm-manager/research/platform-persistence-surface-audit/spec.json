@@ -2,7 +2,6 @@
   "acceptance_allow": [
     "docs/scenarios/storage.md",
     "docs/resources/storage.md",
-    "docs/plans/storage-standardization-implementation-plan.md",
     "scenarios/**",
     "resources/**",
     "packages/api-core/storage/**",

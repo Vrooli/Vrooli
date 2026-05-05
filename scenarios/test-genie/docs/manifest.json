@@ -69,9 +69,7 @@
       "icon": "map",
       "description": "Detailed implementation plans for features",
       "documents": [
-        { "path": "plans/bidirectional-reference-validation.md", "title": "Bidirectional Reference Validation", "description": "Implementation plan for CODE:/DOC: reference validation" },
-        { "path": "plans/lint-phase-greenfield-redesign-plan.md", "title": "Lint Phase Greenfield Redesign", "description": "Authoritative greenfield plan for component-based lint validation" },
-        { "path": "plans/standards-phase-implementation-plan.md", "title": "Standards Phase Implementation", "description": "Implementation plan for standards phase" }
+        { "path": "plans/lint-phase-greenfield-redesign-plan.md", "title": "Lint Phase Greenfield Redesign", "description": "Authoritative greenfield plan for component-based lint validation" }
       ]
     },
     {

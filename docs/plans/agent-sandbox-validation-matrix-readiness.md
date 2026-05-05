@@ -141,9 +141,7 @@ GCT initiative since the underlying capability is intact and exercised
 by the live wire smoke (see "Cross-cutting validation performed during
 the cutover" below).
 
-The default-flip changes themselves landed in
-`path:docs/plans/agent-sandbox-completion-and-protected-mode-implementation-plan.md`
-Phase D:
+The default-flip changes themselves landed in the protected-mode rollout:
 
 - `QuickRunDialog` defaults `runMode` to `RunMode.SANDBOXED` with the
   in-place option labelled as the operator escape hatch.

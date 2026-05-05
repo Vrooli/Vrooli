@@ -1,6 +1,6 @@
 # Agent-System Migration Outline
 
-This file is the **Phase 1 migration manifest** for `path:docs/plans/agent-system-migration-implementation-plan.md`. Each row maps a canonical paragraph in an existing skill or doc to a destination PoR file in `path:docs/agent-system/`. Phase 1 executes paired atomic moves: extract content → place in PoR file → strip source of relocated section → add `Required reading: docs/agent-system/<file>` line.
+This file is the **Phase 1 migration manifest** for the agent-system documentation migration. Each row maps a canonical paragraph in an existing skill or doc to a destination PoR file in `path:docs/agent-system/`. Phase 1 executes paired atomic moves: extract content → place in PoR file → strip source of relocated section → add `Required reading: docs/agent-system/<file>` line.
 
 ## Status
 

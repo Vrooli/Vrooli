@@ -67,14 +67,14 @@ item-folder/
 
 #### `depends_on` (optional)
 
-Array of `"kind/name"` strings referencing other backlog items this item depends on. Dependency validation rules:
+Array of `literal:kind/name` strings referencing other backlog items this item depends on. Dependency validation rules:
 - All referenced items must exist at creation time
 - Circular dependencies are rejected (cycle detection via topological sort)
 - Dependencies are enforced during batch-queue: items are queued in topological order so prerequisites run first
 
 #### `acceptance_allow` (optional)
 
-Array of glob patterns for file paths expected to be modified (e.g., `["scenarios/web-console/**", "packages/proto/**"]`). Defines the expected change boundaries — files matching these globs are expected to be modified during execution. Patterns starting with `scenarios/<name>/` also identify which scenarios are targeted for post-execution review.
+Array of glob patterns for file paths expected to be modified (e.g., `["scenarios/web-console/**", "packages/proto/**"]`). Defines the expected change boundaries — files matching these globs are expected to be modified during execution. Patterns starting with `path:scenarios/<name>/` also identify which scenarios are targeted for post-execution review.
 
 #### `acceptance_deny` (optional)
 
@@ -82,7 +82,7 @@ Array of glob patterns for file paths that must NOT be modified (e.g., `["scenar
 
 #### Acceptance Patterns: How They Work Together
 
-- **`acceptance_allow`** defines the expected change boundaries — files matching these globs are expected to be modified during execution. Patterns starting with `scenarios/<name>/` also identify which scenarios are targeted for post-execution review.
+- **`acceptance_allow`** defines the expected change boundaries — files matching these globs are expected to be modified during execution. Patterns starting with `path:scenarios/<name>/` also identify which scenarios are targeted for post-execution review.
 - **`acceptance_deny`** defines forbidden change boundaries — files matching these globs must NOT be modified.
 - **Post-execution review** uses these fields to validate agent work and identify target scenarios: modifications outside `acceptance_allow` are flagged as deviations, and modifications matching `acceptance_deny` are flagged as violations.
 
@@ -380,7 +380,7 @@ Notes:
 - `--preview` validates item payloads, dependency refs, and initiative actions without writing anything.
 - Unknown fields are rejected. Do not send legacy `scope`.
 - Initiative assignment is per item (`"initiative": "..."`), not a top-level CLI flag.
-- Initiative `priority` (1-10, 0 = unset) and `depends_on` (bare initiative names, not `kind/name`) are optional. The batch applies initiatives in topological order, so you may declare a dependent initiative before its dependency.
+- Initiative `priority` (1-10, 0 = unset) and `depends_on` (bare initiative names, not `literal:kind/name`) are optional. The batch applies initiatives in topological order, so you may declare a dependent initiative before its dependency.
 
 ### Batch queue items
 ```bash
@@ -420,7 +420,7 @@ Use `initiatives context` as the single-call loader before proposing backlog cha
 
 Initiative field notes:
 - `priority`: integer 1-10 (0 = unprioritized, same scale as item priority). Defaults to 0.
-- `depends_on`: array of **bare initiative names**, not `kind/name`. Self-references and cycles are rejected. Supplying an empty array clears deps; omitting the field leaves them unchanged on update.
+- `depends_on`: array of **bare initiative names**, not `literal:kind/name`. Self-references and cycles are rejected. Supplying an empty array clears deps; omitting the field leaves them unchanged on update.
 - `status`: `active` or `completed`. (`archived` is not a status — archiving is handled via `initiatives delete`.)
 
 ### Referential integrity (server-maintained)
@@ -506,7 +506,7 @@ swarm-manager backlog prompt-trace --kind <kind> --name <name>
 | `plan.md` | workshop agent, user | all agents |
 | `workshop/*.json` | workshop agent (items), user (answers/decisions) | all agents |
 | `research/summary.md` | research agent | all agents |
-| `archive/*` | user, system (when archiving scenario artifacts) | all agents (read-only) |
+| `path:archive/*` | user, system (when archiving scenario artifacts) | all agents (read-only) |
 | user files (root) | user | all agents |
 
 ## Troubleshooting & Edge Cases

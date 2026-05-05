@@ -1,4 +1,3 @@
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §7 point 5
 //
 // VoiceRejectionBanner — persistent notice shown when speaker verification
 // has rejected the user's last turn. Replaces the earlier auto-dismissing

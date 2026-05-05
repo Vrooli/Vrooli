@@ -3,8 +3,6 @@
  *
  * Provides callbacks for cross-lens navigation from detail pages.
  * Navigates to graph lens routes with the target node focused.
- *
- * DOC: docs/plans/navigation-header-unification-plan.md#phase-1
  */
 
 import { useCallback } from "react";

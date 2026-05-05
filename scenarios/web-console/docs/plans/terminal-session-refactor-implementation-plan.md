@@ -420,8 +420,7 @@ restart manually.
 - Delete the stale `docs/plans/terminal-session-rework-*` files
   (already done at plan-authoring time; confirm no dangling references
   in code or docs).
-- Ensure `messages-pane-overhaul-plan.md`, `persistent-voice-mode-*`,
-  `speaker-verification-*`, `tts-audio-precache-*` plans have no
+- Ensure remaining voice and TTS plans have no
   references to the removed plans; fix if any.
 - Exit criteria: `rg "terminal-session-rework" scenarios/web-console/`
   returns zero hits. Typecheck + tests still green.

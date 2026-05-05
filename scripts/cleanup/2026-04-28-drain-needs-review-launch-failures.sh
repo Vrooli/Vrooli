@@ -3,8 +3,7 @@
 #
 # Drain the silent-launch-failure rows that accumulated in
 # RUN_STATUS_NEEDS_REVIEW between the protected-sandbox cutover (commit
-# 3e8b004704, Sandboxing auto-approval p1) and the four-phase fix in
-# docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md. For each
+# 3e8b004704, Sandboxing auto-approval p1) and the silent-launch fix. For each
 # such run, the runner never produced output: bwrap chdir-failed before
 # claude launched, the SSE exit event was raced away, and the run
 # landed at "complete + manual review". Per the operator decision on
@@ -21,13 +20,13 @@
 #   REJECT=1 scripts/cleanup/2026-04-28-drain-needs-review-launch-failures.sh    # actually reject
 #
 # This script is one-shot. Delete it in a separate commit after the
-# drain completes — see Definition of Done in the plan.
+# drain completes.
 
 set -euo pipefail
 
 REJECT=${REJECT:-0}
 TAG_PREFIX=${TAG_PREFIX:-swarm-manager:}
-RATIONALE="silent launch failure pre-fix; see docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md"
+RATIONALE="silent launch failure pre-fix"
 
 # duration_ms below which a successful protected run is considered a
 # silent launch failure. Aligns with launchFailedMaxDuration in

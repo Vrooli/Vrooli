@@ -10,7 +10,7 @@
 Vrooli has partially migrated CLI handling away from filesystem inference and toward manifest-driven behavior, but the repo still contains mixed assumptions:
 
 - some scenario CLI paths already resolve from `service.json`
-- resource CLI handling still assumes `resources/<name>/cli`
+- resource CLI handling still assumes `path:resources/<name>/cli`
 - setup and validation code still infer behavior from layout in places
 
 That mixed state is not an acceptable steady state. The platform contract must be explicit and uniform.
@@ -31,7 +31,7 @@ Scenario CLI behavior must be derived from declared manifest data, not from infe
 
 Resources will adopt a first-class top-level `cli` block parallel to the scenario model.
 
-The resource manifest must declare CLI behavior explicitly. Resource CLI handling must not rely on implicit `resources/<name>/cli` conventions as part of the platform contract.
+The resource manifest must declare CLI behavior explicitly. Resource CLI handling must not rely on implicit `path:resources/<name>/cli` conventions as part of the platform contract.
 
 The long-term goal is one shared contract shape across scenarios and resources wherever practical.
 
@@ -70,7 +70,7 @@ That means:
 
 - the manifest declares the freshness contract
 - the adapter declares the required implementation files needed for that adapter kind
-- no generic `app_root/cli`, `cli/go.mod`, `cli/*.go`, or `cli/<name>` inference is allowed unless the declared adapter makes those files relevant
+- no generic `app_root/cli`, `cli/go.mod`, `cli/*.go`, or `path:cli/<name>` inference is allowed unless the declared adapter makes those files relevant
 
 Adapter-required files are part of the adapter contract. Everything else must be declared through manifest-owned freshness inputs.
 
@@ -79,8 +79,8 @@ Adapter-required files are part of the adapter contract. Everything else must be
 The platform contract explicitly rejects these behaviors:
 
 - implicit `cli/go.mod` inference
-- implicit `cli/<scenario-name>` inference
-- implicit `resources/<name>/cli` discovery
+- implicit `path:cli/<scenario-name>` inference
+- implicit `path:resources/<name>/cli` discovery
 - generic layout-only freshness logic
 - silent fallback from manifest-driven resolution to repo-layout guessing
 
@@ -102,4 +102,3 @@ There is no migration-period contract where CLI omission or layout inference rem
 
 - [Manifest-Driven CLI Contract Completion Plan](/home/matthalloran8/Vrooli/docs/plans/manifest-driven-cli-contract-completion-plan.md:1)
 - [Scenario CLI Manifest Greenfield Migration Plan](/home/matthalloran8/Vrooli/docs/plans/scenario-cli-manifest-greenfield-migration-plan.md:1)
-- [Scenario Go CLI Standardization Greenfield Plan](/home/matthalloran8/Vrooli/docs/plans/scenario-go-cli-standardization-greenfield-plan.md:1)

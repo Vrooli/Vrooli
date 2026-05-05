@@ -45,7 +45,6 @@ export interface VoiceSegment {
  * the user can retry transcription with the speaker-verification filter
  * bypassed without re-recording.
  *
- * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.1
  */
 export interface LastTurnAudio {
   blob: Blob;

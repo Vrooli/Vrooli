@@ -1,8 +1,8 @@
 ## Tools focus: Pricing Comp Capture
 
-Capture a competitor's pricing as a structured `monetization/market-scan/<slug>` knowledge entry. This skill is opinionated — source priority, required fields, honesty flags, and material-change thresholds are baked in so capture is repeatable across heartbeats and across operators.
+Capture a competitor's pricing as a structured `topic[old]:monetization/market-scan/<slug>` knowledge entry. This skill is opinionated — source priority, required fields, honesty flags, and material-change thresholds are baked in so capture is repeatable across heartbeats and across operators.
 
-> **Status:** v1. Use the existing migrated scans (`cursor-pricing-*`, `github-copilot-pricing-*`, `openrouter-pricing-*`, `raycast-pricing-*`, `notion-pricing-*`, `setapp-pricing-*`, `poe-pricing-*` under `monetization/market-scan/`) as exemplars of the target shape.
+> **Status:** v1. Use the existing migrated scans (`cursor-pricing-*`, `github-copilot-pricing-*`, `openrouter-pricing-*`, `raycast-pricing-*`, `notion-pricing-*`, `setapp-pricing-*`, `poe-pricing-*` under `topic[old]:monetization/market-scan/`) as exemplars of the target shape.
 
 ---
 
@@ -124,7 +124,7 @@ The 15% threshold is the default; per-team `taskParameters` may override (curren
 
 ### 7. Worked Example
 
-The migrated entry `monetization/market-scan/cursor-pricing-20260424-9365` is a clean exemplar:
+The migrated entry `topic[old]:monetization/market-scan/cursor-pricing-20260424-9365` is a clean exemplar:
 
 ```yaml
 type: market-scan
@@ -145,7 +145,7 @@ Body captured every published tier (Hobby, Pro, Pro+, Ultra, Teams, Enterprise) 
 
 ### 8. CLI Reference
 
-Initial capture (inbox entry exists, retag from `validation-inbox/pricing-comp-needed/<slug>` to scan):
+Initial capture (inbox entry exists, retag from `topic[example]:validation-inbox/pricing-comp-needed/<slug>` to scan):
 
 ```bash
 prompt-manager team knowledge-update monetization <queue-id> \
@@ -184,7 +184,7 @@ When called by the router, emit:
 
 **Decision raised:** <benchmark-update id, or "none — not material" >
 
-**Knowledge entry:** `monetization/market-scan/<slug>` (id <knw-...>)
+**Knowledge entry:** `topic[old]:monetization/market-scan/<slug>` (id <knw-...>)
 ```
 
 No known operational edge cases for standard usage.

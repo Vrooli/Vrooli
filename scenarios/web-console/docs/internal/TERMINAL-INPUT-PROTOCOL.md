@@ -13,7 +13,6 @@ Referenced from:
 - `api/terminal_ws.go` (type constants)
 - `api/terminal_ws_input.go` (dispatch)
 - `api/pty.go` / `api/pty_tmux.go` (delivery)
-- `docs/plans/terminal-session-refactor-implementation-plan.md` §8.1–§8.2
 
 ## Wire frames
 

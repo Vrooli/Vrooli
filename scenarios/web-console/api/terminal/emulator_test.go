@@ -1,7 +1,4 @@
 // emulator_test.go: Unit tests for Emulator invariants.
-//
-// See terminal-emulator-replay-implementation-plan.md §8 Phase 1 tests
-// and §9.1 contract.
 
 package terminal
 

@@ -181,26 +181,7 @@
       "id": "plans",
       "title": "Plans",
       "icon": "map",
-      "documents": [
-        {
-          "path": "plans/action-entity-and-memory-promotion-rfc.md",
-          "title": "Action Entity and Memory Promotion RFC",
-          "description": "Proposed ontology and rollout framing for Actions and notebook promotion",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/action-entity-implementation-plan.md",
-          "title": "Action Entity Implementation Plan",
-          "description": "Greenfield implementation plan for first-class Action storage, API, CLI, search, graph, UI, validation, and execution",
-          "audience": ["developers"]
-        },
-        {
-          "path": "plans/operation-contract-drift-prevention-plan.md",
-          "title": "Operation Contract Drift Prevention Plan",
-          "description": "First-version foundation plan for preventing drift between APIs, CLIs, command catalogs, and prompt-manager Actions",
-          "audience": ["developers", "operators"]
-        }
-      ]
+      "documents": []
     },
     {
       "id": "internal",

@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 /**
  * Static-assertion tests enforcing the greenfield constraints of the
  * terminal-session refactor (see
- * docs/plans/terminal-session-refactor-implementation-plan.md §10.4,
  * §13). If any of these patterns reappear in the codebase, the
  * implementation has drifted back into legacy/compat territory and
  * the test fails loudly.

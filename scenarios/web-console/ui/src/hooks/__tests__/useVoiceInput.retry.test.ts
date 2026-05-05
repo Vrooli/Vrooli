@@ -1,5 +1,4 @@
 // Tests for useVoiceInput rejection retry flow.
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §10.1
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";

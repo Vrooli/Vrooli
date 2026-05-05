@@ -39,7 +39,6 @@ export class VoiceStreamProvider implements TranscriptionProvider {
    * Retained audio from the most recent completed turn. Snapshotted in
    * `stop()` or `dispose()` so the hook can offer a bypass-filter retry
    * after rejection. Released by `disposeLastTurn()` or the next `start()`.
-   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.1
    */
   private lastTurn: LastTurnAudio | null = null;
   /** Mime type of retained audio (webm/opus or webm, set at MediaRecorder init). */

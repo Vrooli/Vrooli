@@ -27,7 +27,6 @@ func readUISource(t *testing.T, rel string) string {
 // `strconv.ParseBool` (which accepts "1", "TRUE", "yes") would silently
 // broaden the bypass surface and weaken the typo-safety guarantee.
 //
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4, §10.5
 func TestGreenfield_SkipVerificationIsStrictTrue(t *testing.T) {
 	data, err := os.ReadFile("voice_transcribe.go")
 	if err != nil {
@@ -81,7 +80,6 @@ func TestGreenfield_VoiceSkipVerificationCounterExposed(t *testing.T) {
 // for the STT voice-filter-retry feature. The legacy `speakerNotice` field
 // and its auto-dismiss timer must stay removed; `rejectedAudio` and the
 // `VoiceProvider` retention seams must stay present.
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §10.5
 func TestGreenfield_UIRejectionContractIntact(t *testing.T) {
 	hook := readUISource(t, "hooks/useVoiceInput.ts")
 	if strings.Contains(hook, "speakerNoticeTimerRef") {

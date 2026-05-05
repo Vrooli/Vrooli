@@ -1,6 +1,6 @@
 # Meta-Optimization — Plan of Record
 
-This folder is the **plan-of-record** for friction-side canon owned by the `meta-optimization` team: the friction-report taxonomy, routing rules, and any future shared docs that govern how cross-team friction signal flows into the team. The team's broader self-improvement canon lives in [`docs/agent-system/`](../agent-system/) (PRIMITIVES, LAYERS, PROMOTION_LADDER, TEAM_DOCS_PATTERNS, TEAM_MEMBER_ARCHITECTURE, INTAKE_PIPELINE, SKILL_AUTHORING, DEPRECATION_POLICY, REFERENCE_SCENARIOS); this folder is the friction-specific sister to that hub.
+This folder is the **plan-of-record** for friction-side canon owned by the `meta-optimization` team: the friction-report taxonomy, routing rules, and any future shared docs that govern how cross-team friction signal flows into the team. The team's broader self-improvement canon lives in [`path:docs/agent-system/`](../agent-system/) (PRIMITIVES, LAYERS, PROMOTION_LADDER, TEAM_DOCS_PATTERNS, TEAM_MEMBER_ARCHITECTURE, INTAKE_PIPELINE, SKILL_AUTHORING, DEPRECATION_POLICY, REFERENCE_SCENARIOS); this folder is the friction-specific sister to that hub.
 
 Maintained by the `meta-optimization` team. Operator-curated via `meta-self-improvement` decisions (owned by debt-curator).
 
@@ -61,7 +61,7 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
 - **Edit context:** `meta-self-improvement` (owned by debt-curator on meta-optimization) covers `FRICTION_REPORT_TAXONOMY.md` updates and friction-report taxonomy schema changes. Scope additions go through the same decision flow with empirical evidence from `friction-triage-record/*` snapshots.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
-- **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `docs/agent-system/drafts/`); files in this folder are stable PoR.
+- **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `path:docs/agent-system/drafts/`); files in this folder are stable PoR.
 
 ## Cross-references
 
@@ -82,6 +82,6 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 Flagged here so future operator-curated decisions can promote them when the substrate calls for it:
 
 - **Friction-routing decision context.** If routing becomes non-determinate (e.g., a sixth scope arrives without a natural sub-member owner), the friction-curator may need a `friction-routing` decision context. Today routing is determinate; defer until real pressure shows.
-- **Additional scoped friction topics.** If `unknown` scope exceeds 30% of total intake during the observation window (Phase M of the implementation plan), add new scoped friction topics on existing sub-members — candidates include `friction-report/skill/*` on skill-optimizer, `friction-report/docs/*` on a doc owner, `friction-report/policy/*` on meta-contrarian. Empirical, not speculative.
+- **Additional scoped friction topics.** If `unknown` scope exceeds 30% of total intake during the observation window (Phase M of the implementation plan), add new scoped friction topics on existing sub-members — candidates include `topic[future]:friction-report/skill/*` on skill-optimizer, `topic[future]:friction-report/docs/*` on a doc owner, `topic[future]:friction-report/policy/*` on meta-contrarian. Empirical, not speculative.
 - **Universal observation flow primitive.** With two instances (bug-inbox, friction-inbox), the pattern becomes worth documenting in [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) as a named primitive with three parts: universal-source intake + writer skill + drainer agent + trigger paragraph.
 - **Cross-team merge of duplicate friction.** Today the curator may flag `repeats-existing-friction-topic` honestly; future work may add automatic merge of duplicate inbox entries before routing.

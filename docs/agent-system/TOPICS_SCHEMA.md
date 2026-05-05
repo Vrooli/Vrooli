@@ -140,8 +140,8 @@ Errors fail `prompt-manager graph topics` with exit code 1. Warnings do not affe
 
 ## Prefix-match semantics
 
-- Exact prefix `foo/bar` matches only `foo/bar`.
-- Wildcard prefix `foo/bar/*` matches any topic starting with `foo/bar/`.
+- Example exact prefix `topic[example]:foo/bar` matches only the value `literal:foo/bar`.
+- Example wildcard prefix `topic[example]:foo/bar/*` matches any topic starting with `literal:foo/bar/`.
 - Bare `*` is disallowed.
 - Two prefixes overlap when either is a prefix of the other (with `/*` truncated). `research-inbox/audience/*` overlaps `research-inbox/*` but not `research-inbox/competitor/*`.
 
@@ -185,11 +185,11 @@ When *not* to use:
 
 **Trigger guidance — where agents learn to invoke the writer.** The trigger paragraph that tells every agent when to load and invoke the writer skill is rendered into every member's heartbeat prompt as part of the Storage Map's `## Observe` subsection — see `path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go` (`buildStorageMapSection`). When you add a new universal-source intake, add a matching paragraph there alongside the existing typed-topic-routing, bug-reporting (`report-bug`), and friction-reporting (`report-friction`) paragraphs so producers actually receive the trigger. The rendering is currently hardcoded prose for the two existing flows (bugs, friction); a third universal-source intake would push this past the worth-keeping-hardcoded threshold and into data-driven rendering off `intake[].source_team == "*"` declarations on member topics.json. Surface the refactor proposal as a `meta-self-improvement` decision when that third instance is in flight.
 
-Worked example: `scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).
+Worked example: `team:scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).
 
-Sister example: `meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `friction/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
+Sister example: `team:meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `topic[old]:friction/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
 
-Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`path:docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
+Worked example: `team:marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`path:docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
 
 ## Example: marketing-crew researcher
 
@@ -226,7 +226,7 @@ When loaded, `prompt-manager graph topics --team marketing-crew` should:
 
 ## Stability gate
 
-This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `marketing-crew/researcher`, `marketing-crew/brand-manager`, `meta-optimization/debt-curator`, `monetization/opportunity-scout`, `monetization/market-validator`).
+This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `team:marketing-crew/researcher`, `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator`, `team:monetization/opportunity-scout`, `team:monetization/market-validator`).
 
 Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `path:scenarios/prompt-manager/store/teams/*/members/*/`, (b) the Go schema at `path:scenarios/prompt-manager/api/memberflow/schema.go`, (c) the heartbeat builder section template at `path:scenarios/prompt-manager/api/heartbeat/inbox_flow.go`, and (d) the validation rules.
 

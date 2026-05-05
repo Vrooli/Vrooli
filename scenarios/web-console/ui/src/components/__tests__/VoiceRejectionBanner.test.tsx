@@ -1,5 +1,4 @@
 // Tests for VoiceRejectionBanner.
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §10.2
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";

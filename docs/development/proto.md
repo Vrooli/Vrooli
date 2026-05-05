@@ -1,6 +1,6 @@
 # Proto Codegen Pipeline
 
-`packages/proto/` is the single source of truth for Vrooli's protobuf schemas and the multi-language code they generate. This page describes how the pipeline is wired and how to make routine changes (add a schema, refresh a vendored module, bump a plugin).
+`path:packages/proto/` is the single source of truth for Vrooli's protobuf schemas and the multi-language code they generate. This page describes how the pipeline is wired and how to make routine changes (add a schema, refresh a vendored module, bump a plugin).
 
 ## TL;DR
 
@@ -32,9 +32,9 @@ gen/{go,typescript,typescript/js,python}/   ← committed output
 
 | Plugin reference | Output | Plugin binary |
 |---|---|---|
-| `local: protoc-gen-go` | `gen/go/` | `protoc-gen-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-go/tool.json`) |
-| `local: protoc-gen-connect-go` | `gen/go/` | `protoc-gen-connect-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-connect-go/tool.json`) |
-| `local: protoc-gen-es` (×2: ts + js) | `gen/typescript/`, `gen/typescript/js/` | `@bufbuild/protoc-gen-es` (npm, pinned in `internal/tools/protoc-gen-es/tool.json`). Protobuf-ES v2 emits service descriptors consumed by Connect-ES v2; no separate Connect-ES plugin is used. |
+| `local: protoc-gen-go` | `path:packages/proto/gen/go/` | `protoc-gen-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-go/tool.json`) |
+| `local: protoc-gen-connect-go` | `path:packages/proto/gen/go/` | `protoc-gen-connect-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-connect-go/tool.json`) |
+| `local: protoc-gen-es` (×2: ts + js) | `path:packages/proto/gen/typescript/`, `path:packages/proto/gen/typescript/js/` | `@bufbuild/protoc-gen-es` (npm, pinned in `internal/tools/protoc-gen-es/tool.json`). Protobuf-ES v2 emits service descriptors consumed by Connect-ES v2; no separate Connect-ES plugin is used. |
 | `protoc_builtin: python` | `gen/python/*.py` | `protoc` built-in (pinned in `internal/tools/protoc/tool.json`) |
 | `protoc_builtin: pyi` | `gen/python/*.pyi` | `protoc` built-in |
 
@@ -44,8 +44,6 @@ Why local? Two reasons:
 
 1. **Offline / sovereignty.** A laptop on flight Wi-Fi, a CI runner with egress blocked, an agent box with no BSR account — all generate code identically.
 2. **Rate-limit immunity.** BSR's anonymous per-IP rate limit was exhausted in a single iteration session when many concurrent agents ran `buf generate`. Local plugins remove that ceiling entirely.
-
-See [`docs/plans/proto-codegen-local-and-bsr-login-implementation-plan.md`](../plans/proto-codegen-local-and-bsr-login-implementation-plan.md) for the full implementation context (CD-1 through CD-8, risks, testing plan).
 
 ## Adding a new .proto
 
@@ -81,7 +79,7 @@ No buf.gen.yaml change is needed for a new file — the existing 5 plugin invoca
 
 ## Refreshing vendored modules
 
-`vendor/googleapis/` and `vendor/protovalidate/` are exported snapshots of the corresponding BSR modules. Refresh is a deliberate, occasional operation:
+`path:packages/proto/vendor/googleapis/` and `path:packages/proto/vendor/protovalidate/` are exported snapshots of the corresponding BSR modules. Refresh is a deliberate, occasional operation:
 
 ```bash
 cd packages/proto
@@ -120,6 +118,4 @@ Re-run `make generate`. The committed `gen/` tree is the canonical baseline; any
 ## See also
 
 - [`../configuration/host/tools.md`](../configuration/host/tools.md) — host-tool model that backs the plugins
-- [`../configuration/integrations/buf-bsr.md`](../configuration/integrations/buf-bsr.md) — optional BSR sign-in (vendor refresh only)
-- [`../plans/proto-codegen-local-and-bsr-login-implementation-plan.md`](../plans/proto-codegen-local-and-bsr-login-implementation-plan.md) — full implementation plan
-- [`../../packages/proto/buf.yaml`](../../packages/proto/buf.yaml), [`../../packages/proto/buf.gen.yaml`](../../packages/proto/buf.gen.yaml) — pipeline source-of-truth
+- [`../configuration/integrations/buf-bsr.md`](../configuration/integrations/buf-bsr.md) — optional BSR sign-in (vendor refresh only)- [`../../packages/proto/buf.yaml`](../../packages/proto/buf.yaml), [`../../packages/proto/buf.gen.yaml`](../../packages/proto/buf.gen.yaml) — pipeline source-of-truth

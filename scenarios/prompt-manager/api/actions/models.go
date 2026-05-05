@@ -1,7 +1,6 @@
 // Package actions owns the Action API/domain layer.
 //
 // DOC: docs/concepts/ACTIONS.md
-// DOC: docs/plans/action-entity-implementation-plan.md
 package actions
 
 import "prompt-manager/store"

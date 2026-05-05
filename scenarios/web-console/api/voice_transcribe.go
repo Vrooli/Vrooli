@@ -44,7 +44,6 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	// Speaker-verification bypass — strictly the literal "true". Any other
 	// value (including "1", "yes", "TRUE", trailing whitespace, or omitted)
 	// keeps the verification gate active. Explicit, typo-safe.
-	// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
 	skipSpeakerVerification := r.URL.Query().Get("skip_speaker_verification") == "true"
 
 	file, _, err := r.FormFile("audio_file")

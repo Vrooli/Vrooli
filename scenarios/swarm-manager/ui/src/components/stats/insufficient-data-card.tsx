@@ -5,7 +5,6 @@
  * Why this exists: the Stats panel previously rendered "<1 min" for
  * empty-sample timing metrics and "0% / 100%" for zero-denominator rate
  * metrics, which looked identical to real values and triggered false alarms.
- * See docs/plans/stats-feature-repair-plan.md §7.
  */
 
 import { Info } from "lucide-react";

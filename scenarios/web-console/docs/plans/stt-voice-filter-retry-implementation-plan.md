@@ -55,10 +55,6 @@ Also read before coding:
 - `scenarios/web-console/docs/concepts/ARCHITECTURE.md`
   (section `voice-input` if present; otherwise start from
   `ui/src/hooks/useVoiceInput.ts`).
-- `scenarios/web-console/docs/plans/speaker-verification-integration-plan.md`
-  (establishes the speaker-verification contract this plan extends).
-- `scenarios/web-console/docs/plans/persistent-voice-mode-implementation-plan.md`
-  (voice-mode state machine interactions).
 - `scenarios/web-console/docs/internal/SEAMS.md` (voice provider seam,
   `VoiceProvider` interface).
 

@@ -4,7 +4,7 @@ This folder is the **strategic canon** for each kind of marketing post Vrooli pr
 
 These docs answer: *what is this type for, who is it aimed at, what is the conversion goal, what does a good one look like, what failure modes does the marketing-contrarian watch for?*
 
-They do **not** answer: *here is the prompt, here is the round structure, here are the data sources to mine.* That is the role of the per-type **skill** under [`scenarios/prompt-manager/store/skills/packs/core/x-<type>/`](../../../scenarios/prompt-manager/store/skills/packs/core/) (e.g., `x-dev-log`, `x-scenario-spotlight`). The skill is the *executable spec* an agent runs; the file in this folder is the *strategic canon* the operator reads to make decisions and the agent reads as required-reading context.
+They do **not** answer: *here is the prompt, here is the round structure, here are the data sources to mine.* That is the role of the per-type **skill** under [`path:scenarios/prompt-manager/store/skills/packs/core/x-<type>/`](../../../scenarios/prompt-manager/store/skills/packs/core/) (e.g., `x-dev-log`, `x-scenario-spotlight`). The skill is the *executable spec* an agent runs; the file in this folder is the *strategic canon* the operator reads to make decisions and the agent reads as required-reading context.
 
 ## Folder structure — by medium
 
@@ -21,8 +21,8 @@ post-types/
 
 **Every post type ships as `doc + paired skill`.** This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other:
 
-- **The doc** (in `post-types/<medium>/<slug>.md`) is the *strategic canon*: purpose, audience, conversion goal, asset weight, structure, hook patterns, type-specific contrarian failure modes. The operator reads it to make decisions; the marketing-contrarian uses it to score drafts; the agent reads it as required-reading context. Stable; changes only via `brand-guideline-update` decisions.
-- **The skill** (in `scenarios/prompt-manager/store/skills/packs/core/x-<slug>/`) is the *executable spec*: which CLI calls to make, which scenarios to query, which JSON to assemble, which guardrails to apply. The agent runs it. Mutable; changes via skill-edit decisions.
+- **The doc** (in `path:docs/marketing/post-types/<medium>/<slug>.md`) is the *strategic canon*: purpose, audience, conversion goal, asset weight, structure, hook patterns, type-specific contrarian failure modes. The operator reads it to make decisions; the marketing-contrarian uses it to score drafts; the agent reads it as required-reading context. Stable; changes only via `brand-guideline-update` decisions.
+- **The skill** (in `path:scenarios/prompt-manager/store/skills/packs/core/x-<slug>/`) is the *executable spec*: which CLI calls to make, which scenarios to query, which JSON to assemble, which guardrails to apply. The agent runs it. Mutable; changes via skill-edit decisions.
 
 The two halves carry **different content**: the doc holds *reasoning*, the skill holds *procedure*. A doc with no skill is a stale shrine — strategic canon nobody can act on. A skill with no doc is brittle — procedure that can't be checked against intent. Both halves required.
 
@@ -32,7 +32,7 @@ A post-type entry can exist as a v0 stub before its skill is authored. v0 means 
 
 Activation (v0 → v1) requires:
 
-1. The paired `x-<slug>` skill is authored and lives at `scenarios/prompt-manager/store/skills/packs/core/x-<slug>/SKILL.md`.
+1. The paired `x-<slug>` skill is authored and lives at `path:scenarios/prompt-manager/store/skills/packs/core/x-<slug>/SKILL.md`.
 2. The skill's required-reading list cites the post-type doc (so the agent loads the canon before producing).
 3. The doc's `Status:` line is bumped from `v0 (skeleton)` to `v1` and the `Paired skill:` line drops the `*(planned)*` annotation.
 4. At least one member's `RESPONSIBILITIES.md` references the skill in its Available Skills table.
@@ -65,19 +65,19 @@ Per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PAT
 
 Ask the questions in order. The first "yes" picks the type.
 
-1. **Is the operator trying to show project-wide progress / building-in-public narrative?** → [`text/dev-log`](text/dev-log.md)
-2. **Is the operator trying to get a specific person to use, sign up for, or buy a single Vrooli scenario as an app/product?** → [`text/scenario-spotlight`](text/scenario-spotlight.md) (text-led, asset-supported)
-3. **Is the operator trying to get developers to adopt Vrooli as an OSS framework for building agentic apps?** → `text/oss-framework` *(planned)*
-4. **Is the operator trying to teach a complete use-case end-to-end (recipe + demo)?** → `text/use-case-tutorial` *(planned)*
-5. **Is the operator trying to grab attention on a visual feed (Instagram, ad placements) with a single still image?** → [`image/single-image-ad`](image/single-image-ad.md) or [`image/infographic`](image/infographic.md)
-6. **Is the operator trying to give general-audience tips that lead toward a Vrooli scenario in the last frame?** → [`image/slideshow-tips-then-plug`](image/slideshow-tips-then-plug.md) (or `slideshow-listicle` for a numbered-tips variation, or `video/slideshow-voiceover` if rendered as video with narration)
+1. **Is the operator trying to show project-wide progress / building-in-public narrative?** → [`doc:docs/marketing/post-types/text/dev-log.md`](text/dev-log.md)
+2. **Is the operator trying to get a specific person to use, sign up for, or buy a single Vrooli scenario as an app/product?** → [`doc:docs/marketing/post-types/text/scenario-spotlight.md`](text/scenario-spotlight.md) (text-led, asset-supported)
+3. **Is the operator trying to get developers to adopt Vrooli as an OSS framework for building agentic apps?** → `doc[future]:docs/marketing/post-types/text/oss-framework.md` *(planned)*
+4. **Is the operator trying to teach a complete use-case end-to-end (recipe + demo)?** → `doc[future]:docs/marketing/post-types/text/use-case-tutorial.md` *(planned)*
+5. **Is the operator trying to grab attention on a visual feed (Instagram, ad placements) with a single still image?** → [`doc:docs/marketing/post-types/image/single-image-ad.md`](image/single-image-ad.md) or [`doc:docs/marketing/post-types/image/infographic.md`](image/infographic.md)
+6. **Is the operator trying to give general-audience tips that lead toward a Vrooli scenario in the last frame?** → [`doc:docs/marketing/post-types/image/slideshow-tips-then-plug.md`](image/slideshow-tips-then-plug.md) (or `literal:slideshow-listicle` for a numbered-tips variation, or `doc[future]:docs/marketing/post-types/video/slideshow-voiceover.md` if rendered as video with narration)
 7. **Is the operator trying to produce short-form video for TikTok, Reels, or Shorts?** Pick from `video/`:
-   - **Persona-actor narrating advice/story?** → [`video/narrative-talking-head`](video/narrative-talking-head.md)
-   - **Lifestyle / routine vignette?** → [`video/day-in-life-ugc`](video/day-in-life-ugc.md)
-   - **Pain → escalation → solution structure?** → [`video/problem-agitate-solve`](video/problem-agitate-solve.md)
-   - **Side-by-side or before/after comparison?** → [`video/comparison-reel`](video/comparison-reel.md)
-   - **Slideshow rendered with voiceover?** → [`video/slideshow-voiceover`](video/slideshow-voiceover.md)
-8. **Is the operator trying to produce a screen-recorded demo of a scenario at length (YouTube, blog embed)?** → [`video/demo-recording`](video/demo-recording.md)
+   - **Persona-actor narrating advice/story?** → [`doc:docs/marketing/post-types/video/narrative-talking-head.md`](video/narrative-talking-head.md)
+   - **Lifestyle / routine vignette?** → [`doc:docs/marketing/post-types/video/day-in-life-ugc.md`](video/day-in-life-ugc.md)
+   - **Pain → escalation → solution structure?** → [`doc:docs/marketing/post-types/video/problem-agitate-solve.md`](video/problem-agitate-solve.md)
+   - **Side-by-side or before/after comparison?** → [`doc:docs/marketing/post-types/video/comparison-reel.md`](video/comparison-reel.md)
+   - **Slideshow rendered with voiceover?** → [`doc:docs/marketing/post-types/video/slideshow-voiceover.md`](video/slideshow-voiceover.md)
+8. **Is the operator trying to produce a screen-recorded demo of a scenario at length (YouTube, blog embed)?** → [`doc:docs/marketing/post-types/video/demo-recording.md`](video/demo-recording.md)
 9. **None of the above** → likely doesn't need a structured post type. Capture as a one-off and let the marketing-crew researcher / publisher decide.
 
 ## Files in this folder
@@ -131,7 +131,7 @@ For multi-frame and persona-actor content (image slideshows, video formats), see
 
 ## Write rules
 
-Same as the rest of `docs/marketing/`: agents never write directly; operator-curated via approved decisions.
+Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
 
 - **New post-type proposals** come through the `post-type-proposal` decision context, owned by `researcher`. The proposal must include:
   1. The strategic canon content (purpose, audience, conversion goal, asset requirements, contrarian failure modes) — this is what authors the v0 doc.

@@ -46,9 +46,7 @@ Prior to the run `66cbfd0a-3467-4b63-9a50-58ad348665b1` investigation
 (2026-04-20), an `execution_error` could arrive with just `{"code":
 "execution_error"}` — no message, no subtype, no counters. Investigators
 had to read runner source to figure out what happened. The schema above
-closes that gap. See
-`docs/plans/claude-code-runner-execution-error-diagnostics-plan.md` for
-design rationale.
+closes that gap.
 
 ## Sandbox launch failures (2026-04-28)
 
