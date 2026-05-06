@@ -22,6 +22,7 @@ func runDocsPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 			runner := docs.New(docs.Config{
 				ScenarioDir:  env.ScenarioDir,
 				ScenarioName: env.ScenarioName,
+				Mapping:      env.Mapping,
 				Settings:     settings,
 			}, docs.WithLogger(logWriter))
 			return runner.Run(ctx), nil

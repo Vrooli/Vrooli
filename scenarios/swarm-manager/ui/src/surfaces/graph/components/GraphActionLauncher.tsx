@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { GitPullRequestArrow, MessageSquarePlus, Plus, Workflow } from "lucide-react";
+import { GitPullRequestArrow, Loader2, MessageSquarePlus, Plus, Workflow, X } from "lucide-react";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { useGlobalKeyDown } from "../../../hooks/useGlobalKeyDown";
 import { cn } from "../../../lib/utils";
@@ -8,6 +8,8 @@ import { cn } from "../../../lib/utils";
 interface GraphActionLauncherProps {
   isBusy?: boolean;
   error?: string | null;
+  status?: string | null;
+  onDismissError?: () => void;
   onQuickCapture: () => void;
   onPlanWork: () => void;
   onAuthorOperatingMode: () => void;
@@ -16,6 +18,8 @@ interface GraphActionLauncherProps {
 export function GraphActionLauncher({
   isBusy = false,
   error,
+  status,
+  onDismissError,
   onQuickCapture,
   onPlanWork,
   onAuthorOperatingMode,
@@ -64,10 +68,31 @@ export function GraphActionLauncher({
             onClick={() => runAction(onAuthorOperatingMode)}
             disabled={isBusy}
           />
+        </div>
+      )}
+
+      {(status || error) && (
+        <div className="mb-3 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-white/10 bg-slate-900/95 p-2 text-xs shadow-2xl backdrop-blur-sm">
+          {status && !error && (
+            <div className="flex items-center gap-2 text-slate-200" role="status" data-testid="graph-action-status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300" />
+              <span>{status}</span>
+            </div>
+          )}
           {error && (
-            <p className="mt-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-200" role="alert">
-              {error}
-            </p>
+            <div className="flex items-start gap-2 text-red-200" role="alert" data-testid="graph-action-error">
+              <span className="min-w-0 flex-1 break-words">{error}</span>
+              {onDismissError && (
+                <button
+                  type="button"
+                  onClick={onDismissError}
+                  className="shrink-0 rounded p-0.5 text-red-200/80 hover:bg-red-500/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                  aria-label="Dismiss error"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

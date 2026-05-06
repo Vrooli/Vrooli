@@ -328,6 +328,90 @@ func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 	}
 }
 
+func TestRunPhaseDetailedWritesLifecycleRunBoundaries(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Setup: scenario.Phase{
+				Steps: []scenario.PhaseStep{
+					{Name: "ok", Run: "echo 'setup ok'"},
+				},
+			},
+		},
+	})
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	if _, err := runner.RunPhaseDetailed("alpha", "setup", PhaseOptions{}); err != nil {
+		t.Fatalf("RunPhaseDetailed: %v", err)
+	}
+
+	data, err := os.ReadFile(process.ScenarioLifecycleLogPath(home, "alpha"))
+	if err != nil {
+		t.Fatalf("read lifecycle log: %v", err)
+	}
+	log := string(data)
+	for _, want := range []string{
+		"=== VROOLI LIFECYCLE RUN START ===",
+		"scenario: alpha",
+		"operation: phase",
+		"phase: setup",
+		"setup ok",
+		"=== VROOLI LIFECYCLE RUN END ===",
+		"status: completed",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("lifecycle log missing %q:\n%s", want, log)
+		}
+	}
+}
+
+func TestRunPhaseDetailedWritesFailureBoundaryDetails(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Setup: scenario.Phase{
+				Steps: []scenario.PhaseStep{
+					{Name: "explode", Run: "echo 'before fail'; exit 7"},
+				},
+			},
+		},
+	})
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	if _, err := runner.RunPhaseDetailed("alpha", "setup", PhaseOptions{}); err == nil {
+		t.Fatal("expected RunPhaseDetailed to fail")
+	}
+
+	data, err := os.ReadFile(process.ScenarioLifecycleLogPath(home, "alpha"))
+	if err != nil {
+		t.Fatalf("read lifecycle log: %v", err)
+	}
+	log := string(data)
+	for _, want := range []string{
+		"before fail",
+		"status: failed",
+		"step: explode",
+		"exit_code: 7",
+		"error: scenario \"alpha\" phase \"setup\" step \"explode\" failed with exit code 7",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("lifecycle log missing %q:\n%s", want, log)
+		}
+	}
+}
+
 func TestEnsureDependenciesBestEffortMarksMissingRequiredDependencyAsFailed(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

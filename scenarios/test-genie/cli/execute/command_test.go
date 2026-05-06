@@ -65,6 +65,61 @@ func TestParseArgsRejectsRelativeScenarioPath(t *testing.T) {
 	}
 }
 
+func TestParseArgsAcceptsLogicalPlacement(t *testing.T) {
+	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	repoRoot := t.TempDir()
+	parsed, err := ParseArgs([]string{
+		"demo",
+		"--scenario-path", scenarioPath,
+		"--logical-repo-root", repoRoot,
+		"--logical-scenario-relpath", "scenarios/demo",
+	})
+	if err != nil {
+		t.Fatalf("ParseArgs() error = %v", err)
+	}
+	if parsed.LogicalRepoRoot != repoRoot {
+		t.Fatalf("LogicalRepoRoot = %q, want %q", parsed.LogicalRepoRoot, repoRoot)
+	}
+	if parsed.LogicalScenarioRelPath != "scenarios/demo" {
+		t.Fatalf("LogicalScenarioRelPath = %q", parsed.LogicalScenarioRelPath)
+	}
+}
+
+func TestParseArgsRejectsInvalidLogicalPlacement(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "missing relative placement",
+			args: []string{"demo", "--logical-repo-root", t.TempDir()},
+		},
+		{
+			name: "relative repo root",
+			args: []string{"demo", "--logical-repo-root", "repo", "--logical-scenario-relpath", "scenarios/demo"},
+		},
+		{
+			name: "absolute scenario relpath",
+			args: []string{"demo", "--logical-repo-root", t.TempDir(), "--logical-scenario-relpath", filepath.Join(t.TempDir(), "scenarios/demo")},
+		},
+		{
+			name: "escaping scenario relpath",
+			args: []string{"demo", "--logical-repo-root", t.TempDir(), "--logical-scenario-relpath", "../demo"},
+		},
+		{
+			name: "scenario name mismatch",
+			args: []string{"demo", "--logical-repo-root", t.TempDir(), "--logical-scenario-relpath", "scenarios/other"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := ParseArgs(tt.args); err == nil {
+				t.Fatalf("expected ParseArgs(%v) to fail", tt.args)
+			}
+		})
+	}
+}
+
 func TestExecutionResultErrorFailsUnsuccessfulJSONResult(t *testing.T) {
 	if err := executionResultError(Response{Success: true}); err != nil {
 		t.Fatalf("executionResultError(success) error = %v", err)

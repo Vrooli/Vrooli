@@ -67,6 +67,12 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:    "Validates Markdown, mermaid diagrams, links, and portability guards across scenario docs.",
 	})
 	register(Spec{
+		Name:        Performance,
+		Runner:      runPerformancePhase,
+		Optional:    true,
+		Description: "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
+	})
+	register(Spec{
 		Name:        Smoke,
 		Runner:      runSmokePhase,
 		Optional:    true,
@@ -91,12 +97,6 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Name:        Business,
 		Runner:      runBusinessPhase,
 		Description: "Audits requirements modules to guarantee operational targets stay mapped.",
-	})
-	register(Spec{
-		Name:        Performance,
-		Runner:      runPerformancePhase,
-		Optional:    true,
-		Description: "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
 	})
 	return catalog
 }

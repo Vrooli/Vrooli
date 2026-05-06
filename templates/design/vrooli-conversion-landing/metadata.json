@@ -1,7 +1,7 @@
 {
   "id": "vrooli-conversion-landing",
   "name": "Vrooli Conversion Landing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "default": false,
   "description": "Vrooli design language for high-converting landing pages that sell, validate, or capture demand for scenarios, bundles, apps, downloads, demos, and waitlists.",
   "tags": ["vrooli", "landing-page", "conversion", "saas", "b2b", "growth", "ab-testing", "responsive"],

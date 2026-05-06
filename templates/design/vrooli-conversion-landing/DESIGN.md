@@ -1,7 +1,114 @@
 ---
 id: vrooli-conversion-landing
-version: 0.1.0
+version: 0.2.0
 name: Vrooli Conversion Landing
+description: High-converting landing pages for scenarios, bundles, apps, downloads, demos, and waitlists.
+colors:
+  primary: "#f97316"
+  secondary: "#38bdf8"
+  neutral: "#07090f"
+  surface: "#0f172a"
+  on-surface: "#f3f4f6"
+  error: "#ef4444"
+  success: "#10b981"
+  warning: "#fbbf24"
+typography:
+  headline-lg:
+    fontFamily: Space Grotesk
+    fontSize: 48px
+    fontWeight: "700"
+    lineHeight: 1.05
+    letterSpacing: 0em
+  body-lg:
+    fontFamily: Inter
+    fontSize: 17px
+    fontWeight: "400"
+    lineHeight: 1.65
+    letterSpacing: 0em
+  body-md:
+    fontFamily: Inter
+    fontSize: 16px
+    fontWeight: "400"
+    lineHeight: 1.55
+    letterSpacing: 0em
+  label-md:
+    fontFamily: Inter
+    fontSize: 14px
+    fontWeight: "700"
+    lineHeight: 1.2
+    letterSpacing: 0em
+rounded:
+  md: 1.5rem
+  lg: 1.75rem
+  full: 9999px
+spacing:
+  touch: 44px
+  container-max: 1200px
+  section: 6rem
+  gutter: 1.5rem
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "#07090f"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.touch}"
+    padding: 0 1.25rem
+  button-primary-loading:
+    backgroundColor: "{colors.primary}"
+    textColor: "#07090f"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.touch}"
+    padding: 0 1.25rem
+  button-disabled:
+    backgroundColor: "#1e293b"
+    textColor: "#64748b"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.touch}"
+    padding: 0 1.25rem
+  input-error:
+    backgroundColor: "#1f1111"
+    textColor: "{colors.error}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1rem
+  alert-error:
+    backgroundColor: "#1f1111"
+    textColor: "{colors.error}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1rem
+  toast-success:
+    backgroundColor: "#06281f"
+    textColor: "{colors.success}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 0.875rem
+  empty-state:
+    backgroundColor: "#1e2433"
+    textColor: "#94a3b8"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1.5rem
+  skeleton:
+    backgroundColor: "#1e2433"
+    rounded: "{rounded.md}"
+    height: 1rem
+  inline-progress:
+    backgroundColor: "#431407"
+    textColor: "{colors.primary}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.full}"
+    padding: 0.25rem 0.75rem
+  retry-action:
+    backgroundColor: "transparent"
+    textColor: "{colors.secondary}"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.touch}"
+    padding: 0 1rem
 tokens:
   color:
     background: "#07090f"
@@ -156,6 +263,20 @@ Mobile forms should use the fewest fields possible. Complex conversions should u
 
 Performance is part of the design. Optimize images, avoid decorative heavy effects, keep animation restrained, and protect Core Web Vitals. If a visual asset does not increase clarity, trust, or conversion, it is expendable.
 
+## Feedback & State
+
+Conversion surfaces must never leave the visitor unsure whether a click, form submit, checkout step, booking request, download, or gated action worked. Loading, submitting, success, validation-error, request-error, payment-error, unavailable, sold-out, waitlisted, retrying, and confirmation states are part of the landing-page contract.
+
+Primary CTAs should acknowledge interaction immediately. Forms should show field-level validation, preserve entered values on failure, and provide a concise form-level error summary when the submit action fails. Checkout, booking, download, and demo-request flows should explain what happened, what was saved, whether the visitor needs to retry, and what the next step is.
+
+Use inline feedback near the conversion action when the visitor must decide what to do next. Use toasts for lightweight confirmations only. Never rely on silent analytics events, disabled buttons, console errors, or page reloads as user feedback. Error and success states must preserve analytics attribution, CTA IDs, variant IDs, and funnel-stage reporting.
+
+## Request Lifecycle
+
+For every analytics event, lead capture, checkout session, booking request, download entitlement, email signup, variant fetch, pricing fetch, or admin save, design the lifecycle deliberately: idle, pending, success, failure, retrying, and disabled/unavailable. Slow conversions should show stable pending copy and avoid layout shift around the CTA.
+
+If a conversion action fails after data was partially accepted, say so clearly and offer a safe retry or alternate contact path. If instrumentation fails but the user action succeeds, do not block the user; log or mark the instrumentation failure separately. If the user action fails but instrumentation succeeds, show the user-facing failure and preserve the form state.
+
 ## Accessibility And Trust
 
 Maintain readable contrast, visible focus, keyboard access, semantic headings, descriptive alt text, and reduced-motion support. Do not hide critical information in images. Pricing, terms, download requirements, and security claims must be readable as text.
@@ -173,6 +294,8 @@ Trust is part of UX. Avoid fake logos, vague testimonials, hidden pricing for se
 - Use real product artifacts instead of decorative filler.
 - Keep variants measurable and tied to analytics.
 - Use configuration to tune copy, section order, and emphasis without breaking the design contract.
+- Design pending, success, validation-error, request-error, retry, and confirmation states for every conversion action.
+- Preserve form input, CTA attribution, variant IDs, and analytics semantics through loading and failure states.
 
 ### Don't
 
@@ -183,3 +306,5 @@ Trust is part of UX. Avoid fake logos, vague testimonials, hidden pricing for se
 - Let gradients, blobs, or abstract art replace product proof.
 - Add broad navigation exits to paid-traffic variants unless the experiment explicitly tests that.
 - Remove event tracking or stable section IDs while restyling.
+- Leave visitors unsure whether checkout, booking, signup, download, or lead capture succeeded.
+- Use disabled CTAs, page reloads, or console errors as substitutes for visible feedback.

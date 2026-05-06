@@ -74,8 +74,10 @@ var (
 )
 
 type standardsScanTarget struct {
-	Name string
-	Path string
+	Name                   string
+	Path                   string
+	LogicalRepoRoot        string
+	LogicalScenarioRelPath string
 }
 
 type StandardsScanStatus struct {
@@ -133,8 +135,14 @@ func newStandardsScanManager() *StandardsScanManager {
 	}
 }
 
-func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool, scenarioPath string) (StandardsScanStatus, error) {
-	targets, err := buildStandardsScanTargets(scenarioName, scenarioPath)
+type standardsScanRequestContext struct {
+	ScenarioPath           string
+	LogicalRepoRoot        string
+	LogicalScenarioRelPath string
+}
+
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool, req standardsScanRequestContext) (StandardsScanStatus, error) {
+	targets, err := buildStandardsScanTargets(scenarioName, req)
 	if err != nil {
 		return StandardsScanStatus{}, err
 	}
@@ -421,7 +429,7 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 			})
 		}
 
-		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, target.Name, specificStandards, forceDisabled, onFile)
+		violations, filesScanned, err := performStandardsCheck(ctx, target, specificStandards, forceDisabled, onFile)
 		if err != nil {
 			if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
 				job.markCancelled()
@@ -481,15 +489,14 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 	logger.Info(fmt.Sprintf("Standards scan %s completed", jobSnapshot.ID))
 }
 
-// buildStandardsScanTargets resolves the scenario(s) to scan.
-// When scenarioPathOverride is non-empty (set by a CLI running inside a
-// sandboxed agent), it is used as the scan path for the target scenario
-// instead of resolving via the repo contract. This allows the auditor to check
-// files within the sandbox overlay.
-// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
-func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string) ([]standardsScanTarget, error) {
+// buildStandardsScanTargets resolves the scenario(s) to scan. When ScenarioPath
+// is present, it is the physical scenario directory used for file walking.
+func buildStandardsScanTargets(scenarioName string, req standardsScanRequestContext) ([]standardsScanTarget, error) {
 	ctx, err := repoContext()
 	if err != nil {
+		return nil, err
+	}
+	if err := validateStandardsScanMapping(scenarioName, req); err != nil {
 		return nil, err
 	}
 	root := ctx.ScenariosRoot()
@@ -523,7 +530,7 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 		return targets, nil
 	}
 
-	// Use the sandbox-provided path if available, otherwise resolve from root.
+	scenarioPathOverride := strings.TrimSpace(req.ScenarioPath)
 	scenarioPath := scenarioPathOverride
 	if scenarioPath == "" {
 		scenarioPath, err = ctx.ResolveScenarioPath(scenarioName)
@@ -543,9 +550,36 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 	}
 
 	return []standardsScanTarget{{
-		Name: scenarioName,
-		Path: scenarioPath,
+		Name:                   scenarioName,
+		Path:                   scenarioPath,
+		LogicalRepoRoot:        strings.TrimSpace(req.LogicalRepoRoot),
+		LogicalScenarioRelPath: strings.TrimSpace(req.LogicalScenarioRelPath),
 	}}, nil
+}
+
+func validateStandardsScanMapping(scenarioName string, req standardsScanRequestContext) error {
+	logicalRepoRoot := strings.TrimSpace(req.LogicalRepoRoot)
+	logicalScenarioRelPath := strings.TrimSpace(req.LogicalScenarioRelPath)
+	if logicalRepoRoot == "" && logicalScenarioRelPath == "" {
+		return nil
+	}
+	if logicalRepoRoot == "" || logicalScenarioRelPath == "" {
+		return fmt.Errorf("logical_repo_root and logical_scenario_relpath must be provided together")
+	}
+	if !filepath.IsAbs(logicalRepoRoot) {
+		return fmt.Errorf("logical_repo_root must be absolute")
+	}
+	if filepath.IsAbs(logicalScenarioRelPath) {
+		return fmt.Errorf("logical_scenario_relpath must be relative")
+	}
+	cleanRel := filepath.Clean(logicalScenarioRelPath)
+	if cleanRel == "." || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("logical_scenario_relpath must not escape the logical repo root")
+	}
+	if scenarioName != "" && !strings.EqualFold(scenarioName, "all") && filepath.Base(cleanRel) != scenarioName {
+		return fmt.Errorf("logical_scenario_relpath must match the scenario name")
+	}
+	return nil
 }
 
 func buildScanCompletionMessage(scenarioName string, scenarioCount, violations int) string {
@@ -614,12 +648,11 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		Type          string   `json:"type"`
 		Standards     []string `json:"standards"`
 		ForceDisabled bool     `json:"force_disabled"`
-		// ScenarioPath overrides the scenario directory path. Set by the CLI
-		// when running inside a sandboxed agent, pointing to the overlay's
-		// merged directory for the target scenario. When empty, the API
-		// resolves the path using the repo contract.
-		// See packages/cli-core/cliutil/sandbox.go.
-		ScenarioPath string `json:"scenario_path"`
+		// ScenarioPath is the physical scenario directory to scan. The logical
+		// fields describe repo-relative placement for mapped validations.
+		ScenarioPath           string `json:"scenario_path"`
+		LogicalRepoRoot        string `json:"logical_repo_root"`
+		LogicalScenarioRelPath string `json:"logical_scenario_relpath"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&checkRequest); err != nil {
 		checkRequest.Type = "full"
@@ -641,7 +674,11 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled, strings.TrimSpace(checkRequest.ScenarioPath))
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled, standardsScanRequestContext{
+		ScenarioPath:           strings.TrimSpace(checkRequest.ScenarioPath),
+		LogicalRepoRoot:        strings.TrimSpace(checkRequest.LogicalRepoRoot),
+		LogicalScenarioRelPath: strings.TrimSpace(checkRequest.LogicalScenarioRelPath),
+	})
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
@@ -661,7 +698,9 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
+func performStandardsCheck(ctx context.Context, target standardsScanTarget, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
+	scanPath := target.Path
+	scenarioName := target.Name
 	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
@@ -861,7 +900,9 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		effectiveScenario = filepath.Base(scanPath)
 	}
 
-	externalViolations, err := runExternalRuleChecks(ctx, effectiveScenario, requestedSet, forceDisabled)
+	externalTarget := target
+	externalTarget.Name = effectiveScenario
+	externalViolations, err := runExternalRuleChecks(ctx, externalTarget, requestedSet, forceDisabled)
 	if err != nil {
 		logger.Warn("External standards checks failed", map[string]any{
 			"scenario": effectiveScenario,

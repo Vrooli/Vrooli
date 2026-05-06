@@ -195,7 +195,7 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if len(result.Phases) != 11 {
 			t.Fatalf("expected eleven phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"}
+		expected := []string{"structure", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)

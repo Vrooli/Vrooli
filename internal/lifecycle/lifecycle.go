@@ -43,6 +43,12 @@ type Runner struct {
 	deps        lifecycleDeps
 }
 
+type lifecycleLogContext struct {
+	Scenario  string
+	Operation string
+	Phase     string
+}
+
 // Verbosity controls how much of a lifecycle run is echoed to the console.
 // The scenario-wide lifecycle log file always receives the full output
 // regardless of this setting.
@@ -173,6 +179,7 @@ type StartOptions struct {
 	BestEffort         bool
 	ForceSetup         bool
 	ForceSetupScenario string
+	Operation          string
 }
 
 type StopOptions struct {
@@ -403,7 +410,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	if setupNeeded {
 		r.progressf("running setup phase for %s...", item.Slug)
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
-		if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
+		if err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
 			_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
 			return err
 		}); err != nil {
@@ -413,7 +420,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 
 	r.progressf("running develop phase for %s...", item.Slug)
 	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
+	if err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
 		_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
 		return err
 	}); err != nil {
@@ -481,7 +488,7 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []pr
 		return ports.Environment{}, err
 	}
 
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, _ io.Writer) error {
+	if err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "environment", Phase: "database"}, func(logWriter, _ io.Writer) error {
 		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
 	}); err != nil {
 		return ports.Environment{}, err
@@ -586,6 +593,7 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	deps.sleep(1 * time.Second)
 	opts.ForceSetup = true
 	opts.ForceSetupScenario = name
+	opts.Operation = "restart"
 	result, err := r.Start(name, opts)
 	if err != nil {
 		r.logError("Scenario restart failed during start", err, logx.AttrScenario, name)

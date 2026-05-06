@@ -227,8 +227,18 @@ test-genie execute <scenario-name> [options]
 | `--fail-fast` | `false` | Stop on first failure |
 | `--watch` | `false` | Live progress monitoring |
 | `--request-id <uuid>` | | Link to queued suite request |
+| `--scenario-path <path>` | resolved from scenario name | Absolute physical scenario directory to read and write |
+| `--logical-repo-root <path>` | none | Absolute repo root to use for repo-relative validation |
+| `--logical-scenario-relpath <path>` | none | Scenario directory relative to `--logical-repo-root` |
 | `--timeout <seconds>` | preset | Override phase timeout |
 | `--sync` | `false` | Trigger requirements sync after execution |
+
+`--scenario-path` and the logical placement flags intentionally describe
+different concepts. Use only `--scenario-path` when the scenario truly lives at
+that external path. Add `--logical-repo-root` and
+`--logical-scenario-relpath` when the physical scenario is an ephemeral copy
+that should be validated as if it lived under a repo, such as template deep
+validation.
 
 ### Presets
 
@@ -296,6 +306,13 @@ test-genie execute my-scenario --preset comprehensive --watch
 
 # Link to suite request
 test-genie execute my-scenario --request-id 550e8400-e29b-41d4-a716-446655440000
+
+# Test a generated temp scenario while resolving repo-relative docs from Vrooli
+test-genie execute template-validation-react-vite-deep \
+  --scenario-path /tmp/vrooli-template-deep-123/scenarios/template-validation-react-vite-deep \
+  --logical-repo-root /home/matthalloran8/Vrooli \
+  --logical-scenario-relpath scenarios/template-validation-react-vite-deep \
+  --preset quick
 
 # Trigger requirements sync
 test-genie execute my-scenario --preset comprehensive --sync

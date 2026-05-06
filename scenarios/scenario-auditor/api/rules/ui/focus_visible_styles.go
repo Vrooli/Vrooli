@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -66,6 +67,24 @@ export function Button({ children }: { children: React.ReactNode }) {
 }
   </input>
 </test-case>
+
+<test-case id="focus-visible-noninteractive" should-fail="false" path="ui/src/components/Heading.tsx">
+  <description>Non-interactive component does not need local focus-visible styling</description>
+  <input language="typescript">
+export function Heading() {
+  return &lt;h1 className="text-xl"&gt;Title&lt;/h1&gt;;
+}
+  </input>
+</test-case>
+
+<test-case id="focus-visible-test-file" should-fail="false" path="ui/src/components/button.test.tsx">
+  <description>Tests can render interactive fixtures without carrying production focus classes</description>
+  <input language="typescript">
+it("renders", () => {
+  render(&lt;button type="button"&gt;Fixture&lt;/button&gt;);
+});
+  </input>
+</test-case>
 */
 
 // CheckFocusVisibleStyles checks that UI files include visible focus indicator
@@ -78,13 +97,16 @@ func CheckFocusVisibleStyles(content []byte, filePath string) []rules.Violation 
 	source := string(content)
 
 	// Pass if any of these focus indicator patterns are present.
-	if strings.Contains(source, "focus-visible") {
+	if hasFocusVisibleMarker(source) {
 		return nil
 	}
-	if strings.Contains(source, "data-spatial-focus") {
+	if isFocusStyleTestFile(filePath) {
 		return nil
 	}
-	if strings.Contains(source, ":focus-visible") {
+	if !containsInteractiveUI(source, filePath) {
+		return nil
+	}
+	if scenarioHasGlobalFocusVisiblePolicy(filePath) {
 		return nil
 	}
 
@@ -114,4 +136,83 @@ func isFocusStyleTarget(path string) bool {
 	default:
 		return false
 	}
+}
+
+func hasFocusVisibleMarker(source string) bool {
+	return strings.Contains(source, "focus-visible") ||
+		strings.Contains(source, "data-spatial-focus") ||
+		strings.Contains(source, ":focus-visible")
+}
+
+func isFocusStyleTestFile(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	return strings.Contains(base, ".test.") ||
+		strings.Contains(base, ".spec.") ||
+		strings.HasSuffix(base, "_test.tsx") ||
+		strings.HasSuffix(base, "_test.jsx")
+}
+
+func containsInteractiveUI(source, path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".css" {
+		return strings.Contains(source, ":focus") ||
+			strings.Contains(source, "button") ||
+			strings.Contains(source, "input") ||
+			strings.Contains(source, "textarea") ||
+			strings.Contains(source, "select") ||
+			strings.Contains(source, "[tabindex]")
+	}
+
+	patterns := []string{
+		"<button",
+		"<a ",
+		"<a\n",
+		"<input",
+		"<textarea",
+		"<select",
+		"tabIndex",
+		"role=\"button\"",
+		"role='button'",
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(source, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func scenarioHasGlobalFocusVisiblePolicy(filePath string) bool {
+	if !filepath.IsAbs(filePath) {
+		return false
+	}
+	dir := filepath.Dir(filePath)
+	for {
+		for _, rel := range []string{
+			filepath.Join("ui", "src", "styles.css"),
+			filepath.Join("ui", "src", "index.css"),
+			filepath.Join("src", "styles.css"),
+			filepath.Join("src", "index.css"),
+		} {
+			path := filepath.Join(dir, rel)
+			data, err := os.ReadFile(path)
+			if err == nil && hasGlobalFocusVisiblePolicy(string(data)) {
+				return true
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false
+		}
+		dir = parent
+	}
+}
+
+func hasGlobalFocusVisiblePolicy(source string) bool {
+	if !strings.Contains(source, ":focus-visible") {
+		return false
+	}
+	return strings.Contains(source, "outline") ||
+		strings.Contains(source, "box-shadow") ||
+		strings.Contains(source, "ring")
 }

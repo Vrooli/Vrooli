@@ -21,14 +21,14 @@ type Request struct {
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
 
-	// ScenarioPath is the absolute path to the scenario directory. When set
-	// (typically by the CLI running inside a sandboxed agent), the API uses
-	// this path directly instead of resolving via VROOLI_ROOT + scenario name.
-	// This allows sandboxed agents to run tests against their modified files
-	// in the overlay filesystem. When empty, the API resolves the path from
-	// ScenarioName using VROOLI_ROOT.
-	// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+	// ScenarioPath is the absolute physical path to the scenario directory that
+	// test-genie should read and write. When empty, the API resolves the physical
+	// path from ScenarioName.
 	ScenarioPath string `json:"scenarioPath,omitempty"`
+	// LogicalRepoRoot and LogicalScenarioRelPath describe where the physical
+	// scenario should be treated as living for repo-relative validation.
+	LogicalRepoRoot        string `json:"logicalRepoRoot,omitempty"`
+	LogicalScenarioRelPath string `json:"logicalScenarioRelPath,omitempty"`
 }
 
 // PlanPhase represents a selected phase before execution begins.

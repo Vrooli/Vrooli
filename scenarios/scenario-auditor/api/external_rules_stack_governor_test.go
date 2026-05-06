@@ -266,7 +266,7 @@ func TestStackGovernorRun_MapsPackageGovernanceFindingToViolation(t *testing.T) 
 		},
 	}
 
-	violations, err := provider.runAgainstBaseURL(context.Background(), srv.URL, "alpha", []string{"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION"})
+	violations, err := provider.runAgainstBaseURL(context.Background(), srv.URL, standardsScanTarget{Name: "alpha"}, []string{"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION"})
 	if err != nil {
 		t.Fatalf("runAgainstBaseURL: %v", err)
 	}

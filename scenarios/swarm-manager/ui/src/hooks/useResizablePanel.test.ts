@@ -146,6 +146,28 @@ describe("useResizablePanel", () => {
     expect(result.current.isResizing).toBe(false);
   });
 
+  it("resizes from the left edge for right-side panels", () => {
+    const target = makeTargetRef();
+    const { result } = renderHook(() =>
+      useResizablePanel(defaultOptions({ targetRef: target, resizeEdge: "left" })),
+    );
+
+    act(() => {
+      result.current.resizeHandleProps.onPointerDown({
+        button: 0,
+        preventDefault: vi.fn(),
+      } as unknown as PointerEvent<HTMLDivElement>);
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 600 }));
+      window.dispatchEvent(new PointerEvent("pointerup"));
+    });
+
+    expect(result.current.size).toBe(400);
+    expect(target.style.width).toBe("400px");
+  });
+
   it("clamps size to minSize", () => {
     const target = makeTargetRef();
     const { result } = renderHook(() => useResizablePanel(defaultOptions({ targetRef: target })));

@@ -25,10 +25,12 @@ type suiteExecutionPayload struct {
 	UIURL          string   `json:"uiUrl"`
 	APIURL         string   `json:"apiUrl"`
 	BrowserlessURL string   `json:"browserlessUrl"`
-	// ScenarioPath overrides scenario directory resolution. Set by the CLI
-	// when running inside a sandboxed agent. When empty, the API resolves
-	// the path from ScenarioName using VROOLI_ROOT.
+	// ScenarioPath is the absolute physical scenario directory to read and write.
 	ScenarioPath string `json:"scenarioPath"`
+	// LogicalRepoRoot and LogicalScenarioRelPath describe where repo-relative
+	// validation should treat the physical scenario as living.
+	LogicalRepoRoot        string `json:"logicalRepoRoot"`
+	LogicalScenarioRelPath string `json:"logicalScenarioRelPath"`
 }
 
 func decodeSuiteExecutionInput(r *http.Request) (execution.SuiteExecutionInput, error) {
@@ -48,15 +50,17 @@ func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExe
 	}
 
 	request := orchestrator.SuiteExecutionRequest{
-		ScenarioName:   scenario,
-		Preset:         strings.TrimSpace(payload.Preset),
-		Phases:         payload.Phases,
-		Skip:           payload.Skip,
-		FailFast:       payload.FailFast,
-		UIURL:          strings.TrimSpace(payload.UIURL),
-		APIURL:         strings.TrimSpace(payload.APIURL),
-		BrowserlessURL: strings.TrimSpace(payload.BrowserlessURL),
-		ScenarioPath:   strings.TrimSpace(payload.ScenarioPath),
+		ScenarioName:           scenario,
+		Preset:                 strings.TrimSpace(payload.Preset),
+		Phases:                 payload.Phases,
+		Skip:                   payload.Skip,
+		FailFast:               payload.FailFast,
+		UIURL:                  strings.TrimSpace(payload.UIURL),
+		APIURL:                 strings.TrimSpace(payload.APIURL),
+		BrowserlessURL:         strings.TrimSpace(payload.BrowserlessURL),
+		ScenarioPath:           strings.TrimSpace(payload.ScenarioPath),
+		LogicalRepoRoot:        strings.TrimSpace(payload.LogicalRepoRoot),
+		LogicalScenarioRelPath: strings.TrimSpace(payload.LogicalScenarioRelPath),
 	}
 
 	var suiteRequestID *uuid.UUID

@@ -380,15 +380,31 @@ func TestRequirementsHelpTextIsGeneratedFromSubcommandSpecs(t *testing.T) {
 }
 
 func TestParseLogsArgsParsesFlagsAndStep(t *testing.T) {
-	name, opts, err := ParseLogsArgs([]string{"alpha", "--follow", "--step", "build", "--runtime", "--previous"})
+	name, opts, err := ParseLogsArgs([]string{"alpha", "--follow", "--step", "build", "--runtime", "--previous", "--tail", "25"})
 	if err != nil {
 		t.Fatalf("ParseLogsArgs: %v", err)
 	}
 	if name != "alpha" {
 		t.Fatalf("name = %q", name)
 	}
-	if !opts.Follow || opts.StepName != "build" || !opts.Runtime || !opts.Previous {
+	if !opts.Follow || opts.StepName != "build" || !opts.Runtime || !opts.Previous || opts.Tail != 25 {
 		t.Fatalf("opts = %+v", opts)
+	}
+}
+
+func TestParseLogsArgsRejectsInvalidTail(t *testing.T) {
+	cases := [][]string{
+		{"alpha", "--tail", "nope"},
+		{"alpha", "--tail", "0"},
+		{"alpha", "--tail", "-1"},
+	}
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			if _, _, err := ParseLogsArgs(args); err == nil {
+				t.Fatalf("ParseLogsArgs(%v) expected error", args)
+			}
+		})
 	}
 }
 

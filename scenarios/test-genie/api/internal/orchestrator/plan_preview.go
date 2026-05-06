@@ -35,7 +35,11 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 		return nil, shared.NewValidationError("scenarioName is required")
 	}
 
-	ws, err := workspacepkg.NewWithOverride(o.scenariosRoot, scenario, req.ScenarioPath)
+	ws, err := workspacepkg.NewWithOptions(o.scenariosRoot, scenario, workspacepkg.Options{
+		ScenarioPath:           req.ScenarioPath,
+		LogicalRepoRoot:        req.LogicalRepoRoot,
+		LogicalScenarioRelPath: req.LogicalScenarioRelPath,
+	})
 	if err != nil {
 		return nil, err
 	}

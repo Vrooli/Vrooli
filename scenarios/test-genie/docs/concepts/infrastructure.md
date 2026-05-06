@@ -32,6 +32,21 @@ api/
 - **Direct integration**: CLI and API share the same orchestration code
 - **Portable**: Works consistently across environments
 
+## Workspace Mapping
+
+Suite execution separates the scenario's physical filesystem location from its
+logical repo placement.
+
+- `scenarioPath` is the physical scenario directory test-genie reads and writes.
+- `logicalRepoRoot` is the repo root used for repo-relative validation.
+- `logicalScenarioRelPath` is the scenario directory relative to that logical
+  root.
+
+Most runs only need the physical path resolved from the scenario name. Template
+deep validation uses all three fields because it generates a temporary scenario
+under `/tmp` while documentation and standards checks must behave as if that
+scenario lived under `scenarios/<scenario-id>` in the Vrooli repo.
+
 ## Test Directory Structure
 
 ### Scenario Test Layout

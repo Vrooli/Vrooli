@@ -136,7 +136,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 
 	args := append([]string(nil), opts.Args...)
 	var result PhaseResult
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
+	if err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
 		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter, childWriter)
 		return executeErr
@@ -410,8 +410,17 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 // console, gated by the current verbosity; childWriter is for raw tool
 // stdout (vite/pnpm) — it tees the log file and reaches the console only
 // at VerbosityVerbose. The log file always receives everything.
-func (r *Runner) runWithLifecycleLog(name string, fn func(logWriter, childWriter io.Writer) error) error {
-	path := process.ScenarioLifecycleLogPath(r.Home, name)
+func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter, childWriter io.Writer) error) error {
+	if strings.TrimSpace(ctx.Scenario) == "" {
+		ctx.Scenario = "unknown"
+	}
+	if strings.TrimSpace(ctx.Operation) == "" {
+		ctx.Operation = "start"
+	}
+	if strings.TrimSpace(ctx.Phase) == "" {
+		ctx.Phase = "unknown"
+	}
+	path := process.ScenarioLifecycleLogPath(r.Home, ctx.Scenario)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -423,7 +432,79 @@ func (r *Runner) runWithLifecycleLog(name string, fn func(logWriter, childWriter
 
 	logWriter := io.MultiWriter(r.consoleOut(), file)
 	childWriter := io.MultiWriter(r.childStdoutConsole(), file)
-	return fn(logWriter, childWriter)
+	startedAt := time.Now().UTC()
+	runID := lifecycleRunID(startedAt)
+	writeLifecycleRunStart(file, ctx, runID, startedAt)
+	err = fn(logWriter, childWriter)
+	writeLifecycleRunEnd(file, ctx, runID, startedAt, time.Now().UTC(), err)
+	return err
+}
+
+func startLifecycleLogContext(scenarioName, operation, phase string) lifecycleLogContext {
+	if strings.TrimSpace(operation) == "" {
+		operation = "start"
+	}
+	return lifecycleLogContext{Scenario: scenarioName, Operation: operation, Phase: phase}
+}
+
+func lifecycleRunID(t time.Time) string {
+	return fmt.Sprintf("%s-%d", t.Format("20060102-150405.000000000"), os.Getpid())
+}
+
+func writeLifecycleRunStart(w io.Writer, ctx lifecycleLogContext, runID string, startedAt time.Time) {
+	cwd, _ := os.Getwd()
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "=== VROOLI LIFECYCLE RUN START ===")
+	_, _ = fmt.Fprintf(w, "run_id: %s\n", runID)
+	_, _ = fmt.Fprintf(w, "scenario: %s\n", ctx.Scenario)
+	_, _ = fmt.Fprintf(w, "operation: %s\n", ctx.Operation)
+	_, _ = fmt.Fprintf(w, "phase: %s\n", ctx.Phase)
+	_, _ = fmt.Fprintf(w, "started_at: %s\n", startedAt.Format(time.RFC3339Nano))
+	_, _ = fmt.Fprintf(w, "pid: %d\n", os.Getpid())
+	if cwd != "" {
+		_, _ = fmt.Fprintf(w, "cwd: %s\n", cwd)
+	}
+	_, _ = fmt.Fprintln(w, "==================================")
+}
+
+func writeLifecycleRunEnd(w io.Writer, ctx lifecycleLogContext, runID string, startedAt, endedAt time.Time, err error) {
+	status := "completed"
+	if err != nil {
+		status = "failed"
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "=== VROOLI LIFECYCLE RUN END ===")
+	_, _ = fmt.Fprintf(w, "run_id: %s\n", runID)
+	_, _ = fmt.Fprintf(w, "scenario: %s\n", ctx.Scenario)
+	_, _ = fmt.Fprintf(w, "operation: %s\n", ctx.Operation)
+	_, _ = fmt.Fprintf(w, "phase: %s\n", ctx.Phase)
+	_, _ = fmt.Fprintf(w, "status: %s\n", status)
+	if err != nil {
+		var phaseErr *PhaseStepError
+		if errors.As(err, &phaseErr) {
+			if strings.TrimSpace(phaseErr.Step) != "" {
+				_, _ = fmt.Fprintf(w, "step: %s\n", phaseErr.Step)
+			}
+			if exit := phaseErr.ExitCode(); exit > 0 {
+				_, _ = fmt.Fprintf(w, "exit_code: %d\n", exit)
+			}
+		}
+		_, _ = fmt.Fprintf(w, "error: %s\n", firstErrorLine(err))
+	}
+	_, _ = fmt.Fprintf(w, "ended_at: %s\n", endedAt.Format(time.RFC3339Nano))
+	_, _ = fmt.Fprintf(w, "duration: %s\n", endedAt.Sub(startedAt).Round(time.Millisecond))
+	_, _ = fmt.Fprintln(w, "================================")
+}
+
+func firstErrorLine(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
+		msg = strings.TrimSpace(msg[:idx])
+	}
+	return msg
 }
 
 func lookupPhase(manifest scenario.ServiceManifest, phaseName string) (scenario.Phase, bool) {

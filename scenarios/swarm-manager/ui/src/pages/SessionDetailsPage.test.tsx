@@ -1,10 +1,49 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
-import { agentSessionStoreInitialState, useAgentSessionStore } from "../stores";
 import type { AgentSession } from "../types";
 import { SessionDetailsPage } from "./SessionDetailsPage";
 import { installMatchMediaMock, renderWithProviders } from "../test-utils";
+
+const storeMock = vi.hoisted(() => {
+  const initialState = {
+    sessions: [],
+    status: "idle",
+    error: null,
+    isMutating: false,
+    isRefreshing: false,
+    loadSession: vi.fn(),
+    continueSession: vi.fn(),
+    refreshSession: vi.fn(),
+    cancelSession: vi.fn(),
+    applyProposal: vi.fn(),
+  };
+  let state: Record<string, unknown> = { ...initialState };
+  const useAgentSessionStore = Object.assign(
+    (selector: (value: Record<string, unknown>) => unknown) => selector(state),
+    {
+      setState: (partial: Record<string, unknown>) => {
+        state = { ...state, ...partial };
+      },
+      reset: () => {
+        state = { ...initialState };
+      },
+    },
+  );
+  return { initialState, useAgentSessionStore };
+});
+
+vi.mock("../stores", () => ({
+  agentSessionStoreInitialState: storeMock.initialState,
+  useAgentSessionStore: storeMock.useAgentSessionStore,
+}));
+
+vi.mock("@vrooli/api-base", () => ({
+  buildApiUrl: (path: string) => path,
+  buildWsUrl: (path: string) => path,
+  resolveApiBase: () => "http://localhost",
+}));
 
 beforeAll(() => {
   installMatchMediaMock();
@@ -37,7 +76,7 @@ const SESSION: AgentSession = {
   updatedAt: "2026-05-01T12:10:00Z",
   messages: [
     { id: "msg-1", role: "user", content: "Plan it.", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] },
-    { id: "msg-2", role: "assistant", content: "On it.", createdAt: "2026-05-01T12:01:00Z", attachmentIds: [] },
+    { id: "msg-2", role: "assistant", content: "**On it.**", createdAt: "2026-05-01T12:01:00Z", attachmentIds: [] },
   ],
   proposals: [
     {
@@ -72,29 +111,72 @@ function renderPage(initialPath = "/sessions/sess_meta") {
   );
 }
 
+async function activateTab(name: string | RegExp) {
+  await userEvent.click(screen.getByRole("tab", { name }));
+}
+
 describe("SessionDetailsPage", () => {
   beforeEach(() => {
+    installMatchMediaMock(false);
     navigateMock.mockReset();
-    useAgentSessionStore.setState({
-      ...agentSessionStoreInitialState,
+    storeMock.useAgentSessionStore.reset();
+    storeMock.useAgentSessionStore.setState({
+      ...storeMock.initialState,
       sessions: [SESSION],
       status: "success",
     });
   });
 
-  it("renders header, conversation, proposals, and artifacts", () => {
+  it("renders header, conversation, proposals, and artifacts", async () => {
     renderPage();
 
     expect(screen.getByText("Plan quality work")).toBeInTheDocument();
     expect(screen.getByText("Plan it.")).toBeInTheDocument();
     expect(screen.getByText("On it.")).toBeInTheDocument();
     expect(screen.getByText("Apply this plan.")).toBeInTheDocument();
+    await activateTab(/Artifacts 1/);
     expect(screen.getByText("Quality gates")).toBeInTheDocument();
+  });
+
+  it("renders assistant markdown as HTML", () => {
+    renderPage();
+
+    expect(screen.getByText("On it.").tagName).toBe("STRONG");
+  });
+
+  it("collapses and expands the desktop inspector", () => {
+    renderPage();
+
+    expect(screen.getByTestId("session-inspector")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("session-inspector-collapse"));
+    expect(screen.queryByTestId("session-inspector")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("session-inspector-expand"));
+    expect(screen.getByTestId("session-inspector")).toBeInTheDocument();
+  });
+
+  it("defaults the desktop inspector to proposals when a proposal is ready", () => {
+    renderPage();
+
+    expect(screen.getByRole("tab", { name: /Proposals 1/ })).toHaveAttribute("data-state", "active");
+  });
+
+  it("uses full-page mobile tabs instead of stacked secondary sections", async () => {
+    installMatchMediaMock(true);
+    renderPage();
+
+    expect(screen.getByRole("tab", { name: "Conversation" })).toHaveAttribute("data-state", "active");
+    expect(screen.getByText("Plan it.")).toBeVisible();
+    expect(screen.queryByText("Apply this plan.")).toBeNull();
+
+    await activateTab(/Proposals 1/);
+
+    expect(screen.getByText("Apply this plan.")).toBeVisible();
   });
 
   it("sends a continuation on Ctrl+Enter", async () => {
     const continueSession = vi.fn().mockResolvedValue(SESSION);
-    useAgentSessionStore.setState({ continueSession });
+    storeMock.useAgentSessionStore.setState({ continueSession });
 
     renderPage();
 
@@ -107,10 +189,24 @@ describe("SessionDetailsPage", () => {
     });
   });
 
+  it("restores the composer draft and shows an alert when send fails", async () => {
+    const continueSession = vi.fn().mockRejectedValue(new Error("agent offline"));
+    storeMock.useAgentSessionStore.setState({ continueSession });
+
+    renderPage();
+
+    const composer = screen.getByTestId("agent-session-composer");
+    fireEvent.change(composer, { target: { value: "Retry this" } });
+    fireEvent.keyDown(composer, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("agent offline"));
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Retry this");
+  });
+
   it("invokes refresh and cancel actions", async () => {
     const refreshSession = vi.fn().mockResolvedValue(SESSION);
     const cancelSession = vi.fn().mockResolvedValue(SESSION);
-    useAgentSessionStore.setState({ refreshSession, cancelSession });
+    storeMock.useAgentSessionStore.setState({ refreshSession, cancelSession });
 
     renderPage();
 
@@ -123,7 +219,7 @@ describe("SessionDetailsPage", () => {
 
   it("applies a proposal", async () => {
     const applyProposal = vi.fn().mockResolvedValue([]);
-    useAgentSessionStore.setState({ applyProposal });
+    storeMock.useAgentSessionStore.setState({ applyProposal });
 
     renderPage();
 
@@ -134,9 +230,10 @@ describe("SessionDetailsPage", () => {
     });
   });
 
-  it("navigates to the artifact detail page on artifact click", () => {
+  it("navigates to the artifact detail page on artifact click", async () => {
     renderPage();
 
+    await activateTab(/Artifacts 1/);
     fireEvent.click(screen.getByTestId("agent-session-artifact"));
 
     expect(navigateMock).toHaveBeenCalledWith("/initiatives/quality-gates");
@@ -144,7 +241,7 @@ describe("SessionDetailsPage", () => {
 
   it("renders not-found when session is missing", async () => {
     const loadSession = vi.fn().mockRejectedValue(new Error("missing"));
-    useAgentSessionStore.setState({ sessions: [], status: "success", loadSession });
+    storeMock.useAgentSessionStore.setState({ sessions: [], status: "success", loadSession });
 
     renderPage("/sessions/missing");
 

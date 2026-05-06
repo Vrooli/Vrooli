@@ -18,6 +18,8 @@ import (
 
 	"test-genie/internal/shared"
 
+	"test-genie/internal/orchestrator/workspace"
+
 	"github.com/vrooli/api-core/markedrefs"
 	"github.com/vrooli/api-core/relationshiprefs"
 )
@@ -26,6 +28,7 @@ import (
 type Config struct {
 	ScenarioDir  string
 	ScenarioName string
+	Mapping      workspace.Mapping
 	Settings     *Settings
 	HTTPClient   *http.Client
 }
@@ -69,6 +72,13 @@ func New(config Config, opts ...Option) *Runner {
 	if settings == nil {
 		settings = DefaultSettings()
 	}
+	if config.Mapping.PhysicalScenarioDir == "" {
+		physicalRoot := workspace.AppRootFromScenario(config.ScenarioDir)
+		config.Mapping = workspace.Mapping{
+			PhysicalScenarioDir: filepath.Clean(config.ScenarioDir),
+			PhysicalAppRoot:     physicalRoot,
+		}
+	}
 
 	r := &Runner{
 		config:   config,
@@ -102,6 +112,12 @@ func (r *Runner) resolvePath(target, base string) string {
 		return filepath.Join(r.config.ScenarioDir, target)
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(base), target))
+}
+
+func (r *Runner) resolveExistingScenarioTarget(target string) (string, bool) {
+	source := filepath.Join(r.config.ScenarioDir, ".docs-root.md")
+	resolved := r.config.Mapping.ResolveLocalLink(source, strings.TrimPrefix(target, "./"))
+	return resolved.PhysicalPath, resolved.Exists
 }
 
 // DOC: docs/phases/docs/README.md#validation-flow
@@ -537,9 +553,13 @@ func (r *Runner) validateLinks(ctx context.Context, links []linkTarget) ([]Obser
 
 		// local link
 		summary.LocalLinks++
-		if ok := r.validateLocalLink(link, parsed); !ok {
+		if ok, detail := r.validateLocalLink(link, parsed); !ok {
 			summary.BrokenLinks++
-			obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken local link '%s'", link.location, link.Dest)))
+			message := fmt.Sprintf("%s broken local link '%s'", link.location, link.Dest)
+			if detail != "" {
+				message = fmt.Sprintf("%s (%s)", message, detail)
+			}
+			obs = append(obs, NewErrorObservation(message))
 		}
 	}
 
@@ -587,20 +607,20 @@ func (r *Runner) validateLinks(ctx context.Context, links []linkTarget) ([]Obser
 	return obs, summary
 }
 
-func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) bool {
+func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) (bool, string) {
 	dest := parsed.Path
 	if dest == "" || dest == "#" {
-		return true
+		return true, ""
 	}
 
 	// guard against absolute paths
 	if r.settings.pathsEnabled() && strings.HasPrefix(dest, "/") {
 		// Treat OS-rooted paths as failures unless explicitly allowed
 		if absUnixPathPattern.MatchString(dest) || absWindowsPathPattern.MatchString(dest) {
-			return allowedPrefix(dest, r.settings.Paths.Allow)
+			return allowedPrefix(dest, r.settings.Paths.Allow), ""
 		}
 		// Root-relative site paths are treated as portable by default.
-		return true
+		return true, ""
 	}
 
 	target := dest
@@ -610,13 +630,18 @@ func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) bool {
 
 	if target != "" {
 		target = strings.TrimPrefix(target, "./")
-		target = r.resolvePath(target, link.File)
-		info, err := os.Stat(target)
-		if err != nil || info.IsDir() {
-			return false
+		resolved := r.config.Mapping.ResolveLocalLink(link.File, target)
+		if !resolved.Exists {
+			if resolved.EscapesRoot {
+				return false, fmt.Sprintf("logical target escapes repo root: %s", resolved.LogicalPath)
+			}
+			if r.config.Mapping.HasLogicalPlacement() && resolved.LogicalPath != "" {
+				return false, fmt.Sprintf("logical target: %s", resolved.LogicalPath)
+			}
+			return false, ""
 		}
 	}
-	return true
+	return true, ""
 }
 
 func (r *Runner) checkExternalLink(ctx context.Context, target string) (string, error) {
@@ -959,7 +984,10 @@ func (r *Runner) validateMarkedRef(ref markedRefTarget) (markedRefStatus, error)
 	if targetValue == "" {
 		return markedRefBroken, fmt.Errorf("empty reference target")
 	}
-	target := r.resolvePath(targetValue, "")
+	target, ok := r.resolveExistingScenarioTarget(targetValue)
+	if !ok {
+		return markedRefBroken, fmt.Errorf("target not found: %s", targetValue)
+	}
 	info, err := os.Stat(target)
 	if err != nil {
 		return markedRefBroken, fmt.Errorf("target not found: %s", targetValue)
@@ -980,7 +1008,10 @@ func (r *Runner) validateMarkedRef(ref markedRefTarget) (markedRefStatus, error)
 // validateCodeRef checks if the referenced code file exists.
 func (r *Runner) validateCodeRef(ref codeRefTarget) error {
 	target := r.resolvePath(ref.FilePath, "")
-
+	target, ok := r.resolveExistingScenarioTarget(ref.FilePath)
+	if !ok {
+		return fmt.Errorf("file not found: %s", ref.FilePath)
+	}
 	info, err := os.Stat(target)
 	if err != nil {
 		return fmt.Errorf("file not found: %s", ref.FilePath)
@@ -993,8 +1024,10 @@ func (r *Runner) validateCodeRef(ref codeRefTarget) error {
 
 // validateDocRef checks if the referenced documentation file exists.
 func (r *Runner) validateDocRef(ref docRefTarget) error {
-	target := r.resolvePath(ref.DocPath, "")
-
+	target, ok := r.resolveExistingScenarioTarget(ref.DocPath)
+	if !ok {
+		return fmt.Errorf("doc not found: %s", ref.DocPath)
+	}
 	info, err := os.Stat(target)
 	if err != nil {
 		return fmt.Errorf("doc not found: %s", ref.DocPath)

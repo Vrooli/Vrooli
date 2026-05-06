@@ -269,7 +269,10 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 
 	t.Setenv("VROOLI_ROOT", root)
 
-	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, filepath.Base(scenarioPath), nil, false, nil)
+	violations, _, err := performStandardsCheck(context.Background(), standardsScanTarget{
+		Name: filepath.Base(scenarioPath),
+		Path: scenarioPath,
+	}, nil, false, nil)
 	if err != nil {
 		t.Fatalf("performStandardsCheck returned error: %v", err)
 	}
@@ -351,5 +354,24 @@ func TestResolveVrooliRootFromWorkingDirectory(t *testing.T) {
 	}
 	if ctx.RepoRoot() != repoRoot {
 		t.Fatalf("expected root %s, got %s", repoRoot, ctx.RepoRoot())
+	}
+}
+
+func TestExternalViolationOutsideMappedPhysicalTargetIsDropped(t *testing.T) {
+	physicalScenario := filepath.Join(t.TempDir(), "scenarios", "demo")
+	outsideScenario := filepath.Join(t.TempDir(), "scenarios", "demo", "PRD.md")
+	target := standardsScanTarget{Name: "demo", Path: physicalScenario}
+	violation := StandardsViolation{FilePath: outsideScenario}
+
+	if !shouldDropExternalViolationForTarget(target, violation) {
+		t.Fatal("expected absolute external violation outside the physical target to be dropped")
+	}
+
+	inside := filepath.Join(physicalScenario, "PRD.md")
+	if shouldDropExternalViolationForTarget(target, StandardsViolation{FilePath: inside}) {
+		t.Fatal("did not expect physical target violation to be dropped")
+	}
+	if got := stableExternalViolationPath(target, inside); got != "PRD.md" {
+		t.Fatalf("stableExternalViolationPath = %q, want PRD.md", got)
 	}
 }

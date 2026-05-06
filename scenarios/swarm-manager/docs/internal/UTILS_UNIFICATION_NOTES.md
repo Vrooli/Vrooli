@@ -9,6 +9,13 @@ This document tracks the utility consolidation audit and improvements for the sw
 
 The codebase utility structure is well-organized but had one significant duplication issue resolved in this phase. The overall architecture follows screaming architecture principles with utilities organized by concern.
 
+2026-05-06 update: Agent-session, clarification, and evidence-request chat
+surfaces now share `ui/src/components/chat/` primitives for markdown rendering,
+message alignment, waiting indicators, auto-scroll, and composer behavior.
+Session-specific artifact node mapping was extracted to
+`ui/src/components/session/session-artifact-routing.ts` with pure unit coverage,
+so session page navigation no longer owns ad hoc artifact parsing.
+
 2026-05-01 update: Swarm Manager now has a dedicated UI test utility layer under `ui/src/test-utils/` for test-only query clients, provider/router rendering, browser API mocks, storage reset helpers, and expected-console handling. Initial hook tests have been migrated to this layer; future UI test work should extend these helpers instead of recreating local QueryClient, MemoryRouter, matchMedia, ResizeObserver, localStorage, or console-silencing setup.
 
 2026-05-01 follow-up: `components/ui/file-preview.test.tsx` now reuses `createTestQueryClient` and the previously skipped fetch-error assertion is active. This exposed one important boundary: production query options spread directly inside components can override QueryClient test defaults, so tests that need immediate error rendering must explicitly disable the component-level retry seam until the shared harness owns that override centrally.

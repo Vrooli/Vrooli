@@ -120,6 +120,30 @@ const service = createBacklogService(mockClient);
 
 **Status**: ✅ Service layer implemented. Structured UI↔API payloads are proto-backed, including the graph projection.
 
+### Agent Session UI Seam
+
+`ui/src/pages/SessionDetailsPage.tsx` is the route orchestration boundary for
+agent sessions. It owns route params, store/query loading, mutation handlers,
+and page assembly only.
+
+- **Shared chat boundary**: `ui/src/components/chat/` owns generic chat
+  presentation (`ChatThread`, `ChatMessageBubble`, `ChatComposer`) and imports
+  only shared UI/lib/hooks. It must not import backlog, review, or session
+  domain modules. Markdown rendering stays centralized through
+  `lib/render-markdown.ts`.
+- **Session presentation boundary**: `ui/src/components/session/` owns
+  session-specific layout and adapters: conversation mapping, inspector tabs,
+  proposals, artifacts, metadata, and artifact-to-node routing.
+- **Graph start boundary**: graph action orchestration remains in
+  `GraphWorkspace`; `GraphActionLauncher` receives status/error props and does
+  not call stores or routes directly.
+- **Layout seam**: the desktop session inspector uses `useResizablePanel` with
+  left-edge resizing and persisted width. Mobile uses the existing Radix Tabs
+  primitive for top-level session sections.
+
+Testing locks the seam with focused chat, session page, artifact routing,
+resize-hook, and graph launcher component tests.
+
 ### Graph Projection Boundary
 
 `api/internal/graph/` and `ui/src/services/graph-service.ts` form the graph projection seam.

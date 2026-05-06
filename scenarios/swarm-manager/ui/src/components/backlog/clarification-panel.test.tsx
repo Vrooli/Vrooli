@@ -5,6 +5,12 @@ import { useClarificationStore } from "../../stores/clarification-store";
 import type { ClarificationThread } from "../../types/domain";
 import { ApiError } from "../../lib/api-client";
 
+vi.mock("@vrooli/api-base", () => ({
+  buildApiUrl: (path: string) => path,
+  buildWsUrl: (path: string) => path,
+  resolveApiBase: () => "http://localhost",
+}));
+
 // Stub FloatingPanel to render children when open.
 vi.mock("../ui/floating-panel", () => ({
   FloatingPanel: ({ children, isOpen }: { children: React.ReactNode; isOpen: boolean }) =>

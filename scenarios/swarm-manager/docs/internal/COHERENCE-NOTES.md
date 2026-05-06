@@ -6,6 +6,24 @@
 
 ## Test Harness Update - 2026-05-01
 
+## Session Details UX Update - 2026-05-06
+
+The agent session details surface now follows the graph-first app model more
+closely:
+
+- Graph creation actions show persistent local status/error feedback and route
+  to `/sessions/:sessionId` after successful creation.
+- Session details uses shared chat primitives instead of page-local transcript
+  rendering.
+- Desktop uses a collapsible, resizable right-side inspector for proposals,
+  artifacts, and metadata.
+- Mobile uses full-page tabs for Conversation, Proposals, Artifacts, and
+  Details instead of stacking secondary content below the conversation.
+
+The generic chat components live under `components/chat/`; session-only
+presentation lives under `components/session/`. Keep future chat-like flows on
+the shared chat seam unless they need genuinely different behavior.
+
 **Current Pattern**: UI tests are beginning to converge on `src/test-utils` for provider and environment setup.
 
 **Created**:

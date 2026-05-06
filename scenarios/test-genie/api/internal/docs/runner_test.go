@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"test-genie/internal/orchestrator/workspace"
 )
 
 func TestRunner_Success(t *testing.T) {
@@ -941,6 +943,44 @@ func TestRunner_ResolvePath(t *testing.T) {
 				t.Errorf("resolvePath(%q, %q) = %q, want %q", tt.target, tt.base, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestRunner_MappedRepoRelativeLink(t *testing.T) {
+	repoRoot := t.TempDir()
+	physicalScenario := filepath.Join(t.TempDir(), "scenarios", "demo")
+	writeFile(t, filepath.Join(physicalScenario, "docs", "reference", "configuration.md"), "[ports](../../../../docs/reference/port-allocation.md)\n")
+	writeFile(t, filepath.Join(repoRoot, "docs", "reference", "port-allocation.md"), "# Ports\n")
+
+	mapping, err := workspace.NewMapping(physicalScenario, workspace.AppRootFromScenario(physicalScenario), repoRoot, "scenarios/demo", "demo")
+	if err != nil {
+		t.Fatalf("NewMapping() error = %v", err)
+	}
+	runner := New(Config{
+		ScenarioDir:  physicalScenario,
+		ScenarioName: "demo",
+		Mapping:      mapping,
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected mapped repo-relative link to pass, got %+v", result.Observations)
+	}
+}
+
+func TestRunner_UnmappedRepoRelativeLinkFails(t *testing.T) {
+	physicalScenario := filepath.Join(t.TempDir(), "scenarios", "demo")
+	writeFile(t, filepath.Join(physicalScenario, "docs", "reference", "configuration.md"), "[ports](../../../../docs/reference/port-allocation.md)\n")
+	runner := New(Config{
+		ScenarioDir:  physicalScenario,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if result.Success {
+		t.Fatalf("expected unmapped repo-relative link to fail")
 	}
 }
 

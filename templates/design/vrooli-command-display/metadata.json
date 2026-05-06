@@ -1,7 +1,7 @@
 {
   "id": "vrooli-command-display",
   "name": "Vrooli Command Display",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "default": false,
   "description": "Dark-first Vrooli design language for fullscreen war-room, kiosk, TV, and ambient command-center displays.",
   "tags": ["vrooli", "command-center", "dashboard", "kiosk", "tv", "dark", "immersive", "data-visualization"],

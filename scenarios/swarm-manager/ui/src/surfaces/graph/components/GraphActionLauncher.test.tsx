@@ -32,23 +32,43 @@ describe("GraphActionLauncher", () => {
     expect(onAuthorOperatingMode).toHaveBeenCalledTimes(1);
   });
 
-  it("disables session actions while busy and shows launcher errors", () => {
+  it("disables session actions while busy and shows launcher status outside the menu", () => {
     render(
       <GraphActionLauncher
         isBusy
-        error="Unable to start session."
+        status="Starting session..."
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
       />,
     );
 
+    expect(screen.getByRole("status")).toHaveTextContent("Starting session...");
+
     fireEvent.click(screen.getByTestId("graph-action-fab"));
 
     expect(screen.getByRole("menuitem", { name: "Quick Capture" })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: "Plan Work With Agent" })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: "Author Operating Mode" })).toBeDisabled();
+  });
+
+  it("shows dismissible launcher errors outside the closed menu", () => {
+    const onDismissError = vi.fn();
+
+    render(
+      <GraphActionLauncher
+        error="Unable to start session."
+        onDismissError={onDismissError}
+        onQuickCapture={vi.fn()}
+        onPlanWork={vi.fn()}
+        onAuthorOperatingMode={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.getByRole("alert")).toHaveTextContent("Unable to start session.");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss error" }));
+    expect(onDismissError).toHaveBeenCalledTimes(1);
   });
 
   it("closes on Escape", () => {

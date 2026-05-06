@@ -56,6 +56,8 @@ export interface UseResizablePanelOptions {
   adjacentMinSize?: number;
   /** Width of the resize handle in px (subtracted from available space). */
   handleWidth?: number;
+  /** Which edge of the target panel the handle controls. */
+  resizeEdge?: "left" | "right";
 }
 
 export interface UseResizablePanelReturn {
@@ -84,6 +86,7 @@ export function useResizablePanel({
   adjacentMinSize = 0,
   handleWidth = 0,
   storageKey,
+  resizeEdge = "right",
 }: UseResizablePanelOptions): UseResizablePanelReturn {
   const [size, setSize] = useState(() => loadPersistedSize(storageKey, defaultSize, minSize, maxSize));
   const [isResizing, setIsResizing] = useState(false);
@@ -111,7 +114,8 @@ export function useResizablePanel({
         minSize,
         Math.min(maxSize, bounds.width - adjacentMinSize - handleWidth),
       );
-      const nextSize = clamp(event.clientX - bounds.left, minSize, effectiveMax);
+      const rawSize = resizeEdge === "left" ? bounds.right - event.clientX : event.clientX - bounds.left;
+      const nextSize = clamp(rawSize, minSize, effectiveMax);
       liveSizeRef.current = nextSize;
       const target = targetRef.current;
       if (target) {
@@ -139,7 +143,7 @@ export function useResizablePanel({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [isResizing, containerRef, targetRef, minSize, maxSize, adjacentMinSize, handleWidth, storageKey]);
+  }, [isResizing, containerRef, targetRef, minSize, maxSize, adjacentMinSize, handleWidth, storageKey, resizeEdge]);
 
   return {
     size,

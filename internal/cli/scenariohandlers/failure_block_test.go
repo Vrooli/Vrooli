@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -59,6 +60,33 @@ func TestEmitLifecycleFailureWritesBlock(t *testing.T) {
 	// over in internal/process would trip the test.
 	if !strings.Contains(got, process.ScenarioLifecycleLogPath(home, "alpha")) {
 		t.Errorf("log path did not match process.ScenarioLifecycleLogPath: %q", got)
+	}
+}
+
+func TestEmitLifecycleFailureWritesPhaseStepExitDetails(t *testing.T) {
+	stderr := &bytes.Buffer{}
+	home := t.TempDir()
+	ctx := &failureCtx{stderr: stderr, home: home}
+	err := &lifecycle.PhaseStepError{
+		Scenario: "alpha",
+		Phase:    "setup",
+		Step:     "build-ui",
+		Exit:     143,
+		Err:      errors.New("signal: terminated"),
+	}
+
+	emitLifecycleFailure(newFailureDeps(home), ctx, "restart", []string{"alpha"}, err)
+
+	got := stderr.String()
+	for _, want := range []string{
+		"Phase: setup",
+		"Step: build-ui",
+		"Exit code: 143",
+		"Error: scenario \"alpha\" phase \"setup\" step \"build-ui\" failed with exit code 143",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
 	}
 }
 

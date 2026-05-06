@@ -57,3 +57,66 @@ func TestNewScenarioWorkspaceValidatesNames(t *testing.T) {
 		t.Fatalf("expected error for invalid characters")
 	}
 }
+
+func TestNewScenarioWorkspaceWithPhysicalOverride(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(t.TempDir(), "scenarios", "demo")
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("failed to create scenario dir: %v", err)
+	}
+
+	workspace, err := NewWithOptions(root, "demo", Options{ScenarioPath: scenarioDir})
+	if err != nil {
+		t.Fatalf("NewWithOptions() error = %v", err)
+	}
+	if workspace.ScenarioDir != scenarioDir {
+		t.Fatalf("ScenarioDir = %q, want %q", workspace.ScenarioDir, scenarioDir)
+	}
+	if workspace.Mapping.HasLogicalPlacement() {
+		t.Fatal("physical-only override should not have logical placement")
+	}
+}
+
+func TestWorkspaceMappingResolvesMappedLinks(t *testing.T) {
+	repoRoot := t.TempDir()
+	physicalScenario := filepath.Join(t.TempDir(), "scenarios", "demo")
+	if err := os.MkdirAll(filepath.Join(physicalScenario, "docs", "reference"), 0o755); err != nil {
+		t.Fatalf("failed to create physical scenario: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, "docs", "reference"), 0o755); err != nil {
+		t.Fatalf("failed to create repo docs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(physicalScenario, "docs", "reference", "local.md"), []byte("# Local\n"), 0o644); err != nil {
+		t.Fatalf("write local doc: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "docs", "reference", "port-allocation.md"), []byte("# Ports\n"), 0o644); err != nil {
+		t.Fatalf("write repo doc: %v", err)
+	}
+
+	mapping, err := NewMapping(physicalScenario, filepath.Dir(filepath.Dir(physicalScenario)), repoRoot, "scenarios/demo", "demo")
+	if err != nil {
+		t.Fatalf("NewMapping() error = %v", err)
+	}
+	source := filepath.Join(physicalScenario, "docs", "reference", "configuration.md")
+
+	local := mapping.ResolveLocalLink(source, "local.md")
+	if !local.Exists || local.OutsideScenario {
+		t.Fatalf("local resolution = %#v", local)
+	}
+	if local.PhysicalPath != filepath.Join(physicalScenario, "docs", "reference", "local.md") {
+		t.Fatalf("local physical path = %q", local.PhysicalPath)
+	}
+
+	repo := mapping.ResolveLocalLink(source, "../../../../docs/reference/port-allocation.md")
+	if !repo.Exists || !repo.OutsideScenario {
+		t.Fatalf("repo resolution = %#v", repo)
+	}
+	if repo.PhysicalPath != filepath.Join(repoRoot, "docs", "reference", "port-allocation.md") {
+		t.Fatalf("repo physical path = %q", repo.PhysicalPath)
+	}
+
+	escaped := mapping.ResolveLocalLink(source, "../../../../../outside.md")
+	if escaped.Exists || !escaped.EscapesRoot {
+		t.Fatalf("escaped resolution = %#v", escaped)
+	}
+}

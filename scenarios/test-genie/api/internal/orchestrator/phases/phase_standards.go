@@ -123,7 +123,14 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 		}
 	}
 
-	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, env.ScenarioDir, summaryLimit)
+	mapping := env.Mapping
+	if strings.TrimSpace(mapping.PhysicalScenarioDir) == "" {
+		mapping = workspace.Mapping{
+			PhysicalScenarioDir: strings.TrimSpace(env.ScenarioDir),
+			PhysicalAppRoot:     strings.TrimSpace(env.PhysicalAppRoot),
+		}
+	}
+	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, mapping, summaryLimit)
 	observations := buildStandardsObservations(summary, failOn, minDisplay)
 
 	if err != nil {
@@ -184,8 +191,8 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 	return report
 }
 
-func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, baseURL, scenarioName, scenarioPath string, summaryLimit int) (*auditorViolationSummary, error) {
-	jobID, err := startAuditorStandardsScan(ctx, baseURL, scenarioName, scenarioPath)
+func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, baseURL, scenarioName string, mapping workspace.Mapping, summaryLimit int) (*auditorViolationSummary, error) {
+	jobID, err := startAuditorStandardsScan(ctx, baseURL, scenarioName, mapping)
 	if err != nil {
 		return nil, err
 	}
@@ -221,12 +228,17 @@ func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, base
 	}
 }
 
-func startAuditorStandardsScan(ctx context.Context, baseURL, scenarioName, scenarioPath string) (string, error) {
+func startAuditorStandardsScan(ctx context.Context, baseURL, scenarioName string, mapping workspace.Mapping) (string, error) {
 	payload := map[string]any{
 		"type": "full",
 	}
+	scenarioPath := mapping.PhysicalScenarioDir
 	if strings.TrimSpace(scenarioPath) != "" {
 		payload["scenario_path"] = strings.TrimSpace(scenarioPath)
+	}
+	if mapping.HasLogicalPlacement() {
+		payload["logical_repo_root"] = mapping.LogicalRepoRoot
+		payload["logical_scenario_relpath"] = mapping.LogicalScenarioRelPath
 	}
 
 	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodPost, strings.TrimRight(baseURL, "/")+"/api/v1/standards/check/"+scenarioName, payload)

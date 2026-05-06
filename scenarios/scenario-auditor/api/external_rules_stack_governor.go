@@ -130,8 +130,8 @@ type stackGovernorEvidence struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ruleIDs []string) ([]StandardsViolation, error) {
-	cleaned := strings.TrimSpace(scenarioName)
+func (p *stackGovernorProvider) Run(ctx context.Context, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error) {
+	cleaned := strings.TrimSpace(target.Name)
 	if cleaned == "" {
 		return nil, nil
 	}
@@ -140,10 +140,11 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	if err != nil {
 		return nil, err
 	}
-	return p.runAgainstBaseURL(ctx, baseURL, cleaned, ruleIDs)
+	return p.runAgainstBaseURL(ctx, baseURL, target, ruleIDs)
 }
 
-func (p *stackGovernorProvider) runAgainstBaseURL(ctx context.Context, baseURL, scenarioName string, ruleIDs []string) ([]StandardsViolation, error) {
+func (p *stackGovernorProvider) runAgainstBaseURL(ctx context.Context, baseURL string, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error) {
+	scenarioName := strings.TrimSpace(target.Name)
 	payload, _ := json.Marshal(stackGovernorRunRequest{ScenarioName: scenarioName})
 	endpoint := fmt.Sprintf("%s/api/v1/run", baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
@@ -178,8 +179,13 @@ func (p *stackGovernorProvider) runAgainstBaseURL(ctx context.Context, baseURL, 
 	}
 
 	now := time.Now().Format(time.RFC3339)
-	scenarioDir := ""
+	scenarioDir := strings.TrimSpace(target.Path)
 	if parsed.RepoRoot != "" {
+		if scenarioDir != "" {
+			scenarioDir = filepath.Clean(scenarioDir)
+		}
+	}
+	if scenarioDir == "" && parsed.RepoRoot != "" {
 		if repoCtx, err := repocontext.FromRepoRoot(parsed.RepoRoot); err == nil {
 			resolvedPath, err := repoCtx.ResolveScenarioPath(scenarioName)
 			if err == nil {

@@ -2,6 +2,7 @@ package phases
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -110,6 +111,41 @@ func TestRunStandardsPhaseHandlesUnavailableScenarioAuditorAPI(t *testing.T) {
 	report := runStandardsPhase(context.Background(), env, io.Discard)
 	if report.FailureClassification != FailureClassMissingDependency {
 		t.Fatalf("expected missing dependency classification, got %s", report.FailureClassification)
+	}
+}
+
+func TestStartAuditorStandardsScanSendsLogicalMapping(t *testing.T) {
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/standards/check/demo" {
+			http.NotFound(w, r)
+			return
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"job_id":"job-123"}`))
+	}))
+	defer server.Close()
+
+	mapping := workspace.Mapping{
+		PhysicalScenarioDir:    filepath.Join(t.TempDir(), "scenarios", "demo"),
+		PhysicalAppRoot:        t.TempDir(),
+		LogicalRepoRoot:        t.TempDir(),
+		LogicalScenarioRelPath: "scenarios/demo",
+	}
+	jobID, err := startAuditorStandardsScan(context.Background(), server.URL, "demo", mapping)
+	if err != nil {
+		t.Fatalf("startAuditorStandardsScan() error = %v", err)
+	}
+	if jobID != "job-123" {
+		t.Fatalf("jobID = %q", jobID)
+	}
+	if payload["scenario_path"] != mapping.PhysicalScenarioDir ||
+		payload["logical_repo_root"] != mapping.LogicalRepoRoot ||
+		payload["logical_scenario_relpath"] != mapping.LogicalScenarioRelPath {
+		t.Fatalf("payload = %#v", payload)
 	}
 }
 

@@ -18,7 +18,7 @@ import (
 	execTypes "test-genie/cli/internal/execute"
 )
 
-const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"
+const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"
 
 // HelpText returns the framework-rendered help body for the execute command.
 func HelpText() string {
@@ -29,7 +29,8 @@ Examples:
   test-genie execute swarm-manager standards lint integration
   test-genie execute swarm-manager --preset quick --fail-fast
   test-genie execute swarm-manager --skip performance --json
-  test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --preset comprehensive`
+  test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --preset comprehensive
+  test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --logical-repo-root /workspace/Vrooli --logical-scenario-relpath scenarios/demo --preset comprehensive`
 }
 
 // Run executes the execute command.
@@ -41,25 +42,24 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 
 	scenarioPath := parsed.ScenarioPath
 	if scenarioPath == "" {
-		// Resolve the scenario path using sandbox-aware resolution. When running
-		// inside a sandboxed agent (VROOLI_SANDBOX_* env vars present), this
-		// returns the path within the sandbox overlay so the API operates on the
-		// agent's modified files. Outside a sandbox, this falls back to the
-		// standard VROOLI_ROOT-based path.
-		// See packages/cli-core/cliutil/sandbox.go for the implementation.
+		// Resolve the physical scenario directory from the scenario name.
+		// cliutil owns local environment details; the execute request only
+		// carries the resulting path as workspace identity.
 		scenarioPath = cliutil.ResolveScenarioPath(parsed.Scenario)
 	}
 
 	req := Request{
-		ScenarioName:   parsed.Scenario,
-		Preset:         parsed.Preset,
-		Phases:         parsed.Phases,
-		Skip:           parsed.Skip,
-		FailFast:       parsed.FailFast,
-		SuiteRequestID: parsed.RequestID,
-		UIURL:          parsed.UIURL,
-		BrowserlessURL: parsed.BrowserlessURL,
-		ScenarioPath:   scenarioPath,
+		ScenarioName:           parsed.Scenario,
+		Preset:                 parsed.Preset,
+		Phases:                 parsed.Phases,
+		Skip:                   parsed.Skip,
+		FailFast:               parsed.FailFast,
+		SuiteRequestID:         parsed.RequestID,
+		UIURL:                  parsed.UIURL,
+		BrowserlessURL:         parsed.BrowserlessURL,
+		ScenarioPath:           scenarioPath,
+		LogicalRepoRoot:        parsed.LogicalRepoRoot,
+		LogicalScenarioRelPath: parsed.LogicalScenarioRelPath,
 	}
 
 	var (
@@ -199,6 +199,8 @@ func ParseArgs(args []string) (Args, error) {
 	fs.BoolVar(&out.Stream, "stream", false, "Force streaming mode (default for TTY)")
 	fs.BoolVar(&out.NoStream, "no-stream", false, "Disable streaming, use progress spinner instead")
 	fs.StringVar(&out.ScenarioPath, "scenario-path", "", "Absolute path to the scenario directory")
+	fs.StringVar(&out.LogicalRepoRoot, "logical-repo-root", "", "Absolute repo root for repo-relative validation")
+	fs.StringVar(&out.LogicalScenarioRelPath, "logical-scenario-relpath", "", "Logical scenario directory relative to --logical-repo-root")
 	fs.StringVar(&out.UIURL, "ui-url", "", "UI URL for Lighthouse audits (e.g., http://localhost:3000)")
 	fs.StringVar(&out.BrowserlessURL, "browserless-url", "", "Browserless URL (default: BROWSERLESS_URL env or http://localhost:4110)")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -208,8 +210,13 @@ func ParseArgs(args []string) (Args, error) {
 	}
 	out.JSON = *jsonOutput
 	out.ScenarioPath = strings.TrimSpace(out.ScenarioPath)
+	out.LogicalRepoRoot = strings.TrimSpace(out.LogicalRepoRoot)
+	out.LogicalScenarioRelPath = strings.TrimSpace(out.LogicalScenarioRelPath)
 	if out.ScenarioPath != "" && !filepath.IsAbs(out.ScenarioPath) {
 		return Args{}, fmt.Errorf("--scenario-path must be absolute")
+	}
+	if err := validateLogicalPlacementArgs(out.Scenario, out.LogicalRepoRoot, out.LogicalScenarioRelPath); err != nil {
+		return Args{}, err
 	}
 	out.ExtraPhases = fs.Args()
 
@@ -227,6 +234,32 @@ func ParseArgs(args []string) (Args, error) {
 	out.Phases = normalizedPhases
 	out.Skip = normalizedSkip
 	return out, nil
+}
+
+func validateLogicalPlacementArgs(scenario, logicalRepoRoot, logicalScenarioRelPath string) error {
+	if logicalRepoRoot == "" && logicalScenarioRelPath == "" {
+		return nil
+	}
+	if logicalRepoRoot == "" || logicalScenarioRelPath == "" {
+		return fmt.Errorf("--logical-repo-root and --logical-scenario-relpath must be provided together")
+	}
+	if !filepath.IsAbs(logicalRepoRoot) {
+		return fmt.Errorf("--logical-repo-root must be absolute")
+	}
+	if filepath.IsAbs(logicalScenarioRelPath) {
+		return fmt.Errorf("--logical-scenario-relpath must be relative")
+	}
+	cleanRel := filepath.Clean(logicalScenarioRelPath)
+	if cleanRel == "." || cleanRel == "" {
+		return fmt.Errorf("--logical-scenario-relpath must not be empty")
+	}
+	if cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("--logical-scenario-relpath must not escape the logical repo root")
+	}
+	if filepath.Base(cleanRel) != scenario {
+		return fmt.Errorf("--logical-scenario-relpath must end with the scenario name")
+	}
+	return nil
 }
 
 // PrintError displays a formatted error box with debugging hints.

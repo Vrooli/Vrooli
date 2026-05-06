@@ -31,7 +31,7 @@ importers:
         version: 3.13.24(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
-        version: file:../../../packages/api-base(express@4.22.1)(ws@8.20.0)
+        version: file:../../../packages/api-base(@bufbuild/protobuf@2.11.0)(express@4.22.1)(ws@8.20.0)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -283,6 +283,17 @@ packages:
     resolution: {integrity: sha512-sE6CojU25nfeb1w88Sm+jRnmk4GvQTeEZvLDHHDPvIHbj2NsDJWFAUJdJr+RcuMnjdWmbur+rAS38VuEK/XviQ==}
     peerDependencies:
       '@bufbuild/protobuf': ^2.8.0
+
+  '@connectrpc/connect-web@2.1.1':
+    resolution: {integrity: sha512-J8317Q2MaFRCT1jzVR1o06bZhDIBmU0UAzWx6xOIXzOq8+k71/+k7MUF7AwcBUX+34WIvbm5syRgC5HXQA8fOg==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
+      '@connectrpc/connect': 2.1.1
+
+  '@connectrpc/connect@2.1.1':
+    resolution: {integrity: sha512-JzhkaTvM73m2K1URT6tv53k2RwngSmCXLZJgK580qNQOXRzZRR/BCMfZw3h+90JpnG6XksP5bYT+cz0rpUzUWQ==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
 
   '@csstools/cascade-layer-name-parser@3.0.0':
     resolution: {integrity: sha512-/3iksyevwRfSJx5yH0RkcrcYXwuhMQx3Juqf40t97PeEy2/Mz2TItZ/z/216qpe4GgOyFBP8MKIwVvytzHmfIQ==}
@@ -3782,6 +3793,15 @@ snapshots:
       '@bufbuild/cel': 0.4.0(@bufbuild/protobuf@2.11.0)
       '@bufbuild/protobuf': 2.11.0
 
+  '@connectrpc/connect-web@2.1.1(@bufbuild/protobuf@2.11.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.11.0))':
+    dependencies:
+      '@bufbuild/protobuf': 2.11.0
+      '@connectrpc/connect': 2.1.1(@bufbuild/protobuf@2.11.0)
+
+  '@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.11.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.11.0
+
   '@csstools/cascade-layer-name-parser@3.0.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
@@ -4880,10 +4900,14 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 1.2.0
 
-  '@vrooli/api-base@file:../../../packages/api-base(express@4.22.1)(ws@8.20.0)':
+  '@vrooli/api-base@file:../../../packages/api-base(@bufbuild/protobuf@2.11.0)(express@4.22.1)(ws@8.20.0)':
     dependencies:
+      '@connectrpc/connect': 2.1.1(@bufbuild/protobuf@2.11.0)
+      '@connectrpc/connect-web': 2.1.1(@bufbuild/protobuf@2.11.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.11.0))
       express: 4.22.1
       ws: 8.20.0
+    transitivePeerDependencies:
+      - '@bufbuild/protobuf'
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

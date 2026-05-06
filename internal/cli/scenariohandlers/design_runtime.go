@@ -201,6 +201,7 @@ func validateDesignKit(info DesignKitInfo) []DesignValidationIssue {
 			issues = append(issues, DesignValidationIssue{Kit: info.ID, Path: required, Message: msg})
 		}
 	}
+	issues = append(issues, validateDesignDocument(info)...)
 	for id, adapter := range info.Manifest.Adapters {
 		cleanPath, ok := cleanRelativePath(adapter.Path)
 		if !ok {
@@ -235,6 +236,83 @@ func validateDesignKit(info DesignKitInfo) []DesignValidationIssue {
 		}
 	}
 	return issues
+}
+
+func validateDesignDocument(info DesignKitInfo) []DesignValidationIssue {
+	path := filepath.Join(info.Path, "DESIGN.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	content := string(data)
+	frontMatter, ok := extractDesignFrontMatter(content)
+	if !ok {
+		return []DesignValidationIssue{{Kit: info.ID, Path: "DESIGN.md", Message: "DESIGN.md must start with YAML front matter delimited by ---"}}
+	}
+	topLevel := designFrontMatterTopLevelKeys(frontMatter)
+	var issues []DesignValidationIssue
+	for _, key := range []string{"name", "colors", "typography", "rounded", "spacing", "components"} {
+		if !topLevel[key] {
+			issues = append(issues, DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("missing official-style top-level %q token group", key)})
+		}
+	}
+	for _, key := range []string{
+		"button-primary-loading",
+		"button-disabled",
+		"input-error",
+		"alert-error",
+		"toast-success",
+		"empty-state",
+		"skeleton",
+		"inline-progress",
+		"retry-action",
+	} {
+		if !strings.Contains(frontMatter, "\n  "+key+":") {
+			issues = append(issues, DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("components must include %q state guidance token", key)})
+		}
+	}
+	for _, section := range []string{"## Feedback & State", "## Request Lifecycle"} {
+		if !strings.Contains(content, section) {
+			issues = append(issues, DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("missing %s section for asynchronous and error-state UX", section)})
+		}
+	}
+	for _, term := range []string{"loading", "success", "validation-error", "request-error", "retry"} {
+		if !strings.Contains(strings.ToLower(content), term) {
+			issues = append(issues, DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("missing required UX state term %q", term)})
+		}
+	}
+	return issues
+}
+
+func extractDesignFrontMatter(content string) (string, bool) {
+	content = strings.TrimPrefix(content, "\ufeff")
+	if !strings.HasPrefix(content, "---\n") {
+		return "", false
+	}
+	rest := content[len("---\n"):]
+	end := strings.Index(rest, "\n---")
+	if end < 0 {
+		return "", false
+	}
+	return rest[:end], true
+}
+
+func designFrontMatterTopLevelKeys(frontMatter string) map[string]bool {
+	keys := map[string]bool{}
+	for _, line := range strings.Split(frontMatter, "\n") {
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+			continue
+		}
+		key, _, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		keys[strings.TrimSpace(key)] = true
+	}
+	return keys
 }
 
 func loadDesignAdapterManifest(adapterDir string) (DesignAdapterManifest, error) {

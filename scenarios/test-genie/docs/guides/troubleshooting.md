@@ -26,6 +26,25 @@ cat coverage/phase-results/unit.json | jq '.errors'
 | Requirement not tracked | Missing `[REQ:ID]` tag | Add requirement tag to test |
 | Coverage shows 0% | Coverage not enabled | Check vitest/go test config |
 
+### Temp Scenario Links Fail
+
+**Symptoms:**
+```
+broken local link '../../../../docs/reference/port-allocation.md'
+```
+
+**Likely cause:** The suite is reading a generated scenario from a temp
+directory, but repo-relative validation was not given a logical placement.
+
+**Solution:**
+```bash
+test-genie execute template-validation-react-vite-deep \
+  --scenario-path /tmp/vrooli-template-deep-123/scenarios/template-validation-react-vite-deep \
+  --logical-repo-root /home/matthalloran8/Vrooli \
+  --logical-scenario-relpath scenarios/template-validation-react-vite-deep \
+  --preset quick
+```
+
 ## Docker & Container Issues
 
 ### Container Won't Start

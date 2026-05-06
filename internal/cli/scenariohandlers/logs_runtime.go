@@ -114,13 +114,13 @@ func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Write
 	if opts.Follow {
 		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
-			return writeScenarioLogTail(stdout, paths, 50)
+			return writeScenarioLogTail(stdout, paths, logTailLines(opts, 50))
 		}
 		_, _ = fmt.Fprintf(stdout, "Following runtime logs for scenario '%s'\n", name)
-		return followScenarioLogFiles(stdout, paths, 10)
+		return followScenarioLogFiles(stdout, paths, logTailLines(opts, 10))
 	}
 	_, _ = fmt.Fprintf(stdout, "Recent runtime logs for scenario '%s'\n\n", name)
-	return writeScenarioLogTail(stdout, paths, 50)
+	return writeScenarioLogTail(stdout, paths, logTailLines(opts, 50))
 }
 
 func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) error {
@@ -145,13 +145,13 @@ func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) e
 	if opts.Follow {
 		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
-			return writeScenarioLogTail(stdout, []string{path}, 100)
+			return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100))
 		}
 		_, _ = fmt.Fprintf(stdout, "Following log for step '%s' in scenario '%s'\n", opts.StepName, name)
-		return followScenarioLogFiles(stdout, []string{path}, 10)
+		return followScenarioLogFiles(stdout, []string{path}, logTailLines(opts, 10))
 	}
 	_, _ = fmt.Fprintf(stdout, "Recent log for step '%s' in scenario '%s'\n\n", opts.StepName, name)
-	return writeScenarioLogTail(stdout, []string{path}, 100)
+	return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100))
 }
 
 func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, stderr io.Writer) error {
@@ -166,19 +166,26 @@ func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, 
 	if opts.Follow {
 		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
-			if err := writeScenarioLogTail(stdout, []string{path}, 100); err != nil {
+			if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100)); err != nil {
 				return err
 			}
 			return writeScenarioLogDiscovery(root, home, name, stdout, stderr)
 		}
 		_, _ = fmt.Fprintf(stdout, "Following lifecycle log for scenario '%s'\n", name)
-		return followScenarioLogFiles(stdout, []string{path}, 10)
+		return followScenarioLogFiles(stdout, []string{path}, logTailLines(opts, 10))
 	}
 	_, _ = fmt.Fprintf(stdout, "Recent lifecycle execution for scenario '%s'\n\n", name)
-	if err := writeScenarioLogTail(stdout, []string{path}, 100); err != nil {
+	if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100)); err != nil {
 		return err
 	}
 	return writeScenarioLogDiscovery(root, home, name, stdout, stderr)
+}
+
+func logTailLines(opts LogOptions, fallback int) int {
+	if opts.Tail > 0 {
+		return opts.Tail
+	}
+	return fallback
 }
 
 func writeScenarioLogSnapshotNotice(w io.Writer) {

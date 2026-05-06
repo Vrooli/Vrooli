@@ -1,12 +1,14 @@
 package scenariohandlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -58,6 +60,18 @@ func writeLifecycleFailureBlock(w io.Writer, verb, name, home string, err error)
 		_, _ = fmt.Fprintf(w, "✗ Failed to %s '%s'\n", verb, name)
 	} else {
 		_, _ = fmt.Fprintf(w, "✗ Failed to %s\n", verb)
+	}
+	var phaseErr *lifecycle.PhaseStepError
+	if errors.As(err, &phaseErr) {
+		if strings.TrimSpace(phaseErr.Phase) != "" {
+			_, _ = fmt.Fprintf(w, "  Phase: %s\n", phaseErr.Phase)
+		}
+		if strings.TrimSpace(phaseErr.Step) != "" {
+			_, _ = fmt.Fprintf(w, "  Step: %s\n", phaseErr.Step)
+		}
+		if exit := phaseErr.ExitCode(); exit > 0 {
+			_, _ = fmt.Fprintf(w, "  Exit code: %d\n", exit)
+		}
 	}
 	_, _ = fmt.Fprintf(w, "  Error: %s\n", shortErrorMessage(err))
 	if home != "" && name != "" {

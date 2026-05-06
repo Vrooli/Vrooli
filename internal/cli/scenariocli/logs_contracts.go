@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/process"
@@ -20,6 +21,7 @@ type LogOptions struct {
 	Lifecycle   bool
 	Previous    bool
 	Clean       bool
+	Tail        int
 }
 
 var ErrScenarioLogsUsage = errors.New("scenario logs requires a scenario name")
@@ -32,6 +34,10 @@ func ParseLogsArgs(args []string) (string, LogOptions, error) {
 		}
 		return "", LogOptions{}, err
 	}
+	tail, err := parseTailValue(parsed.FlagValue("--tail"))
+	if err != nil {
+		return "", LogOptions{}, err
+	}
 	return parsed.Positionals[0], LogOptions{
 		Follow:      parsed.HasFlag("--follow"),
 		ForceFollow: parsed.HasFlag("--force-follow"),
@@ -40,7 +46,22 @@ func ParseLogsArgs(args []string) (string, LogOptions, error) {
 		Lifecycle:   parsed.HasFlag("--lifecycle"),
 		Previous:    parsed.HasFlag("--previous"),
 		Clean:       parsed.HasFlag("--clean"),
+		Tail:        tail,
 	}, nil
+}
+
+func parseTailValue(value string) (int, error) {
+	if value == "" {
+		return 0, nil
+	}
+	tail, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("scenario logs --tail must be a positive integer")
+	}
+	if tail <= 0 {
+		return 0, fmt.Errorf("scenario logs --tail must be greater than zero")
+	}
+	return tail, nil
 }
 
 func ShowLogsUsage(w io.Writer) error {
@@ -86,6 +107,7 @@ func scenarioLogsArgSchema() commandtree.ArgSchema {
 			{Name: "--runtime", Description: "View all background process logs"},
 			{Name: "--lifecycle", Description: "View lifecycle log (default)"},
 			{Name: "--previous", Description: "View the previous step log backup (.log.bak)"},
+			{Name: "--tail", ValueName: "lines", Description: "Show the last N lines"},
 			{Name: "--clean", Description: "Remove orphaned background logs"},
 		},
 	}

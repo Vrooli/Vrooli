@@ -1,7 +1,115 @@
 ---
 id: vrooli-default
-version: 0.1.0
+version: 0.2.0
 name: Vrooli Operational Console
+description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
+colors:
+  primary: "#2563eb"
+  secondary: "#0891b2"
+  neutral: "#f8fafc"
+  surface: "#ffffff"
+  on-surface: "#0f172a"
+  error: "#dc2626"
+  success: "#16a34a"
+  warning: "#d97706"
+typography:
+  body-md:
+    fontFamily: Inter
+    fontSize: 16px
+    fontWeight: "400"
+    lineHeight: 1.5
+    letterSpacing: 0em
+  body-sm:
+    fontFamily: Inter
+    fontSize: 14px
+    fontWeight: "400"
+    lineHeight: 1.45
+    letterSpacing: 0em
+  label-md:
+    fontFamily: Inter
+    fontSize: 14px
+    fontWeight: "600"
+    lineHeight: 1.25
+    letterSpacing: 0em
+  code-md:
+    fontFamily: JetBrains Mono
+    fontSize: 14px
+    fontWeight: "400"
+    lineHeight: 1.5
+    letterSpacing: 0em
+rounded:
+  sm: 0.375rem
+  md: 0.5rem
+  lg: 1rem
+  full: 9999px
+spacing:
+  unit: 0.25rem
+  touch: 44px
+  sidebar: 20rem
+  panel-gap: 1rem
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "#ffffff"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.sm}"
+    height: "{spacing.touch}"
+    padding: 0 1rem
+  button-primary-loading:
+    backgroundColor: "{colors.primary}"
+    textColor: "#ffffff"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.sm}"
+    height: "{spacing.touch}"
+    padding: 0 1rem
+  button-disabled:
+    backgroundColor: "#cbd5e1"
+    textColor: "#64748b"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.sm}"
+    height: "{spacing.touch}"
+    padding: 0 1rem
+  input-error:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.on-surface}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.sm}"
+    padding: 0.75rem
+  alert-error:
+    backgroundColor: "#fef2f2"
+    textColor: "{colors.error}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.md}"
+    padding: 1rem
+  toast-success:
+    backgroundColor: "#ecfdf5"
+    textColor: "{colors.success}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.md}"
+    padding: 0.75rem
+  empty-state:
+    backgroundColor: "#f1f5f9"
+    textColor: "#64748b"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1.5rem
+  skeleton:
+    backgroundColor: "#e2e8f0"
+    rounded: "{rounded.sm}"
+    height: 1rem
+  inline-progress:
+    backgroundColor: "#dbeafe"
+    textColor: "{colors.primary}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.full}"
+    padding: 0.25rem 0.625rem
+  retry-action:
+    backgroundColor: "transparent"
+    textColor: "{colors.primary}"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.sm}"
+    height: "{spacing.touch}"
+    padding: 0 0.75rem
 tokens:
   color:
     background: "#f8fafc"
@@ -127,6 +235,20 @@ Design from the user's flow, not from component inventory. For each major screen
 
 Experienced users should be able to move quickly with short pointer travel, predictable keyboard focus, visible shortcuts where appropriate, persisted panel sizes, remembered filters, and stable navigation state. New users should see enough structure, labels, and progressive disclosure to understand what is actionable without reading documentation.
 
+## Feedback & State
+
+Every user-triggered operation needs visible state. Loading, submitting, saving, syncing, refreshing, empty, partial, stale, success, validation-error, request-error, permission-denied, offline, and retry states are part of the design contract, not implementation polish.
+
+Buttons that start asynchronous work should acknowledge the click immediately, show a busy state, prevent duplicate submission when duplicate work would be harmful, and restore a usable state when the operation finishes. Forms should preserve user input on failure, place field-level validation near the affected control, and show a form-level summary when the submit action fails. Lists, tables, panels, and dashboards should have purposeful loading, empty, partial, and error states instead of blank space.
+
+Use inline feedback near the action when the user needs to continue working in context. Use toasts only for transient confirmation or background results. Use alert panels for failures that need reading, retry, or escalation. Error messages should explain what happened, what is still safe, and the next available action without exposing stack traces, secrets, raw tokens, or irrelevant internals.
+
+## Request Lifecycle
+
+For every network call, long-running local task, file operation, generation step, or resource mutation, design the lifecycle deliberately: idle, pending, success, failure, retrying, and disabled/unavailable. Slow operations should show progress, skeletons, spinners, streaming output, or queued status appropriate to the surface. If exact progress is unknown, show an indeterminate but visible pending state with stable layout.
+
+Optimistic updates are allowed only when rollback is clear. If an optimistic change fails, restore the previous state or mark the item as unsynced with a retry action. Background sync should expose freshness, last-updated time, stale data, and reconnection status when the result affects decisions.
+
 ## Accessibility
 
 Interactive controls need visible focus states, disabled states, hover/active states where supported, and readable contrast in both light and dark modes. Do not rely on color alone to communicate status. Keep target sizes usable for mouse, keyboard, touch, and remote/TV-like pointer input when relevant.
@@ -143,6 +265,8 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Use responsive behavior changes for sidebars, dialogs, navigation, and split panes.
 - Use semantic status colors consistently and pair them with text or icons.
 - Preserve user preferences for theme, font scale, panel sizing, filters, and active views when useful.
+- Design loading, empty, partial, success, validation-error, request-error, and retry states for every asynchronous workflow.
+- Preserve user input and provide a clear next step when a form submission or mutation fails.
 
 ### Don't
 
@@ -152,3 +276,5 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Use decorative gradients, orbs, or background effects as the default visual identity.
 - Let component libraries or adapter assets become a separate source of design truth.
 - Introduce a new product theme without updating the scenario's root `DESIGN.md`.
+- Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
+- Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.

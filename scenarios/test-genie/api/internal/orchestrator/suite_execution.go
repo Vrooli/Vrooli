@@ -31,7 +31,7 @@ var (
 	defaultExecutionPresets = map[string][]string{
 		"quick":         {"structure", "standards", "docs", "unit"},
 		"smoke":         {"structure", "standards", "lint", "docs", "integration"},
-		"comprehensive": {"structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"},
+		"comprehensive": {"structure", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"},
 	}
 	defaultPhaseSortFallback = 1000
 )
@@ -177,11 +177,13 @@ type SuiteExecutionRequest struct {
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
 
-	// ScenarioPath overrides the scenario directory path. When set (by a CLI
-	// running inside a sandboxed agent), GetScenarioPath() uses this path
-	// directly instead of resolving via VROOLI_ROOT. This allows sandboxed
-	// agents to run tests against their modified files in the overlay.
+	// ScenarioPath is the absolute physical scenario directory to read and write.
+	// When empty, the orchestrator resolves it from ScenarioName.
 	ScenarioPath string `json:"scenarioPath,omitempty"`
+	// LogicalRepoRoot and LogicalScenarioRelPath describe where the physical
+	// scenario should be treated as living for repo-relative validation.
+	LogicalRepoRoot        string `json:"logicalRepoRoot,omitempty"`
+	LogicalScenarioRelPath string `json:"logicalScenarioRelPath,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.

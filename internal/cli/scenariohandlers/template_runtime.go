@@ -327,6 +327,8 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		"execute",
 		scenarioID,
 		"--scenario-path", destination,
+		"--logical-repo-root", deps.Root(ctx),
+		"--logical-scenario-relpath", filepath.Join("scenarios", scenarioID),
 		"--preset", run.TestPreset,
 		"--no-stream",
 		"--json",
@@ -339,6 +341,9 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}); err != nil {
+		if issue := testGenieFailureIssueFromJSON(info.Name, stdout.Bytes()); issue != nil {
+			return run, []TemplateValidationIssue{*issue}
+		}
 		message := strings.TrimSpace(stderr.String())
 		if message == "" {
 			message = strings.TrimSpace(stdout.String())
@@ -355,6 +360,21 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		return run, []TemplateValidationIssue{*issue}
 	}
 	return run, nil
+}
+
+func testGenieFailureIssueFromJSON(templateName string, output []byte) *TemplateValidationIssue {
+	type testGenieResponse struct {
+		Success *bool `json:"success"`
+	}
+	data := bytes.TrimSpace(output)
+	if len(data) == 0 {
+		return nil
+	}
+	var response testGenieResponse
+	if err := json.Unmarshal(data, &response); err != nil || response.Success == nil || *response.Success {
+		return nil
+	}
+	return validateTestGenieJSONSuccess(templateName, data)
 }
 
 func validateTestGenieJSONSuccess(templateName string, output []byte) *TemplateValidationIssue {

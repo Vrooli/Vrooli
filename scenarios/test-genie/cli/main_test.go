@@ -49,6 +49,7 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 
 func TestExecuteSendsExplicitScenarioPath(t *testing.T) {
 	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	logicalRepoRoot := t.TempDir()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/health":
@@ -63,6 +64,10 @@ func TestExecuteSendsExplicitScenarioPath(t *testing.T) {
 			if !bytes.Contains(body, []byte(`"scenarioPath":"`+filepath.ToSlash(scenarioPath)+`"`)) {
 				t.Fatalf("expected scenarioPath in payload, got: %s", string(body))
 			}
+			if !bytes.Contains(body, []byte(`"logicalRepoRoot":"`+filepath.ToSlash(logicalRepoRoot)+`"`)) ||
+				!bytes.Contains(body, []byte(`"logicalScenarioRelPath":"scenarios/demo"`)) {
+				t.Fatalf("expected logical placement in payload, got: %s", string(body))
+			}
 			fmt.Fprintf(w, `{"success":true,"phases":[{"name":"unit","status":"passed","durationSeconds":1}],"executionId":"abc"}`)
 			return
 		default:
@@ -74,7 +79,7 @@ func TestExecuteSendsExplicitScenarioPath(t *testing.T) {
 	t.Setenv("TEST_GENIE_API_BASE", server.URL)
 	app := newTestApp(t)
 
-	if err := app.Run([]string{"execute", "demo", "unit", "--scenario-path", scenarioPath}); err != nil {
+	if err := app.Run([]string{"execute", "demo", "unit", "--scenario-path", scenarioPath, "--logical-repo-root", logicalRepoRoot, "--logical-scenario-relpath", "scenarios/demo"}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 }

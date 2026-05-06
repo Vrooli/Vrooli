@@ -1,7 +1,114 @@
 ---
 id: vrooli-command-display
-version: 0.1.0
+version: 0.2.0
 name: Vrooli Command Display
+description: Fullscreen war-room, kiosk, TV, and ambient command-center display language.
+colors:
+  primary: "#38bdf8"
+  secondary: "#22d3ee"
+  neutral: "#020617"
+  surface: "#0f172a"
+  on-surface: "#f8fafc"
+  error: "#f87171"
+  success: "#22c55e"
+  warning: "#f59e0b"
+typography:
+  display-lg:
+    fontFamily: Inter
+    fontSize: 84px
+    fontWeight: "700"
+    lineHeight: 0.9
+    letterSpacing: 0em
+  body-md:
+    fontFamily: Inter
+    fontSize: 18px
+    fontWeight: "400"
+    lineHeight: 1.35
+    letterSpacing: 0em
+  label-md:
+    fontFamily: Inter
+    fontSize: 14px
+    fontWeight: "600"
+    lineHeight: 1.2
+    letterSpacing: 0em
+  telemetry-md:
+    fontFamily: JetBrains Mono
+    fontSize: 18px
+    fontWeight: "500"
+    lineHeight: 1.25
+    letterSpacing: 0em
+rounded:
+  md: 1rem
+  lg: 1.25rem
+  full: 9999px
+spacing:
+  viewport: 2rem
+  remote-target: 64px
+  panel-gap: 1.25rem
+  cycle-duration: 60s
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "#020617"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.remote-target}"
+    padding: 0 1.25rem
+  button-primary-loading:
+    backgroundColor: "{colors.primary}"
+    textColor: "#020617"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.remote-target}"
+    padding: 0 1.25rem
+  button-disabled:
+    backgroundColor: "#334155"
+    textColor: "#94a3b8"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.remote-target}"
+    padding: 0 1.25rem
+  input-error:
+    backgroundColor: "#450a0a"
+    textColor: "{colors.error}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1rem
+  alert-error:
+    backgroundColor: "#450a0a"
+    textColor: "{colors.error}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1.25rem
+  toast-success:
+    backgroundColor: "#052e16"
+    textColor: "{colors.success}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1rem
+  empty-state:
+    backgroundColor: "#111827"
+    textColor: "#94a3b8"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 1.5rem
+  skeleton:
+    backgroundColor: "#1e293b"
+    rounded: "{rounded.md}"
+    height: 1rem
+  inline-progress:
+    backgroundColor: "#082f49"
+    textColor: "{colors.primary}"
+    typography: "{typography.telemetry-md}"
+    rounded: "{rounded.full}"
+    padding: 0.375rem 0.875rem
+  retry-action:
+    backgroundColor: "transparent"
+    textColor: "{colors.primary}"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.full}"
+    height: "{spacing.remote-target}"
+    padding: 0 1rem
 tokens:
   color:
     background: "#020617"
@@ -122,6 +229,20 @@ Use animation to reveal flow, change, direction, or state. Do not animate values
 
 Gaps are a feature, not an embarrassment. Render gaps as future capability signals: quiet shimmer, violet glow, placeholder constellations, dotted paths, or labeled inactive nodes. Never show ugly "N/A" blocks as the final display language.
 
+## Feedback & State
+
+Command displays must make source status visible without turning an unattended screen into an error dialog. Loading, live, stale, partial, gap, degraded, offline, validation-error, request-error, failed, retrying, and recovered states should be readable at a distance and should preserve the page composition.
+
+Never show blocking modal errors on the idle display. Use inline degraded states, source badges, freshness labels, dimmed sections, fallback visualizations, and concise recovery notes. A failed source should say whether the display is showing cached data, partial data, a known gap, or no usable data. Critical failures may interrupt the visual hierarchy, but they should still avoid stack traces, local paths, tokens, secrets, and noisy logs.
+
+Interactive controls that trigger refresh, fullscreen, page changes, settings changes, or source reconnects need immediate visible acknowledgement. Remote and kiosk users should be able to see whether the command is pending, succeeded, failed, or unavailable.
+
+## Request Lifecycle
+
+For every polling request, stream, websocket, local health probe, dashboard refresh, fullscreen request, wake-lock request, or source reconnect, design the lifecycle deliberately: idle, connecting, live, stale, partial, failed, retrying, recovered, and disabled/unavailable. Freshness and retry timing are part of the visual language, especially when the display informs operational decisions.
+
+If exact progress is unavailable, use a stable indeterminate state that does not resize the page. If an auto-refresh fails, keep the previous trustworthy value visible only with a stale label and timestamp. If the value cannot be trusted, show an explicit gap or unavailable state instead of a blank tile or fake live value.
+
 ## Motion and 3D
 
 Motion is part of this language. Use slow, confident motion: star fields, orbiting objects, radiating waves, spark trails, flowing paths, subtle parallax, scene rotation, fade-through-black page changes, and breathing glow.
@@ -169,6 +290,8 @@ Because this display may be visible publicly, avoid exposing secrets, private us
 - Show live, stale, partial, and gap states beautifully and honestly.
 - Verify canvas and 3D scenes render nonblank and stay performant.
 - Design for TV, remote, and always-on unattended viewing.
+- Show loading, stale, degraded, failed, retrying, and recovered source states without blocking the idle display.
+- Pair every remote/kiosk command with visible pending, success, failure, or unavailable feedback.
 
 ### Don't
 
@@ -179,3 +302,5 @@ Because this display may be visible publicly, avoid exposing secrets, private us
 - Require pointer hover for essential controls.
 - Use bright white backgrounds for the idle display.
 - Create six pages that are only color variants of the same layout.
+- Hide data-source failures behind blank tiles, frozen numbers, or silent console errors.
+- Show stack traces, raw local paths, secrets, or blocking modal errors on public or unattended displays.

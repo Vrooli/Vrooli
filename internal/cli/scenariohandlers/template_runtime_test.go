@@ -253,6 +253,8 @@ func TestRunTemplateValidateDeepInvokesTestGenieWithScenarioPath(t *testing.T) {
 	for _, want := range []string{
 		"execute template-validation-demo-template-deep",
 		"--scenario-path " + deepRun.ScenarioPath,
+		"--logical-repo-root " + repoRoot,
+		"--logical-scenario-relpath scenarios/template-validation-demo-template-deep",
 		"--preset quick",
 		"--no-stream",
 		"--json",
@@ -305,6 +307,58 @@ func TestRunTemplateValidateDeepFailsWhenTestGenieJSONReportsFailure(t *testing.
 	}
 	if !strings.Contains(report.Issues[0].Message, "unit: go test failed") {
 		t.Fatalf("issue message = %q", report.Issues[0].Message)
+	}
+}
+
+func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedRepoContract(t, repoRoot)
+	templateName := "demo-template"
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
+  "name": "demo-template",
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description"}
+  }
+}`)
+	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# {{SCENARIO_DISPLAY_NAME}}\n")
+	var stdout, stderr strings.Builder
+	capture := &capturedSubprocess{
+		stdout: `{
+  "success": false,
+  "phaseSummary": {"total": 3, "passed": 1, "failed": 2},
+  "phases": [
+    {"name": "structure", "status": "passed"},
+    {"name": "standards", "status": "failed", "error": "26 violations"},
+    {"name": "business", "status": "failed", "error": "no requirement modules found"}
+  ]
+}`,
+		err: errors.New("suite execution completed with failures"),
+	}
+	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
+	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
+
+	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+		Mode:         scenariocli.TemplateValidationModeDeep,
+		TemplateName: templateName,
+		TestPreset:   "quick",
+	})
+	if err != nil {
+		t.Fatalf("runTemplateValidate(deep) error = %v", err)
+	}
+	if len(report.Issues) != 1 {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+	message := report.Issues[0].Message
+	for _, want := range []string{"standards: 26 violations", "business: no requirement modules found", "1 passed, 2 failed, 3 total"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("issue message = %q, want %q", message, want)
+		}
 	}
 }
 
@@ -403,6 +457,58 @@ func TestResolveDesignRejectsNoneForRequiredTemplate(t *testing.T) {
 	}
 }
 
+func TestValidateDesignKitRequiresSpecTokensAndStateContract(t *testing.T) {
+	root := t.TempDir()
+	kitDir := filepath.Join(root, "templates", "design", "demo-kit")
+	adapterDir := filepath.Join(kitDir, "adapters", "react-vite-tailwind")
+	if err := os.MkdirAll(adapterDir, 0o755); err != nil {
+		t.Fatalf("mkdir adapter: %v", err)
+	}
+	writeTestFile(t, filepath.Join(kitDir, "metadata.json"), `{
+  "id": "demo-kit",
+  "name": "Demo Kit",
+  "version": "0.1.0",
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind"
+    }
+  }
+}`)
+	writeTestFile(t, filepath.Join(kitDir, "DESIGN.md"), `---
+name: Demo Kit
+tokens:
+  color:
+    primary: "#111827"
+---
+# Demo Kit
+`)
+	writeTestFile(t, filepath.Join(adapterDir, "adapter.json"), `{"id":"react-vite-tailwind"}`)
+
+	info, err := loadDesignKit(root, "demo-kit")
+	if err != nil {
+		t.Fatalf("loadDesignKit() error = %v", err)
+	}
+	issues := validateDesignKit(info)
+	if len(issues) == 0 {
+		t.Fatal("expected design validation issues")
+	}
+	messages := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		messages = append(messages, issue.Message)
+	}
+	joined := strings.Join(messages, "\n")
+	for _, want := range []string{
+		`missing official-style top-level "colors" token group`,
+		`components must include "button-primary-loading" state guidance token`,
+		"missing ## Feedback & State section",
+		`missing required UX state term "validation-error"`,
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("issues = %#v, want message containing %q", issues, want)
+		}
+	}
+}
+
 func TestResolveAndCopyDesignAssets(t *testing.T) {
 	repoRoot := t.TempDir()
 	kitDir := filepath.Join(repoRoot, "templates", "design", "demo-kit")
@@ -422,7 +528,61 @@ func TestResolveAndCopyDesignAssets(t *testing.T) {
     }
   }
 }`)
-	writeTestFile(t, filepath.Join(kitDir, "DESIGN.md"), "# {{SCENARIO_DISPLAY_NAME}} Design\n")
+	writeTestFile(t, filepath.Join(kitDir, "DESIGN.md"), `---
+name: "{{SCENARIO_DISPLAY_NAME}}"
+colors:
+  primary: "#111827"
+  surface: "#ffffff"
+  on-surface: "#111827"
+typography:
+  body-md:
+    fontFamily: Inter
+    fontSize: 16px
+    fontWeight: "400"
+    lineHeight: 1.5
+rounded:
+  md: 8px
+spacing:
+  touch: 44px
+components:
+  button-primary-loading:
+    backgroundColor: "{colors.primary}"
+    textColor: "#ffffff"
+  button-disabled:
+    backgroundColor: "#e5e7eb"
+    textColor: "#6b7280"
+  input-error:
+    backgroundColor: "{colors.surface}"
+    textColor: "#b91c1c"
+  alert-error:
+    backgroundColor: "#fee2e2"
+    textColor: "#b91c1c"
+  toast-success:
+    backgroundColor: "#dcfce7"
+    textColor: "#166534"
+  empty-state:
+    backgroundColor: "#f3f4f6"
+    textColor: "#6b7280"
+  skeleton:
+    backgroundColor: "#e5e7eb"
+    height: 1rem
+  inline-progress:
+    backgroundColor: "#dbeafe"
+    textColor: "{colors.primary}"
+  retry-action:
+    backgroundColor: transparent
+    textColor: "{colors.primary}"
+---
+# {{SCENARIO_DISPLAY_NAME}} Design
+
+## Feedback & State
+
+Generated UI must include loading, success, validation-error, request-error, and retry states.
+
+## Request Lifecycle
+
+Generated UI must describe pending, success, failure, and retry transitions.
+`)
 	writeTestFile(t, filepath.Join(adapterDir, "adapter.json"), `{
   "id": "react-vite-tailwind",
   "copy": [{ "from": "tokens.css", "to": "ui/src/design-tokens.css" }]

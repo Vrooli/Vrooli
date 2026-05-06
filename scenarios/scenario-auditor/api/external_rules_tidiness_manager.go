@@ -187,8 +187,8 @@ type tidinessManagerViolation struct {
 	FilePath    string `json:"file_path,omitempty"`
 }
 
-func (p *tidinessManagerProvider) Run(ctx context.Context, scenarioName string, ruleIDs []string) ([]StandardsViolation, error) {
-	cleaned := strings.TrimSpace(scenarioName)
+func (p *tidinessManagerProvider) Run(ctx context.Context, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error) {
+	cleaned := strings.TrimSpace(target.Name)
 	if cleaned == "" {
 		return nil, nil
 	}

@@ -77,8 +77,8 @@ type interopStandardsViolation struct {
 	Metadata       map[string]any `json:"metadata"`
 }
 
-func (p *appMonitorInteropProvider) Run(ctx context.Context, scenarioName string, ruleIDs []string) ([]StandardsViolation, error) {
-	cleaned := strings.TrimSpace(scenarioName)
+func (p *appMonitorInteropProvider) Run(ctx context.Context, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error) {
+	cleaned := strings.TrimSpace(target.Name)
 	if cleaned == "" {
 		return nil, nil
 	}

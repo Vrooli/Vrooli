@@ -335,6 +335,7 @@ func isExemptPath(path string) bool {
 	// Check for exempt directories (handles both absolute and relative paths)
 	exemptDirs := []string{
 		"test",
+		"testutil",
 		"migrate",
 		"migration",
 		"migrations",
