@@ -31,6 +31,25 @@ type fakeIsolation struct {
 	called bool
 }
 
+type fakeTargetRuntime struct {
+	restartCalls int
+	restoreCalls int
+	restartEnv   map[string]string
+	restartErr   error
+	restoreErr   error
+}
+
+func (f *fakeTargetRuntime) RestartWithEnv(ctx context.Context, env map[string]string, logWriter io.Writer) error {
+	f.restartCalls++
+	f.restartEnv = env
+	return f.restartErr
+}
+
+func (f *fakeTargetRuntime) Restore(ctx context.Context, logWriter io.Writer) error {
+	f.restoreCalls++
+	return f.restoreErr
+}
+
 func (f *fakeIsolation) Prepare(context.Context) (*isolation.Result, error) {
 	f.called = true
 	return f.result, f.err
@@ -72,10 +91,11 @@ func newPlaybooksTestHarness(t *testing.T) *playbooksTestHarness {
 
 	return &playbooksTestHarness{
 		env: workspace.Environment{
-			ScenarioName: scenarioName,
-			ScenarioDir:  scenarioDir,
-			TestDir:      testDir,
-			AppRoot:      appRoot,
+			ScenarioName:  scenarioName,
+			ScenarioDir:   scenarioDir,
+			TestDir:       testDir,
+			AppRoot:       appRoot,
+			TargetRuntime: &fakeTargetRuntime{},
 		},
 		scenarioDir: scenarioDir,
 		testDir:     testDir,
@@ -229,11 +249,7 @@ func TestRunPlaybooksPhaseObserverModeSkipsIsolationAndRestart(t *testing.T) {
 	basServer, basPort := newStubBASServer(t)
 	defer basServer.Close()
 
-	var restartCalls int
 	restoreExec := OverrideCommandExecutor(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) error {
-		if name == "vrooli" && len(args) >= 4 && args[0] == "scenario" && args[1] == "restart" && args[2] == h.env.ScenarioName {
-			restartCalls++
-		}
 		return nil
 	})
 	defer restoreExec()
@@ -255,8 +271,9 @@ func TestRunPlaybooksPhaseObserverModeSkipsIsolationAndRestart(t *testing.T) {
 	if fakeIso.called {
 		t.Fatalf("expected observer mode to skip isolation")
 	}
-	if restartCalls != 0 {
-		t.Fatalf("expected observer mode to skip scenario restarts, got %d", restartCalls)
+	runtime := h.env.TargetRuntime.(*fakeTargetRuntime)
+	if runtime.restartCalls != 0 || runtime.restoreCalls != 0 {
+		t.Fatalf("expected observer mode to skip scenario restarts, got restart=%d restore=%d", runtime.restartCalls, runtime.restoreCalls)
 	}
 }
 
@@ -304,11 +321,7 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 	basServer, basPort := newStubBASServer(t)
 	defer basServer.Close()
 
-	var restartCalls int
 	restoreExec := OverrideCommandExecutor(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) error {
-		if name == "vrooli" && len(args) >= 4 && args[0] == "scenario" && args[1] == "restart" && args[2] == h.env.ScenarioName {
-			restartCalls++
-		}
 		return nil
 	})
 	defer restoreExec()
@@ -336,8 +349,12 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 	if capturedCfg.RequirePostgres || capturedCfg.RequireRedis {
 		t.Fatalf("did not expect postgres/redis isolation for sqlite fixture, got %#v", capturedCfg)
 	}
-	if restartCalls != 2 {
-		t.Fatalf("expected scenario restart before and after isolated run, got %d", restartCalls)
+	runtime := h.env.TargetRuntime.(*fakeTargetRuntime)
+	if runtime.restartCalls != 1 || runtime.restoreCalls != 1 {
+		t.Fatalf("expected scenario restart and restore around isolated run, got restart=%d restore=%d", runtime.restartCalls, runtime.restoreCalls)
+	}
+	if runtime.restartEnv["PLAYBOOKS_SQLITE_PATH"] == "" {
+		t.Fatalf("expected isolation env to be passed to runtime restart, got %#v", runtime.restartEnv)
 	}
 }
 
@@ -631,16 +648,6 @@ func TestResolveScenarioBaseURL(t *testing.T) {
 	_, err := ResolveScenarioBaseURL(ctx, io.Discard, "test-scenario")
 	if err == nil {
 		t.Error("expected error when port resolution fails")
-	}
-}
-
-func TestStartScenario(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := StartScenario(ctx, "test-scenario", io.Discard)
-	if err == nil {
-		t.Error("expected error when context is cancelled")
 	}
 }
 

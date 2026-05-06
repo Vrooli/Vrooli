@@ -33,5 +33,6 @@ type Args struct {
 
 	// Runtime URLs for Lighthouse and integration testing
 	UIURL          string
+	APIURL         string
 	BrowserlessURL string
 }

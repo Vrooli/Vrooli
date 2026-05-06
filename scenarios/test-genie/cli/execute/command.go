@@ -18,7 +18,7 @@ import (
 	execTypes "test-genie/cli/internal/execute"
 )
 
-const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"
+const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--browserless-url URL] [--fail-fast] [--json]"
 
 // HelpText returns the framework-rendered help body for the execute command.
 func HelpText() string {
@@ -56,6 +56,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		FailFast:               parsed.FailFast,
 		SuiteRequestID:         parsed.RequestID,
 		UIURL:                  parsed.UIURL,
+		APIURL:                 parsed.APIURL,
 		BrowserlessURL:         parsed.BrowserlessURL,
 		ScenarioPath:           scenarioPath,
 		LogicalRepoRoot:        parsed.LogicalRepoRoot,
@@ -202,6 +203,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.LogicalRepoRoot, "logical-repo-root", "", "Absolute repo root for repo-relative validation")
 	fs.StringVar(&out.LogicalScenarioRelPath, "logical-scenario-relpath", "", "Logical scenario directory relative to --logical-repo-root")
 	fs.StringVar(&out.UIURL, "ui-url", "", "UI URL for Lighthouse audits (e.g., http://localhost:3000)")
+	fs.StringVar(&out.APIURL, "api-url", "", "API URL for integration checks (e.g., http://localhost:8080)")
 	fs.StringVar(&out.BrowserlessURL, "browserless-url", "", "Browserless URL (default: BROWSERLESS_URL env or http://localhost:4110)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())

@@ -233,15 +233,3 @@ func ResolveScenarioBaseURL(ctx context.Context, logWriter io.Writer, scenarioNa
 	}
 	return fmt.Sprintf("http://127.0.0.1:%s", port), nil
 }
-
-// StartScenario starts a scenario using vrooli CLI.
-func StartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
-	shared.LogStep(logWriter, "starting scenario %s", scenarioName)
-	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "start", scenarioName, "--clean-stale")
-}
-
-// RestartScenario restarts a scenario (stop then start) using vrooli CLI.
-func RestartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
-	shared.LogStep(logWriter, "restarting scenario %s", scenarioName)
-	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "restart", scenarioName, "--clean-stale")
-}

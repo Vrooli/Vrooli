@@ -3,14 +3,12 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"net"
-	"os/exec"
+	"net/url"
+	"strconv"
+	"strings"
+	"test-genie/internal/orchestrator/targetruntime"
 	"time"
-
-	"github.com/vrooli/api-core/discovery"
 )
-
-var execCommandContext = exec.CommandContext
 
 // DefaultScenarioStarter implements ScenarioStarter using the vrooli CLI.
 type DefaultScenarioStarter struct {
@@ -30,78 +28,35 @@ func NewDefaultScenarioStarter() *DefaultScenarioStarter {
 
 // Start starts the scenario using `vrooli scenario start` and waits for the UI port.
 func (s *DefaultScenarioStarter) Start(ctx context.Context, scenarioName string) (*ScenarioStartResult, error) {
-	// Create a timeout context for the entire start operation
-	startCtx, cancel := context.WithTimeout(ctx, s.StartTimeout)
-	defer cancel()
-
-	// First, check if scenario is already running
-	port, err := s.getUIPort(startCtx, scenarioName)
-	if err == nil && port > 0 {
-		// Already running - return port and signal no auto-start ownership.
-		return &ScenarioStartResult{
-			Started: false,
-			UIPort:  port,
-		}, nil
-	}
-
-	// Start the scenario
-	cmd := execCommandContext(startCtx, "vrooli", "--no-stale-check", "scenario", "start", scenarioName)
-	output, err := cmd.CombinedOutput()
+	manager := targetruntime.New(scenarioName, "")
+	manager.StartTimeout = s.StartTimeout
+	manager.PollInterval = s.PollInterval
+	lease, err := manager.EnsureRunning(ctx, targetruntime.Needs{UI: true}, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start scenario: %w\nOutput: %s", err, string(output))
+		return nil, err
 	}
-
-	// Wait for the UI port to become available
-	ticker := time.NewTicker(s.PollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-startCtx.Done():
-			return nil, fmt.Errorf("timeout waiting for scenario UI to start: %w", startCtx.Err())
-		case <-ticker.C:
-			port, err := s.getUIPort(startCtx, scenarioName)
-			if err == nil && port > 0 {
-				// Verify the port is actually listening
-				if s.isPortListening(startCtx, port) {
-					return &ScenarioStartResult{
-						Started: true,
-						UIPort:  port,
-					}, nil
-				}
-			}
-		}
+	port, err := portFromURL(lease.URLs.UI)
+	if err != nil {
+		return nil, err
 	}
+	return &ScenarioStartResult{Started: lease.Started, UIPort: port}, nil
+}
+
+func portFromURL(raw string) (int, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return 0, err
+	}
+	port := parsed.Port()
+	if port == "" {
+		return 0, fmt.Errorf("runtime URL %q does not include a port", raw)
+	}
+	return strconv.Atoi(port)
 }
 
 // Stop stops a scenario using `vrooli scenario stop`.
 func (s *DefaultScenarioStarter) Stop(ctx context.Context, scenarioName string) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	cmd := execCommandContext(ctx, "vrooli", "--no-stale-check", "scenario", "stop", scenarioName)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to stop scenario: %w\nOutput: %s", err, string(output))
-	}
-	return nil
-}
-
-// getUIPort retrieves the UI port for a scenario using discovery.
-func (s *DefaultScenarioStarter) getUIPort(ctx context.Context, scenarioName string) (int, error) {
-	return discovery.ResolveScenarioPort(ctx, scenarioName, "UI_PORT")
-}
-
-// isPortListening checks if a port is accepting connections using native Go TCP dial.
-func (s *DefaultScenarioStarter) isPortListening(ctx context.Context, port int) bool {
-	address := fmt.Sprintf("localhost:%d", port)
-	dialer := net.Dialer{Timeout: 2 * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", address)
-	if err != nil {
-		return false
-	}
-	conn.Close()
-	return true
+	return targetruntime.New(scenarioName, "").Cleanup(ctx, targetruntime.Lease{Started: true}, nil)
 }
 
 // MockScenarioStarter is a test double for ScenarioStarter.

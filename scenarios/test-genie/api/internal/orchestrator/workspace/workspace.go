@@ -1,7 +1,9 @@
 package workspace
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +33,14 @@ type Environment struct {
 	UIURL          string // Base URL for the scenario UI (e.g., "http://localhost:3000")
 	APIURL         string // Base URL for the scenario API (e.g., "http://localhost:8080")
 	BrowserlessURL string // URL for Browserless service (e.g., "http://localhost:4110")
+	TargetRuntime  TargetRuntime
+}
+
+// TargetRuntime manages the lifecycle of the scenario under test when a phase
+// needs the target restarted with temporary resources.
+type TargetRuntime interface {
+	RestartWithEnv(ctx context.Context, env map[string]string, logWriter io.Writer) error
+	Restore(ctx context.Context, logWriter io.Writer) error
 }
 
 // ScenarioWorkspace captures the canonical paths for a scenario so the orchestrator
@@ -51,6 +61,7 @@ type ScenarioWorkspace struct {
 	uiURL          string
 	apiURL         string
 	browserlessURL string
+	targetRuntime  TargetRuntime
 }
 
 // Options configures scenario workspace resolution.
@@ -160,6 +171,7 @@ func (w *ScenarioWorkspace) Environment() Environment {
 		UIURL:           w.uiURL,
 		APIURL:          w.apiURL,
 		BrowserlessURL:  w.browserlessURL,
+		TargetRuntime:   w.targetRuntime,
 	}
 }
 
@@ -172,6 +184,15 @@ func (w *ScenarioWorkspace) SetRuntimeURLs(uiURL, apiURL, browserlessURL string)
 	w.uiURL = uiURL
 	w.apiURL = apiURL
 	w.browserlessURL = browserlessURL
+}
+
+// SetTargetRuntime configures the lifecycle manager used by phases that need to
+// restart the scenario under test.
+func (w *ScenarioWorkspace) SetTargetRuntime(runtime TargetRuntime) {
+	if w == nil {
+		return
+	}
+	w.targetRuntime = runtime
 }
 
 // EnsureArtifactDir lazily creates the artifact directory and returns its path.

@@ -14,18 +14,19 @@ import (
 
 // Options describes a single enforcement call.
 type Options struct {
-	Root        string
-	Home        string
-	Environment string
-	When        string
-	Resources   string
-	Scenarios   string
-	Platform    string
-	SudoMode    string
-	DryRun      bool
-	AutoInstall bool
-	Stdout      io.Writer
-	Stderr      io.Writer
+	Root          string
+	Home          string
+	Environment   string
+	When          string
+	Resources     string
+	Scenarios     string
+	ScenarioPaths []string
+	Platform      string
+	SudoMode      string
+	DryRun        bool
+	AutoInstall   bool
+	Stdout        io.Writer
+	Stderr        io.Writer
 	// Label is a short context string (e.g. "scenario:foo", "resource:bar")
 	// used to scope error messages so callers know which invocation failed.
 	Label string
@@ -69,11 +70,12 @@ func EnforceWithDeps(deps Deps, opts Options) (vrooliruntime.Report, error) {
 	}
 
 	resolution, err := deps.Resolve(opts.Root, opts.Home, hostreq.ResolveOptions{
-		Environment: opts.Environment,
-		When:        opts.When,
-		Resources:   opts.Resources,
-		Scenarios:   opts.Scenarios,
-		Platform:    platform,
+		Environment:   opts.Environment,
+		When:          opts.When,
+		Resources:     opts.Resources,
+		Scenarios:     opts.Scenarios,
+		ScenarioPaths: opts.ScenarioPaths,
+		Platform:      platform,
 	})
 	if err != nil {
 		return vrooliruntime.Report{}, fmt.Errorf("resolve host requirements (%s): %w", describe(opts.Label), err)

@@ -614,16 +614,16 @@ func (r *Runner) enforceScenarioHostRequirements(item scenario.Scenario) error {
 		return nil
 	}
 	if _, err := deps.enforceHostRequirements(hostreqrun.Options{
-		Root:        r.Root,
-		Home:        r.Home,
-		Environment: r.environmentProfile(),
-		When:        "develop",
-		Resources:   "none",
-		Scenarios:   item.Slug,
-		AutoInstall: true,
-		Stdout:      r.Out,
-		Stderr:      r.Err,
-		Label:       "scenario:" + item.Slug,
+		Root:          r.Root,
+		Home:          r.Home,
+		Environment:   r.environmentProfile(),
+		When:          "develop",
+		Resources:     "none",
+		ScenarioPaths: []string{item.Path},
+		AutoInstall:   true,
+		Stdout:        r.Out,
+		Stderr:        r.Err,
+		Label:         "scenario:" + item.Slug,
 	}); err != nil {
 		r.logError("Host requirements enforcement failed", err, logx.AttrScenario, item.Slug)
 		return err

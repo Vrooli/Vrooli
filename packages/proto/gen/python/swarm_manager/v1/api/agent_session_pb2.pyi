@@ -96,6 +96,18 @@ class CancelAgentSessionResponse(_message.Message):
     session: _agent_session_pb2.AgentSession
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
+class DeleteAgentSessionRequest(_message.Message):
+    __slots__ = ("session_id",)
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    def __init__(self, session_id: _Optional[str] = ...) -> None: ...
+
+class DeleteAgentSessionResponse(_message.Message):
+    __slots__ = ("session_id",)
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    def __init__(self, session_id: _Optional[str] = ...) -> None: ...
+
 class ApplyAgentSessionProposalRequest(_message.Message):
     __slots__ = ("session_id", "proposal_id")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]

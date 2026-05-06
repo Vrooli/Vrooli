@@ -13,6 +13,7 @@ import (
 
 	phasespkg "test-genie/internal/orchestrator/phases"
 	reqsync "test-genie/internal/orchestrator/requirements"
+	"test-genie/internal/orchestrator/targetruntime"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 )
 
@@ -149,6 +150,16 @@ func skipStandardsForTests(t *testing.T) {
 	t.Setenv("TEST_GENIE_SKIP_STANDARDS", "1")
 }
 
+func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
+	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
+		return phasespkg.RunReport{}
+	}
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 50})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 60})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 80})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 90})
+}
+
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
 		skipPlaybooksForTests(t)
@@ -182,9 +193,12 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -283,6 +297,7 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -345,11 +360,14 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 		stubSyncer := &stubRequirementsSyncer{}
 		orchestrator.requirements = stubSyncer
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -369,59 +387,33 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	})
 }
 
-func TestDetectRuntimeURLsFromServiceConfigAndEnv(t *testing.T) {
-	tmp := t.TempDir()
-	// minimal scenario dir
-	if err := os.MkdirAll(filepath.Join(tmp, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("failed to make .vrooli: %v", err)
-	}
-	service := `{
-  "ports": {
-    "ui": { "env_var": "CUSTOM_UI_PORT" },
-    "api": { "env_var": "CUSTOM_API_PORT" }
-  }
-}`
-	if err := os.WriteFile(filepath.Join(tmp, ".vrooli", "service.json"), []byte(service), 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
-	t.Setenv("CUSTOM_UI_PORT", "12345")
-	t.Setenv("CUSTOM_API_PORT", "22345")
+func TestPrepareTargetRuntimeIgnoresGenericPortEnvironment(t *testing.T) {
+	t.Setenv("UI_PORT", "21223")
+	t.Setenv("API_PORT", "15421")
 
-	ui, api := detectRuntimeURLs(tmp)
-	if ui != "http://localhost:12345" {
-		t.Fatalf("expected ui url http://localhost:12345, got %q", ui)
-	}
-	if api != "http://localhost:22345" {
-		t.Fatalf("expected api url http://localhost:22345, got %q", api)
-	}
-}
-
-func TestDetectRuntimeURLsUsesProcessMetadata(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	scenarioDir := filepath.Join(tmp, "scenarios", "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("failed to make scenario .vrooli: %v", err)
-	}
-	procDir := filepath.Join(tmp, ".vrooli", "processes", "scenarios", "demo")
-	if err := os.MkdirAll(procDir, 0o755); err != nil {
-		t.Fatalf("failed to make process dir: %v", err)
-	}
-	uiMeta := `{"port": 3001}`
-	apiMeta := `{"port": 4001}`
-	if err := os.WriteFile(filepath.Join(procDir, "start-ui.json"), []byte(uiMeta), 0o644); err != nil {
-		t.Fatalf("failed to write ui meta: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(procDir, "start-api.json"), []byte(apiMeta), 0o644); err != nil {
-		t.Fatalf("failed to write api meta: %v", err)
+	var started bool
+	orch := &SuiteOrchestrator{
+		newRuntime: func(name, scenarioDir string) *targetruntime.Manager {
+			return targetruntime.New(name, scenarioDir).
+				WithHome(t.TempDir()).
+				WithProbes(func(context.Context, int) bool { return true }, func(int) bool { return true }).
+				WithCommandRunner(func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, command string, args ...string) error {
+					started = true
+					return fmt.Errorf("expected start because generic env vars are not runtime discovery")
+				})
+		},
 	}
 
-	ui, api := detectRuntimeURLs(scenarioDir)
-	if ui != "http://localhost:3001" {
-		t.Fatalf("expected ui url http://localhost:3001, got %q", ui)
+	env := workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: filepath.Join(t.TempDir(), "demo")}
+	_, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{{Name: phasespkg.Smoke}}, SuiteExecutionRequest{}, io.Discard)
+	if err == nil {
+		t.Fatal("expected runtime start failure")
 	}
-	if api != "http://localhost:4001" {
-		t.Fatalf("expected api url http://localhost:4001, got %q", api)
+	if !started {
+		t.Fatal("expected target runtime start attempt")
+	}
+	if strings.Contains(err.Error(), "21223") || strings.Contains(err.Error(), "15421") {
+		t.Fatalf("generic runtime env leaked into error: %v", err)
 	}
 }
 
@@ -461,10 +453,13 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
 			FailFast:     true,
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -514,6 +509,7 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -570,9 +566,12 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -616,6 +615,7 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
 			Preset:       "focused",
+			UIURL:        "http://127.0.0.1:1",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)

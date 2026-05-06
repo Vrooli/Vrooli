@@ -44,16 +44,7 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 		return nil, err
 	}
 
-	autoUI, autoAPI := detectRuntimeURLs(ws.ScenarioDir)
-	uiURL := req.UIURL
-	if uiURL == "" {
-		uiURL = autoUI
-	}
-	apiURL := req.APIURL
-	if apiURL == "" {
-		apiURL = autoAPI
-	}
-	ws.SetRuntimeURLs(uiURL, apiURL, resolveBrowserlessURL(req.BrowserlessURL))
+	ws.SetRuntimeURLs(req.UIURL, req.APIURL, resolveBrowserlessURL(req.BrowserlessURL))
 
 	env := ws.Environment()
 	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)

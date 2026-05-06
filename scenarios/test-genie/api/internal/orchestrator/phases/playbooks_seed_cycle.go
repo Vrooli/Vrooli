@@ -94,7 +94,15 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("failed to apply playbooks migrations: %w", err)
 	}
 
-	if err := RestartScenario(ctx, env.ScenarioName, logWriter); err != nil {
+	if env.TargetRuntime == nil {
+		if envApplied {
+			restoreEnv()
+		}
+		_ = isoResult.Cleanup(context.Background())
+		return nil, fmt.Errorf("target runtime manager is not configured")
+	}
+
+	if err := env.TargetRuntime.RestartWithEnv(ctx, isoResult.Env, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 		}
@@ -131,7 +139,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		SeedState: seedState,
 	}
 	session.cleanup = func(cleanupCtx context.Context) error {
-		if err := RestartScenario(cleanupCtx, env.ScenarioName, logWriter); err != nil {
+		if err := env.TargetRuntime.Restore(cleanupCtx, logWriter); err != nil {
 			shared.LogWarn(logWriter, "failed to restart scenario back to normal resources: %v", err)
 		}
 		if err := isoResult.Cleanup(cleanupCtx); err != nil {

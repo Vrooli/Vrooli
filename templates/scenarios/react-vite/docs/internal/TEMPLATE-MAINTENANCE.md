@@ -83,8 +83,11 @@ go test ./internal/cli/scenariohandlers ./internal/cli/scenariocli
 
 Use deep validation before marking broad or first-run-sensitive template
 changes complete. It generates a temporary real scenario, runs post
-hooks, invokes test-genie against the generated scenario path, and
-cleans temporary output by default:
+hooks, invokes test-genie against the generated physical scenario path,
+and passes logical placement so repo-relative documentation and
+standards checks behave as if the generated scenario lived under
+`scenarios/template-validation-react-vite-deep`. Temporary output is
+cleaned by default:
 
 ```bash
 vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive

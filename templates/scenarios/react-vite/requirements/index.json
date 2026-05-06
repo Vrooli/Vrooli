@@ -4,5 +4,7 @@
     "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   },
-  "imports": []
+  "imports": [
+    "01-foundation/module.json"
+  ]
 }

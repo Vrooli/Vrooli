@@ -2665,8 +2665,11 @@ func TestRunnerStartEnforcesScenarioHostRequirements(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("enforce calls = %d, want 1", calls)
 	}
-	if captured.Scenarios != "alpha" {
-		t.Fatalf("Scenarios = %q, want alpha", captured.Scenarios)
+	if captured.Scenarios != "" {
+		t.Fatalf("Scenarios = %q, want empty when scenario path is provided", captured.Scenarios)
+	}
+	if len(captured.ScenarioPaths) != 1 || captured.ScenarioPaths[0] != item.Path {
+		t.Fatalf("ScenarioPaths = %#v, want [%q]", captured.ScenarioPaths, item.Path)
 	}
 	if captured.Resources != "none" {
 		t.Fatalf("Resources = %q, want none", captured.Resources)

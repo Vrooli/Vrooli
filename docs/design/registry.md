@@ -14,9 +14,9 @@ vrooli scenario design validate --all
 
 | ID | Name | Version | Default | Adapters | Intended Use |
 | --- | --- | --- | --- | --- | --- |
-| `vrooli-default` | Vrooli Operational Console | `0.1.0` | yes | `react-vite-tailwind` | Dense, responsive, customizable operational UI for generated Vrooli scenarios. |
-| `vrooli-command-display` | Vrooli Command Display | `0.1.0` | no | `react-vite-tailwind` | Fullscreen war-room, kiosk, TV, and ambient command-center displays. |
-| `vrooli-conversion-landing` | Vrooli Conversion Landing | `0.1.0` | no | `react-vite-tailwind` | High-converting landing pages for scenarios, bundles, apps, downloads, demos, and waitlists. |
+| `vrooli-default` | Vrooli Operational Console | `0.2.0` | yes | `react-vite-tailwind` | Dense, responsive, customizable operational UI for generated Vrooli scenarios. |
+| `vrooli-command-display` | Vrooli Command Display | `0.2.0` | no | `react-vite-tailwind` | Fullscreen war-room, kiosk, TV, and ambient command-center displays. |
+| `vrooli-conversion-landing` | Vrooli Conversion Landing | `0.2.0` | no | `react-vite-tailwind` | High-converting landing pages for scenarios, bundles, apps, downloads, demos, and waitlists. |
 
 ## Rules
 

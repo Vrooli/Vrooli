@@ -22,6 +22,12 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 - Surface: prepared execution setup/finalization inside `SuiteOrchestrator`
 - Why it exists: streaming and non-streaming suite execution must agree on runtime URL resolution, plan construction, artifact directories, result summaries, and requirement sync behavior. The shared bootstrap/finalization path keeps those decisions in one place.
 
+### Target runtime lifecycle
+
+- Package: `api/internal/orchestrator/targetruntime`
+- Surface: `Manager.EnsureRunning()`, `RestartWithEnv()`, `Restore()`, and `Cleanup()`
+- Why it exists: smoke, integration, performance, and playbook phases need one path-aware lifecycle boundary for starting, restarting, and discovering the scenario under test. This avoids phase-local port fallbacks and keeps temporary generated scenarios isolated from Test Genie's own runtime environment.
+
 ### Playbooks registry normalization
 
 - Package: `api/internal/playbooks/registry`

@@ -150,8 +150,21 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		}
 	}
 
+	if env.TargetRuntime == nil {
+		if envApplied {
+			restoreEnv()
+			envApplied = false
+		}
+		_ = isoResult.Cleanup(context.Background())
+		return RunReport{
+			Err:                   fmt.Errorf("target runtime manager is not configured"),
+			FailureClassification: FailureClassSystem,
+			Remediation:           "Run playbooks through test-genie execute so the target scenario lifecycle can be managed.",
+		}
+	}
+
 	// Restart the target scenario so it picks up the temporary resources.
-	if err := RestartScenario(ctx, env.ScenarioName, logWriter); err != nil {
+	if err := env.TargetRuntime.RestartWithEnv(ctx, isoResult.Env, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 			envApplied = false
@@ -176,7 +189,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 			restoreEnv()
 			envApplied = false
 		}
-		if err := RestartScenario(context.Background(), env.ScenarioName, logWriter); err != nil {
+		if err := env.TargetRuntime.Restore(context.Background(), logWriter); err != nil {
 			shared.LogWarn(logWriter, "failed to restart scenario back to normal resources: %v", err)
 		}
 		if err := isoResult.Cleanup(context.Background()); err != nil {
@@ -222,7 +235,8 @@ func runLoadedPlaybooksPhase(
 					return ResolveScenarioPort(ctx, logWriter, scenarioName, portName)
 				}),
 				playbooks.WithScenarioStarter(func(ctx context.Context, scenario string) error {
-					return StartScenario(ctx, scenario, logWriter)
+					shared.LogStep(logWriter, "ensuring scenario %s is running", scenario)
+					return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "start", scenario, "--clean-stale")
 				}),
 			)
 			return runner.Run(ctx), nil

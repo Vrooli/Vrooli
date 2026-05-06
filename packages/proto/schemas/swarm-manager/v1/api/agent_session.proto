@@ -132,6 +132,16 @@ message CancelAgentSessionResponse {
   AgentSession session = 1;
 }
 
+// DeleteAgentSessionRequest permanently removes a session-owned record.
+message DeleteAgentSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// DeleteAgentSessionResponse returns the deleted session ID.
+message DeleteAgentSessionResponse {
+  string session_id = 1;
+}
+
 // ApplyAgentSessionProposalRequest applies an approved proposal.
 message ApplyAgentSessionProposalRequest {
   string session_id = 1 [(buf.validate.field).string.min_len = 1];

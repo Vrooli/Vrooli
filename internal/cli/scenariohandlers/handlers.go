@@ -160,8 +160,10 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				"start",
 				func(req StartRequest) []string { return append([]string(nil), req.Names...) },
 				func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
-					if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
-						return "", nil, err
+					if req.Options.CustomPath == "" {
+						if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
+							return "", nil, err
+						}
 					}
 					format, err := deps.OutputFormat(ctx)
 					if err != nil {
@@ -202,8 +204,10 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseSetupRequest(deps.Globals(ctx).JSON, args)
 			},
 			func(ctx C, req SetupRequest) (cliout.Format, lifecycle.PhaseResult, error) {
-				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-					return "", lifecycle.PhaseResult{}, err
+				if req.Opts.CustomPath == "" {
+					if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+						return "", lifecycle.PhaseResult{}, err
+					}
 				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -228,8 +232,10 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				"restart",
 				func(req RestartRequest) []string { return []string{req.Name} },
 				func(ctx C, req RestartRequest) (cliout.Format, []LifecycleItemOutput, error) {
-					if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-						return "", nil, err
+					if req.Options.CustomPath == "" {
+						if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+							return "", nil, err
+						}
 					}
 					format, err := deps.OutputFormat(ctx)
 					if err != nil {
@@ -292,8 +298,10 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseTestRequest(deps.Globals(ctx).JSON, deps.Globals(ctx).Verbose, args)
 			},
 			func(ctx C, req TestRequest) (cliout.Format, struct{}, error) {
-				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-					return "", struct{}{}, err
+				if req.Opts.CustomPath == "" {
+					if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+						return "", struct{}{}, err
+					}
 				}
 				emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), req.Name, deps.Globals(ctx))
 				runner, err := deps.LifecycleRunner(ctx)

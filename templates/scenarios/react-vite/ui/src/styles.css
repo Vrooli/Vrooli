@@ -14,3 +14,8 @@ body {
   font-family: var(--font-sans);
   margin: 0;
 }
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

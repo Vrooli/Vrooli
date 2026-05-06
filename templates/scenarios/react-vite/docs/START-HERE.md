@@ -100,6 +100,13 @@ Generate requirements from the PRD operational targets. Requirements
 are the implementation-facing measurement layer; tests should later tag
 `[REQ:ID]` so sync tooling can update status.
 
+The generated scenario includes a tiny starter module at
+`requirements/01-foundation/module.json` only so first-run validation has
+a valid registry to inspect. Do not treat it as product scope. Replace
+it with PRD-specific modules during this gate, or regenerate the whole
+registry from the PRD and remove the starter import from
+`requirements/index.json`.
+
 - [ ] Optionally write requirement-generation context:
 
 ```bash
@@ -132,9 +139,10 @@ prd-control-tower requirements generate {{SCENARIO_ID}} \
 prd-control-tower requirements validate {{SCENARIO_ID}} --json
 ```
 
-- [ ] Confirm `requirements/index.json` imports numbered
+- [ ] Confirm `requirements/index.json` imports real numbered
       `requirements/<number>-<target>/module.json` files that mirror
-      the PRD operational targets.
+      the PRD operational targets, not just the starter foundation
+      module.
 - [ ] Confirm each P0/P1 target has at least one linked requirement and
       each requirement has a concrete validation strategy.
 

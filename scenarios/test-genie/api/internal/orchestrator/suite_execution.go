@@ -17,6 +17,7 @@ import (
 
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/requirements"
+	"test-genie/internal/orchestrator/targetruntime"
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
@@ -70,18 +71,6 @@ const (
 	browserlessURLEnvVar  = "BROWSERLESS_URL"
 )
 
-// minimal service config to detect runtime ports for auto UI/API URL resolution
-type serviceConfig struct {
-	Ports struct {
-		UI struct {
-			EnvVar string `json:"env_var"`
-		} `json:"ui"`
-		API struct {
-			EnvVar string `json:"env_var"`
-		} `json:"api"`
-	} `json:"ports"`
-}
-
 // resolveBrowserlessURL returns the Browserless URL to use, checking in order:
 // 1. Explicit value from request
 // 2. BROWSERLESS_URL environment variable
@@ -96,62 +85,6 @@ func resolveBrowserlessURL(explicit string) string {
 	return defaultBrowserlessURL
 }
 
-// detectRuntimeURLs attempts to infer UI/API URLs from the scenario's service config and environment.
-// If ports are defined in .vrooli/service.json and corresponding env vars are set, it returns
-// http://localhost:<port> for each. Missing values are returned as empty strings.
-func detectRuntimeURLs(scenarioDir string) (uiURL, apiURL string) {
-	// Default env var names
-	uiEnv := "UI_PORT"
-	apiEnv := "API_PORT"
-
-	// Try process metadata from vrooli lifecycle (captures assigned ports)
-	if home, err := os.UserHomeDir(); err == nil {
-		scenario := filepath.Base(scenarioDir)
-		processDir := filepath.Join(home, ".vrooli", "processes", "scenarios", scenario)
-		type procMeta struct {
-			Port int `json:"port"`
-		}
-		if data, err := os.ReadFile(filepath.Join(processDir, "start-ui.json")); err == nil {
-			var meta procMeta
-			if json.Unmarshal(data, &meta) == nil && meta.Port > 0 {
-				uiURL = fmt.Sprintf("http://localhost:%d", meta.Port)
-			}
-		}
-		if data, err := os.ReadFile(filepath.Join(processDir, "start-api.json")); err == nil {
-			var meta procMeta
-			if json.Unmarshal(data, &meta) == nil && meta.Port > 0 {
-				apiURL = fmt.Sprintf("http://localhost:%d", meta.Port)
-			}
-		}
-		if uiURL != "" && apiURL != "" {
-			return uiURL, apiURL
-		}
-	}
-
-	// Load service.json if present to discover custom env var names
-	servicePath := filepath.Join(scenarioDir, ".vrooli", "service.json")
-	data, err := os.ReadFile(servicePath)
-	if err == nil {
-		var svc serviceConfig
-		if json.Unmarshal(data, &svc) == nil {
-			if strings.TrimSpace(svc.Ports.UI.EnvVar) != "" {
-				uiEnv = svc.Ports.UI.EnvVar
-			}
-			if strings.TrimSpace(svc.Ports.API.EnvVar) != "" {
-				apiEnv = svc.Ports.API.EnvVar
-			}
-		}
-	}
-
-	if port := strings.TrimSpace(os.Getenv(uiEnv)); port != "" {
-		uiURL = fmt.Sprintf("http://localhost:%s", port)
-	}
-	if port := strings.TrimSpace(os.Getenv(apiEnv)); port != "" {
-		apiURL = fmt.Sprintf("http://localhost:%s", port)
-	}
-	return uiURL, apiURL
-}
-
 // SuiteOrchestrator runs scenario-local test phases without relying on external bash runners.
 type SuiteOrchestrator struct {
 	scenariosRoot string
@@ -160,6 +93,7 @@ type SuiteOrchestrator struct {
 	catalog       *phases.Catalog
 	requirements  requirements.Syncer
 	phaseToggles  *phaseToggleStore
+	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
 }
 
 // SuiteExecutionRequest configures a single test execution run.
@@ -171,8 +105,9 @@ type SuiteExecutionRequest struct {
 	FailFast     bool     `json:"failFast"`
 
 	// Runtime URLs for phases that need to connect to running services.
-	// If not provided, BrowserlessURL falls back to BROWSERLESS_URL env var or default.
-	// UIURL is required for Lighthouse audits; if empty, Lighthouse is skipped.
+	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the
+	// target scenario lifecycle and discovers URLs from lifecycle process metadata.
+	// BrowserlessURL falls back to BROWSERLESS_URL env var or default.
 	UIURL          string `json:"uiUrl,omitempty"`
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
@@ -295,6 +230,7 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		catalog:       phases.NewDefaultCatalog(defaultPhaseTimeout),
 		requirements:  requirements.NewNodeSyncer(filepath.Dir(absRoot)),
 		phaseToggles:  newPhaseToggleStore(),
+		newRuntime:    targetruntime.New,
 	}, nil
 }
 
@@ -304,10 +240,22 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
+	env, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
+	if err != nil {
+		return nil, err
+	}
+	prepared.env = env
+	defer func() {
+		if runtimeManager != nil {
+			if cleanupErr := runtimeManager.Cleanup(context.Background(), runtimeLease, io.Discard); cleanupErr != nil {
+				log.Printf("failed to clean up target runtime: %v", cleanupErr)
+			}
+		}
+	}()
 
 	phaseResults, anyFailure := o.runSelectedPhases(
 		ctx,
-		prepared.env,
+		env,
 		prepared.runLogDir,
 		prepared.plan.Selected,
 		req.FailFast,
@@ -324,10 +272,22 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 	if err != nil {
 		return nil, err
 	}
+	env, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
+	if err != nil {
+		return nil, err
+	}
+	prepared.env = env
+	defer func() {
+		if runtimeManager != nil {
+			if cleanupErr := runtimeManager.Cleanup(context.Background(), runtimeLease, io.Discard); cleanupErr != nil {
+				log.Printf("failed to clean up target runtime: %v", cleanupErr)
+			}
+		}
+	}()
 
 	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(
 		ctx,
-		prepared.env,
+		env,
 		prepared.runLogDir,
 		prepared.plan.Selected,
 		req.FailFast,
@@ -336,6 +296,61 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 	)
 
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
+}
+
+func (o *SuiteOrchestrator) prepareTargetRuntime(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	defs []phases.Definition,
+	req SuiteExecutionRequest,
+	logWriter io.Writer,
+) (workspacepkg.Environment, targetruntime.Lease, *targetruntime.Manager, error) {
+	needs := runtimeNeeds(defs)
+	newRuntime := o.newRuntime
+	if newRuntime == nil {
+		newRuntime = targetruntime.New
+	}
+	manager := newRuntime(env.ScenarioName, env.ScenarioDir)
+	env.TargetRuntime = manager
+
+	if req.UIURL != "" {
+		env.UIURL = req.UIURL
+		needs.UI = false
+	}
+	if req.APIURL != "" {
+		env.APIURL = req.APIURL
+		needs.API = false
+	}
+	if !needs.UI && !needs.API {
+		return env, targetruntime.Lease{}, manager, nil
+	}
+
+	lease, err := manager.EnsureRunning(ctx, needs, logWriter)
+	if err != nil {
+		return env, targetruntime.Lease{}, manager, err
+	}
+	if env.UIURL == "" {
+		env.UIURL = lease.URLs.UI
+	}
+	if env.APIURL == "" {
+		env.APIURL = lease.URLs.API
+	}
+	return env, lease, manager, nil
+}
+
+func runtimeNeeds(defs []phases.Definition) targetruntime.Needs {
+	var needs targetruntime.Needs
+	for _, def := range defs {
+		switch def.Name {
+		case phases.Smoke, phases.Playbooks:
+			needs.UI = true
+		case phases.Performance:
+			needs.UI = true
+		case phases.Integration:
+			needs.API = true
+		}
+	}
+	return needs
 }
 
 func (o *SuiteOrchestrator) runSelectedPhases(

@@ -15,7 +15,8 @@ type Request struct {
 	SuiteRequestID string   `json:"suiteRequestId,omitempty"`
 
 	// Runtime URLs for phases that need to connect to running services.
-	// UIURL is required for Lighthouse audits; if empty, Lighthouse is skipped.
+	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the
+	// target scenario lifecycle and discovers URLs from lifecycle process metadata.
 	// BrowserlessURL falls back to BROWSERLESS_URL env var or default if not specified.
 	UIURL          string `json:"uiUrl,omitempty"`
 	APIURL         string `json:"apiUrl,omitempty"`

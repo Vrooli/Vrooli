@@ -97,66 +97,120 @@ mode: contract
 ```mermaid
 flowchart LR
   %% Members
-  R["member:researcher<br/>Researcher"]
-  BM["member:brand-manager<br/>Brand Manager"]
-  OSS["member:oss-advertiser<br/>OSS Advertiser"]
-  SUB["member:subscription-advertiser<br/>Subscription Advertiser"]
-  PUB["member:publisher<br/>Publisher"]
-  CONTRA["member:marketing-contrarian<br/>Marketing Contrarian"]
+  %% @node R member:researcher
+  R[Researcher]
+  %% @node BM member:brand-manager
+  BM[Brand Manager]
+  %% @node OSS member:oss-advertiser
+  OSS[OSS Advertiser]
+  %% @node SUB member:subscription-advertiser
+  SUB[Subscription Advertiser]
+  %% @node PUB member:publisher
+  PUB[Publisher]
+  %% @node CONTRA member:marketing-contrarian
+  CONTRA[Marketing Contrarian]
 
   %% External and cross-team boundaries
-  OP["external:operator<br/>Operator"]
-  VW["external:vision-walk<br/>Vision walk"]
-  BIH["external:bookmark-intelligence-hub<br/>Bookmark intelligence hub"]
-  TEL["future:publish-telemetry<br/>Future telemetry"]
-  MON["team:monetization<br/>Monetization team"]
+  %% @node OP external:operator
+  OP[Operator]
+  %% @node VW external:vision-walk
+  VW[Vision walk]
+  %% @node BIH external:bookmark-intelligence-hub
+  BIH[Bookmark intelligence hub]
+  %% @node TEL future:publish-telemetry
+  TEL[Future telemetry]
+  %% @node MON team:monetization
+  MON[Monetization team]
 
   %% Topics
-  RI["topic:research-inbox/*"]
-  AS["topic:audience-scan/*"]
-  COMP["topic:competitor-record/*"]
-  HOOK["topic:hook-record/*"]
-  WF["topic:workflow-scan/*"]
-  SKILL["topic:skill-scan/*"]
-  CHAN["topic:channel-scan/*"]
-  FORMAT["topic:format-scan/*"]
-  MB["topic:monetization-benchmark-adjacent-record/*"]
-  REQOSS["topic:artifact-request/oss/*"]
-  REQSUB["topic:artifact-request/subscription/*"]
-  DRAFT["topic:campaign-draft/*"]
-  OSSRUN["topic:oss-ad-run/*"]
-  SUBRUN["topic:subscription-ad-run/*"]
-  ARUN["topic[future]:ad-run/<lane>/*"]
-  PLOG["topic:publish-log/*"]
-  COV["topic:coverage-snapshot/*"]
-  BRANDSNAP["topic:brand-snapshot/*"]
-  PSM["topic[future]:published-scenario-mentions/*"]
-  PERF["topic[future]:publish-performance/*"]
-  NOTE["topic:marketing/notebook/*"]
-  CHAL["topic:challenge-report/*"]
-  RES["topic:challenge-resolution-record/*"]
-  AGING["topic:aging-scan-note/*"]
+  %% @node RI topic:research-inbox/*
+  RI[research-inbox/*]
+  %% @node AS topic:audience-scan/*
+  AS[audience-scan/*]
+  %% @node COMP topic:competitor-record/*
+  COMP[competitor-record/*]
+  %% @node HOOK topic:hook-record/*
+  HOOK[hook-record/*]
+  %% @node WF topic:workflow-scan/*
+  WF[workflow-scan/*]
+  %% @node SKILL topic:skill-scan/*
+  SKILL[skill-scan/*]
+  %% @node CHAN topic:channel-scan/*
+  CHAN[channel-scan/*]
+  %% @node FORMAT topic:format-scan/*
+  FORMAT[format-scan/*]
+  %% @node MB topic:monetization-benchmark-adjacent-record/*
+  MB[monetization-benchmark-adjacent-record/*]
+  %% @node REQOSS topic:artifact-request/oss/*
+  REQOSS[artifact-request/oss/*]
+  %% @node REQSUB topic:artifact-request/subscription/*
+  REQSUB[artifact-request/subscription/*]
+  %% @node DRAFT topic:campaign-draft/*
+  DRAFT[campaign-draft/*]
+  %% @node OSSRUN topic:oss-ad-run/*
+  OSSRUN[oss-ad-run/*]
+  %% @node SUBRUN topic:subscription-ad-run/*
+  SUBRUN[subscription-ad-run/*]
+  %% @node ARUN topic[future]:ad-run/<lane>/*
+  ARUN[ad-run/<lane>/*]
+  %% @node PLOG topic:publish-log/*
+  PLOG[publish-log/*]
+  %% @node COV topic:coverage-snapshot/*
+  COV[coverage-snapshot/*]
+  %% @node BRANDSNAP topic:brand-snapshot/*
+  BRANDSNAP[brand-snapshot/*]
+  %% @node PSM topic[future]:published-scenario-mentions/*
+  PSM[published-scenario-mentions/*]
+  %% @node PERF topic[future]:publish-performance/*
+  PERF[publish-performance/*]
+  %% @node NOTE topic:marketing/notebook/*
+  NOTE[marketing/notebook/*]
+  %% @node CHAL topic:challenge-report/*
+  CHAL[challenge-report/*]
+  %% @node RES topic:challenge-resolution-record/*
+  RES[challenge-resolution-record/*]
+  %% @node AGING topic:aging-scan-note/*
+  AGING[aging-scan-note/*]
 
   %% Decisions and durable canon
-  AUD["decision:audience-update"]
-  CHSTR["decision:channel-strategy-update"]
-  POST["decision:post-type-proposal"]
-  HCP["decision:hook-candidate-promotion"]
-  CAMP["decision:campaign-launch-proposal"]
-  BGUIDE["decision:brand-guideline-update"]
-  NPROMO["decision:notebook-promotion"]
-  NRETIRE["decision:notebook-retirement"]
-  CPP["decision:content-publish-proposal"]
-  CHUP["decision:channel-update"]
-  COVGAP["decision:coverage-gap"]
-  CAP["decision:capability-gap"]
-  DREJ["decision:decision-rejection-proposed"]
-  FRAME["decision:framework-update"]
-  CANON1["por:docs/marketing/STRATEGY.md"]
-  CANON2["por:docs/marketing/AUDIENCES.md"]
-  LEARN["process:learning-synthesis<br/>Learning synthesis"]
-  ADPROC["process:advertiser-draft-producer<br/>Advertiser draft producer"]
-  BACKLOG["process:skill-scenario-action-backlog<br/>Skill / scenario / action backlog"]
+  %% @node AUD decision:audience-update
+  AUD[audience-update]
+  %% @node CHSTR decision:channel-strategy-update
+  CHSTR[channel-strategy-update]
+  %% @node POST decision:post-type-proposal
+  POST[post-type-proposal]
+  %% @node HCP decision:hook-candidate-promotion
+  HCP[hook-candidate-promotion]
+  %% @node CAMP decision:campaign-launch-proposal
+  CAMP[campaign-launch-proposal]
+  %% @node BGUIDE decision:brand-guideline-update
+  BGUIDE[brand-guideline-update]
+  %% @node NPROMO decision:notebook-promotion
+  NPROMO[notebook-promotion]
+  %% @node NRETIRE decision:notebook-retirement
+  NRETIRE[notebook-retirement]
+  %% @node CPP decision:content-publish-proposal
+  CPP[content-publish-proposal]
+  %% @node CHUP decision:channel-update
+  CHUP[channel-update]
+  %% @node COVGAP decision:coverage-gap
+  COVGAP[coverage-gap]
+  %% @node CAP decision:capability-gap
+  CAP[capability-gap]
+  %% @node DREJ decision:decision-rejection-proposed
+  DREJ[decision-rejection-proposed]
+  %% @node FRAME decision:framework-update
+  FRAME[framework-update]
+  %% @node CANON1 por:docs/marketing/STRATEGY.md
+  CANON1[docs/marketing/STRATEGY.md]
+  %% @node CANON2 por:docs/marketing/AUDIENCES.md
+  CANON2[docs/marketing/AUDIENCES.md]
+  %% @node LEARN process:learning-synthesis
+  LEARN[Learning synthesis]
+  %% @node ADPROC process:advertiser-draft-producer
+  ADPROC[Advertiser draft producer]
+  %% @node BACKLOG process:skill-scenario-action-backlog
+  BACKLOG[Skill / scenario / action backlog]
 
   %% Intake
   OP --> RI

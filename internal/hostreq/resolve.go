@@ -11,11 +11,12 @@ import (
 )
 
 type ResolveOptions struct {
-	Environment string
-	When        string
-	Resources   string
-	Scenarios   string
-	Platform    string
+	Environment   string
+	When          string
+	Resources     string
+	Scenarios     string
+	ScenarioPaths []string
+	Platform      string
 }
 
 type Resolution struct {
@@ -63,11 +64,57 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 	if err := state.addScenarios(opts.Scenarios); err != nil {
 		return Resolution{}, err
 	}
+	if err := state.addScenarioPaths(opts.ScenarioPaths); err != nil {
+		return Resolution{}, err
+	}
 
 	return Resolution{
 		Tools:      sortedRequirements(state.tools),
 		Safeguards: sortedRequirements(state.safeguards),
 	}, nil
+}
+
+func (s resolverState) addScenarioPaths(paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	items := make([]scenario.Scenario, 0, len(paths))
+	for _, raw := range paths {
+		path := strings.TrimSpace(raw)
+		if path == "" {
+			continue
+		}
+		servicePath := filepath.Join(path, ".vrooli", "service.json")
+		manifest, err := scenario.ReadService(servicePath)
+		if err != nil {
+			return fmt.Errorf("load scenario at %q: %w", path, err)
+		}
+		slug := strings.TrimSpace(manifest.Service.Name)
+		if slug == "" {
+			slug = filepath.Base(path)
+		}
+		items = append(items, scenario.Scenario{
+			Slug:        slug,
+			Path:        path,
+			ServicePath: servicePath,
+			Manifest:    manifest,
+		})
+	}
+	s.addScenarioItems(items)
+	return nil
+}
+
+func (s resolverState) addScenarioItems(items []scenario.Scenario) {
+	for _, item := range items {
+		provenance := Provenance{
+			Kind:   "scenario",
+			Name:   item.Slug,
+			Path:   item.ServicePath,
+			Source: manifestSourcePath(s.root, item.ServicePath),
+		}
+		s.addAll(item.Manifest.HostTools, KindTool, provenance)
+		s.addAll(item.Manifest.HostSafeguards, KindSafeguard, provenance)
+	}
 }
 
 type resolverState struct {
@@ -161,16 +208,7 @@ func (s resolverState) addScenarios(selector string) error {
 		}
 	}
 
-	for _, item := range items {
-		provenance := Provenance{
-			Kind:   "scenario",
-			Name:   item.Slug,
-			Path:   item.ServicePath,
-			Source: manifestSourcePath(s.root, item.ServicePath),
-		}
-		s.addAll(item.Manifest.HostTools, KindTool, provenance)
-		s.addAll(item.Manifest.HostSafeguards, KindSafeguard, provenance)
-	}
+	s.addScenarioItems(items)
 	return nil
 }
 

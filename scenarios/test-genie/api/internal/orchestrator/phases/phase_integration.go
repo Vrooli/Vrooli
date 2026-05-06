@@ -15,7 +15,7 @@ import (
 // API health checks, and WebSocket connection validation.
 //
 // Runtime URL Configuration:
-// - API URL: Passed from env.APIURL (auto-detected from lifecycle metadata or service.json)
+// - API URL: Passed from env.APIURL after execute-level target runtime preparation
 // - WebSocket URL: Derived from API URL + configured path, following @vrooli/api-base conventions
 //
 // The WebSocket URL derivation follows the pattern established by @vrooli/api-base where

@@ -30,9 +30,12 @@ for the full policy.
 | Variable | Default | Purpose |
 |---|---|---|
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/{{SCENARIO_ID}}.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
-| `VITE_API_BASE_URL` | `http://localhost:${API_PORT}/api/v1` | API base URL the UI bundle reads at build/dev time. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+
+The browser UI does not read `API_PORT` directly. It resolves API calls through
+the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
+RPC namespace to the API process using the lifecycle-provided `API_PORT`.
 
 ### Scenario-prefixed CLI variables
 

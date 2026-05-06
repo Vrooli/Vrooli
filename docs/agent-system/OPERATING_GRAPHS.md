@@ -20,6 +20,26 @@ PoR Mermaid diagram
 
 Mermaid is not executed at runtime. Runtime prompts are generated from structured declarations.
 
+## Validate vs Diff
+
+Operating graph tooling has two related jobs:
+
+| Command | Purpose | Output |
+|---|---|---|
+| `prompt-manager graph operating-model validate` | Gate whether the graph is a valid contract. | Severity-bearing findings: errors and warnings. |
+| `prompt-manager graph operating-model diff` | Reconcile graph and runtime declarations. | Repair map grouped by drift direction. |
+
+Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?"
+
+Diff compares both directions:
+
+| Direction | Meaning | Typical fix |
+|---|---|---|
+| `graph_relationship_missing_in_runtime` | Mermaid declares a relationship that `topics.json` / `team.json` do not back. | Add the matching runtime declaration, or remove the graph edge. |
+| `runtime_relationship_missing_in_graph` | Runtime config declares a relationship absent from the Mermaid contract graph. | Add the graph edge, or remove the obsolete runtime declaration. |
+
+For human output, diff groups these as "Graph Declares, Runtime Missing" and "Runtime Declares, Graph Missing." JSON output includes machine fields such as `relationship`, `source_path`, `line`, `runtime_path`, `acceptable_fields`, and `suggestions`.
+
 ## Metadata Block
 
 Every checkable operating graph uses a metadata comment immediately followed by a Mermaid fence:
@@ -33,8 +53,10 @@ mode: contract
 -->
 ```mermaid
 flowchart LR
-  R["member:researcher<br/>Researcher"]
-  RI["topic:research-inbox/*"]
+  %% @node R member:researcher
+  R[Researcher]
+  %% @node RI topic:research-inbox/*
+  RI[research-inbox/*]
   RI --> R
 ```
 ````
@@ -71,6 +93,7 @@ Only this subset is supported for operating graphs:
 
 - `flowchart LR`, `flowchart TB`, `flowchart RL`, or `flowchart BT`
 - Mermaid comments beginning with `%%`
+- typed node annotations: `%% @node ID machine-token`
 - node declarations: `ID[label]`, `ID["label"]`, `ID["machine-token<br/>Display"]`
 - simple directed edges: `A --> B`
 - optional edge labels: `A -->|label| B`; labels are parsed but ignored in the first validator
@@ -79,7 +102,20 @@ Unsupported syntax fails `contract` graphs. Do not use chained fanout, subgraphs
 
 ## Typed Nodes
 
-The first label line is the machine token. Optional display text goes after `<br/>`.
+Prefer invisible typed annotations so rendered diagrams stay readable:
+
+```mermaid
+%% @node R member:researcher
+R[Researcher]
+```
+
+Inline typed labels are also supported for compact diagrams:
+
+```mermaid
+R["member:researcher<br/>Researcher"]
+```
+
+Do not combine both forms on the same node. The validator treats that as an ambiguous contract.
 
 | Kind | Example | Validation source |
 |---|---|---|
@@ -121,6 +157,56 @@ In the first implementation, edge meaning is inferred from typed node kinds and 
 | `member -> por` | The member declares a `por_file` output to that path. |
 | `topic -> team` | A member output declares the topic with `destination_team`. |
 | `process` / `future` edges | Allowed for readability; they do not satisfy runtime completeness. |
+
+The graph intentionally treats `topic -> member` as a broad read edge. The exact read subtype remains in `topics.json`:
+
+| Runtime field | Meaning |
+|---|---|
+| `intake[]` | Member drains actionable items from the topic. |
+| `required_read[]` | Member receives the topic as always-on heartbeat context. |
+| `evidence_consumed[]` | Member cites the topic when contributing to named decisions. |
+
+This keeps Mermaid readable while preserving precise runtime semantics in structured config.
+
+## Diff Relationships
+
+Diff normalizes Mermaid edges and runtime config into semantic relationships before comparing them:
+
+| Relationship | Mermaid shape | Runtime source |
+|---|---|---|
+| `topic_read` | `topic -> member` | `intake[]`, `required_read[]`, or `evidence_consumed[]` |
+| `topic_output` | `member -> topic` | `output[]` |
+| `por_output` | `member -> por` | `output[]` with `destination_kind: por_file` |
+| `decision_owned` | `member -> decision` | `decisions_owned[]` |
+| `decision_consumed` | `decision -> member` | `decisions_consumed[]` or `evidence_consumed[].for_decisions[]` |
+| `capability_gap_raised` | `member -> decision:capability-gap` | `raises_capability_gaps` |
+| `external_producer` | `external -> member` | `external_producers[]` |
+| `external_producer_intake` | `external -> topic` | `external_producers[]` plus matching `intake[]` |
+| `cross_team_output` | `topic -> team` | `output[].destination_team` |
+
+Topic matching uses the same prefix overlap semantics as topic validation, so `campaign-draft/*` matches a more specific compatible prefix.
+
+Example graph-to-runtime diff:
+
+```text
+[graph_relationship_missing_in_runtime] topic_read
+docs/marketing/OPERATING_MODEL.md:355 says topic:marketing/notebook/* -> member:researcher.
+Runtime has no matching researcher intake, required_read, or evidence_consumed declaration.
+Suggested fixes:
+- add required_read "marketing/notebook/*" to researcher/topics.json
+- or remove the topic -> member edge from the operating graph
+```
+
+Example runtime-to-graph diff:
+
+```text
+[runtime_relationship_missing_in_graph] topic_output
+scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/topics.json declares member:researcher -> topic:hook-record/*.
+The contract graph does not show a matching relationship.
+Suggested fixes:
+- add member:researcher -> topic:hook-record/* to the operating graph
+- or remove the runtime output declaration if it is obsolete
+```
 
 ## Validation Rules
 
