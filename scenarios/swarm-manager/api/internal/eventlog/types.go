@@ -123,6 +123,7 @@ const (
 	EventAgentSessionCompleted       EventType = "agent_session.completed"
 	EventAgentSessionFailed          EventType = "agent_session.failed"
 	EventAgentSessionCanceled        EventType = "agent_session.canceled"
+	EventAgentSessionDeleted         EventType = "agent_session.deleted"
 	EventAgentSessionProposalCreated EventType = "agent_session.proposal_created"
 	EventAgentSessionProposalApplied EventType = "agent_session.proposal_applied"
 	EventAgentSessionArtifactLinked  EventType = "agent_session.artifact_linked"

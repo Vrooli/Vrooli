@@ -34,6 +34,7 @@ type EventLogger interface {
 	EmitAgentSessionFailed(sessionID string, payload any)
 	EmitAgentSessionCanceled(sessionID string, payload any)
 	EmitAgentSessionCompleted(sessionID string, payload any)
+	EmitAgentSessionDeleted(sessionID string, payload any)
 	EmitAgentSessionProposalCreated(sessionID string, payload any)
 	EmitAgentSessionProposalApplied(sessionID string, payload any)
 	EmitAgentSessionArtifactLinked(sessionID string, payload any)
@@ -343,6 +344,23 @@ func (s *Service) Cancel(ctx context.Context, sessionID string) (Session, error)
 	}
 	s.emitCanceled(session)
 	return s.store.LoadSession(session.ID)
+}
+
+func (s *Service) Delete(ctx context.Context, sessionID string) error {
+	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return mapStoreError(err)
+	}
+	if strings.TrimSpace(session.RunID) != "" && s.spawner != nil && isActiveSessionStatus(session.Status) {
+		if err := s.spawner.StopRun(ctx, session.RunID); err != nil {
+			return mapSpawnError(err)
+		}
+	}
+	if err := s.store.DeleteSession(session.ID); err != nil {
+		return mapStoreError(err)
+	}
+	s.emitDeleted(session)
+	return nil
 }
 
 func (s *Service) AttachArtifact(_ context.Context, artifact Artifact) (Artifact, error) {
@@ -740,6 +758,12 @@ func (s *Service) emitCanceled(session Session) {
 func (s *Service) emitCompleted(session Session) {
 	if s.eventLogger != nil {
 		s.eventLogger.EmitAgentSessionCompleted(session.ID, eventPayload(session))
+	}
+}
+
+func (s *Service) emitDeleted(session Session) {
+	if s.eventLogger != nil {
+		s.eventLogger.EmitAgentSessionDeleted(session.ID, eventPayload(session))
 	}
 }
 

@@ -153,6 +153,63 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	if applyRec.Code != http.StatusNotFound {
 		t.Fatalf("apply status = %d, want 404; body = %s", applyRec.Code, applyRec.Body.String())
 	}
+
+	deleteRec := serveAgentSessionRequest(router, http.MethodDelete, "/api/v1/agent-sessions/"+sessionID, nil)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, body = %s", deleteRec.Code, deleteRec.Body.String())
+	}
+	var deleteResp apipb.DeleteAgentSessionResponse
+	unmarshalAgentSessionProto(t, deleteRec, &deleteResp)
+	if deleteResp.GetSessionId() != sessionID {
+		t.Fatalf("delete session_id = %q, want %q", deleteResp.GetSessionId(), sessionID)
+	}
+
+	getDeletedRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/agent-sessions/"+sessionID, nil)
+	if getDeletedRec.Code != http.StatusNotFound {
+		t.Fatalf("get deleted status = %d, want 404; body = %s", getDeletedRec.Code, getDeletedRec.Body.String())
+	}
+}
+
+func TestHandlerDeleteStopsActiveRunAndRejectsInvalidIDs(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{}
+	svc := newTestService(t, spawner)
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
+		Kind:           string(KindMetaOrchestration),
+		Title:          "Plan work",
+		InitialMessage: "Plan the next initiative.",
+	})
+	createRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions", createBody)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, body = %s", createRec.Code, createRec.Body.String())
+	}
+	var createResp apipb.CreateAgentSessionResponse
+	unmarshalAgentSessionProto(t, createRec, &createResp)
+	sessionID := createResp.GetSession().GetId()
+	runID := createResp.GetSession().GetRunId()
+
+	deleteRec := serveAgentSessionRequest(router, http.MethodDelete, "/api/v1/agent-sessions/"+sessionID, nil)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, body = %s", deleteRec.Code, deleteRec.Body.String())
+	}
+	if spawner.stoppedRunID != runID {
+		t.Fatalf("stopped run = %q, want %q", spawner.stoppedRunID, runID)
+	}
+
+	missingRec := serveAgentSessionRequest(router, http.MethodDelete, "/api/v1/agent-sessions/sess_missing", nil)
+	if missingRec.Code != http.StatusNotFound {
+		t.Fatalf("missing delete status = %d, want 404; body = %s", missingRec.Code, missingRec.Body.String())
+	}
+
+	invalidRec := serveAgentSessionRequest(router, http.MethodDelete, "/api/v1/agent-sessions/bad_id", nil)
+	if invalidRec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid delete status = %d, want 400; body = %s", invalidRec.Code, invalidRec.Body.String())
+	}
 }
 
 func TestHandlerRejectsInvalidCreateRequest(t *testing.T) {

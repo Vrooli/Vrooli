@@ -1,6 +1,6 @@
 module palette-gen
 
-go 1.21
+go 1.24.0
 
 require github.com/redis/go-redis/v9 v9.0.5
 
@@ -18,3 +18,5 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

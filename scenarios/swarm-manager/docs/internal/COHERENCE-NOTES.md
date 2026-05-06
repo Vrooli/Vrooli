@@ -19,6 +19,13 @@ closely:
   artifacts, and metadata.
 - Mobile uses full-page tabs for Conversation, Proposals, Artifacts, and
   Details instead of stacking secondary content below the conversation.
+- Header actions are shared through `components/session/SessionActionsMenu.tsx`:
+  desktop keeps routine refresh/cancel inline and places destructive deletion in
+  the ellipsis menu, while mobile keeps refresh/cancel/delete in the header
+  bottom sheet.
+- Session deletion confirmation is isolated in
+  `components/session/SessionDeleteDialog.tsx` so destructive copy and strong
+  confirmation stay consistent across desktop and mobile.
 
 The generic chat components live under `components/chat/`; session-only
 presentation lives under `components/session/`. Keep future chat-like flows on

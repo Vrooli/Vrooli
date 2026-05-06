@@ -11,6 +11,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/gorilla/mux"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // InsightHandlers contains handlers for insight-related endpoints
@@ -395,7 +396,16 @@ func (h *InsightHandlers) ApplySuggestionHandler(w http.ResponseWriter, r *http.
 	// Determine scenario root
 	scenarioRoot := h.scenarioRoot
 	if scenarioRoot == "" {
-		scenarioRoot = "/home/matthalloran8/Vrooli/scenarios"
+		contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+		if err != nil {
+			writeError(w, fmt.Sprintf("Failed to resolve repository contract: %v", err), http.StatusInternalServerError)
+			return
+		}
+		scenarioRoot, err = contract.TopLevelDir(repoRoot, "scenarios")
+		if err != nil {
+			writeError(w, fmt.Sprintf("Failed to resolve scenarios directory: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Extract scenario name from task ID

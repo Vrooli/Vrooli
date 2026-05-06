@@ -1,12 +1,10 @@
 module chart-generator-api
 
-go 1.21.1
-
-toolchain go1.21.13
+go 1.24.0
 
 require (
 	github.com/go-echarts/go-echarts/v2 v2.6.3
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/johnfercher/maroto/v2 v2.3.1
 	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.10.1
@@ -37,3 +35,5 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

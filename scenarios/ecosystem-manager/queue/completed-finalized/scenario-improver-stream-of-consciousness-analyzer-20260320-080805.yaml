@@ -78,13 +78,13 @@ results:
         You are executing a **scenario improvement** task for the Ecosystem Manager.
 
         ## Boundaries & Focus
-        - Work strictly inside `/home/matthalloran8/Vrooli/scenarios/stream-of-consciousness-analyzer/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you uncover problems elsewhere, record them in your notes instead of editing unrelated paths.
+        - Work strictly inside `<repo-root>/scenarios/stream-of-consciousness-analyzer/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you uncover problems elsewhere, record them in your notes instead of editing unrelated paths.
         - Respect the generator’s scaffold. Follow the current steering focus, avoid regressions, and stay within the existing architecture rather than redesigning the scenario from scratch.
 
         ## Before You Start (self-orientation)
         - Run `vrooli scenario status stream-of-consciousness-analyzer` to see failing checks and remediation hints.
         - Run `scenario-completeness-scoring score stream-of-consciousness-analyzer` (or with `--json`) to understand current quality/coverage and recommendations.
-        - Read the latest execution output if available: `/home/matthalloran8/Vrooli/scenarios/ecosystem-manager/logs/task-runs/scenario-improver-stream-of-consciousness-analyzer-20260320-080805/executions/2026-03-20_212753/output.log` (skip if not available). Use it to understand what the last run did and any errors.
+        - Read the latest execution output if available: `<repo-root>/scenarios/ecosystem-manager/logs/task-runs/scenario-improver-stream-of-consciousness-analyzer-20260320-080805/executions/2026-03-20_212753/output.log` (skip if not available). Use it to understand what the last run did and any errors.
 
         ## Quick Validation Loop (repeat until green)
         1. `vrooli scenario status stream-of-consciousness-analyzer`
@@ -99,9 +99,9 @@ results:
            - Ensures the production UI bundle loads, the iframe bridge is ready, and Browserless captures artifacts (screenshot, console, network).
 
         ## Working with PRD & Requirements
-        - `/home/matthalloran8/Vrooli/scenarios/stream-of-consciousness-analyzer/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.
+        - `<repo-root>/scenarios/stream-of-consciousness-analyzer/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.
         - Operational targets (P0/P1/P2) gain ✅ status automatically when their linked requirements’ tests pass. Confirm each target you touch is mapped to requirement IDs in `requirements/index.json` under the numbered operational-target folders (e.g. `01-<first-target-name>`, `02-<second-target-name>`, …). Add/link requirements if needed and keep the filesystem mirror of the PRD targets intact (no duplicate compatibility shims).
-        - `/home/matthalloran8/Vrooli/scenarios/stream-of-consciousness-analyzer/bas/` mirrors the same target layout under `cases/<target>/<surface>/` plus an additional `flows/` folder to validate user journeys. When adding/editing workflows, place them in the correct folder, tag selectors via `ui/src/consts/selectors.ts`, refresh the README if the structure changes, and never leave temporary copies in legacy directories.
+        - `<repo-root>/scenarios/stream-of-consciousness-analyzer/bas/` mirrors the same target layout under `cases/<target>/<surface>/` plus an additional `flows/` folder to validate user journeys. When adding/editing workflows, place them in the correct folder, tag selectors via `ui/src/consts/selectors.ts`, refresh the README if the structure changes, and never leave temporary copies in legacy directories.
         - When you run tests, ensure the commands cover the `[REQ:ID]` tags for the target you’re improving. Document the commands in PRD/Test Commands and your summary so future agents can reproduce the evidence. Running the full suite triggers automatic requirement sync.
 
         ## Documentation Updates
@@ -115,7 +115,7 @@ results:
 
         ## Implementation & Stack Expectations
         - Honor the existing architecture. If you add UI, default to React + TypeScript + Vite + shadcn/ui + lucide unless the scenario already uses another stack.
-        - Keep changes scoped to the current steering focus, prove results with requirements-linked tests, log the result in `/home/matthalloran8/Vrooli/scenarios/stream-of-consciousness-analyzer/docs/PROGRESS.md`, and leave TODOs for remaining gaps.
+        - Keep changes scoped to the current steering focus, prove results with requirements-linked tests, log the result in `<repo-root>/scenarios/stream-of-consciousness-analyzer/docs/PROGRESS.md`, and leave TODOs for remaining gaps.
         - Preserve `[REQ:ID]` annotations in tests so requirement tracking stays accurate.
 
         ## Security & Standards Guardrails

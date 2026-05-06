@@ -117,6 +117,9 @@ type Dependencies struct {
 	AgentManagerStatus   CommandFunc
 	AgentManagerRunGet   CommandFunc
 	AgentManagerRunStop  CommandFunc
+	SessionsList         CommandFunc
+	SessionsGet          CommandFunc
+	SessionsDelete       CommandFunc
 	StatsSummary         CommandFunc
 	StatsThroughput      CommandFunc
 	StatsBlocking        CommandFunc

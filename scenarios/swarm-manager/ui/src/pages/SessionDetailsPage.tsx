@@ -7,7 +7,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, Bot, MoreVertical, PanelRightOpen, RefreshCw, Square } from "lucide-react";
+import { AlertCircle, Bot, MoreVertical, PanelRightOpen, RefreshCw, Square, Trash2 } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { Button } from "../components/ui/button";
@@ -15,7 +15,9 @@ import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { SessionArtifactList } from "../components/session/SessionArtifactList";
+import { SessionActionsMenu, type SessionActionItem } from "../components/session/SessionActionsMenu";
 import { SessionConversation } from "../components/session/SessionConversation";
+import { SessionDeleteDialog } from "../components/session/SessionDeleteDialog";
 import { SessionInspector } from "../components/session/SessionInspector";
 import { SessionMetadata } from "../components/session/SessionMetadata";
 import { SessionProposalList } from "../components/session/SessionProposalList";
@@ -51,6 +53,7 @@ export function SessionDetailsPage() {
   const continueSession = useAgentSessionStore((s) => s.continueSession);
   const refreshSession = useAgentSessionStore((s) => s.refreshSession);
   const cancelSession = useAgentSessionStore((s) => s.cancelSession);
+  const deleteSession = useAgentSessionStore((s) => s.deleteSession);
   const applyProposal = useAgentSessionStore((s) => s.applyProposal);
   const isMutating = useAgentSessionStore((s) => s.isMutating);
   const isRefreshing = useAgentSessionStore((s) => s.isRefreshing);
@@ -70,6 +73,7 @@ export function SessionDetailsPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<SessionSectionValue>("conversation");
 
   const handleSend = useCallback(async () => {
@@ -104,6 +108,18 @@ export function SessionDetailsPage() {
       setLocalError(err instanceof Error ? err.message : "Unable to cancel session.");
     }
   }, [cancelSession, session]);
+
+  const handleDelete = useCallback(async () => {
+    if (!session) return;
+    setLocalError(null);
+    try {
+      await deleteSession(session.id);
+      setDeleteDialogOpen(false);
+      closeDetail();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Unable to delete session.");
+    }
+  }, [closeDetail, deleteSession, session]);
 
   const handleApply = useCallback(
     async (proposalId: string) => {
@@ -157,6 +173,7 @@ export function SessionDetailsPage() {
 
   const Icon = SESSION_KIND_ICONS[session.kind] ?? Bot;
   const cancelDisabled = isMutating || TERMINAL_SESSION_STATUSES.has(session.status);
+  const deleteDisabled = isMutating;
   const isWaitingForAgent = isSessionWaitingForAgent(session);
 
   const proposalContent = (variant: "panel" | "plain") => (
@@ -172,6 +189,33 @@ export function SessionDetailsPage() {
     { value: "artifacts" as const, label: "Artifacts", count: session.artifacts.length, content: artifactContent("plain") },
     { value: "details" as const, label: "Details", content: detailContent("plain") },
   ];
+
+  const mobileActionItems: SessionActionItem[] = [
+    {
+      label: "Refresh",
+      icon: RefreshCw,
+      onSelect: () => void handleRefresh(),
+      disabled: isMutating || isRefreshing,
+      loading: isRefreshing,
+      testId: "session-refresh",
+    },
+    {
+      label: "Cancel",
+      icon: Square,
+      onSelect: () => void handleCancel(),
+      disabled: cancelDisabled,
+      testId: "session-cancel",
+    },
+    {
+      label: "Delete session",
+      icon: Trash2,
+      onSelect: () => setDeleteDialogOpen(true),
+      disabled: deleteDisabled,
+      destructive: true,
+      testId: "session-delete-action",
+    },
+  ];
+  const desktopDeleteItems = mobileActionItems.filter((item) => item.testId === "session-delete-action");
 
   const headerActions = (
     <>
@@ -201,38 +245,14 @@ export function SessionDetailsPage() {
             <Square className="mr-1.5 h-3.5 w-3.5" />
             Cancel
           </Button>
+          <SessionActionsMenu items={desktopDeleteItems} variant="desktop" />
         </>
       )}
     </>
   );
 
   const mobileActions = (
-    <div className="flex flex-col gap-2 p-2">
-      <Button
-        variant="ghost"
-        onClick={() => {
-          setMobileActionsOpen(false);
-          void handleRefresh();
-        }}
-        disabled={isMutating || isRefreshing}
-        data-testid="session-refresh"
-      >
-        <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
-        Refresh
-      </Button>
-      <Button
-        variant="ghost"
-        onClick={() => {
-          setMobileActionsOpen(false);
-          void handleCancel();
-        }}
-        disabled={cancelDisabled}
-        data-testid="session-cancel"
-      >
-        <Square className="mr-2 h-4 w-4" />
-        Cancel
-      </Button>
-    </div>
+    <SessionActionsMenu items={mobileActionItems} variant="mobile" onItemSelected={() => setMobileActionsOpen(false)} />
   );
 
   return (
@@ -323,6 +343,13 @@ export function SessionDetailsPage() {
           {mobileActions}
         </BottomSheet>
       )}
+      <SessionDeleteDialog
+        session={session}
+        isOpen={deleteDialogOpen}
+        isDeleting={isMutating}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => void handleDelete()}
+      />
     </DetailPageLayout>
   );
 }

@@ -45,6 +45,7 @@ interface AgentSessionStoreState {
   continueSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   refreshSession: (sessionId: string) => Promise<AgentSession>;
   cancelSession: (sessionId: string) => Promise<AgentSession>;
+  deleteSession: (sessionId: string) => Promise<void>;
   applyProposal: (sessionId: string, proposalId: string) => Promise<AgentSessionArtifact[]>;
   loadArtifactsByEntity: (artifactType: AgentSessionArtifact["artifactType"], entityRef: string) => Promise<AgentSessionArtifact[]>;
   reset: () => void;
@@ -181,6 +182,30 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     }
   },
 
+  deleteSession: async (sessionId): Promise<void> => {
+    set({ isMutating: true, error: null });
+    try {
+      const deletedSessionId = await service.delete(sessionId);
+      const now = Date.now();
+      set((state) => {
+        const sessions = state.sessions.filter((session) => session.id !== deletedSessionId);
+        saveToStorage(PERSIST_CONFIG, sessions, now);
+        return {
+          sessions,
+          artifactsByEntity: filterArtifactsByDeletedSession(state.artifactsByEntity, deletedSessionId),
+          isMutating: false,
+          lastFetchedAt: now,
+        };
+      });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error : new Error("Unable to delete agent session."),
+        isMutating: false,
+      });
+      throw error;
+    }
+  },
+
   applyProposal: async (sessionId, proposalId): Promise<AgentSessionArtifact[]> => {
     set({ isMutating: true, error: null });
     try {
@@ -247,4 +272,18 @@ function sortSessions(sessions: AgentSession[]): AgentSession[] {
     if (first === second) return b.id.localeCompare(a.id);
     return second - first;
   });
+}
+
+function filterArtifactsByDeletedSession(
+  artifactsByEntity: Record<string, AgentSessionArtifact[]>,
+  sessionId: string,
+): Record<string, AgentSessionArtifact[]> {
+  const next: Record<string, AgentSessionArtifact[]> = {};
+  for (const [key, artifacts] of Object.entries(artifactsByEntity)) {
+    const remaining = artifacts.filter((artifact) => artifact.sessionId !== sessionId);
+    if (remaining.length > 0) {
+      next[key] = remaining;
+    }
+  }
+  return next;
 }

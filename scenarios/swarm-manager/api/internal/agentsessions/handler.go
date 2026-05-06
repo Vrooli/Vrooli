@@ -24,6 +24,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.List).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Delete).Methods(http.MethodDelete)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/continue", h.Continue).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/refresh", h.Refresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
@@ -133,6 +134,20 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSON(w, &apipb.CancelAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
 		apierr.MapError(w, "[agent-sessions] cancel", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	req := apipb.DeleteAgentSessionRequest{SessionId: mux.Vars(r)["session_id"]}
+	if !httputil.ValidateProtoRequest(w, "[agent-sessions] delete", "invalid agent session delete request", &req) {
+		return
+	}
+	if err := h.service.Delete(r.Context(), req.SessionId); err != nil {
+		apierr.MapError(w, "[agent-sessions] delete", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, &apipb.DeleteAgentSessionResponse{SessionId: req.SessionId}); err != nil {
+		apierr.MapError(w, "[agent-sessions] delete", apierr.Internal("failed to encode response"))
 	}
 }
 

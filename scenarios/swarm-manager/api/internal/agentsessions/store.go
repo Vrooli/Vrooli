@@ -26,6 +26,7 @@ const (
 type Store interface {
 	CreateSession(session Session) error
 	SaveSession(session Session) error
+	DeleteSession(sessionID string) error
 	LoadSession(sessionID string) (Session, error)
 	ListSessions(filters ListFilters) ([]Session, error)
 	AppendMessage(sessionID string, message Message) error
@@ -76,6 +77,20 @@ func (s *FileStore) SaveSession(session Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.saveSessionLocked(session)
+}
+
+func (s *FileStore) DeleteSession(sessionID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	safeID, err := safeSessionID(sessionID)
+	if err != nil {
+		return err
+	}
+	if _, err := s.loadSessionLocked(safeID); err != nil {
+		return err
+	}
+	return os.RemoveAll(s.sessionDir(safeID))
 }
 
 func (s *FileStore) LoadSession(sessionID string) (Session, error) {
@@ -282,9 +297,9 @@ func (s *FileStore) saveSessionLocked(session Session) error {
 }
 
 func (s *FileStore) loadSessionLocked(sessionID string) (Session, error) {
-	trimmed := strings.TrimSpace(sessionID)
-	if trimmed == "" {
-		return Session{}, validationError("session_id is required")
+	trimmed, err := safeSessionID(sessionID)
+	if err != nil {
+		return Session{}, err
 	}
 	var session Session
 	exists, err := storage.ReadJSON(filepath.Join(s.sessionDir(trimmed), sessionFileName), &session)
@@ -350,6 +365,23 @@ func (s *FileStore) readProposalsLocked(sessionID string) ([]Proposal, error) {
 
 func (s *FileStore) sessionDir(sessionID string) string {
 	return filepath.Join(s.root, strings.TrimSpace(sessionID))
+}
+
+func safeSessionID(sessionID string) (string, error) {
+	trimmed := strings.TrimSpace(sessionID)
+	if trimmed == "" {
+		return "", validationError("session_id is required")
+	}
+	if !strings.HasPrefix(trimmed, "sess_") {
+		return "", validationError("session_id must start with sess_")
+	}
+	if trimmed == "." || trimmed == ".." || strings.Contains(trimmed, "/") || strings.Contains(trimmed, "\\") {
+		return "", validationError("session_id is invalid")
+	}
+	if filepath.Clean(trimmed) != trimmed {
+		return "", validationError("session_id is invalid")
+	}
+	return trimmed, nil
 }
 
 func snapshotOnly(session Session) Session {

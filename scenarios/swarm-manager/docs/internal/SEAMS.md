@@ -140,6 +140,15 @@ and page assembly only.
 - **Layout seam**: the desktop session inspector uses `useResizablePanel` with
   left-edge resizing and persisted width. Mobile uses the existing Radix Tabs
   primitive for top-level session sections.
+- **Delete seam**: session deletion flows through one canonical path:
+  `SessionDetailsPage` -> `useAgentSessionStore.deleteSession` ->
+  `agent-session-service.delete` -> `DELETE /api/v1/agent-sessions/{session_id}`
+  -> `agentsessions.Service.Delete` -> `Store.DeleteSession`. The store removes
+  only the session-owned folder (`session.json`, transcript, proposal drafts,
+  and artifact-link records). It does not cascade-delete created backlog items,
+  initiatives, captures, operating-mode definitions, files, or agent activity
+  records. Active sessions stop their Agent Manager run before storage removal;
+  if stop fails, storage remains intact.
 
 Testing locks the seam with focused chat, session page, artifact routing,
 resize-hook, and graph launcher component tests.

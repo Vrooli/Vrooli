@@ -17,6 +17,7 @@ const storeMock = vi.hoisted(() => {
     continueSession: vi.fn(),
     refreshSession: vi.fn(),
     cancelSession: vi.fn(),
+    deleteSession: vi.fn(),
     applyProposal: vi.fn(),
   };
   let state: Record<string, unknown> = { ...initialState };
@@ -233,6 +234,73 @@ describe("SessionDetailsPage", () => {
 
     await waitFor(() => expect(refreshSession).toHaveBeenCalledWith("sess_meta"));
     await waitFor(() => expect(cancelSession).toHaveBeenCalledWith("sess_meta"));
+  });
+
+  it("keeps desktop delete in the header ellipsis menu", async () => {
+    renderPage();
+
+    expect(screen.getByTestId("session-refresh")).toBeInTheDocument();
+    expect(screen.getByTestId("session-cancel")).toBeInTheDocument();
+    expect(screen.queryByTestId("session-delete-action")).toBeNull();
+
+    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+
+    expect(screen.getByTestId("session-desktop-actions-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("session-delete-action")).toHaveTextContent("Delete session");
+  });
+
+  it("requires strong confirmation before deleting and navigates away on success", async () => {
+    const deleteSession = vi.fn().mockResolvedValue(undefined);
+    storeMock.useAgentSessionStore.setState({ deleteSession });
+    renderPage();
+
+    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+    await userEvent.click(screen.getByTestId("session-delete-action"));
+
+    expect(screen.getByTestId("session-delete-dialog")).toBeInTheDocument();
+    expect(screen.getByText(/Created backlog items, initiatives, captures, files, and agent activity records stay/)).toBeInTheDocument();
+    expect(screen.getByTestId("session-delete-confirm")).toBeDisabled();
+
+    await userEvent.type(screen.getByPlaceholderText("Plan quality work"), "Plan quality work");
+    expect(screen.getByTestId("session-delete-confirm")).toBeEnabled();
+    await userEvent.click(screen.getByTestId("session-delete-confirm"));
+
+    await waitFor(() => expect(deleteSession).toHaveBeenCalledWith("sess_meta"));
+    expect(navigateMock).toHaveBeenCalled();
+  });
+
+  it("keeps the page open and shows an alert when delete fails", async () => {
+    const deleteSession = vi.fn().mockRejectedValue(new Error("delete failed"));
+    storeMock.useAgentSessionStore.setState({ deleteSession });
+    renderPage();
+
+    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+    await userEvent.click(screen.getByTestId("session-delete-action"));
+    await userEvent.type(screen.getByPlaceholderText("Plan quality work"), "Plan quality work");
+    await userEvent.click(screen.getByTestId("session-delete-confirm"));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("delete failed"));
+    expect(screen.getByTestId("session-delete-dialog")).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("shows mobile delete inside the header actions sheet", async () => {
+    installMatchMediaMock(true);
+    renderPage();
+
+    await userEvent.click(screen.getByTestId("session-mobile-header-actions"));
+
+    expect(screen.getByTestId("session-mobile-actions-sheet")).toBeInTheDocument();
+    expect(screen.getByTestId("session-delete-action")).toHaveTextContent("Delete session");
+  });
+
+  it("disables delete while a session mutation is in progress", async () => {
+    storeMock.useAgentSessionStore.setState({ isMutating: true });
+    renderPage();
+
+    await userEvent.click(screen.getByTestId("session-desktop-header-actions"));
+
+    expect(screen.getByTestId("session-delete-action")).toBeDisabled();
   });
 
   it("applies a proposal", async () => {

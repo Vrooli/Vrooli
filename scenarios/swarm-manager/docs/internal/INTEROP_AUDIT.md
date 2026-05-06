@@ -3,7 +3,7 @@
 > Current State (2026-03-28): Active runtime interop is graph-first backlog/scenarios/settings/execution/prompts with agent-manager and optional ecosystem-manager. Any recommendation-endpoint references are historical context.
 
 ## Last Updated
-2026-03-28
+2026-05-06
 
 ## Dependency Inventory
 | Dependency | Declared | Used in Code | Required/Optional | Status |
@@ -30,6 +30,12 @@
 3. All UI domain types derive from proto types via `Omit<ProtoMessage<...>, ...>` pattern.
 4. Graph transport no longer uses hand-written DTOs or `Record<string, unknown>` payload maps across the UI↔API boundary.
 5. Proto-contracts type guards centralize status/enum validation for all domains.
+6. Agent session delete is a proto-owned REST exception:
+   `DeleteAgentSessionRequest` / `DeleteAgentSessionResponse` are generated
+   from `packages/proto/schemas/swarm-manager/v1/api/agent_session.proto`,
+   served at `DELETE /api/v1/agent-sessions/{session_id}`, parsed in the UI via
+   `deleteAgentSessionResponseSchema`, and exposed in the CLI through the
+   `sessions delete --id ID --yes` command.
 
 ## UI↔API Findings
 1. All hand-written interfaces in UI are component props, store state, or service interfaces — none duplicate backend graph/backlog/execution proto message shapes.
@@ -50,6 +56,19 @@
 - **API handler** (`internal/graph/handler.go`, `internal/graph/proto_response.go`, `internal/graph/projection.go`): Replaced raw JSON graph responses and map-based node payloads with typed projection structs encoded into proto `GraphResponse`.
 - **UI graph service/store** (`ui/src/services/graph-service.ts`, `ui/src/surfaces/graph/*`): Removed hand-written graph DTOs, adopted proto schema parsing, centralized graph node typing/helpers, and added shared typed graph test builders to keep store/presentation/canvas tests aligned with the real contract.
 - **Impact**: The graph-first workspace no longer drifts from the API contract and now benefits from compile-time checks across API encoding, UI mapping, clustering, presentation, and renderer tests.
+
+### 2026-05-06: Agent session delete contract
+- **Proto schema** (`swarm-manager/v1/api/agent_session.proto`): Added
+  `DeleteAgentSessionRequest` and `DeleteAgentSessionResponse` for destructive
+  session deletion.
+- **API/UI/CLI consumers**: API handler, UI service/store, session details page,
+  and CLI `sessions delete` all use the same session resource path. The UI
+  parses the response through generated proto descriptors, and CLI deletion
+  requires `--yes`.
+- **Destructive boundary**: The operation deletes only session-owned storage and
+  preserves created backlog items, initiatives, captures, files, and agent
+  activity records. Active Agent Manager runs are stopped before storage
+  deletion; failed stops abort deletion.
 
 ### 2026-02-13: Execution service backlogItem data loss fix
 - **Root cause**: `execution/service.go` defined its own `backlogItem` struct (line 525) missing the `created` and `research_target` fields. When `updateBacklogStatus()` wrote this incomplete struct back to `spec.json` via `storage.WriteJSONAtomic()`, those fields were silently dropped. Any item that went through the execution pipeline (queue, cancel, complete, fail) permanently lost its `created` timestamp and research target.

@@ -14,6 +14,7 @@ import {
   cancelAgentSessionResponseSchema,
   continueAgentSessionResponseSchema,
   createAgentSessionResponseSchema,
+  deleteAgentSessionResponseSchema,
   getAgentSessionResponseSchema,
   getArtifactsByEntityResponseSchema,
   listAgentSessionArtifactsResponseSchema,
@@ -57,6 +58,7 @@ export interface IAgentSessionService {
   continue(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   refresh(sessionId: string): Promise<AgentSession>;
   cancel(sessionId: string): Promise<AgentSession>;
+  delete(sessionId: string): Promise<string>;
   applyProposal(sessionId: string, proposalId: string): Promise<ApplyAgentSessionProposalResult>;
   listArtifacts(sessionId: string): Promise<AgentSessionArtifact[]>;
   getArtifactsByEntity(artifactType: AgentSessionArtifactType, entityRef: string): Promise<AgentSessionArtifact[]>;
@@ -113,6 +115,12 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionCancel(sessionId), {});
       const parsed = parseProtoResponse(cancelAgentSessionResponseSchema, data, "agent session cancel");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
+    },
+
+    async delete(sessionId: string): Promise<string> {
+      const data = await apiClient.delete<unknown>(API_ENDPOINTS.agentSessionById(sessionId));
+      const parsed = parseProtoResponse(deleteAgentSessionResponseSchema, data, "agent session delete");
+      return parsed.sessionId;
     },
 
     async applyProposal(sessionId: string, proposalId: string): Promise<ApplyAgentSessionProposalResult> {

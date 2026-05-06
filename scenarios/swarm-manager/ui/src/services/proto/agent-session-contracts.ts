@@ -10,6 +10,7 @@ import {
   CancelAgentSessionResponseSchema,
   ContinueAgentSessionResponseSchema,
   CreateAgentSessionResponseSchema,
+  DeleteAgentSessionResponseSchema,
   GetAgentSessionResponseSchema,
   GetArtifactsByEntityResponseSchema,
   ListAgentSessionArtifactsResponseSchema,
@@ -87,6 +88,10 @@ export const refreshAgentSessionResponseSchema = createProtoSchema(
 export const cancelAgentSessionResponseSchema = createProtoSchema(
   CancelAgentSessionResponseSchema,
   "agent session cancel"
+);
+export const deleteAgentSessionResponseSchema = createProtoSchema(
+  DeleteAgentSessionResponseSchema,
+  "agent session delete"
 );
 export const applyAgentSessionProposalResponseSchema = createProtoSchema(
   ApplyAgentSessionProposalResponseSchema,

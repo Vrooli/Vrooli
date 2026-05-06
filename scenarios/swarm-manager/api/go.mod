@@ -47,3 +47,5 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/vrooli => ../../..

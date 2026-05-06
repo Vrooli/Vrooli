@@ -68,6 +68,7 @@ export {
   continueAgentSessionResponseSchema,
   refreshAgentSessionResponseSchema,
   cancelAgentSessionResponseSchema,
+  deleteAgentSessionResponseSchema,
   applyAgentSessionProposalResponseSchema,
   listAgentSessionArtifactsResponseSchema,
   getArtifactsByEntityResponseSchema,

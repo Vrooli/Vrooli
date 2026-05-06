@@ -2,6 +2,7 @@ package agentsessions
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -146,6 +147,87 @@ func TestFileStoreLoadMissingReturnsNotFound(t *testing.T) {
 	store := NewFileStore(filepath.Join(t.TempDir(), "missing-root"))
 	if _, err := store.LoadSession("sess_missing"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("LoadSession() error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestFileStoreDeleteSessionRemovesSessionOwnedFiles(t *testing.T) {
+	root := t.TempDir()
+	store := NewFileStore(root)
+	session := validStoredSession("sess_delete")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if err := store.AppendMessage(session.ID, Message{
+		ID:        "msg-1",
+		Role:      MessageRoleUser,
+		Content:   "delete me",
+		CreatedAt: testTimestamp,
+	}); err != nil {
+		t.Fatalf("AppendMessage() error = %v", err)
+	}
+	if err := store.SaveProposal(session.ID, Proposal{
+		ID:          "prop-delete",
+		Kind:        ProposalBacklogBatchImport,
+		Status:      ProposalStatusReady,
+		Summary:     "Delete proposal",
+		PayloadJSON: `{"items":[]}`,
+		CreatedAt:   testTimestamp,
+		UpdatedAt:   testTimestamp,
+	}); err != nil {
+		t.Fatalf("SaveProposal() error = %v", err)
+	}
+	if err := store.AppendArtifact(session.ID, Artifact{
+		ID:           "art-delete",
+		SessionID:    session.ID,
+		ArtifactType: ArtifactFile,
+		Action:       ArtifactActionLinked,
+		EntityRef:    "README.md",
+		CreatedAt:    testTimestamp,
+	}); err != nil {
+		t.Fatalf("AppendArtifact() error = %v", err)
+	}
+
+	sessionDir := filepath.Join(root, "agent-sessions", session.ID)
+	if _, err := os.Stat(filepath.Join(sessionDir, sessionFileName)); err != nil {
+		t.Fatalf("session file before delete: %v", err)
+	}
+
+	if err := store.DeleteSession(session.ID); err != nil {
+		t.Fatalf("DeleteSession() error = %v", err)
+	}
+	if _, err := os.Stat(sessionDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("session dir after delete stat error = %v, want not exist", err)
+	}
+	if _, err := store.LoadSession(session.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LoadSession() after delete error = %v, want ErrNotFound", err)
+	}
+	sessions, err := store.ListSessions(ListFilters{})
+	if err != nil {
+		t.Fatalf("ListSessions() error = %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("sessions after delete = %+v", sessions)
+	}
+}
+
+func TestFileStoreDeleteMissingAndUnsafeSessionIDs(t *testing.T) {
+	root := t.TempDir()
+	store := NewFileStore(root)
+	outside := filepath.Join(root, "outside.txt")
+	if err := os.WriteFile(outside, []byte("keep"), 0o644); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+
+	if err := store.DeleteSession("sess_missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("DeleteSession(missing) error = %v, want ErrNotFound", err)
+	}
+	for _, id := range []string{"", "../outside", "sess_../outside", "bad_id", "sess_nested/path"} {
+		if err := store.DeleteSession(id); !errors.Is(err, ErrValidation) {
+			t.Fatalf("DeleteSession(%q) error = %v, want ErrValidation", id, err)
+		}
+	}
+	if data, err := os.ReadFile(outside); err != nil || string(data) != "keep" {
+		t.Fatalf("outside file changed: data=%q err=%v", data, err)
 	}
 }
 

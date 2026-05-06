@@ -154,7 +154,7 @@
     {
       "id": "i5",
       "type": "info",
-      "text": "No Vrooli UI screenshots were found in the agent-manager repo at /home/matthalloran8/.local/share/workspace-sandbox/.../merged (no PNG/JPG assets, no screenshots/ or assets/ directories). The d4=A reference image will need to be sourced from the actual Vrooli scenario repo or captured at research-execution time. Worth flagging now so the harness builder doesn't assume the asset is checked in here."
+      "text": "No Vrooli UI screenshots were found in the agent-manager repo at ${HOME}/.local/share/workspace-sandbox/.../merged (no PNG/JPG assets, no screenshots/ or assets/ directories). The d4=A reference image will need to be sourced from the actual Vrooli scenario repo or captured at research-execution time. Worth flagging now so the harness builder doesn't assume the asset is checked in here."
     }
   ],
   "plan_updates": "Locked round-1 methodology decisions (d1-d4 = A) into the conclusion's Methodology section verbatim. Added Findings 4 (API surface must be schema-verified), 5 (prompt-template rules already partially specified upstream), 6 (the would-change-the-answer gate is the implicit success criterion), and 7 (image storage is a foundation-level open question the research can prototype). Extended Limitations with the OpenRouter sample-size and single-rater caveats. Actions section gained a placeholder for recording the chosen image-storage format. Summary still TBD pending real cost/comparison data."

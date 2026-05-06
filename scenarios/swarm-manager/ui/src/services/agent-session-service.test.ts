@@ -139,4 +139,12 @@ describe("agent-session-service", () => {
       "/artifacts/by-entity?artifact_type=initiative&entity_ref=quality-gates"
     );
   });
+
+  it("deletes a session through the session resource endpoint", async () => {
+    vi.mocked(mockApiClient.delete).mockResolvedValue({ session_id: "sess_1" });
+
+    await expect(service.delete("sess_1")).resolves.toBe("sess_1");
+
+    expect(mockApiClient.delete).toHaveBeenCalledWith("/agent-sessions/sess_1");
+  });
 });

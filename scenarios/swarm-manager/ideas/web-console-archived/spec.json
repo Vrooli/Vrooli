@@ -15,7 +15,7 @@
   ],
   "priority": 5,
   "sourceScenarioName": "web-console",
-  "sourceScenarioPath": "/home/matthalloran8/Vrooli/scenarios/web-console",
+  "sourceScenarioPath": "<repo-root>/scenarios/web-console",
   "status": "queued",
   "tags": [
     "terminal",

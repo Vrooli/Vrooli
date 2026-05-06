@@ -51,6 +51,7 @@ describe("agent-session-store", () => {
       continue: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-1", role: "user", content: "Hi", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
       refresh: vi.fn().mockResolvedValue({ ...SESSION_A, status: "waiting_for_user" }),
       cancel: vi.fn().mockResolvedValue({ ...SESSION_A, status: "canceled" }),
+      delete: vi.fn().mockResolvedValue("sess_a"),
       applyProposal: vi.fn().mockResolvedValue({ session: { ...SESSION_A, status: "waiting_for_user" }, artifacts: [ARTIFACT] }),
       listArtifacts: vi.fn().mockResolvedValue([ARTIFACT]),
       getArtifactsByEntity: vi.fn().mockResolvedValue([ARTIFACT]),
@@ -114,6 +115,33 @@ describe("agent-session-store", () => {
     expect(selectActiveAgentSessions(useAgentSessionStore.getState()).map((session) => session.id)).toEqual([
       "sess_a",
     ]);
+  });
+
+  it("deletes sessions from memory, entity artifact cache, and persisted storage", async () => {
+    await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+    await useAgentSessionStore.getState().loadArtifactsByEntity("initiative", "quality-gates");
+
+    await useAgentSessionStore.getState().deleteSession("sess_a");
+
+    const state = useAgentSessionStore.getState();
+    expect(service.delete).toHaveBeenCalledWith("sess_a");
+    expect(state.sessions.map((session) => session.id)).toEqual(["sess_b"]);
+    expect(state.artifactsByEntity[artifactEntityKey("initiative", "quality-gates")]).toBeUndefined();
+    expect(state.isMutating).toBe(false);
+    expect(window.localStorage.getItem("swarm-manager.agent-sessions.v1")).toContain("sess_b");
+    expect(window.localStorage.getItem("swarm-manager.agent-sessions.v1")).not.toContain("sess_a");
+  });
+
+  it("preserves session data when delete fails", async () => {
+    await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+    vi.mocked(service.delete).mockRejectedValue(new Error("delete failed"));
+
+    await expect(useAgentSessionStore.getState().deleteSession("sess_a")).rejects.toThrow("delete failed");
+
+    const state = useAgentSessionStore.getState();
+    expect(state.sessions.map((session) => session.id)).toEqual(["sess_b", "sess_a"]);
+    expect(state.error?.message).toBe("delete failed");
+    expect(state.isMutating).toBe(false);
   });
 
   it("records errors without clearing existing session data", async () => {

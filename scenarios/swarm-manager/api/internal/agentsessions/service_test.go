@@ -3,6 +3,7 @@ package agentsessions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -148,6 +149,82 @@ func TestServiceRefreshAndCancelUpdateLifecycle(t *testing.T) {
 	}
 	if canceled.Status != StatusCanceled {
 		t.Fatalf("status after cancel = %q, want canceled", canceled.Status)
+	}
+}
+
+func TestServiceDeleteStopsActiveRunBeforeRemovingSession(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{}
+	svc := newTestService(t, spawner)
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindMetaOrchestration,
+		Title:          "Plan",
+		InitialMessage: "Plan.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := svc.Delete(context.Background(), session.ID); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if spawner.stoppedRunID != session.RunID {
+		t.Fatalf("stopped run = %q, want %q", spawner.stoppedRunID, session.RunID)
+	}
+	if _, err := svc.Get(context.Background(), session.ID); err == nil {
+		t.Fatal("Get() after delete error = nil, want not found")
+	}
+}
+
+func TestServiceDeleteStopFailureLeavesSessionStored(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{stopErr: errors.New("stop failed")}
+	svc := newTestService(t, spawner)
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindMetaOrchestration,
+		Title:          "Plan",
+		InitialMessage: "Plan.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := svc.Delete(context.Background(), session.ID); err == nil {
+		t.Fatal("Delete() error = nil, want stop failure")
+	}
+	if _, err := svc.Get(context.Background(), session.ID); err != nil {
+		t.Fatalf("Get() after failed delete error = %v", err)
+	}
+}
+
+func TestServiceDeleteTerminalSessionDoesNotStopRun(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{}
+	svc := newTestService(t, spawner)
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindMetaOrchestration,
+		Title:          "Plan",
+		InitialMessage: "Plan.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session.Status = StatusComplete
+	if err := svc.store.SaveSession(session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+
+	if err := svc.Delete(context.Background(), session.ID); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if spawner.stoppedRunID != "" {
+		t.Fatalf("stopped run = %q, want empty", spawner.stoppedRunID)
 	}
 }
 
@@ -394,6 +471,7 @@ type fakeSessionSpawner struct {
 	continueMessage string
 	continueSpec    agentactivity.Spec
 	stoppedRunID    string
+	stopErr         error
 	runState        agentmanager.RunState
 }
 
@@ -419,7 +497,7 @@ func (f *fakeSessionSpawner) GetRunState(context.Context, string) (agentmanager.
 
 func (f *fakeSessionSpawner) StopRun(_ context.Context, runID string) error {
 	f.stoppedRunID = runID
-	return nil
+	return f.stopErr
 }
 
 func mustSpecFromContext(ctx context.Context) agentactivity.Spec {

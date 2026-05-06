@@ -22,7 +22,7 @@ const mockGeneratedScenarios = [
     name: 'Test Landing Page',
     template_id: 'saas-landing-page',
     template_version: '1.0.0',
-    path: '/home/matthalloran8/Vrooli/scenarios/landing-manager/generated/test-landing',
+    path: '<repo-root>/scenarios/landing-manager/generated/test-landing',
     status: 'generated',
     generated_at: '2025-11-25T10:00:00Z',
   },
@@ -127,7 +127,7 @@ describe('[REQ:TMPL-PREVIEW-LINKS] Template Preview Links - UI Layer', () => {
       scenario_id: 'new-landing',
       name: 'New Landing Page',
       template: 'saas-landing-page',
-      path: '/home/matthalloran8/Vrooli/scenarios/landing-manager/generated/new-landing',
+      path: '<repo-root>/scenarios/landing-manager/generated/new-landing',
       status: 'generated',
       next_steps: [
         'Move the folder to /scenarios/new-landing',

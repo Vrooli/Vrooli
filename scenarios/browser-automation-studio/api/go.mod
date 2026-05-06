@@ -18,6 +18,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.28.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
 	golang.org/x/text v0.28.0
 	google.golang.org/protobuf v1.36.11
@@ -77,7 +78,6 @@ require (
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect
@@ -102,3 +102,5 @@ require (
 )
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

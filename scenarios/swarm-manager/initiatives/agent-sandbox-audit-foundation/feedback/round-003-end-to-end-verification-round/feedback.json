@@ -16,7 +16,7 @@
     },
     {
       "role": "agent",
-      "content": "agent run failed: === Process Log (stderr) | Sandbox da303b61-60b1-444c-a7da-3ce53bd1fc45 | Started 2026-04-28T16:23:31-04:00 ===env: ‘/home/matthalloran8/.local/bin/claude’: No such file or directory",
+      "content": "agent run failed: === Process Log (stderr) | Sandbox da303b61-60b1-444c-a7da-3ce53bd1fc45 | Started 2026-04-28T16:23:31-04:00 ===env: ‘${HOME}/.local/bin/claude’: No such file or directory",
       "run_id": "d0810420-802e-44a5-87a7-30e9ec492b5f",
       "created_at": "2026-04-28T20:23:37Z"
     }
