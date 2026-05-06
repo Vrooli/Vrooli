@@ -6,10 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
+
+	"github.com/google/uuid"
 )
 
 // ExecutionResult represents the result of a heartbeat execution
@@ -132,6 +135,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	timestamp := startedAt.Format("2006-01-02T15-04-05Z")
 	logPath := e.teamStore.GetMemberLogPath(teamID, agentID, timestamp)
 	result.LogPath = logPath
+	attemptID := uuid.NewString()
 
 	// Update config to running
 	config.LastExecution = &store.HeartbeatExecResult{
@@ -149,6 +153,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	if e.agentClient == nil {
 		result.Error = fmt.Errorf("agent client is not configured")
 		result.Status = store.HeartbeatStatusFailed
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, "", "", "", "agent_client_missing")
 		return result, result.Error
 	}
 
@@ -164,7 +169,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	if err != nil {
 		result.Error = fmt.Errorf("creating task: %w", err)
 		result.Status = store.HeartbeatStatusFailed
-		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error())
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, "", "", "", "creating_task")
 		return result, result.Error
 	}
 
@@ -181,11 +186,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	runReq := &CreateRunRequest{
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
-			ProfileKey: profileKey,
-			Defaults:   resolvedProfile,
+			ProfileKey:     profileKey,
+			Defaults:       resolvedProfile,
+			UpdateExisting: true,
 		},
-		Tag:     &runTag,
-		RunMode: "RUN_MODE_IN_PLACE",
+		Tag: &runTag,
 		Environment: map[string]string{
 			attribKey: attribValue,
 		},
@@ -195,13 +200,25 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	if err != nil {
 		result.Error = fmt.Errorf("creating run: %w", err)
 		result.Status = store.HeartbeatStatusFailed
-		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error())
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run")
 		return result, result.Error
 	}
 
 	result.RunID = run.ID
 	config.LastExecution.RunID = run.ID
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	e.appendAttempt(context.Background(), &store.HeartbeatAttempt{
+		ID:         attemptID,
+		TeamID:     teamID,
+		AgentID:    agentID,
+		ProfileKey: profileKey,
+		TaskID:     createdTask.ID,
+		RunID:      run.ID,
+		Tag:        runTag,
+		Status:     store.HeartbeatStatusRunning,
+		Phase:      "run_created",
+		StartedAt:  startedAt.Format(time.RFC3339),
+	})
 
 	// Wait for completion asynchronously with cancellable context
 	waitCtx, waitCancel := context.WithCancel(context.Background())
@@ -210,7 +227,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	}
 	go func() {
 		defer waitCancel()
-		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, startedAt, logPath, config.EffectiveTimeout())
+		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, attemptID, profileKey, createdTask.ID, runTag, startedAt, logPath, config.EffectiveTimeout())
 	}()
 
 	result.Status = store.HeartbeatStatusRunning
@@ -248,7 +265,7 @@ func (e *Executor) BuildPromptStructured(ctx context.Context, teamID, agentID st
 }
 
 // waitForCompletion polls for run completion and updates config
-func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID string, startedAt time.Time, logPath string, timeout time.Duration) {
+func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID, attemptID, profileKey, taskID, tag string, startedAt time.Time, logPath string, timeout time.Duration) {
 	if e.runRegistry != nil {
 		defer e.runRegistry.Unregister(teamID, agentID)
 	}
@@ -287,6 +304,23 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			LogPath:   logPath,
 			Error:     err.Error(),
 		}
+		category := classifyHeartbeatError(err.Error())
+		e.appendAttempt(cfgCtx, &store.HeartbeatAttempt{
+			ID:            attemptID,
+			TeamID:        teamID,
+			AgentID:       agentID,
+			ProfileKey:    profileKey,
+			TaskID:        taskID,
+			RunID:         runID,
+			Tag:           tag,
+			Status:        status,
+			Phase:         "waiting_for_completion",
+			StartedAt:     startedAt.Format(time.RFC3339),
+			EndedAt:       endedAt.Format(time.RFC3339),
+			ErrorCategory: category,
+			Error:         err.Error(),
+			Recovery:      recoveryForHeartbeatError(category),
+		})
 	} else {
 		status := store.HeartbeatStatusCompleted
 		errMsg := ""
@@ -303,6 +337,28 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			LogPath:   logPath,
 			Error:     errMsg,
 		}
+		category := ""
+		recovery := ""
+		if errMsg != "" {
+			category = classifyHeartbeatError(errMsg)
+			recovery = recoveryForHeartbeatError(category)
+		}
+		e.appendAttempt(cfgCtx, &store.HeartbeatAttempt{
+			ID:            attemptID,
+			TeamID:        teamID,
+			AgentID:       agentID,
+			ProfileKey:    profileKey,
+			TaskID:        taskID,
+			RunID:         runID,
+			Tag:           tag,
+			Status:        status,
+			Phase:         "run_terminal",
+			StartedAt:     startedAt.Format(time.RFC3339),
+			EndedAt:       endedAt.Format(time.RFC3339),
+			ErrorCategory: category,
+			Error:         errMsg,
+			Recovery:      recovery,
+		})
 	}
 
 	// Extract and store handoff (best-effort, non-blocking)
@@ -370,7 +426,7 @@ func (e *Executor) extractAndStoreHandoff(ctx context.Context, teamID, agentID, 
 }
 
 // updateConfigFailed updates config with failed status
-func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, errMsg string) {
+func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, errMsg, attemptID, profileKey, taskID, runID, tag, phase string) {
 	endedAt := time.Now().UTC()
 	config.LastExecution = &store.HeartbeatExecResult{
 		StartedAt: startedAt.Format(time.RFC3339),
@@ -379,6 +435,73 @@ func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID strin
 		Error:     errMsg,
 	}
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	category := classifyHeartbeatError(errMsg)
+	e.appendAttempt(ctx, &store.HeartbeatAttempt{
+		ID:            attemptID,
+		TeamID:        teamID,
+		AgentID:       agentID,
+		ProfileKey:    profileKey,
+		TaskID:        taskID,
+		RunID:         runID,
+		Tag:           tag,
+		Status:        store.HeartbeatStatusFailed,
+		Phase:         phase,
+		StartedAt:     startedAt.Format(time.RFC3339),
+		EndedAt:       endedAt.Format(time.RFC3339),
+		ErrorCategory: category,
+		Error:         errMsg,
+		Recovery:      recoveryForHeartbeatError(category),
+	})
+}
+
+func (e *Executor) appendAttempt(ctx context.Context, attempt *store.HeartbeatAttempt) {
+	if e.teamStore == nil || attempt == nil || attempt.TeamID == "" {
+		return
+	}
+	if attempt.ID == "" {
+		attempt.ID = uuid.NewString()
+	}
+	if attempt.Phase == "" {
+		attempt.Phase = "unknown"
+	}
+	if err := e.teamStore.AppendHeartbeatAttempt(ctx, attempt.TeamID, attempt); err != nil {
+		log.Printf("Warning: failed to append heartbeat attempt for %s/%s: %v", attempt.TeamID, attempt.AgentID, err)
+	}
+}
+
+func classifyHeartbeatError(message string) string {
+	lower := strings.ToLower(message)
+	switch {
+	case strings.Contains(lower, "invalid json request body"), strings.Contains(lower, "validation error"):
+		return "contract_validation"
+	case strings.Contains(lower, "agent client is not configured"):
+		return "configuration"
+	case strings.Contains(lower, "connection refused"), strings.Contains(lower, "no such host"), strings.Contains(lower, "deadline exceeded"):
+		return "dependency_unavailable"
+	case strings.Contains(lower, "not found"):
+		return "missing_dependency"
+	case strings.Contains(lower, "cancel"):
+		return "cancelled"
+	default:
+		return "agent_run_failed"
+	}
+}
+
+func recoveryForHeartbeatError(category string) string {
+	switch category {
+	case "contract_validation":
+		return "fix_integration_contract"
+	case "configuration":
+		return "configure_agent_manager_client"
+	case "dependency_unavailable":
+		return "retry_when_dependency_healthy"
+	case "missing_dependency":
+		return "reconcile_missing_resource"
+	case "cancelled":
+		return "operator_cancelled"
+	default:
+		return "inspect_run_or_retry"
+	}
 }
 
 // TriggerManual manually triggers a heartbeat execution

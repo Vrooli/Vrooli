@@ -77,8 +77,7 @@ func TestCreateRunRequest_ProtojsonCompatibility(t *testing.T) {
 		ProfileRef: &ProfileRef{
 			ProfileKey: "prompt-manager-heartbeat",
 		},
-		Tag:     &tag,
-		RunMode: "RUN_MODE_IN_PLACE",
+		Tag: &tag,
 	}
 
 	data, err := json.Marshal(req)
@@ -92,7 +91,7 @@ func TestCreateRunRequest_ProtojsonCompatibility(t *testing.T) {
 	}
 
 	allowed := map[string]bool{
-		"task_id": true, "profile_ref": true, "tag": true, "run_mode": true,
+		"task_id": true, "profile_ref": true, "tag": true,
 	}
 	for key := range fields {
 		if !allowed[key] {
@@ -245,6 +244,27 @@ func TestCreateRunRequest_WithProfileRefDefaults(t *testing.T) {
 	timeoutRaw := string(defaultsFields["timeout"])
 	if !strings.HasPrefix(timeoutRaw, `"`) {
 		t.Errorf("timeout must be a JSON string (protojson Duration), got raw: %s", timeoutRaw)
+	}
+}
+
+func TestDefaultHeartbeatProfilesUseSandboxProtoEnums(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		profileKey  string
+		runtimeMode string
+	}{
+		{"codex", DefaultProfileKeyCodex, "multi-process"},
+		{"claude-code", DefaultProfileKeyClaudeCode, "single-process"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := BuildDefaultProfileForRuntimeMode(tt.profileKey, tt.runtimeMode)
+			if profile.SandboxConfig == nil {
+				t.Fatal("expected sandbox config")
+			}
+			if profile.SandboxConfig.Mode != "SANDBOX_MODE_PROTECTED" {
+				t.Fatalf("sandbox mode = %q, want SANDBOX_MODE_PROTECTED", profile.SandboxConfig.Mode)
+			}
+		})
 	}
 }
 

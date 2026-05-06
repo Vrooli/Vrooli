@@ -525,6 +525,25 @@ type HeartbeatExecResult struct {
 	Error     string `json:"error,omitempty"`
 }
 
+// HeartbeatAttempt records an attempted heartbeat dispatch, including failures
+// that happen before agent-manager can create a run.
+type HeartbeatAttempt struct {
+	ID            string `json:"id"`
+	TeamID        string `json:"teamId"`
+	AgentID       string `json:"agentId"`
+	ProfileKey    string `json:"profileKey,omitempty"`
+	TaskID        string `json:"taskId,omitempty"`
+	RunID         string `json:"runId,omitempty"`
+	Tag           string `json:"tag,omitempty"`
+	Status        string `json:"status"`
+	Phase         string `json:"phase"`
+	StartedAt     string `json:"startedAt"`
+	EndedAt       string `json:"endedAt,omitempty"`
+	ErrorCategory string `json:"errorCategory,omitempty"`
+	Error         string `json:"error,omitempty"`
+	Recovery      string `json:"recovery,omitempty"`
+}
+
 // Heartbeat config constants
 const (
 	KindHeartbeatConfig = "heartbeat-config"

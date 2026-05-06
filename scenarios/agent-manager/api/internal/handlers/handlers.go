@@ -1344,7 +1344,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 
 	var protoReq apipb.CreateRunRequest
 	if err := protoconv.UnmarshalJSON(body, &protoReq); err != nil {
-		writeSimpleError(w, r, "body", "invalid JSON request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body: "+err.Error())
 		return
 	}
 	if !h.validateProto(w, r, &protoReq) {

@@ -6,7 +6,7 @@ toolchain go1.24.9
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0

@@ -104,6 +104,37 @@ func TestAppendAndGetHandoffHistory(t *testing.T) {
 	}
 }
 
+func TestListHeartbeatAttemptsIncludesPreRunLastExecution(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	cfg := &HeartbeatConfig{
+		Enabled:    true,
+		Schedule:   "0 * * * *",
+		ProfileKey: "prompt-manager-heartbeat",
+		LastExecution: &HeartbeatExecResult{
+			StartedAt: "2026-05-06T12:00:00Z",
+			EndedAt:   "2026-05-06T12:00:01Z",
+			Status:    HeartbeatStatusFailed,
+			Error:     "creating run: validation error",
+		},
+	}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", cfg); err != nil {
+		t.Fatalf("SetHeartbeatConfig: %v", err)
+	}
+
+	attempts, total, err := s.ListHeartbeatAttempts(ctx, "", "", HeartbeatStatusFailed, "prompt-manager-heartbeat", 10, 0)
+	if err != nil {
+		t.Fatalf("ListHeartbeatAttempts: %v", err)
+	}
+	if total != 1 || len(attempts) != 1 {
+		t.Fatalf("expected one derived attempt, total=%d len=%d", total, len(attempts))
+	}
+	if attempts[0].Phase != "pre_run_failure" || attempts[0].Error == "" {
+		t.Fatalf("unexpected derived attempt: %+v", attempts[0])
+	}
+}
+
 func TestClearHandoffHistory(t *testing.T) {
 	s := setupStateTestStore(t)
 	ctx := context.Background()

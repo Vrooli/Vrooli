@@ -15,6 +15,34 @@ type OperatingGraphRuntime struct {
 	Contracts TeamContractRegistry
 }
 
+type OperatingRelationship struct {
+	Kind       string
+	Team       string
+	Member     string
+	Topic      string
+	Decision   string
+	Path       string
+	External   string
+	TargetTeam string
+	SourcePath string
+	SourceLine int
+}
+
+const (
+	operatingRelTopicRead              = "topic_read"
+	operatingRelTopicIntake            = "topic_intake"
+	operatingRelTopicRequiredRead      = "topic_required_read"
+	operatingRelTopicEvidenceConsumed  = "topic_evidence_consumed"
+	operatingRelTopicOutput            = "topic_output"
+	operatingRelPOROutput              = "por_output"
+	operatingRelDecisionOwned          = "decision_owned"
+	operatingRelDecisionConsumed       = "decision_consumed"
+	operatingRelCapabilityGapRaised    = "capability_gap_raised"
+	operatingRelExternalProducer       = "external_producer"
+	operatingRelExternalProducerIntake = "external_producer_intake"
+	operatingRelCrossTeamOutput        = "cross_team_output"
+)
+
 func BuildOperatingGraphRuntime(repoRoot, storeDir string) (OperatingGraphRuntime, error) {
 	members, err := LoadAll(storeDir)
 	if err != nil {
@@ -53,21 +81,28 @@ func ValidateOperatingGraphs(blocks []OperatingGraphBlock, runtime OperatingGrap
 func DiffOperatingGraphs(blocks []OperatingGraphBlock, runtime OperatingGraphRuntime, teamFilter, idFilter string) []OperatingGraphContractDiff {
 	diffs := make([]OperatingGraphContractDiff, 0)
 	for _, block := range filterOperatingGraphBlocks(blocks, teamFilter, idFilter) {
-		idx := indexOperatingGraph(block.Graph)
-		for _, m := range runtime.Members {
-			if m.Ref.Team != block.Metadata.Team {
+		if block.Metadata.Mode != "contract" {
+			continue
+		}
+		graphRels := BuildGraphOperatingRelationships(block)
+		runtimeRels := BuildRuntimeOperatingRelationships(runtime, block.Metadata.Team)
+		for _, rel := range graphRels {
+			if !RelationshipBackedByRuntime(rel, runtimeRels) {
+				diffs = append(diffs, operatingGraphDiffFromGraphRel(rel, runtime))
+			}
+		}
+		seenRuntimeDiffs := map[string]bool{}
+		for _, rel := range runtimeRels {
+			if rel.Kind == operatingRelExternalProducerIntake {
 				continue
 			}
-			memberID := nodeIDFor(idx, "member", m.Ref.Member)
-			for _, in := range m.Topics.Intake {
-				if memberID == "" || !idx.hasEdgeToMemberWithTopic(memberID, in.Prefix) {
-					diffs = append(diffs, OperatingGraphContractDiff{Kind: "declared_intake_missing", Team: m.Ref.Team, Member: m.Ref.Member, Topic: in.Prefix, Detail: fmt.Sprintf("%s/%s intake %q is absent from contract graph", m.Ref.Team, m.Ref.Member, in.Prefix)})
-				}
+			diffKey := operatingRuntimeDiffKey(rel)
+			if seenRuntimeDiffs[diffKey] {
+				continue
 			}
-			for _, out := range m.Topics.Output {
-				if memberID == "" || !idx.hasMemberOutput(memberID, out) {
-					diffs = append(diffs, OperatingGraphContractDiff{Kind: "declared_output_missing", Team: m.Ref.Team, Member: m.Ref.Member, Topic: out.Prefix, Detail: fmt.Sprintf("%s/%s output %q is absent from contract graph", m.Ref.Team, m.Ref.Member, out.Prefix)})
-				}
+			seenRuntimeDiffs[diffKey] = true
+			if !RuntimeRelationshipShownInGraph(rel, graphRels) {
+				diffs = append(diffs, operatingGraphDiffFromRuntimeRel(rel, block))
 			}
 		}
 	}
@@ -75,9 +110,544 @@ func DiffOperatingGraphs(blocks []OperatingGraphBlock, runtime OperatingGraphRun
 		if diffs[i].Kind != diffs[j].Kind {
 			return diffs[i].Kind < diffs[j].Kind
 		}
+		if diffs[i].Relationship != diffs[j].Relationship {
+			return diffs[i].Relationship < diffs[j].Relationship
+		}
 		return diffs[i].Detail < diffs[j].Detail
 	})
 	return diffs
+}
+
+func BuildRuntimeOperatingRelationships(runtime OperatingGraphRuntime, team string) []OperatingRelationship {
+	var rels []OperatingRelationship
+	for _, m := range runtime.Members {
+		if m.Ref.Team != team {
+			continue
+		}
+		runtimePath := runtimeMemberTopicsPath(runtime, m.Ref.Team, m.Ref.Member)
+		for _, in := range m.Topics.Intake {
+			rels = append(rels, OperatingRelationship{Kind: operatingRelTopicIntake, Team: m.Ref.Team, Member: m.Ref.Member, Topic: in.Prefix, SourcePath: runtimePath})
+			for _, external := range m.Topics.ExternalProducers {
+				rels = append(rels, OperatingRelationship{Kind: operatingRelExternalProducerIntake, Team: m.Ref.Team, Member: m.Ref.Member, Topic: in.Prefix, External: external, SourcePath: runtimePath})
+			}
+		}
+		for _, read := range m.Topics.RequiredRead {
+			rels = append(rels, OperatingRelationship{Kind: operatingRelTopicRequiredRead, Team: m.Ref.Team, Member: m.Ref.Member, Topic: read.Prefix, SourcePath: runtimePath})
+		}
+		for _, ev := range m.Topics.EvidenceConsumed {
+			for _, decision := range ev.ForDecisions {
+				rels = append(rels, OperatingRelationship{Kind: operatingRelTopicEvidenceConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Topic: ev.Prefix, Decision: decision, SourcePath: runtimePath})
+			}
+			if len(ev.ForDecisions) == 0 {
+				rels = append(rels, OperatingRelationship{Kind: operatingRelTopicEvidenceConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Topic: ev.Prefix, SourcePath: runtimePath})
+			}
+		}
+		for _, out := range m.Topics.Output {
+			switch out.DestinationKind {
+			case DestinationPORFile:
+				if out.DestinationPath != nil {
+					rels = append(rels, OperatingRelationship{Kind: operatingRelPOROutput, Team: m.Ref.Team, Member: m.Ref.Member, Topic: out.Prefix, Path: *out.DestinationPath, SourcePath: runtimePath})
+				}
+			default:
+				rels = append(rels, OperatingRelationship{Kind: operatingRelTopicOutput, Team: m.Ref.Team, Member: m.Ref.Member, Topic: out.Prefix, SourcePath: runtimePath})
+				if out.DestinationTeam != nil && strings.TrimSpace(*out.DestinationTeam) != "" {
+					rels = append(rels, OperatingRelationship{Kind: operatingRelCrossTeamOutput, Team: m.Ref.Team, Member: m.Ref.Member, Topic: out.Prefix, TargetTeam: *out.DestinationTeam, SourcePath: runtimePath})
+				}
+			}
+		}
+		for _, decision := range m.Topics.DecisionsOwned {
+			rels = append(rels, OperatingRelationship{Kind: operatingRelDecisionOwned, Team: m.Ref.Team, Member: m.Ref.Member, Decision: decision, SourcePath: runtimePath})
+		}
+		for _, decision := range m.Topics.DecisionsConsumed {
+			rels = append(rels, OperatingRelationship{Kind: operatingRelDecisionConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Decision: decision, SourcePath: runtimePath})
+		}
+		if m.Topics.RaisesCapabilityGaps {
+			rels = append(rels, OperatingRelationship{Kind: operatingRelCapabilityGapRaised, Team: m.Ref.Team, Member: m.Ref.Member, Decision: "capability-gap", SourcePath: runtimePath})
+		}
+		for _, external := range m.Topics.ExternalProducers {
+			rels = append(rels, OperatingRelationship{Kind: operatingRelExternalProducer, Team: m.Ref.Team, Member: m.Ref.Member, External: external, SourcePath: runtimePath})
+		}
+	}
+	return dedupeOperatingRelationships(rels)
+}
+
+func BuildGraphOperatingRelationships(block OperatingGraphBlock) []OperatingRelationship {
+	idx := indexOperatingGraph(block.Graph)
+	var rels []OperatingRelationship
+	for _, edge := range block.Graph.Edges {
+		from, fok := idx.nodes[edge.From]
+		to, tok := idx.nodes[edge.To]
+		if !fok || !tok || operatingGraphNodeNonActionable(from) || operatingGraphNodeNonActionable(to) {
+			continue
+		}
+		rel, ok := operatingRelationshipFromNodes(block.Metadata.Team, block.Source.Path, edge.SourceLine, from, to)
+		if ok {
+			rels = append(rels, rel)
+		}
+	}
+	return dedupeOperatingRelationships(rels)
+}
+
+func RelationshipBackedByRuntime(graphRel OperatingRelationship, runtimeRels []OperatingRelationship) bool {
+	for _, runtimeRel := range runtimeRels {
+		if operatingRelationshipsMatch(graphRel, runtimeRel) {
+			return true
+		}
+	}
+	return false
+}
+
+func RuntimeRelationshipShownInGraph(runtimeRel OperatingRelationship, graphRels []OperatingRelationship) bool {
+	for _, graphRel := range graphRels {
+		if runtimeRel.Kind == operatingRelExternalProducer &&
+			graphRel.Kind == operatingRelExternalProducerIntake &&
+			graphRel.Team == runtimeRel.Team &&
+			graphRel.External == runtimeRel.External {
+			return true
+		}
+		if operatingRelationshipsMatch(graphRel, runtimeRel) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingRelationshipFromNodes(team, sourcePath string, sourceLine int, from, to OperatingGraphNode) (OperatingRelationship, bool) {
+	base := OperatingRelationship{
+		Team:       team,
+		SourcePath: sourcePath,
+		SourceLine: sourceLine,
+	}
+	switch {
+	case from.Kind == "topic" && to.Kind == "member":
+		base.Kind = operatingRelTopicRead
+		base.Topic = from.Value
+		base.Member = to.Value
+		return base, true
+	case from.Kind == "member" && to.Kind == "topic":
+		base.Kind = operatingRelTopicOutput
+		base.Member = from.Value
+		base.Topic = to.Value
+		return base, true
+	case from.Kind == "member" && to.Kind == "decision":
+		base.Member = from.Value
+		base.Decision = to.Value
+		if to.Value == "capability-gap" {
+			base.Kind = operatingRelCapabilityGapRaised
+		} else {
+			base.Kind = operatingRelDecisionOwned
+		}
+		return base, true
+	case from.Kind == "decision" && to.Kind == "member":
+		base.Kind = operatingRelDecisionConsumed
+		base.Decision = from.Value
+		base.Member = to.Value
+		return base, true
+	case from.Kind == "member" && to.Kind == "por":
+		base.Kind = operatingRelPOROutput
+		base.Member = from.Value
+		base.Path = to.Value
+		return base, true
+	case from.Kind == "topic" && to.Kind == "team":
+		base.Kind = operatingRelCrossTeamOutput
+		base.Topic = from.Value
+		base.TargetTeam = to.Value
+		return base, true
+	case from.Kind == "external" && to.Kind == "member":
+		base.Kind = operatingRelExternalProducer
+		base.External = from.Value
+		base.Member = to.Value
+		return base, true
+	case from.Kind == "external" && to.Kind == "topic":
+		base.Kind = operatingRelExternalProducerIntake
+		base.External = from.Value
+		base.Topic = to.Value
+		return base, true
+	default:
+		return OperatingRelationship{}, false
+	}
+}
+
+func operatingGraphNodeNonActionable(node OperatingGraphNode) bool {
+	if node.Kind == "" || node.Kind == "process" || node.Kind == "future" {
+		return true
+	}
+	return node.Kind == "topic" && (node.Qualifier == "future" || node.Qualifier == "old" || node.Qualifier == "external")
+}
+
+func operatingRelationshipsMatch(graphRel, runtimeRel OperatingRelationship) bool {
+	if graphRel.Team != "" && runtimeRel.Team != "" && graphRel.Team != runtimeRel.Team {
+		return false
+	}
+	switch graphRel.Kind {
+	case operatingRelTopicRead:
+		return isRuntimeReadRelationship(runtimeRel.Kind) &&
+			graphRel.Member == runtimeRel.Member &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	case operatingRelTopicOutput:
+		return runtimeRel.Kind == operatingRelTopicOutput &&
+			graphRel.Member == runtimeRel.Member &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	case operatingRelPOROutput:
+		return runtimeRel.Kind == operatingRelPOROutput &&
+			graphRel.Member == runtimeRel.Member &&
+			pathsEqual(graphRel.Path, runtimeRel.Path)
+	case operatingRelDecisionOwned:
+		return runtimeRel.Kind == operatingRelDecisionOwned &&
+			graphRel.Member == runtimeRel.Member &&
+			graphRel.Decision == runtimeRel.Decision
+	case operatingRelDecisionConsumed:
+		return (runtimeRel.Kind == operatingRelDecisionConsumed || runtimeRel.Kind == operatingRelTopicEvidenceConsumed) &&
+			graphRel.Member == runtimeRel.Member &&
+			graphRel.Decision == runtimeRel.Decision
+	case operatingRelCapabilityGapRaised:
+		return runtimeRel.Kind == operatingRelCapabilityGapRaised &&
+			graphRel.Member == runtimeRel.Member
+	case operatingRelExternalProducer:
+		return runtimeRel.Kind == operatingRelExternalProducer &&
+			graphRel.Member == runtimeRel.Member &&
+			graphRel.External == runtimeRel.External
+	case operatingRelExternalProducerIntake:
+		return runtimeRel.Kind == operatingRelExternalProducerIntake &&
+			graphRel.External == runtimeRel.External &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	case operatingRelCrossTeamOutput:
+		return runtimeRel.Kind == operatingRelCrossTeamOutput &&
+			graphRel.TargetTeam == runtimeRel.TargetTeam &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	default:
+		return false
+	}
+}
+
+func isRuntimeReadRelationship(kind string) bool {
+	switch kind {
+	case operatingRelTopicIntake, operatingRelTopicRequiredRead, operatingRelTopicEvidenceConsumed:
+		return true
+	default:
+		return false
+	}
+}
+
+func topicsOverlap(a, b string) bool {
+	return strings.TrimSpace(a) != "" && strings.TrimSpace(b) != "" && Overlap(a, b)
+}
+
+func pathsEqual(a, b string) bool {
+	return filepath.Clean(strings.TrimSpace(a)) == filepath.Clean(strings.TrimSpace(b))
+}
+
+func operatingGraphDiffFromGraphRel(rel OperatingRelationship, runtime OperatingGraphRuntime) OperatingGraphContractDiff {
+	diff := OperatingGraphContractDiff{
+		Kind:             "graph_relationship_missing_in_runtime",
+		Relationship:     rel.Kind,
+		Team:             rel.Team,
+		Member:           rel.Member,
+		Topic:            rel.Topic,
+		Decision:         rel.Decision,
+		Path:             rel.Path,
+		External:         rel.External,
+		TargetTeam:       rel.TargetTeam,
+		SourcePath:       rel.SourcePath,
+		Line:             rel.SourceLine,
+		RuntimePath:      runtimePathForGraphRelationship(rel, runtime),
+		AcceptableFields: acceptableRuntimeFields(rel),
+	}
+	diff.Suggestions = suggestionsForGraphRelationship(diff)
+	diff.Detail = detailForGraphRelationshipMissingRuntime(diff)
+	return diff
+}
+
+func operatingGraphDiffFromRuntimeRel(rel OperatingRelationship, block OperatingGraphBlock) OperatingGraphContractDiff {
+	diff := OperatingGraphContractDiff{
+		Kind:         "runtime_relationship_missing_in_graph",
+		Relationship: runtimeRelationshipAsGraphRelationship(rel),
+		Team:         rel.Team,
+		Member:       rel.Member,
+		Topic:        rel.Topic,
+		Decision:     rel.Decision,
+		Path:         rel.Path,
+		External:     rel.External,
+		TargetTeam:   rel.TargetTeam,
+		SourcePath:   block.Source.Path,
+		Line:         block.Source.FenceLine,
+		RuntimePath:  rel.SourcePath,
+	}
+	diff.Suggestions = suggestionsForRuntimeRelationship(diff)
+	diff.Detail = detailForRuntimeRelationshipMissingGraph(diff)
+	return diff
+}
+
+func runtimeRelationshipAsGraphRelationship(rel OperatingRelationship) string {
+	if isRuntimeReadRelationship(rel.Kind) {
+		return operatingRelTopicRead
+	}
+	return rel.Kind
+}
+
+func runtimePathForGraphRelationship(rel OperatingRelationship, runtime OperatingGraphRuntime) string {
+	if rel.Member != "" {
+		return runtimeMemberTopicsPath(runtime, rel.Team, rel.Member)
+	}
+	if rel.Kind == operatingRelCrossTeamOutput || rel.Kind == operatingRelExternalProducerIntake {
+		if match := matchingRuntimeRelationshipPath(rel, runtime); match != "" {
+			return match
+		}
+	}
+	return runtimeTeamPath(runtime, rel.Team)
+}
+
+func matchingRuntimeRelationshipPath(rel OperatingRelationship, runtime OperatingGraphRuntime) string {
+	runtimeRels := BuildRuntimeOperatingRelationships(runtime, rel.Team)
+	for _, candidate := range runtimeRels {
+		if operatingRelationshipsMatch(rel, candidate) || graphlessRelationshipLooksRelated(rel, candidate) {
+			return candidate.SourcePath
+		}
+	}
+	return ""
+}
+
+func graphlessRelationshipLooksRelated(graphRel, runtimeRel OperatingRelationship) bool {
+	if graphRel.Team != runtimeRel.Team {
+		return false
+	}
+	switch graphRel.Kind {
+	case operatingRelCrossTeamOutput:
+		return runtimeRel.Kind == operatingRelCrossTeamOutput &&
+			graphRel.TargetTeam == runtimeRel.TargetTeam &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	case operatingRelExternalProducerIntake:
+		return runtimeRel.Kind == operatingRelExternalProducerIntake &&
+			graphRel.External == runtimeRel.External &&
+			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
+	default:
+		return false
+	}
+}
+
+func acceptableRuntimeFields(rel OperatingRelationship) []string {
+	switch rel.Kind {
+	case operatingRelTopicRead:
+		return []string{"intake", "required_read", "evidence_consumed"}
+	case operatingRelTopicOutput:
+		return []string{"output"}
+	case operatingRelPOROutput:
+		return []string{"output.destination_kind=por_file"}
+	case operatingRelDecisionOwned:
+		return []string{"decisions_owned"}
+	case operatingRelDecisionConsumed:
+		return []string{"decisions_consumed", "evidence_consumed.for_decisions"}
+	case operatingRelCapabilityGapRaised:
+		return []string{"raises_capability_gaps"}
+	case operatingRelExternalProducer, operatingRelExternalProducerIntake:
+		return []string{"external_producers", "intake"}
+	case operatingRelCrossTeamOutput:
+		return []string{"output.destination_team"}
+	default:
+		return nil
+	}
+}
+
+func suggestionsForGraphRelationship(diff OperatingGraphContractDiff) []string {
+	switch diff.Relationship {
+	case operatingRelTopicRead:
+		return []string{
+			fmt.Sprintf("add required_read %q to %s/topics.json", diff.Topic, diff.Member),
+			"or remove the topic -> member edge from the operating graph",
+		}
+	case operatingRelTopicOutput:
+		return []string{
+			fmt.Sprintf("add output %q to %s/topics.json", diff.Topic, diff.Member),
+			"or remove the member -> topic edge from the operating graph",
+		}
+	case operatingRelPOROutput:
+		return []string{
+			fmt.Sprintf("add a por_file output to %q in %s/topics.json", diff.Path, diff.Member),
+			"or remove the member -> PoR edge from the operating graph",
+		}
+	case operatingRelDecisionOwned:
+		return []string{
+			fmt.Sprintf("add decisions_owned %q to %s/topics.json", diff.Decision, diff.Member),
+			"or remove the member -> decision edge from the operating graph",
+		}
+	case operatingRelDecisionConsumed:
+		return []string{
+			fmt.Sprintf("add decisions_consumed %q to %s/topics.json", diff.Decision, diff.Member),
+			"or remove the decision -> member edge from the operating graph",
+		}
+	case operatingRelCapabilityGapRaised:
+		return []string{
+			fmt.Sprintf("set raises_capability_gaps to true in %s/topics.json", diff.Member),
+			"or remove the member -> capability-gap edge from the operating graph",
+		}
+	case operatingRelExternalProducer:
+		return []string{
+			fmt.Sprintf("add external_producers %q to %s/topics.json", diff.External, diff.Member),
+			"or remove the external -> member edge from the operating graph",
+		}
+	case operatingRelExternalProducerIntake:
+		return []string{
+			fmt.Sprintf("declare an intake for %q and external_producers %q on the receiving member topics.json", diff.Topic, diff.External),
+			"or remove the external -> topic edge from the operating graph",
+		}
+	case operatingRelCrossTeamOutput:
+		return []string{
+			fmt.Sprintf("add destination_team %q to an output for %q", diff.TargetTeam, diff.Topic),
+			"or remove the topic -> team edge from the operating graph",
+		}
+	default:
+		return nil
+	}
+}
+
+func suggestionsForRuntimeRelationship(diff OperatingGraphContractDiff) []string {
+	switch diff.Relationship {
+	case operatingRelTopicRead:
+		return []string{
+			fmt.Sprintf("add topic:%s -> member:%s to the operating graph", diff.Topic, diff.Member),
+			"or remove the runtime read declaration if it is no longer part of the operating contract",
+		}
+	case operatingRelTopicOutput:
+		return []string{
+			fmt.Sprintf("add member:%s -> topic:%s to the operating graph", diff.Member, diff.Topic),
+			"or remove the runtime output declaration if it is obsolete",
+		}
+	case operatingRelPOROutput:
+		return []string{
+			fmt.Sprintf("add member:%s -> por:%s to the operating graph", diff.Member, diff.Path),
+			"or remove the runtime por_file output if it is obsolete",
+		}
+	case operatingRelDecisionOwned:
+		return []string{
+			fmt.Sprintf("add member:%s -> decision:%s to the operating graph", diff.Member, diff.Decision),
+			"or remove the runtime decision ownership if it is obsolete",
+		}
+	case operatingRelDecisionConsumed:
+		return []string{
+			fmt.Sprintf("add decision:%s -> member:%s to the operating graph", diff.Decision, diff.Member),
+			"or remove the runtime decision consumption if it is obsolete",
+		}
+	case operatingRelCapabilityGapRaised:
+		return []string{
+			fmt.Sprintf("add member:%s -> decision:capability-gap to the operating graph", diff.Member),
+			"or unset raises_capability_gaps if this member should not raise gaps",
+		}
+	case operatingRelExternalProducer:
+		return []string{
+			fmt.Sprintf("add external:%s -> member:%s to the operating graph", diff.External, diff.Member),
+			"or remove the runtime external producer declaration if it is obsolete",
+		}
+	case operatingRelExternalProducerIntake:
+		return []string{
+			fmt.Sprintf("add external:%s -> topic:%s to the operating graph", diff.External, diff.Topic),
+			"or remove the runtime external producer/intake relationship if it is obsolete",
+		}
+	case operatingRelCrossTeamOutput:
+		return []string{
+			fmt.Sprintf("add topic:%s -> team:%s to the operating graph", diff.Topic, diff.TargetTeam),
+			"or remove destination_team if this is not a cross-team output",
+		}
+	default:
+		return nil
+	}
+}
+
+func detailForGraphRelationshipMissingRuntime(diff OperatingGraphContractDiff) string {
+	return fmt.Sprintf("%s says %s. Runtime has no matching declaration.", relationshipLocation(diff), relationshipStatement(diff))
+}
+
+func detailForRuntimeRelationshipMissingGraph(diff OperatingGraphContractDiff) string {
+	return fmt.Sprintf("%s declares %s. The contract graph does not show a matching relationship.", diff.RuntimePath, relationshipStatement(diff))
+}
+
+func relationshipLocation(diff OperatingGraphContractDiff) string {
+	if diff.SourcePath == "" {
+		return "contract graph"
+	}
+	if diff.Line > 0 {
+		return fmt.Sprintf("%s:%d", diff.SourcePath, diff.Line)
+	}
+	return diff.SourcePath
+}
+
+func relationshipStatement(diff OperatingGraphContractDiff) string {
+	switch diff.Relationship {
+	case operatingRelTopicRead:
+		return fmt.Sprintf("topic:%s -> member:%s", diff.Topic, diff.Member)
+	case operatingRelTopicOutput:
+		return fmt.Sprintf("member:%s -> topic:%s", diff.Member, diff.Topic)
+	case operatingRelPOROutput:
+		return fmt.Sprintf("member:%s -> por:%s", diff.Member, diff.Path)
+	case operatingRelDecisionOwned:
+		return fmt.Sprintf("member:%s -> decision:%s", diff.Member, diff.Decision)
+	case operatingRelDecisionConsumed:
+		return fmt.Sprintf("decision:%s -> member:%s", diff.Decision, diff.Member)
+	case operatingRelCapabilityGapRaised:
+		return fmt.Sprintf("member:%s -> decision:capability-gap", diff.Member)
+	case operatingRelExternalProducer:
+		return fmt.Sprintf("external:%s -> member:%s", diff.External, diff.Member)
+	case operatingRelExternalProducerIntake:
+		return fmt.Sprintf("external:%s -> topic:%s", diff.External, diff.Topic)
+	case operatingRelCrossTeamOutput:
+		return fmt.Sprintf("topic:%s -> team:%s", diff.Topic, diff.TargetTeam)
+	default:
+		return diff.Relationship
+	}
+}
+
+func runtimeMemberTopicsPath(runtime OperatingGraphRuntime, team, member string) string {
+	return relativeRuntimePath(runtime, filepath.Join(runtime.StoreDir, "teams", team, "members", member, "topics.json"))
+}
+
+func runtimeTeamPath(runtime OperatingGraphRuntime, team string) string {
+	return relativeRuntimePath(runtime, filepath.Join(runtime.StoreDir, "teams", team, "team.json"))
+}
+
+func relativeRuntimePath(runtime OperatingGraphRuntime, path string) string {
+	if runtime.RepoRoot != "" {
+		if rel, err := filepath.Rel(runtime.RepoRoot, path); err == nil && !strings.HasPrefix(rel, "..") {
+			return filepath.ToSlash(rel)
+		}
+	}
+	return filepath.ToSlash(path)
+}
+
+func dedupeOperatingRelationships(rels []OperatingRelationship) []OperatingRelationship {
+	seen := map[string]bool{}
+	var out []OperatingRelationship
+	for _, rel := range rels {
+		key := operatingRelationshipKey(rel)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, rel)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return operatingRelationshipKey(out[i]) < operatingRelationshipKey(out[j])
+	})
+	return out
+}
+
+func operatingRelationshipKey(rel OperatingRelationship) string {
+	return strings.Join([]string{
+		rel.Kind,
+		rel.Team,
+		rel.Member,
+		rel.Topic,
+		rel.Decision,
+		filepath.ToSlash(filepath.Clean(rel.Path)),
+		rel.External,
+		rel.TargetTeam,
+	}, "\x00")
+}
+
+func operatingRuntimeDiffKey(rel OperatingRelationship) string {
+	if rel.Kind == operatingRelTopicEvidenceConsumed {
+		rel.Decision = ""
+	}
+	rel.Kind = runtimeRelationshipAsGraphRelationship(rel)
+	return operatingRelationshipKey(rel)
 }
 
 func filterOperatingGraphBlocks(blocks []OperatingGraphBlock, teamFilter, idFilter string) []OperatingGraphBlock {
@@ -196,63 +766,11 @@ func validateOperatingGraphEdge(result *OperatingGraphValidationResult, block Op
 }
 
 func operatingEdgeBacked(team string, from, to OperatingGraphNode, runtime OperatingGraphRuntime) bool {
-	switch {
-	case from.Kind == "external" && to.Kind == "topic":
-		for _, m := range runtime.Members {
-			if m.Ref.Team != team || !stringInSlice(from.Value, m.Topics.ExternalProducers) {
-				continue
-			}
-			for _, in := range m.Topics.Intake {
-				if Overlap(in.Prefix, to.Value) {
-					return true
-				}
-			}
-		}
-	case from.Kind == "topic" && to.Kind == "member":
-		if mt, ok := runtime.member(team, to.Value); ok {
-			return memberReadsTopic(mt.Topics, from.Value)
-		}
-	case from.Kind == "member" && to.Kind == "topic":
-		if mt, ok := runtime.member(team, from.Value); ok {
-			for _, out := range mt.Topics.Output {
-				if out.DestinationKind == DestinationKnowledge && Overlap(out.Prefix, to.Value) {
-					return true
-				}
-			}
-		}
-	case from.Kind == "member" && to.Kind == "decision":
-		if mt, ok := runtime.member(team, from.Value); ok {
-			return stringInSlice(to.Value, mt.Topics.DecisionsOwned) || (to.Value == "capability-gap" && mt.Topics.RaisesCapabilityGaps)
-		}
-	case from.Kind == "decision" && to.Kind == "member":
-		if mt, ok := runtime.member(team, to.Value); ok {
-			return stringInSlice(from.Value, mt.Topics.DecisionsConsumed) || evidenceForDecision(mt.Topics, from.Value)
-		}
-	case from.Kind == "member" && to.Kind == "por":
-		if mt, ok := runtime.member(team, from.Value); ok {
-			for _, out := range mt.Topics.Output {
-				if out.DestinationKind == DestinationPORFile && out.DestinationPath != nil && *out.DestinationPath == to.Value {
-					return true
-				}
-			}
-		}
-	case from.Kind == "topic" && to.Kind == "team":
-		for _, m := range runtime.Members {
-			if m.Ref.Team != team {
-				continue
-			}
-			for _, out := range m.Topics.Output {
-				if out.DestinationTeam != nil && *out.DestinationTeam == to.Value && Overlap(out.Prefix, from.Value) {
-					return true
-				}
-			}
-		}
-	case from.Kind == "external" && to.Kind == "member":
-		if mt, ok := runtime.member(team, to.Value); ok {
-			return stringInSlice(from.Value, mt.Topics.ExternalProducers)
-		}
+	rel, ok := operatingRelationshipFromNodes(team, "", 0, from, to)
+	if !ok {
+		return false
 	}
-	return false
+	return RelationshipBackedByRuntime(rel, BuildRuntimeOperatingRelationships(runtime, team))
 }
 
 func validateOperatingGraphCompleteness(result *OperatingGraphValidationResult, block OperatingGraphBlock, idx operatingGraphIndex, runtime OperatingGraphRuntime) {

@@ -49,7 +49,19 @@ func TestCmdOperatingModelValidatePassesFiltersAndFailsOnErrors(t *testing.T) {
 func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 	ctx := clitest.NewContext(t)
 	ctx.Respond("GET", "/operating-graphs/diff", operatingGraphDiffResponse{
-		Diff: []operatingGraphDiff{{Kind: "declared_output_missing", Detail: "member output missing"}},
+		Diff: []operatingGraphDiff{{
+			Kind:             "graph_relationship_missing_in_runtime",
+			Relationship:     "topic_read",
+			Team:             "marketing-crew",
+			Member:           "researcher",
+			Topic:            "marketing/notebook/*",
+			SourcePath:       "docs/marketing/OPERATING_MODEL.md",
+			Line:             355,
+			RuntimePath:      "scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/topics.json",
+			AcceptableFields: []string{"intake", "required_read", "evidence_consumed"},
+			Suggestions:      []string{"add required_read \"marketing/notebook/*\" to researcher/topics.json"},
+			Detail:           "docs/marketing/OPERATING_MODEL.md:355 says topic:marketing/notebook/* -> member:researcher. Runtime has no matching declaration.",
+		}},
 	})
 
 	stdout, _, err := clitest.Output(t, func() error {
@@ -62,7 +74,17 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 	if req.Path != "/operating-graphs/diff" || req.Query.Get("team") != "marketing-crew" {
 		t.Fatalf("unexpected request: %+v", req)
 	}
-	if !strings.Contains(stdout, "[declared_output_missing] member output missing") {
-		t.Fatalf("stdout missing diff:\n%s", stdout)
+	for _, want := range []string{
+		"Graph Declares, Runtime Missing",
+		"[topic_read] docs/marketing/OPERATING_MODEL.md:355",
+		"Runtime file: scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/topics.json",
+		"Acceptable runtime fields: intake, required_read, evidence_consumed",
+		"Suggested fix: add required_read \"marketing/notebook/*\" to researcher/topics.json",
+		"Runtime Declares, Graph Missing",
+		"- clean",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
 	}
 }

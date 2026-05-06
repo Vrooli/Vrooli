@@ -576,6 +576,7 @@ func main() {
 	v1.HandleFunc("/tasks", heartbeatHandlers.CreateTask).Methods("POST")
 	v1.HandleFunc("/runs", heartbeatHandlers.CreateRun).Methods("POST")
 	v1.HandleFunc("/runs", heartbeatHandlers.ListRuns).Methods("GET")
+	v1.HandleFunc("/heartbeat-attempts", heartbeatHandlers.ListHeartbeatAttempts).Methods("GET")
 	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
 	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")
 	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")

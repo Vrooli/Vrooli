@@ -93,6 +93,14 @@ type TeamLogListResponse struct {
 	HasMore bool           `json:"hasMore"`
 }
 
+// HeartbeatAttemptListResponse is the response for listing heartbeat dispatch
+// attempts, including attempts that failed before agent-manager created a run.
+type HeartbeatAttemptListResponse struct {
+	Attempts []store.HeartbeatAttempt `json:"attempts"`
+	Total    int                      `json:"total"`
+	HasMore  bool                     `json:"hasMore"`
+}
+
 // LogContentResponse is the response for getting log content
 type LogContentResponse struct {
 	TeamID   string `json:"teamId"`

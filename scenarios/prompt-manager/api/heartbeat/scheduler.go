@@ -296,7 +296,7 @@ func (s *Scheduler) ensureProfile(ctx context.Context) error {
 		req := &EnsureProfileRequest{
 			ProfileKey:     p.key,
 			Defaults:       BuildDefaultProfileForRuntimeMode(p.key, p.runtimeMode),
-			UpdateExisting: false,
+			UpdateExisting: true,
 		}
 		resp, err := s.agentClient.EnsureProfile(ctx, req)
 		if err != nil {
@@ -364,7 +364,7 @@ func buildCodexProfile(profileKey string) *AgentProfile {
 		Timeout:              DurationToProtojson(10 * time.Minute),
 		AllowedTools:         []string{"read_file", "write_file", "execute_command"},
 		SkipPermissionPrompt: true,
-		SandboxConfig:        &SandboxConfig{Mode: "off"},
+		SandboxConfig:        &SandboxConfig{Mode: "SANDBOX_MODE_PROTECTED"},
 		CreatedBy:            "prompt-manager",
 	}
 }
@@ -380,7 +380,7 @@ func buildClaudeCodeProfile(profileKey string) *AgentProfile {
 		Timeout:              DurationToProtojson(30 * time.Minute),
 		AllowedTools:         []string{},
 		SkipPermissionPrompt: true,
-		SandboxConfig:        &SandboxConfig{Mode: "off"},
+		SandboxConfig:        &SandboxConfig{Mode: "SANDBOX_MODE_PROTECTED"},
 		CreatedBy:            "prompt-manager",
 	}
 }

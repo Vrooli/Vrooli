@@ -1499,6 +1499,56 @@ func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+// ListHeartbeatAttempts handles GET /heartbeat-attempts - lists local heartbeat
+// dispatch attempts, including failures that happened before agent-manager
+// could create a run.
+func (h *Handlers) ListHeartbeatAttempts(w http.ResponseWriter, r *http.Request) {
+	if h.teamStore == nil {
+		http.Error(w, "team store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	limit := 100
+	offset := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid offset", http.StatusBadRequest)
+			return
+		}
+		offset = parsed
+	}
+
+	attempts, total, err := h.teamStore.ListHeartbeatAttempts(
+		r.Context(),
+		r.URL.Query().Get("team_id"),
+		r.URL.Query().Get("agent_id"),
+		r.URL.Query().Get("status"),
+		r.URL.Query().Get("profile_key"),
+		limit,
+		offset,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(HeartbeatAttemptListResponse{
+		Attempts: attempts,
+		Total:    total,
+		HasMore:  offset+len(attempts) < total,
+	})
+}
+
 // ContinueRun handles POST /runs/{runId}/continue - sends a continue message to a paused run.
 func (h *Handlers) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

@@ -680,6 +680,34 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 }
 
+func TestCreateRun_InvalidNestedEnumIncludesParseDetail(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	body := []byte(`{
+		"task_id":"11111111-1111-1111-1111-111111111111",
+		"profile_ref":{
+			"profile_key":"probe",
+			"defaults":{
+				"name":"Probe",
+				"profile_key":"probe",
+				"runner_type":"RUNNER_TYPE_CODEX",
+				"sandbox_config":{"mode":"off"}
+			}
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "enum field mode") || !strings.Contains(rr.Body.String(), "off") {
+		t.Fatalf("expected parse detail to identify nested enum value, got: %s", rr.Body.String())
+	}
+}
+
 // TestListRuns tests listing runs.
 // [REQ:REQ-P0-004] Test run listing
 func TestListRuns(t *testing.T) {

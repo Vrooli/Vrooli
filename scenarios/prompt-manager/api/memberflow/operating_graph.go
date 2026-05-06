@@ -94,12 +94,21 @@ type OperatingGraphDiffResponse struct {
 }
 
 type OperatingGraphContractDiff struct {
-	Kind     string `json:"kind"`
-	Team     string `json:"team"`
-	Member   string `json:"member,omitempty"`
-	Topic    string `json:"topic,omitempty"`
-	Decision string `json:"decision,omitempty"`
-	Detail   string `json:"detail"`
+	Kind             string   `json:"kind"`
+	Relationship     string   `json:"relationship"`
+	Team             string   `json:"team"`
+	Member           string   `json:"member,omitempty"`
+	Topic            string   `json:"topic,omitempty"`
+	Decision         string   `json:"decision,omitempty"`
+	Path             string   `json:"path,omitempty"`
+	External         string   `json:"external,omitempty"`
+	TargetTeam       string   `json:"target_team,omitempty"`
+	SourcePath       string   `json:"source_path,omitempty"`
+	Line             int      `json:"line,omitempty"`
+	RuntimePath      string   `json:"runtime_path,omitempty"`
+	AcceptableFields []string `json:"acceptable_fields,omitempty"`
+	Suggestions      []string `json:"suggestions,omitempty"`
+	Detail           string   `json:"detail"`
 }
 
 var (
@@ -108,8 +117,26 @@ var (
 	flowchartRE     = regexp.MustCompile(`^\s*flowchart\s+(LR|TB|RL|BT)\s*$`)
 	nodeDeclRE      = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\[(.*)\]\s*$`)
 	edgeRE          = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*-->(?:\|([^|]*)\|)?\s*([A-Za-z][A-Za-z0-9_]*)\s*$`)
+	nodeAnnotRE     = regexp.MustCompile(`^\s*%%\s*@node\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+?)\s*$`)
 	typedLabelRE    = regexp.MustCompile(`^([a-z][a-z0-9_-]*)(?:\[([a-z][a-z0-9_-]*)\])?:(.+)$`)
 )
+
+type operatingGraphNodeAnnotation struct {
+	NodeID     string
+	Kind       string
+	Value      string
+	Qualifier  string
+	SourceLine int
+}
+
+type operatingGraphNodeLabel struct {
+	Raw       string
+	Display   string
+	Kind      string
+	Value     string
+	Qualifier string
+	Typed     bool
+}
 
 func LoadOperatingGraphBlocks(repoRoot string) ([]OperatingGraphBlock, error) {
 	docsDir := filepath.Join(repoRoot, "docs")
@@ -257,10 +284,25 @@ func parseOperatingGraphMetadata(lines []string) (OperatingGraphMetadata, error)
 func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingGraph, error) {
 	graph := OperatingGraph{ID: id}
 	nodes := map[string]OperatingGraphNode{}
+	annotations := map[string]operatingGraphNodeAnnotation{}
 	for i, raw := range lines {
 		lineNo := firstLine + i
 		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "%%") {
+		if line == "" {
+			continue
+		}
+		if m := nodeAnnotRE.FindStringSubmatch(line); m != nil {
+			ann, err := parseOperatingGraphNodeAnnotation(m[1], m[2], lineNo)
+			if err != nil {
+				return graph, err
+			}
+			if existing, ok := annotations[ann.NodeID]; ok {
+				return graph, fmt.Errorf("duplicate @node annotation for %q at line %d; first declared at line %d", ann.NodeID, lineNo, existing.SourceLine)
+			}
+			annotations[ann.NodeID] = ann
+			continue
+		}
+		if strings.HasPrefix(line, "%%") {
 			continue
 		}
 		if m := flowchartRE.FindStringSubmatch(line); m != nil {
@@ -298,6 +340,9 @@ func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingG
 	if graph.Direction == "" {
 		return graph, fmt.Errorf("missing flowchart direction")
 	}
+	if err := applyOperatingGraphNodeAnnotations(nodes, annotations); err != nil {
+		return graph, err
+	}
 	ids := make([]string, 0, len(nodes))
 	for id := range nodes {
 		ids = append(ids, id)
@@ -310,28 +355,84 @@ func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingG
 }
 
 func parseOperatingGraphNode(id, rawLabel string, line int) (OperatingGraphNode, error) {
+	label := parseOperatingGraphNodeLabel(rawLabel)
+	node := OperatingGraphNode{
+		ID:         id,
+		Display:    label.Display,
+		RawLabel:   label.Raw,
+		SourceLine: line,
+	}
+	if label.Typed {
+		node.Kind = label.Kind
+		node.Qualifier = label.Qualifier
+		node.Value = label.Value
+	}
+	return node, nil
+}
+
+func parseOperatingGraphNodeLabel(rawLabel string) operatingGraphNodeLabel {
 	label := strings.TrimSpace(rawLabel)
 	label = strings.Trim(label, `"`)
 	label = html.UnescapeString(label)
 	parts := strings.Split(label, "<br/>")
 	token := strings.TrimSpace(parts[0])
-	display := ""
+	display := strings.TrimSpace(strings.Join(parts, " "))
+	kind, qualifier, value, ok := parseOperatingGraphTypedToken(token)
+	if !ok {
+		return operatingGraphNodeLabel{Raw: label, Display: display}
+	}
 	if len(parts) > 1 {
 		display = strings.TrimSpace(strings.Join(parts[1:], " "))
+	} else {
+		display = ""
 	}
-	m := typedLabelRE.FindStringSubmatch(token)
-	if m == nil {
-		return OperatingGraphNode{ID: id, RawLabel: label, SourceLine: line}, nil
+	return operatingGraphNodeLabel{
+		Raw:       label,
+		Display:   display,
+		Kind:      kind,
+		Qualifier: qualifier,
+		Value:     value,
+		Typed:     true,
 	}
-	return OperatingGraphNode{
-		ID:         id,
-		Kind:       m[1],
-		Qualifier:  m[2],
-		Value:      strings.TrimSpace(m[3]),
-		Display:    display,
-		RawLabel:   label,
+}
+
+func parseOperatingGraphNodeAnnotation(nodeID, token string, line int) (operatingGraphNodeAnnotation, error) {
+	kind, qualifier, value, ok := parseOperatingGraphTypedToken(strings.TrimSpace(token))
+	if !ok {
+		return operatingGraphNodeAnnotation{}, fmt.Errorf("invalid @node annotation at line %d: expected %q to be kind:value", line, token)
+	}
+	return operatingGraphNodeAnnotation{
+		NodeID:     nodeID,
+		Kind:       kind,
+		Qualifier:  qualifier,
+		Value:      value,
 		SourceLine: line,
 	}, nil
+}
+
+func parseOperatingGraphTypedToken(token string) (kind, qualifier, value string, ok bool) {
+	m := typedLabelRE.FindStringSubmatch(strings.TrimSpace(token))
+	if m == nil {
+		return "", "", "", false
+	}
+	return m[1], m[2], strings.TrimSpace(m[3]), true
+}
+
+func applyOperatingGraphNodeAnnotations(nodes map[string]OperatingGraphNode, annotations map[string]operatingGraphNodeAnnotation) error {
+	for nodeID, ann := range annotations {
+		node, ok := nodes[nodeID]
+		if !ok || node.Implicit {
+			return fmt.Errorf("@node annotation for %q at line %d does not match a declared node", nodeID, ann.SourceLine)
+		}
+		if node.Kind != "" || node.Value != "" || node.Qualifier != "" {
+			return fmt.Errorf("@node annotation for %q at line %d conflicts with inline typed node label at line %d", nodeID, ann.SourceLine, node.SourceLine)
+		}
+		node.Kind = ann.Kind
+		node.Qualifier = ann.Qualifier
+		node.Value = ann.Value
+		nodes[nodeID] = node
+	}
+	return nil
 }
 
 func splitCSV(value string) []string {

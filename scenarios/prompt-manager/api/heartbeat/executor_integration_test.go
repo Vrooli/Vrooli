@@ -110,8 +110,11 @@ func TestExecute_FullLifecycle(t *testing.T) {
 	if runReq.ProfileRef == nil || runReq.ProfileRef.ProfileKey != "test-profile" {
 		t.Error("expected profile ref with test-profile")
 	}
-	if runReq.RunMode != "RUN_MODE_IN_PLACE" {
-		t.Errorf("expected RUN_MODE_IN_PLACE, got %s", runReq.RunMode)
+	if runReq.RunMode != "" {
+		t.Errorf("expected run mode to be derived from sandbox config, got %s", runReq.RunMode)
+	}
+	if runReq.ProfileRef == nil || !runReq.ProfileRef.UpdateExisting {
+		t.Error("expected profile ref to update existing profile defaults")
 	}
 
 	// Wait for async completion to call OnComplete

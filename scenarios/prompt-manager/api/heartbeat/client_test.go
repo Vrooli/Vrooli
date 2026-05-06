@@ -197,8 +197,7 @@ func TestCreateRunRequest_JSONFieldNames(t *testing.T) {
 		ProfileRef: &ProfileRef{
 			ProfileKey: "my-profile",
 		},
-		Tag:     &tag,
-		RunMode: "RUN_MODE_IN_PLACE",
+		Tag: &tag,
 	}
 
 	data, err := json.Marshal(req)
@@ -216,7 +215,6 @@ func TestCreateRunRequest_JSONFieldNames(t *testing.T) {
 		"task_id":     true,
 		"profile_ref": true,
 		"tag":         true,
-		"run_mode":    true,
 	}
 	for key := range fields {
 		if !expected[key] {

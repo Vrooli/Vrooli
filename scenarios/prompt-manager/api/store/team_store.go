@@ -485,6 +485,130 @@ func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string)
 	return configs, nil
 }
 
+// AppendHeartbeatAttempt appends a durable heartbeat dispatch attempt record.
+func (s *FileTeamStore) AppendHeartbeatAttempt(_ context.Context, teamID string, entry *HeartbeatAttempt) error {
+	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		return fmt.Errorf("creating shared directory: %w", err)
+	}
+	return AppendJSONL(filepath.Join(sharedDir, "heartbeat-attempts.jsonl"), entry)
+}
+
+// ListHeartbeatAttempts returns newest-first heartbeat dispatch attempts across
+// all teams, optionally filtered by team, agent, status, and profile key.
+func (s *FileTeamStore) ListHeartbeatAttempts(_ context.Context, teamID, agentID, status, profileKey string, limit, offset int) ([]HeartbeatAttempt, int, error) {
+	teamIDs := []string{}
+	if teamID != "" {
+		teamIDs = append(teamIDs, teamID)
+	} else {
+		dirs, err := ListDirectories(s.teamsDir())
+		if err != nil {
+			return nil, 0, fmt.Errorf("listing team directories: %w", err)
+		}
+		teamIDs = dirs
+	}
+
+	var entries []HeartbeatAttempt
+	for _, id := range teamIDs {
+		path := filepath.Join(s.teamsDir(), id, "shared", "heartbeat-attempts.jsonl")
+		if !FileExists(path) {
+		} else {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, 0, fmt.Errorf("reading heartbeat attempts: %w", err)
+			}
+			for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				var entry HeartbeatAttempt
+				if err := json.Unmarshal([]byte(line), &entry); err != nil {
+					continue
+				}
+				if agentID != "" && entry.AgentID != agentID {
+					continue
+				}
+				if status != "" && entry.Status != status {
+					continue
+				}
+				if profileKey != "" && entry.ProfileKey != profileKey {
+					continue
+				}
+				entries = append(entries, entry)
+			}
+		}
+
+		configs, _ := s.ListHeartbeatConfigs(context.Background(), id)
+		for _, config := range configs {
+			if config.LastExecution == nil || config.LastExecution.RunID != "" {
+				continue
+			}
+			entry := HeartbeatAttempt{
+				ID:            "last-" + config.TeamID + "-" + config.AgentID + "-" + strings.ReplaceAll(config.LastExecution.StartedAt, ":", "-"),
+				TeamID:        config.TeamID,
+				AgentID:       config.AgentID,
+				ProfileKey:    config.ProfileKey,
+				Status:        config.LastExecution.Status,
+				Phase:         "pre_run_failure",
+				StartedAt:     config.LastExecution.StartedAt,
+				EndedAt:       config.LastExecution.EndedAt,
+				ErrorCategory: "unknown",
+				Error:         config.LastExecution.Error,
+				Recovery:      "inspect_heartbeat_config",
+			}
+			if agentID != "" && entry.AgentID != agentID {
+				continue
+			}
+			if status != "" && entry.Status != status {
+				continue
+			}
+			if profileKey != "" && entry.ProfileKey != profileKey {
+				continue
+			}
+			duplicate := false
+			for _, existing := range entries {
+				if existing.TeamID == entry.TeamID && existing.AgentID == entry.AgentID && existing.StartedAt == entry.StartedAt && existing.RunID == "" {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				entries = append(entries, entry)
+			}
+		}
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		left := entries[i].StartedAt
+		if entries[i].EndedAt != "" {
+			left = entries[i].EndedAt
+		}
+		right := entries[j].StartedAt
+		if entries[j].EndedAt != "" {
+			right = entries[j].EndedAt
+		}
+		return left > right
+	})
+
+	total := len(entries)
+	if offset < 0 {
+		offset = 0
+	}
+	if limit < 0 {
+		limit = 0
+	}
+	if offset >= len(entries) {
+		return []HeartbeatAttempt{}, total, nil
+	}
+	if limit > 0 && offset+limit < len(entries) {
+		entries = entries[offset : offset+limit]
+	} else {
+		entries = entries[offset:]
+	}
+	return entries, total, nil
+}
+
 // GetMemberLogPath returns the path for a heartbeat execution log
 func (s *FileTeamStore) GetMemberLogPath(teamID, agentID, timestamp string) string {
 	return filepath.Join(s.memberDir(teamID, agentID), "logs", timestamp+".log")

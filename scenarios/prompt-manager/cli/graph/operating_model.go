@@ -55,8 +55,21 @@ type operatingGraphValidationResponse struct {
 }
 
 type operatingGraphDiff struct {
-	Kind   string `json:"kind"`
-	Detail string `json:"detail"`
+	Kind             string   `json:"kind"`
+	Relationship     string   `json:"relationship"`
+	Team             string   `json:"team"`
+	Member           string   `json:"member,omitempty"`
+	Topic            string   `json:"topic,omitempty"`
+	Decision         string   `json:"decision,omitempty"`
+	Path             string   `json:"path,omitempty"`
+	External         string   `json:"external,omitempty"`
+	TargetTeam       string   `json:"target_team,omitempty"`
+	SourcePath       string   `json:"source_path,omitempty"`
+	Line             int      `json:"line,omitempty"`
+	RuntimePath      string   `json:"runtime_path,omitempty"`
+	AcceptableFields []string `json:"acceptable_fields,omitempty"`
+	Suggestions      []string `json:"suggestions,omitempty"`
+	Detail           string   `json:"detail"`
 }
 
 type operatingGraphDiffResponse struct {
@@ -148,10 +161,9 @@ func cmdOperatingModelDiff(ctx appctx.Context, args []string) error {
 	}
 	fmt.Println("Status")
 	fmt.Printf("Found %d diff item(s).\n\n", len(resp.Diff))
-	fmt.Println("Triage")
-	for _, d := range resp.Diff {
-		fmt.Printf("- [%s] %s\n", d.Kind, d.Detail)
-	}
+	printOperatingModelDiffGroup("Graph Declares, Runtime Missing", resp.Diff, "graph_relationship_missing_in_runtime")
+	fmt.Println()
+	printOperatingModelDiffGroup("Runtime Declares, Graph Missing", resp.Diff, "runtime_relationship_missing_in_graph")
 	fmt.Println("\nNext Steps")
 	fmt.Println("Review whether each diff is a graph-doc omission or a runtime config change.")
 	return nil
@@ -201,5 +213,37 @@ func printOperatingModelValidation(resp operatingGraphValidationResponse) {
 		fmt.Println("Review warning findings and decide whether they are accepted target-state gaps.")
 	} else {
 		fmt.Println("No action required.")
+	}
+}
+
+func printOperatingModelDiffGroup(title string, diffs []operatingGraphDiff, kind string) {
+	fmt.Println(title)
+	var printed bool
+	for _, d := range diffs {
+		if d.Kind != kind {
+			continue
+		}
+		printed = true
+		loc := d.SourcePath
+		if loc != "" && d.Line > 0 {
+			loc = fmt.Sprintf("%s:%d", loc, d.Line)
+		}
+		if loc == "" {
+			loc = "unknown source"
+		}
+		fmt.Printf("- [%s] %s\n", d.Relationship, loc)
+		fmt.Printf("  %s\n", d.Detail)
+		if d.RuntimePath != "" {
+			fmt.Printf("  Runtime file: %s\n", d.RuntimePath)
+		}
+		if len(d.AcceptableFields) > 0 {
+			fmt.Printf("  Acceptable runtime fields: %s\n", strings.Join(d.AcceptableFields, ", "))
+		}
+		for _, suggestion := range d.Suggestions {
+			fmt.Printf("  Suggested fix: %s\n", suggestion)
+		}
+	}
+	if !printed {
+		fmt.Println("- clean")
 	}
 }

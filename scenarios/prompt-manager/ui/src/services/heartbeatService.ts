@@ -773,6 +773,10 @@ export interface RunDetails {
   sessionId?: string
   teamId?: string
   agentId?: string
+  source?: 'agent-manager' | 'heartbeat-attempt'
+  phase?: string
+  recovery?: string
+  errorCategory?: string
   actions?: RunActions
 }
 
@@ -780,6 +784,23 @@ export interface ListRunsResponse {
   runs: RunDetails[]
   total: number
   hasMore: boolean
+}
+
+export interface HeartbeatAttempt {
+  id: string
+  teamId: string
+  agentId: string
+  profileKey?: string
+  taskId?: string
+  runId?: string
+  tag?: string
+  status: string
+  phase: string
+  startedAt: string
+  endedAt?: string
+  errorCategory?: string
+  error?: string
+  recovery?: string
 }
 
 function normalizeRunStatus(status: string): string {
@@ -896,6 +917,31 @@ export async function listRuns(opts?: {
     total: raw.total ?? runs.length,
     hasMore: raw.has_more ?? false,
   }
+}
+
+/**
+ * List local heartbeat dispatch attempts, including attempts that failed
+ * before agent-manager could create a run.
+ */
+export async function listHeartbeatAttempts(opts?: {
+  status?: string
+  profileKey?: string
+  teamId?: string
+  agentId?: string
+  limit?: number
+  offset?: number
+}): Promise<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }> {
+  const params = new URLSearchParams()
+  if (opts?.status) params.set('status', opts.status)
+  if (opts?.profileKey) params.set('profile_key', opts.profileKey)
+  if (opts?.teamId) params.set('team_id', opts.teamId)
+  if (opts?.agentId) params.set('agent_id', opts.agentId)
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
+  const qs = params.toString()
+  return apiRequest<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }>(
+    `/heartbeat-attempts${qs ? `?${qs}` : ''}`
+  )
 }
 
 /**

@@ -44,8 +44,9 @@ func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 
 // ProfileRef identifies a profile by key and optional defaults.
 type ProfileRef struct {
-	ProfileKey string        `json:"profile_key"`
-	Defaults   *AgentProfile `json:"defaults,omitempty"`
+	ProfileKey     string        `json:"profile_key"`
+	Defaults       *AgentProfile `json:"defaults,omitempty"`
+	UpdateExisting bool          `json:"update_existing,omitempty"`
 }
 
 // AgentProfile defines the configuration for running an agent.
@@ -75,7 +76,7 @@ type AgentProfile struct {
 // the remaining fields are filled in by agent-manager's
 // resolveSandboxConfig before the run is created.
 type SandboxConfig struct {
-	Mode string `json:"mode,omitempty"` // "off" / "tracking" / "protected" / ""
+	Mode string `json:"mode,omitempty"` // proto enum name, e.g. "SANDBOX_MODE_PROTECTED"
 }
 
 // Task represents a task for agent execution.
