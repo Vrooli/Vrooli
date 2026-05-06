@@ -6,31 +6,46 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // TemplateExpander handles iOS project template expansion
 type TemplateExpander struct {
-	scenarioName string
-	scenarioPath string
-	appName      string
-	appClassName string // CamelCase version for Swift struct names
-	bundleID     string
-	version      string
-	buildNumber  string
+	scenarioName         string
+	scenarioPath         string
+	templateScenarioRoot string
+	appName              string
+	appClassName         string // CamelCase version for Swift struct names
+	bundleID             string
+	version              string
+	buildNumber          string
 }
 
 // NewTemplateExpander creates a new template expander
 func NewTemplateExpander(scenarioName string) *TemplateExpander {
-	scenarioPath := fmt.Sprintf("/home/matthalloran8/Vrooli/scenarios/%s", scenarioName)
+	_, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	scenarioPath := ""
+	templateRoot := ""
+	if err == nil {
+		scenarioPath = repocontract.ScenarioRoot(repoRoot, scenarioName)
+		templateRoot = repocontract.ScenarioRoot(repoRoot, "scenario-to-ios")
+	}
+	return NewTemplateExpanderWithPaths(scenarioName, scenarioPath, templateRoot)
+}
+
+// NewTemplateExpanderWithPaths creates a template expander with resolved paths.
+func NewTemplateExpanderWithPaths(scenarioName, scenarioPath, templateRoot string) *TemplateExpander {
 	appName := formatAppName(scenarioName)
 	return &TemplateExpander{
-		scenarioName: scenarioName,
-		scenarioPath: scenarioPath,
-		appName:      appName,
-		appClassName: formatAppClassName(appName),
-		bundleID:     formatBundleID(scenarioName),
-		version:      "1.0.0",
-		buildNumber:  "1",
+		scenarioName:         scenarioName,
+		scenarioPath:         scenarioPath,
+		templateScenarioRoot: templateRoot,
+		appName:              appName,
+		appClassName:         formatAppClassName(appName),
+		bundleID:             formatBundleID(scenarioName),
+		version:              "1.0.0",
+		buildNumber:          "1",
 	}
 }
 
@@ -62,7 +77,7 @@ func formatAppClassName(appName string) string {
 // ExpandTemplate copies and expands the iOS template
 func (te *TemplateExpander) ExpandTemplate(outputDir string) error {
 	// Get template source directory
-	templateDir := filepath.Join(getProjectRoot(), "initialization", "templates", "ios")
+	templateDir := filepath.Join(te.templateRoot(), "initialization", "templates", "ios")
 
 	// Verify template exists
 	if _, err := os.Stat(templateDir); os.IsNotExist(err) {
@@ -70,7 +85,7 @@ func (te *TemplateExpander) ExpandTemplate(outputDir string) error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -102,13 +117,22 @@ func (te *TemplateExpander) ExpandTemplate(outputDir string) error {
 		// Copy and expand file
 		return te.expandFile(path, outPath)
 	})
-
 	if err != nil {
 		return err
 	}
 
 	// Copy scenario UI files into the app bundle
 	return te.copyScenarioUI(outputDir)
+}
+
+func (te *TemplateExpander) templateRoot() string {
+	if te.templateScenarioRoot != "" {
+		return te.templateScenarioRoot
+	}
+	if _, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD(); err == nil {
+		return repocontract.ScenarioRoot(repoRoot, "scenario-to-ios")
+	}
+	return getProjectRoot()
 }
 
 // copyScenarioUI copies the scenario's UI files into the iOS app bundle
@@ -145,7 +169,7 @@ func (te *TemplateExpander) expandFile(srcPath, dstPath string) error {
 	expanded := te.replacePlaceholders(string(content))
 
 	// Write expanded content
-	return os.WriteFile(dstPath, []byte(expanded), 0644)
+	return os.WriteFile(dstPath, []byte(expanded), 0o644)
 }
 
 // replacePlaceholders replaces template placeholders with actual values
@@ -156,11 +180,11 @@ func (te *TemplateExpander) replacePlaceholders(content string) string {
 		"{{APP_CLASS_NAME}}": te.appClassName, // CamelCase for Swift structs/classes
 		"{{BUNDLE_ID}}":      te.bundleID,
 		"{{VERSION}}":        te.version,
-		"{{APP_VERSION}}":    te.version,      // Used in Info.plist and ContentView
+		"{{APP_VERSION}}":    te.version, // Used in Info.plist and ContentView
 		"{{BUILD_NUMBER}}":   te.buildNumber,
 		"{{SCENARIO_URL}}":   "http://localhost:8080", // Placeholder, will be replaced with actual scenario URL
 		"VrooliScenarioApp":  te.appClassName + "App", // Swift struct name
-		"VrooliScenario":     te.appClassName, // Swift class references
+		"VrooliScenario":     te.appClassName,         // Swift class references
 	}
 
 	result := content

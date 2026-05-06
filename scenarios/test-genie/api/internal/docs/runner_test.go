@@ -546,7 +546,7 @@ func TestRunner_UnqualifiedMarkedAbsolutePathStillFails(t *testing.T) {
 
 func TestRunner_UnknownMarkedRefWarnsByDefault(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, "README.md"), "See `made-up:value`.\n")
+	writeFile(t, filepath.Join(dir, "README.md"), "See `made-up:docs/value.md`.\n")
 
 	runner := New(Config{
 		ScenarioDir:  dir,
@@ -560,6 +560,25 @@ func TestRunner_UnknownMarkedRefWarnsByDefault(t *testing.T) {
 	}
 	if result.Summary.MarkedRefsUnknown != 1 {
 		t.Fatalf("expected 1 unknown marked ref, got %+v", result.Summary)
+	}
+}
+
+func TestRunner_CommonColonCodeSpansAreNotUnknownMarkedRefs(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "Literals: `go:embed`, `http://localhost:3000`, `status: \"unhealthy\"`, `vrooli: command not found`.\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected success, got failure: %+v", result)
+	}
+	if result.Summary.MarkedRefsUnknown != 0 || result.Summary.MarkedRefsFound != 0 {
+		t.Fatalf("expected literal colon code spans to be ignored, got %+v", result.Summary)
 	}
 }
 

@@ -3,10 +3,12 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+
 	_ "github.com/lib/pq"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func main() {
@@ -34,7 +36,7 @@ func main() {
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
@@ -42,7 +44,15 @@ func main() {
 	defer db.Close()
 
 	// Read migration file
-	migration, err := ioutil.ReadFile("/home/matthalloran8/Vrooli/scenarios/algorithm-library/initialization/postgres/migration_003_problem_mapping.sql")
+	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		log.Fatal("Failed to resolve repo contract:", err)
+	}
+	initDir, err := contract.ScenarioFile(repoRoot, "algorithm-library", "initialization")
+	if err != nil {
+		log.Fatal("Failed to resolve initialization path:", err)
+	}
+	migration, err := os.ReadFile(filepath.Join(initDir, "postgres", "migration_003_problem_mapping.sql"))
 	if err != nil {
 		log.Fatal("Failed to read migration file:", err)
 	}

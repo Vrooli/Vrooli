@@ -94,7 +94,7 @@ func (v *validator) Validate() Result {
 	// Check if bas directory exists
 	if _, err := os.Stat(basDir); os.IsNotExist(err) {
 		return OK().WithObservations(
-			NewInfoObservation("No bas/ directory found (optional)"),
+			NewWarningObservation("No bas/ directory found; BAS playbooks are optional but recommended"),
 		)
 	}
 
@@ -251,9 +251,10 @@ func (v *validator) validateTopLevelPrefixedDir(basDir, dirName string) ([]Obser
 	}
 
 	if dirCount == 0 {
-		observations = append(observations, NewInfoObservation(
+		observations = append(observations, NewWarningObservation(
 			fmt.Sprintf("No playbook folders found under bas/%s/", dirName),
 		))
+		issues++
 	}
 
 	return observations, issues

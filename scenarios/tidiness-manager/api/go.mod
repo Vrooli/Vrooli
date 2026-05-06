@@ -1,8 +1,6 @@
 module tidiness-manager
 
-go 1.22
-
-toolchain go1.22.0
+go 1.24.0
 
 require (
 	github.com/gorilla/handlers v1.5.2
@@ -66,3 +64,5 @@ require (
 	google.golang.org/grpc v1.58.3 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
+
+replace github.com/vrooli/vrooli => ../../..

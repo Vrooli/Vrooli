@@ -1,6 +1,6 @@
 module text-tools
 
-go 1.21
+go 1.24.0
 
 require (
 	github.com/google/uuid v1.5.0
@@ -17,3 +17,5 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

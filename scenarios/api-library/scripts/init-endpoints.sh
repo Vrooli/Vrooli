@@ -3,6 +3,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SEED_FILE="${SCRIPT_DIR}/../initialization/postgres/seed_endpoints.sql"
+
 # Database connection details
 DB_HOST="${POSTGRES_HOST:-localhost}"
 DB_PORT="${POSTGRES_PORT:-19432}"
@@ -30,7 +33,7 @@ if [ "$ENDPOINT_COUNT" -eq "0" ]; then
     echo "📝 No endpoints found, seeding data..."
     
     # Execute the seed file
-    docker exec -i vrooli-postgres-main sh -c "PGPASSWORD='$DB_PASSWORD' psql -h localhost -U $DB_USER -d $DB_NAME" < /home/matthalloran8/Vrooli/scenarios/api-library/initialization/postgres/seed_endpoints.sql
+    docker exec -i vrooli-postgres-main sh -c "PGPASSWORD='$DB_PASSWORD' psql -h localhost -U $DB_USER -d $DB_NAME" < "$SEED_FILE"
     
     echo "✅ Endpoints seeded successfully!"
 else

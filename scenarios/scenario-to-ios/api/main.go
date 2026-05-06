@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type Server struct {
@@ -46,6 +47,13 @@ func (s *Server) respondError(w http.ResponseWriter, statusCode int, errMsg stri
 }
 
 // NOTE: handleHealth replaced by api-core/health for standardized responses
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.respondJSON(w, map[string]string{
+		"status":    "healthy",
+		"service":   "scenario-to-ios",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
 
 func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -74,9 +82,26 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 
 	s.logInfo("Building iOS app for scenario: %s", scenarioName)
 
-	// Check if scenario exists (stub - will verify actual scenario path later)
-	scenarioPath := fmt.Sprintf("/home/matthalloran8/Vrooli/scenarios/%s", scenarioName)
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		s.logError("Failed to load repo contract: %v", err)
+		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to resolve repository contract: %v", err))
+		return
+	}
+
+	scenarioPath, err := contract.ScenarioRoot(repoRoot, scenarioName)
+	if err != nil {
+		s.logError("Failed to resolve scenario path: %v", err)
+		s.respondError(w, http.StatusBadRequest, fmt.Sprintf("Failed to resolve scenario path: %v", err))
+		return
+	}
+	exists, err := repocontract.ScenarioExists(repoRoot, scenarioName)
+	if err != nil {
+		s.logError("Failed to check scenario existence: %v", err)
+		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to check scenario: %v", err))
+		return
+	}
+	if !exists {
 		s.respondError(w, http.StatusNotFound, fmt.Sprintf("Scenario not found: %s", scenarioName))
 		return
 	}
@@ -86,14 +111,20 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 
 	// Create build output directory
 	buildDir := fmt.Sprintf("/tmp/builds/%s", buildID)
-	if err := os.MkdirAll(buildDir, 0755); err != nil {
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		s.logError("Failed to create build directory: %v", err)
 		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create build directory: %v", err))
 		return
 	}
 
 	// Expand template
-	expander := NewTemplateExpander(scenarioName)
+	scenarioToIOSPath, err := contract.ScenarioRoot(repoRoot, "scenario-to-ios")
+	if err != nil {
+		s.logError("Failed to resolve scenario-to-ios path: %v", err)
+		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to resolve scenario-to-ios path: %v", err))
+		return
+	}
+	expander := NewTemplateExpanderWithPaths(scenarioName, scenarioPath, scenarioToIOSPath)
 	projectDir := filepath.Join(buildDir, "project")
 	if err := expander.ExpandTemplate(projectDir); err != nil {
 		s.logError("Template expansion failed: %v", err)

@@ -22,13 +22,13 @@ func TestValidator_NoBasDir(t *testing.T) {
 
 	found := false
 	for _, obs := range result.Observations {
-		if obs.Type == ObservationInfo && obs.Message == "No bas/ directory found (optional)" {
+		if obs.Type == ObservationWarning && obs.Message == "No bas/ directory found; BAS playbooks are optional but recommended" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected informational observation about missing directory")
+		t.Error("expected warning observation about missing directory")
 	}
 }
 
@@ -187,6 +187,42 @@ func TestValidator_FlowsWithValidPrefix(t *testing.T) {
 	result := v.Validate()
 	if !result.Success {
 		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+}
+
+func TestValidator_EmptyCasesAndFlowsWarn(t *testing.T) {
+	root := t.TempDir()
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, filepath.Join(basDir, "cases"))
+	mustMkdir(t, filepath.Join(basDir, "flows"))
+
+	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
+
+	v := New(Config{
+		ScenarioDir: root,
+		Enabled:     true,
+		Strict:      false,
+	}, io.Discard)
+
+	result := v.Validate()
+	if !result.Success {
+		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
+	}
+
+	want := map[string]bool{
+		"No playbook folders found under bas/cases/": false,
+		"No playbook folders found under bas/flows/": false,
+	}
+	for _, obs := range result.Observations {
+		if _, ok := want[obs.Message]; ok && obs.Type == ObservationWarning {
+			want[obs.Message] = true
+		}
+	}
+	for msg, found := range want {
+		if !found {
+			t.Fatalf("expected warning %q, got %+v", msg, result.Observations)
+		}
 	}
 }
 

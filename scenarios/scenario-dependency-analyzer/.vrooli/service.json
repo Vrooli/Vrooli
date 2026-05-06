@@ -146,7 +146,7 @@
         },
         {
           "name": "verify-cli",
-          "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  /home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer'",
+          "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  scenario-dependency-analyzer not found on PATH'",
           "description": "Verify CLI installation"
         }
       ]

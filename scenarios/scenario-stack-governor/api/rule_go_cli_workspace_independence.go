@@ -20,8 +20,13 @@ import (
 const (
 	apiCoreModule      = "github.com/vrooli/api-core"
 	cliCoreModule      = "github.com/vrooli/cli-core"
+	connectModule      = "connectrpc.com/connect"
+	connectVersion     = "v1.19.2"
 	protoModule        = "github.com/vrooli/vrooli/packages/proto"
+	protobufModule     = "google.golang.org/protobuf"
+	protobufVersion    = "v1.36.11"
 	repoContractModule = "github.com/vrooli/repo-contract-go"
+	rootModule         = "github.com/vrooli/vrooli"
 )
 
 func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName string) (result RuleResult) {
@@ -120,7 +125,7 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 	}
 
 	result.Findings = append(result.Findings, checkCliInternalImports(repoRoot, cleanedScenario)...)
-	result.Findings = append(result.Findings, checkSharedModuleReplaceDirectives(repoRoot, cleanedScenario)...)
+	result.Findings = append(result.Findings, checkSharedModuleConsumerContracts(repoRoot, cleanedScenario)...)
 	result.Findings = append(result.Findings, checkReplaceDirectivePaths(repoRoot, cleanedScenario)...)
 	return result
 }
@@ -167,7 +172,7 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 		}
 
 		cliDir := filepath.Dir(cliGoMod)
-		if !cliImportsAPI(cliDir, apiModule) {
+		if !cliImportsAPI(cliDir, apiModule, filepath.Join(scenarioDir, "api")) {
 			continue
 		}
 
@@ -300,7 +305,7 @@ func isLocalReplacePath(p string) bool {
 	return strings.HasPrefix(p, ".") || strings.HasPrefix(p, "/")
 }
 
-func checkSharedModuleReplaceDirectives(repoRoot, scenarioName string) []Finding {
+func checkSharedModuleConsumerContracts(repoRoot, scenarioName string) []Finding {
 	goMods, err := listScenarioGoModFiles(repoRoot, scenarioName)
 	if err != nil {
 		return []Finding{{Level: "error", Message: fmt.Sprintf("failed to list scenario go.mod files: %v", err)}}
@@ -326,6 +331,47 @@ func checkSharedModuleReplaceDirectives(repoRoot, scenarioName string) []Finding
 			})
 		}
 
+		if requiresAny(modFile, apiCoreModule, cliCoreModule) && !goModFileHasReplace(modFile, rootModule) {
+			findings = append(findings, Finding{
+				Level:        "error",
+				Message:      "Module depends on api-core/cli-core but is missing a local replace directive for the Vrooli root module (replace is not transitive)",
+				ScenarioName: scenSlug,
+				Evidence: []Evidence{
+					{Type: "file", Ref: goModPath},
+					{Type: "note", Detail: "Add: replace github.com/vrooli/vrooli => <relative path to repo root>"},
+				},
+			})
+		}
+
+		if goModFileHasRequire(modFile, cliCoreModule) && moduleImportsPackage(filepath.Dir(goModPath), cliCoreModule+"/cliapp") {
+			if !goModFileHasRequire(modFile, connectModule) || !goModFileHasRequire(modFile, protobufModule) {
+				findings = append(findings, Finding{
+					Level:        "error",
+					Message:      "Module depends on cli-core but is missing explicit Connect/Protobuf module requirements",
+					ScenarioName: scenSlug,
+					Evidence: []Evidence{
+						{Type: "file", Ref: goModPath},
+						{Type: "note", Detail: fmt.Sprintf("Run `go mod tidy` so go.mod includes %s %s and %s %s", connectModule, connectVersion, protobufModule, protobufVersion)},
+					},
+				})
+			}
+			missingSums := missingGoSumEntries(filepath.Join(filepath.Dir(goModPath), "go.sum"), map[string]string{
+				connectModule:  connectVersion,
+				protobufModule: protobufVersion,
+			})
+			if len(missingSums) > 0 {
+				findings = append(findings, Finding{
+					Level:        "error",
+					Message:      "Module depends on cli-core but go.sum is missing required Connect/Protobuf checksums",
+					ScenarioName: scenSlug,
+					Evidence: []Evidence{
+						{Type: "file", Ref: filepath.Join(filepath.Dir(goModPath), "go.sum")},
+						{Type: "note", Detail: "Run `go mod tidy` with GOWORK=off; missing: " + strings.Join(missingSums, ", ")},
+					},
+				})
+			}
+		}
+
 		if goModFileHasRequire(modFile, protoModule) && !goModFileHasReplace(modFile, protoModule) {
 			findings = append(findings, Finding{
 				Level:        "error",
@@ -340,6 +386,29 @@ func checkSharedModuleReplaceDirectives(repoRoot, scenarioName string) []Finding
 	}
 
 	return findings
+}
+
+func missingGoSumEntries(goSumPath string, modules map[string]string) []string {
+	content, err := os.ReadFile(goSumPath)
+	if err != nil {
+		missing := make([]string, 0, len(modules))
+		for module, version := range modules {
+			missing = append(missing, module+" "+version)
+		}
+		sort.Strings(missing)
+		return missing
+	}
+	text := string(content)
+	var missing []string
+	for module, version := range modules {
+		moduleVersion := module + " " + version
+		moduleGoMod := module + " " + version + "/go.mod"
+		if !strings.Contains(text, moduleVersion+" ") || !strings.Contains(text, moduleGoMod+" ") {
+			missing = append(missing, moduleVersion)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 func requiresAny(f *modfile.File, modules ...string) bool {

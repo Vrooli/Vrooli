@@ -1,6 +1,6 @@
 module scenario-to-ios
 
-go 1.21.13
+go 1.24.0
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
@@ -12,3 +12,5 @@ require (
 )
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

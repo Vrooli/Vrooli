@@ -1,10 +1,10 @@
 module vrooli-bridge
 
-go 1.21
+go 1.24.0
 
 require (
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
 )
@@ -17,3 +17,5 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

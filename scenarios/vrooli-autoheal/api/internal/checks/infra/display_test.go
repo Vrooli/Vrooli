@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
@@ -136,7 +137,7 @@ func TestDisplayManagerCheckRunGDMActive(t *testing.T) {
 	// gnome-shell check - both generic and user-specific (if auto-login is configured on test machine)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	// Also mock for potential auto-login user on test machine
-	setMockResponse(mockExec, "pgrep -u matthalloran8 gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())
@@ -199,7 +200,7 @@ func TestDisplayManagerCheckRunWithX11(t *testing.T) {
 	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell running (for auto-login user on test machine)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u matthalloran8 gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())
@@ -238,7 +239,7 @@ func TestDisplayManagerCheckRunWithX11Unresponsive(t *testing.T) {
 	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell running (for auto-login user on test machine)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u matthalloran8 gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())
@@ -367,9 +368,9 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 	// No GNOME RDP configured - skips RDP wait loop
 	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell is running after restart (for verification)
-	// The test machine has auto-login for matthalloran8, so mock the user-specific check
+	// The test machine has auto-login for alice, so mock the user-specific check
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u matthalloran8 gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.ExecuteAction(context.Background(), "restart")
@@ -525,7 +526,7 @@ func TestDisplayManagerCheckGnomeRDPHealthy(t *testing.T) {
 	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n\tPort: 3389\n"), nil)
 	// gnome-shell IS running (test machine has auto-login, so mock both generic and user-specific)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u matthalloran8 gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 	// Port 3389 IS listening
 	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:3389           0.0.0.0:*\n"), nil)
 
@@ -568,7 +569,7 @@ func TestDisplayManagerCheckRDPPortNotListening(t *testing.T) {
 	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n\tPort: 3389\n"), nil)
 	// gnome-shell IS running (test machine has auto-login, so mock both)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u matthalloran8 gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 	// But port 3389 is NOT listening (yet)
 	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:22             0.0.0.0:*\n"), nil)
 
@@ -595,7 +596,7 @@ func TestDisplayManagerCheckDiagnoseAction(t *testing.T) {
 	}
 	// Diagnose commands
 	setMockResponse(mockExec, "pgrep -a gnome-shell", []byte("12345 /usr/bin/gnome-shell\n"), nil)
-	setMockResponse(mockExec, "loginctl list-sessions --no-legend", []byte("2 1000 matthalloran8 seat0\n"), nil)
+	setMockResponse(mockExec, "loginctl list-sessions --no-legend", []byte("2 1000 alice seat0\n"), nil)
 	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n"), nil)
 	setMockResponse(mockExec, "ss -tln", []byte("LISTEN 0 128 0.0.0.0:3389 0.0.0.0:*\n"), nil)
 

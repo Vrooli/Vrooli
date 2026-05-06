@@ -31,6 +31,14 @@ func setupGoCliTestDir(t *testing.T, scenarioName string) (repoRoot string) {
 	return root
 }
 
+func mkdirAPIImportDir(t *testing.T, scenarioDir string, parts ...string) {
+	t.Helper()
+	pathParts := append([]string{scenarioDir, "api"}, parts...)
+	if err := os.MkdirAll(filepath.Join(pathParts...), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFixGoCli_AddsMissingAPIReplace(t *testing.T) {
 	scenarioName := "test-go-cli"
 	root := setupGoCliTestDir(t, scenarioName)
@@ -40,6 +48,7 @@ func TestFixGoCli_AddsMissingAPIReplace(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module github.com/vrooli/test-go-cli/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "internal", "config")
 
 	// Write the declared CLI module go.mod without the needed replace.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte("module github.com/vrooli/test-go-cli/cli\n\ngo 1.23\n"), 0o644); err != nil {
@@ -144,6 +153,9 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 	if !strings.Contains(string(content), "replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go") {
 		t.Error("expected repo-contract-go replace directive in api/go.mod")
 	}
+	if !strings.Contains(string(content), "replace github.com/vrooli/vrooli => ../../..") {
+		t.Error("expected Vrooli root replace directive in api/go.mod")
+	}
 }
 
 func TestFixGoCli_AddsMissingRepoContractReplaceToCLI(t *testing.T) {
@@ -188,6 +200,7 @@ func TestFixGoCli_Idempotent(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module github.com/vrooli/test-idempotent/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "internal", "config")
 
 	// Write the declared CLI module go.mod with the correct directives already present.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(`module github.com/vrooli/test-idempotent/cli
@@ -310,6 +323,7 @@ func TestFixGoCli_DetectsSubpackageImport(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module github.com/vrooli/real-import/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "models")
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte("module github.com/vrooli/real-import/cli\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -383,6 +397,7 @@ func TestFixGoCli_DryRunDoesNotWrite(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module github.com/vrooli/test-dryrun/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "internal", "config")
 
 	original := "module github.com/vrooli/test-dryrun/cli\n\ngo 1.23\n"
 	goModPath := filepath.Join(scenarioDir, "cli", "go.mod")
@@ -437,6 +452,7 @@ func TestFixGoCli_ExistingReplaceBlock(t *testing.T) {
 		[]byte("module github.com/vrooli/existing-block/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "internal", "config")
 
 	// CLI go.mod with an existing replace block for a different module.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(`module github.com/vrooli/existing-block/cli
@@ -492,6 +508,7 @@ func TestFixGoCli_CommentedReplaceBlock(t *testing.T) {
 		[]byte("module github.com/vrooli/commented-block/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "models")
 
 	// go.mod with comments inside blocks.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(`module github.com/vrooli/commented-block/cli
@@ -542,6 +559,7 @@ func TestFixGoCli_InlineCommentInModule(t *testing.T) {
 		[]byte("module github.com/vrooli/inline-comment/api // generated\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAPIImportDir(t, scenarioDir, "internal", "config")
 
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
 		[]byte("module github.com/vrooli/inline-comment/cli\n\ngo 1.23\n"), 0o644); err != nil {

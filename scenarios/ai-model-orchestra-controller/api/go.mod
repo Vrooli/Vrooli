@@ -1,11 +1,11 @@
 module ai-model-orchestra-controller
 
-go 1.21
+go 1.24.0
 
 require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/google/uuid v1.5.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.3.0
 	github.com/stretchr/testify v1.11.1
@@ -41,3 +41,5 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

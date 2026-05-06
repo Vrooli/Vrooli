@@ -183,6 +183,7 @@ func TestGoCliRule_DetectsSubpackageImportNotJustInternal(t *testing.T) {
 		[]byte("module github.com/vrooli/sub-import/api\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	mkdirAll(t, filepath.Join(scenarioDir, "api", "models"))
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
 		[]byte("module github.com/vrooli/sub-import/cli\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -209,6 +210,40 @@ func main() {}
 	}
 	if !found {
 		t.Error("expected finding about missing go.mod wiring for api/models import")
+	}
+}
+
+func TestGoCliRule_DoesNotTreatCliModuleImportsAsAPIImports(t *testing.T) {
+	root := setupGoCliTestDir(t, "short-module")
+	scenarioDir := filepath.Join(root, "scenarios", "short-module")
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"),
+		[]byte("module short-module\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
+		[]byte("module short-module/cli\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mkdirAll(t, filepath.Join(scenarioDir, "cli", "internal", "support"))
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"), []byte(`package main
+
+import _ "short-module/cli/internal/support"
+
+func main() {}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "internal", "support", "support.go"), []byte("package support\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, "short-module")
+
+	for _, f := range result.Findings {
+		if strings.Contains(f.Message, "missing go.mod wiring") {
+			t.Fatalf("did not expect CLI-internal imports to require API wiring, got: %+v", f)
+		}
 	}
 }
 
@@ -406,15 +441,143 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
 
-	found := false
+	foundRepoContract := false
+	foundRootModule := false
 	for _, f := range result.Findings {
 		if f.Level == "error" && strings.Contains(f.Message, "repo-contract-go") {
-			found = true
-			break
+			foundRepoContract = true
+		}
+		if f.Level == "error" && strings.Contains(f.Message, "Vrooli root module") {
+			foundRootModule = true
 		}
 	}
-	if !found {
+	if !foundRepoContract {
 		t.Error("expected finding about missing repo-contract-go replace for api-core consumer")
+	}
+	if !foundRootModule {
+		t.Error("expected finding about missing Vrooli root replace for api-core consumer")
+	}
+}
+
+func TestGoCliRule_DetectsIncompleteCliCoreConsumerContract(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "cli-core-consumer"
+	cliDir := filepath.Join(root, "scenarios", scenarioName, "cli")
+	mkdirAll(t, cliDir)
+	mkdirAll(t, filepath.Join(root, "packages", "cli-core", "cliapp"))
+	if err := os.WriteFile(filepath.Join(root, "packages", "cli-core", "go.mod"),
+		[]byte("module github.com/vrooli/cli-core\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "packages", "cli-core", "cliapp", "cliapp.go"),
+		[]byte("package cliapp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	goMod := `module example.com/cli-core-consumer/cli
+
+go 1.25
+
+require github.com/vrooli/cli-core v0.0.0
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
+`
+	if err := os.WriteFile(filepath.Join(cliDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cliDir, "main.go"), []byte(`package main
+
+import _ "github.com/vrooli/cli-core/cliapp"
+
+func main() {}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	for _, want := range []string{
+		"repo-contract-go",
+		"Vrooli root module",
+		"Connect/Protobuf module requirements",
+		"Connect/Protobuf checksums",
+	} {
+		found := false
+		for _, finding := range result.Findings {
+			if finding.Level == "error" && strings.Contains(finding.Message, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected finding containing %q, got %+v", want, result.Findings)
+		}
+	}
+}
+
+func TestGoCliRule_AcceptsCompleteCliCoreConsumerContract(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "complete-cli-core-consumer"
+	cliDir := filepath.Join(root, "scenarios", scenarioName, "cli")
+	mkdirAll(t, cliDir)
+	mkdirAll(t, filepath.Join(root, "packages", "cli-core", "cliapp"))
+	if err := os.WriteFile(filepath.Join(root, "packages", "cli-core", "go.mod"),
+		[]byte("module github.com/vrooli/cli-core\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "packages", "cli-core", "cliapp", "cliapp.go"),
+		[]byte("package cliapp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mkdirAll(t, filepath.Join(root, "packages", "repo-contract-go"))
+	if err := os.WriteFile(filepath.Join(root, "packages", "repo-contract-go", "go.mod"),
+		[]byte("module github.com/vrooli/repo-contract-go\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	goMod := `module example.com/complete-cli-core-consumer/cli
+
+go 1.25
+
+require github.com/vrooli/cli-core v0.0.0
+
+require (
+	connectrpc.com/connect v1.19.2 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..
+`
+	if err := os.WriteFile(filepath.Join(cliDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	goSum := `connectrpc.com/connect v1.19.2 h1:McQ83FGdzL+t60peksi0gXC7MQ/iLKgLduAnThbM0mo=
+connectrpc.com/connect v1.19.2/go.mod h1:tN20fjdGlewnSFeZxLKb0xwIZ6ozc3OQs2hTXy4du9w=
+google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
+google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
+`
+	if err := os.WriteFile(filepath.Join(cliDir, "go.sum"), []byte(goSum), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cliDir, "main.go"), []byte(`package main
+
+import _ "github.com/vrooli/cli-core/cliapp"
+
+func main() {}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	for _, finding := range result.Findings {
+		if strings.Contains(finding.Message, "cli-core") || strings.Contains(finding.Message, "Connect/Protobuf") {
+			t.Fatalf("unexpected cli-core consumer finding: %+v", result.Findings)
+		}
 	}
 }
 

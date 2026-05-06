@@ -48,8 +48,8 @@ func (p *stackGovernorProvider) Rules() []rulespkg.Rule {
 	return []rulespkg.Rule{
 		{
 			ID:          "GO_CLI_WORKSPACE_INDEPENDENCE",
-			Name:        "Go CLI builds without workspace mode",
-			Description: "Ensures Go-based scenario CLIs build with GOWORK=off (no dependency on repo-level go.work) and flags missing non-transitive replace/wiring.",
+			Name:        "Go CLI module is workspace-independent",
+			Description: "Ensures Go-based scenario CLIs build with GOWORK=off and declare non-transitive shared-package requirements, checksums, and local replace wiring.",
 			Category:    "go",
 			Severity:    "high",
 			Enabled:     true,

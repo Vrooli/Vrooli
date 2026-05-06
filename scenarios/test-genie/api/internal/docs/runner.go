@@ -963,10 +963,27 @@ func extractMarkedRefs(file, content string) []markedRefTarget {
 		}
 
 		for _, ref := range markedrefs.ParseInlineCode(line, i+1) {
+			if markedrefs.UnknownMarker(ref) && !looksLikeIntentionalUnknownMarkedRef(ref) {
+				continue
+			}
 			refs = append(refs, markedRefTarget{File: file, Ref: ref})
 		}
 	}
 	return refs
+}
+
+func looksLikeIntentionalUnknownMarkedRef(ref markedrefs.Reference) bool {
+	if len(ref.Qualifiers) > 0 {
+		return true
+	}
+	value := strings.TrimSpace(ref.Value)
+	if value == "" || strings.ContainsAny(value, " \t\r\n\"'<>") {
+		return false
+	}
+	if strings.HasPrefix(value, "//") {
+		return false
+	}
+	return strings.Contains(value, "/") || strings.Contains(value, "*")
 }
 
 func (r *Runner) validateMarkedRef(ref markedRefTarget) (markedRefStatus, error) {
