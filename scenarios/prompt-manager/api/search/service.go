@@ -22,7 +22,7 @@ func NewService(store skills.SkillStore) *Service {
 	return &Service{store: store}
 }
 
-// Search performs full-text search across skills.
+// Search performs quick metadata search across skills.
 func (s *Service) Search(query SearchQuery) (*SearchResponse, error) {
 	allSkills, err := s.store.GetAll()
 	if err != nil {
@@ -209,20 +209,6 @@ func (s *Service) calculateScore(skill skills.Metadata, queryLower string) float
 		}
 	}
 
-	// Check content (need to load it)
-	folder, filename := s.extractFolderAndFile(skill.File)
-	if content, err := s.store.GetContent(folder, filename); err == nil {
-		contentLower := strings.ToLower(content)
-		if strings.Contains(contentLower, queryLower) {
-			// Count occurrences
-			occurrences := strings.Count(contentLower, queryLower)
-			score += float64(occurrences) * 0.5
-			if occurrences > 10 {
-				score += 2.0 // Cap bonus for many occurrences
-			}
-		}
-	}
-
 	return score
 }
 
@@ -232,15 +218,6 @@ func (s *Service) extractHighlight(skill skills.Metadata, queryLower string) str
 	descLower := strings.ToLower(skill.Description)
 	if idx := strings.Index(descLower, queryLower); idx >= 0 {
 		return extractSnippet(skill.Description, idx, len(queryLower), 100)
-	}
-
-	// Try content
-	folder, filename := s.extractFolderAndFile(skill.File)
-	if content, err := s.store.GetContent(folder, filename); err == nil {
-		contentLower := strings.ToLower(content)
-		if idx := strings.Index(contentLower, queryLower); idx >= 0 {
-			return extractSnippet(content, idx, len(queryLower), 100)
-		}
 	}
 
 	return ""

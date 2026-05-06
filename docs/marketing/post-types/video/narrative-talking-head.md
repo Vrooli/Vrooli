@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-narrative-talking-head` *(planned)*
-**Primary author:** `subscription-advertiser`
+**Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
 **Notebook home for emerging craft patterns:** `../../notebook/NARRATIVE_TALKING_HEAD_CRAFT.md` (created on first observation)
 
 ## Purpose

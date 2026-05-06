@@ -1,6 +1,12 @@
 {
   "required_read": [
     {
+      "prefix": "artifact-request/oss/*"
+    },
+    {
+      "prefix": "artifact-request/subscription/*"
+    },
+    {
       "prefix": "coverage-snapshot/YYYY-MM-DD"
     },
     {

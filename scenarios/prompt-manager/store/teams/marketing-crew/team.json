@@ -73,6 +73,10 @@
             },
             {
               "base": "repo-root",
+              "path": "docs/marketing/OPERATING_MODEL.md"
+            },
+            {
+              "base": "repo-root",
               "path": "docs/marketing/STRATEGY.md"
             },
             {
@@ -492,6 +496,16 @@
       }
     },
     "knowledgeTopics": {
+      "artifact-request/oss/<slug>": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "artifact-request/subscription/<slug>": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
       "brand-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "brand-manager",
         "supersedesPrevious": true,
@@ -518,6 +532,26 @@
         "retention": "snapshot"
       },
       "monetization-benchmark-adjacent-record/<topic>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "workflow-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "skill-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "channel-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "format-scan/<slug>": {
         "ownerMemberId": "researcher",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -601,7 +635,7 @@
         }
       },
       "subscription-advertiser": {
-        "lane": "Generate subscription SKU marketing drafts and coverage-gap/capability-gap proposals without editing canon or publishing.",
+        "lane": "Subscription-lane advertiser in the shared draft pipeline. Consumes subscription artifact requests, marketing evidence, canon, coverage, and publish state; writes campaign drafts plus coverage/capability proposals without editing canon or publishing.",
         "ownedDecisionContexts": [
           "content-publish-proposal",
           "coverage-gap",
@@ -655,7 +689,7 @@
         }
       },
       "oss-advertiser": {
-        "lane": "Generate builder-in-public and OSS narrative drafts from Vrooli activity and x-dev-log evidence.",
+        "lane": "OSS-lane advertiser in the shared draft pipeline. Consumes OSS artifact requests, marketing evidence, canon, coverage, and publish state; writes builder-in-public drafts plus coverage/capability proposals without editing canon or publishing.",
         "ownedDecisionContexts": [
           "content-publish-proposal",
           "coverage-gap",
@@ -709,7 +743,7 @@
         }
       },
       "publisher": {
-        "lane": "Execute approved publish proposals, polish platform variants, maintain publish logs and coverage state, and raise scheduling gaps.",
+        "lane": "Execute approved publish proposals, polish platform variants, maintain publish logs, subject mentions, and coverage state, and raise channel or scheduling gaps.",
         "ownedDecisionContexts": [
           "content-publish-proposal",
           "channel-update",
@@ -775,7 +809,7 @@
         }
       },
       "researcher": {
-        "lane": "Scan audience, competitor, trend, craft, format, hook, and benchmark-adjacent signals before proposing canon updates.",
+        "lane": "Drain research-inbox signals into durable audience, competitor, hook, workflow, skill, channel, format, and benchmark-adjacent evidence before proposing planning or capability decisions.",
         "ownedDecisionContexts": [
           "audience-update",
           "channel-strategy-update",

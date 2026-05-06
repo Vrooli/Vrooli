@@ -7,6 +7,27 @@
   ],
   "required_read": [
     {
+      "prefix": "audience-scan/*"
+    },
+    {
+      "prefix": "competitor-record/*"
+    },
+    {
+      "prefix": "hook-record/*"
+    },
+    {
+      "prefix": "channel-scan/*"
+    },
+    {
+      "prefix": "format-scan/*"
+    },
+    {
+      "prefix": "publish-log/*"
+    },
+    {
+      "prefix": "coverage-snapshot/*"
+    },
+    {
       "prefix": "brand-snapshot/YYYY-MM-DD"
     }
   ],
@@ -43,6 +64,14 @@
     },
     {
       "prefix": "brand-snapshot/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "artifact-request/oss/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "artifact-request/subscription/*",
       "destination_kind": "knowledge"
     }
   ],

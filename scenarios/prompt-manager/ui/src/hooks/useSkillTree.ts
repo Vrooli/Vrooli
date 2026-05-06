@@ -42,8 +42,8 @@ interface UseSkillTreeProps {
   /** Initial search query (for persistence) */
   initialSearchQuery?: string
   /**
-   * Server-backed quick-search match IDs. When present, these replace the
-   * local metadata-only search so content-only matches can appear in the tree.
+   * Server-backed quick-search match IDs. Quick search is metadata-only:
+   * name, description, tags, and modes.
    */
   searchMatchedSkillIds?: Set<string> | null
 }
@@ -104,7 +104,6 @@ function skillMatchesLocalSearch(skill: Skill, query: string): boolean {
   return (
     skill.name.toLowerCase().includes(query) ||
     skill.description.toLowerCase().includes(query) ||
-    skill.content.toLowerCase().includes(query) ||
     skill.tags.some((t) => t.toLowerCase().includes(query)) ||
     skill.modes.some((m) => m.toLowerCase().includes(query))
   )
@@ -189,7 +188,7 @@ export function useSkillTree({
       : filterTreeBySkillIds(treeNodes, matchingIds)
 
     // Apply local search filter on top. Server-backed search was already
-    // applied by ID above; re-filtering locally would drop content-only hits.
+    // applied by ID above.
     if (searchQuery.trim() && !searchMatchedSkillIds) {
       filtered = filterTree(filtered, searchQuery, skills)
     }
@@ -268,10 +267,7 @@ export function useSkillTree({
     }
   }, [selectedItemId, expandToItem])
 
-  // When search query changes, expand all matching nodes
-  // Note: We intentionally only depend on searchQuery, not filteredTreeNodes,
-  // to avoid infinite loops when setExpandedNodes triggers a re-render.
-  // We access filteredTreeNodes as a snapshot, not as a reactive dependency.
+  // When search results change, expand all matching nodes.
   useEffect(() => {
     // Preserve persisted folder expansion on first mount even when a search query is restored.
     if (!hasHydratedSearchExpansion.current) {
@@ -295,8 +291,7 @@ export function useSkillTree({
       collectExpandable(filteredTreeNodes)
       setExpandedNodes((prev) => (areStringSetsEqual(prev, nodesToExpand) ? prev : nodesToExpand))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery])
+  }, [filteredTreeNodes, searchQuery])
 
   return {
     // Tree data

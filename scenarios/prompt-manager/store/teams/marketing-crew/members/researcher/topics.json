@@ -53,6 +53,26 @@
       "schema": "hook"
     },
     {
+      "prefix": "workflow-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "workflow-scan"
+    },
+    {
+      "prefix": "skill-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "skill-scan"
+    },
+    {
+      "prefix": "channel-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "channel-scan"
+    },
+    {
+      "prefix": "format-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "format-scan"
+    },
+    {
       "prefix": "monetization-benchmark-adjacent-record/*",
       "destination_kind": "knowledge",
       "destination_team": "monetization",

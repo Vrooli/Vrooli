@@ -195,7 +195,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 1. Present pending marketing-crew decisions from the prep deliverable (max 3, diversified across contexts — not 3 publish-proposals in a row if other contexts have items).
 2. For each decision: state what's being decided, the proposing member (brand-manager / subscription-advertiser / oss-advertiser / publisher / researcher / marketing-contrarian), the recommendation, and **any attached challenge notes from marketing-contrarian**. The contrarian's skepticism is first-class — present it, don't bury it.
 3. Context-specific framings:
-   - `content-publish-proposal` — "Member X drafted <artifact> for <audience / SKU>. Publish, hold for revision, or reject?" The linked draft is in `shared/campaign-drafts.jsonl`; read it before deciding if the summary isn't enough.
+   - `content-publish-proposal` — "Member X drafted <artifact> for <audience / SKU>. Publish, hold for revision, or reject?" The linked draft is in the marketing-crew draft store; read it before deciding if the summary isn't enough.
    - `campaign-launch-proposal` — "Brand-manager proposes a campaign: <theme> targeting <audience> with launch window <date>. Approve (operator updates `docs/marketing/CAMPAIGNS.md`), defer, or reject?"
    - `brand-guideline-update` / `audience-update` / `channel-update` — "Proposed edit to plan-of-record: <brief>. Approve (operator edits `docs/marketing/<file>.md`) or reject?"
    - `coverage-gap` — "Deployed SKU <sku> has stale / missing marketing coverage. Direct the advertiser to prioritize refresh, or acknowledge and defer?"

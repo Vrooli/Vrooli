@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-slideshow-tips-then-plug` *(planned)*
-**Primary author:** `subscription-advertiser`
+**Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
 **Notebook home for emerging craft patterns:** `../../notebook/SLIDESHOW_TIPS_THEN_PLUG_CRAFT.md` (created on first observation)
 
 ## Purpose

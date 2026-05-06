@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28; will harden as the type runs in production and the marketing notebook accumulates entries).
 
 **Paired skill:** `x-single-image-ad` *(planned)*
-**Primary author:** `subscription-advertiser` (with operator handoff for posting)
+**Primary lane/member:** Usually subscription lane (`subscription-advertiser`) for drafting, with publisher/operator handoff for posting.
 **Notebook home for emerging craft patterns:** `../../notebook/SINGLE_IMAGE_AD_CRAFT.md` (created on first observation)
 
 ## Purpose

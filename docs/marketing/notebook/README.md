@@ -38,19 +38,19 @@ This split avoids the failure mode where members edit each other's notes and the
 
 ## What is NOT in these docs
 
-- **Team operating rules** — those live in `scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md` because they define the team's structure. They're part of the code, not the notebook.
+- **Team operating rules** — those live in `docs/marketing/OPERATING_MODEL.md` and the marketing-crew member definitions because they define the team's structure. They are part of the operating model, not the notebook.
 - **Brand / voice canon** — those live in `docs/marketing/STRATEGY.md`, `AUDIENCES.md`, etc. Plan-of-record is the home for anything other teams / scenarios read as authoritative.
-- **Per-heartbeat state** — campaign-drafts, publish-log, audience-scans, knowledge snapshots live under `path:scenarios/prompt-manager/store/teams/marketing-crew/shared/`. That's the *hot buffer*. When a pattern in the hot buffer stabilizes, it may get distilled into these docs; when a doc entry matures, the `brand-manager` proposes it for promotion into permanent structure.
+- **Per-heartbeat state** — campaign drafts, publish logs, audience scans, and knowledge snapshots live in the marketing-crew topic store. That's the *hot buffer*. When a pattern in the hot buffer stabilizes, it may get distilled into these docs; when a doc entry matures, the `brand-manager` proposes it for promotion into permanent structure.
 
 ## The three-tier mental model
 
 ```
 Hot buffer (per-heartbeat)      Living notebook (distilled)     Permanent structure
 ─────────────────────────  →    ──────────────────────────  →   ──────────────────────
-shared/campaign-drafts.jsonl    docs/marketing/notebook/         Skills, scenarios, plan-of-record
-shared/publish-log.jsonl        VIDEO_WORKAROUNDS.md             prompt-manager skills/
-shared/audience-scans.jsonl     POSTING_WORKAROUNDS.md           scenarios/video-studio (eventual)
-shared/knowledge.jsonl          AUDIENCE_OBSERVATIONS.md         scenarios/social-media-scheduler
+campaign draft entries          docs/marketing/notebook/         Skills, scenarios, plan-of-record
+publish log entries             VIDEO_WORKAROUNDS.md             prompt-manager skills/
+audience scan entries           POSTING_WORKAROUNDS.md           scenarios/video-studio (eventual)
+knowledge snapshots             AUDIENCE_OBSERVATIONS.md         scenarios/social-media-scheduler
 ...                             CAMPAIGN_LESSONS.md              docs/marketing/*.md (plan-of-record)
                                 DEV_LOG_CRAFT.md
 ```
@@ -65,4 +65,5 @@ Early-stage docs should say "revisit this section after N heartbeats" or "revisi
 
 - `docs/agent-system/TEAM_DOCS_PATTERNS.md` — the two-pattern definition (canon).
 - `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern that has largely replaced markdown notebooks across the agent system.
-- `scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md` — live operating rules.
+- `docs/marketing/OPERATING_MODEL.md` — marketing-crew's end-to-end operating model.
+- `scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md` — team-local mission, scope, and principles.

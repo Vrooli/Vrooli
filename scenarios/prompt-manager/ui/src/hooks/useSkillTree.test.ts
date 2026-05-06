@@ -301,7 +301,7 @@ describe('useSkillTree', () => {
       expect(result.current.expandedNodes.has('development/react')).toBe(false)
     })
 
-    it('should keep server-backed content-only search matches', () => {
+    it('should use server-backed quick search matches by ID', () => {
       const skills = [
         createTestSkill({ id: '1', name: 'Alpha Skill', content: '' }),
         createTestSkill({ id: '2', name: 'Beta Skill', content: '' }),
@@ -318,6 +318,23 @@ describe('useSkillTree', () => {
       expect(result.current.filteredSortedSkills).toHaveLength(1)
       expect(result.current.filteredSortedSkills[0]?.id).toBe('2')
       expect(result.current.filteredTreeNodes[0]?.children[0]?.itemId).toBe('2')
+    })
+
+    it('should not match skill body content in quick search fallback', () => {
+      const skills = [
+        createTestSkill({ id: '1', name: 'Alpha Skill', description: 'Alpha description', content: 'body-only-term' }),
+        createTestSkill({ id: '2', name: 'Beta Skill', description: 'Beta description', content: '' }),
+      ]
+
+      const { result } = renderHook(() =>
+        useSkillTree({
+          skills,
+          initialSearchQuery: 'body-only-term',
+        })
+      )
+
+      expect(result.current.filteredSortedSkills).toHaveLength(0)
+      expect(result.current.filteredTreeNodes).toHaveLength(0)
     })
 
     it('should keep local name matches when server-backed search returns no IDs', () => {

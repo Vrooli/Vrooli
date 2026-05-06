@@ -3,7 +3,7 @@
 **Status:** v1. New post type introduced at walk #5 (2026-04-28). Will mature as the `x-scenario-spotlight` skill runs in production and the marketing notebook accumulates entries.
 
 **Paired skill:** [`x-scenario-spotlight`](../../../../scenarios/prompt-manager/store/skills/packs/core/x-scenario-spotlight/)
-**Primary author:** `subscription-advertiser` (with operator handoff for the manual posting step)
+**Primary lane/member:** Subscription lane (`subscription-advertiser`) for drafting, with publisher/operator handoff for the release step.
 **Notebook home for emerging craft patterns:** `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (created on first observation, not pre-emptively)
 
 ## Purpose

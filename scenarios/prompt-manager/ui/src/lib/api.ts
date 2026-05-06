@@ -548,8 +548,8 @@ class ApiClient {
     )
   }
 
-  // Search via the API so content-only matches are included. The server returns
-  // lightweight search rows; map them back onto list skills for existing callers.
+  // Search via the API. The server returns lightweight search rows; map them
+  // back onto list skills for existing callers.
   async searchSkills(query: string, filters?: SearchFilters): Promise<Skill[]> {
     const [searchResponse, allSkills] = await Promise.all([
       this.searchSkillResults(query, filters),

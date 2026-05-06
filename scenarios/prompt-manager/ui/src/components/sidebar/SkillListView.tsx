@@ -9,7 +9,6 @@ import type { Skill } from '@/types'
 import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'
 import { onProfilerRender } from '@/lib/profiler'
-import { useVirtualRows } from '@/hooks/useVirtualRows'
 
 interface SkillListViewProps {
   skills: Skill[]
@@ -76,11 +75,6 @@ function SkillListViewImpl({
   onCombineToggleSkill,
 }: SkillListViewProps) {
   const showDetails = detailMode === 'full'
-  const rowHeight = showDetails ? 82 : 38
-  const { containerRef, totalHeight, virtualRows } = useVirtualRows({
-    count: skills.length,
-    rowHeight,
-  })
 
   if (skills.length === 0) {
     return (
@@ -92,16 +86,11 @@ function SkillListViewImpl({
 
   return (
     <div
-      ref={containerRef}
-      className="h-full overflow-y-auto"
+      className="w-full"
       role="listbox"
       data-testid="skill-list-view"
     >
-      <div className="relative" style={{ height: totalHeight }}>
-        {virtualRows.map(({ index, offsetTop }) => {
-          const skill = skills[index]
-          if (!skill) return null
-
+      {skills.map((skill) => {
           const isSelected = skill.id === selectedItemId
           const isDirty = dirtyItemIds.has(skill.id)
           const isCombineSelected = combineMode && combineSelectedIds?.has(skill.id)
@@ -128,7 +117,7 @@ function SkillListViewImpl({
                 }
               }}
               className={cn(
-                'absolute left-0 right-0 flex flex-col gap-0.5 px-3 text-left transition-colors border-b border-border/50',
+                'flex w-full flex-col gap-0.5 px-3 text-left transition-colors border-b border-border/50',
                 showDetails ? 'py-2' : 'py-1.5',
                 combineMode
                   ? isCombineSelected
@@ -138,7 +127,6 @@ function SkillListViewImpl({
                     ? 'bg-primary/30 text-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
-              style={{ top: offsetTop, height: rowHeight }}
               data-testid="skill-list-item"
               data-skill-id={skill.id}
             >
@@ -197,8 +185,7 @@ function SkillListViewImpl({
               )}
             </button>
           )
-        })}
-      </div>
+      })}
     </div>
   )
 }

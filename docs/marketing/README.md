@@ -15,6 +15,7 @@ Use this README first, then choose the file or sub-hub that matches the work:
 
 | Question | Start with |
 |---|---|
+| How does the marketing team operate end to end? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
 | What should Vrooli sound like? | [`STRATEGY.md`](STRATEGY.md) |
 | Who is the audience? | [`AUDIENCES.md`](AUDIENCES.md) |
 | Which campaign is active? | [`CAMPAIGNS.md`](CAMPAIGNS.md) |
@@ -31,6 +32,7 @@ Use this README first, then choose the file or sub-hub that matches the work:
 
 | File | Purpose |
 |------|---------|
+| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Target-state operating model: loops, roles, topic surfaces, decision handoffs, notebook drainage, current implementation gaps, and adoption sequence. |
 | [`STRATEGY.md`](STRATEGY.md) | Voice canon: positioning principles, dual-audience framing (subscription + OSS), voice samples, anti-patterns, dev-log narrative principles. |
 | [`AUDIENCES.md`](AUDIENCES.md) | Personas. Subscription buyer, OSS contributor. Researcher proposes updates via `audience-update` decisions. |
 | [`CAMPAIGNS.md`](CAMPAIGNS.md) | Index of active campaigns. Brand-manager proposes launches via `campaign-launch-proposal` decisions. |

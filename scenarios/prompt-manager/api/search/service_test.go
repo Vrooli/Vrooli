@@ -72,14 +72,14 @@ func (m *mockSkillStore) Rename(oldID, newID string) (*skills.Metadata, error) {
 	return nil, errors.New("not implemented")
 }
 
-func TestSearch_IncludesContentAndModeMatches(t *testing.T) {
+func TestSearch_UsesMetadataOnly(t *testing.T) {
 	store := &mockSkillStore{
 		skills: []skills.Metadata{
 			{
-				ID:          "content-skill",
-				Name:        "Content Skill",
+				ID:          "body-only-skill",
+				Name:        "Body Only Skill",
 				Description: "No visible query here",
-				File:        "core/content-skill.md",
+				File:        "core/body-only-skill.md",
 				Modes:       []string{"authoring"},
 			},
 			{
@@ -91,19 +91,19 @@ func TestSearch_IncludesContentAndModeMatches(t *testing.T) {
 			},
 		},
 		contents: map[string]string{
-			"core/content-skill.md": "This body mentions regression-only text.",
-			"local/mode-skill.md":   "No matching body.",
+			"core/body-only-skill.md": "This body mentions regression-only text.",
+			"local/mode-skill.md":     "No matching body.",
 		},
 	}
 
 	service := NewService(store)
 
-	contentResp, err := service.Search(SearchQuery{Query: "regression-only"})
+	bodyOnlyResp, err := service.Search(SearchQuery{Query: "regression-only"})
 	if err != nil {
-		t.Fatalf("unexpected content search error: %v", err)
+		t.Fatalf("unexpected body-only search error: %v", err)
 	}
-	if contentResp.Total != 1 || contentResp.Results[0].ID != "content-skill" {
-		t.Fatalf("content search results = %+v, want content-skill", contentResp.Results)
+	if bodyOnlyResp.Total != 0 {
+		t.Fatalf("body-only quick search results = %+v, want none", bodyOnlyResp.Results)
 	}
 
 	modeResp, err := service.Search(SearchQuery{Query: "testing"})

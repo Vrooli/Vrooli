@@ -1,6 +1,36 @@
 {
   "required_read": [
     {
+      "prefix": "artifact-request/subscription/*"
+    },
+    {
+      "prefix": "audience-scan/*"
+    },
+    {
+      "prefix": "competitor-record/*"
+    },
+    {
+      "prefix": "hook-record/*"
+    },
+    {
+      "prefix": "workflow-scan/*"
+    },
+    {
+      "prefix": "skill-scan/*"
+    },
+    {
+      "prefix": "channel-scan/*"
+    },
+    {
+      "prefix": "format-scan/*"
+    },
+    {
+      "prefix": "publish-log/*"
+    },
+    {
+      "prefix": "coverage-snapshot/*"
+    },
+    {
       "prefix": "subscription-ad-run/YYYY-MM-DD"
     }
   ],

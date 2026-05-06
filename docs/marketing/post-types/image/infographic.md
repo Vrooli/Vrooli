@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-infographic` *(planned)*
-**Primary author:** `subscription-advertiser` (lifestyle/general) or `oss-advertiser` (technical)
+**Primary lane/member:** Subscription lane (`subscription-advertiser`) for lifestyle/general subjects; OSS lane (`oss-advertiser`) for technical subjects.
 **Notebook home for emerging craft patterns:** `../../notebook/INFOGRAPHIC_CRAFT.md` (created on first observation)
 
 ## Purpose

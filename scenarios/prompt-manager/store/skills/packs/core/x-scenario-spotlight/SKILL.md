@@ -34,6 +34,7 @@ prompt-manager skill read swarm-manager-initiative-context  # how to pull scenar
 Required file reads (every run):
 
 - `docs/marketing/post-types/text/scenario-spotlight.md` — strategic canon (purpose, audience, conversion goal, asset requirements, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/OPERATING_MODEL.md` — team workflow canon: advertiser lanes draft from evidence, publisher releases, brand-manager owns canon and artifact requests.
 - `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
 - `docs/marketing/post-techniques/essay-shape.md`
 - `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`
@@ -55,7 +56,7 @@ Optional reads:
 
 ### **4. Inputs**
 
-The caller (typically `subscription-advertiser` member, occasionally direct operator) provides:
+The caller (typically the subscription lane through `subscription-advertiser`, occasionally direct operator) provides:
 
 | Input | Required | Example |
 |-------|----------|---------|

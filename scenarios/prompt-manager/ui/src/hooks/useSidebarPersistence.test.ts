@@ -50,6 +50,7 @@ const makeOptions = (
 
 describe('useSidebarPersistence', () => {
   const STORAGE_KEY = 'pm.sidebarState'
+  const STORAGE_SCHEMA_VERSION = 2
 
   // Create a working localStorage mock for these tests
   let store: Record<string, string> = {}
@@ -121,7 +122,10 @@ describe('useSidebarPersistence', () => {
           regex: false,
         },
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        ...savedState,
+      }))
 
       const state = loadSidebarState()
 
@@ -145,7 +149,10 @@ describe('useSidebarPersistence', () => {
           regex: false,
         },
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        ...savedState,
+      }))
 
       const state = loadSidebarState()
 
@@ -176,7 +183,10 @@ describe('useSidebarPersistence', () => {
     })
 
     it('should handle partial data with defaults', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ isCollapsed: true }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        isCollapsed: true,
+      }))
 
       const state = loadSidebarState()
 
@@ -198,10 +208,38 @@ describe('useSidebarPersistence', () => {
       })
     })
 
+    it('should reset unversioned persisted state to defaults', () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        isCollapsed: true,
+        filterState: { storage: [], tags: [], usagePreset: null, minRating: null, status: 'draft' },
+        searchQuery: 'stale query',
+      }))
+
+      const state = loadSidebarState()
+
+      expect(state).toEqual({
+        isCollapsed: false,
+        expandedNodes: [],
+        filterState: DEFAULT_FILTER_STATE,
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
+        detailMode: DEFAULT_DETAIL_MODE,
+        activeTab: 'skills',
+        searchQuery: '',
+        searchMode: 'quick',
+        contentSearchOptions: {
+          caseSensitive: false,
+          wholeWord: false,
+          regex: false,
+        },
+      })
+    })
+
     it('should handle invalid types with defaults', () => {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
+          schemaVersion: STORAGE_SCHEMA_VERSION,
           isCollapsed: 'not a boolean',
           expandedNodes: 'not an array',
           filterState: 123,
@@ -251,7 +289,10 @@ describe('useSidebarPersistence', () => {
       saveSidebarState(state)
 
       const saved = localStorage.getItem(STORAGE_KEY)
-      expect(saved).toBe(JSON.stringify(state))
+      expect(JSON.parse(saved || '{}')).toEqual({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        ...state,
+      })
     })
   })
 
@@ -298,8 +339,9 @@ describe('useSidebarPersistence', () => {
       })
 
       // Now it should be saved
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as SidebarPersistedState
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as SidebarPersistedState & { schemaVersion: number }
       expect(saved).toEqual({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
         isCollapsed: true,
         expandedNodes: ['folder-1'],
         filterState: { storage: ['local'], tags: ['tag-1'], usagePreset: null, minRating: null, status: 'all' },
@@ -402,8 +444,9 @@ describe('useSidebarPersistence', () => {
       })
 
       // Only the final state should be saved
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as SidebarPersistedState
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as SidebarPersistedState & { schemaVersion: number }
       expect(saved).toEqual({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
         isCollapsed: true,
         expandedNodes: ['a', 'b'],
         filterState: { storage: ['local', 'core'], tags: ['tag'], usagePreset: null, minRating: null, status: 'all' },
@@ -439,7 +482,10 @@ describe('useSidebarPersistence', () => {
           regex: true,
         },
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        ...savedState,
+      }))
 
       const { result } = renderHook(() =>
         useSidebarPersistence(makeOptions())

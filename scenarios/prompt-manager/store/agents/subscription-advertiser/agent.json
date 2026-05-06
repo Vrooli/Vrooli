@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "subscription-advertiser",
   "displayName": "Subscription Advertiser",
-  "description": "Generates marketing material for Vrooli subscription SKUs, bundles, and add-ons — both deployed and imminent-release. Produces drafts into shared/campaign-drafts.jsonl and raises content-publish-proposal, coverage-gap, and capability-gap decisions. Disciplined by the rule that subscription = convenience + integrated gateway, never paywalling core.",
+  "description": "Subscription lane advertiser in the shared marketing draft pipeline. Consumes subscription artifact requests, research evidence, canon, publish logs, and coverage; produces SKU, bundle, and add-on campaign drafts and publish proposals. Subscription means convenience plus integrated gateway, never paywalling core.",
   "status": "active",
   "appearance": {
     "body": "#7C2D12",

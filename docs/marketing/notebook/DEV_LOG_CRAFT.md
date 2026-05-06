@@ -1,6 +1,6 @@
 # Dev Log Craft
 
-Patterns observed using the `x-dev-log` skill that should feed back into improving it. Primarily maintained by `oss-advertiser` during dev-log production.
+Patterns observed using the `x-dev-log` skill that should feed back into improving it. Primarily maintained by the OSS lane (`oss-advertiser`) during dev-log production.
 
 **Promotion target:** `x-dev-log` skill edits — specifically the mining-strategy rubric, interestingness-scoring weights, or output-contract fields.
 

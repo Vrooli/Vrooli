@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-demo-recording` *(planned)*
-**Primary author:** `subscription-advertiser` or `oss-advertiser`
+**Primary lane/member:** Lane depends on demo subject; publisher handles the release package.
 **Notebook home for emerging craft patterns:** `../../notebook/DEMO_RECORDING_CRAFT.md` (created on first observation)
 
 ## Purpose

@@ -31,6 +31,7 @@ Required scenarios (check with `vrooli scenario status`):
 
 Required reading (every run):
 - `docs/marketing/post-types/text/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/OPERATING_MODEL.md` — team workflow canon: advertiser lanes draft from evidence, publisher releases, brand-manager owns canon and artifact requests.
 - `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
 - `docs/marketing/post-techniques/essay-shape.md`
 - `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`
@@ -102,7 +103,7 @@ Select top items aiming for 3-7 tweets per thread. Balance variety - don't just 
 
 ### **7. Output Contract**
 
-Return structured JSON for review:
+Return structured JSON for review. The caller is responsible for turning an accepted result into the marketing team's draft/proposal workflow; this skill never publishes directly.
 
 ```json
 {

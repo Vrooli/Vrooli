@@ -84,32 +84,32 @@ Ask the questions in order. The first "yes" picks the type.
 
 ### `text/`
 
-| File | Status | Primary skill | Primary member |
+| File | Status | Primary skill | Primary lane/member |
 |------|--------|---------------|----------------|
-| [`text/dev-log.md`](text/dev-log.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28; moved into `text/` 2026-04-28) | `x-dev-log` | `oss-advertiser` |
-| [`text/scenario-spotlight.md`](text/scenario-spotlight.md) | v1 (moved into `text/` 2026-04-28) | `x-scenario-spotlight` | `subscription-advertiser` |
-| `text/oss-framework.md` | *planned — Post 3 from walk #5 (jcode-vs-Claude-Code-and-Codex framing) is a candidate reference* | `x-oss-framework` *(future)* | `oss-advertiser` |
-| `text/use-case-tutorial.md` | *planned — pending observation of 2-3 candidates in our own funnel* | `x-use-case-tutorial` *(future)* | `oss-advertiser` *(may split out)* |
+| [`text/dev-log.md`](text/dev-log.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28; moved into `text/` 2026-04-28) | `x-dev-log` | OSS lane (`oss-advertiser`) |
+| [`text/scenario-spotlight.md`](text/scenario-spotlight.md) | v1 (moved into `text/` 2026-04-28) | `x-scenario-spotlight` | Subscription lane (`subscription-advertiser`) |
+| `text/oss-framework.md` | *planned — Post 3 from walk #5 (jcode-vs-Claude-Code-and-Codex framing) is a candidate reference* | `x-oss-framework` *(future)* | OSS lane (`oss-advertiser`) |
+| `text/use-case-tutorial.md` | *planned — pending observation of 2-3 candidates in our own funnel* | `x-use-case-tutorial` *(future)* | Usually OSS lane (`oss-advertiser`); may split later |
 
 ### `image/`
 
-| File | Status | Primary skill | Primary member |
+| File | Status | Primary skill | Primary lane/member |
 |------|--------|---------------|----------------|
-| [`image/single-image-ad.md`](image/single-image-ad.md) | v0 (skeleton — awaiting first production run) | `x-single-image-ad` *(future)* | `subscription-advertiser` |
-| [`image/slideshow-listicle.md`](image/slideshow-listicle.md) | v0 (skeleton) | `x-slideshow-listicle` *(future)* | `subscription-advertiser` |
-| [`image/slideshow-tips-then-plug.md`](image/slideshow-tips-then-plug.md) | v0 (skeleton) | `x-slideshow-tips-then-plug` *(future)* | `subscription-advertiser` |
-| [`image/infographic.md`](image/infographic.md) | v0 (skeleton) | `x-infographic` *(future)* | `subscription-advertiser` |
+| [`image/single-image-ad.md`](image/single-image-ad.md) | v0 (skeleton — awaiting first production run) | `x-single-image-ad` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`image/slideshow-listicle.md`](image/slideshow-listicle.md) | v0 (skeleton) | `x-slideshow-listicle` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`image/slideshow-tips-then-plug.md`](image/slideshow-tips-then-plug.md) | v0 (skeleton) | `x-slideshow-tips-then-plug` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`image/infographic.md`](image/infographic.md) | v0 (skeleton) | `x-infographic` *(future)* | Lane depends on subject: subscription for lifestyle/general, OSS for technical |
 
 ### `video/`
 
-| File | Status | Primary skill | Primary member |
+| File | Status | Primary skill | Primary lane/member |
 |------|--------|---------------|----------------|
-| [`video/narrative-talking-head.md`](video/narrative-talking-head.md) | v0 (skeleton) | `x-narrative-talking-head` *(future)* | `subscription-advertiser` |
-| [`video/day-in-life-ugc.md`](video/day-in-life-ugc.md) | v0 (skeleton) | `x-day-in-life-ugc` *(future)* | `subscription-advertiser` |
-| [`video/problem-agitate-solve.md`](video/problem-agitate-solve.md) | v0 (skeleton) | `x-problem-agitate-solve` *(future)* | `subscription-advertiser` |
-| [`video/demo-recording.md`](video/demo-recording.md) | v0 (skeleton) | `x-demo-recording` *(future)* | `subscription-advertiser` |
-| [`video/comparison-reel.md`](video/comparison-reel.md) | v0 (skeleton) | `x-comparison-reel` *(future)* | `subscription-advertiser` |
-| [`video/slideshow-voiceover.md`](video/slideshow-voiceover.md) | v0 (skeleton) | `x-slideshow-voiceover` *(future)* | `subscription-advertiser` |
+| [`video/narrative-talking-head.md`](video/narrative-talking-head.md) | v0 (skeleton) | `x-narrative-talking-head` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`video/day-in-life-ugc.md`](video/day-in-life-ugc.md) | v0 (skeleton) | `x-day-in-life-ugc` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`video/problem-agitate-solve.md`](video/problem-agitate-solve.md) | v0 (skeleton) | `x-problem-agitate-solve` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`video/demo-recording.md`](video/demo-recording.md) | v0 (skeleton) | `x-demo-recording` *(future)* | Lane depends on demo subject; publisher handles release package |
+| [`video/comparison-reel.md`](video/comparison-reel.md) | v0 (skeleton) | `x-comparison-reel` *(future)* | Lane depends on comparison subject |
+| [`video/slideshow-voiceover.md`](video/slideshow-voiceover.md) | v0 (skeleton) | `x-slideshow-voiceover` *(future)* | Usually subscription lane (`subscription-advertiser`) |
 
 ## Cross-cutting techniques (shared across types)
 
