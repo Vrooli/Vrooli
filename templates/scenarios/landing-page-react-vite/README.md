@@ -2,6 +2,8 @@
 
 A production-ready landing page template with A/B testing, Stripe payments, analytics, and an admin portal. Used by `landing-manager` to generate monetizable landing pages for Vrooli scenarios.
 
+Generated scenarios receive root-level `DESIGN.md` from the `vrooli-conversion-landing` design kit. Treat that file as the canonical landing-page design contract. `.vrooli/styling.json` and `.vrooli/style-packs/` are runtime/configuration layers that instantiate the contract for variants and admin customization.
+
 ## Features
 
 - **React + Vite Frontend** - Modern SPA with public landing and admin portal
@@ -10,6 +12,7 @@ A production-ready landing page template with A/B testing, Stripe payments, anal
 - **Stripe Integration** - Subscriptions, one-time payments, credits
 - **Admin Portal** - Content management without code changes
 - **Agent Customization** - AI-driven landing page optimization
+- **Canonical Design Contract** - Root `DESIGN.md` plus configurable style packs for conversion-focused variants
 
 ## Quick Start
 
@@ -72,7 +75,8 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 - [Seams & Testability](docs/SEAMS.md) - Code organization
 
 **AI Agents:**
-- [Design System](docs/DESIGN_SYSTEM.md) - Styling constraints
+- `DESIGN.md` at the generated scenario root - canonical conversion landing-page design contract
+- [Design System](docs/DESIGN_SYSTEM.md) - Runtime styling config and style-pack constraints
 - [Configuration Guide](docs/CONFIGURATION_GUIDE.md) - File formats
 
 ## Directory Structure
@@ -106,7 +110,7 @@ Key configuration files in `.vrooli/`:
 | File | Purpose |
 |------|---------|
 | `service.json` | Ports, lifecycle, dependencies |
-| `styling.json` | Colors, typography, components |
+| `styling.json` | Runtime style-pack values that instantiate root `DESIGN.md` |
 | `variant_space.json` | A/B testing dimensions |
 | `variants/*.json` | Fallback/default content |
 

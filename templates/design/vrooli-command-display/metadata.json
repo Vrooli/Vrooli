@@ -1,0 +1,14 @@
+{
+  "id": "vrooli-command-display",
+  "name": "Vrooli Command Display",
+  "version": "0.1.0",
+  "default": false,
+  "description": "Dark-first Vrooli design language for fullscreen war-room, kiosk, TV, and ambient command-center displays.",
+  "tags": ["vrooli", "command-center", "dashboard", "kiosk", "tv", "dark", "immersive", "data-visualization"],
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind",
+      "supports": ["templates/scenarios/react-vite", "scenarios/command-center"]
+    }
+  }
+}

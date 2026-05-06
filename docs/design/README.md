@@ -32,7 +32,29 @@ vrooli scenario generate react-vite \
   --design vrooli-default
 ```
 
-The `react-vite` template requires `vrooli-default` through the `react-vite-tailwind` adapter unless a different compatible design kit is specified.
+The `react-vite` template requires a compatible `react-vite-tailwind` adapter. It defaults to `vrooli-default`, but callers may select a different compatible kit:
+
+```bash
+vrooli scenario generate react-vite \
+  --id command-display-example \
+  --display-name "Command Display Example" \
+  --description "Fullscreen command display" \
+  --design vrooli-command-display
+```
+
+Use `vrooli-default` for normal scenario applications. Use `vrooli-command-display` for fullscreen war-room, kiosk, TV, and ambient display scenarios where the primary experience is an always-on visual dashboard rather than hands-on operational work.
+
+The `landing-page-react-vite` template defaults to `vrooli-conversion-landing`:
+
+```bash
+vrooli scenario generate landing-page-react-vite \
+  --id conversion-example \
+  --display-name "Conversion Example" \
+  --description "Conversion landing page" \
+  --design vrooli-conversion-landing
+```
+
+Use `vrooli-conversion-landing` for pages that sell, validate, or capture demand for a specific scenario, bundle, app, download, demo, waitlist, or offer. It is not the general Vrooli marketing-site design.
 
 ## Related Docs
 

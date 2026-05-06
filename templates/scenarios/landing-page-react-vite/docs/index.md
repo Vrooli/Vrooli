@@ -39,7 +39,8 @@ Welcome to the documentation for your landing page. This guide will help you und
 | [Core Concepts](CONCEPTS.md) | Understanding A/B testing, sections, payments, and data flow | All |
 | [Architecture](ARCHITECTURE.md) | System design, components, and deployment topology | Developers |
 | [Seams & Testability](SEAMS.md) | Testability boundaries and code organization | Developers |
-| [Design System](DESIGN_SYSTEM.md) | Visual design tokens and styling guidelines | Developers, Designers |
+| [Design Contract](../DESIGN.md) | Canonical conversion landing-page design language | Developers, Designers, Agents |
+| [Design System](DESIGN_SYSTEM.md) | Runtime styling config and style-pack guidelines | Developers, Designers |
 
 ### API Reference
 
@@ -97,9 +98,11 @@ If you're an AI agent customizing this landing page:
 1. Read [Core Concepts](CONCEPTS.md) to understand the architecture
 2. Review [API Reference](api/README.md) for available endpoints
 3. Check [Configuration Guide](CONFIGURATION_GUIDE.md) for file formats
-4. See [Design System](DESIGN_SYSTEM.md) for styling constraints
+4. Read root-level `DESIGN.md` before UI work
+5. See [Design System](DESIGN_SYSTEM.md) for styling config constraints
 
 Key files for agent customization:
+- `DESIGN.md` - Canonical conversion landing-page design contract
 - `.vrooli/styling.json` - Design tokens
 - `.vrooli/variant_space.json` - A/B testing axes
 - `.vrooli/variants/*.json` - Fallback content

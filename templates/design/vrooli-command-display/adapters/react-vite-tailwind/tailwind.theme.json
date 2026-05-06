@@ -1,0 +1,42 @@
+{
+  "colors": {
+    "display-background": "var(--display-background)",
+    "display-background-deep": "var(--display-background-deep)",
+    "display-surface": "var(--display-surface)",
+    "display-surface-muted": "var(--display-surface-muted)",
+    "display-border": "var(--display-border)",
+    "display-foreground": "var(--display-foreground)",
+    "display-muted-foreground": "var(--display-muted-foreground)",
+    "display-primary": "var(--display-primary)",
+    "display-primary-foreground": "var(--display-primary-foreground)",
+    "display-accent": "var(--display-accent)",
+    "display-success": "var(--display-success)",
+    "display-warning": "var(--display-warning)",
+    "display-danger": "var(--display-danger)",
+    "display-gap": "var(--display-gap)",
+    "display-stale": "var(--display-stale)"
+  },
+  "borderRadius": {
+    "display-panel": "var(--display-radius-panel)",
+    "display-tile": "var(--display-radius-tile)",
+    "display-pill": "var(--display-radius-pill)"
+  },
+  "boxShadow": {
+    "display-glow": "var(--display-glow)",
+    "display-panel": "var(--display-panel-shadow)"
+  },
+  "fontFamily": {
+    "display": "var(--display-font)",
+    "display-numeric": "var(--display-font-numeric)"
+  },
+  "spacing": {
+    "display": "var(--display-viewport-padding)",
+    "remote": "var(--display-remote-target)"
+  },
+  "minHeight": {
+    "remote": "var(--display-remote-target)"
+  },
+  "minWidth": {
+    "remote": "var(--display-remote-target)"
+  }
+}
