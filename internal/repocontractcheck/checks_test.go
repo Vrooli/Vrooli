@@ -2,6 +2,7 @@ package repocontractcheck
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources"
@@ -87,6 +88,84 @@ func TestRunFailsWhenPNPMWorkspaceRootProbeAppears(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenPersonalAbsolutePathAppearsInActiveGoSource(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "example", "api/main.go", "package main\n\nconst root = \"/home/carol.dev/Vrooli\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	if !hasFailedCheck(report, "personal_absolute_paths") {
+		t.Fatalf("expected personal_absolute_paths failure, got %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "personal_absolute_paths")
+	if !strings.Contains(message, "scenarios/example/api/main.go:3") {
+		t.Fatalf("expected relative file:line in message, got %q", message)
+	}
+}
+
+func TestRunFailsWhenMacOSPersonalAbsolutePathAppearsInActiveGoSource(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "example", "api/main.go", "package main\n\nconst root = \"/Users/carol.dev/Vrooli\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	if !hasFailedCheck(report, "personal_absolute_paths") {
+		t.Fatalf("expected personal_absolute_paths failure, got %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "personal_absolute_paths")
+	if !strings.Contains(message, "scenarios/example/api/main.go:3") {
+		t.Fatalf("expected relative file:line in message, got %q", message)
+	}
+}
+
+func TestRunFailsWhenPersonalAbsolutePathAppearsInActiveScriptOrConfig(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "templates/scenarios/example/perf/capture.js", "const root = \"/home/carol.dev/Vrooli\";\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, ".vrooli/resources/example.json", "{\n  \"root\": \"/Users/carol.dev/Vrooli\"\n}\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "personal_absolute_paths")
+	for _, want := range []string{
+		"templates/scenarios/example/perf/capture.js:1",
+		".vrooli/resources/example.json:2",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("expected %q in message %q", want, message)
+		}
+	}
+}
+
+func TestRunAllowsIntentionalDetectorAndIgnoredHistoryPaths(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/code-smell/initialization/rules/vrooli-specific.yaml", "pattern: /home/carol.dev/Vrooli\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/example/.swarm/last-research-prompt-trace.json", "{\"root\":\"/home/carol.dev/Vrooli\"}\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/example/acceptance-validation.json", "{\"project_root\":\"/Users/carol.dev/Vrooli\"}\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if hasFailedCheck(report, "personal_absolute_paths") {
+		t.Fatalf("did not expect personal_absolute_paths failure, got %+v", report.Checks)
+	}
+}
+
 func repoRoot(t *testing.T) string {
 	return testkitgo.ProjectRoot(t)
 }
@@ -98,6 +177,15 @@ func hasFailedCheck(report Report, name string) bool {
 		}
 	}
 	return false
+}
+
+func failedCheckMessage(report Report, name string) string {
+	for _, check := range report.Checks {
+		if check.Name == name {
+			return check.Message
+		}
+	}
+	return ""
 }
 
 func newValidationFixtureRepo(t *testing.T) testkitgo.RepoFixture {

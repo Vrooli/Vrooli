@@ -735,7 +735,7 @@ func TestSSEParser_BasicEvents(t *testing.T) {
 // rewriter directly. These cases pin the contract that bwrap's
 // `--bind <hostMerged> /workspace` enforces.
 func TestTranslateHostPathToNamespace(t *testing.T) {
-	const host = "/home/matt/.local/share/workspace-sandbox/abc/merged"
+	const host = "/home/alice/.local/share/workspace-sandbox/abc/merged"
 	cases := []struct {
 		name string
 		in   string
@@ -880,7 +880,7 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 // The mapping must stay in lockstep with the vrooli-aware bind layout in
 // scenarios/workspace-sandbox/api/internal/driver/bwrap.go.
 func TestTranslateCommandToNamespace(t *testing.T) {
-	const home = "/home/matt"
+	const home = "/home/alice"
 	cases := []struct {
 		name        string
 		command     string
@@ -1009,7 +1009,7 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 // $HOME with state != Present must surface as ErrCommandHomeOverlayUnavailable
 // before the launcher POSTs to workspace-sandbox.
 func TestTranslateCommandToNamespace_RefusesHomeWhenStateAbsent(t *testing.T) {
-	const home = "/home/matt"
+	const home = "/home/alice"
 	for _, state := range []HomeOverlayState{HomeOverlayAbsent, HomeOverlayUnsupported, HomeOverlayNotRequested} {
 		t.Run(string(state), func(t *testing.T) {
 			layout := NamespaceLayout{HostHome: home, HomeOverlayState: state}

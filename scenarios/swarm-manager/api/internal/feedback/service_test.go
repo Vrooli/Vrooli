@@ -555,7 +555,7 @@ func TestService_Decide_PopulatesProposalSourceWithRoundMetadata(t *testing.T) {
 		RoundNumber:         round.Number,
 		Kind:                DecisionAccept,
 		AcceptedMutationIDs: []string{"m1"},
-		DecidedBy:           "matthalloran8",
+		DecidedBy:           "test-operator",
 	}); err != nil {
 		t.Fatalf("Decide: %v", err)
 	}
@@ -576,7 +576,7 @@ func TestService_Decide_PopulatesProposalSourceWithRoundMetadata(t *testing.T) {
 	if src.Entrypoint != "initiative.feedback" {
 		t.Errorf("Entrypoint: got %q, want %q", src.Entrypoint, "initiative.feedback")
 	}
-	if src.DecidedBy != "matthalloran8" {
+	if src.DecidedBy != "test-operator" {
 		t.Errorf("DecidedBy: got %q", src.DecidedBy)
 	}
 	if src.FeedbackRoundID == "" {

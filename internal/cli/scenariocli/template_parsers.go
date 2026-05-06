@@ -101,14 +101,14 @@ func designCommandSpecs() []commandtree.Spec[DesignCommandID] {
 }
 
 func ParseTemplateListRequest(args []string) (TemplateListRequest, error) {
-	if _, err := commandtree.ParseArgs("scenario template list", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandList).Args, args); err != nil {
+	if _, err := commandtree.ParseArgs("scenario template list", templateCommandHelpText(TemplateCommandList), templateCommandSpec(TemplateCommandList).Args, args); err != nil {
 		return TemplateListRequest{}, err
 	}
 	return TemplateListRequest{}, nil
 }
 
 func ParseTemplateShowRequest(args []string) (TemplateShowRequest, error) {
-	parsed, err := commandtree.ParseArgs("scenario template show", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandShow).Args, args)
+	parsed, err := commandtree.ParseArgs("scenario template show", templateCommandHelpText(TemplateCommandShow), templateCommandSpec(TemplateCommandShow).Args, args)
 	if err != nil {
 		return TemplateShowRequest{}, err
 	}
@@ -116,7 +116,7 @@ func ParseTemplateShowRequest(args []string) (TemplateShowRequest, error) {
 }
 
 func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error) {
-	parsed, err := commandtree.ParseArgs("scenario template validate", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandValidate).Args, args)
+	parsed, err := commandtree.ParseArgs("scenario template validate", templateCommandHelpText(TemplateCommandValidate), templateCommandSpec(TemplateCommandValidate).Args, args)
 	if err != nil {
 		return TemplateValidateRequest{}, err
 	}
@@ -144,6 +144,11 @@ func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error
 		return TemplateValidateRequest{}, fmt.Errorf("--retain-temp is only valid with --mode deep")
 	}
 	return req, nil
+}
+
+func templateCommandHelpText(id TemplateCommandID) string {
+	spec := templateCommandSpec(id)
+	return commandtree.SpecHelpText("", "vrooli scenario template "+spec.Name, spec)
 }
 
 func ParseDesignListRequest(args []string) (DesignListRequest, error) {

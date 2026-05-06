@@ -22,22 +22,24 @@ rules:
 
   - id: hardcoded-home-path
     name: "Hard-coded Home Directory"
-    description: "Home directories should use environment variables"
-    category: auto-fix
-    risk_level: safe
+    description: "Home directories should use portable path discovery, scenario storage, or explicit configuration"
+    category: needs-approval
+    risk_level: moderate
     vrooli_specific: true
     pattern:
       type: regex
-      value: '/home/matthalloran8(/|\s|"|''|$)'
+      value: "(?:/home|/Users)/[A-Za-z0-9._-]+(?:/|\\s|\"|'|$)"
       file_types: [js, ts, jsx, tsx, go, py, sh, yaml, json]
-    fix_template: "${HOME}"
-    auto_fix:
-      search: "/home/matthalloran8"
-      replace: "${HOME}"
+    fix_template: |
+      Replace with the appropriate portable source:
+      - repo-contract helpers for repository source paths
+      - api-core/storage resolver for runtime state paths
+      - explicit environment/config values for operator-provided external paths
     examples:
-      - bad: "/home/matthalloran8/Vrooli"
-      - good: "${HOME}/Vrooli"
-    message: "Hard-coded home directory found. Use ${HOME} instead"
+      - bad: "/home/carol.dev/Vrooli"
+      - bad: "/Users/carol.dev/Vrooli"
+      - good: "resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassState, \"runtime.json\")"
+    message: "Hard-coded home directory found. Use repo-root discovery, scenario storage, or explicit config instead"
 
   - id: hardcoded-vrooli-root
     name: "Hard-coded Vrooli Root Path"

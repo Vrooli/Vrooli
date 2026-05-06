@@ -21,6 +21,8 @@ require github.com/vrooli/api-core v0.0.0
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..
 ```
 
 Add preflight checks to your `main()`:
@@ -61,7 +63,7 @@ vrooli package dependents api-core
 vrooli package refresh api-core all --no-restart
 ```
 
-Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. See [docs/package-governance.md](../../docs/package-governance.md) for the canonical policy.
+Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. The root-module replacement is required because shared package tests and helper packages may resolve `github.com/vrooli/vrooli/...` paths during `GOWORK=off go mod tidy` and builds. See [docs/package-governance.md](../../docs/package-governance.md) for the canonical policy.
 
 ## Test Companions
 

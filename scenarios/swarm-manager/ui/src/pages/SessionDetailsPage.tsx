@@ -15,13 +15,13 @@ import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { SessionArtifactList } from "../components/session/SessionArtifactList";
-import { SessionActionsMenu, type SessionActionItem } from "../components/session/SessionActionsMenu";
 import { SessionConversation } from "../components/session/SessionConversation";
 import { SessionDeleteDialog } from "../components/session/SessionDeleteDialog";
 import { SessionInspector } from "../components/session/SessionInspector";
 import { SessionMetadata } from "../components/session/SessionMetadata";
 import { SessionProposalList } from "../components/session/SessionProposalList";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
+import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
 import {
   defaultSessionInspectorSection,
@@ -190,10 +190,10 @@ export function SessionDetailsPage() {
     { value: "details" as const, label: "Details", content: detailContent("plain") },
   ];
 
-  const mobileActionItems: SessionActionItem[] = [
+  const mobileActionItems: ActionMenuItem[] = [
     {
       label: "Refresh",
-      icon: RefreshCw,
+      icon: <RefreshCw />,
       onSelect: () => void handleRefresh(),
       disabled: isMutating || isRefreshing,
       loading: isRefreshing,
@@ -201,14 +201,14 @@ export function SessionDetailsPage() {
     },
     {
       label: "Cancel",
-      icon: Square,
+      icon: <Square />,
       onSelect: () => void handleCancel(),
       disabled: cancelDisabled,
       testId: "session-cancel",
     },
     {
       label: "Delete session",
-      icon: Trash2,
+      icon: <Trash2 />,
       onSelect: () => setDeleteDialogOpen(true),
       disabled: deleteDisabled,
       destructive: true,
@@ -245,14 +245,19 @@ export function SessionDetailsPage() {
             <Square className="mr-1.5 h-3.5 w-3.5" />
             Cancel
           </Button>
-          <SessionActionsMenu items={desktopDeleteItems} variant="desktop" />
+          <ActionMenu
+            items={desktopDeleteItems}
+            label="Session actions"
+            triggerTestId="session-desktop-header-actions"
+            menuTestId="session-desktop-actions-menu"
+          />
         </>
       )}
     </>
   );
 
   const mobileActions = (
-    <SessionActionsMenu items={mobileActionItems} variant="mobile" onItemSelected={() => setMobileActionsOpen(false)} />
+    <ActionMenuSheetContent items={mobileActionItems} onItemSelected={() => setMobileActionsOpen(false)} />
   );
 
   return (
@@ -338,6 +343,7 @@ export function SessionDetailsPage() {
           isOpen={mobileActionsOpen}
           onClose={() => setMobileActionsOpen(false)}
           title="Session actions"
+          contentClassName="px-0 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
           data-testid="session-mobile-actions-sheet"
         >
           {mobileActions}

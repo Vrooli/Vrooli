@@ -7,7 +7,7 @@
 
 import { useCallback } from "react";
 import { ArrowRightLeft, Copy, Edit, Lock, Trash2 } from "lucide-react";
-import { cn } from "../../lib";
+import { ActionMenuItemButton, type ActionMenuItem } from "../ui/action-menu";
 import { useFileService } from "../../contexts/FileServiceContext";
 import type { FileActionType } from "./backlog-file-browser";
 import type { BacklogFile } from "../../types";
@@ -24,58 +24,51 @@ export function useFileActionMenuRenderer({ onOpenActionDialog }: FileActionMenu
   const renderFileActionItems = useCallback(
     (target: BacklogFile, closeMenu: () => void) => {
       const isProtected = target.path === fileService.protectedFile;
-      const rowClass =
-        "flex w-full items-center justify-start gap-2 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/80";
+      const items: ActionMenuItem[] = [
+        {
+          label: "Rename",
+          icon: <Edit />,
+          disabled: isProtected,
+          onSelect: () => {
+            closeMenu();
+            onOpenActionDialog("rename", target);
+          },
+        },
+        {
+          label: "Move",
+          icon: <ArrowRightLeft />,
+          disabled: isProtected,
+          onSelect: () => {
+            closeMenu();
+            onOpenActionDialog("move", target);
+          },
+        },
+        {
+          label: "Copy",
+          icon: <Copy />,
+          disabled: isProtected,
+          onSelect: () => {
+            closeMenu();
+            onOpenActionDialog("copy", target);
+          },
+        },
+        {
+          label: "Delete",
+          icon: <Trash2 />,
+          destructive: true,
+          disabled: isProtected,
+          onSelect: () => {
+            closeMenu();
+            onOpenActionDialog("delete", target);
+          },
+        },
+      ];
+
       return (
         <div className="py-1" data-testid="backlog-file-actions-menu">
-          <button
-            type="button"
-            className={rowClass}
-            disabled={isProtected}
-            onClick={() => {
-              closeMenu();
-              onOpenActionDialog("rename", target);
-            }}
-          >
-            <Edit className="h-4 w-4 text-slate-300" />
-            Rename
-          </button>
-          <button
-            type="button"
-            className={rowClass}
-            disabled={isProtected}
-            onClick={() => {
-              closeMenu();
-              onOpenActionDialog("move", target);
-            }}
-          >
-            <ArrowRightLeft className="h-4 w-4 text-slate-300" />
-            Move
-          </button>
-          <button
-            type="button"
-            className={rowClass}
-            disabled={isProtected}
-            onClick={() => {
-              closeMenu();
-              onOpenActionDialog("copy", target);
-            }}
-          >
-            <Copy className="h-4 w-4 text-slate-300" />
-            Copy
-          </button>
-          <button
-            type="button"
-            className={cn(rowClass, "text-red-300 hover:bg-red-500/20")}
-            disabled={isProtected}
-            onClick={() => {
-              closeMenu();
-              onOpenActionDialog("delete", target);
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-red-300" />
-            Delete
-          </button>
+          {items.map((item) => (
+            <ActionMenuItemButton key={item.label} item={item} />
+          ))}
           {isProtected && (
             <p className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
               <Lock className="h-3.5 w-3.5" />

@@ -64,6 +64,7 @@ func Run(root string) (Report, error) {
 		{name: "profile_roots_within_canonical_layout", fn: checkProfileRootsWithinCanonicalLayout},
 		{name: "bundle_profile_policy", fn: checkBundleProfilePolicy},
 		{name: "docs_alignment", fn: checkDocsAlignment},
+		{name: "personal_absolute_paths", fn: checkNoPersonalAbsolutePaths},
 		{name: "adoption_rules_alignment", fn: checkAdoptionRulesAlignment},
 		{name: "resource_schema_artifacts", fn: checkResourceSchemaArtifacts},
 	}
@@ -445,6 +446,150 @@ func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, r
 
 	sort.Strings(violations)
 	return fmt.Errorf("repo-contract adoption violations: %s", strings.Join(violations, "; "))
+}
+
+func checkNoPersonalAbsolutePaths(contract *repocontract.Contract, root string, raw string) error {
+	var violations []string
+	for _, topLevel := range []string{"cmd", "internal", "packages", "resources", "scenarios", "templates", ".vrooli"} {
+		base := filepath.Join(root, filepath.FromSlash(topLevel))
+		if _, err := os.Stat(base); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("stat personal path scan root %s: %w", topLevel, err)
+		}
+
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			if d.IsDir() {
+				if shouldSkipPersonalPathScan(rel, true) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.Type()&os.ModeSymlink != 0 {
+				return nil
+			}
+			if shouldSkipPersonalPathScan(rel, false) || !isPersonalPathScannableFile(rel) || isPersonalPathAllowed(rel) {
+				return nil
+			}
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if isBinary(data) {
+				return nil
+			}
+			for lineNo, line := range strings.Split(string(data), "\n") {
+				if containsNonFixturePersonalHomePath(line) {
+					violations = append(violations, fmt.Sprintf("%s:%d", rel, lineNo+1))
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("scan personal absolute paths: %w", err)
+		}
+	}
+
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("personal absolute paths found: %s", strings.Join(violations, "; "))
+}
+
+var personalHomePathPattern = regexp.MustCompile("(?:^|[^A-Za-z0-9._-])((?:/home|/Users)/([A-Za-z0-9._-]+)(?:/|[[:space:]\"']|$))")
+
+func containsNonFixturePersonalHomePath(line string) bool {
+	for _, match := range personalHomePathPattern.FindAllStringSubmatch(line, -1) {
+		if len(match) < 3 {
+			continue
+		}
+		if !isFixtureHomeUser(match[2]) {
+			return true
+		}
+	}
+	return false
+}
+
+func isFixtureHomeUser(username string) bool {
+	switch strings.ToLower(username) {
+	case ".", "..", "...", "alice", "bob", "charlie", "claude", "example", "me", "other", "sage", "test", "tester", "testuser", "u", "user", "username", "x", "you":
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldSkipPersonalPathScan(rel string, isDir bool) bool {
+	rel = filepath.ToSlash(rel)
+	base := pathBase(rel)
+	if isDir {
+		switch base {
+		case ".git", "node_modules", ".venv", "vendor", "dist", "build", "coverage", ".cache", ".gocache", ".nyc_output", ".claude", "tmp", "temp", "logs", "data", "docs", "investigations", "report", ".swarm", "review", "evidence", "captures", "handoff":
+			return true
+		}
+		if strings.HasSuffix(rel, "/test/artifacts") {
+			return true
+		}
+	}
+	if strings.HasSuffix(rel, ".log") || strings.HasSuffix(rel, "/acceptance-validation.json") {
+		return true
+	}
+	if base == "test_output.txt" {
+		return true
+	}
+	if strings.EqualFold(filepath.Ext(rel), ".md") {
+		return true
+	}
+	return false
+}
+
+func isPersonalPathScannableFile(rel string) bool {
+	if strings.HasPrefix(pathBase(rel), ".env") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(rel)) {
+	case ".go", ".sh", ".bash", ".js", ".cjs", ".mjs", ".ts", ".tsx", ".json", ".jsonl", ".yaml", ".yml", ".toml":
+		return true
+	default:
+		return false
+	}
+}
+
+func pathBase(rel string) string {
+	rel = strings.TrimSuffix(filepath.ToSlash(rel), "/")
+	if rel == "" {
+		return ""
+	}
+	if idx := strings.LastIndex(rel, "/"); idx >= 0 {
+		return rel[idx+1:]
+	}
+	return rel
+}
+
+func isPersonalPathAllowed(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	if rel == "scenarios/code-smell/initialization/rules/vrooli-specific.yaml" {
+		return true
+	}
+	if strings.HasPrefix(rel, "internal/repocontractcheck/") {
+		return true
+	}
+	return false
+}
+
+func isBinary(data []byte) bool {
+	return slices.Contains(data, 0)
 }
 
 func scanAdoptionViolations(root string) ([]string, error) {

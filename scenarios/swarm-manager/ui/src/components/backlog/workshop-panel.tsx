@@ -8,6 +8,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, MoreHorizontal, Play, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
 import { Button } from "../ui/button";
+import { ActionMenu } from "../ui/action-menu";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { WorkshopItemCard } from "./workshop-item-card";
 import { ReadinessDots } from "./readiness-dots";
@@ -16,41 +17,21 @@ import type { WorkshopRound, WorkshopItem, BacklogKind } from "../../types/domai
 
 /** Small dropdown menu for round-level actions. */
 function RoundMenu({ onDelete, disabled }: { onDelete: () => void; disabled?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (e: Event) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", handleClickOutside);
-    return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, [open]);
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="rounded p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors disabled:opacity-50"
-        title="Round actions"
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-md border border-slate-700 bg-slate-900 py-1 shadow-lg">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete round
-          </button>
-        </div>
-      )}
+    <div onClick={(event) => event.stopPropagation()}>
+      <ActionMenu
+        items={[
+          {
+            label: "Delete round",
+            icon: <Trash2 />,
+            onSelect: onDelete,
+            destructive: true,
+            disabled,
+          },
+        ]}
+        label="Round actions"
+        triggerIcon={<MoreHorizontal className="h-4 w-4" />}
+      />
     </div>
   );
 }

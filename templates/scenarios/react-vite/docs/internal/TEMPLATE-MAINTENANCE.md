@@ -94,8 +94,10 @@ vrooli scenario template validate --mode deep --template react-vite --test-prese
 ```
 
 Use `--retain-temp` only while debugging a failed deep run. The command
-still cleans shared relocation outputs such as generated proto artifacts
-for `template-validation-*` ids.
+keeps the generated temp workspace and its shared relocation outputs so a
+direct `test-genie execute ... --scenario-path ...` rerun can resolve the
+same generated proto artifacts. Clean the reported `template-validation-*`
+proto schema and generated proto folders after debugging.
 
 For broad template edits, also run the drift search:
 

@@ -145,6 +145,11 @@ standards checks evaluate the temp scenario as if it lived under
 vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
 ```
 
+Use `--retain-temp` for debugging only. Retained deep runs keep the temp
+scenario and its generated relocation outputs so the reported test-genie
+command can be rerun directly; remove the `template-validation-*` proto
+schema and generated proto folders after inspection.
+
 For broad template edits, also run the drift search:
 
 ```bash

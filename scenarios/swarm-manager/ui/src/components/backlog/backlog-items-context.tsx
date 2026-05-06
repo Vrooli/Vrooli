@@ -7,14 +7,9 @@
  * every render.
  */
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
+import { BacklogItemsContext, type ItemsByKey } from "./backlog-items-lookup";
 import type { BacklogItem } from "../../types";
-
-type ItemsByKey = ReadonlyMap<string, BacklogItem>;
-
-const EMPTY_LOOKUP: ItemsByKey = new Map();
-
-const BacklogItemsContext = createContext<ItemsByKey>(EMPTY_LOOKUP);
 
 interface BacklogItemsProviderProps {
   items: readonly BacklogItem[];
@@ -27,8 +22,4 @@ export function BacklogItemsProvider({ items, children }: BacklogItemsProviderPr
     [items],
   );
   return <BacklogItemsContext.Provider value={itemsByKey}>{children}</BacklogItemsContext.Provider>;
-}
-
-export function useBacklogItemLookup(): ItemsByKey {
-  return useContext(BacklogItemsContext);
 }

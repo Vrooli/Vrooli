@@ -79,11 +79,6 @@ flowchart LR
   TEL --> PERF[publish-performance]
   PERF --> LEARN
   LEARN --> NOTE
-
-  NOTE --> R
-  NOTE --> ADV
-  NOTE --> PUB
-  NOTE --> CANON
 ```
 
 The second diagram is the full topic-level view. It is the reference shape for validating whether topic producers, readers, decisions, and durable logs form a coherent marketing system.
@@ -171,6 +166,8 @@ flowchart LR
   RES[challenge-resolution-record/*]
   %% @node AGING topic:aging-scan-note/*
   AGING[aging-scan-note/*]
+  %% @node DAPP topic:decision-application/<decision-id>
+  DAPP[decision-application/<decision-id>]
 
   %% Decisions and durable canon
   %% @node AUD decision:audience-update
@@ -230,6 +227,9 @@ flowchart LR
   MB --> MON
   AS --> R
   MB --> R
+  CHAL --> R
+  RES --> R
+  CAP --> R
   R --> AUD
   R --> CHSTR
   R --> POST
@@ -338,6 +338,7 @@ flowchart LR
   CHAL --> PUB
   RES --> PUB
   CAP --> PUB
+  DAPP --> PUB
   PUB --> PLOG
   PUB --> COV
   PUB --> CPP
@@ -352,10 +353,6 @@ flowchart LR
   CHAL --> LEARN
   RES --> LEARN
   LEARN --> NOTE
-  NOTE --> R
-  NOTE --> OSS
-  NOTE --> SUB
-  NOTE --> PUB
   NPROMO --> BACKLOG
 ```
 
@@ -384,11 +381,12 @@ These are the knowledge-topic families the target operating model uses. Current 
 | `topic:coverage-snapshot/*` | live | publisher | advertisers, brand-manager, publisher | Current marketing coverage by SKU, lane, channel, or campaign. |
 | `topic[future]:published-scenario-mentions/*` | target | publisher | advertisers, marketing-contrarian | Familiarity tracking for named scenarios, agents, and concepts, so drafts introduce subjects correctly for each audience. Current storage is JSONL. |
 | `topic[future]:publish-performance/*` | target | publisher or future growth analyst | researcher, brand-manager, publisher, advertisers | Telemetry and qualitative performance: impressions, clicks, replies, saves, conversion, comments, channel-specific notes. |
-| `topic:marketing/notebook/*` | live | any marketing member | brand-manager, researcher, advertisers, publisher | Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Must be drained and promoted or retired. |
+| `topic:marketing/notebook/*` | live | any marketing member | brand-manager | Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Any member may append unresolved debt, but brand-manager is the only runtime drainer and must promote or retire entries. |
 | `topic:brand-snapshot/*` | live | brand-manager | brand-manager, researcher, advertisers | Snapshot of canon drift, notebook state, campaign signals, and promotion/retirement candidates. |
 | `topic:challenge-report/*` | live | marketing-contrarian | decision owners, operator | Append-only challenge evidence for pending marketing decisions. |
 | `topic:challenge-resolution-record/*` | live | marketing-contrarian | decision owners, operator | Latest challenge state: open, author-responded, resolved, escalated, overridden, or stale. |
 | `topic:aging-scan-note/*` | live | marketing-contrarian | marketing-contrarian, operator | Stale-decision hygiene notes. |
+| `topic:decision-application/<decision-id>` | live system | decision workflow | publisher | Accepted-decision application markers used to avoid duplicate execution and track publish-decision follow-through. |
 
 ## Decisions
 
@@ -491,13 +489,14 @@ Every notebook entry must eventually resolve to one of four outcomes:
 3. **Promote to a scenario or config change** when automation should replace the workaround.
 4. **Retire** when the note was transient, duplicated, or superseded.
 
-Read responsibility is explicit:
+Append and read responsibilities are deliberately different:
 
-- brand-manager drains the notebook for promotions and retirements;
-- researcher reads audience, channel, format, hook, and campaign lessons for evidence patterns;
-- advertisers read craft, campaign, and workaround entries relevant to drafts;
-- publisher reads posting, channel, media, and scheduling workarounds;
-- marketing-contrarian reads notebook-derived proposals when scoring whether the proposed permanent structure actually resolves the debt.
+- any marketing member may append unresolved debt when no typed topic, decision, skill, scenario, or plan-of-record surface is ready for it;
+- brand-manager drains raw notebook debt and proposes promotion or retirement;
+- researcher consumes promoted research and canon outputs, not raw notebook entries by default;
+- advertisers consume artifact requests, canon, evidence, coverage, publish state, and skill updates, not raw notebook entries by default;
+- publisher consumes accepted decisions, drafts, channel rules, coverage state, and promoted publishing guidance, not raw notebook entries by default;
+- marketing-contrarian reviews notebook-derived promotion and retirement proposals when scoring whether the proposed permanent structure actually resolves the debt.
 
 If a notebook family grows for multiple heartbeats without promotion, retirement, or a clear revisit marker, that is a system smell. The brand-manager should raise either `notebook-promotion`, `notebook-retirement`, or `capability-gap`.
 

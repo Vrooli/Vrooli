@@ -15,6 +15,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, MessageCirclePlus, ClipboardCheck, Workflow } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
+import { ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -430,49 +431,38 @@ export function InitiativeDetailsPage() {
     [fileService, refetchFiles, selectedFile?.path],
   );
 
-  const mobileActions = initiative ? (
-    <div className="flex flex-col gap-2 p-4">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setFeedbackDialogOpen(true)}
-        data-testid={selectors.initiativeDetails.addFeedbackButtonMobile}
-      >
-        <MessageCirclePlus className="mr-1.5 h-4 w-4" />
-        Add Feedback
-      </Button>
-      {isArchived ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => unarchiveMutation.mutate()}
-          disabled={isArchiveActionPending}
-        >
-          <ArchiveRestore className="mr-1.5 h-4 w-4" />
-          {unarchiveMutation.isPending ? "Restoring..." : "Unarchive"}
-        </Button>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => archiveMutation.mutate()}
-          disabled={isArchiveActionPending}
-        >
-          <Archive className="mr-1.5 h-4 w-4" />
-          {archiveMutation.isPending ? "Archiving..." : "Archive"}
-        </Button>
-      )}
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={handleDeleteClick}
-        disabled={deleteMutation.isPending}
-      >
-        <Trash2 className="mr-1.5 h-4 w-4" />
-        {deleteMutation.isPending ? "Deleting..." : "Delete"}
-      </Button>
-    </div>
-  ) : undefined;
+  const mobileActionItems: ActionMenuItem[] = initiative ? [
+    {
+      label: "Add Feedback",
+      icon: <MessageCirclePlus />,
+      onSelect: () => setFeedbackDialogOpen(true),
+      testId: selectors.initiativeDetails.addFeedbackButtonMobile,
+    },
+    isArchived
+      ? {
+          label: "Unarchive",
+          icon: <ArchiveRestore />,
+          loading: unarchiveMutation.isPending,
+          disabled: isArchiveActionPending,
+          onSelect: () => unarchiveMutation.mutate(),
+        }
+      : {
+          label: "Archive",
+          icon: <Archive />,
+          loading: archiveMutation.isPending,
+          disabled: isArchiveActionPending,
+          onSelect: () => archiveMutation.mutate(),
+        },
+    {
+      label: "Delete",
+      icon: <Trash2 />,
+      loading: deleteMutation.isPending,
+      disabled: deleteMutation.isPending,
+      destructive: true,
+      onSelect: handleDeleteClick,
+    },
+  ] : [];
+  const mobileActions = initiative ? <ActionMenuSheetContent items={mobileActionItems} /> : undefined;
 
   // Resolve member items against the backlog store
   const resolvedItems = useMemo<ResolvedInitiativeItem[]>(() => {

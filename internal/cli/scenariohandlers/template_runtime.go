@@ -59,6 +59,10 @@ func TemplateCommandHandler[C any](deps HandlerDeps[C]) func(C, []string) error 
 		case "validate":
 			req, err := ParseTemplateValidateRequest(args[1:])
 			if err != nil {
+				if helpErr, ok := err.(interface{ HelpText() string }); ok {
+					commandtree.WriteHelp(deps.Stdout(ctx), helpErr.HelpText())
+					return nil
+				}
 				return rootcli.UsageErrorf("scenario template validate", "%s", err.Error())
 			}
 			format, report, err := runTemplateValidate(deps, ctx, req)
@@ -234,7 +238,7 @@ func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, inf
 		}}
 	}
 	defer cleanupRelocationTargets(resolved)
-	if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
+	if err := runRelocations(deps, ctx, info.Path, resolved, values, deps.Stderr(ctx)); err != nil {
 		return []TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("relocate validation artifacts: %v", err),
@@ -316,7 +320,7 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		}}
 	}
 	relocations, issues := generateDeepValidationScenario(deps, ctx, info, scenarioID, destination)
-	if len(relocations) > 0 {
+	if len(relocations) > 0 && !req.RetainTemp {
 		defer cleanupRelocationTargets(relocations)
 	}
 	if len(issues) > 0 {
@@ -529,7 +533,7 @@ func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info Temp
 			Message:  fmt.Sprintf("resolve relocations: %v", err),
 		}}
 	}
-	if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
+	if err := runRelocations(deps, ctx, info.Path, resolved, values, deps.Stderr(ctx)); err != nil {
 		return nil, []TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("relocate deep validation artifacts: %v", err),
@@ -543,7 +547,7 @@ func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info Temp
 	}, info.Name, info.Manifest); len(issues) > 0 {
 		return resolved, issues
 	}
-	if err := runTemplateHooks(deps, ctx, destination, info.Manifest); err != nil {
+	if err := runTemplateHooks(deps, ctx, destination, info.Manifest, deps.Stderr(ctx)); err != nil {
 		return resolved, []TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("run template post hooks: %v", err),
@@ -636,7 +640,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 	if err := verifyTemplate(destination); err != nil {
 		return "", GenerateResult{}, err
 	}
-	if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
+	if err := runRelocations(deps, ctx, info.Path, resolved, values, deps.Stdout(ctx)); err != nil {
 		return "", GenerateResult{}, err
 	}
 	if issues := validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
@@ -658,7 +662,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 		RunHooks:     opts.RunHooks,
 	}
 	if opts.RunHooks {
-		if err := runTemplateHooks(deps, ctx, destination, info.Manifest); err != nil {
+		if err := runTemplateHooks(deps, ctx, destination, info.Manifest, deps.Stdout(ctx)); err != nil {
 			return "", GenerateResult{}, err
 		}
 	}
@@ -716,9 +720,12 @@ func resolveRelocations(root string, info TemplateInfo, values map[string]string
 // then invokes Post commands at the repo root. It must run AFTER
 // copyTemplate so the in-tree skip-list has already filtered the
 // relocated source dirs out of the scenario destination.
-func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, relocations []ResolvedRelocation, values map[string]string) error {
+func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, relocations []ResolvedRelocation, values map[string]string, output io.Writer) error {
 	if len(relocations) == 0 {
 		return nil
+	}
+	if output == nil {
+		output = io.Discard
 	}
 	for _, reloc := range relocations {
 		srcDir := filepath.Join(templateDir, reloc.From)
@@ -756,13 +763,13 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 			if description == "" {
 				description = cmd
 			}
-			_, _ = fmt.Fprintf(deps.Stdout(ctx), "[Relocation post] %s\n", description)
+			_, _ = fmt.Fprintf(output, "[Relocation post] %s\n", description)
 			if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 				Name:   "bash",
 				Args:   []string{"-lc", cmd},
 				Dir:    cwd,
 				Env:    deps.CommandEnv(ctx),
-				Stdout: deps.Stdout(ctx),
+				Stdout: output,
 				Stderr: deps.Stderr(ctx),
 			}); err != nil {
 				return fmt.Errorf("relocation post-command %q: %w", cmd, err)
@@ -1496,9 +1503,12 @@ func formatTemplateValidationIssues(issues []TemplateValidationIssue) string {
 	return strings.Join(lines, "; ")
 }
 
-func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, manifest TemplateManifest) error {
+func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, manifest TemplateManifest, output io.Writer) error {
+	if output == nil {
+		output = io.Discard
+	}
 	if len(manifest.PostHooks) == 0 {
-		_, _ = fmt.Fprintln(deps.Stdout(ctx), "No post hooks defined for this template")
+		_, _ = fmt.Fprintln(output, "No post hooks defined for this template")
 		return nil
 	}
 	for index, hook := range manifest.PostHooks {
@@ -1506,7 +1516,7 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 		if description == "" {
 			description = hook.Cmd
 		}
-		_, _ = fmt.Fprintf(deps.Stdout(ctx), "[Hook %d] %s\n", index+1, description)
+		_, _ = fmt.Fprintf(output, "[Hook %d] %s\n", index+1, description)
 		cwd := destination
 		if strings.TrimSpace(hook.Cwd) != "" && hook.Cwd != "." {
 			cwd = filepath.Join(destination, filepath.FromSlash(hook.Cwd))
@@ -1516,7 +1526,7 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 			Args:   []string{"-lc", hook.Cmd},
 			Dir:    cwd,
 			Env:    deps.CommandEnv(ctx),
-			Stdout: deps.Stdout(ctx),
+			Stdout: output,
 			Stderr: deps.Stderr(ctx),
 		}); err != nil {
 			return err

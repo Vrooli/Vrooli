@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ClipboardList,
@@ -160,6 +161,8 @@ export function TasksPage({
   modelRegistry,
 }: TasksPageProps) {
   const { isDesktop } = useViewportSize();
+  const [searchParams] = useSearchParams();
+  const taskIdParam = searchParams.get("taskId");
   const getRegistryForRunner = (runnerType: RunnerType) => {
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
   };
@@ -237,6 +240,11 @@ export function TasksPage({
     () => tasks.find((t) => t.id === selectedTaskId) || null,
     [tasks, selectedTaskId]
   );
+
+  useEffect(() => {
+    if (!taskIdParam) return;
+    setSelectedTaskId(taskIdParam);
+  }, [taskIdParam]);
 
   const resetForm = () => {
     setFormData({
@@ -424,6 +432,7 @@ export function TasksPage({
 
   useEffect(() => {
     if (!isDesktop) return;
+    if (taskIdParam) return;
     if (filteredAndSortedTasks.length === 0) return;
 
     const hasSelection =
@@ -434,7 +443,7 @@ export function TasksPage({
       const first = filteredAndSortedTasks[0];
       if (first) setSelectedTaskId(first.id);
     }
-  }, [filteredAndSortedTasks, isDesktop, selectedTaskId]);
+  }, [filteredAndSortedTasks, isDesktop, selectedTaskId, taskIdParam]);
 
   const getTaskKey = useCallback((task: Task) => task.id, []);
   const handleSelectTask = useCallback((taskId: string) => {

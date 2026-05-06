@@ -126,7 +126,7 @@ fi
 
 # Test 9: GPU functionality (non-critical)
 echo -n "Testing GPU availability... "
-gpu_info=$(/home/matthalloran8/Vrooli/resources/sagemath/lib/gpu.sh check 2>/dev/null || echo "none")
+gpu_info=$("${VROOLI_ROOT}/resources/sagemath/lib/gpu.sh" check 2>/dev/null || echo "none")
 if [[ "$gpu_info" != "none" ]]; then
     echo "✓ (GPU: ${gpu_info%%,*})"
 else

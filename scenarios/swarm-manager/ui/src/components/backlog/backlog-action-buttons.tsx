@@ -18,7 +18,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { Button } from "../ui/button";
+import { ActionMenuItemButton, type ActionMenuItem } from "../ui/action-menu";
 import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
 import { USER_SETTABLE_STATUSES, formatBacklogStatus } from "../../types";
@@ -66,96 +66,104 @@ export function BacklogActionButtons({
 
   if (!itemActions) return null;
 
-  const rowButtonClass =
-    "h-10 w-full justify-start rounded-lg border-slate-700/80 bg-slate-900/40 px-3 text-sm text-slate-100 hover:bg-slate-800/70";
-  const primaryRowButtonClass =
-    "h-10 w-full justify-start rounded-lg border-transparent bg-slate-100 px-3 text-sm text-slate-900 hover:bg-white";
-  const destructiveRowButtonClass =
-    "h-10 w-full justify-start rounded-lg border-red-500/30 bg-red-500/10 px-3 text-sm text-red-200 hover:bg-red-500/20";
+  const primaryActionItems: ActionMenuItem[] = [];
+  const secondaryActionItems: ActionMenuItem[] = [];
+  const destructiveActionItems: ActionMenuItem[] = [];
+
+  if (itemActions.canFinalize || itemActions.finalizeDisabled) {
+    primaryActionItems.push({
+      label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`,
+      icon: <Sparkles />,
+      onSelect: onFinalizeWorkshop,
+      disabled: itemActions.finalizeDisabled || isRunningAgent,
+      title: (itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
+    });
+  }
+  if (itemActions.canRun || itemActions.runDisabled) {
+    primaryActionItems.push({
+      label: itemActions.agentExecuting ? agentRunningLabel : "Run",
+      icon: <Play />,
+      onSelect: onStartRun,
+      disabled: itemActions.runDisabled,
+      title: itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined,
+    });
+  }
+  if (itemActions.canWorkshop || itemActions.workshopDisabled) {
+    primaryActionItems.push({
+      label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel,
+      icon: <MessageSquareText />,
+      onSelect: onRunWorkshop,
+      disabled: itemActions.workshopDisabled || isRunningAgent,
+      title: (itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
+    });
+  }
+  secondaryActionItems.push({
+    label: "Edit",
+    icon: <Edit />,
+    onSelect: onEdit,
+  });
+  if (itemActions.canFollowUp) {
+    secondaryActionItems.push({
+      label: "Follow Up",
+      icon: <MessageSquare />,
+      onSelect: onFollowUp,
+    });
+  }
+  if (itemActions.canRetry) {
+    secondaryActionItems.push({
+      label: "Retry",
+      icon: <RefreshCw />,
+      onSelect: onRetry,
+      title: "Re-run with the same scope. Use Follow-Up if the work needs to change.",
+    });
+  }
+  if (!itemActions.canFollowUp && !itemActions.canRetry && !isTerminal) {
+    secondaryActionItems.push({
+      label: agentLabel,
+      icon: <Sparkles />,
+      onSelect: onOpenAgentDialog,
+      disabled: isLocked,
+    });
+  }
+  if (itemActions.canArchive) {
+    secondaryActionItems.push({
+      label: isUpdating ? "Archiving..." : "Archive",
+      icon: <Archive />,
+      onSelect: onArchive,
+      disabled: isUpdating,
+    });
+  }
+  if (hasWorkshopRounds && !isLocked) {
+    destructiveActionItems.push({
+      label: "Reset Workshop",
+      icon: <RotateCcw />,
+      onSelect: onResetWorkshop,
+      destructive: true,
+    });
+  }
+  destructiveActionItems.push({
+    label: "Delete",
+    icon: <Trash2 />,
+    onSelect: onDelete,
+    destructive: true,
+  });
 
   return (
-    <div className="space-y-2">
-      {(itemActions.canFinalize || itemActions.finalizeDisabled) && (
-        <Button
-          variant="default"
-          size="sm"
-          className={itemActions.primaryCta === "finalize" ? primaryRowButtonClass : rowButtonClass}
-          onClick={onFinalizeWorkshop}
-          disabled={itemActions.finalizeDisabled || isRunningAgent}
-          title={(itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          {itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`}
-        </Button>
-      )}
-      {(itemActions.canRun || itemActions.runDisabled) && (
-        <Button
-          variant="default"
-          size="sm"
-          className={itemActions.primaryCta === "run" ? primaryRowButtonClass : rowButtonClass}
-          onClick={onStartRun}
-          disabled={itemActions.runDisabled}
-          title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}
-        >
-          <Play className="mr-2 h-4 w-4" />
-          {itemActions.agentExecuting ? agentRunningLabel : "Run"}
-        </Button>
-      )}
-      {(itemActions.canWorkshop || itemActions.workshopDisabled) && (
-        <Button
-          variant="default"
-          size="sm"
-          className={itemActions.primaryCta === "workshop" ? primaryRowButtonClass : rowButtonClass}
-          onClick={onRunWorkshop}
-          disabled={itemActions.workshopDisabled || isRunningAgent}
-          title={(itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
-        >
-          <MessageSquareText className="mr-2 h-4 w-4" />
-          {itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
-        </Button>
-      )}
+    <div className="py-1">
+      {primaryActionItems.map((actionItem) => (
+        <ActionMenuItemButton key={actionItem.label} item={actionItem} />
+      ))}
       {itemActions.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) ? (
-        <p className="text-xs text-amber-400/80">{itemActions.disabledReason}</p>
+        <p className="px-3 py-2 text-xs text-amber-400/80">{itemActions.disabledReason}</p>
       ) : null}
       {itemActions.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (
-        <p className="text-xs text-slate-500">{itemActions.notQueueableReason}</p>
+        <p className="px-3 py-2 text-xs text-slate-500">{itemActions.notQueueableReason}</p>
       ) : null}
-      <Button variant="outline" size="sm" className={rowButtonClass} onClick={onEdit}>
-        <Edit className="mr-2 h-4 w-4" />
-        Edit
-      </Button>
-      {itemActions.canFollowUp ? (
-        <Button variant="outline" size="sm" className={rowButtonClass} onClick={onFollowUp}>
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Follow Up
-        </Button>
-      ) : null}
-      {itemActions.canRetry ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className={rowButtonClass}
-          onClick={onRetry}
-          title="Re-run with the same scope. Use Follow-Up if the work needs to change."
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Retry
-        </Button>
-      ) : null}
-      {!itemActions.canFollowUp && !itemActions.canRetry && !isTerminal ? (
-        <Button variant="outline" size="sm" className={rowButtonClass} onClick={onOpenAgentDialog} disabled={isLocked}>
-          <Sparkles className="mr-2 h-4 w-4" />
-          {agentLabel}
-        </Button>
-      ) : null}
-      {itemActions.canArchive && (
-        <Button variant="outline" size="sm" className={rowButtonClass} onClick={onArchive} disabled={isUpdating}>
-          <Archive className="mr-2 h-4 w-4" />
-          {isUpdating ? "Archiving..." : "Archive"}
-        </Button>
-      )}
+      {secondaryActionItems.map((actionItem) => (
+        <ActionMenuItemButton key={actionItem.label} item={actionItem} />
+      ))}
       {!isLocked && (
-        <div className="space-y-1">
+        <div className="px-3 py-2">
           <label htmlFor="action-status-select" className="text-xs text-slate-400">
             Status
           </label>
@@ -176,16 +184,9 @@ export function BacklogActionButtons({
           </Select>
         </div>
       )}
-      {hasWorkshopRounds && !isLocked && (
-        <Button variant="outline" size="sm" className={destructiveRowButtonClass} onClick={onResetWorkshop}>
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Reset Workshop
-        </Button>
-      )}
-      <Button variant="outline" size="sm" className={destructiveRowButtonClass} onClick={onDelete}>
-        <Trash2 className="mr-2 h-4 w-4" />
-        Delete
-      </Button>
+      {destructiveActionItems.map((actionItem) => (
+        <ActionMenuItemButton key={actionItem.label} item={actionItem} />
+      ))}
     </div>
   );
 }

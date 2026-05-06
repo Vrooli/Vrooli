@@ -4,9 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
   buildAgentRunUrl,
+  buildAgentTaskUrl,
   buildAgentProfileUrl,
   buildSkillUrl,
   useAgentRunUrl,
+  useAgentTaskUrl,
   useAgentProfileUrl,
   useSkillUrl,
 } from "./external-links";
@@ -52,6 +54,29 @@ describe("external-links pure builders", () => {
     it("URL-encodes the runId", () => {
       expect(buildAgentRunUrl("https://agent.test", "run/with/slashes")).toBe(
         "https://agent.test/runs/run%2Fwith%2Fslashes",
+      );
+    });
+  });
+
+  describe("buildAgentTaskUrl", () => {
+    it("deep-links to a selected task when base and taskId are provided", () => {
+      expect(buildAgentTaskUrl("https://agent.test", "task-123")).toBe(
+        "https://agent.test/tasks?taskId=task-123",
+      );
+    });
+
+    it("returns null when taskId is missing", () => {
+      expect(buildAgentTaskUrl("https://agent.test", null)).toBeNull();
+      expect(buildAgentTaskUrl("https://agent.test", "")).toBeNull();
+    });
+
+    it("returns null without a base", () => {
+      expect(buildAgentTaskUrl(null, "task-123")).toBeNull();
+    });
+
+    it("URL-encodes the taskId", () => {
+      expect(buildAgentTaskUrl("https://agent.test", "task/with/slashes")).toBe(
+        "https://agent.test/tasks?taskId=task%2Fwith%2Fslashes",
       );
     });
   });
@@ -118,6 +143,14 @@ describe("external-links hooks", () => {
       wrapper: wrapper(queryClient),
     });
     expect(result.current).toBeNull();
+  });
+
+  it("useAgentTaskUrl deep-links via ?taskId", () => {
+    queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
+    const { result } = renderHook(() => useAgentTaskUrl("task-1"), {
+      wrapper: wrapper(queryClient),
+    });
+    expect(result.current).toBe("https://agent.test/tasks?taskId=task-1");
   });
 
   it("useSkillUrl resolves against the prompt-manager base", () => {

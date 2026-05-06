@@ -43,6 +43,18 @@ export function buildAgentRunUrl(
 }
 
 /**
+ * Pure URL builder for an agent-manager task (deep-link via ?taskId=).
+ * Returns null when either base or taskId is missing.
+ */
+export function buildAgentTaskUrl(
+  agentManagerUiUrl: string | null | undefined,
+  taskId: string | null | undefined,
+): string | null {
+  if (!taskId) return null;
+  return joinUrl(agentManagerUiUrl, `/tasks?taskId=${encodeURIComponent(taskId)}`);
+}
+
+/**
  * Pure URL builder for an agent-manager profile (deep-link via ?profileKey=).
  * Returns null when either base or profileKey is missing.
  */
@@ -73,6 +85,15 @@ export function buildSkillUrl(
 export function useAgentRunUrl(runId: string | null | undefined): string | null {
   const { url } = useEmbeddedServiceUrl("agent-manager");
   return useMemo(() => buildAgentRunUrl(url, runId), [url, runId]);
+}
+
+/**
+ * Resolve the agent-manager UI URL for a task, deep-linked via ?taskId=.
+ * Returns null when taskId is missing or the agent-manager service URL has not resolved.
+ */
+export function useAgentTaskUrl(taskId: string | null | undefined): string | null {
+  const { url } = useEmbeddedServiceUrl("agent-manager");
+  return useMemo(() => buildAgentTaskUrl(url, taskId), [url, taskId]);
 }
 
 /**

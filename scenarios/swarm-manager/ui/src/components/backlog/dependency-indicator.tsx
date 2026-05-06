@@ -7,7 +7,7 @@
  */
 
 import { memo } from "react";
-import { useBacklogItemLookup } from "./backlog-items-context";
+import { useBacklogItemLookup } from "./backlog-items-lookup";
 
 const WORKSHOP_BLOCKING_STATUSES = new Set(["backlog", "researching"]);
 

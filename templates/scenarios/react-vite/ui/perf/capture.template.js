@@ -20,7 +20,16 @@
 
 const path = require("node:path");
 const fs = require("node:fs");
-const BAS = "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules";
+function resolveBASNodeModules() {
+  if (process.env.BAS_NODE_MODULES) return process.env.BAS_NODE_MODULES;
+  const root = process.env.VROOLI_ROOT || process.env.VROOLI_SOURCE_ROOT;
+  if (root) {
+    return path.join(root, "scenarios", "browser-automation-studio", "playwright-driver", "node_modules");
+  }
+  throw new Error("Set BAS_NODE_MODULES or VROOLI_ROOT/VROOLI_SOURCE_ROOT so capture.js can load rebrowser-playwright.");
+}
+
+const BAS = resolveBASNodeModules();
 const { chromium } = require(path.join(BAS, "rebrowser-playwright"));
 
 // 120s covers multi-phase scripts (resize + scroll + click sequences).

@@ -75,6 +75,46 @@ vrooli package refresh cli-core all --no-restart
 
 Consumers must keep local `replace` wiring explicit so scenario and resource modules remain workspace-independent. See [docs/package-governance.md](../../docs/package-governance.md) for the canonical policy.
 
+### Consumer Module Contract
+
+Every Go module that requires `github.com/vrooli/cli-core` must build with
+`GOWORK=off`. Do not rely on a repo-level workspace to supply dependencies or
+local replacements.
+
+Required local wiring for in-repo consumers:
+
+```go
+require github.com/vrooli/cli-core v0.0.0
+
+replace github.com/vrooli/cli-core => <relative path to packages/cli-core>
+replace github.com/vrooli/repo-contract-go => <relative path to packages/repo-contract-go>
+replace github.com/vrooli/vrooli => <relative path to repo root>
+```
+
+Consumers that import `github.com/vrooli/cli-core/cliapp` also need the
+Connect/Protobuf requirements and checksums that `go mod tidy` records:
+
+```go
+require (
+	connectrpc.com/connect v1.19.2 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
+```
+
+If the consumer also imports packages from its scenario API module, keep the API
+module explicitly wired too:
+
+```go
+require <scenario-api-module> v0.0.0
+replace <scenario-api-module> => ../api
+```
+
+Go `replace` directives and `go.sum` entries are not transitive. A consumer's
+own `go.mod` and `go.sum` must be refreshed after `cli-core/go.mod` changes.
+Run `GOWORK=off go mod tidy` in the consumer module, then verify with
+`GOWORK=off go build ./...`. Scenario Stack Governor's
+`GO_CLI_WORKSPACE_INDEPENDENCE` rule enforces this contract for scenario CLIs.
+
 `cli-core` is also governed as a leaf shared Go package. It must not introduce
 new local governed package dependencies that would force downstream CLIs to add
 extra local `replace` directives just to consume `cli-core`. If `cli-core`

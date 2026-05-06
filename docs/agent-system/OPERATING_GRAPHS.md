@@ -26,10 +26,10 @@ Operating graph tooling has two related jobs:
 
 | Command | Purpose | Output |
 |---|---|---|
-| `prompt-manager graph operating-model validate` | Gate whether the graph is a valid contract. | Severity-bearing findings: errors and warnings. |
+| `prompt-manager graph operating-model validate` | Gate whether the graph is structurally valid and complete for active contract rule families. | Severity-bearing findings: errors and warnings. |
 | `prompt-manager graph operating-model diff` | Reconcile graph and runtime declarations. | Repair map grouped by drift direction. |
 
-Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?"
+Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?" A mature team contract should normally be clean in both commands. During staged adoption, diff may expose relationship families that are not yet promoted to validation, but those are temporary reconciliation states.
 
 Diff compares both directions:
 
@@ -75,7 +75,8 @@ Optional fields:
 | Field | Meaning |
 |---|---|
 | `status` | Human status such as `draft`, `target`, or `canon`. |
-| `allow` | Comma-separated rule exceptions. Keep rare and justified in prose. |
+
+Rule exceptions are not supported in graph metadata. Resolve drift by changing the graph or the runtime declarations so the contract stays explicit.
 
 ## Modes
 
@@ -86,6 +87,8 @@ Optional fields:
 | `contract` | Team operating contract. | Validate typed entities, direct edges, and selected completeness rules against runtime config. |
 
 Use `contract` for the canonical team operating model. Use `checkable` for subset diagrams. Use `explanatory` for broad system views with summary nodes.
+
+Any diagram marked with `prompt-manager-graph` must parse through the operating-graph Mermaid subset, regardless of mode. `explanatory` means "skip entity/edge/completeness contract rules"; it does not mean malformed marked Mermaid is ignored. Leave ordinary unmarked Mermaid diagrams outside this metadata block when they are not intended for the operating-graph parser.
 
 ## Mermaid Subset
 
@@ -98,7 +101,7 @@ Only this subset is supported for operating graphs:
 - simple directed edges: `A --> B`
 - optional edge labels: `A -->|label| B`; labels are parsed but ignored in the first validator
 
-Unsupported syntax fails `contract` graphs. Do not use chained fanout, subgraphs, styling, classes, HTML tables, or implicit semantic labels in contract diagrams.
+Unsupported syntax fails every marked operating graph. Do not use chained fanout, subgraphs, styling, classes, HTML tables, or implicit semantic labels in marked diagrams. Unmarked Mermaid elsewhere in docs is not part of this parser.
 
 ## Typed Nodes
 
@@ -121,8 +124,8 @@ Do not combine both forms on the same node. The validator treats that as an ambi
 |---|---|---|
 | `member` | `member:researcher` | `team.json::operatingContract.members` |
 | `topic` | `topic:campaign-draft/*` | member `topics.json` declarations |
-| `decision` | `decision:content-publish-proposal` | `team.json::operatingContract.decisionContexts` |
-| `por` | `por:docs/marketing/STRATEGY.md` | filesystem and PoR document declarations |
+| `decision` | `decision:content-publish-proposal` | this graph team's `team.json::operatingContract.decisionContexts` |
+| `por` | `por:docs/marketing/STRATEGY.md` | filesystem path existence, plus edge backing when a member writes the PoR |
 | `external` | `external:operator` | `external_producers` or explicit external boundary |
 | `team` | `team:monetization` | team registry |
 | `process` | `process:learning-synthesis` | readability grouping only |
@@ -168,6 +171,8 @@ The graph intentionally treats `topic -> member` as a broad read edge. The exact
 
 This keeps Mermaid readable while preserving precise runtime semantics in structured config.
 
+Decision nodes are team-scoped by default. A `scope: team` graph must declare every `decision:` node in that team's `team.json`; a decision with the same id in another team does not satisfy the local contract. Cross-team decisions need an explicit syntax in a later design before they can be accepted.
+
 ## Diff Relationships
 
 Diff normalizes Mermaid edges and runtime config into semantic relationships before comparing them:
@@ -210,22 +215,33 @@ Suggested fixes:
 
 ## Validation Rules
 
-Initial rules:
+Current rules:
 
 | Rule | Severity | Meaning |
 |---|---|---|
 | `graph_unknown_member` | error | `member:` node not in the team contract. |
-| `graph_unknown_decision` | error | `decision:` node not in any loaded decision context. |
+| `graph_unknown_decision` | error | `decision:` node not in this graph team's decision contexts. |
 | `graph_unknown_team` | warning | `team:` node not found in the team registry. |
-| `graph_unknown_por` | error | `por:` path does not exist. |
+| `graph_unknown_por` | error | `por:` filesystem path does not exist. This is not yet a separate PoR authority-registry check. |
 | `graph_untyped_node` | error | Contract node lacks a typed machine label. |
 | `graph_topic_unresolved` | error | Live `topic:` node has no matching runtime topic relationship. |
 | `graph_future_topic_live_edge` | warning | Future topic appears on an active direct edge. |
 | `graph_edge_unbacked` | error | Direct edge implies a runtime relationship absent from config. |
 | `graph_declared_intake_missing` | error | Live intake in `topics.json` is missing from a contract graph. |
+| `graph_declared_required_read_missing` | error | Live required read in `topics.json` is missing from a contract graph. |
+| `graph_declared_evidence_missing` | error | Live evidence source in `topics.json` is missing from a contract graph. |
 | `graph_declared_output_missing` | warning | Live output in `topics.json` is missing from a contract graph. |
+| `graph_declared_decision_owned_missing` | error | Live decision ownership in `topics.json` is missing from a contract graph. |
+| `graph_declared_decision_consumed_missing` | error | Live decision consumption in `topics.json` is missing from a contract graph. |
+| `graph_declared_capability_gap_missing` | warning | Member capability-gap routing is missing from a contract graph. |
+| `graph_declared_external_producer_missing` | warning | Member external producer declaration is missing from a contract graph. |
+| `graph_declared_cross_team_output_missing` | warning | Cross-team output destination is missing from a contract graph. |
+
+The completeness rules use the same normalized relationship matcher as diff. A broad Mermaid `topic -> member` read can satisfy runtime `intake[]`, `required_read[]`, or `evidence_consumed[]`; a `decision -> member` edge can satisfy decision consumption visibility.
 
 Generated heartbeat prompt checks are paired with this layer: every active member should receive a generated `# Topic Contract` section from `topics.json`.
+
+The validator currently treats the Mermaid graph as the enforceable operating-graph surface. Prose tables that often sit near the graph, such as topic catalogs and decision summaries, are reference material unless a later validator explicitly names them as checked inputs.
 
 ## Adoption Checklist
 

@@ -424,7 +424,7 @@ func TestIntegration_FeedbackRound_FullStoryStartsToAppliedMutations(t *testing.
 		RoundNumber:         round.Number,
 		Kind:                DecisionAccept,
 		AcceptedMutationIDs: []string{"m1", "m2"},
-		DecidedBy:           "matthalloran8",
+		DecidedBy:           "test-operator",
 	})
 	if err != nil {
 		t.Fatalf("Decide: %v", err)
@@ -536,7 +536,7 @@ func TestIntegration_FeedbackRound_FullStoryStartsToAppliedMutations(t *testing.
 		if ev.source.Entrypoint != "initiative.feedback" {
 			t.Errorf("source.Entrypoint: %q", ev.source.Entrypoint)
 		}
-		if ev.source.DecidedBy != "matthalloran8" {
+		if ev.source.DecidedBy != "test-operator" {
 			t.Errorf("source.DecidedBy: %q", ev.source.DecidedBy)
 		}
 	}
@@ -591,7 +591,7 @@ func TestIntegration_FeedbackRound_RejectLeavesGraphIntact(t *testing.T) {
 		InitiativeName: "command-center",
 		RoundNumber:    round.Number,
 		Kind:           DecisionReject,
-		DecidedBy:      "matthalloran8",
+		DecidedBy:      "test-operator",
 	}); err != nil {
 		t.Fatal(err)
 	}

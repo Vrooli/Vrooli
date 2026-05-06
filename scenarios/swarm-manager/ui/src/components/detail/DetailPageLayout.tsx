@@ -69,6 +69,7 @@ export function DetailPageLayout({
             isOpen={showActionsSheet}
             onClose={() => setShowActionsSheet(false)}
             title={mobileActionsTitle}
+            contentClassName="px-0 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
             data-testid="detail-mobile-actions-sheet"
           >
             {mobileActions}

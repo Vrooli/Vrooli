@@ -3,6 +3,7 @@ module {{SCENARIO_ID}}/cli
 go 1.22
 
 require (
+	connectrpc.com/connect v1.19.2 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0 // indirect

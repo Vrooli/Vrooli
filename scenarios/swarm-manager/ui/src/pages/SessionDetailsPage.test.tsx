@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import type { AgentSession } from "../types";
 import { SessionDetailsPage } from "./SessionDetailsPage";
-import { installMatchMediaMock, renderWithProviders } from "../test-utils";
+import { createTestQueryClient, installMatchMediaMock, renderWithProviders } from "../test-utils";
 
 const storeMock = vi.hoisted(() => {
   const initialState = {
@@ -104,11 +104,15 @@ const SESSION: AgentSession = {
 };
 
 function renderPage(initialPath = "/sessions/sess_meta") {
+  const queryClient = createTestQueryClient();
+  queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
+  queryClient.setQueryData(["embedded-service-url", "prompt-manager"], "https://prompt.test");
+
   return renderWithProviders(
     <Routes>
       <Route path="/sessions/:sessionId" element={<SessionDetailsPage />} />
     </Routes>,
-    { initialEntries: [initialPath] },
+    { initialEntries: [initialPath], queryClient },
   );
 }
 
@@ -137,6 +141,29 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByText("Apply this plan.")).toBeInTheDocument();
     await activateTab(/Artifacts 1/);
     expect(screen.getByText("Quality gates")).toBeInTheDocument();
+  });
+
+  it("deep-links session metadata to Agent Manager and Prompt Manager", async () => {
+    renderPage();
+
+    await activateTab("Details");
+
+    expect(screen.getByTestId("agent-session-skill-link")).toHaveAttribute(
+      "href",
+      "https://prompt.test/skills/swarm-manager-meta-orchestrator",
+    );
+    expect(screen.getByTestId("agent-session-run-link")).toHaveAttribute(
+      "href",
+      "https://agent.test/runs/run-meta",
+    );
+    expect(screen.getByTestId("agent-session-task-link")).toHaveAttribute(
+      "href",
+      "https://agent.test/tasks?taskId=task-meta",
+    );
+    expect(screen.getByTestId("agent-session-profile-link")).toHaveAttribute(
+      "href",
+      "https://agent.test/profiles?profileKey=swarm-manager%2Fdefault",
+    );
   });
 
   it("renders assistant markdown as HTML", () => {

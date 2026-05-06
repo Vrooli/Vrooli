@@ -634,7 +634,7 @@ func TestApply_PropagatesRoundMetadataThroughEvents(t *testing.T) {
 		RoundNumber:     3,
 		RoundSlug:       "ui-rewrite",
 		Entrypoint:      "initiative.feedback",
-		DecidedBy:       "matthalloran8",
+		DecidedBy:       "test-operator",
 	}
 	if _, err := applier.Apply(context.Background(), p, env.currentState(), nil, src); err != nil {
 		t.Fatalf("apply: %v", err)

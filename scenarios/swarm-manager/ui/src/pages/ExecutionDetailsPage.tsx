@@ -18,11 +18,13 @@ import {
   ClipboardCheck,
   GitCompare,
   Loader2,
+  MessageSquarePlus,
   RotateCcw,
   Sparkles,
   XCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
@@ -203,22 +205,46 @@ export function ExecutionDetailsPage() {
     </div>
   );
 
+  const mobileActionItems: ActionMenuItem[] = [];
+  if (isActive) {
+    mobileActionItems.push({
+      label: "Cancel",
+      icon: <XCircle />,
+      loading: actionBusy,
+      disabled: actionBusy,
+      destructive: true,
+      onSelect: () => void cancel(),
+    });
+  } else if (execution.status === "failed") {
+    mobileActionItems.push({
+      label: "Retry",
+      icon: <RotateCcw />,
+      loading: actionBusy,
+      disabled: actionBusy,
+      onSelect: () => void retry(),
+    });
+  } else if (canRunPostRunChecks(execution)) {
+    mobileActionItems.push({
+      label: runChecksLabel,
+      icon: <ClipboardCheck />,
+      loading: actionBusy,
+      disabled: actionBusy,
+      onSelect: () => void triggerReview(),
+    });
+  }
+  if (isTerminal) {
+    mobileActionItems.push({
+      label: "Follow-up",
+      icon: <MessageSquarePlus />,
+      disabled: actionBusy,
+      onSelect: () => setFollowUpTarget(execution),
+    });
+  }
+
   // --- Mobile actions ---
-  const mobileActions = (
-    <div className="flex flex-wrap gap-2">
-      {primaryAction}
-      {isTerminal && (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={actionBusy}
-          onClick={() => setFollowUpTarget(execution)}
-        >
-          Follow-up
-        </Button>
-      )}
-    </div>
-  );
+  const mobileActions = mobileActionItems.length > 0
+    ? <ActionMenuSheetContent items={mobileActionItems} />
+    : undefined;
 
   return (
     <DetailPageLayout

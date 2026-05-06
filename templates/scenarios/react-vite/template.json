@@ -50,7 +50,7 @@
     "designGuide": "docs/design/README.md",
     "generatedDesignContract": "DESIGN.md",
     "generatorGuide": "docs/scenarios/getting-started.md",
-    "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
+    "requirementsGuide": "scenarios/test-genie/docs/phases/business/requirements-sync.md",
     "templateGuide": "templates/scenarios/react-vite/README.md"
   },
   "copyExcludes": [

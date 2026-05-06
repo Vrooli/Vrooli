@@ -1,9 +1,9 @@
 #\!/usr/bin/env bash
 set -u
 
-SCRIPT_DIR="/home/matthalloran8/Vrooli/resources/unstructured-io/test/phases"
-RESOURCE_DIR="/home/matthalloran8/Vrooli/resources/unstructured-io"
-REPO_ROOT="/home/matthalloran8/Vrooli"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESOURCE_DIR="$(cd "${SCRIPT_DIR}" && pwd)"
+REPO_ROOT="$(cd "${RESOURCE_DIR}/../.." && pwd)"
 
 set +e
 source "${REPO_ROOT}/scripts/lib/utils/var.sh"
