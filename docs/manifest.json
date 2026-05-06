@@ -45,6 +45,33 @@
       ]
     },
     {
+      "id": "design",
+      "title": "Design",
+      "icon": "palette",
+      "documents": [
+        {
+          "path": "design/README.md",
+          "title": "Design Language System",
+          "description": "Canonical DESIGN.md governance for scenario UI design languages"
+        },
+        {
+          "path": "design/registry.md",
+          "title": "Design Kit Registry",
+          "description": "Available reusable design kits and adapters"
+        },
+        {
+          "path": "design/adapters.md",
+          "title": "Design Adapters",
+          "description": "Stack-specific adapter contracts for design kits"
+        },
+        {
+          "path": "design/governance.md",
+          "title": "Design Governance",
+          "description": "Ownership, versioning, and scenario DESIGN.md rules"
+        }
+      ]
+    },
+    {
       "id": "guides",
       "title": "Guides",
       "icon": "map",

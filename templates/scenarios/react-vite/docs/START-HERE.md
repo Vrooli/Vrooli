@@ -171,21 +171,23 @@ the real scenario needs.
 
 ### Gate 5 — Design Language
 
-This gate is pending the project-wide `DESIGN.md` standard. For now,
-use `PRD.md`'s UX and branding section as the product-level promise.
-If the scenario needs stronger UI direction before the project standard
-lands, add a scenario-local `DESIGN.md` and keep it aligned with
-`ui/src/styles.css`, `ui/tailwind.config.ts`, and reusable
-`ui/src/components/ui/` primitives.
+Generation installs root-level `DESIGN.md` from the selected design kit.
+Treat that file as the UI source of truth before building screens.
 
-- [ ] Confirm whether this scenario needs a custom design language
-      before building screens.
-- [ ] If yes, create or copy `DESIGN.md` before UI implementation.
-- [ ] Reflect concrete decisions in tokens, styles, Tailwind config,
-      reusable primitives, selectors, and accessibility tests.
+- [ ] Read `DESIGN.md` and confirm it fits this scenario's users,
+      density, workflow, and accessibility needs.
+- [ ] If the scenario needs a different language, regenerate with a
+      compatible `--design <kit-id>` or intentionally update
+      `DESIGN.md` before UI implementation.
+- [ ] Keep `ui/src/design-tokens.css`, `ui/tailwind.theme.json`,
+      `ui/tailwind.config.ts`, and reusable `ui/src/components/ui/`
+      primitives aligned with `DESIGN.md`.
+- [ ] Do not create `docs/DESIGN_LANGUAGE.md`; root `DESIGN.md` is the
+      canonical design contract.
 
-**Exit criteria:** UI work has a design source of truth, even if that
-source is currently only the PRD UX section.
+**Exit criteria:** UI work has a reviewed root `DESIGN.md`, and the
+global styles, Tailwind theme, primitives, selectors, and accessibility
+tests all point back to that contract.
 
 ### Gate 6 — First Real Vertical Slice
 

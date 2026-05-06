@@ -1,4 +1,4 @@
-// Package handlers - design language file generation from brand data.
+// Package handlers - DESIGN.md export generation from brand data.
 // [REQ:BM-REQ-DESIGN-GEN] [REQ:BM-REQ-DESIGN-CONTENT]
 package handlers
 
@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// designLanguageResponse is the API response for design language generation.
+// designLanguageResponse is the API response for DESIGN.md export generation.
 type designLanguageResponse struct {
 	BrandID  string `json:"brand_id"`
 	Markdown string `json:"markdown"`
@@ -63,16 +63,21 @@ func writeSection(sb *strings.Builder, title string, fields []mdField) {
 	sb.WriteString("\n")
 }
 
-// renderDesignLanguage generates a DESIGN_LANGUAGE.md from brand data.
+// renderDesignLanguage generates a canonical DESIGN.md export from brand data.
 // [REQ:BM-REQ-DESIGN-CONTENT]
 func renderDesignLanguage(brand *domain.Brand) string {
 	var sb strings.Builder
 
-	fmt.Fprintf(&sb, "# %s — Design Language\n\n", brand.Name)
+	sb.WriteString("---\n")
+	fmt.Fprintf(&sb, "id: %s\n", brand.ID)
+	fmt.Fprintf(&sb, "name: %q\n", brand.Name)
+	fmt.Fprintf(&sb, "version: %d\n", brand.Version)
+	sb.WriteString("source: brand-manager\n")
+	sb.WriteString("---\n\n")
+	fmt.Fprintf(&sb, "# %s DESIGN.md\n\n", brand.Name)
 	if brand.Description != "" {
 		fmt.Fprintf(&sb, "> %s\n\n", brand.Description)
 	}
-	sb.WriteString("---\n\n")
 
 	// Identity
 	if brand.Identity != nil {

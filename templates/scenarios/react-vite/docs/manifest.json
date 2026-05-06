@@ -17,6 +17,12 @@
           "audience": ["developers"]
         },
         {
+          "path": "../DESIGN.md",
+          "title": "Design Contract",
+          "description": "Canonical scenario UI design language installed from the selected design kit",
+          "audience": ["developers"]
+        },
+        {
           "path": "QUICKSTART.md",
           "title": "Quickstart",
           "description": "Clone-to-running in five minutes",

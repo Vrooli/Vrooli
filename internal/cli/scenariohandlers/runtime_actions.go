@@ -69,9 +69,9 @@ func PortResponseFrom(format cliout.Format, run func(PortRequest) (scenarioapp.P
 	resp, err := run(req)
 	if err != nil {
 		if req.PortName == "" {
-			return PortResponse{}, rootcli.RuntimeErrorf("Inspect the scenario status or start the scenario first", err.Error())
+			return PortResponse{}, rootcli.RuntimeErrorf("Inspect the scenario status or start the scenario first", "%s", err.Error())
 		}
-		return PortResponse{}, rootcli.RuntimeErrorf("Start the scenario before querying runtime ports", err.Error())
+		return PortResponse{}, rootcli.RuntimeErrorf("Start the scenario before querying runtime ports", "%s", err.Error())
 	}
 	return toCLIPortResponse(resp), nil
 }

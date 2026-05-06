@@ -33,6 +33,7 @@ const (
 	CommandPort            CommandID = "port"
 	CommandUISmoke         CommandID = "ui-smoke"
 	CommandRequirements    CommandID = "requirements"
+	CommandDesign          CommandID = "design"
 	CommandTemplate        CommandID = "template"
 	CommandGenerate        CommandID = "generate"
 	CommandCompleteness    CommandID = "completeness"
@@ -106,6 +107,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{Name: string(CommandUISmoke), Group: "Lifecycle and Utility Commands", Summary: "Run the Browserless UI smoke harness", Handler: CommandUISmoke, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandRequirements), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario requirements", Handler: CommandRequirements, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
+		{Name: string(CommandDesign), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario design kits", Handler: CommandDesign, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandTemplate), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario templates", Handler: CommandTemplate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandGenerate), Group: "Lifecycle and Utility Commands", Summary: "Scaffold a scenario from a template", Handler: CommandGenerate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandCompleteness), Group: "Lifecycle and Utility Commands", Summary: "Calculate a completeness score", Handler: CommandCompleteness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},

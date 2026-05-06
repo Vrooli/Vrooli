@@ -5,7 +5,7 @@ Manages the full branding lifecycle for all Vrooli scenarios — generating, sto
 ## Architecture
 
 **Two-layer branding:**
-1. **Design Language File** (`docs/DESIGN_LANGUAGE.md` per scenario) — LLM-generated prose from structured brand data + user notes
+1. **Design Contract Export** (`DESIGN.md` at the scenario root) — generated design contract from structured brand data + user notes
 2. **Brand Manager DB + Assets** — SQLite for metadata, filesystem for binary assets
 
 **Three surfaces:** UI (React dashboard + wizard), CLI, REST API

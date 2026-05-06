@@ -59,7 +59,7 @@ func TemplateCommandHandler[C any](deps HandlerDeps[C]) func(C, []string) error 
 		case "validate":
 			req, err := ParseTemplateValidateRequest(args[1:])
 			if err != nil {
-				return rootcli.UsageErrorf("scenario template validate", err.Error())
+				return rootcli.UsageErrorf("scenario template validate", "%s", err.Error())
 			}
 			format, report, err := runTemplateValidate(deps, ctx, req)
 			if err != nil {
@@ -165,6 +165,31 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 					Message:  fmt.Sprintf("generate validation copy: %v", err),
 				}}
 			}
+			design, err := resolveDesign(deps.Root(ctx), info, "", destination, values)
+			if err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("resolve default design: %v", err),
+				}}
+			}
+			if err := preflightDesignCopies(design, true); err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("preflight default design: %v", err),
+				}}
+			}
+			if err := preflightDesignTemplateCollisions(info.Path, destination, design); err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("preflight default design: %v", err),
+				}}
+			}
+			if err := copyDesignAssets(design, values); err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("copy default design: %v", err),
+				}}
+			}
 			if err := verifyTemplate(destination); err != nil {
 				return []TemplateValidationIssue{{
 					Template: info.Name,
@@ -228,6 +253,10 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 	if err != nil {
 		return "", GenerateResult{}, err
 	}
+	design, err := resolveDesign(deps.Root(ctx), info, opts.Design, destination, values)
+	if err != nil {
+		return "", GenerateResult{}, err
+	}
 	if opts.DryRun {
 		return cliout.FormatHuman, GenerateResult{
 			TemplateName: info.Name,
@@ -235,6 +264,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 			Destination:  destination,
 			Values:       values,
 			Manifest:     info.Manifest,
+			Design:       design,
 			Relocations:  resolved,
 			DryRun:       true,
 		}, nil
@@ -260,7 +290,16 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 			}
 		}
 	}
+	if err := preflightDesignCopies(design, opts.Force); err != nil {
+		return "", GenerateResult{}, err
+	}
+	if err := preflightDesignTemplateCollisions(info.Path, destination, design); err != nil {
+		return "", GenerateResult{}, err
+	}
 	if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
+		return "", GenerateResult{}, err
+	}
+	if err := copyDesignAssets(design, values); err != nil {
 		return "", GenerateResult{}, err
 	}
 	if err := verifyTemplate(destination); err != nil {
@@ -283,6 +322,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 		Destination:  destination,
 		Values:       values,
 		Manifest:     info.Manifest,
+		Design:       design,
 		Relocations:  resolved,
 		RunHooks:     opts.RunHooks,
 	}

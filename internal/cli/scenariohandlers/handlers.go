@@ -343,6 +343,7 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 		),
 		CommandUISmoke:      UISmokeHandler(deps),
 		CommandRequirements: RequirementsHandler(deps),
+		CommandDesign:       DesignCommandHandler(deps),
 		CommandTemplate:     TemplateCommandHandler(deps),
 		CommandGenerate:     GenerateHandler(deps),
 		CommandCompleteness: CompletenessHandler(deps),

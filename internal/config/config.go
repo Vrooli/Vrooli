@@ -8,6 +8,7 @@ import (
 
 const (
 	TemplateBaseDirEnvVar = "SCENARIO_TEMPLATE_BASE_DIR"
+	DesignBaseDirEnvVar   = "SCENARIO_DESIGN_BASE_DIR"
 )
 
 func HomeDir() (string, error) {
@@ -33,4 +34,14 @@ func TemplateBaseDir(root string) string {
 		return filepath.Clean(filepath.Join(root, filepath.FromSlash(override)))
 	}
 	return filepath.Join(root, "templates", "scenarios")
+}
+
+func DesignBaseDir(root string) string {
+	if override := strings.TrimSpace(os.Getenv(DesignBaseDirEnvVar)); override != "" {
+		if filepath.IsAbs(override) {
+			return filepath.Clean(override)
+		}
+		return filepath.Clean(filepath.Join(root, filepath.FromSlash(override)))
+	}
+	return filepath.Join(root, "templates", "design")
 }

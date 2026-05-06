@@ -28,6 +28,7 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 
 - [narrative/](narrative/) — project-identity canon (pitch, story, FAQ, press kit, pitch-deck outline) consumed across teams
 - [marketing/](marketing/) — voice, audiences, channels, campaigns, brand assets, image-style guide
+- [design/](design/) — canonical `DESIGN.md` governance for scenario UI design languages and generation adapters
 - [guides/README.md](guides/README.md) for contributor and operator workflows
 - [reference/cli-commands.md](reference/cli-commands.md) for CLI and control-plane reference
 - [reference/machine-readable-references.md](reference/machine-readable-references.md) for machine-readable reference syntax used by docs scanners and agent instructions
@@ -46,6 +47,7 @@ The project-level docs are organized around a stable taxonomy:
 - `QUICKSTART.md` for first-touch onboarding
 - `narrative/` for project-identity canon (pitch, story, FAQ, press kit, deck outline) — cross-team consumed
 - `marketing/` for voice canon, audiences, channels, campaigns, brand assets, image-style guide
+- `design/` for application UI design-language governance, design-kit registry, adapters, and `DESIGN.md` rules
 - `concepts/` for architecture and vocabulary
 - `development/` for development pipelines (e.g. [`development/proto.md`](development/proto.md) — proto codegen)
 - `guides/` for task-oriented workflows

@@ -522,6 +522,7 @@ func TestTemplateParsersCaptureFlagsAndValues(t *testing.T) {
 		"--id", "alpha",
 		"--display-name=Alpha App",
 		"--description", "Generated alpha",
+		"--design", "vrooli-default",
 		"--var", "CUSTOM=1",
 		"--unknown", "mystery",
 	}, manifest, &stderr)
@@ -531,8 +532,9 @@ func TestTemplateParsersCaptureFlagsAndValues(t *testing.T) {
 	if opts.Values["SCENARIO_ID"] != "alpha" ||
 		opts.Values["SCENARIO_DISPLAY_NAME"] != "Alpha App" ||
 		opts.Values["SCENARIO_DESCRIPTION"] != "Generated alpha" ||
-		opts.Values["CUSTOM"] != "1" {
-		t.Fatalf("values = %#v", opts.Values)
+		opts.Values["CUSTOM"] != "1" ||
+		opts.Design != "vrooli-default" {
+		t.Fatalf("opts = %#v", opts)
 	}
 	if !strings.Contains(stderr.String(), "unknown flag --unknown") {
 		t.Fatalf("stderr = %q", stderr.String())
@@ -552,6 +554,36 @@ func TestParseTemplateValidateRequestRejectsUnexpectedArgs(t *testing.T) {
 	}
 	if _, err := ParseTemplateValidateRequest([]string{"extra"}); err == nil {
 		t.Fatal("expected ParseTemplateValidateRequest() to reject extra args")
+	}
+}
+
+func TestDesignParsers(t *testing.T) {
+	if _, err := ParseDesignListRequest(nil); err != nil {
+		t.Fatalf("ParseDesignListRequest() error = %v", err)
+	}
+	show, err := ParseDesignShowRequest([]string{"vrooli-default"})
+	if err != nil {
+		t.Fatalf("ParseDesignShowRequest() error = %v", err)
+	}
+	if show.ID != "vrooli-default" {
+		t.Fatalf("show.ID = %q", show.ID)
+	}
+	validate, err := ParseDesignValidateRequest([]string{"--all"})
+	if err != nil {
+		t.Fatalf("ParseDesignValidateRequest(--all) error = %v", err)
+	}
+	if !validate.All || validate.ID != "" {
+		t.Fatalf("validate = %#v", validate)
+	}
+	validate, err = ParseDesignValidateRequest([]string{"vrooli-default"})
+	if err != nil {
+		t.Fatalf("ParseDesignValidateRequest(id) error = %v", err)
+	}
+	if validate.All || validate.ID != "vrooli-default" {
+		t.Fatalf("validate = %#v", validate)
+	}
+	if _, err := ParseDesignValidateRequest([]string{"vrooli-default", "--all"}); err == nil {
+		t.Fatal("expected id plus --all to fail")
 	}
 }
 

@@ -164,6 +164,98 @@ func TestValidateTemplateSourceFlagsHardcodedLocalReplaceTargets(t *testing.T) {
 	}
 }
 
+func TestResolveDesignRejectsNoneForRequiredTemplate(t *testing.T) {
+	destination := t.TempDir()
+	_, err := resolveDesign(t.TempDir(), scenariocli.TemplateInfo{
+		Name: "demo",
+		Manifest: scenariocli.TemplateManifest{
+			Design: scenariocli.TemplateDesign{Required: true, Default: "vrooli-default", Adapter: "react-vite-tailwind"},
+		},
+	}, "none", destination, map[string]string{})
+	if err == nil || !strings.Contains(err.Error(), "--design none is not allowed") {
+		t.Fatalf("resolveDesign() error = %v", err)
+	}
+}
+
+func TestResolveAndCopyDesignAssets(t *testing.T) {
+	repoRoot := t.TempDir()
+	kitDir := filepath.Join(repoRoot, "templates", "design", "demo-kit")
+	adapterDir := filepath.Join(kitDir, "adapters", "react-vite-tailwind")
+	if err := os.MkdirAll(adapterDir, 0o755); err != nil {
+		t.Fatalf("mkdir adapter: %v", err)
+	}
+	writeTestFile(t, filepath.Join(kitDir, "metadata.json"), `{
+  "id": "demo-kit",
+  "name": "Demo Kit",
+  "version": "0.1.0",
+  "default": true,
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind",
+      "supports": ["templates/scenarios/react-vite"]
+    }
+  }
+}`)
+	writeTestFile(t, filepath.Join(kitDir, "DESIGN.md"), "# {{SCENARIO_DISPLAY_NAME}} Design\n")
+	writeTestFile(t, filepath.Join(adapterDir, "adapter.json"), `{
+  "id": "react-vite-tailwind",
+  "copy": [{ "from": "tokens.css", "to": "ui/src/design-tokens.css" }]
+}`)
+	writeTestFile(t, filepath.Join(adapterDir, "tokens.css"), ":root { --scenario-name: \"{{SCENARIO_ID}}\"; }\n")
+
+	destination := filepath.Join(repoRoot, "scenarios", "alpha")
+	values := map[string]string{"SCENARIO_ID": "alpha", "SCENARIO_DISPLAY_NAME": "Alpha"}
+	design, err := resolveDesign(repoRoot, scenariocli.TemplateInfo{
+		Name: "react-vite",
+		Manifest: scenariocli.TemplateManifest{
+			Design: scenariocli.TemplateDesign{Required: true, Default: "demo-kit", Adapter: "react-vite-tailwind"},
+		},
+	}, "", destination, values)
+	if err != nil {
+		t.Fatalf("resolveDesign() error = %v", err)
+	}
+	if len(design.Copies) != 2 {
+		t.Fatalf("design copies = %#v", design.Copies)
+	}
+	if err := preflightDesignCopies(design, false); err != nil {
+		t.Fatalf("preflightDesignCopies() error = %v", err)
+	}
+	if err := copyDesignAssets(design, values); err != nil {
+		t.Fatalf("copyDesignAssets() error = %v", err)
+	}
+	designDoc, err := os.ReadFile(filepath.Join(destination, "DESIGN.md"))
+	if err != nil {
+		t.Fatalf("read generated DESIGN.md: %v", err)
+	}
+	if !strings.Contains(string(designDoc), "# Alpha Design") {
+		t.Fatalf("DESIGN.md = %q", string(designDoc))
+	}
+	tokens, err := os.ReadFile(filepath.Join(destination, "ui", "src", "design-tokens.css"))
+	if err != nil {
+		t.Fatalf("read generated tokens: %v", err)
+	}
+	if !strings.Contains(string(tokens), `"alpha"`) {
+		t.Fatalf("tokens = %q", string(tokens))
+	}
+}
+
+func TestPreflightDesignTemplateCollisionsRejectsTemplateOwnedTargets(t *testing.T) {
+	root := t.TempDir()
+	templateDir := filepath.Join(root, "templates", "scenarios", "demo")
+	destination := filepath.Join(root, "scenarios", "demo")
+	writeTestFile(t, filepath.Join(templateDir, "ui", "tailwind.config.ts"), "export default {}\n")
+
+	err := preflightDesignTemplateCollisions(templateDir, destination, scenariocli.ResolvedDesign{
+		KitID: "demo-kit",
+		Copies: []scenariocli.ResolvedDesignCopy{
+			{From: filepath.Join(root, "tokens.css"), To: filepath.Join(destination, "ui", "tailwind.config.ts")},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "collides with template file") {
+		t.Fatalf("preflightDesignTemplateCollisions() error = %v", err)
+	}
+}
+
 // --------------------------------------------------------------------------
 // Relocation tests
 // --------------------------------------------------------------------------
@@ -226,6 +318,16 @@ func seedRepoContract(t *testing.T, repoRoot string) {
 	// pre-create them as empty dirs.
 	for _, dir := range []string{"packages", "templates", "scenarios", "resources", "cmd", "internal"} {
 		_ = os.MkdirAll(filepath.Join(repoRoot, dir), 0o755)
+	}
+}
+
+func writeTestFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }
 

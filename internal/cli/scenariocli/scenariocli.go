@@ -524,7 +524,7 @@ func RenderPortResponse(w io.Writer, format cliout.Format, resp PortResponse) er
 			return cliout.WriteJSON(w, resp.List)
 		}
 		if !resp.List.Success {
-			return fmt.Errorf(resp.List.Error)
+			return fmt.Errorf("%s", resp.List.Error)
 		}
 		for _, port := range resp.List.Ports {
 			_, _ = fmt.Fprintf(w, "%s=%d\n", port.Key, port.Port)
@@ -538,7 +538,7 @@ func RenderPortResponse(w io.Writer, format cliout.Format, resp PortResponse) er
 		return cliout.WriteJSON(w, resp.Single)
 	}
 	if !resp.Single.Success {
-		return fmt.Errorf(resp.Single.Error)
+		return fmt.Errorf("%s", resp.Single.Error)
 	}
 	_, _ = fmt.Fprintf(w, "%d\n", resp.Single.Port)
 	return nil

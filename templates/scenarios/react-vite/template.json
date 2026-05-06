@@ -10,6 +10,11 @@
     "cli"
   ],
   "startDocument": "docs/START-HERE.md",
+  "design": {
+    "adapter": "react-vite-tailwind",
+    "default": "vrooli-default",
+    "required": true
+  },
   "requiredVars": {
     "SCENARIO_ID": {
       "flag": "id",
@@ -42,6 +47,8 @@
     }
   },
   "docs": {
+    "designGuide": "docs/design/README.md",
+    "generatedDesignContract": "DESIGN.md",
     "generatorGuide": "docs/scenarios/getting-started.md",
     "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
     "templateGuide": "templates/scenarios/react-vite/README.md"

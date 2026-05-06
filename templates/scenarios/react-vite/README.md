@@ -15,7 +15,8 @@ standard full-stack Vrooli scenario shape:
 vrooli scenario generate react-vite \
   --id <your-scenario> \
   --display-name "Your Scenario" \
-  --description "One sentence summary"
+  --description "One sentence summary" \
+  --design vrooli-default
 cd scenarios/<your-scenario>/
 ```
 
@@ -40,6 +41,8 @@ scenario lifecycle own setup, ports, start/stop, logs, and tests.
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
   declarative command args, generated Connect clients, and report-shaped
   output.
+- Root-level `DESIGN.md` plus generated UI token assets from the
+  selected design kit.
 
 ## Setup Workflow
 ```bash
@@ -61,6 +64,7 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 | Need | Start Here |
 |---|---|
 | Begin implementation after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at the generated scenario root |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
@@ -72,9 +76,10 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 ## Customize Safely
 1. **Read `docs/START-HERE.md` first.** It owns the first implementation workflow.
 2. **Update PRD.md + requirements/** before feature work. Operational targets drive code + tests.
-3. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-4. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
-5. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
+3. **Read root `DESIGN.md` before UI work.** Keep global styles, Tailwind theme, and primitives aligned with it.
+4. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+5. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
+6. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
 
 ## pnpm Everywhere
 The template assumes pnpm. If you run another package manager, convert lockfiles yourself before committing. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce drift.
