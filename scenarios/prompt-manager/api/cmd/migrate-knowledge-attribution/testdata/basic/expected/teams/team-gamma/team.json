@@ -1,0 +1,11 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "team-gamma",
+  "displayName": "Team Gamma",
+  "enabled": true,
+  "operatingContract": {
+    "schemaVersion": 1
+  },
+  "attributionValidFrom": "2026-04-15"
+}

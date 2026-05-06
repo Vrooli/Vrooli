@@ -91,5 +91,5 @@
 2. workspace-sandbox `StreamProcessLogs` raced the wait reaper for fast-failing processes — the SSE stream closed before `RecordExit` ran, so no `event: exit` was emitted.
 3. `sandboxLaunchedProcess.finalizeWaitErr` treated missing exit info as success.
 4. swarm-manager profile hardcoded `ManualReview=true`, so even silent failures landed in NEEDS_REVIEW.
-**Fix**: see `docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md` (committed 2026-04-28). Phase A translates paths at the SandboxLauncher boundary; Phase B adds `WaitForExit` server-side; Phase C surfaces `ErrSandboxNoExitInfo` and emits stderr on success; Phase D adds `validateRunOutcome` to demote silent successes; Phase E removes ManualReview from the swarm-manager profile.
+**Fix**: committed 2026-04-28. The fix translates paths at the SandboxLauncher boundary, adds `WaitForExit` server-side, surfaces `ErrSandboxNoExitInfo` and emits stderr on success, adds `validateRunOutcome` to demote silent successes, and removes ManualReview from the swarm-manager profile.
 **Affected commits**: `3e8b004704` through `26af7314ab` (Sandboxing auto-approval p1..p5).

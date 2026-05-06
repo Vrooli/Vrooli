@@ -94,7 +94,7 @@ End your response with a single fenced `json` block. The server parses this as t
 
 - Be concise. The user is triaging verdicts across many initiatives.
 - Lead with the verdict in the first sentence of `agent_assessment`.
-- When citing regressions, name the item (`execute/foo`) and, where possible, the specific file or section.
+- When citing regressions, name the item (`literal:execute/foo`) and, where possible, the specific file or section.
 - Prefer short `notes` bullets over long prose paragraphs when your observations are independent.
 
 ## References

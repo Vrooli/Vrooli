@@ -1,7 +1,61 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "catalog-snapshot/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "candidate-sku-record/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "sku-retirement",
+        "channel-activation"
+      ]
+    },
+    {
+      "prefix": "monetization-benchmark-record/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "sku-retirement",
+        "channel-activation"
+      ]
+    },
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "catalog-mapping-update",
+        "channel-activation",
+        "sku-retirement",
+        "services-activation",
+        "services-conversion",
+        "services-sunset"
+      ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "catalog-mapping-update",
+        "channel-activation",
+        "sku-retirement",
+        "services-activation",
+        "services-conversion",
+        "services-sunset"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "monetization-canon/*", "destination_kind": "por_file", "destination_path": "docs/monetization/CATALOG.md" }
+    {
+      "prefix": "monetization-canon/*",
+      "destination_kind": "por_file",
+      "destination_path": "docs/monetization/CATALOG.md"
+    },
+    {
+      "prefix": "catalog-snapshot/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "catalog-promotion",
@@ -12,7 +66,12 @@
     "services-conversion",
     "services-sunset"
   ],
-  "decisions_consumed": ["capability-gap", "benchmark-update"],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator", "vision-walk"]
+  "decisions_consumed": [
+    "capability-gap",
+    "benchmark-update"
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
 }

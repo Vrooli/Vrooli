@@ -19,38 +19,77 @@ const (
 
 // Finding is one validation result. Multiple findings may apply to a single
 // member or prefix.
+//
+// OwnerKey is the canonical owner string from the prose-scan owner-derivation
+// rules (`team:<team>/<member>`, `team:<team>`, `agent:<id>`, `skill:<id>`,
+// `docs:<domain>`). Populated by Pillar 2 (`ruleProseTopicLeak`) so CI
+// summary scripts can group findings by surface owner. Other rules leave it
+// empty; consumers that group by owner should fall back to Member when
+// OwnerKey is absent.
 type Finding struct {
 	Rule     string    `json:"rule"`
 	Severity Severity  `json:"severity"`
 	Member   MemberRef `json:"member,omitempty"`
 	Prefix   string    `json:"prefix,omitempty"`
+	OwnerKey string    `json:"owner_key,omitempty"`
 	Detail   string    `json:"detail"`
 }
 
 // ValidationOptions configures runtime checks that depend on filesystem state
-// (taxonomy registry, classifier-skill files, PoR file existence). Repo root
-// is required for dangling_por_sink, unknown_taxonomy, and
-// non_portable_classifier checks.
+// (taxonomy registry, team-contract registry, prose-scan roots, PoR file
+// existence). Repo root is required for dangling_por_sink and
+// unknown_taxonomy checks; StoreDir is required for the team-contract
+// registry lazy-load.
 type ValidationOptions struct {
 	// RepoRoot is the absolute path to the repository root (the parent of
-	// docs/, scenarios/, etc.). Used for por_file existence,
-	// classifier-skill content scans, and as a fallback location for
-	// taxonomies when Taxonomies is nil.
+	// docs/, scenarios/, etc.). Used for por_file existence and as a
+	// fallback location for taxonomies when Taxonomies is nil.
 	RepoRoot string
+
+	// StoreDir is the absolute path to the prompt-manager store
+	// (scenarios/prompt-manager/store/). Used as the fallback location
+	// for team contracts when TeamContracts is nil; ignored when set
+	// explicitly. When both StoreDir and TeamContracts are empty, the
+	// dangling_evidence_decision rule is skipped.
+	StoreDir string
 
 	// SkillIDs is the set of skill ids known to the skill registry.
 	// Empty disables skill-existence cross-checks.
 	SkillIDs map[string]bool
 
-	// SkillPaths maps skill id -> absolute path to its SKILL.md content,
-	// used by ruleNonPortableClassifier to grep classifier skills for
-	// forbidden coupling. Optional: empty disables the rule.
-	SkillPaths map[string]string
-
 	// Taxonomies is the loaded taxonomy registry used by
 	// ruleUnknownTaxonomy and ruleMissingDestinationSchema. When nil and
 	// RepoRoot is set, Validate loads taxonomies on demand.
 	Taxonomies TaxonomyRegistry
+
+	// TeamContracts is the loaded team-contract registry used by
+	// ruleDanglingEvidenceDecision. When nil and StoreDir is set,
+	// Validate loads contracts on demand. An explicit empty registry
+	// disables the rule (lets tests assert behavior without contracts
+	// without needing a store on disk).
+	TeamContracts TeamContractRegistry
+
+	// ScanRoots are absolute filesystem roots the Pillar 2 prose scanner
+	// (ruleProseTopicLeak) walks. When empty AND RepoRoot is empty, the
+	// rule is silent (unit tests that pass synthetic members[] without a
+	// backing tree get this). When ScanRoots is empty AND RepoRoot is
+	// set, the scanner derives its targets from RepoRoot's
+	// `scenarios/prompt-manager/store/` and `docs/` subtrees per
+	// docs/agent-system/PROSE_SCAN_TARGETS.md. Tests that need a focused
+	// scan (e.g., a temp-dir fixture rooted somewhere other than the live
+	// repo) supply ScanRoots explicitly.
+	ScanRoots []string
+
+	// WriterSkillProducers is the union of `writes_to[]` prefixes
+	// declared by every skill tagged "writer-skill". Used by
+	// ruleUnreadRequired to resolve required_read[] entries against
+	// writer-skill producers — Contract Decision C7 (the writer-skill
+	// registry is the producer-side declaration for skill-written
+	// prefixes; classifier and generic skills must be portable). When
+	// nil and RepoRoot is set, Validate lazy-loads via
+	// LoadWriterSkillProducers. An explicit empty slice disables the
+	// lookup; a nil with RepoRoot empty is also a silent no-op.
+	WriterSkillProducers []string
 }
 
 // ValidationResult bundles findings with summary counts.
@@ -78,17 +117,30 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 			opts.Taxonomies = reg
 		}
 	}
+	if opts.TeamContracts == nil && strings.TrimSpace(opts.StoreDir) != "" {
+		if reg, err := LoadAllTeamContracts(opts.StoreDir); err == nil {
+			opts.TeamContracts = reg
+		}
+	}
+	if opts.WriterSkillProducers == nil && strings.TrimSpace(opts.RepoRoot) != "" {
+		if producers, err := LoadWriterSkillProducers(opts.RepoRoot); err == nil {
+			opts.WriterSkillProducers = producers
+		}
+	}
 
 	var findings []Finding
 
 	findings = append(findings, ruleConflictingDrain(members)...)
 	findings = append(findings, ruleOrphanOutput(members, opts)...)
 	findings = append(findings, ruleOrphanInput(members)...)
+	findings = append(findings, ruleUnreadRequired(members, opts)...)
 	findings = append(findings, ruleWildcardSourceMisuse(members)...)
 	findings = append(findings, ruleUnknownTaxonomy(members, opts)...)
-	findings = append(findings, ruleNonPortableClassifier(members, opts)...)
 	findings = append(findings, ruleMissingDestinationSchema(members, opts)...)
 	findings = append(findings, ruleDanglingPORSink(members, opts)...)
+	findings = append(findings, ruleDanglingEvidenceDecision(members, opts)...)
+	findings = append(findings, ruleActualWriterUndeclared(members, opts)...)
+	findings = append(findings, ruleProseTopicLeak(members, opts)...)
 
 	// stalled_drain and piling_inbox depend on team-knowledge queue depth +
 	// age; those are computed by the CLI layer (which has access to the
@@ -168,25 +220,22 @@ func ruleConflictingDrain(members []MemberTopics) []Finding {
 
 // ruleOrphanOutput — a member's output prefix has no consumer.
 //
-// Consumer types:
-//   - another member's intake prefix overlaps the output prefix
-//   - the output destination_kind is non-knowledge (decision, por_file,
-//     capability_gap, skill_proposal, backlog) — those are sinks, not orphans
+// "Consumer" is whatever consumerSet (consumer_set.go) recognizes as a
+// reader of a topic prefix. The set aggregates every read-side
+// declaration on every member's topics.json: `intake[]` (drain),
+// `required_read[]` (heartbeat-prompt context), and `evidence_consumed[]`
+// (decision rationale). This rule is intentionally agnostic about which
+// kinds of consumer exist — that knowledge lives in the set, so adding a
+// new consumer kind is a one-line change in buildConsumerSet.
+//
+// Non-knowledge destinations (decision, por_file, capability_gap,
+// skill_proposal, backlog) are sinks, never orphans, and are skipped
+// before consulting the consumer set.
 func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding {
 	_ = opts
 	var out []Finding
 
-	// Build set of intake prefixes for quick lookup.
-	type intakeClaim struct {
-		ref    MemberRef
-		prefix string
-	}
-	var intakes []intakeClaim
-	for _, m := range members {
-		for _, e := range m.Topics.Intake {
-			intakes = append(intakes, intakeClaim{m.Ref, e.Prefix})
-		}
-	}
+	consumers := buildConsumerSet(members)
 
 	for _, m := range members {
 		for _, o := range m.Topics.Output {
@@ -194,28 +243,21 @@ func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding 
 			if o.DestinationKind != DestinationKnowledge {
 				continue
 			}
-			// Same-team self-consumption counts as a consumer.
-			matched := false
-			for _, in := range intakes {
-				if Overlap(in.prefix, o.Prefix) {
-					matched = true
-					break
-				}
+			if consumers.Overlaps(o.Prefix) {
+				continue
 			}
-			if !matched {
-				// Warning, not error: many knowledge outputs are
-				// operator-read snapshots (audits, ledgers, run
-				// lessons) that have no member-level drain. The
-				// smell is "no peer member claims this prefix" —
-				// operators decide whether that's intentional.
-				out = append(out, Finding{
-					Rule:     "orphan_output",
-					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   o.Prefix,
-					Detail:   fmt.Sprintf("output prefix %q has no peer-member consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
-				})
-			}
+			// Warning, not error: many knowledge outputs are
+			// operator-read snapshots (audits, ledgers, run
+			// lessons) that have no member-level drain. The
+			// smell is "no peer member claims this prefix" —
+			// operators decide whether that's intentional.
+			out = append(out, Finding{
+				Rule:     "orphan_output",
+				Severity: SeverityWarning,
+				Member:   m.Ref,
+				Prefix:   o.Prefix,
+				Detail:   fmt.Sprintf("output prefix %q has no peer-member consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
+			})
 		}
 	}
 	return out
@@ -270,6 +312,100 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 					Detail:   fmt.Sprintf("intake prefix %q has no producer (no member's output overlaps and no external_producer is declared)", in.Prefix),
 				})
 			}
+		}
+	}
+	return out
+}
+
+// ruleUnreadRequired — a member's required_read[] prefix has no producer.
+//
+// Mirrors ruleOrphanInput's producer-discovery walk but for `required_read[]`
+// entries. A required_read prefix says "I need this prefix's recent state
+// rendered into my heartbeat prompt every tick"; a finding here means no
+// member's `output[]` and no writer-skill `writes_to[]` declares the prefix,
+// so the agent will load an empty (or stale) section and the operator's
+// mental model has drifted from the declared graph.
+//
+// Producer sources consulted, in order:
+//
+//  1. Any member's `output[]` whose prefix overlaps the required_read prefix
+//     (cross-team allowed; producer-side ownership is enforced elsewhere).
+//
+//  2. Any writer-skill `writes_to[]` entry whose prefix overlaps the
+//     required_read prefix. Writer-skill writes_to is the producer-side
+//     declaration for skill-written prefixes — treating it as a
+//     first-class declared write keeps the rule's intent ("declared
+//     reads must overlap declared writes") coherent across both members
+//     and skills. The skill registry is loaded via
+//     opts.WriterSkillProducers; tests that pass synthetic members
+//     without WriterSkillProducers see writer-skill consultation as a
+//     no-op.
+//
+// Severity is error. The rule is a CI gate:
+// any unmatched required_read fails `prompt-manager graph topics` and
+// must be resolved by renaming the read to overlap a producer, adding
+// a member output, or adding the prefix to a writer-skill writes_to[].
+//
+// Member-level `external_producers` is intentionally NOT a satisfying
+// anchor here. Where ruleOrphanInput is a hard gate and uses
+// external_producers as a coarse-grained "trust the operator's producer-side
+// documentation" escape hatch, this rule's purpose is to surface drift
+// between declared read prefixes and declared write prefixes. external_producers
+// is a freeform list of names without a writes_to[] equivalent; honoring it
+// would silently hide drift the writer-skill writes_to[] consultation
+// (above) is designed to catch. The contrast: writer-skill writes_to[] is a
+// concrete declared-write list checkable against the read; external_producers
+// is a textual hint without that structure.
+//
+// Skipped per-entry conditions:
+//   - source_team == "*" (universal-source read): any team may write, so
+//     producer existence is not enforced. Mirrors ruleOrphanInput's
+//     wildcard treatment; the corresponding misuse pattern (wildcard with
+//     no documented external anchor) is caught by ruleWildcardSourceMisuse.
+func ruleUnreadRequired(members []MemberTopics, opts ValidationOptions) []Finding {
+	var out []Finding
+
+	type outputClaim struct {
+		ref    MemberRef
+		prefix string
+	}
+	var outputs []outputClaim
+	for _, m := range members {
+		for _, o := range m.Topics.Output {
+			outputs = append(outputs, outputClaim{m.Ref, o.Prefix})
+		}
+	}
+
+	for _, m := range members {
+		for _, r := range m.Topics.RequiredRead {
+			if r.SourceTeam != nil && *r.SourceTeam == SourceTeamWildcard {
+				continue
+			}
+			matched := false
+			for _, o := range outputs {
+				if Overlap(o.prefix, r.Prefix) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				for _, p := range opts.WriterSkillProducers {
+					if Overlap(p, r.Prefix) {
+						matched = true
+						break
+					}
+				}
+			}
+			if matched {
+				continue
+			}
+			out = append(out, Finding{
+				Rule:     "unread_required",
+				Severity: SeverityError,
+				Member:   m.Ref,
+				Prefix:   r.Prefix,
+				Detail:   fmt.Sprintf("required_read prefix %q has no producer (no member's output[] overlaps and no writer-skill declares it in skill.json::writes_to[]; rename to match a producer's declared prefix, add a member that writes it, or add it to a writer skill's writes_to[])", r.Prefix),
+			})
 		}
 	}
 	return out
@@ -349,97 +485,6 @@ func ruleUnknownTaxonomy(members []MemberTopics, opts ValidationOptions) []Findi
 	return out
 }
 
-// classifierForbiddenSubstrings are patterns a portable classifier skill
-// must NOT contain. They mark coupling to a specific inbox prefix,
-// drain-procedure command, or team store — content that belongs in the
-// generated heartbeat section, not in a reusable judgment skill. Hits fire
-// `non_portable_classifier`.
-//
-// Note: legitimate documentation paths under docs/<domain>/ (e.g.
-// docs/monetization/CATALOG.md) are *not* coupling and are not flagged.
-// The patterns target either the specific inbox topic-prefix conventions
-// or the knowledge-CLI write/delete verbs that perform routing.
-var classifierForbiddenSubstrings = []string{
-	// Inbox topic-prefix coupling.
-	"research-inbox/",
-	"opportunity-inbox/",
-	"validation-inbox/",
-	// Knowledge CLI verbs that perform routing (read-only knowledge-list
-	// is fine in member prose, but a portable judgment skill should not
-	// invoke these).
-	"prompt-manager team knowledge-update",
-	"prompt-manager team knowledge-delete",
-	"prompt-manager team knowledge-add",
-	"team knowledge-update",
-	"team knowledge-delete",
-	"team knowledge-add",
-	// Team-store filesystem coupling. The `teams/<id>/members/<id>`
-	// pattern only appears when a skill is reaching into a specific
-	// team's per-member directory — exactly the coupling we want to
-	// forbid.
-	"teams/marketing-crew/members",
-	"teams/monetization/members",
-}
-
-// ruleNonPortableClassifier scans each intake's classifier skill for
-// forbidden coupling content. Skipped when SkillPaths is empty.
-func ruleNonPortableClassifier(members []MemberTopics, opts ValidationOptions) []Finding {
-	if len(opts.SkillPaths) == 0 {
-		return nil
-	}
-	var out []Finding
-	scanned := map[string]bool{}
-	for _, m := range members {
-		for _, in := range m.Topics.Intake {
-			id := strings.TrimSpace(in.ClassifierSkill)
-			if id == "" {
-				continue
-			}
-			if scanned[id] {
-				continue
-			}
-			scanned[id] = true
-
-			path, ok := opts.SkillPaths[id]
-			if !ok {
-				out = append(out, Finding{
-					Rule:     "non_portable_classifier",
-					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("classifier_skill %q is not in the skill registry", id),
-				})
-				continue
-			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				out = append(out, Finding{
-					Rule:     "non_portable_classifier",
-					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("classifier_skill %q SKILL.md not readable at %s: %v", id, path, err),
-				})
-				continue
-			}
-			content := string(data)
-			for _, sub := range classifierForbiddenSubstrings {
-				if strings.Contains(content, sub) {
-					out = append(out, Finding{
-						Rule:     "non_portable_classifier",
-						Severity: SeverityError,
-						Member:   m.Ref,
-						Prefix:   in.Prefix,
-						Detail:   fmt.Sprintf("classifier_skill %q SKILL.md contains forbidden pattern %q (judgment skills must be member-agnostic)", id, sub),
-					})
-					break
-				}
-			}
-		}
-	}
-	return out
-}
-
 // ruleMissingDestinationSchema warns when an output entry names a schema
 // that no taxonomy declares. Skipped when Taxonomies is empty.
 func ruleMissingDestinationSchema(members []MemberTopics, opts ValidationOptions) []Finding {
@@ -498,6 +543,55 @@ func ruleDanglingPORSink(members []MemberTopics, opts ValidationOptions) []Findi
 	return out
 }
 
+// ruleDanglingEvidenceDecision — every `evidence_consumed[].for_decisions[]`
+// id on every member's topics.json must resolve against some team's
+// `team.json::operatingContract.decisionContexts`. A typo or a context that
+// has been removed from team.json without scrubbing the consuming
+// member's topics.json shows up here as an error finding.
+//
+// Skipped (no findings) when the team-contract registry is empty: this
+// happens in unit tests that don't fixture team contracts and on
+// scaffolds that haven't yet defined any team. The plan's intent is to
+// reject silent dead references, not to demand contracts exist.
+//
+// Severity is error: a dangling decision-context id is a structural
+// declaration drift the operator must reconcile (rename the id, remove the
+// evidence entry, or add the missing decision-context to team.json).
+func ruleDanglingEvidenceDecision(members []MemberTopics, opts ValidationOptions) []Finding {
+	if len(opts.TeamContracts) == 0 {
+		return nil
+	}
+	var out []Finding
+	for _, m := range members {
+		for _, ev := range m.Topics.EvidenceConsumed {
+			seen := map[string]bool{}
+			for _, decisionID := range ev.ForDecisions {
+				id := strings.TrimSpace(decisionID)
+				if id == "" {
+					// shape-level error; covered by Topics.Validate.
+					continue
+				}
+				if seen[id] {
+					// One finding per (member, prefix, id).
+					continue
+				}
+				seen[id] = true
+				if opts.TeamContracts.HasDecisionContext(id) {
+					continue
+				}
+				out = append(out, Finding{
+					Rule:     "dangling_evidence_decision",
+					Severity: SeverityError,
+					Member:   m.Ref,
+					Prefix:   ev.Prefix,
+					Detail:   fmt.Sprintf("evidence_consumed[].for_decisions references decision-context %q which is not declared in any team.json::operatingContract.decisionContexts", id),
+				})
+			}
+		}
+	}
+	return out
+}
+
 // LoadSkillIDs reads the local skill registry and returns the set of known
 // skill IDs. The registry layout matches the prompt-manager store:
 //
@@ -531,45 +625,6 @@ func LoadSkillIDs(storeDir string) (map[string]bool, error) {
 			if _, err := os.Stat(filepath.Join(packsDir, p.Name(), s.Name(), "skill.json")); err == nil {
 				out[s.Name()] = true
 			}
-		}
-	}
-	return out, nil
-}
-
-// LoadSkillPaths returns skill id -> absolute path to its SKILL.md file,
-// for every skill in the registry that has both a skill.json and a SKILL.md.
-// Used by ruleNonPortableClassifier.
-func LoadSkillPaths(storeDir string) (map[string]string, error) {
-	out := make(map[string]string)
-	packsDir := filepath.Join(storeDir, "skills", "packs")
-	packs, err := os.ReadDir(packsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return out, nil
-		}
-		return nil, fmt.Errorf("memberflow: read packs %q: %w", packsDir, err)
-	}
-	for _, p := range packs {
-		if !p.IsDir() {
-			continue
-		}
-		skillRoots, err := os.ReadDir(filepath.Join(packsDir, p.Name()))
-		if err != nil {
-			continue
-		}
-		for _, s := range skillRoots {
-			if !s.IsDir() {
-				continue
-			}
-			skillJSON := filepath.Join(packsDir, p.Name(), s.Name(), "skill.json")
-			skillMD := filepath.Join(packsDir, p.Name(), s.Name(), "SKILL.md")
-			if _, err := os.Stat(skillJSON); err != nil {
-				continue
-			}
-			if _, err := os.Stat(skillMD); err != nil {
-				continue
-			}
-			out[s.Name()] = skillMD
 		}
 	}
 	return out, nil

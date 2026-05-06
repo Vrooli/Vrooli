@@ -28,16 +28,16 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 // See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern and docs/internal/REPLACING-NOTES.md for the delete-checklist
-// when swapping the notes reference for your scenario's first domain.
+// pattern when swapping the notes reference for your scenario's first
+// domain.
 //
 // For API-backed commands:
 //   - set NeedsAPI: true so stale-check + --auto-start preflight works
-//   - call core.Get(...) / core.Request(...) for versioned /api/v1 routes
-//   - use cliapp.RenderOperationalReport / RenderListReport /
-//     RenderMutationReport for default human output contracts
-//   - use cliapp.PrintReportJSON(...) when a --json mode should mirror the
-//     same structured report
+//   - declare flags and positionals with cliapp.ArgSchema
+//   - implement RunCtx handlers and read values from cliapp.RunContext
+//   - use generated Connect clients for proto-typed operations
+//   - use cliapp.UploadFile only for documented multipart REST exceptions
+//   - render proto responses with cliapp.RenderProtoList or RenderProtoMutation
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		notes.Register(core),

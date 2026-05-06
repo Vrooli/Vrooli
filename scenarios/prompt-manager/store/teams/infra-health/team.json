@@ -238,6 +238,11 @@
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "challenge-resolution-record/<decision-id>": {
+        "ownerMemberId": "infra-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
       }
     },
     "members": {
@@ -251,9 +256,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "runtime-health-audit/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -307,9 +309,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "platform-code-audit/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -375,10 +374,6 @@
           "framework-meta": 1
         },
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "contrarian-scan/YYYY-MM-DD",
-          "challenge-report/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -428,5 +423,6 @@
         }
       }
     }
-  }
+  },
+  "attributionValidFrom": "2026-05-04"
 }

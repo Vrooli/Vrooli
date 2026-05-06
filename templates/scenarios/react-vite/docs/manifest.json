@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "title": "{{SCENARIO_DISPLAY_NAME}} Documentation",
   "description": "Reference docs for the scenario generated from the react-vite template",
-  "defaultDocument": "QUICKSTART.md",
+  "defaultDocument": "START-HERE.md",
   "sections": [
     {
       "id": "getting-started",
@@ -10,6 +10,18 @@
       "icon": "rocket",
       "description": "First-touch experience and orientation",
       "documents": [
+        {
+          "path": "START-HERE.md",
+          "title": "Start Here",
+          "description": "First implementation session after scenario generation",
+          "audience": ["developers"]
+        },
+        {
+          "path": "../DESIGN.md",
+          "title": "Design Contract",
+          "description": "Canonical scenario UI design language installed from the selected design kit",
+          "audience": ["developers"]
+        },
         {
           "path": "QUICKSTART.md",
           "title": "Quickstart",
@@ -86,6 +98,12 @@
           "audience": ["developers"]
         },
         {
+          "path": "internal/ERROR-HANDLING.md",
+          "title": "Error Handling",
+          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "audience": ["developers"]
+        },
+        {
           "path": "internal/TESTING.md",
           "title": "Testing",
           "description": "Layered test patterns, fixtures, and coverage expectations",
@@ -95,12 +113,6 @@
           "path": "internal/PROBLEMS.md",
           "title": "Problems",
           "description": "Known issues, tech debt, and deferred work specific to this scenario",
-          "audience": ["developers"]
-        },
-        {
-          "path": "internal/REPLACING-NOTES.md",
-          "title": "Replacing the notes reference",
-          "description": "Step-by-step guide for swapping the canonical CRUD reference with your scenario's first real domain",
           "audience": ["developers"]
         },
         {

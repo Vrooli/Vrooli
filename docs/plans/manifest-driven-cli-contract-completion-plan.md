@@ -16,7 +16,7 @@ Assessment as of 2026-04-16:
   - `go test ./internal/cliinstall ./internal/cli/vroolicli ./internal/scenarioexec ./internal/resources ./internal/scenario`
   - `bash scripts/validate-go-cli-consumers.sh`
 - The remaining residue is narrow and secondary:
-  - a few fixture-specific tests still use `cli/go.mod` paths because they are intentionally testing Go CLI module repair behavior
+  - a few fixture-specific tests still use `path:cli/go.mod` paths because they are intentionally testing Go CLI module repair behavior
   - some docs and archived review artifacts still mention historical layout assumptions
 - Phase 1 contract decisions are resolved in [docs/strategy/scenario-cli-manifest-decision.md](/home/matthalloran8/Vrooli/docs/strategy/scenario-cli-manifest-decision.md:1).
 
@@ -27,9 +27,9 @@ This plan is for finishing the migration cleanly rather than preserving mixed be
 Make CLI behavior consistently contract-driven across the repo:
 
 - scenario CLIs are resolved from `service.json`
-- resource CLIs are resolved from manifest data instead of `resources/<name>/cli` assumptions
+- resource CLIs are resolved from manifest data instead of `path:resources/<name>/cli` assumptions
 - setup freshness, validators, and helper tooling use the same manifest contract as runtime
-- no runtime path guesses CLI behavior from `cli/go.mod`, `cli/<name>`, or other layout heuristics unless the declared adapter says those files matter
+- no runtime path guesses CLI behavior from `path:cli/go.mod`, `path:cli/<name>`, or other layout heuristics unless the declared adapter says those files matter
 - any remaining intentional constraints, especially invocation, are explicit platform policy rather than accidental legacy behavior
 
 ## Current Baseline
@@ -44,14 +44,14 @@ Make CLI behavior consistently contract-driven across the repo:
   - `cli.install`
   - `cli.invoke`
   - `cli.freshness`
-- Main scenario discovery in `internal/cliinstall` reads the manifest and supports:
+- Main scenario discovery in `path:internal/cliinstall` reads the manifest and supports:
   - `go_module`
   - `shell_script`
 - Main `vrooli scenario start/run/test` ensure-install flow already goes through manifest-driven scenario CLI discovery
 
 ### Remaining gaps
 
-- A few fixture-specific tests still refer to `cli/go.mod` because they intentionally exercise Go-module repair logic
+- A few fixture-specific tests still refer to `path:cli/go.mod` because they intentionally exercise Go-module repair logic
 - Some long-form docs and archived artifacts still describe historical layout assumptions
 - The migration validator script exists and is manifest-driven, but still needs normal repo tracking/cleanup discipline in the working tree used for this migration
 
@@ -99,9 +99,9 @@ Status: complete
 4. Decide whether invocation remains intentionally constrained to `installed_command`.
    - yes; this is deliberate platform policy for now
 5. Document what is explicitly no longer allowed:
-   - implicit `cli/go.mod` inference
-   - implicit `cli/<scenario-name>` inference
-   - implicit `resources/<name>/cli` discovery
+   - implicit `path:cli/go.mod` inference
+   - implicit `path:cli/<scenario-name>` inference
+   - implicit `path:resources/<name>/cli` discovery
    - layout-only freshness logic
    - silent fallback from manifest-driven resolution to repo-layout guessing
 
@@ -112,19 +112,19 @@ Status: complete
 1. Extend the resource schema with a top-level CLI declaration parallel to the scenario model.
    - completed by adding top-level `cli` to `.vrooli/schemas/resource.schema.json`
 2. Add matching Go manifest types and validation logic for resources.
-   - completed in `internal/resources/manifest`
+   - completed in `path:internal/resources/manifest`
 3. Support the intended resource adapter set:
    - supported by contract as `go_module` and `shell_script`
 4. Ensure invalid or missing resource CLI declarations fail during manifest parsing, not later during CLI install.
    - completed by requiring explicit `cli` during resource manifest validation
-5. Update resource docs so the manifest, not `resources/<name>/cli`, defines the contract.
+5. Update resource docs so the manifest, not `path:resources/<name>/cli`, defines the contract.
    - completed for the canonical resource template guidance
 
 ## Phase 3: Unify CLI Discovery Around Manifest Resolvers
 
 Status: complete
 
-1. Refactor `internal/cliinstall` so both scenarios and resources resolve from manifest data.
+1. Refactor `path:internal/cliinstall` so both scenarios and resources resolve from manifest data.
    - completed for resource discovery and ensure/install flows
 2. Keep scenario discovery behavior as the reference model.
    - completed; resource discovery now mirrors the scenario resolver shape
@@ -135,7 +135,7 @@ Status: complete
    - install mechanics
    - fingerprint inputs
    - freshness inputs
-   - completed inside `internal/cliinstall`
+   - completed inside `path:internal/cliinstall`
 5. Remove layout-driven resource discovery logic once manifest-based discovery is in place.
    - completed for `DiscoverResourceCLI`
 
@@ -174,22 +174,22 @@ Status: complete
 3. If a bootstrap-only fallback is temporarily necessary, isolate it behind an explicit compatibility layer and document the exit condition.
    - no additional fallback retained beyond the explicit `VROOLI_TEST_GENIE_CLI` override
 4. Delete repo-path assumptions like:
-   - `scenarios/test-genie/cli/test-genie`
-   - `scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring`
-   - completed for `internal/scenarioexec`
+   - `path:scenarios/test-genie/cli/test-genie`
+   - `path:scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring`
+   - completed for `path:internal/scenarioexec`
 
 ## Phase 6: Make Validators And Test Utilities Manifest-Aware
 
 Status: substantially complete
 
 1. Update any runtime detector that currently infers Go from:
-   - `cli/go.mod`
-   - `cli/*.go`
+   - `path:cli/go.mod`
+   - `path:cli/*.go`
    - completed for the active `test-genie` runtime detector path
 2. Update validation scripts that only search for `**/cli/go.mod`.
-   - completed in `scripts/validate-go-cli-consumers.sh`
+   - completed in `path:scripts/validate-go-cli-consumers.sh`
 3. Replace resource compatibility tests that enforce undeclared file-layout contracts.
-   - completed in `internal/resources/resource_cli_compat_test.go`
+   - completed in `path:internal/resources/resource_cli_compat_test.go`
 4. Ensure structure validation checks the declared adapter contract instead of generic folder presence.
    - completed for the main `test-genie` structure validation path
 5. Keep validation messages oriented around manifest remediation, not layout folklore.
@@ -260,14 +260,14 @@ Status: key acceptance validated
 3. Repo-wide checks:
    - no core runtime path infers CLI type from filesystem layout
    - no setup path assumes `app_root/cli` generically
-   - no resource CLI discovery path requires `resources/<name>/cli/go.mod` unless the manifest adapter declares that layout
+   - no resource CLI discovery path requires `path:resources/<name>/cli/go.mod` unless the manifest adapter declares that layout
    - satisfied for the active runtime path
 
 ## Remaining Work
 
 The migration work itself is functionally complete on active runtime paths. What remains is cleanup and polish rather than core implementation:
 
-- remove or refresh stale explanatory docs that still talk about historical `cli/go.mod`, `cli/<scenario-name>`, or `resources/<name>/cli` assumptions as if they were current platform contract
+- remove or refresh stale explanatory docs that still talk about historical `path:cli/go.mod`, `path:cli/<scenario-name>`, or `path:resources/<name>/cli` assumptions as if they were current platform contract
 - keep fixture-specific tests that intentionally exercise legacy Go-module repair behavior, but avoid broadening those patterns back into general guidance
 - maintain normal repo hygiene around newly added validation/strategy/plan files and generated artifacts in the working tree
 4. Operator validation:
@@ -297,7 +297,7 @@ The main remaining work is cleanup, not architecture:
 
 1. Freeze the contract and write the short design note
 2. Add the resource CLI schema and manifest types
-3. Refactor `internal/cliinstall` to use manifest-driven resource discovery
+3. Refactor `path:internal/cliinstall` to use manifest-driven resource discovery
 4. Replace setup freshness layout assumptions
 5. Remove hardcoded special-case scenario CLI locators
 6. Update validators, test utilities, and compatibility tests
@@ -321,7 +321,7 @@ The main failure mode is partial migration:
 
 - scenario runtime uses manifests
 - resources still use layout inference
-- setup still watches `cli/go.mod`
+- setup still watches `path:cli/go.mod`
 - validators still enforce old file patterns
 
 That state is worse than either a clean old model or a clean new model because it produces contradictory behavior. The cutover should therefore be completed in dependency order and cleaned up aggressively once the new contract is in place.

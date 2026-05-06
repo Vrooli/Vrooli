@@ -66,12 +66,6 @@ Local resources (Ollama, PostgreSQL, etc.) aren't just "integrations" - they're 
 
 **Remember:** Every line of code you write, every routine you create, every scenario you build - it all becomes permanent intelligence that the system uses to improve itself forever.
 
-## 🔄 Maintenance Task Tracking
-For recurring tasks (test quality, React performance, etc.), use the AI maintenance tracking system:
-- **Before starting:** Check existing work with `rg "AI_CHECK:.*TASK_ID" --type ts`
-- **After completing:** Add/update comment: `// AI_CHECK: TASK_ID=count | LAST: YYYY-MM-DD`
-- **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance/README.md)
-
 ## 🚀 Quick Start Commands
 ```bash
 # Setup project (includes CLI installation and system configuration)
@@ -107,13 +101,16 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 - DON'T use `2>&1` shell redirection syntax - Claude Code CLI parses this as separate arguments, breaking scripts. Use `&>` instead for redirecting both stdout and stderr to a file
 - DON'T start scenarios with direct execution (`./api/scenario-api`, `nohup ./api/binary &`, etc.)
 - DON'T bypass the lifecycle system - it manages process naming, ports, and health checks
-- DON'T create `lib/` folders in scenarios - use v2.0 service.json lifecycle configuration instead
 
 ## 🔍 Available Tools
 - **ast-grep (sg)**: For syntax-aware code search - default to `ast-grep --lang <language> --pattern '<pattern>'` over `grep` for structural matching
 - **jq/yq**: For JSON/YAML processing
 - **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
 - **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
+
+## 🔖 Machine-Readable References
+
+When reading docs, treat marked references like `path:docs/README.md` or `topic:bug-inbox/*` as typed references: the marker before `:` identifies the reference kind and is not part of the literal path/topic value. See [Machine-Readable References](docs/reference/machine-readable-references.md).
 
 ## 🧠 Situational Skill Loading
 

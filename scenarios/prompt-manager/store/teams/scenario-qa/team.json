@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "scenario-qa",
   "displayName": "Scenario QA Team",
-  "mission": "Ensure scenario quality through deep architectural audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
+  "mission": "Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -136,7 +136,7 @@
         ],
         "description": "GCT-driven QA findings converted into Swarm Manager fix/chore/execute backlog items."
       },
-      "deep-audit-backlog": {
+      "quality-audit-backlog": {
         "ownerMemberIds": [
           "quality-auditor"
         ],
@@ -165,11 +165,6 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
-      "deep-audit/<scenario-id>/<skill-id>": {
-        "ownerMemberId": "quality-auditor",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
       "quality-audit/<scenario-id>/<skill-id>": {
         "ownerMemberId": "quality-auditor",
         "supersedesPrevious": false,
@@ -191,7 +186,13 @@
         "ownerMemberId": "qa-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only",
-        "comment": "Cross-cutting challenge-report entries on scenario-qa member outputs. Cross-team drain currently workshop-pending."
+        "comment": "Cross-cutting challenge-report entries on scenario-qa member outputs. Follow docs/agent-system/CONTRARIAN_REVIEW.md for resolution flow."
+      },
+      "challenge-resolution-record/<slug>": {
+        "ownerMemberId": "qa-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "Latest-state record for a qa-contrarian challenge."
       }
     },
     "members": {
@@ -201,10 +202,6 @@
           "preemptive-qa-backlog"
         ],
         "pendingOwnedDecisionCap": 6,
-        "requiredKnowledgeTopics": [
-          "reviewed-scenario/<scenario-id>",
-          "dependency-wiring"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -243,14 +240,11 @@
         }
       },
       "quality-auditor": {
-        "lane": "Perform deep structural audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
+        "lane": "Perform structural quality audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
         "ownedDecisionContexts": [
-          "deep-audit-backlog"
+          "quality-audit-backlog"
         ],
         "pendingOwnedDecisionCap": 6,
-        "requiredKnowledgeTopics": [
-          "deep-audit/<scenario-id>/<skill-id>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -273,7 +267,7 @@
         ],
         "safetyCriticalRules": [
           "Do not modify target scenario code directly.",
-          "Do not repeat a scenario/skill deep audit within seven days."
+          "Do not repeat a scenario/skill quality audit within seven days."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -301,9 +295,6 @@
           "bug-resolution-proposal"
         ],
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "bug-investigation-report/<slug>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -343,12 +334,9 @@
         }
       },
       "qa-contrarian": {
-        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write challenge-report/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
+        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write challenge-report/* plus challenge-resolution-record/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
         "ownedDecisionContexts": [],
         "pendingOwnedDecisionCap": 0,
-        "requiredKnowledgeTopics": [
-          "challenge-report/<slug>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -373,7 +361,7 @@
           "Every challenge-note must cite a specific failure mode from a registered technique's PoR doc 'What the qa-contrarian watches for' section. Free-form challenges are forbidden.",
           "Quiet heartbeats are valid; manufactured challenge is forbidden.",
           "Cap at 3 challenge-notes per heartbeat.",
-          "Only write to challenge-report/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/, qa-run/). The constraint is enforced by the topics.json output declaration (output prefix is challenge-report/* only) and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
+          "Only write to challenge-report/* and challenge-resolution-record/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/, qa-run/). The constraint is enforced by the topics.json output declaration and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -392,5 +380,6 @@
         }
       }
     }
-  }
+  },
+  "attributionValidFrom": "2026-05-04"
 }

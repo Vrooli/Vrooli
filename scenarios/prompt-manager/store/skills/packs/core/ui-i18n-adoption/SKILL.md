@@ -18,7 +18,7 @@ This skill keeps both outcomes off the table by treating i18n as a **layered ado
 
 | Phase | Where it lives | Cost |
 |-------|----------------|------|
-| **1 — Full template substrate** | `templates/scenarios/react-vite/` | Already paid (every new scenario inherits) |
+| **1 — Full template substrate** | `path:templates/scenarios/react-vite/` | Already paid (every new scenario inherits) |
 | **2 — Per-scenario adaptation + extra locales** | This skill | A day or two per scenario |
 | **3 — Shared `@vrooli/i18n` package** | Future, after 3+ scenarios converge | Out of scope |
 
@@ -34,7 +34,7 @@ This skill keeps both outcomes off the table by treating i18n as a **layered ado
 - Locale parity contract test (`locales.test.ts`).
 - axe-core accessibility test (`App.a11y.test.tsx`).
 
-If a scenario predates this template, fix that first — Phase 2 only makes sense on top of the full substrate. Reference: `templates/scenarios/react-vite/ui/`.
+If a scenario predates this template, fix that first — Phase 2 only makes sense on top of the full substrate. Reference: `path:templates/scenarios/react-vite/ui/`.
 
 ---
 

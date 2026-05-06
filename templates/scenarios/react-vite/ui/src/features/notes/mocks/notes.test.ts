@@ -10,42 +10,44 @@ describe("makeNotesMocks", () => {
     const a = makeNotesMocks();
     const b = makeNotesMocks();
     expect(a).not.toBe(b);
-    expect(a.listNotes).not.toBe(b.listNotes);
-    expect(a.createNote).not.toBe(b.createNote);
-    expect(a.getNote).not.toBe(b.getNote);
+    expect(a.notesClient.listNotes).not.toBe(b.notesClient.listNotes);
+    expect(a.notesClient.createNote).not.toBe(b.notesClient.createNote);
+    expect(a.notesClient.getNote).not.toBe(b.notesClient.getNote);
+    expect(a.uploadAttachment).not.toBe(b.uploadAttachment);
   });
 
-  it("listNotes default resolves to an empty list", async () => {
-    const { listNotes } = makeNotesMocks();
-    const r = await listNotes();
+  it("notesClient.listNotes default resolves to an empty list", async () => {
+    const { notesClient } = makeNotesMocks();
+    const r = await notesClient.listNotes({});
     expect(r.notes).toEqual([]);
   });
 
-  it("createNote echoes the user's title and body into the returned Note", async () => {
-    const { createNote } = makeNotesMocks();
-    const got = await createNote({ title: "from user", body: "hello" });
-    expect(got.title).toBe("from user");
-    expect(got.body).toBe("hello");
+  it("notesClient.createNote echoes the user's title and body into the returned Note", async () => {
+    const { notesClient } = makeNotesMocks();
+    const got = await notesClient.createNote({ title: "from user", body: "hello" });
+    expect(got.note?.title).toBe("from user");
+    expect(got.note?.body).toBe("hello");
     // Defaulted fields still come from the factory baseline.
-    expect(got.id).not.toBe("");
+    expect(got.note?.id).not.toBe("");
   });
 
-  it("createNote treats body as optional and defaults it to empty string", async () => {
-    const { createNote } = makeNotesMocks();
-    const got = await createNote({ title: "no body" });
-    expect(got.body).toBe("");
+  it("notesClient.createNote treats body as optional and defaults it to empty string", async () => {
+    const { notesClient } = makeNotesMocks();
+    const got = await notesClient.createNote({ title: "no body" });
+    expect(got.note?.body).toBe("");
   });
 
-  it("getNote echoes the requested id into the returned Note", async () => {
-    const { getNote } = makeNotesMocks();
-    const got = await getNote("some-id");
-    expect(got.id).toBe("some-id");
+  it("notesClient.getNote echoes the requested id into the returned Note", async () => {
+    const { notesClient } = makeNotesMocks();
+    const got = await notesClient.getNote({ id: "some-id" });
+    expect(got.note?.id).toBe("some-id");
   });
 
   it("all surfaces are vi.fns so per-test overrides work", () => {
     const m = makeNotesMocks();
-    expect(vi.isMockFunction(m.listNotes)).toBe(true);
-    expect(vi.isMockFunction(m.createNote)).toBe(true);
-    expect(vi.isMockFunction(m.getNote)).toBe(true);
+    expect(vi.isMockFunction(m.notesClient.listNotes)).toBe(true);
+    expect(vi.isMockFunction(m.notesClient.createNote)).toBe(true);
+    expect(vi.isMockFunction(m.notesClient.getNote)).toBe(true);
+    expect(vi.isMockFunction(m.uploadAttachment)).toBe(true);
   });
 });

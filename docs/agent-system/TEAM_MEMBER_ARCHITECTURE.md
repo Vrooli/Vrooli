@@ -14,7 +14,7 @@ Every member has nine independent capability layers. Each lives in a specific ho
 |---|---|---|---|
 | **Identity** | `SOUL.md` and short agent prose | Compact enduring posture | Long task procedure or volatile rules |
 | **Ownership** | team contract, role, `RESPONSIBILITIES.md` | Clear lane, decision contexts, write surfaces | "Help with X" with no decision/write boundary |
-| **Plan of Record** | durable docs hub (`docs/<domain>/`) | Accepted strategy/canon has a discoverable home | Canon lives only in heartbeat prose or handoff |
+| **Plan of Record** | durable docs hub (`path:docs/<domain>/`) | Accepted strategy/canon has a discoverable home | Canon lives only in heartbeat prose or handoff |
 | **Skill Surface** | focused skills | Repeatable workflows have one or more paired skills | One mega-skill or no skill for repeated work |
 | **Intake** | shared state, inbox topic prefixes, heartbeat, external handoff, `topics.json` | Work can arrive through named, declared channels | Operator discoveries disappear into conversation memory |
 | **Collection** | tool skill, Action, CLI, scenario, or collection section | Evidence gathering is explicit and honest | "Research it" without source strategy |
@@ -101,7 +101,7 @@ Layers are scored on this scale:
 | `1 weak` | Present but vague, stale, or implicit |
 | `2 adequate` | Good enough for current usage |
 | `3 strong` | Clear, reusable, and easy to optimize |
-| `n/a` | Not relevant for this member |
+| `literal:n/a` | Not relevant for this member |
 
 Do not penalize simple members for missing layers they do not need. For example, a pure reviewer may not need proactive collection. A market researcher probably does.
 
@@ -117,7 +117,7 @@ Recurring smells that the audit skill flags. The fix column is a default; specif
 | Workflow in heartbeat | Repeatable method lives in `HEARTBEAT.md` | Extract or propose a focused skill |
 | Planless skill | Skill exists but no plan-of-record doc says why/when it matters | Add or reference docs hub |
 | Skillless canon | Plan-of-record doc exists but no executable skill applies it | Propose paired skill |
-| Skillless canon residue | Skill restates canon that lives in PoR | Drop the prose; cite `docs/agent-system/<file>` |
+| Skillless canon residue | Skill restates canon that lives in PoR | Drop the prose; cite `path:docs/agent-system/<file>` |
 | Mega-skill pressure | One skill handles many unrelated methods | Split into router plus method skills |
 | Source ambiguity | External research required but source collection is unspecified | Add collection skill/tool/backlog |
 | Passive-only intake | Operator can feed work, but proactive scan path is absent | Add proactive baseline or explicit non-goal |

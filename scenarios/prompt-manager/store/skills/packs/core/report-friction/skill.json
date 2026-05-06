@@ -13,10 +13,13 @@
     "friction-report",
     "writer-skill"
   ],
+  "writes_to": [
+    "friction-inbox/*"
+  ],
   "icon": "alert-triangle",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-03T00:00:00Z"
+  "updatedAt": "2026-05-04T00:00:00Z"
 }

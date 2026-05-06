@@ -11,7 +11,7 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 - Lint: `cd packages/proto && make lint`
 - Breaking check (against `master` by default): `cd packages/proto && make breaking`
 - Keep `gen/` in sync with `schemas/` before committing.
-- JSON serialization: BAS endpoints use snake_case; when marshaling with Go's `protojson` set `UseProtoNames: true` (and the equivalent options in TS/Python) so you don't emit lowerCamel JSON.
+- JSON serialization: Vrooli HTTP JSON endpoints use proto field names (`snake_case`) on the wire. Go writers use `protojson.MarshalOptions{UseProtoNames: true}`; TypeScript writers use `toJsonString(..., { useProtoFieldName: true })`. TypeScript `fromJson` accepts both proto field names and JSON/lowerCamel names, so UI readers should parse through generated descriptors instead of manually reshaping payloads.
 
 ## Type-safety guidance
 
@@ -23,10 +23,12 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 
 ## JSON casing & compatibility
 
-- BAS APIs/WebSockets and landing-page APIs expect snake_case JSON. Use proto-name casing when marshaling/unmarshaling:
-  - Go: `protojson.MarshalOptions{UseProtoNames: true}`, `protojson.UnmarshalOptions{DiscardUnknown: true}`
-  - TypeScript: `{ jsonOptions: { useProtoNames: true } }` with `fromJson` / `toJsonString`
+- Vrooli APIs/WebSockets expect proto-name JSON (`snake_case`) for structured proto messages. Use generated descriptors and explicit writer options:
+  - Go: `protojson.MarshalOptions{UseProtoNames: true}`, `protojson.UnmarshalOptions{DiscardUnknown: false}` for ingress that must reject unknown fields.
+  - TypeScript read: `fromJson(MessageSchema, payload, { ignoreUnknownFields: true })`
+  - TypeScript write: `toJsonString(MessageSchema, message, { useProtoFieldName: true })`
   - Python: `json_format.ParseDict(..., preserve_proto_field_name=True)`
+- Multipart/form-data and raw file uploads are transport exceptions: keep file bytes in multipart parts or binary streams, and encode any structured metadata part with proto JSON.
 - `Execution.execution_id` keeps `json_name = "id"` for compatibility with existing BAS responses.
 
 ## Usage examples
@@ -37,11 +39,11 @@ import { fromJson, toJsonString } from '@bufbuild/protobuf';
 import { ExecutionTimelineSchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
 
 const timeline = fromJson(ExecutionTimelineSchema, apiPayload, {
-  jsonOptions: { useProtoNames: true },
+  ignoreUnknownFields: true,
 });
 
 const serialized = toJsonString(ExecutionTimelineSchema, timeline, {
-  jsonOptions: { useProtoNames: true },
+  useProtoFieldName: true,
 });
 ```
 
@@ -51,7 +53,7 @@ import { fromJson } from '@bufbuild/protobuf';
 import { GetPricingResponseSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/pricing_pb';
 
 const pricing = fromJson(GetPricingResponseSchema, payload, {
-  jsonOptions: { useProtoNames: true },
+  ignoreUnknownFields: true,
 });
 
 const monthlyPlanMetadata = pricing.pricing?.monthly[0]?.metadataTyped;

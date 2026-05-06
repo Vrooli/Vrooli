@@ -51,7 +51,7 @@ These fields mirror `secretDescriptor` because the auth surface is identical —
 }
 ```
 
-The connector handler also embeds the client_id; the client_secret lives in Vault under `secret/vrooli/connectors/<connector_id>` (a separate Vault prefix from connection instances; this is the *connector's* secret, not any operator's).
+The connector handler also embeds the client_id; the client_secret lives in Vault under `literal:secret/vrooli/connectors/<connector_id>` (a separate Vault prefix from connection instances; this is the *connector's* secret, not any operator's).
 
 **Vault contents.** `access_token`, `refresh_token` (when provider supports it), `expires_at`, `scopes`.
 

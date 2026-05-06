@@ -32,6 +32,7 @@ Guidance:
 - Use one package per domain.
 - Register each domain from `domains/domains.go`.
 - Prefer `SubcommandGroup` for command-rich domains.
-- Keep API calling thin: argument parsing, request building, response formatting.
-- Use `cliapp.RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` for human-first output by default.
-- If a command has a `--json` mode, emit the same report structure with `cliapp.PrintReportJSON(...)`.
+- Keep API calling thin: argument schema, request building, response formatting.
+- Declare flags and positionals with `cliapp.ArgSchema`; implement handlers with `RunCtx`.
+- Use generated Connect clients for proto-typed operations.
+- Use `cliapp.RenderProtoList` and `RenderProtoMutation` when a command returns one proto response. Use the `RunContext` report helpers directly for aggregate/non-proto output.

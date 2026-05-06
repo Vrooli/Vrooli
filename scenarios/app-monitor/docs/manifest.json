@@ -55,13 +55,7 @@
       "id": "plans",
       "title": "Plans",
       "icon": "map",
-      "documents": [
-        {
-          "path": "ux-revamp-plan.md",
-          "title": "UX Revamp Plan",
-          "description": "Planned UI simplifications and workflow upgrades."
-        }
-      ]
+      "documents": []
     },
     {
       "id": "perf",

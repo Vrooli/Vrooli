@@ -1,5 +1,5 @@
 {
-  "coming_soon_enabled": true,
+  "coming_soon_enabled": false,
   "default_description": "Record browser workflows once, automate forever. Turn recordings into polished demo videos.",
   "default_og_image_url": "/assets/og/silent-founder-og.png",
   "default_title": "Silent Founder OS - Automate Your Business Quietly",

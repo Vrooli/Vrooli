@@ -276,7 +276,7 @@ func TestPruneSharedState_Knowledge(t *testing.T) {
 		entries = append(entries, KnowledgeEntry{
 			ID:      fmt.Sprintf("know-%d", i),
 			At:      now.Add(-time.Duration(80-i) * time.Hour).Format(time.RFC3339),
-			By:      "agent-1",
+			Caller:  "agent-1",
 			Topic:   "test",
 			Content: fmt.Sprintf("Knowledge %d", i),
 		})

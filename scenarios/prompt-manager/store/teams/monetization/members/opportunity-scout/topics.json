@@ -3,19 +3,58 @@
     {
       "prefix": "opportunity-inbox/*",
       "taxonomy": "monetization-opportunity",
-      "classifier_skill": "monetization-signal-classifier",
-      "source_team": null
+      "classifier_skill": "monetization-signal-classifier"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "scout-scan/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "channel-activation",
+        "services-activation"
+      ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "catalog-promotion",
+        "channel-activation",
+        "services-activation"
+      ]
     }
   ],
   "output": [
-    { "prefix": "candidate-sku-record/*", "destination_kind": "knowledge", "destination_team": null, "schema": "candidate-sku" }
+    {
+      "prefix": "candidate-sku-record/*",
+      "destination_kind": "knowledge",
+      "schema": "candidate-sku"
+    },
+    {
+      "prefix": "scout-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "monetization/opportunity/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "catalog-promotion",
     "channel-activation",
     "services-activation"
   ],
-  "decisions_consumed": ["capability-gap"],
+  "decisions_consumed": [
+    "capability-gap"
+  ],
   "raises_capability_gaps": true,
-  "external_producers": ["operator", "vision-walk"]
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
 }

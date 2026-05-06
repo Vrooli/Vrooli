@@ -17,7 +17,7 @@ Required reading:
 \* Read the `seams` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing decision points documentation.
 
 \* Scan the scenario for **decision points**, such as:  
-\* conditionals (`if/else`, switches, guards)  
+\* conditionals (`literal:if/else`, switches, guards)  
 \* strategy or mode selection  
 \* routing between different flows or implementations  
 \* thresholds, scoring, or ranking logic  

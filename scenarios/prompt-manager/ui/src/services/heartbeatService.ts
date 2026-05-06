@@ -10,6 +10,7 @@
 
 import { buildApiUrl } from '@vrooli/api-base'
 import { API_BASE } from '@/lib/api'
+import { operatorDirectAttributionHeaders } from './attribution'
 
 // ============================================================================
 // Types
@@ -282,14 +283,39 @@ export interface AddDecisionRequest {
 
 // --- Knowledge types ---
 
+// AttributionInfo mirrors the API-side store.AttributionInfo. The canonical
+// contract lives in docs/agent-system/RUNTIME_ATTRIBUTION.md (the API Go
+// struct in scenarios/prompt-manager/api/store/models.go is the source of
+// truth). Optional pointer fields marshal as null over the wire; in
+// TypeScript we represent them as `string | null`.
+export interface AttributionInfo {
+  kind: string
+  member_id: string | null
+  team_id: string | null
+  run_id: string | null
+  spawn_origin: string
+  source_skill_id: string | null
+}
+
 export interface KnowledgeEntry {
   id: string
   at: string
-  by: string
   topic: string
   content: string
   source?: string
   supersedes?: string
+  // caller is the API-derived display string ("team/member", "skill:<id>",
+  // "operator", "legacy:<original-by>") — render this instead of parsing
+  // attribution. Always present on post-cutoff and migrated entries.
+  caller: string
+  // caller_note is optional freeform context the writer attached; never
+  // an identity claim. P3.2 migration preserves the legacy `by` value
+  // here on every pre-cutoff entry.
+  caller_note?: string
+  // attribution is the structured truth. Always present; UI consumers
+  // typically render `caller` and only inspect attribution for filtering
+  // (e.g., "show writes by writer-skills last week").
+  attribution: AttributionInfo
 }
 
 export interface KnowledgeListResponse {
@@ -298,9 +324,12 @@ export interface KnowledgeListResponse {
 }
 
 export interface AddKnowledgeRequest {
-  by: string
   topic: string
   content: string
+  // Identity is carried out-of-band on the X-Vrooli-Attribution header,
+  // not on the request body. caller_note is freeform context only — see
+  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
+  caller_note?: string
   source?: string
   supersedes?: string
 }
@@ -342,6 +371,12 @@ async function apiRequest<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Every UI-originated request carries operator-direct attribution.
+    // The API ignores this header on read-only endpoints and validates
+    // it on mutating ones (POST /teams/{id}/knowledge etc.). Sending it
+    // unconditionally keeps the request shape uniform. Canon:
+    // docs/agent-system/RUNTIME_ATTRIBUTION.md § HTTP header.
+    ...operatorDirectAttributionHeaders(),
   }
   // Merge additional headers if provided
   if (options?.headers) {

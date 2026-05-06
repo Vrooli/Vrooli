@@ -1,6 +1,6 @@
 # Friction Report Triage Taxonomy
 
-Cross-team-readable canon for how the `meta-optimization/friction-curator` member classifies and routes entries written to `friction-inbox/*`. Human-readable view of [`friction-report-taxonomy.json`](friction-report-taxonomy.json).
+Cross-team-readable canon for how the `literal:meta-optimization/friction-curator` member classifies and routes entries written to `friction-inbox/*`. Human-readable view of [`friction-report-taxonomy.json`](friction-report-taxonomy.json).
 
 **Owner team:** meta-optimization. **Status:** canon. Operator-curated via `meta-self-improvement` decisions (owned by debt-curator) when scope, severity, or routing rules need to evolve.
 

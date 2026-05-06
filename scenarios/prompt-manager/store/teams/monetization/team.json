@@ -50,7 +50,7 @@
       },
       "staleDecisionPolicy": {
         "afterHeartbeats": 14,
-        "ownerMemberId": "contrarian",
+        "ownerMemberId": "monetization-contrarian",
         "requiredOutcomes": [
           "supersede",
           "reject",
@@ -335,13 +335,13 @@
       },
       "decision-rejection-proposed": {
         "ownerMemberIds": [
-          "contrarian"
+          "monetization-contrarian"
         ],
         "description": "Contrarian recommends rejecting or revising a pending proposal after concrete failure-mode hits."
       },
       "framework-update": {
         "ownerMemberIds": [
-          "contrarian"
+          "monetization-contrarian"
         ],
         "description": "Contrarian found a recurring flaw not covered by the current failure-mode framework."
       }
@@ -368,9 +368,14 @@
         "retention": "snapshot"
       },
       "challenge-report/<decision-id>": {
-        "ownerMemberId": "contrarian",
+        "ownerMemberId": "monetization-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "challenge-resolution-record/<decision-id>": {
+        "ownerMemberId": "monetization-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
       },
       "decision-application/<decision-id>": {
         "ownerMemberId": "catalog-strategist",
@@ -392,9 +397,6 @@
         ],
         "newDecisionCapPerHeartbeat": 3,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "catalog-snapshot/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -442,9 +444,6 @@
         ],
         "newDecisionCapPerHeartbeat": 3,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "scout-scan/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -499,9 +498,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "ledger-snapshot/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -558,9 +554,6 @@
         ],
         "newDecisionCapPerHeartbeat": 2,
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "monetization/market-scan/<slug>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -598,7 +591,7 @@
           "staleBenchmarkAfterMonths": 12
         }
       },
-      "contrarian": {
+      "monetization-contrarian": {
         "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals.",
         "ownedDecisionContexts": [
           "decision-rejection-proposed",
@@ -609,9 +602,6 @@
           "decision-rejection-proposed": 2,
           "framework-update": 1
         },
-        "requiredKnowledgeTopics": [
-          "challenge-report/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -662,5 +652,6 @@
         }
       }
     }
-  }
+  },
+  "attributionValidFrom": "2026-05-04"
 }

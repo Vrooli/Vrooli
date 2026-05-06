@@ -56,7 +56,7 @@ The line is **specific false claims**, not implication:
 
 ## Persona-actor account discipline
 
-Persona-actor accounts are first-class entities tracked in [`marketing-crew/shared/personas/`](../../../scenarios/prompt-manager/store/teams/marketing-crew/shared/) (folder created per-persona on activation). Each persona-actor account has:
+Persona-actor accounts are first-class entities tracked in [`path[future]:scenarios/prompt-manager/store/teams/marketing-crew/shared/personas/`](../../../scenarios/prompt-manager/store/teams/marketing-crew/shared/) (folder created per-persona on activation). Each persona-actor account has:
 
 - **`profile.json`** — name (clearly fictional or AI-persona; never a real person's name), voice, niche, age range or demeanor, target audience.
 - **`accounts.json`** — platform handles (this file lives outside Git per `CHANNELS.md` secrets rule).
@@ -80,7 +80,7 @@ Drafts in persona voice carry, in addition to the standard honesty-flag schema, 
 
 - `persona_disclosure=labeled | unlabeled-by-platform-rule | exempt-minor-edit-only` — `labeled` is the only acceptable value for substantial AI content; `unlabeled-by-platform-rule` reads as a violation; `exempt-minor-edit-only` requires evidence the edit was minor (color/crop only).
 - `credential_claims=[]` — empty list required. Any claim of professional credential by the persona is an automatic reject.
-- `persona_actor_id=<id>` — references the persona-actor entry in `marketing-crew/shared/personas/`.
+- `persona_actor_id=<id>` — references the persona-actor entry in `path[future]:scenarios/prompt-manager/store/teams/marketing-crew/shared/personas/`.
 - `real_person_check=verified-no-likeness` — contrarian must verify the persona does not resemble a specific identifiable real person.
 - `regulated_domain_check=clear | flagged:<medical|financial|legal>` — flag any content touching medical, financial, or legal domains. Flagged drafts require operator review even if other fields are clean.
 
@@ -114,4 +114,4 @@ But:
 - [`../CHANNELS.md`](../CHANNELS.md) — per-platform AI-disclosure expectations.
 - [`../post-types/video/`](../post-types/video/) — short-video formats where AI-UGC is the dominant production mode.
 - [`../rich-media/characters/`](../rich-media/characters/) — schema for the character JSON each persona-actor depends on.
-- [`marketing-crew/shared/personas/`](../../../scenarios/prompt-manager/store/teams/marketing-crew/shared/) — per-persona profile / accounts / slate / link-in-bio / tied-SKUs (folder created on first persona activation).
+- [`path[future]:scenarios/prompt-manager/store/teams/marketing-crew/shared/personas/`](../../../scenarios/prompt-manager/store/teams/marketing-crew/shared/) — per-persona profile / accounts / slate / link-in-bio / tied-SKUs (folder created on first persona activation).

@@ -1,5 +1,4 @@
 // Tests for ValidateRunOutcome — silent-launch failure detection.
-// See docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md, Phase D.
 
 package phases
 

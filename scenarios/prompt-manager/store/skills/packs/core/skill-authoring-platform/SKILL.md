@@ -1,6 +1,6 @@
 ## Meta focus: Platform Skill Authoring
 
-Guide for creating **Platform** skills (where `modes[0] = "platform"`). Platform skills steer safe evolution of shared code (for example `packages/*`, shared templates, shared contracts) that is consumed by many scenarios.
+Guide for creating **Platform** skills (where `modes[0] = "platform"`). Platform skills steer safe evolution of shared code (for example `path:packages/*`, shared templates, shared contracts) that is consumed by many scenarios.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
@@ -14,7 +14,7 @@ Optional reading:
 ### 1. Category Scope
 
 **In scope:**
-- Shared package evolution (`packages/*`) and other shared platform code used by multiple scenarios
+- Shared package evolution (`path:packages/*`) and other shared platform code used by multiple scenarios
 - Cross-scenario standardization (CLI output contracts, config precedence, error taxonomy, codegen contracts)
 - Brownfield-safe improvement paths (additive changes, deprecation cycles, compatibility envelopes)
 - Verification discipline proportional to blast radius (tests + downstream smoke/compat checks)

@@ -27,16 +27,16 @@ For each operator-visible decision, exactly one file is the source of truth. Oth
 | Whether a resource is enabled | `.vrooli/operator-state.json` → `resources.<name>.enabled` | onboarding resources step |
 | Resource → resource dependencies | `resources/<name>/resource.json` → `dependencies` | onboarding resources step (cascade) |
 | Resource credential descriptors | `resources/<name>/resource.json` → `credentials.env[]` (each item: bare string OR `secretDescriptor`) | onboarding secrets step |
-| Where a credential value is stored | Vault path declared at `resources/<name>/resource.json` → `credentials.secret_ref` | secrets-manager scenario; runtime via `packages/api-core/secrets` |
+| Where a credential value is stored | Vault path declared at `resources/<name>/resource.json` → `credentials.secret_ref` | secrets-manager scenario; runtime via `path:packages/api-core/secrets` |
 | Host tool opt-in | `.vrooli/operator-state.json` → `host_tools.<name>.opted_in` (override of manifest `required`) | onboarding host step |
 | Host safeguard opt-in | `.vrooli/operator-state.json` → `host_safeguards.<name>.opted_in` (override of manifest `required`) | onboarding host step |
 | Safeguard risk indicator | `internal/safeguards/<name>/safeguard.json` → `risk` | onboarding host step (risk column) |
 | What host tools/safeguards exist | filesystem: `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` (drift-protected by `internal/runtime/manifests_test.go`) | onboarding host step (registry source) |
 | What integration connector types exist | filesystem: `scenarios/integration-hub/connectors/<id>/connector.json` (deferred) | integration-hub UI; onboarding integrations step |
-| Connection instances (OAuth tokens, API keys for connectors) | Vault under `secret/vrooli/integrations/<connector>/<connection_id>` + integration-hub state (deferred) | integration-hub UI |
+| Connection instances (OAuth tokens, API keys for connectors) | Vault under `literal:secret/vrooli/integrations/<connector>/<connection_id>` + integration-hub state (deferred) | integration-hub UI |
 | Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; deferred) | onboarding integrations step |
 | Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (deferred) | onboarding integrations step |
-| Connector-level secrets (e.g. OAuth client_secret) | Vault under `secret/vrooli/connectors/<connector_id>` (deferred) | integration-hub setup, not user-facing |
+| Connector-level secrets (e.g. OAuth client_secret) | Vault under `literal:secret/vrooli/connectors/<connector_id>` (deferred) | integration-hub setup, not user-facing |
 | Active profile | `.vrooli/operator-state.json` → `active_profile` | reserved for future use; profiles deferred |
 
 Anything not in this table is out of scope for the wizard.

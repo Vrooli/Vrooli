@@ -2,7 +2,7 @@
 # approve-empty-swarm-runs.sh
 #
 # Drain the swarm-manager NEEDS_REVIEW backlog that accumulated before the
-# 2026-04-24 auto-approve fix (docs/plans/sandbox-auto-approve-and-profile-reconcile-plan.md §9 Phase 4).
+# 2026-04-24 auto-approve fix.
 #
 # For every run whose tag starts with "swarm-manager:" and whose status is
 # NEEDS_REVIEW, fetch the live sandbox diff via the workspace-sandbox HTTP API

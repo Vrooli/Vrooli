@@ -1,11 +1,30 @@
-import { ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { ReactNode, lazy } from 'react';
 import { Route } from 'react-router-dom';
 import { ErrorBoundary } from '../../shared/ui/ErrorBoundary';
 import { useLandingVariant } from '../providers/useLandingVariant';
-import { ComingSoonPage } from '../../surfaces/public-landing/routes/ComingSoonPage';
-import { PublicLanding } from '../../surfaces/public-landing/routes/PublicLanding';
-import { CheckoutPage } from '../../surfaces/public-landing/routes/CheckoutPage';
-import { FeedbackPage } from '../../surfaces/public-landing/routes/FeedbackPage';
+import { onProfilerRender } from '../../lib/profiler';
+
+const ComingSoonPage = lazy(() =>
+  import('../../surfaces/public-landing/routes/ComingSoonPage').then((module) => ({
+    default: module.ComingSoonPage,
+  }))
+);
+const PublicLanding = lazy(() =>
+  import('../../surfaces/public-landing/routes/PublicLanding').then((module) => ({
+    default: module.PublicLanding,
+  }))
+);
+const CheckoutPage = lazy(() =>
+  import('../../surfaces/public-landing/routes/CheckoutPage').then((module) => ({
+    default: module.CheckoutPage,
+  }))
+);
+const FeedbackPage = lazy(() =>
+  import('../../surfaces/public-landing/routes/FeedbackPage').then((module) => ({
+    default: module.FeedbackPage,
+  }))
+);
 
 function PublicRouteGuard({ children }: { children: ReactNode }) {
   const { config, loading } = useLandingVariant();
@@ -28,7 +47,9 @@ function PublicRouteGuard({ children }: { children: ReactNode }) {
 function PublicRoute({ name, children }: { name: string; children: ReactNode }) {
   return (
     <ErrorBoundary level="route" name={name}>
-      <PublicRouteGuard>{children}</PublicRouteGuard>
+      <React.Profiler id={name} onRender={onProfilerRender}>
+        <PublicRouteGuard>{children}</PublicRouteGuard>
+      </React.Profiler>
     </ErrorBoundary>
   );
 }

@@ -27,7 +27,7 @@ Both positioning angles are anchored on the same audience truth: knowledge worke
 **Source:** Bookmark from operator's social media stream (URL not captured — pre-BIH-rework workflow). Operator notes: *"this is one valuable way we can market this project — that you can do everything locally."* Cross-references: existing `STRATEGY.md` dual-audience framing already covers local-sovereignty as values tagline; the bundle-as-subscription-savings angle is the new addition.
 **Interpretation flag:** observation + positioning-insight
 **Possible persona attachment:** new candidate persona — "homelab-builder" — for family bundle. May also attach to existing OSS-contributor persona for the credibility angle.
-**Cross-team relevance:** monetization-benchmark-adjacent (subscription-savings is a pricing / value-anchor angle worth surfacing to monetization for both bundles); director-swarm (research method — see knowledge entry `research-method/homelab-app-scenario-seeding` for the generative method this signal seeded).
+**Cross-team relevance:** monetization-benchmark-adjacent (subscription-savings is a pricing / value-anchor angle worth surfacing to monetization for both bundles); director-swarm (research method — see knowledge entry `literal:research-method/homelab-app-scenario-seeding` for the generative method this signal seeded).
 
 **Promotion targets:**
 - Family-bundle audience addition to `AUDIENCES.md` (homelab-builder persona) — propose via `audience-update` decision when accumulated evidence supports the persona.

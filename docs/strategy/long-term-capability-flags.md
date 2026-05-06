@@ -21,7 +21,7 @@ If a flag matures (substrate becomes viable, audience interest emerges, or it cr
 - Active initiatives (those go in `docs/director-swarm/ROADMAP.md`)
 - Backlog items (those go in `swarm-manager`)
 - Operator-curated philosophical claims (those go in `VISION.md`)
-- Marketing positioning (that goes in `docs/marketing/`)
+- Marketing positioning (that goes in `path:docs/marketing/`)
 - Specific scenario candidates that just aren't built yet (those go in swarm-manager as `kind=idea` backlog items)
 
 The bar for inclusion is "this is a *class* of capability that requires substrate Vrooli doesn't have yet, but if/when that substrate exists, the class would be worth pursuing." Specific actionable scenarios go to swarm-manager; philosophical commitments go to VISION.

@@ -1,5 +1,5 @@
 /**
- * Mock builders for `lib/notes` — the UI ↔ API notes-CRUD boundary.
+ * Mock builders for `api/notes` — the UI ↔ API notes-CRUD boundary.
  * Co-located with the notes feature; deleting `features/notes/` takes
  * these mocks with it.
  *
@@ -8,26 +8,25 @@
  *
  *   import { makeNotesMocks } from "./mocks/notes";
  *
- *   vi.mock("../../lib/notes", async (importOriginal) => {
- *     const actual = await importOriginal<typeof import("../../lib/notes")>();
+ *   vi.mock("../../api/notes", async (importOriginal) => {
+ *     const actual = await importOriginal<typeof import("../../api/notes")>();
  *     return { ...actual, ...makeNotesMocks() };
  *   });
  *
- * The `...actual` spread keeps `ApiError` (a class) and the re-exported
- * proto types intact — only the network-touching functions are
- * substituted.
+ * The `...actual` spread keeps the re-exported proto types intact —
+ * only the network-touching functions are substituted. `ApiError`
+ * itself lives in `api/client`; tests that need it import from there.
  *
  * Default behaviors:
  *
- *   - `listNotes` resolves to an empty list
- *   - `createNote({ title, body })` echoes the input back as a Note
- *     (so tests can assert "the title the user typed reaches the
- *     server" without arranging a per-test mockResolvedValue)
- *   - `getNote(id)` echoes the id back as a Note
+ *   - `notesClient.listNotes` resolves to an empty list
+ *   - `notesClient.createNote({ title, body })` echoes the input back as a Note
+ *   - `notesClient.getNote({ id })` echoes the id back as a Note
+ *   - `uploadAttachment` resolves to stable attachment metadata
  */
 import { vi } from "vitest";
 
-import { makeListNotesResponse, makeNote } from "./factories";
+import { makeAttachment, makeCreateNoteResponse, makeListNotesResponse, makeNote } from "./factories";
 
 export interface NotesMockCreateInput {
   title: string;
@@ -35,19 +34,25 @@ export interface NotesMockCreateInput {
 }
 
 export interface NotesMocks {
-  listNotes: ReturnType<typeof vi.fn>;
-  createNote: ReturnType<typeof vi.fn>;
-  getNote: ReturnType<typeof vi.fn>;
+  notesClient: {
+    listNotes: ReturnType<typeof vi.fn>;
+    createNote: ReturnType<typeof vi.fn>;
+    getNote: ReturnType<typeof vi.fn>;
+  };
+  uploadAttachment: ReturnType<typeof vi.fn>;
 }
 
 export const makeNotesMocks = (): NotesMocks => ({
-  listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
-  createNote: vi
-    .fn()
-    .mockImplementation((input: NotesMockCreateInput) =>
-      Promise.resolve(makeNote({ title: input.title, body: input.body ?? "" })),
-    ),
-  getNote: vi
-    .fn()
-    .mockImplementation((id: string) => Promise.resolve(makeNote({ id }))),
+  notesClient: {
+    listNotes: vi.fn().mockResolvedValue(makeListNotesResponse()),
+    createNote: vi
+      .fn()
+      .mockImplementation((input: NotesMockCreateInput) =>
+        Promise.resolve(makeCreateNoteResponse({ note: makeNote({ title: input.title, body: input.body ?? "" }) })),
+      ),
+    getNote: vi
+      .fn()
+      .mockImplementation((input: { id: string }) => Promise.resolve({ note: makeNote({ id: input.id }) })),
+  },
+  uploadAttachment: vi.fn().mockResolvedValue(makeAttachment()),
 });

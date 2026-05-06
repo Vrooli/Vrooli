@@ -58,7 +58,7 @@ This is the wrap-not-use principle (see project memory): wrap the underlying cap
 For "does this even work" testing without committing to anything:
 
 1. Sign up at fal.ai, top up $5 credit.
-2. Add `FAL_API_KEY` to Vault under `secret/vrooli/fal` via secrets-manager.
+2. Add `FAL_API_KEY` to Vault under `literal:secret/vrooli/fal` via secrets-manager.
 3. Submit one composed prompt JSON (per the rich-media video-prompt template) directly via curl or a one-off script.
 4. Receive an MP4. Total cost: ~$1.50–$5 for an 8-second clip.
 

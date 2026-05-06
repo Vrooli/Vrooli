@@ -56,7 +56,7 @@ Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODE
 
 - These docs are the **canonical plan**. The `monetization` team reads them every heartbeat and proposes edits via decisions.
 - The human operator is the final author. Agents do not write to these files directly; they propose diffs in their decision logs.
-- Team-produced operational exhaust (ledger snapshots, opportunity pool, market scans, decisions) lives in `scenarios/prompt-manager/store/teams/monetization/shared/`, not here.
+- Team-produced operational exhaust (ledger snapshots, opportunity pool, market scans, decisions) lives in `path:scenarios/prompt-manager/store/teams/monetization/shared/`, not here.
 
 ## Consumers
 

@@ -9,7 +9,6 @@ package main
 // itself stays in terminal_ws.go so the WebSocket lifecycle is easy to
 // read in one place.
 //
-// See docs/plans/terminal-session-refactor-implementation-plan.md §7.1
 // (screaming architecture) and §8.2 (input kind/reason wire contract).
 
 import (

@@ -28,9 +28,9 @@ func setupKnowledgeFilterTest(t *testing.T) (*Handlers, *store.FileTeamStore) {
 
 	ctx := context.Background()
 	for _, e := range []store.KnowledgeEntry{
-		{ID: "k1", At: "2026-05-01T00:00:00Z", By: "vw", Topic: "research-inbox/audience/foo", Content: "a"},
-		{ID: "k2", At: "2026-05-01T00:00:01Z", By: "vw", Topic: "research-inbox/hook/bar", Content: "b"},
-		{ID: "k3", At: "2026-05-01T00:00:02Z", By: "rs", Topic: "audience-scan/foo", Content: "c"},
+		{ID: "k1", At: "2026-05-01T00:00:00Z", Caller: "vw", Topic: "research-inbox/audience/foo", Content: "a"},
+		{ID: "k2", At: "2026-05-01T00:00:01Z", Caller: "vw", Topic: "research-inbox/hook/bar", Content: "b"},
+		{ID: "k3", At: "2026-05-01T00:00:02Z", Caller: "rs", Topic: "audience-scan/foo", Content: "c"},
 	} {
 		entry := e
 		if err := teamStore.AppendKnowledge(ctx, "team-1", &entry); err != nil {

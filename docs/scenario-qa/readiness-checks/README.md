@@ -38,7 +38,7 @@ Each check has a status:
 
 - **v0** — Strategic canon documented, not yet active. PoR doc exists; paired skill missing or incomplete; programmatic-qa-runner must not include it.
 - **v1** — Active. Four activation requirements:
-  1. Skill is authored at `scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
+  1. Skill is authored at `path:scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
   2. Skill cites this check's PoR doc as required reading.
   3. PoR doc Status line bumped to `v1`.
   4. `programmatic-qa-runner/RESPONSIBILITIES.md` Available Skills table references the check.

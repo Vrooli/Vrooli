@@ -50,7 +50,7 @@ func TestRenderDesignLanguage_FullBrand(t *testing.T) {
 
 	// Structure checks
 	for _, section := range []string{
-		"# Full Brand — Design Language",
+		"# Full Brand DESIGN.md",
 		"## Identity",
 		"## Color System",
 		"## Typography",
@@ -127,6 +127,10 @@ func TestRenderDesignLanguage_MinimalBrand(t *testing.T) {
 	}
 
 	md := renderDesignLanguage(brand)
+
+	if !strings.HasPrefix(md, "---\n") {
+		t.Error("missing DESIGN.md front matter")
+	}
 
 	// Should have "Not yet defined" for all nil sections
 	count := strings.Count(md, "_Not yet defined._")

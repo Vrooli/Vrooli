@@ -1,8 +1,9 @@
 module {{SCENARIO_ID}}
 
-go 1.22
+go 1.24.0
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1

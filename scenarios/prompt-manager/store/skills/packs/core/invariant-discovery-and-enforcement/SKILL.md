@@ -141,7 +141,7 @@ Update `docs/internal/INVARIANTS.md` to record your findings:
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
+* Create the `path:docs/internal/` directory if needed.
 
 Include:
 * Critical invariants: what must never be violated, why it matters

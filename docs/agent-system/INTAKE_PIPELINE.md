@@ -1,6 +1,6 @@
 # Intake Pipeline
 
-The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision).
+The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision). Validated by the [three pillars](PRIMITIVES.md#three-pillars-of-topic-validation): [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) (declarations), [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (prose drift), [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (observed writes).
 
 This is the live model. The historical "hot buffer / living notebook / permanent structure" three-tier framing is retired in favor of this one.
 
@@ -41,7 +41,7 @@ Each intake channel a member drains is declared structurally in `topics.json`:
 }
 ```
 
-`prefix` names the topic-prefix the member drains; `taxonomy` names the JSON sidecar (`docs/<domain>/<id>.json`) that owns the signal vocabulary, dispatch table, evidence rules, and destination schemas; `classifier_skill` is the optional pure-judgment skill loaded when assignment of `signal_type` requires interpretation; `source_team` is set when the prefix is fed by another team's members. The heartbeat builder generates the universal drain procedure into the member's prompt as the `# Inbox Flow` section.
+`prefix` names the topic-prefix the member drains; `taxonomy` names the JSON sidecar (`path:docs/<domain>/<id>.json`) that owns the signal vocabulary, dispatch table, evidence rules, and destination schemas; `classifier_skill` is the optional pure-judgment skill loaded when assignment of `signal_type` requires interpretation; `source_team` is set when the prefix is fed by another team's members. The heartbeat builder generates the universal drain procedure into the member's prompt as the `# Inbox Flow` section.
 
 ---
 
@@ -84,11 +84,11 @@ Each entry must preserve: source URL when available, raw operator note, confiden
 
 The same drain procedure runs in either of two modes, picked per intake by whether the topic-prefix carries enough information to determine `signal_type` deterministically.
 
-**Mode 1 — Classifier-required (judgment intake).** The producer writes a raw note under a generic prefix (`research-inbox/<signal-type>/<slug>`); the assigned signal-type is a *hint*, not authority. The drainer applies a portable classifier skill — pure judgment, no team or destination coupling — to derive the authoritative `signal_type`, `evidence_strength`, and `honesty_flags` for each entry. Use this mode when the producer is upstream of the taxonomy (operator, vision-walk, cross-team handoff) and may misclassify, or when interpretation is required to disambiguate signal types. Examples: `marketing-crew/researcher` → `marketing-signal-classifier` over `marketing-research`; `monetization/opportunity-scout` → `monetization-signal-classifier` over `monetization-opportunity`; `monetization/market-validator` → `market-validation-triage` over `monetization-validation`.
+**Mode 1 — Classifier-required (judgment intake).** The producer writes a raw note under a generic prefix (`research-inbox/<signal-type>/<slug>`); the assigned signal-type is a *hint*, not authority. The drainer applies a portable classifier skill — pure judgment, no team or destination coupling — to derive the authoritative `signal_type`, `evidence_strength`, and `honesty_flags` for each entry. Use this mode when the producer is upstream of the taxonomy (operator, vision-walk, cross-team handoff) and may misclassify, or when interpretation is required to disambiguate signal types. Examples: `literal:marketing-crew/researcher` → `marketing-signal-classifier` over `marketing-research`; `literal:monetization/opportunity-scout` → `monetization-signal-classifier` over `monetization-opportunity`; `literal:monetization/market-validator` → `market-validation-triage` over `monetization-validation`.
 
-**Mode 2 — Deterministic prefix (no classifier).** The producer is constrained to write only valid taxonomy signal-types in the prefix segment after the inbox name (`<inbox-name>/<signal-type>/<slug>`), and that segment is taken as authoritative. No classifier skill is loaded; the drainer's heartbeat omits the classifier line and reads the signal-type straight from the topic. Use this mode when (a) the producer set is closed and trusted (typically same-team curation, not external alpha) and (b) the taxonomy's signal-types are mutually exclusive enough that misclassification is rare. Examples: `marketing-crew/brand-manager` and `meta-optimization/debt-curator` both drain `<team>/notebook/*` against the `notebook-debt` taxonomy with no classifier — the producer writes `notebook/promotion-candidate/<slug>` etc., and the curator trusts the prefix.
+**Mode 2 — Deterministic prefix (no classifier).** The producer is constrained to write only valid taxonomy signal-types in the prefix segment after the inbox name (`<inbox-name>/<signal-type>/<slug>`), and that segment is taken as authoritative. No classifier skill is loaded; the drainer's heartbeat omits the classifier line and reads the signal-type straight from the topic. Use this mode when (a) the producer set is closed and trusted (typically same-team curation, not external alpha) and (b) the taxonomy's signal-types are mutually exclusive enough that misclassification is rare. Examples: `literal:marketing-crew/brand-manager` and `literal:meta-optimization/debt-curator` both drain `<team>/notebook/*` against the `notebook-debt` taxonomy with no classifier — the producer writes `topic[example]:notebook/promotion-candidate/<slug>` etc., and the curator trusts the prefix.
 
-**Universal-source intakes pair with deterministic-prefix routing.** When `intake[].source_team = "*"` (any team's members may write — see `TOPICS_SCHEMA.md` § Universal-source intakes), the producer set is structurally open. Trust must be established at the producer side: a single writer skill (declared in `external_producers`) constrains the topic shape and signal-type assignment, and the drainer treats the prefix as authoritative. Adding a classifier skill on top of a universal-source intake is architectural drift — the writer skill already enforces shape, and the drainer must read the entry to start work anyway. Examples: `scenario-qa/bug-investigator` drains `bug-inbox/*` (universal-source) against `bug-report` taxonomy via `report-bug` writer skill; investigation includes signal-type validation as its first sub-step. The sister flow `meta-optimization/friction-curator` drains `friction-inbox/*` against `friction-report` taxonomy via `report-friction` writer skill; the curator validates scope (or reclassifies `unknown`) and routes to the appropriate scoped friction topic owned by an existing sub-member. Both flows establish the **universal observation flow** primitive — universal-source intake + writer skill + drainer + heartbeat trigger paragraph — as a reusable architectural pattern.
+**Universal-source intakes pair with deterministic-prefix routing.** When `intake[].source_team = "*"` (any team's members may write — see `TOPICS_SCHEMA.md` § Universal-source intakes), the producer set is structurally open. Trust must be established at the producer side: a single writer skill (declared in `external_producers`) constrains the topic shape and signal-type assignment, and the drainer treats the prefix as authoritative. Adding a classifier skill on top of a universal-source intake is architectural drift — the writer skill already enforces shape, and the drainer must read the entry to start work anyway. Examples: `literal:scenario-qa/bug-investigator` drains `bug-inbox/*` (universal-source) against `bug-report` taxonomy via `report-bug` writer skill; investigation includes signal-type validation as its first sub-step. The sister flow `literal:meta-optimization/friction-curator` drains `friction-inbox/*` against `friction-report` taxonomy via `report-friction` writer skill; the curator validates scope (or reclassifies `unknown`) and routes to the appropriate scoped friction topic owned by an existing sub-member. Both flows establish the **universal observation flow** primitive — universal-source intake + writer skill + drainer + heartbeat trigger paragraph — as a reusable architectural pattern.
 
 The choice is structural, recorded in `topics.json`: setting `intake[].classifier_skill` selects mode 1; omitting it selects mode 2. The heartbeat builder renders the appropriate procedure either way; the drainer does not need to know which mode is in use beyond what the generated section says.
 
@@ -173,7 +173,7 @@ The draining member (using its taxonomy's `actionSelection` set, possibly inform
 
 | Condition | Action |
 |---|---|
-| Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
+| Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `topic[example]:low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
 | Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor-record/<slug>`). |
 | Capability already exists for this signal | Run the existing skill or Action; route the output as a knowledge observation. |
 | Trivial automation, no LLM judgment needed | Create + run a new Action (no decision required — see `DECISIONS.md` §4). |
@@ -212,7 +212,7 @@ When a prefix crosses team boundaries, **the producer's taxonomy owns the front-
 | Owns dispatch / routing on read | no | yes |
 | Validator behavior | `missing_destination_schema` resolves `output[].schema` against the producer's taxonomy | `unknown_taxonomy` resolves the consumer's intake taxonomy independently |
 
-Worked example. `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent-record/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent-record/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
+Worked example. `literal:marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*`. Its `topics.json` carries `output: [{ "prefix": "monetization-benchmark-adjacent-record/*", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }]`. The schema id resolves under the *marketing-research* taxonomy (`path:docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`). On the receiving side, `literal:monetization/market-validator` declares `intake: [{ "prefix": "monetization-benchmark-adjacent-record/*", "taxonomy": "monetization-validation", "source_team": "marketing-crew" }]`. The consumer's `monetization-validation` taxonomy governs how `market-validator` classifies and routes the entry on read; it does not control the on-disk shape — the producer already set that.
 
 Why this rule: the on-disk shape is fixed at write time. The producer is the only party who can guarantee shape consistency; if the consumer redefined the schema, the producer would be unable to validate its own writes. Routing is a read-side concern and may legitimately differ across consumers (a single prefix could be drained by multiple consumers under different taxonomies later). Schemas can't.
 
@@ -233,9 +233,16 @@ These apply at every stage of the pipeline:
 
 ## How `topics.json` connects
 
-`topics.json` is the structural declaration of how each member participates in the pipeline. Its loader (Phase 2 of the agent-system migration) builds a directed graph from these declarations; the validation rules (Phase 3) detect orphan inputs, orphan outputs, drain conflicts, dangling sinks, stalled drains, and piling inboxes.
+`topics.json` is the structural declaration of how each member participates in the pipeline. Each member declares topic-prefix relationships across four kinds:
 
-The audit skill (Phase 5) consumes `topics.json` programmatically to derive Intake / Collection / Promotion / Routing scores instead of prose grep — closing the loop where the layered architecture audits itself structurally rather than narratively.
+- `intake[]` — prefixes the member drains. The classifier/triage skill named here owns routing for those entries.
+- `required_read[]` — prefixes the member must read every heartbeat (rendered into the active-task brief's "## Required Memory" section). Reading without draining.
+- `evidence_consumed[]` — prefixes the member cites as evidence when authoring decisions in a named `for_decisions[]` context. Reading with explicit decision provenance.
+- `output[]` — prefixes the member writes (with `destination_kind`, optional `destination_team`, schema, and supersession policy).
+
+The graph loader builds a directed graph from these declarations across all teams; the validator (`prompt-manager graph topics`) cross-checks the graph for orphan_input, orphan_output, conflicting_drain, unread_required, dangling_evidence_decision, dangling_por_sink, missing_destination_schema, wildcard_source_misuse, topic_key_prefix_mismatch, stalled_drain, and piling_inbox. The full rule list and severities live in `TOPICS_SCHEMA.md` § Validation rules.
+
+The layer-audit skill consumes `topics.json` programmatically to derive Intake / Collection / Promotion / Routing scores instead of prose grep — closing the loop where the layered architecture audits itself structurally rather than narratively.
 
 ---
 
@@ -244,6 +251,6 @@ The audit skill (Phase 5) consumes `topics.json` programmatically to derive Inta
 Not every member is signal-shaped. A pure reviewer, a code-writing scenario engineer, or a deterministic-CLI maintainer may have no intake topics, no collection layer, and no promotion mechanism. For these members:
 
 - `topics.json` is `{}` (or omitted), explicitly declaring no flow.
-- The audit skill scores Intake / Collection / Analysis / Promotion as `n/a` rather than `missing`.
+- The audit skill scores Intake / Collection / Analysis / Promotion as `literal:n/a` rather than `missing`.
 
 Use the layer model honestly. Members that *should* have a pipeline but don't are smells; members that *don't need* one are not.

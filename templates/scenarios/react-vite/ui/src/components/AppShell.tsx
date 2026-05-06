@@ -9,9 +9,8 @@ type Props = {
 };
 
 /**
- * AppShell renders the outer page layout — header, locale switcher,
- * and the card-stack scaffolding — and slots feature content into the
- * default <main> region via children.
+ * AppShell renders the outer page layout. Keep shell-level visual
+ * decisions aligned with root DESIGN.md and the generated token files.
  *
  * Lives in `components/` (not `features/`) because the shell is
  * cross-cutting layout, not domain content. Per react-coherence:
@@ -23,12 +22,12 @@ export function AppShell({ children }: Props) {
   const currentLocale = getCurrentLocale();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-app-background p-6 text-app-foreground">
+      <div className="w-full max-w-xl rounded-panel border border-app-border bg-app-surface p-8 shadow-lg">
         <div className="flex items-center justify-between gap-4">
           <p
             data-testid={selectors.app.eyebrow}
-            className="text-sm uppercase tracking-[0.2em] text-slate-400"
+            className="text-sm uppercase text-app-muted-foreground"
           >
             {t(strings.app.eyebrow)}
           </p>
@@ -36,7 +35,7 @@ export function AppShell({ children }: Props) {
             role="group"
             aria-label={t(strings.locale.switcherLabel)}
             data-testid={selectors.locale.switcher}
-            className="flex items-center gap-1 rounded-full border border-white/10 bg-black/20 p-1 text-xs"
+            className="flex items-center gap-1 rounded-control border border-app-border bg-app-surface-muted p-1 text-xs"
           >
             {SUPPORTED_LOCALES.map((lng) => (
               <button
@@ -47,8 +46,8 @@ export function AppShell({ children }: Props) {
                 aria-pressed={currentLocale === lng}
                 className={
                   currentLocale === lng
-                    ? "rounded-full bg-white/15 px-3 py-1 font-medium text-white"
-                    : "rounded-full px-3 py-1 text-slate-300 hover:text-white"
+                    ? "rounded-control bg-app-primary px-3 py-1 font-medium text-app-primary-foreground"
+                    : "rounded-control px-3 py-1 text-app-muted-foreground hover:text-app-foreground"
                 }
               >
                 {getLocaleConfig(lng).nativeLabel}
@@ -64,7 +63,7 @@ export function AppShell({ children }: Props) {
         </h1>
         <p
           data-testid={selectors.app.description}
-          className="mt-2 text-slate-300"
+          className="mt-2 text-app-muted-foreground"
         >
           {t(strings.app.description)}
         </p>

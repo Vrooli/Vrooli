@@ -18,10 +18,9 @@ import (
 // didn't import a handler package or the handler dropped its
 // Endpoints slice.
 //
-// Deliberately loose on count (not "exactly N"): the throwaway
-// REPLACING-NOTES.md deletion sequence removes notes endpoints, and
-// scenarios add their own — pinning the count would couple this test
-// to whichever domains happen to be present.
+// Deliberately loose on count (not "exactly N"): scenarios remove the
+// notes reference and add their own domains, so pinning the count would
+// couple this test to whichever domains happen to be present.
 func TestAllEndpoints_NonEmpty(t *testing.T) {
 	got := modules.AllEndpoints()
 	require.NotEmpty(t, got, "AllEndpoints must include at least the health endpoint")
@@ -72,8 +71,8 @@ func TestAllSchemas_FirstIsSystem(t *testing.T) {
 // a domain's schema accidentally drops `IF NOT EXISTS`.
 //
 // This test calls modules.AllSchemas() (whose contents change as
-// scenarios add/remove domains) but never names a specific domain,
-// so the REPLACING-NOTES.md deletion sequence leaves it green.
+// scenarios add/remove domains) but never names a specific domain, so
+// feature deletion leaves it green.
 func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 	d := db.NewSQLite(t)
 	ctx := context.Background()

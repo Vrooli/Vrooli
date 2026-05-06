@@ -140,7 +140,7 @@ func TestWorkspaceSandboxProvider_Delete(t *testing.T) {
 // emits (see types.go and diff.go in that scenario). If workspace-sandbox
 // changes the wire shape, this test must change in the same commit — otherwise
 // agent-manager will silently decode into zero values and auto-approval logic
-// will misbehave (see docs/plans/sandbox-auto-approve-and-profile-reconcile-plan.md §10.2).
+// will misbehave.
 func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	sandboxID := uuid.New()
 	fileID := uuid.New()

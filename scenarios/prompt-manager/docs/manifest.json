@@ -181,50 +181,7 @@
       "id": "plans",
       "title": "Plans",
       "icon": "map",
-      "documents": [
-        {
-          "path": "plans/team-coordination-greenfield-redesign-implementation-plan.md",
-          "title": "Team Coordination Greenfield Redesign",
-          "description": "Greenfield implementation plan for decoupling runtime, coordination, and concurrency in Prompt Manager teams",
-          "audience": ["developers"]
-        },
-        {
-          "path": "plans/team-operating-contract-greenfield-redesign-implementation-plan.md",
-          "title": "Team Operating Contract Greenfield Redesign",
-          "description": "Greenfield implementation plan for moving durable team/member operating policy into a structured contract rendered into heartbeat prompts",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/team-storage-ontology-greenfield-implementation-plan.md",
-          "title": "Team Storage Ontology Greenfield Implementation",
-          "description": "Greenfield implementation plan for contract-derived Continue, Observe, Propose, Operate storage prompts, typed team working state, friction capture, and prompt prose cleanup",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/prompt-pipeline-preview-and-ergonomics-implementation-plan.md",
-          "title": "Prompt Pipeline Preview and Ergonomics Implementation",
-          "description": "Implementation plan for making heartbeat prompt previews structured, drift-resistant, CLI-accessible, and easier for agents to execute",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/action-entity-and-memory-promotion-rfc.md",
-          "title": "Action Entity and Memory Promotion RFC",
-          "description": "Proposed ontology and rollout framing for Actions and notebook promotion",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "plans/action-entity-implementation-plan.md",
-          "title": "Action Entity Implementation Plan",
-          "description": "Greenfield implementation plan for first-class Action storage, API, CLI, search, graph, UI, validation, and execution",
-          "audience": ["developers"]
-        },
-        {
-          "path": "plans/operation-contract-drift-prevention-plan.md",
-          "title": "Operation Contract Drift Prevention Plan",
-          "description": "First-version foundation plan for preventing drift between APIs, CLIs, command catalogs, and prompt-manager Actions",
-          "audience": ["developers", "operators"]
-        }
-      ]
+      "documents": []
     },
     {
       "id": "internal",

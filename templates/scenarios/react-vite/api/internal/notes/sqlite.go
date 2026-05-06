@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,10 @@ func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
+func NewSQLiteAttachmentsRepository(db *sql.DB, clk clock.Clock) AttachmentsRepository {
+	return &sqliteRepository{db: db, clock: clk}
+}
+
 // Compile-time guarantee.
 var _ Repository = (*sqliteRepository)(nil)
 
@@ -43,15 +48,27 @@ VALUES (?, ?, ?, ?, ?)
 `
 
 	selectNoteByIDSQL = `
-SELECT id, title, body, created_at, updated_at
-FROM notes
-WHERE id = ?
+SELECT n.id, n.title, n.body, n.created_at, n.updated_at,
+       COALESCE((
+         SELECT group_concat(a.key, char(31))
+         FROM attachments a
+         WHERE a.note_id = n.id
+         ORDER BY a.uploaded_at DESC, a.key DESC
+       ), '')
+FROM notes n
+WHERE n.id = ?
 `
 
 	listNotesSQL = `
-SELECT id, title, body, created_at, updated_at
-FROM notes
-ORDER BY created_at DESC, id DESC
+SELECT n.id, n.title, n.body, n.created_at, n.updated_at,
+       COALESCE((
+         SELECT group_concat(a.key, char(31))
+         FROM attachments a
+         WHERE a.note_id = n.id
+         ORDER BY a.uploaded_at DESC, a.key DESC
+       ), '')
+FROM notes n
+ORDER BY n.created_at DESC, n.id DESC
 LIMIT ?
 `
 )
@@ -127,8 +144,9 @@ func scanNote(s rowScanner) (Note, error) {
 		n          Note
 		createdRaw string
 		updatedRaw string
+		keysRaw    string
 	)
-	if err := s.Scan(&n.ID, &n.Title, &n.Body, &createdRaw, &updatedRaw); err != nil {
+	if err := s.Scan(&n.ID, &n.Title, &n.Body, &createdRaw, &updatedRaw, &keysRaw); err != nil {
 		return Note{}, err
 	}
 	created, err := time.Parse(noteTimeFormat, createdRaw)
@@ -141,5 +159,8 @@ func scanNote(s rowScanner) (Note, error) {
 	}
 	n.CreatedAt = created
 	n.UpdatedAt = updated
+	if keysRaw != "" {
+		n.AttachmentKeys = strings.Split(keysRaw, string(rune(31)))
+	}
 	return n, nil
 }

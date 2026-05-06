@@ -68,7 +68,7 @@ func TestGenerateDesignLanguage(t *testing.T) {
 
 	// Verify content sections exist [REQ:BM-REQ-DESIGN-CONTENT]
 	sections := []string{
-		"# Test Brand — Design Language",
+		"# Test Brand DESIGN.md",
 		"## Identity",
 		"## Color System",
 		"## Typography",

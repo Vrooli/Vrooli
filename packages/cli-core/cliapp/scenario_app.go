@@ -306,6 +306,7 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 		StaleChecker:     a.StaleChecker,
 		Preflight:        preflight,
 	})
+	a.CLI.AttachScenario(a)
 }
 
 func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {

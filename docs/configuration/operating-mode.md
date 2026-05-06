@@ -47,7 +47,7 @@ A scenario absent from `operator-state.json` falls through to the manifest defau
 
 ## What "auto-restart" actually means
 
-The lifecycle orchestrator (in `internal/runtime/`) uses the resolved value to decide whether to relaunch a scenario after it exits. It does not turn on monitoring, alerting, or escalation — those are separate concerns handled by the auto-heal scenario and infra-health team. Auto-restart is the local "did the process die? bring it back" behavior.
+The lifecycle orchestrator (in `path:internal/runtime/`) uses the resolved value to decide whether to relaunch a scenario after it exits. It does not turn on monitoring, alerting, or escalation — those are separate concerns handled by the auto-heal scenario and infra-health team. Auto-restart is the local "did the process die? bring it back" behavior.
 
 The scope is intentionally narrow: a scenario can be "enabled, not auto-restarting" (operator wants it but is fine starting it manually) or "enabled, auto-restarting" (operator wants it always up). Anything more sophisticated — exponential backoff, max retry counts, alert escalation — belongs to whatever scenario provides that capability, not the runtime block.
 

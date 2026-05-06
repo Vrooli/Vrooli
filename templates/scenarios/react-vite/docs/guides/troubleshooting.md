@@ -99,11 +99,12 @@ parent directory is created on first write — if that fails, your
 home directory is read-only or `XDG_CONFIG_HOME` is set to an
 unwritable path.
 
-### API returns `400 invalid_request` with no body
+### API returns `400 invalid_request` on multipart upload
 
-Likely cause: the request includes fields the proto schema doesn't
-declare. The decoder uses `DisallowUnknownFields` by default. Check
-the request payload against `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`.
+Likely cause: the upload request is not valid `multipart/form-data` or
+is missing the `file` part. Proto-typed operations use Connect-RPC and
+will surface Connect codes such as `invalid_argument`; `invalid_request`
+is reserved for REST exceptions like file upload.
 
 ## Build and dependencies
 
@@ -218,8 +219,11 @@ You haven't regenerated. From the workspace root:
 make generate
 ```
 
-The generator runs entirely on local plugins (no BSR network calls)
-and writes to `packages/proto/gen/{go,ts}/{{SCENARIO_ID}}/v1/`.
+The generator runs entirely on local plugins (no BSR network calls) and
+writes to language-specific output paths: Go under
+`packages/proto/gen/go/{{SCENARIO_ID}}/v1/`, TypeScript under
+`packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/`, and Python under
+`packages/proto/gen/python/{{SCENARIO_ID_SNAKE}}/v1/`.
 
 ### Codegen ran but Go imports still fail
 

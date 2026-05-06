@@ -8,9 +8,7 @@ ANSI snapshot serializer used to replay state to a (re)connecting client.
 Web-console used to keep a raw-PTY-byte ring as durable history. That
 representation is not replay-safe across alt-buffer transitions: a TUI's
 unmatched `\x1b[?1049h` left the client xterm in alt-buffer mode where
-scrollback is disabled, so reconnect lost every line of history. See
-`docs/plans/terminal-emulator-replay-implementation-plan.md` §4 for the
-investigation.
+scrollback is disabled, so reconnect lost every line of history.
 
 This package replaces the byte ring with a decoded `Emulator` that
 maintains a screen grid and a bounded scrollback ring. `Snapshot()`

@@ -128,7 +128,7 @@ Update the **Checkpoint Flows** section of `docs/internal/TEMPORAL-FLOWS.md` to 
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
+* Create the `path:docs/internal/` directory if needed.
 
 Include:
 * Progress-based journeys and their natural checkpoints

@@ -37,8 +37,8 @@ Each path holds the auth-pattern-specific keys. For OAuth: `access_token`, `refr
 
 This sits parallel to:
 
-- `secret/vrooli/<resource_name>` — paste-string secrets attached to a resource (existing).
-- `secret/vrooli/scratch/<name>` — *not used*; scratch credentials live as unbound connections instead. See [unbound connections](#unbound-connections-the-scratch-case) below.
+- `literal:secret/vrooli/<resource_name>` — paste-string secrets attached to a resource (existing).
+- `literal:secret/vrooli/scratch/<name>` — *not used*; scratch credentials live as unbound connections instead. See [unbound connections](#unbound-connections-the-scratch-case) below.
 
 ## Bound vs unbound
 
@@ -73,7 +73,7 @@ When the operator wants to test a third-party API before any scenario uses it, t
 Worked example: testing fal.ai for AI-UGC video generation.
 
 1. Operator creates a `fal-api` connection in integration-hub: `connection_id: fal-scratch-2026-04-29`, `bound_to: null`.
-2. Operator pastes the API key; it lives at `secret/vrooli/integrations/fal-api/fal-scratch-2026-04-29`.
+2. Operator pastes the API key; it lives at `literal:secret/vrooli/integrations/fal-api/fal-scratch-2026-04-29`.
 3. Operator runs ad-hoc test scripts that read this connection.
 4. Once a video-studio scenario ships and declares `integrations: [{ connector: "fal-api", scopes: [...], required: true }]`, the operator binds the existing connection: `integration-hub bind fal-scratch-2026-04-29 --to video-studio`.
 5. The connection metadata gains `bound_to: ["video-studio"]`. Vault path doesn't move; no key rotation needed.

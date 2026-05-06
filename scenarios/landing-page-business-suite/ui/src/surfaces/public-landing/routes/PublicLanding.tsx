@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { SEOHead } from '../../../shared/ui/SEOHead';
@@ -28,6 +28,7 @@ import {
   getDownloadButtonLabel,
   getSectionNavLabel,
 } from '../services/navigation.service';
+import { onProfilerRender } from '../../../lib/profiler';
 
 interface SectionRendererContext {
   section: LandingSection;
@@ -266,7 +267,9 @@ export function PublicLanding() {
 
     return (
       <div key={getSectionKey(section)} id={getSectionAnchorId(section)} className="scroll-mt-28">
-        {rendered}
+        <React.Profiler id={`LandingSection:${section.section_type}`} onRender={onProfilerRender}>
+          {rendered}
+        </React.Profiler>
       </div>
     );
   };
@@ -276,14 +279,16 @@ export function PublicLanding() {
       {/* Client-side SEO meta tag updates based on branding */}
       <SEOHead branding={config?.branding} />
 
-      <LandingExperienceHeader
-        headerConfig={headerConfig}
-        branding={config?.branding}
-        navLinks={navLinks}
-        runtimeMeta={runtimeMeta}
-        ctas={ctas}
-        showMeta={isDebugMode}
-      />
+      <React.Profiler id="LandingHeader" onRender={onProfilerRender}>
+        <LandingExperienceHeader
+          headerConfig={headerConfig}
+          branding={config?.branding}
+          navLinks={navLinks}
+          runtimeMeta={runtimeMeta}
+          ctas={ctas}
+          showMeta={isDebugMode}
+        />
+      </React.Profiler>
       {variantPinnedViaParam && (
         <div className="border border-accent-secondary/30 bg-accent-secondary/10 py-3 px-4 text-center text-sm text-accent-secondary/80" data-testid="variant-source-banner">
           Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.

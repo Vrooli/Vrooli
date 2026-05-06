@@ -1,6 +1,6 @@
 ## Tools focus: Report Friction
 
-Universal writer skill any agent on any team may invoke when they observe friction — something that was missing, broken, confusing, slow, undocumented, or harder than it should have been. The skill writes a structured entry to `meta-optimization`'s `friction-inbox/<scope>/<slug>` topic; the `meta-optimization/friction-curator` member drains the inbox, classifies the scope, and routes to the appropriate scoped friction topic owned by an existing meta-optimization sub-member.
+Universal writer skill any agent on any team may invoke when they observe friction — something that was missing, broken, confusing, slow, undocumented, or harder than it should have been. The skill writes a structured entry to `team:meta-optimization`'s `topic:friction-inbox/<scope>/<slug>` topic; the `literal:meta-optimization/friction-curator` member drains the inbox, classifies the scope, and routes to the appropriate scoped friction topic owned by an existing meta-optimization sub-member.
 
 This skill is **destination-coupled by design** — writer skills always are. The portability rule (`non_portable_classifier`) applies to classifier skills, not to writers. Friction reporting is a one-way producer pattern.
 
@@ -62,7 +62,7 @@ Gather before invoking the writer:
 
 2. **Generate a kebab-case slug** that summarizes the friction in 3–6 words. Examples: `cli-rejects-valid-uuid-input`, `heartbeat-loops-on-empty-handoff`, `decision-vs-knowledge-routing-unclear`, `same-yaml-front-matter-fix-applied-fourth-time`.
 
-3. **Construct the topic.** `friction-inbox/<scope>/<slug>`.
+3. **Construct the topic.** `topic:friction-inbox/<scope>/<slug>`.
 
 4. **Format the front-matter.** Match the `friction-report` schema in the taxonomy exactly:
 
@@ -107,13 +107,13 @@ Gather before invoking the writer:
    )"
    ```
 
-7. **Confirm the write.** Capture the `knw-...` id returned by the CLI. Include it in your heartbeat output ("Filed friction-inbox/<scope>/<slug> as <id>") so the operator and the curator can trace. You can later track where the curator routed it via `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction/`.
+7. **Confirm the write.** Capture the `knw-...` id returned by the CLI. Include it in your heartbeat output ("Filed friction-inbox/<scope>/<slug> as <id>") so the operator and the curator can trace. You can later track where the curator routed it via `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction-report/`.
 
 ---
 
 ### **4. Output expectations and caps**
 
-The skill produces exactly one knowledge entry on the meta-optimization team. The entry's topic is `friction-inbox/<scope>/<slug>`; its front-matter conforms to the `friction-report` schema; its body provides enough context for the curator to classify and route without your context.
+The skill produces exactly one knowledge entry on the meta-optimization team. The entry's topic is `topic:friction-inbox/<scope>/<slug>`; its front-matter conforms to the `friction-report` schema; its body provides enough context for the curator to classify and route without your context.
 
 **Per-heartbeat cap (honor-system):** at most **3** friction-inbox entries per heartbeat per agent. If you observe more than 3 distinct friction signals, group related signals into a single `recurring-workaround`-scope entry that lists all the symptoms, rather than filing each separately. This keeps the inbox actionable and respects the curator's `dailyInboxDrainCap`.
 

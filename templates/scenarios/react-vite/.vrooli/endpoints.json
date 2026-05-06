@@ -29,10 +29,10 @@
     },
     {
       "id": "notes_list",
-      "path": "/api/v1/notes",
-      "method": "GET",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes",
+      "method": "POST",
       "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at. The wire envelope is the proto-generated ListNotesResponse; an empty list serialises to {} (proto3 default-omission).",
+      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
       "category": "notes",
       "response": {
         "type": "object",
@@ -50,7 +50,7 @@
       "examples": [
         {
           "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/notes"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
         }
       ],
       "cli_mapping": {
@@ -59,10 +59,10 @@
     },
     {
       "id": "notes_create",
-      "path": "/api/v1/notes",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote",
       "method": "POST",
       "summary": "Create a note",
-      "description": "Persists a new note. Title is required (validated after whitespace trim by notes.Service); body is optional.",
+      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
       "category": "notes",
       "request": {
         "type": "object",
@@ -80,8 +80,8 @@
       "errors": [
         {
           "status": 400,
-          "code": "invalid_request",
-          "description": "Missing or whitespace-only title; malformed JSON; unknown fields rejected by DisallowUnknownFields"
+          "code": "invalid_argument",
+          "description": "Missing or whitespace-only title"
         },
         {
           "status": 500,
@@ -92,7 +92,7 @@
       "examples": [
         {
           "name": "Create note",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
         }
       ],
       "cli_mapping": {
@@ -107,11 +107,17 @@
     },
     {
       "id": "notes_get",
-      "path": "/api/v1/notes/{id}",
-      "method": "GET",
+      "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote",
+      "method": "POST",
       "summary": "Get a note by id",
-      "description": "Returns the note matching the path id, or a typed not_found envelope.",
+      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
       "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
       "response": {
         "type": "object",
         "properties": {
@@ -133,13 +139,64 @@
       "examples": [
         {
           "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/notes/abc123"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
         }
       ],
       "cli_mapping": {
         "command": "{{SCENARIO_ID}} notes get",
         "args": [
           "<id>"
+        ]
+      }
+    },
+    {
+      "id": "notes_attach",
+      "path": "/api/v1/notes/{id}/attachments",
+      "method": "POST",
+      "summary": "Upload a note attachment",
+      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
+      "category": "notes",
+      "request": {
+        "type": "multipart/form-data",
+        "properties": {
+          "file": "file (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "attachment": "Attachment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing file or invalid multipart upload"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "BlobStore or metadata persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Attach file",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+        }
+      ],
+      "cli_mapping": {
+        "command": "{{SCENARIO_ID}} notes attach",
+        "args": [
+          "<id>",
+          "--file",
+          "<path>"
         ]
       }
     }
@@ -164,6 +221,11 @@
       "name": "notes get",
       "description": "Get a note by id",
       "endpoint_id": "notes_get"
+    },
+    {
+      "name": "notes attach",
+      "description": "Upload an attachment for a note (--file PATH)",
+      "endpoint_id": "notes_attach"
     }
   ]
 }

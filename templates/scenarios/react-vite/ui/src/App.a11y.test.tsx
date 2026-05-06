@@ -15,8 +15,7 @@
  * card-stack region. Per-feature a11y scans live in
  * features/<name>/<Name>Card.a11y.test.tsx (add when a feature ships
  * its first interactive widget). Splitting this way keeps the smoke
- * resilient when REPLACING-NOTES.md is followed: deleting a feature
- * does not break this file.
+ * resilient when a feature is deleted.
  *
  * We use `axe-core` directly rather than a matcher library so there's
  * no signature mismatch between jest-axe and vitest. The assertion is

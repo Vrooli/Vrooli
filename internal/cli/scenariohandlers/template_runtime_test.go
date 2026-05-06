@@ -2,6 +2,7 @@ package scenariohandlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -56,11 +57,20 @@ func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.
 		t.Fatalf("REPO_ROOT_REL_FROM_CLI = %q, want %q", got, filepath.ToSlash(wantRepoRootRel))
 	}
 
-	if err := copyTemplate(info.Path, destination, values, info.Manifest.Relocations); err != nil {
+	if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
 		t.Fatalf("copyTemplate() error = %v", err)
 	}
 	if err := verifyTemplate(destination); err != nil {
 		t.Fatalf("verifyTemplate() error = %v", err)
+	}
+	for _, excluded := range []string{
+		filepath.Join("docs", "internal", "TEMPLATE-GENERATION-CONTRACT.md"),
+		filepath.Join("docs", "internal", "TEMPLATE-MAINTENANCE.md"),
+		"proto",
+	} {
+		if _, err := os.Stat(filepath.Join(destination, excluded)); err == nil {
+			t.Fatalf("copyTemplate leaked excluded/relocated path %s", excluded)
+		}
 	}
 
 	apiGoMod, err := os.ReadFile(filepath.Join(destination, "api", "go.mod"))
@@ -72,7 +82,7 @@ func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.
 		t.Fatalf("api/go.mod = %s", string(apiGoMod))
 	}
 
-	issues := validateGeneratedScenario(destination, false, nil, info.Name)
+	issues := validateGeneratedScenario(destination, false, nil, info.Name, info.Manifest)
 	if len(issues) != 0 {
 		t.Fatalf("validateGeneratedScenario() issues = %#v", issues)
 	}
@@ -97,11 +107,40 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 		t.Fatalf("write main.go: %v", err)
 	}
 
-	issues := validateGeneratedScenario(destination, false, nil, "demo")
+	issues := validateGeneratedScenario(destination, false, nil, "demo", scenariocli.TemplateManifest{})
 	if len(issues) == 0 {
 		t.Fatal("expected validation issues for broken replace target")
 	}
 	if !strings.Contains(issues[0].Message, "does not resolve") {
+		t.Fatalf("issues = %#v", issues)
+	}
+}
+
+func TestValidateGeneratedScenarioFlagsMissingStartDocument(t *testing.T) {
+	destination := t.TempDir()
+	issues := validateGeneratedScenario(destination, false, nil, "demo", scenariocli.TemplateManifest{
+		StartDocument: "docs/START-HERE.md",
+	})
+	if len(issues) == 0 {
+		t.Fatal("expected missing startDocument issue")
+	}
+	if issues[0].Path != "docs/START-HERE.md" || !strings.Contains(issues[0].Message, "startDocument is declared but missing") {
+		t.Fatalf("issues = %#v", issues)
+	}
+}
+
+func TestValidateGeneratedScenarioAcceptsStartDocument(t *testing.T) {
+	destination := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(destination, "docs"), 0o755); err != nil {
+		t.Fatalf("mkdir docs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(destination, "docs", "START-HERE.md"), []byte("# Start Here\n"), 0o644); err != nil {
+		t.Fatalf("write start doc: %v", err)
+	}
+	issues := validateGeneratedScenario(destination, false, nil, "demo", scenariocli.TemplateManifest{
+		StartDocument: "docs/START-HERE.md",
+	})
+	if len(issues) != 0 {
 		t.Fatalf("issues = %#v", issues)
 	}
 }
@@ -122,6 +161,98 @@ func TestValidateTemplateSourceFlagsHardcodedLocalReplaceTargets(t *testing.T) {
 	}
 	if !strings.Contains(issues[0].Message, "generator-computed placeholders") {
 		t.Fatalf("issues = %#v", issues)
+	}
+}
+
+func TestResolveDesignRejectsNoneForRequiredTemplate(t *testing.T) {
+	destination := t.TempDir()
+	_, err := resolveDesign(t.TempDir(), scenariocli.TemplateInfo{
+		Name: "demo",
+		Manifest: scenariocli.TemplateManifest{
+			Design: scenariocli.TemplateDesign{Required: true, Default: "vrooli-default", Adapter: "react-vite-tailwind"},
+		},
+	}, "none", destination, map[string]string{})
+	if err == nil || !strings.Contains(err.Error(), "--design none is not allowed") {
+		t.Fatalf("resolveDesign() error = %v", err)
+	}
+}
+
+func TestResolveAndCopyDesignAssets(t *testing.T) {
+	repoRoot := t.TempDir()
+	kitDir := filepath.Join(repoRoot, "templates", "design", "demo-kit")
+	adapterDir := filepath.Join(kitDir, "adapters", "react-vite-tailwind")
+	if err := os.MkdirAll(adapterDir, 0o755); err != nil {
+		t.Fatalf("mkdir adapter: %v", err)
+	}
+	writeTestFile(t, filepath.Join(kitDir, "metadata.json"), `{
+  "id": "demo-kit",
+  "name": "Demo Kit",
+  "version": "0.1.0",
+  "default": true,
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind",
+      "supports": ["templates/scenarios/react-vite"]
+    }
+  }
+}`)
+	writeTestFile(t, filepath.Join(kitDir, "DESIGN.md"), "# {{SCENARIO_DISPLAY_NAME}} Design\n")
+	writeTestFile(t, filepath.Join(adapterDir, "adapter.json"), `{
+  "id": "react-vite-tailwind",
+  "copy": [{ "from": "tokens.css", "to": "ui/src/design-tokens.css" }]
+}`)
+	writeTestFile(t, filepath.Join(adapterDir, "tokens.css"), ":root { --scenario-name: \"{{SCENARIO_ID}}\"; }\n")
+
+	destination := filepath.Join(repoRoot, "scenarios", "alpha")
+	values := map[string]string{"SCENARIO_ID": "alpha", "SCENARIO_DISPLAY_NAME": "Alpha"}
+	design, err := resolveDesign(repoRoot, scenariocli.TemplateInfo{
+		Name: "react-vite",
+		Manifest: scenariocli.TemplateManifest{
+			Design: scenariocli.TemplateDesign{Required: true, Default: "demo-kit", Adapter: "react-vite-tailwind"},
+		},
+	}, "", destination, values)
+	if err != nil {
+		t.Fatalf("resolveDesign() error = %v", err)
+	}
+	if len(design.Copies) != 2 {
+		t.Fatalf("design copies = %#v", design.Copies)
+	}
+	if err := preflightDesignCopies(design, false); err != nil {
+		t.Fatalf("preflightDesignCopies() error = %v", err)
+	}
+	if err := copyDesignAssets(design, values); err != nil {
+		t.Fatalf("copyDesignAssets() error = %v", err)
+	}
+	designDoc, err := os.ReadFile(filepath.Join(destination, "DESIGN.md"))
+	if err != nil {
+		t.Fatalf("read generated DESIGN.md: %v", err)
+	}
+	if !strings.Contains(string(designDoc), "# Alpha Design") {
+		t.Fatalf("DESIGN.md = %q", string(designDoc))
+	}
+	tokens, err := os.ReadFile(filepath.Join(destination, "ui", "src", "design-tokens.css"))
+	if err != nil {
+		t.Fatalf("read generated tokens: %v", err)
+	}
+	if !strings.Contains(string(tokens), `"alpha"`) {
+		t.Fatalf("tokens = %q", string(tokens))
+	}
+}
+
+func TestPreflightDesignTemplateCollisionsRejectsTemplateOwnedTargets(t *testing.T) {
+	root := t.TempDir()
+	templateDir := filepath.Join(root, "templates", "scenarios", "demo")
+	destination := filepath.Join(root, "scenarios", "demo")
+	writeTestFile(t, filepath.Join(templateDir, "ui", "tailwind.config.ts"), "export default {}\n")
+
+	err := preflightDesignTemplateCollisions(templateDir, destination, scenariocli.ResolvedDesign{
+		KitID: "demo-kit",
+		Copies: []scenariocli.ResolvedDesignCopy{
+			{From: filepath.Join(root, "tokens.css"), To: filepath.Join(destination, "ui", "tailwind.config.ts")},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "collides with template file") {
+		t.Fatalf("preflightDesignTemplateCollisions() error = %v", err)
 	}
 }
 
@@ -187,6 +318,16 @@ func seedRepoContract(t *testing.T, repoRoot string) {
 	// pre-create them as empty dirs.
 	for _, dir := range []string{"packages", "templates", "scenarios", "resources", "cmd", "internal"} {
 		_ = os.MkdirAll(filepath.Join(repoRoot, dir), 0o755)
+	}
+}
+
+func writeTestFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }
 
@@ -468,7 +609,7 @@ func TestCopyTemplate_SkipsRelocationFromDirs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildTemplateValues: %v", err)
 	}
-	if err := copyTemplate(info.Path, destination, values, info.Manifest.Relocations); err != nil {
+	if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
 		t.Fatalf("copyTemplate: %v", err)
 	}
 	// proto/ is in the manifest's relocations so it must NOT appear
@@ -479,6 +620,77 @@ func TestCopyTemplate_SkipsRelocationFromDirs(t *testing.T) {
 	// But unrelated files should still land.
 	if _, err := os.Stat(filepath.Join(destination, "api", "main.go")); err != nil {
 		t.Fatalf("non-relocation file missing from destination: %v", err)
+	}
+}
+
+func TestCopyTemplate_SkipsManifestCopyExcludes(t *testing.T) {
+	templateDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(templateDir, "template.json"), []byte(`{"name":"copy-exclude","copyExcludes":["docs/internal/TEMPLATE-MAINTENANCE.md","tmp-only"]}`), 0o644); err != nil {
+		t.Fatalf("write template.json: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(templateDir, "docs", "internal"), 0o755); err != nil {
+		t.Fatalf("mkdir docs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "docs", "internal", "TEMPLATE-MAINTENANCE.md"), []byte("template only"), 0o644); err != nil {
+		t.Fatalf("write maint doc: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(templateDir, "tmp-only"), 0o755); err != nil {
+		t.Fatalf("mkdir tmp-only: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "tmp-only", "scratch.txt"), []byte("scratch"), 0o644); err != nil {
+		t.Fatalf("write scratch: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "README.md"), []byte("keep"), 0o644); err != nil {
+		t.Fatalf("write readme: %v", err)
+	}
+
+	info := scenariocli.TemplateInfo{
+		Name: "copy-exclude",
+		Path: templateDir,
+		Manifest: scenariocli.TemplateManifest{
+			Name:         "copy-exclude",
+			CopyExcludes: []string{"docs/internal/TEMPLATE-MAINTENANCE.md", "tmp-only"},
+		},
+	}
+	destination := filepath.Join(t.TempDir(), "scenario")
+	if err := copyTemplate(info.Path, destination, map[string]string{}, info.Manifest); err != nil {
+		t.Fatalf("copyTemplate: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destination, "docs", "internal", "TEMPLATE-MAINTENANCE.md")); err == nil {
+		t.Fatal("copyTemplate should exclude template-maintenance doc")
+	}
+	if _, err := os.Stat(filepath.Join(destination, "tmp-only")); err == nil {
+		t.Fatal("copyTemplate should exclude template-only directories")
+	}
+	if _, err := os.Stat(filepath.Join(destination, "README.md")); err != nil {
+		t.Fatalf("copyTemplate should keep unrelated files: %v", err)
+	}
+}
+
+func TestCleanupRelocationTargets_RemovesProtoGeneratedArtifacts(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenarioID := "template-validation-react-vite"
+	relocTo := filepath.Join(repoRoot, "packages", "proto", "schemas", scenarioID)
+	paths := []string{
+		relocTo,
+		filepath.Join(repoRoot, "packages", "proto", "gen", "go", scenarioID),
+		filepath.Join(repoRoot, "packages", "proto", "gen", "typescript", scenarioID),
+		filepath.Join(repoRoot, "packages", "proto", "gen", "typescript", "js", scenarioID),
+		filepath.Join(repoRoot, "packages", "proto", "gen", "python", scenarioID),
+		filepath.Join(repoRoot, "packages", "proto", "gen", "python", "template_validation_react_vite"),
+	}
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+	}
+
+	cleanupRelocationTargets([]scenariocli.ResolvedRelocation{{To: relocTo}})
+
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			t.Fatalf("cleanupRelocationTargets left %s behind", path)
+		}
 	}
 }
 
@@ -514,6 +726,38 @@ func TestValidateRelocationProtoSources_DetectsProtoDir(t *testing.T) {
 	_ = issues
 }
 
+// TestValidateRelocationProtoSources_SurfacesStdoutOnLintFailure pins the
+// stdout-capture fix: `buf lint` writes diagnostics to stdout, not stderr,
+// so the validator must surface stdout in the issue Message. Pre-fix,
+// failures collapsed to a useless "buf lint failed: exit status 100" string.
+func TestValidateRelocationProtoSources_SurfacesStdoutOnLintFailure(t *testing.T) {
+	repoRoot, info := writeRelocationTemplate(t, "reloc-lint-fail", nil)
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "proto", "schemas"), 0o755); err != nil {
+		t.Fatalf("mkdir packages/proto/schemas: %v", err)
+	}
+
+	const lintDiagnostic = `Service name "Notes" should be suffixed with "Service".`
+	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, &capturedSubprocess{})
+	deps.RunSubprocess = func(_ struct{}, spec scenarioexec.SubprocessSpec) error {
+		if spec.Stdout != nil {
+			_, _ = io.WriteString(spec.Stdout, lintDiagnostic+"\n")
+		}
+		return errors.New("exit status 100")
+	}
+
+	issues := validateRelocationProtoSources(deps, struct{}{}, info)
+	if len(issues) != 1 {
+		t.Fatalf("issues = %#v, want exactly 1", issues)
+	}
+	msg := issues[0].Message
+	if !strings.Contains(msg, lintDiagnostic) {
+		t.Fatalf("issue message %q must surface the stdout diagnostic %q", msg, lintDiagnostic)
+	}
+	if strings.Contains(msg, ".tmp-validate-") {
+		t.Fatalf("issue message %q must rewrite the temp-dir prefix back to the template path; got raw temp dir", msg)
+	}
+}
+
 func TestValidateRelocationProtoSources_SkipsWhenSchemasDirAbsent(t *testing.T) {
 	// When packages/proto/schemas/ doesn't exist (test repo without a
 	// real proto module), the validator returns no issues and runs no
@@ -533,9 +777,8 @@ func TestValidateRelocationProtoSources_SkipsWhenSchemasDirAbsent(t *testing.T) 
 }
 
 // TestValidateRelocationProtoSources_RunsOfflineWithBSRUnreachable proves
-// that template proto validation does not contact BSR — the change that
-// CD-1 (local plugins) and CD-2 (vendored modules) were meant to deliver.
-// See docs/plans/proto-codegen-local-and-bsr-login-implementation-plan.md.
+// that template proto validation does not contact BSR after the local-plugin
+// and vendored-module cutover.
 //
 // Mechanism: invoke validateRelocationProtoSources end-to-end against the
 // real packages/proto/ module with HTTPS_PROXY=http://127.0.0.1:9 forced
@@ -694,4 +937,3 @@ func TestValidateRelocationProtoSources_SkipsNonProtoRelocations(t *testing.T) {
 		t.Fatalf("non-proto relocation invoked %d subprocess calls; should not run buf lint", len(capture.calls))
 	}
 }
-

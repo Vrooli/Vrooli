@@ -113,7 +113,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 |---|---|
 | Low-signal or one-off item | Handoff, or `research-inbox/*` knowledge entry. |
 | Concrete observation with source | `audience-scan/*` knowledge entry, or `audience-scans.jsonl` for batch scan rows. |
-| Unresolved repeated pattern | `docs/marketing/notebook/*`. |
+| Unresolved repeated pattern | `path:docs/marketing/notebook/*`. |
 | Audience/persona change with converging evidence | `audience-update` decision. |
 | Channel priority or activation change | `channel-strategy-update` decision. |
 | New post format with enough evidence | `post-type-proposal` decision. |
@@ -129,7 +129,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 - Three converging scans can justify a decision when the sources are meaningfully independent.
 - Single-snapshot data must be labeled `light-interpretation`.
 - Bookmark-intelligence-hub classifications are inputs, not proof. The researcher still evaluates relevance and evidence quality.
-- Researcher never drafts marketing content or directly edits `docs/marketing/` canon; it proposes changes for operator review.
+- Researcher never drafts marketing content or directly edits `path:docs/marketing/` canon; it proposes changes for operator review.
 
 ## Skill Surface
 

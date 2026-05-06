@@ -111,7 +111,7 @@ The snapshot is a self-contained ANSI byte stream that recreates the exact `(scr
 
 **Client**: xterm.js is a pure renderer. On every WS open the hook calls `terminal.reset()`, writes every snapshot stdout frame verbatim, then on `history_end` flips to live mode and writes subsequent stdout frames as live PTY output. There is no client-side cache, no byte-offset accounting, and no duplication-detection logic — every reconnect rebuilds state from the snapshot.
 
-**Why the rewrite happened**: the previous raw-PTY-byte history ring was not replay-safe across alt-buffer transitions. A captured stream containing an unmatched `\x1b[?1049h` would leave the reconnecting xterm stuck in alt-buffer (where scrollback is disabled by VT spec), making history appear to vanish. See `docs/plans/terminal-emulator-replay-implementation-plan.md` for the full investigation.
+**Why the rewrite happened**: the previous raw-PTY-byte history ring was not replay-safe across alt-buffer transitions. A captured stream containing an unmatched `\x1b[?1049h` would leave the reconnecting xterm stuck in alt-buffer (where scrollback is disabled by VT spec), making history appear to vanish.
 
 **Invariants** (enforced by tests in `api/terminal/emulator_test.go`):
 

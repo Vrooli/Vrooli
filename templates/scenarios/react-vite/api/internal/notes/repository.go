@@ -24,3 +24,11 @@ type Repository interface {
 	// pass an explicit upper bound.
 	List(ctx context.Context, limit int) ([]Note, error)
 }
+
+// AttachmentsRepository is the persistence seam for note attachment
+// metadata. The opaque bytes are stored by api-core/blobstore; this
+// repository only records the typed metadata row.
+type AttachmentsRepository interface {
+	CreateAttachment(ctx context.Context, a Attachment) (Attachment, error)
+	ListAttachmentKeys(ctx context.Context, noteID string) ([]string, error)
+}

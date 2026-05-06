@@ -8,7 +8,6 @@
 // transient `chunks` buffer into `lastTurn` so the hook can offer a
 // "Transcribe anyway" retry on speaker-verification rejection. The blob is
 // released on `disposeLastTurn()` or on the next `start()`.
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.1
 
 import { transcribeAudioWithRetry } from "../../lib/api";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";

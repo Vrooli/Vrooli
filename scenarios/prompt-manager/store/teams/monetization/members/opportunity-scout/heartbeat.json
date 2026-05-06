@@ -6,14 +6,12 @@
   "enabled": true,
   "schedule": "0 15 * * 1,4",
   "lastExecution": {
-    "startedAt": "2026-04-30T19:00:00Z",
-    "endedAt": "2026-04-30T19:00:05Z",
+    "startedAt": "2026-05-04T19:00:00Z",
+    "endedAt": "2026-05-04T19:00:00Z",
     "status": "failed",
-    "runId": "cb794149-d914-4d58-ad45-f130ed1dd1ed",
-    "logPath": "../store/teams/monetization/members/opportunity-scout/logs/2026-04-30T19-00-00Z.log",
-    "error": "2026-04-30T19:00:03.365439Z ERROR codex_core::session: failed to record rollout items: thread 019ddfc3-2201-7813-800a-6c227e1fefbb not found\n"
+    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
   },
-  "revision": 13,
+  "revision": 17,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-30T19:00:05Z"
+  "updatedAt": "2026-05-04T19:00:00Z"
 }

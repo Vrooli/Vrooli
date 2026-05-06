@@ -4,7 +4,7 @@ This folder is the **strategic canon** for cross-cutting marketing strategies th
 
 These docs answer: *what is this strategic approach, when does it apply, when does it backfire, what discipline does the marketing-contrarian enforce against it?*
 
-They do **not** answer: *here is the prompt; here is the round structure; here are the data sources to mine.* That belongs in skills under [`scenarios/prompt-manager/store/skills/packs/core/`](../../../scenarios/prompt-manager/store/skills/packs/core/).
+They do **not** answer: *here is the prompt; here is the round structure; here are the data sources to mine.* That belongs in skills under [`path:scenarios/prompt-manager/store/skills/packs/core/`](../../../scenarios/prompt-manager/store/skills/packs/core/).
 
 ## Why a separate folder for strategies
 
@@ -22,7 +22,7 @@ These get a third home: `strategies/`. Each strategy file is its own entity, sco
 
 ## Write rules
 
-Same as the rest of `docs/marketing/`: agents never write directly; operator-curated via approved decisions.
+Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
 
 - `ai-ugc-personas.md` — `brand-guideline-update` decision context.
 - `hook-library.md` — `hook-candidate-promotion` decision context (researcher proposes; operator approves).

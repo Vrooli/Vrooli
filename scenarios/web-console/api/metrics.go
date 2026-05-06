@@ -55,7 +55,6 @@ type Metrics struct {
 	// `skip_speaker_verification=true` query parameter. User-initiated
 	// "Transcribe anyway" retries drive this counter; non-zero values are
 	// expected during normal operation when users override false rejections.
-	// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
 	VoiceSkipVerificationTotal atomic.Int64
 
 	// StartTime records when the server started for uptime calculation.

@@ -41,6 +41,14 @@ func TemplateCommandHelpText() string {
 	}, templateCommandSpecs())
 }
 
+func DesignCommandHelpText() string {
+	return commandtree.RenderHelpText(commandtree.Help{
+		Title:        "Scenario Design Commands",
+		Usage:        "vrooli scenario design <subcommand> [options]",
+		DefaultGroup: "Scenario Design",
+	}, designCommandSpecs())
+}
+
 func TemplateGenerateHelpText() string {
 	return commandtree.HelpText("", "vrooli scenario generate", "Scaffold a scenario from a template.", commandtree.Help{
 		Usage: "vrooli scenario generate <template> --id <slug> --display-name <name> --description <text> [options]",

@@ -52,9 +52,9 @@ func TestEnrichWithKeyPrefixMismatch_FlagsUndeclaredEntry(t *testing.T) {
 	q := stubKnowledgeQuery{
 		allByTeam: map[string][]InboxEntry{
 			"alpha": {
-				{ID: "knw-1", Topic: "audience-scan/foo"},   // declared
-				{ID: "knw-2", Topic: "competitor-record/bar"},      // NOT declared
-				{ID: "knw-3", Topic: "audience-scan-flat-1"}, // would be flat-form, not slash-form
+				{ID: "knw-1", Topic: "audience-scan/foo"},     // declared
+				{ID: "knw-2", Topic: "competitor-record/bar"}, // NOT declared
+				{ID: "knw-3", Topic: "audience-scan-flat-1"},  // would be flat-form, not slash-form
 			},
 		},
 	}

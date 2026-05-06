@@ -327,8 +327,7 @@ func (s *Service) RecordView(execID string) {
 
 // dispatchStatusAndLog is the canonical "after you mutate record.Status" helper.
 // Every site that transitions an execution's status must call this (not just
-// dispatchStatusUpdate) so the event log captures the transition. See
-// docs/plans/stats-feature-repair-plan.md Phase 1 for the incident this prevents.
+// dispatchStatusUpdate) so the event log captures the transition.
 func (s *Service) dispatchStatusAndLog(record Record, prevStatus Status) {
 	s.logExecutionEvent(record, prevStatus)
 	s.dispatchStatusUpdate(record)

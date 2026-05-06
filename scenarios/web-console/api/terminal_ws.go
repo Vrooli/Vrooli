@@ -111,7 +111,6 @@ type TerminalMessage struct {
 	// Gen is the per-connection generation counter. The server echoes it
 	// in session_ready; clients use it to decide whether a re-enqueued
 	// payload belongs to the current connection (see wsGen write barrier
-	// in terminal-session-refactor-implementation-plan.md §8 Phase 1).
 	Gen int64 `json:"gen,omitempty"`
 	// Kind discriminates keystroke vs paste on stdin frames. Empty
 	// defaults to keystroke for backward-compatibility-with-nothing (the

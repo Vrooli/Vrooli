@@ -14,16 +14,16 @@ Project-level docs should explain:
 
 They now primarily live under:
 
-- `docs/concepts/`
-- `docs/guides/`
-- `docs/reference/`
-- `docs/operations/`
-- `docs/deployment/`
-- `docs/strategy/`
+- `path:docs/concepts/`
+- `path:docs/guides/`
+- `path:docs/reference/`
+- `path:docs/operations/`
+- `path:docs/deployment/`
+- `path:docs/strategy/`
 
 ## Scenario-System Docs
 
-`docs/scenarios/` should explain:
+`path:docs/scenarios/` should explain:
 
 - how the scenario ecosystem works
 - scenario authoring norms
@@ -33,7 +33,7 @@ Individual scenario docs should explain the specific scenario.
 
 ## Resource-System Docs
 
-`docs/resources/` should explain:
+`path:docs/resources/` should explain:
 
 - how resources are modeled
 - resource templates and blueprints
@@ -43,4 +43,4 @@ Individual resource docs should explain the specific resource.
 
 ## Plans
 
-`docs/plans/` are not current truth by default. They are design and migration artifacts unless a canonical doc explicitly points to them as active.
+`path:docs/plans/` are not current truth by default. They are design and migration artifacts unless a canonical doc explicitly points to them as active.

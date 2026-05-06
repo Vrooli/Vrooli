@@ -2,8 +2,9 @@ package search
 
 import (
 	"errors"
-	"prompt-manager/skills"
 	"testing"
+
+	"prompt-manager/skills"
 )
 
 type mockSkillStore struct {
@@ -69,6 +70,49 @@ func (m *mockSkillStore) SaveVersions(folder string, versions map[string]*skills
 
 func (m *mockSkillStore) Rename(oldID, newID string) (*skills.Metadata, error) {
 	return nil, errors.New("not implemented")
+}
+
+func TestSearch_UsesMetadataOnly(t *testing.T) {
+	store := &mockSkillStore{
+		skills: []skills.Metadata{
+			{
+				ID:          "body-only-skill",
+				Name:        "Body Only Skill",
+				Description: "No visible query here",
+				File:        "core/body-only-skill.md",
+				Modes:       []string{"authoring"},
+			},
+			{
+				ID:          "mode-skill",
+				Name:        "Mode Skill",
+				Description: "Another unrelated description",
+				File:        "local/mode-skill.md",
+				Modes:       []string{"testing"},
+			},
+		},
+		contents: map[string]string{
+			"core/body-only-skill.md": "This body mentions regression-only text.",
+			"local/mode-skill.md":     "No matching body.",
+		},
+	}
+
+	service := NewService(store)
+
+	bodyOnlyResp, err := service.Search(SearchQuery{Query: "regression-only"})
+	if err != nil {
+		t.Fatalf("unexpected body-only search error: %v", err)
+	}
+	if bodyOnlyResp.Total != 0 {
+		t.Fatalf("body-only quick search results = %+v, want none", bodyOnlyResp.Results)
+	}
+
+	modeResp, err := service.Search(SearchQuery{Query: "testing"})
+	if err != nil {
+		t.Fatalf("unexpected mode search error: %v", err)
+	}
+	if modeResp.Total != 1 || modeResp.Results[0].ID != "mode-skill" {
+		t.Fatalf("mode search results = %+v, want mode-skill", modeResp.Results)
+	}
 }
 
 func TestSearchContent_CaseInsensitive(t *testing.T) {

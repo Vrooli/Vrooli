@@ -246,10 +246,15 @@ type UpdateDecisionRequest struct {
 // --- Knowledge API models ---
 
 // AddKnowledgeRequest is the request body for adding a knowledge entry.
+//
+// Identity is carried out-of-band on the X-Vrooli-Attribution header,
+// not on the request body. CallerNote is freeform context only —
+// it cannot override or contradict the header's attribution. The
+// canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md.
 type AddKnowledgeRequest struct {
-	By         string `json:"by"`
 	Topic      string `json:"topic"`
 	Content    string `json:"content"`
+	CallerNote string `json:"caller_note,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Supersedes string `json:"supersedes,omitempty"`
 }

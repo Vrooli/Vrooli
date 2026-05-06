@@ -40,9 +40,9 @@ This skill exists because of a core insight about Vrooli:
 
 **Marketing-crew context:** The marketing-crew team produces decisions about Vrooli's external voice — what gets published (content-publish-proposal), what campaigns launch (campaign-launch-proposal), when brand canon evolves (brand-guideline-update, audience-update, channel-update), where coverage on deployed SKUs is stale (coverage-gap), and when working-notebook entries mature into permanent structure (notebook-promotion / notebook-retirement). Phase 5.3 handles these; `capability-gap` items raised by marketing-crew members are folded into Phase 3 alongside meta-optimization's (both have director-swarm as consumer).
 
-**Monetization context:** Vrooli's full monetization plan is canonical at `docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
+**Monetization context:** Vrooli's full monetization plan is canonical at `path:docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
 
-**Infra-health context:** The infra-health team produces decisions about platform reliability and internal-code quality — runtime patterns surfaced from autoheal/system-monitor history (heal-loops, repeat failures, slow-restart trends, investigation clusters), internal-code audit findings across cli/lifecycle/setup/infra/harness, instrumentation gaps the team needs filled, cross-platform debt for tier-2+ deployment, and proposed reliability-target updates. Phase 5.7 handles these. `capability-gap` items raised by infra-health (typically missing CLI verbs on autoheal, system-monitor, or vrooli core) surface in Phase 3 alongside marketing-crew's and meta-optimization's, since director-swarm consumes them. Plan-of-record lives at `docs/infra-health/` (`RELIABILITY_TARGETS.md`, `INSTRUMENTATION_ROADMAP.md`, `CROSS_PLATFORM_LEDGER.md`).
+**Infra-health context:** The infra-health team produces decisions about platform reliability and internal-code quality — runtime patterns surfaced from autoheal/system-monitor history (heal-loops, repeat failures, slow-restart trends, investigation clusters), internal-code audit findings across cli/lifecycle/setup/infra/harness, instrumentation gaps the team needs filled, cross-platform debt for tier-2+ deployment, and proposed reliability-target updates. Phase 5.7 handles these. `capability-gap` items raised by infra-health (typically missing CLI verbs on autoheal, system-monitor, or vrooli core) surface in Phase 3 alongside marketing-crew's and meta-optimization's, since director-swarm consumes them. Plan-of-record lives at `path:docs/infra-health/` (`RELIABILITY_TARGETS.md`, `INSTRUMENTATION_ROADMAP.md`, `CROSS_PLATFORM_LEDGER.md`).
 
 **The long-term vision:** This morning walk should eventually be the *only* thing the human needs to do to steer the project. Everything else — execution, monitoring, deployment, testing — happens autonomously. The walk is where human judgment, creativity, and strategic thinking enter the system.
 
@@ -195,7 +195,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 1. Present pending marketing-crew decisions from the prep deliverable (max 3, diversified across contexts — not 3 publish-proposals in a row if other contexts have items).
 2. For each decision: state what's being decided, the proposing member (brand-manager / subscription-advertiser / oss-advertiser / publisher / researcher / marketing-contrarian), the recommendation, and **any attached challenge notes from marketing-contrarian**. The contrarian's skepticism is first-class — present it, don't bury it.
 3. Context-specific framings:
-   - `content-publish-proposal` — "Member X drafted <artifact> for <audience / SKU>. Publish, hold for revision, or reject?" The linked draft is in `shared/campaign-drafts.jsonl`; read it before deciding if the summary isn't enough.
+   - `content-publish-proposal` — "Member X drafted <artifact> for <audience / SKU>. Publish, hold for revision, or reject?" The linked draft is in the marketing-crew draft store; read it before deciding if the summary isn't enough.
    - `campaign-launch-proposal` — "Brand-manager proposes a campaign: <theme> targeting <audience> with launch window <date>. Approve (operator updates `docs/marketing/CAMPAIGNS.md`), defer, or reject?"
    - `brand-guideline-update` / `audience-update` / `channel-update` — "Proposed edit to plan-of-record: <brief>. Approve (operator edits `docs/marketing/<file>.md`) or reject?"
    - `coverage-gap` — "Deployed SKU <sku> has stale / missing marketing coverage. Direct the advertiser to prioritize refresh, or acknowledge and defer?"
@@ -243,7 +243,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Agent / team structure | Changes to agent prompts, team coordination patterns, role additions/removals, deprecations |
 | Run lessons | Durable lessons from specific agent-manager runs that warrant a skill/agent change |
 | Toolchain violations | Issues the dev toolchain surfaced against the gold-star reference scenario |
-| Debt promotions | Synthesis material under topic prefix `meta-optimization/notebook/<slug>` mature enough to become permanent structure (Plan of Record under `docs/agent-system/`, skill, Action, CLI backlog, team-config change, or scenario feature) |
+| Debt promotions | Synthesis material under topic prefix `meta-optimization/notebook/<slug>` mature enough to become permanent structure (Plan of Record under `path:docs/agent-system/`, skill, Action, CLI backlog, team-config change, or scenario feature) |
 | Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject pending decisions |
 
 **Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.
@@ -385,7 +385,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Marketing audience, channel, hook, post-type, workflow, competitor, funnel, or skill opportunity | `prompt-manager team knowledge-add marketing-crew --by=vision-walk --topic="research-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `audience\|hook\|channel\|competitor\|workflow\|skill\|format\|funnel\|benchmark\|unknown`. |
 | Monetization SKU/bundle/add-on/services-line/channel candidate, capability-arrival, customer-ask, competitor move, bundle hint, retention signal, or pricing benchmark | `prompt-manager team knowledge-add monetization --by=vision-walk --topic="opportunity-inbox/<signal-type>/<short-slug>" --content "<raw operator note + flags>" --source="<url-if-known>"`. Signal-type ∈ `competitor-move\|capability-arrival\|customer-ask\|channel\|bundle-hint\|retention-signal\|benchmark\|unknown`. The `monetization-signal-classifier` skill triages; promoted entries retag to `monetization/opportunity/<slug>` (SKU-shaped bets) or `monetization/market-scan/<slug>` (single-snapshot facts). |
 | Monetization validation request — operator wants a comp captured, an assumption checked, or a competitor deep-dived | `prompt-manager team knowledge-add monetization --by=vision-walk --topic="validation-inbox/<request-type>/<short-slug>" --content "<request: who asked, what target, what urgency>" --source="<url-if-known>"`. Request-type ∈ `pricing-comp-needed\|assumption-check\|benchmark-staleness\|competitor-deep-dive\|channel-validation\|unknown`. The `market-validation-triage` skill triages; converted entries retag to `monetization/market-scan/<slug>`. |
-| Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
+| Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk-record/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
 | Product/scenario idea ready for execution pipeline | Swarm-manager backlog item. |
 | Unclear strategic residue or no owner exists yet | Director-swarm knowledge fallback. |
 | Missing source collection, automation, CLI, or scenario blocks follow-up | Capability-gap decision or backlog item for the owning team. |
@@ -418,7 +418,7 @@ When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that s
    ```
 5. For ideas that need more refinement before becoming backlog items and do not fit a team inbox, note them as knowledge entries for the next vision walk:
    ```bash
-   prompt-manager team knowledge-add director-swarm --topic "vision-walk/chore-audit/<topic>" --content "<what was discussed and where it left off>"
+   prompt-manager team knowledge-add director-swarm --topic "vision-walk-record/chore-audit/<topic>" --content "<what was discussed and where it left off>"
    ```
 6. Optionally kick off the idea hardening pipeline for created items:
    ```bash
@@ -440,7 +440,7 @@ When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that s
 2. Ask: "Any final thoughts or feedback on how this session went?"
 3. If the user has feedback about the walk itself (too long, wrong order, missing something), capture it as a knowledge entry for process improvement:
    ```bash
-   prompt-manager team knowledge-add director-swarm --topic "vision-walk/process-feedback" --content "<feedback>"
+   prompt-manager team knowledge-add director-swarm --topic "vision-walk-record/process-feedback" --content "<feedback>"
    ```
 4. Close warmly: "Have a good walk. The agents will take it from here."
 

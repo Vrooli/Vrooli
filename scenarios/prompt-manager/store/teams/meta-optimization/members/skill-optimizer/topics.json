@@ -1,8 +1,59 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "skill-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "skill-visited/<skill-id>"
+    },
+    {
+      "prefix": "action-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "action-visited/<action-id>"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "skill-conversion-candidate",
+        "skill-improvement",
+        "skill-deprecation",
+        "action-candidate",
+        "action-improvement",
+        "action-deprecation"
+      ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "skill-conversion-candidate",
+        "skill-improvement",
+        "skill-deprecation",
+        "action-candidate",
+        "action-improvement",
+        "action-deprecation"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "skill-audit/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "action-audit/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "skill-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "action-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "skill-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "action-visited/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "skill-conversion-candidate",
@@ -12,7 +63,10 @@
     "action-improvement",
     "action-deprecation"
   ],
-  "decisions_consumed": ["capability-gap"],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator"]
+  "decisions_consumed": [
+    "capability-gap"
+  ],
+  "external_producers": [
+    "operator"
+  ]
 }

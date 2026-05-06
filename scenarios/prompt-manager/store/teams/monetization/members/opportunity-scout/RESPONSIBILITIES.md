@@ -12,7 +12,7 @@ Breadth comes before deep evaluation, but every pool entry must be plausible and
 
 ## Boundaries
 - Do not evaluate feasibility deeply; that happens downstream when catalog-strategist proposes promotion to CATALOG.md.
-- Do not write to `docs/monetization/` — that's catalog-strategist + operator territory.
+- Do not write to `path:docs/monetization/` — that's catalog-strategist + operator territory.
 - Do not build strategy narratives or roadmap plans.
 - Do not nominate Tier-4 hardware work without explicit operator initiation.
 - Do not aggregate other members' outputs.

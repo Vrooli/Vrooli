@@ -12,7 +12,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 // @domain health
 // @stability stable
 //
-// Wire contract for the API's /health and /api/v1/health endpoints.
+// Wire contract for the API's /health and /api/v1/health endpoints. Health is
+// an operational REST exception: it is intentionally fetchable by load
+// balancers, lifecycle checks, and simple curl probes without a Connect client.
 //
 // Mirrors api-core/health.Response field-for-field with matching JSON
 // names so the api-core/health.Builder.Handler() chain in production
@@ -24,8 +26,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 // Consumed by:
 //   - API: handlers/health/handler_test.go decodes responses via protojson
 //          into Response and asserts on typed fields.
-//   - UI:  ui/src/lib/api.ts wraps `fetch` with `fromJson(ResponseSchema, ...)`
-//          using `useProtoNames: true` so the wire shape and the runtime
+//   - UI:  ui/src/api/health.ts wraps `fetch` with `fromJson(ResponseSchema, ...)`
+//          through the shared proto JSON client so the wire shape and runtime
 //          type agree.
 //   - Tests: ui/src/test-utils/factories.ts builds Response instances
 //          via `create(ResponseSchema, overrides)` for component tests.

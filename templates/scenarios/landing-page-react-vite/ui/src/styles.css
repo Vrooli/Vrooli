@@ -1,5 +1,6 @@
 /* [REQ:DESIGN-FONT] Custom Typography - Space Grotesk with optimized loading */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+@import './design-tokens.css';
 
 @tailwind base;
 @tailwind components;

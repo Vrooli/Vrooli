@@ -10,7 +10,7 @@ Required reading:
 
 ### 1. When to use this skill
 
-Use when authoring or updating a **Steer** skill (`modes[0] = "steer"`) — i.e., a skill that steers how some `scenarios/<scenario>/` is built or improved. For other categories use `skill-authoring-{platform,search,tools,practice,meta}`.
+Use when authoring or updating a **Steer** skill (`modes[0] = "steer"`) — i.e., a skill that steers how some `path:scenarios/<scenario>/` is built or improved. For other categories use `skill-authoring-{platform,search,tools,practice,meta}`.
 
 ---
 
@@ -52,7 +52,7 @@ The first sentence answers: "If I only read this sentence, what would I prioriti
 
 When authoring or updating a Steer skill, you may:
 
-- Add or update Steer skill files in `scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
+- Add or update Steer skill files in `path:scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
 - Create new Steer skill directories for genuinely new mental models (per the sprawl check in `docs/agent-system/SKILL_AUTHORING.md`).
 
 You **must:**

@@ -1,5 +1,0 @@
--- SQLite schema for smoke-tier1. Embedded at build time by schema.go
--- and applied on every API startup via store.EnsureSchema. Use
--- CREATE TABLE IF NOT EXISTS so the script is idempotent across restarts.
---
--- Add tables here as the scenario grows. Empty by default.

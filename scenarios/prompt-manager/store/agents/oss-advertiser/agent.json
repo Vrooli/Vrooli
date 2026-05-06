@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "oss-advertiser",
   "displayName": "OSS Advertiser",
-  "description": "Generates builder-in-public marketing material for Vrooli's open-source and contributor audience. Primary consumer of the x-dev-log skill. Drafts dev-log threads, contributor-invitation content, and OSS-narrative blog posts; raises content-publish-proposal, coverage-gap (OSS narrative), and capability-gap decisions. Frames self-host as brand credibility, never revenue leak.",
+  "description": "OSS lane advertiser in the shared marketing draft pipeline. Consumes OSS artifact requests, research evidence, canon, publish logs, and coverage; produces builder-in-public campaign drafts and publish proposals. Frames self-host as brand credibility, never revenue leak.",
   "status": "active",
   "appearance": {
     "body": "#064E3B",

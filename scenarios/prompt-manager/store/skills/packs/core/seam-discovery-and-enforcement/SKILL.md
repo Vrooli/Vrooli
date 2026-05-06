@@ -20,6 +20,8 @@ Required reading:
 * Identify where behavior naturally **varies or could need to vary**:
   * external services or resources
   * I/O operations (network, storage, filesystem, browser automation, etc.)
+  * transport boundaries, such as whether a remote scenario call should use
+    generated Connect-RPC or a documented REST exception
   * environment-specific behavior
   * feature flags or conditional branches
   * expensive operations or long-running tasks
@@ -125,3 +127,5 @@ By the end of this loop, the scenario should:
 Avoid superficial changes (e.g. renaming things without clarifying boundaries, or shuffling code without improving testability).
 
 Focus this loop on **practical, targeted seam improvements** that make the scenario easier to evolve safely, especially around external dependencies, side effects, and behavior that may need to vary over time.
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

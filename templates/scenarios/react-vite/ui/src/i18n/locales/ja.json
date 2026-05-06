@@ -23,7 +23,30 @@
     "loading": "ノートを読み込み中…",
     "empty": "まだノートはありません。",
     "create": "ノートを作成",
-    "error": "ノートを読み込めませんでした。"
+    "createdAtLabel": "作成:",
+    "attachmentsLabel": "添付ファイル {{count}} 件",
+    "uploadAttachment": "添付ファイルをアップロード",
+    "attachmentFileLabel": "添付ファイル",
+    "uploadSuccess": "{{name}} をアップロードしました。",
+    "noFileSelected": "アップロードするファイルを選択してください。"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
   },
   "locale": {
     "switcherLabel": "言語"

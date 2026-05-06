@@ -28,7 +28,10 @@ export {
   getInjectedConfig,
   resolveWithConfig,
   createConfigCache,
+  createScenarioConnectTransport,
 } from './client/index.js'
+
+export type { ScenarioConnectTransportOptions } from './client/index.js'
 
 // ============================================================================
 // Type exports

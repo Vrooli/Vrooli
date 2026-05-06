@@ -1,7 +1,6 @@
 // Package notes is the CLI's notes-domain command surface. Mirrors
-// the API's /api/v1/notes endpoints and the UI's lib/notes.ts client
-// — the three CLI commands (list/create/get) wrap the same wire
-// contract the other surfaces decode through.
+// the API's Connect-RPC Notes service, plus the /api/v1/notes/{id}/attachments
+// REST exception, and the UI's api/notes.ts client.
 //
 // New domain packages copy this shape: a Register(core) returning a
 // cliapp.SubcommandGroup, and one handler per subcommand in
@@ -16,7 +15,7 @@ import (
 
 // Register returns the `notes` subcommand group. The handlers in
 // handlers.go close over `core` so they can issue versioned-API
-// requests via core.Get / core.Request.
+// requests via generated Connect-Go clients and cli-core helpers.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
@@ -27,17 +26,41 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{
 				Name:        "list",
 				Description: "List all notes",
-				Run:         h.list,
+				RunCtx:      h.list,
 			},
 			{
 				Name:        "create",
-				Description: "Create a note (--title TITLE [--body BODY])",
-				Run:         h.create,
+				Description: "Create a note",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "title", Required: true, Description: "Note title"},
+						{Name: "body", Description: "Note body"},
+					},
+				},
+				RunCtx: h.create,
 			},
 			{
 				Name:        "get",
-				Description: "Get a note by id (notes get ID)",
-				Run:         h.get,
+				Description: "Get a note by id",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "id", Required: true, Description: "Note id"},
+					},
+				},
+				RunCtx: h.get,
+			},
+			{
+				Name:        "attach",
+				Description: "Attach a file to a note",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "id", Required: true, Description: "Note id"},
+					},
+					Flags: []cliapp.Flag{
+						{Name: "file", Required: true, Description: "File path to upload"},
+					},
+				},
+				RunCtx: h.attach,
 			},
 		},
 	}

@@ -2,6 +2,8 @@
 
 Read-only kiosk-style aggregator that composes dashboard payloads from Swarm Manager, Vrooli Core, and LPBS, and renders six themed displays intended for an always-on TV or Xbox browser.
 
+The canonical UI design contract is [DESIGN.md](DESIGN.md). Future UI work should follow `vrooli-command-display`, not the default operational-console app shell.
+
 ## Architecture
 
 - **Go API (`api/`)** — HTTP aggregator with per-source TTL cache, gap registry loader, and four public endpoints:
@@ -45,5 +47,6 @@ On upstream error the handler returns the last successful payload with a `stalen
 ## Further Reading
 
 - `docs/ARCHITECTURE.md` — cache, registry, theming seams, Mission Control reference slice.
+- `DESIGN.md` — fullscreen command-display design language for kiosk, TV, and war-room surfaces.
 - `../swarm-manager/research/command-center-architecture/conclusion.md` — 17 research findings that shaped this scaffold.
 - `../swarm-manager/initiatives/command-center-foundation/orchestration-summary.md` — brainstorming context and upstream data-source inventory.

@@ -74,7 +74,6 @@ const INITIAL_STATE: VoiceInputState = {
  * rejection is auto-dismissed and the retained audio is released. Chosen
  * long enough for a distracted user to come back, short enough that a
  * forgotten banner does not pin memory for the whole session.
- * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.5
  */
 const REJECTION_RETENTION_TTL_MS = 5 * 60 * 1000;
 
@@ -492,7 +491,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   /**
    * TTL timer for the currently-displayed rejection. Replaced on every new
    * rejection so only the freshest rejection's 5-minute clock is active.
-   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.5
    */
   const rejectionTtlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
@@ -520,7 +518,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
    * reference is released later by `disposeRejection()` (manual dismiss,
    * successful retry, or TTL).
    *
-   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.2
    */
   const surfacePendingRejection = useCallback(() => {
     const pending = pendingRejectionRef.current;
@@ -1163,7 +1160,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
    * Dismiss the current rejection banner. Releases the retained audio on
    * the provider and clears the TTL timer. Safe to call when no banner is
    * showing — becomes a no-op.
-   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §7 point 5
    */
   const dismissRejection = useCallback(() => {
     if (rejectionTtlTimerRef.current) {
@@ -1185,7 +1181,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
    * callback and the rejection banner is dismissed. On failure the banner
    * flips to `status: "failed"` with an error message; the user can retry
    * again or dismiss.
-   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.6
    */
   const retryWithoutFilter = useCallback(async () => {
     const current = rejectedAudioRef.current;

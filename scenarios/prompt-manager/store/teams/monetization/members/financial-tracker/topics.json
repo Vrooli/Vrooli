@@ -1,7 +1,44 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "ledger-snapshot/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "channel-attribution-gap",
+        "pricing-decision",
+        "financial-model-assumption-update",
+        "runway-warning",
+        "services-trap-warning",
+        "funnel-bottleneck",
+        "retention-concern"
+      ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "channel-attribution-gap",
+        "pricing-decision",
+        "financial-model-assumption-update",
+        "runway-warning",
+        "services-trap-warning",
+        "funnel-bottleneck",
+        "retention-concern"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "monetization-ledger-log/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "monetization-ledger-log/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "ledger-snapshot/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "runway-warning",
@@ -12,7 +49,11 @@
     "funnel-bottleneck",
     "retention-concern"
   ],
-  "decisions_consumed": ["capability-gap", "benchmark-update"],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator"]
+  "decisions_consumed": [
+    "capability-gap",
+    "benchmark-update"
+  ],
+  "external_producers": [
+    "operator"
+  ]
 }

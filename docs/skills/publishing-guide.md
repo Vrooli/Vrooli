@@ -125,7 +125,7 @@ Once `ghcr.io/vrooli/skill-<slug>:<version>` is published and signed, register i
 
 ### 1. Anthropic curated marketplace (primary)
 
-Open a PR to [`anthropics/skills`](https://github.com/anthropics/skills) adding an entry pointing to the OCI artifact. The curation tier is the highest-trust surface; agents weight it more heavily than self-published listings.
+Open a PR to [`literal:anthropics/skills`](https://github.com/anthropics/skills) adding an entry pointing to the OCI artifact. The curation tier is the highest-trust surface; agents weight it more heavily than self-published listings.
 
 ### 2. skills.sh (Vercel)
 

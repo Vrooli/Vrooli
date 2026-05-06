@@ -14,8 +14,8 @@ Required reading:
 ### **1. Scope Boundaries**
 
 **In scope:**
-- Token system design and migration (`shared/theme` ownership)
-- Primitive/composite ownership (`shared/ui/primitives`, `shared/ui/composites`)
+- Token system design and migration (`path:shared/theme` ownership)
+- Primitive/composite ownership (`path:shared/ui/primitives`, `path:shared/ui/composites`)
 - Surface migration from ad-hoc styles to design-system contracts
 - Theme-refresh readiness gates and migration burn-down tracking
 
@@ -95,10 +95,10 @@ surfaces/*                    # Feature/page composition only
 ```
 
 Ownership rules:
-1. `shared/theme` owns visual language values.
-2. `shared/ui/primitives` owns base interaction and variant contracts.
-3. `shared/ui/composites` owns repeated multi-part patterns.
-4. `surfaces/*` may assemble, but should not invent new base primitives.
+1. `path:shared/theme` owns visual language values.
+2. `path:shared/ui/primitives` owns base interaction and variant contracts.
+3. `path:shared/ui/composites` owns repeated multi-part patterns.
+4. `path:surfaces/*` may assemble, but should not invent new base primitives.
 
 ---
 

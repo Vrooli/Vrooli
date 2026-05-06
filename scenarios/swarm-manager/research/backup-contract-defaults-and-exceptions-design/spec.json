@@ -2,7 +2,6 @@
   "acceptance_allow": [
     "docs/scenarios/storage.md",
     "docs/resources/storage.md",
-    "docs/plans/storage-standardization-implementation-plan.md",
     "scenarios/data-backup-manager/**",
     "scenarios/prompt-manager/store/skills/packs/core/storage-steer/**",
     "scenarios/prompt-manager/store/skills/packs/core/cross-platform-readiness/**",

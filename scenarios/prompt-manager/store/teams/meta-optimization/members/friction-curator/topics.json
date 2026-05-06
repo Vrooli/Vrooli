@@ -1,16 +1,42 @@
 {
   "intake": [
-    { "prefix": "friction-inbox/*", "taxonomy": "friction-report", "source_team": "*" }
+    {
+      "prefix": "friction-inbox/*",
+      "taxonomy": "friction-report",
+      "source_team": "*"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "friction-inbox/<scope>/<slug>"
+    },
+    {
+      "prefix": "friction-triage-record/<YYYY-MM-DD>"
+    }
   ],
   "output": [
-    { "prefix": "friction-report/toolchain/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "friction-report/run-execution/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "friction-report/prompt-team-agent-storage/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "friction-report/recurring-workaround/*", "destination_kind": "knowledge", "destination_team": null },
-    { "prefix": "friction-triage-record/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "friction-report/toolchain/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-report/run-execution/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-report/prompt-team-agent-storage/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-report/recurring-workaround/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-triage-record/*",
+      "destination_kind": "knowledge"
+    }
   ],
-  "decisions_owned": [],
-  "decisions_consumed": [],
-  "raises_capability_gaps": false,
-  "external_producers": ["report-friction"]
+  "external_producers": [
+    "report-friction"
+  ]
 }

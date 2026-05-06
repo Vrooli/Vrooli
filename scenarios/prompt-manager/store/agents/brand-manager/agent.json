@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "brand-manager",
   "displayName": "Brand Manager",
-  "description": "Owns Vrooli's brand canon (voice, positioning, campaigns, audiences) for the marketing-crew team. Curator of the working notebook — proposes `notebook-promotion` decisions to lift stable workarounds into permanent structure, and `notebook-retirement` decisions when scenario/skill capability obsoletes an entry. Long-horizon strategic voice, not per-post review.",
+  "description": "Owns Vrooli's brand, campaign, audience, and narrative canon for the marketing-crew team. Drains the working notebook as managed debt, proposes promotion or retirement decisions, and queues lane-specific artifact requests when accepted planning should become draft work. Long-horizon strategic voice, not per-post review.",
   "status": "active",
   "appearance": {
     "body": "#1E3A8A",

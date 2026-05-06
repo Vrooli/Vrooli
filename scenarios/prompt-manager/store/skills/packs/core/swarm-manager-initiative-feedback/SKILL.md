@@ -185,7 +185,7 @@ When proposing splits, merges, or new items, anchor on these. An item is well-sc
 
 - One agent run can plausibly converge it to `plan.md` in one workshop pass.
 - Acceptance is testable in isolation, ideally with one or two automated tests.
-- Acceptance globs cover one cohesive code area; an item that touches `scenarios/foo/**` and `scenarios/bar/**` is suspect.
+- Acceptance globs cover one cohesive code area; an item that touches `path:scenarios/foo/**` and `path:scenarios/bar/**` is suspect.
 - Description fits in a paragraph; if it needs sections, it's probably two items.
 - Title names the *change*, not the *area* ("Add merge_items op to proposals", not "proposals work").
 - No internal ordering — if step 1 must complete before step 2 can be designed, those are two items joined by a `depends_on` edge.

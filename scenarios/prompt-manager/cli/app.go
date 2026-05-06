@@ -3,6 +3,7 @@ package main
 import (
 	"prompt-manager/cli/domains"
 	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/cli/internal/attribution"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -39,6 +40,13 @@ func NewApp() (*App, error) {
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			// Install the attribution header source so every API call
+			// carries X-Vrooli-Attribution. Lazy callback so per-test
+			// VROOLI_PROMPT_MANAGER_ATTRIBUTION overrides take effect.
+			// Canon: docs/agent-system/RUNTIME_ATTRIBUTION.md
+			// § HTTP header.
+			core.HTTPClient.SetHeaderSource(attribution.HeaderMap)
+
 			app.core = core
 			app.ctx = appctx.Runtime{Core: core}
 			return domains.CommandGroups(app.ctx)

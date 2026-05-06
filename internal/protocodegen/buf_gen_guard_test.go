@@ -8,10 +8,9 @@ import (
 	"testing"
 )
 
-// TestBufGenYamlContainsNoRemotePlugins enforces CD-1 from
-// docs/plans/proto-codegen-local-and-bsr-login-implementation-plan.md:
-// every plugin in packages/proto/buf.gen.yaml must be `local:` or
-// `protoc_builtin:`. A regression to `remote:` re-introduces BSR
+// TestBufGenYamlContainsNoRemotePlugins enforces that every plugin in
+// packages/proto/buf.gen.yaml must be `local:` or `protoc_builtin:`.
+// A regression to `remote:` re-introduces BSR
 // rate-limit and offline-availability failures, so this is a hard guard.
 func TestBufGenYamlContainsNoRemotePlugins(t *testing.T) {
 	path := bufGenYamlPath(t)
@@ -26,7 +25,7 @@ func TestBufGenYamlContainsNoRemotePlugins(t *testing.T) {
 			continue
 		}
 		t.Fatalf(
-			"%s line %d: %q references a BSR remote plugin; codegen must use `local:` or `protoc_builtin:` (see CD-1 in docs/plans/proto-codegen-local-and-bsr-login-implementation-plan.md)",
+			"%s line %d: %q references a BSR remote plugin; codegen must use `local:` or `protoc_builtin:`",
 			path, i+1, line,
 		)
 	}

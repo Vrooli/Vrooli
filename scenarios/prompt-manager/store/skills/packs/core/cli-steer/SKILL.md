@@ -94,12 +94,14 @@ This skill steers toward CLIs that are:
 
 ### 3. cli-core: The Shared Foundation
 
-All scenario CLIs must use `cli-core` from `packages/cli-core/`. This provides:
+All scenario CLIs must use `cli-core` from `path:packages/cli-core/`. This provides:
 
 | Component | Purpose | Import |
 |-----------|---------|--------|
 | `ScenarioApp` | CLI scaffolding, command routing, global flags | `cliapp.ScenarioApp` |
 | `APIClient` | HTTP client with base URL, token, timeout handling | `cliutil.APIClient` |
+| `NewConnectHTTPClient` | Build generated Connect-RPC clients for proto-owned API calls | `cliapp.NewConnectHTTPClient` |
+| `UploadFile` | Multipart REST helper for opaque file uploads | `cliapp.UploadFile` |
 | `StandardScenarioEnv` | Derive conventional env var names | `cliapp.StandardScenarioEnv()` |
 | `ConfigFile` | JSON config persistence | `cliutil.ConfigFile` |
 | `DetectPortFromVrooli` | Auto-discover API port | `cliutil.DetectPortFromVrooli()` |
@@ -137,7 +139,7 @@ Is there an existing CLI for {{TARGET}}?
 
 ### 4. CLI Project Structure
 
-**Template location:** `templates/scenarios/react-vite/cli/`
+**Template location:** `path:templates/scenarios/react-vite/cli/`
 
 **Standard structure:**
 ```
@@ -809,3 +811,5 @@ The `--dry-run` global flag is built into cli-core. When a user passes `--dry-ru
 #### Red Flags Checklist Addition
 
 - [ ] Mutating API endpoints without dry-run support
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

@@ -45,10 +45,18 @@ const output: TopicOutputEntry[] = [
 const sampleEntry: KnowledgeEntry = {
   id: 'k-001',
   at: new Date(Date.now() - 5 * 60_000).toISOString(),
-  by: 'vision-walk',
   topic: 'research-inbox/audience/foo-pain',
   content: 'A founder mentioned struggling with onboarding fatigue when wiring up MCP servers.',
   source: 'https://example.com/post/123',
+  caller: 'vision-walk',
+  attribution: {
+    kind: 'writer-skill',
+    member_id: null,
+    team_id: null,
+    run_id: null,
+    spawn_origin: 'vision-walk',
+    source_skill_id: 'morning-vision-walk',
+  },
 }
 
 describe('MemberInboxTab', () => {

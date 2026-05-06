@@ -73,13 +73,18 @@ func TestRenderMemberPolicyIncludesMemberPolicy(t *testing.T) {
 		"## Your Member Contract",
 		"Agent ID: agent-1",
 		"Owned decision contexts:",
-		"Required knowledge topics:",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered contract missing %q:\n%s", want, rendered)
 		}
 	}
-	for _, forbidden := range []string{"# Resolved Operating Contract", "Team: team-1"} {
+	for _, forbidden := range []string{
+		"# Resolved Operating Contract",
+		"Team: team-1",
+		// Required reads render into the active task brief's "## Required
+		// Memory" section; the operating policy body must not duplicate them.
+		"Required knowledge topics:",
+	} {
 		if strings.Contains(rendered, forbidden) {
 			t.Fatalf("rendered member policy contains retired standalone contract text %q:\n%s", forbidden, rendered)
 		}

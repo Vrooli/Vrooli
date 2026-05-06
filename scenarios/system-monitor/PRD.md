@@ -794,7 +794,6 @@ vrooli scenario test system-monitor
 
 ### Documentation
 - README.md - Quick start guide
-- api/REFACTORING.md - API refactoring notes
 - (api/docs/metrics.md - not created)
 - (cli/docs/advanced.md - not created)
 - (ui/docs/customization.md - not created)

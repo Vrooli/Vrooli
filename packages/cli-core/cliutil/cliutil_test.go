@@ -310,6 +310,87 @@ func TestHTTPClientRespectsContextCancellation(t *testing.T) {
 	}
 }
 
+func TestHTTPClientHeaderSourceInjectsHeaders(t *testing.T) {
+	gotHeaders := make(http.Header)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range r.Header {
+			gotHeaders[k] = v
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+	})
+
+	calls := 0
+	client.SetHeaderSource(func() map[string]string {
+		calls++
+		return map[string]string{
+			"X-Vrooli-Attribution": "test-value",
+			"X-Skip-Empty":         "",
+			"X-Custom":             "another",
+		}
+	})
+
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected header source called once, got %d", calls)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Attribution"); got != "test-value" {
+		t.Errorf("X-Vrooli-Attribution = %q, want test-value", got)
+	}
+	if got := gotHeaders.Get("X-Custom"); got != "another" {
+		t.Errorf("X-Custom = %q, want another", got)
+	}
+	if _, present := gotHeaders["X-Skip-Empty"]; present {
+		t.Errorf("empty-value header should be skipped, got %v", gotHeaders["X-Skip-Empty"])
+	}
+
+	// Second request: source must be re-invoked.
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("second request: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected header source called per-request, got %d", calls)
+	}
+}
+
+func TestHTTPClientHeaderSourceClearsWhenNil(t *testing.T) {
+	gotHeader := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Get("X-Custom")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+	})
+
+	client.SetHeaderSource(func() map[string]string {
+		return map[string]string{"X-Custom": "set"}
+	})
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if gotHeader != "set" {
+		t.Fatalf("expected X-Custom=set, got %q", gotHeader)
+	}
+
+	client.SetHeaderSource(nil)
+	gotHeader = ""
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("second request: %v", err)
+	}
+	if gotHeader != "" {
+		t.Fatalf("expected X-Custom cleared, got %q", gotHeader)
+	}
+}
+
 func TestStringListFlagCollectsValues(t *testing.T) {
 	var list StringList
 	list.Set("a")

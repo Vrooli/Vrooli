@@ -2,13 +2,78 @@
   "intake": [
     {
       "prefix": "marketing/notebook/*",
-      "taxonomy": "notebook-debt",
-      "source_team": null
+      "taxonomy": "notebook-debt"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "audience-scan/*"
+    },
+    {
+      "prefix": "competitor-record/*"
+    },
+    {
+      "prefix": "hook-record/*"
+    },
+    {
+      "prefix": "channel-scan/*"
+    },
+    {
+      "prefix": "format-scan/*"
+    },
+    {
+      "prefix": "publish-log/*"
+    },
+    {
+      "prefix": "coverage-snapshot/*"
+    },
+    {
+      "prefix": "brand-snapshot/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "campaign-launch-proposal",
+        "brand-guideline-update",
+        "notebook-promotion",
+        "notebook-retirement"
+      ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "campaign-launch-proposal",
+        "brand-guideline-update",
+        "notebook-promotion",
+        "notebook-retirement"
+      ]
     }
   ],
   "output": [
-    { "prefix": "marketing-canon/*", "destination_kind": "por_file", "destination_path": "docs/marketing/STRATEGY.md" },
-    { "prefix": "marketing-canon/*", "destination_kind": "por_file", "destination_path": "docs/marketing/AUDIENCES.md" }
+    {
+      "prefix": "marketing-canon/*",
+      "destination_kind": "por_file",
+      "destination_path": "docs/marketing/STRATEGY.md"
+    },
+    {
+      "prefix": "marketing-canon/*",
+      "destination_kind": "por_file",
+      "destination_path": "docs/marketing/AUDIENCES.md"
+    },
+    {
+      "prefix": "brand-snapshot/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "artifact-request/oss/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "artifact-request/subscription/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "campaign-launch-proposal",
@@ -16,7 +81,11 @@
     "notebook-promotion",
     "notebook-retirement"
   ],
-  "decisions_consumed": ["capability-gap"],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator", "vision-walk"]
+  "decisions_consumed": [
+    "capability-gap"
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
 }

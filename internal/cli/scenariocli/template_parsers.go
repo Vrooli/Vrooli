@@ -17,6 +17,14 @@ const (
 	TemplateCommandValidate TemplateCommandID = "validate"
 )
 
+type DesignCommandID string
+
+const (
+	DesignCommandList     DesignCommandID = "list"
+	DesignCommandShow     DesignCommandID = "show"
+	DesignCommandValidate DesignCommandID = "validate"
+)
+
 func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
 	return []commandtree.Spec[TemplateCommandID]{
 		{
@@ -47,11 +55,39 @@ func templateGenerateArgSchema() commandtree.ArgSchema {
 			{Name: "--id", ValueName: "slug", Description: "Scenario identifier"},
 			{Name: "--display-name", ValueName: "name", Description: "Human-friendly scenario name"},
 			{Name: "--description", ValueName: "text", Description: "Scenario description"},
+			{Name: "--design", ValueName: "kit-id|none", Description: "Design kit to install into the generated scenario"},
 			{Name: "--dest", ValueName: "path", Description: "Destination directory"},
 			{Name: "--var", ValueName: "KEY=VALUE", Repeatable: true, Description: "Additional placeholder override"},
 			{Name: "--force", Description: "Overwrite destination if it already exists"},
 			{Name: "--dry-run", Description: "Print planned actions without writing files"},
 			{Name: "--run-hooks", Description: "Execute template post hooks after generation"},
+		},
+	}
+}
+
+func designCommandSpecs() []commandtree.Spec[DesignCommandID] {
+	return []commandtree.Spec[DesignCommandID]{
+		{
+			Name:    string(DesignCommandList),
+			Summary: "List scenario design kits",
+			Handler: DesignCommandList,
+		},
+		{
+			Name:    string(DesignCommandShow),
+			Summary: "Show scenario design kit details",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "kit id", Required: true}},
+			},
+			Handler: DesignCommandShow,
+		},
+		{
+			Name:    string(DesignCommandValidate),
+			Summary: "Validate scenario design kits",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "kit id"}},
+				Options:     []commandtree.OptionArg{{Name: "--all", Description: "Validate every design kit"}},
+			},
+			Handler: DesignCommandValidate,
 		},
 	}
 }
@@ -76,6 +112,40 @@ func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error
 		return TemplateValidateRequest{}, err
 	}
 	return TemplateValidateRequest{}, nil
+}
+
+func ParseDesignListRequest(args []string) (DesignListRequest, error) {
+	if _, err := commandtree.ParseArgs("scenario design list", DesignCommandHelpText(), designCommandSpec(DesignCommandList).Args, args); err != nil {
+		return DesignListRequest{}, err
+	}
+	return DesignListRequest{}, nil
+}
+
+func ParseDesignShowRequest(args []string) (DesignShowRequest, error) {
+	parsed, err := commandtree.ParseArgs("scenario design show", DesignCommandHelpText(), designCommandSpec(DesignCommandShow).Args, args)
+	if err != nil {
+		return DesignShowRequest{}, err
+	}
+	return DesignShowRequest{ID: parsed.Positionals[0]}, nil
+}
+
+func ParseDesignValidateRequest(args []string) (DesignValidateRequest, error) {
+	parsed, err := commandtree.ParseArgs("scenario design validate", DesignCommandHelpText(), designCommandSpec(DesignCommandValidate).Args, args)
+	if err != nil {
+		return DesignValidateRequest{}, err
+	}
+	req := DesignValidateRequest{}
+	if len(parsed.Positionals) > 0 {
+		req.ID = parsed.Positionals[0]
+	}
+	req.All = parsed.HasFlag("--all")
+	if req.ID == "" && !req.All {
+		req.All = true
+	}
+	if req.ID != "" && req.All {
+		return DesignValidateRequest{}, fmt.Errorf("use either a kit id or --all, not both")
+	}
+	return req, nil
 }
 
 func ParseGenerateRequest(
@@ -144,6 +214,14 @@ func ParseGenerateArgs(args []string, manifest TemplateManifest, stderr io.Write
 			opts.Destination = args[index]
 		case strings.HasPrefix(arg, "--dest="):
 			opts.Destination = strings.TrimPrefix(arg, "--dest=")
+		case arg == "--design":
+			if index+1 >= len(args) {
+				return GenerateOptions{}, fmt.Errorf("scenario generate --design requires a value")
+			}
+			index++
+			opts.Design = args[index]
+		case strings.HasPrefix(arg, "--design="):
+			opts.Design = strings.TrimPrefix(arg, "--design=")
 		case arg == "--force":
 			opts.Force = true
 		case arg == "--dry-run":
@@ -213,6 +291,10 @@ func RenderTemplateHelp(w io.Writer) {
 	commandtree.WriteHelp(w, TemplateCommandHelpText())
 }
 
+func RenderDesignHelp(w io.Writer) {
+	commandtree.WriteHelp(w, DesignCommandHelpText())
+}
+
 func RenderGenerateHelp(w io.Writer) {
 	commandtree.WriteHelp(w, TemplateGenerateHelpText())
 }
@@ -224,4 +306,13 @@ func templateCommandSpec(id TemplateCommandID) commandtree.Spec[TemplateCommandI
 		}
 	}
 	panic("unknown template command spec: " + string(id))
+}
+
+func designCommandSpec(id DesignCommandID) commandtree.Spec[DesignCommandID] {
+	for _, spec := range designCommandSpecs() {
+		if spec.Handler == id {
+			return spec
+		}
+	}
+	panic("unknown design command spec: " + string(id))
 }

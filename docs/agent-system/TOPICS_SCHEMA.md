@@ -1,6 +1,6 @@
 # `topics.json` — per-member message-flow declarations
 
-**Status:** canon. This document is the plan-of-record for the `topics.json` data layer. It pairs with the Go implementation at `scenarios/prompt-manager/api/memberflow/schema.go`. Cross-team-readable; cited by `INTAKE_PIPELINE.md`, `LAYERS.md`, and the heartbeat builder.
+**Status:** canon. This document is the plan-of-record for the `topics.json` data layer — Pillar 1 of [topic validation](PRIMITIVES.md#three-pillars-of-topic-validation). It pairs with the Go implementation at `path:scenarios/prompt-manager/api/memberflow/schema.go`. Cross-team-readable; cited by `INTAKE_PIPELINE.md`, `LAYERS.md`, and the heartbeat builder. Sibling pillars: [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (P2 — prose scan) and [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (P3 — observed writes).
 
 Promoted from `drafts/topics-schema.md` after the inbox-flow refactor stabilized the schema across five in-prod adopters. Backwards-incompatible changes from this point require a `meta-optimization` decision and a migration plan (see [Stability gate](#stability-gate)).
 
@@ -78,7 +78,7 @@ Top-level keys, all optional (omit when not applicable):
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `prefix` | string with optional `*` suffix | yes | Topic-prefix matched against `team knowledge-list --topic-prefix=`. |
-| `taxonomy` | string | yes | The id of the taxonomy JSON sidecar (`docs/<domain>/<id>.json`) that owns this prefix's signal vocabulary, dispatch, evidence rules, and destination schemas. The validator's `unknown_taxonomy` rule resolves this against the registry; an empty value fires `missing_taxonomy`. |
+| `taxonomy` | string | yes | The id of the taxonomy JSON sidecar (`path:docs/<domain>/<id>.json`) that owns this prefix's signal vocabulary, dispatch, evidence rules, and destination schemas. The validator's `unknown_taxonomy` rule resolves this against the registry; an empty value fires `missing_taxonomy`. |
 | `classifier_skill` | string | optional | A portable, member-agnostic judgment skill that assigns `signal_type` from the taxonomy. Optional: when the topic-prefix carries a deterministic signal type, no classifier is needed. The `non_portable_classifier` rule scans the named skill for forbidden coupling content. |
 | `source_team` | string or `null` or `"*"` | optional | If the prefix is fed by another team, name the source team. `null` means same-team or external producer. The literal `"*"` declares a **universal-source intake** — any team's members may write. See § Universal-source intakes. |
 
@@ -115,27 +115,33 @@ Top-level keys, all optional (omit when not applicable):
 
 ## Validation rules
 
-Implemented in `scenarios/prompt-manager/api/memberflow/validation.go`. Run via `prompt-manager graph topics`.
+Implemented in `path:scenarios/prompt-manager/api/memberflow/validation.go`. Run via `prompt-manager graph topics`.
 
 | Rule | Smell | Severity | Detection |
 |---|---|---|---|
-| `orphan_output` | Output prefix has no consumer | error | For each output: another member's intake prefix overlaps, or destination_kind is non-member sink |
-| `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it |
+| `orphan_output` | Knowledge output prefix has no consumer | warning | For each `destination_kind=knowledge` output: any member declares the prefix on `intake[]`, `required_read[]`, or `evidence_consumed[]`. Non-knowledge sinks (decision, por_file, capability_gap, skill_proposal, backlog) are never orphans. |
+| `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it, or `source_team == "*"` |
+| `unread_required` | `required_read[]` prefix has no producer | warning | For each required_read entry (excluding `source_team == "*"`): some member's `output[]` overlaps. Member-level `external_producers` is intentionally NOT honored here so the rule surfaces drift between declared read and write prefixes. |
 | `conflicting_drain` | Two members' intake prefixes overlap | error | Pairwise overlap check |
+| `wildcard_source_misuse` | `source_team == "*"` intake without any documented `external_producers` | warning | Universal-source declarations need a producer-side anchor (writer skill, external system) for auditability. |
 | `unknown_taxonomy` | `intake[].taxonomy` does not resolve in the registry | error | Cross-check against `LoadAllTaxonomies` |
 | `missing_taxonomy` | `intake[].taxonomy` is unset | error | Surfaces intake entries that have not been migrated to the inbox-flow taxonomy model. |
 | `non_portable_classifier` | `intake[].classifier_skill` SKILL.md contains forbidden coupling content | error | Forbidden-pattern grep against the skill's SKILL.md |
 | `missing_destination_schema` | `output[].schema` doesn't resolve under any taxonomy | warning | Cross-check against `taxonomy.schemas.<id>` across the registry |
 | `dangling_por_sink` | `destination_kind=por_file` references missing `destination_path` | error | Filesystem stat |
+| `dangling_evidence_decision` | `evidence_consumed[].for_decisions[]` references a decision-context id not declared in any team.json | error | Cross-check against `LoadAllTeamContracts` |
+| `topic_key_prefix_mismatch` | Knowledge entry's `topic` doesn't match any declared prefix on its team | warning | Per-entry cross-check against the team's combined intake/output prefix set |
 | `stalled_drain` | Intake has unrouted entries older than threshold (default 7d) | warning | Cross-check against `team knowledge-list` timestamps |
 | `piling_inbox` | Intake has > N unrouted entries (default 50) | warning | Same query |
 
 Errors fail `prompt-manager graph topics` with exit code 1. Warnings do not affect exit code.
 
+`unread_required` is the producer-side mirror of `orphan_output`: when both fire on a related prefix pair (declared output `X/*` with no consumer, declared required_read `Y/*` with no producer, where X ≠ Y), the operator's reconciliation is a rename — pick one canonical prefix and align both sides. New declarations should land already-aligned; reconciling pre-existing drift is the explicit job of the topic-validation refactor's reconciliation phase.
+
 ## Prefix-match semantics
 
-- Exact prefix `foo/bar` matches only `foo/bar`.
-- Wildcard prefix `foo/bar/*` matches any topic starting with `foo/bar/`.
+- Example exact prefix `topic[example]:foo/bar` matches only the value `literal:foo/bar`.
+- Example wildcard prefix `topic[example]:foo/bar/*` matches any topic starting with `literal:foo/bar/`.
 - Bare `*` is disallowed.
 - Two prefixes overlap when either is a prefix of the other (with `/*` truncated). `research-inbox/audience/*` overlaps `research-inbox/*` but not `research-inbox/competitor/*`.
 
@@ -177,13 +183,26 @@ When *not* to use:
 - The intake is intra-team only — leave `source_team: null`.
 - You don't yet have a writer skill — author the skill first; declare `source_team: "*"` and `external_producers: ["<skill-id>"]` together.
 
-**Trigger guidance — where agents learn to invoke the writer.** The trigger paragraph that tells every agent when to load and invoke the writer skill is rendered into every member's heartbeat prompt as part of the Storage Map's `## Observe` subsection — see `scenarios/prompt-manager/api/heartbeat/prompt_builder.go` (`buildStorageMapSection`). When you add a new universal-source intake, add a matching paragraph there alongside the existing typed-topic-routing, bug-reporting (`report-bug`), and friction-reporting (`report-friction`) paragraphs so producers actually receive the trigger. The rendering is currently hardcoded prose for the two existing flows (bugs, friction); a third universal-source intake would push this past the worth-keeping-hardcoded threshold and into data-driven rendering off `intake[].source_team == "*"` declarations on member topics.json. Surface the refactor proposal as a `meta-self-improvement` decision when that third instance is in flight.
+### Evidence-consumed sidecars
 
-Worked example: `scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).
+Some topics are not drained as inboxes but still must be visible to members when they own a related decision. Declare those with `evidence_consumed[]`, not `intake[]`.
 
-Sister example: `meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `friction/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
+The canonical example is contrarian review:
 
-Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
+- a contrarian writes `challenge-report/<decision-id>` as append-only evidence;
+- the same contrarian writes `challenge-resolution-record/<decision-id>` as the latest state;
+- the challenged decision's author consumes both prefixes as evidence for its owned decision contexts;
+- the author does not drain or delete the entries.
+
+This distinction matters for validation and prompt generation. `orphan_output` treats `evidence_consumed[]` as a real consumer because the topic has a reader, even though no router skill drains it. The lifecycle is documented in [`CONTRARIAN_REVIEW.md`](CONTRARIAN_REVIEW.md).
+
+**Trigger guidance — where agents learn to invoke the writer.** The trigger paragraph that tells every agent when to load and invoke the writer skill is rendered into every member's heartbeat prompt as part of the Storage Map's `## Observe` subsection — see `path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go` (`buildStorageMapSection`). When you add a new universal-source intake, add a matching paragraph there alongside the existing typed-topic-routing, bug-reporting (`report-bug`), and friction-reporting (`report-friction`) paragraphs so producers actually receive the trigger. The rendering is currently hardcoded prose for the two existing flows (bugs, friction); a third universal-source intake would push this past the worth-keeping-hardcoded threshold and into data-driven rendering off `intake[].source_team == "*"` declarations on member topics.json. Surface the refactor proposal as a `meta-self-improvement` decision when that third instance is in flight.
+
+Worked example: `team:scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).
+
+Sister example: `team:meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `topic[old]:friction/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
+
+Worked example: `team:marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`path:docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
 
 ## Example: marketing-crew researcher
 
@@ -213,15 +232,15 @@ Worked example: `marketing-crew/researcher` writes `monetization-benchmark-adjac
 When loaded, `prompt-manager graph topics --team marketing-crew` should:
 - Render edges from `vision-walk` and `operator` (external boundary nodes) into the researcher.
 - Render edges from the researcher to four output prefixes (three same-team knowledge sinks, one cross-team monetization sink).
-- Validate that `marketing-research` taxonomy exists and resolves to `docs/marketing/signal-taxonomy.json`.
+- Validate that `marketing-research` taxonomy exists and resolves to `path:docs/marketing/signal-taxonomy.json`.
 - Validate that `marketing-signal-classifier` is a registered, portable skill (no forbidden coupling content).
 - Validate every `output[].schema` resolves against the producer's taxonomy.
 - Cross-validate `monetization-benchmark-adjacent-record/*` against the monetization team's intake (some monetization member should declare this prefix in their `intake` with `source_team: "marketing-crew"`).
 
 ## Stability gate
 
-This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `marketing-crew/researcher`, `marketing-crew/brand-manager`, `meta-optimization/debt-curator`, `monetization/opportunity-scout`, `monetization/market-validator`).
+This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `team:marketing-crew/researcher`, `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator`, `team:monetization/opportunity-scout`, `team:monetization/market-validator`).
 
-Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `scenarios/prompt-manager/store/teams/*/members/*/`, (b) the Go schema at `scenarios/prompt-manager/api/memberflow/schema.go`, (c) the heartbeat builder section template at `scenarios/prompt-manager/api/heartbeat/inbox_flow.go`, and (d) the validation rules.
+Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `path:scenarios/prompt-manager/store/teams/*/members/*/`, (b) the Go schema at `path:scenarios/prompt-manager/api/memberflow/schema.go`, (c) the heartbeat builder section template at `path:scenarios/prompt-manager/api/heartbeat/inbox_flow.go`, and (d) the validation rules.
 
 Backwards-compatible additions (new optional fields, new `destination_kind` enum values, new validation rules at `warning` severity) may land via PR without a decision.

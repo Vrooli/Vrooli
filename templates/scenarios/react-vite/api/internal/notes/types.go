@@ -27,11 +27,23 @@ import (
 // translate at the boundary so the domain layer never imports proto
 // (api-steer §7).
 type Note struct {
-	ID        string
-	Title     string
-	Body      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID             string
+	Title          string
+	Body           string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	AttachmentKeys []string
+}
+
+// Attachment is the domain metadata record for a file uploaded through
+// the notes multipart REST sub-resource. Bytes live in BlobStore; this
+// type records the note-scoped handle needed by UI, CLI, and future APIs.
+type Attachment struct {
+	Key        string
+	MIMEType   string
+	SizeBytes  int64
+	NoteID     string
+	UploadedAt time.Time
 }
 
 // CreateInput is the explicit input DTO Service.Create accepts.

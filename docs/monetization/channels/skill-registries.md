@@ -73,7 +73,7 @@ Reported alongside subscription metrics, tagged as channel-attributed:
 
 - **Web SEO + landing pages** — orthogonal channel, different audience (humans). Both rely on structured data, but discovery flows don't overlap. Reinforce indirectly: a published skill that drives blog/landing-page traffic helps web-seo, but the registries themselves are the discovery surface.
 - **App stores (Tier 1)** — orthogonal channel, different audience. App stores serve human users; skill registries serve agent runtimes. No overlap.
-- **OSS discovery** — adjacent. A skill in `anthropics/skills` is also a GitHub repo with stars and discoverability of its own; a published skill produces incidental oss-discovery signal. Don't conflate the two when measuring.
+- **OSS discovery** — adjacent. A skill in `literal:anthropics/skills` is also a GitHub repo with stars and discoverability of its own; a published skill produces incidental oss-discovery signal. Don't conflate the two when measuring.
 - **In-product expansion** — internal to a Vrooli installation; this channel is *external*. Different problem, different surface, no overlap.
 
 ## Why this is one channel and not multiple
@@ -89,4 +89,4 @@ If a published skill ever participates in producing recommendations *back into a
 ## Notes
 
 - Operator's call to make this `active`. Capturing it as `candidate` early is cheap; activating it without the prerequisites in place would be a guardrail violation against the candidate-trigger principle ([STRATEGY.md §4](../STRATEGY.md)).
-- The skills scaffolding ([`skills/README.md`](../../../skills/README.md), [`skills/SECURITY.md`](../../../skills/SECURITY.md), [`docs/skills/`](../../skills/)) is documentation work that proceeds independently of activation. Building the scaffolding before the first skill ships is the cheap-and-correct order.
+- The skills scaffolding ([`skills/README.md`](../../../skills/README.md), [`skills/SECURITY.md`](../../../skills/SECURITY.md), [`path:docs/skills/`](../../skills/)) is documentation work that proceeds independently of activation. Building the scaffolding before the first skill ships is the cheap-and-correct order.

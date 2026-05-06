@@ -1,6 +1,7 @@
 package memberflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -111,6 +112,11 @@ func LoadMember(storeDir, team, member string) (MemberTopics, error) {
 // WriteMember replaces the topics.json for one specific team member with the
 // supplied content. Validates first; refuses to write malformed declarations.
 // Creates the member directory if it does not exist.
+//
+// HTML escaping is disabled in the encoder so prefixes containing `<`, `>`,
+// or `&` (e.g. `decision-application/<decision-id>`) round-trip as-is rather
+// than as `<`/`>`/`&` Unicode escapes — topics.json is read by
+// humans in PR review, not embedded in HTML.
 func WriteMember(storeDir, team, member string, t Topics) error {
 	if err := t.Validate(); err != nil {
 		return fmt.Errorf("memberflow: invalid topics for %s/%s: %w", team, member, err)
@@ -120,16 +126,30 @@ func WriteMember(storeDir, team, member string, t Topics) error {
 		return fmt.Errorf("memberflow: ensure member dir %q: %w", dir, err)
 	}
 	path := filepath.Join(dir, "topics.json")
-	b, err := json.MarshalIndent(t, "", "  ")
+	b, err := encodeTopicsJSON(t)
 	if err != nil {
 		return fmt.Errorf("memberflow: marshal topics: %w", err)
 	}
-	// Trailing newline keeps editors and `git diff` happy.
-	b = append(b, '\n')
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		return fmt.Errorf("memberflow: write %q: %w", path, err)
 	}
 	return nil
+}
+
+// encodeTopicsJSON pretty-prints Topics with HTML escaping disabled and a
+// trailing newline. Factored out so the migration tool and other writers
+// stay consistent with the validator's expectations.
+func encodeTopicsJSON(t Topics) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(t); err != nil {
+		return nil, err
+	}
+	// json.Encoder.Encode already appends a trailing newline, so the
+	// returned bytes are PR-friendly without further adjustment.
+	return buf.Bytes(), nil
 }
 
 func loadOne(team, member, path string) (MemberTopics, error) {

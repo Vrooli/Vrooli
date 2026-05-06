@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
 
 declare global {
@@ -49,7 +50,9 @@ if (!root) {
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
     </QueryClientProvider>
   </React.StrictMode>
 );

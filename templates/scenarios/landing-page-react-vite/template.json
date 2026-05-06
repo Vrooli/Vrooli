@@ -48,7 +48,14 @@
   "docs": {
     "generatorGuide": "docs/scenarios/getting-started.md",
     "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
-    "templateGuide": "templates/scenarios/landing-page-react-vite/README.md"
+    "templateGuide": "templates/scenarios/landing-page-react-vite/README.md",
+    "designGuide": "docs/design/README.md",
+    "generatedDesignContract": "DESIGN.md"
+  },
+  "design": {
+    "adapter": "react-vite-tailwind",
+    "default": "vrooli-conversion-landing",
+    "required": true
   },
   "postHooks": [
     {

@@ -26,7 +26,31 @@
     "loading": "Loading notes…",
     "empty": "No notes yet.",
     "create": "Create note",
-    "error": "Unable to load notes."
+    "createdAtLabel": "Created:",
+    "attachmentsLabel": "{{count}} attachments",
+    "attachmentsLabel_one": "1 attachment",
+    "uploadAttachment": "Upload attachment",
+    "attachmentFileLabel": "Attachment file",
+    "uploadSuccess": "Uploaded {{name}}.",
+    "noFileSelected": "Select a file before uploading."
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
   },
   "locale": {
     "switcherLabel": "Language"

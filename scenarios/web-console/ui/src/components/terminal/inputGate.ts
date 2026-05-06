@@ -21,7 +21,6 @@ import type { Terminal } from "@xterm/xterm";
  * accessors supplied by the session hook. This keeps the gate a pure
  * decision layer and leaves transport concerns to the hook.
  *
- * See docs/plans/terminal-session-refactor-implementation-plan.md §7.
  */
 export type InputSource =
   | "xterm"

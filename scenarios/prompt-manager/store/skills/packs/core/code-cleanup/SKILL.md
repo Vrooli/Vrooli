@@ -1,7 +1,7 @@
 ## Steer focus: Code Cleanup
 
 Prioritize **systematic removal of dead code, deprecated implementations, and backwards-compatibility cruft** across this scenario.
-Do **not** modify code in `packages/*` (shared code may have external consumers).
+Do **not** modify code in `path:packages/*` (shared code may have external consumers).
 Do **not** remove code without verification; all removals must be provably safe.
 
 Focus on **reducing code surface area** by eliminating artifacts that AI agents leave behind during iterative development.
@@ -39,7 +39,7 @@ Look for these cleanup candidates:
 * Re-exports kept "for backward compatibility" with no actual consumers
 
 **Do NOT remove:**
-* Code in `packages/*` - shared packages may have external consumers you cannot see
+* Code in `path:packages/*` - shared packages may have external consumers you cannot see
 * Active feature flags or gradual rollout code
 * Code with explicit "keep until X" where X has not occurred
 * Cross-scenario dependencies (verify before removing)
@@ -244,7 +244,7 @@ func GetResourcePath() string { return getResourcePathNew() }
 * Test fixtures for removed code
 
 **DO NOT remove:**
-* Code in `packages/*` (external consumers may exist)
+* Code in `path:packages/*` (external consumers may exist)
 * Code with unclear ownership or purpose (investigate first)
 * Feature flags that may still be in gradual rollout
 * Code with "keep until X" where X has not happened
@@ -337,7 +337,7 @@ You **must**:
 * Run tests after every removal
 * Keep changes atomic (one logical removal per commit when possible)
 * Document uncertain cases rather than guessing
-* Never touch `packages/*` without explicit permission
+* Never touch `path:packages/*` without explicit permission
 * Leave the codebase **smaller, cleaner, and easier to understand**
 
 You **must not**:

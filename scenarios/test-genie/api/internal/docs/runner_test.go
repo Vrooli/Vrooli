@@ -420,6 +420,147 @@ func TestRunner_DocRefBlockComment(t *testing.T) {
 	}
 }
 
+func TestRunner_ValidMarkedPathAndDocReferences(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "See `path:src/main.go` and `doc:docs/guide.md`.\n")
+	writeFile(t, filepath.Join(dir, "src/main.go"), "package main\n")
+	writeFile(t, filepath.Join(dir, "docs/guide.md"), "# Guide\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected success, got failure: %+v", result)
+	}
+	if result.Summary.MarkedRefsFound != 2 {
+		t.Fatalf("expected 2 marked refs found, got %d", result.Summary.MarkedRefsFound)
+	}
+	if result.Summary.MarkedRefsBroken != 0 {
+		t.Fatalf("expected 0 broken marked refs, got %d", result.Summary.MarkedRefsBroken)
+	}
+}
+
+func TestRunner_BrokenMarkedReferenceWarnsByDefault(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "See `path:missing.go`.\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected warning-only success, got failure: %+v", result)
+	}
+	if result.Summary.MarkedRefsFound != 1 || result.Summary.MarkedRefsBroken != 1 {
+		t.Fatalf("expected 1 found / 1 broken marked ref, got %+v", result.Summary)
+	}
+}
+
+func TestRunner_BrokenMarkedReferenceFailsWhenStrict(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "See `doc:docs/missing.md`.\n")
+
+	settings := DefaultSettings()
+	settings.References.Strict = boolPtr(true)
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     settings,
+	})
+
+	result := runner.Run(context.Background())
+	if result.Success {
+		t.Fatal("expected strict failure for broken marked reference")
+	}
+	if result.Summary.MarkedRefsBroken != 1 {
+		t.Fatalf("expected 1 broken marked ref, got %d", result.Summary.MarkedRefsBroken)
+	}
+}
+
+func TestRunner_QualifiedMarkedRefsAreSkipped(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "Examples may use `path[example]:missing.go`, `doc[future]:docs/future.md`, and `topic:team/foo`.\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected success for skipped marked refs, got failure: %+v", result)
+	}
+	if result.Summary.MarkedRefsFound != 3 || result.Summary.MarkedRefsSkipped != 3 || result.Summary.MarkedRefsBroken != 0 {
+		t.Fatalf("unexpected marked ref summary: %+v", result.Summary)
+	}
+}
+
+func TestRunner_QualifiedMarkedAbsolutePathDoesNotTripAbsolutePathScan(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "Example only: `path[example]:/Users/alice/project/file.md`.\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected success for qualified absolute-path example, got failure: %+v", result)
+	}
+	if result.Summary.AbsolutePathHits != 0 || result.Summary.AbsoluteFailures != 0 {
+		t.Fatalf("qualified marked example should not count as absolute path hit, got %+v", result.Summary)
+	}
+}
+
+func TestRunner_UnqualifiedMarkedAbsolutePathStillFails(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "Current path: `path:/Users/alice/project/file.md`.\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if result.Success {
+		t.Fatal("expected unqualified marked absolute path to fail portability scan")
+	}
+	if result.Summary.AbsoluteFailures != 1 {
+		t.Fatalf("expected 1 absolute path failure, got %d", result.Summary.AbsoluteFailures)
+	}
+}
+
+func TestRunner_UnknownMarkedRefWarnsByDefault(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "See `made-up:value`.\n")
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     DefaultSettings(),
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected warning-only success, got failure: %+v", result)
+	}
+	if result.Summary.MarkedRefsUnknown != 1 {
+		t.Fatalf("expected 1 unknown marked ref, got %+v", result.Summary)
+	}
+}
+
 func TestRunner_SkipsNodeModules(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
@@ -1527,6 +1668,9 @@ func TestSettings_NilReceiver(t *testing.T) {
 	if !s.docRefsEnabled() {
 		t.Error("nil Settings.docRefsEnabled() should return true")
 	}
+	if !s.markedRefsEnabled() {
+		t.Error("nil Settings.markedRefsEnabled() should return true")
+	}
 	if s.referencesStrict() {
 		t.Error("nil Settings.referencesStrict() should return false")
 	}
@@ -1568,6 +1712,9 @@ func TestSettings_NilSubStructs(t *testing.T) {
 	}
 	if !s.docRefsEnabled() {
 		t.Error("Settings with nil References should return default true for docRefsEnabled")
+	}
+	if !s.markedRefsEnabled() {
+		t.Error("Settings with nil References should return default true for markedRefsEnabled")
 	}
 	if s.referencesStrict() {
 		t.Error("Settings with nil References should return default false for strict")

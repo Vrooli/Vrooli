@@ -25,6 +25,7 @@ import type { ContentSearchMatch, AISearchResponse, AIActionSearchResponse, AIAg
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE } from '@/types/filterSort'
 import { TreeNodeComponent } from './TreeNode'
 import { FilterSortToolbar } from '../sidebar/FilterSortToolbar'
 import { ActiveFilterChips } from '../sidebar/ActiveFilterChips'
@@ -60,7 +61,6 @@ import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeS
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
 import { useEditorStore } from '@/stores/editorStore'
-import { useVirtualRows } from '@/hooks/useVirtualRows'
 
 const CONTENT_SNIPPET_LENGTH = 120
 const CONTENT_SEARCH_MIN_CHARS = 2
@@ -802,15 +802,6 @@ export function SkillTreeSidebar({
     () => flattenVisibleTree(treeNodes, expandedNodes),
     [treeNodes, expandedNodes]
   )
-  const treeRowHeight = detailMode === 'full' ? 42 : 32
-  const {
-    containerRef: treeViewportRef,
-    totalHeight: treeTotalHeight,
-    virtualRows: virtualTreeRows,
-  } = useVirtualRows({
-    count: visibleTreeRows.length,
-    rowHeight: treeRowHeight,
-  })
 
   // Check AI search availability on mount
   useEffect(() => {
@@ -1525,6 +1516,22 @@ export function SkillTreeSidebar({
                   className="mt-1.5"
                 />
               )}
+              {skills.length > 0 && filteredSortedSkills.length < skills.length && (
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                  <span>
+                    Showing {filteredSortedSkills.length} of {skills.length} skills
+                  </span>
+                  {!isFilterEmpty(filterState) && (
+                    <button
+                      type="button"
+                      onClick={() => onFilterStateChange(DEFAULT_FILTER_STATE)}
+                      className="text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1794,41 +1801,30 @@ export function SkillTreeSidebar({
                         <span>Collapse</span>
                       </button>
                     </div>
-                    <div ref={treeViewportRef} className="min-h-0 flex-1 overflow-y-auto">
-                      <div className="relative" style={{ height: treeTotalHeight }}>
-                        {virtualTreeRows.map(({ index, offsetTop }) => {
-                          const node = visibleTreeRows[index]
-                          if (!node) return null
-                          return (
-                            <div
-                              key={node.id}
-                              className="absolute left-0 right-0"
-                              style={{ top: offsetTop, height: treeRowHeight }}
-                            >
-                              <TreeNodeComponent
-                                node={node}
-                                skillsById={skillsById}
-                                editedNameById={editedNameById}
-                                selectedItemId={selectedItemId}
-                                onSelectItem={onSelectItem}
-                                dirtyItemIds={dirtyItemIds}
-                                dirtyCountByNodeId={dirtyCountByNodeId}
-                                expandedNodes={expandedNodes}
-                                onToggleNode={onToggleNode}
-                                renderItemIcon={renderItemIcon}
-                                showCheckbox={combineMode}
-                                onCheckboxChange={combineMode ? onCombineToggle : undefined}
-                                selectionStateByNodeId={selectionStateByNodeId}
-                                detailMode={detailMode}
-                                healthScoreMap={healthScoreMap}
-                                onCategoryContextMenu={handleCategoryContextMenu}
-                                onSkillContextMenu={handleSkillContextMenu}
-                                renderChildren={false}
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                      {visibleTreeRows.map((node) => (
+                        <TreeNodeComponent
+                          key={node.id}
+                          node={node}
+                          skillsById={skillsById}
+                          editedNameById={editedNameById}
+                          selectedItemId={selectedItemId}
+                          onSelectItem={onSelectItem}
+                          dirtyItemIds={dirtyItemIds}
+                          dirtyCountByNodeId={dirtyCountByNodeId}
+                          expandedNodes={expandedNodes}
+                          onToggleNode={onToggleNode}
+                          renderItemIcon={renderItemIcon}
+                          showCheckbox={combineMode}
+                          onCheckboxChange={combineMode ? onCombineToggle : undefined}
+                          selectionStateByNodeId={selectionStateByNodeId}
+                          detailMode={detailMode}
+                          healthScoreMap={healthScoreMap}
+                          onCategoryContextMenu={handleCategoryContextMenu}
+                          onSkillContextMenu={handleSkillContextMenu}
+                          renderChildren={false}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}

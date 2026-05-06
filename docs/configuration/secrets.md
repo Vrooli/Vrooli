@@ -64,15 +64,15 @@ Each resource's `credentials.secret_ref` points at exactly one Vault path; the k
 }
 ```
 
-At Vault path `secret/vrooli/gemini` you'd have key `GEMINI_API_KEY` with the value the operator provided.
+At Vault path `literal:secret/vrooli/gemini` you'd have key `GEMINI_API_KEY` with the value the operator provided.
 
 ## End-to-end: adding a new credential
 
 Follow this sequence when wiring a new third-party API key. Walk it once for any new integration; the steps are the same regardless of provider.
 
-1. **Decide on a Vault path.** Convention: `secret/vrooli/<short-provider-name>`.
+1. **Decide on a Vault path.** Convention: `literal:secret/vrooli/<short-provider-name>`.
 2. **Edit the consuming resource's `resource.json`.** Add or extend `credentials.env` with a `secretDescriptor` entry. Set `obtain_url` so the operator knows where to get the key. Set `secret_ref` to the Vault path.
-3. **Read it from code via `packages/api-core/secrets`.** Do not read environment variables directly when secret values are involved — go through the package so audit trails and rotation work.
+3. **Read it from code via `path:packages/api-core/secrets`.** Do not read environment variables directly when secret values are involved — go through the package so audit trails and rotation work.
 4. **Provision the value.** Two paths:
    - During first-run setup: the onboarding wizard's secrets step prompts for it.
    - Later or out-of-band: secrets-manager scenario provides an admin UI; alternatively, write to Vault directly using vault CLI.

@@ -57,7 +57,7 @@ import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree } from '@/services/treeService'
 import { NewFolderDialog } from '../tree/NewFolderDialog'
-import { getSkill } from '@/services/skillService'
+import { getSkill, searchSkillIds } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
@@ -238,6 +238,7 @@ function SkillManagerLayoutImpl() {
 
   // Content search matches (for editor highlighting)
   const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
+  const [quickSearchMatchedSkillIds, setQuickSearchMatchedSkillIds] = useState<Set<string> | null>(null)
 
   // Line number to scroll to in the editor (set when clicking a content search result)
   const [scrollToLine, setScrollToLine] = useState<number | null>(null)
@@ -282,7 +283,41 @@ function SkillManagerLayoutImpl() {
     initialViewMode: initialSidebarState.viewMode,
     initialDetailMode: initialSidebarState.detailMode,
     initialSearchQuery: initialSidebarState.searchQuery,
+    searchMatchedSkillIds: quickSearchMatchedSkillIds,
   })
+
+  useEffect(() => {
+    if (activeTab !== 'skills' || searchMode !== 'quick') {
+      setQuickSearchMatchedSkillIds(null)
+      return
+    }
+
+    const query = searchQuery.trim()
+    if (!query) {
+      setQuickSearchMatchedSkillIds(null)
+      return
+    }
+
+    setQuickSearchMatchedSkillIds(null)
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      searchSkillIds(query)
+        .then((ids) => {
+          if (cancelled) return
+          setQuickSearchMatchedSkillIds(new Set(ids))
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return
+          console.warn('[SkillManagerLayout] Quick skill search failed; using local fallback', error)
+          setQuickSearchMatchedSkillIds(null)
+        })
+    }, 200)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [activeTab, searchMode, searchQuery])
 
   // Read health scores from graph store (populated when user visits graph view)
   const healthScoreMap = useMemo(() => {

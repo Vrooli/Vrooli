@@ -1,6 +1,6 @@
 ## Tools focus: Report Bug
 
-Universal writer skill any agent on any team may invoke when they observe a bug — broken code, broken scenario behavior, prompt confusion, data-shape mismatch, unexpected error, or anything that looks defective. The skill writes a structured entry to `scenario-qa`'s `bug-inbox/<signal-type>/<slug>` topic; the `scenario-qa/bug-investigator` member drains the inbox, applies a registered investigation technique, and closes the entry with a `bug-investigation-report/<slug>` audit-log entry.
+Universal writer skill any agent on any team may invoke when they observe a bug — broken code, broken scenario behavior, prompt confusion, data-shape mismatch, unexpected error, or anything that looks defective. The skill writes a structured entry to `team:scenario-qa`'s `topic:bug-inbox/<signal-type>/<slug>` topic; the `literal:scenario-qa/bug-investigator` member drains the inbox, applies a registered investigation technique, and closes the entry with a `topic:bug-investigation-report/<slug>` audit-log entry.
 
 This skill is **destination-coupled by design** — writer skills always are. The portability rule (`non_portable_classifier`) applies to classifier skills, not to writers. Bug reporting is a one-way producer pattern.
 
@@ -56,7 +56,7 @@ Severity rule: severity is **the reporter's claim**. The investigator may overru
 
 2. **Generate a kebab-case slug** that summarizes the bug in 3–6 words. Examples: `landing-page-builds-fail-on-empty-config`, `seam-discovery-misses-test-files`, `swarm-manager-cli-rejects-valid-uuid`.
 
-3. **Construct the topic.** `bug-inbox/<signal-type>/<slug>`.
+3. **Construct the topic.** `topic:bug-inbox/<signal-type>/<slug>`.
 
 4. **Format the front-matter.** Match the `bug-report` schema in the taxonomy exactly:
 
@@ -107,7 +107,7 @@ Severity rule: severity is **the reporter's claim**. The investigator may overru
 
 ### **4. Output expectations**
 
-The skill produces exactly one knowledge entry on the scenario-qa team. The entry's topic is `bug-inbox/<signal-type>/<slug>`; its front-matter conforms to the `bug-report` schema; its body provides enough context for the investigator to start without your context.
+The skill produces exactly one knowledge entry on the scenario-qa team. The entry's topic is `topic:bug-inbox/<signal-type>/<slug>`; its front-matter conforms to the `bug-report` schema; its body provides enough context for the investigator to start without your context.
 
 You **must not**:
 

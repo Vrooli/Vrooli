@@ -2,8 +2,8 @@
 
 **Status:** In Progress
 **Owner:** Matthew Halloran
-**Scope:** Project-level resource system under `resources/`, `scripts/resources/`, `scripts/lib/resources/`, and the corresponding `vrooli resource` control surface
-**Out of Scope:** Scenario internals under `scenarios/*/`, except where scenario template/resource patterns provide precedent
+**Scope:** Project-level resource system under `resources/`, `path:scripts/resources/`, `path:scripts/lib/resources/`, and the corresponding `vrooli resource` control surface
+**Out of Scope:** Scenario internals under `path:scenarios/*/`, except where scenario template/resource patterns provide precedent
 **Primary Goal:** Replace the current shell-first, high-maintenance resource system with a cross-platform, Go-native control plane built around the active retained resource set, first-class resource blueprints, and managed deprecation/archive workflows
 
 ---
@@ -19,7 +19,7 @@ If you are an agent resuming this work in a future session, read this section fi
 - **What success looks like:** Vrooli ends up with:
   - the current active retained resource set managed through a cross-platform-capable control plane
   - a first-class `resource blueprint` catalog for future capabilities
-  - a built-in `deprecate/archive/restore` lifecycle
+  - a built-in `literal:deprecate/archive/restore` lifecycle
   - a Go-native resource control plane with platform-aware drivers and templates
 - **How to resume work:** Find the first unchecked item in the phase checklist, re-read that phase, and execute only that bounded slice. This plan is intended to be completed piecemeal across multiple conversations.
 - **Important bias:** Do not re-open broad resource triage unless requirements have changed. Assume the active `resources/` tree is already the curated set that should receive native migration work.
@@ -99,21 +99,21 @@ Current reality after the blueprint/archive cleanup:
 - Resource registry metadata is stored in `.vrooli/resource-registry/*.json`
 - Running/installed status tracking currently uses `.vrooli/running-resources.json`
 - Each active resource still usually has:
-  - `resources/<name>/cli.sh`
-  - `resources/<name>/config/defaults.sh`
-  - `resources/<name>/config/runtime.json`
-  - `resources/<name>/lib/*.sh`
-  - `resources/<name>/test/*`
-  - `resources/<name>/resource.json`
+  - `path:resources/<name>/cli.sh`
+  - `path:resources/<name>/config/defaults.sh`
+  - `path:resources/<name>/config/runtime.json`
+  - `path:resources/<name>/lib/*.sh`
+  - `path:resources/<name>/test/*`
+  - `path:resources/<name>/resource.json`
 
 ### Current control surface
 
 The current hybrid model is:
 
 1. project-level orchestration determines which resources are enabled
-2. the Go control plane discovers `resources/<name>/resource.json`
+2. the Go control plane discovers `path:resources/<name>/resource.json`
 3. manifest-native drivers handle supported lifecycle operations where implemented
-4. unsupported operations still fall back to `resource-<name>` or `resources/<name>/cli.sh`
+4. unsupported operations still fall back to `resource-<name>` or `path:resources/<name>/cli.sh`
 5. resource-specific shell libraries still perform much of the real work
 
 ### Current v2 resource contract
@@ -158,11 +158,11 @@ There are several categories of current resource behavior:
 
 Scenarios already have a strong template model:
 
-- `templates/scenarios/`
+- `path:templates/scenarios/`
 - template metadata files such as `template.json`
 - standard generation flow
 
-Resources now do have a canonical template catalog under `templates/resources/`, plus a leftover `templates/resources/PRD.md` historical seed.
+Resources now do have a canonical template catalog under `path:templates/resources/`, plus a leftover `path:templates/resources/PRD.md` historical seed.
 
 That closes the old "no resource templates exist" gap, but it does not yet mean resources are fully native. The remaining gap is that the templates are still primarily scaffold + manifest assets, while much operational behavior in active resources still lives in shell compatibility surfaces.
 
@@ -287,9 +287,9 @@ Each resource concept can exist in one of these states:
   - metadata for deprecated resources
 - `resources/`
   - only active implemented resources
-- `templates/resources/`
+- `path:templates/resources/`
   - canonical resource templates and generation assets
-- `docs/resources/`
+- `path:docs/resources/`
   - operator and contributor docs for the new system
 
 #### Outside git / outside repo
@@ -411,7 +411,7 @@ Every current resource should be scored on these axes:
 To reduce guesswork, triage should check:
 
 - references in `.vrooli/service.json`
-- references in `scenarios/*/.vrooli/service.json`
+- references in `path:scenarios/*/.vrooli/service.json`
 - references in scenario docs and tests
 - references in project docs/scripts
 - evidence of recent runtime validation
@@ -459,7 +459,7 @@ Each implemented resource should have a typed manifest, likely JSON, owned by th
 
 Suggested file:
 
-- `resources/<name>/resource.json`
+- `path:resources/<name>/resource.json`
 
 Suggested fields:
 
@@ -517,27 +517,27 @@ Canonical Go drivers should be introduced for these archetypes:
 
 The following internal packages will likely be needed:
 
-- `internal/resources`
+- `path:internal/resources`
   - controller, manifest loading, high-level orchestration
-- `internal/resources/blueprints`
+- `path:internal/resources/blueprints`
   - blueprint schema, indexing, promotion
-- `internal/resources/drivers`
+- `path:internal/resources/drivers`
   - driver interfaces and registry
-- `internal/resources/drivers/docker`
+- `path:internal/resources/drivers/docker`
   - Docker-backed services
-- `internal/resources/drivers/compose`
+- `path:internal/resources/drivers/compose`
   - compose-backed services
-- `internal/resources/drivers/externalcli`
+- `path:internal/resources/drivers/externalcli`
   - installed binary / package-manager / direct executable model
-- `internal/resources/drivers/cloudapi`
+- `path:internal/resources/drivers/cloudapi`
   - config-only and validation-focused resources
-- `internal/resources/archive`
+- `path:internal/resources/archive`
   - archive, restore, garbage collection
-- `internal/resources/templates`
+- `path:internal/resources/templates`
   - template rendering and generation
-- `internal/resources/health`
+- `path:internal/resources/health`
   - HTTP/TCP/command health checks
-- `internal/resources/platform`
+- `path:internal/resources/platform`
   - platform support checks and install helpers
 
 These should reduce duplication and prevent every resource from owning bespoke lifecycle logic.
@@ -548,9 +548,9 @@ Use build tags where real OS-specific behavior is necessary.
 
 Examples:
 
-- `internal/resources/platform/install_linux.go`
-- `internal/resources/platform/install_darwin.go`
-- `internal/resources/platform/install_windows.go`
+- `path:internal/resources/platform/install_linux.go`
+- `path:internal/resources/platform/install_darwin.go`
+- `path:internal/resources/platform/install_windows.go`
 
 Unsupported paths should fail with typed, honest errors rather than hidden no-ops.
 
@@ -671,10 +671,10 @@ These templates should match the driver model and minimize duplicated code.
 
 ### 9.2 Proposed template location
 
-- `templates/resources/README.md`
-- `templates/resources/<template-name>/template.json`
-- `templates/resources/<template-name>/README.md`
-- `templates/resources/<template-name>/...template files...`
+- `path:templates/resources/README.md`
+- `path:templates/resources/<template-name>/template.json`
+- `path:templates/resources/<template-name>/README.md`
+- `path:templates/resources/<template-name>/...template files...`
 
 This mirrors the scenario template layout.
 
@@ -1015,7 +1015,7 @@ This work is intentionally broken into phases so it can be executed over many co
 Supporting artifacts produced during Phase 0:
 
 - this plan's Phase 0 section, which now serves as the retained historical record
-- `docs/resources/resource-registry-reconciliation.md` (historical note; file no longer present)
+- `path:docs/resources/resource-registry-reconciliation.md` (historical note; file no longer present)
 - [Dependency Contract Validator](/home/matthalloran8/Vrooli/scripts/resources/tools/validate-dependency-contract.sh)
 
 **Deliverable:** A triage inventory with proposed state for every current resource.
@@ -1102,7 +1102,7 @@ The focused Phase 2 validation bundle is:
 
 **Goal:** Replace ad hoc resource creation with canonical templates.
 
-- [x] Create `templates/resources/<template>/` layout
+- [x] Create `path:templates/resources/<template>/` layout
 - [x] Add template metadata format mirroring scenario templates
 - [x] Implement canonical templates:
   - [x] `docker-service`
@@ -1121,7 +1121,7 @@ The focused Phase 2 validation bundle is:
 
 **Status update:** Phase 3 is implemented and validated as the canonical scaffold path for new resources.
 
-- `templates/resources/` now contains the full canonical template set with shared layout, metadata, docs, and test stubs
+- `path:templates/resources/` now contains the full canonical template set with shared layout, metadata, docs, and test stubs
 - `vrooli resource template list|show|validate|generate` is implemented in the native Go CLI
 - blueprints now enforce explicit `integration_kind -> suggested_template` recommendation rules instead of relying on convention
 - template validation now checks both manifest correctness and required asset/doc presence
@@ -1141,7 +1141,7 @@ The focused Phase 3 closeout validation bundle is:
 - `go run ./cmd/vrooli resource template show docker-service`
 - `go run ./cmd/vrooli resource template generate --from-blueprint terraform --dry-run`
 
-Phase 4 starts from here. Phase 3 is considered complete once new resource work is expected to go through `blueprint -> template -> implementation` rather than copying a historical `resources/<name>/` directory.
+Phase 4 starts from here. Phase 3 is considered complete once new resource work is expected to go through `blueprint -> template -> implementation` rather than copying a historical `path:resources/<name>/` directory.
 
 ### Phase 4 — Go-native resource manifests and driver interfaces
 
@@ -1161,7 +1161,7 @@ Phase 4 starts from here. Phase 3 is considered complete once new resource work 
 **Status update:** Phase 4 is implemented and validated as the first manifest-native slice of the resource control plane.
 
 - `.vrooli/schemas/resource.schema.json` now defines the baseline `resource.json` contract for manifest-native resources
-- `internal/resources` now includes native manifest loading, validation, driver dispatch, platform gating, and shared health-check execution
+- `path:internal/resources` now includes native manifest loading, validation, driver dispatch, platform gating, and shared health-check execution
 - `resources.Controller` now distinguishes `manifest-native`, `legacy-adapter`, and `legacy-shell` control modes during discovery and status reporting
 - the first native driver registry is in place with a working `docker-service` implementation
 - generated resource templates now verify that rendered `resource.json` files pass native manifest validation
@@ -1301,7 +1301,7 @@ Phase 6 is considered complete once the active project keep-set has no hidden `l
 
 **Status update:** Phase 7 is implemented as the default active resource policy and documentation baseline.
 
-- `resources.Controller.Discover()` now exposes only manifest-backed active resources, so plain `resources/<name>/` directories without `resource.json` no longer appear in `vrooli resource list` / `status`.
+- `resources.Controller.Discover()` now exposes only manifest-backed active resources, so plain `path:resources/<name>/` directories without `resource.json` no longer appear in `vrooli resource list` / `status`.
 - The active control plane surface is now limited to:
   - `manifest-native` resources
   - explicit `legacy-adapter` resources
@@ -1324,7 +1324,7 @@ Validation note: the full `go test ./cmd/vrooli/...` bundle still stalls in `Tes
 
 ### Phase 7.5 — Blueprint-only archival cleanup
 
-**Goal:** Remove stale `resources/<name>/` implementations for blueprint-backed candidates without misclassifying them as deprecated.
+**Goal:** Remove stale `path:resources/<name>/` implementations for blueprint-backed candidates without misclassifying them as deprecated.
 
 - [x] Add distinct metadata for blueprint-archived resources
 - [x] Implement archive / list / restore / GC commands for blueprint-backed archival
@@ -1348,7 +1348,7 @@ Validation note: the full `go test ./cmd/vrooli/...` bundle still stalls in `Tes
 - The Phase 0 blueprint cleanup pass is complete:
   - all implemented Phase 0 `blueprint` resources have been archived out of `resources/`
   - `52` entries now appear in `vrooli resource list-blueprint-archived`
-  - the remaining Phase 0 blueprint records, `node-red` and `parlant`, never had a `resources/<name>/` implementation to archive
+  - the remaining Phase 0 blueprint records, `node-red` and `parlant`, never had a `path:resources/<name>/` implementation to archive
 
 Focused validation:
 
@@ -1480,7 +1480,7 @@ Status update:
 
 - `resource.json` is now the single manifest authority for migrated resources.
 - `.vrooli/schemas/resource-definitions.json` is now generated from `resource.json`, not `config/schema.json`.
-- `internal/resources/env/resolver.go` no longer falls back to `resource-definitions.json` for env inference.
+- `path:internal/resources/env/resolver.go` no longer falls back to `resource-definitions.json` for env inference.
 - `config/runtime.json` and `config/schema.json` have been removed from active resources.
 - canonical templates no longer scaffold `config/defaults.json` or `config/schema.json`.
 - repo validation now rejects deprecated sidecar files for single-manifest resources.
@@ -1675,9 +1675,9 @@ Required changes:
 1. Extend `.vrooli/schemas/resource.schema.json` with:
    - `dependency_schema`
    - `orchestration`
-2. Extend `internal/resources/manifest/manifest.go` with typed structs for those sections.
+2. Extend `path:internal/resources/manifest/manifest.go` with typed structs for those sections.
 3. Replace `.vrooli/schemas/build-aggregated-schemas.sh` with a manifest-native generator that:
-   - scans `resources/*/resource.json`
+   - scans `path:resources/*/resource.json`
    - reads `dependency_schema`
    - merges it with `.vrooli/schemas/resources.schema.json#/definitions/resourceConfig`
    - emits the dependency catalog consumed by `.vrooli/schemas/service.schema.json`
@@ -1731,7 +1731,7 @@ The cleanup should happen in this order.
 1. Add `dependency_schema` and `orchestration` to `resource.json` and schema/types.
 2. Implement manifest-native dependency catalog generation.
 3. Update `.vrooli/schemas/service.schema.json` to consume the manifest-native aggregate.
-4. Remove legacy env fallback to `.vrooli/schemas/resource-definitions.json` from `internal/resources/env/resolver.go`.
+4. Remove legacy env fallback to `.vrooli/schemas/resource-definitions.json` from `path:internal/resources/env/resolver.go`.
 5. Update resource templates to a single-manifest layout.
 6. Remove `config/defaults.json` and `config/schema.json` from template validation.
 7. Migrate active resources:
@@ -1766,8 +1766,8 @@ No canonical template should include:
 
 These docs are currently stale and should be updated as part of the migration:
 
-- `docs/resources/interface-standards.md`
-- `docs/resources/resource-templates.md`
+- `path:docs/resources/interface-standards.md`
+- `path:docs/resources/resource-templates.md`
 - `.vrooli/schemas/README.md`
 - any shell-era resource docs that still describe `defaults.sh`, `messages.sh`, or `runtime.json` as canonical contract
 
@@ -1783,8 +1783,8 @@ These docs are currently stale and should be updated as part of the migration:
 
 #### Wave 2: templates and validation
 
-- update `templates/resources/*`
-- update `internal/resources/templates.go`
+- update `path:templates/resources/*`
+- update `path:internal/resources/templates.go`
 - update template tests
 - add validator checks for deprecated files
 

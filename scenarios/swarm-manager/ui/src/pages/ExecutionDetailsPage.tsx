@@ -9,8 +9,6 @@
  *
  * Data fetching is delegated to useExecutionDetailData.
  * Tab state is URL-synced via useUrlState.
- *
- * DOC: docs/plans/navigation-header-unification-plan.md#phase-5
  */
 
 import { useState } from "react";

@@ -22,3 +22,9 @@ func TestSchema_ContainsNotesTable(t *testing.T) {
 		t.Fatalf("notes.Schema() missing notes table; got: %s", Schema())
 	}
 }
+
+func TestSchema_ContainsAttachmentsTable(t *testing.T) {
+	if !strings.Contains(Schema(), "CREATE TABLE IF NOT EXISTS attachments") {
+		t.Fatalf("notes.Schema() missing attachments table; got: %s", Schema())
+	}
+}

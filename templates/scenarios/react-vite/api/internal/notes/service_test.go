@@ -12,7 +12,7 @@ import (
 )
 
 func TestService_Create_RejectsEmptyTitle(t *testing.T) {
-	repo := &mocks.FakeRepository{}
+	repo := mocks.NewFakeRepository()
 	svc := notes.NewService(repo)
 
 	_, err := svc.Create(context.Background(), notes.CreateInput{Title: ""})
@@ -25,7 +25,7 @@ func TestService_Create_RejectsEmptyTitle(t *testing.T) {
 }
 
 func TestService_Create_TrimsWhitespace(t *testing.T) {
-	repo := &mocks.FakeRepository{}
+	repo := mocks.NewFakeRepository()
 	svc := notes.NewService(repo)
 
 	_, err := svc.Create(context.Background(), notes.CreateInput{Title: "   "})
@@ -37,7 +37,7 @@ func TestService_Create_TrimsWhitespace(t *testing.T) {
 }
 
 func TestService_Create_DelegatesToRepo(t *testing.T) {
-	repo := &mocks.FakeRepository{}
+	repo := mocks.NewFakeRepository()
 	svc := notes.NewService(repo)
 
 	got, err := svc.Create(context.Background(), notes.CreateInput{Title: "hello", Body: "world"})
@@ -49,7 +49,7 @@ func TestService_Create_DelegatesToRepo(t *testing.T) {
 }
 
 func TestService_Create_TrimsBeforePersisting(t *testing.T) {
-	repo := &mocks.FakeRepository{}
+	repo := mocks.NewFakeRepository()
 	svc := notes.NewService(repo)
 
 	got, err := svc.Create(context.Background(), notes.CreateInput{Title: "  hello  ", Body: "world"})
@@ -60,7 +60,8 @@ func TestService_Create_TrimsBeforePersisting(t *testing.T) {
 
 func TestService_Create_PropagatesRepoError(t *testing.T) {
 	want := errors.New("repo boom")
-	repo := &mocks.FakeRepository{CreateErr: want}
+	repo := mocks.NewFakeRepository()
+	repo.CreateErr = want
 	svc := notes.NewService(repo)
 
 	_, err := svc.Create(context.Background(), notes.CreateInput{Title: "hello"})
@@ -68,7 +69,7 @@ func TestService_Create_PropagatesRepoError(t *testing.T) {
 }
 
 func TestService_Get_PropagatesNotFound(t *testing.T) {
-	repo := &mocks.FakeRepository{}
+	repo := mocks.NewFakeRepository()
 	svc := notes.NewService(repo)
 
 	_, err := svc.Get(context.Background(), "ghost")
@@ -79,9 +80,8 @@ func TestService_Get_PropagatesNotFound(t *testing.T) {
 }
 
 func TestService_Get_ReturnsRepoNote(t *testing.T) {
-	repo := &mocks.FakeRepository{
-		Notes: []notes.Note{{ID: "abc", Title: "found"}},
-	}
+	repo := mocks.NewFakeRepository()
+	repo.Items = []notes.Note{{ID: "abc", Title: "found"}}
 	svc := notes.NewService(repo)
 
 	got, err := svc.Get(context.Background(), "abc")
@@ -104,7 +104,7 @@ func (r *repoLimitSpy) List(ctx context.Context, limit int) ([]notes.Note, error
 }
 
 func TestService_List_AppliesDefaultLimit(t *testing.T) {
-	spy := &repoLimitSpy{Repository: &mocks.FakeRepository{}}
+	spy := &repoLimitSpy{Repository: mocks.NewFakeRepository()}
 	svc := notes.NewService(spy)
 
 	_, err := svc.List(context.Background(), 0)
@@ -114,7 +114,7 @@ func TestService_List_AppliesDefaultLimit(t *testing.T) {
 }
 
 func TestService_List_AppliesDefaultOnNegative(t *testing.T) {
-	spy := &repoLimitSpy{Repository: &mocks.FakeRepository{}}
+	spy := &repoLimitSpy{Repository: mocks.NewFakeRepository()}
 	svc := notes.NewService(spy)
 
 	_, err := svc.List(context.Background(), -3)
@@ -124,7 +124,7 @@ func TestService_List_AppliesDefaultOnNegative(t *testing.T) {
 }
 
 func TestService_List_HonorsExplicitLimit(t *testing.T) {
-	spy := &repoLimitSpy{Repository: &mocks.FakeRepository{}}
+	spy := &repoLimitSpy{Repository: mocks.NewFakeRepository()}
 	svc := notes.NewService(spy)
 
 	_, err := svc.List(context.Background(), 5)
@@ -135,7 +135,8 @@ func TestService_List_HonorsExplicitLimit(t *testing.T) {
 
 func TestService_List_PropagatesRepoError(t *testing.T) {
 	want := errors.New("list boom")
-	repo := &mocks.FakeRepository{ListErr: want}
+	repo := mocks.NewFakeRepository()
+	repo.ListErr = want
 	svc := notes.NewService(repo)
 
 	_, err := svc.List(context.Background(), 5)

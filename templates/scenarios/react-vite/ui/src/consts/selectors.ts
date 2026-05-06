@@ -4,21 +4,18 @@
  * This file is the single source of truth for every selector used by the UI and
  * by Vrooli Ascension workflows. We deliberately model selectors as two
  * declarative maps (one literal, one dynamic) and rely on a small helper to
- * produce the typed `selectors` export plus the manifest consumed by workflow
- * linting. Do not hand-roll selector helpers or change this structure—update the
- * maps below so UI code, automation flows, and the manifest builder all stay in
- * sync across every scenario.
+ * produce the typed `selectors` export plus the in-memory `selectorsManifest`
+ * export consumed by workflow tooling. Do not hand-roll selector helpers or
+ * change this structure—update the maps below so UI code, automation flows, and
+ * the manifest builder all stay in sync across every scenario.
  *
- * ## Auto-Generated Manifest
+ * ## Manifest Export
  *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
+ * If you need to add or modify selectors:
  *
  * 1. Update the `literalSelectors` object below for static selectors
  * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
+ * 3. `selectorsManifest` updates from the same source maps automatically
  */
 import { LOCALE_CODES } from "../i18n/locales";
 
@@ -318,6 +315,12 @@ const literalSelectors = {
     empty: "notes-empty",
     error: "notes-error",
     createButton: "notes-create-button",
+    createdAt: "notes-created-at",
+    attachmentCount: "notes-attachment-count",
+    attachmentUpload: "notes-attachment-upload",
+    attachmentFile: "notes-attachment-file",
+    attachmentButton: "notes-attachment-button",
+    attachmentStatus: "notes-attachment-status",
   },
   locale: {
     switcher: "locale-switcher",

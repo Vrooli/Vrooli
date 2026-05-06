@@ -111,9 +111,9 @@ Self-host users are not leaked revenue. OSS is not a fallback.
 Per-content-type strategic canon lives under [`post-types/`](post-types/) — one file per type. Each file names purpose, audience, conversion goal, structure, asset requirements, and contrarian failure modes. Currently authored:
 
 - [`post-types/text/dev-log.md`](post-types/text/dev-log.md) — project-wide progress narrative; OSS-advertiser via `x-dev-log` skill.
-- [`post-types/text/scenario-spotlight.md`](post-types/text/scenario-spotlight.md) — pitching one scenario as an end-user tool/app/product; subscription-advertiser via `x-scenario-spotlight` skill.
+- [`post-types/text/scenario-spotlight.md`](post-types/text/scenario-spotlight.md) — pitching one scenario as an end-user tool/app/product; subscription lane (`subscription-advertiser`) via `x-scenario-spotlight` skill.
 - `post-types/text/oss-framework.md` — planned (pitching Vrooli as a developer platform).
-- `post-types/image/` and `post-types/video/` — additional post-type entries by medium. See [`post-types/README.md`](post-types/README.md) for the decision tree and current coverage.
+- `path:post-types/image/` and `path:post-types/video/` — additional post-type entries by medium. See [`post-types/README.md`](post-types/README.md) for the decision tree and current coverage.
 
 Other content types not yet broken into per-entity files:
 

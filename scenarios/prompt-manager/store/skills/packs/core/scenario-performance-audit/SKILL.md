@@ -2,7 +2,7 @@
 
 Apply a reproducible, **headless** browser-perf audit to a Vrooli scenario UI: confirm the scenario has perf-build infrastructure (and add it from the canonical reference if missing), capture a Chrome performance trace while exercising a scripted interaction, and analyse it for component-level commit hotspots. Produces a trace JSON loadable in Chrome DevTools and a written findings report tied to file paths.
 
-**Prerequisite:** the target scenario must be a React + Vite UI based on the `templates/scenarios/react-vite` template (the perf-build infra prescribed in Phase 1 assumes this stack). For non-react-vite scenarios the methodology is broadly valid but Phase 1 needs different infra and is out of scope here.
+**Prerequisite:** the target scenario must be a React + Vite UI based on the `path:templates/scenarios/react-vite` template (the perf-build infra prescribed in Phase 1 assumes this stack). For non-react-vite scenarios the methodology is broadly valid but Phase 1 needs different infra and is out of scope here.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
@@ -10,7 +10,7 @@ Required reading:
 
 Optional reading:
 - `scenarios/swarm-manager/ui/vite.config.ts` — canonical perf-build implementation reference
-- `templates/scenarios/react-vite/ui/` — what newly-generated scenarios get for free
+- `path:templates/scenarios/react-vite/ui/` — what newly-generated scenarios get for free
 
 ---
 
@@ -90,12 +90,12 @@ The scenario must have four pieces of infra in place. Check each. Any missing �
 
 | Piece | Where | What to look for | Canonical reference |
 |---|---|---|---|
-| Perf-mode in vite config | `<scenario>/ui/vite.config.ts` | `mode === "profile"` branch with `react-dom/client` → `react-dom/profiling` alias and `esbuild.keepNames: true` | `templates/scenarios/react-vite/ui/vite.config.ts` |
+| Perf-mode in vite config | `<scenario>/ui/vite.config.ts` | `mode === "profile"` branch with `package:react-dom/client` → `package:react-dom/profiling` alias and `esbuild.keepNames: true` | `templates/scenarios/react-vite/ui/vite.config.ts` |
 | Conditional build script | `<scenario>/ui/package.json` | `build` appends `--mode profile` when `VROOLI_BUILD_MODE=profile`; `build:profile` alias exists | `templates/scenarios/react-vite/ui/package.json` |
 | `onProfilerRender` util | `<scenario>/ui/src/lib/profiler.ts` | Exports `onProfilerRender` callback that calls `performance.measure` with `⚛` prefix | `templates/scenarios/react-vite/ui/src/lib/profiler.ts` |
 | Top-level Profiler boundary | `<scenario>/ui/src/main.tsx` (or App entry) | `<React.Profiler id="App" onRender={onProfilerRender}>` wrapping the app | `templates/scenarios/react-vite/ui/src/main.tsx` |
 
-**Why it matters that the boundary is *permanent*:** `<React.Profiler>`'s `onRender` is only invoked when the perf-build's `react-dom/profiling` bundle is loaded. The fiber exists in regular prod but the callback never fires — so wrappers cost effectively nothing in default builds. They're load-bearing only when auditing. Remove a wrapper at your peril; you'll lose data and may not notice for months.
+**Why it matters that the boundary is *permanent*:** `<React.Profiler>`'s `onRender` is only invoked when the perf-build's `package:react-dom/profiling` bundle is loaded. The fiber exists in regular prod but the callback never fires — so wrappers cost effectively nothing in default builds. They're load-bearing only when auditing. Remove a wrapper at your peril; you'll lose data and may not notice for months.
 
 **If the scenario is structurally divergent from the template** (different bundler, no `vite.config.ts`, custom React entrypoint, different package manager), Phase 1 is *not* a small fixup. Stop and surface this to the requester. Either (a) the scenario should be brought up to template-conformance as a separate engineering task and then audited, or (b) this skill doesn't apply and a different methodology is needed. Don't paper over the divergence — the readings will be unreliable.
 
@@ -168,7 +168,7 @@ Capture a brief mount-settle (~800 ms) after navigation so initial network/rende
 
 Write a self-contained Playwright + CDP script at `${WORKDIR}/capture.js` and run it.
 
-The script borrows Playwright from BAS's existing install (`scenarios/browser-automation-studio/playwright-driver/node_modules/rebrowser-playwright`) so no new deps are introduced. Long-term, this graduates into a `browser-automation-studio perf trace` CLI command — see *Future direction* at the bottom of this skill.
+The script borrows Playwright from BAS's existing install (`path:scenarios/browser-automation-studio/playwright-driver/node_modules/rebrowser-playwright`) so no new deps are introduced. Long-term, this graduates into a `browser-automation-studio perf trace` CLI command — see *Future direction* at the bottom of this skill.
 
 **Capture script template** (write to `${WORKDIR}/capture.js`, customise the `exerciseTarget` function for the chosen interaction):
 
@@ -405,7 +405,7 @@ Optionally clean up `${WORKDIR}` if disk is tight. The trace is large (~40 MB fo
 
 ### **Phase 7: Persist the audit**
 
-If the audit reached actionable findings, persist them as a durable artifact in the scenario's docs tree so future sessions can find them. Free-form `findings.md` files in `/tmp/` disappear; `docs/perf/` files in the scenario tree survive across sessions, can be cross-linked, and are validated by `knowledge-observatory`.
+If the audit reached actionable findings, persist them as a durable artifact in the scenario's docs tree so future sessions can find them. Free-form `findings.md` files in `/tmp/` disappear; `path:docs/perf/` files in the scenario tree survive across sessions, can be cross-linked, and are validated by `knowledge-observatory`.
 
 ```bash
 SLUG="<short-kebab-slug>"   # e.g. sidebar-resize-and-backlog-scroll

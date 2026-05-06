@@ -106,10 +106,11 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 // HTTPClient wraps an http.Client with base URL resolution, token injection,
 // and JSON request helpers.
 type HTTPClient struct {
-	client      *http.Client
-	baseOptions APIBaseOptions
-	token       string
-	dryRun      bool
+	client       *http.Client
+	baseOptions  APIBaseOptions
+	token        string
+	dryRun       bool
+	headerSource func() map[string]string
 }
 
 type HTTPClientOptions struct {
@@ -145,6 +146,19 @@ func (h *HTTPClient) SetToken(token string) {
 // the X-Dry-Run header so APIs can skip mutations after validation.
 func (h *HTTPClient) SetDryRun(enabled bool) {
 	h.dryRun = enabled
+}
+
+// SetHeaderSource installs a callback invoked once per request to produce
+// extra HTTP headers added to every outgoing call. Use this for headers
+// whose value is computed lazily (e.g. read from environment variables
+// that may be set after client construction). Returning nil or an empty
+// map skips extra-header injection. Empty values in the returned map are
+// dropped at request time so callers can express "skip this header" via
+// an empty string without conditional wrapping.
+//
+// Repeated calls replace the previous source. Pass nil to clear.
+func (h *HTTPClient) SetHeaderSource(fn func() map[string]string) {
+	h.headerSource = fn
 }
 
 func (h *HTTPClient) SetBaseOptions(opts APIBaseOptions) {
@@ -210,12 +224,7 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if h.token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.token))
-	}
-	if h.dryRun {
-		req.Header.Set("X-Dry-Run", "true")
-	}
+	h.ApplyRequestHeaders(req)
 
 	resp, err := h.client.Do(req)
 	if err != nil {
@@ -231,6 +240,29 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		return nil, ParseAPIError(resp.StatusCode, data)
 	}
 	return data, nil
+}
+
+// ApplyRequestHeaders applies the configured authentication, dry-run, and
+// custom headers to req. It lets non-JSON transports reuse the same request
+// decoration as DoWithContext without inheriting JSON body handling.
+func (h *HTTPClient) ApplyRequestHeaders(req *http.Request) {
+	if h == nil || req == nil {
+		return
+	}
+	if h.token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.token))
+	}
+	if h.dryRun {
+		req.Header.Set("X-Dry-Run", "true")
+	}
+	if h.headerSource != nil {
+		for k, v := range h.headerSource() {
+			if v == "" {
+				continue
+			}
+			req.Header.Set(k, v)
+		}
+	}
 }
 
 // ExtractErrorMessage pulls a human-readable error string from a JSON error

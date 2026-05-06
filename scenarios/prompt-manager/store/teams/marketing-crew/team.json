@@ -73,6 +73,10 @@
             },
             {
               "base": "repo-root",
+              "path": "docs/marketing/OPERATING_MODEL.md"
+            },
+            {
+              "base": "repo-root",
               "path": "docs/marketing/STRATEGY.md"
             },
             {
@@ -492,6 +496,16 @@
       }
     },
     "knowledgeTopics": {
+      "artifact-request/oss/<slug>": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "artifact-request/subscription/<slug>": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
       "brand-snapshot/YYYY-MM-DD": {
         "ownerMemberId": "brand-manager",
         "supersedesPrevious": true,
@@ -522,10 +536,35 @@
         "supersedesPrevious": false,
         "retention": "append-only"
       },
+      "workflow-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "skill-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "channel-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "format-scan/<slug>": {
+        "ownerMemberId": "researcher",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
       "challenge-report/<decision-id>": {
         "ownerMemberId": "marketing-contrarian",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "challenge-resolution-record/<decision-id>": {
+        "ownerMemberId": "marketing-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
       },
       "aging-scan-note/<decision-id>": {
         "ownerMemberId": "marketing-contrarian",
@@ -548,9 +587,6 @@
           "notebook-retirement"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "brand-snapshot/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -599,16 +635,13 @@
         }
       },
       "subscription-advertiser": {
-        "lane": "Generate subscription SKU marketing drafts and coverage-gap/capability-gap proposals without editing canon or publishing.",
+        "lane": "Subscription-lane advertiser in the shared draft pipeline. Consumes subscription artifact requests, marketing evidence, canon, coverage, and publish state; writes campaign drafts plus coverage/capability proposals without editing canon or publishing.",
         "ownedDecisionContexts": [
           "content-publish-proposal",
           "coverage-gap",
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "subscription-ad-run/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -656,16 +689,13 @@
         }
       },
       "oss-advertiser": {
-        "lane": "Generate builder-in-public and OSS narrative drafts from Vrooli activity and x-dev-log evidence.",
+        "lane": "OSS-lane advertiser in the shared draft pipeline. Consumes OSS artifact requests, marketing evidence, canon, coverage, and publish state; writes builder-in-public drafts plus coverage/capability proposals without editing canon or publishing.",
         "ownedDecisionContexts": [
           "content-publish-proposal",
           "coverage-gap",
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "oss-ad-run/YYYY-MM-DD"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -713,17 +743,13 @@
         }
       },
       "publisher": {
-        "lane": "Execute approved publish proposals, polish platform variants, maintain publish logs and coverage state, and raise scheduling gaps.",
+        "lane": "Execute approved publish proposals, polish platform variants, maintain publish logs, subject mentions, and coverage state, and raise channel or scheduling gaps.",
         "ownedDecisionContexts": [
           "content-publish-proposal",
           "channel-update",
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 4,
-        "requiredKnowledgeTopics": [
-          "coverage-snapshot/YYYY-MM-DD",
-          "decision-application/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -783,7 +809,7 @@
         }
       },
       "researcher": {
-        "lane": "Scan audience, competitor, trend, craft, format, hook, and benchmark-adjacent signals before proposing canon updates.",
+        "lane": "Drain research-inbox signals into durable audience, competitor, hook, workflow, skill, channel, format, and benchmark-adjacent evidence before proposing planning or capability decisions.",
         "ownedDecisionContexts": [
           "audience-update",
           "channel-strategy-update",
@@ -792,10 +818,6 @@
           "capability-gap"
         ],
         "pendingOwnedDecisionCap": 2,
-        "requiredKnowledgeTopics": [
-          "audience-scan/YYYY-MM-DD",
-          "monetization-benchmark-adjacent-record/<topic>"
-        ],
         "allowedWrites": [
           {
             "base": "team-shared",
@@ -851,10 +873,6 @@
           "framework-update"
         ],
         "pendingOwnedDecisionCap": 3,
-        "requiredKnowledgeTopics": [
-          "challenge-report/<decision-id>",
-          "aging-scan-note/<decision-id>"
-        ],
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -905,5 +923,6 @@
         }
       }
     }
-  }
+  },
+  "attributionValidFrom": "2026-05-04"
 }

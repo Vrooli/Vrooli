@@ -13,6 +13,4 @@
 //   - Live byte forwarding (Session.broadcast still owns that).
 //   - Client-side rendering (xterm.js owns that).
 //   - Any persistence to disk (out of scope; future work).
-//
-// See: docs/plans/terminal-emulator-replay-implementation-plan.md
 package terminal

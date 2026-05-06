@@ -55,7 +55,7 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 - **Shape required:**
   - `system-monitor incidents list --since=<duration> --json` — list of triggered investigations with type, root signature, outcome, duration
   - `system-monitor investigations stats --since=<duration> --json` — clustering view: investigation type → count + sample IDs
-- **Downstream effect:** runtime-health-scanner stops walking `investigations/active/` and `investigations/results/` directories.
+- **Downstream effect:** runtime-health-scanner stops walking `path:investigations/active/` and `path:investigations/results/` directories.
 - **Priority signal:** activates when investigation-cluster tier produces ≥1 actionable finding via the directory-walk fallback.
 
 ### Gap 4: Internal-package coverage report

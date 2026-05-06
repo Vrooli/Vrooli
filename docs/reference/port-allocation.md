@@ -89,7 +89,7 @@ error message in the current CLI; the port-allocation policy addresses each.
 
 ## Migration
 
-The `cmd/vrooli-ports-migrate` tool computes `newPort = oldPort - 15000` for
+The `path:cmd/vrooli-ports-migrate` tool computes `newPort = oldPort - 15000` for
 any scenario UI port currently in `35xxx-36xxx` and rewrites
 `.vrooli/service.json` accordingly. Dry-run by default:
 
@@ -110,7 +110,7 @@ successful apply is a no-op.
   `vrooli diagnose-port` for live conflict triage.
 - [`docs/reference/cli-commands.md`](cli-commands.md) — lifecycle commands that
   surface port allocation.
-- `internal/portspec/` — constants and OS probe.
+- `path:internal/portspec/` — constants and OS probe.
 - `internal/scenario/validate_ports.go` — validator.
 - `scenarios/scenario-auditor/api/rules/config/service_ports.go` — audit
   rule.

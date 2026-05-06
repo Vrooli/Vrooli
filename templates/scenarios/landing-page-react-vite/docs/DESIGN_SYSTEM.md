@@ -1,11 +1,14 @@
 # Landing Template Design System
 
+Root-level `DESIGN.md` is the canonical design contract for generated landing pages. This document explains the runtime configuration layer that instantiates that contract through `.vrooli/styling.json`, style packs, and variant-aware prompts.
+
 The landing-page-react-vite template now ships with a **structured design system** so every generated scenario can describe its look-and-feel with the same fidelity as its runtime configuration. This document explains how `.vrooli/styling.json`, the new `style-packs/` directory, and the landing-manager prompts work together to avoid “AI slop” gradients and enforce Clause-style case-study layouts by default.
 
 ## Files to read first
 
 | Path | Purpose |
 | --- | --- |
+| `DESIGN.md` | Canonical conversion landing-page design contract copied from `templates/design/vrooli-conversion-landing`. |
 | `.vrooli/styling.json` | Active style pack loaded by the React surfaces at runtime. |
 | `.vrooli/style-packs/*.json` | Reusable packs (Clause case study today, more soon). Copy one of these into `styling.json` or ask landing-manager to randomize against them. |
 | `.vrooli/schemas/styling.schema.json` | Extended schema defining palette tokens, layout systems, component kits, imagery slots, and randomization metadata. |

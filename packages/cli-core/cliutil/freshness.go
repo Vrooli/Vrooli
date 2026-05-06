@@ -76,7 +76,6 @@ func CanonicalShellScriptFreshnessSpec(ownerRoot, scriptPath, installScript, man
 		SourceRoot:  ownerRoot,
 		ContextRoot: ownerRoot,
 		Inputs:      inputs,
-		SkipFiles:   []string{binaryName},
 	}
 }
 

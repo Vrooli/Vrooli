@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Design Language File domain - generation and content of DESIGN_LANGUAGE.md",
+    "description": "DESIGN.md export domain - generation and content of root-level DESIGN.md",
     "domain": "design-language",
     "last_updated": "2026-03-26"
   },
@@ -9,8 +9,8 @@
       "id": "BM-REQ-DESIGN-GEN",
       "category": "design-language",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "title": "Generate DESIGN_LANGUAGE.md from brand data",
-      "description": "Generate docs/DESIGN_LANGUAGE.md from structured brand data + user notes",
+      "title": "Generate DESIGN.md from brand data",
+      "description": "Generate root-level DESIGN.md from structured brand data + user notes",
       "status": "complete",
       "validation": [
         {
@@ -18,7 +18,7 @@
           "ref": "api/handlers/design_language_test.go:TestGenerateDesignLanguage",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Tests DESIGN_LANGUAGE.md generation from structured brand data"
+          "notes": "Tests DESIGN.md generation from structured brand data"
         },
         {
           "type": "test",

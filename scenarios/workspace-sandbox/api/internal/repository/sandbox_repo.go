@@ -2,8 +2,7 @@
 //
 // Storage backend: SQLite via modernc.org/sqlite. The schema lives in
 // schema.sql (embedded) and is applied on startup. See
-// docs/internal/STORAGE_AUDIT.md for the architectural rationale and
-// docs/plans/sqlite-cutover-implementation-plan.md for the design notes.
+// docs/internal/STORAGE_AUDIT.md for the architectural rationale.
 package repository
 
 import (

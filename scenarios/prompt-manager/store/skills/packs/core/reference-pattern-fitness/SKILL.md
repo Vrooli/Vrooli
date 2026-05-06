@@ -2,7 +2,7 @@
 
 Prioritize **whether an artifact intended to be copied is fit to be a copy source**.
 
-This lens applies only to a specific class of artifacts: templates (`templates/scenarios/<name>/`), reference scenarios registered in `docs/agent-system/REFERENCE_SCENARIOS.md`, and documented canonical examples inside scenarios (patterns marked "copy this for X" with a `REPLACING-X.md`-style guide).
+This lens applies only to a specific class of artifacts: templates (`path:templates/scenarios/<name>/`), reference scenarios registered in `docs/agent-system/REFERENCE_SCENARIOS.md`, and documented canonical examples inside scenarios (patterns marked "copy this for X" with a `REPLACING-X.md`-style guide).
 
 Do **not** apply this lens to regular feature code in production scenarios — multiplier framing produces noise there. Use the relevant single-instance lens (`refactor`, `screaming-architecture-audit`, `decision-boundary-extraction`, etc.) instead.
 
@@ -13,7 +13,7 @@ Required reading:
 - `docs/agent-system/REFERENCE_PATTERN_FITNESS.md` — strategic-canon home: when this lens applies, when it backfires, what the meta-contrarian challenges, the four sub-lenses, the worked example.
 - `docs/agent-system/REFERENCE_SCENARIOS.md` — registry of templates and references; confirm `{{TARGET}}` is registered before running this lens.
 - `prompt-manager skills read knowledge-observatory-tools` — notebook integration; findings land under `meta-optimization/notebook/template-fitness/<artifact-slug>/<YYYY-MM-DD>`.
-- The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `docs/scenario-qa/audit-techniques/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
+- The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/audit-techniques/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
 
 ---
 
@@ -21,7 +21,7 @@ Required reading:
 
 Verify `{{TARGET}}` qualifies for this lens before doing any work:
 
-- Is `{{TARGET}}` a path under `templates/scenarios/`?
+- Is `{{TARGET}}` a path under `path:templates/scenarios/`?
 - Is `{{TARGET}}` registered in `docs/agent-system/REFERENCE_SCENARIOS.md`?
 - Is `{{TARGET}}` a documented canonical example (e.g., a `REPLACING-X.md` guide exists describing it as "copy this for the first real X")?
 
@@ -33,7 +33,7 @@ If `{{TARGET}}` qualifies, capture which category it falls into (template / refe
 
 ### **2. Run Single-Instance Lenses First**
 
-The auditor selects the lens(es) appropriate to `{{TARGET}}` from `docs/scenario-qa/audit-techniques/`:
+The auditor selects the lens(es) appropriate to `{{TARGET}}` from `path:docs/scenario-qa/audit-techniques/`:
 
 - `screaming-architecture-audit` — for any artifact with non-trivial structure
 - `boundary-of-responsibility-enforcement` — for artifacts mixing presentation/coordination/domain/integration
@@ -81,7 +81,7 @@ For each "hope" entry, propose a type-system or CI-check fix.
 
 Worked-example references:
 - Route paths declared in both `handler.go` (mux registrations) and `endpoints.go` (descriptor `Path`/`Method` fields). Enforcement: hope. Fix: `module_test.go` walks the router and asserts the registered set equals the descriptor set.
-- `lib/api.ts` throws `new Error(...)`; `lib/notes.ts` throws typed `ApiError`. Already drifted. Enforcement: hope. Fix: `ApiError` lifts to `lib/api.ts`; both surfaces use it.
+- `api/health.ts` throws `new Error(...)`; `api/notes.ts` throws typed `ApiError`. Already drifted. Enforcement: hope. Fix: `ApiError` lives in `api/client.ts`; every endpoint module uses it.
 - `cli_commands_seed.json` listing names that may or may not match `cli/domains/<dom>/register.go` registrations. Enforcement: partial (cross-check covers endpoints → seed but not seed → register). Fix: extend the cross-check.
 
 ---
@@ -171,7 +171,7 @@ Cross-link the entry from the artifact's row in `REFERENCE_SCENARIOS.md` (the "L
 
 If findings warrant a `meta-optimization` decision (substrate work proposal, registry update, role change, template patch beyond a single fix), draft it and file under context `meta-self-improvement` in `scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`.
 
-Mirror the format of the last 5 entries in that file; the procedure is non-negotiable on field shape (see decision filing convention in `docs/agent-system/`). The decision links to the notebook entry from step 9 as evidence.
+Mirror the format of the last 5 entries in that file; the procedure is non-negotiable on field shape (see decision filing convention in `path:docs/agent-system/`). The decision links to the notebook entry from step 9 as evidence.
 
 Decisions are reviewed by the operator. The auditor's role is to file proposals; the operator accepts, rejects, or defers.
 

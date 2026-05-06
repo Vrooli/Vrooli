@@ -2,23 +2,23 @@
 
 **Status:** Reopened after deep post-implementation audit on April 14, 2026
 **Owner:** Matthew Halloran
-**Primary scope:** `cmd/vrooli`, `cmd/vrooli-api`, `internal/cli/*`, `internal/app/*`, `internal/setup`, `internal/scenario`, `internal/resources`, and `packages/testkit-go`
+**Primary scope:** `path:cmd/vrooli`, `path:cmd/vrooli-api`, `path:internal/cli/*`, `path:internal/app/*`, `path:internal/setup`, `path:internal/scenario`, `path:internal/resources`, and `path:packages/testkit-go`
 **Goal:** Finish the overhaul properly so the binaries stay thin, the internal CLI stack becomes declarative and compact, shared contracts become authoritative, and no legacy/compatibility/dead code remains in the CLI/runtime path
 
 ---
 
 ## 0. Executive summary
 
-The previous overhaul succeeded at the most visible part of the goal: `cmd/vrooli` is now actually thin.
+The previous overhaul succeeded at the most visible part of the goal: `path:cmd/vrooli` is now actually thin.
 
 That is real progress:
 
-- `cmd/vrooli` production code is now only `118` LOC
+- `path:cmd/vrooli` production code is now only `118` LOC
 - the binary package no longer owns the old command runtime
 - the current focused validation pass is green:
   - `go test ./cmd/vrooli ./internal/cli/... ./internal/app/... ./packages/testkit-go/...`
 
-The problem is that the complexity was mostly pushed into `internal/cli/*`, where it is now too verbose, too repetitive, and still partially transitional.
+The problem is that the complexity was mostly pushed into `path:internal/cli/*`, where it is now too verbose, too repetitive, and still partially transitional.
 
 The codebase is in a better state than before, but it is still not in the target end state. The remaining work is no longer “make `cmd/` thin.” The remaining work is:
 
@@ -40,11 +40,11 @@ This section records the state observed during the April 14, 2026 audit.
 
 These are no longer the main problem:
 
-- `cmd/vrooli` is thin by inspection:
+- `path:cmd/vrooli` is thin by inspection:
   - [cmd/vrooli/main.go](/home/matthalloran8/Vrooli/cmd/vrooli/main.go)
   - [cmd/vrooli/command_logging.go](/home/matthalloran8/Vrooli/cmd/vrooli/command_logging.go)
   - OS-specific process-attribute files
-- `internal/app/*` no longer imports `internal/cli/*`
+- `path:internal/app/*` no longer imports `path:internal/cli/*`
 - the root runner exists:
   - [internal/cli/rootcli/rootcli.go](/home/matthalloran8/Vrooli/internal/cli/rootcli/rootcli.go)
 - family metadata exists:
@@ -58,10 +58,10 @@ These are no longer the main problem:
 
 At audit time:
 
-- `cmd/vrooli` production code: `118` LOC
-- `cmd/vrooli` tests: `3,470` LOC
-- `internal/cli` production code: `8,673` LOC
-- `internal/cli` tests: `985` LOC
+- `path:cmd/vrooli` production code: `118` LOC
+- `path:cmd/vrooli` tests: `3,470` LOC
+- `path:internal/cli` production code: `8,673` LOC
+- `path:internal/cli` tests: `985` LOC
 
 Largest current internal CLI production hotspots:
 
@@ -117,8 +117,8 @@ Current help ownership is fragmented across:
 Examples:
 
 - [internal/cli/scenariocli/help.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/help.go)
-- historical `internal/cli/resourcecli/help.go` helper surface
-- historical `internal/cli/contractcli/help.go` helper surface
+- historical `path:internal/cli/resourcecli/help.go` helper surface
+- historical `path:internal/cli/contractcli/help.go` helper surface
 - [internal/cli/scenariocli/commands.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/commands.go)
 - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
 - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
@@ -188,15 +188,15 @@ The target state is explicitly “no legacy/compatibility/dead code.” That is 
 
 Runtime-path examples still present:
 
-- historical `internal/cli/scenariohandlers/external_runtime.go` bridge
+- historical `path:internal/cli/scenariohandlers/external_runtime.go` bridge
   - external CLI bridging for `requirements`, `ui-smoke`, and `completeness`
 - [internal/scenario/scenario.go](/home/matthalloran8/Vrooli/internal/scenario/scenario.go)
   - legacy dependency payload parsing still active
 - [internal/resources/env/resolver.go](/home/matthalloran8/Vrooli/internal/resources/env/resolver.go)
   - compatibility bridge behavior is still documented and likely still active
-- historical `internal/resources/driver_bridge.go` bridge
+- historical `path:internal/resources/driver_bridge.go` bridge
 - [internal/resources/manifest_aliases.go](/home/matthalloran8/Vrooli/internal/resources/manifest_aliases.go)
-- historical `internal/resources/catalog_aliases.go` aliases
+- historical `path:internal/resources/catalog_aliases.go` aliases
   - wrappers/aliases that need hard review for whether they are still justified or merely transitional
 
 Test/documentation compatibility residue also remains:
@@ -210,23 +210,23 @@ Those docs still describe compatibility fixture helpers even though the codebase
 
 Current imbalance:
 
-- `cmd/vrooli` tests: `3,470` LOC
-- `internal/cli` tests: `985` LOC
+- `path:cmd/vrooli` tests: `3,470` LOC
+- `path:internal/cli` tests: `985` LOC
 
 Problematic examples:
 
-- historical `cmd/vrooli/scenario_main_test.go` surface `1,448`
+- historical `path:cmd/vrooli/scenario_main_test.go` surface `1,448`
 
 Also, some high-value runtime packages currently have no tests:
 
-- `internal/cli/vroolicli`
-- `internal/cli/resourcehandlers`
-- `internal/cli/packagehandlers`
-- `internal/cli/contracthandlers`
+- `path:internal/cli/vroolicli`
+- `path:internal/cli/resourcehandlers`
+- `path:internal/cli/packagehandlers`
+- `path:internal/cli/contracthandlers`
 
 That is a warning sign. The command system’s composition logic is still under-tested at the layer where it now lives.
 
-### 2.8 `cmd/vrooli-api` is still thicker than the thin-binary standard
+### 2.8 `path:cmd/vrooli-api` is still thicker than the thin-binary standard
 
 [cmd/vrooli-api/main.go](/home/matthalloran8/Vrooli/cmd/vrooli-api/main.go) still contains:
 
@@ -235,7 +235,7 @@ That is a warning sign. The command system’s composition logic is still under-
 - many HTTP endpoint wrapper functions
 - startup policy
 
-This plan includes a dedicated phase for bringing `cmd/vrooli-api` to the same standard.
+This plan includes a dedicated phase for bringing `path:cmd/vrooli-api` to the same standard.
 
 ---
 
@@ -245,7 +245,7 @@ This is the real finish line.
 
 ### 3.1 Thin binaries stay thin
 
-`cmd/vrooli` and `cmd/vrooli-api` must be composition/bootstrap only.
+`path:cmd/vrooli` and `path:cmd/vrooli-api` must be composition/bootstrap only.
 
 Allowed:
 
@@ -328,7 +328,7 @@ There should be one reusable pipeline for:
 
 ### 3.6 App packages remain CLI-agnostic
 
-`internal/app/*` must not import `internal/cli/*`.
+`path:internal/app/*` must not import `path:internal/cli/*`.
 
 CLI packages translate to app DTOs. App packages own use-case DTOs and business behavior.
 
@@ -360,11 +360,11 @@ If a compatibility behavior is still genuinely required, it must be justified as
 
 Final testing shape:
 
-- parser/help/render tests in `internal/cli/*`
+- parser/help/render tests in `path:internal/cli/*`
 - command-family composition tests in handler/runtime packages
-- use-case tests in `internal/app/*`
+- use-case tests in `path:internal/app/*`
 - binary-package tests only for smoke/integration
-- shared fixture builders in `packages/testkit-go`
+- shared fixture builders in `path:packages/testkit-go`
 
 ---
 
@@ -419,8 +419,8 @@ Additional target constraints:
 
 Suggested size budgets after cleanup:
 
-- `internal/cli/rootcli/rootcli.go` under `350` LOC
-- `internal/cli/vroolicli/runtime.go` under `250` LOC
+- `path:internal/cli/rootcli/rootcli.go` under `350` LOC
+- `path:internal/cli/vroolicli/runtime.go` under `250` LOC
 - each handler package file under `300` LOC where feasible
 - family command metadata/parsing split so no single file needs to exceed roughly `300-400` LOC without strong reason
 
@@ -448,8 +448,8 @@ Must be addressed in:
 
 - [internal/cli/topcli/topcli.go](/home/matthalloran8/Vrooli/internal/cli/topcli/topcli.go)
 - [internal/cli/scenariocli/help.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/help.go)
-- historical `internal/cli/resourcecli/help.go` helper surface
-- historical `internal/cli/contractcli/help.go` helper surface
+- historical `path:internal/cli/resourcecli/help.go` helper surface
+- historical `path:internal/cli/contractcli/help.go` helper surface
 - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
 - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
 - [internal/cli/scenariocli/template_parsers.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/template_parsers.go)
@@ -464,7 +464,7 @@ Must be addressed in:
 - [internal/cli/resourcecli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/resourcecli/parsers.go)
 - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
 - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
-- `internal/cli/topcli/topcli.go`
+- `path:internal/cli/topcli/topcli.go`
 
 ### 5.4 Handler boilerplate and manual command-table assembly
 
@@ -481,12 +481,12 @@ Must be addressed in:
 
 Must be addressed in:
 
-- historical `internal/cli/scenariohandlers/external_runtime.go` bridge
+- historical `path:internal/cli/scenariohandlers/external_runtime.go` bridge
 - [internal/scenario/scenario.go](/home/matthalloran8/Vrooli/internal/scenario/scenario.go)
 - [internal/resources/env/resolver.go](/home/matthalloran8/Vrooli/internal/resources/env/resolver.go)
-- historical `internal/resources/driver_bridge.go` bridge
+- historical `path:internal/resources/driver_bridge.go` bridge
 - [internal/resources/manifest_aliases.go](/home/matthalloran8/Vrooli/internal/resources/manifest_aliases.go)
-- historical `internal/resources/catalog_aliases.go` aliases
+- historical `path:internal/resources/catalog_aliases.go` aliases
 
 ### 5.6 String and contract drift
 
@@ -501,11 +501,11 @@ Must be addressed in:
 
 Must be addressed in:
 
-- historical `cmd/vrooli/scenario_main_test.go`
-- historical `cmd/vrooli/app_core_main_test.go`
-- historical `cmd/vrooli/app_project_lifecycle_test.go`
+- historical `path:cmd/vrooli/scenario_main_test.go`
+- historical `path:cmd/vrooli/app_core_main_test.go`
+- historical `path:cmd/vrooli/app_project_lifecycle_test.go`
 - handler/runtime packages lacking direct tests
-- `packages/testkit-go` docs/helpers still describing compatibility-era usage
+- `path:packages/testkit-go` docs/helpers still describing compatibility-era usage
 
 ### 5.8 API binary still not thin enough
 
@@ -539,7 +539,7 @@ Bridges are allowed only as short-lived migration steps and must carry an explic
 
 ### 6.6 Tests should prove the architecture, not preserve old seams
 
-If a behavior can be tested at `internal/cli` or `internal/app`, it should not primarily live in `cmd/vrooli`.
+If a behavior can be tested at `path:internal/cli` or `path:internal/app`, it should not primarily live in `path:cmd/vrooli`.
 
 ### 6.7 Do not regress the thin binaries while consolidating internals
 
@@ -560,9 +560,9 @@ Objective:
 Checklist:
 
 - [x] Record the current line counts and internal CLI hotspots in this plan.
-- [x] Record the specific remaining duplication areas: command metadata, help, parsing, handlers, renderers, compatibility, tests, and `cmd/vrooli-api`.
+- [x] Record the specific remaining duplication areas: command metadata, help, parsing, handlers, renderers, compatibility, tests, and `path:cmd/vrooli-api`.
 - [x] Freeze the target end state around a declarative internal CLI model, not merely a thin `cmd/`.
-- [x] Remove or rewrite old checklist items that imply the main work is still inside `cmd/vrooli`.
+- [x] Remove or rewrite old checklist items that imply the main work is still inside `path:cmd/vrooli`.
 
 Validation:
 
@@ -574,7 +574,7 @@ Definition of done:
 
 Phase 1 completion note:
 
-- Completed on April 14, 2026 by re-auditing the post-migration repo, replacing the old `cmd/`-focused framing with a current-state baseline, recording the actual remaining architecture debt in `internal/cli/*`, adding the current LOC snapshot and hotspot files, and redefining the active work around declarative command definitions, shared parsing/help systems, compatibility deletion, and test-seam cleanup.
+- Completed on April 14, 2026 by re-auditing the post-migration repo, replacing the old `cmd/`-focused framing with a current-state baseline, recording the actual remaining architecture debt in `path:internal/cli/*`, adding the current LOC snapshot and hotspot files, and redefining the active work around declarative command definitions, shared parsing/help systems, compatibility deletion, and test-seam cleanup.
 - Validation for the re-baseline included direct inspection of the named runtime files plus a focused green test pass:
   - `go test ./cmd/vrooli ./internal/cli/... ./internal/app/... ./packages/testkit-go/...`
 
@@ -586,7 +586,7 @@ Objective:
 
 Checklist:
 
-- [x] Expand or redesign `internal/cli/commandtree` so command families can declare:
+- [x] Expand or redesign `path:internal/cli/commandtree` so command families can declare:
   - [x] summary metadata
   - [x] help configuration
   - [x] arg schema
@@ -613,7 +613,7 @@ Definition of done:
 
 Phase 2 completion note:
 
-- Completed on April 14, 2026 by making `internal/cli/commandtree` the authoritative spec-validation and spec-binding layer for command-family metadata.
+- Completed on April 14, 2026 by making `path:internal/cli/commandtree` the authoritative spec-validation and spec-binding layer for command-family metadata.
 - `commandtree.Spec` now carries the shared declarative contract for command metadata, help configuration, root policy, and an `ArgSchema` placeholder that future parsing phases can build on without redesigning the model again.
 - Added shared helpers in `commandtree` for:
   - `ValidateSpecs`
@@ -656,7 +656,7 @@ Checklist:
   - [x] `resourcecli`
   - [x] `contractcli`
   - [x] `scenariocli`
-  - [x] `topcli/info`
+  - [x] `path:topcli/info`
 - [x] Delete or shrink parser helpers that become redundant:
   - [x] `ParseNoArgs`
   - [x] `ParseSingleName`
@@ -686,7 +686,7 @@ Phase 3 completion note:
   - standard unknown-option, missing-value, and positional-arity errors through shared CLI policy
 - Added focused parser coverage in [internal/cli/commandtree/args_test.go](/home/matthalloran8/Vrooli/internal/cli/commandtree/args_test.go).
 - Migrated standard parser paths onto the shared model in:
-  - `internal/cli/topcli/topcli.go`
+  - `path:internal/cli/topcli/topcli.go`
   - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
   - [internal/cli/resourcecli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/resourcecli/parsers.go)
   - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
@@ -737,8 +737,8 @@ Definition of done:
 
 Phase 4 completion note:
 
-- Completed on April 14, 2026 by extending `internal/cli/commandtree` with richer declarative help metadata (`Options`, `Notes`) and shared rendering for option blocks and command-set help.
-- Root help in `internal/cli/topcli` now renders from declarative command metadata plus a shared global-option catalog instead of a bespoke handwritten option list.
+- Completed on April 14, 2026 by extending `path:internal/cli/commandtree` with richer declarative help metadata (`Options`, `Notes`) and shared rendering for option blocks and command-set help.
+- Root help in `path:internal/cli/topcli` now renders from declarative command metadata plus a shared global-option catalog instead of a bespoke handwritten option list.
 - Representative family and leaf help surfaces now use generated help text from command/arg specs, including:
   - `vrooli --help`
   - `vrooli scenario requirements --help`
@@ -761,16 +761,16 @@ Checklist:
   - [x] `contracthandlers`
   - [x] `vroolicli/runtime.go`
 - [x] Refactor handler packages so they primarily declare command-to-operation mappings instead of repeated closure boilerplate.
-- [x] Reduce `internal/cli/vroolicli/runtime.go` to wiring/composition:
+- [x] Reduce `path:internal/cli/vroolicli/runtime.go` to wiring/composition:
   - [x] keep handler-map assembly and service access localized to runtime composition
   - [x] remove duplicated help rendering from family adapters in favor of shared handling
   - [x] keep command execution on the shared parse/execute/render path
-- [x] Reduce `internal/cli/rootcli/rootcli.go` so it owns only root-runtime behavior plus the shared command binding helpers.
+- [x] Reduce `path:internal/cli/rootcli/rootcli.go` so it owns only root-runtime behavior plus the shared command binding helpers.
 - [x] Add direct tests for:
-  - [x] `internal/cli/vroolicli`
-  - [x] `internal/cli/resourcehandlers`
-  - [x] `internal/cli/packagehandlers`
-  - [x] `internal/cli/contracthandlers`
+  - [x] `path:internal/cli/vroolicli`
+  - [x] `path:internal/cli/resourcehandlers`
+  - [x] `path:internal/cli/packagehandlers`
+  - [x] `path:internal/cli/contracthandlers`
 
 Validation:
 
@@ -784,7 +784,7 @@ Phase 5 completion note:
 
 - Completed on April 14, 2026 by finishing the shared action/help path and eliminating the remaining family-local help rendering duplication.
 - `commandtree.HandleHelp` / `WriteHelp` now back the shared help-only flow, and `projectcli`, `contractcli`, and `vroolicli` now use that common path instead of open-coded help rendering branches.
-- Direct tests now exist for `vroolicli`, `resourcehandlers`, `packagehandlers`, and `contracthandlers`, so the composition seam is exercised below `cmd/vrooli`.
+- Direct tests now exist for `vroolicli`, `resourcehandlers`, `packagehandlers`, and `contracthandlers`, so the composition seam is exercised below `path:cmd/vrooli`.
 
 ## Phase 6: Unify strings, errors, and output contracts
 
@@ -814,8 +814,8 @@ Definition of done:
 Phase 6 completion note:
 
 - Completed on April 14, 2026 by centralizing more stable help and option text into declarative owners:
-  - shared option rendering and JSON-option declaration in `internal/cli/commandtree`
-  - root global option contracts in `internal/cli/topcli`
+  - shared option rendering and JSON-option declaration in `path:internal/cli/commandtree`
+  - root global option contracts in `path:internal/cli/topcli`
   - generated family/leaf help ownership in the family command packages instead of scattered raw strings
 - Remaining manual `Usage: ...` strings in runtime code were reduced to deliberate homes only; the current grep now points at `clipolicy`’s shared unknown-command/help-hint policy plus the known phase-7 transitional runtime surface.
 - Tests were updated to consume shared help-producing functions instead of stale literals where that improved drift resistance.
@@ -832,18 +832,18 @@ Checklist:
 
 - [x] Delete external CLI bridge behavior from the scenario family:
   - [x] replace `requirements` bridging with native in-repo implementation
-  - [x] replace `ui-smoke` bridging with intentionally-supported direct runtime surface owned under `internal/cli/scenariohandlers`
-  - [x] replace `completeness` bridging with intentionally-supported direct runtime surface owned under `internal/cli/scenariohandlers`
-  - [x] delete historical `internal/cli/scenariohandlers/external_runtime.go` if no longer needed
+  - [x] replace `ui-smoke` bridging with intentionally-supported direct runtime surface owned under `path:internal/cli/scenariohandlers`
+  - [x] replace `completeness` bridging with intentionally-supported direct runtime surface owned under `path:internal/cli/scenariohandlers`
+  - [x] delete historical `path:internal/cli/scenariohandlers/external_runtime.go` if no longer needed
 - [x] Remove legacy dependency parsing from [internal/scenario/scenario.go](/home/matthalloran8/Vrooli/internal/scenario/scenario.go) so one scenario dependency schema remains.
 - [x] Remove compatibility-bridge behavior from [internal/resources/env/resolver.go](/home/matthalloran8/Vrooli/internal/resources/env/resolver.go).
 - [x] Review and either justify or delete alias/bridge wrappers:
-  - [x] `internal/resources/driver_bridge.go`
-  - [x] `internal/resources/manifest_aliases.go`
-  - [x] `internal/resources/catalog_aliases.go`
+  - [x] `path:internal/resources/driver_bridge.go`
+  - [x] `path:internal/resources/manifest_aliases.go`
+  - [x] `path:internal/resources/catalog_aliases.go`
 - [x] Remove stale compatibility language and assumptions from:
-  - [x] `packages/testkit-go/README.md`
-  - [x] `packages/testkit-go/PLAN.md`
+  - [x] `path:packages/testkit-go/README.md`
+  - [x] `path:packages/testkit-go/PLAN.md`
 - [x] Search for remaining runtime compatibility residue and resolve it:
   - [x] `rg -n 'legacy|compat|shim|bridge|adapter' internal cmd packages/testkit-go --glob '!**/*_test.go'`
 - [x] For any remaining hits, classify them as:
@@ -863,8 +863,8 @@ Definition of done:
 
 Phase 7 completion note:
 
-- Completed on April 14, 2026 by deleting the old scenario external runtime bridge, removing legacy dependency parsing from `internal/scenario`, deleting the transitional resource alias/bridge files, and cleaning the remaining compatibility-era language out of `packages/testkit-go`.
-- The current compatibility residue search over `internal/cli`, `internal/app`, `internal/scenario`, `internal/resources`, `cmd/vrooli`, and `packages/testkit-go` returns no runtime hits for `legacy|compat|shim|bridge|adapter` in non-test Go code.
+- Completed on April 14, 2026 by deleting the old scenario external runtime bridge, removing legacy dependency parsing from `path:internal/scenario`, deleting the transitional resource alias/bridge files, and cleaning the remaining compatibility-era language out of `path:packages/testkit-go`.
+- The current compatibility residue search over `path:internal/cli`, `path:internal/app`, `path:internal/scenario`, `path:internal/resources`, `path:cmd/vrooli`, and `path:packages/testkit-go` returns no runtime hits for `legacy|compat|shim|bridge|adapter` in non-test Go code.
 
 ## Phase 8: Rebuild the test architecture around the final seams
 
@@ -874,12 +874,12 @@ Objective:
 
 Checklist:
 
-- [x] Move parser/help/render coverage below `cmd/vrooli` wherever still misplaced.
+- [x] Move parser/help/render coverage below `path:cmd/vrooli` wherever still misplaced.
 - [x] Add composition tests for handler/runtime packages that currently have no tests.
-- [x] Shrink `cmd/vrooli` tests to true smoke/integration coverage.
-- [x] Break up or reduce historical `cmd/vrooli/scenario_main_test.go` coverage by migrating lower-layer checks to internal packages.
+- [x] Shrink `path:cmd/vrooli` tests to true smoke/integration coverage.
+- [x] Break up or reduce historical `path:cmd/vrooli/scenario_main_test.go` coverage by migrating lower-layer checks to internal packages.
 - [x] Add exact-output/generated-help regression tests for representative help surfaces.
-- [x] Promote any repeated repo fixture builders into `packages/testkit-go` or `packages/testkit-go/vrooli`.
+- [x] Promote any repeated repo fixture builders into `path:packages/testkit-go` or `path:packages/testkit-go/vrooli`.
 - [x] Remove raw fixture duplication when shared builders are appropriate.
 - [x] Ensure tests assert shared constants/contracts where practical.
 
@@ -897,19 +897,19 @@ Definition of done:
 
 Phase 8 completion note:
 
-- Completed on April 14, 2026 by moving parser, render, template, runtime-helper, and log-helper tests from `cmd/vrooli` into the owning packages under `internal/cli/*`, `internal/scenarioexec`, and `internal/cli/vroolicli`.
+- Completed on April 14, 2026 by moving parser, render, template, runtime-helper, and log-helper tests from `path:cmd/vrooli` into the owning packages under `path:internal/cli/*`, `path:internal/scenarioexec`, and `path:internal/cli/vroolicli`.
 - New direct tests now cover:
-  - `internal/cli/vroolicli`
-  - `internal/cli/scenariohandlers` log/tool helpers
-  - `internal/cli/scenariocli` parser/render/template helpers
-  - `internal/cli/topcli` info/help helpers
-  - `internal/cli/rootcli` shared flag/exit-code helpers
-- `cmd/vrooli` test LOC dropped from `3,611` to `2,947`.
-- `internal/cli` test LOC increased from `985` to `2,075`.
+  - `path:internal/cli/vroolicli`
+  - `path:internal/cli/scenariohandlers` log/tool helpers
+  - `path:internal/cli/scenariocli` parser/render/template helpers
+  - `path:internal/cli/topcli` info/help helpers
+  - `path:internal/cli/rootcli` shared flag/exit-code helpers
+- `path:cmd/vrooli` test LOC dropped from `3,611` to `2,947`.
+- `path:internal/cli` test LOC increased from `985` to `2,075`.
 - The focused validation suite is green after the seam shift:
   - `go test ./cmd/vrooli ./internal/cli/... ./internal/app/... ./internal/scenarioexec ./packages/testkit-go/...`
 
-## Phase 9: Thin `cmd/vrooli-api` to the same standard
+## Phase 9: Thin `path:cmd/vrooli-api` to the same standard
 
 Objective:
 
@@ -917,15 +917,15 @@ Objective:
 
 Checklist:
 
-- [x] Move API app construction and runtime wiring out of `cmd/vrooli-api/main.go` where possible.
-- [x] Move endpoint wrapper fan-out out of `cmd/vrooli-api/main.go`.
+- [x] Move API app construction and runtime wiring out of `path:cmd/vrooli-api/main.go` where possible.
+- [x] Move endpoint wrapper fan-out out of `path:cmd/vrooli-api/main.go`.
 - [x] Keep only bootstrap/startup logic in the binary.
-- [x] Add or move tests so API composition is validated below `cmd/vrooli-api` where possible.
+- [x] Add or move tests so API composition is validated below `path:cmd/vrooli-api` where possible.
 
 Validation:
 
 - [x] `go test ./cmd/vrooli-api ./internal/api`
-- [x] Inspect `cmd/vrooli-api/main.go` and confirm it is bootstrap-only by the same standard as `cmd/vrooli`.
+- [x] Inspect `path:cmd/vrooli-api/main.go` and confirm it is bootstrap-only by the same standard as `path:cmd/vrooli`.
 
 Definition of done:
 
@@ -933,10 +933,10 @@ Definition of done:
 
 Phase 9 completion note:
 
-- Completed on April 14, 2026 by moving API bootstrap/runtime assembly into `internal/api/runtime.go`, deleting the endpoint wrapper fan-out from `cmd/vrooli-api/main.go`, and reducing the binary entrypoint to startup-only concerns plus strict fingerprint enforcement.
-- `cmd/vrooli-api/main.go` is now `77` LOC and contains no route wrappers, repo-root helpers, or app-construction plumbing.
-- API runtime coverage now lives below the binary in `internal/api/runtime_test.go`, which exercises repo-root resolution, configured app construction, health-check support, and router integration.
-- Binary-package tests were reduced to the remaining startup-only behavior in `cmd/vrooli-api/main_test.go` (`installAPILogger` and strict fingerprint checks).
+- Completed on April 14, 2026 by moving API bootstrap/runtime assembly into `path:internal/api/runtime.go`, deleting the endpoint wrapper fan-out from `path:cmd/vrooli-api/main.go`, and reducing the binary entrypoint to startup-only concerns plus strict fingerprint enforcement.
+- `path:cmd/vrooli-api/main.go` is now `77` LOC and contains no route wrappers, repo-root helpers, or app-construction plumbing.
+- API runtime coverage now lives below the binary in `path:internal/api/runtime_test.go`, which exercises repo-root resolution, configured app construction, health-check support, and router integration.
+- Binary-package tests were reduced to the remaining startup-only behavior in `path:cmd/vrooli-api/main_test.go` (`installAPILogger` and strict fingerprint checks).
 - Validation completed with:
   - `go test ./cmd/vrooli-api ./internal/api`
   - `go test ./cmd/vrooli ./internal/cli/... ./internal/app/... ./internal/scenarioexec ./packages/testkit-go/...`
@@ -949,8 +949,8 @@ Objective:
 
 Checklist:
 
-- [ ] Review `cmd/vrooli` production files and confirm they are still bootstrap-only.
-- [ ] Review `cmd/vrooli-api` production files and confirm they are bootstrap-only.
+- [ ] Review `path:cmd/vrooli` production files and confirm they are still bootstrap-only.
+- [ ] Review `path:cmd/vrooli-api` production files and confirm they are bootstrap-only.
 - [ ] Review the largest internal CLI files and confirm they were materially reduced or split appropriately.
 - [ ] Delete stale wrapper helpers, alias files, and transitional utilities that became unnecessary during the refactor.
 - [ ] Update this plan with actual completion notes only after the full validation matrix is green.
@@ -974,7 +974,7 @@ These are explicit deletion or hard-justification targets.
 
 ### 8.1 Compatibility and transitional runtime files
 
-- [ ] historical `internal/cli/scenariohandlers/external_runtime.go`
+- [ ] historical `path:internal/cli/scenariohandlers/external_runtime.go`
   Default expectation: delete after replacing the behavior natively.
 
 ### 8.2 Runtime compatibility branches and legacy parsing
@@ -984,9 +984,9 @@ These are explicit deletion or hard-justification targets.
 
 ### 8.3 Alias/bridge wrappers requiring hard justification or deletion
 
-- [ ] historical `internal/resources/driver_bridge.go`
+- [ ] historical `path:internal/resources/driver_bridge.go`
 - [ ] [internal/resources/manifest_aliases.go](/home/matthalloran8/Vrooli/internal/resources/manifest_aliases.go)
-- [ ] historical `internal/resources/catalog_aliases.go`
+- [ ] historical `path:internal/resources/catalog_aliases.go`
 
 ### 8.4 Obsolete compatibility-era docs/testkit language
 
@@ -1032,18 +1032,18 @@ This matrix is required for completion.
 
 ### 9.4 Architectural validation
 
-- [ ] `cmd/vrooli` is bootstrap-only by inspection.
-- [ ] `cmd/vrooli-api` is bootstrap-only by inspection.
-- [ ] No runtime `internal/app/*` package imports `internal/cli/*`.
+- [ ] `path:cmd/vrooli` is bootstrap-only by inspection.
+- [ ] `path:cmd/vrooli-api` is bootstrap-only by inspection.
+- [ ] No runtime `path:internal/app/*` package imports `path:internal/cli/*`.
 - [ ] No compatibility/transitional runtime path remains in the CLI/runtime architecture.
-- [ ] Shared fixtures come from `packages/testkit-go` when repetition justifies it.
+- [ ] Shared fixtures come from `path:packages/testkit-go` when repetition justifies it.
 
 ### 9.5 Size and seam validation
 
-- [ ] `cmd/vrooli` production LOC remains roughly at or below the current `118` LOC baseline.
-- [ ] `cmd/vrooli` tests are materially smaller than the current `3,470` LOC baseline.
-- [ ] `internal/cli` tests are materially larger than the current `985` LOC baseline.
-- [ ] `internal/cli/rootcli/rootcli.go` and `internal/cli/vroolicli/runtime.go` are materially smaller than today.
+- [ ] `path:cmd/vrooli` production LOC remains roughly at or below the current `118` LOC baseline.
+- [ ] `path:cmd/vrooli` tests are materially smaller than the current `3,470` LOC baseline.
+- [ ] `path:internal/cli` tests are materially larger than the current `985` LOC baseline.
+- [ ] `path:internal/cli/rootcli/rootcli.go` and `path:internal/cli/vroolicli/runtime.go` are materially smaller than today.
 - [ ] No handler package file remains a giant command map without strong justification.
 
 ### 9.6 Optional higher-level validation
@@ -1058,19 +1058,19 @@ If any validation remains blocked, that blocker must be fixed or explicitly docu
 
 This effort is complete only when all of the following are true:
 
-- [ ] `cmd/vrooli` is still thin and bootstrap-only.
-- [ ] `cmd/vrooli-api` is also bootstrap-only.
+- [ ] `path:cmd/vrooli` is still thin and bootstrap-only.
+- [ ] `path:cmd/vrooli-api` is also bootstrap-only.
 - [ ] The internal CLI stack uses one declarative command-definition model.
 - [ ] Standard help is generated programmatically from command metadata and arg specs.
 - [ ] Standard parsing uses shared declarative parser primitives instead of repeated switch loops.
 - [ ] Handler/runtime binding is materially consolidated and no longer duplicated across families.
-- [ ] `internal/app/*` remains CLI-agnostic.
+- [ ] `path:internal/app/*` remains CLI-agnostic.
 - [ ] Stable help/error/output/path contracts are declared once and reused.
 - [ ] No compatibility/transitional runtime path remains.
 - [ ] No dead alias/shim/wrapper files remain without explicit current justification.
 - [ ] Binary-package tests are smoke-oriented.
 - [ ] Handler/runtime packages have direct tests.
-- [ ] Shared fixture patterns are provided by `packages/testkit-go`.
+- [ ] Shared fixture patterns are provided by `path:packages/testkit-go`.
 - [ ] `go test ./...` is green.
 - [ ] The validation matrix above is green.
 

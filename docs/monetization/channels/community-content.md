@@ -60,4 +60,4 @@ The channel is partially active in practice (some blog content exists, some soci
 ## Notes
 
 - This channel deliberately does NOT include cold-outreach for services revenue lines (`lead-generation`, `app-development`). Outreach for services has its own discipline scoped to qualified prospects, captured inside the relevant revenue-line files.
-- The marketing-crew operational ownership pattern is fully described in [`docs/marketing/`](../../marketing/). This channel doc is the high-altitude lens; do not duplicate per-post or per-platform rules here.
+- The marketing-crew operational ownership pattern is fully described in [`path:docs/marketing/`](../../marketing/). This channel doc is the high-altitude lens; do not duplicate per-post or per-platform rules here.

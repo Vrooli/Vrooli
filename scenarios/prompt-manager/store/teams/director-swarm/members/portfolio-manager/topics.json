@@ -1,7 +1,21 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "decision-application/<decision-id>"
+    },
+    {
+      "prefix": "initiative-portfolio-record/YYYY-MM-DD"
+    }
+  ],
   "output": [
-    { "prefix": "initiative-portfolio-record/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "initiative-portfolio-record/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "decision-application/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "initiative-portfolio",
@@ -9,7 +23,13 @@
     "initiative-proposal",
     "initiative-readiness"
   ],
-  "decisions_consumed": ["capability-gap", "vision-update", "outcome-direction"],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator", "vision-walk"]
+  "decisions_consumed": [
+    "capability-gap",
+    "vision-update",
+    "outcome-direction"
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
 }

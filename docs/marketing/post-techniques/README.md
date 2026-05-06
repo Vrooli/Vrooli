@@ -26,7 +26,7 @@ This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.m
 
 ## Write rules
 
-Same as the rest of `docs/marketing/`: agents never write directly; operator-curated via approved decisions. Use `brand-guideline-update` for edits unless the technique is platform-specific.
+Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions. Use `brand-guideline-update` for edits unless the technique is platform-specific.
 
 ## Cross-references
 

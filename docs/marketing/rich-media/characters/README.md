@@ -55,4 +55,4 @@ Storing the composite at `<slug>.character-sheet.png` lets the prompt template r
 
 - [`../../strategies/ai-ugc-personas.md`](../../strategies/ai-ugc-personas.md) — persona-actor discipline; characters are the visual substrate for personas.
 - [`../templates/image-prompt.template.json`](../templates/image-prompt.template.json), [`../templates/video-prompt.template.json`](../templates/video-prompt.template.json) — prompt templates that consume character entries.
-- [`marketing-crew/shared/personas/<slug>/`](../../../scenarios/prompt-manager/store/teams/marketing-crew/shared/) — per-persona profile / accounts / slate / link-in-bio (folder created on persona activation).
+- [`path[future]:scenarios/prompt-manager/store/teams/marketing-crew/shared/personas/<slug>/`](../../../scenarios/prompt-manager/store/teams/marketing-crew/shared/) — per-persona profile / accounts / slate / link-in-bio (folder created on persona activation).

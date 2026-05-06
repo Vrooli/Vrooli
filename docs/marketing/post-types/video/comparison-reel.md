@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-comparison-reel` *(planned)*
-**Primary author:** `subscription-advertiser` (subscription bundles), `oss-advertiser` (OSS framework)
+**Primary lane/member:** Subscription lane (`subscription-advertiser`) for subscription bundles; OSS lane (`oss-advertiser`) for OSS framework comparisons.
 **Notebook home for emerging craft patterns:** `../../notebook/COMPARISON_REEL_CRAFT.md` (created on first observation)
 
 ## Purpose

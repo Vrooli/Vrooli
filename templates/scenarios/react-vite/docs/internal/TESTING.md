@@ -39,7 +39,7 @@ shipping.
 api/
 ├── internal/
 │   ├── clock/clock.go            # Clock interface + clock.System
-│   ├── store/store.go            # Pinger interface
+│   ├── database/pinger.go        # Pinger interface
 │   ├── middleware/logging.go     # Uses clock.Clock — no time.Now()
 │   ├── server/                   # Server wires Pinger + Clock + Logger
 │   └── testutil/
@@ -51,7 +51,7 @@ api/
 │       ├── no_prod_import_test.go  # AST guardrail (see below)
 │       └── testutil.go           # Package contract
 └── handlers/health/
-    ├── handler.go                # Production handler
+    ├── handler.go                # Production REST handler
     └── handler_test.go           # Canonical test
 ```
 
@@ -76,12 +76,11 @@ api/
    in microseconds; the cost of the bug class it catches is measured
    in incidents.
 4. **`assertx`** — `AssertStatus(t, resp, want)` for status code
-   checks (dumps body on mismatch); `MustUnmarshalProto[T proto.Message]
-   (t, body) *T` for proto-typed JSON decoding (use this whenever the
+   checks (dumps body on mismatch); `MustUnmarshalProto` for proto-typed JSON
+   decoding (use this whenever the
    endpoint's wire shape lives in `packages/proto/schemas/`);
-   `MustDecodeJSON[T any](t, body) T` for ad-hoc JSON when no proto
-   exists yet. Resist over-generalising; add helpers when the third
-   caller appears.
+   `MustDecodeJSON` for ad-hoc JSON when no proto exists yet. Resist
+   over-generalising; add helpers when the third caller appears.
 5. **Generated proto types** — every endpoint's wire shape lives in
    `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<file>.proto`.
    Tests import the generated Go type directly
@@ -156,21 +155,23 @@ time. The pattern from wire to render:
 
 | Layer | File | What it owns |
 |---|---|---|
-| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteResponse` |
-| Error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | One typed body for every non-2xx path, with canonical codes (`invalid_request`, `not_found`, `internal`) |
-| Request decode | `internal/httpx/decode.go::DecodeJSON[T]` | Strict input by default — `DisallowUnknownFields` rejects payloads carrying fields the schema hasn't caught up to |
-| Domain types | `internal/notes/types.go::{Note, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels (`ErrInvalidNote` for validation, `ErrNoteNotFound` for misses) translate into 400/404 envelopes at the handler edge |
+| Wire contract | `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
+| REST metadata contract | `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
+| Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
+| REST error envelope | `packages/proto/schemas/{{SCENARIO_ID}}/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
 | Schema | `internal/notes/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `apidb.EnsureSchemas` |
 | Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `apidb.EnsureSchemas(ctx, d, ...providers...)` over system + notes (the canonical compose pattern) |
 | Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
 | Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
-| Handler test | `handlers/notes/handler_test.go` | Substitutes `mocks.FakeService` (from co-located `internal/notes/mocks/`) and exercises the full transport edge through `httpx.NewLiveServer` |
+| Connect handler test | `handlers/notes/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
+| Multipart handler test | `handlers/notes/attachments_handler_test.go` | Uses `blobstore.MemoryBlobStore` plus test metadata repositories to exercise file-upload success and error paths |
 | Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/lib/notes.ts` | `listNotes` / `createNote` / `getNote`; non-2xx surfaces as `ApiError` carrying the typed envelope `code` |
-| UI tests | `ui/src/lib/notes.test.ts` + the `App Notes pane` block in `App.test.tsx` | `vi.stubGlobal("fetch", ...)` for the unit tests; `vi.mock("./lib/notes", ...)` for the component test |
-| CLI client | `cli/domains/notes/{register,handlers}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers render via `cliapp.RenderListReport` / `RenderMutationReport` |
+| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(NotesService, transport)` plus `uploadAttachment` for multipart metadata |
+| UI tests | `ui/src/api/notes.test.ts` + component tests | Mock generated client methods and `uploadAttachment`; REST helper tests stub `global.fetch` |
+| CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
 | CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
 
 #### Compose pattern: schema-applied repository test
@@ -220,7 +221,7 @@ HTTP → handler → Service (validates, applies defaults) → Repository (persi
 - Pin error propagation (`Get` returns `ErrNoteNotFound` verbatim;
   `Create` returns repository errors verbatim).
 
-Handler tests then substitute `mocks.FakeService` — they don't seed
+Connect handler tests then substitute `mocks.FakeService` — they don't seed
 sqlite-shaped state to assert on routing. Two-mock split keeps each
 layer's tests focused on what that layer owns.
 
@@ -228,7 +229,15 @@ layer's tests focused on what that layer owns.
 
 The production `*log.Logger` shouldn't write to stderr during tests —
 it pollutes the runner's output and makes failure messages harder to
-read. The canonical substitution is a `bytes.Buffer`-backed logger:
+read. Connect handler tests should use the shared helper:
+
+```go
+logger, logBuf := connectxtest.NewLogger(t)
+client := newNotesClient(t, fakeService, logger)
+```
+
+For scenario-local helpers that do not consume `api-core/connectx`, the same
+shape is a `bytes.Buffer`-backed logger:
 
 ```go
 logBuf := &bytes.Buffer{}
@@ -241,7 +250,7 @@ srv := server.New(server.Deps{
 Discard-only sinks (`log.New(io.Discard, "", 0)`) work for tests that
 don't need to inspect log output; reach for the buffer when the test
 asserts on what was logged (e.g., the 500-path test in
-`handlers/notes/handler_test.go::TestNotesHandler_GetInternalError`
+`handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
 checks the underlying error reaches operator logs).
 
 ### Testing context cancellation
@@ -358,7 +367,7 @@ Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
    add new factories alongside it as new shapes appear. Defaults
    should make the most common test path `make<Domain>()` with no
    args.
-3. **Inline `vi.mock("./lib/api", async (importOriginal) => …)`** —
+3. **Inline `vi.mock("./api/health", async (importOriginal) => …)`** —
    the canonical mocking shape. **Do not** wrap this in a helper
    function. Vitest hoists `vi.mock(...)` calls before any imports
    resolve; a wrapper function imported from `test-utils` would be in
@@ -375,8 +384,8 @@ import userEvent from "@testing-library/user-event";
 
 import { makeHealthResponse, renderWithProviders } from "./test-utils";
 
-vi.mock("./lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/api")>();
+vi.mock("./api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/health")>();
   return {
     ...actual,
     fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
@@ -417,7 +426,7 @@ update when canonical English copy changes — that's what they verify.
 See `App.test.tsx` for the full pattern and the CLDR plural variants
 (`refreshCount_one`, `notifications.summary_zero` / `_one` / base).
 
-### Mock builders for `lib/api` and `lib/notes`
+### Mock builders for `api/health` and `api/notes`
 
 `vi.mock(path, factory)` is hoisted before any user import resolves;
 a wrapper imported from `test-utils` would be in the temporal dead
@@ -432,26 +441,26 @@ exactly this. Canonical shape:
 ```tsx
 import { makeApiMocks, makeNotesMocks } from "@/test-utils";
 
-vi.mock("./lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/api")>();
+vi.mock("./api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
 
-vi.mock("./lib/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./lib/notes")>();
+vi.mock("./api/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/notes")>();
   return { ...actual, ...makeNotesMocks() };
 });
 ```
 
 Defaults are picked so the most common test paths work no-args:
 `makeApiMocks().fetchHealth` resolves to a healthy response;
-`makeNotesMocks().listNotes` resolves to an empty list;
-`createNote({ title })` echoes the title back as a Note. Per-test
-overrides use vitest's standard pattern *after* the mock is wired:
+`makeNotesMocks().notesClient.listNotes` resolves to an empty list;
+`notesClient.createNote({ title })` echoes the title back as a Note.
+Per-test overrides use vitest's standard pattern *after* the mock is wired:
 
 ```tsx
-const { listNotes } = await import("./lib/notes");
-vi.mocked(listNotes).mockResolvedValueOnce(
+const { notesClient } = await import("./api/notes");
+vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
   makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
 );
 ```
@@ -598,10 +607,10 @@ Why each piece:
 2. **Real httptest.Server**, not a Recorder. Same reasoning as the API
    side: Recorder fakes `Flusher`/`Hijacker`; a real socket catches
    SSE/streaming bugs that have shipped before.
-3. **`CaptureStdout`** captures the human output that
-   `cli-core.RenderOperationalReport` / `RenderListReport` /
-   `RenderMutationReport` write. Use it instead of `--json` when you
-   want to assert on the contract scenario users actually see.
+3. **`CaptureStdout`** captures the human output written by
+   `RenderProtoList`, `RenderProtoMutation`, or the `RunContext`
+   report helpers. Use it instead of `--json` when you want to assert
+   on the contract scenario users actually see.
 4. **`go test -race`** is enforced by CI (`.github/workflows/test.yml`).
    `CaptureStdout` swaps `os.Stdout` and the test server runs in a
    separate goroutine; race coverage keeps both honest.
@@ -630,13 +639,14 @@ provably can't see it. If the test fires:
 
 ## How to add a new proto
 
-Wire shapes for new endpoints belong in `packages/proto/schemas/{{SCENARIO_ID}}/`,
-not in hand-written Go structs or TS interfaces. The `health.proto`
-shipped with this scenario is the canonical example.
+Wire shapes for new endpoints belong in proto, not in hand-written Go
+structs or TS interfaces. After generation, the canonical source lives
+under `packages/proto/schemas/{{SCENARIO_ID}}/`.
 
 Steps:
 
-1. **Author the schema.** Add `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<name>.proto`.
+1. **Author the schema.** In a generated scenario, add
+   `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<name>.proto`.
    Use snake_case in the proto package directive
    (`package vrooli.{{SCENARIO_ID_SNAKE}}.v1.<domain>;`) and add a
    `go_package` option pointing at the per-scenario gen path:
@@ -651,7 +661,10 @@ Steps:
    cd packages/proto && make generate && make lint
    ```
 
-   New artifacts land at `packages/proto/gen/{go,typescript,python}/{{SCENARIO_ID}}/v1/<domain>/`.
+   New artifacts land under the language-specific generated trees:
+   `packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>/`,
+   `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/<domain>/`, and
+   `packages/proto/gen/python/{{SCENARIO_ID_SNAKE}}/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.
 
@@ -687,9 +700,10 @@ Steps:
    const fixture = create(ListResponseSchema, { items: [{ id: "n-1" }] });
    ```
 
-5. **Tests follow.** Handler test uses `MustUnmarshalProto`; fixture
-   test asserts on the typed shape via `proto.Equal`. UI test mocks
-   `lib/api` and returns `makeListResponse()` from the factory.
+5. **Tests follow.** Connect handler tests call the generated client;
+   fixture tests assert on the typed shape via `proto.Equal`. UI tests
+   mock `api/notes` and return generated response objects from the
+   factory.
 
 Don't add a new `mocks/Fake*` interface for the proto type — the proto
 isn't a seam, it's a contract. Seams are interfaces; protos are
@@ -781,7 +795,7 @@ lower the gate.
 | `mocks.FakeClock` for time-dependent assertions | `time.Sleep(150 * time.Millisecond)` then assert on a fuzzy match |
 | `httpx.NewLiveServer` for handler tests | `httptest.NewRecorder` (hides SSE-flusher bugs) |
 | `getByTestId(selectors.x.y)` for stable selectors | `getByText("Save")` (breaks the moment copy changes) |
-| `vi.mock("./lib/api", async (importOriginal) => …)` inline at top of file | Helper-wrapped `vi.mock` (TDZ at hoist time) |
+| `vi.mock("./api/health", async (importOriginal) => …)` inline at top of file | Helper-wrapped `vi.mock` (TDZ at hoist time) |
 | `makeHealthResponse({ status: "degraded" })` for variants | Hardcoded literal payload in three different tests |
 | Per-method error knob (`PingErr error`) on fakes | Single global "fail mode" boolean across the fake |
 | `var _ Pinger = (*sql.DB)(nil)` to lock the contract at compile time | Runtime "does this satisfy" check in init |

@@ -12,8 +12,8 @@ import userEvent from "@testing-library/user-event";
 
 import { interp, makeApiMocks, renderWithProviders } from "../../test-utils";
 
-vi.mock("../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/api")>();
+vi.mock("../../api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
 

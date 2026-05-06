@@ -12,7 +12,6 @@ import (
 // constraint that SIGWINCH-by-SetSize only fires via
 // `maybeSIGWINCHRecovery` or the public `Resize` method. Any other
 // call site on these files is a regression (see
-// docs/plans/terminal-session-refactor-implementation-plan.md §10.4).
 // Checks both session.go (Resize) and broadcast.go
 // (maybeSIGWINCHRecovery) since the method was moved there in the
 // decomposition phase.

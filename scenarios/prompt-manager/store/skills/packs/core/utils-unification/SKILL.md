@@ -115,10 +115,15 @@ core    X-> app code
 
 | Utility type | Preferred location | Notes |
 |--------------|--------------------|------|
-| Hooks (`useX`) | `shared/hooks/` or `framework/react/` | Hooks are utilities; keep them discoverable and stable |
-| JSX helpers | `shared/components/` | If it returns JSX, treat it as a component |
-| Classname helpers | `shared/core/` | Keep pure string logic out of React code |
-| Data adapters | `shared/domain/` | Transform API data to UI-ready shapes |
+| Hooks (`useX`) | `path:shared/hooks/` or `literal:framework/react/` | Hooks are utilities; keep them discoverable and stable |
+| JSX helpers | `path:shared/components/` | If it returns JSX, treat it as a component |
+| Classname helpers | `path:shared/core/` | Keep pure string logic out of React code |
+| Data adapters | `path:shared/domain/` | Transform API data to UI-ready shapes |
+
+Connect transport factories are framework utilities and should live in
+`path:shared/framework/` or the app's API boundary substrate. Thin RPC client
+wrappers that speak domain language may live in `path:shared/domain/`, but avoid
+wrapping generated clients unless the wrapper removes real duplication.
 
 ---
 
@@ -288,3 +293,5 @@ You **must**:
 * Ensure new utilities are testable and have seams
 
 **Avoid superficial changes** that only rename files or move code without real consolidation.
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

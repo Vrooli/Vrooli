@@ -3,8 +3,7 @@
     {
       "prefix": "validation-inbox/*",
       "taxonomy": "monetization-validation",
-      "classifier_skill": "market-validation-triage",
-      "source_team": null
+      "classifier_skill": "market-validation-triage"
     },
     {
       "prefix": "monetization-benchmark-adjacent-record/*",
@@ -13,15 +12,53 @@
       "source_team": "marketing-crew"
     }
   ],
+  "required_read": [
+    {
+      "prefix": "monetization/market-scan/<slug>"
+    }
+  ],
+  "evidence_consumed": [
+    {
+      "prefix": "challenge-report/*",
+      "for_decisions": [
+        "pricing-decision",
+        "financial-model-assumption-update",
+        "benchmark-update"
+      ]
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "for_decisions": [
+        "pricing-decision",
+        "financial-model-assumption-update",
+        "benchmark-update"
+      ]
+    }
+  ],
   "output": [
-    { "prefix": "monetization-benchmark-record/*", "destination_kind": "knowledge", "destination_team": null, "schema": "market-scan" }
+    {
+      "prefix": "monetization-benchmark-record/*",
+      "destination_kind": "knowledge",
+      "schema": "market-scan"
+    },
+    {
+      "prefix": "monetization/market-scan/*",
+      "destination_kind": "knowledge",
+      "schema": "market-scan"
+    }
   ],
   "decisions_owned": [
     "benchmark-update",
     "pricing-decision",
     "financial-model-assumption-update"
   ],
-  "decisions_consumed": ["capability-gap"],
+  "decisions_consumed": [
+    "capability-gap"
+  ],
   "raises_capability_gaps": true,
-  "external_producers": ["operator", "vision-walk", "bookmark-intelligence-hub"]
+  "external_producers": [
+    "operator",
+    "vision-walk",
+    "bookmark-intelligence-hub"
+  ]
 }

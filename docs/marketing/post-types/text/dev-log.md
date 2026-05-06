@@ -3,7 +3,7 @@
 **Status:** Extracted from `STRATEGY.md`'s Content-type principles + Dev-log narrative principles on 2026-04-28 (walk #5 divergence #3, Action B). Original Dev-log narrative principles added 2026-04-27 via accepted framework-update `dec-1777300532504756717`.
 
 **Paired skill:** [`x-dev-log`](../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/)
-**Primary author:** `oss-advertiser`
+**Primary lane/member:** OSS lane (`oss-advertiser`)
 **Notebook home for emerging craft patterns:** [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../notebook/DEV_LOG_CRAFT.md) — already populated; promotion target is `x-dev-log` skill edits.
 
 ## Purpose

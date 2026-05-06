@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
 	"github.com/vrooli/vrooli/internal/tools/protoc"
+	protocgenconnectgo "github.com/vrooli/vrooli/internal/tools/protoc-gen-connect-go"
 	protocgenes "github.com/vrooli/vrooli/internal/tools/protoc-gen-es"
 	protocgengo "github.com/vrooli/vrooli/internal/tools/protoc-gen-go"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
@@ -33,13 +34,14 @@ import (
 // under internal/tools/. The invariant is enforced by
 // TestToolManifestsReferenceRegisteredHandlers.
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
-	"buf":           buf.NewHandler,
-	"cloudflared":   cloudflared.NewHandler,
-	"protoc":        protoc.NewHandler,
-	"protoc_gen_es": protocgenes.NewHandler,
-	"protoc_gen_go": protocgengo.NewHandler,
-	"stripe":        stripe.NewHandler,
-	"vault":         vault.NewHandler,
+	"buf":                   buf.NewHandler,
+	"cloudflared":           cloudflared.NewHandler,
+	"protoc":                protoc.NewHandler,
+	"protoc_gen_connect_go": protocgenconnectgo.NewHandler,
+	"protoc_gen_es":         protocgenes.NewHandler,
+	"protoc_gen_go":         protocgengo.NewHandler,
+	"stripe":                stripe.NewHandler,
+	"vault":                 vault.NewHandler,
 }
 
 // customSafeguardHandlers must stay in sync with every safeguard.json

@@ -1,6 +1,6 @@
 # Platform Scope
 
-Session constraints for work on shared platform code (for example `packages/*`, shared templates, shared contracts). These boundaries keep changes brownfield-safe and compatible with downstream scenarios.
+Session constraints for work on shared platform code (for example `path:packages/*`, shared templates, shared contracts). These boundaries keep changes brownfield-safe and compatible with downstream scenarios.
 
 ## Session Boundaries
 

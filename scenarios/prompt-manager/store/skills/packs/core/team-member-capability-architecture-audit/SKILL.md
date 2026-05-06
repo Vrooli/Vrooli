@@ -75,7 +75,7 @@ For each layer, classify:
 | `1 weak` | Present but vague, stale, or implicit |
 | `2 adequate` | Good enough for current usage |
 | `3 strong` | Clear, reusable, and easy to optimize |
-| `n/a` | Not relevant for this member |
+| `literal:n/a` | Not relevant for this member |
 
 Do not penalize simple members for missing layers they do not need. For example, a pure reviewer may not need proactive collection. A market researcher probably does.
 
@@ -89,7 +89,7 @@ Look for these recurring smells:
 | Workflow in heartbeat | Repeatable method lives in `HEARTBEAT.md` | Extract or propose a focused skill |
 | Planless skill | Skill exists but no plan-of-record doc says why/when it matters | Add or reference docs hub |
 | Skillless canon | Plan-of-record doc exists but no executable skill applies it | Propose paired skill |
-| Skillless canon residue | Skill restates canon that lives in `docs/agent-system/` (layer mantra, promotion ladder, 9-layer table, etc.) | Drop the prose; cite `docs/agent-system/<file>.md` |
+| Skillless canon residue | Skill restates canon that lives in `path:docs/agent-system/` (layer mantra, promotion ladder, 9-layer table, etc.) | Drop the prose; cite `docs/agent-system/<file>.md` |
 | Mega-skill pressure | One skill handles many unrelated methods | Split into router plus method skills |
 | Source ambiguity | External research required but source collection is unspecified | Add collection skill/tool/backlog |
 | Passive-only intake | Operator can feed work, but proactive scan path is absent | Add proactive baseline or explicit non-goal |
@@ -130,7 +130,7 @@ Scoring rules (pipeline layers only; other layers stay prose-judgment):
 | Analysis | no method skill referenced from the taxonomy's dispatch | one method skill but combined with collection | a dedicated method skill is named | multiple method skills declared and the member dispatches to them by classifier-recommended signal type |
 | Promotion / Routing | no `output[]`, no `decisions_owned[]`, `raises_capability_gaps: false` | `output[]` declared but no destinations or decisions | `output[]` + at least one of `decisions_owned[]` / `raises_capability_gaps` | `output[]` validates structurally (no orphan-output smells), `decisions_owned[]` are real, capability-gap path exists |
 
-When the member legitimately has no pipeline (a pure reviewer, code-writer, or deterministic-CLI maintainer), score these four layers `n/a` — `topics.json` should be `{}` (or omitted) as a positive declaration that there is no flow.
+When the member legitimately has no pipeline (a pure reviewer, code-writer, or deterministic-CLI maintainer), score these four layers `literal:n/a` — `topics.json` should be `{}` (or omitted) as a positive declaration that there is no flow.
 
 The audit's structural pipeline scores are populated by:
 

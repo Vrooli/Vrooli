@@ -14,12 +14,19 @@
     "daily",
     "vision",
     "planning",
-    "ideation"
+    "ideation",
+    "writer-skill"
+  ],
+  "writes_to": [
+    "research-inbox/*",
+    "opportunity-inbox/*",
+    "validation-inbox/*",
+    "vision-walk-record/*"
   ],
   "icon": "sunrise",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 2,
+  "revision": 3,
   "createdAt": "2026-04-09T19:00:00Z",
-  "updatedAt": "2026-04-21T00:00:00Z"
+  "updatedAt": "2026-05-04T00:00:00Z"
 }

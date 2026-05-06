@@ -38,6 +38,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	// Register the pure-Go SQLite driver used by test handles.
 	_ "modernc.org/sqlite"
 )
 

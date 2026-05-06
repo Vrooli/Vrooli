@@ -9,6 +9,12 @@
     "go",
     "cli"
   ],
+  "startDocument": "docs/START-HERE.md",
+  "design": {
+    "adapter": "react-vite-tailwind",
+    "default": "vrooli-default",
+    "required": true
+  },
   "requiredVars": {
     "SCENARIO_ID": {
       "flag": "id",
@@ -41,10 +47,16 @@
     }
   },
   "docs": {
+    "designGuide": "docs/design/README.md",
+    "generatedDesignContract": "DESIGN.md",
     "generatorGuide": "docs/scenarios/getting-started.md",
     "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
     "templateGuide": "templates/scenarios/react-vite/README.md"
   },
+  "copyExcludes": [
+    "docs/internal/TEMPLATE-GENERATION-CONTRACT.md",
+    "docs/internal/TEMPLATE-MAINTENANCE.md"
+  ],
   "postHooks": [
     {
       "description": "Install UI dependencies (corepack pnpm install --ignore-workspace)",
@@ -55,6 +67,16 @@
       "description": "Sync Go modules (go mod tidy)",
       "cmd": "GOWORK=off go mod tidy",
       "cwd": "api"
+    },
+    {
+      "description": "Format API Go sources (golangci-lint --fix)",
+      "cmd": "golangci-lint run --fix ./...",
+      "cwd": "api"
+    },
+    {
+      "description": "Format CLI Go sources (gofumpt)",
+      "cmd": "gofumpt -w .",
+      "cwd": "cli"
     }
   ],
   "relocations": [

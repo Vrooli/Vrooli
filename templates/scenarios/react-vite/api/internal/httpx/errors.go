@@ -1,15 +1,15 @@
-// Package httpx holds the production HTTP-boundary helpers every
-// handler in this scenario shares: the typed error envelope writer
-// (errors.go) and the strict request-decode helper (decode.go).
+// Package httpx holds the production HTTP-boundary helpers REST handlers
+// in this scenario share: the typed error envelope writer and the proto
+// response writer for deliberate REST exceptions.
 //
 // Distinct from internal/testutil/httpx — that sibling holds the
 // test-side LiveServer harness. Both packages live under the same
 // "httpx" name because they're both HTTP-boundary helpers; Go imports
 // by full path, so the duplicate base name is ergonomic, not a clash.
 //
-// Resist generalising into a god-helper grab bag. WriteError and
-// DecodeJSON are the two patterns every handler shares; new helpers
-// land in their own file when (and only when) they're proven shared.
+// Resist generalising into a god-helper grab bag. Connect-RPC owns
+// proto-typed unary JSON. Helpers here are for deliberate REST edges
+// such as multipart uploads.
 package httpx
 
 import (
@@ -17,6 +17,7 @@ import (
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
 )
@@ -74,6 +75,20 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write(body)
+}
+
+// WriteProto serialises msg as proto JSON for REST endpoints whose response
+// metadata is still proto-typed. Connect-RPC handlers do not use this helper.
+func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
+	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
+	if err != nil {
+		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
+		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

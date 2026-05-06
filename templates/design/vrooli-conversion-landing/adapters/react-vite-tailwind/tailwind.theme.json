@@ -1,0 +1,41 @@
+{
+  "colors": {
+    "landing-background": "var(--color-background)",
+    "landing-surface-primary": "var(--color-surface-primary)",
+    "landing-surface-muted": "var(--color-surface-muted)",
+    "landing-surface-deep": "var(--color-surface-deep)",
+    "landing-surface-darker": "var(--color-surface-darker)",
+    "landing-surface-alt": "var(--color-surface-alt)",
+    "landing-text-primary": "var(--color-text-primary)",
+    "landing-text-secondary": "var(--color-text-secondary)",
+    "landing-text-muted": "var(--color-text-muted)",
+    "landing-accent-primary": "var(--color-accent-primary)",
+    "landing-accent-secondary": "var(--color-accent-secondary)",
+    "landing-accent-tertiary": "var(--color-accent-tertiary)",
+    "landing-success": "var(--color-success)",
+    "landing-warning": "var(--color-warning)",
+    "landing-danger": "var(--color-danger)",
+    "landing-border-subtle": "var(--color-border-subtle)"
+  },
+  "borderRadius": {
+    "landing-control": "var(--radius-control)",
+    "landing-card": "var(--radius-card)",
+    "landing-panel": "var(--radius-panel)"
+  },
+  "boxShadow": {
+    "landing-panel": "var(--shadow-panel)",
+    "landing-card": "var(--shadow-card)"
+  },
+  "fontFamily": {
+    "landing-headline": "var(--font-headline)",
+    "landing-body": "var(--font-body)",
+    "mono": "var(--font-mono)"
+  },
+  "spacing": {
+    "landing-section": "var(--section-spacing)",
+    "touch": "var(--touch-target)"
+  },
+  "maxWidth": {
+    "landing-container": "var(--container-max-width)"
+  }
+}

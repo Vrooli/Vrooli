@@ -3,6 +3,8 @@
 ## Overview
 Complete professional UI rewrite for the react-component-library scenario, replacing the template starter with a full-featured component library management interface.
 
+The component library is an implementation arm for scenario `DESIGN.md` contracts. Component primitives, examples, and adoption workflows should implement selected design kits, starting with `vrooli-default`, and must not become an independent source of design truth.
+
 ## Architecture
 
 ### Tech Stack

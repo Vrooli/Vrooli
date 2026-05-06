@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable */
 /**
  * Perf capture template for React + Vite scenarios.
  *

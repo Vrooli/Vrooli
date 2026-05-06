@@ -253,15 +253,38 @@ type AddDecisionRequest struct {
 	InitiativeMetadata *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
 }
 
-// KnowledgeEntry represents a knowledge log entry.
+// AttributionInfo mirrors the API-side store.AttributionInfo so the CLI can
+// deserialize knowledge-list responses cleanly. Field semantics, JSON tags,
+// and per-kind required-field rules are owned by
+// docs/agent-system/RUNTIME_ATTRIBUTION.md and the canonical Go struct in
+// scenarios/prompt-manager/api/store/models.go::AttributionInfo. Keep this
+// shape in lockstep with that struct — drift surfaces as silent JSON-decode
+// gaps. Construction of outgoing attribution payloads lives in
+// cli/internal/attribution; this struct is read-only — it deserializes
+// attribution objects on knowledge-list responses for display.
+type AttributionInfo struct {
+	Kind          string  `json:"kind"`
+	MemberID      *string `json:"member_id"`
+	TeamID        *string `json:"team_id"`
+	RunID         *string `json:"run_id"`
+	SpawnOrigin   string  `json:"spawn_origin"`
+	SourceSkillID *string `json:"source_skill_id"`
+}
+
+// KnowledgeEntry mirrors the API-side store.KnowledgeEntry. Caller is the
+// derived display string the API computes at write time; CallerNote is
+// optional freeform context; Attribution is the structured truth. See
+// docs/agent-system/RUNTIME_ATTRIBUTION.md for the contract.
 type KnowledgeEntry struct {
-	ID         string `json:"id"`
-	At         string `json:"at"`
-	By         string `json:"by"`
-	Topic      string `json:"topic"`
-	Content    string `json:"content"`
-	Source     string `json:"source,omitempty"`
-	Supersedes string `json:"supersedes,omitempty"`
+	ID          string          `json:"id"`
+	At          string          `json:"at"`
+	Topic       string          `json:"topic"`
+	Content     string          `json:"content"`
+	Source      string          `json:"source,omitempty"`
+	Supersedes  string          `json:"supersedes,omitempty"`
+	Caller      string          `json:"caller"`
+	CallerNote  string          `json:"caller_note,omitempty"`
+	Attribution AttributionInfo `json:"attribution"`
 }
 
 // KnowledgeListResponse represents the knowledge list API response.
@@ -270,11 +293,24 @@ type KnowledgeListResponse struct {
 	Entries []KnowledgeEntry `json:"entries"`
 }
 
+type ChallengeListEntry struct {
+	Decision    DecisionEntry    `json:"decision"`
+	Reports     []KnowledgeEntry `json:"reports"`
+	Resolutions []KnowledgeEntry `json:"resolutions"`
+	Status      string           `json:"status"`
+}
+
 // AddKnowledgeRequest is the request body for adding a knowledge entry.
+//
+// Identity is carried out-of-band on the X-Vrooli-Attribution header
+// (set by cli-core's HTTPClient extra-header source — see app.go and
+// docs/agent-system/RUNTIME_ATTRIBUTION.md). The body never carries
+// caller identity. CallerNote is freeform context only — it cannot
+// override or contradict the header's attribution.
 type AddKnowledgeRequest struct {
-	By         string `json:"by"`
 	Topic      string `json:"topic"`
 	Content    string `json:"content"`
+	CallerNote string `json:"caller_note,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Supersedes string `json:"supersedes,omitempty"`
 }
@@ -684,6 +720,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdDecisionDefer(ctx, subArgs)
 	case "decision-delete":
 		return cmdDecisionDelete(ctx, subArgs)
+	case "challenge-list":
+		return cmdChallengeList(ctx, subArgs)
+	case "challenge-resolve":
+		return cmdChallengeResolve(ctx, subArgs)
 	case "knowledge-add":
 		return cmdKnowledgeAdd(ctx, subArgs)
 	case "knowledge-list":
@@ -766,6 +806,8 @@ Decision Log Commands:
   decision-reject <team-id> <id>        Reject a decision (--notes required)
   decision-defer <team-id> <id>         Defer a pending decision (--revisit-after=YYYY-MM-DD required)
   decision-delete <team-id> <id>        Delete a decision (use --yes to skip confirm)
+  challenge-list <team-id>              List challenge reports joined to pending decisions
+  challenge-resolve <team-id> <id>      Add a challenge-resolution-record entry
 
 Knowledge Log Commands:
   knowledge-add <team-id>               Add a knowledge entry
@@ -3886,27 +3928,228 @@ func printDecisionModifications(m *DecisionModifications) {
 	}
 }
 
-// --- Knowledge Log commands ---
+// --- Challenge Review commands ---
 
-func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("knowledge-add", flag.ContinueOnError)
-	by := fs.String("by", "", "Agent ID (required)")
-	topic := fs.String("topic", "", "Topic/category tag (required)")
-	content := fs.String("content", "", "The knowledge content (required)")
-	source := fs.String("source", "", "Where this was learned from")
-	supersedes := fs.String("supersedes", "", "ID of knowledge entry this replaces")
+func cmdChallengeList(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("challenge-list", flag.ContinueOnError)
+	memberID := fs.String("member", "", "Filter to pending decisions authored by this member")
+	decisionID := fs.String("decision", "", "Filter to one decision id")
+	includeClosed := fs.Bool("include-closed", false, "Include resolved, stale, and overridden challenges")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team knowledge-add <team-id> --by=<id> --topic=\"...\" --content=\"...\"")
+		return fmt.Errorf("usage: team challenge-list <team-id> [--member=<member-id> | --decision=<decision-id>] [--include-closed] [--json]")
+	}
+	if *memberID != "" && *decisionID != "" {
+		return fmt.Errorf("--member and --decision are mutually exclusive")
 	}
 	teamID := fs.Arg(0)
 
-	if strings.TrimSpace(*by) == "" {
-		return fmt.Errorf("by is required")
+	var decisionsResp DecisionListResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/decisions?status=pending&last=0", teamID), &decisionsResp); err != nil {
+		return fmt.Errorf("failed to get pending decisions: %w", err)
 	}
+
+	ownedContexts := map[string]struct{}{}
+	if *memberID != "" {
+		var team Team
+		if err := ctx.Get(fmt.Sprintf("/teams/%s", teamID), &team); err == nil && team.OperatingContract != nil {
+			if member, ok := team.OperatingContract.Members[*memberID]; ok {
+				for _, contextID := range member.OwnedDecisionContexts {
+					if strings.TrimSpace(contextID) != "" {
+						ownedContexts[contextID] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	entries := make([]ChallengeListEntry, 0)
+	for _, decision := range decisionsResp.Entries {
+		if *decisionID != "" && decision.ID != *decisionID {
+			continue
+		}
+		if *memberID != "" && decision.By != *memberID && !mapContains(ownedContexts, decision.Context) {
+			continue
+		}
+
+		var reports KnowledgeListResponse
+		reportQuery := fmt.Sprintf("/teams/%s/knowledge?topic=%s&last=0", teamID, url.QueryEscape("challenge-report/"+decision.ID))
+		if err := ctx.Get(reportQuery, &reports); err != nil {
+			return fmt.Errorf("failed to get challenge reports for %s: %w", decision.ID, err)
+		}
+		if len(reports.Entries) == 0 {
+			continue
+		}
+
+		var resolutions KnowledgeListResponse
+		resolutionQuery := fmt.Sprintf("/teams/%s/knowledge?topic=%s&last=0", teamID, url.QueryEscape("challenge-resolution-record/"+decision.ID))
+		if err := ctx.Get(resolutionQuery, &resolutions); err != nil {
+			return fmt.Errorf("failed to get challenge resolution records for %s: %w", decision.ID, err)
+		}
+
+		status := "open"
+		if len(resolutions.Entries) > 0 {
+			status = challengeStatusFromContent(resolutions.Entries[len(resolutions.Entries)-1].Content)
+			if status == "" {
+				status = "open"
+			}
+		}
+		if !*includeClosed && challengeStatusIsClosed(status) {
+			continue
+		}
+
+		entries = append(entries, ChallengeListEntry{
+			Decision:    decision,
+			Reports:     reports.Entries,
+			Resolutions: resolutions.Entries,
+			Status:      status,
+		})
+	}
+
+	if *jsonOut {
+		resp := struct {
+			TeamID  string               `json:"teamId"`
+			Entries []ChallengeListEntry `json:"entries"`
+		}{TeamID: teamID, Entries: entries}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(entries) == 0 {
+		fmt.Println("No matching challenge reports found")
+		return nil
+	}
+
+	for _, entry := range entries {
+		fmt.Printf("--- %s by %s [%s] challenge status: %s ---\n", entry.Decision.ID, entry.Decision.By, entry.Decision.Context, entry.Status)
+		fmt.Printf("Decision: %s\n", truncate(firstNonEmpty(entry.Decision.Decision, entry.Decision.Topic), 180))
+		latestReport := entry.Reports[len(entry.Reports)-1]
+		fmt.Printf("Latest report: %s [%s]\n", latestReport.ID, latestReport.Topic)
+		fmt.Printf("%s\n", truncate(firstCLIContentLine(latestReport.Content), 220))
+		if len(entry.Resolutions) > 0 {
+			latestResolution := entry.Resolutions[len(entry.Resolutions)-1]
+			fmt.Printf("Latest resolution: %s [%s]\n", latestResolution.ID, latestResolution.Topic)
+			fmt.Printf("%s\n", truncate(firstCLIContentLine(latestResolution.Content), 220))
+		} else {
+			fmt.Println("Latest resolution: none")
+		}
+		fmt.Printf("Inspect: prompt-manager team knowledge-list %s --topic challenge-report/%s\n", teamID, entry.Decision.ID)
+		fmt.Printf("Resolve: prompt-manager team knowledge-add %s --topic challenge-resolution-record/%s --content '<yaml>'\n\n", teamID, entry.Decision.ID)
+	}
+
+	return nil
+}
+
+func cmdChallengeResolve(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("challenge-resolve", flag.ContinueOnError)
+	status := fs.String("status", "", "Resolution status (open|author-responded|resolved|escalated|overridden|stale)")
+	challengeReport := fs.String("challenge-report", "", "Knowledge id of the challenge report being addressed")
+	responseKind := fs.String("response-kind", "none", "Author response kind (none|revised|superseded|accepted|disagreed|no-response)")
+	responseRef := fs.String("response-ref", "", "Decision, knowledge, or notes reference for the author response")
+	dispositionKind := fs.String("disposition", "pending", "Contrarian disposition (pending|resolved|escalate-rejection|escalate-framework|operator-call|watch)")
+	notes := fs.String("notes", "", "Short rationale")
+	supersedes := fs.String("supersedes", "", "Prior challenge-resolution-record knowledge id superseded by this entry")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 || strings.TrimSpace(*status) == "" {
+		return fmt.Errorf("usage: team challenge-resolve <team-id> <decision-id> --status=<status> [--challenge-report=<knowledge-id>] [--response-kind=<kind>] [--response-ref=<ref>] [--disposition=<kind>] [--notes=<text>] [--supersedes=<knowledge-id>] [--json]")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+	normalizedStatus := strings.TrimSpace(*status)
+	if !validChallengeStatus(normalizedStatus) {
+		return fmt.Errorf("invalid --status %q", normalizedStatus)
+	}
+
+	content := buildChallengeResolutionContent(decisionID, *challengeReport, normalizedStatus, *responseKind, *responseRef, *dispositionKind, *notes)
+	req := AddKnowledgeRequest{
+		Topic:      "challenge-resolution-record/" + decisionID,
+		Content:    content,
+		CallerNote: "challenge-resolution",
+		Supersedes: strings.TrimSpace(*supersedes),
+	}
+
+	var resp KnowledgeEntry
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/knowledge", teamID), req, &resp); err != nil {
+		return fmt.Errorf("failed to add challenge resolution: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Added challenge resolution %s [%s] status %s\n", resp.ID, resp.Topic, normalizedStatus)
+	return nil
+}
+
+func buildChallengeResolutionContent(decisionID, challengeReport, status, responseKind, responseRef, dispositionKind, notes string) string {
+	var b strings.Builder
+	b.WriteString("target_decision: " + strings.TrimSpace(decisionID) + "\n")
+	b.WriteString("challenge_report: " + strings.TrimSpace(challengeReport) + "\n")
+	b.WriteString("status: " + strings.TrimSpace(status) + "\n")
+	b.WriteString("author_response:\n")
+	b.WriteString("  kind: " + strings.TrimSpace(firstNonEmpty(responseKind, "none")) + "\n")
+	b.WriteString("  reference: " + strings.TrimSpace(responseRef) + "\n")
+	b.WriteString("contrarian_disposition:\n")
+	b.WriteString("  kind: " + strings.TrimSpace(firstNonEmpty(dispositionKind, "pending")) + "\n")
+	b.WriteString("updated_at: " + time.Now().UTC().Format(time.RFC3339) + "\n")
+	if strings.TrimSpace(notes) != "" {
+		b.WriteString("notes: " + strings.TrimSpace(notes) + "\n")
+	}
+	return b.String()
+}
+
+func validChallengeStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "open", "author-responded", "resolved", "escalated", "overridden", "stale":
+		return true
+	default:
+		return false
+	}
+}
+
+func mapContains(values map[string]struct{}, key string) bool {
+	_, ok := values[strings.TrimSpace(key)]
+	return ok
+}
+
+// --- Knowledge Log commands ---
+
+func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("knowledge-add", flag.ContinueOnError)
+	topic := fs.String("topic", "", "Topic/category tag (required)")
+	content := fs.String("content", "", "The knowledge content (required)")
+	source := fs.String("source", "", "Where this was learned from")
+	supersedes := fs.String("supersedes", "", "ID of knowledge entry this replaces")
+	callerNote := fs.String("caller-note", "", "Optional freeform context (debug breadcrumb, retry note). Does not carry identity — attribution is auto-derived from the runtime context. Capped at 256 chars by the API.")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+
+	// --by is removed; identity now flows over the
+	// X-Vrooli-Attribution header (canon:
+	// docs/agent-system/RUNTIME_ATTRIBUTION.md). Defining the flag
+	// lets us emit a clean migration message instead of "flag
+	// provided but not defined".
+	by := fs.String("by", "", "[removed] use --caller-note for freeform context; identity is auto-attributed")
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*by) != "" {
+		return fmt.Errorf("--by is removed; identity is auto-attributed from the runtime context. Use --caller-note for freeform notes. See docs/agent-system/RUNTIME_ATTRIBUTION.md")
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team knowledge-add <team-id> --topic=\"...\" --content=\"...\" [--caller-note=\"...\"]")
+	}
+	teamID := fs.Arg(0)
+
 	if strings.TrimSpace(*topic) == "" {
 		return fmt.Errorf("topic is required")
 	}
@@ -3915,9 +4158,9 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 	}
 
 	req := AddKnowledgeRequest{
-		By:         *by,
 		Topic:      *topic,
 		Content:    *content,
+		CallerNote: *callerNote,
 		Source:     *source,
 		Supersedes: *supersedes,
 	}
@@ -3987,7 +4230,7 @@ func cmdKnowledgeList(ctx appctx.Context, args []string) error {
 		if entry.Source != "" {
 			sourceStr = fmt.Sprintf(" (source: %s)", entry.Source)
 		}
-		fmt.Printf("--- %s [%s] by %s%s%s ---\n", entry.ID, entry.Topic, entry.By, supersededStr, sourceStr)
+		fmt.Printf("--- %s [%s] by %s%s%s ---\n", entry.ID, entry.Topic, entry.Caller, supersededStr, sourceStr)
 		fmt.Printf("%s\n\n", entry.Content)
 	}
 	return nil
@@ -4181,4 +4424,40 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+func firstCLIContentLine(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- "))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		return line
+	}
+	return ""
+}
+
+func challengeStatusFromContent(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "status:") {
+			return strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "status:")), `"'`)
+		}
+		if strings.Contains(line, `"status"`) {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				return strings.Trim(strings.TrimSpace(strings.TrimRight(parts[1], ",}")), `"'`)
+			}
+		}
+	}
+	return ""
+}
+
+func challengeStatusIsClosed(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "resolved", "overridden", "stale":
+		return true
+	default:
+		return false
+	}
 }

@@ -34,6 +34,7 @@ prompt-manager skill read swarm-manager-initiative-context  # how to pull scenar
 Required file reads (every run):
 
 - `docs/marketing/post-types/text/scenario-spotlight.md` — strategic canon (purpose, audience, conversion goal, asset requirements, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/OPERATING_MODEL.md` — team workflow canon: advertiser lanes draft from evidence, publisher releases, brand-manager owns canon and artifact requests.
 - `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
 - `docs/marketing/post-techniques/essay-shape.md`
 - `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`
@@ -55,7 +56,7 @@ Optional reads:
 
 ### **4. Inputs**
 
-The caller (typically `subscription-advertiser` member, occasionally direct operator) provides:
+The caller (typically the subscription lane through `subscription-advertiser`, occasionally direct operator) provides:
 
 | Input | Required | Example |
 |-------|----------|---------|
@@ -74,7 +75,7 @@ The caller (typically `subscription-advertiser` member, occasionally direct oper
 
 Run the steps in order. Do not skip the verifiability passes — they are what distinguishes a real spotlight from theater.
 
-1. **Pull verifiable scenario state.** Read the scenario's `PRD.md`, `README.md`, and any `docs/concepts/` or `docs/guides/` material. Build a list of every claim that could appear in the post and tag each: `verified` (cross-checked against PRD/README) or `uncertain`. Discard `uncertain` claims before drafting.
+1. **Pull verifiable scenario state.** Read the scenario's `PRD.md`, `README.md`, and any `path:docs/concepts/` or `path:docs/guides/` material. Build a list of every claim that could appear in the post and tag each: `verified` (cross-checked against PRD/README) or `uncertain`. Discard `uncertain` claims before drafting.
 
 2. **Tier-align the demo'd features.** For every feature you might demo, look up its tier in `scenarios/<scenario>/.vrooli/service.json` and `docs/monetization/scenario-sku-map.json`. Mark any feature not reachable from the `conversion_rung`'s tier as `tier-mismatch` and exclude it.
 

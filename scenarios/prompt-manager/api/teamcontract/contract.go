@@ -193,13 +193,18 @@ type KnowledgeTopic struct {
 	Retention          string `json:"retention,omitempty"`
 }
 
+// MemberContract describes the team-level half of a member's runtime
+// contract: decision-graph position, write surfaces, safety rules, and
+// read-only-mode behavior. Per-member message-flow declarations
+// (intake/required_read/evidence_consumed/output) live in topics.json,
+// not here — see api/memberflow/schema.go for the canonical declaration
+// and api/memberflow/validation.go for the rules that enforce it.
 type MemberContract struct {
 	Lane                       string           `json:"lane"`
 	OwnedDecisionContexts      []string         `json:"ownedDecisionContexts"`
 	NewDecisionCapPerHeartbeat *int             `json:"newDecisionCapPerHeartbeat,omitempty"`
 	NewDecisionCapsByContext   map[string]int   `json:"newDecisionCapsByContext,omitempty"`
 	PendingOwnedDecisionCap    *int             `json:"pendingOwnedDecisionCap,omitempty"`
-	RequiredKnowledgeTopics    []string         `json:"requiredKnowledgeTopics,omitempty"`
 	AllowedWrites              []WriteRef       `json:"allowedWrites,omitempty"`
 	ForbiddenWrites            []WriteRef       `json:"forbiddenWrites,omitempty"`
 	SafetyCriticalRules        []string         `json:"safetyCriticalRules,omitempty"`
@@ -269,7 +274,6 @@ func Minimal(decisionMode string, memberIDs ...string) *OperatingContract {
 			OwnedDecisionContexts:      []string{contextID},
 			NewDecisionCapPerHeartbeat: &cap,
 			PendingOwnedDecisionCap:    &pendingCap,
-			RequiredKnowledgeTopics:    []string{topicID},
 			AllowedWrites:              []WriteRef{{Kind: "knowledge"}, {Kind: "decision"}, {Kind: "handoff"}},
 			ReadOnlyModeBehavior: ReadOnlyBehavior{
 				SkipNewDecisions:     true,
@@ -391,11 +395,6 @@ func Validate(contract *OperatingContract, input ValidationInput) error {
 				return fmt.Errorf("operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
 			}
 		}
-		for _, topicID := range member.RequiredKnowledgeTopics {
-			if _, ok := contract.KnowledgeTopics[topicID]; !ok {
-				return fmt.Errorf("operatingContract.members.%s.requiredKnowledgeTopics contains undeclared topic %q", id, topicID)
-			}
-		}
 		if err := validateWriteRefs(member.AllowedWrites, input, id, "allowedWrites"); err != nil {
 			return err
 		}
@@ -483,15 +482,6 @@ func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, mem
 	}
 	if member.PendingOwnedDecisionCap != nil {
 		b.WriteString(fmt.Sprintf("- skip new decisions when %d+ owned-context decisions are already pending\n", *member.PendingOwnedDecisionCap))
-	}
-	b.WriteString("\nRequired knowledge topics:\n")
-	for _, topicID := range member.RequiredKnowledgeTopics {
-		topic := contract.KnowledgeTopics[topicID]
-		if topic.SupersedesPrevious {
-			b.WriteString(fmt.Sprintf("- %s; supersedes prior matching topic\n", topicID))
-		} else {
-			b.WriteString(fmt.Sprintf("- %s; append-only, do not set supersedes\n", topicID))
-		}
 	}
 	b.WriteString("\n## Document Authority\n\n")
 	renderDocuments(b, contract, input)

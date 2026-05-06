@@ -226,7 +226,6 @@ func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
 // skips the verification gate entirely and proceeds to Whisper, returning
 // the transcript that would otherwise have been suppressed. The metric
 // counter must increment exactly once per bypass.
-// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
 func TestVoiceTranscribe_SkipSpeakerVerificationBypassesFilter(t *testing.T) {
 	var whisperCalls int
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

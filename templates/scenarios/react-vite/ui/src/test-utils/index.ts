@@ -30,8 +30,8 @@
  *
  *   import { makeHealthResponse } from "@/test-utils";
  *
- *   vi.mock("./lib/api", async (importOriginal) => {
- *     const actual = await importOriginal<typeof import("./lib/api")>();
+ *   vi.mock("./api/health", async (importOriginal) => {
+ *     const actual = await importOriginal<typeof import("./api/health")>();
  *     return {
  *       ...actual,
  *       fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
@@ -43,7 +43,7 @@
  * `makeHealthResponse()` is referenced from inside the factory closure,
  * which runs when vitest resolves the mock — *after* imports are
  * initialised. The pattern above is hoisting-safe and preserves every
- * non-overridden export of `./lib/api` via `importOriginal()`.
+ * non-overridden export of `./api/health` via `importOriginal()`.
  */
 export { renderWithProviders } from "./renderWithProviders";
 export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
@@ -53,7 +53,7 @@ export { interp } from "./interp";
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
 //
-// Domain-specific factories (Note, ListNotesResponse, etc.) are NOT
+// Domain-specific factories (Note, NotesListResponse, etc.) are NOT
 // re-exported here — they live next to the feature they double for
 // (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
 // folder takes them along.
@@ -75,7 +75,7 @@ export type {
 } from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
-// generic `lib/api` health/error path). Domain-specific mocks
+// generic `api/health` health/error path). Domain-specific mocks
 // (e.g. `makeNotesMocks`) live with their feature.
 // Use `...makeApiMocks()` *inside* the
 // `vi.mock(..., async (importOriginal) => …)` factory closure — never

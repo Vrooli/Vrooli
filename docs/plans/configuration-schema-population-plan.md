@@ -4,7 +4,7 @@
 
 The configuration-schema bundle (commit `d1e2cd616e onboarding rework p1`) added five new fields across four schemas: `risk` on safeguards, `system_required` on scenarios, `runtime.{kind, auto_restart_default}` on scenarios, the `secretDescriptor` def in `common.schema.json` referenced from `resource.credentials.env`, and the new `operator-state.json` schema. All fields are optional — nothing populated them.
 
-This plan populates the new fields on a known worked-example set: 7 safeguards, 6 scenarios, 2 resources. The set is deliberately small. It is the same set referenced as worked examples in `docs/configuration/`, so populating here makes the docs honest. Phase-3 (opportunistic population of the rest) happens in normal scenario/resource maintenance and is not part of this plan.
+This plan populates the new fields on a known worked-example set: 7 safeguards, 6 scenarios, 2 resources. The set is deliberately small. It is the same set referenced as worked examples in `path:docs/configuration/`, so populating here makes the docs honest. Phase-3 (opportunistic population of the rest) happens in normal scenario/resource maintenance and is not part of this plan.
 
 This is **not greenfield** in the usual sense — we are *adding* fields to existing manifests, not rewriting them. Existing fields and structure must be preserved verbatim.
 
@@ -12,16 +12,16 @@ This is **not greenfield** in the usual sense — we are *adding* fields to exis
 
 No prompt-manager skills are materially applicable to this plan; the work is mechanical-with-judgment. The substrate to read before editing:
 
-- `docs/configuration/architecture.md` — source-of-truth table and resolution order
-- `docs/configuration/host/safeguards.md` — what `risk` low/medium/high mean
-- `docs/configuration/scenarios.md` — what `system_required` and `runtime.kind` mean
-- `docs/configuration/secrets.md` — `secretDescriptor` shape and intent
+- `path:docs/configuration/architecture.md` — source-of-truth table and resolution order
+- `path:docs/configuration/host/safeguards.md` — what `risk` low/medium/high mean
+- `path:docs/configuration/scenarios.md` — what `system_required` and `runtime.kind` mean
+- `path:docs/configuration/secrets.md` — `secretDescriptor` shape and intent
 - `.vrooli/schemas/safeguard.schema.json`, `service.schema.json`, `resource.schema.json`, `common.schema.json` — field definitions
 
 ## Scope
 
 In scope (this plan):
-- Set `risk` on all 7 safeguards under `internal/safeguards/`
+- Set `risk` on all 7 safeguards under `path:internal/safeguards/`
 - Set `service.system_required` and `runtime.{kind, auto_restart_default}` on 6 scenarios: `vrooli-onboarding`, `secrets-manager`, `web-console`, `swarm-manager`, `agent-manager`, `workspace-sandbox`
 - Enrich `credentials.env` to use `secretDescriptor` shape on 2 resources: `gemini`, `openrouter`
 
@@ -41,9 +41,9 @@ Out of scope (intentionally deferred):
 
 ## Phase 1 — Safeguards (7 files)
 
-For each `internal/safeguards/<name>/safeguard.json`:
+For each `path:internal/safeguards/<name>/safeguard.json`:
 
-1. Read the manifest plus its Go handler under `internal/safeguards/<name>/` to confirm what the safeguard actually modifies.
+1. Read the manifest plus its Go handler under `path:internal/safeguards/<name>/` to confirm what the safeguard actually modifies.
 2. Classify by the schema's definitions (verbatim from `safeguard.schema.json`):
    - `low` = no system state changes outside Vrooli's tree (probes, reads)
    - `medium` = writes config files outside Vrooli's tree or modifies networking rules
@@ -52,19 +52,19 @@ For each `internal/safeguards/<name>/safeguard.json`:
 4. Reasoning recorded inline as a one-line `notes` addition only if non-obvious; do not write a justification comment.
 
 Files in this phase:
-- `internal/safeguards/clock/safeguard.json`
-- `internal/safeguards/dns-resolution/safeguard.json`
-- `internal/safeguards/docker-host-firewall/safeguard.json`
-- `internal/safeguards/kernel-config/safeguard.json`
-- `internal/safeguards/nat-protection/safeguard.json`
-- `internal/safeguards/remote-session-protection/safeguard.json`
-- `internal/safeguards/tcp-tuning/safeguard.json`
+- `path:internal/safeguards/clock/safeguard.json`
+- `path:internal/safeguards/dns-resolution/safeguard.json`
+- `path:internal/safeguards/docker-host-firewall/safeguard.json`
+- `path:internal/safeguards/kernel-config/safeguard.json`
+- `path:internal/safeguards/nat-protection/safeguard.json`
+- `path:internal/safeguards/remote-session-protection/safeguard.json`
+- `path:internal/safeguards/tcp-tuning/safeguard.json`
 
 The classifications are not pre-decided in this plan. The executing agent makes the call from each handler's actual behavior.
 
 ## Phase 2 — Scenarios (6 files)
 
-For each scenario, edit `scenarios/<name>/.vrooli/service.json`:
+For each scenario, edit `path:scenarios/<name>/.vrooli/service.json`:
 
 ### System-required scenarios (3)
 
@@ -77,9 +77,9 @@ Set `service.system_required: true` and add a top-level `runtime` block:
 }
 ```
 
-- `scenarios/vrooli-onboarding/.vrooli/service.json`
-- `scenarios/secrets-manager/.vrooli/service.json`
-- `scenarios/web-console/.vrooli/service.json`
+- `path:scenarios/vrooli-onboarding/.vrooli/service.json`
+- `path:scenarios/secrets-manager/.vrooli/service.json`
+- `path:scenarios/web-console/.vrooli/service.json`
 
 `system_required` is placed inside the existing `service` block. `runtime` is a new top-level sibling of `service`, `ports`, etc. — match the position used in `service.schema.json` (after `service`, before `ports`).
 
@@ -94,15 +94,15 @@ Add the `runtime` block only — do **not** set `system_required` (defaults to f
 }
 ```
 
-- `scenarios/swarm-manager/.vrooli/service.json`
-- `scenarios/agent-manager/.vrooli/service.json`
-- `scenarios/workspace-sandbox/.vrooli/service.json`
+- `path:scenarios/swarm-manager/.vrooli/service.json`
+- `path:scenarios/agent-manager/.vrooli/service.json`
+- `path:scenarios/workspace-sandbox/.vrooli/service.json`
 
 If any of these six scenarios already have a top-level `runtime` field with conflicting content (none expected based on the verification pass, but check), pause and flag rather than overwriting.
 
 ## Phase 3 — Resources (2 files)
 
-### `resources/gemini/resource.json`
+### `path:resources/gemini/resource.json`
 
 Replace the bare-string `credentials.env` entry with a `secretDescriptor` object. Existing shape:
 
@@ -132,7 +132,7 @@ Becomes:
 }
 ```
 
-### `resources/openrouter/resource.json`
+### `path:resources/openrouter/resource.json`
 
 Same transformation:
 
@@ -153,7 +153,7 @@ Same transformation:
 }
 ```
 
-`secret_ref` is **not** changed — these paths are already in use by `packages/api-core/secrets` and existing scenarios. Changing them is a separate concern.
+`secret_ref` is **not** changed — these paths are already in use by `path:packages/api-core/secrets` and existing scenarios. Changing them is a separate concern.
 
 ## Verification
 

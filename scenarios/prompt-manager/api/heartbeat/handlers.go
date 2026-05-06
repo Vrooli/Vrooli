@@ -2695,18 +2695,30 @@ func (h *Handlers) DeleteDecisionHandler(w http.ResponseWriter, r *http.Request)
 
 // --- Knowledge Log handlers ---
 
-// AddKnowledge handles POST /teams/{id}/knowledge
+// AddKnowledge handles POST /teams/{id}/knowledge.
+//
+// Validates the X-Vrooli-Attribution header (canon:
+// docs/agent-system/RUNTIME_ATTRIBUTION.md), derives the display
+// `Caller`, and persists the structured `Attribution` alongside the
+// entry. Mutating writes without the header are rejected with HTTP
+// 400; team_id mismatches between header and URL likewise return 400.
 func (h *Handlers) AddKnowledge(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 
+	info, err := parseAttributionHeader(r.Header.Get(attributionHeaderName))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := validateAttribution(info, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var req AddKnowledgeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if strings.TrimSpace(req.By) == "" {
-		http.Error(w, "by is required", http.StatusBadRequest)
 		return
 	}
 	if strings.TrimSpace(req.Topic) == "" {
@@ -2717,15 +2729,21 @@ func (h *Handlers) AddKnowledge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "content is required", http.StatusBadRequest)
 		return
 	}
+	if len(req.CallerNote) > callerNoteMaxLen {
+		http.Error(w, fmt.Sprintf("caller_note exceeds %d-character cap", callerNoteMaxLen), http.StatusBadRequest)
+		return
+	}
 
 	entry := &store.KnowledgeEntry{
-		ID:         fmt.Sprintf("knw-%s", generateID()),
-		At:         time.Now().UTC().Format(time.RFC3339),
-		By:         req.By,
-		Topic:      req.Topic,
-		Content:    req.Content,
-		Source:     req.Source,
-		Supersedes: req.Supersedes,
+		ID:          fmt.Sprintf("knw-%s", generateID()),
+		At:          time.Now().UTC().Format(time.RFC3339),
+		Topic:       req.Topic,
+		Content:     req.Content,
+		Source:      req.Source,
+		Supersedes:  req.Supersedes,
+		Caller:      deriveCaller(info, teamID),
+		CallerNote:  req.CallerNote,
+		Attribution: info,
 	}
 
 	if err := h.teamStore.AppendKnowledge(r.Context(), teamID, entry); err != nil {

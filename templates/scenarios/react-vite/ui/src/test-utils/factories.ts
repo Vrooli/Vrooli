@@ -18,7 +18,7 @@
  * # Wire shape lives in proto, not here
  *
  * The HealthResponse type is a GENERATED proto message at
- * `packages/proto/gen/typescript/{{SCENARIO_ID}}/v1/health/...`.
+ * `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/health/...`.
  * Factories use `create(<Schema>, overrides)` so the runtime instance
  * includes proto's internal `$typeName` / reflection state, field
  * defaults match proto3 semantics, and adding a field to the proto

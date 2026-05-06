@@ -18,7 +18,7 @@
 - [ ] OT-P0-002 | SQLite Storage | Single SQLite DB with tables for brands, brand_versions, assignments, and assets. Asset files stored at `~/.vrooli/brand-manager/assets/{brand_id}/`
 - [ ] OT-P0-003 | AI Generation | Ollama-first with OpenRouter fallback for text (palette, typography, copy) and image (logo, favicon, icon) generation using AIProviderChain pattern
 - [ ] OT-P0-004 | Programmatic Application | Apply brand elements to scenarios via CSS custom properties with `/* brand-manager:<element> */` markers, manifest.json with `_brand` keys, favicon paths, static assets
-- [ ] OT-P0-005 | Design Language File | Generate `docs/DESIGN_LANGUAGE.md` per-scenario during apply from structured brand data + user notes
+- [ ] OT-P0-005 | DESIGN.md Export | Generate root-level `DESIGN.md` per scenario during apply from structured brand data + user notes
 - [ ] OT-P0-006 | Scenario Auditor Integration | HTTP provider (`external_rules_brand_manager.go`) reporting branding compliance rules: has-logo, has-favicon, has-color-system, has-display-name, has-typography
 - [ ] OT-P0-007 | Inline Validation Scanner | Grep for `brand-manager:` prefixed CSS comments and `_brand` JSON keys to validate branding is actually applied in code
 - [ ] OT-P0-008 | Discovery Scanner | Scan existing scenario state (service.json, theme files, static assets, manifests, .vrooli/branding.json) and auto-populate draft brands with confidence scores

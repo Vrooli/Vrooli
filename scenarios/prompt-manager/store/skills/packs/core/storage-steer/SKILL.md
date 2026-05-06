@@ -46,7 +46,7 @@ The architecture this skill steers toward solves all five:
 
 **Out of scope**
 - *Which* storage engine to pick → `cross-platform-readiness` §3 fitness table
-- Filesystem runtime contract → `cross-platform-readiness` §4 + `api-core/storage`
+- Filesystem runtime contract → `cross-platform-readiness` §4 + `package:api-core/storage`
 - Database query optimization, indexing strategy → performance skills
 - Data modeling, domain design → domain architecture skills
 - Backup, disaster recovery, DBA concerns → operational skills
@@ -82,8 +82,8 @@ Why this shape:
 - **Bounded contexts** — each domain owns its data, mirroring the rest of the per-domain stack (handlers, services, types).
 
 **Worked examples** to cross-reference rather than reinventing:
-- `templates/scenarios/react-vite/api/internal/notes/` — canonical SQL-only example (the react-vite template).
-- `scenarios/agent-manager/api/internal/database/` — second real-world example.
+- `path:templates/scenarios/react-vite/api/internal/notes/` — canonical SQL-only example (the react-vite template).
+- `path:scenarios/agent-manager/api/internal/database/` — second real-world example.
 - `templates/scenarios/react-vite/api/internal/database/system.sql` — the system home pattern.
 
 **System home for cross-cutting infrastructure.** Some bits don't belong to any one domain — postgres extensions, custom types, cross-domain views. They live in a `system.sql` (e.g., `internal/database/system.sql`), empty by default in SQLite scenarios. Tested for emptiness as a tripwire so it doesn't become a dumping ground; if you find yourself adding a `CREATE TABLE` there, ask whether the table belongs to a domain that doesn't exist yet, and create the domain first.
@@ -137,7 +137,7 @@ func Schema() string { return internalDom.Schema() }
 
 This keeps the registry's import surface narrow — it imports handler packages, not their internal peers.
 
-**Boot wiring.** The API binary calls `database.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from `packages/api-core/database`. The `modules.AllSchemas()` registry assembles the providers (system home first, then per-domain in stable order).
+**Boot wiring.** The API binary calls `database.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from `path:packages/api-core/database`. The `modules.AllSchemas()` registry assembles the providers (system home first, then per-domain in stable order).
 
 **Substrate.** The `SchemaProvider` interface, `SchemaProviderFunc` adapter, and `EnsureSchemas` function live in `packages/api-core/database/schemas.go`. `EnsureSchemas` accepts a small `SchemaExecer` interface — `*sql.DB` satisfies it, but tests don't need a real driver to exercise the helper. Empty schemas (`Schema() == ""`) skip silently so the system home can ship empty without complaint.
 
@@ -187,7 +187,7 @@ The scenario prefix prevents cross-scenario collisions on a shared Redis. The do
 
 #### 4.4 The pattern as a rule, not a recipe
 
-**Whatever store the domain touches, the domain owns the setup.** If a domain wires to a new store tomorrow (Neo4j, ClickHouse, MinIO), the new file goes in `internal/<dom>/`, gets a `Setup()` function, gets registered in the modules registry, gets applied at boot. Same shape, every time.
+**Whatever store the domain touches, the domain owns the setup.** If a domain wires to a new store tomorrow (Neo4j, ClickHouse, MinIO), the new file goes in `path:internal/<dom>/`, gets a `Setup()` function, gets registered in the modules registry, gets applied at boot. Same shape, every time.
 
 The rule's purpose is to make the architecture *uniform* so agents (and humans) don't have to invent a new pattern per engine.
 
@@ -270,7 +270,7 @@ If unclear, **ask the user**. Misclassifying greenfield as brownfield burdens th
 
 ### 6. The Deferred `MigrationProvider` Substrate
 
-The brownfield substrate doesn't ship in `api-core/database` yet. Documented here so agents know what to ask for when they need it — not promising vapor; naming the seam.
+The brownfield substrate doesn't ship in `package:api-core/database` yet. Documented here so agents know what to ask for when they need it — not promising vapor; naming the seam.
 
 **Today (the greenfield substrate, already shipped):**
 - `packages/api-core/database/schemas.go` — `SchemaProvider` interface, `SchemaProviderFunc` adapter, `EnsureSchemas(ctx, db, providers...)`.
@@ -278,7 +278,7 @@ The brownfield substrate doesn't ship in `api-core/database` yet. Documented her
 **When the first scenario crosses to brownfield** (real users with persisted data + ongoing schema evolution), build:
 - `packages/api-core/database/migrations.go` — `MigrationProvider` interface (`Migrations() fs.FS`, `DomainID() string`), and a `RunMigrations(ctx, db, providers...)` helper.
 
-**Implementation choice when we build it:** **wrap `pressly/goose`.** It is the de-facto Go migration library — lightweight, embeddable via `go:embed`, programmatic Go API (not just CLI), no external service dependency. Don't reinvent the migration runner; do design the per-domain integration on top of it.
+**Implementation choice when we build it:** **wrap `package:pressly/goose`.** It is the de-facto Go migration library — lightweight, embeddable via `go:embed`, programmatic Go API (not just CLI), no external service dependency. Don't reinvent the migration runner; do design the per-domain integration on top of it.
 
 **Action when an agent hits this need before the substrate exists:**
 1. **Stop.** Do not implement ad-hoc migration tooling inline in the scenario.
@@ -322,7 +322,7 @@ The system home (`internal/database/system.sql`) is *not* the answer. It absorbs
 
 ### 8. Repository Pattern (Engine-Neutral)
 
-Business logic depends on repository interfaces. Concrete implementations (SQLite, Postgres, in-memory for tests) live in the same `internal/<dom>/` folder. Mirror the canonical layout:
+Business logic depends on repository interfaces. Concrete implementations (SQLite, Postgres, in-memory for tests) live in the same `path:internal/<dom>/` folder. Mirror the canonical layout:
 
 ```go
 // internal/notes/repository.go — the interface
@@ -356,7 +356,7 @@ type Service struct {
 
 **Engine swap is free.** Want to add Postgres support later? Add `internal/notes/postgres.go` implementing `Repository`; switch the constructor in `module.go`. No business-logic edits.
 
-**Test fakes are co-located** in `internal/<dom>/mocks/` — sub-package of the domain so deletion takes them with it. (See the Pass-3 worked example in `templates/scenarios/react-vite/api/internal/notes/mocks/`.)
+**Test fakes are co-located** in `path:internal/<dom>/mocks/` — sub-package of the domain so deletion takes them with it. (See the Pass-3 worked example in `path:templates/scenarios/react-vite/api/internal/notes/mocks/`.)
 
 ---
 
@@ -364,7 +364,7 @@ type Service struct {
 
 Three isolation concerns, each handled by its respective per-domain pattern from §4.
 
-- **Database isolation.** SQLite scenarios get their own DB file under `api-core/storage`-resolved paths (cross-reference `cross-platform-readiness` §4 for the filesystem contract). Postgres scenarios use a scenario-named schema (e.g., `SET search_path TO {{TARGET}}`) declared in `service.json`'s resource block. Either way, two scenarios sharing the same DB instance never collide.
+- **Database isolation.** SQLite scenarios get their own DB file under `package:api-core/storage`-resolved paths (cross-reference `cross-platform-readiness` §4 for the filesystem contract). Postgres scenarios use a scenario-named schema (e.g., `SET search_path TO {{TARGET}}`) declared in `service.json`'s resource block. Either way, two scenarios sharing the same DB instance never collide.
 - **Redis isolation.** Per-domain key prefix `{scenario}:{domain}:` (see §4.3). The scenario prefix isolates scenarios; the domain prefix isolates domains within one scenario.
 - **Qdrant isolation.** Collection names prefixed `{scenario}_{domain}_{purpose}` (see §4.2). Same two-level isolation.
 
@@ -411,7 +411,7 @@ rg "CollectionName|EnsureCollection" scenarios/{{TARGET}}/ --type go
 #### 10.2 Red-Flags Checklist
 
 - [ ] No per-domain `internal/<dom>/schema.sql` files (schema is centralized somewhere)
-- [ ] `internal/store/` or `internal/db/` package present with schema content (deprecated naming)
+- [ ] `path:internal/store/` or `path:internal/db/` package present with schema content (deprecated naming)
 - [ ] `initialization/storage/postgres/schema.sql` exists in `.vrooli/` (resource-applied path)
 - [ ] Schema files are not idempotent (missing `IF NOT EXISTS`)
 - [ ] Direct SQL in handler / controller code (no repository abstraction)
@@ -421,7 +421,7 @@ rg "CollectionName|EnsureCollection" scenarios/{{TARGET}}/ --type go
 - [ ] Redis keys without scenario+domain prefix
 - [ ] Qdrant collections without scenario prefix
 - [ ] Hardcoded credentials anywhere
-- [ ] Filesystem runtime writes bypass `api-core/storage` (also a `cross-platform-readiness` flag)
+- [ ] Filesystem runtime writes bypass `package:api-core/storage` (also a `cross-platform-readiness` flag)
 
 #### 10.3 Posture for Non-Conforming Scenarios
 
@@ -461,7 +461,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 - [ ] SQLite via `modernc.org/sqlite` (CGO-free)  /  PostgreSQL  /  hybrid
 - [ ] Qdrant collections per-domain (if used)
 - [ ] Redis keys per-domain prefixed (if used)
-- [ ] Filesystem writes routed through `api-core/storage`
+- [ ] Filesystem writes routed through `package:api-core/storage`
 
 ## Issues Found
 1. [File:line] - Issue description
@@ -474,7 +474,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 ## Cross-References
 - `cross-platform-readiness` → engine selection, filesystem contract
 - `packages/api-core/database/schemas.go` → substrate
-- `templates/scenarios/react-vite/api/internal/notes/` → canonical worked example
+- `path:templates/scenarios/react-vite/api/internal/notes/` → canonical worked example
 ```
 
 ---
@@ -504,7 +504,7 @@ Update `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 - Add new architectural findings.
 - Update refactor recommendations based on work completed.
 - Note areas not yet audited.
-- Create the `docs/internal/` directory if needed.
+- Create the `path:docs/internal/` directory if needed.
 
 ---
 
@@ -525,7 +525,7 @@ You must:
 - Place schema next to the code that interprets it (per-domain ownership)
 - Pick the right migration strategy based on whether the scenario has real users (greenfield) or not (brownfield)
 - Use environment variables for connection details (no hardcoded credentials)
-- Route mutable filesystem state through `api-core/storage`
+- Route mutable filesystem state through `package:api-core/storage`
 - Escalate to the user if the scenario needs brownfield versioned migrations (the substrate is deferred)
 
 You must NOT:

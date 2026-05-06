@@ -1,7 +1,6 @@
 # agent-manager `policy` package
 
-Slim policy seam left after the agent-sandbox audit foundation cleanup
-(Phase G of `docs/plans/agent-sandbox-completion-and-protected-mode-implementation-plan.md`).
+Slim policy seam left after the agent-sandbox audit foundation cleanup.
 
 ## What this package owns
 

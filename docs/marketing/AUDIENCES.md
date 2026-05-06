@@ -76,7 +76,7 @@ Personas the marketing-crew targets. Advertisers read this for writing register;
 
 **Who:** prospective buyers evaluating the eventual cloud / hosted-tier subscription delivery.
 
-**Status:** placeholder. This persona is held in subscription-advertiser's scope for now. Split into its own persona only if researcher reports material differences in what cloud evaluators prioritize vs `small-team-lead`. Until then, subscription-advertiser treats cloud/hosted narrative as a delivery-story variant within the existing subscription framing.
+**Status:** placeholder. This persona is held in the subscription lane's scope for now. Split into its own persona only if researcher reports material differences in what cloud evaluators prioritize vs `small-team-lead`. Until then, `subscription-advertiser` treats cloud/hosted narrative as a delivery-story variant within the existing subscription framing.
 
 **Revisit marker:** revisit when researcher produces ≥3 scans distinguishing this audience from `small-team-lead`, OR when cloud-hosted tier is officially activated.
 

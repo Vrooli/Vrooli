@@ -1,6 +1,6 @@
 # Buf Schema Registry (BSR) Login
 
-This page documents the optional sign-in to the [Buf Schema Registry](https://buf.build) used by `packages/proto`.
+This page documents the optional sign-in to the [Buf Schema Registry](https://buf.build) used by `path:packages/proto`.
 
 ## Status
 
@@ -10,14 +10,14 @@ The `vrooli-onboarding` v2 wizard (per [`OT-V2-FEATURE-COMPLETE`](../../../scena
 
 ## What this is *not*
 
-A blocker. After the proto-codegen pipeline switched to **local plugins + vendored modules** ([CD-1, CD-2 in the implementation plan](../../plans/proto-codegen-local-and-bsr-login-implementation-plan.md)):
+A blocker. After the proto-codegen pipeline switched to **local plugins + vendored modules**:
 
 - `make generate` does **zero** outbound BSR requests.
 - `make lint` does **zero** outbound BSR requests.
 - `make breaking` does **zero** outbound BSR requests.
 - A laptop on flight Wi-Fi, a CI runner with egress blocked, a fresh agent box with no BSR account — all generate code identically.
 
-The only path that touches BSR is `make refresh-vendor`, which exports the latest `googleapis` and `protovalidate` modules into `packages/proto/vendor/`. Operators run it when intentionally upgrading those deps; nothing else does.
+The only path that touches BSR is `make refresh-vendor`, which exports the latest `googleapis` and `protovalidate` modules into `path:packages/proto/vendor/`. Operators run it when intentionally upgrading those deps; nothing else does.
 
 ## Auth pattern
 
@@ -53,7 +53,7 @@ Buf offers four expiry windows when creating a personal access token:
 | 1 year | **Security-conscious teams, shared/multi-operator hosts** | Annual rotation as routine housekeeping. Pair with a calendar reminder. |
 | **Never expires** | **Solo operator on a personal box with `chmod 600 ~/.netrc`** | Recommended default. The token is read-only, used only for vendor refreshes. Auto-expiry buys minimal security and causes silent failures months later. |
 
-Why "never" is the recommended default: with [CD-1](../../plans/proto-codegen-local-and-bsr-login-implementation-plan.md) (local plugins) and [CD-2](../../plans/proto-codegen-local-and-bsr-login-implementation-plan.md) (vendored modules), the BSR token is consulted **only** during `make refresh-vendor`. No write or publish scopes are requested. A leaked read-only token's worst-case impact is reading public BSR modules already published — nothing the attacker couldn't do anonymously. Auto-expiry would, by contrast, break a `buf export` months from now when the operator is mid-task.
+Why "never" is the recommended default: with CD-1 (local plugins) and CD-2 (vendored modules), the BSR token is consulted **only** during `make refresh-vendor`. No write or publish scopes are requested. A leaked read-only token's worst-case impact is reading public BSR modules already published — nothing the attacker couldn't do anonymously. Auto-expiry would, by contrast, break a `buf export` months from now when the operator is mid-task.
 
 If you do pick a fixed expiry, schedule the renewal:
 
@@ -80,7 +80,7 @@ The `vrooli auth status` command implements the [`external_sign_in_command`](ext
 
 ## When to actually use the token
 
-After the local-plugin switch, the answer is **only when running `make refresh-vendor`**. The refresh script is the single code path that calls `buf export`, which fetches the upstream BSR modules into `packages/proto/vendor/`. Anonymous BSR access works for `buf export` until the rate limit kicks in; the token raises the ceiling.
+After the local-plugin switch, the answer is **only when running `make refresh-vendor`**. The refresh script is the single code path that calls `buf export`, which fetches the upstream BSR modules into `path:packages/proto/vendor/`. Anonymous BSR access works for `buf export` until the rate limit kicks in; the token raises the ceiling.
 
 Refresh cadence is "when needed" — typically months between bumps, when consuming code wants a new field from googleapis or a new validate constraint. Run it, commit the updated `vendor/` tree, and `make check` enforces the resulting `gen/` diff is the only churn.
 
@@ -89,4 +89,3 @@ Refresh cadence is "when needed" — typically months between bumps, when consum
 - [`external-auth.md`](external-auth.md) — the `external_sign_in_command` pattern this page implements
 - [`../host/tools.md`](../host/tools.md) — how `buf` and the proto plugins are declared as host tools
 - [`../../development/proto.md`](../../development/proto.md) — proto codegen pipeline overview
-- [`../../plans/proto-codegen-local-and-bsr-login-implementation-plan.md`](../../plans/proto-codegen-local-and-bsr-login-implementation-plan.md) — full implementation plan

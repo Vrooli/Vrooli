@@ -19,7 +19,7 @@ This skill steers toward APIs that are:
 - **Screaming-architecture organized** (domain boundaries are obvious by directory/module layout).
 - **Typed and contract-driven** (proto-first for reliability and interoperability).
 - **Consistent and predictable** (errors, naming, pagination, idempotency, auth).
-- **Thin at the transport edge** (HTTP/gRPC handlers orchestrate; domain logic lives elsewhere).
+- **Thin at the transport edge** (Connect/HTTP handlers orchestrate; domain logic lives elsewhere).
 - **Hard to misuse** (safe defaults; obvious “happy path”; guardrails at boundaries).
 
 ---
@@ -29,13 +29,13 @@ This skill steers toward APIs that are:
 **In scope**
 - API surface design: endpoints, RPCs, request/response shapes, error models
 - API organization: module boundaries, routers/controllers layout, keeping files small
+- Connect-RPC adoption for proto-owned payloads; transport consistency is a coherence concern
 - Consistency conventions: naming, pagination/filtering, idempotency, auth, observability hooks
 - Compatibility strategy: versioning, additive change patterns, deprecation approach
 - Shared API utilities: validation, auth middleware, pagination helpers, error translation, context
 
 **Out of scope**
 - Deep domain modeling (belongs in domain/service architecture skills)
-- Transport choice wars (REST vs gRPC) beyond consistency and reliability
 - Full “proto governance” details (use `interoperability-steer` for canonical rules)
 - UI concerns (except where UI↔API contract reliability is impacted)
 
@@ -148,6 +148,12 @@ If you must expose actions, make them explicit and consistent.
 This increases reliability by eliminating “stringly typed” drift and enforcing consistent shapes.
 
 **Guidance (high-level):**
+- Every proto-typed wire boundary requires a `service` block. Generated
+  Connect-RPC handlers and clients are the baseline transport for
+  inter-scenario, UI↔API, and CLI↔API calls.
+- REST is reserved for justified non-proto edges: multipart file uploads,
+  webhook receivers, and third-party API shapes. Document the reason when
+  adding one.
 - Requests/responses are **structured messages**, not ad-hoc JSON blobs.
 - Changes should be **additive** whenever possible.
 - Prefer **explicit fields** over “metadata maps” unless strongly justified.
@@ -345,6 +351,8 @@ When inheriting or improving an existing scenario API, first establish the curre
 
 **Audit prompts (what to look for):**
 - Are endpoints grouped by domain boundaries?
+- Do proto-owned operations use Connect-RPC service methods end to end?
+- Are REST endpoints documented with explicit non-proto justification?
 - Do request/response shapes look uniform?
 - Are errors consistent and typed?
 - Where does domain logic live (handlers vs services)?
@@ -380,3 +388,5 @@ You must:
 - Enforce consistent error shapes and response envelopes where applicable
 - Ensure proto-first adoption is progressing (or explicitly documented why not)
 - Avoid shallow refactors that only rename files without improving structure and reliability
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

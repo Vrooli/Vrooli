@@ -5,10 +5,10 @@
 2. Load linked drafts and polish for platform fit.
 3. Verify feature claims before release.
 4. Schedule or record manual workaround steps.
-5. Update declared publish and coverage state.
-6. Sweep coverage freshness.
+5. Update declared publish, subject-mention, and coverage state.
+6. Sweep coverage freshness and identify requested artifacts that still lack drafts.
 7. Check supersession on owned pending decisions.
-8. Raise follow-up, channel, or capability decisions only when warranted.
+8. Raise follow-up, channel, coverage, or capability decisions only when warranted.
 9. Record the coverage snapshot.
 
 ## Handoff Shape

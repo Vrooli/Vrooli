@@ -1,13 +1,27 @@
 {
-  "intake": [],
+  "required_read": [
+    {
+      "prefix": "outcome-target-record/YYYY-MM-DD"
+    },
+    {
+      "prefix": "decision-application/<decision-id>"
+    }
+  ],
   "output": [
-    { "prefix": "outcome-target-record/*", "destination_kind": "knowledge", "destination_team": null }
+    {
+      "prefix": "outcome-target-record/*",
+      "destination_kind": "knowledge"
+    }
   ],
   "decisions_owned": [
     "outcome-gap",
     "outcome-direction"
   ],
-  "decisions_consumed": ["capability-gap"],
-  "raises_capability_gaps": false,
-  "external_producers": ["operator", "vision-walk"]
+  "decisions_consumed": [
+    "capability-gap"
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
 }

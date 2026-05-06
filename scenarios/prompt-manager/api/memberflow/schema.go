@@ -8,7 +8,7 @@
 // counterpart to prose router skills and feeds the heartbeat builder's
 // generated Inbox Flow section.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md, docs/agent-system/drafts/inbox-flow-refactor-plan.md
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
 package memberflow
 
 import (
@@ -73,8 +73,68 @@ type IntakeEntry struct {
 
 // SourceTeamWildcard is the literal value of IntakeEntry.SourceTeam that
 // declares a universal-source intake — any team's members may write the
-// prefix. See IntakeEntry.SourceTeam for semantics.
+// prefix. See IntakeEntry.SourceTeam for semantics. The same wildcard is
+// accepted on RequiredReadEntry.SourceTeam and EvidenceConsumedEntry.SourceTeam.
 const SourceTeamWildcard = "*"
+
+// RequiredReadEntry declares one topic-prefix this member must read on every
+// heartbeat for required-memory context. The heartbeat builder renders these
+// prefixes into the agent prompt's "Required Memory" section so the agent
+// always sees current state when it ticks.
+//
+// Where IntakeEntry says "I drain new entries on this prefix (and may
+// classify them)", RequiredReadEntry says "I need this prefix's recent
+// entries in my prompt every tick — I'm not draining or routing them." A
+// single member commonly carries both: an intake[] for actionable signals
+// and a required_read[] for always-on context.
+//
+// Read relationships used to live on team.json's per-member contract
+// (under a member-level field that was invisible to the validator); they
+// now live here so a single load surfaces every read relationship to the
+// consumer-set used by ruleOrphanOutput (see consumer_set.go).
+type RequiredReadEntry struct {
+	// Prefix is a topic-prefix string. Wildcard suffix `/*` indicates a
+	// prefix match; a string without `/*` matches only that exact topic.
+	Prefix string `json:"prefix"`
+
+	// SourceTeam names the team whose member writes this prefix when the
+	// flow is cross-team. Empty / nil means same-team or external
+	// producer. Mirrors IntakeEntry.SourceTeam semantics, including the
+	// "*" (SourceTeamWildcard) value for universal-source reads.
+	SourceTeam *string `json:"source_team,omitempty"`
+
+	// Comment is freeform context for human readers (e.g., "needed to cite
+	// most recent campaign-draft on every publish proposal"). Optional;
+	// the validator does not interpret it.
+	Comment string `json:"comment,omitempty"`
+}
+
+// EvidenceConsumedEntry declares one topic-prefix this member reads as
+// evidence when authoring or contributing to specific decisions. Each entry
+// names the decision-context ids that consume it.
+//
+// Where IntakeEntry says "I drain new entries", EvidenceConsumedEntry says
+// "when authoring decision X, I cite entries from this prefix."
+// ruleDanglingEvidenceDecision cross-checks each ForDecisions id against
+// team.json::decisionContexts so typo'd or removed decision ids surface as
+// findings rather than silent dead references.
+type EvidenceConsumedEntry struct {
+	// Prefix is a topic-prefix string. Wildcard suffix `/*` indicates a
+	// prefix match; a string without `/*` matches only that exact topic.
+	Prefix string `json:"prefix"`
+
+	// SourceTeam names the team whose member writes this prefix when the
+	// flow is cross-team. Empty / nil means same-team or external
+	// producer. Mirrors IntakeEntry.SourceTeam semantics.
+	SourceTeam *string `json:"source_team,omitempty"`
+
+	// ForDecisions names the decision-context ids that cite this prefix
+	// as evidence. Required and non-empty: an evidence relationship with
+	// no consumer is not a relationship. ruleDanglingEvidenceDecision
+	// validates each id resolves against some team's
+	// team.json::decisionContexts.
+	ForDecisions []string `json:"for_decisions"`
+}
 
 // OutputEntry declares one topic-prefix this member writes.
 type OutputEntry struct {
@@ -107,19 +167,29 @@ type OutputEntry struct {
 // Topics is the full per-member declaration. Marshalled to/from
 // topics.json. All top-level fields are optional; an empty object {} is valid
 // and means "this member has no flow declarations."
+//
+// Field ordering follows the consumption-side → production-side flow:
+// intake/required_read/evidence_consumed describe what the member reads;
+// output describes what it writes; decisions_owned/decisions_consumed
+// describe its decision-graph position; raises_capability_gaps and
+// external_producers are policy/anchor metadata.
 type Topics struct {
-	Intake               []IntakeEntry `json:"intake,omitempty"`
-	Output               []OutputEntry `json:"output,omitempty"`
-	DecisionsOwned       []string      `json:"decisions_owned,omitempty"`
-	DecisionsConsumed    []string      `json:"decisions_consumed,omitempty"`
-	RaisesCapabilityGaps bool          `json:"raises_capability_gaps,omitempty"`
-	ExternalProducers    []string      `json:"external_producers,omitempty"`
+	Intake               []IntakeEntry           `json:"intake,omitempty"`
+	RequiredRead         []RequiredReadEntry     `json:"required_read,omitempty"`
+	EvidenceConsumed     []EvidenceConsumedEntry `json:"evidence_consumed,omitempty"`
+	Output               []OutputEntry           `json:"output,omitempty"`
+	DecisionsOwned       []string                `json:"decisions_owned,omitempty"`
+	DecisionsConsumed    []string                `json:"decisions_consumed,omitempty"`
+	RaisesCapabilityGaps bool                    `json:"raises_capability_gaps,omitempty"`
+	ExternalProducers    []string                `json:"external_producers,omitempty"`
 }
 
 // IsEmpty reports whether the declaration has no content. An empty Topics is a
 // positive declaration ("audited; no flow") rather than ambiguous absence.
 func (t Topics) IsEmpty() bool {
 	return len(t.Intake) == 0 &&
+		len(t.RequiredRead) == 0 &&
+		len(t.EvidenceConsumed) == 0 &&
 		len(t.Output) == 0 &&
 		len(t.DecisionsOwned) == 0 &&
 		len(t.DecisionsConsumed) == 0 &&
@@ -137,7 +207,7 @@ func (t Topics) IsEmpty() bool {
 //   - destination_kind == por_file with empty destination_path
 //
 // Cross-member errors (orphan_input, conflicting_drain, unknown_taxonomy,
-// non_portable_classifier, missing_destination_schema, etc.) require the full
+// missing_destination_schema, prose_topic_leak, etc.) require the full
 // graph and are computed by Validate (validation.go), not by this method.
 func (t Topics) Validate() error {
 	errs := t.ValidateAll()
@@ -157,6 +227,16 @@ func (t Topics) ValidateAll() []error {
 			errs = append(errs, fmt.Errorf("intake[%d]: %w", i, err))
 		}
 	}
+	for i, e := range t.RequiredRead {
+		if err := validateRequiredRead(e); err != nil {
+			errs = append(errs, fmt.Errorf("required_read[%d]: %w", i, err))
+		}
+	}
+	for i, e := range t.EvidenceConsumed {
+		if err := validateEvidenceConsumed(e); err != nil {
+			errs = append(errs, fmt.Errorf("evidence_consumed[%d]: %w", i, err))
+		}
+	}
 	for i, e := range t.Output {
 		if err := validateOutput(e); err != nil {
 			errs = append(errs, fmt.Errorf("output[%d]: %w", i, err))
@@ -171,6 +251,34 @@ func validateIntake(e IntakeEntry) error {
 	}
 	if !validPrefix(e.Prefix) {
 		return fmt.Errorf("prefix %q is malformed", e.Prefix)
+	}
+	return nil
+}
+
+func validateRequiredRead(e RequiredReadEntry) error {
+	if strings.TrimSpace(e.Prefix) == "" {
+		return errors.New("prefix is required")
+	}
+	if !validPrefix(e.Prefix) {
+		return fmt.Errorf("prefix %q is malformed", e.Prefix)
+	}
+	return nil
+}
+
+func validateEvidenceConsumed(e EvidenceConsumedEntry) error {
+	if strings.TrimSpace(e.Prefix) == "" {
+		return errors.New("prefix is required")
+	}
+	if !validPrefix(e.Prefix) {
+		return fmt.Errorf("prefix %q is malformed", e.Prefix)
+	}
+	if len(e.ForDecisions) == 0 {
+		return errors.New("for_decisions is required (non-empty list of decision-context ids)")
+	}
+	for i, id := range e.ForDecisions {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("for_decisions[%d] is empty", i)
+		}
 	}
 	return nil
 }

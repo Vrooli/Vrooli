@@ -20,3 +20,7 @@ export {
   resolveWithConfig,
   createConfigCache,
 } from './config.js'
+
+// Connect-RPC transport
+export { createScenarioConnectTransport } from './connect.js'
+export type { ScenarioConnectTransportOptions } from './connect.js'

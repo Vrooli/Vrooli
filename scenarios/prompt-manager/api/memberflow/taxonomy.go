@@ -4,7 +4,7 @@
 // Flow section; the validator consumes them to enforce
 // `unknown_taxonomy` and `missing_destination_schema`.
 //
-// DOC: docs/agent-system/drafts/inbox-flow-refactor-plan.md §6.3
+// DOC: docs/agent-system/TOPICS.md
 package memberflow
 
 import (

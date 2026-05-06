@@ -1,0 +1,283 @@
+# Start Here — {{SCENARIO_DISPLAY_NAME}}
+
+This is the first document to read after generating the scenario from
+the `react-vite` template. Treat it as the scenario initialization
+protocol: complete the gates in order, check them off as you go, and
+do not start product implementation until the charter and requirements
+gates are complete.
+
+The generated scaffold is intentionally not the product. The `notes`
+domain is a worked example that shows the expected vertical slice
+shape. Build one real domain beside it, prove that domain is green,
+then remove the example.
+
+## Initialization Protocol
+
+### Gate 0 — Scaffold Health
+
+- [ ] Run `make setup` from this scenario directory.
+- [ ] Run `make start`.
+- [ ] Run `make status` and confirm API/UI lifecycle metadata resolves.
+- [ ] Run `make test`.
+- [ ] Fix lifecycle, generation, codegen, dependency, or test failures
+      before product work.
+
+**Exit criteria:** the generated scenario boots, reports status, and
+passes the template test lifecycle.
+
+### Gate 1 — Charter
+
+Do not hand-write the final `PRD.md` when AI generation is available.
+Use `prd-control-tower` as the canonical PRD authoring path so the file
+matches the Vrooli PRD standard and can drive requirement generation.
+
+- [ ] Write a brief context file for the scenario:
+
+```bash
+cat > /tmp/prd_context_{{SCENARIO_ID}}.md <<'EOF'
+Overview:
+- Purpose:
+- Primary users / verticals:
+- Deployment surfaces:
+- Value promise:
+
+P0 operational targets:
+- ...
+
+P1 operational targets:
+- ...
+
+P2 operational targets:
+- ...
+
+Tech direction snapshot:
+- Preferred stacks / frameworks:
+- Data + storage expectations:
+- Integration strategy:
+- Non-goals / guardrails:
+
+Dependencies & launch plan:
+- Required resources:
+- Scenario dependencies:
+- Operational risks:
+- Launch sequencing:
+
+UX & branding:
+- Look and feel:
+- Accessibility bar:
+- Voice and messaging:
+- Branding hooks:
+EOF
+```
+
+- [ ] Generate and publish the PRD:
+
+```bash
+prd-control-tower prd generate {{SCENARIO_ID}} \
+  --context-file /tmp/prd_context_{{SCENARIO_ID}}.md \
+  --publish \
+  --json
+```
+
+- [ ] Validate the PRD:
+
+```bash
+prd-control-tower prd validate {{SCENARIO_ID}} --json
+```
+
+- [ ] Read the published `PRD.md` and confirm it captures the intended
+      permanent capability, users, operational targets, dependencies,
+      risks, and UX direction.
+- [ ] Treat `PRD.md` as read-only after this gate except for automated
+      checkbox updates.
+
+**Exit criteria:** `PRD.md` exists, validates, and contains stable
+P0/P1/P2 operational targets that can drive requirements and tests.
+
+### Gate 2 — Requirements Registry
+
+Generate requirements from the PRD operational targets. Requirements
+are the implementation-facing measurement layer; tests should later tag
+`[REQ:ID]` so sync tooling can update status.
+
+- [ ] Optionally write requirement-generation context:
+
+```bash
+cat > /tmp/requirements_context_{{SCENARIO_ID}}.md <<'EOF'
+Validation approach:
+- Unit:
+- Integration:
+- Business / BAS:
+- Performance:
+
+Technical constraints:
+- ...
+
+Requirement details:
+- ...
+EOF
+```
+
+- [ ] Generate requirements:
+
+```bash
+prd-control-tower requirements generate {{SCENARIO_ID}} \
+  --context-file /tmp/requirements_context_{{SCENARIO_ID}}.md \
+  --json
+```
+
+- [ ] Validate requirements:
+
+```bash
+prd-control-tower requirements validate {{SCENARIO_ID}} --json
+```
+
+- [ ] Confirm `requirements/index.json` imports numbered
+      `requirements/<number>-<target>/module.json` files that mirror
+      the PRD operational targets.
+- [ ] Confirm each P0/P1 target has at least one linked requirement and
+      each requirement has a concrete validation strategy.
+
+**Exit criteria:** the requirements registry validates and gives future
+implementation agents clear `[REQ:ID]` targets for tests.
+
+### Gate 3 — Domain Map
+
+This gate is intentionally lightweight until Vrooli has a canonical
+domain-map artifact. Do the thinking before coding.
+
+- [ ] Name the real bounded contexts for this scenario.
+- [ ] For each domain, identify the data it owns, proto operations, API
+      behavior, CLI commands, UI surface, storage needs, and test
+      evidence.
+- [ ] Confirm each domain maps back to at least one operational target
+      or requirement.
+
+**Exit criteria:** you can explain what the first real domain is, why
+it exists, and which files it will touch before writing code.
+
+### Gate 4 — Dependency Decisions
+
+- [ ] Keep SQLite unless a domain truly needs a shared resource.
+- [ ] If adding resources or scenario dependencies, document the reason
+      in `PRD.md` during the charter gate or in
+      `docs/concepts/ARCHITECTURE.md` before editing
+      `.vrooli/service.json`.
+- [ ] Confirm no dependency is added only because the example `notes`
+      domain happens to use a local SQLite store.
+
+**Exit criteria:** `.vrooli/service.json` reflects only dependencies
+the real scenario needs.
+
+### Gate 5 — Design Language
+
+Generation installs root-level `DESIGN.md` from the selected design kit.
+Treat that file as the UI source of truth before building screens.
+
+- [ ] Read `DESIGN.md` and confirm it fits this scenario's users,
+      density, workflow, and accessibility needs.
+- [ ] If the scenario needs a different language, regenerate with a
+      compatible `--design <kit-id>` or intentionally update
+      `DESIGN.md` before UI implementation.
+- [ ] Keep `ui/src/design-tokens.css`, `ui/tailwind.theme.json`,
+      `ui/tailwind.config.ts`, and reusable `ui/src/components/ui/`
+      primitives aligned with `DESIGN.md`.
+- [ ] Do not create `docs/DESIGN_LANGUAGE.md`; root `DESIGN.md` is the
+      canonical design contract.
+
+**Exit criteria:** UI work has a reviewed root `DESIGN.md`, and the
+global styles, Tailwind theme, primitives, selectors, and accessibility
+tests all point back to that contract.
+
+### Gate 6 — First Real Vertical Slice
+
+- [ ] Add the first real domain beside the example `notes` domain.
+- [ ] Mirror the pattern across proto, API domain, API handler module,
+      CLI domain, UI API client, UI feature, i18n strings, selectors,
+      and tests.
+- [ ] Run code generation, endpoint generation, string generation, and
+      tests as needed.
+- [ ] Run `make test`.
+
+**Exit criteria:** the first real domain is green across API, CLI, UI,
+and scenario tests.
+
+### Gate 7 — Remove The Example Domain
+
+- [ ] Delete `api/internal/notes`, `api/handlers/notes`,
+      `cli/domains/notes`, `ui/src/features/notes`,
+      `ui/src/api/notes.ts`, and `ui/src/api/notes.test.ts`.
+- [ ] Remove `notes` imports, module registrations, schema entries, CLI
+      registration, and `<NotesCard />` render.
+- [ ] Remove `notes` command rows from
+      `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
+      `make endpoints`.
+- [ ] Remove notes-specific i18n keys and run `pnpm strings:gen` from
+      `ui/`.
+- [ ] Remove the `notes` block from `ui/src/consts/selectors.ts`.
+- [ ] Verify no product residue remains with focused searches for
+      `notes`, `Notes`, and `NOTES` in `api/`, `cli/`, `ui/src/`,
+      `.vrooli/`, and the scenario's proto schema directory.
+- [ ] Run `make test`.
+
+**Exit criteria:** only health plus real scenario domains remain.
+
+### Gate 8 — Progress Handoff
+
+- [ ] Append a concise row to `docs/internal/PROGRESS.md` after
+      meaningful changes.
+- [ ] Record known gaps or intentional deviations in
+      `docs/internal/PROBLEMS.md`.
+- [ ] Include validation evidence in the final handoff.
+
+**Exit criteria:** future agents can reconstruct what happened, what is
+complete, and what remains.
+
+## Architecture Rules
+
+- Business logic belongs in `api/internal/<domain>/`.
+- Wire contracts belong in
+  `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`.
+- UI and CLI are translation layers over the API; they do not own
+  business rules.
+- Domain-owned schemas live next to the domain code.
+- Generated files are regenerated, not hand-edited.
+- `notes` is a worked example, not product functionality.
+
+Read `docs/concepts/ARCHITECTURE.md` before changing structure, and
+read `docs/internal/TESTING.md` before adding non-trivial tests.
+
+## Replacing The Example Domain
+
+Build your first real domain side-by-side with `notes`, then remove
+`notes`. Use plural package/folder names such as `tasks`, `profiles`,
+or `orders`; use PascalCase for components and Go exported names.
+
+For a normal proto-backed CRUD domain:
+
+1. Add proto messages and a service under
+   `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`, then run
+   `make generate` from `packages/proto`.
+2. Add `api/internal/<domain>/` with `types.go`, `repository.go`,
+   storage implementation, `service.go`, `schema.sql`, `schema.go`,
+   tests, and co-located mocks.
+3. Add `api/handlers/<domain>/` with a thin generated Connect handler,
+   `module.go`, conversion helpers if needed, endpoint descriptors, and
+   tests.
+4. Register the domain schema/endpoints in
+   `api/internal/modules/registry.go` and mount the module in
+   `api/main.go`.
+5. Add `cli/domains/<domain>/` with declarative `cliapp.ArgSchema`
+   commands that call generated Connect clients, then register the
+   domain in `cli/domains/domains.go`.
+6. Add endpoint-to-command seed rows in
+   `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
+   `make endpoints`.
+7. Add `ui/src/api/<domain>.ts` and `ui/src/features/<domain>/` with
+   feature components, mocks, factories, selectors, i18n strings, and
+   tests.
+8. Run string/code generation as needed, then run `make test`.
+
+If the domain needs opaque binary uploads, keep bytes on a REST
+multipart edge and keep metadata proto-typed. The example `notes`
+attachments path demonstrates that exception.

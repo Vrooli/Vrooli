@@ -112,7 +112,7 @@ Update `docs/reference/configuration.md` (user-facing) to document the control s
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/reference/` directory if needed.
+* Create the `path:docs/reference/` directory if needed.
 
 Include:
 * New tunable levers: name, purpose, valid ranges, default, impact

@@ -78,13 +78,7 @@
       "id": "plans",
       "title": "Plans",
       "icon": "map",
-      "documents": [
-        {
-          "path": "plans/recycler-automation-guide.md",
-          "title": "Recycler Automation Plan",
-          "description": "Design notes for recycler automation"
-        }
-      ]
+      "documents": []
     },
     {
       "id": "internal",

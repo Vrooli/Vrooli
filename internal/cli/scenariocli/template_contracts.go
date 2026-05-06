@@ -41,16 +41,25 @@ type TemplateRelocation struct {
 	Post        []TemplateHook `json:"post,omitempty"`
 }
 
+type TemplateDesign struct {
+	Adapter  string `json:"adapter,omitempty"`
+	Default  string `json:"default,omitempty"`
+	Required bool   `json:"required,omitempty"`
+}
+
 type TemplateManifest struct {
-	Name         string                 `json:"name,omitempty"`
-	DisplayName  string                 `json:"displayName,omitempty"`
-	Description  string                 `json:"description,omitempty"`
-	Stack        []string               `json:"stack,omitempty"`
-	RequiredVars map[string]TemplateVar `json:"requiredVars,omitempty"`
-	OptionalVars map[string]TemplateVar `json:"optionalVars,omitempty"`
-	Docs         map[string]string      `json:"docs,omitempty"`
-	PostHooks    []TemplateHook         `json:"postHooks,omitempty"`
-	Relocations  []TemplateRelocation   `json:"relocations,omitempty"`
+	Name          string                 `json:"name,omitempty"`
+	DisplayName   string                 `json:"displayName,omitempty"`
+	Description   string                 `json:"description,omitempty"`
+	Stack         []string               `json:"stack,omitempty"`
+	StartDocument string                 `json:"startDocument,omitempty"`
+	Design        TemplateDesign         `json:"design,omitempty"`
+	RequiredVars  map[string]TemplateVar `json:"requiredVars,omitempty"`
+	OptionalVars  map[string]TemplateVar `json:"optionalVars,omitempty"`
+	Docs          map[string]string      `json:"docs,omitempty"`
+	CopyExcludes  []string               `json:"copyExcludes,omitempty"`
+	PostHooks     []TemplateHook         `json:"postHooks,omitempty"`
+	Relocations   []TemplateRelocation   `json:"relocations,omitempty"`
 }
 
 type TemplateInfo struct {
@@ -62,6 +71,7 @@ type TemplateInfo struct {
 
 type GenerateOptions struct {
 	Destination string
+	Design      string
 	Force       bool
 	DryRun      bool
 	RunHooks    bool
@@ -83,9 +93,22 @@ type (
 // would land before any disk writes happen.
 type ResolvedRelocation struct {
 	Description string         `json:"description,omitempty"`
-	From        string         `json:"from"`         // template-relative source dir
-	To          string         `json:"to"`           // absolute path under repo root after substitution
+	From        string         `json:"from"` // template-relative source dir
+	To          string         `json:"to"`   // absolute path under repo root after substitution
 	Post        []TemplateHook `json:"post,omitempty"`
+}
+
+type ResolvedDesignCopy struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+type ResolvedDesign struct {
+	KitID     string               `json:"kitId,omitempty"`
+	KitName   string               `json:"kitName,omitempty"`
+	Version   string               `json:"version,omitempty"`
+	AdapterID string               `json:"adapterId,omitempty"`
+	Copies    []ResolvedDesignCopy `json:"copies,omitempty"`
 }
 
 type GenerateResult struct {
@@ -94,6 +117,7 @@ type GenerateResult struct {
 	Destination  string
 	Values       map[string]string
 	Manifest     TemplateManifest
+	Design       ResolvedDesign
 	Relocations  []ResolvedRelocation
 	DryRun       bool
 	RunHooks     bool
@@ -145,6 +169,22 @@ func RenderTemplateShowResponse(w io.Writer, format cliout.Format, info Template
 	}
 	if len(manifest.Stack) > 0 {
 		_, _ = fmt.Fprintf(w, "Stack: %s\n", strings.Join(manifest.Stack, ", "))
+	}
+	if strings.TrimSpace(manifest.StartDocument) != "" {
+		_, _ = fmt.Fprintf(w, "Start document: %s\n", manifest.StartDocument)
+	}
+	if strings.TrimSpace(manifest.Design.Default) != "" || strings.TrimSpace(manifest.Design.Adapter) != "" || manifest.Design.Required {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Design:")
+		if manifest.Design.Default != "" {
+			_, _ = fmt.Fprintf(w, "  default: %s\n", manifest.Design.Default)
+		}
+		if manifest.Design.Adapter != "" {
+			_, _ = fmt.Fprintf(w, "  adapter: %s\n", manifest.Design.Adapter)
+		}
+		if manifest.Design.Required {
+			_, _ = fmt.Fprintln(w, "  required: yes")
+		}
 	}
 	writeTemplateVarTable(w, "Required Variables", manifest.RequiredVars)
 	writeTemplateVarTable(w, "Optional Variables", manifest.OptionalVars)
@@ -213,17 +253,41 @@ func RenderGenerateResponse(w io.Writer, format cliout.Format, result GenerateRe
 	if result.DryRun {
 		_, _ = fmt.Fprintf(w, "[DRY-RUN] Would generate template %s at %s\n", result.TemplateName, result.Destination)
 		WriteTemplateValues(w, result.Values)
+		WriteTemplateDesign(w, result.Design)
 		WriteTemplateRelocations(w, result.Relocations)
 		return nil
 	}
 	_, _ = fmt.Fprintf(w, "Created %s at %s\n", result.DisplayName, result.Destination)
 	WriteTemplateValues(w, result.Values)
+	WriteTemplateDesign(w, result.Design)
 	WriteTemplateRelocations(w, result.Relocations)
 	WriteTemplateNextSteps(w, result.Destination, result.Manifest)
 	if !result.RunHooks {
 		WriteTemplateHooks(w, result.Manifest)
 	}
 	return nil
+}
+
+func WriteTemplateDesign(w io.Writer, design ResolvedDesign) {
+	if strings.TrimSpace(design.KitID) == "" {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Design:")
+	_, _ = fmt.Fprintf(w, "  kit: %s", design.KitID)
+	if design.Version != "" {
+		_, _ = fmt.Fprintf(w, " (%s)", design.Version)
+	}
+	_, _ = fmt.Fprintln(w)
+	if design.AdapterID != "" {
+		_, _ = fmt.Fprintf(w, "  adapter: %s\n", design.AdapterID)
+	}
+	if len(design.Copies) > 0 {
+		_, _ = fmt.Fprintln(w, "  copy:")
+		for _, copy := range design.Copies {
+			_, _ = fmt.Fprintf(w, "    - %s -> %s\n", copy.From, copy.To)
+		}
+	}
 }
 
 // WriteTemplateRelocations renders the resolved relocations (if any). Used
@@ -287,9 +351,19 @@ func WriteTemplateValues(w io.Writer, values map[string]string) {
 
 func WriteTemplateNextSteps(w io.Writer, destination string, manifest TemplateManifest) {
 	_, _ = fmt.Fprintln(w)
+	if startDocument := strings.TrimSpace(manifest.StartDocument); startDocument != "" {
+		_, _ = fmt.Fprintln(w, "Start here:")
+		_, _ = fmt.Fprintf(w, "  %s\n", startDocument)
+		_, _ = fmt.Fprintln(w)
+	}
 	_, _ = fmt.Fprintln(w, "Next steps:")
-	_, _ = fmt.Fprintf(w, "  1. Review files in %s\n", destination)
-	_, _ = fmt.Fprintln(w, "  2. Run scenario setup and tests")
+	if strings.TrimSpace(manifest.StartDocument) != "" {
+		_, _ = fmt.Fprintln(w, "  1. Read the start document")
+		_, _ = fmt.Fprintln(w, "  2. Run scenario setup and tests")
+	} else {
+		_, _ = fmt.Fprintf(w, "  1. Review files in %s\n", destination)
+		_, _ = fmt.Fprintln(w, "  2. Run scenario setup and tests")
+	}
 	if len(manifest.PostHooks) > 0 {
 		_, _ = fmt.Fprintln(w, "  3. Consider re-running with --run-hooks")
 	}

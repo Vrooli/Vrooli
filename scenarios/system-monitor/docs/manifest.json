@@ -61,7 +61,6 @@
       "icon": "map",
       "visibility": "developers-only",
       "documents": [
-        { "id": "refactoring", "title": "API Refactoring Guide", "path": "plans/REFACTORING.md", "type": "plan", "description": "API architecture refactoring notes, module structure, and migration guide" },
         { "id": "prd", "title": "Product Requirements Document", "path": "../PRD.md", "type": "specification", "description": "Full PRD with operational targets, API contract, CLI interface, and architecture" }
       ]
     }

@@ -677,7 +677,6 @@ export async function transcribeAudio(audioBlob: Blob, language?: string): Promi
  * `skip_speaker_verification` query parameter; any other value (including
  * `"1"`, `"yes"`, omitted) keeps the filter active.
  *
- * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
  */
 export async function transcribeAudioBypassFilter(
   audioBlob: Blob,

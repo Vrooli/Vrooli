@@ -18,6 +18,10 @@ type AuditResponse struct {
 	Infrastructure      *AuditInfrastructure    `json:"infrastructure"`
 	CodeWithoutDocRefs  []AuditUndocumentedFile `json:"code_without_doc_refs"`
 	BrokenCodeRefs      []AuditBrokenRef        `json:"broken_code_refs"`
+	MarkedRefsFound     int                     `json:"marked_refs_found"`
+	MarkedRefsSkipped   int                     `json:"marked_refs_skipped"`
+	BrokenMarkedRefs    []AuditMarkedRefIssue   `json:"broken_marked_refs"`
+	UnknownMarkedRefs   []AuditMarkedRefIssue   `json:"unknown_marked_refs"`
 	OrphanedDocs        []string                `json:"orphaned_docs"`
 	DuplicateTitles     []AuditDuplicateTitle   `json:"duplicate_titles"`
 	UndocumentedTargets []string                `json:"undocumented_targets"`
@@ -46,6 +50,15 @@ type AuditBrokenRef struct {
 	DocPath string `json:"doc_path"`
 	Line    int    `json:"line"`
 	Target  string `json:"target"`
+}
+
+type AuditMarkedRefIssue struct {
+	DocPath string `json:"doc_path"`
+	Line    int    `json:"line"`
+	Marker  string `json:"marker"`
+	Target  string `json:"target"`
+	Raw     string `json:"raw"`
+	Reason  string `json:"reason"`
 }
 
 type AuditDuplicateTitle struct {
@@ -358,6 +371,9 @@ func classifyAuditStatus(totalFindings int, result AuditResponse) auditSeverity 
 	if len(result.BrokenCodeRefs) > 0 || len(result.UndocumentedTargets) > 0 {
 		return auditSeverityFail
 	}
+	if len(result.BrokenMarkedRefs) > 0 || len(result.UnknownMarkedRefs) > 0 {
+		return auditSeverityFail
+	}
 	return auditSeverityWarn
 }
 
@@ -471,6 +487,12 @@ func auditStatusDrivers(result AuditResponse) []string {
 	if len(result.BrokenCodeRefs) > 0 {
 		drivers = append(drivers, fmt.Sprintf("%d broken [CODE:] refs", len(result.BrokenCodeRefs)))
 	}
+	if len(result.BrokenMarkedRefs) > 0 {
+		drivers = append(drivers, fmt.Sprintf("%d broken marked refs", len(result.BrokenMarkedRefs)))
+	}
+	if len(result.UnknownMarkedRefs) > 0 {
+		drivers = append(drivers, fmt.Sprintf("%d unknown marked refs", len(result.UnknownMarkedRefs)))
+	}
 	if len(result.UndocumentedTargets) > 0 {
 		drivers = append(drivers, fmt.Sprintf("%d undocumented operational targets", len(result.UndocumentedTargets)))
 	}
@@ -481,6 +503,8 @@ func buildManualGroups(result AuditResponse, temporary []string) []manualGroup {
 	groups := []manualGroup{
 		{name: "No DOC refs", items: make([]triageItem, 0, len(result.CodeWithoutDocRefs))},
 		{name: "Broken [CODE:] refs", items: make([]triageItem, 0, len(result.BrokenCodeRefs))},
+		{name: "Broken marked refs", items: make([]triageItem, 0, len(result.BrokenMarkedRefs))},
+		{name: "Unknown marked refs", items: make([]triageItem, 0, len(result.UnknownMarkedRefs))},
 		{name: "Orphaned docs", items: make([]triageItem, 0, len(result.OrphanedDocs))},
 		{name: "Duplicate titles", items: make([]triageItem, 0, len(result.DuplicateTitles))},
 		{name: "Undocumented operational targets", items: make([]triageItem, 0, len(result.UndocumentedTargets))},
@@ -495,21 +519,31 @@ func buildManualGroups(result AuditResponse, temporary []string) []manualGroup {
 		target := strings.TrimSpace(ref.Target)
 		groups[1].items = append(groups[1].items, triageItem{sortKey: strings.ToLower(path + "|" + strconv.Itoa(ref.Line) + "|" + target), text: fmt.Sprintf("%s:%d -> %s", path, ref.Line, target)})
 	}
+	for _, ref := range result.BrokenMarkedRefs {
+		path := strings.TrimSpace(ref.DocPath)
+		target := strings.TrimSpace(ref.Target)
+		groups[2].items = append(groups[2].items, triageItem{sortKey: strings.ToLower(path + "|" + strconv.Itoa(ref.Line) + "|" + target), text: formatMarkedRefIssue(ref)})
+	}
+	for _, ref := range result.UnknownMarkedRefs {
+		path := strings.TrimSpace(ref.DocPath)
+		target := strings.TrimSpace(ref.Target)
+		groups[3].items = append(groups[3].items, triageItem{sortKey: strings.ToLower(path + "|" + strconv.Itoa(ref.Line) + "|" + target), text: formatMarkedRefIssue(ref)})
+	}
 	for _, doc := range result.OrphanedDocs {
 		path := strings.TrimSpace(doc)
-		groups[2].items = append(groups[2].items, triageItem{sortKey: strings.ToLower(path), text: path})
+		groups[4].items = append(groups[4].items, triageItem{sortKey: strings.ToLower(path), text: path})
 	}
 	for _, title := range result.DuplicateTitles {
 		name := strings.TrimSpace(title.Title)
-		groups[3].items = append(groups[3].items, triageItem{sortKey: strings.ToLower(name), text: fmt.Sprintf("%q", name)})
+		groups[5].items = append(groups[5].items, triageItem{sortKey: strings.ToLower(name), text: fmt.Sprintf("%q", name)})
 	}
 	for _, target := range result.UndocumentedTargets {
 		value := strings.TrimSpace(target)
-		groups[4].items = append(groups[4].items, triageItem{sortKey: strings.ToLower(value), text: value})
+		groups[6].items = append(groups[6].items, triageItem{sortKey: strings.ToLower(value), text: value})
 	}
 	for _, path := range temporary {
 		value := strings.TrimSpace(path)
-		groups[5].items = append(groups[5].items, triageItem{sortKey: strings.ToLower(value), text: value})
+		groups[7].items = append(groups[7].items, triageItem{sortKey: strings.ToLower(value), text: value})
 	}
 	out := make([]manualGroup, 0, len(groups))
 	for _, group := range groups {
@@ -520,6 +554,19 @@ func buildManualGroups(result AuditResponse, temporary []string) []manualGroup {
 		out = append(out, group)
 	}
 	return out
+}
+
+func formatMarkedRefIssue(ref AuditMarkedRefIssue) string {
+	location := fmt.Sprintf("%s:%d", strings.TrimSpace(ref.DocPath), ref.Line)
+	raw := strings.TrimSpace(ref.Raw)
+	if raw == "" {
+		raw = strings.TrimSpace(ref.Marker + ":" + ref.Target)
+	}
+	reason := strings.TrimSpace(ref.Reason)
+	if reason == "" {
+		return fmt.Sprintf("%s -> %s", location, raw)
+	}
+	return fmt.Sprintf("%s -> %s (%s)", location, raw, reason)
 }
 
 func countManualGroupItems(groups []manualGroup) int {

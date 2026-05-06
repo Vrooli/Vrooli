@@ -15,6 +15,7 @@ Use this README first, then choose the file or sub-hub that matches the work:
 
 | Question | Start with |
 |---|---|
+| How does the marketing team operate end to end? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
 | What should Vrooli sound like? | [`STRATEGY.md`](STRATEGY.md) |
 | Who is the audience? | [`AUDIENCES.md`](AUDIENCES.md) |
 | Which campaign is active? | [`CAMPAIGNS.md`](CAMPAIGNS.md) |
@@ -31,6 +32,7 @@ Use this README first, then choose the file or sub-hub that matches the work:
 
 | File | Purpose |
 |------|---------|
+| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Target-state operating model: loops, roles, topic surfaces, decision handoffs, notebook drainage, current implementation gaps, and adoption sequence. |
 | [`STRATEGY.md`](STRATEGY.md) | Voice canon: positioning principles, dual-audience framing (subscription + OSS), voice samples, anti-patterns, dev-log narrative principles. |
 | [`AUDIENCES.md`](AUDIENCES.md) | Personas. Subscription buyer, OSS contributor. Researcher proposes updates via `audience-update` decisions. |
 | [`CAMPAIGNS.md`](CAMPAIGNS.md) | Index of active campaigns. Brand-manager proposes launches via `campaign-launch-proposal` decisions. |
@@ -55,12 +57,12 @@ The first file in each sub-folder is a hub. Start there rather than guessing at 
 ## Write rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE / `strategies/*` / `rich-media/*` / `research/*` *and* the cross-team narrative canon at `docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for per-platform-rule edits to CHANNELS; `channel-strategy-update` (researcher) for channel-priority/strategy edits to CHANNELS; `post-type-proposal` (researcher) for new entries under `post-types/`; `hook-candidate-promotion` (researcher) for additions to `strategies/hook-library.md`.
+- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE / `path:docs/marketing/strategies/*` / `path:docs/marketing/rich-media/*` / `path:docs/marketing/research/*` *and* the cross-team narrative canon at `path:docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for per-platform-rule edits to CHANNELS; `channel-strategy-update` (researcher) for channel-priority/strategy edits to CHANNELS; `post-type-proposal` (researcher) for new entries under `post-types/`; `hook-candidate-promotion` (researcher) for additions to `strategies/hook-library.md`.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
 
 ## Cross-references
 
-- `docs/narrative/` — project-identity canon (pitch, story, FAQ, press kit, pitch-deck outline). Cross-team consumers (advertisers, monetization, director, LPBS) pull narrative content from there. Voice canon (this folder's STRATEGY.md) is the linguistic *how*; narrative is the *what*.
-- `docs/monetization/` — STRATEGY, CATALOG, PRICING, TIERS, per-bundle files, scenario-sku-map.json. Positioning ground truth. The team reads; never writes.
+- `path:docs/narrative/` — project-identity canon (pitch, story, FAQ, press kit, pitch-deck outline). Cross-team consumers (advertisers, monetization, director, LPBS) pull narrative content from there. Voice canon (this folder's STRATEGY.md) is the linguistic *how*; narrative is the *what*.
+- `path:docs/monetization/` — STRATEGY, CATALOG, PRICING, TIERS, per-bundle files, scenario-sku-map.json. Positioning ground truth. The team reads; never writes.
 - `VISION.md` (root) — operator-authored manifesto. Long-term north-star; pulled into deepest narrative layers.
 - `docs/concepts/ARCHITECTURE.md` — canonical technical reference for "how Vrooli actually works."

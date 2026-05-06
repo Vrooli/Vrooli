@@ -77,7 +77,6 @@ export class WebSpeechProvider implements TranscriptionProvider {
    * consumes them internally. There is no blob to retain, so this is always
    * null. The UI sees `getLastTurnAudio() === null` and shows a rejection
    * banner without the "Transcribe anyway" button.
-   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.3
    */
   getLastTurnAudio(): LastTurnAudio | null {
     return null;

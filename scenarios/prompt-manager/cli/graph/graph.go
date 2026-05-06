@@ -144,7 +144,10 @@ Subcommands:
   popular [--limit 10] [--type X]     Most referenced nodes
   circular-refs                       Circular reference detection
   health [--type X | <id>]            Health scores
-  topics [--team X] [--json]          Member topic-flow graph + validation
+  topics [--team X] [--json] [--findings-out PATH]
+                                      Member topic-flow graph + validation
+                                      (--findings-out writes a stable JSON
+                                      artifact for CI diff telemetry)
   drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)`
 }
 

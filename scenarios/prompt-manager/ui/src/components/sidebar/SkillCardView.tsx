@@ -9,7 +9,6 @@ import type { Skill } from '@/types'
 import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'
 import { onProfilerRender } from '@/lib/profiler'
-import { useVirtualRows } from '@/hooks/useVirtualRows'
 
 interface SkillCardViewProps {
   skills: Skill[]
@@ -76,12 +75,6 @@ function SkillCardViewImpl({
   onCombineToggleSkill,
 }: SkillCardViewProps) {
   const showDetails = detailMode === 'full'
-  const rowCount = Math.ceil(skills.length / 2)
-  const rowHeight = showDetails ? 132 : 72
-  const { containerRef, totalHeight, virtualRows } = useVirtualRows({
-    count: rowCount,
-    rowHeight,
-  })
 
   if (skills.length === 0) {
     return (
@@ -93,22 +86,11 @@ function SkillCardViewImpl({
 
   return (
     <div
-      ref={containerRef}
-      className="h-full overflow-y-auto p-2 grid-cols-2"
+      className="grid w-full grid-cols-2 gap-2 p-2"
       role="listbox"
       data-testid="skill-card-view"
     >
-      <div className="relative" style={{ height: totalHeight }}>
-        {virtualRows.map(({ index: rowIndex, offsetTop }) => (
-          <div
-            key={rowIndex}
-            className="absolute left-0 right-0 grid grid-cols-2 gap-2"
-            style={{ top: offsetTop, height: rowHeight }}
-          >
-            {[0, 1].map((column) => {
-              const skill = skills[rowIndex * 2 + column]
-              if (!skill) return <div key={`empty-${column}`} />
-
+      {skills.map((skill) => {
               const isSelected = skill.id === selectedItemId
               const isDirty = dirtyItemIds.has(skill.id)
               const isCombineSelected = combineMode && combineSelectedIds?.has(skill.id)
@@ -204,10 +186,7 @@ function SkillCardViewImpl({
                   )}
                 </button>
               )
-            })}
-          </div>
-        ))}
-      </div>
+      })}
     </div>
   )
 }
