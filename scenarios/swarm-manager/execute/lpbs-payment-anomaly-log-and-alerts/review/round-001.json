@@ -1,74 +1,106 @@
 {
-  "round": 1,
-  "generated_at": "2026-04-22T22:50:00Z",
-  "execution_id": "97fcef0e084d90f4",
-  "run_id": "e08357a4-87a9-4b16-b5ed-99c46aacc39d",
-  "status": "complete",
+  "agent_assessment": "Implementation is substantially complete and correct against the plan. All production code artifacts exist at path:scenarios/landing-page-business-suite/api/: payment_anomaly_service.go (Log/WaitForDispatch/RefreshConfig/LogPaymentAnomaly + token-bucket rate limiter with atomic.Pointer[anomalyConfig]), anomaly_alert_dispatcher.go (Dispatch with 3x5s+backoff, 4xx-no-retry/5xx-retry semantics, per-row dispatch_status updates), schema migrations in main.go:1014-1058 (payment_anomaly_log table+5 indexes, 3 new payment_settings columns, DO-block intro_anomaly_log migration-and-drop with information_schema guard), stripe_coupon_service.go:589-620 (logIntroAnomaly rewritten to forward through PaymentAnomaly.Log), payment_settings_handlers.go (PATCH validates HTTPS URL + enabled-without-URL rejection + calls anomalyService.RefreshConfig on success), and payment_settings_service.go (GET/SAVE round-trip the 3 new columns). Build passes clean. All 22 targeted tests pass (schema, migration fresh+upgrade+re-run, insert, dispatch enabled/disabled, rate limit, wait timeout, retry 5xx, no-retry 4xx, retry exhaustion, empty URL noop, PATCH validation + refresh + reveal + rate-limits object, intro coupon E2E). Diff summary showed 0 files because execution ran outside sandbox mode; verified directly against the working tree at path:..\n\nTwo documentation gaps: (1) docs/reference/STRIPE_WEBHOOKS.md has zero 'anomaly' mentions despite plan Phase 6.3 requiring a new 'Anomaly alerts' subsection; (2) docs/reference/api/admin.md has zero 'anomaly' mentions — the anomaly fields are instead documented in docs/reference/api/payments.md (which admin.md links to), so this is arguably acceptable but deviates from the plan's literal wording. Two specified test names from the plan are absent (TestLog_PerTypeRateLimit, TestGetStripeSettings_AnomalyFields); the underlying behaviours are covered by adjacent tests (TestLog_RateLimited verifies per-type bucketing; TestUpdate_RefreshesAnomalyConfig + TestUpdate_AcceptsRateLimitsObject verify the settings roundtrip end-to-end). Backlog item carries status='failed', which is not consistent with the passing code and tests observed here — the failure may reflect a finalization or validator step rather than an actual execution defect; recommend the human reviewer check the execution log separately.",
   "classification": "ready_with_notes",
-  "agent_assessment": "Implementation is substantially complete and correct against the plan. All production code artifacts exist at /home/matthalloran8/Vrooli/scenarios/landing-page-business-suite/api/: payment_anomaly_service.go (Log/WaitForDispatch/RefreshConfig/LogPaymentAnomaly + token-bucket rate limiter with atomic.Pointer[anomalyConfig]), anomaly_alert_dispatcher.go (Dispatch with 3x5s+backoff, 4xx-no-retry/5xx-retry semantics, per-row dispatch_status updates), schema migrations in main.go:1014-1058 (payment_anomaly_log table+5 indexes, 3 new payment_settings columns, DO-block intro_anomaly_log migration-and-drop with information_schema guard), stripe_coupon_service.go:589-620 (logIntroAnomaly rewritten to forward through PaymentAnomaly.Log), payment_settings_handlers.go (PATCH validates HTTPS URL + enabled-without-URL rejection + calls anomalyService.RefreshConfig on success), and payment_settings_service.go (GET/SAVE round-trip the 3 new columns). Build passes clean. All 22 targeted tests pass (schema, migration fresh+upgrade+re-run, insert, dispatch enabled/disabled, rate limit, wait timeout, retry 5xx, no-retry 4xx, retry exhaustion, empty URL noop, PATCH validation + refresh + reveal + rate-limits object, intro coupon E2E). Diff summary showed 0 files because execution ran outside sandbox mode; verified directly against the working tree at /home/matthalloran8/Vrooli.\n\nTwo documentation gaps: (1) docs/reference/STRIPE_WEBHOOKS.md has zero 'anomaly' mentions despite plan Phase 6.3 requiring a new 'Anomaly alerts' subsection; (2) docs/reference/api/admin.md has zero 'anomaly' mentions — the anomaly fields are instead documented in docs/reference/api/payments.md (which admin.md links to), so this is arguably acceptable but deviates from the plan's literal wording. Two specified test names from the plan are absent (TestLog_PerTypeRateLimit, TestGetStripeSettings_AnomalyFields); the underlying behaviours are covered by adjacent tests (TestLog_RateLimited verifies per-type bucketing; TestUpdate_RefreshesAnomalyConfig + TestUpdate_AcceptsRateLimitsObject verify the settings roundtrip end-to-end). Backlog item carries status='failed', which is not consistent with the passing code and tests observed here — the failure may reflect a finalization or validator step rather than an actual execution defect; recommend the human reviewer check the execution log separately.",
-  "notes": [
-    "Execution ran outside sandbox mode — diff-summary reported 0 files. Verified implementation directly at /home/matthalloran8/Vrooli/scenarios/landing-page-business-suite/api/.",
-    "docs/reference/STRIPE_WEBHOOKS.md was NOT updated with the required 'Anomaly alerts' subsection (plan Phase 6.3). This is the most concrete deviation from the plan.",
-    "docs/reference/api/admin.md not updated directly; anomaly admin surface docs live in docs/reference/api/payments.md instead (admin.md link-references payments.md, so operators can reach the docs). Minor deviation from plan Phase 6.1's literal wording.",
-    "payment_settings_service_test.go was NOT extended with a dedicated TestGetStripeSettings_AnomalyFields case as the plan specified. The fields are nevertheless covered end-to-end by TestUpdate_RefreshesAnomalyConfig and TestUpdate_AcceptsRateLimitsObject at the handler layer.",
-    "Backlog item status is 'failed' but the code compiles, tests pass, and the schema migrations are correct. The failure status is likely a finalization/validator artifact rather than a real defect — flag for human reviewer to confirm.",
-    "Rate limiter is in-process only. Documented as a known single-instance constraint in SEAMS.md as the plan required."
-  ],
   "evidence": [
     {
-      "id": "e1",
-      "type": "custom",
-      "title": "Schema migration + intro_anomaly_log drop (main.go:1014-1058)",
+      "capture_path": "captures/schema-and-forwarding.txt",
       "description": "Source evidence that payment_anomaly_log table, 5 indexes, 3 new payment_settings columns, and the one-time DO-block migration + DROP of intro_anomaly_log are all present in the ensureSchema stmts slice. information_schema guard makes the migration idempotent on fresh DBs.",
-      "capture_path": "captures/schema-and-forwarding.txt",
+      "id": "e1",
+      "title": "Schema migration + intro_anomaly_log drop (main.go:1014-1058)",
+      "type": "custom",
       "verified": false
     },
     {
-      "id": "e2",
-      "type": "custom",
-      "title": "logIntroAnomaly forwards through PaymentAnomaly pipeline (stripe_coupon_service.go:585-620)",
+      "capture_path": "captures/schema-and-forwarding.txt",
       "description": "The sole existing anomaly producer now forwards to paymentAnomaly.Log(ctx, PaymentAnomaly{..., SubjectKind: 'intro_coupon'}). No dual-write to intro_anomaly_log remains (the table itself is dropped by the migration). Confirms the seam is wired end-to-end on the one reference call site the plan specified.",
-      "capture_path": "captures/schema-and-forwarding.txt",
-      "verified": false
-    },
-    {
-      "id": "e3",
-      "type": "cli_output",
-      "title": "Targeted test run: 22 anomaly-related tests all PASS",
-      "description": "Ran the full subset of tests the plan enumerated in §9 plus adjacent intro-coupon integration tests. All pass against testcontainers postgres:15-alpine. Evidence: TestSchemaApplied, TestMigration_FreshDB, TestMigration_IntroAnomalyLog, TestMigration_ReRun, TestLog_InsertsRow, TestLog_NoDispatchWhenDisabled, TestLog_DispatchesWhenEnabled, TestLog_RateLimited, TestWaitForDispatch_Timeout, TestLogPaymentAnomaly_NilServer, TestDispatch_RetriesOn5xx, TestDispatch_NoRetryOn4xx, TestDispatch_RetryExhausted, TestDispatch_EmptyURLNoop, TestUpdate_RejectsEnabledWithoutURL, TestUpdate_RejectsNonHTTPSWebhookURL, TestUpdate_RefreshesAnomalyConfig, TestUpdate_AcceptsRateLimitsObject, TestReveal_AnomalyWebhookURL, TestLogIntroAnomaly_RecordsCorrectly, TestCoupon_PaymentTimeEligibilityRecheck, TestCoupon_EligibleUser_NoAnomalyLogged.",
-      "capture_path": "captures/test-output.txt",
-      "verified": false,
-      "test_results": [
-        {"name": "TestSchemaApplied", "passed": true, "output_summary": "payment_anomaly_log table and indexes exist after setupTestDB"},
-        {"name": "TestMigration_IntroAnomalyLog", "passed": true, "output_summary": "Pre-seeded intro_anomaly_log rows migrate to payment_anomaly_log with subject_kind='intro_coupon', dispatch_status='skipped'; source table dropped"},
-        {"name": "TestMigration_ReRun", "passed": true, "output_summary": "Second migration run is a no-op, no duplicate rows"},
-        {"name": "TestLog_DispatchesWhenEnabled", "passed": true, "output_summary": "httptest stub receives POST, WaitForDispatch returns 'sent'"},
-        {"name": "TestLog_RateLimited", "passed": true, "output_summary": "Burst+1 logs produce burst pending + 1 skipped/rate_limited"},
-        {"name": "TestDispatch_RetriesOn5xx", "passed": true, "output_summary": "503 then 200 produces exactly 2 attempts, success recorded"},
-        {"name": "TestDispatch_NoRetryOn4xx", "passed": true, "output_summary": "400 produces exactly 1 attempt, 'failed' recorded"},
-        {"name": "TestUpdate_RefreshesAnomalyConfig", "passed": true, "output_summary": "PATCH new URL -> cfg.Load() returns new URL on next dispatch without restart"},
-        {"name": "TestUpdate_RejectsEnabledWithoutURL", "passed": true, "output_summary": "400 when enabled=true with empty URL"},
-        {"name": "TestReveal_AnomalyWebhookURL", "passed": true, "output_summary": "Reveal endpoint returns plaintext webhook URL"},
-        {"name": "TestLogIntroAnomaly_RecordsCorrectly", "passed": true, "output_summary": "Intro coupon anomaly now appears in payment_anomaly_log with subject_kind='intro_coupon'"}
-      ]
-    },
-    {
-      "id": "e4",
+      "id": "e2",
+      "title": "logIntroAnomaly forwards through PaymentAnomaly pipeline (stripe_coupon_service.go:585-620)",
       "type": "custom",
-      "title": "Docs coverage: SEAMS + payments.md updated; STRIPE_WEBHOOKS.md + admin.md gap",
-      "description": "SEAMS.md has a thorough 'Payment anomaly dispatch seam' subsection documenting Log, WaitForDispatch, RefreshConfig, Dispatch, the rate limiter's single-instance constraint, and the intro_anomaly_log removal. docs/reference/api/payments.md has full anomaly field docs (anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits with shape, defaults, reveal-endpoint reference, and push-on-save note). GAP: docs/reference/STRIPE_WEBHOOKS.md has zero 'anomaly' mentions — the plan's Phase 6.3 explicitly required an 'Anomaly alerts' subsection pointing operators at the new settings. docs/reference/api/admin.md also has zero mentions but link-references payments.md, so operators can reach the docs with one hop.",
-      "capture_path": "captures/docs-coverage.txt",
       "verified": false
     },
     {
-      "id": "e5",
-      "type": "config_diff",
-      "title": "payment_settings admin handler: push-on-PATCH refresh wired correctly (payment_settings_handlers.go:288-297)",
+      "capture_path": "captures/test-output.txt",
+      "description": "Ran the full subset of tests the plan enumerated in §9 plus adjacent intro-coupon integration tests. All pass against testcontainers postgres:15-alpine. Evidence: TestSchemaApplied, TestMigration_FreshDB, TestMigration_IntroAnomalyLog, TestMigration_ReRun, TestLog_InsertsRow, TestLog_NoDispatchWhenDisabled, TestLog_DispatchesWhenEnabled, TestLog_RateLimited, TestWaitForDispatch_Timeout, TestLogPaymentAnomaly_NilServer, TestDispatch_RetriesOn5xx, TestDispatch_NoRetryOn4xx, TestDispatch_RetryExhausted, TestDispatch_EmptyURLNoop, TestUpdate_RejectsEnabledWithoutURL, TestUpdate_RejectsNonHTTPSWebhookURL, TestUpdate_RefreshesAnomalyConfig, TestUpdate_AcceptsRateLimitsObject, TestReveal_AnomalyWebhookURL, TestLogIntroAnomaly_RecordsCorrectly, TestCoupon_PaymentTimeEligibilityRecheck, TestCoupon_EligibleUser_NoAnomalyLogged.",
+      "id": "e3",
+      "test_results": [
+        {
+          "name": "TestSchemaApplied",
+          "output_summary": "payment_anomaly_log table and indexes exist after setupTestDB",
+          "passed": true
+        },
+        {
+          "name": "TestMigration_IntroAnomalyLog",
+          "output_summary": "Pre-seeded intro_anomaly_log rows migrate to payment_anomaly_log with subject_kind='intro_coupon', dispatch_status='skipped'; source table dropped",
+          "passed": true
+        },
+        {
+          "name": "TestMigration_ReRun",
+          "output_summary": "Second migration run is a no-op, no duplicate rows",
+          "passed": true
+        },
+        {
+          "name": "TestLog_DispatchesWhenEnabled",
+          "output_summary": "httptest stub receives POST, WaitForDispatch returns 'sent'",
+          "passed": true
+        },
+        {
+          "name": "TestLog_RateLimited",
+          "output_summary": "Burst+1 logs produce burst pending + 1 skipped/rate_limited",
+          "passed": true
+        },
+        {
+          "name": "TestDispatch_RetriesOn5xx",
+          "output_summary": "503 then 200 produces exactly 2 attempts, success recorded",
+          "passed": true
+        },
+        {
+          "name": "TestDispatch_NoRetryOn4xx",
+          "output_summary": "400 produces exactly 1 attempt, 'failed' recorded",
+          "passed": true
+        },
+        {
+          "name": "TestUpdate_RefreshesAnomalyConfig",
+          "output_summary": "PATCH new URL -\u003e cfg.Load() returns new URL on next dispatch without restart",
+          "passed": true
+        },
+        {
+          "name": "TestUpdate_RejectsEnabledWithoutURL",
+          "output_summary": "400 when enabled=true with empty URL",
+          "passed": true
+        },
+        {
+          "name": "TestReveal_AnomalyWebhookURL",
+          "output_summary": "Reveal endpoint returns plaintext webhook URL",
+          "passed": true
+        },
+        {
+          "name": "TestLogIntroAnomaly_RecordsCorrectly",
+          "output_summary": "Intro coupon anomaly now appears in payment_anomaly_log with subject_kind='intro_coupon'",
+          "passed": true
+        }
+      ],
+      "title": "Targeted test run: 22 anomaly-related tests all PASS",
+      "type": "cli_output",
+      "verified": false
+    },
+    {
+      "capture_path": "captures/docs-coverage.txt",
+      "description": "SEAMS.md has a thorough 'Payment anomaly dispatch seam' subsection documenting Log, WaitForDispatch, RefreshConfig, Dispatch, the rate limiter's single-instance constraint, and the intro_anomaly_log removal. docs/reference/api/payments.md has full anomaly field docs (anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits with shape, defaults, reveal-endpoint reference, and push-on-save note). GAP: docs/reference/STRIPE_WEBHOOKS.md has zero 'anomaly' mentions — the plan's Phase 6.3 explicitly required an 'Anomaly alerts' subsection pointing operators at the new settings. docs/reference/api/admin.md also has zero mentions but link-references payments.md, so operators can reach the docs with one hop.",
+      "id": "e4",
+      "title": "Docs coverage: SEAMS + payments.md updated; STRIPE_WEBHOOKS.md + admin.md gap",
+      "type": "custom",
+      "verified": false
+    },
+    {
       "description": "On successful save, handler calls stripeService.RefreshConfig() and then anomalyService.RefreshConfig(). Nil-guards anomalyService so the handler is safe during bootstrap before the service is wired. Matches plan round-2 d4=A decision and is verified end-to-end by TestUpdate_RefreshesAnomalyConfig.",
+      "id": "e5",
+      "title": "payment_settings admin handler: push-on-PATCH refresh wired correctly (payment_settings_handlers.go:288-297)",
+      "type": "config_diff",
       "verified": false
     }
   ],
-  "request_threads": [],
+  "execution_id": "97fcef0e084d90f4",
+  "generated_at": "2026-04-22T22:50:00Z",
   "improvement_suggestions": [
     {
       "category": "other",
@@ -94,5 +126,17 @@
       "evidence_id": "e3",
       "priority": "high"
     }
-  ]
+  ],
+  "notes": [
+    "Execution ran outside sandbox mode — diff-summary reported 0 files. Verified implementation directly at path:scenarios/landing-page-business-suite/api/.",
+    "docs/reference/STRIPE_WEBHOOKS.md was NOT updated with the required 'Anomaly alerts' subsection (plan Phase 6.3). This is the most concrete deviation from the plan.",
+    "docs/reference/api/admin.md not updated directly; anomaly admin surface docs live in docs/reference/api/payments.md instead (admin.md link-references payments.md, so operators can reach the docs). Minor deviation from plan Phase 6.1's literal wording.",
+    "payment_settings_service_test.go was NOT extended with a dedicated TestGetStripeSettings_AnomalyFields case as the plan specified. The fields are nevertheless covered end-to-end by TestUpdate_RefreshesAnomalyConfig and TestUpdate_AcceptsRateLimitsObject at the handler layer.",
+    "Backlog item status is 'failed' but the code compiles, tests pass, and the schema migrations are correct. The failure status is likely a finalization/validator artifact rather than a real defect — flag for human reviewer to confirm.",
+    "Rate limiter is in-process only. Documented as a known single-instance constraint in SEAMS.md as the plan required."
+  ],
+  "request_threads": [],
+  "round": 1,
+  "run_id": "e08357a4-87a9-4b16-b5ed-99c46aacc39d",
+  "status": "complete"
 }

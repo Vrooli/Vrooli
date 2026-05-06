@@ -22,9 +22,9 @@
 2026/04/22 17:37:12 ✅ Container started: 7b64cf33ebb5
 2026/04/22 17:37:12 ⏳ Waiting for container id 7b64cf33ebb5 image: postgres:15-alpine. Waiting for: all of: [port 5432/tcp to be listening]
 2026/04/22 17:37:13 🔔 Container is ready: 7b64cf33ebb5
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"tier_limits_seeded","fields":{"count":5,"level":"info"},"timestamp":"2026-04-22T21:37:13Z"}
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_SubscriptionInsertFailure_RollsBackS1835815916/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_SubscriptionInsertFailure_RollsBackS1835815916/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:13Z"}
@@ -33,8 +33,8 @@
 2026/04/22 17:37:13 {"level":"info","message":"stripe_customer_linked","fields":{"customer_id":"cus_atomicity","email":"atomicity1@example.com","level":"info"},"timestamp":"2026-04-22T21:37:13Z"}
 --- PASS: TestHandleCheckoutCompleted_SubscriptionInsertFailure_RollsBackStatus (2.20s)
 === RUN   TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll614173322/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll614173322/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:13Z"}
@@ -44,8 +44,8 @@
 --- PASS: TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll (0.10s)
 === RUN   TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx
 === RUN   TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx/non-scheduled_plan
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSin3810291841/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSin3810291841/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:13Z"}
@@ -54,8 +54,8 @@
 2026/04/22 17:37:13 {"level":"info","message":"stripe_customer_linked","fields":{"customer_id":"cus_atomicity","email":"happy1@example.com","level":"info"},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:13 {"level":"info","message":"Checkout session completed","fields":{"customer_email":"happy1@example.com","customer_id":"cus_atomicity","plan_tier":"pro","price_id":"price_happy_flat","session_id":"cs_happy_flat","session_type":"subscription","subscription_id":"sub_happy_flat"},"timestamp":"2026-04-22T21:37:13Z"}
 === RUN   TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx/scheduled_intro_plan
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
-2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
+2026/04/22 17:37:13 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:13Z"}
 2026/04/22 17:37:14 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSin2344356989/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:14Z"}
 2026/04/22 17:37:14 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSin2344356989/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:14Z"}
 2026/04/22 17:37:14 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:14Z"}
@@ -67,8 +67,8 @@
     --- PASS: TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx/non-scheduled_plan (0.10s)
     --- PASS: TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx/scheduled_intro_plan (0.10s)
 === RUN   TestHandleCheckoutCompleted_RetryAfterRollback_Succeeds
-2026/04/22 17:37:14 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:14Z"}
-2026/04/22 17:37:14 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:14Z"}
+2026/04/22 17:37:14 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:14Z"}
+2026/04/22 17:37:14 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:14Z"}
 2026/04/22 17:37:14 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_RetryAfterRollback_Succeeds1749444049/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:14Z"}
 2026/04/22 17:37:14 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCompleted_RetryAfterRollback_Succeeds1749444049/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:14Z"}
 2026/04/22 17:37:14 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:14Z"}

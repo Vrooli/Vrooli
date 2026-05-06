@@ -91,6 +91,7 @@ func (a *App) cmdSessionsList(args []string) error {
 func (a *App) cmdSessionsGet(args []string) error {
 	fs := flag.NewFlagSet("sessions get", flag.ContinueOnError)
 	idFlag := fs.String("id", "", "Session ID")
+	refreshFlag := fs.Bool("refresh", false, "Refresh backing agent run state before printing")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -100,7 +101,13 @@ func (a *App) cmdSessionsGet(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.core.Get("/agent-sessions/"+id, nil)
+	var body []byte
+	var err error
+	if *refreshFlag {
+		body, err = a.core.Request("POST", "/agent-sessions/"+id+"/refresh", nil, nil)
+	} else {
+		body, err = a.core.Get("/agent-sessions/"+id, nil)
+	}
 	if err != nil {
 		return err
 	}

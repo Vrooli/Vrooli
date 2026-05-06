@@ -2,7 +2,7 @@
 
 ## type-check (pnpm --filter vrooli-emulator-ui run type-check)
 
-> vrooli-emulator-ui@1.0.0 type-check /home/matthalloran8/Vrooli/scenarios/vrooli-emulator/ui
+> vrooli-emulator-ui@1.0.0 type-check path:scenarios/vrooli-emulator/ui
 > tsc --noEmit
 
 

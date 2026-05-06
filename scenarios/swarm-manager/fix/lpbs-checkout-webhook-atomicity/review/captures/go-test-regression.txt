@@ -22,9 +22,9 @@
 2026/04/22 17:37:31 ✅ Container started: d396c510c0d8
 2026/04/22 17:37:31 ⏳ Waiting for container id d396c510c0d8 image: postgres:15-alpine. Waiting for: all of: [port 5432/tcp to be listening]
 2026/04/22 17:37:32 🔔 Container is ready: d396c510c0d8
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"tier_limits_seeded","fields":{"count":5,"level":"info"},"timestamp":"2026-04-22T21:37:32Z"}
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCreateAndWebhookEndToEnd2396772610/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestHandleCheckoutCreateAndWebhookEndToEnd2396772610/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
@@ -36,8 +36,8 @@
 2026/04/22 17:37:32 {"level":"info","message":"Stripe verification fallback to cache","fields":{"error":"stripe api error (404): 404 page not found","level":"warn","user":"handler@example.com"},"timestamp":"2026-04-22T21:37:32Z"}
 --- PASS: TestHandleCheckoutCreateAndWebhookEndToEnd (2.09s)
 === RUN   TestHandleStripeWebhookCreditTopup
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"credits_bundle","coupon_mapping_count":0,"path":"/tmp/TestHandleStripeWebhookCreditTopup3864634506/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"credits_bundle","coupon_mapping_count":0,"path":"/tmp/TestHandleStripeWebhookCreditTopup3864634506/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
@@ -46,8 +46,8 @@
 2026/04/22 17:37:32 {"level":"info","message":"credits_added","fields":{"amount":99000,"customer_email":"credits@example.com","level":"info","stripe_event_id":"evt_credits_topup_123","transaction_type":"credit_topup"},"timestamp":"2026-04-22T21:37:32Z"}
 --- PASS: TestHandleStripeWebhookCreditTopup (0.08s)
 === RUN   TestHandleStripeWebhookInvoiceEvents
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_SECRET_KEY (restricted) missing - using placeholder","fields":{"level":"warn","message":"STRIPE_SECRET_KEY (restricted key) not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_WEBHOOK_SECRET missing - using placeholder","fields":{"level":"warn","message":"STRIPE_WEBHOOK_SECRET not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
@@ -55,23 +55,23 @@
 2026/04/22 17:37:32 {"level":"info","message":"stripe fetch subscription failed","fields":{"error":"stripe api error (401): Invalid API Key provided: sk_test_****lers","id":"sub_invoice","level":"warn","user_id":"invoice@example.com"},"timestamp":"2026-04-22T21:37:32Z"}
 --- PASS: TestHandleStripeWebhookInvoiceEvents (0.16s)
 === RUN   TestHandleStripeWebhookSubscriptionLifecycle
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_SECRET_KEY (restricted) missing - using placeholder","fields":{"level":"warn","message":"STRIPE_SECRET_KEY (restricted key) not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_WEBHOOK_SECRET missing - using placeholder","fields":{"level":"warn","message":"STRIPE_WEBHOOK_SECRET not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 --- PASS: TestHandleStripeWebhookSubscriptionLifecycle (0.08s)
 === RUN   TestHandleStripeWebhookRequiresSignature
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_SECRET_KEY (restricted) missing - using placeholder","fields":{"level":"warn","message":"STRIPE_SECRET_KEY (restricted key) not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"info","message":"STRIPE_WEBHOOK_SECRET missing - using placeholder","fields":{"level":"warn","message":"STRIPE_WEBHOOK_SECRET not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:32Z"}
 2026/04/22 17:37:32 {"level":"error","message":"webhook_signature_missing","timestamp":"2026-04-22T21:37:32Z"}
 --- PASS: TestHandleStripeWebhookRequiresSignature (0.07s)
 === RUN   TestFlow_MultipleCheckouts_SameUser
-2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
-2026/04/22 17:37:33 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:33Z"}
+2026/04/22 17:37:32 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:32Z"}
+2026/04/22 17:37:33 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:33Z"}
 2026/04/22 17:37:33 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestFlow_MultipleCheckouts_SameUser3675273627/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:33Z"}
 2026/04/22 17:37:33 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"business_suite","coupon_mapping_count":0,"path":"/tmp/TestFlow_MultipleCheckouts_SameUser3675273627/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:33Z"}
 2026/04/22 17:37:33 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:33Z"}
@@ -79,8 +79,8 @@
 2026/04/22 17:37:33 {"level":"info","message":"STRIPE_WEBHOOK_SECRET missing - using placeholder","fields":{"level":"warn","message":"STRIPE_WEBHOOK_SECRET not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:33Z"}
 --- PASS: TestFlow_MultipleCheckouts_SameUser (0.09s)
 === RUN   TestFlow_WebhookRetry_Idempotent
-2026/04/22 17:37:33 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:33Z"}
-2026/04/22 17:37:33 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"/home/matthalloran8/.vrooli/secrets.json"},"timestamp":"2026-04-22T21:37:33Z"}
+2026/04/22 17:37:33 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:33Z"}
+2026/04/22 17:37:33 {"level":"info","message":"secrets_file_found","fields":{"level":"info","path":"<vrooli-home>/secrets.json"},"timestamp":"2026-04-22T21:37:33Z"}
 2026/04/22 17:37:33 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"credits_bundle","coupon_mapping_count":0,"path":"/tmp/TestFlow_WebhookRetry_Idempotent2938746273/001/.vrooli/plans.json","plan_count":0},"timestamp":"2026-04-22T21:37:33Z"}
 2026/04/22 17:37:33 {"level":"info","message":"plans_loaded","fields":{"bundle_key":"credits_bundle","coupon_mapping_count":0,"path":"/tmp/TestFlow_WebhookRetry_Idempotent2938746273/001/.vrooli/plans.json","plan_count":1},"timestamp":"2026-04-22T21:37:33Z"}
 2026/04/22 17:37:33 {"level":"info","message":"STRIPE_PUBLISHABLE_KEY missing - using placeholder","fields":{"level":"warn","message":"STRIPE_PUBLISHABLE_KEY not set; using placeholder for development"},"timestamp":"2026-04-22T21:37:33Z"}

@@ -1,13 +1,13 @@
 {
   "generated_at": "2026-04-27T21:08:34Z",
-  "project_root": "/home/matthalloran8/Vrooli",
   "problems": [
     {
-      "glob": "scenarios/swarm-manager/docs/migrations/**",
-      "resolved": "scenarios/swarm-manager/docs/migrations",
-      "reason": "path does not exist under project root",
+      "allowed_by_creates": false,
       "existed": false,
-      "allowed_by_creates": false
+      "glob": "scenarios/swarm-manager/docs/migrations/**",
+      "reason": "path does not exist under project root",
+      "resolved": "scenarios/swarm-manager/docs/migrations"
     }
-  ]
+  ],
+  "project_root": "path:."
 }

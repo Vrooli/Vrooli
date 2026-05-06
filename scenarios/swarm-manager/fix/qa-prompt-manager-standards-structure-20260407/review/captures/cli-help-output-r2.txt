@@ -1,4 +1,4 @@
-Warning: running prompt-manager from a scenario-local CLI binary (/home/matthalloran8/Vrooli/scenarios/prompt-manager/cli/prompt-manager).
+Warning: running prompt-manager from a scenario-local CLI binary (path:scenarios/prompt-manager/cli/prompt-manager).
 Install and run the canonical binary instead:
   cd scenarios/prompt-manager/cli && ./install.sh
   prompt-manager <command>

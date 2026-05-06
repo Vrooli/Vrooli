@@ -1,5 +1,5 @@
 
- RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui
+ RUN  v2.1.9 path:scenarios/deployment-manager/ui
 
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
  ✓ src/pages/Approvals.test.tsx > Approvals > renders page title
@@ -16,20 +16,20 @@
 stderr | src/pages/Approvals.test.tsx > Approvals > opens detail view on row click
 Warning: validateDOMNesting(...): <div> cannot appear as a descendant of <p>.
     at div
-    at Badge (/home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/components/ui/badge.tsx:25:18)
+    at Badge (path:scenarios/deployment-manager/ui/src/components/ui/badge.tsx:25:18)
     at p
     at div
     at div
     at div
-    at /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/components/ui/card.tsx:78:57
+    at path:scenarios/deployment-manager/ui/src/components/ui/card.tsx:78:57
     at div
-    at /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/components/ui/card.tsx:7:50
+    at path:scenarios/deployment-manager/ui/src/components/ui/card.tsx:7:50
     at div
-    at Approvals (/home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/pages/Approvals.tsx:30:45)
-    at QueryClientProvider (file:///home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
-    at Router (file:///home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/node_modules/react-router/dist/development/chunk-4WY6JWTD.mjs:6463:13)
-    at BrowserRouter (file:///home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/node_modules/react-router/dist/development/chunk-4WY6JWTD.mjs:9623:3)
-    at /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui/src/pages/Approvals.test.tsx:22:13
+    at Approvals (path:scenarios/deployment-manager/ui/src/pages/Approvals.tsx:30:45)
+    at QueryClientProvider (file://path:scenarios/deployment-manager/ui/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at Router (file://path:scenarios/deployment-manager/ui/node_modules/react-router/dist/development/chunk-4WY6JWTD.mjs:6463:13)
+    at BrowserRouter (file://path:scenarios/deployment-manager/ui/node_modules/react-router/dist/development/chunk-4WY6JWTD.mjs:9623:3)
+    at path:scenarios/deployment-manager/ui/src/pages/Approvals.test.tsx:22:13
 
  ✓ src/pages/ProfileDetail.test.tsx > ProfileDetail - Required Platforms > calls setRequiredPlatforms on save
  ✓ src/pages/Approvals.test.tsx > Approvals > opens detail view on row click

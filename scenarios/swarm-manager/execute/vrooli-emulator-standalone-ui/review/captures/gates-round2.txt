@@ -1,6 +1,6 @@
 === type-check ===
 
-> vrooli-emulator-ui@1.0.0 type-check /home/matthalloran8/Vrooli/scenarios/vrooli-emulator/ui
+> vrooli-emulator-ui@1.0.0 type-check path:scenarios/vrooli-emulator/ui
 > tsc --noEmit
 
 
@@ -20,7 +20,7 @@ dist/assets/index-Cbw7sSXq.js   623.17 kB │ gzip: 181.70 kB
 
 === lint ===
 
-> vrooli-emulator-ui@1.0.0 lint /home/matthalloran8/Vrooli/scenarios/vrooli-emulator/ui
+> vrooli-emulator-ui@1.0.0 lint path:scenarios/vrooli-emulator/ui
 > eslint .
 
 Multiple projects found, consider using a single `tsconfig` with `references` to speed up, or use `noWarnOnMultipleProjects` to suppress this warning

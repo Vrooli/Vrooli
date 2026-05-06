@@ -1,5 +1,5 @@
 
- RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui
+ RUN  v2.1.9 path:scenarios/deployment-manager/ui
 
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
  ✓ src/components/LPBSReleaseConfigCard.test.tsx (4 tests) 74ms

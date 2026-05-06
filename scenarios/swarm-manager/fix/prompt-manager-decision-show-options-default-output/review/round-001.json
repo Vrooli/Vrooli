@@ -1,64 +1,73 @@
 {
-  "round": 1,
-  "generated_at": "2026-04-25T14:37:21Z",
-  "execution_id": "c1c5e7dc4c50903e",
-  "run_id": "5a981ddf-07eb-4c0f-b3f6-11595d06ea77",
-  "status": "complete",
-  "agent_assessment": "Phase 1 (CLI) is implemented. A new formatDecisionShow function in scenarios/prompt-manager/cli/teams/teams.go (lines 3162-3233) renders an Options block with key, label, rationale, and a (recommended) marker when entry.Options is non-empty, and omits the section entirely when options are absent. The workshop d2 = A indented-list layout matches the plan's Target End State. Phase 2 (UI parity) was not needed: DecisionLogView.tsx already iterates entry.options and surfaces the recommended flag (lines 198-217), satisfying the d3 = B parity check. Four targeted unit tests cover all three plan-mandated cases (recommended, none-recommended, option-less) plus the selected-marker case; all pass and `go vet ./teams/` is clean. The --json output path is unchanged — the --json branch still serialises the raw DecisionEntry, so the regression-check requirement is preserved by construction. Note: this review is based on a non-sandbox execution (zero diff in tooling), verified directly against the working tree at /home/matthalloran8/Vrooli.",
+  "agent_assessment": "Phase 1 (CLI) is implemented. A new formatDecisionShow function in scenarios/prompt-manager/cli/teams/teams.go (lines 3162-3233) renders an Options block with key, label, rationale, and a (recommended) marker when entry.Options is non-empty, and omits the section entirely when options are absent. The workshop d2 = A indented-list layout matches the plan's Target End State. Phase 2 (UI parity) was not needed: DecisionLogView.tsx already iterates entry.options and surfaces the recommended flag (lines 198-217), satisfying the d3 = B parity check. Four targeted unit tests cover all three plan-mandated cases (recommended, none-recommended, option-less) plus the selected-marker case; all pass and `go vet ./teams/` is clean. The --json output path is unchanged — the --json branch still serialises the raw DecisionEntry, so the regression-check requirement is preserved by construction. Note: this review is based on a non-sandbox execution (zero diff in tooling), verified directly against the working tree at path:..",
   "classification": "ready_with_notes",
-  "notes": [
-    "Diff summary reported 0 changed files; execution agent appears to have run without sandbox mode. Implementation verified by reading teams.go and decisions_test.go directly.",
-    "UI was already correct — Phase 2 was correctly skipped per plan's conditional language.",
-    "formatDecisionShow uses 'Topic:' (not 'Decision:') as the heading when options are present; the option-less branch still prints 'Decision:'. Consistent with the underlying DecisionEntry shape (options-bearing decisions store the question in Topic) but slightly diverges from the plan's Target End State sketch which used 'Decision:' uniformly. Worth a human eyeball — likely intentional.",
-    "Formatter also renders Selected/Notes/Modifications and a → marker for the chosen option; these go beyond the plan's Target End State sketch but are additive and consistent with sibling formatters.",
-    "--json regression check not exercised end-to-end (would require a running scenario); the code path is structurally unchanged so regression risk is low."
-  ],
   "evidence": [
     {
-      "id": "e1",
-      "type": "custom",
-      "title": "formatDecisionShow implementation present in teams.go",
-      "description": "scenarios/prompt-manager/cli/teams/teams.go defines formatDecisionShow (lines 3162-3233) and routes the default (non-JSON) decision-show branch through it (line 3154). The function renders Topic/Description/Rationale/Options when len(entry.Options)>0, and falls back to Decision/Rationale when options are empty. Recommended options receive a ' (recommended)' suffix; the selected option is prefixed with '→ '. Section is omitted entirely on empty options.",
       "capture_path": "captures/formatter-source.txt",
-      "verified": false
-    },
-    {
-      "id": "e2",
-      "type": "cli_output",
-      "title": "Unit tests for formatDecisionShow pass (4/4)",
-      "description": "Ran `go test -run TestFormatDecisionShow -v ./teams/` against scenarios/prompt-manager/cli. All four formatter tests pass: OptionsWithRecommended, OptionsNoneRecommended, NoOptionsOmitsSection, SelectedMarker. These cover the three plan-mandated cases plus the selected-marker behaviour.",
-      "capture_path": "captures/cli-tests.txt",
-      "verified": false,
-      "test_results": [
-        {"name": "TestFormatDecisionShow_OptionsWithRecommended", "passed": true, "output_summary": "Renders 3 options with (recommended) only on option A; rationale lines present"},
-        {"name": "TestFormatDecisionShow_OptionsNoneRecommended", "passed": true, "output_summary": "Options: header rendered; no (recommended) marker appears"},
-        {"name": "TestFormatDecisionShow_NoOptionsOmitsSection", "passed": true, "output_summary": "Option-less decision: no Options: header; falls back to Decision/Rationale"},
-        {"name": "TestFormatDecisionShow_SelectedMarker", "passed": true, "output_summary": "→ marker on selected option A; Selected: A line emitted"}
-      ]
-    },
-    {
-      "id": "e3",
+      "description": "scenarios/prompt-manager/cli/teams/teams.go defines formatDecisionShow (lines 3162-3233) and routes the default (non-JSON) decision-show branch through it (line 3154). The function renders Topic/Description/Rationale/Options when len(entry.Options)\u003e0, and falls back to Decision/Rationale when options are empty. Recommended options receive a ' (recommended)' suffix; the selected option is prefixed with '→ '. Section is omitted entirely on empty options.",
+      "id": "e1",
+      "title": "formatDecisionShow implementation present in teams.go",
       "type": "custom",
-      "title": "UI parity check — DecisionLogView already renders options + recommended",
-      "description": "scenarios/prompt-manager/ui/src/components/editor/teamTabs/DecisionLogView.tsx maps entry.options (line 198) and applies a recommended highlight (lines 209, 217). Phase 2 was correctly skipped — no UI change required to satisfy d3 = B.",
       "verified": false
     },
     {
-      "id": "e4",
-      "type": "cli_output",
-      "title": "go vet clean on modified package",
-      "description": "Ran `go vet ./teams/` in scenarios/prompt-manager/cli. No findings — lint/type clean for the modified file (Rollout checklist item 1).",
-      "verified": false,
+      "capture_path": "captures/cli-tests.txt",
+      "description": "Ran `go test -run TestFormatDecisionShow -v ./teams/` against scenarios/prompt-manager/cli. All four formatter tests pass: OptionsWithRecommended, OptionsNoneRecommended, NoOptionsOmitsSection, SelectedMarker. These cover the three plan-mandated cases plus the selected-marker behaviour.",
+      "id": "e2",
       "test_results": [
-        {"name": "go vet ./teams/", "passed": true, "output_summary": "No vet findings"}
-      ]
+        {
+          "name": "TestFormatDecisionShow_OptionsWithRecommended",
+          "output_summary": "Renders 3 options with (recommended) only on option A; rationale lines present",
+          "passed": true
+        },
+        {
+          "name": "TestFormatDecisionShow_OptionsNoneRecommended",
+          "output_summary": "Options: header rendered; no (recommended) marker appears",
+          "passed": true
+        },
+        {
+          "name": "TestFormatDecisionShow_NoOptionsOmitsSection",
+          "output_summary": "Option-less decision: no Options: header; falls back to Decision/Rationale",
+          "passed": true
+        },
+        {
+          "name": "TestFormatDecisionShow_SelectedMarker",
+          "output_summary": "→ marker on selected option A; Selected: A line emitted",
+          "passed": true
+        }
+      ],
+      "title": "Unit tests for formatDecisionShow pass (4/4)",
+      "type": "cli_output",
+      "verified": false
+    },
+    {
+      "description": "scenarios/prompt-manager/ui/src/components/editor/teamTabs/DecisionLogView.tsx maps entry.options (line 198) and applies a recommended highlight (lines 209, 217). Phase 2 was correctly skipped — no UI change required to satisfy d3 = B.",
+      "id": "e3",
+      "title": "UI parity check — DecisionLogView already renders options + recommended",
+      "type": "custom",
+      "verified": false
+    },
+    {
+      "description": "Ran `go vet ./teams/` in scenarios/prompt-manager/cli. No findings — lint/type clean for the modified file (Rollout checklist item 1).",
+      "id": "e4",
+      "test_results": [
+        {
+          "name": "go vet ./teams/",
+          "output_summary": "No vet findings",
+          "passed": true
+        }
+      ],
+      "title": "go vet clean on modified package",
+      "type": "cli_output",
+      "verified": false
     }
   ],
-  "request_threads": [],
+  "execution_id": "c1c5e7dc4c50903e",
+  "generated_at": "2026-04-25T14:37:21Z",
   "improvement_suggestions": [
     {
       "category": "test_coverage",
-      "description": "Add a CLI integration/golden test that exercises `prompt-manager team decision-show <team> <id>` end-to-end against a fixture decision (one with options, one option-less) and snapshots stdout. Today only the formatter is unit-tested; an e2e test would catch regressions in cmdDecisionShow's JSON-vs-human routing and any future entry-shape drift. Place alongside decisions_integration_test.go.",
+      "description": "Add a CLI integration/golden test that exercises `prompt-manager team decision-show \u003cteam\u003e \u003cid\u003e` end-to-end against a fixture decision (one with options, one option-less) and snapshots stdout. Today only the formatter is unit-tested; an e2e test would catch regressions in cmdDecisionShow's JSON-vs-human routing and any future entry-shape drift. Place alongside decisions_integration_test.go.",
       "evidence_id": "e2",
       "priority": "medium"
     },
@@ -80,5 +89,16 @@
       "evidence_id": "e1",
       "priority": "high"
     }
-  ]
+  ],
+  "notes": [
+    "Diff summary reported 0 changed files; execution agent appears to have run without sandbox mode. Implementation verified by reading teams.go and decisions_test.go directly.",
+    "UI was already correct — Phase 2 was correctly skipped per plan's conditional language.",
+    "formatDecisionShow uses 'Topic:' (not 'Decision:') as the heading when options are present; the option-less branch still prints 'Decision:'. Consistent with the underlying DecisionEntry shape (options-bearing decisions store the question in Topic) but slightly diverges from the plan's Target End State sketch which used 'Decision:' uniformly. Worth a human eyeball — likely intentional.",
+    "Formatter also renders Selected/Notes/Modifications and a → marker for the chosen option; these go beyond the plan's Target End State sketch but are additive and consistent with sibling formatters.",
+    "--json regression check not exercised end-to-end (would require a running scenario); the code path is structurally unchanged so regression risk is low."
+  ],
+  "request_threads": [],
+  "round": 1,
+  "run_id": "5a981ddf-07eb-4c0f-b3f6-11595d06ea77",
+  "status": "complete"
 }

@@ -1,131 +1,123 @@
 {
-  "round": 1,
-  "generated_at": "2026-04-24T00:00:00Z",
-  "execution_id": "19aee21859a1ba3e",
-  "status": "complete",
-  "agent_assessment": "Implementation is present and exercised by passing tests across all three surfaces. Diff summary reported 0 files (non-sandbox execution), so evidence was gathered by direct inspection of the prompt-manager scenario at /home/matthalloran8/Vrooli/scenarios/prompt-manager. Findings: (1) DecisionModifications Go struct exists in api/store/models.go:466 with the d1-r1 shape (excluded_clauses[], additions[], rationale); decision entry exposes the new optional pointer field at models.go:488. (2) Heartbeat handler validates and persists modifications (handlers.go:2125-2192) including the d1-r2 empty-object rejection and d2-r2 immutability check, with a structured field-violation error path; rationale length capped at 4 KB per validateDecisionModifications at handlers.go:2336. (3) CLI decision-accept gained --modifications and --modifications-file flags with mutual exclusion (teams.go:2870-2906); CLI parses + validates at the boundary; printDecisionModifications renders a distinct block in decision-show / history (teams.go:3151+). (4) UI DecisionLogView renders a structured form (excluded_clauses tag entry, additions tag entry, rationale textarea) gated by an 'Add modifications' affordance, and renders persisted modifications read-only (DecisionLogView.tsx:251-330), wired through heartbeatService.ts. (5) Contract doc shipped at docs/reference/decision-modifications-contract.md (94 lines) and is referenced from store/models.go:465 and heartbeat/models.go:222. (6) Workshop-agent SKILL.md updated at line 278 to treat modifications as first-class structured input distinct from notes. Targeted test runs are green: 5/5 API modifications tests pass; 9/9 CLI accept-flow tests including the new modifications cases pass. One contract deviation: plan specified a .proto IDL extension, but this scenario's API uses JSON-tagged Go structs (no proto), so the structural intent was met via Go struct + JSON contract doc — flagged as deviation, not a defect, but worth confirming with the orchestrator. UI was not exercised at runtime (no browser session captured); visual parity confirmed only via static read of the component.",
+  "agent_assessment": "Implementation is present and exercised by passing tests across all three surfaces. Diff summary reported 0 files (non-sandbox execution), so evidence was gathered by direct inspection of the prompt-manager scenario at path:scenarios/prompt-manager. Findings: (1) DecisionModifications Go struct exists in api/store/models.go:466 with the d1-r1 shape (excluded_clauses[], additions[], rationale); decision entry exposes the new optional pointer field at models.go:488. (2) Heartbeat handler validates and persists modifications (handlers.go:2125-2192) including the d1-r2 empty-object rejection and d2-r2 immutability check, with a structured field-violation error path; rationale length capped at 4 KB per validateDecisionModifications at handlers.go:2336. (3) CLI decision-accept gained --modifications and --modifications-file flags with mutual exclusion (teams.go:2870-2906); CLI parses + validates at the boundary; printDecisionModifications renders a distinct block in decision-show / history (teams.go:3151+). (4) UI DecisionLogView renders a structured form (excluded_clauses tag entry, additions tag entry, rationale textarea) gated by an 'Add modifications' affordance, and renders persisted modifications read-only (DecisionLogView.tsx:251-330), wired through heartbeatService.ts. (5) Contract doc shipped at docs/reference/decision-modifications-contract.md (94 lines) and is referenced from store/models.go:465 and heartbeat/models.go:222. (6) Workshop-agent SKILL.md updated at line 278 to treat modifications as first-class structured input distinct from notes. Targeted test runs are green: 5/5 API modifications tests pass; 9/9 CLI accept-flow tests including the new modifications cases pass. One contract deviation: plan specified a .proto IDL extension, but this scenario's API uses JSON-tagged Go structs (no proto), so the structural intent was met via Go struct + JSON contract doc — flagged as deviation, not a defect, but worth confirming with the orchestrator. UI was not exercised at runtime (no browser session captured); visual parity confirmed only via static read of the component.",
   "classification": "ready_with_notes",
-  "notes": [
-    "Plan referenced a .proto extension; the scenario's API is Go/JSON, not protobuf — structural intent satisfied via Go struct in api/store/models.go and contract doc, but the literal proto deliverable does not apply here.",
-    "Contract doc lives at docs/reference/decision-modifications-contract.md (one level deeper than 'docs/' as worded in the plan); proto-style references are present in Go source comments instead of .proto files.",
-    "UI evidence is static-read only. No runtime browser capture was taken in this round; recommend a visual capture pass before archive if UI parity needs confirmation.",
-    "Sibling coordination (F9 display block, F10 option-less paths, F14 auto-create) is not verifiable from this item's diff alone — those are tracked in their own backlog items per d4-r1=A."
-  ],
   "evidence": [
     {
-      "id": "e1",
-      "type": "custom",
-      "title": "DecisionModifications struct + decision-entry field",
-      "description": "Verified shape matches d1-r1=A: {excluded_clauses []string, additions []string, rationale string}. Optional pointer on DecisionEntry per d5-r1=A. Contract doc referenced from comment.",
       "capture_path": "captures/store-models-modifications.txt",
-      "verified": true,
-      "verified_at": "2026-04-25T01:22:20Z"
-    },
-    {
-      "id": "e2",
+      "description": "Verified shape matches d1-r1=A: {excluded_clauses []string, additions []string, rationale string}. Optional pointer on DecisionEntry per d5-r1=A. Contract doc referenced from comment.",
+      "id": "e1",
+      "title": "DecisionModifications struct + decision-entry field",
       "type": "custom",
-      "title": "API handler: validation, persistence, immutability",
-      "description": "handlers.go:2125 validates non-nil modifications via validateDecisionModifications; rejects entirely-empty per d1-r2=A; rejects mutation post-accept per d2-r2=A; persists payload at handlers.go:2190-2192. Rationale capped at 4 KB.",
       "verified": true,
       "verified_at": "2026-04-25T01:22:20Z"
     },
     {
-      "id": "e3",
-      "type": "cli_output",
-      "title": "API unit tests for modifications (5/5 pass)",
-      "description": "go test ./heartbeat/ -run Modif: TestUpdateDecision_ModificationsPersisted, _EmptyModificationsRejected, _ModificationsEmptyStringRejected, _ModificationsImmutable, _WithoutModificationsLeavesNil — all PASS.",
-      "capture_path": "captures/api-modifications-tests.txt",
+      "description": "handlers.go:2125 validates non-nil modifications via validateDecisionModifications; rejects entirely-empty per d1-r2=A; rejects mutation post-accept per d2-r2=A; persists payload at handlers.go:2190-2192. Rationale capped at 4 KB.",
+      "id": "e2",
+      "title": "API handler: validation, persistence, immutability",
+      "type": "custom",
       "verified": true,
-      "verified_at": "2026-04-25T01:22:20Z",
+      "verified_at": "2026-04-25T01:22:20Z"
+    },
+    {
+      "capture_path": "captures/api-modifications-tests.txt",
+      "description": "go test ./heartbeat/ -run Modif: TestUpdateDecision_ModificationsPersisted, _EmptyModificationsRejected, _ModificationsEmptyStringRejected, _ModificationsImmutable, _WithoutModificationsLeavesNil — all PASS.",
+      "id": "e3",
       "test_results": [
         {
           "name": "TestUpdateDecision_ModificationsPersisted",
-          "passed": true,
-          "output_summary": "Round-trips structured payload"
+          "output_summary": "Round-trips structured payload",
+          "passed": true
         },
         {
           "name": "TestUpdateDecision_EmptyModificationsRejected",
-          "passed": true,
-          "output_summary": "field=modifications field-violation returned per d1-r2=A"
+          "output_summary": "field=modifications field-violation returned per d1-r2=A",
+          "passed": true
         },
         {
           "name": "TestUpdateDecision_ModificationsEmptyStringRejected",
-          "passed": true,
-          "output_summary": "Rejects empty strings inside arrays"
+          "output_summary": "Rejects empty strings inside arrays",
+          "passed": true
         },
         {
           "name": "TestUpdateDecision_ModificationsImmutable",
-          "passed": true,
-          "output_summary": "Mutation post-accept rejected per d2-r2=A"
+          "output_summary": "Mutation post-accept rejected per d2-r2=A",
+          "passed": true
         },
         {
           "name": "TestUpdateDecision_WithoutModificationsLeavesNil",
-          "passed": true,
-          "output_summary": "Optional field absent on read when omitted on write"
+          "output_summary": "Optional field absent on read when omitted on write",
+          "passed": true
         }
-      ]
+      ],
+      "title": "API unit tests for modifications (5/5 pass)",
+      "type": "cli_output",
+      "verified": true,
+      "verified_at": "2026-04-25T01:22:20Z"
     },
     {
-      "id": "e4",
-      "type": "custom",
-      "title": "CLI flags: --modifications and --modifications-file",
       "description": "teams.go:2870-2906 adds both flags with mutual-exclusion check, distinct help text from --notes, file-based escape hatch per d2-r1=D. parseDecisionModificationsJSON enforces the same shape rules at CLI boundary so malformed JSON fails fast before reaching the server.",
+      "id": "e4",
+      "title": "CLI flags: --modifications and --modifications-file",
+      "type": "custom",
       "verified": true,
       "verified_at": "2026-04-25T01:22:32Z"
     },
     {
-      "id": "e5",
-      "type": "cli_output",
-      "title": "CLI tests for accept + modifications (9/9 pass)",
-      "description": "go test ./cli/teams -run 'Modif|Accept': covers SendsModifications, RejectsEmptyModifications, RejectsInvalidJSON, RejectsBothModificationFlags, OmitsUnsetModifications, plus pre-existing accept-flow tests — all PASS.",
       "capture_path": "captures/cli-modifications-tests.txt",
-      "verified": true,
-      "verified_at": "2026-04-25T01:22:20Z",
+      "description": "go test ./cli/teams -run 'Modif|Accept': covers SendsModifications, RejectsEmptyModifications, RejectsInvalidJSON, RejectsBothModificationFlags, OmitsUnsetModifications, plus pre-existing accept-flow tests — all PASS.",
+      "id": "e5",
       "test_results": [
         {
           "name": "TestCmdDecisionAcceptSendsModifications",
-          "passed": true,
-          "output_summary": "JSON flag parsed and forwarded"
+          "output_summary": "JSON flag parsed and forwarded",
+          "passed": true
         },
         {
           "name": "TestCmdDecisionAcceptRejectsEmptyModifications",
-          "passed": true,
-          "output_summary": "CLI-side empty-object rejection"
+          "output_summary": "CLI-side empty-object rejection",
+          "passed": true
         },
         {
           "name": "TestCmdDecisionAcceptRejectsInvalidJSON",
-          "passed": true,
-          "output_summary": "Malformed JSON fails at boundary"
+          "output_summary": "Malformed JSON fails at boundary",
+          "passed": true
         },
         {
           "name": "TestCmdDecisionAcceptRejectsBothModificationFlags",
-          "passed": true,
-          "output_summary": "--modifications and --modifications-file mutually exclusive"
+          "output_summary": "--modifications and --modifications-file mutually exclusive",
+          "passed": true
         },
         {
           "name": "TestCmdDecisionAcceptOmitsUnsetModifications",
-          "passed": true,
-          "output_summary": "Field omitted from request when unset"
+          "output_summary": "Field omitted from request when unset",
+          "passed": true
         }
-      ]
-    },
-    {
-      "id": "e6",
-      "type": "custom",
-      "title": "UI: structured form + read-only persisted block",
-      "description": "DecisionLogView.tsx renders an 'Add modifications' affordance below selected option (line 261), with tag-entry inputs for excluded_clauses/additions and a rationale textarea per d3-r1=A. Persisted modifications render read-only beneath notes (immutability per d2-r2=A). heartbeatService.ts exports DecisionModifications type + threads it through accept payload. Static review only — no runtime screenshot captured this round.",
+      ],
+      "title": "CLI tests for accept + modifications (9/9 pass)",
+      "type": "cli_output",
       "verified": true,
       "verified_at": "2026-04-25T01:22:20Z"
     },
     {
-      "id": "e7",
+      "description": "DecisionLogView.tsx renders an 'Add modifications' affordance below selected option (line 261), with tag-entry inputs for excluded_clauses/additions and a rationale textarea per d3-r1=A. Persisted modifications render read-only beneath notes (immutability per d2-r2=A). heartbeatService.ts exports DecisionModifications type + threads it through accept payload. Static review only — no runtime screenshot captured this round.",
+      "id": "e6",
+      "title": "UI: structured form + read-only persisted block",
       "type": "custom",
-      "title": "Contract doc + workshop-agent prompt update",
+      "verified": true,
+      "verified_at": "2026-04-25T01:22:20Z"
+    },
+    {
       "description": "docs/reference/decision-modifications-contract.md (94 lines) defines shape, semantic rules (no server-side clause matching per d3-r2=A), notes-vs-modifications distinction, immutability per d2-r2=A. Referenced from Go source comments at api/store/models.go:465 and api/heartbeat/models.go:222 (proto-comment-equivalent given no .proto file). swarm-manager-workshop SKILL.md:278 instructs the workshop agent to treat modifications as first-class structured input, distinct from notes.",
+      "id": "e7",
+      "title": "Contract doc + workshop-agent prompt update",
+      "type": "custom",
       "verified": true,
       "verified_at": "2026-04-25T01:22:20Z"
     }
   ],
+  "execution_id": "19aee21859a1ba3e",
+  "generated_at": "2026-04-24T00:00:00Z",
   "improvement_suggestions": [
     {
       "category": "visual_capture",
@@ -151,5 +143,13 @@
       "evidence_id": "e1",
       "priority": "low"
     }
-  ]
+  ],
+  "notes": [
+    "Plan referenced a .proto extension; the scenario's API is Go/JSON, not protobuf — structural intent satisfied via Go struct in api/store/models.go and contract doc, but the literal proto deliverable does not apply here.",
+    "Contract doc lives at docs/reference/decision-modifications-contract.md (one level deeper than 'docs/' as worded in the plan); proto-style references are present in Go source comments instead of .proto files.",
+    "UI evidence is static-read only. No runtime browser capture was taken in this round; recommend a visual capture pass before archive if UI parity needs confirmation.",
+    "Sibling coordination (F9 display block, F10 option-less paths, F14 auto-create) is not verifiable from this item's diff alone — those are tracked in their own backlog items per d4-r1=A."
+  ],
+  "round": 1,
+  "status": "complete"
 }

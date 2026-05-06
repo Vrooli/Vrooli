@@ -1,5 +1,5 @@
 
- RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui
+ RUN  v2.1.9 path:scenarios/deployment-manager/ui
 
  ✓ src/pages/Approvals.test.tsx > Approvals > renders page title
  ✓ src/pages/Approvals.test.tsx > Approvals > shows select prompt when no profile selected
