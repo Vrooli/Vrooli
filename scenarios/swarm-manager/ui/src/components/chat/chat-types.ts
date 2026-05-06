@@ -1,0 +1,15 @@
+import type { ReactNode } from "react";
+
+export type ChatRole = "user" | "assistant" | "system";
+
+export type ChatAccent = "cyan" | "violet" | "slate";
+
+export interface ChatMessageView {
+  id: string;
+  role: ChatRole;
+  content: string;
+  createdAt?: string;
+  attachmentIds?: string[];
+}
+
+export type ChatMessageRenderSlot = (message: ChatMessageView) => ReactNode;

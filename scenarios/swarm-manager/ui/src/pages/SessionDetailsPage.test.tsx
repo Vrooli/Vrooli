@@ -166,12 +166,30 @@ describe("SessionDetailsPage", () => {
     renderPage();
 
     expect(screen.getByRole("tab", { name: "Conversation" })).toHaveAttribute("data-state", "active");
+    expect(screen.queryByTestId("detail-mobile-actions-fab")).toBeNull();
+    expect(screen.getByTestId("session-mobile-header-actions")).toBeInTheDocument();
     expect(screen.getByText("Plan it.")).toBeVisible();
     expect(screen.queryByText("Apply this plan.")).toBeNull();
+    expect(screen.getByTestId("agent-session-composer").parentElement?.parentElement).toHaveClass("fixed");
 
     await activateTab(/Proposals 1/);
 
     expect(screen.getByText("Apply this plan.")).toBeVisible();
+  });
+
+  it("puts mobile session actions behind the header ellipsis", async () => {
+    installMatchMediaMock(true);
+    const refreshSession = vi.fn().mockResolvedValue(SESSION);
+    storeMock.useAgentSessionStore.setState({ refreshSession });
+
+    renderPage();
+
+    await userEvent.click(screen.getByTestId("session-mobile-header-actions"));
+    expect(screen.getByTestId("session-mobile-actions-sheet")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("session-refresh"));
+
+    await waitFor(() => expect(refreshSession).toHaveBeenCalledWith("sess_meta"));
   });
 
   it("sends a continuation on Ctrl+Enter", async () => {
