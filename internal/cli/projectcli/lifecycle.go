@@ -50,6 +50,13 @@ type CleanupRequest struct {
 	Args   []string
 }
 
+type TemplateValidationCleanupRequest struct {
+	DryRun          bool
+	OlderThan       string
+	IncludeRetained bool
+	RunID           string
+}
+
 type LifecycleRequest struct {
 	Subcommand string
 	Args       []string
@@ -168,6 +175,9 @@ func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 		},
 		Options: []commandtree.OptionArg{
 			{Name: "--dry-run", Description: "For `orphans`: list the processes that would be killed without sending signals"},
+			{Name: "--older-than", ValueName: "duration", Description: "For `template-validation`: clean broad matches older than this Go duration"},
+			{Name: "--include-retained", Description: "For `template-validation`: allow broad cleanup to remove retained debugging runs"},
+			{Name: "--run", ValueName: "run-id", Description: "For `template-validation`: clean one explicit run id"},
 		},
 	}, args)
 	if err != nil {
@@ -178,19 +188,48 @@ func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 	if parsed.HasFlag("--dry-run") {
 		forwarded = append(forwarded, "--dry-run")
 	}
+	if value := strings.TrimSpace(parsed.FlagValue("--older-than")); value != "" {
+		forwarded = append(forwarded, "--older-than", value)
+	}
+	if parsed.HasFlag("--include-retained") {
+		forwarded = append(forwarded, "--include-retained")
+	}
+	if value := strings.TrimSpace(parsed.FlagValue("--run")); value != "" {
+		forwarded = append(forwarded, "--run", value)
+	}
 	switch target {
 	case "help":
 		return CleanupRequest{}, clipolicy.CommandHelpOnly(CleanupHelpText)
-	case "orphans", "locks":
+	case "orphans", "locks", "template-validation":
 		return CleanupRequest{Target: target, Args: forwarded}, nil
 	default:
 		return CleanupRequest{}, &vroolierr.Error{
 			Err:         fmt.Errorf("unknown cleanup target: %s", target),
 			Category:    clipolicy.ErrorCategoryUsage,
 			Hint:        clipolicy.UsageHint("cleanup"),
-			Suggestions: []string{"orphans", "locks"},
+			Suggestions: []string{"orphans", "locks", "template-validation"},
 		}
 	}
+}
+
+func ParseTemplateValidationCleanupRequest(args []string) (TemplateValidationCleanupRequest, error) {
+	parsed, err := commandtree.ParseArgs("cleanup template-validation", CleanupHelpText, commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{
+			{Name: "--dry-run", Description: "Preview cleanup without deleting files"},
+			{Name: "--older-than", ValueName: "duration", Description: "Clean broad matches older than this Go duration; defaults to 24h"},
+			{Name: "--include-retained", Description: "Allow broad cleanup to remove retained debugging runs"},
+			{Name: "--run", ValueName: "run-id", Description: "Clean one explicit run id regardless of age or retained status"},
+		},
+	}, args)
+	if err != nil {
+		return TemplateValidationCleanupRequest{}, err
+	}
+	return TemplateValidationCleanupRequest{
+		DryRun:          parsed.HasFlag("--dry-run"),
+		OlderThan:       strings.TrimSpace(parsed.FlagValue("--older-than")),
+		IncludeRetained: parsed.HasFlag("--include-retained"),
+		RunID:           strings.TrimSpace(parsed.FlagValue("--run")),
+	}, nil
 }
 
 func ParseSetupOptions(args []string) (projectsetup.Options, error) {
@@ -277,7 +316,7 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	return opts, nil
 }
 
-const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes and stale locks\n\nUsage:\n  vrooli cleanup orphans [--dry-run]    Kill orphaned Vrooli processes\n  vrooli cleanup locks                  Clean stale port lock files\n\nOptions:\n  --dry-run     For `orphans`: list the processes that would be killed without sending signals\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run      # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                  # Remove stale lock files\n"
+const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes, stale locks, and template validation workspaces\n\nUsage:\n  vrooli cleanup orphans [--dry-run]                  Kill orphaned Vrooli processes\n  vrooli cleanup locks                                Clean stale port lock files\n  vrooli cleanup template-validation [options]        Clean marker-backed deep template validation workspaces\n\nOptions:\n  --dry-run                 Preview cleanup without deleting files\n  --older-than <duration>   For `template-validation`: clean broad matches older than this Go duration (default 24h)\n  --include-retained        For `template-validation`: include retained debugging runs in broad cleanup\n  --run <run-id>            For `template-validation`: clean one explicit run id\n  --help, -h                Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run                    # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                              # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                                # Remove stale lock files\n  vrooli cleanup template-validation --dry-run        # Preview stale template validation workspaces\n  vrooli cleanup template-validation --older-than 24h # Clean stale non-retained validation workspaces\n"
 
 func statusArgSchema() commandtree.ArgSchema {
 	return commandtree.ArgSchema{

@@ -91,6 +91,16 @@ func TestRenderTemplateValidateResponseJSONReflectsIssues(t *testing.T) {
 	}
 }
 
+func TestParseTemplateCleanupRequest(t *testing.T) {
+	req, err := ParseTemplateCleanupRequest([]string{"--dry-run", "--older-than", "24h", "--include-retained", "--run", "run-1"})
+	if err != nil {
+		t.Fatalf("ParseTemplateCleanupRequest: %v", err)
+	}
+	if !req.DryRun || req.OlderThan != "24h" || !req.IncludeRetained || req.RunID != "run-1" {
+		t.Fatalf("req = %#v", req)
+	}
+}
+
 func TestWriteLifecycleItemsHumanIncludesURLs(t *testing.T) {
 	var stdout bytes.Buffer
 	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{

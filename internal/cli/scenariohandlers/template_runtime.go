@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
@@ -76,6 +77,14 @@ func TemplateCommandHandler[C any](deps HandlerDeps[C]) func(C, []string) error 
 				return fmt.Errorf("scenario template validation failed")
 			}
 			return nil
+		case "cleanup":
+			return bindGlobal(deps.Stdout,
+				func(ctx C, args []string) (TemplateCleanupRequest, error) { return ParseTemplateCleanupRequest(args) },
+				func(ctx C, req TemplateCleanupRequest) (cliout.Format, TemplateCleanupResult, error) {
+					return runTemplateCleanup(deps, ctx, req)
+				},
+				RenderTemplateCleanupResponse,
+			)(ctx, args[1:])
 		case "--help", "-h":
 			RenderTemplateHelp(deps.Stdout(ctx))
 			return nil
@@ -280,6 +289,7 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 			Message:  "deep validation requires test-genie CLI resolution",
 		}}
 	}
+	cleanupStaleTemplateValidationRuns(deps, ctx)
 	testGenieCLI, err := deps.LocateTestGenieCLI(ctx)
 	if err != nil {
 		return run, []TemplateValidationIssue{{
@@ -298,19 +308,48 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 	run.RetainedTemp = req.RetainTemp
 	destination := filepath.Join(tempRoot, "scenarios", scenarioID)
 	run.ScenarioPath = destination
+	marker, err := templatevalidation.NewRunMarker(templatevalidation.NewRunMarkerInput{
+		RepoRoot:     deps.Root(ctx),
+		Template:     info.Name,
+		ScenarioID:   scenarioID,
+		ScenarioPath: destination,
+		TempRoot:     tempRoot,
+		Retained:     req.RetainTemp,
+	})
+	if err != nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("create deep validation marker: %v", err),
+		}}
+	}
+	run.RunID = marker.RunID
+	run.CleanupCommand = "vrooli scenario template cleanup --run " + marker.RunID
+	if err := templatevalidation.WriteMarker(marker); err != nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("write deep validation marker: %v", err),
+		}}
+	}
 	cleanupTemp := true
 	if req.RetainTemp {
 		cleanupTemp = false
 		run.CleanupStatus = "retained"
 	}
 	defer func() {
+		marker.Completed = true
+		marker.CleanupStatus = run.CleanupStatus
 		if cleanupTemp {
 			if err := os.RemoveAll(tempRoot); err != nil {
 				run.CleanupStatus = "cleanup failed: " + err.Error()
+				marker.CleanupStatus = run.CleanupStatus
+				_ = templatevalidation.WriteMarker(marker)
 				return
 			}
 			run.CleanupStatus = "removed"
+			marker.CleanupStatus = run.CleanupStatus
+			return
 		}
+		_ = templatevalidation.WriteMarker(marker)
 	}()
 
 	if err := prepareDeepValidationWorkspace(deps.Root(ctx), tempRoot); err != nil {
@@ -320,6 +359,9 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		}}
 	}
 	relocations, issues := generateDeepValidationScenario(deps, ctx, info, scenarioID, destination)
+	run.RelocationArtifacts = relocationArtifactPaths(relocations)
+	marker.RelocationArtifacts = append([]string(nil), run.RelocationArtifacts...)
+	_ = templatevalidation.WriteMarker(marker)
 	if len(relocations) > 0 && !req.RetainTemp {
 		defer cleanupRelocationTargets(relocations)
 	}
@@ -364,6 +406,75 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		return run, []TemplateValidationIssue{*issue}
 	}
 	return run, nil
+}
+
+func runTemplateCleanup[C any](deps HandlerDeps[C], ctx C, req TemplateCleanupRequest) (cliout.Format, TemplateCleanupResult, error) {
+	format, err := deps.OutputFormat(ctx)
+	if err != nil {
+		return "", TemplateCleanupResult{}, err
+	}
+	opts, err := templateCleanupOptions(deps.Root(ctx), req)
+	if err != nil {
+		return "", TemplateCleanupResult{}, err
+	}
+	plan := templatevalidation.PlanCleanup(opts)
+	result := templatevalidation.ExecuteCleanup(plan)
+	if err := runProtoGenerateForCleanupResult(deps, ctx, &result); err != nil {
+		return "", result, err
+	}
+	return format, result, templatevalidation.ResultError(result)
+}
+
+func cleanupStaleTemplateValidationRuns[C any](deps HandlerDeps[C], ctx C) {
+	opts := templatevalidation.CleanupOptions{
+		RepoRoot:  deps.Root(ctx),
+		OlderThan: templatevalidation.DefaultCleanupOlderThan,
+	}
+	result := templatevalidation.ExecuteCleanup(templatevalidation.PlanCleanup(opts))
+	_ = runProtoGenerateForCleanupResult(deps, ctx, &result)
+}
+
+func templateCleanupOptions(repoRoot string, req TemplateCleanupRequest) (templatevalidation.CleanupOptions, error) {
+	olderThan := templatevalidation.DefaultCleanupOlderThan
+	if strings.TrimSpace(req.OlderThan) != "" {
+		parsed, err := time.ParseDuration(req.OlderThan)
+		if err != nil {
+			return templatevalidation.CleanupOptions{}, fmt.Errorf("invalid --older-than duration %q: %w", req.OlderThan, err)
+		}
+		olderThan = parsed
+	}
+	return templatevalidation.CleanupOptions{
+		RepoRoot:        repoRoot,
+		OlderThan:       olderThan,
+		IncludeRetained: req.IncludeRetained,
+		RunID:           req.RunID,
+		DryRun:          req.DryRun,
+	}, nil
+}
+
+func runProtoGenerateForCleanupResult[C any](deps HandlerDeps[C], ctx C, result *templatevalidation.CleanupResult) error {
+	if result == nil || result.DryRun || !result.NeedsProtoGenerate || len(result.Failures) > 0 {
+		return nil
+	}
+	if deps.RunSubprocess == nil {
+		return nil
+	}
+	protoDir := filepath.Join(deps.Root(ctx), "packages", "proto")
+	if _, err := os.Stat(filepath.Join(protoDir, "Makefile")); err != nil {
+		return nil
+	}
+	if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		Name:   "make",
+		Args:   []string{"generate"},
+		Dir:    protoDir,
+		Env:    deps.CommandEnv(ctx),
+		Stdout: deps.Stderr(ctx),
+		Stderr: deps.Stderr(ctx),
+	}); err != nil {
+		return fmt.Errorf("regenerate proto artifacts after template validation cleanup: %w", err)
+	}
+	result.ProtoGenerateRan = true
+	return nil
 }
 
 func testGenieFailureIssueFromJSON(templateName string, output []byte) *TemplateValidationIssue {
@@ -789,29 +900,17 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 // under gen/typescript/js/<scenario-id>, and Python rewrites hyphens to
 // underscores for package names.
 func cleanupRelocationTargets(relocations []ResolvedRelocation) {
-	for _, reloc := range relocations {
-		_ = os.RemoveAll(reloc.To)
-		// Heuristic gen-cleanup: if the relocation target lives under
-		// packages/proto/schemas/<id>/, remove the generated artifacts
-		// for that id from every known language output root.
-		schemasParent := filepath.Dir(reloc.To)
-		if filepath.Base(schemasParent) != "schemas" {
-			continue
-		}
-		protoRoot := filepath.Dir(schemasParent)
-		genRoot := filepath.Join(protoRoot, "gen")
-		scenarioID := filepath.Base(reloc.To)
-		scenarioPythonID := strings.ReplaceAll(scenarioID, "-", "_")
-		for _, path := range []string{
-			filepath.Join(genRoot, "go", scenarioID),
-			filepath.Join(genRoot, "typescript", scenarioID),
-			filepath.Join(genRoot, "typescript", "js", scenarioID),
-			filepath.Join(genRoot, "python", scenarioID),
-			filepath.Join(genRoot, "python", scenarioPythonID),
-		} {
-			_ = os.RemoveAll(path)
-		}
+	for _, path := range relocationArtifactPaths(relocations) {
+		_ = os.RemoveAll(path)
 	}
+}
+
+func relocationArtifactPaths(relocations []ResolvedRelocation) []string {
+	targets := make([]string, 0, len(relocations))
+	for _, reloc := range relocations {
+		targets = append(targets, reloc.To)
+	}
+	return templatevalidation.RelocationArtifactPaths(targets)
 }
 
 // copyRelocationTree mirrors copyTemplate's substitution logic but writes

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 type TemplateVar struct {
@@ -103,6 +104,13 @@ type TemplateValidateRequest struct {
 	TestPreset   string
 }
 
+type TemplateCleanupRequest struct {
+	DryRun          bool
+	OlderThan       string
+	IncludeRetained bool
+	RunID           string
+}
+
 // ResolvedRelocation captures a relocation after placeholder substitution,
 // so callers (and dry-run output) can show exactly where each From folder
 // would land before any disk writes happen.
@@ -145,13 +153,16 @@ type TemplateValidationIssue struct {
 }
 
 type TemplateValidationDeepRun struct {
-	Template      string `json:"template"`
-	ScenarioID    string `json:"scenarioId,omitempty"`
-	ScenarioPath  string `json:"scenarioPath,omitempty"`
-	TempRoot      string `json:"tempRoot,omitempty"`
-	TestPreset    string `json:"testPreset,omitempty"`
-	RetainedTemp  bool   `json:"retainedTemp,omitempty"`
-	CleanupStatus string `json:"cleanupStatus,omitempty"`
+	Template            string   `json:"template"`
+	RunID               string   `json:"runId,omitempty"`
+	ScenarioID          string   `json:"scenarioId,omitempty"`
+	ScenarioPath        string   `json:"scenarioPath,omitempty"`
+	TempRoot            string   `json:"tempRoot,omitempty"`
+	TestPreset          string   `json:"testPreset,omitempty"`
+	RetainedTemp        bool     `json:"retainedTemp,omitempty"`
+	CleanupStatus       string   `json:"cleanupStatus,omitempty"`
+	RelocationArtifacts []string `json:"relocationArtifacts,omitempty"`
+	CleanupCommand      string   `json:"cleanupCommand,omitempty"`
 }
 
 type TemplateValidationReport struct {
@@ -162,6 +173,8 @@ type TemplateValidationReport struct {
 	DeepRuns     []TemplateValidationDeepRun `json:"deepRuns,omitempty"`
 	Issues       []TemplateValidationIssue   `json:"issues,omitempty"`
 }
+
+type TemplateCleanupResult = templatevalidation.CleanupResult
 
 func RenderTemplateListResponse(w io.Writer, format cliout.Format, templates []TemplateInfo) error {
 	if format == cliout.FormatJSON {
@@ -372,10 +385,69 @@ func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report Te
 	return nil
 }
 
+func RenderTemplateCleanupResponse(w io.Writer, format cliout.Format, result TemplateCleanupResult) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteFieldsWithSuccess(w, len(result.Failures) == 0, map[string]any{"cleanup": result})
+	}
+	_, _ = fmt.Fprintln(w, "Template validation cleanup")
+	_, _ = fmt.Fprintf(w, "Status: %s\n", result.Message)
+	if len(result.Eligible) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Eligible")
+		for _, run := range result.Eligible {
+			_, _ = fmt.Fprintf(w, "  %s  %s  age=%s  retained=%t  %s\n", run.Marker.RunID, run.Marker.Template, run.Age, run.Marker.Retained, run.Marker.TempRoot)
+		}
+	}
+	if len(result.Removed) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Removed")
+		for _, run := range result.Removed {
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", run.Marker.RunID, run.Marker.TempRoot)
+		}
+	}
+	if len(result.Skipped) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Skipped")
+		for _, skipped := range result.Skipped {
+			label := skipped.Path
+			if skipped.Run != nil {
+				label = skipped.Run.Marker.RunID
+			}
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", label, skipped.Reason)
+		}
+	}
+	if len(result.Failures) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Failures")
+		for _, failure := range result.Failures {
+			label := failure.Path
+			if failure.Run != nil {
+				label = failure.Run.Marker.RunID
+			}
+			if strings.TrimSpace(label) == "" {
+				label = "cleanup"
+			}
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", label, failure.Error)
+		}
+	}
+	if result.NeedsProtoGenerate {
+		_, _ = fmt.Fprintln(w)
+		if result.DryRun {
+			_, _ = fmt.Fprintln(w, "Next steps: rerun without --dry-run to remove proto artifacts and regenerate packages/proto outputs.")
+		} else if !result.ProtoGenerateRan {
+			_, _ = fmt.Fprintln(w, "Next steps: run `cd packages/proto && make generate` to refresh proto outputs.")
+		}
+	}
+	return nil
+}
+
 func writeRetainedTemplateValidationPaths(w io.Writer, runs []TemplateValidationDeepRun) {
 	for _, run := range runs {
 		if run.RetainedTemp && strings.TrimSpace(run.TempRoot) != "" {
 			_, _ = fmt.Fprintf(w, "Retained temp workspace for %s: %s\n", run.Template, run.TempRoot)
+			if strings.TrimSpace(run.CleanupCommand) != "" {
+				_, _ = fmt.Fprintf(w, "Cleanup command: %s\n", run.CleanupCommand)
+			}
 		}
 	}
 }

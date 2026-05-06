@@ -18,6 +18,13 @@ const (
 
 	UnknownCommandLabel         = "Unknown command"
 	UnknownScenarioCommandLabel = "Unknown scenario command"
+
+	// CodeExternalCLIInvocation is the vroolierr.Error code emitted when a
+	// caller invokes a scenario CLI through the vrooli wrapper (e.g.
+	// `vrooli prompt-manager skill ...`). PrintErrorWithContext renders this
+	// code with a corrective hint instead of the generic unknown-command
+	// path.
+	CodeExternalCLIInvocation = "external_cli_invocation"
 )
 
 type HelpOnlyError struct {
@@ -76,6 +83,37 @@ func NewUnknownCommandError(command string, suggestions []string) error {
 	}
 }
 
+// NewExternalCLIError reports that the caller invoked a scenario CLI
+// (`name`) through the vrooli wrapper. `rest` is the remainder of the
+// original argv after the scenario-CLI token and is reused to render the
+// corrected command verbatim.
+func NewExternalCLIError(name string, rest []string) error {
+	return &vroolierr.Error{
+		Err:      fmt.Errorf("'%s' is a scenario CLI, not a vrooli subcommand", name),
+		Category: ErrorCategoryUsage,
+		Code:     CodeExternalCLIInvocation,
+		Suggestions: []string{
+			formatCorrectedScenarioInvocation(name, rest),
+		},
+	}
+}
+
+// formatCorrectedScenarioInvocation rebuilds the corrected scenario-CLI
+// invocation. Args containing whitespace are quoted so the suggestion is
+// directly executable.
+func formatCorrectedScenarioInvocation(name string, rest []string) string {
+	parts := make([]string, 0, len(rest)+1)
+	parts = append(parts, name)
+	for _, arg := range rest {
+		if strings.ContainsAny(arg, " \t") {
+			parts = append(parts, fmt.Sprintf("%q", arg))
+		} else {
+			parts = append(parts, arg)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
 func NewUnknownScenarioCommandError(command string, suggestions []string) error {
 	return &vroolierr.Error{
 		Err:         fmt.Errorf("unknown scenario command: %s", command),
@@ -96,6 +134,10 @@ func PrintErrorWithContext(w io.Writer, err error) {
 	annotated, ok := err.(commandError)
 	if !ok {
 		_, _ = fmt.Fprintln(w, err)
+		return
+	}
+	if vroolierr.Code(err, "") == CodeExternalCLIInvocation {
+		printExternalCLIInvocation(w, annotated)
 		return
 	}
 	category := strings.TrimSpace(annotated.ErrorCategory())
@@ -128,6 +170,19 @@ func PrintErrorWithContext(w io.Writer, err error) {
 		_, _ = fmt.Fprintf(w, "  %s\n", suggestion)
 	}
 	_, _ = fmt.Fprintln(w, MainHelpHint)
+}
+
+func printExternalCLIInvocation(w io.Writer, annotated commandError) {
+	_, _ = fmt.Fprintln(w, annotated.Error()+".")
+	suggestions := annotated.ErrorSuggestions()
+	if len(suggestions) > 0 && strings.TrimSpace(suggestions[0]) != "" {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Run it directly:")
+		_, _ = fmt.Fprintf(w, "  %s\n", suggestions[0])
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "The 'vrooli' wrapper is only for project-level commands like")
+	_, _ = fmt.Fprintln(w, "'vrooli scenario start <name>' or 'vrooli help'.")
 }
 
 func printUnknownCommand(w io.Writer, label, command string, suggestions []string, usageHint string) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/portspec"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 type Controller struct {
@@ -64,6 +66,7 @@ var (
 	inspectPortListenersFn   = network.InspectPortListeners
 	killProcessFn            = killProcess
 	looksLikeVrooliProcessFn = looksLikeVrooliProcess
+	runProtoGenerateFn       = runProtoGenerate
 )
 
 func NewController(root, home string) *Controller {
@@ -168,6 +171,37 @@ func (c *Controller) CleanStaleRecords() (control.StopReport, error) {
 		Stopped: stopped,
 		Message: control.StopSummary(len(stopped), 0),
 	}, nil
+}
+
+func (c *Controller) ListTemplateValidationRuns(opts templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error) {
+	opts.RepoRoot = c.Root
+	opts.DryRun = true
+	result := templatevalidation.ExecuteCleanup(templatevalidation.PlanCleanup(opts))
+	return result, templatevalidation.ResultError(result)
+}
+
+func (c *Controller) CleanTemplateValidationRuns(opts templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error) {
+	opts.RepoRoot = c.Root
+	result := templatevalidation.ExecuteCleanup(templatevalidation.PlanCleanup(opts))
+	if result.NeedsProtoGenerate && !result.DryRun && len(result.Failures) == 0 {
+		if err := runProtoGenerateFn(c.Root); err != nil {
+			return result, err
+		}
+		result.ProtoGenerateRan = true
+	}
+	return result, templatevalidation.ResultError(result)
+}
+
+func runProtoGenerate(repoRoot string) error {
+	protoDir := filepath.Join(repoRoot, "packages", "proto")
+	if _, err := os.Stat(filepath.Join(protoDir, "Makefile")); err != nil {
+		return nil
+	}
+	cmd := exec.Command("make", "generate")
+	cmd.Dir = protoDir
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 // cleanStaleScenarioRecords walks $HOME/.vrooli/processes/scenarios/<name>/

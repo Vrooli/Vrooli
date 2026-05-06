@@ -4,6 +4,7 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 type ProjectOperations interface {
@@ -18,6 +19,8 @@ type MaintenanceOperations interface {
 	ListLocks() ([]maintenance.LockInfo, error)
 	CleanStaleLocks() (control.StopReport, error)
 	DiagnosePort(port int, scenarioName string) (maintenance.PortDiagnostic, error)
+	ListTemplateValidationRuns(templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error)
+	CleanTemplateValidationRuns(templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error)
 }
 
 type StatusRequest struct {
@@ -42,6 +45,13 @@ type LocksRequest struct {
 type DiagnosePortRequest struct {
 	Port         int
 	ScenarioName string
+}
+
+type TemplateValidationCleanupRequest struct {
+	DryRun          bool
+	OlderThan       string
+	IncludeRetained bool
+	RunID           string
 }
 
 type OrphansResponse struct {
@@ -115,4 +125,11 @@ func (s Service) Locks(req LocksRequest) (LocksResponse, error) {
 
 func (s Service) DiagnosePort(req DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
 	return s.Maintenance.DiagnosePort(req.Port, req.ScenarioName)
+}
+
+func (s Service) TemplateValidationCleanup(opts templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error) {
+	if opts.DryRun {
+		return s.Maintenance.ListTemplateValidationRuns(opts)
+	}
+	return s.Maintenance.CleanTemplateValidationRuns(opts)
 }

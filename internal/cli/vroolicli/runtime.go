@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	packageapp "github.com/vrooli/vrooli/internal/app/package"
@@ -17,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/authhandlers"
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
@@ -36,6 +39,7 @@ import (
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 )
 
@@ -80,6 +84,9 @@ type App struct {
 	ScenarioExecutableFn  func() (string, error)
 
 	registry *rootcli.Registry[*CommandContext]
+
+	scenarioCLINamesOnce  sync.Once
+	scenarioCLINamesCache []string
 }
 
 type CommandContext struct {
@@ -173,11 +180,36 @@ func (app *App) Runner() *rootcli.Runner[*CommandContext] {
 		ShowVersion: func(ctx *CommandContext) error {
 			return WriteVersion(ctx.Stdout, ctx.Root, ctx.Globals, app.VersionInfo)
 		},
-		DebugLog:        app.DebugLogFn,
-		MetricsRecorder: app.newMetricsRecorder(),
-		CLIVersion:      app.VersionInfo.CLIVersion,
-		PlatformVersion: app.VersionInfo.PlatformVersion,
+		DebugLog:          app.DebugLogFn,
+		MetricsRecorder:   app.newMetricsRecorder(),
+		CLIVersion:        app.VersionInfo.CLIVersion,
+		PlatformVersion:   app.VersionInfo.PlatformVersion,
+		ScenarioCLILister: app.installedScenarioCLINames,
 	})
+}
+
+// installedScenarioCLINames is consulted on the unknown-command path to
+// detect invocations like `vrooli prompt-manager ...` so we can suggest
+// running the scenario CLI directly. Result is cached for the process
+// lifetime; failures are swallowed (returning nil falls through to the
+// existing unknown-command rendering).
+func (app *App) installedScenarioCLINames() []string {
+	app.scenarioCLINamesOnce.Do(func() {
+		if app.HomeDirFn == nil {
+			return
+		}
+		home, err := app.HomeDirFn()
+		if err != nil || strings.TrimSpace(home) == "" {
+			return
+		}
+		manager := cliinstall.NewManager("", home)
+		names, err := manager.InstalledScenarioCLINames()
+		if err != nil {
+			return
+		}
+		app.scenarioCLINamesCache = names
+	})
+	return app.scenarioCLINamesCache
 }
 
 func (app *App) newMetricsRecorder() *metrics.Recorder {
@@ -575,6 +607,9 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			return command.Status(projectapp.StatusRequest{ResourcesOnly: req.ResourcesOnly, ScenariosOnly: req.ScenariosOnly, Fast: req.Fast})
 		}),
 		topcli.CommandStop: projectcli.StopHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.StopRequest) (control.StopReport, error) {
+			if err := enforceAgentCommandPolicy("stop", req.Targets); err != nil {
+				return control.StopReport{}, err
+			}
 			command, err := ctx.app.newProjectCommandService(ctx)
 			if err != nil {
 				return control.StopReport{}, err
@@ -620,6 +655,16 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			return command.Doctor()
 		}),
 		topcli.CommandOrphans: projectcli.OrphansHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.OrphansRequest) (projectcli.OrphansResponse, error) {
+			policyArgs := []string{"orphans"}
+			if req.Kill {
+				policyArgs = append(policyArgs, "kill")
+			}
+			if req.DryRun {
+				policyArgs = append(policyArgs, "--dry-run")
+			}
+			if err := enforceAgentCommandPolicy(policyArgs[0], policyArgs[1:]); err != nil {
+				return projectcli.OrphansResponse{}, err
+			}
 			command, err := ctx.app.newProjectCommandService(ctx)
 			if err != nil {
 				return projectcli.OrphansResponse{}, err
@@ -631,6 +676,13 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			return projectcli.OrphansResponse{List: resp.List, KillReport: resp.KillReport, DryRun: resp.DryRun}, nil
 		}),
 		topcli.CommandLocks: projectcli.LocksHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.LocksRequest) (projectcli.LocksResponse, error) {
+			policyArgs := []string{"locks"}
+			if req.Clean {
+				policyArgs = append(policyArgs, "clean")
+			}
+			if err := enforceAgentCommandPolicy(policyArgs[0], policyArgs[1:]); err != nil {
+				return projectcli.LocksResponse{}, err
+			}
 			command, err := ctx.app.newProjectCommandService(ctx)
 			if err != nil {
 				return projectcli.LocksResponse{}, err
@@ -648,6 +700,21 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			}
 			return command.DiagnosePort(projectapp.DiagnosePortRequest{Port: req.Port, ScenarioName: req.ScenarioName})
 		}),
+		topcli.CommandID("cleanup-template-validation"): projectcli.TemplateValidationCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.TemplateValidationCleanupRequest) (projectcli.TemplateValidationCleanupResponse, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return projectcli.TemplateValidationCleanupResponse{}, err
+			}
+			opts, err := projectTemplateValidationCleanupOptions(req)
+			if err != nil {
+				return projectcli.TemplateValidationCleanupResponse{}, err
+			}
+			result, err := command.TemplateValidationCleanup(opts)
+			if err != nil {
+				return projectcli.TemplateValidationCleanupResponse{}, err
+			}
+			return projectcli.TemplateValidationCleanupResponse{Result: result}, nil
+		}),
 		topcli.CommandContract: contracthandlers.RootHandler(contracthandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
@@ -661,8 +728,30 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
-	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks])
+	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks], handlers[topcli.CommandID("cleanup-template-validation")])
 	return handlers
+}
+
+func enforceAgentCommandPolicy(command string, args []string) error {
+	argv := append([]string{"vrooli", command}, args...)
+	return clipolicy.NewCommandPolicyError(clipolicy.ClassifyAgentCommand(argv, os.Environ()))
+}
+
+func projectTemplateValidationCleanupOptions(req projectcli.TemplateValidationCleanupRequest) (templatevalidation.CleanupOptions, error) {
+	olderThan := templatevalidation.DefaultCleanupOlderThan
+	if strings.TrimSpace(req.OlderThan) != "" {
+		parsed, err := time.ParseDuration(req.OlderThan)
+		if err != nil {
+			return templatevalidation.CleanupOptions{}, fmt.Errorf("invalid --older-than duration %q: %w", req.OlderThan, err)
+		}
+		olderThan = parsed
+	}
+	return templatevalidation.CleanupOptions{
+		OlderThan:       olderThan,
+		IncludeRetained: req.IncludeRetained,
+		RunID:           req.RunID,
+		DryRun:          req.DryRun,
+	}, nil
 }
 
 func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Handler[*CommandContext] {

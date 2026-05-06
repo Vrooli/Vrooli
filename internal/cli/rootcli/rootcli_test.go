@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 func TestParseArgsSeparatesGlobalsAndCommand(t *testing.T) {
@@ -358,5 +359,86 @@ func TestRunHelpOnlyTolerantOfResolveRootError(t *testing.T) {
 	}
 	if captured.root != "" {
 		t.Fatalf("ctx root = %q, want empty (resolve failed)", captured.root)
+	}
+}
+
+func newScenarioCLILookalikeRunner(lister func() []string) *Runner[*runnerCtx] {
+	registry := NewRegistry(
+		map[topcli.CommandID]Handler[*runnerCtx]{
+			topcli.CommandScenario: func(*runnerCtx, []string) error { return nil },
+		},
+		map[scenariocli.CommandID]Handler[*runnerCtx]{},
+	)
+	captured := &runnerCtx{}
+	return NewRunner(RunnerConfig[*runnerCtx]{
+		Registry: registry,
+		NewLogger: func(GlobalOptions, io.Writer) (*slog.Logger, func()) {
+			return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+		},
+		NewContext: func(GlobalOptions, io.Writer, io.Writer, *slog.Logger) *runnerCtx {
+			return captured
+		},
+		SetRoot:           func(ctx *runnerCtx, root string) { ctx.root = root },
+		ResolveRoot:       func() (string, error) { return "/resolved", nil },
+		PrimeRootEnv:      func(string) {},
+		ShowMainHelp:      func(*runnerCtx) {},
+		ShowVersion:       func(*runnerCtx) error { return nil },
+		ScenarioCLILister: lister,
+	})
+}
+
+func TestDispatchEmitsExternalCLIErrorForInstalledScenarioCLI(t *testing.T) {
+	runner := newScenarioCLILookalikeRunner(func() []string {
+		return []string{"agent-manager", "prompt-manager"}
+	})
+	var stdout, stderr bytes.Buffer
+	code := runner.Run([]string{"prompt-manager", "skill", "read", "x"}, &stdout, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	out := stderr.String()
+	if !strings.Contains(out, "'prompt-manager' is a scenario CLI") {
+		t.Errorf("expected external-CLI message; got:\n%s", out)
+	}
+	if !strings.Contains(out, "prompt-manager skill read x") {
+		t.Errorf("expected corrected command; got:\n%s", out)
+	}
+}
+
+func TestDispatchFallsBackToUnknownCommandWhenNotScenarioCLI(t *testing.T) {
+	runner := newScenarioCLILookalikeRunner(func() []string {
+		return []string{"prompt-manager"}
+	})
+	var stdout, stderr bytes.Buffer
+	code := runner.Run([]string{"definitely-not-a-thing"}, &stdout, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	out := stderr.String()
+	if !strings.Contains(out, "Unknown command: definitely-not-a-thing") {
+		t.Errorf("expected unknown-command path; got:\n%s", out)
+	}
+	if strings.Contains(out, "scenario CLI") {
+		t.Errorf("did not expect scenario-CLI message; got:\n%s", out)
+	}
+}
+
+func TestDispatchUnknownCommandWhenListerNil(t *testing.T) {
+	runner := newScenarioCLILookalikeRunner(nil)
+	var stdout, stderr bytes.Buffer
+	code := runner.Run([]string{"prompt-manager"}, &stdout, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	out := stderr.String()
+	if !strings.Contains(out, "Unknown command: prompt-manager") {
+		t.Errorf("expected unknown-command path; got:\n%s", out)
+	}
+}
+
+func TestExternalCLIErrorCarriesCode(t *testing.T) {
+	err := clipolicy.NewExternalCLIError("prompt-manager", []string{"skill"})
+	if got := vroolierr.Code(err, ""); got != clipolicy.CodeExternalCLIInvocation {
+		t.Fatalf("code = %q, want %q", got, clipolicy.CodeExternalCLIInvocation)
 	}
 }

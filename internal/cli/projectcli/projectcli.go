@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 type StatusOptions struct {
@@ -30,6 +31,10 @@ type OrphansResponse struct {
 type LocksResponse struct {
 	CleanReport *control.StopReport
 	List        []maintenance.LockInfo
+}
+
+type TemplateValidationCleanupResponse struct {
+	Result templatevalidation.CleanupResult
 }
 
 func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) error {
@@ -207,6 +212,63 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 		rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, strconv.Itoa(item.PID), status})
 	}
 	return cliout.RenderTable(w, []string{"Port", "Scenario", "PID", "Status"}, rows)
+}
+
+func RenderTemplateValidationCleanupResponse(w io.Writer, format cliout.Format, resp TemplateValidationCleanupResponse) error {
+	result := resp.Result
+	if format == cliout.FormatJSON {
+		return cliout.WriteFieldsWithSuccess(w, len(result.Failures) == 0, map[string]any{"cleanup": result})
+	}
+	_, _ = fmt.Fprintln(w, "Template validation cleanup")
+	_, _ = fmt.Fprintf(w, "Status: %s\n", result.Message)
+	if len(result.Eligible) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Eligible")
+		for _, run := range result.Eligible {
+			_, _ = fmt.Fprintf(w, "  %s  %s  age=%s  retained=%t  %s\n", run.Marker.RunID, run.Marker.Template, run.Age, run.Marker.Retained, run.Marker.TempRoot)
+		}
+	}
+	if len(result.Removed) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Removed")
+		for _, run := range result.Removed {
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", run.Marker.RunID, run.Marker.TempRoot)
+		}
+	}
+	if len(result.Skipped) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Skipped")
+		for _, skipped := range result.Skipped {
+			label := skipped.Path
+			if skipped.Run != nil {
+				label = skipped.Run.Marker.RunID
+			}
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", label, skipped.Reason)
+		}
+	}
+	if len(result.Failures) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Failures")
+		for _, failure := range result.Failures {
+			label := failure.Path
+			if failure.Run != nil {
+				label = failure.Run.Marker.RunID
+			}
+			if label == "" {
+				label = "cleanup"
+			}
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", label, failure.Error)
+		}
+	}
+	if result.NeedsProtoGenerate {
+		_, _ = fmt.Fprintln(w)
+		if result.DryRun {
+			_, _ = fmt.Fprintln(w, "Next steps: rerun without --dry-run to remove proto artifacts and regenerate packages/proto outputs.")
+		} else if !result.ProtoGenerateRan {
+			_, _ = fmt.Fprintln(w, "Next steps: run `cd packages/proto && make generate` to refresh proto outputs.")
+		}
+	}
+	return nil
 }
 
 func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintenance.PortDiagnostic) error {

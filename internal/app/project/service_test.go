@@ -6,6 +6,7 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 type fakeProjectOps struct {
@@ -47,6 +48,14 @@ func (fakeMaintenanceOps) CleanStaleLocks() (control.StopReport, error) {
 
 func (fakeMaintenanceOps) DiagnosePort(port int, scenarioName string) (maintenance.PortDiagnostic, error) {
 	return maintenance.PortDiagnostic{Port: port, Scenario: scenarioName, InUse: true}, nil
+}
+
+func (fakeMaintenanceOps) ListTemplateValidationRuns(opts templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error) {
+	return templatevalidation.CleanupResult{CleanupPlan: templatevalidation.CleanupPlan{DryRun: true}}, nil
+}
+
+func (fakeMaintenanceOps) CleanTemplateValidationRuns(opts templatevalidation.CleanupOptions) (templatevalidation.CleanupResult, error) {
+	return templatevalidation.CleanupResult{CleanupPlan: templatevalidation.CleanupPlan{DryRun: opts.DryRun}}, nil
 }
 
 func TestServiceStatusUsesProjectOperations(t *testing.T) {

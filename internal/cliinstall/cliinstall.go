@@ -361,6 +361,55 @@ func (m *Manager) InstalledBinaryPath(item InstallableCLI) string {
 	return filepath.Join(m.InstallDir(), item.BinaryName)
 }
 
+// rootBinaryNames lists the vrooli wrapper binaries that share the install
+// directory with scenario/resource CLIs. They are excluded from
+// InstalledScenarioCLINames so callers don't mistake them for scenario CLIs.
+var rootBinaryNames = map[string]struct{}{
+	"vrooli":               {},
+	"vrooli-api":           {},
+	"vrooli-buildmeta":     {},
+	"vrooli-ports-migrate": {},
+}
+
+// InstalledScenarioCLINames returns the names of installed scenario/resource
+// CLI binaries in InstallDir(). Sidecar metadata (.build.meta, .manifest.json)
+// and the vrooli root binaries are filtered out. A missing install directory
+// returns (nil, nil). Result is sorted for deterministic output.
+func (m *Manager) InstalledScenarioCLINames() ([]string, error) {
+	entries, err := os.ReadDir(m.InstallDir())
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasSuffix(name, ".build.meta") || strings.HasSuffix(name, ".manifest.json") {
+			continue
+		}
+		if _, isRoot := rootBinaryNames[name]; isRoot {
+			continue
+		}
+		if runtime.GOOS != "windows" {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			if info.Mode()&0o111 == 0 {
+				continue
+			}
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
 func (m *Manager) InstallMetadataPath(item InstallableCLI) string {
 	return installedBuildMetadataPath(m.InstalledBinaryPath(item))
 }

@@ -808,6 +808,69 @@ func TestComputeResourceCLIFingerprintIncludesManifestForGoModule(t *testing.T) 
 	}
 }
 
+func TestInstalledScenarioCLINames(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("exec-bit filtering is unix-only; skipping on windows")
+	}
+	home := t.TempDir()
+	binDir := filepath.Join(home, ".vrooli", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir bin: %v", err)
+	}
+
+	writeExec := func(name string, mode os.FileMode) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\n"), mode); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	// Real scenario CLIs (executable).
+	writeExec("prompt-manager", 0o755)
+	writeExec("agent-manager", 0o755)
+	// Root vrooli binaries — must be excluded.
+	writeExec("vrooli", 0o755)
+	writeExec("vrooli-api", 0o755)
+	writeExec("vrooli-buildmeta", 0o755)
+	writeExec("vrooli-ports-migrate", 0o755)
+	// Sidecar files — must be excluded.
+	if err := os.WriteFile(filepath.Join(binDir, "prompt-manager.build.meta"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("write build meta: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(binDir, "prompt-manager.manifest.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	// Non-executable file — must be excluded.
+	if err := os.WriteFile(filepath.Join(binDir, "readme.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatalf("write readme: %v", err)
+	}
+	// Subdirectory — must be excluded.
+	if err := os.MkdirAll(filepath.Join(binDir, "subdir"), 0o755); err != nil {
+		t.Fatalf("mkdir subdir: %v", err)
+	}
+
+	manager := &Manager{Home: home}
+	got, err := manager.InstalledScenarioCLINames()
+	if err != nil {
+		t.Fatalf("InstalledScenarioCLINames: %v", err)
+	}
+	want := []string{"agent-manager", "prompt-manager"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestInstalledScenarioCLINamesMissingDir(t *testing.T) {
+	manager := &Manager{Home: t.TempDir()}
+	got, err := manager.InstalledScenarioCLINames()
+	if err != nil {
+		t.Fatalf("expected nil error for missing dir, got %v", err)
+	}
+	if got != nil {
+		t.Fatalf("expected nil names for missing dir, got %v", got)
+	}
+}
+
 func writeInstallMetadataFixture(t *testing.T, path string, meta InstallMetadata) {
 	t.Helper()
 	data, err := json.Marshal(meta)

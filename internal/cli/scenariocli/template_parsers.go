@@ -15,6 +15,7 @@ const (
 	TemplateCommandList     TemplateCommandID = "list"
 	TemplateCommandShow     TemplateCommandID = "show"
 	TemplateCommandValidate TemplateCommandID = "validate"
+	TemplateCommandCleanup  TemplateCommandID = "cleanup"
 )
 
 type DesignCommandID string
@@ -52,6 +53,19 @@ func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
 				},
 			},
 			Handler: TemplateCommandValidate,
+		},
+		{
+			Name:    string(TemplateCommandCleanup),
+			Summary: "Clean retained or stale deep template validation workspaces",
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{
+					{Name: "--dry-run", Description: "Preview cleanup without deleting files"},
+					{Name: "--older-than", ValueName: "duration", Description: "Clean broad matches older than this Go duration; defaults to 24h"},
+					{Name: "--include-retained", Description: "Allow broad cleanup to remove retained debugging runs"},
+					{Name: "--run", ValueName: "run-id", Description: "Clean one explicit run id regardless of age or retained status"},
+				},
+			},
+			Handler: TemplateCommandCleanup,
 		},
 	}
 }
@@ -144,6 +158,19 @@ func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error
 		return TemplateValidateRequest{}, fmt.Errorf("--retain-temp is only valid with --mode deep")
 	}
 	return req, nil
+}
+
+func ParseTemplateCleanupRequest(args []string) (TemplateCleanupRequest, error) {
+	parsed, err := commandtree.ParseArgs("scenario template cleanup", templateCommandHelpText(TemplateCommandCleanup), templateCommandSpec(TemplateCommandCleanup).Args, args)
+	if err != nil {
+		return TemplateCleanupRequest{}, err
+	}
+	return TemplateCleanupRequest{
+		DryRun:          parsed.HasFlag("--dry-run"),
+		OlderThan:       strings.TrimSpace(parsed.FlagValue("--older-than")),
+		IncludeRetained: parsed.HasFlag("--include-retained"),
+		RunID:           strings.TrimSpace(parsed.FlagValue("--run")),
+	}, nil
 }
 
 func templateCommandHelpText(id TemplateCommandID) string {

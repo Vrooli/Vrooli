@@ -448,6 +448,15 @@ type RunnerConfig[C any] struct {
 	MetricsRecorder *metrics.Recorder
 	CLIVersion      string
 	PlatformVersion string
+
+	// ScenarioCLILister returns the names of installed scenario/resource
+	// CLIs. When set, dispatchInner consults it on the unknown-command path
+	// to detect invocations like `vrooli prompt-manager ...` and emit a
+	// corrective error pointing at the standalone CLI. May be nil; callers
+	// that don't wire it preserve the previous unknown-command behavior.
+	// The lister is invoked only on the error path, so callers should
+	// memoize internally if the lookup is non-trivial.
+	ScenarioCLILister func() []string
 }
 
 type Runner[C any] struct {
@@ -592,6 +601,13 @@ func (r *Runner[C]) dispatchInner(ctx C, parsed ParsedArgs) error {
 	}
 	handler, ok := r.config.Registry.TopLevelHandler(parsed.Command)
 	if !ok {
+		if r.config.ScenarioCLILister != nil {
+			for _, name := range r.config.ScenarioCLILister() {
+				if name == parsed.Command {
+					return clipolicy.NewExternalCLIError(parsed.Command, parsed.Args)
+				}
+			}
+		}
 		return NewUnknownCommandError(parsed.Command, r.config.Registry.SuggestTopLevel(parsed.Command))
 	}
 	return handler(ctx, parsed.Args)

@@ -213,6 +213,9 @@ flowchart LR
   OP --> RI
   VW --> RI
   BIH --> RI
+  OP --> R
+  VW --> R
+  BIH --> R
   RI --> R
 
   %% Research

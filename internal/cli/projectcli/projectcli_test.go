@@ -42,6 +42,22 @@ func TestParseCleanupRequestRejectsUnknownTarget(t *testing.T) {
 	}
 }
 
+func TestParseCleanupRequestAcceptsTemplateValidationTarget(t *testing.T) {
+	req, err := ParseCleanupRequest([]string{"template-validation", "--dry-run", "--older-than", "24h", "--include-retained", "--run", "run-1"})
+	if err != nil {
+		t.Fatalf("ParseCleanupRequest: %v", err)
+	}
+	if req.Target != "template-validation" {
+		t.Fatalf("target = %q", req.Target)
+	}
+	args := strings.Join(req.Args, " ")
+	for _, want := range []string{"--dry-run", "--older-than 24h", "--include-retained", "--run run-1"} {
+		if !strings.Contains(args, want) {
+			t.Fatalf("args = %q, want %q", args, want)
+		}
+	}
+}
+
 func TestParseDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
 	if _, err := ParseDiagnosePortRequest([]string{"bogus"}); err == nil {
 		t.Fatal("expected invalid port error")

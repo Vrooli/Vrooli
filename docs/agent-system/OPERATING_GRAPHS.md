@@ -226,7 +226,9 @@ Current rules:
 | `graph_untyped_node` | error | Contract node lacks a typed machine label. |
 | `graph_topic_unresolved` | error | Live `topic:` node has no matching runtime topic relationship. |
 | `graph_future_topic_live_edge` | warning | Future topic appears on an active direct edge. |
+| `graph_unsupported_edge_semantics` | error | Direct edge between actionable typed nodes does not map to a supported operating relationship. |
 | `graph_edge_unbacked` | error | Direct edge implies a runtime relationship absent from config. |
+| `graph_declared_member_missing` | error | Active team-contract member is missing from a contract graph. |
 | `graph_declared_intake_missing` | error | Live intake in `topics.json` is missing from a contract graph. |
 | `graph_declared_required_read_missing` | error | Live required read in `topics.json` is missing from a contract graph. |
 | `graph_declared_evidence_missing` | error | Live evidence source in `topics.json` is missing from a contract graph. |
@@ -236,10 +238,16 @@ Current rules:
 | `graph_declared_capability_gap_missing` | warning | Member capability-gap routing is missing from a contract graph. |
 | `graph_declared_external_producer_missing` | warning | Member external producer declaration is missing from a contract graph. |
 | `graph_declared_cross_team_output_missing` | warning | Cross-team output destination is missing from a contract graph. |
+| `graph_prompt_topic_contract_missing` | error | Contract graph member does not receive a generated `topic-contract` prompt section. |
+| `graph_prompt_topic_contract_source_mismatch` | error | Generated `topic-contract` prompt section does not point at that member's `topics.json`. |
 
 The completeness rules use the same normalized relationship matcher as diff. A broad Mermaid `topic -> member` read can satisfy runtime `intake[]`, `required_read[]`, or `evidence_consumed[]`; a `decision -> member` edge can satisfy decision consumption visibility.
 
-Generated heartbeat prompt checks are paired with this layer: every active member should receive a generated `# Topic Contract` section from `topics.json`.
+External-producer edges are intentionally strict. `external -> member` means that member declares the external producer in `topics.json`; `external -> topic` only documents provenance for an intake topic. An `external -> topic` edge does not replace member-specific `external_producers[]` visibility.
+
+Generated heartbeat prompt checks are part of this layer: every contract graph member must receive a generated `# Topic Contract` section from `topics.json`, and the structured prompt section must name `teams/<team>/members/<member>/topics.json` as its source.
+
+CLI `--json` output for operating-graph list, validate, and diff preserves the API response fields, including graph metadata status/extra fields and source fence lines.
 
 The validator currently treats the Mermaid graph as the enforceable operating-graph surface. Prose tables that often sit near the graph, such as topic catalogs and decision summaries, are reference material unless a later validator explicitly names them as checked inputs.
 
