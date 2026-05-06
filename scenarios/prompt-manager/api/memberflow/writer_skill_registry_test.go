@@ -19,10 +19,7 @@ import (
 // the runtime validator as the catch-all, but lock the registry shape with
 // a test that fails fast in CI.
 func TestWriterSkillRegistry_AllTaggedHaveWritesTo(t *testing.T) {
-	storeDir := "/home/matthalloran8/Vrooli/scenarios/prompt-manager/store"
-	if _, err := os.Stat(storeDir); err != nil {
-		t.Skip("real store not available in this environment")
-	}
+	storeDir, _ := realPromptManagerStore(t)
 
 	skills, err := loadAllSkillJSON(storeDir)
 	if err != nil {
@@ -66,10 +63,7 @@ func TestWriterSkillRegistry_AllTaggedHaveWritesTo(t *testing.T) {
 // adding writes_to[]) that would look "fine" in skill.json review but
 // cause every topic ref in the skill's prose to fire.
 func TestWriterSkillRegistry_WritesToOnlyOnWriterTagged(t *testing.T) {
-	storeDir := "/home/matthalloran8/Vrooli/scenarios/prompt-manager/store"
-	if _, err := os.Stat(storeDir); err != nil {
-		t.Skip("real store not available in this environment")
-	}
+	storeDir, _ := realPromptManagerStore(t)
 
 	skills, err := loadAllSkillJSON(storeDir)
 	if err != nil {

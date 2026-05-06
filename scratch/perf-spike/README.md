@@ -12,7 +12,7 @@ If this proves out, fold the helper into BAS as
 
 ```bash
 # swarm-manager must be running (vrooli scenario start swarm-manager)
-node /home/matthalloran8/Vrooli/scratch/perf-spike/capture.js \
+node scratch/perf-spike/capture.js \
   --url http://localhost:21234 \
   --out /tmp/swarm-trace.json
 ```
@@ -36,7 +36,7 @@ export VROOLI_BUILD_MODE=profile
 vrooli scenario restart swarm-manager
 
 # 3. Capture the trace.
-node /home/matthalloran8/Vrooli/scratch/perf-spike/capture.js \
+node scratch/perf-spike/capture.js \
   --url http://localhost:21234 \
   --out /tmp/swarm-trace-profile.json
 

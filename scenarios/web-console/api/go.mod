@@ -1,6 +1,6 @@
 module web-console
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/creack/pty/v2 v2.0.1
@@ -30,3 +30,5 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..

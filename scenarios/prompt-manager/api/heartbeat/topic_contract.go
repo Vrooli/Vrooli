@@ -101,7 +101,10 @@ func renderTopicContractEvidence(b *strings.Builder, entries []memberflow.Eviden
 	for _, e := range entries {
 		decisions := append([]string(nil), e.ForDecisions...)
 		sort.Strings(decisions)
-		line := fmt.Sprintf("- `%s` - for `%s`", e.Prefix, strings.Join(decisions, "`, `"))
+		line := fmt.Sprintf("- `%s` - general evidence", e.Prefix)
+		if len(decisions) > 0 {
+			line = fmt.Sprintf("- `%s` - for `%s`", e.Prefix, strings.Join(decisions, "`, `"))
+		}
 		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
 			line += "; source team `" + *e.SourceTeam + "`"
 		}

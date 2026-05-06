@@ -5,7 +5,26 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
+
+func realPromptManagerStore(t *testing.T) (string, string) {
+	t.Helper()
+	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		t.Skipf("repo contract not available in this environment: %v", err)
+	}
+	scenarioRoot, err := contract.ScenarioRoot(repoRoot, "prompt-manager")
+	if err != nil {
+		t.Skipf("prompt-manager scenario root not available: %v", err)
+	}
+	storeDir := filepath.Join(scenarioRoot, "store")
+	if _, err := os.Stat(storeDir); err != nil {
+		t.Skip("real store not available in this environment")
+	}
+	return storeDir, repoRoot
+}
 
 // TestClassifierPurity_RegisteredClassifiers_NoProseTopicLeak is the
 // belt-and-suspenders live-store check that every registered classifier
@@ -29,14 +48,7 @@ import (
 // checkouts) — the synthetic-fixture coverage in prose_scan_test.go and
 // non_portable_classifier_subsumption_test.go covers the contract.
 func TestClassifierPurity_RegisteredClassifiers_NoProseTopicLeak(t *testing.T) {
-	storeDir := "/home/matthalloran8/Vrooli/scenarios/prompt-manager/store"
-	if _, err := os.Stat(storeDir); err != nil {
-		t.Skip("real store not available in this environment")
-	}
-	repoRoot, err := filepath.Abs(filepath.Join(storeDir, "..", "..", ".."))
-	if err != nil {
-		t.Fatalf("resolve repo root: %v", err)
-	}
+	storeDir, repoRoot := realPromptManagerStore(t)
 
 	// Inventory of registered skill ids that should be portable. The
 	// suffix convention is canon: any skill named *-classifier or

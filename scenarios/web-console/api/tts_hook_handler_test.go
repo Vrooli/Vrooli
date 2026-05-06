@@ -161,6 +161,47 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	}
 }
 
+func TestHandleHookStop_PopulatesAgentInfoForRecovery(t *testing.T) {
+	srv := newHookTestServer("secret-token")
+	fake := newFakePTYWithOutput()
+	defer fake.Close()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	srv.sessions = sm
+	srv.conversations = NewConversationStore()
+	srv.sessionStore = NewInMemorySessionStore()
+	sm.SetStore(srv.sessionStore)
+
+	sess, err := sm.Create("", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	defer func() { _ = sm.Delete(sess.ID) }()
+
+	body := strings.NewReader(`{"hook_event_name":"Stop","last_assistant_message":"work in progress","session_id":"claude-uuid-from-hook","cwd":"/repo","web_console_session_id":"` + sess.ID + `"}`)
+	req := httptest.NewRequest("POST", "/api/v1/hooks/stop", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hook-Token", "secret-token")
+	rec := httptest.NewRecorder()
+	srv.handleHookStop(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	got, err := srv.sessionStore.Get(sess.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.AgentType != AgentTypeClaude {
+		t.Errorf("agent_type: got %q want claude", got.AgentType)
+	}
+	if got.AgentSessionID != "claude-uuid-from-hook" {
+		t.Errorf("agent_session_id: got %q", got.AgentSessionID)
+	}
+	if got.CWD != "/repo" {
+		t.Errorf("cwd: got %q", got.CWD)
+	}
+}
+
 func TestHandleHookStop_MissingAssistantText(t *testing.T) {
 	srv := newHookTestServer("secret-token")
 	body := strings.NewReader(`{"hook_event_name":"Stop","session_id":"s1"}`)

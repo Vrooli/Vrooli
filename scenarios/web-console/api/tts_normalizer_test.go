@@ -406,7 +406,7 @@ func TestNormalize_CollapseBlankLines(t *testing.T) {
 func TestNormalize_RealWorldAssistantMessage(t *testing.T) {
 	input := `## Summary
 
-I've updated the configuration file at ` + "`/home/matthalloran8/Vrooli/scenarios/web-console/api/config.go`" + ` to fix the issue.
+I've updated the configuration file at ` + "`/tmp/vrooli-test/scenarios/web-console/api/config.go`" + ` to fix the issue.
 
 Here are the changes:
 
@@ -440,7 +440,7 @@ func NewConfig() *Config {
 	}
 
 	// File path reduced to basename.
-	if strings.Contains(got, "/home/matthalloran8") {
+	if strings.Contains(got, "/tmp/vrooli-test") {
 		t.Error("full file path should be replaced with basename")
 	}
 	if !strings.Contains(got, "config.go") {

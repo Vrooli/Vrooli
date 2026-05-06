@@ -30,8 +30,129 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "conversation", Description: "Show the conversation feed for a session", Run: func(args []string) error { return runConversation(core, args) }},
 			{Name: "conversation-cursor", Description: "Update the conversation cursor (--body-file PATH)", Run: func(args []string) error { return runConversationCursor(core, args) }},
 			{Name: "summarize-event", Description: "Trigger summarization of a conversation event", Run: func(args []string) error { return runSummarizeEvent(core, args) }},
+			{Name: "list-recoverable", Description: "List orphaned persistent sessions awaiting recovery", Run: func(args []string) error { return runListRecoverable(core, args) }},
+			{Name: "recover", Description: "Recover an orphaned persistent session into a fresh pane", Run: func(args []string) error { return runRecover(core, args) }},
+			{Name: "dismiss", Description: "Permanently dismiss an orphaned session row (preserves on-disk state)", Run: func(args []string) error { return runDismiss(core, args) }},
 		},
 	}
+}
+
+func runListRecoverable(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("session list-recoverable")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	body, err := core.Get("/sessions/recoverable", nil)
+	if err != nil {
+		return err
+	}
+	var rows []support.RecoverableSession
+	if err := support.Decode(body, &rows); err != nil {
+		return err
+	}
+
+	results := recoverableRows(rows)
+	report := cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Recoverable sessions: %d", len(rows))},
+		ResultsHeading: "Recoverable",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("%s session recover <session-id>", support.CLIName),
+			fmt.Sprintf("%s session dismiss <session-id>", support.CLIName),
+		},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+func runRecover(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("session recover")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: session recover <session-id>")
+	}
+	id := fs.Arg(0)
+
+	body, err := core.Request("POST", "/sessions/"+id+"/recover", nil, map[string]any{})
+	if err != nil {
+		return err
+	}
+	var res support.RecoverResult
+	if err := support.Decode(body, &res); err != nil {
+		return err
+	}
+	report := cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Recovered %s -> %s", support.ShortID(res.OldSessionID), support.ShortID(res.NewSessionID)),
+		},
+		Changes: []string{
+			fmt.Sprintf("Agent: %s", res.AgentType),
+			fmt.Sprintf("Pasted: %s", strings.TrimSpace(res.CommandSent)),
+			fmt.Sprintf("CODEX_HOME copied: %t", res.CodexHomeCopy),
+		},
+		NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, res.NewSessionID)},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func runDismiss(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("session dismiss")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: session dismiss <session-id>")
+	}
+	id := fs.Arg(0)
+	if _, err := core.Request("DELETE", "/sessions/recoverable/"+id, nil, nil); err != nil {
+		return err
+	}
+	report := cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Dismissed orphan session %s (on-disk state preserved)", id)},
+		NextCommand: []string{fmt.Sprintf("%s session list-recoverable", support.CLIName)},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func recoverableRows(rows []support.RecoverableSession) []string {
+	if len(rows) == 0 {
+		return []string{"No orphaned persistent sessions awaiting recovery"}
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		flag := ""
+		if !r.Recoverable {
+			flag = " (NOT RECOVERABLE: " + r.NotRecoverable + ")"
+		}
+		out = append(out, fmt.Sprintf("%s | agent=%s | session=%s | orphaned=%s%s",
+			support.ShortID(r.ID),
+			defaultIfEmpty(r.AgentType, "none"),
+			defaultIfEmpty(support.ShortID(r.AgentSessionID), "-"),
+			support.FormatTime(r.OrphanedAt),
+			flag,
+		))
+	}
+	return out
+}
+
+func defaultIfEmpty(s, d string) string {
+	if strings.TrimSpace(s) == "" {
+		return d
+	}
+	return s
 }
 
 func runList(core *cliapp.ScenarioApp, args []string) error {

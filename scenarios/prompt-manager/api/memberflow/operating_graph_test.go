@@ -123,6 +123,106 @@ func TestValidateOperatingGraphsDetectsUnbackedEdge(t *testing.T) {
 	assertOperatingFinding(t, result, "graph_edge_unbacked")
 }
 
+func TestValidateOperatingGraphsModeSemantics(t *testing.T) {
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{Intake: []IntakeEntry{{
+			Prefix: "research-inbox/*",
+		}}},
+	}})
+
+	for _, tc := range []struct {
+		name      string
+		mode      string
+		wantRules []string
+	}{
+		{
+			name: "explanatory skips all contract checks",
+			mode: "explanatory",
+		},
+		{
+			name: "checkable validates present invalid edges but skips completeness",
+			mode: "checkable",
+			wantRules: []string{
+				"graph_topic_unresolved",
+				"graph_edge_unbacked",
+			},
+		},
+		{
+			name: "contract validates present invalid edges and completeness",
+			mode: "contract",
+			wantRules: []string{
+				"graph_topic_unresolved",
+				"graph_edge_unbacked",
+				"graph_declared_intake_missing",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			block := OperatingGraphBlock{
+				Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: tc.mode},
+				Graph: mustParseGraph(t, []string{
+					"flowchart LR",
+					`  M["member:researcher"]`,
+					`  T["topic:unknown/*"]`,
+					"  M --> T",
+				}),
+			}
+
+			result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+			if len(tc.wantRules) == 0 {
+				if len(result.Findings) != 0 || result.Errors != 0 || result.Warnings != 0 {
+					t.Fatalf("expected clean result, got %+v", result)
+				}
+				return
+			}
+			for _, rule := range tc.wantRules {
+				assertOperatingFinding(t, result, rule)
+			}
+		})
+	}
+}
+
+func TestExtractOperatingGraphBlocksRejectsMalformedMarkedGraphs(t *testing.T) {
+	for _, mode := range []string{"explanatory", "checkable", "contract"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "OPERATING_MODEL.md")
+			if err := os.WriteFile(path, []byte(`<!-- prompt-manager-graph:
+id: g
+scope: team
+team: team-a
+mode: `+mode+`
+-->
+`+"```mermaid"+`
+not-a-flowchart
+`+"```"+`
+`), 0o644); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			_, err := ExtractOperatingGraphBlocks(path, "docs/x.md")
+			if err == nil {
+				t.Fatalf("expected malformed marked %s graph to fail", mode)
+			}
+		})
+	}
+}
+
+func TestExtractOperatingGraphBlocksIgnoresUnmarkedMermaid(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "README.md")
+	if err := os.WriteFile(path, []byte("```mermaid\nnot-a-flowchart\n```\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	blocks, err := ExtractOperatingGraphBlocks(path, "docs/x.md")
+	if err != nil {
+		t.Fatalf("unmarked mermaid should be ignored, got %v", err)
+	}
+	if len(blocks) != 0 {
+		t.Fatalf("blocks=%d, want 0", len(blocks))
+	}
+}
+
 func TestDiffOperatingGraphsDetectsGraphReadMissingInRuntime(t *testing.T) {
 	block := operatingDiffBlock(t, []string{
 		"flowchart LR",
@@ -236,6 +336,289 @@ func TestDiffOperatingGraphsSkipsFutureGraphRelationships(t *testing.T) {
 	}
 }
 
+func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) {
+	want := []string{
+		"graph_untyped_node",
+		"graph_unknown_node_kind",
+		"graph_unknown_member",
+		"graph_unknown_decision",
+		"graph_unknown_team",
+		"graph_unknown_por",
+		"graph_topic_unresolved",
+		"graph_future_topic_live_edge",
+		"graph_edge_unbacked",
+		"graph_declared_intake_missing",
+		"graph_declared_required_read_missing",
+		"graph_declared_evidence_missing",
+		"graph_declared_output_missing",
+		"graph_declared_decision_owned_missing",
+		"graph_declared_decision_consumed_missing",
+		"graph_declared_capability_gap_missing",
+		"graph_declared_external_producer_missing",
+		"graph_declared_cross_team_output_missing",
+	}
+	rules := DefaultOperatingGraphRules()
+	if len(rules) != len(want) {
+		t.Fatalf("rules=%d, want %d", len(rules), len(want))
+	}
+	for i, rule := range rules {
+		if rule.ID() != want[i] {
+			t.Fatalf("rule[%d]=%q, want %q", i, rule.ID(), want[i])
+		}
+		if rule.ID() == "" || rule.Group() == "" || rule.DefaultSeverity() == "" {
+			t.Fatalf("rule[%d] has incomplete metadata: id=%q group=%q severity=%q", i, rule.ID(), rule.Group(), rule.DefaultSeverity())
+		}
+	}
+}
+
+func TestValidateOperatingGraphsDecisionNodesAreTeamScoped(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  D["decision:shared-decision"]`,
+		}),
+	}
+	runtime := OperatingGraphRuntime{
+		RepoRoot: t.TempDir(),
+		Contracts: TeamContractRegistry{
+			"team-a": {TeamID: "team-a", Contract: &teamcontract.OperatingContract{
+				Members:         map[string]teamcontract.MemberContract{},
+				DecisionContext: map[string]teamcontract.DecisionContext{},
+			}},
+			"team-b": {TeamID: "team-b", Contract: &teamcontract.OperatingContract{
+				Members: map[string]teamcontract.MemberContract{},
+				DecisionContext: map[string]teamcontract.DecisionContext{
+					"shared-decision": {},
+				},
+			}},
+		},
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingDetail(t, result, "graph_unknown_decision", "team-scoped graph")
+}
+
+func TestOperatingRelationshipSetDedupesAndQueries(t *testing.T) {
+	set := NewOperatingRelationshipSet([]OperatingRelationship{
+		{Kind: operatingRelTopicRead, Team: "team-a", Member: "researcher", Topic: "hook-record/*"},
+		{Kind: operatingRelTopicRead, Team: "team-a", Member: "researcher", Topic: "hook-record/*"},
+		{Kind: operatingRelTopicOutput, Team: "team-a", Member: "publisher", Topic: "publish-log/*"},
+	})
+	if got := len(set.All()); got != 2 {
+		t.Fatalf("deduped relationships=%d, want 2", got)
+	}
+	if got := len(set.ByMember("researcher")); got != 1 {
+		t.Fatalf("researcher relationships=%d, want 1", got)
+	}
+	if got := len(set.ByKind(operatingRelTopicOutput)); got != 1 {
+		t.Fatalf("topic outputs=%d, want 1", got)
+	}
+}
+
+func TestOperatingGraphContractIndexQueriesNodesAndRelationships(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  M["member:researcher"]`,
+		`  T["topic:research-inbox/*"]`,
+		"  T --> M",
+	})
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{Intake: []IntakeEntry{{
+			Prefix: "research-inbox/*",
+		}}},
+	}})
+
+	ctx := NewOperatingGraphContractContext(block, runtime)
+	if _, ok := ctx.Index.Node("member", "researcher"); !ok {
+		t.Fatalf("member node missing from index")
+	}
+	read := OperatingRelationship{Kind: operatingRelTopicRead, Team: "team-a", Member: "researcher", Topic: "research-inbox/*"}
+	if !ctx.Index.RuntimeHasRelationship(read, ctx.Matcher) {
+		t.Fatalf("runtime relationship missing from index")
+	}
+	if !ctx.Index.GraphHasRelationship(read) {
+		t.Fatalf("graph relationship missing from index")
+	}
+}
+
+func TestValidateOperatingGraphsCompletenessUsesIndexedGraphRelationships(t *testing.T) {
+	porPath := "docs/marketing/OPERATING_MODEL.md"
+	targetTeam := "monetization"
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  M["member:researcher"]`,
+			`  EXT["external:operator"]`,
+			`  IN["topic:research-inbox/*"]`,
+			`  READ["topic:marketing/notebook/*"]`,
+			`  EV["topic:challenge-report/*"]`,
+			`  OUT["topic:hook-record/*"]`,
+			`  MON["team:monetization"]`,
+			`  POR["por:docs/marketing/OPERATING_MODEL.md"]`,
+			`  OWN["decision:audience-update"]`,
+			`  CONSUME["decision:capability-gap"]`,
+			"  IN --> M",
+			"  READ --> M",
+			"  EV --> M",
+			"  M --> OUT",
+			"  OUT --> MON",
+			"  M --> POR",
+			"  M --> OWN",
+			"  CONSUME --> M",
+			"  M --> CONSUME",
+			"  EXT --> M",
+		}),
+	}
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{
+			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
+			RequiredRead: []RequiredReadEntry{{
+				Prefix: "marketing/notebook/*",
+			}},
+			EvidenceConsumed: []EvidenceConsumedEntry{{
+				Prefix:       "challenge-report/*",
+				ForDecisions: []string{"capability-gap"},
+			}},
+			Output: []OutputEntry{
+				{Prefix: "hook-record/*", DestinationKind: DestinationKnowledge, DestinationTeam: &targetTeam},
+				{Prefix: "por-update/*", DestinationKind: DestinationPORFile, DestinationPath: &porPath},
+			},
+			DecisionsOwned:       []string{"audience-update"},
+			DecisionsConsumed:    []string{"capability-gap"},
+			RaisesCapabilityGaps: true,
+			ExternalProducers:    []string{"operator"},
+		},
+	}})
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	for _, rule := range []string{
+		"graph_declared_intake_missing",
+		"graph_declared_required_read_missing",
+		"graph_declared_evidence_missing",
+		"graph_declared_output_missing",
+		"graph_declared_decision_owned_missing",
+		"graph_declared_decision_consumed_missing",
+		"graph_declared_capability_gap_missing",
+		"graph_declared_external_producer_missing",
+		"graph_declared_cross_team_output_missing",
+	} {
+		for _, finding := range result.Findings {
+			if finding.Rule == rule {
+				t.Fatalf("unexpected completeness finding %q: %+v", rule, result.Findings)
+			}
+		}
+	}
+}
+
+func TestValidateOperatingGraphsCompletenessCoversRuntimeRelationshipsComparedByDiff(t *testing.T) {
+	targetTeam := "monetization"
+	porPath := "docs/marketing/OPERATING_MODEL.md"
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{
+			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
+			RequiredRead: []RequiredReadEntry{{
+				Prefix: "marketing/notebook/*",
+			}},
+			EvidenceConsumed: []EvidenceConsumedEntry{{
+				Prefix:       "challenge-report/*",
+				ForDecisions: []string{"capability-gap"},
+			}},
+			Output: []OutputEntry{
+				{Prefix: "hook-record/*", DestinationKind: DestinationKnowledge, DestinationTeam: &targetTeam},
+				{Prefix: "por-update/*", DestinationKind: DestinationPORFile, DestinationPath: &porPath},
+			},
+			DecisionsOwned:       []string{"audience-update"},
+			DecisionsConsumed:    []string{"capability-gap"},
+			RaisesCapabilityGaps: true,
+			ExternalProducers:    []string{"operator"},
+		},
+	}})
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  M["member:researcher"]`,
+		`  MON["team:monetization"]`,
+		`  EXT["external:operator"]`,
+	})
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	for _, rule := range []string{
+		"graph_declared_intake_missing",
+		"graph_declared_required_read_missing",
+		"graph_declared_evidence_missing",
+		"graph_declared_output_missing",
+		"graph_declared_decision_owned_missing",
+		"graph_declared_decision_consumed_missing",
+		"graph_declared_capability_gap_missing",
+		"graph_declared_external_producer_missing",
+		"graph_declared_cross_team_output_missing",
+	} {
+		assertOperatingFinding(t, result, rule)
+	}
+
+	diffs := DiffOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	for _, relationship := range []OperatingRelationshipKind{
+		operatingRelTopicRead,
+		operatingRelTopicOutput,
+		operatingRelPOROutput,
+		operatingRelDecisionOwned,
+		operatingRelDecisionConsumed,
+		operatingRelCapabilityGapRaised,
+		operatingRelExternalProducer,
+		operatingRelCrossTeamOutput,
+	} {
+		assertOperatingDiff(t, diffs, "runtime_relationship_missing_in_graph", relationship)
+	}
+}
+
+func TestBuildRuntimeOperatingRelationshipsExtractsTopicsContractFields(t *testing.T) {
+	targetTeam := "monetization"
+	porPath := "docs/marketing/OPERATING_MODEL.md"
+	rels := BuildRuntimeOperatingRelationships(operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{
+			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
+			RequiredRead: []RequiredReadEntry{{
+				Prefix: "marketing/notebook/*",
+			}},
+			EvidenceConsumed: []EvidenceConsumedEntry{{
+				Prefix:       "challenge-report/*",
+				ForDecisions: []string{"audience-update"},
+			}},
+			Output: []OutputEntry{
+				{Prefix: "hook-record/*", DestinationKind: DestinationKnowledge, DestinationTeam: &targetTeam},
+				{Prefix: "por-update/*", DestinationKind: DestinationPORFile, DestinationPath: &porPath},
+			},
+			DecisionsOwned:       []string{"audience-update"},
+			DecisionsConsumed:    []string{"campaign-launch-proposal"},
+			RaisesCapabilityGaps: true,
+			ExternalProducers:    []string{"bookmark-hub"},
+		},
+	}}), "team-a")
+
+	set := NewOperatingRelationshipSet(rels)
+	for _, kind := range []OperatingRelationshipKind{
+		operatingRelTopicIntake,
+		operatingRelTopicRequiredRead,
+		operatingRelTopicEvidenceConsumed,
+		operatingRelTopicOutput,
+		operatingRelPOROutput,
+		operatingRelDecisionOwned,
+		operatingRelDecisionConsumed,
+		operatingRelCapabilityGapRaised,
+		operatingRelExternalProducer,
+		operatingRelExternalProducerIntake,
+		operatingRelCrossTeamOutput,
+	} {
+		if got := len(set.ByKind(kind)); got == 0 {
+			t.Fatalf("runtime relationship kind %q missing from %+v", kind, rels)
+		}
+	}
+}
+
 func TestExtractOperatingGraphBlocks(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "OPERATING_MODEL.md")
@@ -261,6 +644,29 @@ flowchart LR
 	}
 }
 
+func TestExtractOperatingGraphBlocksRejectsUnsupportedAllowMetadata(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "OPERATING_MODEL.md")
+	if err := os.WriteFile(path, []byte(`<!-- prompt-manager-graph:
+id: g
+scope: team
+team: team-a
+mode: contract
+allow: graph_edge_unbacked
+-->
+`+"```mermaid"+`
+flowchart LR
+  A["member:a"]
+`+"```"+`
+`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	_, err := ExtractOperatingGraphBlocks(path, "docs/x.md")
+	if err == nil || !strings.Contains(err.Error(), `metadata field "allow" is not supported`) {
+		t.Fatalf("expected unsupported allow metadata error, got %v", err)
+	}
+}
+
 func TestMarketingOperatingModelUsesReadableAnnotatedLabels(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "OPERATING_MODEL.md")
 	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/OPERATING_MODEL.md")
@@ -280,6 +686,60 @@ func TestMarketingOperatingModelUsesReadableAnnotatedLabels(t *testing.T) {
 	}
 	if strings.Contains(mon.Display, "team:") || strings.Contains(mon.RawLabel, "team:monetization") {
 		t.Fatalf("MON visual label should not contain machine token: %+v", mon)
+	}
+}
+
+func TestMarketingOperatingModelCentralizesNotebookDrainage(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "OPERATING_MODEL.md")
+	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/OPERATING_MODEL.md")
+	if err != nil {
+		t.Fatalf("ExtractOperatingGraphBlocks: %v", err)
+	}
+	if len(blocks) != 1 {
+		t.Fatalf("blocks=%d, want 1", len(blocks))
+	}
+	rels := NewOperatingRelationshipSet(BuildGraphOperatingRelationships(blocks[0]))
+	wantBrandManagerRead := OperatingRelationship{Kind: operatingRelTopicRead, Team: "marketing-crew", Member: "brand-manager", Topic: "marketing/notebook/*"}
+	if !operatingRelationshipSetContains(rels, wantBrandManagerRead) {
+		t.Fatalf("marketing notebook must drain through brand-manager; relationships=%+v", rels.All())
+	}
+	for _, member := range []string{"researcher", "oss-advertiser", "subscription-advertiser", "publisher"} {
+		forbidden := OperatingRelationship{Kind: operatingRelTopicRead, Team: "marketing-crew", Member: member, Topic: "marketing/notebook/*"}
+		if operatingRelationshipSetContains(rels, forbidden) {
+			t.Fatalf("raw marketing notebook should not be a direct runtime read for %s", member)
+		}
+	}
+}
+
+func TestBundledMarketingOperatingModelIsReconciled(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	storeDir := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store")
+	if _, err := os.Stat(storeDir); err != nil {
+		t.Skipf("bundled prompt-manager store not available: %v", err)
+	}
+	blocks, err := LoadOperatingGraphBlocks(repoRoot)
+	if err != nil {
+		t.Fatalf("LoadOperatingGraphBlocks: %v", err)
+	}
+	runtime, err := BuildOperatingGraphRuntime(repoRoot, storeDir)
+	if err != nil {
+		t.Fatalf("BuildOperatingGraphRuntime: %v", err)
+	}
+
+	result := ValidateOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
+	if result.Errors != 0 || result.Warnings != 0 {
+		t.Fatalf("marketing validation counts changed: errors=%d warnings=%d findings=%+v", result.Errors, result.Warnings, result.Findings)
+	}
+
+	diffs := DiffOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
+	if got := countOperatingDiffs(diffs, "graph_relationship_missing_in_runtime"); got != 0 {
+		t.Fatalf("graph-to-runtime diff count=%d, want 0: %+v", got, diffs)
+	}
+	if got := countOperatingDiffs(diffs, "runtime_relationship_missing_in_graph"); got != 0 {
+		t.Fatalf("runtime-to-graph diff count=%d, want 0: %+v", got, diffs)
 	}
 }
 
@@ -313,6 +773,35 @@ func assertOperatingFinding(t *testing.T, result OperatingGraphValidationResult,
 	t.Fatalf("finding %q missing from %+v", rule, result.Findings)
 }
 
+func assertOperatingFindingDetail(t *testing.T, result OperatingGraphValidationResult, rule, detailFragment string) {
+	t.Helper()
+	for _, f := range result.Findings {
+		if f.Rule == rule && strings.Contains(f.Detail, detailFragment) {
+			return
+		}
+	}
+	t.Fatalf("finding rule=%q detail containing %q missing from %+v", rule, detailFragment, result.Findings)
+}
+
+func countOperatingDiffs(diffs []OperatingGraphContractDiff, kind string) int {
+	var count int
+	for _, diff := range diffs {
+		if diff.Kind == kind {
+			count++
+		}
+	}
+	return count
+}
+
+func operatingRelationshipSetContains(set OperatingRelationshipSet, rel OperatingRelationship) bool {
+	for _, candidate := range set.All() {
+		if operatingGraphRelationshipsEquivalent(candidate, rel) {
+			return true
+		}
+	}
+	return false
+}
+
 func operatingDiffBlock(t *testing.T, lines []string) OperatingGraphBlock {
 	t.Helper()
 	return OperatingGraphBlock{
@@ -333,10 +822,10 @@ func operatingDiffRuntime(t *testing.T, members []MemberTopics) OperatingGraphRu
 	}
 }
 
-func assertOperatingDiff(t *testing.T, diffs []OperatingGraphContractDiff, kind, relationship string) OperatingGraphContractDiff {
+func assertOperatingDiff(t *testing.T, diffs []OperatingGraphContractDiff, kind string, relationship OperatingRelationshipKind) OperatingGraphContractDiff {
 	t.Helper()
 	for _, diff := range diffs {
-		if diff.Kind == kind && diff.Relationship == relationship {
+		if diff.Kind == kind && diff.Relationship == string(relationship) {
 			return diff
 		}
 	}

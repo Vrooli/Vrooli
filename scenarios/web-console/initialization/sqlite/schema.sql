@@ -2,7 +2,12 @@
 -- Workspace layout (pane ordering, tab groups) is persisted here for
 -- cross-device sync. Session PTY state remains process-bound.
 
--- Terminal sessions (metadata only; PTY state is process-bound)
+-- Terminal sessions (metadata only; PTY state is process-bound).
+-- status state machine: live -> awaiting_recovery -> {live | dismissed}.
+-- Only Recover() and the recovery endpoints transition status; everywhere
+-- else the row is implicitly 'live'. agent_type+agent_session_id are
+-- populated from the codex rollout session_meta event or the claude Stop
+-- hook payload, and are sufficient input to reattach an agent on recovery.
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     backend TEXT NOT NULL DEFAULT 'standard',
@@ -12,10 +17,26 @@ CREATE TABLE IF NOT EXISTS sessions (
     policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),
     policy_duration TEXT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    detached INTEGER NOT NULL DEFAULT 0
+    detached INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'live'
+        CHECK(status IN ('live','awaiting_recovery','dismissed')),
+    agent_type TEXT NOT NULL DEFAULT 'none'
+        CHECK(agent_type IN ('none','codex','claude')),
+    launch_command TEXT NOT NULL DEFAULT '',
+    agent_session_id TEXT NOT NULL DEFAULT '',
+    cwd TEXT NOT NULL DEFAULT '',
+    last_rollout_path TEXT NOT NULL DEFAULT '',
+    last_activity_at TEXT NOT NULL DEFAULT '',
+    orphaned_at TEXT NOT NULL DEFAULT '',
+    recovered_into TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);
+-- Indexes on the recovery-hardening columns are created by the migrations
+-- block in api/main.go AFTER the ALTER TABLE statements add the columns.
+-- They live there so an existing DB whose `sessions` table predates this
+-- migration can be brought up to date without schema.sql failing on
+-- CREATE INDEX against a not-yet-added column.
 
 -- Conversation tracking state. This is the semantic message history used by
 -- the messages pane, unread counters, and TTS cursor tracking.

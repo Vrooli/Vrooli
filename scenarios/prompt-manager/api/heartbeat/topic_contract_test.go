@@ -8,6 +8,7 @@ import (
 )
 
 func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
+	porPath := "docs/marketing/STRATEGY.md"
 	got := RenderTopicContract(&topicContractInputs{
 		teamID:  "marketing-crew",
 		agentID: "researcher",
@@ -23,11 +24,17 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 				EvidenceConsumed: []memberflow.EvidenceConsumedEntry{{
 					Prefix:       "challenge-report/*",
 					ForDecisions: []string{"capability-gap", "audience-update"},
+				}, {
+					Prefix: "marketing/notebook/*",
 				}},
 				Output: []memberflow.OutputEntry{{
 					Prefix:          "audience-scan/*",
 					DestinationKind: memberflow.DestinationKnowledge,
 					Schema:          "audience-scan",
+				}, {
+					Prefix:          "marketing-canon/*",
+					DestinationKind: memberflow.DestinationPORFile,
+					DestinationPath: &porPath,
 				}},
 				DecisionsOwned:       []string{"audience-update"},
 				DecisionsConsumed:    []string{"capability-gap"},
@@ -42,7 +49,9 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 		"- `research-inbox/*` - taxonomy `marketing-research`, classifier `marketing-signal-classifier`",
 		"- `audience-scan/*`",
 		"- `challenge-report/*` - for `audience-update`, `capability-gap`",
+		"- `marketing/notebook/*` - general evidence",
 		"- `audience-scan/*` - knowledge, schema `audience-scan`",
+		"- `marketing-canon/*` - por_file, path `docs/marketing/STRATEGY.md`",
 		"- own/propose: `audience-update`",
 		"- consume: `capability-gap`",
 		"- may raise `capability-gap`: yes",

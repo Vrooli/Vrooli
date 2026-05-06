@@ -55,6 +55,17 @@ func initSchema(db *sql.DB) error {
 		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
 		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'live'`,
+		`ALTER TABLE sessions ADD COLUMN agent_type TEXT NOT NULL DEFAULT 'none'`,
+		`ALTER TABLE sessions ADD COLUMN launch_command TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN agent_session_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN cwd TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN last_rollout_path TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN orphaned_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN recovered_into TEXT NOT NULL DEFAULT ''`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {
@@ -235,8 +246,8 @@ func NewServer(db *sql.DB) *Server {
 
 	// Recover surviving tmux sessions from previous run
 	report := sessions.Recover(sessionStore, backendRegistry)
-	log.Printf("recovery: recovered=%d orphaned_metadata=%d orphaned_tmux=%d",
-		report.Recovered, report.OrphanedMetadata, report.OrphanedTmux)
+	log.Printf("recovery: recovered=%d awaiting_recovery=%d orphaned_tmux=%d (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable)",
+		report.Recovered, report.AwaitingRecovery, report.OrphanedTmux)
 
 	srv := &Server{
 		db:                            db,
@@ -378,6 +389,11 @@ func (s *Server) setupRoutes() {
 	// Session CRUD - [REQ:P0-002a] [REQ:P0-003a]
 	s.router.HandleFunc("/api/v1/sessions", s.handleCreateSession).Methods("POST")
 	s.router.HandleFunc("/api/v1/sessions", s.handleListSessions).Methods("GET")
+	// Recovery endpoints — register BEFORE the /{id} catch-all so gorilla/mux
+	// resolves them as specific paths.
+	s.router.HandleFunc("/api/v1/sessions/recoverable", s.handleListRecoverable).Methods("GET")
+	s.router.HandleFunc("/api/v1/sessions/recoverable/{id}", s.handleDismissRecoverable).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/sessions/{id}/recover", s.handleRecoverSession).Methods("POST")
 	s.router.HandleFunc("/api/v1/sessions/{id}", s.handleGetSession).Methods("GET")
 	s.router.HandleFunc("/api/v1/sessions/{id}", s.handleDeleteSession).Methods("DELETE")
 

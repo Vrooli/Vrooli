@@ -11,7 +11,7 @@ means inheriting those lessons without repeating them.
 
 ## TL;DR — the canonical examples
 
-Three files are the source of truth. When in doubt, copy their shape:
+These files are the source of truth. When in doubt, copy their shape:
 
 - **API**: `api/handlers/health/handler_test.go` — table-driven, real
   middleware via `httpx.NewLiveServer`, fake pinger from `mocks/`,
@@ -21,9 +21,16 @@ Three files are the source of truth. When in doubt, copy their shape:
   assert on typed proto fields, not `map[string]any` chains). For
   endpoints whose wire shape isn't in proto yet, `MustDecodeJSON[T]`
   is the fallback — but adding the proto first is the right move.
-- **UI**: `ui/src/App.test.tsx` — `renderWithProviders` + factory data
-  + inline `vi.mock` factory closure. Two describe blocks: cimode
-  (copy-independent assertions) and real-locale (end-to-end i18n).
+- **UI composition**: `ui/src/App.test.tsx` — smoke-only composition
+  test. App composes shell + features; feature behaviour belongs beside
+  the feature.
+- **UI feature**: `ui/src/features/health/HealthCard.test.tsx` —
+  `renderWithProviders`, factory data, inline `vi.mock` factory
+  closure, cimode assertions, and real-locale assertions.
+- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx`,
+  `ui/src/features/health/HealthCard.a11y.test.tsx`, and
+  `ui/src/features/notes/NotesCard.a11y.test.tsx` — shell and feature
+  accessibility are tested at their ownership boundary.
 - **CLI**: `cli/app_test.go` — smoke gate (NewApp, --version, --help).
   When domain commands arrive, extend with `clitest.NewAPIServer` +
   `clitest.CaptureStdout` from `cli/internal/testutil/`.
@@ -355,11 +362,15 @@ ui/src/
 ├── test-setup.ts                # vitest setupFiles entry
 ├── test-utils/
 │   ├── index.ts                 # re-exports
+│   ├── a11y.ts                  # expectNoA11yViolations(container)
 │   ├── factories.ts             # makeHealthResponse(overrides?)
 │   ├── renderWithProviders.tsx  # QueryClient + i18n wrapper
 │   └── mocks/
 │       └── spatial.ts           # builders for @vrooli/iframe-bridge/spatial
-└── *.test.tsx                   # tests live next to the code they cover
+├── components/
+│   ├── AppShell.test.tsx
+│   └── AppShell.a11y.test.tsx
+└── features/<name>/             # feature tests and feature a11y live here
 ```
 
 The `mocks/` directory holds shared mock-shape builders for external
@@ -370,7 +381,7 @@ is non-negotiable), but the factory closure invokes the builders in
 Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
 `mocks/<sdk>.test.ts` self-test, re-export from `test-utils/index.ts`.
 
-### The three primitives every test uses
+### The four primitives every test uses
 
 1. **`renderWithProviders(<Component />, opts?)`** — wraps the tree in
    `QueryClientProvider` (retries disabled — tests should fail fast,
@@ -393,39 +404,39 @@ Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
    the temporal dead zone at hoist time. `make<Domain>()` calls *are*
    safe inside the factory because the closure runs after imports
    initialise.
+4. **`expectNoA11yViolations(container)`** — shared axe-core assertion
+   for component-level accessibility tests. Render and wait for the
+   component's stable state in the owning test file, then call this
+   helper. Do not put feature-specific waits in app-composition tests.
 
 ### Canonical UI test pattern
 
 ```tsx
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
-import { makeHealthResponse, renderWithProviders } from "./test-utils";
+import { makeApiMocks, renderWithProviders } from "../../test-utils";
 
-vi.mock("./api/health", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./api/health")>();
-  return {
-    ...actual,
-    fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
-  };
+vi.mock("../../api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/health")>();
+  return { ...actual, ...makeApiMocks() };
 });
 
-import App from "./App";
-import { selectors } from "./consts/selectors";
-import { strings } from "./consts/strings";
+import { HealthCard } from "./HealthCard";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 
-describe("App rendering (cimode — copy-independent)", () => {
+describe("HealthCard rendering (cimode — copy-independent)", () => {
   afterEach(() => { cleanup(); });
 
-  it("renders the title via test ID", () => {
-    renderWithProviders(<App />);
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  it("renders the card via test ID", () => {
+    renderWithProviders(<HealthCard />);
+    expect(screen.getByTestId(selectors.health.card)).toBeInTheDocument();
   });
 
   it("renders translation keys in cimode", async () => {
-    renderWithProviders(<App />);
-    expect(await screen.findByText(strings.app.eyebrow)).toBeInTheDocument();
+    renderWithProviders(<HealthCard />);
+    expect(await screen.findByText(strings.health.title)).toBeInTheDocument();
   });
 });
 ```
@@ -442,8 +453,11 @@ A second `describe` block opts into real locales with
 canonical English copy via raw `en.json` references. These tests *should*
 update when canonical English copy changes — that's what they verify.
 
-See `App.test.tsx` for the full pattern and the CLDR plural variants
-(`refreshCount_one`, `notifications.summary_zero` / `_one` / base).
+See `features/health/HealthCard.test.tsx` for the full pattern and the
+CLDR plural variants (`refreshCount_one`,
+`notifications.summary_zero` / `_one` / base). Keep `App.test.tsx`
+smoke-only so deleting a feature does not require rewriting the app
+composition test.
 
 ### Mock builders for `api/health` and `api/notes`
 
@@ -454,19 +468,24 @@ inline at the top of each test file, but move the *factory body* into
 a builder function that runs when the closure executes — which is
 *after* imports initialise.
 
-`@/test-utils` exports `makeApiMocks()` and `makeNotesMocks()` for
-exactly this. Canonical shape:
+`@/test-utils` exports shared, cross-feature mock builders such as
+`makeApiMocks()`. Feature-specific builders live beside the feature so
+deleting the feature takes its mocks with it; for notes, import
+`makeNotesMocks()` from `features/notes/mocks/notes`.
+
+Canonical shape:
 
 ```tsx
-import { makeApiMocks, makeNotesMocks } from "@/test-utils";
+import { makeApiMocks } from "@/test-utils";
+import { makeNotesMocks } from "./mocks/notes";
 
-vi.mock("./api/health", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./api/health")>();
+vi.mock("../../api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
 
-vi.mock("./api/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./api/notes")>();
+vi.mock("../../api/notes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/notes")>();
   return { ...actual, ...makeNotesMocks() };
 });
 ```
@@ -478,7 +497,7 @@ Defaults are picked so the most common test paths work no-args:
 Per-test overrides use vitest's standard pattern *after* the mock is wired:
 
 ```tsx
-const { notesClient } = await import("./api/notes");
+const { notesClient } = await import("../../api/notes");
 vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
   makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
 );
@@ -491,6 +510,33 @@ substituted.
 When a third lib/* surface lands (e.g., `lib/users.ts`), follow the
 same pattern: builder in `ui/src/test-utils/mocks/<surface>.ts`, self-
 test alongside, re-export from `test-utils/index.ts`.
+
+### Accessibility tests
+
+Accessibility tests follow the same ownership rule as production UI:
+
+- **Shell**: `components/AppShell.a11y.test.tsx` renders
+  `<AppShell>` with stable placeholder children. It covers page layout,
+  headings, locale controls, and shell-level semantics.
+- **Feature**: `features/<name>/<Name>Card.a11y.test.tsx` renders the
+  feature directly, owns its API mocks, waits for each state it scans,
+  and calls `expectNoA11yViolations(container)`.
+- **App**: `App.test.tsx` stays composition smoke. Do not make it the
+  default a11y gate; a full-`App` a11y test couples shell coverage to
+  every async feature query and becomes fragile as features change.
+
+Before running axe, wait for the state the test owns. For example,
+`HealthCard.a11y.test.tsx` waits for `selectors.health.statusValue`
+for the success state and `selectors.health.error` for the error state.
+This keeps React Query updates inside the awaited test boundary and
+prevents `act(...)` warnings.
+
+`test-setup.ts` fails tests that write unexpected `console.error` or
+`console.warn` output. If a test intentionally exercises a noisy React
+path, suppress that warning locally and assert the user-visible
+contract. `ErrorBoundary.test.tsx` is the reference: it suppresses
+React's intentional boundary logging while asserting `onError` and the
+fallback UI.
 
 ### ErrorBoundary tests
 

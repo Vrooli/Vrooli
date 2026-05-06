@@ -348,6 +348,28 @@ var errorCatalog = map[string]appError{
 		Message:  "A fallback TTS backend was used",
 		Recovery: "Review backend status to restore the preferred backend if needed",
 	},
+	"recovery_not_eligible": {
+		Status:   http.StatusConflict,
+		Code:     "recovery_not_eligible",
+		Category: "validation",
+		Message:  "Session is not eligible for recovery (only awaiting_recovery rows can be recovered)",
+		Recovery: "List recoverable sessions with 'web-console session list-recoverable'",
+	},
+	"recovery_claude_session_id_required": {
+		Status:   http.StatusUnprocessableEntity,
+		Code:     "recovery_claude_session_id_required",
+		Category: "validation",
+		Message:  "Cannot recover a Claude session without a known agent_session_id (resuming the wrong project is unsafe)",
+		Recovery: "Use the manual fallback in docs/guides/SESSION_RECOVERY.md to map the right Claude session",
+	},
+	"recovery_failed": {
+		Status:   http.StatusInternalServerError,
+		Code:     "recovery_failed",
+		Category: "internal",
+		Message:  "Recovery failed",
+		Recovery: "Check server logs and try again, or fall back to the manual procedure",
+		Retry:    true,
+	},
 }
 
 // writeJSON encodes data as a JSON response with the given HTTP status code.

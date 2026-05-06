@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"io"
 	"log"
 	"os"
@@ -88,6 +89,13 @@ func (ct *CodexTailer) scanForNewFiles() {
 				}
 				ct.mu.Unlock()
 				if !known {
+					// One-shot agent-identity capture: parse the rollout's
+					// session_meta line so the orphan recovery flow can
+					// reattach this codex session by id without grovelling
+					// rollouts at recovery time. Cheap (rollouts are
+					// line-oriented; the first line is < 4KB) and only runs
+					// once per (session, rollout) pair.
+					go ct.captureAgentInfo(path, session.ID)
 					go ct.tailFile(path, session.ID)
 				}
 			}
@@ -216,6 +224,55 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 				resetStaleTimer()
 			}
 		}
+	}
+}
+
+// captureAgentInfo reads the first line of a codex rollout and writes the
+// codex session id, cwd, and rollout path into the owning web-console
+// session's metadata row. Tolerant of missing/garbage data — failures log
+// once and do not stop the tailer or touch existing fields.
+func (ct *CodexTailer) captureAgentInfo(path, sessionID string) {
+	if ct.server == nil || ct.server.sessionStore == nil {
+		return
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	// Read up to ~64KB on the first line (codex's session_meta carries the
+	// embedded base_instructions blob, which can be ~25KB; pad for safety).
+	r := bufio.NewReaderSize(f, 128*1024)
+	line, err := r.ReadBytes('\n')
+	if err != nil && err != io.EOF {
+		return
+	}
+	line = bytes.TrimSpace(line)
+	if len(line) == 0 {
+		return
+	}
+	var meta struct {
+		Type    string `json:"type"`
+		Payload struct {
+			ID  string `json:"id"`
+			CWD string `json:"cwd"`
+		} `json:"payload"`
+	}
+	if err := json.Unmarshal(line, &meta); err != nil {
+		return
+	}
+	if meta.Type != "session_meta" || meta.Payload.ID == "" {
+		return
+	}
+	info := AgentInfo{
+		AgentType:       AgentTypeCodex,
+		AgentSessionID:  meta.Payload.ID,
+		CWD:             meta.Payload.CWD,
+		LastRolloutPath: path,
+		LastActivityAt:  time.Now(),
+	}
+	if err := ct.server.sessionStore.UpdateAgentInfo(sessionID, info); err != nil {
+		log.Printf("codex-tailer: UpdateAgentInfo for %s: %v", sessionID, err)
 	}
 }
 

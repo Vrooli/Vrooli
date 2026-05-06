@@ -239,7 +239,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     const original = terminalBufferLines[0] ?? "";
-    terminalBufferLines[0] = "Hi. What do you need help with in /home/matthalloran8/Vrooli?";
+    terminalBufferLines[0] = "Hi. What do you need help with in /tmp/vrooli-test/Vrooli?";
 
     await act(async () => {
       await capturedCandidateHandler?.({
@@ -247,7 +247,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
         source: "codex_tailer",
         role: "assistant",
         sequence: 5,
-        text: "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
+        text: "Hi. What do you need help with in `/tmp/vrooli-test/Vrooli`?",
         speechParagraphs: ["Hi. What do you need help with in Vrooli?"],
       }, ack);
     });

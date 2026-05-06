@@ -648,16 +648,11 @@ func TestValidate_RealStoreCanary(t *testing.T) {
 	// relies on the team-contract registry, which the canary loads via
 	// StoreDir lazy-load. Pillar 2 prose-scan coverage is exercised
 	// separately by TestClassifierPurity_RegisteredClassifiers_NoProseTopicLeak.
-	storeDir := "/home/matthalloran8/Vrooli/scenarios/prompt-manager/store"
-	if _, err := os.Stat(storeDir); err != nil {
-		t.Skip("real store not available in this environment")
-	}
+	storeDir, repoRoot := realPromptManagerStore(t)
 	members, err := LoadAll(storeDir)
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
-	repoRoot := filepath.Join(storeDir, "..", "..", "..")
-	repoRoot, _ = filepath.Abs(repoRoot)
 	r := Validate(members, ValidationOptions{
 		RepoRoot: repoRoot,
 		StoreDir: storeDir,

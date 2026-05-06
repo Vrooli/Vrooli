@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 )
 
 type hookStopRequest struct {
@@ -10,6 +11,7 @@ type hookStopRequest struct {
 	HookEventName        string `json:"hook_event_name"`
 	SessionIDSnake       string `json:"session_id"`
 	WebConsoleSessionID  string `json:"web_console_session_id"`
+	CWD                  string `json:"cwd"`
 }
 
 func (r hookStopRequest) assistantText() string {
@@ -35,5 +37,17 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := s.appendConversationEvent(assistantText, req.WebConsoleSessionID, "claude_hook")
+	// Phase 3 (recovery hardening): persist agent identity from the hook
+	// payload so the recovery flow can later issue
+	// `claude --resume <agent_session_id>` against the right project. The
+	// payload's session_id is Claude's own session UUID.
+	if result.Appended && req.WebConsoleSessionID != "" && req.SessionIDSnake != "" && s.sessionStore != nil {
+		_ = s.sessionStore.UpdateAgentInfo(req.WebConsoleSessionID, AgentInfo{
+			AgentType:      AgentTypeClaude,
+			AgentSessionID: req.SessionIDSnake,
+			CWD:            req.CWD,
+			LastActivityAt: time.Now(),
+		})
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "routing": result, "routed": result.Appended})
 }

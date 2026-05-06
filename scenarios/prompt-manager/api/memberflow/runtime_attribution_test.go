@@ -840,10 +840,7 @@ func formatFindings(fs []Finding) string {
 // CI without the live fixture); the synthetic in-test cases above
 // continue to cover the rule's behavior in that environment.
 func TestRuntimeAttribution_RealStoreCanary(t *testing.T) {
-	const storeDir = "/home/matthalloran8/Vrooli/scenarios/prompt-manager/store"
-	if _, err := os.Stat(storeDir); err != nil {
-		t.Skip("real store not available in this environment")
-	}
+	storeDir, _ := realPromptManagerStore(t)
 	members, err := LoadAll(storeDir)
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)

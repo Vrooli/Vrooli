@@ -7,7 +7,16 @@
 const path = require("node:path");
 const fs = require("node:fs");
 
-const BAS_NODE_MODULES = "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules";
+function resolveBASNodeModules() {
+  if (process.env.BAS_NODE_MODULES) return process.env.BAS_NODE_MODULES;
+  const root = process.env.VROOLI_ROOT || process.env.VROOLI_SOURCE_ROOT;
+  if (root) {
+    return path.join(root, "scenarios", "browser-automation-studio", "playwright-driver", "node_modules");
+  }
+  throw new Error("Set BAS_NODE_MODULES or VROOLI_ROOT/VROOLI_SOURCE_ROOT so capture.js can load rebrowser-playwright.");
+}
+
+const BAS_NODE_MODULES = resolveBASNodeModules();
 const { chromium } = require(path.join(BAS_NODE_MODULES, "rebrowser-playwright"));
 
 function parseArgs(argv) {

@@ -41,6 +41,7 @@ import TabBar from "./TabBar";
 import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import EnableAudioBanner from "./EnableAudioBanner";
+import RecoverableSessionsBanner from "./RecoverableSessionsBanner";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
@@ -878,29 +879,36 @@ export default function Workspace() {
   // Empty state
   if (sessionPanes.length === 0) {
     return (
-      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-primary">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-4">Web Console</h1>
-          <p className="text-wc-text-muted mb-6">
-            Browser terminal with PTY-backed sessions
-          </p>
-          {createError && (
-            <ErrorBanner
-              error={createError}
-              onDismiss={clearError}
-              onRetry={createError.retry ? handleRetry : undefined}
-              className="mb-4"
-            />
-          )}
-          <Button
-            data-testid="new-terminal-button"
-            onClick={openLauncher}
-            disabled={isCreating}
-            size="lg"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            {isCreating ? "Creating..." : "New Terminal"}
-          </Button>
+      <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
+        <RecoverableSessionsBanner
+          onRecovered={(result) => {
+            pendingActivePaneRef.current = result.new_session_id;
+          }}
+        />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold mb-4">Web Console</h1>
+            <p className="text-wc-text-muted mb-6">
+              Browser terminal with PTY-backed sessions
+            </p>
+            {createError && (
+              <ErrorBanner
+                error={createError}
+                onDismiss={clearError}
+                onRetry={createError.retry ? handleRetry : undefined}
+                className="mb-4"
+              />
+            )}
+            <Button
+              data-testid="new-terminal-button"
+              onClick={openLauncher}
+              disabled={isCreating}
+              size="lg"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              {isCreating ? "Creating..." : "New Terminal"}
+            </Button>
+          </div>
         </div>
         <TerminalLauncher
           open={launcherOpen}
@@ -1076,6 +1084,14 @@ export default function Workspace() {
           className="border-b border-wc-error"
         />
       )}
+
+      {/* Recoverable sessions surface — banner is hidden when nothing is
+          awaiting recovery, so steady-state UI is unchanged. */}
+      <RecoverableSessionsBanner
+        onRecovered={(result) => {
+          pendingActivePaneRef.current = result.new_session_id;
+        }}
+      />
 
       {/* Tab bar (only in tabs mode) */}
       {workspace.displayMode === "tabs" && (

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -564,6 +565,69 @@ func TestApplyIsolationProfile_ExpandsHomePlaceholder(t *testing.T) {
 	}
 	if cfg.ReadOnlyBinds[homeDir] != "/inside-home" {
 		t.Errorf("expected $HOME placeholder expanded to %s, got: %v", homeDir, cfg.ReadOnlyBinds)
+	}
+}
+
+func TestApplyIsolationProfile_MergesVrooliAwarePath(t *testing.T) {
+	homeDir := t.TempDir()
+	cfg := DefaultBwrapConfig()
+	cfg.HostHome = homeDir
+	cfg.Env["PATH"] = "/workspace:/custom/bin"
+	p := &IsolationProfile{
+		ID: "vrooli-aware",
+		Environment: map[string]string{
+			"PATH": "$HOME/.vrooli/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
+			"HOME": "$HOME",
+		},
+	}
+
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+
+	want := []string{
+		filepath.Join(homeDir, ".vrooli/bin"),
+		filepath.Join(homeDir, "go/bin"),
+		filepath.Join(homeDir, ".local/bin"),
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin",
+		"/workspace",
+		"/custom/bin",
+	}
+	if got := strings.Split(cfg.Env["PATH"], ":"); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("PATH entries:\n got %q\nwant %q", got, want)
+	}
+	if got := cfg.Env["HOME"]; got != homeDir {
+		t.Fatalf("HOME = %q, want %q", got, homeDir)
+	}
+}
+
+func TestApplyIsolationProfile_DeduplicatesPathEntries(t *testing.T) {
+	homeDir := t.TempDir()
+	cfg := DefaultBwrapConfig()
+	cfg.HostHome = homeDir
+	cfg.Env["PATH"] = filepath.Join(homeDir, ".vrooli/bin") + ":/usr/bin:/extra/bin"
+	p := &IsolationProfile{
+		ID: "vrooli-aware",
+		Environment: map[string]string{
+			"PATH": "$HOME/.vrooli/bin:$HOME/go/bin:/usr/bin:/bin",
+		},
+	}
+
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+
+	want := []string{
+		filepath.Join(homeDir, ".vrooli/bin"),
+		filepath.Join(homeDir, "go/bin"),
+		"/usr/bin",
+		"/bin",
+		"/extra/bin",
+	}
+	if got := strings.Split(cfg.Env["PATH"], ":"); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("PATH entries:\n got %q\nwant %q", got, want)
 	}
 }
 

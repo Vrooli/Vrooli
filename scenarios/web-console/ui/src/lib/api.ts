@@ -137,6 +137,8 @@ export async function createSession(opts?: {
   rows?: number;
   backend?: BackendID;
   policy?: { mode: PolicyMode; duration?: string };
+  launch_command?: string;
+  agent_type?: "none" | "codex" | "claude";
 }): Promise<SessionInfo> {
   const url = buildApiUrl("/sessions", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -148,6 +150,67 @@ export async function createSession(opts?: {
     throw await extractAPIError(res, "Failed to create session");
   }
   return (await res.json()) as SessionInfo;
+}
+
+// Persistent-session-recovery surface. See
+// scenarios/web-console/docs/guides/SESSION_RECOVERY.md for the contract.
+export interface RecoverableSession {
+  id: string;
+  backend?: string;
+  shell?: string;
+  cols?: number;
+  rows?: number;
+  created_at?: string;
+  orphaned_at?: string;
+  last_activity_at?: string;
+  agent_type?: "none" | "codex" | "claude";
+  agent_session_id?: string;
+  launch_command?: string;
+  cwd?: string;
+  last_rollout_path?: string;
+  recoverable: boolean;
+  not_recoverable_reason?: string;
+}
+
+export interface RecoverResult {
+  old_session_id: string;
+  new_session_id: string;
+  agent_type?: string;
+  command_sent?: string;
+  codex_home_copied?: boolean;
+}
+
+export async function listRecoverableSessions(): Promise<RecoverableSession[]> {
+  const url = buildApiUrl("/sessions/recoverable", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to list recoverable sessions");
+  }
+  return (await res.json()) as RecoverableSession[];
+}
+
+export async function recoverSession(oldId: string): Promise<RecoverResult> {
+  const url = buildApiUrl(`/sessions/${oldId}/recover`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to recover session");
+  }
+  return (await res.json()) as RecoverResult;
+}
+
+export async function dismissRecoverableSession(oldId: string): Promise<void> {
+  const url = buildApiUrl(`/sessions/recoverable/${oldId}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to dismiss recoverable session");
+  }
 }
 
 export async function listSessions(): Promise<SessionInfo[]> {

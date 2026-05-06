@@ -88,3 +88,27 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestCmdOperatingModelDiffRendersCleanNextStep(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/operating-graphs/diff", operatingGraphDiffResponse{
+		Diff: []operatingGraphDiff{},
+	})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdOperatingModelDiff(ctx, []string{"--team", "marketing-crew"})
+	})
+	if err != nil {
+		t.Fatalf("cmdOperatingModelDiff: %v", err)
+	}
+	for _, want := range []string{
+		"Found 0 diff item(s).",
+		"Graph Declares, Runtime Missing\n- clean",
+		"Runtime Declares, Graph Missing\n- clean",
+		"No reconciliation required.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}

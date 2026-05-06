@@ -23,12 +23,32 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
-import { beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
+
+let consoleError: ReturnType<typeof vi.spyOn>;
+let consoleWarn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
   window.localStorage.clear();
   await i18n.changeLanguage("cimode");
+  consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  const errorCalls = consoleError.mock.calls;
+  const warnCalls = consoleWarn.mock.calls;
+  consoleError.mockRestore();
+  consoleWarn.mockRestore();
+
+  if (errorCalls.length > 0 || warnCalls.length > 0) {
+    const formatted = [
+      ...errorCalls.map((args) => `console.error: ${args.map(String).join(" ")}`),
+      ...warnCalls.map((args) => `console.warn: ${args.map(String).join(" ")}`),
+    ].join("\n");
+    throw new Error(`Unexpected console output during test:\n${formatted}`);
+  }
 });
 
 // Process-wide spy by intent — axe-core probes canvas during every a11y

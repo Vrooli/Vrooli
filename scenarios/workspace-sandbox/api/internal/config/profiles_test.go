@@ -111,6 +111,9 @@ func TestFileProfileStore(t *testing.T) {
 		if got := profile.Environment["HOME"]; got != "$HOME" {
 			t.Errorf("vrooli-aware profile HOME = %q; want %q so $HOME-relative lookups resolve to the home overlay merged dir, not /tmp", got, "$HOME")
 		}
+		if got := profile.Environment["PATH"]; got != "$HOME/.vrooli/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" {
+			t.Errorf("vrooli-aware profile PATH = %q; want canonical Vrooli tool path", got)
+		}
 	})
 
 	t.Run("Get returns error for non-existent profile", func(t *testing.T) {

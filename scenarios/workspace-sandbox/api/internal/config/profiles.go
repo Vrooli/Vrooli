@@ -163,8 +163,8 @@ func DefaultProfiles() []IsolationProfile {
 			Description:   "Access to Vrooli CLIs, configs, and localhost network for API communication.",
 			Builtin:       true,
 			NetworkAccess: "localhost",
-			// PATH=$HOME/.local/bin and HOME=$HOME require the host-home
-			// overlay to be present; the handler refuses exec otherwise.
+			// PATH=$HOME/... and HOME=$HOME require the host-home overlay
+			// to be present; the handler refuses exec otherwise.
 			HomeOverlayRequirement: types.HomeOverlayRequired,
 			// $HOME-relative state (~/.local/{bin,share}, ~/.config,
 			// ~/.claude, ~/.config/vrooli, etc.) is provided by the
@@ -189,10 +189,12 @@ func DefaultProfiles() []IsolationProfile {
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{
-				// PATH includes the host $HOME/.local/bin (visible
-				// inside the sandbox via the HOME overlay at the same
-				// host path) so npm-style CLIs are reachable.
-				"PATH": "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
+				// PATH includes canonical Vrooli and Go tool locations
+				// surfaced through the HOME overlay, then standard
+				// system paths. This makes Vrooli agents independent of
+				// the caller's interactive shell while keeping every
+				// $HOME-relative write auditable through the sandbox.
+				"PATH": "$HOME/.vrooli/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
 				// HOME points to the host home so $HOME-relative
 				// lookups resolve to the overlay merged dir, not /tmp.
 				"HOME":        "$HOME",

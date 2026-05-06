@@ -48,6 +48,7 @@
 export { renderWithProviders } from "./renderWithProviders";
 export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
 export { interp } from "./interp";
+export { expectNoA11yViolations } from "./a11y";
 // Note: HealthResponse is the *generated proto type* re-exported by
 // factories.ts. Tests should always import it from here so a future
 // schema change is one-import-update; consuming the proto package

@@ -165,7 +165,11 @@ func cmdOperatingModelDiff(ctx appctx.Context, args []string) error {
 	fmt.Println()
 	printOperatingModelDiffGroup("Runtime Declares, Graph Missing", resp.Diff, "runtime_relationship_missing_in_graph")
 	fmt.Println("\nNext Steps")
-	fmt.Println("Review whether each diff is a graph-doc omission or a runtime config change.")
+	if len(resp.Diff) == 0 {
+		fmt.Println("No reconciliation required.")
+	} else {
+		fmt.Println("Review whether each diff is a graph-doc omission or a runtime config change.")
+	}
 	return nil
 }
 

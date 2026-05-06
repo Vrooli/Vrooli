@@ -19,6 +19,37 @@ type Session struct {
 	Policy          json.RawMessage `json:"policy,omitempty"`
 }
 
+// RecoverableSession mirrors RecoverableSessionResponse from the web-console
+// API (/api/v1/sessions/recoverable). It carries the agent identity captured
+// by the codex tailer / claude Stop hook so the CLI can show the operator
+// what they're about to reattach.
+type RecoverableSession struct {
+	ID              string `json:"id"`
+	Backend         string `json:"backend,omitempty"`
+	Shell           string `json:"shell,omitempty"`
+	Cols            int    `json:"cols,omitempty"`
+	Rows            int    `json:"rows,omitempty"`
+	CreatedAt       string `json:"created_at,omitempty"`
+	OrphanedAt      string `json:"orphaned_at,omitempty"`
+	LastActivityAt  string `json:"last_activity_at,omitempty"`
+	AgentType       string `json:"agent_type,omitempty"`
+	AgentSessionID  string `json:"agent_session_id,omitempty"`
+	LaunchCommand   string `json:"launch_command,omitempty"`
+	CWD             string `json:"cwd,omitempty"`
+	LastRolloutPath string `json:"last_rollout_path,omitempty"`
+	Recoverable     bool   `json:"recoverable"`
+	NotRecoverable  string `json:"not_recoverable_reason,omitempty"`
+}
+
+// RecoverResult mirrors RecoverSessionResponse from POST /sessions/{id}/recover.
+type RecoverResult struct {
+	OldSessionID  string `json:"old_session_id"`
+	NewSessionID  string `json:"new_session_id"`
+	AgentType     string `json:"agent_type,omitempty"`
+	CommandSent   string `json:"command_sent,omitempty"`
+	CodexHomeCopy bool   `json:"codex_home_copied,omitempty"`
+}
+
 // PolicyResponse mirrors the /sessions/{id}/policy shape.
 type PolicyResponse struct {
 	SessionID string          `json:"session_id"`

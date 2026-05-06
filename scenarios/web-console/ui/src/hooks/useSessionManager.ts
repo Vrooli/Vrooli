@@ -28,9 +28,18 @@ export interface PaneState {
 }
 
 function supportsMessagesViewForCommand(command?: string): boolean {
-  if (!command) return false;
+  return agentTypeFromCommand(command) !== "none";
+}
+
+// agentTypeFromCommand classifies the launch command into the closed
+// AgentType set persisted server-side. Used to populate the create-session
+// payload so the recovery flow can later reattach the agent.
+function agentTypeFromCommand(command?: string): "none" | "codex" | "claude" {
+  if (!command) return "none";
   const trimmed = command.trim().toLowerCase();
-  return trimmed.startsWith("claude ") || trimmed === "claude" || trimmed.startsWith("codex ") || trimmed === "codex";
+  if (trimmed === "claude" || trimmed.startsWith("claude ")) return "claude";
+  if (trimmed === "codex" || trimmed.startsWith("codex ")) return "codex";
+  return "none";
 }
 
 export function useSessionManager() {
@@ -204,6 +213,8 @@ export function useSessionManager() {
         rows: DEFAULT_ROWS,
         backend: opts?.backend,
         policy: opts?.policy,
+        launch_command: command,
+        agent_type: agentTypeFromCommand(command),
       });
       if (command) {
         pendingCommands.current.set(session.id, command);

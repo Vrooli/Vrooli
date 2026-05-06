@@ -184,6 +184,22 @@ func (r TeamContractRegistry) HasDecisionContext(id string) bool {
 	return false
 }
 
+// HasTeamDecisionContext reports whether a specific team contract declares the
+// given decision-context id. Empty/whitespace ids never match.
+func (r TeamContractRegistry) HasTeamDecisionContext(teamID, id string) bool {
+	teamID = strings.TrimSpace(teamID)
+	id = strings.TrimSpace(id)
+	if teamID == "" || id == "" {
+		return false
+	}
+	lt := r[teamID]
+	if lt == nil || lt.Contract == nil {
+		return false
+	}
+	_, ok := lt.Contract.DecisionContext[id]
+	return ok
+}
+
 // TeamsForDecisionContext returns every team id whose contract declares
 // the given decision-context id, in lexical order. Useful for diagnostic
 // detail strings that point the operator at the right team.json.

@@ -191,7 +191,9 @@ type IsolationProfile struct {
 //   - Source paths whose host-side existence is not visible at apply time
 //     are silently dropped from the bind map (e.g. /lib64 on systems
 //     without it). BuildBwrapArgs trusts the resulting map.
-//   - Env values support $VAR expansion via os.ExpandEnv (best-effort).
+//   - Env values support $VAR expansion from the captured sandbox
+//     environment. PATH is composed instead of overwritten so profiles can
+//     declare the policy baseline while callers intentionally add tools.
 func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 	if profile == nil {
 		return ErrIsolationProfileRequired
@@ -230,10 +232,48 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 		cfg.Env = map[string]string{}
 	}
 	for k, v := range profile.Environment {
-		cfg.Env[k] = os.ExpandEnv(v)
+		expanded := expandEnvValue(v, home, user, vrooliRoot)
+		if k == "PATH" {
+			cfg.Env[k] = mergePathLists(expanded, cfg.Env[k])
+			continue
+		}
+		cfg.Env[k] = expanded
 	}
 
 	return nil
+}
+
+func expandEnvValue(value, home, user, vrooliRoot string) string {
+	return os.Expand(value, func(key string) string {
+		switch key {
+		case "HOME":
+			return home
+		case "USER":
+			return user
+		case "VROOLI_ROOT":
+			return vrooliRoot
+		default:
+			return os.Getenv(key)
+		}
+	})
+}
+
+func mergePathLists(primary, secondary string) string {
+	seen := map[string]bool{}
+	entries := make([]string, 0)
+	add := func(pathList string) {
+		for _, entry := range strings.Split(pathList, ":") {
+			entry = strings.TrimSpace(entry)
+			if entry == "" || seen[entry] {
+				continue
+			}
+			seen[entry] = true
+			entries = append(entries, entry)
+		}
+	}
+	add(primary)
+	add(secondary)
+	return strings.Join(entries, ":")
 }
 
 // expandBindSource resolves $-placeholders in a profile bind source and

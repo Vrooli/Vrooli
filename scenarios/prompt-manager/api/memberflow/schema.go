@@ -129,10 +129,9 @@ type EvidenceConsumedEntry struct {
 	SourceTeam *string `json:"source_team,omitempty"`
 
 	// ForDecisions names the decision-context ids that cite this prefix
-	// as evidence. Required and non-empty: an evidence relationship with
-	// no consumer is not a relationship. ruleDanglingEvidenceDecision
-	// validates each id resolves against some team's
-	// team.json::decisionContexts.
+	// as evidence. Empty means general evidence consumed outside a specific
+	// decision context. ruleDanglingEvidenceDecision validates each non-empty
+	// id resolves against some team's team.json::decisionContexts.
 	ForDecisions []string `json:"for_decisions"`
 }
 

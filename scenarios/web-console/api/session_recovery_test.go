@@ -33,21 +33,26 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 	}
 }
 
-func TestRecover_OrphanedMetadata_NoTmuxSession(t *testing.T) {
+func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	useIsolatedSessionState(t)
 	useIsolatedTmuxSocket(t)
 
-	// Metadata exists in the store but the tmux session is gone.
-	// Recovery should clean up the stale metadata.
+	// Persistent metadata exists but the tmux session is gone (host reboot,
+	// scope kill, OOM, manual kill-server). Recovery must preserve the row
+	// and mark it awaiting_recovery so the recovery endpoints can reattach
+	// the agent on demand. Deleting the row strands the user's CODEX_HOME
+	// and conversation history with no DB pointer to find them.
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
-		ID:       "dead-session",
-		Backend:  BackendPersistent,
-		Shell:    "/bin/bash",
-		Cols:     80,
-		Rows:     24,
-		Created:  time.Now(),
-		Detached: true,
+		ID:             "dead-session",
+		Backend:        BackendPersistent,
+		Shell:          "/bin/bash",
+		Cols:           80,
+		Rows:           24,
+		Created:        time.Now(),
+		Detached:       true,
+		AgentType:      AgentTypeCodex,
+		AgentSessionID: "codex-uuid-123",
 	})
 
 	reg := NewBackendRegistry()
@@ -55,17 +60,82 @@ func TestRecover_OrphanedMetadata_NoTmuxSession(t *testing.T) {
 
 	report := sm.Recover(store, reg)
 
+	if report.AwaitingRecovery != 1 {
+		t.Errorf("expected 1 awaiting_recovery, got %d", report.AwaitingRecovery)
+	}
 	if report.OrphanedMetadata != 1 {
-		t.Errorf("expected 1 orphaned metadata, got %d", report.OrphanedMetadata)
+		t.Errorf("expected OrphanedMetadata alias to be 1, got %d", report.OrphanedMetadata)
 	}
 	if report.Recovered != 0 {
 		t.Errorf("expected 0 recovered, got %d", report.Recovered)
 	}
 
-	// Verify metadata was cleaned up
-	_, err := store.Get("dead-session")
-	if err == nil {
-		t.Error("expected stale metadata to be deleted from store")
+	got, err := store.Get("dead-session")
+	if err != nil {
+		t.Fatalf("expected metadata to be preserved, got: %v", err)
+	}
+	if got.Status != SessionStatusAwaitingRecovery {
+		t.Errorf("expected status=awaiting_recovery, got %q", got.Status)
+	}
+	if got.OrphanedAt.IsZero() {
+		t.Errorf("expected orphaned_at to be set")
+	}
+	if got.AgentSessionID != "codex-uuid-123" {
+		t.Errorf("agent_session_id was clobbered: %q", got.AgentSessionID)
+	}
+}
+
+func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+	useIsolatedSessionState(t)
+	useIsolatedTmuxSocket(t)
+
+	// Simulate the case where a row was previously marked awaiting_recovery
+	// (tmux had died) and tmux comes back before recovery is invoked
+	// explicitly. Next Recover() should transition the row back to live.
+	store := NewInMemorySessionStore()
+	id := "reattach-test"
+	_ = store.Save(SessionMetadata{
+		ID:       id,
+		Backend:  BackendPersistent,
+		Shell:    "/bin/bash",
+		Cols:     80,
+		Rows:     24,
+		Created:  time.Now().Add(-time.Hour),
+		Detached: true,
+		Status:   SessionStatusLive, // ListDetached requires live
+	})
+
+	// Create a real tmux session under the isolated socket so attach succeeds.
+	sessionName := tmuxSessionPrefix + id
+	if err := tmuxCmd("new-session", "-d", "-s", sessionName, "/bin/sh").Run(); err != nil {
+		t.Fatalf("create tmux session: %v", err)
+	}
+	t.Cleanup(func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() })
+
+	// First mark it orphaned to simulate previous recovery cycle.
+	if err := store.MarkOrphaned(id, time.Now()); err != nil {
+		t.Fatalf("MarkOrphaned: %v", err)
+	}
+	// Then "live" again so the next Recover() picks it up via ListDetached.
+	if err := store.MarkLive(id); err != nil {
+		t.Fatalf("MarkLive: %v", err)
+	}
+
+	sm := NewSessionManagerWithFactory(nil)
+	report := sm.Recover(store, NewBackendRegistry())
+
+	if report.Recovered != 1 {
+		t.Errorf("expected 1 recovered, got %d", report.Recovered)
+	}
+	got, _ := store.Get(id)
+	if got.Status != SessionStatusLive {
+		t.Errorf("expected status=live after reattach, got %q", got.Status)
+	}
+	if !got.OrphanedAt.IsZero() {
+		t.Errorf("expected orphaned_at to be cleared")
 	}
 }
 

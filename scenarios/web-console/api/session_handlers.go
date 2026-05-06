@@ -72,12 +72,36 @@ func (c *idempotencyCache) Set(key string, resp SessionResponse) {
 }
 
 // CreateSessionRequest is the JSON body for creating a new session.
+//
+// LaunchCommand and AgentType are optional hints from the client; when set,
+// they are persisted on the session row so the recovery flow can later
+// reattach the agent without grovelling rollout files. AgentType is the
+// closed set "none|codex|claude"; unrecognized values are treated as "none".
 type CreateSessionRequest struct {
-	Shell   string            `json:"shell,omitempty"`
-	Cols    int               `json:"cols,omitempty"`
-	Rows    int               `json:"rows,omitempty"`
-	Backend string            `json:"backend,omitempty"`
-	Policy  *CreatePolicySpec `json:"policy,omitempty"`
+	Shell         string            `json:"shell,omitempty"`
+	Cols          int               `json:"cols,omitempty"`
+	Rows          int               `json:"rows,omitempty"`
+	Backend       string            `json:"backend,omitempty"`
+	Policy        *CreatePolicySpec `json:"policy,omitempty"`
+	LaunchCommand string            `json:"launch_command,omitempty"`
+	AgentType     string            `json:"agent_type,omitempty"`
+}
+
+// normalizeAgentType maps a free-form string to one of the closed-set
+// AgentType values. Unrecognized inputs become AgentTypeNone (rather than
+// erroring) so a future client that knows about a new agent kind can roll
+// forward without breaking older API builds.
+func normalizeAgentType(s string) AgentType {
+	switch AgentType(s) {
+	case AgentTypeCodex:
+		return AgentTypeCodex
+	case AgentTypeClaude:
+		return AgentTypeClaude
+	case AgentTypeNone:
+		return AgentTypeNone
+	default:
+		return AgentTypeNone
+	}
 }
 
 // CreatePolicySpec allows setting a policy at session creation time.
@@ -182,6 +206,18 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		log.Printf("create-session [%s]: %v", reqID, err)
 		writeAppError(w, classifyCreateError(err))
 		return
+	}
+
+	// Persist agent identity hints from the request body. The codex tailer
+	// and claude Stop hook will further enrich (agent_session_id, cwd,
+	// last_rollout_path) once the agent actually starts producing output;
+	// these fields are the launch-time best guess.
+	if s.sessionStore != nil && (req.LaunchCommand != "" || req.AgentType != "") {
+		agentType := normalizeAgentType(req.AgentType)
+		_ = s.sessionStore.UpdateAgentInfo(sess.ID, AgentInfo{
+			AgentType:     agentType,
+			LaunchCommand: req.LaunchCommand,
+		})
 	}
 
 	// [REQ:P1-004a] Emit session lifecycle event

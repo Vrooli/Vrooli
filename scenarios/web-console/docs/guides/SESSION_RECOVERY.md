@@ -1,291 +1,224 @@
 # Session Recovery
 
-Web-console has two recovery modes:
+Web-console persists every `backend=persistent` pane behind a tmux session. The persisted **DB row** is what makes recovery possible — once it is gone, the on-disk codex/claude history has no DB pointer back to the pane it belonged to.
 
-- **Normal restart recovery**: persistent sessions are tmux-backed. If the API restarts but the host and tmux server stay alive, startup recovery re-attaches to the existing `wc-<session-id>` tmux sessions.
-- **Crash recovery**: if the host crashes or reboots, tmux sessions are gone. The terminal processes cannot be re-attached, but web-console can usually recreate panes and resume Codex or Claude from durable agent history.
+There are two recovery modes:
 
-This guide covers both paths, with emphasis on full crash recovery.
+- **Normal restart recovery (automatic).** API restarts but the host and tmux server stay alive. `Recover()` re-attaches to surviving `wc-<id>` tmux sessions, status stays `live`, the user sees no interruption.
+- **Crash recovery (one CLI call).** Host reboot, tmux scope kill, OOM, or manual `tmux -L wc kill-server`. The tmux session is gone but the DB row is preserved with `status='awaiting_recovery'`, agent identity (`agent_type`, `agent_session_id`, `cwd`, `last_rollout_path`), and `orphaned_at`. Run `web-console session recover <id>` to spawn a fresh persistent pane, copy the per-session `CODEX_HOME`, and paste the resume command.
+
+This guide covers the supported (CLI-driven) flow. The legacy manual procedure lives in the appendix for the case where the API itself is broken.
+
+## Quick Triage
+
+```bash
+vrooli scenario status web-console
+web-console session list                # live sessions
+web-console session list-recoverable    # rows whose tmux session died
+```
+
+If `list-recoverable` is empty after a crash, either nothing was running on the persistent backend (check with `web-console session list` against a known-good run) or the API's startup `Recover()` log line says `awaiting_recovery=0`. The startup log lives at `~/.vrooli/logs/scenarios/web-console/vrooli.develop.web-console.start-api.log` and looks like:
+
+```
+recovery: recovered=2 awaiting_recovery=1 orphaned_tmux=0 (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable)
+```
+
+`awaiting_recovery=N` is the count you can recover. If this prints `awaiting_recovery=0` after a crash you remember had agents in it, jump to the appendix.
+
+## Recover Codex / Claude Panes
+
+```bash
+web-console session list-recoverable
+# Recoverable sessions: 3
+# Recoverable:
+#   8a10aa94 | agent=codex | session=019dfdf4 | orphaned=2026-05-06T19:08Z
+#   815af6c6 | agent=codex | session=019dfe84 | orphaned=2026-05-06T19:08Z
+#   d458939a | agent=claude | session=019dfde5 | orphaned=2026-05-06T19:08Z
+
+web-console session recover 8a10aa94-29d1-472d-a910-7a5548a7ca35
+# Recovered 8a10aa94 -> 30563c58
+# Agent: codex
+# Pasted: codex --yolo resume 019dfdf4-a8d6-7e10-aee2-6b6bd6d495a6
+# CODEX_HOME copied: true
+```
+
+What `recover` does, in order:
+
+1. Validates the row is `awaiting_recovery` and has enough agent identity to reattach (codex requires nothing more; claude requires a non-empty `agent_session_id`).
+2. Creates a fresh `backend=persistent` pane inheriting `shell`, `cols`, `rows`, and `policy` from the orphan.
+3. For codex panes, `rsync -a $CODEX_HOME($old_id)/ $CODEX_HOME($new_id)/` copies the rollout history into the new pane's path.
+4. Pastes the appropriate resume command into the new pane:
+   - `codex --yolo resume <agent_session_id>` (or `--last` if id is empty)
+   - `claude --resume <agent_session_id> --dangerously-skip-permissions`
+5. Marks the orphan row `dismissed` with `recovered_into=<new_session_id>`.
+
+Recovery is idempotent on `X-Idempotency-Key`. The on-disk `CODEX_HOME` of the orphan is preserved even after dismiss; only the DB row transitions to `dismissed`.
+
+To drop an orphan you don't want to recover (UI noise reduction, on-disk state is kept):
+
+```bash
+web-console session dismiss 8a10aa94-29d1-472d-a910-7a5548a7ca35
+```
+
+## UI Surface
+
+When the API has any `awaiting_recovery` rows, the workspace shows an amber banner above the tab strip listing the orphans. Each row has `Reattach` (calls `POST /api/v1/sessions/{id}/recover`) and `Dismiss` buttons. Claude rows without a known `agent_session_id` render with `Reattach` disabled — `claude --resume` against the wrong project is unsafe and not auto-guessed.
 
 ## Storage Locations
-
-Default local paths:
 
 | Data | Path |
 |------|------|
 | SQLite database | `~/.local/share/vrooli/web-console/web-console.db` |
+| Per-pane `CODEX_HOME` | `~/.local/state/vrooli/web-console/sessions/codex/<web-console-session-id>/` |
+| Per-pane Claude state, when present | `~/.local/state/vrooli/web-console/sessions/claude/<web-console-session-id>/` |
+| Claude project history | `~/.claude/projects/<project-key>/*.jsonl` |
 | API startup log | `~/.vrooli/logs/scenarios/web-console/vrooli.develop.web-console.start-api.log` |
 | Web-console tmux socket | `tmux -L wc ...` |
 | Tmux session name | `wc-<web-console-session-id>` |
-| Per-pane Codex home | `~/.local/state/vrooli/web-console/sessions/codex/<web-console-session-id>` |
-| Per-pane Claude state, when present | `~/.local/state/vrooli/web-console/sessions/claude/<web-console-session-id>` |
-| Claude project history | `~/.claude/projects/<project-key>/*.jsonl` |
 
-The database stores session metadata, workspace panes, conversation events, and Codex rollout checkpoints. The tmux server stores live terminal processes. A reboot destroys the tmux server, so crash recovery must use the database plus agent history.
+## Status state machine
 
-## Quick Triage
-
-Find the API port:
-
-```bash
-vrooli scenario port web-console API_PORT
+```
+            create (UI/CLI)
+                  │
+                  ▼
+                live ─── delete by user ──► gone
+                  │
+                  │ tmux missing on Recover()
+                  ▼
+         awaiting_recovery
+                  │
+        ┌─────────┼──────────────┐
+        │         │              │
+   recover    dismiss     tmux reappears + Recover()
+        │         │              │
+        ▼         ▼              ▼
+   dismissed dismissed         live
 ```
 
-List active sessions known to the API:
+Only `Recover()` and the recovery endpoints transition status. Application code never deletes a `detached=1` row directly.
+
+## How agent identity is captured
+
+The recovery endpoints rely on `agent_type` + `agent_session_id` being on the row. Three independent populators put them there:
+
+- **Codex tailer** — when `CodexTailer` first opens a rollout under a session's `CODEX_HOME`, it parses the `session_meta` first line and stores `agent_type=codex`, `agent_session_id=<payload.id>`, `cwd=<payload.cwd>`, `last_rollout_path`.
+- **Claude Stop hook** — `POST /api/v1/hooks/stop` carries `web_console_session_id`, `session_id` (claude's own UUID), and `cwd`. The handler stores `agent_type=claude`, `agent_session_id=<session_id>`, `cwd`.
+- **Launch metadata** — `CreateSessionRequest` accepts optional `launch_command` and `agent_type`. The UI launcher sends them when the user picks a shortcut; they populate the row up front (the tailer/hook will refine `agent_session_id` once the agent emits something).
+
+If a pane runs an agent we don't classify (custom command), `agent_type` stays `none` and the row appears in `list-recoverable` with `recoverable=false`. The on-disk state is still preserved; the row just can't be auto-resumed and the appendix below applies.
+
+## Appendix: Manual fallback (for when the CLI itself is broken)
+
+This is the historical procedure documented for the 2026-05-01 incident. Use it only when `web-console session recover` is unavailable (e.g., the API panics during startup so the recovery routes never bind). It is intentionally verbose — every step is independently verifiable.
+
+### A.1 Find lost session ids without the CLI
+
+If the API can serve some routes but the CLI is broken:
 
 ```bash
-curl -sS "http://127.0.0.1:<API_PORT>/api/v1/sessions" | jq
+api_port=$(vrooli scenario port web-console API_PORT)
+curl -sS "http://127.0.0.1:$api_port/api/v1/sessions/recoverable" | jq
 ```
 
-List surviving persistent tmux sessions:
+If the API is fully down, walk the codex state tree:
 
 ```bash
-tmux -L wc list-sessions -F '#{session_name}'
+for d in ~/.local/state/vrooli/web-console/sessions/codex/*/sessions; do
+  id="${d%/sessions}"; id="${id##*/}"
+  latest=$(find "$d" -name '*.jsonl' 2>/dev/null | sort | tail -1)
+  [ -z "$latest" ] && continue
+  echo "$id $(head -1 "$latest" | jq -r '.payload.id // empty')"
+done
 ```
 
-Interpretation:
-
-- If API sessions and `wc-...` tmux sessions exist, startup recovery worked.
-- If the API has no old sessions and tmux has no `wc-...` sessions, this was a full crash/reboot recovery case.
-- If tmux has `wc-...` sessions but the API does not, restart the API once before doing manual recovery. Startup recovery should re-register them.
-
-## Find Lost Session IDs
-
-After a full crash, the startup log usually records which persisted metadata rows were cleaned because no matching tmux session survived:
+### A.2 Recreate the pane manually
 
 ```bash
-rg 'orphan|cleaned|recovery' ~/.vrooli/logs/scenarios/web-console/vrooli.develop.web-console.start-api.log
-```
-
-Those session IDs are the old web-console pane IDs. Use them to look for matching Codex or Claude history.
-
-## Recover Codex Panes
-
-Each web-console pane gets its own `CODEX_HOME`. If Codex wrote rollout files before the crash, they are normally still under:
-
-```bash
-~/.local/state/vrooli/web-console/sessions/codex/<old-web-console-session-id>/sessions/YYYY/MM/DD/*.jsonl
-```
-
-Extract the Codex session ID from the latest rollout:
-
-```bash
-old_id="<old-web-console-session-id>"
-codex_home="$HOME/.local/state/vrooli/web-console/sessions/codex/$old_id"
-
-rg --files "$codex_home/sessions" -g '*.jsonl' |
-  sort |
-  tail -1 |
-  xargs jq -r 'select(.session_id != null) | .session_id' |
-  tail -1
-```
-
-Create a new persistent pane:
-
-```bash
-api="http://127.0.0.1:<API_PORT>"
-
+api="http://127.0.0.1:$api_port"
 new_id="$(
   curl -sS -X POST "$api/api/v1/sessions" \
     -H 'Content-Type: application/json' \
     -d '{"shell":"/bin/bash","cols":120,"rows":36,"backend":"persistent","policy":{"mode":"never"}}' |
   jq -r '.id'
 )"
-```
 
-Copy the old Codex home into the new pane before launching Codex:
-
-```bash
+old_id="<old-web-console-session-id>"
 old_home="$HOME/.local/state/vrooli/web-console/sessions/codex/$old_id"
 new_home="$HOME/.local/state/vrooli/web-console/sessions/codex/$new_id"
-
 rsync -a "$old_home/" "$new_home/"
-```
 
-Optionally rename the pane in the workspace:
-
-```bash
 curl -sS -X PUT "$api/api/v1/workspace/panes/$new_id" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Restored Codex","supportsMessagesView":true}' |
-  jq
+  -d '{"name":"Restored Codex","supports_messages_view":true}' | jq
 ```
 
-Open the session WebSocket and paste a resume command into the terminal:
+### A.3 Paste the resume command
+
+The simplest path is a Python WebSocket client; see the script template at the end of this section. Codex resume:
 
 ```bash
-codex_session="<codex-session-id>"
-command="codex --yolo resume $codex_session"
+codex_session=<from A.1>
+echo "codex --yolo resume $codex_session"
 ```
 
-Any WebSocket client can send the command. For example, with Python:
+For Claude, prefer `claude --resume <id>` over `--continue` — guessing the latest project is unsafe.
 
 ```python
-import json
-import websocket
-
-api_port = "<API_PORT>"
-web_console_session = "<new-web-console-session-id>"
-command = "codex --yolo resume <codex-session-id>\n"
-
-ws = websocket.create_connection(
-    f"ws://127.0.0.1:{api_port}/api/v1/sessions/{web_console_session}/ws"
-)
-
+# resume_paste.py
+import json, websocket
+ws = websocket.create_connection(f"ws://127.0.0.1:{api_port}/api/v1/sessions/{new_id}/ws")
 while True:
-    message = json.loads(ws.recv())
-    if message.get("type") == "session_ready":
+    msg = json.loads(ws.recv())
+    if msg.get("type") == "session_ready":
         break
-
-ws.send(json.dumps({"type": "stdin", "data": command, "kind": "paste"}))
+ws.send(json.dumps({"type": "stdin", "data": "codex --yolo resume <id>\n", "kind": "paste"}))
 ws.close()
 ```
 
-If Codex shows an update prompt before resuming, choose the skip option, then re-send the resume command if needed.
+### A.4 Copy conversation events (optional)
 
-When a pane has a Codex home but no rollout `history.jsonl`, there is no exact Codex session ID to target. In that case use:
-
-```bash
-codex --yolo resume --last
-```
-
-That can only resume whatever Codex considers the latest session in that copied home.
-
-## Recover Conversation Events
-
-If the terminal process could not be resumed but web-console had already captured assistant messages, copy the old conversation rows to the new pane ID. Back up the database first:
+If the lost pane had assistant messages already captured by the server, copy them into the new pane's session id:
 
 ```bash
 db="$HOME/.local/share/vrooli/web-console/web-console.db"
 cp "$db" "$db.pre-session-recovery-$(date -u +%Y%m%dT%H%M%SZ).bak"
-```
 
-Then duplicate conversation state:
-
-```sql
--- Run with: sqlite3 ~/.local/share/vrooli/web-console/web-console.db
-
+sqlite3 "$db" <<SQL
 BEGIN;
-
 INSERT OR IGNORE INTO conversation_sessions (
-    session_id,
-    last_sequence,
-    last_seen_sequence,
-    last_listened_sequence,
-    created_at,
-    updated_at
-)
-SELECT
-    '<new-web-console-session-id>',
-    last_sequence,
-    last_seen_sequence,
-    last_listened_sequence,
-    created_at,
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-FROM conversation_sessions
-WHERE session_id = '<old-web-console-session-id>';
+    session_id, last_sequence, last_seen_sequence, last_listened_sequence, created_at, updated_at
+) SELECT '<new-id>', last_sequence, last_seen_sequence, last_listened_sequence, created_at,
+         strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  FROM conversation_sessions WHERE session_id = '<old-id>';
 
 INSERT OR IGNORE INTO conversation_events (
-    id,
-    session_id,
-    source,
-    role,
-    text,
-    speech_paragraphs,
-    original_speech_paragraphs,
-    summarized,
-    created_at,
-    sequence,
-    delivery_state,
-    tts_state,
-    consumption_state
-)
-SELECT
-    lower(hex(randomblob(16))),
-    '<new-web-console-session-id>',
-    source,
-    role,
-    text,
-    speech_paragraphs,
-    original_speech_paragraphs,
-    summarized,
-    created_at,
-    sequence,
-    delivery_state,
-    tts_state,
-    consumption_state
-FROM conversation_events
-WHERE session_id = '<old-web-console-session-id>';
-
+    id, session_id, source, role, text, speech_paragraphs, original_speech_paragraphs,
+    summarized, created_at, sequence, delivery_state, tts_state, consumption_state
+) SELECT lower(hex(randomblob(16))), '<new-id>', source, role, text,
+         speech_paragraphs, original_speech_paragraphs, summarized, created_at, sequence,
+         delivery_state, tts_state, consumption_state
+  FROM conversation_events WHERE session_id = '<old-id>';
 COMMIT;
+SQL
 ```
 
-Only do this after creating the replacement pane. It preserves the old pane's message feed under the new active session ID so Messages view, unread state, and TTS cursor state can use it again.
-
-## Recover Claude Panes
-
-Claude recovery needs a stronger mapping than Codex because Claude stores project histories globally under `~/.claude/projects/`. Do not start the newest Claude history just because it is recent; it may belong to a different terminal.
-
-Use one of these signals before resuming Claude:
-
-- A web-console pane title or metadata that identifies the Claude task.
-- A per-pane Claude state directory under `~/.local/state/vrooli/web-console/sessions/claude/<old-web-console-session-id>`.
-- A Claude JSONL session whose cwd, timestamps, and prompts match the lost pane.
-
-Once mapped, recreate a persistent pane as above and launch one of:
+### A.5 Verify
 
 ```bash
-claude --resume <claude-session-id> --dangerously-skip-permissions
-claude --continue --dangerously-skip-permissions
+web-console session list                    # new pane appears
+tmux -L wc list-sessions                    # wc-<new-id> alive
+tmux -L wc capture-pane -pt "wc-<new-id>" -S -80
 ```
-
-Prefer `--resume <id>` when you have an exact session ID. Use `--continue` only when you have verified the target project's latest Claude session is the intended one.
-
-## Verify Recovery
-
-Check API state:
-
-```bash
-curl -sS "$api/api/v1/sessions" | jq '.sessions[] | {id, backend, status, policy}'
-```
-
-Check tmux state:
-
-```bash
-tmux -L wc list-sessions -F '#{session_name}'
-```
-
-Check process state:
-
-```bash
-ps -ef | rg 'codex|claude|tmux attach-session|wc-'
-```
-
-Capture a pane to confirm it is attached and displaying the resumed agent:
-
-```bash
-tmux -L wc capture-pane -pt "wc-<new-web-console-session-id>" -S -80
-```
-
-Finally, reload the browser UI and confirm:
-
-- The restored panes appear in the workspace.
-- Each pane uses the `persistent` backend.
-- Agent TUIs are interactive.
-- Messages view shows any copied conversation history.
 
 ## Incident Pattern From 2026-05-01
 
-During the 2026-05-01 crash recovery, the API started cleanly but removed ten persisted session metadata rows because the host crash had destroyed the tmux server. Eight old Codex panes had recoverable rollout histories and were recreated with exact `codex --yolo resume <session-id>` commands. Two panes had web-console conversation history but no Codex rollout history, so they were recreated with `codex --yolo resume --last` and their conversation rows were copied from the old pane IDs to the new ones.
+During the 2026-05-01 host crash, the API started cleanly but `Recover()` deleted ten persisted session metadata rows because no matching tmux session survived. Eight Codex panes had recoverable rollout histories; two had server-side conversation events but no rollout. Recovery required manually recreating panes, rsync-ing each `CODEX_HOME`, and pasting `codex --yolo resume` over a WebSocket. Post-hardening (this version of the doc), that whole sequence collapses to:
 
-No Claude pane was resumed during that incident because the available Claude histories did not have a reliable active-pane mapping. That is intentional: guessing can attach the wrong Claude conversation to the wrong workspace pane.
+```bash
+for id in $(web-console session list-recoverable --json | jq -r '.[].id'); do
+  web-console session recover "$id"
+done
+```
 
-## Prevention Work
-
-The manual process above works, but the product should eventually automate it. Useful improvements:
-
-- Preserve orphaned persistent-session metadata after a full reboot instead of deleting it immediately.
-- Store the launch command, agent type, cwd, and agent conversation ID on each workspace pane.
-- Add a recovery endpoint or CLI command that can recreate panes from old metadata and copied Codex homes.
-- Add a first-class conversation-copy operation so recovery does not require direct SQLite edits.
-- Surface "recoverable after crash" panes in the UI when old agent history exists but tmux does not.
+Claude panes are still gated on a non-empty `agent_session_id` because guessing is unsafe.

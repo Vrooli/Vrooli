@@ -18,7 +18,8 @@ import (
 // RecoveryReport summarizes the result of session recovery on startup.
 type RecoveryReport struct {
 	Recovered        int
-	OrphanedMetadata int
+	AwaitingRecovery int // persistent rows whose tmux session is gone; preserved for explicit recovery
+	OrphanedMetadata int // alias: count of rows that ended up awaiting_recovery (compat with metrics/log line)
 	OrphanedTmux     int
 }
 
@@ -870,13 +871,22 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 		tmuxSet[id] = true
 	}
 
-	// 3. For each metadata row, try to recover or clean up
+	// 3. For each metadata row, try to recover or mark for explicit recovery.
+	// Per the persistent-session-recovery-hardening plan we never delete
+	// detached metadata here: the row is the only DB pointer to the per-session
+	// CODEX_HOME and conversation history, so destroying it strands the user.
 	for id, meta := range metaMap {
 		if !tmuxSet[id] {
-			// tmux session is gone — clean up stale metadata
-			_ = store.Delete(id)
+			// tmux session is gone (host reboot, scope kill, OOM, manual
+			// kill-server). Preserve the row and mark it awaiting_recovery so
+			// the recovery endpoints can reattach the agent on demand.
+			if err := store.MarkOrphaned(id, time.Now()); err != nil {
+				log.Printf("recovery: failed to mark orphan %s: %v", id, err)
+			}
+			report.AwaitingRecovery++
 			report.OrphanedMetadata++
-			log.Printf("recovery: cleaned up orphaned metadata for session %s", id)
+			log.Printf("recovery: marked session %s as awaiting_recovery (tmux gone, agent=%s session_id=%s)",
+				id, meta.AgentType, meta.AgentSessionID)
 			continue
 		}
 
@@ -958,6 +968,13 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 			}
 		}(id, meta.Backend)
 
+		// Reattach succeeded: ensure the row is marked live (covers the case
+		// where it was previously awaiting_recovery and tmux came back, e.g.
+		// the user restarted the wc-tmux-server scope by hand).
+		if err := store.MarkLive(id); err != nil {
+			log.Printf("recovery: failed to mark session %s live: %v", id, err)
+		}
+
 		report.Recovered++
 		log.Printf("recovery: recovered session %s (backend=%s)", id, meta.Backend)
 		delete(tmuxSet, id)
@@ -979,11 +996,12 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 	}
 	if sm.events != nil {
 		sm.events.Emit("session.recovery_complete", "", map[string]string{
-			"recovered":        fmt.Sprintf("%d", report.Recovered),
-			"orphaned_meta":    fmt.Sprintf("%d", report.OrphanedMetadata),
-			"orphaned_tmux":    fmt.Sprintf("%d", report.OrphanedTmux),
-			"metadata_entries": fmt.Sprintf("%d", len(metaList)),
-			"tmux_sessions":    fmt.Sprintf("%d", len(tmuxSessions)),
+			"recovered":         fmt.Sprintf("%d", report.Recovered),
+			"awaiting_recovery": fmt.Sprintf("%d", report.AwaitingRecovery),
+			"orphaned_meta":     fmt.Sprintf("%d", report.OrphanedMetadata),
+			"orphaned_tmux":     fmt.Sprintf("%d", report.OrphanedTmux),
+			"metadata_entries":  fmt.Sprintf("%d", len(metaList)),
+			"tmux_sessions":     fmt.Sprintf("%d", len(tmuxSessions)),
 		})
 	}
 
