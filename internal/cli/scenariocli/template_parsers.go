@@ -43,6 +43,14 @@ func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
 		{
 			Name:    string(TemplateCommandValidate),
 			Summary: "Validate scenario templates",
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{
+					{Name: "--mode", ValueName: "shallow|deep", Description: "Validation depth; defaults to shallow"},
+					{Name: "--template", ValueName: "name", Description: "Validate only one template"},
+					{Name: "--retain-temp", Description: "Keep temporary generated output for debugging"},
+					{Name: "--test-preset", ValueName: "name", Description: "test-genie preset for deep validation"},
+				},
+			},
 			Handler: TemplateCommandValidate,
 		},
 	}
@@ -108,10 +116,34 @@ func ParseTemplateShowRequest(args []string) (TemplateShowRequest, error) {
 }
 
 func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error) {
-	if _, err := commandtree.ParseArgs("scenario template validate", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandValidate).Args, args); err != nil {
+	parsed, err := commandtree.ParseArgs("scenario template validate", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandValidate).Args, args)
+	if err != nil {
 		return TemplateValidateRequest{}, err
 	}
-	return TemplateValidateRequest{}, nil
+	req := TemplateValidateRequest{
+		Mode:       TemplateValidationModeShallow,
+		TestPreset: DefaultTemplateValidationTestPreset,
+	}
+	if mode := strings.TrimSpace(parsed.FlagValue("--mode")); mode != "" {
+		req.Mode = TemplateValidationMode(mode)
+	}
+	switch req.Mode {
+	case TemplateValidationModeShallow, TemplateValidationModeDeep:
+	default:
+		return TemplateValidateRequest{}, fmt.Errorf("unknown validation mode %q; expected shallow or deep", req.Mode)
+	}
+	req.TemplateName = strings.TrimSpace(parsed.FlagValue("--template"))
+	req.RetainTemp = parsed.HasFlag("--retain-temp")
+	if preset := strings.TrimSpace(parsed.FlagValue("--test-preset")); preset != "" {
+		req.TestPreset = preset
+	}
+	if req.Mode == TemplateValidationModeShallow && parsed.HasFlag("--test-preset") {
+		return TemplateValidateRequest{}, fmt.Errorf("--test-preset is only valid with --mode deep")
+	}
+	if req.Mode == TemplateValidationModeShallow && req.RetainTemp {
+		return TemplateValidateRequest{}, fmt.Errorf("--retain-temp is only valid with --mode deep")
+	}
+	return req, nil
 }
 
 func ParseDesignListRequest(args []string) (DesignListRequest, error) {

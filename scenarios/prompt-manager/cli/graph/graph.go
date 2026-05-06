@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"sort"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -116,6 +117,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHealth(ctx, subArgs)
 	case "topics":
 		return cmdTopics(ctx, subArgs)
+	case "operating-model":
+		return cmdOperatingModel(ctx, subArgs)
 	case "drain-status":
 		return cmdDrainStatus(ctx, subArgs)
 	default:
@@ -148,6 +151,8 @@ Subcommands:
                                       Member topic-flow graph + validation
                                       (--findings-out writes a stable JSON
                                       artifact for CI diff telemetry)
+  operating-model <list|validate|diff> [--team X] [--id ID] [--json]
+                                      Plan-of-record Mermaid contract checks
   drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)`
 }
 

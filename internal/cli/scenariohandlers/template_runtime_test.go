@@ -145,6 +145,232 @@ func TestValidateGeneratedScenarioAcceptsStartDocument(t *testing.T) {
 	}
 }
 
+func TestFilterTemplatesForValidation(t *testing.T) {
+	templates := []scenariocli.TemplateInfo{
+		{Name: "alpha"},
+		{Name: "react-vite"},
+	}
+	all, err := filterTemplatesForValidation(templates, "")
+	if err != nil {
+		t.Fatalf("filterTemplatesForValidation(all) error = %v", err)
+	}
+	if len(all) != len(templates) {
+		t.Fatalf("all templates = %#v", all)
+	}
+	filtered, err := filterTemplatesForValidation(templates, "react-vite")
+	if err != nil {
+		t.Fatalf("filterTemplatesForValidation(react-vite) error = %v", err)
+	}
+	if len(filtered) != 1 || filtered[0].Name != "react-vite" {
+		t.Fatalf("filtered templates = %#v", filtered)
+	}
+	if _, err := filterTemplatesForValidation(templates, "missing"); err == nil {
+		t.Fatal("expected missing template filter to fail")
+	}
+}
+
+func TestRunTemplateValidateDefaultsToShallowAndSupportsTemplateFilter(t *testing.T) {
+	repoRoot := t.TempDir()
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", "missing-manifest")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	var stdout, stderr strings.Builder
+	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, &capturedSubprocess{})
+
+	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+		TemplateName: "missing-manifest",
+	})
+	if err != nil {
+		t.Fatalf("runTemplateValidate() error = %v", err)
+	}
+	if report.Mode != scenariocli.TemplateValidationModeShallow || report.TemplateName != "missing-manifest" || report.Count != 1 {
+		t.Fatalf("report = %#v", report)
+	}
+	if len(report.Issues) != 1 || !strings.Contains(report.Issues[0].Message, "template.json is missing") {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+
+	if _, _, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{TemplateName: "missing"}); err == nil {
+		t.Fatal("expected missing template filter to fail")
+	}
+}
+
+func TestRunTemplateValidateDeepInvokesTestGenieWithScenarioPath(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedRepoContract(t, repoRoot)
+	templateName := "demo-template"
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
+  "name": "demo-template",
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description"}
+  }
+}`)
+	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# {{SCENARIO_DISPLAY_NAME}}\n")
+	var stdout, stderr strings.Builder
+	capture := &capturedSubprocess{stdout: `{"success":true}`}
+	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
+	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
+
+	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+		Mode:         scenariocli.TemplateValidationModeDeep,
+		TemplateName: templateName,
+		TestPreset:   "quick",
+	})
+	if err != nil {
+		t.Fatalf("runTemplateValidate(deep) error = %v", err)
+	}
+	if len(report.Issues) != 0 {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+	if report.Mode != scenariocli.TemplateValidationModeDeep || report.Count != 1 || len(report.DeepRuns) != 1 {
+		t.Fatalf("report = %#v", report)
+	}
+	deepRun := report.DeepRuns[0]
+	if deepRun.ScenarioID != "template-validation-demo-template-deep" ||
+		deepRun.TestPreset != "quick" ||
+		deepRun.CleanupStatus != "removed" ||
+		deepRun.RetainedTemp {
+		t.Fatalf("deepRun = %#v", deepRun)
+	}
+	if _, err := os.Stat(deepRun.TempRoot); !os.IsNotExist(err) {
+		t.Fatalf("temp root cleanup err = %v, want not exist", err)
+	}
+	if len(capture.calls) != 1 {
+		t.Fatalf("captured %d subprocess calls, want test-genie only", len(capture.calls))
+	}
+	call := capture.calls[0]
+	if call.Name != "/tmp/test-genie" {
+		t.Fatalf("test-genie call name = %q", call.Name)
+	}
+	args := strings.Join(call.Args, " ")
+	for _, want := range []string{
+		"execute template-validation-demo-template-deep",
+		"--scenario-path " + deepRun.ScenarioPath,
+		"--preset quick",
+		"--no-stream",
+		"--json",
+	} {
+		if !strings.Contains(args, want) {
+			t.Fatalf("args = %q, want %q", args, want)
+		}
+	}
+}
+
+func TestRunTemplateValidateDeepFailsWhenTestGenieJSONReportsFailure(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedRepoContract(t, repoRoot)
+	templateName := "demo-template"
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
+  "name": "demo-template",
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description"}
+  }
+}`)
+	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# {{SCENARIO_DISPLAY_NAME}}\n")
+	var stdout, stderr strings.Builder
+	capture := &capturedSubprocess{stdout: `{
+  "success": false,
+  "phaseSummary": {"total": 2, "passed": 1, "failed": 1},
+  "phases": [
+    {"name": "structure", "status": "passed"},
+    {"name": "unit", "status": "failed", "error": "go test failed"}
+  ]
+}`}
+	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
+	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
+
+	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+		Mode:         scenariocli.TemplateValidationModeDeep,
+		TemplateName: templateName,
+		TestPreset:   "quick",
+	})
+	if err != nil {
+		t.Fatalf("runTemplateValidate(deep) error = %v", err)
+	}
+	if len(report.Issues) != 1 {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+	if !strings.Contains(report.Issues[0].Message, "unit: go test failed") {
+		t.Fatalf("issue message = %q", report.Issues[0].Message)
+	}
+}
+
+func TestRunTemplateValidateDeepKeepsRelocationsDuringTestGenie(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedRepoContract(t, repoRoot)
+	templateName := "demo-template"
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
+	if err := os.MkdirAll(filepath.Join(templateDir, "proto"), 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
+  "name": "demo-template",
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description"}
+  },
+  "relocations": [
+    {"from": "proto/", "to": "packages/proto/schemas/{{SCENARIO_ID}}/"}
+  ]
+}`)
+	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# {{SCENARIO_DISPLAY_NAME}}\n")
+	writeTestFile(t, filepath.Join(templateDir, "proto", "README.md"), "# {{SCENARIO_ID}}\n")
+	var stdout, stderr strings.Builder
+	var relocatedPath string
+	capture := &capturedSubprocess{
+		stdout: `{"success":true}`,
+		onRun: func(spec scenarioexec.SubprocessSpec) error {
+			if spec.Name != "/tmp/test-genie" {
+				return nil
+			}
+			for i, arg := range spec.Args {
+				if arg == "--scenario-path" && i+1 < len(spec.Args) {
+					scenarioID := filepath.Base(spec.Args[i+1])
+					relocatedPath = filepath.Join(repoRoot, "packages", "proto", "schemas", scenarioID, "README.md")
+					if _, err := os.Stat(relocatedPath); err != nil {
+						return fmt.Errorf("relocated file should exist during test-genie: %w", err)
+					}
+				}
+			}
+			return nil
+		},
+	}
+	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
+	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
+
+	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+		Mode:         scenariocli.TemplateValidationModeDeep,
+		TemplateName: templateName,
+		TestPreset:   "quick",
+	})
+	if err != nil {
+		t.Fatalf("runTemplateValidate(deep) error = %v", err)
+	}
+	if len(report.Issues) != 0 {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+	if relocatedPath == "" {
+		t.Fatal("test-genie call did not inspect relocated path")
+	}
+	if _, err := os.Stat(relocatedPath); !os.IsNotExist(err) {
+		t.Fatalf("relocated path cleanup err = %v, want not exist", err)
+	}
+}
+
 func TestValidateTemplateSourceFlagsHardcodedLocalReplaceTargets(t *testing.T) {
 	templateDir := t.TempDir()
 	apiDir := filepath.Join(templateDir, "api")
@@ -264,12 +490,23 @@ func TestPreflightDesignTemplateCollisionsRejectsTemplateOwnedTargets(t *testing
 // post-command tests can assert cwd, command, and call count without
 // actually executing anything.
 type capturedSubprocess struct {
-	calls []scenarioexec.SubprocessSpec
+	calls  []scenarioexec.SubprocessSpec
+	stdout string
+	err    error
+	onRun  func(scenarioexec.SubprocessSpec) error
 }
 
 func (c *capturedSubprocess) Run(_ struct{}, spec scenarioexec.SubprocessSpec) error {
 	c.calls = append(c.calls, spec)
-	return nil
+	if c.onRun != nil {
+		if err := c.onRun(spec); err != nil {
+			return err
+		}
+	}
+	if c.stdout != "" && spec.Stdout != nil {
+		_, _ = io.WriteString(spec.Stdout, c.stdout)
+	}
+	return c.err
 }
 
 // newRelocationTestDeps builds a HandlerDeps that captures subprocess

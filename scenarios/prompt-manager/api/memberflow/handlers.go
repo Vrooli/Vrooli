@@ -352,6 +352,64 @@ type DrainStatusResponse struct {
 	Note    string             `json:"note,omitempty"`
 }
 
+// GetOperatingGraphs handles GET /operating-graphs.
+func (h *Handlers) GetOperatingGraphs(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+	id := r.URL.Query().Get("id")
+	blocks, err := LoadOperatingGraphBlocks(h.repoRoot())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, OperatingGraphListResponse{
+		Graphs: filterOperatingGraphBlocks(blocks, team, id),
+	})
+}
+
+// ValidateOperatingGraphsHandler handles GET /operating-graphs/validate.
+func (h *Handlers) ValidateOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+	id := r.URL.Query().Get("id")
+	repoRoot := h.repoRoot()
+	blocks, err := LoadOperatingGraphBlocks(repoRoot)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	runtime, err := BuildOperatingGraphRuntime(repoRoot, h.storeDir)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	filtered := filterOperatingGraphBlocks(blocks, team, id)
+	writeJSON(w, http.StatusOK, OperatingGraphValidationResponse{
+		Graphs:     filtered,
+		Validation: ValidateOperatingGraphs(filtered, runtime, "", ""),
+	})
+}
+
+// DiffOperatingGraphsHandler handles GET /operating-graphs/diff.
+func (h *Handlers) DiffOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+	id := r.URL.Query().Get("id")
+	repoRoot := h.repoRoot()
+	blocks, err := LoadOperatingGraphBlocks(repoRoot)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	runtime, err := BuildOperatingGraphRuntime(repoRoot, h.storeDir)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	filtered := filterOperatingGraphBlocks(blocks, team, id)
+	writeJSON(w, http.StatusOK, OperatingGraphDiffResponse{
+		Graphs: filtered,
+		Diff:   DiffOperatingGraphs(filtered, runtime, "", ""),
+	})
+}
+
 // GetDrainStatus handles GET /topics/drain-status — returns per-intake-prefix
 // queue depth + age. Returns an empty result with a note when no knowledge
 // query is wired in (e.g. test harnesses without a team store).

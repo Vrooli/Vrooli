@@ -83,6 +83,12 @@ func TestServer_HandlerNotNil(t *testing.T) {
 	require.NotNil(t, srv.Handler(), "server.Handler() must not be nil")
 }
 
+func TestServer_NewRequiresClock(t *testing.T) {
+	require.PanicsWithValue(t, "server.New requires Deps.Clock", func() {
+		server.New(server.Deps{Logger: log.New(io.Discard, "", 0)})
+	})
+}
+
 func newTestDeps() server.Deps {
 	return server.Deps{
 		Clock:  clock.System{},

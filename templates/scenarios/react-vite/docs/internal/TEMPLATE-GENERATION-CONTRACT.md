@@ -26,7 +26,8 @@ The template's `template.json` controls generation:
   `packages/proto/schemas/{{SCENARIO_ID}}/`.
 - `postHooks` are optional generation follow-up commands. They are
   advertised after generation and run only when the user passes
-  `--run-hooks`.
+  `--run-hooks`; template deep validation also runs them because it is
+  the source of truth for first-run generated scenario health.
 
 Unsupported manifest fields are ignored by the current Go decoder.
 Add a field to `internal/cli/scenariocli.TemplateManifest` before
@@ -125,14 +126,23 @@ If the mechanical replacement workflow changes, update
 
 ## Validation
 
-Before finishing template changes, run:
+Before finishing routine template changes, run shallow validation and
+the generator tests:
 
 ```bash
-vrooli scenario template validate
+vrooli scenario template validate --mode shallow --template react-vite
 go test ./internal/cli/scenariohandlers ./internal/cli/scenariocli
 ```
 
-For broad template edits, also run:
+Before marking first-run-sensitive template changes complete, run deep
+validation. It generates a temporary real scenario, runs post hooks, and
+executes test-genie against the generated scenario path:
+
+```bash
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
+```
+
+For broad template edits, also run the drift search:
 
 ```bash
 rg "cmd/server|ParseInterspersed|PrintReportJSON|Pass [0-9]" templates/scenarios/react-vite

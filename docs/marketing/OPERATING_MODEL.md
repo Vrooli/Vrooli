@@ -88,138 +88,221 @@ flowchart LR
 
 The second diagram is the full topic-level view. It is the reference shape for validating whether topic producers, readers, decisions, and durable logs form a coherent marketing system.
 
+<!-- prompt-manager-graph:
+id: marketing-operating-model
+scope: team
+team: marketing-crew
+mode: contract
+-->
 ```mermaid
 flowchart LR
-  %% Intake
-  OP[Operator / vision walk]
-  BIH[Bookmark intelligence hub]
-  EXT[External research]
-  INT[Internal product activity]
-  TEL[Future telemetry]
+  %% Members
+  R["member:researcher<br/>Researcher"]
+  BM["member:brand-manager<br/>Brand Manager"]
+  OSS["member:oss-advertiser<br/>OSS Advertiser"]
+  SUB["member:subscription-advertiser<br/>Subscription Advertiser"]
+  PUB["member:publisher<br/>Publisher"]
+  CONTRA["member:marketing-contrarian<br/>Marketing Contrarian"]
 
-  OP --> RI[research-inbox/*]
+  %% External and cross-team boundaries
+  OP["external:operator<br/>Operator"]
+  VW["external:vision-walk<br/>Vision walk"]
+  BIH["external:bookmark-intelligence-hub<br/>Bookmark intelligence hub"]
+  TEL["future:publish-telemetry<br/>Future telemetry"]
+  MON["team:monetization<br/>Monetization team"]
+
+  %% Topics
+  RI["topic:research-inbox/*"]
+  AS["topic:audience-scan/*"]
+  COMP["topic:competitor-record/*"]
+  HOOK["topic:hook-record/*"]
+  WF["topic:workflow-scan/*"]
+  SKILL["topic:skill-scan/*"]
+  CHAN["topic:channel-scan/*"]
+  FORMAT["topic:format-scan/*"]
+  MB["topic:monetization-benchmark-adjacent-record/*"]
+  REQOSS["topic:artifact-request/oss/*"]
+  REQSUB["topic:artifact-request/subscription/*"]
+  DRAFT["topic:campaign-draft/*"]
+  OSSRUN["topic:oss-ad-run/*"]
+  SUBRUN["topic:subscription-ad-run/*"]
+  ARUN["topic[future]:ad-run/<lane>/*"]
+  PLOG["topic:publish-log/*"]
+  COV["topic:coverage-snapshot/*"]
+  BRANDSNAP["topic:brand-snapshot/*"]
+  PSM["topic[future]:published-scenario-mentions/*"]
+  PERF["topic[future]:publish-performance/*"]
+  NOTE["topic:marketing/notebook/*"]
+  CHAL["topic:challenge-report/*"]
+  RES["topic:challenge-resolution-record/*"]
+  AGING["topic:aging-scan-note/*"]
+
+  %% Decisions and durable canon
+  AUD["decision:audience-update"]
+  CHSTR["decision:channel-strategy-update"]
+  POST["decision:post-type-proposal"]
+  HCP["decision:hook-candidate-promotion"]
+  CAMP["decision:campaign-launch-proposal"]
+  BGUIDE["decision:brand-guideline-update"]
+  NPROMO["decision:notebook-promotion"]
+  NRETIRE["decision:notebook-retirement"]
+  CPP["decision:content-publish-proposal"]
+  CHUP["decision:channel-update"]
+  COVGAP["decision:coverage-gap"]
+  CAP["decision:capability-gap"]
+  DREJ["decision:decision-rejection-proposed"]
+  FRAME["decision:framework-update"]
+  CANON1["por:docs/marketing/STRATEGY.md"]
+  CANON2["por:docs/marketing/AUDIENCES.md"]
+  LEARN["process:learning-synthesis<br/>Learning synthesis"]
+  ADPROC["process:advertiser-draft-producer<br/>Advertiser draft producer"]
+  BACKLOG["process:skill-scenario-action-backlog<br/>Skill / scenario / action backlog"]
+
+  %% Intake
+  OP --> RI
+  VW --> RI
   BIH --> RI
-  EXT --> RI
-  INT --> RI
+  RI --> R
 
   %% Research
-  RI --> R[Researcher]
-  R --> AS[audience-scan/*]
-  R --> COMP[competitor-record/*]
-  R --> HOOK[hook-record/*]
-  R --> WF[workflow-scan/*]
-  R --> SKILL[skill-scan/*]
-  R --> CHAN[channel-scan/*]
-  R --> FORMAT[format-scan/*]
-  R --> MB[monetization-benchmark-adjacent-record/*]
+  R --> AS
+  R --> COMP
+  R --> HOOK
+  R --> WF
+  R --> SKILL
+  R --> CHAN
+  R --> FORMAT
+  R --> MB
+  MB --> MON
+  AS --> R
+  MB --> R
+  R --> AUD
+  R --> CHSTR
+  R --> POST
+  R --> HCP
+  R --> CAP
 
-  MB --> MON[Monetization team]
-
-  AS --> PLAN[Planning decisions]
-  COMP --> PLAN
-  HOOK --> PLAN
-  WF --> PLAN
-  SKILL --> PLAN
-  CHAN --> PLAN
-  FORMAT --> PLAN
-
-  PLAN --> AUD[audience-update]
-  PLAN --> CHSTR[channel-strategy-update]
-  PLAN --> POST[post-type-proposal]
-  PLAN --> HCP[hook-candidate-promotion]
-  PLAN --> CAP[capability-gap]
-
-  %% Strategy / campaign planning
-  AUD --> BM[Brand Manager]
-  CHSTR --> BM
-  POST --> BM
-  HCP --> BM
+  %% Brand management and canon
+  OP --> BM
+  VW --> BM
+  NOTE --> BM
+  AS --> BM
+  COMP --> BM
+  HOOK --> BM
+  CHAN --> BM
+  FORMAT --> BM
+  PLOG --> BM
+  COV --> BM
+  BRANDSNAP --> BM
+  CHAL --> BM
+  RES --> BM
   CAP --> BM
+  BM --> CANON1
+  BM --> CANON2
+  BM --> BRANDSNAP
+  BM --> REQOSS
+  BM --> REQSUB
+  BM --> CAMP
+  BM --> BGUIDE
+  BM --> NPROMO
+  BM --> NRETIRE
 
-  BM --> CANON[Marketing canon]
-  BM --> CAMP[campaign-launch-proposal]
-  BM --> NDEC[notebook-promotion / notebook-retirement]
+  %% Draft production
+  OP --> OSS
+  VW --> OSS
+  REQOSS --> OSS
+  AS --> OSS
+  COMP --> OSS
+  HOOK --> OSS
+  WF --> OSS
+  SKILL --> OSS
+  CHAN --> OSS
+  FORMAT --> OSS
+  PLOG --> OSS
+  COV --> OSS
+  OSSRUN --> OSS
+  CHAL --> OSS
+  RES --> OSS
+  CAP --> OSS
+  OSS --> DRAFT
+  OSS --> OSSRUN
+  OSS --> CPP
+  OSS --> COVGAP
+  OSS --> CAP
 
-  CANON --> REQ[artifact-request/*]
-  CAMP --> REQ
-  AS --> REQ
-  COMP --> REQ
-  HOOK --> REQ
-  CHAN --> REQ
-  FORMAT --> REQ
-
-  %% Unified drafting
-  REQ --> ADV[Advertiser / Draft Producer]
-  CANON --> ADV
-  AS --> ADV
-  COMP --> ADV
-  HOOK --> ADV
-  CHAN --> ADV
-  FORMAT --> ADV
-  COV --> ADV
-  PLOG --> ADV
-  PSM --> ADV
-
-  ADV --> DRAFT[campaign-draft/*]
-  ADV --> ARUN[ad-run/<lane>/*]
-  ADV --> CPP[content-publish-proposal]
-  ADV --> CAP
+  OP --> SUB
+  VW --> SUB
+  REQSUB --> SUB
+  AS --> SUB
+  COMP --> SUB
+  HOOK --> SUB
+  WF --> SUB
+  SKILL --> SUB
+  CHAN --> SUB
+  FORMAT --> SUB
+  PLOG --> SUB
+  COV --> SUB
+  SUBRUN --> SUB
+  CHAL --> SUB
+  RES --> SUB
+  CAP --> SUB
+  SUB --> DRAFT
+  SUB --> SUBRUN
+  SUB --> CPP
+  SUB --> COVGAP
+  SUB --> CAP
+  ADPROC --> ARUN
 
   %% Review
-  DRAFT --> CONTRA[Marketing Contrarian]
+  CHAL --> CONTRA
+  RES --> CONTRA
+  AGING --> CONTRA
   CPP --> CONTRA
   CAMP --> CONTRA
+  BGUIDE --> CONTRA
   AUD --> CONTRA
   CHSTR --> CONTRA
   POST --> CONTRA
   HCP --> CONTRA
+  CHUP --> CONTRA
+  COVGAP --> CONTRA
+  NPROMO --> CONTRA
+  NRETIRE --> CONTRA
   CAP --> CONTRA
+  CONTRA --> CHAL
+  CONTRA --> RES
+  CONTRA --> AGING
+  CONTRA --> DREJ
+  CONTRA --> FRAME
 
-  CONTRA --> CHAL[challenge-report/*]
-  CONTRA --> RES[challenge-resolution-record/*]
-  CONTRA --> AGING[aging-scan-note/*]
-
-  CHAL --> BM
-  CHAL --> ADV
-  CHAL --> R
-  RES --> BM
-  RES --> ADV
-  RES --> R
-
-  %% Approval and publishing
-  CPP --> APPROVAL[Operator approval]
-  APPROVAL --> PUB[Publisher]
+  %% Approval, publishing, and learning
+  OP --> PUB
+  REQOSS --> PUB
+  REQSUB --> PUB
   DRAFT --> PUB
-  CANON --> PUB
+  COV --> PUB
   CHAL --> PUB
   RES --> PUB
-
-  PUB --> PLOG[publish-log/*]
-  PUB --> COV[coverage-snapshot/*]
-  PUB --> PSM[published-scenario-mentions/*]
-  PUB --> CHUP[channel-update]
+  CAP --> PUB
+  PUB --> PLOG
+  PUB --> COV
+  PUB --> CPP
+  PUB --> CHUP
+  PUB --> COVGAP
   PUB --> CAP
-
-  %% Learning loop
-  TEL --> PERF[publish-performance/*]
-  PLOG --> PERF
-
-  PERF --> LEARN[Learning synthesis]
+  TEL --> PERF
   PLOG --> LEARN
   COV --> LEARN
   PSM --> LEARN
+  PERF --> LEARN
   CHAL --> LEARN
   RES --> LEARN
-
-  LEARN --> NOTE[marketing/notebook/*]
-  NOTE --> BM
+  LEARN --> NOTE
   NOTE --> R
-  NOTE --> ADV
+  NOTE --> OSS
+  NOTE --> SUB
   NOTE --> PUB
-
-  NOTE --> NDEC
-  NDEC --> CANON
-  NDEC --> SKBACKLOG[skill / scenario / action backlog]
+  NPROMO --> BACKLOG
 ```
 
 ## Topic Catalog

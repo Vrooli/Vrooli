@@ -41,7 +41,7 @@ api/
 │   ├── clock/clock.go            # Clock interface + clock.System
 │   ├── database/pinger.go        # Pinger interface
 │   ├── middleware/logging.go     # Uses clock.Clock — no time.Now()
-│   ├── server/                   # Server wires Pinger + Clock + Logger
+│   ├── server/                   # Server wires cross-cutting Clock + Logger
 │   └── testutil/
 │       ├── assertx/              # AssertStatus, MustDecodeJSON[T]
 │       ├── db/                   # NewSQLite(t) — modernc.org/sqlite
@@ -97,13 +97,18 @@ package health_test
 
 import (
     "errors"
+    "io"
+    "log"
     "net/http"
     "testing"
 
+    "github.com/gorilla/mux"
     "github.com/stretchr/testify/require"
     healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
 
+    "{{SCENARIO_ID}}/handlers/health"
     "{{SCENARIO_ID}}/internal/clock"
+    "{{SCENARIO_ID}}/internal/module"
     "{{SCENARIO_ID}}/internal/server"
     "{{SCENARIO_ID}}/internal/testutil/assertx"
     "{{SCENARIO_ID}}/internal/testutil/httpx"
@@ -124,7 +129,21 @@ func TestHealthHandler(t *testing.T) {
     for _, tc := range cases {
         t.Run(tc.name, func(t *testing.T) {
             pinger := &mocks.FakePinger{PingErr: tc.pingErr}
-            srv := server.New(server.Deps{Pinger: pinger, Clock: clock.System{}, /*…*/})
+            h := health.NewHandler(health.Deps{
+                Pinger:  pinger,
+                Service: "{{SCENARIO_ID}}",
+                Version: "1.0.0",
+            })
+            mod := module.Module{
+                Name: "health",
+                Mount: func(r *mux.Router) {
+                    r.HandleFunc("/health", h).Methods(http.MethodGet)
+                },
+            }
+            srv := server.New(
+                server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+                mod,
+            )
 
             live := httpx.NewLiveServer(t, srv)
             resp, body := live.Do(t, http.MethodGet, "/health", nil)

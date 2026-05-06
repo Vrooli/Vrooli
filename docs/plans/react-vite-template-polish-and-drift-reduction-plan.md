@@ -1,913 +1,569 @@
-# React-Vite Template Polish and Drift Reduction Plan
+# React-Vite Template Validation and Polish Plan
 
 **Plan file**: `path:docs/plans/react-vite-template-polish-and-drift-reduction-plan.md`  
-**Authored**: 2026-05-05  
-**Owner**: meta-optimization / toolchain-validator  
-**Target**: `path:templates/scenarios/react-vite/`  
-**Status**: ready for implementation; no code changes from this plan have been applied yet
+**Revised**: 2026-05-06  
+**Owner**: meta-optimization / template-validation  
+**Primary target**: `path:templates/scenarios/react-vite/`  
+**Supporting targets**:
+
+- `path:internal/cli/scenariohandlers/template_runtime.go`
+- `path:internal/cli/scenariocli/template_parsers.go`
+- `path:scenarios/test-genie/`
+
+**Status**: implemented 2026-05-06; keep as the validation contract and
+historical implementation record
 
 ---
 
 ## 1. Purpose
 
-This plan turns the 2026-05-05 review of `templates/scenarios/react-vite`
-into an executable implementation program. The template is already strong:
-Connect-RPC is the canonical wire path, the API owns business logic,
-schemas are domain-owned, the CLI and UI are thin translation surfaces,
-and endpoint metadata is generated from domain modules.
+`templates/scenarios/react-vite` is the main scenario template for new
+React/Vite scenarios. It is already in strong shape: Connect-RPC is the shared
+wire contract, API logic is domain-owned, CLI/UI surfaces are thin, and the
+template includes useful docs and tests.
 
-The remaining work is multiplier-sensitive polish:
+The remaining highest-leverage work is not adding more generated application
+features. It is making template validation strong enough that a future agent can
+ask one question and get a trustworthy answer:
 
-1. Fix first-run/standalone CI correctness issues.
-2. Remove stale docs and confusing lifecycle wording.
-3. Add enforcement where the template currently relies on convention.
-4. Reduce central coordinated edits for new domains and endpoints.
-5. Improve generated-scenario ergonomics around i18n, CLI metadata,
-   domain scaffolding, and the attachments reference slice.
+> If a real scenario is generated from this template right now, does it work
+> cleanly from first run?
 
-The goal is not cosmetic cleanup. The target end state is a template where
-new scenarios start green, future agents copy current examples rather than
-stale ones, and common domain/endpoint changes require fewer manual files.
+This plan therefore focuses on adding first-class shallow/deep validation to the
+template validation command, where deep validation generates a temporary real
+scenario and runs test-genie against that generated output.
 
 ---
 
 ## 2. Required Reading
 
-Run before executing any phase:
+Run before implementing:
 
 ```bash
 prompt-manager skill read implementation-plan-authoring
 prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement
 ```
 
-Reference files to read top-to-bottom:
+Read these files before editing:
 
-- `path:docs/agent-system/REFERENCE_PATTERN_FITNESS.md` — multiplier-aware audit lens.
-- `path:scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite-template/2026-05-04/RESULTS.md` — iteration-2 Connect-RPC measurement and remaining issues.
-- `path:templates/scenarios/react-vite/README.md`
 - `path:templates/scenarios/react-vite/template.json`
-- `path:templates/scenarios/react-vite/.github/workflows/test.yml`
-- `path:templates/scenarios/react-vite/.vrooli/service.json`
-- `path:templates/scenarios/react-vite/docs/concepts/ARCHITECTURE.md`
+- `path:templates/scenarios/react-vite/docs/START-HERE.md`
+- `path:templates/scenarios/react-vite/docs/internal/TEMPLATE-GENERATION-CONTRACT.md`
+- `path:templates/scenarios/react-vite/docs/internal/TEMPLATE-MAINTENANCE.md`
 - `path:templates/scenarios/react-vite/docs/internal/TESTING.md`
-- `path:templates/scenarios/react-vite/docs/internal/SEAMS.md`
-- `path:templates/scenarios/react-vite/docs/internal/REPLACING-NOTES.md`
-- `path:templates/scenarios/react-vite/api/internal/modules/registry.go`
-- `path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go`
-- `path:templates/scenarios/react-vite/api/cmd/gen-endpoints/cli_commands_seed.json`
-- `path:templates/scenarios/react-vite/cli/domains/domains.go`
-- `path:templates/scenarios/react-vite/ui/src/i18n/locales.ts`
-- `path:templates/scenarios/react-vite/ui/src/i18n/locales/locales.test.ts`
-- `path:templates/scenarios/react-vite/ui/src/consts/selectors.ts`
+- `path:templates/scenarios/react-vite/.vrooli/service.json`
+- `path:templates/scenarios/react-vite/.vrooli/testing.json`
+- `path:internal/cli/scenariohandlers/template_runtime.go`
+- `path:internal/cli/scenariocli/template_parsers.go`
+- `path:internal/cli/scenariocli/help.go`
+- `path:internal/cli/scenariocli/scenariocli_test.go`
+- `path:scenarios/test-genie/cli/execute/command.go`
+- `path:scenarios/test-genie/cli/internal/execute/types.go`
+- `path:scenarios/test-genie/api/internal/orchestrator/workspace/workspace.go`
+- `path:scenarios/test-genie/api/internal/orchestrator/plan_preview.go`
+- `path:scenarios/test-genie/api/internal/orchestrator/suite_execution.go`
+
+Current docs note: `docs/internal/REPLACING-NOTES.md` no longer exists in the
+template. Replacement and cleanup guidance now belongs in
+`docs/START-HERE.md`, with template-only generation rules in
+`docs/internal/TEMPLATE-GENERATION-CONTRACT.md`.
 
 ---
 
 ## 3. Hard Rules
 
-### 3.1 Greenfield Template Rule
-
-This is greenfield template work. Existing generated scenarios do not get
-compatibility shims from this plan.
-
-Under `path:templates/scenarios/react-vite/**`:
-
-- No compatibility wrappers, alias imports, deprecated exports, or old+new paths.
-- No `// Deprecated:`, `// legacy`, `// compat`, `backward compatibility`, or
-  similar comments.
-- If a new template shape breaks an old generated scenario, that is out of
-  scope; old scenarios update when next touched.
-
-### 3.2 Additive Shared-Package Rule
-
-Changes under shared packages such as `packages/cli-core`,
-`packages/api-core`, and `packages/api-base` must be additive:
-
-- Do not remove exported symbols.
-- Do not change exported function signatures used by existing scenarios.
-- New helpers may be added and then adopted by the template.
-
-### 3.3 Dependency Rule
-
-Do not add new third-party dependencies without explicit user permission.
-This plan should be implementable with existing repo packages, Go stdlib,
-existing npm packages, and local scripts.
-
-### 3.4 Scenario Lifecycle Rule
-
-All generated-scenario validation must use lifecycle commands:
-
-```bash
-cd scenarios/<generated-smoke>
-make setup
-make test
-make start
-make status
-make stop
-```
-
-Never start generated scenario binaries directly outside lifecycle-managed
-commands.
+1. Do not implement a project-level command for adding domains to scenarios.
+   Different templates may use different languages, frameworks, layouts, and
+   architectural choices. A generic domain scaffold command would hard-code
+   assumptions that only fit this template.
+2. Do not add generated CLI command metadata work to this plan. It may be a
+   separate future idea, but it is outside this implementation.
+3. Do not add an attachments reference-scope phase. It is not part of this
+   validation plan.
+4. Do not do broad standalone CI or Git provider workflow work. No Git
+   operations are part of this plan.
+5. Do not install new third-party dependencies without explicit permission.
+6. Preserve the default developer path: normal validation must stay fast enough
+   for routine local use.
+7. Deep validation must be automated. A manual smoke checklist is not an
+   acceptable substitute.
+8. Temporary generated scenarios must be cleaned up by default, including
+   generated proto relocation outputs. Keep a retention flag only for debugging.
 
 ---
 
 ## 4. Problem Statement
 
-The current template has a professional architecture, but several remaining
-issues carry high replication risk:
+`vrooli scenario template validate` currently catches useful template issues:
 
-1. `.github/workflows/test.yml` runs `pnpm install --frozen-lockfile` and
-   caches `ui/pnpm-lock.yaml`, but the template source does not currently
-   include `ui/pnpm-lock.yaml`.
-2. `docs/internal/TESTING.md` contains a stale canonical health test snippet
-   showing `server.Deps{Pinger: ...}` even though health now owns `Pinger`
-   through `health.Module(...)`.
-3. `.vrooli/service.json` describes the `develop` lifecycle as launching a
-   Vite dev server, but the actual UI process serves the production bundle
-   with `node server.js`.
-4. API production-import guardrails ban `internal/testutil` imports but do
-   not ban production files importing domain-local `mocks` packages.
-5. `server.New` documents that `Clock` must be explicit but does not fail
-   clearly if it is omitted.
-6. `cli_commands_seed.json` is still hand-maintained as a third metadata
-   source beside CLI registration and endpoint descriptors.
-7. Adding a new domain still needs central edits in API registry, API main,
-   CLI domains aggregator, UI app composition, selectors, locale catalogs,
-   generated strings, proto schemas, endpoint manifest, and CLI metadata.
-8. i18n locale parity is enforced, but adding strings still requires copying
-   keys across three locale files manually.
-9. The notes attachments slice is valuable as the REST-multipart exception
-   reference, but it increases the size of the canonical example and deletion
-   surface.
+- malformed or missing `template.json`
+- unresolved placeholders after copying
+- default design copy problems
+- relocation source problems
+- generated-scenario checks in a temporary directory
+- selected generated API/CLI/UI commands when subprocess execution is available
 
-These are not severe for one scenario. They matter because this template is
-the copy source for potentially many scenarios.
+That is valuable, but it is still a template-local validator. It does not expose
+clear validation modes, and it does not run the same ground-truth suite that a
+real scenario uses through test-genie.
+
+The gap is especially important because this template can be copied hundreds or
+thousands of times. Small omissions in setup, docs, generated paths, lifecycle
+configuration, lint/test expectations, or template placeholders multiply.
 
 ---
 
 ## 5. Scope
 
-### 5.1 In Scope
+### In Scope
 
-- Template lockfile / standalone CI first-push correctness.
-- Documentation repair for stale examples and lifecycle wording.
-- Production import guardrails for domain `mocks` packages.
-- Explicit `server.New` missing-dependency failure behavior.
-- CLI command metadata generation from the real CLI registration surface.
-- A domain scaffolding helper that reduces manual central edits.
-- Locale synchronization tooling that keeps non-English catalogs in parity
-  without hand-copying every key.
-- A decision and implementation path for the notes attachments reference
-  scope.
-- Validation using template validation, local package tests, and a generated
-  smoke scenario.
+- Add explicit validation modes to `vrooli scenario template validate`.
+- Keep the existing behavior as the default shallow mode, with focused
+  improvements where needed.
+- Add a deep mode that:
+  - generates a real scenario from `react-vite` into a temporary workspace,
+  - replaces placeholders using deterministic validation seed values,
+  - performs template relocations and post-generation setup needed for a real
+    first-run scenario,
+  - runs test-genie against the generated scenario path,
+  - reports failures through the template validation report,
+  - cleans temporary workspace and relocation outputs by default.
+- Add any small test-genie CLI/API support needed to run against an explicit
+  generated scenario path.
+- Update template docs so maintainers know when to use shallow vs deep
+  validation.
+- Apply only small template polish items that are directly validated by the new
+  validation flow or remove known first-run confusion.
 
-### 5.2 Out of Scope
+### Out of Scope
 
-- Migrating existing scenarios generated from older template revisions.
-- Changing the template's base stack (React, Vite, Go, SQLite, Connect-RPC).
-- Adding auth, resources, router libraries, or new product features.
-- Replacing Connect-RPC or changing proto package conventions.
-- Broad visual redesign of the UI.
-- Introducing third-party i18n translation services or paid APIs.
+- Generic scenario domain scaffolding.
+- Template-defined "how to add a domain" metadata in `template.json`.
+- Generated CLI command metadata.
+- Attachments reference architecture decisions.
+- Generated scenario migration support.
+- Broad Git provider workflow validation.
+- Any compatibility layer for old generated scenarios.
 
 ---
 
 ## 6. Current Technical Context
 
-### 6.1 Template Validation
+### Template Validation CLI
 
-Observed command:
+`internal/cli/scenariohandlers/template_runtime.go` owns
+`runTemplateValidate`. Current validation loads every template, validates the
+template source, copies a generated scenario to an OS temp directory, verifies
+placeholders, runs relocations with `template-validation-*` seed values, cleans
+relocation targets, and calls `validateGeneratedScenario`.
 
-```bash
-vrooli scenario template validate
-```
+`internal/cli/scenariocli/template_parsers.go` currently defines
+`scenario template validate` without validate-specific flags.
 
-Observed result on 2026-05-05:
+### Test-Genie Path Support
 
-```text
-Validated 2 scenario templates
-```
+`scenarios/test-genie/cli/execute/command.go` currently accepts
+`test-genie execute <scenario> ...` and sets `ScenarioPath` by calling
+`cliutil.ResolveScenarioPath(parsed.Scenario)`.
 
-### 6.2 Lockfile Gap
+The API side already understands scenario path overrides:
 
-`path:templates/scenarios/react-vite/.github/workflows/test.yml`:
+- `scenarios/test-genie/cli/internal/execute/types.go` has `ScenarioPath`.
+- `scenarios/test-genie/api/internal/orchestrator/workspace/workspace.go` has
+  `NewWithOverride`.
+- `scenarios/test-genie/api/internal/orchestrator/plan_preview.go` passes
+  `req.ScenarioPath` to `NewWithOverride`.
+- `scenarios/test-genie/api/internal/orchestrator/suite_execution.go` carries
+  `ScenarioPath` in execution requests.
 
-- Uses `cache-dependency-path: ui/pnpm-lock.yaml`.
-- Runs `pnpm install --frozen-lockfile --ignore-workspace`.
+Likely implementation implication: test-genie may only need an execute CLI flag
+such as `--scenario-path <abs-path>`, plus tests and help text, rather than a
+large API change.
 
-`path:templates/scenarios/react-vite/ui/` currently has no `pnpm-lock.yaml`
-in the template source.
+### Current Template Docs
 
-### 6.3 Stale Testing Example
+The current template docs under `templates/scenarios/react-vite/docs` are:
 
-`path:templates/scenarios/react-vite/docs/internal/TESTING.md` shows:
+- `QUICKSTART.md`
+- `START-HERE.md`
+- `concepts/ARCHITECTURE.md`
+- `guides/troubleshooting.md`
+- `internal/ERROR-HANDLING.md`
+- `internal/PROBLEMS.md`
+- `internal/PROGRESS.md`
+- `internal/SEAMS.md`
+- `internal/TEMPLATE-GENERATION-CONTRACT.md`
+- `internal/TEMPLATE-MAINTENANCE.md`
+- `internal/TESTING.md`
+- `manifest.json`
+- `reference/api-endpoints.md`
+- `reference/cli-commands.md`
+- `reference/configuration.md`
 
-```go
-srv := server.New(server.Deps{Pinger: pinger, Clock: clock.System{}, /*…*/})
-```
-
-Actual current shape:
-
-- `server.Deps` contains only `Clock` and `Logger`.
-- `Pinger` is passed into `health.Module(pinger, service, version)`.
-
-### 6.4 Lifecycle Wording Drift
-
-`path:templates/scenarios/react-vite/.vrooli/service.json` says:
-
-- `develop.description`: `Launch API and Vite dev server`.
-
-Actual UI step:
-
-- `cd ui && node server.js`
-- The step serves `ui/dist/index.html`, not Vite dev server output.
-
-### 6.5 Existing Guardrails
-
-API guard:
-
-- `path:templates/scenarios/react-vite/api/internal/testutil/no_prod_import_test.go`
-- Bans production imports of `<module>/internal/testutil`.
-- Exempts files inside `mocks/` directories.
-- Does not currently fail when a production file imports
-  `<module>/internal/<domain>/mocks`.
-
-UI guard:
-
-- `path:templates/scenarios/react-vite/ui/eslint.config.js`
-- Bans production imports from `src/test-utils` and `features/<dom>/mocks`.
-
-CLI guard:
-
-- `path:templates/scenarios/react-vite/cli/internal/testutil/no_prod_import_test.go`
-- Bans production imports of CLI `internal/testutil`.
-
-### 6.6 Central Registries
-
-Manual central touch points today:
-
-- `api/main.go` for runtime module constructors.
-- `api/internal/modules/registry.go` for endpoint and schema providers.
-- `api/cmd/gen-endpoints/cli_commands_seed.json` for CLI command metadata.
-- `cli/domains/domains.go` for CLI domain registration.
-- `ui/src/App.tsx` for feature rendering.
-- `ui/src/consts/selectors.ts` for test IDs.
-- `ui/src/i18n/locales/*.json` for copy.
-- `ui/src/consts/strings.generated.ts` via codegen.
-- `.vrooli/endpoints.json` via codegen.
+Use those current files. Do not reference removed docs.
 
 ---
 
 ## 7. Target End State
 
-After this plan lands:
+The command surface should support this operational shape:
 
-1. Freshly generated scenarios include a valid UI lockfile or use a CI path
-   that does not require one. First standalone GitHub Actions run succeeds
-   without manual lockfile generation.
-2. Template docs match the current Connect/module/server shape.
-3. Lifecycle wording accurately describes whether the UI is served from a
-   production bundle or a true dev server.
-4. Production Go code cannot import scenario-local test packages or
-   domain-local `mocks` packages.
-5. `server.New` fails with an immediate, clear message when required
-   cross-cutting dependencies are missing.
-6. `.vrooli/endpoints.json` `cli_commands[]` entries are generated from the
-   CLI's registered command tree, not hand-maintained JSON.
-7. Adding a new domain can be started with a Vrooli-managed generator/helper
-   that creates the standard folders/files and updates known central
-   registrations.
-8. Adding a UI string requires editing English once, then running a sync tool
-   that inserts missing keys in other locale catalogs with deterministic
-   placeholder values.
-9. The attachments reference decision is documented and implemented:
-   either it remains in the base template with sharper deletion/scaffolding
-   docs, or it moves to a secondary example without bloating the base CRUD
-   reference.
-10. A generated smoke scenario validates setup, tests, start, health, and stop.
+```bash
+vrooli scenario template validate
+vrooli scenario template validate --mode shallow
+vrooli scenario template validate --mode deep --template react-vite
+vrooli scenario template validate --mode deep --template react-vite --retain-temp
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
+```
+
+Exact flag names may be adjusted to match local CLI conventions, but these
+contracts must hold:
+
+- Default mode is shallow.
+- Shallow mode is compatible with the current command's intent.
+- Deep mode is a built-in command path, not a documented manual checklist.
+- Deep mode generates a real temporary scenario and runs test-genie on that
+  generated scenario.
+- Human output gives a concise status, grouped findings, and next steps.
+- JSON output includes mode, template name, generated scenario id, retained temp
+  path when applicable, test-genie preset, per-phase failures when available, and
+  cleanup status.
 
 ---
 
 ## 8. Implementation Strategy
 
-### Phase 0 — Baseline and Safety Snapshot
+### Phase 0: Re-Baseline the Current State
 
-**Goal:** Confirm the current state before changing the template.
-
-Actions:
-
-1. Record worktree state:
-   ```bash
-   git status --short
-   ```
-2. Validate the template:
-   ```bash
-   vrooli scenario template validate
-   ```
-3. Run targeted template tests where currently feasible:
-   ```bash
-   ( cd templates/scenarios/react-vite/api && go test -race ./... )
-   ( cd templates/scenarios/react-vite/cli && go test -race ./... )
-   ```
-4. For UI, run only if dependencies are already installed. If not, defer
-   until Phase 1 lockfile work:
-   ```bash
-   ( cd templates/scenarios/react-vite/ui && pnpm strings:check && pnpm type-check && pnpm lint && pnpm test:coverage )
-   ```
-
-Deliverable:
-
-- Add an implementation note to this plan or `docs/internal/PROGRESS.md`
-  after execution with exact commands and results.
-
-### Phase 1 — Lockfile and Standalone CI Correctness
-
-**Goal:** Ensure a generated standalone scenario passes its first GitHub
-Actions run.
-
-Preferred implementation:
-
-1. From template UI:
-   ```bash
-   cd templates/scenarios/react-vite/ui
-   corepack pnpm install --ignore-workspace
-   ```
-2. Commit `path:templates/scenarios/react-vite/ui/pnpm-lock.yaml`.
-3. Verify placeholder substitution is acceptable in the lockfile:
-   ```bash
-   rg "{{SCENARIO_ID}}|{{SCENARIO_DISPLAY_NAME}}" pnpm-lock.yaml
-   ```
-   If placeholders appear, generate a smoke scenario and confirm the
-   generator substitution pass rewrites them. If not, update the generator's
-   substitution allowlist to include lockfiles.
-4. Change template setup commands to prefer frozen lockfiles when a lockfile
-   exists:
-   - `template.json::postHooks` UI install command.
-   - `.vrooli/service.json::lifecycle.setup.steps.install-ui-deps`.
-5. Keep a non-frozen fallback only if required for local generation; if a
-   fallback remains, document why in `docs/internal/TEMPLATE-MAINTENANCE.md`.
-
-Validation:
+Before editing, rerun a short discovery pass:
 
 ```bash
-( cd templates/scenarios/react-vite/ui && pnpm install --frozen-lockfile --ignore-workspace )
-( cd templates/scenarios/react-vite/ui && pnpm strings:check && pnpm type-check && pnpm lint && pnpm test:coverage && pnpm build )
+find templates/scenarios/react-vite/docs -maxdepth 3 -type f | sort
+rg -n "func runTemplateValidate|validateGeneratedScenario|TemplateValidateRequest|TemplateValidationReport" internal/cli
+rg -n "ScenarioPath|NewWithOverride|ResolveScenarioPath|test-genie execute" scenarios/test-genie/cli scenarios/test-genie/api/internal
 ```
 
-Acceptance:
+Record any surprise in this plan before implementation. In particular, verify
+whether test-genie already has a usable explicit scenario path flag by the time
+implementation starts.
 
-- `ui/pnpm-lock.yaml` exists in the template.
-- `.github/workflows/test.yml` install step succeeds locally with
-  `--frozen-lockfile --ignore-workspace`.
-- README / troubleshooting docs no longer imply lockfile generation is a
-  manual first-push task.
+### Phase 1: Add Validate Mode Contracts
 
-### Phase 2 — Documentation and Lifecycle Drift Repair
+Files:
 
-**Goal:** Make generated docs match current code.
+- `path:internal/cli/scenariocli/template_parsers.go`
+- `path:internal/cli/scenariocli/help.go`
+- `path:internal/cli/scenariocli/scenariocli_test.go`
+- request/report types in `path:internal/cli/scenariocli/`
+- handler tests in `path:internal/cli/scenariohandlers/`
 
-Actions:
+Implementation:
 
-1. Update `docs/internal/TESTING.md` canonical health snippet:
-   - Construct `health.Module(pinger, "service", "version")`.
-   - Construct `server.New(server.Deps{Clock, Logger}, healthModule)`.
-   - Remove any reference to `server.Deps.Pinger`.
-2. Search and update stale references:
-   ```bash
-   rg -n "Deps\\{Pinger|server\\.Deps\\{Pinger|Vite dev server|vite dev server|httptest.NewRecorder|backward compatibility" templates/scenarios/react-vite
-   ```
-3. Update `.vrooli/service.json` wording:
-   - If keeping production-bundle serving: change `develop.description` to
-     `Launch API and production UI server`.
-   - If adding a true dev lifecycle path: add it deliberately and document
-     which Make target uses it. Do not silently repurpose `make start`.
-4. Remove greenfield-inconsistent compatibility wording from
-   `ui/src/i18n/locales.ts` and `ui/src/i18n/index.ts`.
-5. Reword testing docs so `httpx.NewLiveServer` is required for
-   handler/client behavior, while narrow mux reachability tests may use
-   `httptest.NewRecorder` when no socket semantics are under test.
+1. Extend `TemplateValidateRequest` with:
+   - `Mode` using a constrained enum or string constant set: `shallow`, `deep`.
+   - optional `TemplateName` filter.
+   - optional `RetainTemp`.
+   - optional `TestPreset`, defaulting to the repo's standard comprehensive
+     test-genie preset for deep validation.
+2. Extend parser/help to accept:
+   - `--mode shallow|deep`
+   - `--template <name>`
+   - `--retain-temp`
+   - `--test-preset <name>`
+3. Reject invalid combinations early:
+   - unknown mode,
+   - unknown template filter,
+   - deep mode with a missing test-genie command when subprocess execution is
+     required.
+4. Extend the validation report model with mode and deep-run metadata without
+   weakening existing JSON consumers.
+5. Update CLI parser/help tests so the new flags are stable.
 
-Validation:
+Acceptance criteria:
+
+- `vrooli scenario template validate` still parses with no flags.
+- `--mode shallow` and `--mode deep` parse.
+- invalid modes fail with a usage error.
+- `--template react-vite` limits validation to that template.
+
+### Phase 2: Make Current Validation the Shallow Mode
+
+Files:
+
+- `path:internal/cli/scenariohandlers/template_runtime.go`
+- tests under `path:internal/cli/scenariohandlers/`
+
+Implementation:
+
+1. Extract current per-template validation into a named shallow validation
+   function.
+2. Keep the current generated-copy checks in shallow mode unless profiling shows
+   they are too expensive. The key is that shallow stays fast and local; it does
+   not invoke test-genie.
+3. Make source validation use current docs:
+   - `docs/START-HERE.md` as the generated scenario onboarding doc.
+   - `docs/internal/TEMPLATE-GENERATION-CONTRACT.md` as the template-only
+     generation contract.
+4. Improve issue messages where they still imply stale docs or manual smoke
+   steps.
+5. Keep relocation cleanup behavior deterministic for seed ids with
+   `template-validation-*`.
+
+Acceptance criteria:
+
+- Existing template validation tests still pass after being renamed or adjusted
+  for shallow mode.
+- Shallow mode does not mention removed docs.
+- Shallow mode remains the default.
+
+### Phase 3: Add Deep Validation Engine
+
+Files:
+
+- `path:internal/cli/scenariohandlers/template_runtime.go`
+- helper files in `path:internal/cli/scenariohandlers/` only if extraction keeps
+  the code clearer
+- tests under `path:internal/cli/scenariohandlers/`
+
+Implementation:
+
+1. Create a deep validation path separate from shallow validation.
+2. Generate a temporary workspace that looks enough like a Vrooli repository for
+   generated scenario tooling to resolve paths:
+   - temp root,
+   - `scenarios/<generated-id>/`,
+   - any minimal repo markers required by `repo-contract-go` or test-genie.
+3. Use deterministic generated ids, for example:
+   - template: `react-vite`
+   - generated id: `template-validation-react-vite-deep`
+4. Generate the scenario through existing generation functions, not by manually
+   copying partial folders.
+5. Run relocations using the generated id and clean all relocation targets after
+   validation unless `--retain-temp` is set.
+6. Run template post hooks needed for realistic first-run validation. If this is
+   too expensive for every deep run, support a later opt-out flag, but the
+   default deep contract should represent a real generated scenario.
+7. Invoke test-genie with:
 
 ```bash
-rg -n "Deps\\{Pinger|server\\.Deps\\{Pinger|backward compatibility|Vite dev server|vite dev server" templates/scenarios/react-vite
+test-genie execute template-validation-react-vite-deep \
+  --scenario-path <absolute-temp-root>/scenarios/template-validation-react-vite-deep \
+  --preset comprehensive \
+  --no-stream \
+  --json
 ```
 
-Acceptance:
+8. Convert test-genie failures into `TemplateValidationIssue` entries. Preserve
+   enough raw metadata in JSON output for debugging.
+9. In human output, show retained temp path only when retained or on failure if
+   the implementation chooses to retain failed runs for debugging.
 
-- No stale health-wiring snippet remains.
-- Lifecycle docs and manifest wording agree with actual commands.
-- No greenfield-inconsistent compatibility prose remains under the template.
+Acceptance criteria:
 
-### Phase 3 — Guardrail Hardening
+- Deep mode creates a generated scenario with no unresolved placeholders.
+- Deep mode invokes test-genie against the generated scenario path.
+- Deep mode reports test-genie failures as template validation failures.
+- Deep mode cleans temp scenario and relocation outputs by default.
+- `--retain-temp` leaves the temp generated scenario available and prints its
+  path.
 
-**Goal:** Turn current conventions into tests.
+### Phase 4: Expose Explicit Scenario Path in Test-Genie CLI
 
-Actions:
+Files:
 
-1. Extend API `no_prod_import_test.go`:
-   - Continue skipping files inside `mocks/` directories themselves.
-   - Fail any non-test, non-mocks production file that imports a path
-     containing `/mocks` under the module.
-   - Keep the existing `internal/testutil` import ban.
-2. Add equivalent CLI guard only if CLI gains domain-local mocks in this
-   plan or in the future. Otherwise document the API-only scope.
-3. Update `docs/internal/TESTING.md` and `docs/internal/SEAMS.md` to state:
-   - Domain mocks are test-only.
-   - Production code must never import `internal/<domain>/mocks`.
-4. Change `server.New` to fail explicitly if `Clock` is nil:
-   - Prefer `panic("server.New: Clock is required")` for programmer error.
-   - Add tests in `api/internal/server/server_test.go`.
-   - Keep `Logger` defaulting only if the template intentionally treats it
-     as optional; otherwise make `Logger` required too and update all call
-     sites. Recommended: keep `Logger` optional, make `Clock` required,
-     because logging to `log.Default()` is safe while nil clock is not.
+- `path:scenarios/test-genie/cli/execute/command.go`
+- `path:scenarios/test-genie/cli/internal/execute/types.go`
+- tests under `path:scenarios/test-genie/cli/`
+- API tests only if API behavior changes
 
-Validation:
+Implementation:
+
+1. Add `--scenario-path <absolute-path>` to `test-genie execute`.
+2. Validate that the provided path is absolute.
+3. Preserve current default behavior when the flag is omitted:
+   `cliutil.ResolveScenarioPath(parsed.Scenario)`.
+4. Pass the explicit path through the existing `ScenarioPath` request field.
+5. Update help examples to show the temp-path use case without making template
+   validation depend on prose.
+6. Add parser tests and, if practical, a command-level test proving the request
+   carries the explicit path.
+
+Acceptance criteria:
+
+- Existing `test-genie execute <scenario>` behavior is unchanged.
+- `test-genie execute demo --scenario-path /tmp/root/scenarios/demo` sends that
+  absolute path.
+- relative `--scenario-path` values fail before API invocation.
+
+### Phase 5: Focused Template Polish
+
+Only do the following if still applicable after re-baselining. These are small
+items because they either affect first-run correctness or prevent validation
+drift.
+
+Files depend on the finding, but likely include:
+
+- `path:templates/scenarios/react-vite/ui/pnpm-lock.yaml`
+- `path:templates/scenarios/react-vite/docs/internal/TESTING.md`
+- `path:templates/scenarios/react-vite/docs/internal/TEMPLATE-MAINTENANCE.md`
+- `path:templates/scenarios/react-vite/docs/START-HERE.md`
+- `path:templates/scenarios/react-vite/api/internal/app/server.go`
+- `path:templates/scenarios/react-vite/api/internal/app/server_test.go`
+- `path:templates/scenarios/react-vite/api/internal/testutil/`
+
+Implementation:
+
+1. Add `ui/pnpm-lock.yaml` if the template still has `package.json` lockfile
+   expectations but no lockfile. Validate with the template's existing package
+   manager flow.
+2. Remove or update any docs that refer to old validation, old replacement-note
+   files, old lifecycle commands, or manual generated-smoke steps.
+3. Add a focused guard that API mocks/test helpers cannot accidentally import
+   production transport wiring if the current tests still leave that drift path
+   open.
+4. Add or tighten server construction validation if `server.New` can still
+   accept invalid required dependencies such as a nil clock.
+
+Acceptance criteria:
+
+- Each polish item has a direct validation or test.
+- No broad refactor is introduced under this phase.
+- Docs point to shallow/deep validation, not manual smoke instructions.
+
+### Phase 6: Documentation
+
+Files:
+
+- `path:templates/scenarios/react-vite/docs/internal/TEMPLATE-GENERATION-CONTRACT.md`
+- `path:templates/scenarios/react-vite/docs/internal/TEMPLATE-MAINTENANCE.md`
+- `path:templates/scenarios/react-vite/docs/internal/TESTING.md`
+- `path:templates/scenarios/react-vite/docs/START-HERE.md`
+- `path:templates/scenarios/react-vite/docs/reference/cli-commands.md`
+
+Implementation:
+
+1. Document the validation modes:
+   - shallow for routine template source validation,
+   - deep for generated-scenario first-run validation through test-genie.
+2. Document expected commands:
 
 ```bash
-( cd templates/scenarios/react-vite/api && go test -race ./... )
+vrooli scenario template validate --mode shallow --template react-vite
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
 ```
 
-Acceptance:
-
-- A production import of `internal/notes/mocks` fails the API test suite.
-- `server.New(server.Deps{})` fails with a clear panic covered by tests.
-- Existing API tests remain green.
-
-### Phase 4 — Generate CLI Command Metadata
-
-**Goal:** Remove hand-maintained `cli_commands_seed.json` as a drift source.
-
-Design decision:
-
-- The source of truth must be the CLI registration tree returned by
-  `domains.CommandGroups(core)` and `domains.SubcommandGroups(core)`.
-- The API should not import the CLI module directly.
-- The generator can execute the CLI metadata dumper as a separate process
-  or share a small additive `cli-core` introspection surface.
-
-Recommended implementation:
-
-1. Add additive command-tree introspection to `packages/cli-core/cliapp`:
-   - A pure data type such as `CommandMetadata`.
-   - A method/function that walks registered command groups and subcommand
-     groups without invoking API calls.
-   - Include command name, description, subcommand path, `NeedsAPI`, args,
-     and whether it is built-in.
-2. Add a scenario CLI hidden command or build-time command:
-   - Example: `{{SCENARIO_ID}} __dump-commands --json`
-   - It must not require API connectivity.
-   - It must include built-ins such as `status` and `configure` when relevant.
-3. Replace `api/cmd/gen-endpoints/cli_commands_seed.json` with generated
-   command metadata:
-   - Either `make endpoints` first invokes the CLI dumper and pipes a temp
-     JSON file into `gen-endpoints`.
-   - Or `gen-endpoints` accepts `--commands-cmd "../cli/{{SCENARIO_ID}} __dump-commands --json"`.
-4. Preserve the cross-check:
-   - Every endpoint `cli_mapping.command` must exist in generated CLI metadata.
-   - Every generated CLI command that declares an endpoint id must point to an
-     existing endpoint.
-5. Remove `cli_commands_seed.json` from the template after the generated path
-   is green. No compatibility seed fallback in the template.
-
-Validation:
-
-```bash
-( cd packages/cli-core && go test -race ./... )
-( cd templates/scenarios/react-vite/cli && go test -race ./... )
-( cd templates/scenarios/react-vite && make endpoints )
-git diff --exit-code templates/scenarios/react-vite/.vrooli/endpoints.json
-```
-
-Generated-smoke validation:
-
-```bash
-vrooli scenario generate react-vite --id cli-metadata-smoke --display-name "CLI Metadata Smoke" --description "CLI metadata generation smoke"
-cd scenarios/cli-metadata-smoke
-make endpoints
-make test
-make stop
-```
-
-Cleanup after smoke:
-
-- Remove the generated scenario and all relocated proto artifacts from:
-  - `packages/proto/schemas/cli-metadata-smoke`
-  - `packages/proto/gen/go/cli-metadata-smoke`
-  - `packages/proto/gen/typescript/js/cli-metadata-smoke`
-  - `packages/proto/gen/python/cli_metadata_smoke`
-- Run `( cd packages/proto && make generate )`.
-
-Acceptance:
-
-- `cli_commands_seed.json` no longer exists in the template.
-- `make endpoints` regenerates `cli_commands[]` from real CLI registration.
-- Missing endpoint↔CLI mappings fail with actionable errors.
-
-### Phase 5 — Domain Scaffolding Helper
-
-**Goal:** Make adding a domain a generated workflow rather than a long
-copy-and-edit checklist.
-
-Recommended command:
-
-```bash
-vrooli scenario domain add <scenario-id> <domain-name> \
-  --template notes-crud \
-  --display-name "Tasks"
-```
-
-Implementation home:
-
-- `path:internal/cli/scenariocli/` for command surface.
-- `path:internal/cli/scenariohandlers/` for filesystem/template runtime.
-- Reuse existing template substitution helpers where possible.
-
-Generated output for `tasks`:
-
-- Proto:
-  - `packages/proto/schemas/<scenario>/v1/tasks/tasks.proto`
-- API:
-  - `api/internal/tasks/{types,repository,sqlite,service,schema}.go`
-  - `api/internal/tasks/schema.sql`
-  - `api/internal/tasks/mocks/...`
-  - `api/handlers/tasks/{adapter,connect_handler,module}.go`
-  - tests beside each layer
-- CLI:
-  - `cli/domains/tasks/{register,handlers}.go`
-  - handler tests
-- UI:
-  - `ui/src/api/tasks.ts`
-  - `ui/src/features/tasks/TasksCard.tsx`
-  - feature mocks/factories/tests
-- Central updates:
-  - `api/main.go`
-  - `api/internal/modules/registry.go`
-  - `cli/domains/domains.go`
-  - `ui/src/App.tsx`
-  - `ui/src/consts/selectors.ts`
-  - `ui/src/i18n/locales/en.json`
-  - Generated outputs: `strings.generated.ts`, `.vrooli/endpoints.json`,
-    proto gen artifacts.
-
-Design constraints:
-
-- The helper must never use mass blind replacement. It should parse structured
-  files where practical:
-  - Go files: preferably small AST-aware insertion or tightly scoped marker
-    comments.
-  - JSON locale files: parse/write JSON deterministically.
-  - TS selectors/App: use narrow textual insertion only if the file has stable
-    anchors and tests cover it.
-- The helper should print a "next manual edits" list for domain-specific
-  business rules it cannot infer.
-- Generated code should compile and tests should pass before scenario-specific
-  customization, even if the domain is only CRUD skeleton.
-
-Validation:
-
-```bash
-go test ./internal/cli/scenariohandlers ./internal/cli/scenariocli
-vrooli scenario generate react-vite --id domain-helper-smoke --display-name "Domain Helper Smoke" --description "Domain helper smoke"
-vrooli scenario domain add domain-helper-smoke tasks --template notes-crud --display-name "Tasks"
-( cd packages/proto && make generate )
-( cd scenarios/domain-helper-smoke && make setup && make test && make start && make status && make stop )
-```
-
-Acceptance:
-
-- A new CRUD domain can be scaffolded with one command.
-- The command updates all known central registrations.
-- The generated scenario passes setup/test/start/status/stop.
-- `REPLACING-NOTES.md` is updated to recommend the helper before manual copy.
-
-### Phase 6 — Locale Synchronization Tooling
-
-**Goal:** Keep locale parity while reducing manual copy work.
-
-Recommended implementation:
-
-1. Add `ui/scripts/sync-locales.mjs`.
-2. Add scripts:
-   - `pnpm locales:sync`
-   - `pnpm locales:check`
-3. Behavior:
-   - `en.json` remains canonical.
-   - For every other locale, insert missing keys with deterministic placeholder
-     values copied from English and prefixed or annotated in a way that is
-     obvious to translators.
-   - Preserve existing translated values.
-   - Remove extra keys only in explicit `--prune` mode, not by default.
-   - Preserve CLDR plural variant rules already encoded in
-     `locales.test.ts`.
-4. Update `strings:gen` workflow if useful:
-   - Do not make strings generation silently mutate non-English locales.
-   - Prefer explicit `pnpm locales:sync && pnpm strings:gen`.
-5. Document the workflow in:
-   - `docs/internal/TESTING.md`
-   - `docs/guides/troubleshooting.md`
-   - `docs/internal/REPLACING-NOTES.md`
-
-Validation:
-
-```bash
-( cd templates/scenarios/react-vite/ui && pnpm locales:check )
-( cd templates/scenarios/react-vite/ui && pnpm locales:sync && pnpm strings:gen && pnpm strings:check )
-( cd templates/scenarios/react-vite/ui && pnpm type-check && pnpm lint && pnpm test:coverage )
-```
-
-Acceptance:
-
-- Adding an English string and running `pnpm locales:sync` updates all locale
-  files deterministically.
-- `locales.test.ts` still enforces key and interpolation parity.
-- No translated existing values are overwritten by default.
-
-### Phase 7 — Attachments Reference Scope Decision
-
-**Goal:** Decide and implement the right canonical scope for the notes
-reference.
-
-Decision options:
-
-**Option A — Keep attachments in the base template.**
-
-Use if the REST multipart exception is important enough to be present in
-every generated scenario as a reference. Required improvements:
-
-- Keep the current co-located deletion guidance in `REPLACING-NOTES.md`.
-- Add an explicit "attachments sub-resource map" table:
-  - proto file
-  - API service/repository/sqlite files
-  - handler/module files
-  - CLI attach handler
-  - UI `AttachmentUpload`
-  - selectors/strings
-- Ensure the domain helper can generate CRUD-only domains without copying
-  attachments by default.
-- Add `--with-attachments` to the domain helper for scenarios that need the
-  multipart reference.
-
-**Option B — Move attachments to a secondary template/example.**
-
-Use if the base domain-add/delete cost matters more than having multipart in
-every generated scenario. Required changes:
-
-- Remove attachments files from the base notes domain.
-- Add a template-maintainer or generated guide such as
-  `docs/internal/ADDING-MULTIPART-RESOURCE.md`.
-- Optionally add a separate template variant only if the existing scenario
-  generator supports it cleanly without duplicating the whole react-vite tree.
-
-Recommended decision:
-
-- Implement Option A first unless the direct measurement in this phase shows
-  attachments dominate generated-scenario friction after the domain helper
-  exists. Attachments are a useful reference, but the domain helper should
-  make them opt-in for new domains.
-
-Measurement before final decision:
-
-```bash
-# Use the existing template-fitness harness recipes.
-# Directly re-measure scenario 2 (add domain) and scenario 5 (delete notes)
-# after Phases 4-6 but before changing attachments scope.
-```
-
-Acceptance:
-
-- The decision is recorded in `docs/internal/TEMPLATE-MAINTENANCE.md`.
-- `REPLACING-NOTES.md` and `ARCHITECTURE.md` match the chosen scope.
-- If attachments remain, the domain helper supports CRUD-only and
-  attachments-enabled generation paths.
-
-### Phase 8 — Template Maintenance Checklist
-
-**Goal:** Make future template changes self-checking.
-
-Actions:
-
-1. Add a generated or documented checklist in
-   `docs/internal/TEMPLATE-MAINTENANCE.md`.
-2. Add a Make target if appropriate:
-   ```bash
-   make template-check
-   ```
-   or document root-level commands if a Make target is not desirable.
-3. Checklist should include:
-   ```bash
-   vrooli scenario template validate
-   rg -n "Deps\\{Pinger|server\\.Deps\\{Pinger|backward compatibility|Vite dev server|vite dev server" templates/scenarios/react-vite
-   ( cd templates/scenarios/react-vite/api && go test -race ./... )
-   ( cd templates/scenarios/react-vite/cli && go test -race ./... )
-   ( cd templates/scenarios/react-vite/ui && pnpm install --frozen-lockfile --ignore-workspace && pnpm strings:check && pnpm locales:check && pnpm type-check && pnpm lint && pnpm test:coverage && pnpm build )
-   ```
-4. Include smoke scenario generation/cleanup instructions.
-
-Acceptance:
-
-- Future agents have one obvious validation sequence for template edits.
-- The checklist includes cleanup instructions for relocated proto artifacts.
-
-### Phase 9 — End-to-End Generated Smoke
-
-**Goal:** Prove a fresh scenario generated from the final template works.
-
-Actions:
-
-1. Generate smoke:
-   ```bash
-   vrooli scenario generate react-vite \
-     --id react-vite-polish-smoke \
-     --display-name "React Vite Polish Smoke" \
-     --description "Smoke scenario for react-vite template polish"
-   ```
-2. Run lifecycle:
-   ```bash
-   cd scenarios/react-vite-polish-smoke
-   make setup
-   make test
-   make start
-   make status
-   make stop
-   ```
-3. Validate generated helper flows:
-   ```bash
-   vrooli scenario domain add react-vite-polish-smoke tasks --template notes-crud --display-name "Tasks"
-   ( cd packages/proto && make generate )
-   cd scenarios/react-vite-polish-smoke
-   make setup
-   make test
-   make start
-   make status
-   make stop
-   ```
-4. Cleanup explicitly:
-   ```bash
-   rm -rf scenarios/react-vite-polish-smoke
-   rm -rf packages/proto/schemas/react-vite-polish-smoke
-   rm -rf packages/proto/gen/go/react-vite-polish-smoke
-   rm -rf packages/proto/gen/typescript/js/react-vite-polish-smoke
-   rm -rf packages/proto/gen/python/react_vite_polish_smoke
-   ( cd packages/proto && make generate )
-   ```
-5. Verify zero residue:
-   ```bash
-   ls -d packages/proto/gen/{go,typescript/js}/*react-vite-polish-smoke* packages/proto/gen/python/*react_vite_polish_smoke*
-   ```
-   Expected: no matches.
-
-Acceptance:
-
-- Smoke scenario lifecycle passes.
-- Domain helper output lifecycle passes.
-- No generated scenario or proto residue remains.
+3. Make `TEMPLATE-GENERATION-CONTRACT.md` clear that deep validation is the
+   source of truth for "does this template generate a working scenario?"
+4. Keep generated scenario onboarding in `START-HERE.md`. Keep template-only
+   maintenance instructions in `docs/internal/*`.
+5. Remove references to removed docs and manual generated-smoke procedures.
+
+Acceptance criteria:
+
+- `rg "REPLACING-NOTES|generated-smoke|manual smoke" templates/scenarios/react-vite/docs`
+  has no stale references unless intentionally discussing removal history.
+- Docs explain how to run both validation modes.
 
 ---
 
 ## 9. Contract Decisions
 
-### 9.1 CLI Metadata Contract
-
-`cli_commands[]` in `.vrooli/endpoints.json` must be generated from actual
-CLI command registration, not from hand-maintained JSON. Endpoint descriptors
-may still carry `cli_mapping` because they explain which endpoint a command
-mirrors, but command descriptions and command existence must come from the CLI.
-
-### 9.2 Locale Contract
-
-English remains canonical. Non-English locale files must stay complete, but
-the tool may insert English fallback strings as placeholders. CI should fail
-when locale catalogs are structurally out of sync, not when translations are
-still pending.
-
-### 9.3 Server Dependency Contract
-
-`Clock` is required for `server.New`; `Logger` may default to `log.Default()`.
-Missing required dependencies should fail immediately during tests or startup,
-not later through nil-interface behavior.
-
-### 9.4 Attachments Contract
-
-Opaque bytes remain REST multipart exceptions. Metadata stays proto-typed.
-Whether the attachments example remains in the base template or moves to
-secondary guidance, Connect-RPC remains the default for Vrooli-owned typed
-payloads.
+1. **Default validation mode**: shallow.
+2. **Deep validation scope**: one or more selected templates, with
+   `react-vite` as the main target for this plan.
+3. **Generated scenario id**: deterministic and prefixed with
+   `template-validation-`.
+4. **Temporary path behavior**: cleanup by default, retain only with
+   `--retain-temp` or a deliberately documented failure-retention behavior.
+5. **Test-genie preset**: comprehensive by default for deep mode unless current
+   test-genie conventions point to a better all-purpose preset.
+6. **Path matching**: test-genie requires `filepath.Base(scenarioPath)` to match
+   `scenarioName`; deep validation must generate into a matching basename.
+7. **No generic domain assumptions**: all domain-addition workflow remains human
+   or template-doc guided, not a repo-level command.
 
 ---
 
 ## 10. Testing Plan
 
-### 10.1 Template Validation
+Run focused tests while implementing:
 
 ```bash
-vrooli scenario template validate
+go test ./internal/cli/scenariocli ./internal/cli/scenariohandlers
+cd scenarios/test-genie/cli && go test ./...
+cd scenarios/test-genie/api && go test ./internal/orchestrator/... ./internal/app/httpserver/...
 ```
 
-### 10.2 API
+Run template validation gates:
 
 ```bash
-( cd templates/scenarios/react-vite/api && go vet ./... )
-( cd templates/scenarios/react-vite/api && go build ./... )
-( cd templates/scenarios/react-vite/api && CGO_ENABLED=0 go build ./... )
-( cd templates/scenarios/react-vite/api && go test -race ./... )
+vrooli scenario template validate --mode shallow --template react-vite
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
 ```
 
-### 10.3 CLI
+If the deep command is expensive, still run it before marking the plan complete.
+Deep validation is the core deliverable.
 
-```bash
-( cd templates/scenarios/react-vite/cli && go vet ./... )
-( cd templates/scenarios/react-vite/cli && go build ./... )
-( cd templates/scenarios/react-vite/cli && CGO_ENABLED=0 go build ./... )
-( cd templates/scenarios/react-vite/cli && go test -race ./... )
-```
-
-### 10.4 UI
-
-```bash
-( cd templates/scenarios/react-vite/ui && pnpm install --frozen-lockfile --ignore-workspace )
-( cd templates/scenarios/react-vite/ui && pnpm locales:check )
-( cd templates/scenarios/react-vite/ui && pnpm strings:check )
-( cd templates/scenarios/react-vite/ui && pnpm type-check )
-( cd templates/scenarios/react-vite/ui && pnpm lint )
-( cd templates/scenarios/react-vite/ui && pnpm test:coverage )
-( cd templates/scenarios/react-vite/ui && pnpm build )
-```
-
-### 10.5 Shared Packages
-
-Run only for touched packages:
-
-```bash
-( cd packages/cli-core && go test -race ./... )
-( cd packages/api-core && go test -race ./... )
-( cd packages/api-base && pnpm test || true )
-```
-
-If `packages/api-base` does not have a test script, replace with the package's
-actual validation command and record that in the execution notes.
-
-### 10.6 Generated Smoke
-
-Use Phase 9 commands exactly.
+For template-local polish, run the relevant generated scenario checks selected
+by test-genie plus any direct package tests changed by the polish.
 
 ---
 
 ## 11. Rollout and Validation Checklist
 
-- [ ] Phase 0 baseline commands recorded.
-- [ ] `ui/pnpm-lock.yaml` exists or CI no longer requires it.
-- [ ] Template UI install passes with `--frozen-lockfile --ignore-workspace`.
-- [ ] Stale health test docs fixed.
-- [ ] Lifecycle wording matches actual UI command.
-- [ ] Greenfield-inconsistent compatibility prose removed from template.
-- [ ] API guard fails production imports from `internal/<domain>/mocks`.
-- [ ] `server.New` required dependency behavior covered by tests.
-- [ ] CLI command metadata generated from CLI registration.
-- [ ] `cli_commands_seed.json` removed from template.
-- [ ] `make endpoints` remains deterministic.
-- [ ] Domain helper scaffolds a CRUD domain.
-- [ ] Locale sync/check scripts added and documented.
-- [ ] Attachments scope decision recorded and implemented.
-- [ ] Template maintenance checklist updated.
-- [ ] `vrooli scenario template validate` green.
-- [ ] API, CLI, UI targeted gates green.
-- [ ] Generated smoke lifecycle green.
-- [ ] Generated smoke cleanup and proto regen complete.
-- [ ] `git status --short` shows only intentional files.
+- [x] Current docs/files re-baselined and stale references removed from this
+      plan if the tree changes again.
+- [x] `scenario template validate` accepts validation mode flags.
+- [x] Shallow mode preserves current behavior and remains default.
+- [x] Deep mode generates a real temporary scenario from `react-vite`.
+- [x] Deep mode invokes test-genie with an explicit scenario path.
+- [x] Test-genie execute supports `--scenario-path` or equivalent.
+- [x] Deep validation failures are surfaced as template validation issues.
+- [x] Deep validation cleans temp scenario and relocation outputs by default.
+- [x] `--retain-temp` is available for debugging.
+- [x] Template docs describe shallow/deep validation accurately.
+- [x] Focused polish items have tests or are covered by deep validation.
+- [x] All commands in the Testing Plan pass or failures are documented with
+      concrete follow-up.
 
 ---
 
 ## 12. Risks and Mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Lockfile contains unsubstituted placeholders | Generated scenarios fail install | Verify with generated smoke; extend generator substitution for lockfiles if needed |
-| CLI metadata dumper imports API or starts API | Codegen becomes slow/flaky | Dumper must walk registration metadata only and be `NeedsAPI=false` |
-| Domain helper becomes a fragile mass-rewrite script | Template changes break generator | Use structured parsing where practical and stable anchors with tests elsewhere |
-| Locale sync overwrites real translations | Translation loss | Preserve existing values by default; only insert missing keys; prune only with explicit flag |
-| `server.New` panic breaks existing template tests | Temporary failures | Update tests and all template call sites in same phase |
-| Attachments extraction balloons scope | Long-running plan | Make a measured decision; Option A (keep but make opt-in for generated domains) is the default |
-| Generated smoke leaves proto residue | Future builds polluted | Follow explicit cleanup paths for Go, TS, Python generated artifacts; run `packages/proto && make generate` |
+**Risk: Deep validation is slow.**  
+Mitigation: keep shallow as default, make deep explicit, and allow selecting one
+template via `--template react-vite`.
+
+**Risk: Test-genie assumes scenarios live under the real repo root.**  
+Mitigation: use its existing `ScenarioPath` override and generate a temp
+workspace with enough repo shape for `AppRootFromScenario` and package-relative
+checks. If a phase truly requires the real repo root, document and narrow that
+phase rather than silently skipping all deep validation.
+
+**Risk: Post hooks make deep validation modify shared package outputs.**  
+Mitigation: use deterministic `template-validation-*` ids and reuse existing
+relocation cleanup. Explicitly verify all three proto output forms when relevant:
+`packages/proto/gen/go/<id>`, `packages/proto/gen/typescript/js/<id>`, and
+`packages/proto/gen/python/<id_with_underscores>`.
+
+**Risk: Human output hides useful test-genie detail.**  
+Mitigation: keep human output concise, but include JSON metadata and retained
+temp paths for debugging.
 
 ---
 
 ## 13. Non-Goals and Prohibited Patterns
 
-Do not:
-
-- Add compatibility shims in the template.
-- Add third-party dependencies without permission.
-- Create a generic `utils` dumping ground.
-- Start scenarios by directly executing binaries.
-- Hand-edit `.vrooli/endpoints.json` except as a generated artifact.
-- Keep `cli_commands_seed.json` as a fallback after CLI metadata generation
-  is working.
-- Weaken locale parity, string registry, a11y, coverage, or test-utils
-  quarantine gates.
-- Lower coverage thresholds to make this plan pass.
-- Use mass-update scripts to rewrite many files blindly.
+- No generic domain scaffolding command.
+- No `template.json` domain-addition metadata.
+- No generated CLI command metadata work.
+- No attachments reference-scope decision.
+- No broad CI/Git provider workflow work.
+- No manual-only smoke validation as the plan's endpoint.
+- No new dependencies without explicit permission.
+- No direct execution of scenario binaries outside lifecycle/test-genie-managed
+  paths.
+- No compatibility layers for old generated scenarios.
 
 ---
 
@@ -915,25 +571,17 @@ Do not:
 
 This plan is complete when:
 
-1. All target phases have landed or any skipped phase has a written,
-   evidence-backed reason in this file.
-2. The template passes:
-   ```bash
-   vrooli scenario template validate
-   ( cd templates/scenarios/react-vite/api && go test -race ./... )
-   ( cd templates/scenarios/react-vite/cli && go test -race ./... )
-   ( cd templates/scenarios/react-vite/ui && pnpm install --frozen-lockfile --ignore-workspace && pnpm locales:check && pnpm strings:check && pnpm type-check && pnpm lint && pnpm test:coverage && pnpm build )
-   ```
-3. Touched shared packages pass their package-specific tests.
-4. A freshly generated smoke scenario passes lifecycle setup/test/start/status/stop.
-5. A domain added by the new helper passes the same lifecycle gates.
-6. Generated smoke scenario and proto artifacts are removed and proto codegen is
-   regenerated.
-7. `rg -n "Deps\\{Pinger|server\\.Deps\\{Pinger|backward compatibility|Vite dev server|vite dev server" templates/scenarios/react-vite`
-   returns no stale matches except deliberately documented historical plan files
-   outside the template.
-8. `git grep -n "cli_commands_seed.json" templates/scenarios/react-vite` returns
-   no matches after the CLI metadata generator is implemented.
-9. Template diffs contain no `Deprecated:`, `legacy`, `compat`, or
-   greenfield-violating comments.
-
+1. `vrooli scenario template validate` has explicit shallow/deep modes.
+2. Shallow mode preserves and clarifies the current validation behavior.
+3. Deep mode generates a temporary real scenario from `react-vite` and runs
+   test-genie against that generated scenario path.
+4. Test-genie can execute against an explicit absolute scenario path from its
+   CLI.
+5. Temp files and relocation outputs are cleaned by default, with a retained
+   debug path available.
+6. Current template docs describe the real validation workflow and do not point
+   to removed docs.
+7. Focused first-run polish items are either fixed with tests or explicitly
+   ruled out after re-baselining.
+8. The Testing Plan commands pass, or any remaining failure is documented with a
+   concrete reason and next action.

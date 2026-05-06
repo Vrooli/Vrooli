@@ -73,6 +73,24 @@ func TestWriteLifecycleItemsJSONIncludesSuccessEnvelope(t *testing.T) {
 	}
 }
 
+func TestRenderTemplateValidateResponseJSONReflectsIssues(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderTemplateValidateResponse(&stdout, cliout.FormatJSON, TemplateValidationReport{
+		Count: 1,
+		Issues: []TemplateValidationIssue{{
+			Template: "react-vite",
+			Message:  "test-genie deep validation failed",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("RenderTemplateValidateResponse: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `"success": false`) || !strings.Contains(output, `"issues":`) {
+		t.Fatalf("output = %s", output)
+	}
+}
+
 func TestWriteLifecycleItemsHumanIncludesURLs(t *testing.T) {
 	var stdout bytes.Buffer
 	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
@@ -548,12 +566,42 @@ func TestTemplateParsersCaptureFlagsAndValues(t *testing.T) {
 	}
 }
 
-func TestParseTemplateValidateRequestRejectsUnexpectedArgs(t *testing.T) {
-	if _, err := ParseTemplateValidateRequest(nil); err != nil {
+func TestParseTemplateValidateRequest(t *testing.T) {
+	req, err := ParseTemplateValidateRequest(nil)
+	if err != nil {
 		t.Fatalf("ParseTemplateValidateRequest() error = %v", err)
 	}
+	if req.Mode != TemplateValidationModeShallow || req.TemplateName != "" || req.RetainTemp || req.TestPreset != DefaultTemplateValidationTestPreset {
+		t.Fatalf("default req = %#v", req)
+	}
+
+	req, err = ParseTemplateValidateRequest([]string{"--mode", "deep", "--template=react-vite", "--retain-temp", "--test-preset", "quick"})
+	if err != nil {
+		t.Fatalf("ParseTemplateValidateRequest(deep) error = %v", err)
+	}
+	if req.Mode != TemplateValidationModeDeep || req.TemplateName != "react-vite" || !req.RetainTemp || req.TestPreset != "quick" {
+		t.Fatalf("deep req = %#v", req)
+	}
+
+	req, err = ParseTemplateValidateRequest([]string{"--mode=shallow", "--template", "react-vite"})
+	if err != nil {
+		t.Fatalf("ParseTemplateValidateRequest(shallow) error = %v", err)
+	}
+	if req.Mode != TemplateValidationModeShallow || req.TemplateName != "react-vite" {
+		t.Fatalf("shallow req = %#v", req)
+	}
+
 	if _, err := ParseTemplateValidateRequest([]string{"extra"}); err == nil {
 		t.Fatal("expected ParseTemplateValidateRequest() to reject extra args")
+	}
+	if _, err := ParseTemplateValidateRequest([]string{"--mode", "full"}); err == nil {
+		t.Fatal("expected ParseTemplateValidateRequest() to reject invalid mode")
+	}
+	if _, err := ParseTemplateValidateRequest([]string{"--test-preset", "quick"}); err == nil {
+		t.Fatal("expected ParseTemplateValidateRequest() to reject shallow test preset")
+	}
+	if _, err := ParseTemplateValidateRequest([]string{"--retain-temp"}); err == nil {
+		t.Fatal("expected ParseTemplateValidateRequest() to reject shallow retain temp")
 	}
 }
 

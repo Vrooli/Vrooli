@@ -6,17 +6,19 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
+
 	"test-genie/cli/execute/report"
 	"test-genie/cli/internal/phases"
-	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 
 	execTypes "test-genie/cli/internal/execute"
 )
 
-const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"
+const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"
 
 // HelpText returns the framework-rendered help body for the execute command.
 func HelpText() string {
@@ -26,7 +28,8 @@ Examples:
   test-genie execute swarm-manager
   test-genie execute swarm-manager standards lint integration
   test-genie execute swarm-manager --preset quick --fail-fast
-  test-genie execute swarm-manager --skip performance --json`
+  test-genie execute swarm-manager --skip performance --json
+  test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --preset comprehensive`
 }
 
 // Run executes the execute command.
@@ -36,13 +39,16 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		return err
 	}
 
-	// Resolve the scenario path using sandbox-aware resolution. When running
-	// inside a sandboxed agent (VROOLI_SANDBOX_* env vars present), this
-	// returns the path within the sandbox overlay so the API operates on the
-	// agent's modified files. Outside a sandbox, this falls back to the
-	// standard VROOLI_ROOT-based path.
-	// See packages/cli-core/cliutil/sandbox.go for the implementation.
-	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
+	scenarioPath := parsed.ScenarioPath
+	if scenarioPath == "" {
+		// Resolve the scenario path using sandbox-aware resolution. When running
+		// inside a sandboxed agent (VROOLI_SANDBOX_* env vars present), this
+		// returns the path within the sandbox overlay so the API operates on the
+		// agent's modified files. Outside a sandbox, this falls back to the
+		// standard VROOLI_ROOT-based path.
+		// See packages/cli-core/cliutil/sandbox.go for the implementation.
+		scenarioPath = cliutil.ResolveScenarioPath(parsed.Scenario)
+	}
 
 	req := Request{
 		ScenarioName:   parsed.Scenario,
@@ -146,7 +152,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		}
 		if parsed.JSON {
 			cliutil.PrintJSON(raw)
-			return nil
+			return executionResultError(resp)
 		}
 
 		// Print results (header/plan already printed pre-execution)
@@ -157,6 +163,10 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		fmt.Printf("\nError: %s\n", resp.Error)
 	}
 
+	return executionResultError(resp)
+}
+
+func executionResultError(resp Response) error {
 	if resp.Success {
 		return nil
 	}
@@ -188,6 +198,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
 	fs.BoolVar(&out.Stream, "stream", false, "Force streaming mode (default for TTY)")
 	fs.BoolVar(&out.NoStream, "no-stream", false, "Disable streaming, use progress spinner instead")
+	fs.StringVar(&out.ScenarioPath, "scenario-path", "", "Absolute path to the scenario directory")
 	fs.StringVar(&out.UIURL, "ui-url", "", "UI URL for Lighthouse audits (e.g., http://localhost:3000)")
 	fs.StringVar(&out.BrowserlessURL, "browserless-url", "", "Browserless URL (default: BROWSERLESS_URL env or http://localhost:4110)")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -196,6 +207,10 @@ func ParseArgs(args []string) (Args, error) {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput
+	out.ScenarioPath = strings.TrimSpace(out.ScenarioPath)
+	if out.ScenarioPath != "" && !filepath.IsAbs(out.ScenarioPath) {
+		return Args{}, fmt.Errorf("--scenario-path must be absolute")
+	}
 	out.ExtraPhases = fs.Args()
 
 	phaseList := cliutil.MergeArgs(cliutil.ParseCSV(out.PhasesCSV), out.ExtraPhases)

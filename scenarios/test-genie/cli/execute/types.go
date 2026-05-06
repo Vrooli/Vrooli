@@ -15,18 +15,19 @@ type (
 
 // Args holds parsed CLI inputs for the execute command.
 type Args struct {
-	Scenario    string
-	Preset      string
-	PhasesCSV   string
-	SkipCSV     string
-	Phases      []string
-	Skip        []string
-	RequestID   string
-	FailFast    bool
-	Stream      bool
-	NoStream    bool // Explicitly disable streaming (use spinner instead)
-	JSON        bool
-	ExtraPhases []string
+	Scenario     string
+	Preset       string
+	PhasesCSV    string
+	SkipCSV      string
+	Phases       []string
+	Skip         []string
+	RequestID    string
+	FailFast     bool
+	Stream       bool
+	NoStream     bool // Explicitly disable streaming (use spinner instead)
+	JSON         bool
+	ExtraPhases  []string
+	ScenarioPath string
 
 	// Runtime URLs for Lighthouse and integration testing
 	UIURL          string

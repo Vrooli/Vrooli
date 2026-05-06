@@ -115,8 +115,12 @@ func runTemplateShow[C any](deps HandlerDeps[C], ctx C, req TemplateShowRequest)
 	return cliout.FormatHuman, info, nil
 }
 
-func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRequest) (cliout.Format, TemplateValidationReport, error) {
+func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, req TemplateValidateRequest) (cliout.Format, TemplateValidationReport, error) {
 	templates, err := loadTemplates(deps.Root(ctx))
+	if err != nil {
+		return "", TemplateValidationReport{}, err
+	}
+	templates, err = filterTemplatesForValidation(templates, req.TemplateName)
 	if err != nil {
 		return "", TemplateValidationReport{}, err
 	}
@@ -124,114 +128,421 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 	if err != nil {
 		return "", TemplateValidationReport{}, err
 	}
-	report := TemplateValidationReport{Count: len(templates)}
+	mode := req.Mode
+	if mode == "" {
+		mode = TemplateValidationModeShallow
+	}
+	report := TemplateValidationReport{
+		Mode:         mode,
+		TemplateName: req.TemplateName,
+		TestPreset:   req.TestPreset,
+		Count:        len(templates),
+	}
 	for _, info := range templates {
-		report.Issues = append(report.Issues, validateTemplateSource(info)...)
-		if info.Missing {
-			report.Issues = append(report.Issues, TemplateValidationIssue{
-				Template: info.Name,
-				Message:  "template.json is missing",
-			})
-			continue
+		switch mode {
+		case TemplateValidationModeDeep:
+			run, issues := validateTemplateDeep(deps, ctx, info, req)
+			report.DeepRuns = append(report.DeepRuns, run)
+			report.Issues = append(report.Issues, issues...)
+		default:
+			report.Issues = append(report.Issues, validateTemplateShallow(deps, ctx, info)...)
 		}
-		report.Issues = append(report.Issues, validateRelocationProtoSources(deps, ctx, info)...)
-		tempRoot, err := os.MkdirTemp("", "vrooli-template-validate-*")
-		if err != nil {
-			report.Issues = append(report.Issues, TemplateValidationIssue{
-				Template: info.Name,
-				Message:  fmt.Sprintf("create validation temp dir: %v", err),
-			})
-			continue
-		}
-		destination := filepath.Join(tempRoot, "scenario")
-		issues := func() []TemplateValidationIssue {
-			defer os.RemoveAll(tempRoot)
-			values, err := buildTemplateValues(
-				deps.Root(ctx),
-				destination,
-				info.Name,
-				info.Manifest,
-				templateValidationSeedValues(info),
-			)
-			if err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  err.Error(),
-				}}
-			}
-			if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("generate validation copy: %v", err),
-				}}
-			}
-			design, err := resolveDesign(deps.Root(ctx), info, "", destination, values)
-			if err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("resolve default design: %v", err),
-				}}
-			}
-			if err := preflightDesignCopies(design, true); err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("preflight default design: %v", err),
-				}}
-			}
-			if err := preflightDesignTemplateCollisions(info.Path, destination, design); err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("preflight default design: %v", err),
-				}}
-			}
-			if err := copyDesignAssets(design, values); err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("copy default design: %v", err),
-				}}
-			}
-			if err := verifyTemplate(destination); err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  err.Error(),
-				}}
-			}
-			// Run the relocations against the validation seed values so
-			// the generated scenario's go.mod tidy step (below) can
-			// resolve any proto dependencies. The relocation targets
-			// land at predictable paths (e.g.
-			// packages/proto/schemas/template-validation-react-vite/)
-			// because the seed values use a `template-validation-` prefix
-			// for SCENARIO_ID — no real scenario can collide with that
-			// prefix. Relocation targets are cleaned up regardless of
-			// whether validation succeeds.
-			resolved, err := resolveRelocations(deps.Root(ctx), info, values)
-			if err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("resolve relocations: %v", err),
-				}}
-			}
-			defer cleanupRelocationTargets(resolved)
-			if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
-				return []TemplateValidationIssue{{
-					Template: info.Name,
-					Message:  fmt.Sprintf("relocate validation artifacts: %v", err),
-				}}
-			}
-			return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
-				if deps.RunSubprocess == nil {
-					return nil
-				}
-				spec.Env = deps.CommandEnv(ctx)
-				spec.Stdout = io.Discard
-				spec.Stderr = deps.Stderr(ctx)
-				return deps.RunSubprocess(ctx, spec)
-			}, info.Name, info.Manifest)
-		}()
-		report.Issues = append(report.Issues, issues...)
 	}
 	return format, report, nil
+}
+
+func validateTemplateShallow[C any](deps HandlerDeps[C], ctx C, info TemplateInfo) []TemplateValidationIssue {
+	issues := validateTemplateSource(info)
+	if info.Missing {
+		return append(issues, TemplateValidationIssue{
+			Template: info.Name,
+			Message:  "template.json is missing",
+		})
+	}
+	issues = append(issues, validateRelocationProtoSources(deps, ctx, info)...)
+	tempRoot, err := os.MkdirTemp("", "vrooli-template-validate-*")
+	if err != nil {
+		return append(issues, TemplateValidationIssue{
+			Template: info.Name,
+			Message:  fmt.Sprintf("create validation temp dir: %v", err),
+		})
+	}
+	destination := filepath.Join(tempRoot, "scenario")
+	return append(issues, validateTemplateShallowGeneratedCopy(deps, ctx, info, tempRoot, destination)...)
+}
+
+func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, tempRoot, destination string) []TemplateValidationIssue {
+	defer os.RemoveAll(tempRoot)
+	values, err := buildTemplateValues(
+		deps.Root(ctx),
+		destination,
+		info.Name,
+		info.Manifest,
+		templateValidationSeedValues(info),
+	)
+	if err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  err.Error(),
+		}}
+	}
+	if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("generate validation copy: %v", err),
+		}}
+	}
+	design, err := resolveDesign(deps.Root(ctx), info, "", destination, values)
+	if err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("resolve default design: %v", err),
+		}}
+	}
+	if err := preflightDesignCopies(design, true); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("preflight default design: %v", err),
+		}}
+	}
+	if err := preflightDesignTemplateCollisions(info.Path, destination, design); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("preflight default design: %v", err),
+		}}
+	}
+	if err := copyDesignAssets(design, values); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("copy default design: %v", err),
+		}}
+	}
+	if err := verifyTemplate(destination); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  err.Error(),
+		}}
+	}
+	// Run relocations against validation seed values so generated module
+	// checks can resolve proto dependencies without leaving persistent
+	// template-validation-* artifacts in shared packages.
+	resolved, err := resolveRelocations(deps.Root(ctx), info, values)
+	if err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("resolve relocations: %v", err),
+		}}
+	}
+	defer cleanupRelocationTargets(resolved)
+	if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("relocate validation artifacts: %v", err),
+		}}
+	}
+	return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+		if deps.RunSubprocess == nil {
+			return nil
+		}
+		spec.Env = deps.CommandEnv(ctx)
+		spec.Stdout = io.Discard
+		spec.Stderr = deps.Stderr(ctx)
+		return deps.RunSubprocess(ctx, spec)
+	}, info.Name, info.Manifest)
+}
+
+func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, req TemplateValidateRequest) (run TemplateValidationDeepRun, issues []TemplateValidationIssue) {
+	scenarioID := "template-validation-" + info.Name + "-deep"
+	run = TemplateValidationDeepRun{
+		Template:   info.Name,
+		ScenarioID: scenarioID,
+		TestPreset: coalesce(req.TestPreset, DefaultTemplateValidationTestPreset),
+	}
+	if info.Missing {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  "template.json is missing",
+		}}
+	}
+	if deps.RunSubprocess == nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  "deep validation requires subprocess execution",
+		}}
+	}
+	if deps.LocateTestGenieCLI == nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  "deep validation requires test-genie CLI resolution",
+		}}
+	}
+	testGenieCLI, err := deps.LocateTestGenieCLI(ctx)
+	if err != nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  err.Error(),
+		}}
+	}
+	tempRoot, err := os.MkdirTemp("", "vrooli-template-deep-*")
+	if err != nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("create deep validation temp dir: %v", err),
+		}}
+	}
+	run.TempRoot = tempRoot
+	run.RetainedTemp = req.RetainTemp
+	destination := filepath.Join(tempRoot, "scenarios", scenarioID)
+	run.ScenarioPath = destination
+	cleanupTemp := true
+	if req.RetainTemp {
+		cleanupTemp = false
+		run.CleanupStatus = "retained"
+	}
+	defer func() {
+		if cleanupTemp {
+			if err := os.RemoveAll(tempRoot); err != nil {
+				run.CleanupStatus = "cleanup failed: " + err.Error()
+				return
+			}
+			run.CleanupStatus = "removed"
+		}
+	}()
+
+	if err := prepareDeepValidationWorkspace(deps.Root(ctx), tempRoot); err != nil {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("prepare deep validation workspace: %v", err),
+		}}
+	}
+	relocations, issues := generateDeepValidationScenario(deps, ctx, info, scenarioID, destination)
+	if len(relocations) > 0 {
+		defer cleanupRelocationTargets(relocations)
+	}
+	if len(issues) > 0 {
+		return run, issues
+	}
+	var stdout, stderr bytes.Buffer
+	args := []string{
+		"execute",
+		scenarioID,
+		"--scenario-path", destination,
+		"--preset", run.TestPreset,
+		"--no-stream",
+		"--json",
+	}
+	if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		Name:   testGenieCLI,
+		Args:   args,
+		Dir:    deps.Root(ctx),
+		Env:    deps.CommandEnv(ctx),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = strings.TrimSpace(stdout.String())
+		}
+		if message == "" {
+			message = err.Error()
+		}
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("test-genie deep validation failed: %s", truncateForIssue(message, 2000)),
+		}}
+	}
+	if issue := validateTestGenieJSONSuccess(info.Name, stdout.Bytes()); issue != nil {
+		return run, []TemplateValidationIssue{*issue}
+	}
+	return run, nil
+}
+
+func validateTestGenieJSONSuccess(templateName string, output []byte) *TemplateValidationIssue {
+	type testGenieResponse struct {
+		Success      *bool `json:"success"`
+		PhaseSummary struct {
+			Total  int `json:"total"`
+			Passed int `json:"passed"`
+			Failed int `json:"failed"`
+		} `json:"phaseSummary"`
+		Phases []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Error  string `json:"error,omitempty"`
+		} `json:"phases"`
+	}
+
+	data := bytes.TrimSpace(output)
+	if len(data) == 0 {
+		return &TemplateValidationIssue{
+			Template: templateName,
+			Message:  "test-genie deep validation produced no JSON output",
+		}
+	}
+	var response testGenieResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return &TemplateValidationIssue{
+			Template: templateName,
+			Message:  fmt.Sprintf("test-genie deep validation returned invalid JSON: %v", err),
+		}
+	}
+	if response.Success == nil {
+		return &TemplateValidationIssue{
+			Template: templateName,
+			Message:  "test-genie deep validation JSON omitted success",
+		}
+	}
+	if *response.Success {
+		return nil
+	}
+	var failed []string
+	for _, phase := range response.Phases {
+		if phase.Status != "failed" {
+			continue
+		}
+		if strings.TrimSpace(phase.Error) == "" {
+			failed = append(failed, phase.Name)
+			continue
+		}
+		failed = append(failed, fmt.Sprintf("%s: %s", phase.Name, phase.Error))
+	}
+	summary := fmt.Sprintf("%d passed, %d failed, %d total", response.PhaseSummary.Passed, response.PhaseSummary.Failed, response.PhaseSummary.Total)
+	if len(failed) > 0 {
+		summary += "; failed phases: " + strings.Join(failed, "; ")
+	}
+	return &TemplateValidationIssue{
+		Template: templateName,
+		Message:  "test-genie deep validation failed: " + truncateForIssue(summary, 2000),
+	}
+}
+
+func prepareDeepValidationWorkspace(repoRoot, tempRoot string) error {
+	if err := os.MkdirAll(filepath.Join(tempRoot, "scenarios"), 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Join(tempRoot, ".vrooli"), 0o755); err != nil {
+		return err
+	}
+	contractSrc := filepath.Join(repoRoot, ".vrooli", "repo-contract.json")
+	if data, err := os.ReadFile(contractSrc); err == nil {
+		if err := os.WriteFile(filepath.Join(tempRoot, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
+			return err
+		}
+	}
+	for _, dir := range []string{"packages", "resources", "templates", "cmd", "internal"} {
+		src := filepath.Join(repoRoot, dir)
+		dst := filepath.Join(tempRoot, dir)
+		if _, err := os.Stat(src); err != nil {
+			if os.IsNotExist(err) {
+				if mkErr := os.MkdirAll(dst, 0o755); mkErr != nil {
+					return mkErr
+				}
+				continue
+			}
+			return err
+		}
+		if err := os.Symlink(src, dst); err != nil {
+			if os.IsExist(err) {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, scenarioID, destination string) ([]ResolvedRelocation, []TemplateValidationIssue) {
+	values, err := buildTemplateValues(
+		deps.Root(ctx),
+		destination,
+		info.Name,
+		info.Manifest,
+		templateValidationSeedValuesForScenarioID(info, scenarioID),
+	)
+	if err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  err.Error(),
+		}}
+	}
+	if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("generate deep validation scenario: %v", err),
+		}}
+	}
+	design, err := resolveDesign(deps.Root(ctx), info, "", destination, values)
+	if err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("resolve default design: %v", err),
+		}}
+	}
+	if err := preflightDesignCopies(design, true); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("preflight default design: %v", err),
+		}}
+	}
+	if err := preflightDesignTemplateCollisions(info.Path, destination, design); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("preflight default design: %v", err),
+		}}
+	}
+	if err := copyDesignAssets(design, values); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("copy default design: %v", err),
+		}}
+	}
+	if err := verifyTemplate(destination); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  err.Error(),
+		}}
+	}
+	resolved, err := resolveRelocations(deps.Root(ctx), info, values)
+	if err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("resolve relocations: %v", err),
+		}}
+	}
+	if err := runRelocations(deps, ctx, info.Path, resolved, values); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("relocate deep validation artifacts: %v", err),
+		}}
+	}
+	if issues := validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+		spec.Env = deps.CommandEnv(ctx)
+		spec.Stdout = io.Discard
+		spec.Stderr = deps.Stderr(ctx)
+		return deps.RunSubprocess(ctx, spec)
+	}, info.Name, info.Manifest); len(issues) > 0 {
+		return resolved, issues
+	}
+	if err := runTemplateHooks(deps, ctx, destination, info.Manifest); err != nil {
+		return resolved, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("run template post hooks: %v", err),
+		}}
+	}
+	return resolved, nil
+}
+
+func filterTemplatesForValidation(templates []TemplateInfo, templateName string) ([]TemplateInfo, error) {
+	name := strings.TrimSpace(templateName)
+	if name == "" {
+		return templates, nil
+	}
+	for _, info := range templates {
+		if info.Name == name {
+			return []TemplateInfo{info}, nil
+		}
+	}
+	return nil, fmt.Errorf("template not found: %s", name)
 }
 
 func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout.Format, GenerateResult, error) {
@@ -804,6 +1115,21 @@ func templateValidationSeedValues(info TemplateInfo) map[string]string {
 		}
 	}
 	return values
+}
+
+func templateValidationSeedValuesForScenarioID(info TemplateInfo, scenarioID string) map[string]string {
+	values := templateValidationSeedValues(info)
+	if strings.TrimSpace(scenarioID) != "" {
+		values["SCENARIO_ID"] = scenarioID
+	}
+	return values
+}
+
+func truncateForIssue(value string, limit int) string {
+	if limit <= 0 || len(value) <= limit {
+		return value
+	}
+	return value[:limit] + "... (truncated)"
 }
 
 func validateTemplateSource(info TemplateInfo) []TemplateValidationIssue {

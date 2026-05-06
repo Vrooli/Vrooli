@@ -1,9 +1,14 @@
 {
-  "generatedAt": "2026-05-05T13:58:01Z",
+  "generatedAt": "2026-05-06T14:15:49Z",
   "items": [
     {
       "id": "agent-29",
       "displayName": "Agent 29",
+      "status": "active"
+    },
+    {
+      "id": "agent-30",
+      "displayName": "Agent 30",
       "status": "active"
     },
     {
@@ -19,11 +24,6 @@
     {
       "id": "catalog-strategist",
       "displayName": "Catalog Strategist",
-      "status": "active"
-    },
-    {
-      "id": "monetization-contrarian",
-      "displayName": "Monetization Contrarian",
       "status": "active"
     },
     {
@@ -59,6 +59,11 @@
     {
       "id": "meta-contrarian",
       "displayName": "Meta Contrarian",
+      "status": "active"
+    },
+    {
+      "id": "monetization-contrarian",
+      "displayName": "Monetization Contrarian",
       "status": "active"
     },
     {

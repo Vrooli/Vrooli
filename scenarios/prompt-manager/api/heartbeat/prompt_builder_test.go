@@ -633,6 +633,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 		"team-storage-map",
 		"team-org-context",
 		promptSectionKindOperatingPolicy,
+		promptSectionKindTopicContract,
 		"team-responsibilities",
 		"agent-file",
 		"heartbeat-task",
@@ -901,6 +902,14 @@ func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
 					}
 					if policyIndex == -1 || activeIndex > policyIndex {
 						t.Fatalf("active task brief must appear before operating policy: %v", kinds)
+					}
+					topicContractIndex := sectionKindIndex(kinds, promptSectionKindTopicContract)
+					if topicContractIndex == -1 {
+						t.Fatalf("missing %s section: %v", promptSectionKindTopicContract, kinds)
+					}
+					inboxIndex := sectionKindIndex(kinds, promptSectionKindInboxFlow)
+					if topicContractIndex < policyIndex || (inboxIndex != -1 && topicContractIndex > inboxIndex) {
+						t.Fatalf("topic contract must appear after operating policy and before inbox flow: %v", kinds)
 					}
 					if taskIndex == -1 || reminderIndex == -1 || taskIndex > reminderIndex {
 						t.Fatalf("heartbeat task must be followed by task reminder: %v", kinds)

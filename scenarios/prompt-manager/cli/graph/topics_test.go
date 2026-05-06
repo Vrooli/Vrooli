@@ -12,7 +12,7 @@ import (
 
 func TestUsageTextMentionsTopicsAndDrainStatus(t *testing.T) {
 	usage := usageText()
-	for _, want := range []string{"topics", "drain-status"} {
+	for _, want := range []string{"topics", "operating-model", "drain-status"} {
 		if !strings.Contains(usage, want) {
 			t.Errorf("usage text missing %q: %s", want, usage)
 		}

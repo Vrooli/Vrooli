@@ -230,6 +230,15 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			Content:    operatingPolicy,
 		})
 
+		if section := b.buildTopicContractSection(teamID, agentID); section != "" {
+			sections = append(sections, PromptSection{
+				Kind:       promptSectionKindTopicContract,
+				Label:      promptSectionLabelTopicContract,
+				SourcePath: fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID),
+				Content:    section,
+			})
+		}
+
 		if section := b.buildInboxFlowSection(teamID, agentID); section != "" {
 			sections = append(sections, PromptSection{
 				Kind:       promptSectionKindInboxFlow,
@@ -284,6 +293,17 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 // BuildStructured returns the prompt as a list of structured sections.
 func (b *PromptBuilder) BuildStructured(ctx context.Context, req PromptBuildRequest) ([]PromptSection, error) {
 	return b.buildSectionList(ctx, req, true)
+}
+
+func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string {
+	if b == nil || b.teamStore == nil {
+		return ""
+	}
+	in, err := LoadTopicContractInputs(b.teamStore.StoreDir(), teamID, agentID)
+	if err != nil {
+		return ""
+	}
+	return RenderTopicContract(in)
 }
 
 type memberStoragePolicy struct {

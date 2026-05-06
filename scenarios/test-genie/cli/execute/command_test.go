@@ -1,6 +1,7 @@
 package execute
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -41,5 +42,34 @@ func TestPhaseTimingTargetsBuildsEstimateAndTimeoutMaps(t *testing.T) {
 	}
 	if got := timeouts["playbooks"]; got != 120*time.Second {
 		t.Fatalf("expected playbooks timeout 120s, got %s", got)
+	}
+}
+
+func TestParseArgsAcceptsAbsoluteScenarioPath(t *testing.T) {
+	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	parsed, err := ParseArgs([]string{"demo", "--scenario-path", scenarioPath, "--preset", "comprehensive"})
+	if err != nil {
+		t.Fatalf("ParseArgs() error = %v", err)
+	}
+	if parsed.ScenarioPath != scenarioPath {
+		t.Fatalf("ScenarioPath = %q, want %q", parsed.ScenarioPath, scenarioPath)
+	}
+	if parsed.Preset != "comprehensive" {
+		t.Fatalf("Preset = %q", parsed.Preset)
+	}
+}
+
+func TestParseArgsRejectsRelativeScenarioPath(t *testing.T) {
+	if _, err := ParseArgs([]string{"demo", "--scenario-path", "scenarios/demo"}); err == nil {
+		t.Fatal("expected relative --scenario-path to fail")
+	}
+}
+
+func TestExecutionResultErrorFailsUnsuccessfulJSONResult(t *testing.T) {
+	if err := executionResultError(Response{Success: true}); err != nil {
+		t.Fatalf("executionResultError(success) error = %v", err)
+	}
+	if err := executionResultError(Response{Success: false}); err == nil {
+		t.Fatal("expected unsuccessful execution result to fail")
 	}
 }

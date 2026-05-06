@@ -45,7 +45,7 @@ type Server struct {
 
 // New builds a Server with logging middleware applied and every module's
 // Mount invoked. Logger defaults to log.Default() if nil; Clock has no
-// default — set it explicitly (greenfield rule, no hidden seams).
+// default and is required so the logging middleware never hides its time seam.
 //
 // The handler test in handlers/health/handler_test.go reproduces a
 // stripped-down version of the middleware composition; if you add
@@ -54,6 +54,9 @@ type Server struct {
 func New(d Deps, modules ...module.Module) *Server {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		panic("server.New requires Deps.Clock")
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))

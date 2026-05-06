@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
@@ -42,6 +43,38 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 	app := newTestApp(t)
 
 	if err := app.Run([]string{"execute", "demo", "unit", "integration"}); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+}
+
+func TestExecuteSendsExplicitScenarioPath(t *testing.T) {
+	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
+			return
+		case "/api/v1/executions/plan":
+			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":1,"estimatedDurationSeconds":1,"timeoutSeconds":60}}`)
+			return
+		case "/api/v1/executions":
+			body, _ := io.ReadAll(r.Body)
+			defer r.Body.Close()
+			if !bytes.Contains(body, []byte(`"scenarioPath":"`+filepath.ToSlash(scenarioPath)+`"`)) {
+				t.Fatalf("expected scenarioPath in payload, got: %s", string(body))
+			}
+			fmt.Fprintf(w, `{"success":true,"phases":[{"name":"unit","status":"passed","durationSeconds":1}],"executionId":"abc"}`)
+			return
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	app := newTestApp(t)
+
+	if err := app.Run([]string{"execute", "demo", "unit", "--scenario-path", scenarioPath}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 }

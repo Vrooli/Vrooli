@@ -79,14 +79,29 @@ type GenerateOptions struct {
 }
 
 type (
-	TemplateListRequest     struct{}
-	TemplateShowRequest     struct{ Name string }
-	TemplateValidateRequest struct{}
-	GenerateRequest         struct {
+	TemplateListRequest struct{}
+	TemplateShowRequest struct{ Name string }
+	GenerateRequest     struct {
 		TemplateInfo TemplateInfo
 		Options      GenerateOptions
 	}
 )
+
+type TemplateValidationMode string
+
+const (
+	TemplateValidationModeShallow TemplateValidationMode = "shallow"
+	TemplateValidationModeDeep    TemplateValidationMode = "deep"
+)
+
+const DefaultTemplateValidationTestPreset = "comprehensive"
+
+type TemplateValidateRequest struct {
+	Mode         TemplateValidationMode
+	TemplateName string
+	RetainTemp   bool
+	TestPreset   string
+}
 
 // ResolvedRelocation captures a relocation after placeholder substitution,
 // so callers (and dry-run output) can show exactly where each From folder
@@ -129,9 +144,23 @@ type TemplateValidationIssue struct {
 	Message  string `json:"message"`
 }
 
+type TemplateValidationDeepRun struct {
+	Template      string `json:"template"`
+	ScenarioID    string `json:"scenarioId,omitempty"`
+	ScenarioPath  string `json:"scenarioPath,omitempty"`
+	TempRoot      string `json:"tempRoot,omitempty"`
+	TestPreset    string `json:"testPreset,omitempty"`
+	RetainedTemp  bool   `json:"retainedTemp,omitempty"`
+	CleanupStatus string `json:"cleanupStatus,omitempty"`
+}
+
 type TemplateValidationReport struct {
-	Count  int                       `json:"count"`
-	Issues []TemplateValidationIssue `json:"issues,omitempty"`
+	Mode         TemplateValidationMode      `json:"mode,omitempty"`
+	TemplateName string                      `json:"templateName,omitempty"`
+	TestPreset   string                      `json:"testPreset,omitempty"`
+	Count        int                         `json:"count"`
+	DeepRuns     []TemplateValidationDeepRun `json:"deepRuns,omitempty"`
+	Issues       []TemplateValidationIssue   `json:"issues,omitempty"`
 }
 
 func RenderTemplateListResponse(w io.Writer, format cliout.Format, templates []TemplateInfo) error {
@@ -320,13 +349,18 @@ func WriteTemplateRelocations(w io.Writer, relocations []ResolvedRelocation) {
 
 func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report TemplateValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "report", report)
+		return cliout.WriteFieldsWithSuccess(w, len(report.Issues) == 0, map[string]any{"report": report})
+	}
+	mode := string(report.Mode)
+	if mode == "" {
+		mode = string(TemplateValidationModeShallow)
 	}
 	if len(report.Issues) == 0 {
-		_, _ = fmt.Fprintf(w, "Validated %d scenario templates\n", report.Count)
+		_, _ = fmt.Fprintf(w, "Validated %d scenario templates (%s)\n", report.Count, mode)
+		writeRetainedTemplateValidationPaths(w, report.DeepRuns)
 		return nil
 	}
-	_, _ = fmt.Fprintf(w, "Scenario template validation failed (%d templates checked)\n", report.Count)
+	_, _ = fmt.Fprintf(w, "Scenario template validation failed (%d templates checked, %s)\n", report.Count, mode)
 	for _, issue := range report.Issues {
 		line := issue.Template
 		if strings.TrimSpace(issue.Path) != "" {
@@ -334,7 +368,16 @@ func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report Te
 		}
 		_, _ = fmt.Fprintf(w, "  - %s: %s\n", line, issue.Message)
 	}
+	writeRetainedTemplateValidationPaths(w, report.DeepRuns)
 	return nil
+}
+
+func writeRetainedTemplateValidationPaths(w io.Writer, runs []TemplateValidationDeepRun) {
+	for _, run := range runs {
+		if run.RetainedTemp && strings.TrimSpace(run.TempRoot) != "" {
+			_, _ = fmt.Fprintf(w, "Retained temp workspace for %s: %s\n", run.Template, run.TempRoot)
+		}
+	}
 }
 
 func WriteTemplateValues(w io.Writer, values map[string]string) {

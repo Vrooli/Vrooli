@@ -71,16 +71,31 @@ needed, add it to `template.json::copyExcludes`.
 
 ## Validation
 
-Before finishing template changes, run targeted checks:
+Use shallow validation for routine template-source changes. It checks
+manifest shape, placeholder substitution, default design copy,
+relocations, generated module paths, and generated start-document
+presence without running the full scenario suite:
 
 ```bash
-vrooli scenario template validate
-rg "cmd/server|ParseInterspersed|PrintReportJSON|Pass [0-9]" templates/scenarios/react-vite
+vrooli scenario template validate --mode shallow --template react-vite
+go test ./internal/cli/scenariohandlers ./internal/cli/scenariocli
 ```
 
-For changes touching Go template runtime behavior, also run the
-affected generator tests:
+Use deep validation before marking broad or first-run-sensitive template
+changes complete. It generates a temporary real scenario, runs post
+hooks, invokes test-genie against the generated scenario path, and
+cleans temporary output by default:
 
 ```bash
-go test ./internal/cli/scenariohandlers ./internal/cli/scenariocli
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
+```
+
+Use `--retain-temp` only while debugging a failed deep run. The command
+still cleans shared relocation outputs such as generated proto artifacts
+for `template-validation-*` ids.
+
+For broad template edits, also run the drift search:
+
+```bash
+rg "cmd/server|ParseInterspersed|PrintReportJSON|Pass [0-9]" templates/scenarios/react-vite
 ```
