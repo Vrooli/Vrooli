@@ -35,10 +35,9 @@ func TestSystemSchema_IsEmpty(t *testing.T) {
 // Per-domain providers (notes, etc.) own their own apply-and-query
 // coverage in their own *_test.go files (see internal/notes/sqlite_test.go).
 //
-// This test deliberately does NOT import any per-domain package. The
-// REPLACING-NOTES.md deletion sequence (rm -rf api/internal/notes ...)
-// must leave this package's tests passing — coupling to notes here
-// would break the deletability invariant Pass-3 establishes.
+// This test deliberately does NOT import any per-domain package. Domain
+// deletion must leave this package's tests passing — coupling to notes
+// here would break the deletability invariant Pass-3 establishes.
 func TestEnsureSchemas_AppliesSystem(t *testing.T) {
 	d := db.NewSQLite(t)
 	ctx := context.Background()

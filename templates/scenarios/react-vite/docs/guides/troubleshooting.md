@@ -219,8 +219,11 @@ You haven't regenerated. From the workspace root:
 make generate
 ```
 
-The generator runs entirely on local plugins (no BSR network calls)
-and writes to `packages/proto/gen/{go,ts}/{{SCENARIO_ID}}/v1/`.
+The generator runs entirely on local plugins (no BSR network calls) and
+writes to language-specific output paths: Go under
+`packages/proto/gen/go/{{SCENARIO_ID}}/v1/`, TypeScript under
+`packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/`, and Python under
+`packages/proto/gen/python/{{SCENARIO_ID_SNAKE}}/v1/`.
 
 ### Codegen ran but Go imports still fail
 

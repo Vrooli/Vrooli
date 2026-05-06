@@ -159,7 +159,7 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 					Message:  err.Error(),
 				}}
 			}
-			if err := copyTemplate(info.Path, destination, values, info.Manifest.Relocations); err != nil {
+			if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
 				return []TemplateValidationIssue{{
 					Template: info.Name,
 					Message:  fmt.Sprintf("generate validation copy: %v", err),
@@ -202,7 +202,7 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRe
 				spec.Stdout = io.Discard
 				spec.Stderr = deps.Stderr(ctx)
 				return deps.RunSubprocess(ctx, spec)
-			}, info.Name)
+			}, info.Name, info.Manifest)
 		}()
 		report.Issues = append(report.Issues, issues...)
 	}
@@ -260,7 +260,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 			}
 		}
 	}
-	if err := copyTemplate(info.Path, destination, values, info.Manifest.Relocations); err != nil {
+	if err := copyTemplate(info.Path, destination, values, info.Manifest); err != nil {
 		return "", GenerateResult{}, err
 	}
 	if err := verifyTemplate(destination); err != nil {
@@ -274,7 +274,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 		spec.Stdout = io.Discard
 		spec.Stderr = deps.Stderr(ctx)
 		return deps.RunSubprocess(ctx, spec)
-	}, info.Name); len(issues) > 0 {
+	}, info.Name, info.Manifest); len(issues) > 0 {
 		return "", GenerateResult{}, fmt.Errorf("%s", formatTemplateValidationIssues(issues))
 	}
 	result := GenerateResult{
@@ -406,17 +406,16 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 // validation scenario. Best-effort: errors are swallowed because the
 // validation flow has already completed by the time cleanup runs.
 //
-// The proto/gen/ artifact paths are derived heuristically (look for any
-// `gen/<lang>/<scenario-id>/` subdirectory under each relocation's
-// repo-rooted parent). This keeps cleanup symmetric with `make generate`'s
-// output without requiring the validator to know plugin-specific layouts.
+// The proto/gen/ artifact paths mirror the repository's generated output
+// layout. Go uses the scenario id directly, TypeScript nests generated JS
+// under gen/typescript/js/<scenario-id>, and Python rewrites hyphens to
+// underscores for package names.
 func cleanupRelocationTargets(relocations []ResolvedRelocation) {
 	for _, reloc := range relocations {
 		_ = os.RemoveAll(reloc.To)
 		// Heuristic gen-cleanup: if the relocation target lives under
-		// packages/proto/schemas/<id>/, the generator wrote artifacts
-		// under packages/proto/gen/{go,typescript,python}/<id>/. Walk
-		// up to packages/proto/, then sweep gen/<*>/<id>/.
+		// packages/proto/schemas/<id>/, remove the generated artifacts
+		// for that id from every known language output root.
 		schemasParent := filepath.Dir(reloc.To)
 		if filepath.Base(schemasParent) != "schemas" {
 			continue
@@ -424,15 +423,15 @@ func cleanupRelocationTargets(relocations []ResolvedRelocation) {
 		protoRoot := filepath.Dir(schemasParent)
 		genRoot := filepath.Join(protoRoot, "gen")
 		scenarioID := filepath.Base(reloc.To)
-		entries, err := os.ReadDir(genRoot)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			_ = os.RemoveAll(filepath.Join(genRoot, entry.Name(), scenarioID))
+		scenarioPythonID := strings.ReplaceAll(scenarioID, "-", "_")
+		for _, path := range []string{
+			filepath.Join(genRoot, "go", scenarioID),
+			filepath.Join(genRoot, "typescript", scenarioID),
+			filepath.Join(genRoot, "typescript", "js", scenarioID),
+			filepath.Join(genRoot, "python", scenarioID),
+			filepath.Join(genRoot, "python", scenarioPythonID),
+		} {
+			_ = os.RemoveAll(path)
 		}
 	}
 }
@@ -606,20 +605,28 @@ func populateTemplatePathValues(root, destination string, values map[string]stri
 	return nil
 }
 
-func copyTemplate(templateDir, destination string, values map[string]string, relocations []TemplateRelocation) error {
+func copyTemplate(templateDir, destination string, values map[string]string, manifest TemplateManifest) error {
 	if err := os.MkdirAll(destination, 0o755); err != nil {
 		return err
 	}
 	// Build the set of relocation source paths (template-relative, cleaned)
 	// so the walk can prune them — they're handled by runRelocations and
 	// must not also land in the scenario destination.
-	relocSources := make(map[string]struct{}, len(relocations))
-	for _, reloc := range relocations {
+	relocSources := make(map[string]struct{}, len(manifest.Relocations))
+	for _, reloc := range manifest.Relocations {
 		from := strings.TrimSpace(reloc.From)
 		if from == "" {
 			continue
 		}
 		relocSources[filepath.Clean(filepath.FromSlash(from))] = struct{}{}
+	}
+	copyExcludes := make(map[string]struct{}, len(manifest.CopyExcludes))
+	for _, exclude := range manifest.CopyExcludes {
+		exclude = strings.TrimSpace(exclude)
+		if exclude == "" {
+			continue
+		}
+		copyExcludes[filepath.Clean(filepath.FromSlash(exclude))] = struct{}{}
 	}
 	return filepath.WalkDir(templateDir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -639,8 +646,14 @@ func copyTemplate(templateDir, destination string, values map[string]string, rel
 			if _, skip := relocSources[filepath.Clean(relPath)]; skip {
 				return filepath.SkipDir
 			}
+			if _, skip := copyExcludes[filepath.Clean(relPath)]; skip {
+				return filepath.SkipDir
+			}
 		}
 		if filepath.Base(path) == ".DS_Store" || relPath == "template.json" {
+			return nil
+		}
+		if _, skip := copyExcludes[filepath.Clean(relPath)]; skip {
 			return nil
 		}
 		targetPath := filepath.Join(destination, renderTemplateString(relPath, values))
@@ -939,8 +952,9 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-func validateGeneratedScenario(destination string, runCommands bool, run func(scenarioexec.SubprocessSpec) error, templateName string) []TemplateValidationIssue {
+func validateGeneratedScenario(destination string, runCommands bool, run func(scenarioexec.SubprocessSpec) error, templateName string, manifest TemplateManifest) []TemplateValidationIssue {
 	var issues []TemplateValidationIssue
+	issues = append(issues, validateGeneratedStartDocument(destination, templateName, manifest)...)
 	_ = filepath.WalkDir(destination, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || filepath.Base(path) != "go.mod" {
 			return err
@@ -984,6 +998,37 @@ func validateGeneratedScenario(destination string, runCommands bool, run func(sc
 		return nil
 	})
 	return issues
+}
+
+func validateGeneratedStartDocument(destination, templateName string, manifest TemplateManifest) []TemplateValidationIssue {
+	startDocument := strings.TrimSpace(manifest.StartDocument)
+	if startDocument == "" {
+		return nil
+	}
+	cleanPath := filepath.Clean(filepath.FromSlash(startDocument))
+	if cleanPath == "." || filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, ".."+string(filepath.Separator)) || cleanPath == ".." {
+		return []TemplateValidationIssue{{
+			Template: templateName,
+			Path:     startDocument,
+			Message:  "startDocument must be a scenario-relative path",
+		}}
+	}
+	stat, err := os.Stat(filepath.Join(destination, cleanPath))
+	if err != nil {
+		return []TemplateValidationIssue{{
+			Template: templateName,
+			Path:     filepath.ToSlash(cleanPath),
+			Message:  fmt.Sprintf("startDocument is declared but missing from generated scenario: %v", err),
+		}}
+	}
+	if stat.IsDir() {
+		return []TemplateValidationIssue{{
+			Template: templateName,
+			Path:     filepath.ToSlash(cleanPath),
+			Message:  "startDocument must point to a file, not a directory",
+		}}
+	}
+	return nil
 }
 
 var goModReplaceLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-{}]+)(?:\s+[^\s]+)?\s*=>\s*([^\s]+)(?:\s+[^\s]+)?\s*(?://.*)?$`)

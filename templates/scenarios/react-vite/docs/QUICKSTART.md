@@ -109,6 +109,8 @@ common first-time issues are:
 
 ## Next steps
 
+- Read [`START-HERE.md`](START-HERE.md) before implementing product
+  behavior. It owns the first-session workflow after generation.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
   mental model: three surfaces, proto bridge, layered API, where to
   add code.

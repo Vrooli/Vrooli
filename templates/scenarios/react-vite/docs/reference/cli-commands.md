@@ -128,12 +128,17 @@ helpers).
 
 ## Adding a new command
 
+For a new domain, copy the notes command group first, then replace it
+once your real domain is green.
+
+For a command inside an existing domain:
+
 1. If the command needs a new API endpoint, add it first per
    [`api-endpoints.md`](api-endpoints.md#adding-a-new-endpoint).
-2. Choose a domain. New commands live in
-   `cli/domains/<domain>/{register,handlers}.go`. Mirror the `notes`
-   layout exactly.
-3. The handler should:
+2. Add the command to `cli/domains/<domain>/register.go`.
+3. Implement its handler in `cli/domains/<domain>/handlers.go` or a
+   focused sibling file.
+4. The handler should:
    - Declare flags and positionals in `cliapp.ArgSchema`; cli-core
      uses the schema for parsing and help output.
    - Implement `RunCtx func(ctx cliapp.RunContext) error`, then read
@@ -148,7 +153,6 @@ helpers).
      connected automatically
    - Render proto-backed responses with `cliapp.RenderProtoList` or
      `cliapp.RenderProtoMutation`.
-4. Register the domain in `cli/domains/domains.go::SubcommandGroups`.
 5. Add endpoint metadata in the API handler module and add a matching
    row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
    `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)

@@ -155,10 +155,10 @@ time. The pattern from wire to render:
 
 | Layer | File | What it owns |
 |---|---|---|
-| Wire contract | `proto/v1/notes/notes.proto` (relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/`) | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
-| REST metadata contract | `proto/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
+| Wire contract | `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
+| REST metadata contract | `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
 | Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
-| REST error envelope | `proto/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| REST error envelope | `packages/proto/schemas/{{SCENARIO_ID}}/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
 | Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
@@ -641,15 +641,12 @@ provably can't see it. If the test fires:
 
 Wire shapes for new endpoints belong in proto, not in hand-written Go
 structs or TS interfaces. After generation, the canonical source lives
-under `packages/proto/schemas/{{SCENARIO_ID}}/`. In this template tree,
-the relocation source is `proto/v1/`.
+under `packages/proto/schemas/{{SCENARIO_ID}}/`.
 
 Steps:
 
 1. **Author the schema.** In a generated scenario, add
    `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<name>.proto`.
-   While editing this template itself, add the source file under
-   `proto/v1/<domain>/<name>.proto`.
    Use snake_case in the proto package directive
    (`package vrooli.{{SCENARIO_ID_SNAKE}}.v1.<domain>;`) and add a
    `go_package` option pointing at the per-scenario gen path:
@@ -664,7 +661,10 @@ Steps:
    cd packages/proto && make generate && make lint
    ```
 
-   New artifacts land at `packages/proto/gen/{go,typescript,python}/{{SCENARIO_ID}}/v1/<domain>/`.
+   New artifacts land under the language-specific generated trees:
+   `packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>/`,
+   `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/<domain>/`, and
+   `packages/proto/gen/python/{{SCENARIO_ID_SNAKE}}/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.
 

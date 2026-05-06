@@ -43,7 +43,7 @@ A scenario is one product expressed through three coordinated surfaces.
 | **`api/`** | The scenario's core. All business logic, persistence, and external integrations live here. | Domain rules, storage, transport edge |
 | **`ui/`** | A thin React/Vite client that renders state and triggers commands. Always present (every scenario has a UI). | Components, i18n, accessibility, browser concerns |
 | **`cli/`** | A thin Go wrapper over the API for scripting, agents, and operators. | Argument parsing, output formatting; **never** business logic |
-| **`proto/`** | Wire contracts in `.proto` files. At generate-time, relocated to `packages/proto/schemas/{{SCENARIO_ID}}/v1/`. Code is generated for Go (API + CLI), TypeScript (UI), and Connect transports. | One canonical type and service descriptor per proto-typed operation |
+| **`packages/proto/schemas/{{SCENARIO_ID}}/`** | Wire contracts in `.proto` files. The template source starts under `proto/`, but generation relocates it here automatically via `template.json::relocations`. Code is generated for Go (API + CLI), TypeScript (UI), Python, and Connect transports. | One canonical type and service descriptor per proto-typed operation |
 
 **The load-bearing principle:** the API is the only surface that contains
 business logic. UI and CLI are translation layers. Proto types flow from
@@ -57,16 +57,15 @@ proto-typed API calls, the `.proto` file also declares the `service`
 block that generates the Connect handler and clients.
 
 ```
-proto/v1/health/health.proto    ── source of truth
+packages/proto/schemas/{{SCENARIO_ID}}/v1/health/health.proto
        │
-       │  (vrooli scenario generate relocates to
-       │   packages/proto/schemas/{{SCENARIO_ID}}/v1/health/)
        ▼
        make generate
        │
-       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/...        (messages for api/, cli/)
-       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/...connect (Connect-Go handlers/clients)
-       └──▶  packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/... (messages + service descriptors for ui/)
+       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/...              (messages for api/, cli/)
+       ├──▶  packages/proto/gen/go/{{SCENARIO_ID}}/v1/...connect       (Connect-Go handlers/clients)
+       ├──▶  packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/...   (messages + service descriptors for ui/)
+       └──▶  packages/proto/gen/python/{{SCENARIO_ID_SNAKE}}/v1/...    (Python messages)
 ```
 
 **Adding a new proto-typed operation:** add request/response messages
@@ -177,35 +176,14 @@ endpoint descriptors. `server.Deps` shrinks to cross-cutting concerns
 only (`Clock`, `Logger`); per-domain dependencies live inside the
 module's constructor.
 
-**Adding a domain** (`tasks` example):
+This architecture document owns the invariant: a domain adds local
+files plus small registration lines in `api/main.go`,
+`api/internal/modules/registry.go`, `cli/domains/domains.go`, and
+`ui/src/App.tsx`.
 
-1. Create `proto/v1/tasks/tasks.proto`; run `make generate`.
-2. Create `api/internal/tasks/{types,repository,sqlite,service,schema.sql,schema.go}.go`
-   and `api/internal/tasks/mocks/{repository,service}.go` for the
-   co-located fakes.
-3. Create `api/handlers/tasks/{connect_handler,module}.go` (the
-   `module.go` mounts the generated Connect handler and re-exports
-   `func Schema() string { return internaltasks.Schema() }` so the
-   registry collects all per-domain metadata uniformly).
-4. Add **two registry lines** in `api/internal/modules/registry.go`:
-   `out = append(out, tasksH.Endpoints...)` in `AllEndpoints`, and
-   `apidb.SchemaProviderFunc(tasksH.Schema)` in `AllSchemas`. Then
-   add **one runtime line** in `api/main.go`'s `server.New(...)`
-   slice: `tasksH.Module(db, clk, logger)`.
-5. Create `cli/domains/tasks/{register,handlers}.go`.
-6. Add **one line** to `cli/domains/domains.go`'s
-   `SubcommandGroups`: `tasks.Register(core)`.
-7. Add matching CLI command rows to
-   `api/cmd/gen-endpoints/cli_commands_seed.json`; run `make endpoints`.
-8. Create `ui/src/api/tasks.ts` + `ui/src/features/tasks/TasksCard.tsx`
-   plus `ui/src/features/tasks/mocks/{factories,tasks}.ts` for
-   co-located UI fakes; add **one import + one render line** in
-   `ui/src/App.tsx`.
-
-That's it. No central schema file to edit, no hand-edit of
-`.vrooli/endpoints.json`, no separate edits to `gen-endpoints/main.go`.
-The `notes` reference can be removed by reversing the same steps; see
-[`../internal/REPLACING-NOTES.md`](../internal/REPLACING-NOTES.md).
+No central schema file is edited, `.vrooli/endpoints.json` is generated
+with `make endpoints`, and `gen-endpoints/main.go` does not change for
+new domains.
 
 ### Domain-owned schema
 
@@ -237,8 +215,8 @@ Why this shape:
 - **Locality of change** — single-location edits for single logical
   changes (adds, columns, indexes).
 - **Deletability** — `rm -rf internal/<dom>/` takes the schema with
-  the rest of the domain. The deletion in REPLACING-NOTES.md works as
-  advertised; no orphan tables created on boot.
+  the rest of the domain. No orphan tables are created on boot after a
+  domain is removed.
 - **Bounded contexts** — each domain owns its data, mirroring the rest
   of the per-domain stack.
 

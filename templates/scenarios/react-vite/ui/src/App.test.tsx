@@ -9,8 +9,8 @@
  *
  * No per-feature mocks are installed here on purpose: feature cards
  * own their own mock setup in their per-feature tests. If a scenario
- * follows REPLACING-NOTES.md to delete a feature, this file does not
- * need to change — the smoke is shell-only.
+ * deletes a feature, this file does not need to change — the smoke is
+ * shell-only.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";

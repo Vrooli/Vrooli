@@ -23,9 +23,9 @@ func TestCommandGroups(t *testing.T) {
 //
 // Deliberately flexible on count and name: scenarios add and remove
 // domain packages over time, and pinning "exactly 1 group named X"
-// breaks the moment a scenario follows REPLACING-NOTES.md to swap the
-// canonical reference for its own first domain. The catch-the-typo
-// failure mode (a domain registers but forgets to set Name or has no
+// breaks the moment a scenario swaps the canonical reference for its
+// own first domain. The catch-the-typo failure mode (a domain registers
+// but forgets to set Name or has no
 // subcommands) still fails this test loudly.
 func TestSubcommandGroups(t *testing.T) {
 	got := SubcommandGroups(&cliapp.ScenarioApp{})

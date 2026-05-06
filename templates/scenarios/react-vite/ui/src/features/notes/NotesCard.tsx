@@ -20,9 +20,9 @@ const NOTES_QUERY_KEY = ["notes"] as const;
  * copy when adding their own domain (tasks, users, …) to
  * `features/<name>/`.
  *
- * To replace this feature: delete `features/notes/`, drop the import
- * and render line in `App.tsx`, and follow the steps in
- * `docs/internal/REPLACING-NOTES.md`.
+ * To replace this feature: copy this folder for your real domain, get
+ * the new feature green, then delete `features/notes/` and drop the
+ * import/render line in `App.tsx`.
  */
 export function NotesCard() {
   const { t } = useTranslation();

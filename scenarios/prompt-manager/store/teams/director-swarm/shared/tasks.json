@@ -167,23 +167,6 @@
           "text": "Superseded by dec-1775514065903960435 (completion sprint)"
         }
       ]
-    },
-    {
-      "id": "task-1775254796113143923",
-      "title": "Human: Accept/reject portfolio focus (dec-1775254772312319062) — 3 options, A recommended",
-      "status": "done",
-      "assignee": "director",
-      "priority": "P1",
-      "createdBy": "director",
-      "createdAt": "2026-04-03T22:19:56Z",
-      "updatedAt": "2026-04-05T22:19:41Z",
-      "notes": [
-        {
-          "at": "2026-04-05T22:19:41Z",
-          "by": "",
-          "text": "Superseded by dec-1775427572168229608 which includes vrooli-events"
-        }
-      ]
     }
   ]
 }

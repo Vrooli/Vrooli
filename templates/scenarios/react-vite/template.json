@@ -9,6 +9,7 @@
     "go",
     "cli"
   ],
+  "startDocument": "docs/START-HERE.md",
   "requiredVars": {
     "SCENARIO_ID": {
       "flag": "id",
@@ -45,6 +46,10 @@
     "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
     "templateGuide": "templates/scenarios/react-vite/README.md"
   },
+  "copyExcludes": [
+    "docs/internal/TEMPLATE-GENERATION-CONTRACT.md",
+    "docs/internal/TEMPLATE-MAINTENANCE.md"
+  ],
   "postHooks": [
     {
       "description": "Install UI dependencies (corepack pnpm install --ignore-workspace)",

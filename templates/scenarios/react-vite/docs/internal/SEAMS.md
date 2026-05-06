@@ -235,8 +235,8 @@ internal/notes/
 Mocks are co-located under `internal/<dom>/mocks/`, NOT under
 `internal/testutil/mocks/`. `mocks/repository.go` defines
 `FakeRepository`; `mocks/service.go` defines `FakeService`. Deleting
-`internal/<dom>/` takes the mocks (and the schema, and the tests) along
-in one sweep — that's what makes REPLACING-NOTES.md work.
+`internal/<dom>/` takes the mocks, schema, and tests along in one
+sweep.
 
 `internal/database/` retains only cross-cutting infrastructure
 (`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —

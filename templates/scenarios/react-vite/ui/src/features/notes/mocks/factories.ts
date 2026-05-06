@@ -9,7 +9,7 @@
  * # Wire shape lives in proto, not here
  *
  * The Note / ListNotesResponse types are GENERATED proto messages at
- * `packages/proto/gen/typescript/{{SCENARIO_ID}}/v1/notes/...`.
+ * `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/notes/...`.
  * Factories use `create(<Schema>, overrides)` so:
  *
  *   - the runtime instance includes proto's internal `$typeName` /

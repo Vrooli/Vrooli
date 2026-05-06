@@ -156,29 +156,28 @@ Defined in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`.
 
 ## Adding a new endpoint
 
+For a new domain, copy the notes vertical slice first, then replace it
+once your real domain is green.
+
+For an endpoint inside an existing domain:
+
 1. Add or extend the `.proto` messages and service in
-   `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`. Run
-   `make generate` to refresh generated types and Connect stubs.
-2. If this is a new domain: create `internal/<domain>/{types,repository,sqlite,service}.go`
-   following the notes layout.
-3. Add the generated service implementation in
-   `handlers/<domain>/connect_handler.go`. Keep it thin: call the
-   service, translate typed sentinels to Connect errors, return generated
-   proto responses.
-4. Mount it in `handlers/<domain>/module.go` with
-   `connectx.RegisterServices`.
-5. Keep [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
-   current by updating endpoint metadata and running `make endpoints`.
-   Any endpoint with a `cli_mapping` also needs a matching
-   `api/cmd/gen-endpoints/cli_commands_seed.json` row.
-6. Update this document.
-7. Add tests at every layer per [`internal/TESTING.md`](../internal/TESTING.md).
-8. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you
+   `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`, then run
+   `make generate`.
+2. Implement the generated handler method in
+   `handlers/<domain>/connect_handler.go`; keep it thin.
+3. Update endpoint metadata in `handlers/<domain>/module.go`.
+4. If the endpoint has a CLI mirror, update
+   `api/cmd/gen-endpoints/cli_commands_seed.json`.
+5. Run `make endpoints`; do not edit
+   [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) by hand.
+6. Update this document and add tests for the touched layers.
+7. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you
    introduced a new interface that production wires once and tests
    substitute.
 
-The CI gate enforces (5) — every `cli_mapping` must name a registered
-CLI command, and every endpoint must declare its error codes.
+The CI gate enforces endpoint-manifest freshness and command-seed
+consistency.
 
 ## Cross-references
 

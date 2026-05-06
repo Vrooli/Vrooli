@@ -28,8 +28,8 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 // See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern and docs/internal/REPLACING-NOTES.md for the delete-checklist
-// when swapping the notes reference for your scenario's first domain.
+// pattern when swapping the notes reference for your scenario's first
+// domain.
 //
 // For API-backed commands:
 //   - set NeedsAPI: true so stale-check + --auto-start preflight works

@@ -21,8 +21,8 @@ import (
 // Connect-RPC service handler plus the deliberate REST multipart exception.
 //
 // Production callers use this entry point; it owns its own blob storage so
-// scenarios that don't use notes (or scenarios deleting notes per
-// REPLACING-NOTES.md) don't carry an orphan blobstore in api/main.go.
+// scenarios that don't use notes don't carry an orphan blobstore in
+// api/main.go.
 // Tests inject an in-memory blob store via ModuleWithBlobStore.
 //
 // Adding a real domain to a scenario means copying this file into
