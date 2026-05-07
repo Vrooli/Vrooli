@@ -15,10 +15,13 @@ type DefaultOperatingActorResolver struct {
 	Groups  map[string][]OperatingActorReference
 }
 
-func NewOperatingActorResolver(meta OperatingGraphMetadata) DefaultOperatingActorResolver {
+func NewOperatingActorResolver(meta OperatingGraphMetadata, graphs ...OperatingGraph) DefaultOperatingActorResolver {
 	resolver := DefaultOperatingActorResolver{
 		Aliases: map[string]OperatingActorReference{},
 		Groups:  map[string][]OperatingActorReference{},
+	}
+	for _, graph := range graphs {
+		resolver.addGraphNodeAliases(graph)
 	}
 	for key, value := range meta.Extra {
 		switch {
@@ -35,6 +38,43 @@ func NewOperatingActorResolver(meta OperatingGraphMetadata) DefaultOperatingActo
 		}
 	}
 	return resolver
+}
+
+func (r DefaultOperatingActorResolver) addGraphNodeAliases(graph OperatingGraph) {
+	for _, node := range graph.Nodes {
+		ref := graphNodeActorReference(node)
+		if ref.Kind == "" {
+			continue
+		}
+		r.addInferredAlias(node.Value, ref)
+		r.addInferredAlias(node.Display, ref)
+	}
+}
+
+func (r DefaultOperatingActorResolver) addInferredAlias(alias string, ref OperatingActorReference) {
+	alias = normalizeActorAlias(alias)
+	if alias == "" {
+		return
+	}
+	ref.Raw = alias
+	if existing, ok := r.Aliases[alias]; ok && (existing.Kind != ref.Kind || existing.Value != ref.Value) {
+		delete(r.Aliases, alias)
+		return
+	}
+	r.Aliases[alias] = ref
+}
+
+func graphNodeActorReference(node OperatingGraphNode) OperatingActorReference {
+	switch node.Kind {
+	case OperatingGraphNodeKindMember:
+		return OperatingActorReference{Kind: OperatingActorKindMember, Value: node.Value}
+	case OperatingGraphNodeKindTeam:
+		return OperatingActorReference{Kind: OperatingActorKindTeam, Value: node.Value}
+	case OperatingGraphNodeKindExternal:
+		return OperatingActorReference{Kind: OperatingActorKindExternal, Value: node.Value}
+	default:
+		return OperatingActorReference{}
+	}
 }
 
 func (r DefaultOperatingActorResolver) Expand(team string, runtime OperatingGraphRuntime, ref OperatingActorReference) []OperatingActorReference {

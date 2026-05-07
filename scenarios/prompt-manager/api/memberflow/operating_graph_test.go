@@ -93,6 +93,18 @@ func TestParseOperatingMermaidAnnotationRequiresDeclaredNode(t *testing.T) {
 }
 
 func TestExtractOperatingGraphDocsParsesTopicCatalogAndDecisions(t *testing.T) {
+	graph, err := ParseOperatingMermaid("g", []string{
+		"flowchart LR",
+		"  %% @node R member:researcher",
+		"  R[Researcher]",
+		"  %% @node PUB member:publisher",
+		"  PUB[Publisher]",
+		"  %% @node OP external:operator",
+		"  OP[Operator]",
+	}, 1)
+	if err != nil {
+		t.Fatalf("ParseOperatingMermaid: %v", err)
+	}
 	docs := ExtractOperatingGraphDocsForGraph(strings.Split(`
 ## Topic Catalog
 
@@ -111,15 +123,17 @@ Prose before the table is allowed.
 `, "\n"), OperatingGraphMetadata{Extra: map[string]string{
 		"actor_alias.advertisers": "group:advertisers",
 		"actor_alias.advertiser":  "group:advertisers",
-		"actor_alias.publisher":   "member:publisher",
 		"actor_group.advertisers": "member:oss-advertiser, member:subscription-advertiser",
-	}})
+	}}, graph)
 
 	if !docs.TopicCatalog.Present || len(docs.TopicCatalog.Rows) != 2 {
 		t.Fatalf("bad topic catalog parse: %+v", docs.TopicCatalog)
 	}
 	if row := docs.TopicCatalog.Rows[1]; row.Topic != "ad-run/<lane>/*" || row.Qualifier != "future" || len(row.Writers) != 1 || row.Writers[0].Kind != "group" {
 		t.Fatalf("bad topic row: %+v", row)
+	}
+	if row := docs.TopicCatalog.Rows[1]; len(row.Readers) != 1 || row.Readers[0].Kind != OperatingActorKindMember || row.Readers[0].Value != "publisher" {
+		t.Fatalf("reader should resolve from graph node label: %+v", row.Readers)
 	}
 	if !docs.Decisions.Present || len(docs.Decisions.Rows) != 1 {
 		t.Fatalf("bad decisions parse: %+v", docs.Decisions)

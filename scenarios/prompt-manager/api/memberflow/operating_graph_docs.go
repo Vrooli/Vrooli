@@ -11,8 +11,8 @@ func ExtractOperatingGraphDocs(lines []string) OperatingGraphDocs {
 	return ExtractOperatingGraphDocsForGraph(lines, OperatingGraphMetadata{})
 }
 
-func ExtractOperatingGraphDocsForGraph(lines []string, meta OperatingGraphMetadata) OperatingGraphDocs {
-	resolver := NewOperatingActorResolver(meta)
+func ExtractOperatingGraphDocsForGraph(lines []string, meta OperatingGraphMetadata, graphs ...OperatingGraph) OperatingGraphDocs {
+	resolver := NewOperatingActorResolver(meta, graphs...)
 	return OperatingGraphDocs{
 		TopicCatalog: extractOperatingTopicCatalog(lines, resolver),
 		Decisions:    extractOperatingDecisionTable(lines, resolver),

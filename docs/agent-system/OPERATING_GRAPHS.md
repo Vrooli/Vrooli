@@ -110,7 +110,14 @@ Team-specific actor groups and aliases may also be declared in metadata:
 | `actor_alias.<text>: external:<id>` | Maps readable table text to an external actor. |
 | `actor_alias.<text>: team:<id>` | Maps readable table text to another team. |
 
-Actor aliases are graph-local. Generic operating-graph code only understands typed actor references plus universal external references such as `operator` and `system`; team-specific prose like `advertisers` must be declared next to the graph.
+Actor aliases are graph-local. The docs-table parser automatically treats actor node labels and values as aliases for `member:`, `external:`, and `team:` graph nodes. For example, this graph node makes table text such as `Brand Manager` and `brand-manager` resolve to `member:brand-manager`:
+
+```mermaid
+%% @node BM member:brand-manager
+BM[Brand Manager]
+```
+
+Generic operating-graph code also understands typed actor references plus universal external references such as `operator` and `system`. Team-specific aggregate prose like `advertisers`, `any marketing member`, or `decision owners` must still be declared next to the graph because those phrases do not map to one actor node.
 
 Rule exceptions are not supported in graph metadata. Resolve drift by changing the graph or the runtime declarations so the contract stays explicit.
 
@@ -260,17 +267,19 @@ Contract graph source files must include two checked Markdown tables in the grap
 
 `checkable` graphs may omit these tables. `contract` graphs report validation errors when either table is missing. When present, table drift is validation-enforced.
 
-Actor cells may use typed references or supported aliases:
+Actor cells may use typed references, graph actor labels, graph actor values, or supported aliases:
 
 | Reference | Meaning |
 |---|---|
 | `member:researcher` | Specific team member. |
 | `external:operator` | External producer or boundary. |
 | `team:monetization` | Other registered prompt-manager team. |
+| `Brand Manager` | Graph actor label that resolves to the annotated node's typed actor. |
+| `brand-manager` | Graph actor value that resolves to the annotated node's typed actor. |
 | `group:advertisers` | A declared actor group. |
 | `advertisers` | A readable alias only if graph metadata maps it, for example `actor_alias.advertisers: group:advertisers`. |
 
-Prefer typed references when adding new tables. Aliases exist to keep operating-model prose readable, but every team-specific alias must be declared in metadata.
+Prefer graph labels for one-to-one actor references in readable tables. Use explicit aliases for aggregate, special, or non-expanding phrases that cannot be inferred from a single graph node.
 
 ## Validation Rules
 

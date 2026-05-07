@@ -30,6 +30,45 @@ func TestOperatingActorResolverExpandsDeclaredMarketingAliases(t *testing.T) {
 	}
 }
 
+func TestOperatingActorResolverInfersAliasesFromGraphActorLabels(t *testing.T) {
+	graph := OperatingGraph{Nodes: []OperatingGraphNode{
+		{Kind: OperatingGraphNodeKindMember, Value: "brand-manager", Display: "Brand Manager"},
+		{Kind: OperatingGraphNodeKindExternal, Value: "vision-walk", Display: "Vision walk"},
+		{Kind: OperatingGraphNodeKindTeam, Value: "monetization", Display: "Monetization team"},
+		{Kind: OperatingGraphNodeKindTopic, Value: "research-inbox/*", Display: "research-inbox/*"},
+	}}
+	resolver := NewOperatingActorResolver(OperatingGraphMetadata{}, graph)
+
+	refs := resolver.Resolve("marketing-crew", OperatingGraphRuntime{}, "Brand Manager, brand-manager, Vision walk, monetization team")
+	if findOperatingActorReference(refs, OperatingActorKindMember, "brand-manager") == nil {
+		t.Fatalf("brand manager label/value aliases not resolved: %+v", refs)
+	}
+	if findOperatingActorReference(refs, OperatingActorKindExternal, "vision-walk") == nil {
+		t.Fatalf("vision walk label alias not resolved: %+v", refs)
+	}
+	if findOperatingActorReference(refs, OperatingActorKindTeam, "monetization") == nil {
+		t.Fatalf("monetization team label alias not resolved: %+v", refs)
+	}
+	if findOperatingActorReference(refs, OperatingActorKindUnknown, "research-inbox/*") != nil {
+		t.Fatalf("topic node should not become an actor alias: %+v", refs)
+	}
+}
+
+func TestOperatingActorResolverExplicitAliasOverridesGraphLabel(t *testing.T) {
+	graph := OperatingGraph{Nodes: []OperatingGraphNode{
+		{Kind: OperatingGraphNodeKindMember, Value: "brand-manager", Display: "Advertisers"},
+	}}
+	resolver := NewOperatingActorResolver(OperatingGraphMetadata{Extra: map[string]string{
+		"actor_alias.advertisers": "group:advertisers",
+		"actor_group.advertisers": "member:oss-advertiser, member:subscription-advertiser",
+	}}, graph)
+
+	refs := resolver.Resolve("marketing-crew", OperatingGraphRuntime{}, "Advertisers")
+	if findOperatingActorReference(refs, OperatingActorKindGroup, "advertisers") == nil {
+		t.Fatalf("explicit alias should override inferred graph label alias: %+v", refs)
+	}
+}
+
 func findOperatingActorReference(refs []OperatingActorReference, kind OperatingActorKind, value string) *OperatingActorReference {
 	for i := range refs {
 		if refs[i].Kind == kind && refs[i].Value == value {

@@ -88,6 +88,17 @@ id: marketing-operating-model
 scope: team
 team: marketing-crew
 mode: contract
+actor_group.advertisers: member:oss-advertiser, member:subscription-advertiser
+actor_group.marketing-members: team-members
+actor_group.decision-owners: none
+actor_alias.advertiser: group:advertisers
+actor_alias.advertisers: group:advertisers
+actor_alias.any marketing member: group:marketing-members
+actor_alias.decision owner: group:decision-owners
+actor_alias.decision owners: group:decision-owners
+actor_alias.meta-optimization: external:meta-optimization
+actor_alias.director-swarm: external:director-swarm
+actor_alias.future growth analyst: external:future-growth-analyst
 -->
 ```mermaid
 flowchart LR
@@ -377,7 +388,7 @@ These are the knowledge-topic families the target operating model uses. Current 
 | `topic:artifact-request/oss/*` | live | brand-manager | oss-advertiser, publisher | Work queue for requested OSS-lane draft artifacts. It should carry campaign, audience, channel, format, source decision, and acceptance criteria. |
 | `topic:artifact-request/subscription/*` | live | brand-manager | subscription-advertiser, publisher | Work queue for requested subscription-lane draft artifacts. It should carry campaign, SKU/bundle, audience, channel, format, source decision, and acceptance criteria. |
 | `topic:campaign-draft/*` | live | advertisers | publisher, marketing-contrarian, brand-manager | Draft artifacts ready to support a `content-publish-proposal`. Lane is metadata, not a separate pipeline. |
-| `topic[future]:ad-run/*` | target | advertisers | brand-manager, publisher, researcher | Normalized advertiser run summaries. This should eventually replace separate `oss-ad-run/*` and `subscription-ad-run/*` surfaces. |
+| `topic[future]:ad-run/<lane>/*` | target | advertisers | brand-manager, publisher, researcher | Normalized advertiser run summaries. This should eventually replace separate `oss-ad-run/*` and `subscription-ad-run/*` surfaces. |
 | `topic:oss-ad-run/*` | live transitional | oss-advertiser | brand-manager, publisher, researcher | Current OSS-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists. |
 | `topic:subscription-ad-run/*` | live transitional | subscription-advertiser | brand-manager, publisher, researcher | Current subscription-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists. |
 | `topic:publish-log/*` | live | publisher | advertisers, brand-manager, researcher, publisher | Record of what actually shipped: draft, channel, URL, post id, series, previous URL, and release notes. |

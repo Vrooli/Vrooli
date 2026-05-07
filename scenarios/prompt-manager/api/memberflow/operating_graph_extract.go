@@ -94,11 +94,11 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		if i >= len(lines) {
 			return nil, fmt.Errorf("%s:%d: unterminated mermaid fence", sourcePath, fenceLine)
 		}
-		docs := ExtractOperatingGraphDocsForGraph(scopedOperatingGraphDocLines(lines, i+1), meta)
 		graph, err := ParseOperatingMermaid(meta.ID, mermaid, fenceLine+1)
 		if err != nil {
 			return nil, fmt.Errorf("%s:%d: %w", sourcePath, fenceLine, err)
 		}
+		docs := ExtractOperatingGraphDocsForGraph(scopedOperatingGraphDocLines(lines, i+1), meta, graph)
 		blocks = append(blocks, OperatingGraphBlock{
 			Metadata: meta,
 			Graph:    graph,
