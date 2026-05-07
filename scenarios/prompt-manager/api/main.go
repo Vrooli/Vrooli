@@ -65,6 +65,28 @@ func discoverScenarioNames(storeDir string) []string {
 	return names
 }
 
+type heartbeatPromptSectionProvider struct {
+	executor *heartbeat.Executor
+}
+
+func (p heartbeatPromptSectionProvider) SectionsForMember(ctx context.Context, team, member string) ([]memberflow.OperatingGraphPromptSection, error) {
+	sections, err := p.executor.BuildPromptStructured(ctx, team, member)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]memberflow.OperatingGraphPromptSection, 0, len(sections))
+	for _, section := range sections {
+		out = append(out, memberflow.OperatingGraphPromptSection{
+			Team:       team,
+			Member:     member,
+			Kind:       section.Kind,
+			SourcePath: section.SourcePath,
+			Content:    section.Content,
+		})
+	}
+	return out, nil
+}
+
 func main() {
 	// Preflight checks
 	if preflight.Run(preflight.Config{
@@ -159,7 +181,7 @@ func main() {
 	}
 
 	// Initialize AI search components
-	embedder := aisearch.NewEmbedder(ollamaURL, "nomic-embed-text")
+	embedder := aisearch.NewEmbedder("nomic-embed-text")
 	vectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, aiSearchCollection, 768)
 	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStoreAdapter, searchService, aiSearchThreshold)
 	aiSearchHandlers := aisearch.NewHandlers(aiSearchService)
@@ -257,41 +279,45 @@ func main() {
 	actionHandlers.SetGraphInvalidator(graphIndex)
 	agentHandlers.SetGraphInvalidator(graphIndex)
 
-	// Log AI search status and trigger startup indexing if available
+	// AI Search: build the Reconciler + SyncLoop and wire them through the
+	// handlers. The reconciler replaces the old count-based reindex loop with
+	// a hash-driven Plan/Apply pipeline (see scenarios/prompt-manager/docs/...).
 	if ollamaURL != "" && qdrantURL != "" {
 		log.Printf("AI Search: Ollama=%s, Qdrant=%s, Collection=%s", ollamaURL, qdrantURL, aiSearchCollection)
-		// Check availability and index if needed (async to not block startup)
 		go func() {
 			ctx := context.Background()
 			if !aiSearchService.Available(ctx) {
-				log.Println("AI Search: Resources not reachable at startup, skipping initial index")
+				log.Println("AI Search: Resources not reachable at startup, skipping initial reconcile")
 				return
-			}
-			// Ensure collection exists
-			if err := vectorStore.EnsureCollection(ctx); err != nil {
-				log.Printf("AI Search: Failed to ensure collection: %v", err)
-				return
-			}
-			// Check if index is stale (count mismatch between Qdrant and disk)
-			needs, indexed, disk, err := aiSearchService.NeedsReindex(ctx)
-			if err != nil {
-				log.Printf("AI Search: Failed staleness check: %v", err)
-				return
-			}
-			if needs {
-				log.Printf("AI Search: Index out of sync (indexed=%d, on-disk=%d), reindexing...", indexed, disk)
-				status, started := aiSearchService.StartReindex()
-				if started {
-					log.Printf("AI Search: Reindexing started at %s", status.StartedAt)
-				} else {
-					log.Printf("AI Search: Reindex already running (started at %s)", status.StartedAt)
-				}
-			} else {
-				log.Printf("AI Search: Index up-to-date (%d entities)", indexed)
 			}
 
-			// Start periodic sync to catch external file changes and service recovery
-			aiSearchService.StartPeriodicSync(ctx, 5*time.Minute)
+			// Ensure every collection exists before the reconciler scrolls them.
+			for _, vs := range []aisearch.VectorStore{vectorStore, agentVectorStore, teamVectorStore, topicVectorStore, actionVectorStore} {
+				if err := vs.EnsureCollection(ctx); err != nil {
+					log.Printf("AI Search: Failed to ensure collection: %v", err)
+					return
+				}
+			}
+
+			descriptors := []aisearch.CollectionDescriptor{
+				aisearch.NewSkillDescriptor(vectorStore, skillStoreAdapter),
+				aisearch.NewAgentDescriptor(agentVectorStore, fileStore.Agents().(*store.FileAgentStore)),
+				aisearch.NewTeamDescriptor(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations()),
+				aisearch.NewTopicDescriptor(topicVectorStore, fileStore.FileTopics()),
+				aisearch.NewActionDescriptor(actionVectorStore, fileStore.Actions()),
+			}
+			cfg := aisearch.LoadConfigFromEnv()
+			reconciler := aisearch.NewReconciler(embedder, descriptors, cfg.ReconcileParallelism)
+			aiSearchHandlers.SetReconciler(reconciler)
+
+			bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			if _, _, err := reconciler.RunOnce(bootCtx); err != nil && err != aisearch.ErrReconcileBusy {
+				log.Printf("AI Search: boot-time reconcile failed: %v", err)
+			}
+			bootCancel()
+
+			syncLoop := aisearch.NewSyncLoop(reconciler)
+			go syncLoop.Start(ctx)
 		}()
 	} else {
 		log.Println("AI Search: Resources not fully configured (will gracefully degrade to text search)")
@@ -391,9 +417,9 @@ func main() {
 	v1.HandleFunc("/search/actions/ai", aiSearchHandlers.SearchActions).Methods("POST")
 	v1.HandleFunc("/search/teams/ai", aiSearchHandlers.SearchTeams).Methods("POST")
 	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
-	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")
-	v1.HandleFunc("/search/ai/reindex/status", aiSearchHandlers.ReindexStatus).Methods("GET")
-	v1.HandleFunc("/search/ai/reindex/cancel", aiSearchHandlers.CancelReindex).Methods("POST")
+	v1.HandleFunc("/search/ai/reconcile", aiSearchHandlers.Reconcile).Methods("POST")
+	v1.HandleFunc("/search/ai/reconcile/status", aiSearchHandlers.ReconcileStatus).Methods("GET")
+	v1.HandleFunc("/search/ai/reconcile/cancel", aiSearchHandlers.CancelReconcile).Methods("POST")
 
 	// Discovery route (unified topic + skill search)
 	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
@@ -521,6 +547,7 @@ func main() {
 		runRegistry,
 		nil, // uses default SentinelExtractor
 	)
+	memberFlowHandlers.SetPromptSectionProvider(heartbeatPromptSectionProvider{executor: heartbeatExecutor})
 	teamExecStore := heartbeat.NewTeamExecutionStore(
 		fileStore.Teams().(*store.FileTeamStore),
 		heartbeatExecutor,

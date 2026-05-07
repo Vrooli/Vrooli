@@ -2,33 +2,66 @@ package aisearch
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/testutil/assertx"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-// newTestHandler wires a Handler around an aisearch Service configured against
-// supplied mock servers. If ollamaURL or qdrantURL is empty, that subsystem is
-// disabled and the Handler exercises its graceful-degradation paths.
-func newTestHandler(t *testing.T, ollamaURL, qdrantURL string) (*Handler, *mux.Router) {
+// newTestHandler wires a Handler around an aisearch Service + Reconciler. The
+// optional fakes let tests preload disk + qdrant state without httptest plumbing.
+func newTestHandler(t *testing.T, opts handlerOpts) (*Handler, *Reconciler, *mux.Router) {
 	t.Helper()
-	embedder := NewEmbedder(ollamaURL, "nomic-embed-text")
-	backlogVS := NewVectorStore(qdrantURL, "", "sm-b", 3)
-	initVS := NewVectorStore(qdrantURL, "", "sm-i", 3)
-	svc := NewService(embedder, backlogVS, initVS, nil, nil, 0.5)
-	h := NewHandler(svc)
+	emb := opts.embedder
+	if emb == nil {
+		emb = &fakeEmbedder{}
+	}
+	bs := opts.backlogStore
+	if bs == nil {
+		bs = &fakeVectorStore{}
+	}
+	is := opts.initStore
+	if is == nil {
+		is = &fakeVectorStore{}
+	}
+	br := opts.backlogReader
+	if br == nil {
+		br = &fakeBacklogReader{}
+	}
+	ir := opts.initReader
+	if ir == nil {
+		ir = &fakeInitReader{}
+	}
+
+	// Service uses the same fakes for search + status; Reconciler owns the
+	// reconcile lifecycle. Threshold of 0 lets the default kick in.
+	svc := NewService(emb, bs, is, br, ir, 0)
+	reconciler := NewReconciler(emb, bs, is, br, ir, 1)
+	h := NewHandler(svc, reconciler)
 	r := mux.NewRouter()
 	h.RegisterRoutes(r)
-	return h, r
+	return h, reconciler, r
+}
+
+type handlerOpts struct {
+	embedder      Embedder
+	backlogStore  VectorStore
+	initStore     VectorStore
+	backlogReader BacklogReader
+	initReader    InitiativeReader
 }
 
 func TestHandler_Search_InvalidBody(t *testing.T) {
-	_, r := newTestHandler(t, "", "")
+	_, _, r := newTestHandler(t, handlerOpts{})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai", bytes.NewReader([]byte("not json")))
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -38,7 +71,7 @@ func TestHandler_Search_InvalidBody(t *testing.T) {
 }
 
 func TestHandler_Search_EmptyQuery(t *testing.T) {
-	_, r := newTestHandler(t, "", "")
+	_, _, r := newTestHandler(t, handlerOpts{})
 	body, _ := json.Marshal(AISearchRequest{Query: ""})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai", bytes.NewReader(body))
 	w := httptest.NewRecorder()
@@ -48,28 +81,8 @@ func TestHandler_Search_EmptyQuery(t *testing.T) {
 	}
 }
 
-func TestHandler_Search_FallbackUnavailable(t *testing.T) {
-	// No ollama, no qdrant, no text searcher → response returns 200 with
-	// fallback=unavailable and empty results.
-	_, r := newTestHandler(t, "", "")
-	body, _ := json.Marshal(AISearchRequest{Query: "x"})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
-	}
-	var resp AISearchResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp.Fallback != FallbackUnavailable {
-		t.Errorf("expected fallback=unavailable, got %s", resp.Fallback)
-	}
-}
-
-func TestHandler_Status_Unavailable(t *testing.T) {
-	_, r := newTestHandler(t, "", "")
+func TestHandler_Status_Reads(t *testing.T) {
+	_, _, r := newTestHandler(t, handlerOpts{})
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/search/ai/status", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -80,20 +93,26 @@ func TestHandler_Status_Unavailable(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if st.Available {
-		t.Error("expected Available=false for empty URLs")
-	}
-	if !strings.Contains(st.Message, "Ollama") || !strings.Contains(st.Message, "Qdrant") {
-		t.Errorf("expected message to mention both subsystems, got %q", st.Message)
+	// fakeEmbedder.Available returns true; fakeVectorStore.Available returns true.
+	if !st.Ollama || !st.Qdrant {
+		t.Errorf("expected Ollama+Qdrant=true with fake stores, got %+v", st)
 	}
 }
 
-func TestHandler_Reindex_DryRun(t *testing.T) {
-	_, r := newTestHandler(t, "", "")
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reindex", nil)
+func TestHandler_Reconcile_DryRun_ReturnsDriftReport(t *testing.T) {
+	br := &fakeBacklogReader{items: []backlog.BacklogItem{
+		{Kind: backlog.KindFix, Name: "a"},
+		{Kind: backlog.KindFix, Name: "b"},
+	}}
+	emb := &fakeEmbedder{}
+	bs := &fakeVectorStore{}
+	_, _, r := newTestHandler(t, handlerOpts{embedder: emb, backlogStore: bs, backlogReader: br})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile", nil)
 	req.Header.Set(cliutil.DryRunHeader, "true")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
+
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 for dry-run, got %d body=%s", w.Code, w.Body.String())
 	}
@@ -102,60 +121,121 @@ func TestHandler_Reindex_DryRun(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 	if payload["dry_run"] != true {
-		t.Errorf("expected dry_run=true in response, got %v", payload["dry_run"])
+		t.Errorf("expected dry_run=true, got %v", payload["dry_run"])
+	}
+	// Crucial: dry-run must NOT touch the embedder or upsert anything.
+	if emb.callCount() != 0 {
+		t.Errorf("dry-run should not embed, got %d calls", emb.callCount())
+	}
+	if bs.upsertCalls != 0 {
+		t.Errorf("dry-run should not upsert, got %d calls", bs.upsertCalls)
 	}
 }
 
-func TestHandler_Reindex_Live(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
+func TestHandler_Reconcile_Live_AcceptedAndAppliesPlan(t *testing.T) {
+	br := &fakeBacklogReader{items: []backlog.BacklogItem{
+		{Kind: backlog.KindFix, Name: "live"},
+	}}
+	emb := &fakeEmbedder{}
+	bs := &fakeVectorStore{}
+	_, reconciler, r := newTestHandler(t, handlerOpts{embedder: emb, backlogStore: bs, backlogReader: br})
 
-	h, r := newTestHandler(t, ollama.URL, qServer.URL)
-	_ = h
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reindex", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusAccepted {
-		t.Errorf("expected 202 on start, got %d body=%s", w.Code, w.Body.String())
+		t.Fatalf("expected 202 on start, got %d body=%s", w.Code, w.Body.String())
 	}
 
-	// Second concurrent start → 409.
-	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reindex", nil)
+	// The goroutine completes asynchronously; wait for the upsert.
+	assertx.Eventually(t, time.Second, "live reconcile applied", func() bool {
+		bs.mu.Lock()
+		defer bs.mu.Unlock()
+		return bs.upsertCalls >= 1
+	})
+	// And the in-flight singleton clears once done.
+	assertx.Eventually(t, time.Second, "reconciler idle after run", func() bool {
+		return !reconciler.Status().Running
+	})
+}
+
+func TestHandler_Reconcile_Conflict_WhenAlreadyRunning(t *testing.T) {
+	emb := &fakeEmbedder{delay: 200 * time.Millisecond}
+	br := &fakeBacklogReader{items: []backlog.BacklogItem{{Kind: backlog.KindFix, Name: "slow"}}}
+	_, reconciler, r := newTestHandler(t, handlerOpts{embedder: emb, backlogReader: br})
+
+	// Kick off a slow run.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", w.Code)
+	}
+	// Wait for the singleton to actually be acquired before firing the second call.
+	assertx.Eventually(t, time.Second, "first run acquires singleton", func() bool {
+		return reconciler.Status().Running
+	})
+
+	// Second request must 409.
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile", nil)
 	w2 := httptest.NewRecorder()
 	r.ServeHTTP(w2, req2)
-	// It might already have finished and return 202 again; accept either.
-	if w2.Code != http.StatusConflict && w2.Code != http.StatusAccepted {
-		t.Errorf("expected 409 or 202 on second start, got %d", w2.Code)
+	if w2.Code != http.StatusConflict {
+		t.Errorf("expected 409 while running, got %d body=%s", w2.Code, w2.Body.String())
 	}
+
+	// Drain.
+	assertx.Eventually(t, 2*time.Second, "first run drains", func() bool {
+		return !reconciler.Status().Running
+	})
 }
 
-func TestHandler_ReindexStatus_ReadsService(t *testing.T) {
-	_, r := newTestHandler(t, "", "")
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/search/ai/reindex/status", nil)
+func TestHandler_ReconcileStatus_ReturnsLastReport(t *testing.T) {
+	br := &fakeBacklogReader{items: []backlog.BacklogItem{{Kind: backlog.KindFix, Name: "one"}}}
+	_, reconciler, r := newTestHandler(t, handlerOpts{backlogReader: br})
+
+	// Drive one run synchronously so LastPlan + LastResult populate.
+	if _, _, err := reconciler.RunOnce(context.Background()); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search/ai/reconcile/status", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
-	var st ReindexStatus
-	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if st.Running {
-		t.Error("expected Running=false on fresh service")
+	if !strings.Contains(w.Body.String(), "lastResult") {
+		t.Errorf("expected lastResult in body, got %s", w.Body.String())
 	}
 }
 
-func TestHandler_CancelReindex(t *testing.T) {
-	_, r := newTestHandler(t, "", "")
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reindex/cancel", nil)
+func TestHandler_ReconcileCancel_StopsRunning(t *testing.T) {
+	emb := &fakeEmbedder{delay: 500 * time.Millisecond}
+	br := &fakeBacklogReader{items: []backlog.BacklogItem{
+		{Kind: backlog.KindFix, Name: "a"}, {Kind: backlog.KindFix, Name: "b"}, {Kind: backlog.KindFix, Name: "c"},
+	}}
+	_, reconciler, r := newTestHandler(t, handlerOpts{embedder: emb, backlogReader: br})
+
+	// Start run.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+	assertx.Eventually(t, time.Second, "run starts", func() bool {
+		return reconciler.Status().Running
+	})
+
+	// Cancel.
+	cancelReq := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile/cancel", nil)
+	cancelW := httptest.NewRecorder()
+	r.ServeHTTP(cancelW, cancelReq)
+	if cancelW.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", cancelW.Code)
 	}
+
+	assertx.Eventually(t, 2*time.Second, "run stops after cancel", func() bool {
+		st := reconciler.Status()
+		return !st.Running && st.Canceled
+	})
 }
+

@@ -3,6 +3,13 @@
 // Ollama or Qdrant is unavailable.
 package aisearch
 
+import (
+	"time"
+
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/initiatives"
+)
+
 // EntityType identifies which collection a search result belongs to.
 type EntityType string
 
@@ -87,31 +94,114 @@ type AvailabilityStatus struct {
 	Message            string `json:"message,omitempty"`
 }
 
-// ReindexResponse is the terminal result returned by ReindexAll.
-type ReindexResponse struct {
-	Indexed int    `json:"indexed"`
-	Skipped int    `json:"skipped"`
-	Errors  int    `json:"errors"`
-	Message string `json:"message"`
+// EntityKind discriminates which collection an ItemRef or ReconcileError
+// belongs to. Distinct from EntityType (which has a Both value used by search
+// requests) — the reconciler never operates on "both" as a single bucket.
+type EntityKind string
+
+const (
+	KindBacklogItem EntityKind = "backlog"
+	KindInitiative  EntityKind = "initiative"
+)
+
+// ItemRef is the minimal handle the Reconciler needs to embed-and-upsert one
+// item without re-walking disk during Apply. Holding the full struct inline
+// means Apply doesn't need a second LoadAll round-trip — at current scale
+// (~326 items, ~1KB each) the memory cost is negligible.
+//
+// Exactly one of Backlog/Initiative is set per Kind. PayloadHash is the freshly
+// computed hash, ready to be stored under "payload_hash" in the Qdrant payload.
+type ItemRef struct {
+	Kind        EntityKind
+	PointID     string
+	Name        string
+	PayloadHash string
+	Backlog     *backlog.BacklogItem    // set when Kind == KindBacklogItem
+	Initiative  *initiatives.Initiative // set when Kind == KindInitiative
 }
 
-// ReindexStatus is the mutable, in-flight progress of a reindex job.
-type ReindexStatus struct {
-	Running    bool   `json:"running"`
-	StartedAt  string `json:"startedAt,omitempty"`
-	FinishedAt string `json:"finishedAt,omitempty"`
-	Indexed    int    `json:"indexed"`
-	Skipped    int    `json:"skipped"`
-	Errors     int    `json:"errors"`
-	Total      int    `json:"total"`
-	Message    string `json:"message,omitempty"`
-	Canceled   bool   `json:"canceled,omitempty"`
-	Error      string `json:"error,omitempty"`
+// DriftReport is the structured "what work needs doing?" decision returned by
+// Reconciler.Plan. Apply consumes this verbatim — no second comparison pass.
+//
+// Per-collection breakdowns let the dry-run output show "12 backlog upserts,
+// 3 initiative orphans" rather than a single opaque total. LegacyBacklog and
+// LegacyInitiative track the post-deploy "absent payload_hash → re-embed once"
+// drain so operators can see when convergence is complete.
+type DriftReport struct {
+	PlannedAt           time.Time `json:"plannedAt"`
+	ToUpsertBacklog     []ItemRef `json:"-"` // items, kept out of JSON; counts below
+	ToUpsertInitiative  []ItemRef `json:"-"`
+	ToDeleteBacklog     []string  `json:"toDeleteBacklog,omitempty"`
+	ToDeleteInitiative  []string  `json:"toDeleteInitiative,omitempty"`
+	UnchangedBacklog    int       `json:"unchangedBacklog"`
+	UnchangedInitiative int       `json:"unchangedInitiative"`
+	LegacyBacklog       int       `json:"legacyBacklog"`
+	LegacyInitiative    int       `json:"legacyInitiative"`
+}
+
+// HasWork reports whether Apply would do anything for this report. The
+// periodic SyncLoop uses it to skip the apply phase entirely when the index
+// has already converged — the optimization that turns 5-minute ticks into
+// "one disk walk + one qdrant scroll + zero embeds" when nothing changed.
+func (d DriftReport) HasWork() bool {
+	return len(d.ToUpsertBacklog)+len(d.ToUpsertInitiative)+
+		len(d.ToDeleteBacklog)+len(d.ToDeleteInitiative) > 0
+}
+
+// UpsertCount returns total items needing upsert across both collections.
+// Convenience for status/log lines.
+func (d DriftReport) UpsertCount() int {
+	return len(d.ToUpsertBacklog) + len(d.ToUpsertInitiative)
+}
+
+// DeleteCount returns total point IDs needing delete across both collections.
+func (d DriftReport) DeleteCount() int {
+	return len(d.ToDeleteBacklog) + len(d.ToDeleteInitiative)
+}
+
+// ReconcileError captures one per-item failure during Apply so operators can
+// triage exactly which item failed and where in the pipeline. The reconciler
+// is best-effort: a single item's failure does not abort the rest of the pass.
+type ReconcileError struct {
+	Kind    EntityKind `json:"kind"`
+	PointID string     `json:"pointId,omitempty"`
+	Name    string     `json:"name,omitempty"`
+	Op      string     `json:"op"` // "embed" | "upsert" | "delete"
+	Err     string     `json:"err"`
+}
+
+// ApplyResult is the structured outcome of Reconciler.Apply. Counts reflect
+// items that completed successfully; failed items appear in Errors with their
+// failing op.
+type ApplyResult struct {
+	StartedAt          time.Time        `json:"startedAt"`
+	FinishedAt         time.Time        `json:"finishedAt"`
+	UpsertedBacklog    int              `json:"upsertedBacklog"`
+	UpsertedInitiative int              `json:"upsertedInitiative"`
+	DeletedBacklog     int              `json:"deletedBacklog"`
+	DeletedInitiative  int              `json:"deletedInitiative"`
+	Errors             []ReconcileError `json:"errors,omitempty"`
+}
+
+// ReconcileStatus is the wire-shape returned by GET /api/v1/search/ai/reconcile/status.
+// It is the user-visible projection of Reconciler's internal state.
+type ReconcileStatus struct {
+	Running    bool         `json:"running"`
+	StartedAt  string       `json:"startedAt,omitempty"`  // RFC3339, "" when never run
+	FinishedAt string       `json:"finishedAt,omitempty"` // RFC3339, "" while running
+	LastPlan   *DriftReport `json:"lastPlan,omitempty"`
+	LastResult *ApplyResult `json:"lastResult,omitempty"`
+	LastError  string       `json:"lastError,omitempty"`
+	Canceled   bool         `json:"canceled,omitempty"`
 }
 
 // BacklogPayload is the typed shape of what aisearch stores in a backlog
 // vector's payload. Keys here must match the map keys used in
 // index.go:buildBacklogPayload.
+//
+// PayloadHash is the reconciler's skip-if-unchanged signal — see
+// index.go:composePayloadHash. Absent (empty) hash means "legacy point, force
+// re-embed once" so post-deploy drains converge in one tick.
 type BacklogPayload struct {
 	Kind            string   `json:"kind"`
 	Name            string   `json:"name"`
@@ -123,14 +213,17 @@ type BacklogPayload struct {
 	Effort          string   `json:"effort"`
 	Archived        bool     `json:"archived"`
 	TargetScenarios []string `json:"target_scenarios"`
+	PayloadHash     string   `json:"payload_hash,omitempty"`
 }
 
 // InitiativePayload is the typed shape of what aisearch stores in an
-// initiative vector's payload.
+// initiative vector's payload. PayloadHash is the same skip-if-unchanged
+// signal documented on BacklogPayload.
 type InitiativePayload struct {
-	Name     string `json:"name"`
-	Title    string `json:"title"`
-	Status   string `json:"status"`
-	Priority int    `json:"priority"`
-	Archived bool   `json:"archived"`
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Priority    int    `json:"priority"`
+	Archived    bool   `json:"archived"`
+	PayloadHash string `json:"payload_hash,omitempty"`
 }

@@ -159,9 +159,9 @@ export const API_ENDPOINTS = {
   // AI search
   searchAI: "/search/ai",
   searchAIStatus: "/search/ai/status",
-  searchAIReindex: "/search/ai/reindex",
-  searchAIReindexStatus: "/search/ai/reindex/status",
-  searchAIReindexCancel: "/search/ai/reindex/cancel",
+  searchAIReconcile: "/search/ai/reconcile",
+  searchAIReconcileStatus: "/search/ai/reconcile/status",
+  searchAIReconcileCancel: "/search/ai/reconcile/cancel",
 } as const;
 
 /**

@@ -35,7 +35,7 @@ func saveBacklogItem(t *testing.T, store *backlog.FileStore, item backlog.Backlo
 // buildTestService wires real stores behind a shared *Service backed by the
 // supplied mock ollama/qdrant servers. Returns the store handles for test
 // assertions.
-func buildTestService(t *testing.T, ollamaURL, qdrantURL string) (*Service, *backlog.FileStore, *initiatives.Store, string) {
+func buildTestService(t *testing.T, embedder Embedder, qdrantURL string) (*Service, *backlog.FileStore, *initiatives.Store, string) {
 	t.Helper()
 	root := t.TempDir()
 	// Pre-create the kind directories so LoadAll doesn't error.
@@ -47,8 +47,6 @@ func buildTestService(t *testing.T, ollamaURL, qdrantURL string) (*Service, *bac
 
 	bStore := backlog.NewFileStore(root)
 	iStore := initiatives.NewStore(root)
-
-	embedder := NewEmbedder(ollamaURL, "nomic-embed-text")
 	backlogVS := NewVectorStore(qdrantURL, "", "sm-b", 3)
 	initVS := NewVectorStore(qdrantURL, "", "sm-i", 3)
 	svc := NewService(
@@ -65,13 +63,11 @@ func buildTestService(t *testing.T, ollamaURL, qdrantURL string) (*Service, *bac
 }
 
 func TestIntegration_BacklogSave_FiresIndexUpsert(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
+qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	_, bStore, _, _ := buildTestService(t, ollama.URL, qServer.URL)
+	_, bStore, _, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	saveBacklogItem(t, bStore, backlog.BacklogItem{
 		Name:  "alpha",
@@ -84,13 +80,11 @@ func TestIntegration_BacklogSave_FiresIndexUpsert(t *testing.T) {
 }
 
 func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
+qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	_, bStore, _, _ := buildTestService(t, ollama.URL, qServer.URL)
+	_, bStore, _, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	saveBacklogItem(t, bStore, backlog.BacklogItem{
 		Name:  "alpha",
@@ -111,13 +105,11 @@ func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
 }
 
 func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
+qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	_, _, iStore, _ := buildTestService(t, ollama.URL, qServer.URL)
+	_, _, iStore, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	init := &initiatives.Initiative{Name: "obs-core", Title: "Observability Core", Status: "active"}
 	if err := iStore.Save(init); err != nil {
@@ -131,14 +123,12 @@ func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
 func TestIntegration_QdrantFailure_DoesNotBreakCRUD(t *testing.T) {
 	// Core fire-and-forget invariant: CRUD must succeed even when Qdrant
 	// returns 500 on every call.
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+qServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer qServer.Close()
 
-	_, bStore, iStore, _ := buildTestService(t, ollama.URL, qServer.URL)
+	_, bStore, iStore, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	// CRUD calls must not propagate the upstream 500.
 	for i := 0; i < 5; i++ {
@@ -163,7 +153,7 @@ func TestIntegration_OllamaEmpty_CRUDStillSucceeds(t *testing.T) {
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	_, bStore, _, _ := buildTestService(t, "", qServer.URL)
+	_, bStore, _, _ := buildTestService(t, fakeEmbedderErr(), qServer.URL)
 
 	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "alpha", Title: "A", Kind: backlog.KindIdea})
 	// Fixed sleep intentionally validates no background upsert succeeds when
@@ -175,13 +165,11 @@ func TestIntegration_OllamaEmpty_CRUDStillSucceeds(t *testing.T) {
 }
 
 func TestIntegration_Status_ReflectsOnDiskCounts(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{count: 0}
+qStub := &qdrantStub{count: 0}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	svc, bStore, iStore, _ := buildTestService(t, ollama.URL, qServer.URL)
+	svc, bStore, iStore, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	for _, name := range []string{"a", "b", "c"} {
 		saveBacklogItem(t, bStore, backlog.BacklogItem{Name: name, Kind: backlog.KindIdea, Title: name})
@@ -199,36 +187,139 @@ func TestIntegration_Status_ReflectsOnDiskCounts(t *testing.T) {
 	}
 }
 
-func TestIntegration_ReindexAll_PopulatesBothCollections(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
-
-	svc, bStore, iStore, _ := buildTestService(t, ollama.URL, qServer.URL)
-
-	// Seed disk *without* triggering the indexer — we want ReindexAll to be
-	// the thing that populates Qdrant. Detach indexer, seed, reattach.
-	bStore.SetAIIndexer(nil)
-	iStore.SetAIIndexer(nil)
-	for _, name := range []string{"a", "b"} {
-		saveBacklogItem(t, bStore, backlog.BacklogItem{Name: name, Kind: backlog.KindIdea, Title: name})
+// buildTestReconciler wires real on-disk stores (via adapters) and in-memory
+// VectorStore + Embedder fakes into a Reconciler. This is the integration-test
+// pairing that exercises the disk → reconciler → index pipeline end-to-end
+// without HTTP overhead. Returns the reconciler plus the disk handles so the
+// test can mutate disk between RunOnce calls and observe convergence.
+func buildTestReconciler(t *testing.T) (*Reconciler, *backlog.FileStore, *initiatives.Store, *fakeVectorStore, *fakeVectorStore, *fakeEmbedder) {
+	t.Helper()
+	root := t.TempDir()
+	for _, d := range []string{"ideas", "research", "fix", "execute", "chore", "initiatives"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", d, err)
+		}
 	}
+	bStore := backlog.NewFileStore(root)
+	iStore := initiatives.NewStore(root)
+
+	emb := &fakeEmbedder{}
+	bs := &fakeVectorStore{}
+	is := &fakeVectorStore{}
+	r := NewReconciler(emb, bs, is,
+		NewBacklogStoreAdapter(bStore),
+		NewInitiativeStoreAdapter(iStore),
+		1,
+	)
+	return r, bStore, iStore, bs, is, emb
+}
+
+func TestIntegration_Reconciler_PopulatesEmptyIndex(t *testing.T) {
+	r, bStore, iStore, bs, _, emb := buildTestReconciler(t)
+
+	// Seed disk directly (no SetAIIndexer hook) so the only path to qdrant
+	// is the reconciler.
+	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "a", Title: "A", Kind: backlog.KindIdea})
+	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "b", Title: "B", Kind: backlog.KindIdea})
 	if err := iStore.Save(&initiatives.Initiative{Name: "i1", Title: "I1", Status: "active"}); err != nil {
 		t.Fatalf("seed initiative: %v", err)
 	}
-	bStore.SetAIIndexer(svc)
-	iStore.SetAIIndexer(svc)
 
-	resp, err := svc.ReindexAll(context.Background())
+	plan, res, err := r.RunOnce(context.Background())
 	if err != nil {
-		t.Fatalf("ReindexAll: %v", err)
+		t.Fatalf("runonce: %v", err)
 	}
-	if resp.Indexed != 3 {
-		t.Errorf("expected 3 indexed (2 backlog + 1 initiative), got %d", resp.Indexed)
+	if plan == nil || res == nil {
+		t.Fatal("expected non-nil plan and result")
 	}
-	if got := atomic.LoadInt32(&qStub.upsertCalls); got != 3 {
-		t.Errorf("expected 3 upsert calls to qdrant, got %d", got)
+	if res.UpsertedBacklog != 2 {
+		t.Errorf("expected 2 backlog upserts, got %d", res.UpsertedBacklog)
+	}
+	if res.UpsertedInitiative != 1 {
+		t.Errorf("expected 1 initiative upsert, got %d", res.UpsertedInitiative)
+	}
+	if emb.callCount() != 3 {
+		t.Errorf("expected 3 embed calls (2 backlog + 1 initiative), got %d", emb.callCount())
+	}
+	if bs.upsertCalls != 2 {
+		t.Errorf("expected 2 backlog upsert calls, got %d", bs.upsertCalls)
+	}
+}
+
+func TestIntegration_Reconciler_CleansGhostsLeftByOutOfBandFileDelete(t *testing.T) {
+	r, bStore, _, bs, _, emb := buildTestReconciler(t)
+
+	// First pass: seed disk + populate index.
+	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "alpha", Kind: backlog.KindFix})
+	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "beta", Kind: backlog.KindFix})
+	if _, _, err := r.RunOnce(context.Background()); err != nil {
+		t.Fatalf("runonce 1: %v", err)
+	}
+
+	// Simulate out-of-band file deletion (operator rm -rf): index now has a
+	// point whose backing item is gone. This is the exact scenario that
+	// caused the production CPU spike loop.
+	if err := os.RemoveAll(bStore.ItemDir(backlog.KindFix, "alpha")); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+
+	embedsBefore := emb.callCount()
+	_, res, err := r.RunOnce(context.Background())
+	if err != nil {
+		t.Fatalf("runonce 2: %v", err)
+	}
+	// Ghost cleanup: 1 BatchDelete call carrying alpha's point ID; no embeds
+	// (beta's hash matches), no upserts.
+	if res.DeletedBacklog != 1 {
+		t.Errorf("expected 1 ghost deleted, got %d", res.DeletedBacklog)
+	}
+	if bs.batchDeleteCalls != 1 {
+		t.Errorf("expected 1 BatchDelete call, got %d", bs.batchDeleteCalls)
+	}
+	if emb.callCount() != embedsBefore {
+		t.Errorf("expected zero new embeds (beta unchanged), got %d", emb.callCount()-embedsBefore)
+	}
+
+	// Third pass: now fully converged.
+	plan3, _, err := r.RunOnce(context.Background())
+	if err != nil {
+		t.Fatalf("runonce 3: %v", err)
+	}
+	if plan3.HasWork() {
+		t.Errorf("expected zero work after ghost cleanup, got %+v", plan3)
+	}
+}
+
+func TestIntegration_Reconciler_NoOpAfterConvergence(t *testing.T) {
+	r, bStore, _, bs, _, emb := buildTestReconciler(t)
+
+	// Seed + initial reconcile.
+	for _, name := range []string{"x", "y", "z"} {
+		saveBacklogItem(t, bStore, backlog.BacklogItem{Name: name, Kind: backlog.KindIdea, Title: name})
+	}
+	if _, _, err := r.RunOnce(context.Background()); err != nil {
+		t.Fatalf("runonce 1: %v", err)
+	}
+	embedsAfterFirst := emb.callCount()
+	upsertsAfterFirst := bs.upsertCalls
+
+	// Second reconcile must be a complete no-op: no embeds, no upserts, no
+	// deletes. This is the test that pins the CPU-burn fix — convergent
+	// hash compare means subsequent ticks do zero work when nothing changed.
+	plan, _, err := r.RunOnce(context.Background())
+	if err != nil {
+		t.Fatalf("runonce 2: %v", err)
+	}
+	if plan.HasWork() {
+		t.Errorf("expected no work after convergence, got %+v", plan)
+	}
+	if emb.callCount() != embedsAfterFirst {
+		t.Errorf("second pass embedded items it shouldn't have: was %d, now %d", embedsAfterFirst, emb.callCount())
+	}
+	if bs.upsertCalls != upsertsAfterFirst {
+		t.Errorf("second pass upserted items it shouldn't have: was %d, now %d", upsertsAfterFirst, bs.upsertCalls)
+	}
+	if bs.batchDeleteCalls != 0 {
+		t.Errorf("second pass should not delete anything, got %d BatchDelete calls", bs.batchDeleteCalls)
 	}
 }

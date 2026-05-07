@@ -28,13 +28,18 @@
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
     "react-syntax-highlighter": "^15.6.6",
+    "react-window": "^1.8.10",
     "recharts": "^3.2.0",
     "websocket": "^1.0.35"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.0.0",
     "eslint": "^9.33.0",
     "eslint-import-resolver-typescript": "^4.4.4",

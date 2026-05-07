@@ -3,16 +3,15 @@ package main
 import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -875,7 +874,6 @@ func getAISuggestions(useCase string) []map[string]interface{} {
 
 func fetchAISuggestions(useCase string) *AISuggestionResult {
 	model := getEnv("OLLAMA_MODEL", "llama3.2")
-	ollamaURL := getEnv("OLLAMA_API_GENERATE", "http://127.0.0.1:11434/api/generate")
 
 	prompt := fmt.Sprintf(`Generate 2 color palettes for a %s use case.
 For each palette provide:
@@ -897,50 +895,29 @@ Respond in this exact JSON format:
 		Prompt: prompt,
 	}
 
-	reqBody := OllamaRequest{
-		Model:  model,
-		Prompt: prompt,
-		Stream: false,
-	}
-
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		result.Error = fmt.Sprintf("marshal request: %v", err)
-		logger.Error("Failed to marshal Ollama request", "error", err, "model", model)
-		return result
-	}
-
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", model, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
 
 	startTime := time.Now()
-	resp, err := client.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		result.Error = fmt.Sprintf("request failed: %v", err)
-		logger.Error("Failed to contact Ollama", "error", err, "url", ollamaURL)
-		return result
-	}
-	defer resp.Body.Close()
+	out, err := cmd.Output()
 	result.DurationMs = time.Since(startTime).Milliseconds()
-
-	if resp.StatusCode != http.StatusOK {
-		result.Error = fmt.Sprintf("status %d", resp.StatusCode)
-		logger.Warn("Ollama returned non-OK status", "status_code", resp.StatusCode, "url", ollamaURL)
-		return result
-	}
-
-	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		result.Error = fmt.Sprintf("read response: %v", err)
-		logger.Error("Failed to read Ollama response", "error", err)
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		result.Error = fmt.Sprintf("resource-ollama gateway generate failed: %v: %s", err, stderr)
+		logger.Error("Failed to contact resource-ollama gateway", "error", err, "stderr", stderr)
 		return result
 	}
 
 	var ollamaResp OllamaResponse
-	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+	if err := json.Unmarshal(out, &ollamaResp); err != nil {
 		result.Error = fmt.Sprintf("parse response: %v", err)
-		logger.Error("Failed to parse Ollama response", "error", err, "body_length", len(body))
+		logger.Error("Failed to parse gateway response", "error", err, "body_length", len(out))
 		return result
 	}
 

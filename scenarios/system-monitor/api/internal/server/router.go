@@ -10,7 +10,7 @@ import (
 	"system-monitor-api/internal/toolhandlers"
 )
 
-func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {
+func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/health", health.Handle).Methods("GET")
@@ -21,6 +21,15 @@ func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandle
 	r.HandleFunc("/api/v1/metrics/timeline", metrics.GetMetricsTimeline).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/processes", metrics.GetProcessMonitor).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/infrastructure", metrics.GetInfrastructureMonitor).Methods("GET")
+
+	// Crash-forensics + logs surfaces (plain JSON; see forensics.go header).
+	r.HandleFunc("/api/v1/forensics/pstore", forensicsH.Pstore).Methods("GET")
+	r.HandleFunc("/api/v1/forensics/boot-history", forensicsH.BootHistory).Methods("GET")
+	r.HandleFunc("/api/v1/forensics/mce", forensicsH.MCE).Methods("GET")
+	r.HandleFunc("/api/v1/forensics/summary", forensicsH.Summary).Methods("GET")
+	r.HandleFunc("/api/v1/logs", logsH.Logs).Methods("GET")
+	r.HandleFunc("/api/v1/logs/units", logsH.Units).Methods("GET")
+	r.HandleFunc("/api/v1/logs/boots", logsH.Boots).Methods("GET")
 
 	r.HandleFunc("/api/v1/investigations", investigation.ListInvestigations).Methods("GET")
 	r.HandleFunc("/api/v1/investigations/latest", investigation.GetLatestInvestigation).Methods("GET")

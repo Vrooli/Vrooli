@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -304,86 +305,42 @@ Format: TITLE: [title]\nSTORY:\n## Page 1\n[story with ## Page N markers, calm a
 		req.Length, req.Theme, req.AgeGroup,
 		getCharacterPrompt(req.CharacterNames))
 
-	// Use Ollama HTTP API
-	// Try OLLAMA_URL first (full URL), then OLLAMA_BASE_URL, then OLLAMA_HOST with port
-	ollamaHost := os.Getenv("OLLAMA_URL")
-	if ollamaHost == "" {
-		ollamaHost = os.Getenv("OLLAMA_BASE_URL")
-	}
-	if ollamaHost == "" {
-		host := os.Getenv("OLLAMA_HOST")
-		port := os.Getenv("OLLAMA_PORT")
-		if host != "" && port != "" {
-			ollamaHost = fmt.Sprintf("http://%s:%s", host, port)
-		} else {
-			ollamaHost = "http://localhost:11434"
-		}
-	}
-
 	// Use faster model for better performance
 	model := os.Getenv("STORY_MODEL")
 	if model == "" {
 		model = "llama3.2:1b" // Much smaller and faster 1B model
 	}
 
-	// Adjust token limit based on story length - reduced for speed
-	tokenLimit := 300 // short - reduced from 500
-	if req.Length == "medium" {
-		tokenLimit = 500 // reduced from 800
-	} else if req.Length == "long" {
-		tokenLimit = 800 // reduced from 1200
-	}
+	// All daemon traffic goes through resource-ollama gateway so the host-wide
+	// semaphore can bound fleet-wide parallelism.
+	log.Printf("Calling resource-ollama gateway generate with model %s", model)
 
-	requestBody := map[string]interface{}{
-		"model":  model,
-		"prompt": prompt,
-		"stream": false,
-		"options": map[string]interface{}{
-			"temperature":    0.6, // Lower for more focused output
-			"num_predict":    tokenLimit,
-			"top_k":          20,   // Reduced from 40 for speed
-			"top_p":          0.85, // Slightly lower for speed
-			"repeat_penalty": 1.1,
-			"seed":           42, // Consistent seed for caching benefit
-		},
-	}
-
-	jsonData, err := json.Marshal(requestBody)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", model, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %v", err)
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		log.Printf("ERROR: resource-ollama gateway generate failed: %v stderr=%s", err, stderr)
+		return nil, fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
 	}
 
-	// Log the request for debugging
-	log.Printf("Calling Ollama API at %s/api/generate with model %s", ollamaHost, model)
-
-	resp, err := http.Post(ollamaHost+"/api/generate", "application/json", strings.NewReader(string(jsonData)))
-	if err != nil {
-		log.Printf("ERROR: Failed to call Ollama API at %s: %v", ollamaHost, err)
-		return nil, fmt.Errorf("failed to call Ollama API: %v", err)
+	var decoded struct {
+		Response string `json:"response"`
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("ERROR: Ollama API returned status %d", resp.StatusCode)
-		return nil, fmt.Errorf("Ollama API returned status %d", resp.StatusCode)
+	if err := json.Unmarshal(out, &decoded); err != nil {
+		log.Printf("ERROR: Failed to decode gateway response: %v", err)
+		return nil, fmt.Errorf("decode gateway generate response: %w", err)
 	}
-
-	var ollamaResponse map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResponse); err != nil {
-		log.Printf("ERROR: Failed to decode Ollama response: %v", err)
-		return nil, fmt.Errorf("failed to decode response: %v", err)
-	}
-
-	// Check for error in response
-	if errMsg, hasError := ollamaResponse["error"].(string); hasError {
-		log.Printf("ERROR: Ollama returned error: %s", errMsg)
-		return nil, fmt.Errorf("Ollama error: %s", errMsg)
-	}
-
-	response, ok := ollamaResponse["response"].(string)
-	if !ok {
-		log.Printf("ERROR: Invalid response format from Ollama: %+v", ollamaResponse)
-		return nil, fmt.Errorf("invalid response from Ollama")
+	response := decoded.Response
+	if response == "" {
+		log.Printf("ERROR: Empty response from gateway: %s", string(out))
+		return nil, fmt.Errorf("invalid response from Ollama gateway")
 	}
 
 	// Parse the response

@@ -1,11 +1,16 @@
 // AI search CLI commands — thin wrappers over /api/v1/search/ai endpoints.
 //
 // Human output follows the cli-steer contracts:
-//   - status       → Operational (Status → Triage → Next Steps)
-//   - search-ai    → Data Retrieval (Summary → Results → Retrieval Hints)
-//   - reindex      → Mutation (Result → What Changed → Next Command)
+//   - status            → Operational (Status → Triage → Next Steps)
+//   - search-ai         → Data Retrieval (Summary → Results → Retrieval Hints)
+//   - reconcile         → Mutation (Result → What Changed → Next Command)
+//   - reconcile-status  → Operational
+//   - reconcile-cancel  → Mutation
 //
 // The --json flag is supported on every command for scripting.
+//
+// Greenfield rename (per the aisearch reconciler refactor): "reindex" → "reconcile".
+// The new verb reflects diff-and-converge semantics, not rebuild-from-scratch.
 package main
 
 import (
@@ -34,18 +39,54 @@ type AISearchStatus struct {
 	Message            string `json:"message,omitempty"`
 }
 
-// AISearchReindexStatus mirrors aisearch.ReindexStatus.
-type AISearchReindexStatus struct {
-	Running    bool   `json:"running"`
-	StartedAt  string `json:"startedAt,omitempty"`
-	FinishedAt string `json:"finishedAt,omitempty"`
-	Indexed    int    `json:"indexed"`
-	Skipped    int    `json:"skipped"`
-	Errors     int    `json:"errors"`
-	Total      int    `json:"total"`
-	Message    string `json:"message,omitempty"`
-	Canceled   bool   `json:"canceled,omitempty"`
-	Error      string `json:"error,omitempty"`
+// AISearchReconcileStatus mirrors aisearch.ReconcileStatus.
+type AISearchReconcileStatus struct {
+	Running    bool                 `json:"running"`
+	StartedAt  string               `json:"startedAt,omitempty"`
+	FinishedAt string               `json:"finishedAt,omitempty"`
+	LastPlan   *AISearchDriftReport `json:"lastPlan,omitempty"`
+	LastResult *AISearchApplyResult `json:"lastResult,omitempty"`
+	LastError  string               `json:"lastError,omitempty"`
+	Canceled   bool                 `json:"canceled,omitempty"`
+}
+
+// AISearchDriftReport mirrors aisearch.DriftReport (the count-only projection
+// that crosses the wire — ItemRef arrays are server-internal).
+type AISearchDriftReport struct {
+	PlannedAt           string   `json:"plannedAt"`
+	ToDeleteBacklog     []string `json:"toDeleteBacklog,omitempty"`
+	ToDeleteInitiative  []string `json:"toDeleteInitiative,omitempty"`
+	UnchangedBacklog    int      `json:"unchangedBacklog"`
+	UnchangedInitiative int      `json:"unchangedInitiative"`
+	LegacyBacklog       int      `json:"legacyBacklog"`
+	LegacyInitiative    int      `json:"legacyInitiative"`
+}
+
+// AISearchApplyResult mirrors aisearch.ApplyResult.
+type AISearchApplyResult struct {
+	StartedAt          string                   `json:"startedAt"`
+	FinishedAt         string                   `json:"finishedAt"`
+	UpsertedBacklog    int                      `json:"upsertedBacklog"`
+	UpsertedInitiative int                      `json:"upsertedInitiative"`
+	DeletedBacklog     int                      `json:"deletedBacklog"`
+	DeletedInitiative  int                      `json:"deletedInitiative"`
+	Errors             []AISearchReconcileError `json:"errors,omitempty"`
+}
+
+// AISearchReconcileError mirrors aisearch.ReconcileError.
+type AISearchReconcileError struct {
+	Kind    string `json:"kind"`
+	PointID string `json:"pointId,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Op      string `json:"op"`
+	Err     string `json:"err"`
+}
+
+// aiSearchDryRunResponse is the {"dry_run": true, "plan": …} body returned
+// when the reconcile endpoint is invoked with X-Dry-Run.
+type aiSearchDryRunResponse struct {
+	DryRun bool                 `json:"dry_run"`
+	Plan   *AISearchDriftReport `json:"plan"`
 }
 
 // AISearchResult / Response mirror aisearch.AISearchResponse.
@@ -114,7 +155,7 @@ func renderAISearchStatus(st AISearchStatus) error {
 	backlogDrift := st.IndexedBacklog != st.OnDiskBacklog
 	initDrift := st.IndexedInitiatives != st.OnDiskInitiatives
 	if backlogDrift || initDrift {
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reindex")
+		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile")
 	}
 	if !st.Ollama {
 		report.NextSteps = append(report.NextSteps, "ollama pull nomic-embed-text")
@@ -128,40 +169,41 @@ func renderAISearchStatus(st AISearchStatus) error {
 	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
 
-// --- Reindex ---
+// --- Reconcile ---
 
-func (a *App) cmdAISearchReindex(args []string) error {
-	fs := flag.NewFlagSet("ai-search reindex", flag.ContinueOnError)
-	wait := fs.Bool("wait", false, "Poll until reindex finishes")
+func (a *App) cmdAISearchReconcile(args []string) error {
+	fs := flag.NewFlagSet("ai-search reconcile", flag.ContinueOnError)
+	wait := fs.Bool("wait", false, "Poll until reconcile finishes")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
-	body, err := a.core.Request("POST", "/search/ai/reindex", nil, nil)
+	body, err := a.core.Request("POST", "/search/ai/reconcile", nil, nil)
 	if err != nil {
 		return err
 	}
+
 	if a.globalDry {
-		// Server honors X-Dry-Run and returns {dry_run, status}.
+		// Server returns {"dry_run": true, "plan": <DriftReport>}
 		if *jsonOut {
 			cliutil.PrintJSON(body)
 			return nil
 		}
-		report := cliapp.MutationReport{
-			Result:  []string{"Dry-run: reindex not started"},
-			Changes: []string{"No vectors written"},
+		dry, err := decodeResponse[aiSearchDryRunResponse](body)
+		if err != nil {
+			return err
 		}
-		return cliapp.RenderMutationReport(os.Stdout, report)
+		return renderReconcileDryRun(dry)
 	}
 
-	st, err := decodeReindexStatus(body)
+	st, err := decodeReconcileStatus(body)
 	if err != nil {
 		return err
 	}
 
 	if *wait {
-		st, err = a.pollReindexUntilDone()
+		st, err = a.pollReconcileUntilDone()
 		if err != nil {
 			return err
 		}
@@ -170,16 +212,16 @@ func (a *App) cmdAISearchReindex(args []string) error {
 	if *jsonOut {
 		return encodeStdoutJSON(st)
 	}
-	return renderReindexMutation(st)
+	return renderReconcileMutation(st)
 }
 
-func (a *App) cmdAISearchReindexStatus(args []string) error {
-	fs := flag.NewFlagSet("ai-search reindex-status", flag.ContinueOnError)
+func (a *App) cmdAISearchReconcileStatus(args []string) error {
+	fs := flag.NewFlagSet("ai-search reconcile-status", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	body, err := a.core.Get("/search/ai/reindex/status", nil)
+	body, err := a.core.Get("/search/ai/reconcile/status", nil)
 	if err != nil {
 		return err
 	}
@@ -187,20 +229,20 @@ func (a *App) cmdAISearchReindexStatus(args []string) error {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	st, err := decodeResponse[AISearchReindexStatus](body)
+	st, err := decodeResponse[AISearchReconcileStatus](body)
 	if err != nil {
 		return err
 	}
-	return renderReindexOperational(st)
+	return renderReconcileOperational(st)
 }
 
-func (a *App) cmdAISearchReindexCancel(args []string) error {
-	fs := flag.NewFlagSet("ai-search reindex-cancel", flag.ContinueOnError)
+func (a *App) cmdAISearchReconcileCancel(args []string) error {
+	fs := flag.NewFlagSet("ai-search reconcile-cancel", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	body, err := a.core.Request("POST", "/search/ai/reindex/cancel", nil, nil)
+	body, err := a.core.Request("POST", "/search/ai/reconcile/cancel", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -208,96 +250,156 @@ func (a *App) cmdAISearchReindexCancel(args []string) error {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	st, err := decodeResponse[AISearchReindexStatus](body)
+	st, err := decodeResponse[AISearchReconcileStatus](body)
 	if err != nil {
 		return err
+	}
+	changes := []string{fmt.Sprintf("Running: %t", st.Running)}
+	if st.LastResult != nil {
+		changes = append(changes,
+			fmt.Sprintf("Upserted so far: %d backlog, %d initiative",
+				st.LastResult.UpsertedBacklog, st.LastResult.UpsertedInitiative))
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
 		Result:  []string{"Cancel requested"},
-		Changes: []string{fmt.Sprintf("Running: %t, Indexed so far: %d", st.Running, st.Indexed)},
+		Changes: changes,
 	})
 }
 
-func (a *App) pollingReindexOnce() (AISearchReindexStatus, error) {
-	body, err := a.core.Get("/search/ai/reindex/status", nil)
+func (a *App) pollingReconcileOnce() (AISearchReconcileStatus, error) {
+	body, err := a.core.Get("/search/ai/reconcile/status", nil)
 	if err != nil {
-		return AISearchReindexStatus{}, err
+		return AISearchReconcileStatus{}, err
 	}
-	return decodeResponse[AISearchReindexStatus](body)
+	return decodeResponse[AISearchReconcileStatus](body)
 }
 
-func (a *App) pollReindexUntilDone() (AISearchReindexStatus, error) {
+func (a *App) pollReconcileUntilDone() (AISearchReconcileStatus, error) {
 	const (
 		pollInterval = 500 * time.Millisecond
 		maxWait      = 15 * time.Minute
 	)
 	deadline := time.Now().Add(maxWait)
 	for time.Now().Before(deadline) {
-		st, err := a.pollingReindexOnce()
+		st, err := a.pollingReconcileOnce()
 		if err != nil {
-			return AISearchReindexStatus{}, err
+			return AISearchReconcileStatus{}, err
 		}
 		if !st.Running {
 			return st, nil
 		}
 		time.Sleep(pollInterval)
 	}
-	return AISearchReindexStatus{}, fmt.Errorf("timed out waiting for reindex after %s", maxWait)
+	return AISearchReconcileStatus{}, fmt.Errorf("timed out waiting for reconcile after %s", maxWait)
 }
 
-func decodeReindexStatus(body []byte) (AISearchReindexStatus, error) {
-	return decodeResponse[AISearchReindexStatus](body)
+func decodeReconcileStatus(body []byte) (AISearchReconcileStatus, error) {
+	return decodeResponse[AISearchReconcileStatus](body)
 }
 
-func renderReindexMutation(st AISearchReindexStatus) error {
+func renderReconcileDryRun(dry aiSearchDryRunResponse) error {
+	plan := dry.Plan
 	report := cliapp.MutationReport{
-		Result: []string{func() string {
-			if st.Running {
-				return "Reindex started"
-			}
-			if st.Canceled {
-				return "Reindex canceled"
-			}
-			return "Reindex finished"
-		}()},
-		Changes: []string{
-			fmt.Sprintf("Indexed: %d", st.Indexed),
-			fmt.Sprintf("Skipped: %d", st.Skipped),
-			fmt.Sprintf("Errors: %d", st.Errors),
-			fmt.Sprintf("Total: %d", st.Total),
-		},
-		NextCommand: []string{"swarm-manager ai-search reindex-status"},
+		Result:  []string{"Dry-run: reconcile preview (no mutations)"},
+		Changes: []string{},
 	}
-	if st.Error != "" {
-		report.Changes = append(report.Changes, "Last error: "+st.Error)
+	if plan == nil {
+		report.Changes = []string{"No plan returned"}
+		return cliapp.RenderMutationReport(os.Stdout, report)
+	}
+	upsertCount := plan.LegacyBacklog + plan.LegacyInitiative + len(plan.ToDeleteBacklog) + len(plan.ToDeleteInitiative)
+	_ = upsertCount
+	report.Changes = []string{
+		fmt.Sprintf("To delete (backlog): %d", len(plan.ToDeleteBacklog)),
+		fmt.Sprintf("To delete (initiative): %d", len(plan.ToDeleteInitiative)),
+		fmt.Sprintf("Unchanged (backlog): %d", plan.UnchangedBacklog),
+		fmt.Sprintf("Unchanged (initiative): %d", plan.UnchangedInitiative),
+		fmt.Sprintf("Legacy hash drain (backlog): %d", plan.LegacyBacklog),
+		fmt.Sprintf("Legacy hash drain (initiative): %d", plan.LegacyInitiative),
+	}
+	report.NextCommand = []string{"swarm-manager ai-search reconcile"}
+	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func renderReconcileMutation(st AISearchReconcileStatus) error {
+	resultLine := "Reconcile started"
+	if !st.Running {
+		if st.Canceled {
+			resultLine = "Reconcile canceled"
+		} else {
+			resultLine = "Reconcile finished"
+		}
+	}
+	changes := []string{}
+	if st.LastResult != nil {
+		changes = append(changes,
+			fmt.Sprintf("Upserted (backlog): %d", st.LastResult.UpsertedBacklog),
+			fmt.Sprintf("Upserted (initiative): %d", st.LastResult.UpsertedInitiative),
+			fmt.Sprintf("Deleted (backlog): %d", st.LastResult.DeletedBacklog),
+			fmt.Sprintf("Deleted (initiative): %d", st.LastResult.DeletedInitiative),
+			fmt.Sprintf("Errors: %d", len(st.LastResult.Errors)),
+		)
+	}
+	if st.LastPlan != nil {
+		changes = append(changes,
+			fmt.Sprintf("Unchanged (backlog): %d", st.LastPlan.UnchangedBacklog),
+			fmt.Sprintf("Unchanged (initiative): %d", st.LastPlan.UnchangedInitiative),
+		)
+	}
+	if st.LastError != "" {
+		changes = append(changes, "Last error: "+st.LastError)
+	}
+	report := cliapp.MutationReport{
+		Result:      []string{resultLine},
+		Changes:     changes,
+		NextCommand: []string{"swarm-manager ai-search reconcile-status"},
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
-func renderReindexOperational(st AISearchReindexStatus) error {
+func renderReconcileOperational(st AISearchReconcileStatus) error {
 	report := cliapp.OperationalReport{}
 	if st.Running {
 		report.Status = []string{
-			"Reindex in progress",
+			"Reconcile in progress",
 			fmt.Sprintf("Started: %s", st.StartedAt),
 		}
 	} else {
-		report.Status = []string{"No reindex in progress"}
+		report.Status = []string{"No reconcile in progress"}
+		if st.FinishedAt != "" {
+			report.Status = append(report.Status, "Last finished: "+st.FinishedAt)
+		}
 	}
-	report.Triage = []cliapp.TriageGroup{{
-		Heading: "Progress",
-		Items: []string{
-			fmt.Sprintf("Indexed: %d / %d", st.Indexed, st.Total),
-			fmt.Sprintf("Skipped: %d", st.Skipped),
-			fmt.Sprintf("Errors: %d", st.Errors),
-		},
-	}}
-	if st.Running {
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reindex-cancel")
-	} else if !st.Canceled && st.Error == "" && st.FinishedAt != "" {
+	if st.LastResult != nil {
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Last result",
+			Items: []string{
+				fmt.Sprintf("Upserted: %d backlog, %d initiative",
+					st.LastResult.UpsertedBacklog, st.LastResult.UpsertedInitiative),
+				fmt.Sprintf("Deleted: %d backlog, %d initiative",
+					st.LastResult.DeletedBacklog, st.LastResult.DeletedInitiative),
+				fmt.Sprintf("Errors: %d", len(st.LastResult.Errors)),
+			},
+		})
+	}
+	if st.LastPlan != nil {
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Last plan",
+			Items: []string{
+				fmt.Sprintf("Unchanged: %d backlog, %d initiative",
+					st.LastPlan.UnchangedBacklog, st.LastPlan.UnchangedInitiative),
+				fmt.Sprintf("Legacy drain: %d backlog, %d initiative",
+					st.LastPlan.LegacyBacklog, st.LastPlan.LegacyInitiative),
+			},
+		})
+	}
+	switch {
+	case st.Running:
+		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile-cancel")
+	case st.LastError != "":
+		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile")
+	default:
 		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search status")
-	} else {
-		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reindex")
 	}
 	return cliapp.RenderOperationalReport(os.Stdout, report)
 }

@@ -106,7 +106,7 @@ func TestBuildBacklogPayload(t *testing.T) {
 		Effort:     "M",
 		ArchivedAt: &archived,
 	}
-	p := buildBacklogPayload(item)
+	p := buildBacklogPayload(item, "")
 	if p["name"] != "retry-semantics" {
 		t.Errorf("name: %v", p["name"])
 	}
@@ -130,7 +130,7 @@ func TestBuildBacklogPayload(t *testing.T) {
 
 func TestBuildBacklogPayload_NilTagsNormalized(t *testing.T) {
 	item := backlog.BacklogItem{Name: "n", Kind: backlog.KindIdea}
-	p := buildBacklogPayload(item)
+	p := buildBacklogPayload(item, "")
 	tags, ok := p["tags"].([]string)
 	if !ok {
 		t.Fatalf("expected tags as []string, got %T", p["tags"])
@@ -156,7 +156,7 @@ func TestBuildBacklogPayload_TargetScenariosFromAcceptanceAllow(t *testing.T) {
 		Kind:            backlog.KindFix,
 		AcceptanceAllow: []string{"scenarios/web-console/**", "scenarios/command-center/**"},
 	}
-	p := buildBacklogPayload(item)
+	p := buildBacklogPayload(item, "")
 	scenarios, ok := p["target_scenarios"].([]string)
 	if !ok {
 		t.Fatalf("expected target_scenarios as []string, got %T", p["target_scenarios"])
@@ -179,7 +179,7 @@ func TestBuildInitiativePayload(t *testing.T) {
 		Status:   "active",
 		Priority: 3,
 	}
-	p := buildInitiativePayload(init)
+	p := buildInitiativePayload(init, "")
 	if p["name"] != "obs-core" || p["title"] != "Observability Core" {
 		t.Errorf("unexpected payload: %+v", p)
 	}
@@ -228,5 +228,91 @@ func TestUUIDv5_KnownVector(t *testing.T) {
 	// Version nibble should be 5 (position 14 in hex, 0-indexed).
 	if got1[14] != '5' {
 		t.Errorf("expected UUIDv5 version nibble '5', got %q in %s", got1[14], got1)
+	}
+}
+
+// ---- composePayloadHash and payload_hash field tests ----
+
+func TestComposePayloadHash_Deterministic(t *testing.T) {
+	payload := map[string]interface{}{"name": "x", "kind": "fix", "priority": 3}
+	h1 := composePayloadHash("hello world", payload)
+	h2 := composePayloadHash("hello world", payload)
+	if h1 != h2 {
+		t.Errorf("expected deterministic hash, got %q vs %q", h1, h2)
+	}
+}
+
+func TestComposePayloadHash_TextChangeDetected(t *testing.T) {
+	payload := map[string]interface{}{"name": "x"}
+	h1 := composePayloadHash("alpha", payload)
+	h2 := composePayloadHash("beta", payload)
+	if h1 == h2 {
+		t.Errorf("expected different hashes for different text, both got %q", h1)
+	}
+}
+
+func TestComposePayloadHash_PayloadFieldChangeDetected(t *testing.T) {
+	text := "stable text"
+	h1 := composePayloadHash(text, map[string]interface{}{"archived": false})
+	h2 := composePayloadHash(text, map[string]interface{}{"archived": true})
+	if h1 == h2 {
+		t.Errorf("expected different hashes for different archived flag, both got %q", h1)
+	}
+}
+
+func TestComposePayloadHash_PrefixIsSha256(t *testing.T) {
+	h := composePayloadHash("anything", map[string]interface{}{"a": 1})
+	if !strings.HasPrefix(h, "sha256:") {
+		t.Errorf("expected hash to start with 'sha256:', got %q", h)
+	}
+	// "sha256:" + 16 hex chars = 23 chars. Pin the contract so accidental width
+	// changes (e.g. someone bumps sum[:8] to sum[:16]) trip a test, not a runtime
+	// surprise during reconcile diffs.
+	if len(h) != len("sha256:")+16 {
+		t.Errorf("expected hash width %d, got %d (%q)", len("sha256:")+16, len(h), h)
+	}
+}
+
+func TestComposePayloadHash_KeyOrderInsensitive(t *testing.T) {
+	// json.Marshal sorts map keys, so the same logical payload built in
+	// different insertion orders must produce the same hash. Pinning this here
+	// because Go map iteration order is randomized — without sorted keys, this
+	// would be intermittent.
+	a := map[string]interface{}{"name": "x", "priority": 1, "archived": false}
+	b := map[string]interface{}{"archived": false, "priority": 1, "name": "x"}
+	if composePayloadHash("t", a) != composePayloadHash("t", b) {
+		t.Error("expected key order to be irrelevant to payload hash")
+	}
+}
+
+func TestBuildBacklogPayload_IncludesPayloadHash(t *testing.T) {
+	item := backlog.BacklogItem{Kind: backlog.KindFix, Name: "x"}
+	out := buildBacklogPayload(item, "sha256:deadbeef00000000")
+	if out["payload_hash"] != "sha256:deadbeef00000000" {
+		t.Errorf("expected payload_hash field set, got %v", out["payload_hash"])
+	}
+}
+
+func TestBuildBacklogPayload_OmitsHashWhenEmpty(t *testing.T) {
+	item := backlog.BacklogItem{Kind: backlog.KindFix, Name: "x"}
+	out := buildBacklogPayload(item, "")
+	if _, present := out["payload_hash"]; present {
+		t.Error("expected payload_hash to be absent when empty (so composePayloadHash sees a clean payload)")
+	}
+}
+
+func TestBuildInitiativePayload_IncludesPayloadHash(t *testing.T) {
+	init := initiatives.Initiative{Name: "obs"}
+	out := buildInitiativePayload(init, "sha256:cafebabe00000000")
+	if out["payload_hash"] != "sha256:cafebabe00000000" {
+		t.Errorf("expected payload_hash field set, got %v", out["payload_hash"])
+	}
+}
+
+func TestBuildInitiativePayload_OmitsHashWhenEmpty(t *testing.T) {
+	init := initiatives.Initiative{Name: "obs"}
+	out := buildInitiativePayload(init, "")
+	if _, present := out["payload_hash"]; present {
+		t.Error("expected payload_hash to be absent when empty")
 	}
 }

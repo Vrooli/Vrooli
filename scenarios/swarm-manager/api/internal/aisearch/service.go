@@ -2,12 +2,10 @@ package aisearch
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -20,26 +18,26 @@ type TextSearcher interface {
 	Search(ctx context.Context, query string, entity EntityType, limit int, filters SearchFilters) ([]AISearchResult, error)
 }
 
-// Service orchestrates embedding, vector upsert/search, and reindex lifecycle
-// for backlog items and initiatives.
+// Service orchestrates semantic search and write-through indexing hooks. The
+// reconcile lifecycle (drift detection, plan/apply, periodic sync) lives in
+// Reconciler and SyncLoop — Service does not own that decision boundary.
 type Service struct {
-	embedder         *Embedder
-	backlogStore     *VectorStore
-	initiativeStore  *VectorStore
+	embedder         Embedder
+	backlogStore     VectorStore
+	initiativeStore  VectorStore
 	backlogReader    BacklogReader
 	initiativeReader InitiativeReader
 	textSearcher     TextSearcher
 	threshold        float64
-	reindex          *reindexState
 }
 
 // NewService creates a new AI search service. Any of backlogStore,
 // initiativeStore, backlogReader, initiativeReader may be nil to disable
 // that surface; the service degrades gracefully.
 func NewService(
-	embedder *Embedder,
-	backlogStore *VectorStore,
-	initiativeStore *VectorStore,
+	embedder Embedder,
+	backlogStore VectorStore,
+	initiativeStore VectorStore,
 	backlogReader BacklogReader,
 	initiativeReader InitiativeReader,
 	threshold float64,
@@ -54,7 +52,6 @@ func NewService(
 		backlogReader:    backlogReader,
 		initiativeReader: initiativeReader,
 		threshold:        threshold,
-		reindex:          &reindexState{},
 	}
 }
 
@@ -152,7 +149,7 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 	}, nil
 }
 
-func (s *Service) searchStore(ctx context.Context, store *VectorStore, entity EntityType, vector []float64, limit int, threshold float64) ([]AISearchResult, error) {
+func (s *Service) searchStore(ctx context.Context, store VectorStore, entity EntityType, vector []float64, limit int, threshold float64) ([]AISearchResult, error) {
 	raw, err := store.Search(ctx, vector, limit, threshold)
 	if err != nil {
 		return nil, err
@@ -392,198 +389,3 @@ func (s *Service) Available(ctx context.Context) bool {
 	return true
 }
 
-// NeedsReindex reports whether the vector index count diverges from the
-// on-disk entity count for either collection. Returns (needs, totalIndexed,
-// totalOnDisk, err).
-func (s *Service) NeedsReindex(ctx context.Context) (bool, int, int, error) {
-	var totalIndexed, totalDisk int
-
-	if s.backlogStore != nil {
-		n, err := s.backlogStore.CountPoints(ctx)
-		if err != nil {
-			return false, 0, 0, fmt.Errorf("count backlog points: %w", err)
-		}
-		totalIndexed += n
-	}
-	if s.initiativeStore != nil {
-		n, err := s.initiativeStore.CountPoints(ctx)
-		if err != nil {
-			return false, 0, 0, fmt.Errorf("count initiative points: %w", err)
-		}
-		totalIndexed += n
-	}
-
-	if s.backlogReader != nil {
-		items, err := s.backlogReader.LoadAll()
-		if err != nil {
-			return false, 0, 0, fmt.Errorf("load backlog items: %w", err)
-		}
-		totalDisk += len(items)
-	}
-	if s.initiativeReader != nil {
-		inits, err := s.initiativeReader.List()
-		if err != nil {
-			return false, 0, 0, fmt.Errorf("list initiatives: %w", err)
-		}
-		totalDisk += len(inits)
-	}
-
-	return totalIndexed != totalDisk, totalIndexed, totalDisk, nil
-}
-
-// --- Reindex lifecycle ---
-
-type reindexState struct {
-	mu         sync.Mutex
-	running    bool
-	canceled   bool
-	startedAt  time.Time
-	finishedAt time.Time
-	indexed    int
-	skipped    int
-	errors     int
-	total      int
-	message    string
-	lastError  string
-	cancel     context.CancelFunc
-}
-
-// StartReindex begins a singleton reindex job. If one is already running,
-// returns its current status with started=false. Otherwise spawns a goroutine
-// and returns the initial status with started=true.
-func (s *Service) StartReindex() (ReindexStatus, bool) {
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-
-	if s.reindex.running {
-		return s.reindex.statusLocked(), false
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	s.reindex.running = true
-	s.reindex.canceled = false
-	s.reindex.startedAt = time.Now()
-	s.reindex.finishedAt = time.Time{}
-	s.reindex.indexed = 0
-	s.reindex.skipped = 0
-	s.reindex.errors = 0
-	s.reindex.total = 0
-	s.reindex.message = "Reindex started"
-	s.reindex.lastError = ""
-	s.reindex.cancel = cancel
-
-	go s.runReindexJob(ctx)
-
-	return s.reindex.statusLocked(), true
-}
-
-// CancelReindex requests cancellation of an in-flight reindex. No-op if no
-// job is running.
-func (s *Service) CancelReindex() ReindexStatus {
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-
-	if s.reindex.running && s.reindex.cancel != nil {
-		s.reindex.canceled = true
-		s.reindex.message = "Reindex cancel requested"
-		s.reindex.cancel()
-	}
-	return s.reindex.statusLocked()
-}
-
-// ReindexStatus returns a snapshot of the current reindex job state.
-func (s *Service) ReindexStatus() ReindexStatus {
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-	return s.reindex.statusLocked()
-}
-
-func (s *Service) runReindexJob(ctx context.Context) {
-	resp, err := s.reindexAllWithProgress(ctx, func(indexed, skipped, errorsCount int) {
-		s.reindex.mu.Lock()
-		s.reindex.indexed = indexed
-		s.reindex.skipped = skipped
-		s.reindex.errors = errorsCount
-		s.reindex.mu.Unlock()
-	}, func(total int) {
-		s.reindex.mu.Lock()
-		s.reindex.total = total
-		s.reindex.mu.Unlock()
-	})
-
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-
-	if resp != nil {
-		s.reindex.indexed = resp.Indexed
-		s.reindex.skipped = resp.Skipped
-		s.reindex.errors = resp.Errors
-		s.reindex.message = resp.Message
-	}
-
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			s.reindex.canceled = true
-			if s.reindex.message == "" {
-				s.reindex.message = "Reindex canceled"
-			}
-		} else {
-			s.reindex.lastError = err.Error()
-		}
-	}
-
-	s.reindex.running = false
-	s.reindex.finishedAt = time.Now()
-	s.reindex.cancel = nil
-}
-
-func (rs *reindexState) statusLocked() ReindexStatus {
-	status := ReindexStatus{
-		Running:    rs.running,
-		StartedAt:  formatReindexTime(rs.startedAt),
-		FinishedAt: formatReindexTime(rs.finishedAt),
-		Indexed:    rs.indexed,
-		Skipped:    rs.skipped,
-		Errors:     rs.errors,
-		Total:      rs.total,
-		Message:    rs.message,
-		Canceled:   rs.canceled,
-	}
-	if rs.lastError != "" {
-		status.Error = rs.lastError
-	}
-	return status
-}
-
-func formatReindexTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(time.RFC3339)
-}
-
-// StartPeriodicSync runs a background goroutine that reconciles index drift
-// on the given interval. Exits when ctx is canceled.
-func (s *Service) StartPeriodicSync(ctx context.Context, interval time.Duration) {
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				needs, indexed, disk, err := s.NeedsReindex(ctx)
-				if err != nil {
-					slog.Warn("[aisearch] periodic sync check failed", "err", err)
-					continue
-				}
-				if needs {
-					slog.Info("[aisearch] periodic sync: index drift detected, reindexing",
-						"indexed", indexed, "on_disk", disk)
-					s.StartReindex()
-				}
-			}
-		}
-	}()
-}

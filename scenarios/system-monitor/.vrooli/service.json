@@ -194,6 +194,12 @@
             ]
           }
         }
+      },
+      "vrooli-autoheal": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional autoheal proxy for the forensics page; degrades gracefully when offline"
       }
     }
   },

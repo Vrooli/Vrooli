@@ -22,6 +22,8 @@ import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { InvestigationScriptsPage } from './features/investigations/pages/InvestigationScriptsPage';
+import { ForensicsPage } from './features/forensics/pages/ForensicsPage';
+import { LogsPage } from './features/logs/pages/LogsPage';
 import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
@@ -311,6 +313,22 @@ function AppContent() {
                       metricHistory={metricHistory}
                       onBack={handleBackToDashboard}
                     />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/forensics"
+                element={(
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Forensics page failed to render.</div>}>
+                    <ForensicsPage />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/logs"
+                element={(
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Logs page failed to render.</div>}>
+                    <LogsPage />
                   </ErrorBoundary>
                 )}
               />

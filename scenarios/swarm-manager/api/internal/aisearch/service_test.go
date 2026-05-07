@@ -3,16 +3,15 @@ package aisearch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/testutil/assertx"
 )
 
 // --- Test doubles ---
@@ -65,12 +64,21 @@ func (f *fakeTextSearcher) Search(_ context.Context, _ string, _ EntityType, _ i
 	return f.results, nil
 }
 
-// fakeOllamaServer responds to POST /api/embeddings with a fixed vector.
-func fakeOllamaServer(t *testing.T) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
-	}))
+// fakeEmbedderOK returns an Embedder that always yields a fixed 3-dim vector.
+// Replaces the old httptest fake-ollama; the production embedder shells out to
+// resource-ollama, so tests inject a runner stub instead.
+func fakeEmbedderOK() Embedder {
+	return newEmbedderWithRunner("nomic-embed-text", func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
+		return []byte(`{"embedding":[0.1,0.2,0.3]}`), nil
+	})
+}
+
+// fakeEmbedderErr returns an Embedder whose every Embed call fails. Replaces
+// the old "broken httptest server" pattern.
+func fakeEmbedderErr() Embedder {
+	return newEmbedderWithRunner("nomic-embed-text", func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
+		return nil, fmt.Errorf("HTTP 500: ollama down")
+	})
 }
 
 // fakeQdrantServer is a minimal stub that responds to collection existence,
@@ -142,9 +150,6 @@ func TestService_Search_InvalidEntity(t *testing.T) {
 }
 
 func TestService_Search_Both_Success(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-
 	qStub := &qdrantStub{
 		searchResult: []struct {
 			ID      interface{}
@@ -157,7 +162,7 @@ func TestService_Search_Both_Success(t *testing.T) {
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	embedder := NewEmbedder(ollama.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	backlogVS := NewVectorStore(qServer.URL, "", "sm-backlog", 3)
 	initVS := NewVectorStore(qServer.URL, "", "sm-init", 3)
 	svc := NewService(embedder, backlogVS, initVS, nil, nil, 0.5)
@@ -179,13 +184,8 @@ func TestService_Search_Both_Success(t *testing.T) {
 }
 
 func TestService_Search_FallbackToTextSearcher(t *testing.T) {
-	// Broken ollama → embed fails → fallback path.
-	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer bad.Close()
-
-	embedder := NewEmbedder(bad.URL, "nomic-embed-text")
+	// Broken embedder → embed fails → fallback path.
+	embedder := fakeEmbedderErr()
 	text := &fakeTextSearcher{results: []AISearchResult{{Entity: EntityBacklog, ID: "alpha", Score: 0.5}}}
 	svc := NewService(embedder, nil, nil, nil, nil, 0)
 	svc.SetTextSearcher(text)
@@ -231,14 +231,12 @@ func TestService_Search_ResultsAlwaysMarshalsAsArray(t *testing.T) {
 		{
 			name: "vector-path-with-zero-matches",
 			svc: func() *Service {
-				ollama := fakeOllamaServer(t)
-				t.Cleanup(ollama.Close)
 				// Empty qdrant result set → vector path returns zero matches.
 				qStub := &qdrantStub{}
 				qServer := httptest.NewServer(qStub.handler(t))
 				t.Cleanup(qServer.Close)
 				return NewService(
-					NewEmbedder(ollama.URL, "nomic-embed-text"),
+					fakeEmbedderOK(),
 					NewVectorStore(qServer.URL, "", "b", 3),
 					NewVectorStore(qServer.URL, "", "i", 3),
 					nil, nil, 0.5,
@@ -248,11 +246,7 @@ func TestService_Search_ResultsAlwaysMarshalsAsArray(t *testing.T) {
 		{
 			name: "fallback-text-search-returns-nil",
 			svc: func() *Service {
-				bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					w.WriteHeader(http.StatusInternalServerError)
-				}))
-				t.Cleanup(bad.Close)
-				svc := NewService(NewEmbedder(bad.URL, "nomic-embed-text"), nil, nil, nil, nil, 0)
+				svc := NewService(fakeEmbedderErr(), nil, nil, nil, nil, 0)
 				// Text searcher that returns a typed nil slice — the exact shape
 				// that previously slipped through to JSON as `null`.
 				svc.SetTextSearcher(&fakeTextSearcher{results: nil})
@@ -416,14 +410,12 @@ func TestApplyFilters_InitiativeOnlyAppliesToBacklog(t *testing.T) {
 }
 
 func TestService_GetStatus_Available(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
 	qStub := &qdrantStub{count: 7}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
 	svc := NewService(
-		NewEmbedder(ollama.URL, "nomic-embed-text"),
+		fakeEmbedderOK(),
 		NewVectorStore(qServer.URL, "", "b", 3),
 		NewVectorStore(qServer.URL, "", "i", 3),
 		&fakeBacklogReader{items: make([]backlog.BacklogItem, 4)},
@@ -446,7 +438,7 @@ func TestService_GetStatus_Available(t *testing.T) {
 }
 
 func TestService_GetStatus_Unavailable(t *testing.T) {
-	svc := NewService(NewEmbedder("", ""), NewVectorStore("", "", "b", 3), NewVectorStore("", "", "i", 3), nil, nil, 0)
+	svc := NewService(fakeEmbedderErr(), NewVectorStore("", "", "b", 3), NewVectorStore("", "", "i", 3), nil, nil, 0)
 	st := svc.GetStatus(context.Background())
 	if st.Available {
 		t.Error("expected unavailable")
@@ -456,58 +448,16 @@ func TestService_GetStatus_Unavailable(t *testing.T) {
 	}
 }
 
-func TestService_NeedsReindex_MatchesCount(t *testing.T) {
-	qStub := &qdrantStub{count: 2}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
-
-	svc := NewService(nil,
-		NewVectorStore(qServer.URL, "", "b", 3),
-		NewVectorStore(qServer.URL, "", "i", 3),
-		&fakeBacklogReader{items: make([]backlog.BacklogItem, 2)},
-		&fakeInitReader{items: make([]initiatives.Initiative, 2)},
-		0,
-	)
-	needs, indexed, disk, err := svc.NeedsReindex(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	// stub returns same count for both collections: 2+2=4 indexed; disk 2+2=4
-	if needs {
-		t.Errorf("expected no reindex needed; indexed=%d disk=%d", indexed, disk)
-	}
-}
-
-func TestService_NeedsReindex_Divergence(t *testing.T) {
-	qStub := &qdrantStub{count: 0}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
-
-	svc := NewService(nil,
-		NewVectorStore(qServer.URL, "", "b", 3),
-		NewVectorStore(qServer.URL, "", "i", 3),
-		&fakeBacklogReader{items: make([]backlog.BacklogItem, 5)},
-		&fakeInitReader{items: make([]initiatives.Initiative, 0)},
-		0,
-	)
-	needs, _, _, err := svc.NeedsReindex(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !needs {
-		t.Error("expected reindex needed when indexed=0 and disk=5")
-	}
-}
+// NeedsReindex behavior is now lifted into Reconciler.Plan / DriftReport;
+// see reconciler_test.go for the convergence + drift coverage.
 
 func TestService_IndexBacklogItem_Upserts(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
 	qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
 	svc := NewService(
-		NewEmbedder(ollama.URL, "nomic-embed-text"),
+		fakeEmbedderOK(),
 		NewVectorStore(qServer.URL, "", "b", 3),
 		nil, nil, nil, 0,
 	)
@@ -537,97 +487,6 @@ func TestService_DeleteBacklogItem_Calls(t *testing.T) {
 	}
 }
 
-func TestService_ReindexAll_BothCollections(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
-
-	svc := NewService(
-		NewEmbedder(ollama.URL, "nomic-embed-text"),
-		NewVectorStore(qServer.URL, "", "b", 3),
-		NewVectorStore(qServer.URL, "", "i", 3),
-		&fakeBacklogReader{items: []backlog.BacklogItem{
-			{Name: "a", Title: "A", Kind: backlog.KindIdea},
-			{Name: "b", Title: "B", Kind: backlog.KindExecute},
-		}},
-		&fakeInitReader{items: []initiatives.Initiative{
-			{Name: "obs", Title: "Obs"},
-		}},
-		0,
-	)
-	resp, err := svc.ReindexAll(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Indexed != 3 {
-		t.Errorf("expected 3 indexed, got %d", resp.Indexed)
-	}
-	if atomic.LoadInt32(&qStub.upsertCalls) != 3 {
-		t.Errorf("expected 3 upserts, got %d", qStub.upsertCalls)
-	}
-}
-
-func TestService_StartReindex_RunsAndCompletes(t *testing.T) {
-	ollama := fakeOllamaServer(t)
-	defer ollama.Close()
-	qStub := &qdrantStub{}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
-
-	svc := NewService(
-		NewEmbedder(ollama.URL, "nomic-embed-text"),
-		NewVectorStore(qServer.URL, "", "b", 3),
-		nil,
-		&fakeBacklogReader{items: []backlog.BacklogItem{{Name: "a", Title: "A", Kind: backlog.KindIdea}}},
-		nil, 0,
-	)
-	_, started := svc.StartReindex()
-	if !started {
-		t.Fatal("expected reindex to start")
-	}
-	assertx.Eventually(t, 2*time.Second, "reindex completion", func() bool {
-		st := svc.ReindexStatus()
-		if !st.Running {
-			if st.Indexed != 1 {
-				t.Errorf("expected 1 indexed, got %d", st.Indexed)
-			}
-			return true
-		}
-		return false
-	})
-}
-
-func TestService_StartReindex_SingletonSemantics(t *testing.T) {
-	// Slow ollama so the first reindex is still running when we call again.
-	// This fixed sleep lives in the fake upstream, not the assertion path.
-	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(200 * time.Millisecond)
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
-	}))
-	defer slow.Close()
-	qStub := &qdrantStub{}
-	qServer := httptest.NewServer(qStub.handler(t))
-	defer qServer.Close()
-
-	svc := NewService(
-		NewEmbedder(slow.URL, "nomic-embed-text"),
-		NewVectorStore(qServer.URL, "", "b", 1),
-		nil,
-		&fakeBacklogReader{items: []backlog.BacklogItem{{Name: "a", Kind: backlog.KindIdea}}},
-		nil, 0,
-	)
-	_, started1 := svc.StartReindex()
-	_, started2 := svc.StartReindex()
-	if !started1 {
-		t.Fatal("expected first start to succeed")
-	}
-	if started2 {
-		t.Error("expected second start to be rejected while first is running")
-	}
-	// Let the first finish so the test doesn't leak goroutines.
-	assertx.Eventually(t, 2*time.Second, "first singleton reindex cleanup", func() bool {
-		return !svc.ReindexStatus().Running
-	})
-}
+// Reindex/StartReindex/StartReindex-singleton coverage moved to
+// reconciler_test.go (TestReconciler_Plan_*, TestReconciler_RunOnce_*,
+// TestReconciler_RunOnce_SingletonWhileRunning).

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"system-monitor-api/internal/agentmanager"
@@ -17,10 +18,21 @@ import (
 	"system-monitor-api/internal/repository/memory"
 	sqliterepo "system-monitor-api/internal/repository/sqlite"
 	"system-monitor-api/internal/services"
+	"system-monitor-api/internal/services/autoheal"
+	"system-monitor-api/internal/services/forensics"
+	"system-monitor-api/internal/services/journal"
 	"system-monitor-api/internal/toolexecution"
 	"system-monitor-api/internal/toolhandlers"
 	"system-monitor-api/internal/toolregistry"
 )
+
+// shellExec is a minimal CommandExecutor wrapping exec.CommandContext for
+// the journal reader and forensics service.
+type shellExec struct{}
+
+func (shellExec) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+}
 
 // Run wires dependencies, starts the HTTP server, and blocks until shutdown.
 func Run(cfg *config.Config) error {
@@ -68,6 +80,14 @@ func Run(cfg *config.Config) error {
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc, apiLog.With("handler", "reports"))
 	settingsHandler := handlers.NewSettingsHandler(settingsMgr, apiLog.With("handler", "settings"))
 
+	// Forensics + logs wiring.
+	executor := shellExec{}
+	journalReader := journal.NewReader(executor)
+	forensicsSvc := forensics.NewService(journalReader, executor, forensics.DefaultFileSystem(), time.Now)
+	autohealClient := autoheal.NewClient(autoheal.Config{})
+	forensicsHandler := handlers.NewForensicsHandler(forensicsSvc, autohealClient, apiLog.With("handler", "forensics"))
+	logsHandler := handlers.NewLogsHandler(journalReader, apiLog.With("handler", "logs"))
+
 	// Initialize Tool Discovery Protocol registry
 	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
 		ScenarioName:        "system-monitor",
@@ -90,7 +110,7 @@ func Run(cfg *config.Config) error {
 	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
 	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
 
-	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, toolsHandler, toolExecHandler)
+	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
 	handler := buildMiddleware(cfg, router)
 
 	srv := &http.Server{

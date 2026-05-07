@@ -185,17 +185,17 @@ Agent identity is the canonical attribution seam for API mutations performed by
 Agent Manager runs.
 
 - **Runner env contract**: Agent Manager injects `VROOLI_AGENT_IDENTITY_TOKEN`
-  into spawned agent processes. It also injects
-  `VROOLI_AGENT_MANAGER_API_BASE`, resolved from the current Agent Manager API
-  environment, so cli-core consumers can verify tokens without caller-managed
-  setup.
+  into spawned agent processes. It does not inject API-base variables for
+  Agent Manager, Swarm Manager, Prompt Manager, Workspace Sandbox, or other
+  scenarios. CLI and API consumers resolve service location through lifecycle
+  discovery instead of inherited runner env.
 - **CLI forwarding rule**: Swarm Manager CLI detects
   `VROOLI_AGENT_IDENTITY_TOKEN` through cli-core and forwards it as
   `X-Agent-Identity-Token` on every API request. Domain commands must not add
   separate `--created-by`, `--run-id`, or `--session-id` flags for normal
   identity propagation.
 - **API verification rule**: Swarm Manager API middleware verifies
-  `X-Agent-Identity-Token` through Agent Manager's
+  `X-Agent-Identity-Token` through Agent Manager's discovered
   `/api/v1/identity/verify` endpoint and stores `identity.Provenance` in the
   request context. Verification is fail-open: missing, invalid, or unreachable
   identity verification yields explicit operator provenance, never a rejected
@@ -1972,7 +1972,7 @@ being modeled as capture, backlog, or initiative subtypes.
 
 ### API Test Async Assertion Seam (added 2026-05-01)
 
-Background indexing, graph invalidation, and reindex jobs intentionally run through fire-and-forget paths in production. Tests should observe those seams through shared eventual assertions instead of copying ad hoc polling loops or sleeping for a fixed duration.
+Background indexing, graph invalidation, and reconcile jobs intentionally run through fire-and-forget paths in production. Tests should observe those seams through shared eventual assertions instead of copying ad hoc polling loops or sleeping for a fixed duration.
 
 | Boundary | Location | Behavior | Test |
 |----------|----------|----------|------|

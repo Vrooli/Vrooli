@@ -87,13 +87,13 @@ func TestCmdAISearchStatus_RendersOperational(t *testing.T) {
 	}
 }
 
-func TestCmdAISearchReindex_StartsJob(t *testing.T) {
+func TestCmdAISearchReconcile_StartsJob(t *testing.T) {
 	called := false
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/search/ai/reindex" && r.Method == http.MethodPost {
+		if r.URL.Path == "/api/v1/search/ai/reconcile" && r.Method == http.MethodPost {
 			called = true
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"running":true,"message":"Reindex started","indexed":0,"total":0}`))
+			_, _ = w.Write([]byte(`{"running":true,"startedAt":"2026-04-20T00:00:00Z"}`))
 			return
 		}
 		t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -102,44 +102,44 @@ func TestCmdAISearchReindex_StartsJob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
-	if err := app.cmdAISearchReindex([]string{}); err != nil {
-		t.Fatalf("reindex: %v", err)
+	if err := app.cmdAISearchReconcile([]string{}); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
 	if !called {
-		t.Error("expected reindex endpoint called")
+		t.Error("expected reconcile endpoint called")
 	}
 }
 
-func TestCmdAISearchReindexStatus_RendersProgress(t *testing.T) {
+func TestCmdAISearchReconcileStatus_RendersProgress(t *testing.T) {
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/search/ai/reindex/status" {
+		if r.URL.Path != "/api/v1/search/ai/reconcile/status" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"running":false,"indexed":5,"total":5,"finishedAt":"2026-04-20T00:00:00Z"}`))
+		_, _ = w.Write([]byte(`{"running":false,"finishedAt":"2026-04-20T00:00:00Z","lastResult":{"upsertedBacklog":5,"upsertedInitiative":0,"deletedBacklog":2,"deletedInitiative":0}}`))
 	}))
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
-	if err := app.cmdAISearchReindexStatus([]string{}); err != nil {
+	if err := app.cmdAISearchReconcileStatus([]string{}); err != nil {
 		t.Fatalf("status: %v", err)
 	}
 }
 
-func TestCmdAISearchReindex_WaitPollsUntilComplete(t *testing.T) {
+func TestCmdAISearchReconcile_WaitPollsUntilComplete(t *testing.T) {
 	var statusCalls int
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/search/ai/reindex":
+		case "/api/v1/search/ai/reconcile":
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"running":true,"total":3}`))
-		case "/api/v1/search/ai/reindex/status":
+			_, _ = w.Write([]byte(`{"running":true,"startedAt":"2026-04-20T00:00:00Z"}`))
+		case "/api/v1/search/ai/reconcile/status":
 			statusCalls++
 			if statusCalls < 2 {
-				_, _ = w.Write([]byte(`{"running":true,"indexed":1,"total":3}`))
+				_, _ = w.Write([]byte(`{"running":true,"startedAt":"2026-04-20T00:00:00Z"}`))
 				return
 			}
-			_, _ = w.Write([]byte(`{"running":false,"indexed":3,"total":3}`))
+			_, _ = w.Write([]byte(`{"running":false,"finishedAt":"2026-04-20T00:00:01Z","lastResult":{"upsertedBacklog":3}}`))
 		default:
 			t.Fatalf("unexpected: %s", r.URL.Path)
 		}
@@ -148,11 +148,35 @@ func TestCmdAISearchReindex_WaitPollsUntilComplete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
-	if err := app.cmdAISearchReindex([]string{"--wait"}); err != nil {
-		t.Fatalf("reindex --wait: %v", err)
+	if err := app.cmdAISearchReconcile([]string{"--wait"}); err != nil {
+		t.Fatalf("reconcile --wait: %v", err)
 	}
 	if statusCalls < 2 {
 		t.Errorf("expected at least 2 poll calls, got %d", statusCalls)
+	}
+}
+
+func TestCmdAISearchReconcile_DryRun_RendersDriftReport(t *testing.T) {
+	// In production, the cli-core preflight calls HTTPClient.SetDryRun(true)
+	// when --dry-run is on the command line, so every outgoing request carries
+	// X-Dry-Run. Tests bypass preflight and set both signals manually.
+	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/search/ai/reconcile" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Dry-Run") != "true" {
+			t.Fatalf("expected X-Dry-Run=true header, got %q", r.Header.Get("X-Dry-Run"))
+		}
+		_, _ = w.Write([]byte(`{"dry_run":true,"plan":{"plannedAt":"2026-04-20T00:00:00Z","toDeleteBacklog":["g1","g2"],"unchangedBacklog":50,"legacyBacklog":3}}`))
+	}))
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	app.globalDry = true
+	app.core.HTTPClient.SetDryRun(true)
+	if err := app.cmdAISearchReconcile([]string{}); err != nil {
+		t.Fatalf("reconcile dry-run: %v", err)
 	}
 }
 
@@ -179,7 +203,7 @@ func TestAISearchCommandsRegistered(t *testing.T) {
 	// are routed without a "command not found" error.
 	cases := [][]string{
 		{"ai-search", "status"},
-		{"ai-search", "reindex-status"},
+		{"ai-search", "reconcile-status"},
 		{"ai-search", "query", "hello"},
 		{"backlog", "search-ai", "retry"},
 		{"initiatives", "search-ai", "obs"},

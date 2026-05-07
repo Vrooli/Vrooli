@@ -1,4 +1,5 @@
 import { Moon, Settings, Sun, Terminal } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
 import { useTheme } from '../theme/ThemeProvider';
@@ -47,6 +48,21 @@ export const Header = ({
         >
           <span className="system-monitor-title-text">System Monitor</span>
         </h1>
+
+        <nav className="app-nav flex-row-center gap-sm" style={{ marginLeft: 'var(--spacing-md)' }}>
+          <NavLink to="/" end className="app-nav-link">
+            Dashboard
+          </NavLink>
+          <NavLink to="/forensics" className="app-nav-link">
+            Forensics
+          </NavLink>
+          <NavLink to="/logs" className="app-nav-link">
+            Logs
+          </NavLink>
+          <NavLink to="/scripts" className="app-nav-link">
+            Scripts
+          </NavLink>
+        </nav>
 
         <div className="flex-row-center gap-sm">
           <AgentDropdown

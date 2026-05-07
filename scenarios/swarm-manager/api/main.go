@@ -13,6 +13,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
@@ -81,6 +82,8 @@ type Server struct {
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
 	aiSearchSvc         *aisearch.Service
+	aiSearchReconciler  *aisearch.Reconciler
+	aiSearchSyncLoop    *aisearch.SyncLoop
 	aiSearchStopChan    chan struct{}
 	feedbackSweeperStop chan struct{}
 }
@@ -190,7 +193,7 @@ func (s *Server) setupRoutes() {
 func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
 	cfg := aisearch.LoadConfigFromEnv()
 
-	embedder := aisearch.NewEmbedder(cfg.OllamaURL, cfg.EmbeddingModel)
+	embedder := aisearch.NewEmbedder(cfg.EmbeddingModel)
 	backlogVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, cfg.VectorDimensions)
 	initVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.InitiativeCollection, cfg.VectorDimensions)
 
@@ -199,6 +202,16 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 
 	svc := aisearch.NewService(embedder, backlogVS, initVS, backlogReader, initReader, cfg.Threshold)
 
+	// The Reconciler is the single owner of the "make qdrant match disk"
+	// decision. The Service handles search + status; the Reconciler handles
+	// reconcile + reconcile-status + reconcile-cancel. They share embedder
+	// and stores but don't share state.
+	reconciler := aisearch.NewReconciler(
+		embedder, backlogVS, initVS,
+		backlogReader, initReader,
+		aisearch.ResolveReconcileParallelism(),
+	)
+
 	// Only attach indexer hooks if both subsystems are configured; otherwise
 	// write-path goroutines would bang on unreachable URLs on every mutation.
 	if cfg.OllamaURL != "" && cfg.QdrantURL != "" {
@@ -206,9 +219,10 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 		initService.SetAIIndexer(svc)
 	}
 
-	handler := aisearch.NewHandler(svc)
+	handler := aisearch.NewHandler(svc, reconciler)
 	handler.RegisterRoutes(s.router)
 	s.aiSearchSvc = svc
+	s.aiSearchReconciler = reconciler
 }
 
 func (s *Server) registerHealthRoutes() {
@@ -407,34 +421,58 @@ func main() {
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:
-// a one-shot startup backfill (if index and on-disk counts diverge) and a
-// periodic drift-reconciliation loop (every 5 minutes). Both are no-ops when
-// Ollama or Qdrant is unreachable — the goroutines log and move on.
+// a one-shot boot-time reconcile (drains any post-deploy drift via the
+// reconciler's content-hash compare) and a periodic SyncLoop. Both are no-ops
+// when the reconciler is nil (no Ollama/Qdrant configured) or when the
+// AI_SEARCH_SYNC_DISABLED kill-switch is on.
+//
+// Boot-time reconcile uses a 5-minute timeout — the legacy-hash drain on
+// first deploy can re-embed every item once, and we'd rather log a timeout
+// than block API readiness on Ollama latency. Periodic ticks pick up where
+// boot left off.
 func (s *Server) startAISearchBackground() {
-	if s.aiSearchSvc == nil {
+	if s.aiSearchReconciler == nil {
 		return
 	}
+
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		needs, indexed, disk, err := s.aiSearchSvc.NeedsReindex(ctx)
-		if err != nil {
-			slog.Info("aisearch startup backfill skipped", "reason", err.Error())
-			return
-		}
-		if needs {
-			slog.Info("aisearch startup backfill: index drift detected, reindexing",
-				"indexed", indexed, "on_disk", disk)
-			s.aiSearchSvc.StartReindex()
+		plan, result, err := s.aiSearchReconciler.RunOnce(ctx)
+		switch {
+		case err == nil:
+			// Surface partial-Apply failures (per-item embed/upsert/delete
+			// errors) that RunOnce does not bubble up. Silent on the fully
+			// clean happy path; SyncLoop logs subsequent ticks.
+			if result != nil && len(result.Errors) > 0 {
+				upserts, deletes := 0, 0
+				if plan != nil {
+					upserts = plan.UpsertCount()
+					deletes = plan.DeleteCount()
+				}
+				slog.Warn("aisearch boot-time reconcile completed with errors",
+					"errorCount", len(result.Errors),
+					"plannedUpserts", upserts,
+					"plannedDeletes", deletes,
+					"firstErr", result.Errors[0].Err,
+				)
+			}
+		case errors.Is(err, aisearch.ErrReconcileBusy):
+			// Another caller (rare at boot) acquired the singleton; no-op.
+		default:
+			slog.Warn("aisearch boot-time reconcile failed", "err", err)
 		}
 	}()
 
+	if s.aiSearchSyncLoop == nil {
+		s.aiSearchSyncLoop = aisearch.NewSyncLoop(s.aiSearchReconciler)
+	}
 	syncCtx, cancel := context.WithCancel(context.Background())
-	s.aiSearchSvc.StartPeriodicSync(syncCtx, 5*time.Minute)
 	go func() {
 		<-s.aiSearchStopChan
 		cancel()
 	}()
+	go s.aiSearchSyncLoop.Start(syncCtx)
 }
 
 func getEnvDefault(key, fallback string) string {

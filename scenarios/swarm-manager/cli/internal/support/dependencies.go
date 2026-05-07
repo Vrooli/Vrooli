@@ -129,9 +129,9 @@ type Dependencies struct {
 	StatsSandboxAdoption CommandFunc
 	AISearchStatus       CommandFunc
 	AISearchQuery        CommandFunc
-	AISearchReindex      CommandFunc
-	AISearchReindexStat  CommandFunc
-	AISearchReindexCan   CommandFunc
+	AISearchReconcile     CommandFunc
+	AISearchReconcileStat CommandFunc
+	AISearchReconcileCan  CommandFunc
 	BacklogSearchAI      CommandFunc
 	InitiativesSearchAI  CommandFunc
 	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).

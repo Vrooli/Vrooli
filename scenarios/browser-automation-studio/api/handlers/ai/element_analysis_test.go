@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -255,8 +256,12 @@ func TestExtractPageElements_Integration(t *testing.T) {
 
 func TestGenerateAISuggestions_Integration(t *testing.T) {
 	integration.SkipShort(t, "Ollama suggestions integration")
-	integration.RequireAnyEnv(t, []string{"OLLAMA_URL", "OLLAMA_HOST"}, "Ollama suggestions integration")
-	integration.RequireHTTPStatusOK(t, http.DefaultClient, "http://localhost:11434/api/tags", "Ollama suggestions integration")
+	if _, err := exec.LookPath("resource-ollama"); err != nil {
+		t.Skip("resource-ollama not on PATH")
+	}
+	if err := exec.Command("resource-ollama", "status").Run(); err != nil {
+		t.Skipf("resource-ollama status failed: %v", err)
+	}
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)

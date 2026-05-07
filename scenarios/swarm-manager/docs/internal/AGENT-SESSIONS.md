@@ -37,18 +37,20 @@ Adding a kind should mean adding a skill mapping, prompt builder behavior if nee
 
 Agent identity and session identity are separate:
 
-- Agent Manager injects `VROOLI_AGENT_IDENTITY_TOKEN` and `VROOLI_AGENT_MANAGER_API_BASE` into spawned runs.
+- Agent Manager injects `VROOLI_AGENT_IDENTITY_TOKEN` into spawned runs. It does not inject Swarm Manager, Agent Manager, Prompt Manager, or Workspace Sandbox API-base variables.
 - The Swarm Manager CLI forwards the verified token to the API as `X-Agent-Identity-Token`.
-- Swarm Manager API middleware verifies the token and builds `identity.Provenance`.
+- Swarm Manager API middleware verifies the token through Agent Manager discovery and builds `identity.Provenance`.
 - Session middleware resolves `provenance.run_id` back to the owning session and enriches provenance with `session_id`, `session_kind`, and `source`.
 
-Session spawns also receive observability environment variables:
+Session spawns also receive Swarm-owned observability environment variables:
 
 | Variable | Value |
 |---|---|
 | `VROOLI_SWARM_MANAGER_SESSION_ID` | The `sess_*` ID. |
 | `VROOLI_SWARM_MANAGER_SESSION_KIND` | The typed session kind. |
 | `VROOLI_SPAWN_SOURCE` | `session/<session_id>`. |
+
+Scenario CLI API location remains owned by the CLI lifecycle discovery chain (`--api-base`, saved config, scenario-specific env, `vrooli scenario port <scenario> API_PORT`). Session env describes the session; it is not a service-location channel.
 
 Agents should not manually pass run IDs, session IDs, attribution fields, or created-by data in normal Swarm Manager CLI commands. Attribution is owned by the API and derived from verified identity plus the run-to-session resolver.
 

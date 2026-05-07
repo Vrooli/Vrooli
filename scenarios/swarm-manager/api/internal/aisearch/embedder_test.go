@@ -2,106 +2,105 @@ package aisearch
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"errors"
+	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
+
+// fakeEmbedRunner returns a runner that captures the most recent invocation
+// and returns the canned stdout/error. Used everywhere we used to spin up an
+// httptest fake Ollama.
+type fakeEmbedRunner struct {
+	stdout   []byte
+	err      error
+	gotArgs  []string
+	gotStdin string
+}
+
+func (f *fakeEmbedRunner) run(_ context.Context, args []string, stdin []byte) ([]byte, error) {
+	f.gotArgs = append([]string(nil), args...)
+	f.gotStdin = string(stdin)
+	return f.stdout, f.err
+}
 
 func TestEmbedder_Embed_Success(t *testing.T) {
 	want := []float64{0.1, 0.2, 0.3, 0.4}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/embeddings" {
-			t.Errorf("expected path /api/embeddings, got %s", r.URL.Path)
-		}
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		var req embeddingRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		if req.Model != "nomic-embed-text" {
-			t.Errorf("expected model nomic-embed-text, got %s", req.Model)
-		}
-		if req.Prompt != "hello world" {
-			t.Errorf("expected prompt 'hello world', got %q", req.Prompt)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: want})
-	}))
-	defer server.Close()
+	r := &fakeEmbedRunner{stdout: []byte(`{"embedding":[0.1,0.2,0.3,0.4]}` + "\n")}
 
-	e := NewEmbedder(server.URL, "nomic-embed-text")
+	e := newEmbedderWithRunner("nomic-embed-text", r.run)
 	got, err := e.Embed(context.Background(), "hello world")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Embed: %v", err)
 	}
-	if len(got) != len(want) {
-		t.Fatalf("expected %d dims, got %d", len(want), len(got))
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Embed = %v, want %v", got, want)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("dim %d: got %f want %f", i, got[i], want[i])
-		}
+	wantArgs := []string{"resource-ollama", "gateway", "embed", "--model", "nomic-embed-text", "--json", "--input-stdin"}
+	if !reflect.DeepEqual(r.gotArgs, wantArgs) {
+		t.Fatalf("argv = %v, want %v", r.gotArgs, wantArgs)
 	}
-}
-
-func TestEmbedder_Embed_EmptyURL(t *testing.T) {
-	e := NewEmbedder("", "nomic-embed-text")
-	if _, err := e.Embed(context.Background(), "x"); err == nil {
-		t.Fatal("expected error for empty URL")
+	if r.gotStdin != "hello world" {
+		t.Fatalf("stdin = %q, want %q", r.gotStdin, "hello world")
 	}
 }
 
-func TestEmbedder_Embed_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	e := NewEmbedder(server.URL, "nomic-embed-text")
+func TestEmbedder_Embed_RunnerError(t *testing.T) {
+	r := &fakeEmbedRunner{err: errors.New("exit status 1: HTTP 503")}
+	e := newEmbedderWithRunner("m", r.run)
 	_, err := e.Embed(context.Background(), "x")
-	if err == nil {
-		t.Fatal("expected error for server 500")
+	if err == nil || !strings.Contains(err.Error(), "503") {
+		t.Fatalf("expected upstream error to surface, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "500") {
-		t.Errorf("expected error to contain 500, got %v", err)
+}
+
+func TestEmbedder_Embed_DecodeError(t *testing.T) {
+	r := &fakeEmbedRunner{stdout: []byte("not json")}
+	e := newEmbedderWithRunner("m", r.run)
+	_, err := e.Embed(context.Background(), "x")
+	if err == nil || !strings.Contains(err.Error(), "decode") {
+		t.Fatalf("expected decode error, got %v", err)
+	}
+}
+
+func TestEmbedder_Embed_EmptyVector(t *testing.T) {
+	r := &fakeEmbedRunner{stdout: []byte(`{"embedding":[]}`)}
+	e := newEmbedderWithRunner("m", r.run)
+	if _, err := e.Embed(context.Background(), "x"); err == nil {
+		t.Fatal("expected error for empty vector")
 	}
 }
 
 func TestEmbedder_DefaultModel(t *testing.T) {
-	e := NewEmbedder("http://localhost:11434", "")
-	if e.Model != "nomic-embed-text" {
-		t.Errorf("expected default model nomic-embed-text, got %s", e.Model)
+	r := &fakeEmbedRunner{stdout: []byte(`{"embedding":[0.1]}`)}
+	e := newEmbedderWithRunner("", r.run)
+	if _, err := e.Embed(context.Background(), "x"); err != nil {
+		t.Fatalf("Embed: %v", err)
 	}
+	// model flag is the value after "--model"
+	for i, a := range r.gotArgs {
+		if a == "--model" && i+1 < len(r.gotArgs) {
+			if r.gotArgs[i+1] != "nomic-embed-text" {
+				t.Fatalf("default model = %q, want nomic-embed-text", r.gotArgs[i+1])
+			}
+			return
+		}
+	}
+	t.Fatal("--model flag not found in argv")
 }
 
 func TestEmbedder_Available_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
-	}))
-	defer server.Close()
-
-	e := NewEmbedder(server.URL, "nomic-embed-text")
+	r := &fakeEmbedRunner{stdout: []byte(`{"embedding":[0.1]}`)}
+	e := newEmbedderWithRunner("m", r.run)
 	if !e.Available(context.Background()) {
-		t.Error("expected Available to return true")
+		t.Error("Available = false, want true")
 	}
 }
 
-func TestEmbedder_Available_EmptyURL(t *testing.T) {
-	e := NewEmbedder("", "nomic-embed-text")
+func TestEmbedder_Available_RunnerError(t *testing.T) {
+	r := &fakeEmbedRunner{err: errors.New("exec: not found")}
+	e := newEmbedderWithRunner("m", r.run)
 	if e.Available(context.Background()) {
-		t.Error("expected Available to return false for empty URL")
-	}
-}
-
-func TestEmbedder_Available_Unreachable(t *testing.T) {
-	e := NewEmbedder("http://127.0.0.1:1", "nomic-embed-text")
-	e.Client = &http.Client{Timeout: 100 * time.Millisecond}
-	if e.Available(context.Background()) {
-		t.Error("expected Available to return false for unreachable server")
+		t.Error("Available = true, want false (runner failed)")
 	}
 }

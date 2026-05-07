@@ -919,13 +919,8 @@ func extractFileContent(filePath string) (string, error) {
 }
 
 func extractWithOllama(content, schema string) (map[string]interface{}, float64, error) {
-	// Use Ollama for intelligent content extraction based on schema
-	ollamaURL := os.Getenv("OLLAMA_API_BASE")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
-	}
-
-	// Create extraction prompt
+	// All daemon traffic goes through resource-ollama gateway so the host-wide
+	// semaphore can bound fleet-wide parallelism.
 	prompt := fmt.Sprintf(`Extract structured data from the following content according to the schema.
 Return ONLY valid JSON that matches the schema structure.
 
@@ -937,43 +932,25 @@ Content:
 
 Extracted JSON:`, schema, content)
 
-	// Call Ollama API
-	requestBody := map[string]interface{}{
-		"model":  "llama3.2",
-		"prompt": prompt,
-		"stream": false,
-		"options": map[string]interface{}{
-			"temperature": 0.1,
-			"top_k":       10,
-			"top_p":       0.1,
-		},
-	}
-
-	jsonData, err := json.Marshal(requestBody)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", "llama3.2", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to marshal request: %v", err)
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return nil, 0, fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
 	}
-
-	req, err := http.NewRequest("POST", ollamaURL+"/api/generate", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to call Ollama: %v", err)
-	}
-	defer resp.Body.Close()
 
 	var ollamaResponse struct {
 		Response string `json:"response"`
-		Done     bool   `json:"done"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResponse); err != nil {
-		return nil, 0, fmt.Errorf("failed to decode Ollama response: %v", err)
+	if err := json.Unmarshal(out, &ollamaResponse); err != nil {
+		return nil, 0, fmt.Errorf("decode gateway generate response: %w", err)
 	}
 
 	// Try to parse the extracted JSON

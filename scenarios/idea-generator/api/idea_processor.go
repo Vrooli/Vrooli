@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -594,66 +595,38 @@ func (ip *IdeaProcessor) generateWithOllama(ctx context.Context, prompt string, 
 	return ideas, nil
 }
 
-// generateWithOllamaRaw generates text using Ollama's LLM without JSON formatting.
-// Used for refinement and conversational responses.
+// generateWithOllamaRaw generates text via the resource-ollama gateway CLI.
+// Used for refinement and conversational responses. All daemon traffic is
+// funnelled through the CLI so the host-wide semaphore can bound fleet-wide
+// parallelism — never call Ollama HTTP directly.
 func (ip *IdeaProcessor) generateWithOllamaRaw(ctx context.Context, prompt string) (string, error) {
-	// Use mistral model which is available and good for creative tasks
-	payload := map[string]interface{}{
-		"model":  "mistral:latest",
-		"prompt": prompt,
-		"stream": false,
-	}
-
-	payloadJSON, _ := json.Marshal(payload)
-
-	req, err := http.NewRequestWithContext(ctx, "POST",
-		fmt.Sprintf("%s/api/generate", ip.ollamaURL),
-		bytes.NewBuffer(payloadJSON))
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", "mistral:latest", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return "", fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to Ollama at %s: %w. Is Ollama running?", ip.ollamaURL, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Ollama returned error status %d: %s", resp.StatusCode, string(body))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var ollamaResp struct {
+	var decoded struct {
 		Response string `json:"response"`
-		Error    string `json:"error"`
 	}
-
-	if err := json.Unmarshal(body, &ollamaResp); err != nil {
-		return "", fmt.Errorf("failed to parse Ollama response: %w", err)
+	if err := json.Unmarshal(out, &decoded); err != nil {
+		return "", fmt.Errorf("decode gateway generate response: %w", err)
 	}
-
-	if ollamaResp.Error != "" {
-		return "", fmt.Errorf("Ollama error: %s", ollamaResp.Error)
+	if decoded.Response == "" {
+		return "", fmt.Errorf("resource-ollama returned empty response")
 	}
-
-	if ollamaResp.Response == "" {
-		return "", fmt.Errorf("Ollama returned empty response")
-	}
-
-	return ollamaResp.Response, nil
+	return decoded.Response, nil
 }
 
-// generateEmbedding creates a vector embedding for semantic search using Ollama.
-// Returns 768-dimensional vector representation of input text (nomic-embed-text model).
+// generateEmbedding creates a vector embedding for semantic search via the
+// resource-ollama gateway CLI. Returns the vector representation of input
+// text (nomic-embed-text model).
 func (ip *IdeaProcessor) generateEmbedding(ctx context.Context, text string) ([]float64, error) {
 	if text == "" {
 		return nil, fmt.Errorf("cannot generate embedding for empty text")
@@ -664,52 +637,27 @@ func (ip *IdeaProcessor) generateEmbedding(ctx context.Context, text string) ([]
 		text = text[:MaxOllamaInputLength]
 	}
 
-	// Use nomic-embed-text for embeddings
-	payload := map[string]interface{}{
-		"model":  "nomic-embed-text:latest",
-		"prompt": text,
-	}
-
-	payloadJSON, _ := json.Marshal(payload)
-
-	req, err := http.NewRequestWithContext(ctx, "POST",
-		fmt.Sprintf("%s/api/embeddings", ip.ollamaURL),
-		bytes.NewBuffer(payloadJSON))
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
+		"--model", "nomic-embed-text:latest", "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create embedding request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Ollama for embeddings: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Ollama embeddings returned status %d: %s", resp.StatusCode, string(body))
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %v: %s", err, stderr)
 	}
 
 	var embResp struct {
 		Embedding []float64 `json:"embedding"`
-		Error     string    `json:"error"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&embResp); err != nil {
-		return nil, fmt.Errorf("failed to parse embedding response: %w", err)
+	if err := json.Unmarshal(out, &embResp); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
 	}
-
-	if embResp.Error != "" {
-		return nil, fmt.Errorf("Ollama embedding error: %s", embResp.Error)
-	}
-
 	if len(embResp.Embedding) == 0 {
-		return nil, fmt.Errorf("Ollama returned empty embedding")
+		return nil, fmt.Errorf("resource-ollama returned empty embedding")
 	}
-
 	return embResp.Embedding, nil
 }
 

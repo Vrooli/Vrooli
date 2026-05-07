@@ -3,7 +3,9 @@ package aisearch
 import (
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -79,6 +81,30 @@ func uuidV5(namespace [16]byte, name string) string {
 	return hexStr[0:8] + "-" + hexStr[8:12] + "-" + hexStr[12:16] + "-" + hexStr[16:20] + "-" + hexStr[20:32]
 }
 
+// composePayloadHash returns a short, deterministic content fingerprint of the
+// embedding input text plus the searchable payload. The reconciler stores this
+// alongside each Qdrant point and compares it against a freshly computed hash
+// to skip re-embedding items whose content has not changed.
+//
+// Format: "sha256:" + hex(sha256(text || "|" || canonicalJSON(payload))[:8]).
+// The 8-byte (64-bit) truncation is the "skip-if-unchanged" decision boundary:
+// at current scale (~326 items) the birthday-collision probability is ~3×10⁻¹⁵,
+// and the cost of a collision is one stale embedding for one item until the
+// next genuine edit — non-corrupting. Widen sum[:16] if scale exceeds 10⁵ items.
+//
+// IMPORTANT: the input payload must NOT contain a "payload_hash" key, otherwise
+// the hash includes itself and becomes unreproducible. json.Marshal sorts map
+// keys, so the canonical form is stable across goroutines and processes.
+func composePayloadHash(text string, payload map[string]interface{}) string {
+	canonical, _ := json.Marshal(payload)
+	h := sha256.New()
+	_, _ = h.Write([]byte(text))
+	_, _ = h.Write([]byte{'|'})
+	_, _ = h.Write(canonical)
+	sum := h.Sum(nil)
+	return "sha256:" + hex.EncodeToString(sum[:8])
+}
+
 // composeBacklogText builds the embedding input text for a backlog item.
 // Fields are concatenated with blank-line separators so a dense-embedding
 // model can weight them roughly equally.
@@ -148,9 +174,14 @@ func composeInitiativeText(init initiatives.Initiative) string {
 	return strings.Join(parts, "\n\n")
 }
 
-// buildBacklogPayload returns the Qdrant payload map for a backlog item.
-// Keys here must stay in sync with BacklogPayload in models.go.
-func buildBacklogPayload(item backlog.BacklogItem) map[string]interface{} {
+// buildBacklogPayload returns the Qdrant payload map for a backlog item. Keys
+// here must stay in sync with BacklogPayload in models.go.
+//
+// payloadHash, if non-empty, is added under "payload_hash" so the reconciler
+// can later skip re-embedding items whose content is unchanged. Callers
+// computing the hash itself must pass "" (the hash cannot include itself);
+// callers about to upsert pass the freshly computed hash.
+func buildBacklogPayload(item backlog.BacklogItem, payloadHash string) map[string]interface{} {
 	tags := item.Tags
 	if tags == nil {
 		tags = []string{}
@@ -159,7 +190,7 @@ func buildBacklogPayload(item backlog.BacklogItem) map[string]interface{} {
 	if scenarios == nil {
 		scenarios = []string{}
 	}
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"kind":             string(item.Kind),
 		"name":             item.Name,
 		"title":            item.Title,
@@ -171,17 +202,27 @@ func buildBacklogPayload(item backlog.BacklogItem) map[string]interface{} {
 		"archived":         item.ArchivedAt != nil,
 		"target_scenarios": scenarios,
 	}
+	if payloadHash != "" {
+		out["payload_hash"] = payloadHash
+	}
+	return out
 }
 
 // buildInitiativePayload returns the Qdrant payload map for an initiative.
-func buildInitiativePayload(init initiatives.Initiative) map[string]interface{} {
-	return map[string]interface{}{
+// payloadHash, if non-empty, is added under "payload_hash" — same convention
+// as buildBacklogPayload.
+func buildInitiativePayload(init initiatives.Initiative, payloadHash string) map[string]interface{} {
+	out := map[string]interface{}{
 		"name":     init.Name,
 		"title":    init.Title,
 		"status":   init.Status,
 		"priority": init.Priority,
 		"archived": init.ArchivedAt != nil,
 	}
+	if payloadHash != "" {
+		out["payload_hash"] = payloadHash
+	}
+	return out
 }
 
 // IndexBacklogItem embeds and upserts a backlog item's vector. Safe to call
@@ -193,13 +234,17 @@ func (s *Service) IndexBacklogItem(ctx context.Context, item backlog.BacklogItem
 	}
 
 	text := composeBacklogText(item)
+	// Compute the hash from the no-hash payload first; assignment evaluates
+	// RHS before the map write, so composePayloadHash sees a clean payload.
+	payload := buildBacklogPayload(item, "")
+	payload["payload_hash"] = composePayloadHash(text, payload)
+
 	vector, err := s.embedder.Embed(ctx, text)
 	if err != nil {
 		return fmt.Errorf("embed backlog %s/%s: %w", item.Kind, item.Name, err)
 	}
 
 	id := backlogPointID(item.Kind, item.Name)
-	payload := buildBacklogPayload(item)
 	if err := s.backlogStore.Upsert(ctx, id, vector, payload); err != nil {
 		return fmt.Errorf("upsert backlog %s/%s: %w", item.Kind, item.Name, err)
 	}
@@ -229,13 +274,15 @@ func (s *Service) IndexInitiative(ctx context.Context, init initiatives.Initiati
 	}
 
 	text := composeInitiativeText(init)
+	payload := buildInitiativePayload(init, "")
+	payload["payload_hash"] = composePayloadHash(text, payload)
+
 	vector, err := s.embedder.Embed(ctx, text)
 	if err != nil {
 		return fmt.Errorf("embed initiative %s: %w", init.Name, err)
 	}
 
 	id := initiativePointID(init.Name)
-	payload := buildInitiativePayload(init)
 	if err := s.initiativeStore.Upsert(ctx, id, vector, payload); err != nil {
 		return fmt.Errorf("upsert initiative %s: %w", init.Name, err)
 	}
@@ -257,98 +304,3 @@ func (s *Service) DeleteInitiative(ctx context.Context, name string) error {
 	return nil
 }
 
-// reindexAllWithProgress is the underlying worker for ReindexAll. It walks
-// both collections sequentially and invokes the progress callback after each
-// entity. Any per-entity error is logged and counted; the reindex continues.
-func (s *Service) reindexAllWithProgress(
-	ctx context.Context,
-	progress func(indexed, skipped, errors int),
-	setTotal func(total int),
-) (*ReindexResponse, error) {
-	var indexed, skipped, errs int
-
-	if s.backlogStore != nil {
-		if err := s.backlogStore.EnsureCollection(ctx); err != nil {
-			return nil, fmt.Errorf("ensure backlog collection: %w", err)
-		}
-	}
-	if s.initiativeStore != nil {
-		if err := s.initiativeStore.EnsureCollection(ctx); err != nil {
-			return nil, fmt.Errorf("ensure initiative collection: %w", err)
-		}
-	}
-
-	var backlogItems []backlog.BacklogItem
-	var initList []initiatives.Initiative
-	if s.backlogReader != nil {
-		items, err := s.backlogReader.LoadAll()
-		if err != nil {
-			return nil, fmt.Errorf("load backlog items: %w", err)
-		}
-		backlogItems = items
-	}
-	if s.initiativeReader != nil {
-		inits, err := s.initiativeReader.List()
-		if err != nil {
-			return nil, fmt.Errorf("list initiatives: %w", err)
-		}
-		initList = inits
-	}
-
-	if setTotal != nil {
-		setTotal(len(backlogItems) + len(initList))
-	}
-
-	for _, item := range backlogItems {
-		if err := ctx.Err(); err != nil {
-			return &ReindexResponse{
-				Indexed: indexed,
-				Skipped: skipped,
-				Errors:  errs,
-				Message: fmt.Sprintf("Reindex canceled after %d items", indexed+skipped+errs),
-			}, err
-		}
-		if err := s.IndexBacklogItem(ctx, item); err != nil {
-			slog.Warn("[aisearch] reindex backlog failed", "kind", item.Kind, "name", item.Name, "err", err)
-			errs++
-		} else {
-			indexed++
-		}
-		if progress != nil {
-			progress(indexed, skipped, errs)
-		}
-	}
-
-	for _, init := range initList {
-		if err := ctx.Err(); err != nil {
-			return &ReindexResponse{
-				Indexed: indexed,
-				Skipped: skipped,
-				Errors:  errs,
-				Message: fmt.Sprintf("Reindex canceled after %d items", indexed+skipped+errs),
-			}, err
-		}
-		if err := s.IndexInitiative(ctx, init); err != nil {
-			slog.Warn("[aisearch] reindex initiative failed", "name", init.Name, "err", err)
-			errs++
-		} else {
-			indexed++
-		}
-		if progress != nil {
-			progress(indexed, skipped, errs)
-		}
-	}
-
-	return &ReindexResponse{
-		Indexed: indexed,
-		Skipped: skipped,
-		Errors:  errs,
-		Message: fmt.Sprintf("Reindex complete: %d indexed, %d skipped, %d errors", indexed, skipped, errs),
-	}, nil
-}
-
-// ReindexAll runs a full reindex synchronously. Callers that want background
-// execution should use StartReindex instead.
-func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
-	return s.reindexAllWithProgress(ctx, nil, nil)
-}
