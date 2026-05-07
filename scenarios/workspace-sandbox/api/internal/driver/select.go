@@ -272,7 +272,7 @@ func LogSelectionReport(report *SelectionReport) {
 		return
 	}
 	for _, c := range report.Candidates {
-		state := "skipped"
+		var state string
 		if c.Selected {
 			state = "selected"
 		} else if c.Available {

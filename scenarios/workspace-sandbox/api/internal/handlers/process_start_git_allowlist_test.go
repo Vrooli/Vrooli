@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 )
@@ -129,5 +130,31 @@ func TestStartProcess_EmptyAllowlistDoesNotEnforce(t *testing.T) {
 		`{"command": "git", "args": ["push"]}`)
 	if resp.StatusCode == http.StatusForbidden {
 		t.Fatalf("StartProcess returned 403 with empty allowlist; allowlist enforcement should be opt-in; body=%s", body)
+	}
+}
+
+func TestStartProcess_BlocksDestructiveVrooliMaintenance(t *testing.T) {
+	id := uuid.New()
+	sb := newProtectedSandboxFixture(id, nil)
+	live := newLive(t, protectedService(sb))
+
+	resp, body := live.DoJSON(t, "POST", sandboxesPath(id, "/processes"),
+		`{"command": "bash", "args": ["-lc", "vrooli cleanup orphans &> /tmp/o.txt; tail -10 /tmp/o.txt"]}`)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("StartProcess status = %d, want 403; body=%s", resp.StatusCode, body)
+	}
+
+	var denial struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &denial); err != nil {
+		t.Fatalf("decode denial body: %v", err)
+	}
+	if denial.Error != runtime.VrooliPolicyDestructiveMaintenanceBlocked {
+		t.Errorf("denial.Error = %q, want %q", denial.Error, runtime.VrooliPolicyDestructiveMaintenanceBlocked)
+	}
+	if denial.Message == "" {
+		t.Error("denial.Message should be non-empty")
 	}
 }

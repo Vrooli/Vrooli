@@ -870,7 +870,8 @@ other sandbox's upper layer" success path.
 
 1. `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` env var (operator override).
 2. `${XDG_RUNTIME_DIR}/workspace-sandbox`.
-3. `/var/tmp/workspace-sandbox-$UID` (created mode 0700).
+3. A per-user workspace-sandbox directory under the system temporary
+   area (created mode 0700).
 
 Validation rejects any path that resolves under `$HOME`. Config-load
 fails fatally rather than producing a broken sandbox. The driver layer
@@ -1212,7 +1213,8 @@ Production-code changes Phase 2 made en route:
   (`handlers/process_start.go`, `toolexecution/adapters.go`) leave it
   zero, removing a duplicated time source.
 
-[CODE: `internal/clock/clock.go`, `internal/testutil/mocks/clock.go`]
+[CODE: `internal/clock/clock.go`] •
+[CODE: `internal/testutil/mocks/clock.go`]
 
 ## HTTP Middleware + Live-HTTP Test Harness (Round 4 Phase 3)
 

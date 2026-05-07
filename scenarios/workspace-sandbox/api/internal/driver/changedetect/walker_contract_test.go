@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,7 +147,7 @@ func TestStrategy_GitDirSkipped(t *testing.T) {
 			changes := runStrategy(t, tc.strategy, lower, upper)
 			mustHave(t, changes, "main.go", types.ChangeTypeAdded)
 			for _, c := range changes {
-				if c.FilePath == ".git" || filepath.HasPrefix(c.FilePath, ".git"+string(filepath.Separator)) {
+				if c.FilePath == ".git" || strings.HasPrefix(c.FilePath, ".git"+string(filepath.Separator)) {
 					t.Errorf("unexpected .git entry: %s", c.FilePath)
 				}
 			}

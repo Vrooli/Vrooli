@@ -109,11 +109,11 @@ type ProcFS interface {
 // plus the config, so unit tests can supply a synthetic fixture
 // without spawning processes.
 func (s *Service) ReconcileStaleDaemonsWithConfig(ctx context.Context, cfg DaemonReaperConfig, procFS ProcFS) DaemonReapReport {
-	start := s.clock.Now()
 	report := DaemonReapReport{}
 	if s == nil || s.repo == nil {
 		return report
 	}
+	start := s.clock.Now()
 
 	pids, err := procFS.List()
 	if err != nil {

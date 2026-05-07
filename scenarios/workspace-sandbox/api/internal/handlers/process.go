@@ -124,6 +124,14 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if decision := runtime.EvaluateVrooliCommandPolicy(req.Command, req.Args); !decision.Allowed {
+		writeJSONStatus(w, http.StatusForbidden, map[string]any{
+			"error":                decision.Code,
+			"message":              decision.Reason,
+			"suggestedAlternative": decision.SuggestedAlternative,
+		})
+		return
+	}
 
 	cfg := driverexec.DefaultBwrapConfig()
 	driverexec.CaptureEnv().ApplyTo(&cfg)

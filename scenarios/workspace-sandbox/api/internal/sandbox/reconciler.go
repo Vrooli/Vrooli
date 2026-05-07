@@ -417,10 +417,7 @@ func (r *ManualReviewExpiryReconciler) Run(ctx context.Context) ReconcileReport 
 // provider that reads from the retention store.
 func DefaultRunner(svc *Service, interval, manualReviewTTL time.Duration, healCfg HealConfig, retention RetentionPolicyProvider) *Runner {
 	tracker := newHealTracker().withRepo(svc.repo)
-	if err := tracker.loadFromRepo(context.Background()); err != nil {
-		// Cache stays empty; future writes still upsert into the table.
-		// Logged inside loadFromRepo for the operator-visible signal.
-	}
+	_ = tracker.loadFromRepo(context.Background())
 	periodic := []Reconciler{
 		NewLifecycleReconciler(svc),
 		NewHealReconciler(svc, tracker, healCfg),

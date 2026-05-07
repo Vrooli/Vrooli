@@ -24,8 +24,9 @@ Resolution order (first match wins):
 2. **`$XDG_RUNTIME_DIR/workspace-sandbox`** — the systemd-blessed
    per-user runtime dir, e.g. `/run/user/1000/workspace-sandbox`. The
    default on logind-managed Linux desktops.
-3. **`/var/tmp/workspace-sandbox-$UID`** — the cron/SSH/non-logind
-   fallback. Created with mode `0700` if missing.
+3. **Per-user workspace-sandbox directory under the system temporary
+   area** — the cron/SSH/non-logind fallback. Created with mode `0700`
+   if missing.
 
 The resolver validates that the chosen path is **NOT** a subpath of
 `$HOME` and fails fatally otherwise. There is no silent fallback. If
@@ -360,7 +361,7 @@ the kernel doesn't allow unprivileged overlay mounts.
 - Audience: operators
 - Related: `/api/v1/driver/select` (runtime swap)
 
-### `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` (path, default `$XDG_RUNTIME_DIR/workspace-sandbox` or `/var/tmp/workspace-sandbox-$UID`)
+### `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` (path, default `$XDG_RUNTIME_DIR/workspace-sandbox` or per-user system temporary directory)
 Where per-sandbox host-`$HOME` overlay dirs live. **Must be outside
 `$HOME`** — see "Home overlay base directory" above. Failures here
 are fatal at boot.

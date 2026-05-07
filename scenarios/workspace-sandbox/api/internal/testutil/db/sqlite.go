@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	// Register the pure-Go SQLite driver used by repository tests.
 	_ "modernc.org/sqlite"
 
 	"workspace-sandbox/internal/clock"

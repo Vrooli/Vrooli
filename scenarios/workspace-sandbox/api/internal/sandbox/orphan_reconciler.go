@@ -77,12 +77,12 @@ type OrphanCleanupFailure struct {
 //  3. Audit events are emitted for every orphan cleaned, so operators
 //     have a permanent trail of system-initiated cleanups.
 func (s *Service) ReconcileFilesystemOrphans(ctx context.Context) OrphanReport {
-	start := s.clock.Now()
 	report := OrphanReport{}
 
 	if s == nil || s.driver == nil {
 		return report
 	}
+	start := s.clock.Now()
 
 	dirs, err := s.driver.ListSandboxDirs(ctx)
 	if err != nil {
