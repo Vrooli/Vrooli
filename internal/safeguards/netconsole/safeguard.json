@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "netconsole",
+  "description": "Stream kernel oops/panic output to a remote log collector via the netconsole module",
+  "handler": "netconsole",
+  "platforms": ["linux"],
+  "risk": "high"
+}

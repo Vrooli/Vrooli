@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "pstore_ramoops",
+  "description": "Reserve a RAM-backed pstore region for kernel oops/panic capture across resets (GRUB-editing fallback when native pstore is unavailable)",
+  "handler": "pstore_ramoops",
+  "platforms": ["linux"],
+  "risk": "high"
+}

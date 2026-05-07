@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "pstore_native",
+  "description": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
+  "handler": "pstore_native",
+  "platforms": ["linux"],
+  "risk": "low"
+}

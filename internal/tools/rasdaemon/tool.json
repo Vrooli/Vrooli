@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "rasdaemon",
+  "description": "AMD/Intel hardware error capture daemon (memory ECC, PCIe AER, MCE) — writes events to /var/lib/rasdaemon/ras-mc_event.db",
+  "commands": ["rasdaemon"],
+  "versionArgs": ["--version"],
+  "handler": "rasdaemon",
+  "defaultPackage": "rasdaemon",
+  "platforms": ["linux"],
+  "installHint": "Install rasdaemon via your package manager and enable the systemd unit (rasdaemon.service)."
+}

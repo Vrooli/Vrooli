@@ -325,6 +325,10 @@ Environment overrides:
 every call (no caching). This avoids hard-coded or stale ports when scenarios
 restart on new allocations.
 
+Use this resolver for scenario API to scenario API communication. Do not pass
+peer scenario API bases through Agent Manager or Swarm Manager runner
+environment variables; service location is a lifecycle discovery concern.
+
 ```go
 import (
     "context"

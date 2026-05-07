@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "crashkernel_reserve",
+  "description": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter",
+  "handler": "crashkernel_reserve",
+  "platforms": ["linux"],
+  "risk": "high"
+}

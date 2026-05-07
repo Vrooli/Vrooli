@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "mcelog",
+  "description": "Machine Check Exception logger — companion to rasdaemon for AMD/Intel hardware error capture; logs to /var/log/mcelog",
+  "commands": ["mcelog"],
+  "versionArgs": ["--version"],
+  "handler": "mcelog",
+  "defaultPackage": "mcelog",
+  "platforms": ["linux"],
+  "installHint": "Install mcelog via your package manager. On modern AMD systems mcelog is often superseded by rasdaemon — that is acceptable; this tool reports ExecutionAlreadyPresent in that case."
+}

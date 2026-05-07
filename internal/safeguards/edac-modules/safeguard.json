@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "edac_modules",
+  "description": "Load EDAC drivers for memory error reporting on supported chipsets",
+  "handler": "edac_modules",
+  "platforms": ["linux"],
+  "risk": "high"
+}

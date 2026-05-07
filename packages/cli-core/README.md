@@ -137,7 +137,8 @@ packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_
 - Prefer `cliapp.NewStandardScenarioApp(...)` for new scenario CLIs. It derives standard env vars, wires `vrooli scenario port` detection, and includes the standard `status` + `configure` command groups by default.
 - Drop to `cliapp.NewScenarioApp(...)` only when you need lower-level control over env derivation or command assembly.
 - Treat the standard scaffold as the only greenfield default. Do not start new scenario CLIs with hand-rolled bootstrap, per-scenario health plumbing, or flat `cmd_<domain>.go` as the planned long-term architecture.
-- `cliapp.StandardScenarioEnv("<scenario-name>", ...)` is still available when a CLI needs to customize env wiring directly. Scenario-specific API port envs are checked before global `API_PORT`.
+- `cliapp.StandardScenarioEnv("<scenario-name>", ...)` is still available when a CLI needs to customize env wiring directly. API base resolution is `--api-base`, scenario-specific API env, saved config, scenario-specific API port env, `vrooli scenario port <scenario> API_PORT`, then default. Generic `API_PORT` is not part of the scenario CLI contract.
+- Generic `API_BASE_URL` and `VITE_API_BASE_URL` are legacy convenience env vars only. Agent-controlled contexts ignore them so one scenario's ambient API base cannot redirect another scenario's CLI. Use `--api-base`, saved config, or scenario-specific env for intentional overrides.
 - Make API calls through `cliutil.APIClient` (wraps `HTTPClient`, handles base URL resolution and token injection).
 - Prefer `ScenarioApp.Get(...)` / `Request(...)` for versioned API routes and `GetRoot(...)` / `RequestRoot(...)` for root paths such as `/health`.
 - Use `ScenarioApp.StandardBaseCommandGroups(...)` when you need to selectively disable or reconfigure built-in `status` / `configure` without reimplementing them.
@@ -147,7 +148,7 @@ packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_
 - Use `PrintReportJSON(...)` when a command needs machine-readable parity with the same structured report it renders for humans.
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
-- Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically.
+- Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically. In agent-controlled contexts, `--auto-start` refuses lifecycle startup and reports the operator command to run outside the agent session.
 
 ## Resource wiring checklist
 - Use `cliapp.StandardResourceEnv("<resource-name>", ...)` to derive source-root and `vrooli` control-plane env vars consistently.
