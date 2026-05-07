@@ -5,6 +5,7 @@
 package memberflow
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"path/filepath"
@@ -15,9 +16,14 @@ import (
 
 // Handlers provides HTTP handlers for member-flow operations.
 type Handlers struct {
-	storeDir       string
-	knowledgeQuery KnowledgeQuery
-	agingOpts      InboxAgingOptions
+	storeDir              string
+	knowledgeQuery        KnowledgeQuery
+	agingOpts             InboxAgingOptions
+	promptSectionProvider OperatingGraphPromptSectionProvider
+}
+
+type OperatingGraphPromptSectionProvider interface {
+	SectionsForMember(ctx context.Context, team, member string) ([]OperatingGraphPromptSection, error)
 }
 
 // NewHandlers constructs handlers rooted at the given store directory.
@@ -34,6 +40,10 @@ func NewHandlers(storeDir string) *Handlers {
 func (h *Handlers) SetKnowledgeQuery(q KnowledgeQuery, opts InboxAgingOptions) {
 	h.knowledgeQuery = q
 	h.agingOpts = opts
+}
+
+func (h *Handlers) SetPromptSectionProvider(provider OperatingGraphPromptSectionProvider) {
+	h.promptSectionProvider = provider
 }
 
 // MemberTopicsResponse is the JSON shape for a single member's declarations.
@@ -381,11 +391,29 @@ func (h *Handlers) ValidateOperatingGraphsHandler(w http.ResponseWriter, r *http
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	runtime = h.withPromptSections(r.Context(), runtime)
 	filtered := filterOperatingGraphBlocks(blocks, team, id)
 	writeJSON(w, http.StatusOK, OperatingGraphValidationResponse{
 		Graphs:     filtered,
 		Validation: ValidateOperatingGraphs(filtered, runtime, "", ""),
 	})
+}
+
+func (h *Handlers) withPromptSections(ctx context.Context, runtime OperatingGraphRuntime) OperatingGraphRuntime {
+	if h.promptSectionProvider == nil {
+		return runtime
+	}
+	sectionsByMember := make(map[MemberRef][]OperatingGraphPromptSection, len(runtime.Members))
+	for _, m := range runtime.Members {
+		sections, err := h.promptSectionProvider.SectionsForMember(ctx, m.Ref.Team, m.Ref.Member)
+		if err != nil {
+			sectionsByMember[m.Ref] = nil
+			continue
+		}
+		sectionsByMember[m.Ref] = sections
+	}
+	runtime.PromptSections = sectionsByMember
+	return runtime
 }
 
 // DiffOperatingGraphsHandler handles GET /operating-graphs/diff.

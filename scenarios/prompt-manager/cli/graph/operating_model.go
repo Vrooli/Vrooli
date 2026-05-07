@@ -15,20 +15,49 @@ import (
 )
 
 type operatingGraphBlock struct {
-	Metadata struct {
-		ID    string `json:"id"`
-		Scope string `json:"scope"`
-		Team  string `json:"team"`
-		Mode  string `json:"mode"`
-	} `json:"metadata"`
-	Graph struct {
-		Nodes []any `json:"nodes"`
-		Edges []any `json:"edges"`
-	} `json:"graph"`
-	Source struct {
-		Path string `json:"path"`
-		Line int    `json:"line"`
-	} `json:"source"`
+	Metadata operatingGraphMetadata `json:"metadata"`
+	Graph    operatingGraph         `json:"graph"`
+	Source   operatingGraphSource   `json:"source"`
+}
+
+type operatingGraphMetadata struct {
+	ID     string            `json:"id"`
+	Scope  string            `json:"scope"`
+	Team   string            `json:"team"`
+	Mode   string            `json:"mode"`
+	Status string            `json:"status,omitempty"`
+	Extra  map[string]string `json:"extra,omitempty"`
+}
+
+type operatingGraph struct {
+	ID        string               `json:"id"`
+	Direction string               `json:"direction"`
+	Nodes     []operatingGraphNode `json:"nodes"`
+	Edges     []operatingGraphEdge `json:"edges"`
+}
+
+type operatingGraphSource struct {
+	Path      string `json:"path"`
+	Line      int    `json:"line"`
+	FenceLine int    `json:"fence_line"`
+}
+
+type operatingGraphNode struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	Value      string `json:"value"`
+	Qualifier  string `json:"qualifier,omitempty"`
+	Display    string `json:"display,omitempty"`
+	RawLabel   string `json:"raw_label"`
+	SourceLine int    `json:"source_line"`
+	Implicit   bool   `json:"implicit,omitempty"`
+}
+
+type operatingGraphEdge struct {
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Label      string `json:"label,omitempty"`
+	SourceLine int    `json:"source_line"`
 }
 
 type operatingGraphFinding struct {
@@ -36,6 +65,14 @@ type operatingGraphFinding struct {
 	Severity   string `json:"severity"`
 	SourcePath string `json:"source_path,omitempty"`
 	Line       int    `json:"line,omitempty"`
+	GraphID    string `json:"graph_id,omitempty"`
+	Team       string `json:"team,omitempty"`
+	NodeID     string `json:"node_id,omitempty"`
+	Edge       string `json:"edge,omitempty"`
+	Member     string `json:"member,omitempty"`
+	Topic      string `json:"topic,omitempty"`
+	Decision   string `json:"decision,omitempty"`
+	Path       string `json:"path,omitempty"`
 	Detail     string `json:"detail"`
 }
 

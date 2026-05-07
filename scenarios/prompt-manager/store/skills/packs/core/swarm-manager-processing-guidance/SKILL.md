@@ -54,7 +54,7 @@ For `process-idea` runs, swarm-manager may generate `{{ITEM_FOLDER}}/handoff/` j
 
 - Treat `handoff/brief.md` as the authoritative task-notes payload for ecosystem-manager.
 - Treat `handoff/manifest.json` as the machine-readable contract that preserves backlog provenance and resolved execution boundaries.
-- Pass the handoff into ecosystem-manager using `--handoff-dir`, `--origin-source`, `--origin-backlog-item`, and `--origin-item-folder`.
+- Pass the handoff into ecosystem-manager using `--handoff-dir`, `--origin-source`, `--origin-backlog-item`, and `--origin-item-folder`. Treat `--handoff-dir` as runtime-only; persisted origin metadata must use portable `path:` references such as `path:scenarios/swarm-manager/ideas/<item-name>`.
 - Do not handcraft a replacement notes summary from memory; use the generated handoff so every downstream loop receives the same context.
 
 ### 3. Leave Clear Evidence

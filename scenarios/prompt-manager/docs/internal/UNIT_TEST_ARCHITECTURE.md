@@ -104,7 +104,7 @@ Use requirement IDs from `requirements/*/module.json` in test names, comments, o
 | `REQ-P0-003` Pack-based Skill Structure | `api/skills/handlers_test.go` covers folder/file resolution paths; `api/store/*_test.go` covers file-backed stores and pack/folder persistence. |
 | `REQ-P0-004` Full-text Search Implementation | `api/search/*_test.go`, `api/aisearch/aisearch_test.go`, and CLI `search` tests cover text search and AI fallback behavior. |
 | `REQ-P0-005` CLI Basic Operations | `cli/internal/testutil` plus command tests in `skills`, `search`, `discover`, `graph`, `topics`, `agents`, `members`, `testing`, `experiments`, and `tags` cover request contracts, validation-before-API, and user-facing output. |
-| `REQ-P1-001` Qdrant Vector Search | `api/aisearch/*_test.go` covers embedder/vector-store success, error fallback, entity search, and reindex behavior. |
+| `REQ-P1-001` Qdrant Vector Search | `api/aisearch/*_test.go` covers embedder/vector-store success, error fallback, entity search, and reconciler (plan/apply/sync-loop) behavior. |
 | `REQ-P1-005` Tag Management System | `api/tags/handlers_test.go` and `cli/tags/tags_test.go` cover API and CLI tag behavior. |
 | `REQ-P2-001` Import/Export System | `api/teams/handlers_export_test.go`, `api/teams/handlers_import_test.go`, and BAS export/import-adjacent team flows cover team payload import/export contracts. |
 | `REQ-P0-016` REST API for Agent CRUD | `api/agents/handlers_test.go`, `cli/agents/agents_test.go`, and agent-related BAS workflows cover API and CLI agent contracts. |

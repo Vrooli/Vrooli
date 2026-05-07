@@ -2,6 +2,7 @@ package memberflow
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -316,6 +317,37 @@ func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 	if !bytes.Contains(diffW.Body.Bytes(), []byte(`"diff":[]`)) {
 		t.Fatalf("diff response should render empty diff as []:\n%s", diffW.Body.String())
 	}
+}
+
+func TestOperatingGraphHandlersValidatePromptSectionsFromProvider(t *testing.T) {
+	repoRoot, storeDir := newRepoStore(t)
+	writeCleanOperatingGraphHandlerFixture(t, repoRoot, storeDir)
+
+	h := NewHandlers(storeDir)
+	h.SetPromptSectionProvider(staticOperatingPromptSections{
+		sections: map[MemberRef][]OperatingGraphPromptSection{},
+	})
+	r := newRouter(h)
+
+	validateReq := httptest.NewRequest("GET", "/operating-graphs/validate?team=team-a&id=g", nil)
+	validateW := httptest.NewRecorder()
+	r.ServeHTTP(validateW, validateReq)
+	if validateW.Code != http.StatusOK {
+		t.Fatalf("validate status=%d body=%s", validateW.Code, validateW.Body.String())
+	}
+	var validateResp OperatingGraphValidationResponse
+	if err := json.NewDecoder(validateW.Body).Decode(&validateResp); err != nil {
+		t.Fatalf("decode validate: %v", err)
+	}
+	assertOperatingFinding(t, validateResp.Validation, "graph_prompt_topic_contract_missing")
+}
+
+type staticOperatingPromptSections struct {
+	sections map[MemberRef][]OperatingGraphPromptSection
+}
+
+func (p staticOperatingPromptSections) SectionsForMember(_ context.Context, team, member string) ([]OperatingGraphPromptSection, error) {
+	return p.sections[MemberRef{Team: team, Member: member}], nil
 }
 
 func writeOperatingGraphHandlerFixture(t *testing.T, repoRoot, storeDir string) {

@@ -133,40 +133,6 @@
           "text": "Governance expanded to 8 items (not 21 as feared). 4 completed, 4 pending. New QA gates added as deps but initiative scope itself is stable."
         }
       ]
-    },
-    {
-      "id": "task-1775254797003085673",
-      "title": "Human: Accept/reject initiative moratorium (dec-1775254774942113200)",
-      "status": "done",
-      "assignee": "director",
-      "priority": "P1",
-      "createdBy": "director",
-      "createdAt": "2026-04-03T22:19:57Z",
-      "updatedAt": "2026-04-06T22:21:40Z",
-      "notes": [
-        {
-          "at": "2026-04-06T22:21:40Z",
-          "by": "",
-          "text": "Superseded by dec-1775514068064321170 (moratorium revision)"
-        }
-      ]
-    },
-    {
-      "id": "task-1775427597547322562",
-      "title": "Human: Accept/reject updated portfolio focus (dec-1775427572168229608) — 3 options, A recommended",
-      "status": "done",
-      "assignee": "director",
-      "priority": "P1",
-      "createdBy": "director",
-      "createdAt": "2026-04-05T22:19:57Z",
-      "updatedAt": "2026-04-06T22:21:40Z",
-      "notes": [
-        {
-          "at": "2026-04-06T22:21:40Z",
-          "by": "",
-          "text": "Superseded by dec-1775514065903960435 (completion sprint)"
-        }
-      ]
     }
   ]
 }

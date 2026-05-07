@@ -6,6 +6,7 @@ const (
 	OperatingRuleGroupEntity       OperatingGraphRuleGroup = "entity"
 	OperatingRuleGroupEdgeTruth    OperatingGraphRuleGroup = "edge_truth"
 	OperatingRuleGroupCompleteness OperatingGraphRuleGroup = "completeness"
+	OperatingRuleGroupPrompt       OperatingGraphRuleGroup = "prompt"
 )
 
 type OperatingGraphRule interface {
@@ -33,7 +34,9 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 		graphUnknownPORRule{},
 		graphTopicUnresolvedRule{},
 		graphFutureTopicLiveEdgeRule{},
+		graphUnsupportedEdgeSemanticsRule{},
 		graphEdgeUnbackedRule{},
+		graphDeclaredMemberMissingRule{},
 		graphDeclaredIntakeMissingRule{},
 		graphDeclaredRequiredReadMissingRule{},
 		graphDeclaredEvidenceMissingRule{},
@@ -43,6 +46,8 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 		graphDeclaredCapabilityGapMissingRule{},
 		graphDeclaredExternalProducerMissingRule{},
 		graphDeclaredCrossTeamOutputMissingRule{},
+		graphPromptTopicContractMissingRule{},
+		graphPromptTopicContractSourceMismatchRule{},
 	}
 }
 

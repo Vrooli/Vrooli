@@ -100,12 +100,6 @@ func (OperatingRelationshipMatcher) GraphBackedByRuntime(graphRel OperatingRelat
 
 func (OperatingRelationshipMatcher) RuntimeShownInGraph(runtimeRel OperatingRelationship, graph OperatingRelationshipSet) bool {
 	for _, graphRel := range graph.All() {
-		if runtimeRel.Kind == operatingRelExternalProducer &&
-			graphRel.Kind == operatingRelExternalProducerIntake &&
-			graphRel.Team == runtimeRel.Team &&
-			graphRel.External == runtimeRel.External {
-			return true
-		}
 		if operatingRelationshipsMatch(graphRel, runtimeRel) {
 			return true
 		}
@@ -259,6 +253,7 @@ func operatingRelationshipsMatch(graphRel, runtimeRel OperatingRelationship) boo
 	case operatingRelExternalProducerIntake:
 		return runtimeRel.Kind == operatingRelExternalProducerIntake &&
 			graphRel.External == runtimeRel.External &&
+			(graphRel.Member == "" || runtimeRel.Member == "" || graphRel.Member == runtimeRel.Member) &&
 			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
 	case operatingRelCrossTeamOutput:
 		return runtimeRel.Kind == operatingRelCrossTeamOutput &&

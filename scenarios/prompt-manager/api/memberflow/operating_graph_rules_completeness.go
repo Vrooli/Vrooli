@@ -2,6 +2,32 @@ package memberflow
 
 import "fmt"
 
+type graphDeclaredMemberMissingRule struct{}
+
+func (r graphDeclaredMemberMissingRule) ID() string { return "graph_declared_member_missing" }
+func (r graphDeclaredMemberMissingRule) Group() OperatingGraphRuleGroup {
+	return OperatingRuleGroupCompleteness
+}
+func (r graphDeclaredMemberMissingRule) DefaultSeverity() Severity  { return SeverityError }
+func (r graphDeclaredMemberMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
+func (r graphDeclaredMemberMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	teamContract := ctx.Runtime.Contracts[ctx.Block.Metadata.Team]
+	if teamContract == nil || teamContract.Contract == nil {
+		return nil
+	}
+	var findings []OperatingGraphFinding
+	for member := range teamContract.Contract.Members {
+		if _, ok := ctx.Index.Node("member", member); ok {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, ctx.Block.Source.FenceLine, fmt.Sprintf("team contract member %q is missing from the contract graph", member))
+		f.Member = member
+		findings = append(findings, f)
+	}
+	return findings
+}
+
 type graphDeclaredIntakeMissingRule struct{}
 
 func (r graphDeclaredIntakeMissingRule) ID() string { return "graph_declared_intake_missing" }
@@ -19,6 +45,7 @@ type graphDeclaredRequiredReadMissingRule struct{}
 func (r graphDeclaredRequiredReadMissingRule) ID() string {
 	return "graph_declared_required_read_missing"
 }
+
 func (r graphDeclaredRequiredReadMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
@@ -60,6 +87,7 @@ type graphDeclaredDecisionOwnedMissingRule struct{}
 func (r graphDeclaredDecisionOwnedMissingRule) ID() string {
 	return "graph_declared_decision_owned_missing"
 }
+
 func (r graphDeclaredDecisionOwnedMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
@@ -74,6 +102,7 @@ type graphDeclaredDecisionConsumedMissingRule struct{}
 func (r graphDeclaredDecisionConsumedMissingRule) ID() string {
 	return "graph_declared_decision_consumed_missing"
 }
+
 func (r graphDeclaredDecisionConsumedMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
@@ -81,6 +110,7 @@ func (r graphDeclaredDecisionConsumedMissingRule) DefaultSeverity() Severity { r
 func (r graphDeclaredDecisionConsumedMissingRule) AppliesTo(mode string) bool {
 	return mode == "contract"
 }
+
 func (r graphDeclaredDecisionConsumedMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
 	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelDecisionConsumed, "declared decision consumption")
 }
@@ -90,9 +120,11 @@ type graphDeclaredCapabilityGapMissingRule struct{}
 func (r graphDeclaredCapabilityGapMissingRule) ID() string {
 	return "graph_declared_capability_gap_missing"
 }
+
 func (r graphDeclaredCapabilityGapMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
+
 func (r graphDeclaredCapabilityGapMissingRule) DefaultSeverity() Severity {
 	return SeverityWarning
 }
@@ -106,15 +138,19 @@ type graphDeclaredExternalProducerMissingRule struct{}
 func (r graphDeclaredExternalProducerMissingRule) ID() string {
 	return "graph_declared_external_producer_missing"
 }
+
 func (r graphDeclaredExternalProducerMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
+
 func (r graphDeclaredExternalProducerMissingRule) DefaultSeverity() Severity {
 	return SeverityWarning
 }
+
 func (r graphDeclaredExternalProducerMissingRule) AppliesTo(mode string) bool {
 	return mode == "contract"
 }
+
 func (r graphDeclaredExternalProducerMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
 	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelExternalProducer, "declared external producer")
 }
@@ -124,15 +160,19 @@ type graphDeclaredCrossTeamOutputMissingRule struct{}
 func (r graphDeclaredCrossTeamOutputMissingRule) ID() string {
 	return "graph_declared_cross_team_output_missing"
 }
+
 func (r graphDeclaredCrossTeamOutputMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
+
 func (r graphDeclaredCrossTeamOutputMissingRule) DefaultSeverity() Severity {
 	return SeverityWarning
 }
+
 func (r graphDeclaredCrossTeamOutputMissingRule) AppliesTo(mode string) bool {
 	return mode == "contract"
 }
+
 func (r graphDeclaredCrossTeamOutputMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
 	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelCrossTeamOutput, "declared cross-team output")
 }

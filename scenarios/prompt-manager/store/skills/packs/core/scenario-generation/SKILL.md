@@ -140,14 +140,14 @@ After initializing or updating a scenario, use ecosystem-manager to create an im
 When a swarm-manager handoff exists, always pass it through to ecosystem-manager:
 
 ```bash
-HANDOFF_DIR="<absolute path to item-folder>/handoff"
-ITEM_FOLDER="<absolute path to item-folder>"
+HANDOFF_DIR="<runtime item folder>/handoff"
+ORIGIN_ITEM_REF="path:scenarios/swarm-manager/ideas/<item-name>"
 
 ecosystem-manager task add --steer-profile <profile-id> \
   --handoff-dir "$HANDOFF_DIR" \
   --origin-source swarm-manager \
   --origin-backlog-item idea/<item-name> \
-  --origin-item-folder "$ITEM_FOLDER" \
+  --origin-item-folder "$ORIGIN_ITEM_REF" \
   scenario <name>
 ```
 
@@ -158,11 +158,11 @@ ecosystem-manager task improve --steer-profile <profile-id> \
   --handoff-dir "$HANDOFF_DIR" \
   --origin-source swarm-manager \
   --origin-backlog-item idea/<item-name> \
-  --origin-item-folder "$ITEM_FOLDER" \
+  --origin-item-folder "$ORIGIN_ITEM_REF" \
   scenario <name>
 ```
 
-`--handoff-dir` validates the handoff package and auto-loads `brief.md` into task notes if no explicit `--notes` or `--notes-file` was provided. You may still pass `--notes-file "$HANDOFF_DIR/brief.md"` explicitly when you want the command itself to make that coupling obvious.
+`--handoff-dir` is a runtime filesystem argument: it validates the handoff package and auto-loads `brief.md` into task notes if no explicit `--notes` or `--notes-file` was provided. Persisted origin metadata should use portable `path:` references, not local home paths.
 
 ### Creating Improvement Tasks
 

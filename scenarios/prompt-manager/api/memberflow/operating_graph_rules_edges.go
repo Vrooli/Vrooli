@@ -36,6 +36,31 @@ func (r graphFutureTopicLiveEdgeRule) Check(ctx OperatingGraphRuleContext) []Ope
 	return findings
 }
 
+type graphUnsupportedEdgeSemanticsRule struct{}
+
+func (r graphUnsupportedEdgeSemanticsRule) ID() string { return "graph_unsupported_edge_semantics" }
+func (r graphUnsupportedEdgeSemanticsRule) Group() OperatingGraphRuleGroup {
+	return OperatingRuleGroupEdgeTruth
+}
+func (r graphUnsupportedEdgeSemanticsRule) DefaultSeverity() Severity  { return SeverityError }
+func (r graphUnsupportedEdgeSemanticsRule) AppliesTo(mode string) bool { return mode != "explanatory" }
+func (r graphUnsupportedEdgeSemanticsRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, edge := range ctx.Block.Graph.Edges {
+		from, fok := ctx.Index.NodesByID[edge.From]
+		to, tok := ctx.Index.NodesByID[edge.To]
+		if !fok || !tok || !operatingGraphEdgeActionable(from, to) {
+			continue
+		}
+		if _, ok := operatingRelationshipFromNodes(ctx.Block.Metadata.Team, OperatingSourceRef{Path: ctx.Block.Source.Path, Line: edge.SourceLine}, from, to); ok {
+			continue
+		}
+		findings = append(findings, builder.WithEdge(ctx.Block.Source.Path, edge, fmt.Sprintf("edge %s:%s -> %s:%s does not map to a supported operating relationship", from.Kind, from.Value, to.Kind, to.Value)))
+	}
+	return findings
+}
+
 type graphEdgeUnbackedRule struct{}
 
 func (r graphEdgeUnbackedRule) ID() string                     { return "graph_edge_unbacked" }
@@ -51,10 +76,7 @@ func (r graphEdgeUnbackedRule) Check(ctx OperatingGraphRuleContext) []OperatingG
 		if !fok || !tok || from.Kind == "" || to.Kind == "" {
 			continue
 		}
-		if from.Kind == "process" || to.Kind == "process" || from.Kind == "future" || to.Kind == "future" {
-			continue
-		}
-		if from.Kind == "topic" && from.Qualifier == "future" || to.Kind == "topic" && to.Qualifier == "future" {
+		if !operatingGraphEdgeActionable(from, to) {
 			continue
 		}
 		rel, ok := ctx.Index.RelationshipForEdge(edge)

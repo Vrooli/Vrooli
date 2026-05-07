@@ -45,7 +45,7 @@ func NewOperatingGraphContractIndex(block OperatingGraphBlock, runtime Operating
 	for _, edge := range block.Graph.Edges {
 		from, fok := idx.NodesByID[edge.From]
 		to, tok := idx.NodesByID[edge.To]
-		if !fok || !tok || operatingGraphNodeNonActionable(from) || operatingGraphNodeNonActionable(to) {
+		if !fok || !tok || !operatingGraphEdgeActionable(from, to) {
 			continue
 		}
 		rel, ok := operatingRelationshipFromNodes(block.Metadata.Team, OperatingSourceRef{Path: block.Source.Path, Line: edge.SourceLine}, from, to)
@@ -100,6 +100,10 @@ func operatingGraphNodeNonActionable(node OperatingGraphNode) bool {
 		return true
 	}
 	return node.Kind == "topic" && (node.Qualifier == "future" || node.Qualifier == "old" || node.Qualifier == "external")
+}
+
+func operatingGraphEdgeActionable(from, to OperatingGraphNode) bool {
+	return !operatingGraphNodeNonActionable(from) && !operatingGraphNodeNonActionable(to)
 }
 
 func operatingGraphRelationshipsEquivalent(a, b OperatingRelationship) bool {

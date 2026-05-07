@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -39,6 +40,133 @@ func TestCmdOperatingModelValidatePassesFiltersAndFailsOnErrors(t *testing.T) {
 		"graph_edge_unbacked",
 		"edge is not backed",
 		"Fix error findings",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestCmdOperatingModelListJSONPreservesAPIShape(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/operating-graphs", operatingGraphListResponse{
+		Graphs: []operatingGraphBlock{{
+			Metadata: operatingGraphMetadata{
+				ID:     "g",
+				Scope:  "team",
+				Team:   "team-a",
+				Mode:   "contract",
+				Status: "draft",
+				Extra:  map[string]string{"owner": "ops"},
+			},
+			Graph: operatingGraph{
+				ID:        "flowchart",
+				Direction: "LR",
+				Nodes: []operatingGraphNode{{
+					ID:         "M",
+					Kind:       "member",
+					Value:      "member-a",
+					Display:    "Member A",
+					RawLabel:   "Member A",
+					SourceLine: 12,
+					Implicit:   true,
+				}},
+				Edges: []operatingGraphEdge{{
+					From:       "M",
+					To:         "T",
+					Label:      "sends",
+					SourceLine: 13,
+				}},
+			},
+			Source: operatingGraphSource{
+				Path:      "docs/test.md",
+				Line:      10,
+				FenceLine: 11,
+			},
+		}},
+	})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdOperatingModelList(ctx, []string{"--team", "team-a", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdOperatingModelList: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode stdout: %v\n%s", err, stdout)
+	}
+	graph := got["graphs"].([]any)[0].(map[string]any)
+	metadata := graph["metadata"].(map[string]any)
+	source := graph["source"].(map[string]any)
+	if metadata["status"] != "draft" || metadata["extra"].(map[string]any)["owner"] != "ops" || source["fence_line"].(float64) != 11 {
+		t.Fatalf("json output lost API fields:\n%s", stdout)
+	}
+}
+
+func TestCmdOperatingModelValidateJSONPreservesFindingShape(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/operating-graphs/validate", operatingGraphValidationResponse{
+		Validation: operatingGraphValidation{
+			Findings: []operatingGraphFinding{{
+				Rule:       "graph_prompt_topic_contract_missing",
+				Severity:   "error",
+				GraphID:    "g",
+				Team:       "team-a",
+				NodeID:     "M",
+				Member:     "member-a",
+				SourcePath: "docs/test.md",
+				Line:       12,
+				Detail:     "missing prompt section",
+			}},
+			Errors: 1,
+		},
+	})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdOperatingModelValidate(ctx, []string{"--json"})
+	})
+	if err == nil {
+		t.Fatalf("expected validation error")
+	}
+	for _, want := range []string{
+		`"graph_id": "g"`,
+		`"team": "team-a"`,
+		`"node_id": "M"`,
+		`"member": "member-a"`,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestCmdOperatingModelDiffJSONPreservesFullDiffShape(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/operating-graphs/diff", operatingGraphDiffResponse{
+		Diff: []operatingGraphDiff{{
+			Kind:             "runtime_relationship_missing_in_graph",
+			Relationship:     "external_producer",
+			Team:             "team-a",
+			Member:           "member-a",
+			External:         "operator",
+			RuntimePath:      "teams/team-a/members/member-a/topics.json",
+			AcceptableFields: []string{"external_producers"},
+			Suggestions:      []string{"add external:operator -> member:member-a"},
+			Detail:           "missing",
+		}},
+	})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdOperatingModelDiff(ctx, []string{"--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdOperatingModelDiff: %v", err)
+	}
+	for _, want := range []string{
+		`"runtime_path": "teams/team-a/members/member-a/topics.json"`,
+		`"acceptable_fields": [`,
+		`"suggestions": [`,
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)

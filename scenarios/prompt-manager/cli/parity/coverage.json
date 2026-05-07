@@ -68,9 +68,9 @@
   "POST /search/actions/ai": {"status": "audit-pending", "reason": "No action AI-search subcommand visible; add one if operators need direct action discovery"},
   "POST /search/teams/ai": {"status": "audit-pending", "reason": "No team-search subcommand visible"},
   "GET /search/ai/status": {"status": "covered", "cli": "search-status"},
-  "POST /search/ai/reindex": {"status": "covered", "cli": "search-reindex"},
-  "GET /search/ai/reindex/status": {"status": "covered", "cli": "search-reindex-status"},
-  "POST /search/ai/reindex/cancel": {"status": "covered", "cli": "search-reindex-cancel"},
+  "POST /search/ai/reconcile": {"status": "covered", "cli": "search-reconcile"},
+  "GET /search/ai/reconcile/status": {"status": "covered", "cli": "search-reconcile-status"},
+  "POST /search/ai/reconcile/cancel": {"status": "covered", "cli": "search-reconcile-cancel"},
 
   "POST /discover": {"status": "covered", "cli": "discover"},
 

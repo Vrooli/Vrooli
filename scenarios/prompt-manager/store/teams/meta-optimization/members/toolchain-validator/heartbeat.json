@@ -6,12 +6,14 @@
   "enabled": true,
   "schedule": "0 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-05T22:00:00Z",
-    "endedAt": "2026-05-05T22:00:00Z",
+    "startedAt": "2026-05-06T22:00:00Z",
+    "endedAt": "2026-05-06T22:00:35Z",
     "status": "failed",
-    "error": "creating run: agent-manager error: validation error on body: invalid JSON request body"
+    "runId": "e13b082c-412b-4638-afb6-058d60a6d831",
+    "logPath": "../store/teams/meta-optimization/members/toolchain-validator/logs/2026-05-06T22-00-00Z.log",
+    "error": "=== Process Log (stderr) | Sandbox ff31e1c8-bd29-4aea-9a99-bfc58ad89fea | Started 2026-05-06T18:00:00-04:00 ===\n\n2026-05-06T22:00:03.888824Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/models?client_version=0.128.0)\n2026-05-06T22:00:03.909204Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest(\"http/request failed: error sending request for url (https://chatgpt.com/backend-api/wham/apps)\")))\n2026-05-06T22:00:03.939574Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-06T22:00:03.984283Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-06T22:00:04.199014Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-06T22:00:04.595530Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-06T22:00:05.443745Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-06T22:00:07.055517Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-06T22:00:10.053183Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n\n=== Process Exited: code 1 signal 0 oom false | 2026-05-06T18:00:34-04:00 ===\n"
   },
-  "revision": 51,
+  "revision": 57,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-05T22:00:00Z"
+  "updatedAt": "2026-05-06T22:00:35Z"
 }

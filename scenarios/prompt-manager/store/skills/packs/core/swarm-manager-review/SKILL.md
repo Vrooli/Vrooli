@@ -18,7 +18,7 @@ prompt-manager skill read swarm-manager-backlog-tools
 
 | Variable | Description |
 |----------|-------------|
-| `{{ ITEM_FOLDER }}` | Absolute path to the backlog item directory |
+| `{{ ITEM_FOLDER }}` | Runtime-only backlog item working directory; do not persist this value |
 | `{{ ROUND_NUMBER }}` | Review round number (zero-padded for filename) |
 
 ### Context Attachments (provided in the context section of your input)
@@ -118,8 +118,9 @@ What kind of changes were made?
 
 For each evidence item:
 1. Execute the capture (screenshot, API call, CLI command, etc.)
-2. Save binary artifacts to `{{ ITEM_FOLDER }}/review/captures/`
+2. Save binary artifacts to the backlog item's `review/captures/` directory
 3. Record structured results in the evidence item
+4. Scrub command output before saving it: generated state must not contain home directories, local usernames, or full operator-specific clone paths. Use repo-relative `path:` tokens such as `path:scenarios/web-console/api/main.go` for persisted file references.
 
 ### Step 5: Write Assessment
 
@@ -150,7 +151,7 @@ The goal: each review round should make future review rounds cheaper by teaching
 
 ## Output Format
 
-Write the review round to `{{ ITEM_FOLDER }}/review/round-{{ ROUND_NUMBER }}.json` using this schema:
+Write the review round to the backlog item's `review/round-{{ ROUND_NUMBER }}.json` using this schema. Persist file references as `path:` tokens or item-relative capture paths, never as the runtime `{{ ITEM_FOLDER }}` value:
 
 ```json
 {
@@ -249,7 +250,7 @@ After gathering all evidence, classify the overall review:
 
 When the `user-request` context attachment is provided, you are answering a specific evidence request from the human reviewer. In this mode:
 
-1. Read the existing review round from `{{ ITEM_FOLDER }}/review/round-{{ ROUND_NUMBER }}.json`
+1. Read the existing review round from the backlog item's `review/round-{{ ROUND_NUMBER }}.json`
 2. Understand what additional evidence is being requested
 3. Gather the requested evidence
 4. Add new evidence items to the existing round's `evidence` array
@@ -286,6 +287,7 @@ If a scenario is not running:
 - Binary captures in `path:review/captures/` for any screenshot, recording, or output evidence
 - An honest `agent_assessment` comparing evidence to plan expectations
 - A `classification` reflecting the evidence quality
+- Portable file references only: use `path:<repo-relative-path>` or item-relative capture paths, not local home paths or usernames
 
 **Must NOT produce:**
 - Code changes of any kind

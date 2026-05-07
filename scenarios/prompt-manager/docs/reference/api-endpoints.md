@@ -538,49 +538,72 @@ Semantic search powered by embeddings, with optional combined output formatting.
 
 Returns AI search availability status.
 
-### POST /api/v1/search/ai/reindex
+### POST /api/v1/search/ai/reconcile
 
-Trigger a full reindex of all skills into the vector store.
+Reconcile the qdrant index with on-disk content. The reconciler uses a
+content-hash diff (`payload_hash`) so unchanged items skip embedding
+entirely; ghost points whose backing files are gone are deleted.
+
+**Query parameters:**
+- `collection=skills|agents|teams|topics|actions|all` — restrict to one
+  collection. Defaults to `all`.
+- `dry_run=true` (or `X-Dry-Run: true` header) — return the planned
+  upserts/deletes without mutating qdrant or running embeddings.
+
+**Dry-run response (200):**
+```json
+{
+  "dry_run": true,
+  "plan": {
+    "plannedAt": "2026-05-06T10:00:00Z",
+    "collections": [
+      {
+        "kind": "skill",
+        "toUpsert": [{"kind":"skill","pointId":"...","name":"...","payloadHash":"sha256:..."}],
+        "toDelete": ["pt-orphan"],
+        "unchangedCount": 30,
+        "legacyCount": 0
+      }
+    ]
+  }
+}
+```
+
+**Live response (202 Accepted):** the kickoff is async; poll the status
+endpoint for completion.
+
+### GET /api/v1/search/ai/reconcile/status
+
+Returns the reconciler's last-known state.
 
 **Response:**
 ```json
 {
-  "status": "started",
-  "startedAt": "2024-01-21T09:00:00Z"
+  "running": false,
+  "startedAt": "2026-05-06T10:00:00Z",
+  "finishedAt": "2026-05-06T10:00:12Z",
+  "lastResult": {
+    "collections": [
+      {"kind":"skill","upserted":2,"deleted":1}
+    ],
+    "errors": []
+  }
 }
 ```
 
-**Notes:**
-- Returns existing status if reindex is already in progress
+### POST /api/v1/search/ai/reconcile/cancel
 
-### GET /api/v1/search/ai/reindex/status
+Cancel an in-progress reconcile operation.
 
-Get the current status of reindexing.
+**Response:** the same `ReconcileStatus` shape as `/status`, with
+`canceled: true`.
 
-**Response:**
-```json
-{
-  "status": "running",
-  "startedAt": "2024-01-21T09:00:00Z",
-  "processed": 25,
-  "total": 50,
-  "errors": []
-}
-```
+### Environment knobs
 
-**Status Values:** `idle`, `running`, `completed`, `failed`
-
-### POST /api/v1/search/ai/reindex/cancel
-
-Cancel an in-progress reindex operation.
-
-**Response:**
-```json
-{
-  "status": "cancelled",
-  "message": "Reindex cancelled"
-}
-```
+- `AI_SEARCH_SYNC_INTERVAL` — periodic reconcile interval (default `5m`).
+- `AI_SEARCH_SYNC_DISABLED=1` — disable the periodic loop entirely.
+- `AI_SEARCH_RECONCILE_PARALLELISM` — concurrent embed/upsert workers
+  (default 4, clamped to [1, 16]).
 
 ---
 

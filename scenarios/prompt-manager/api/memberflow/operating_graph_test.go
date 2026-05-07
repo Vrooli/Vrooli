@@ -183,6 +183,125 @@ func TestValidateOperatingGraphsModeSemantics(t *testing.T) {
 	}
 }
 
+func TestValidateOperatingGraphsDetectsMissingContractMember(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  A["member:member-a"]`,
+		}),
+		Source: OperatingGraphSource{Path: "docs/test/OPERATING_MODEL.md", FenceLine: 2},
+	}
+	runtime := OperatingGraphRuntime{
+		Contracts: TeamContractRegistry{
+			"team-a": {TeamID: "team-a", Contract: &teamcontract.OperatingContract{
+				Members: map[string]teamcontract.MemberContract{
+					"member-a": {},
+					"member-b": {},
+				},
+			}},
+		},
+		PromptSections: map[MemberRef][]OperatingGraphPromptSection{
+			{Team: "team-a", Member: "member-a"}: {{
+				Team:       "team-a",
+				Member:     "member-a",
+				Kind:       operatingGraphPromptSectionKindTopicContract,
+				SourcePath: expectedTopicContractSourcePath("team-a", "member-a"),
+			}},
+		},
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_declared_member_missing")
+}
+
+func TestValidateOperatingGraphsCheckableMayOmitContractMembers(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  A["member:member-a"]`,
+		}),
+	}
+	runtime := OperatingGraphRuntime{
+		Contracts: TeamContractRegistry{
+			"team-a": {TeamID: "team-a", Contract: &teamcontract.OperatingContract{
+				Members: map[string]teamcontract.MemberContract{"member-b": {}},
+			}},
+		},
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingAbsent(t, result, "graph_declared_member_missing")
+}
+
+func TestValidateOperatingGraphsDetectsUnsupportedTypedEdgeSemantics(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  A["member:member-a"]`,
+			`  B["member:member-b"]`,
+			"  A --> B",
+		}),
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_unsupported_edge_semantics")
+	assertOperatingFindingAbsent(t, result, "graph_edge_unbacked")
+}
+
+func TestValidateOperatingGraphsIgnoresNonActionableUnsupportedEdges(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		lines []string
+	}{
+		{
+			name: "process endpoint",
+			lines: []string{
+				"flowchart LR",
+				`  P["process:planning"]`,
+				`  T["topic:research-inbox/*"]`,
+				"  P --> T",
+			},
+		},
+		{
+			name: "future topic endpoint",
+			lines: []string{
+				"flowchart LR",
+				`  T["topic[future]:publish-performance/*"]`,
+				`  P["process:learning"]`,
+				"  T --> P",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			block := OperatingGraphBlock{
+				Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
+				Graph:    mustParseGraph(t, tc.lines),
+			}
+			result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, OperatingGraphRuntime{}, "team-a", "g")
+			assertOperatingFindingAbsent(t, result, "graph_unsupported_edge_semantics")
+		})
+	}
+}
+
+func TestValidateOperatingGraphsSupportedUnbackedEdgeIsNotUnsupported(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  M["member:member-a"]`,
+			`  T["topic:hook-record/*"]`,
+			"  M --> T",
+		}),
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_edge_unbacked")
+	assertOperatingFindingAbsent(t, result, "graph_unsupported_edge_semantics")
+}
+
 func TestExtractOperatingGraphBlocksRejectsMalformedMarkedGraphs(t *testing.T) {
 	for _, mode := range []string{"explanatory", "checkable", "contract"} {
 		t.Run(mode, func(t *testing.T) {
@@ -336,6 +455,125 @@ func TestDiffOperatingGraphsSkipsFutureGraphRelationships(t *testing.T) {
 	}
 }
 
+func TestDiffOperatingGraphsExternalTopicDoesNotSatisfyMemberExternalProducer(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  OP["external:operator"]`,
+		`  IN["topic:research-inbox/*"]`,
+		`  A["member:member-a"]`,
+		`  B["member:member-b"]`,
+		"  OP --> IN",
+		"  OP --> A",
+		"  IN --> A",
+		"  IN --> B",
+	})
+	runtime := operatingDiffRuntime(t, []MemberTopics{
+		{
+			Ref: MemberRef{Team: "team-a", Member: "member-a"},
+			Topics: Topics{
+				Intake:            []IntakeEntry{{Prefix: "research-inbox/*"}},
+				ExternalProducers: []string{"operator"},
+			},
+		},
+		{
+			Ref: MemberRef{Team: "team-a", Member: "member-b"},
+			Topics: Topics{
+				Intake:            []IntakeEntry{{Prefix: "research-inbox/*"}},
+				ExternalProducers: []string{"operator"},
+			},
+		},
+	})
+
+	diffs := DiffOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	diff := assertOperatingDiff(t, diffs, "runtime_relationship_missing_in_graph", operatingRelExternalProducer)
+	if diff.Member != "member-b" || diff.External != "operator" {
+		t.Fatalf("unexpected external producer diff: %+v", diff)
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingDetail(t, result, "graph_declared_external_producer_missing", "member-b")
+}
+
+func TestDiffOperatingGraphsExternalTopicAloneDoesNotSatisfyExternalMember(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  OP["external:operator"]`,
+		`  IN["topic:research-inbox/*"]`,
+		`  A["member:member-a"]`,
+		"  OP --> IN",
+		"  IN --> A",
+	})
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "member-a"},
+		Topics: Topics{
+			Intake:            []IntakeEntry{{Prefix: "research-inbox/*"}},
+			ExternalProducers: []string{"operator"},
+		},
+	}})
+
+	diffs := DiffOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	diff := assertOperatingDiff(t, diffs, "runtime_relationship_missing_in_graph", operatingRelExternalProducer)
+	if diff.Member != "member-a" || diff.External != "operator" {
+		t.Fatalf("unexpected external producer diff: %+v", diff)
+	}
+}
+
+func TestValidateOperatingGraphsPromptTopicContractSections(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  A["member:member-a"]`,
+			`  B["member:member-b"]`,
+			`  C["member:member-c"]`,
+		}),
+	}
+	runtime := OperatingGraphRuntime{
+		PromptSections: map[MemberRef][]OperatingGraphPromptSection{
+			{Team: "team-a", Member: "member-a"}: {{
+				Team:       "team-a",
+				Member:     "member-a",
+				Kind:       operatingGraphPromptSectionKindTopicContract,
+				SourcePath: expectedTopicContractSourcePath("team-a", "member-a"),
+			}},
+			{Team: "team-a", Member: "member-b"}: {{
+				Team:       "team-a",
+				Member:     "member-b",
+				Kind:       operatingGraphPromptSectionKindTopicContract,
+				SourcePath: "teams/team-a/members/member-b/old-topics.json",
+			}},
+		},
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingDetail(t, result, "graph_prompt_topic_contract_missing", "member-c")
+	assertOperatingFindingDetail(t, result, "graph_prompt_topic_contract_source_mismatch", "member-b")
+}
+
+func TestValidateOperatingGraphsPromptTopicContractSectionsPassWhenPresent(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  A["member:member-a"]`,
+		}),
+	}
+	runtime := OperatingGraphRuntime{
+		PromptSections: map[MemberRef][]OperatingGraphPromptSection{
+			{Team: "team-a", Member: "member-a"}: {{
+				Team:       "team-a",
+				Member:     "member-a",
+				Kind:       operatingGraphPromptSectionKindTopicContract,
+				SourcePath: expectedTopicContractSourcePath("team-a", "member-a"),
+			}},
+		},
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingAbsent(t, result, "graph_prompt_topic_contract_missing")
+	assertOperatingFindingAbsent(t, result, "graph_prompt_topic_contract_source_mismatch")
+}
+
 func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) {
 	want := []string{
 		"graph_untyped_node",
@@ -346,7 +584,9 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 		"graph_unknown_por",
 		"graph_topic_unresolved",
 		"graph_future_topic_live_edge",
+		"graph_unsupported_edge_semantics",
 		"graph_edge_unbacked",
+		"graph_declared_member_missing",
 		"graph_declared_intake_missing",
 		"graph_declared_required_read_missing",
 		"graph_declared_evidence_missing",
@@ -356,6 +596,8 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 		"graph_declared_capability_gap_missing",
 		"graph_declared_external_producer_missing",
 		"graph_declared_cross_team_output_missing",
+		"graph_prompt_topic_contract_missing",
+		"graph_prompt_topic_contract_source_mismatch",
 	}
 	rules := DefaultOperatingGraphRules()
 	if len(rules) != len(want) {
@@ -771,6 +1013,15 @@ func assertOperatingFinding(t *testing.T, result OperatingGraphValidationResult,
 		}
 	}
 	t.Fatalf("finding %q missing from %+v", rule, result.Findings)
+}
+
+func assertOperatingFindingAbsent(t *testing.T, result OperatingGraphValidationResult, rule string) {
+	t.Helper()
+	for _, f := range result.Findings {
+		if f.Rule == rule {
+			t.Fatalf("unexpected finding %q in %+v", rule, result.Findings)
+		}
+	}
 }
 
 func assertOperatingFindingDetail(t *testing.T, result OperatingGraphValidationResult, rule, detailFragment string) {

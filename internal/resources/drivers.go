@@ -469,6 +469,18 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		return dockerCommand(ctx, controller, io.Discard, io.Discard, "start", name)
 	}
 
+	args, err := buildDockerRunArgs(controller, manifest, name)
+	if err != nil {
+		return err
+	}
+	return dockerCommand(ctx, controller, io.Discard, io.Discard, args...)
+}
+
+// buildDockerRunArgs assembles the `docker run` argument list for a docker-service
+// resource and performs the host-side filesystem preparation (mkdir/touch) for any
+// declared bind-mount volume sources. It is split out from startDockerService so
+// driver argument construction (including the --memory cap) can be unit-tested.
+func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name string) ([]string, error) {
 	args := []string{"run", "-d", "--name", name}
 	for _, port := range manifest.Ports {
 		if port.Container <= 0 {
@@ -483,6 +495,9 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 	for key, value := range manifest.Runtime.Env {
 		args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
 	}
+	if memLimit := strings.TrimSpace(manifest.Runtime.MemoryLimit); memLimit != "" {
+		args = append(args, "--memory", memLimit)
+	}
 	resourceDir := filepath.Join(controller.Root, "resources", manifest.Name)
 	for _, volume := range manifest.Runtime.Volumes {
 		source := expandResourceRuntimeValue(controller, manifest, volume.Source)
@@ -492,18 +507,18 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		if volumeSourceLooksLikeFile(volume) {
 			parent := filepath.Dir(source)
 			if err := os.MkdirAll(parent, 0o755); err != nil {
-				return fmt.Errorf("create volume source parent %s: %w", parent, err)
+				return nil, fmt.Errorf("create volume source parent %s: %w", parent, err)
 			}
 			if _, err := os.Stat(source); os.IsNotExist(err) {
 				file, createErr := os.Create(source)
 				if createErr != nil {
-					return fmt.Errorf("create volume source file %s: %w", source, createErr)
+					return nil, fmt.Errorf("create volume source file %s: %w", source, createErr)
 				}
 				_ = file.Close()
 			}
 		} else {
 			if err := os.MkdirAll(source, 0o755); err != nil {
-				return fmt.Errorf("create volume source %s: %w", source, err)
+				return nil, fmt.Errorf("create volume source %s: %w", source, err)
 			}
 		}
 		args = append(args, "-v", source+":"+volume.Target)
@@ -515,7 +530,7 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 	for _, part := range manifest.Runtime.Command {
 		args = append(args, expandResourceRuntimeValue(controller, manifest, part))
 	}
-	return dockerCommand(ctx, controller, io.Discard, io.Discard, args...)
+	return args, nil
 }
 
 func probeExternalDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest) (bool, error) {
