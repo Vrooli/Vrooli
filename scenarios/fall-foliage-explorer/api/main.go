@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -9,7 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -452,36 +453,27 @@ No other text, just the JSON.`,
 		getIntValue(region.ElevationMeters),
 		getIntValue(region.TypicalPeakWeek))
 
-	// Call Ollama API
-	ollamaURL := getEnv("OLLAMA_URL", "http://localhost:11434")
-	reqBody := map[string]interface{}{
-		"model":  "llama3.2:latest",
-		"prompt": prompt,
-		"stream": false,
-		"format": "json",
-	}
-
-	reqJSON, err := json.Marshal(reqBody)
+	// All daemon traffic goes through resource-ollama gateway so the host-wide
+	// semaphore can bound fleet-wide parallelism.
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", "llama3.2:latest", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
 	if err != nil {
-		return "", 0, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	resp, err := http.Post(ollamaURL+"/api/generate", "application/json",
-		bytes.NewBuffer(reqJSON))
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to call Ollama: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", 0, fmt.Errorf("Ollama returned status %d", resp.StatusCode)
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return "", 0, fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
 	}
 
 	var ollamaResp struct {
 		Response string `json:"response"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		return "", 0, fmt.Errorf("failed to decode Ollama response: %w", err)
+	if err := json.Unmarshal(out, &ollamaResp); err != nil {
+		return "", 0, fmt.Errorf("decode gateway generate response: %w", err)
 	}
 
 	// Parse the JSON response from Ollama

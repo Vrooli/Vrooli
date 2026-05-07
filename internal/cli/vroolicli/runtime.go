@@ -39,8 +39,8 @@ import (
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
-	"github.com/vrooli/vrooli/internal/templatevalidation"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
+	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
 type VersionInfo struct {
@@ -700,21 +700,6 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			}
 			return command.DiagnosePort(projectapp.DiagnosePortRequest{Port: req.Port, ScenarioName: req.ScenarioName})
 		}),
-		topcli.CommandID("cleanup-template-validation"): projectcli.TemplateValidationCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.TemplateValidationCleanupRequest) (projectcli.TemplateValidationCleanupResponse, error) {
-			command, err := ctx.app.newProjectCommandService(ctx)
-			if err != nil {
-				return projectcli.TemplateValidationCleanupResponse{}, err
-			}
-			opts, err := projectTemplateValidationCleanupOptions(req)
-			if err != nil {
-				return projectcli.TemplateValidationCleanupResponse{}, err
-			}
-			result, err := command.TemplateValidationCleanup(opts)
-			if err != nil {
-				return projectcli.TemplateValidationCleanupResponse{}, err
-			}
-			return projectcli.TemplateValidationCleanupResponse{Result: result}, nil
-		}),
 		topcli.CommandContract: contracthandlers.RootHandler(contracthandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
@@ -728,7 +713,22 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
-	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks], handlers[topcli.CommandID("cleanup-template-validation")])
+	templateValidationCleanupHandler := projectcli.TemplateValidationCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.TemplateValidationCleanupRequest) (projectcli.TemplateValidationCleanupResponse, error) {
+		command, err := ctx.app.newProjectCommandService(ctx)
+		if err != nil {
+			return projectcli.TemplateValidationCleanupResponse{}, err
+		}
+		opts, err := projectTemplateValidationCleanupOptions(req)
+		if err != nil {
+			return projectcli.TemplateValidationCleanupResponse{}, err
+		}
+		result, err := command.TemplateValidationCleanup(opts)
+		if err != nil {
+			return projectcli.TemplateValidationCleanupResponse{}, err
+		}
+		return projectcli.TemplateValidationCleanupResponse{Result: result}, nil
+	})
+	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks], templateValidationCleanupHandler)
 	return handlers
 }
 

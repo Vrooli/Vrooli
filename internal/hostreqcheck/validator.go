@@ -45,15 +45,33 @@ type ownerManifest struct {
 }
 
 var (
+	// rootCoreToolAllowlist enumerates tools that are intentionally declared
+	// at the root manifest level. Three categories qualify:
+	//
+	//   1. Universal Vrooli prerequisites (curl, docker, git, go, jq, node,
+	//      python, yq) — needed by setup itself and many scenarios.
+	//   2. Cross-scenario codegen toolchain (buf, protoc, protoc-gen-*) —
+	//      drives the proto pipeline that all proto-aware scenarios consume.
+	//   3. Host-wide observability/forensics (rasdaemon, mcelog,
+	//      kdump-tools) — captures crash data Vrooli's autoheal and
+	//      system-monitor scenarios both read.
 	rootCoreToolAllowlist = map[string]struct{}{
-		"curl":   {},
-		"docker": {},
-		"git":    {},
-		"go":     {},
-		"jq":     {},
-		"node":   {},
-		"python": {},
-		"yq":     {},
+		"buf":                   {},
+		"curl":                  {},
+		"docker":                {},
+		"git":                   {},
+		"go":                    {},
+		"jq":                    {},
+		"kdump-tools":           {},
+		"mcelog":                {},
+		"node":                  {},
+		"protoc":                {},
+		"protoc-gen-connect-go": {},
+		"protoc-gen-es":         {},
+		"protoc-gen-go":         {},
+		"python":                {},
+		"rasdaemon":             {},
+		"yq":                    {},
 	}
 	referenceScanCandidates = []string{
 		"stripe",

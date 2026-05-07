@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -74,18 +75,19 @@ type SocialCredentials struct {
 	Username     string `json:"username"`
 }
 
-// PlatformManager manages all platform adapters
+// PlatformManager manages all platform adapters. Ollama traffic is funnelled
+// through `resource-ollama gateway` so the host-wide semaphore can bound
+// fleet-wide parallelism — never call Ollama HTTP directly. The httpClient
+// here is used only for outbound social-platform API calls.
 type PlatformManager struct {
-	adapters  map[string]PlatformAdapter
-	ollamaURL string
+	adapters   map[string]PlatformAdapter
 	httpClient *http.Client
 }
 
 // NewPlatformManager creates a new platform manager
-func NewPlatformManager(ollamaURL string) *PlatformManager {
+func NewPlatformManager() *PlatformManager {
 	pm := &PlatformManager{
-		adapters:  make(map[string]PlatformAdapter),
-		ollamaURL: ollamaURL,
+		adapters: make(map[string]PlatformAdapter),
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -130,44 +132,26 @@ Platform-specific requirements:
 Return only the optimized content without any explanations or metadata.`, 
 		platform, content, pm.getPlatformRequirements(platform))
 
-	payload := map[string]interface{}{
-		"model":  "llama3.2",
-		"prompt": prompt,
-		"stream": false,
-		"options": map[string]interface{}{
-			"temperature": 0.7,
-			"max_tokens":  500,
-		},
-	}
-
-	jsonPayload, err := json.Marshal(payload)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", "llama3.2", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal AI request: %w", err)
-	}
-
-	resp, err := pm.httpClient.Post(pm.ollamaURL+"/api/generate", "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return "", fmt.Errorf("AI optimization request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("AI service returned status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read AI response: %w", err)
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return "", fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, stderr)
 	}
 
 	var aiResponse struct {
 		Response string `json:"response"`
 	}
-
-	if err := json.Unmarshal(body, &aiResponse); err != nil {
-		return "", fmt.Errorf("failed to parse AI response: %w", err)
+	if err := json.Unmarshal(out, &aiResponse); err != nil {
+		return "", fmt.Errorf("decode gateway generate response: %w", err)
 	}
-
 	return strings.TrimSpace(aiResponse.Response), nil
 }
 

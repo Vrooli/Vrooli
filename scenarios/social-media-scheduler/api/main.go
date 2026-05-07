@@ -31,7 +31,6 @@ type Configuration struct {
 	DatabaseURL  string
 	RedisURL     string
 	MinIOURL     string
-	OllamaURL    string
 	JWTSecret    string
 	Environment  string
 	Mode         string // "server" or "worker" or "both"
@@ -149,11 +148,6 @@ func loadConfiguration() *Configuration {
 		log.Fatal("❌ MINIO_URL environment variable is required")
 	}
 	
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
-	}
-	
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("❌ JWT_SECRET environment variable is required")
@@ -170,7 +164,6 @@ func loadConfiguration() *Configuration {
 		DatabaseURL: databaseURL,
 		RedisURL:    redisURL,
 		MinIOURL:    minioURL,
-		OllamaURL:   ollamaURL,
 		JWTSecret:   jwtSecret,
 		Environment: environment,
 	}
@@ -207,7 +200,7 @@ func initializeApplication(config *Configuration) (*Application, error) {
 	}
 
 	// Initialize platform manager
-	app.PlatformMgr = NewPlatformManager(config.OllamaURL)
+	app.PlatformMgr = NewPlatformManager()
 
 	// Initialize job processor
 	app.JobProcessor = NewJobProcessor(app.DB, app.Redis, app.PlatformMgr)

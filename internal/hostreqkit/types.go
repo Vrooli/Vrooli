@@ -30,6 +30,7 @@ const (
 	ExecutionWouldApply           ExecutionState = "would_apply"
 	ExecutionInstalled            ExecutionState = "installed"
 	ExecutionApplied              ExecutionState = "applied"
+	ExecutionRebootRequired       ExecutionState = "reboot_required"
 	ExecutionManualActionRequired ExecutionState = "manual_action_required"
 	ExecutionUnsupported          ExecutionState = "unsupported"
 	ExecutionNotApplicable        ExecutionState = "not_applicable"

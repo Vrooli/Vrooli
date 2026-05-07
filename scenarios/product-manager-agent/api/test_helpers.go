@@ -50,7 +50,6 @@ func setupTestApp(t *testing.T) *TestApp {
 	app := &App{
 		DB:          db,
 		RedisClient: redisClient,
-		OllamaURL:   "http://localhost:11434",
 		QdrantURL:   "http://localhost:6333",
 	}
 

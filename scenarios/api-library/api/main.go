@@ -123,7 +123,6 @@ type SemanticSearchClient struct {
 	QdrantURL        string
 	QdrantAPIKey     string
 	QdrantCollection string
-	OllamaURL        string
 	OllamaModel      string
 	HTTPClient       *http.Client
 }
@@ -556,7 +555,7 @@ func executeFullTextSearch(ctx context.Context, params SearchParams) ([]SearchRe
 }
 
 func (c *SemanticSearchClient) isReady() bool {
-	return c != nil && c.QdrantURL != "" && c.OllamaURL != ""
+	return c != nil && c.QdrantURL != ""
 }
 
 func (c *SemanticSearchClient) SemanticSearch(ctx context.Context, params SearchParams) ([]SearchResult, error) {
@@ -590,51 +589,27 @@ func (c *SemanticSearchClient) generateEmbedding(ctx context.Context, text strin
 		model = "nomic-embed-text"
 	}
 
-	payload := map[string]interface{}{
-		"model":  model,
-		"prompt": text,
-	}
-
-	body, err := json.Marshal(payload)
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
+		"--model", model, "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
-	}
-
-	endpoint := strings.TrimRight(c.OllamaURL, "/") + "/api/embeddings"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := c.HTTPClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama embeddings failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %v: %s", err, stderr)
 	}
 
 	var result struct {
 		Embedding []float32 `json:"embedding"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	if err := json.Unmarshal(out, &result); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
 	}
-
 	if len(result.Embedding) == 0 {
 		return nil, fmt.Errorf("embedding response was empty")
 	}
-
 	return result.Embedding, nil
 }
 
@@ -1811,19 +1786,8 @@ func initSemanticSearchClient() *SemanticSearchClient {
 	}
 	qdrantURL = strings.TrimRight(qdrantURL, "/")
 
-	ollamaURL := strings.TrimSpace(os.Getenv("OLLAMA_URL"))
-	if ollamaURL == "" {
-		ollamaURL = strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL"))
-	}
-	if ollamaURL == "" {
-		if port := strings.TrimSpace(os.Getenv("RESOURCE_PORT_OLLAMA")); port != "" {
-			ollamaURL = fmt.Sprintf("http://localhost:%s", port)
-		}
-	}
-	ollamaURL = strings.TrimRight(ollamaURL, "/")
-
-	if qdrantURL == "" || ollamaURL == "" {
-		log.Println("🧠 Semantic search disabled (Qdrant or Ollama URL missing)")
+	if qdrantURL == "" {
+		log.Println("🧠 Semantic search disabled (Qdrant URL missing)")
 		return nil
 	}
 
@@ -1841,7 +1805,6 @@ func initSemanticSearchClient() *SemanticSearchClient {
 		QdrantURL:        qdrantURL,
 		QdrantAPIKey:     strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
 		QdrantCollection: collection,
-		OllamaURL:        ollamaURL,
 		OllamaModel:      model,
 		HTTPClient: &http.Client{
 			Timeout: 15 * time.Second,

@@ -28,7 +28,6 @@ const (
 
 type IdeaProcessor struct {
 	db        *sql.DB
-	ollamaURL string
 	qdrantURL string
 }
 
@@ -82,11 +81,6 @@ type RefinementRequest struct {
 }
 
 func NewIdeaProcessor(db *sql.DB) *IdeaProcessor {
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
-	}
-
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
 		qdrantURL = "http://localhost:6333"
@@ -94,7 +88,6 @@ func NewIdeaProcessor(db *sql.DB) *IdeaProcessor {
 
 	return &IdeaProcessor{
 		db:        db,
-		ollamaURL: ollamaURL,
 		qdrantURL: qdrantURL,
 	}
 }

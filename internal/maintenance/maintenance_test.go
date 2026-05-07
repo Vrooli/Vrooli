@@ -118,9 +118,9 @@ func TestLooksLikeVrooliProcessMatchesScenarioBinary(t *testing.T) {
 
 	entry := processTableEntry{
 		PID:        4101,
-		Executable: "/home/alice/Vrooli/scenarios/agent-manager/api/agent-manager-api",
-		Command:    "agent-manager-api",
-		Cwd:        "/home/alice/Vrooli/scenarios/agent-manager/api",
+		Executable: "/home/alice/Vrooli/scenarios/beta/api/beta-api",
+		Command:    "beta-api",
+		Cwd:        "/home/alice/Vrooli/scenarios/beta/api",
 	}
 	if !looksLikeVrooliProcess(root, home, entry) {
 		t.Fatalf("expected compiled scenario binary to match")
@@ -568,6 +568,31 @@ func TestListOrphansExcludesVrooliCLIInvocation(t *testing.T) {
 	}
 	if len(orphans) != 1 || orphans[0].PID != 5200 {
 		t.Fatalf("vrooli CLI invocation must not be listed as orphan; got %#v", orphans)
+	}
+}
+
+func TestListOrphansExcludesControlPlaneAPIs(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{
+			6000: {PID: 6000, PPID: 1, PGID: 6000, SID: 6000, Executable: filepath.Join(root, "scenarios", "agent-manager", "api", "agent-manager-api"), Command: "./agent-manager-api"},
+			6001: {PID: 6001, PPID: 1, PGID: 6001, SID: 6001, Executable: filepath.Join(root, "scenarios", "workspace-sandbox", "api", "workspace-sandbox-api"), Command: "./workspace-sandbox-api"},
+			6002: {PID: 6002, PPID: 1, PGID: 6002, SID: 6002, Executable: filepath.Join(root, "scenarios", "swarm-manager", "api", "swarm-manager-api"), Command: "./swarm-manager-api"},
+			6100: {PID: 6100, PPID: 1, PGID: 6100, SID: 6100, Executable: filepath.Join(root, "scenarios", "beta", "api", "beta-api"), Command: "./beta-api"},
+		}, nil
+	}
+
+	controller := NewController(root, home)
+	orphans, err := controller.ListOrphans()
+	if err != nil {
+		t.Fatalf("ListOrphans: %v", err)
+	}
+	if len(orphans) != 1 || orphans[0].PID != 6100 {
+		t.Fatalf("control-plane APIs must not be listed as orphans; got %#v", orphans)
 	}
 }
 

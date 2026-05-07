@@ -19,6 +19,18 @@ var (
 		return shell.CombinedOutput(shell.Spec{Name: name, Args: args})
 	}
 
+	// CombinedOutputInputFn runs a command with the supplied string on stdin
+	// and returns its combined stdout/stderr. Used for tools like
+	// `debconf-set-selections` that read their inputs from stdin and where
+	// piping via shell would break test stubs.
+	CombinedOutputInputFn = func(name, input string, args ...string) ([]byte, error) {
+		return shell.CombinedOutput(shell.Spec{
+			Name:  name,
+			Args:  args,
+			Stdin: strings.NewReader(input),
+		})
+	}
+
 	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
 		return shell.Run(shell.Spec{
 			Name:   name,

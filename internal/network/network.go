@@ -212,6 +212,9 @@ func acquireMutationLock(home string, port int) (func(), error) {
 		}
 
 		guard, exists, readErr := readMutationGuard(path)
+		if readErr == nil && !exists {
+			continue
+		}
 		if readErr == nil && exists {
 			age := time.Since(guard.Timestamp)
 			if (guard.PID > 0 && !process.IsPIDRunning(guard.PID)) || age > mutationLockStaleWindow {

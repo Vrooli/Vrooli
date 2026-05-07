@@ -13,8 +13,8 @@ The repository contract defines the future-state Vrooli repository structure tha
 
 The authoritative artifacts are:
 
-- [.vrooli/repo-contract.json](/home/matthalloran8/Vrooli/.vrooli/repo-contract.json)
-- [.vrooli/schemas/repo-contract.schema.json](/home/matthalloran8/Vrooli/.vrooli/schemas/repo-contract.schema.json)
+- [.vrooli/repo-contract.json](../.vrooli/repo-contract.json)
+- [.vrooli/schemas/repo-contract.schema.json](../.vrooli/schemas/repo-contract.schema.json)
 
 ## Implementation Status
 

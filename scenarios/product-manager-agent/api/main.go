@@ -21,7 +21,6 @@ import (
 type App struct {
 	DB          *sql.DB
 	RedisClient *redis.Client
-	OllamaURL   string
 	QdrantURL   string
 }
 
@@ -42,12 +41,6 @@ func main() {
 	// Initialize Redis
 	redisClient := initRedis()
 
-	// Ollama URL - REQUIRED, no defaults
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
-	}
-
 	// Qdrant URL - REQUIRED, no defaults
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
@@ -58,7 +51,6 @@ func main() {
 	app := &App{
 		DB:          db,
 		RedisClient: redisClient,
-		OllamaURL:   ollamaURL,
 		QdrantURL:   qdrantURL,
 	}
 

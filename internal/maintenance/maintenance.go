@@ -394,6 +394,15 @@ var protectedVrooliExecutableBasenames = map[string]struct{}{
 	"vrooli-autoheal-loop.exe": {},
 }
 
+var controlPlaneAPIExecutableBasenames = map[string]struct{}{
+	"agent-manager-api":         {},
+	"agent-manager-api.exe":     {},
+	"swarm-manager-api":         {},
+	"swarm-manager-api.exe":     {},
+	"workspace-sandbox-api":     {},
+	"workspace-sandbox-api.exe": {},
+}
+
 // vrooliCLIExecutableBasenames are the `vrooli` CLI entrypoint basenames.
 // These are transient user-initiated commands (e.g. `vrooli scenario restart`)
 // that don't register a process record, so orphan detection must not
@@ -407,6 +416,16 @@ var vrooliCLIExecutableBasenames = map[string]struct{}{
 func isVrooliCLIExecutable(exe string) bool {
 	_, ok := vrooliCLIExecutableBasenames[processPathBase(exe)]
 	return ok
+}
+
+func isControlPlaneAPIExecutable(entry processTableEntry) bool {
+	if _, ok := controlPlaneAPIExecutableBasenames[processPathBase(entry.Executable)]; ok {
+		return true
+	}
+	if _, ok := controlPlaneAPIExecutableBasenames[processPathBase(entry.Command)]; ok {
+		return true
+	}
+	return false
 }
 
 func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {

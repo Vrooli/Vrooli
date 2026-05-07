@@ -323,7 +323,6 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		}}
 	}
 	run.RunID = marker.RunID
-	run.CleanupCommand = "vrooli scenario template cleanup --run " + marker.RunID
 	if err := templatevalidation.WriteMarker(marker); err != nil {
 		return run, []TemplateValidationIssue{{
 			Template: info.Name,
@@ -334,6 +333,7 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 	if req.RetainTemp {
 		cleanupTemp = false
 		run.CleanupStatus = "retained"
+		run.CleanupCommand = "vrooli scenario template cleanup --run " + marker.RunID
 	}
 	defer func() {
 		marker.Completed = true

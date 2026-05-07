@@ -735,84 +735,29 @@ func checkOllamaHealth() map[string]any {
 		"checks": map[string]any{},
 	}
 
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		// Ollama is optional - if not configured, AI features are disabled
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-
-	// Test Ollama connectivity
+	// Probe via the resource-ollama CLI. Per-model availability is no longer
+	// enumerated here — `resource-ollama status` reports daemon health, and the
+	// dependency manifest in .vrooli/service.json is authoritative for
+	// required models (auto-pulled at scenario start).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", ollamaURL+"/api/tags", nil)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["status"] = "healthy"
-		health["checks"].(map[string]any)["connectivity"] = "ok"
-
-		// Parse response to check available models
-		var response struct {
-			Models []struct {
-				Name string `json:"name"`
-			} `json:"models"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
-			health["checks"].(map[string]any)["available_models"] = len(response.Models)
-
-			// Check for required models for API analysis
-			requiredModels := []string{"llama3.1:8b", "nomic-embed-text"}
-			availableModels := make(map[string]bool)
-			for _, model := range response.Models {
-				availableModels[model.Name] = true
-			}
-
-			missingModels := []string{}
-			for _, required := range requiredModels {
-				if !availableModels[required] {
-					missingModels = append(missingModels, required)
-				}
-			}
-
-			if len(missingModels) > 0 {
-				health["status"] = "degraded"
-				health["error"] = map[string]any{
-					"code":      "OLLAMA_MODELS_MISSING",
-					"message":   fmt.Sprintf("Missing required models for API analysis: %v", missingModels),
-					"category":  "configuration",
-					"retryable": false,
-				}
-			} else {
-				health["checks"].(map[string]any)["required_models"] = "available"
-				health["checks"].(map[string]any)["ai_analysis"] = "enabled"
-			}
-		}
-	} else {
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	if err := cmd.Run(); err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]any{
 			"code":      "OLLAMA_UNHEALTHY",
-			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
+			"message":   fmt.Sprintf("resource-ollama status failed: %v", err),
 			"category":  "resource",
 			"retryable": true,
 		}
+		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
+		return health
 	}
 
+	health["status"] = "healthy"
+	health["checks"].(map[string]any)["connectivity"] = "ok"
+	health["checks"].(map[string]any)["ai_analysis"] = "enabled"
 	return health
 }
 

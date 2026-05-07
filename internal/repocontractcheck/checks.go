@@ -67,6 +67,7 @@ func Run(root string) (Report, error) {
 		{name: "personal_absolute_paths", fn: checkNoPersonalAbsolutePaths},
 		{name: "adoption_rules_alignment", fn: checkAdoptionRulesAlignment},
 		{name: "resource_schema_artifacts", fn: checkResourceSchemaArtifacts},
+		{name: "ollama_gateway_only", fn: checkOllamaGatewayOnly},
 	}
 
 	report := Report{
@@ -435,6 +436,70 @@ func checkDocsAlignment(contract *repocontract.Contract, root string, raw string
 	return nil
 }
 
+// checkOllamaGatewayOnly enforces that scenarios reach Ollama through
+// `resource-ollama gateway ...`, never via raw HTTP. The CLI fronts the daemon
+// with a host-wide cross-process semaphore; any code that constructs
+// /api/embeddings, /api/generate, or /api/chat directly bypasses that
+// throttle and re-introduces the OOM/cascade risk this contract guards.
+//
+// Initial scope is the two scenarios that have been migrated. Additional
+// scenarios are expected to fold in as their migrations land.
+func checkOllamaGatewayOnly(contract *repocontract.Contract, root string, raw string) error {
+	bannedPaths := []string{"/api/embeddings", "/api/generate", "/api/chat"}
+	scopes := []string{
+		"scenarios/swarm-manager/api",
+		"scenarios/prompt-manager/api",
+	}
+
+	var violations []string
+	for _, scope := range scopes {
+		base := filepath.Join(root, filepath.FromSlash(scope))
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				if os.IsNotExist(err) {
+					return filepath.SkipDir
+				}
+				return err
+			}
+			if d.IsDir() {
+				name := d.Name()
+				if name == "node_modules" || name == "vendor" || name == ".git" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if filepath.Ext(path) != ".go" {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			text := string(data)
+			for _, banned := range bannedPaths {
+				literal := "\"" + banned + "\""
+				if strings.Contains(text, literal) {
+					violations = append(violations, fmt.Sprintf("%s contains banned literal %q (use resource-ollama gateway)", rel, banned))
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("scan ollama gateway compliance under %s: %w", scope, err)
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("ollama-gateway-only violations: %s", strings.Join(violations, "; "))
+}
+
 func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, raw string) error {
 	violations, err := scanAdoptionViolations(root)
 	if err != nil {
@@ -477,7 +542,12 @@ func checkNoPersonalAbsolutePaths(contract *repocontract.Contract, root string, 
 			if d.Type()&os.ModeSymlink != 0 {
 				return nil
 			}
-			if shouldSkipPersonalPathScan(rel, false) || !isPersonalPathScannableFile(rel) || isPersonalPathAllowed(rel) {
+			generatedStateTarget := isSwarmManagerGeneratedStatePersonalPathTarget(rel)
+			promptTarget := isPersonalPathPromptMarkdown(rel)
+			if !generatedStateTarget && !promptTarget && (shouldSkipPersonalPathScan(rel, false) || !isPersonalPathScannableFile(rel) || isPersonalPathAllowed(rel)) {
+				return nil
+			}
+			if (generatedStateTarget || promptTarget) && isPersonalPathAllowed(rel) {
 				return nil
 			}
 
@@ -489,7 +559,8 @@ func checkNoPersonalAbsolutePaths(contract *repocontract.Contract, root string, 
 				return nil
 			}
 			for lineNo, line := range strings.Split(string(data), "\n") {
-				if containsNonFixturePersonalHomePath(line) {
+				allowFixtureUsers := !generatedStateTarget && !promptTarget
+				if containsPersonalHomePath(line, allowFixtureUsers) || containsOperatorIdentity(line, generatedStateTarget || promptTarget) {
 					violations = append(violations, fmt.Sprintf("%s:%d", rel, lineNo+1))
 				}
 			}
@@ -507,18 +578,29 @@ func checkNoPersonalAbsolutePaths(contract *repocontract.Contract, root string, 
 	return fmt.Errorf("personal absolute paths found: %s", strings.Join(violations, "; "))
 }
 
-var personalHomePathPattern = regexp.MustCompile("(?:^|[^A-Za-z0-9._-])((?:/home|/Users)/([A-Za-z0-9._-]+)(?:/|[[:space:]\"']|$))")
+var (
+	personalHomePathPattern = regexp.MustCompile("(?:^|[^A-Za-z0-9._-])((?:/home|/Users)/([A-Za-z0-9._-]+)(?:/|[[:space:]\"']|$))")
+	operatorIdentityPattern = regexp.MustCompile(`(?i)\b(?:matthalloran8|matt(?:hew)?[[:space:]_-]*halloran)\b`)
+)
 
 func containsNonFixturePersonalHomePath(line string) bool {
+	return containsPersonalHomePath(line, true)
+}
+
+func containsPersonalHomePath(line string, allowFixtureUsers bool) bool {
 	for _, match := range personalHomePathPattern.FindAllStringSubmatch(line, -1) {
 		if len(match) < 3 {
 			continue
 		}
-		if !isFixtureHomeUser(match[2]) {
+		if !allowFixtureUsers || !isFixtureHomeUser(match[2]) {
 			return true
 		}
 	}
 	return false
+}
+
+func containsOperatorIdentity(line string, enabled bool) bool {
+	return enabled && operatorIdentityPattern.MatchString(line)
 }
 
 func isFixtureHomeUser(username string) bool {
@@ -530,10 +612,23 @@ func isFixtureHomeUser(username string) bool {
 	}
 }
 
+func isPersonalPathPromptMarkdown(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	if !strings.EqualFold(filepath.Ext(rel), ".md") {
+		return false
+	}
+	return strings.Contains(rel, "/prompts/") ||
+		strings.HasPrefix(rel, "scenarios/prompt-manager/store/skills/") ||
+		strings.HasPrefix(rel, "templates/")
+}
+
 func shouldSkipPersonalPathScan(rel string, isDir bool) bool {
 	rel = filepath.ToSlash(rel)
 	base := pathBase(rel)
 	if isDir {
+		if isSwarmManagerGeneratedStateDir(rel) {
+			return false
+		}
 		switch base {
 		case ".git", "node_modules", ".venv", "vendor", "dist", "build", "coverage", ".cache", ".gocache", ".nyc_output", ".claude", "tmp", "temp", "logs", "data", "docs", "investigations", "report", ".swarm", "review", "evidence", "captures", "handoff":
 			return true
@@ -552,6 +647,60 @@ func shouldSkipPersonalPathScan(rel string, isDir bool) bool {
 		return true
 	}
 	return false
+}
+
+func isSwarmManagerGeneratedStateDir(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	if !strings.HasPrefix(rel, "scenarios/swarm-manager/") {
+		return false
+	}
+	for _, marker := range []string{
+		"/.swarm",
+		"/workshop",
+		"/review",
+		"/captures",
+		"/evidence",
+		"/handoff",
+		"/feedback",
+		"/operating-mode",
+	} {
+		if strings.HasSuffix(rel, marker) || strings.Contains(rel, marker+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func isSwarmManagerGeneratedStatePersonalPathTarget(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	if !strings.HasPrefix(rel, "scenarios/swarm-manager/") {
+		return false
+	}
+	base := pathBase(rel)
+	switch {
+	case strings.HasSuffix(rel, "/.swarm/last-research-prompt-trace.json"):
+		return true
+	case base == "acceptance-validation.json":
+		return true
+	case strings.Contains(rel, "/workshop/") && strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json"):
+		return true
+	case strings.Contains(rel, "/review/") && strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json"):
+		return true
+	case strings.Contains(rel, "/review/captures/"):
+		return true
+	case strings.Contains(rel, "/review/decisions/") && strings.HasSuffix(base, ".json"):
+		return true
+	case strings.Contains(rel, "/evidence/"):
+		return true
+	case strings.Contains(rel, "/handoff/") && (base == "manifest.json" || base == "source-index.json" || base == "brief.md"):
+		return true
+	case strings.Contains(rel, "/feedback/") && base == "feedback.json":
+		return true
+	case strings.Contains(rel, "/operating-mode/") && strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json"):
+		return true
+	default:
+		return false
+	}
 }
 
 func isPersonalPathScannableFile(rel string) bool {

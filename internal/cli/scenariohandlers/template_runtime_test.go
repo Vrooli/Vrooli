@@ -510,8 +510,15 @@ func TestRunTemplateValidateDeepRetainTempKeepsRelocationsForRerun(t *testing.T)
 		t.Fatalf("issues = %#v", report.Issues)
 	}
 	deepRun := report.DeepRuns[0]
-	if !deepRun.RetainedTemp || deepRun.CleanupStatus != "retained" {
+	if !deepRun.RetainedTemp || deepRun.CleanupStatus != "retained" || deepRun.RunID == "" || deepRun.CleanupCommand == "" {
 		t.Fatalf("deepRun = %#v", deepRun)
+	}
+	markerPath := filepath.Join(deepRun.TempRoot, ".vrooli", "template-validation-run.json")
+	if _, err := os.Stat(markerPath); err != nil {
+		t.Fatalf("retained marker missing: %v", err)
+	}
+	if len(deepRun.RelocationArtifacts) == 0 {
+		t.Fatalf("deepRun relocation artifacts missing: %#v", deepRun)
 	}
 	relocatedPath := filepath.Join(repoRoot, "packages", "proto", "schemas", deepRun.ScenarioID, "README.md")
 	if _, err := os.Stat(relocatedPath); err != nil {

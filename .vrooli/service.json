@@ -178,6 +178,57 @@
         "development"
       ],
       "notes": "v25+ required for both --python_out and --pyi_out built-ins."
+    },
+    {
+      "name": "rasdaemon",
+      "required": true,
+      "reason": "Capture AMD/Intel hardware error events (MCE, EDAC, PCIe AER) so unexplained host resets can be diagnosed via the system-mce-recent autoheal check",
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Custom handler enables and starts rasdaemon.service; events recorded to /var/lib/rasdaemon/ras-mc_event.db for ras-mc-ctl."
+    },
+    {
+      "name": "mcelog",
+      "required": true,
+      "reason": "Capture Machine Check Exceptions on hosts where rasdaemon is unavailable; otherwise treated as superseded",
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel — that is treated as ExecutionAlreadyPresent, not a failure."
+    },
+    {
+      "name": "kdump-tools",
+      "required": true,
+      "reason": "Capture full kernel crash dumps on panic to /var/crash for forensic analysis of unexplained resets",
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Custom handler preseeds debconf and installs noninteractively. Reports ExecutionRebootRequired until crashkernel= appears in /proc/cmdline (provided by the crashkernel_reserve safeguard)."
     }
   ],
   "hostSafeguards": [
@@ -266,6 +317,69 @@
         "linux"
       ],
       "notes": "Manages /etc/sysctl.d/99-vrooli-tcp.conf with tcp_ecn, tcp_mtu_probing, tcp_base_mss"
+    },
+    {
+      "name": "pstore_native",
+      "required": false,
+      "reason": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Loads efi_pstore (UEFI hosts) and/or erst (ACPI ERST hosts) and persists at-boot via /etc/modules-load.d. Reports SupportNotApplicable when neither backend is available; configure pstore_ramoops as a RAM-backed fallback in that case."
+    },
+    {
+      "name": "pstore_ramoops",
+      "required": false,
+      "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Reports SupportNotApplicable unless VROOLI_RAMOOPS_MEM_ADDRESS and VROOLI_RAMOOPS_MEM_SIZE env vars are set."
+    },
+    {
+      "name": "crashkernel_reserve",
+      "required": false,
+      "reason": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter so kdump-tools can capture panics",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Modifies GRUB_CMDLINE_LINUX with crashkernel=512M-:256M (overridable via VROOLI_CRASHKERNEL). Backup written. REQUIRES OPERATOR REBOOT after running `sudo update-grub`."
+    },
+    {
+      "name": "netconsole",
+      "required": false,
+      "reason": "Stream kernel oops/panic output to a remote log collector for off-host crash forensics",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Loads the netconsole kernel module with the operator-supplied target. Requires VROOLI_NETCONSOLE_TARGET env var (kernel netconsole format: src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac). Reports SupportNotApplicable when unset."
+    },
+    {
+      "name": "edac_modules",
+      "required": false,
+      "reason": "Load EDAC drivers so memory error counters become readable under /sys/devices/system/edac/ on supported chipsets",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h–1Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware."
     }
   ],
   "dependencies": {

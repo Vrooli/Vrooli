@@ -61,7 +61,6 @@ type ApiServer struct {
 	qdrantURL       string
 	minioURL        string
 	redisURL        string
-	ollamaURL       string
 	unstructuredURL string
 }
 
@@ -89,7 +88,6 @@ func NewApiServer() (*ApiServer, error) {
 	qdrantURL := getEnvOrDefault("QDRANT_URL", "http://localhost:6333")
 	minioURL := getEnvOrDefault("MINIO_URL", "")
 	redisURL := getEnvOrDefault("REDIS_URL", "")
-	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	unstructuredURL := getEnvOrDefault("UNSTRUCTURED_URL", "")
 
 	return &ApiServer{
@@ -99,7 +97,6 @@ func NewApiServer() (*ApiServer, error) {
 		qdrantURL:       qdrantURL,
 		minioURL:        minioURL,
 		redisURL:        redisURL,
-		ollamaURL:       ollamaURL,
 		unstructuredURL: unstructuredURL,
 	}, nil
 }
@@ -169,7 +166,6 @@ func main() {
 	log.Printf("  Database: Connected")
 	log.Printf("  Qdrant: %s", apiServer.qdrantURL)
 	log.Printf("  MinIO: %s", apiServer.minioURL)
-	log.Printf("  Ollama: %s", apiServer.ollamaURL)
 	log.Printf("  Unstructured: %s", apiServer.unstructuredURL)
 
 	if err := server.Run(server.Config{
