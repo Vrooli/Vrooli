@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
@@ -91,9 +93,9 @@ func main() {
 	}
 }
 
-// resolveRepoRoot returns the supplied path or climbs from cwd looking for
-// a .git dir. Templates + scenarios both live at known relative locations so
-// the root is enough to drive everything.
+// resolveRepoRoot returns the supplied path or uses the shared repo-contract
+// resolver. Templates + scenarios both live at known relative locations so the
+// root is enough to drive everything.
 func resolveRepoRoot(explicit string) (string, error) {
 	if explicit != "" {
 		abs, err := filepath.Abs(explicit)
@@ -102,21 +104,7 @@ func resolveRepoRoot(explicit string) (string, error) {
 		}
 		return abs, nil
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	cur := cwd
-	for {
-		if _, err := os.Stat(filepath.Join(cur, ".git")); err == nil {
-			return cur, nil
-		}
-		parent := filepath.Dir(cur)
-		if parent == cur {
-			return "", fmt.Errorf("could not locate repository root starting at %s", cwd)
-		}
-		cur = parent
-	}
+	return repocontract.FindRepoRootFromEnvOrCWD()
 }
 
 func runMigration(root string, apply bool) (report, error) {

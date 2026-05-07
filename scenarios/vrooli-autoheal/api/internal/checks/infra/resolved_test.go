@@ -365,7 +365,7 @@ func TestResolvedCheckExecuteAction_Logs(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["journalctl -u systemd-resolved -n 50 --no-pager"] = checks.MockResponse{
+	mockExec.Responses["journalctl --no-pager -o short-iso -u systemd-resolved -n 50"] = checks.MockResponse{
 		Output: []byte("systemd-resolved[123]: Listening on 127.0.0.53"),
 		Error:  nil,
 	}

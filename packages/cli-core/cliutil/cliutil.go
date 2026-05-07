@@ -62,6 +62,11 @@ type APIBaseOptions struct {
 	DefaultBase  string
 }
 
+var genericAPIBaseEnvVars = map[string]struct{}{
+	"API_BASE_URL":      {},
+	"VITE_API_BASE_URL": {},
+}
+
 // ValidateAPIBase resolves and validates an API base URL, returning a trimmed
 // base or an error with guidance when missing or malformed.
 func ValidateAPIBase(opts APIBaseOptions) (string, error) {
@@ -87,6 +92,9 @@ func DetermineAPIBase(opts APIBaseOptions) string {
 		return base
 	}
 	for _, env := range opts.EnvVars {
+		if shouldIgnoreAPIBaseEnvVar(env) {
+			continue
+		}
 		if val := trim(os.Getenv(env)); val != "" {
 			return val
 		}
@@ -105,6 +113,15 @@ func DetermineAPIBase(opts APIBaseOptions) string {
 		}
 	}
 	return trim(opts.DefaultBase)
+}
+
+func shouldIgnoreAPIBaseEnvVar(env string) bool {
+	env = strings.TrimSpace(env)
+	if env == "" || !IsAgentControlledContext() {
+		return false
+	}
+	_, generic := genericAPIBaseEnvVars[env]
+	return generic
 }
 
 // ResolveSourceRoot returns the first existing directory from the provided

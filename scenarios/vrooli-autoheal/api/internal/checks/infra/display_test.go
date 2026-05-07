@@ -338,7 +338,7 @@ func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
 		}
 	}
 	// Logs command
-	setMockResponse(mockExec, "journalctl -u gdm -n 100 --no-pager", []byte("-- Logs begin at ...\nJan 01 12:00:00 gdm[1234]: Starting...\n"), nil)
+	setMockResponse(mockExec, "journalctl --no-pager -o short-iso -u gdm -n 100", []byte("-- Logs begin at ...\nJan 01 12:00:00 gdm[1234]: Starting...\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.ExecuteAction(context.Background(), "logs")

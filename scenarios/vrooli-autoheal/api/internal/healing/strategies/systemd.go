@@ -4,9 +4,9 @@ package strategies
 
 import (
 	"context"
-	"fmt"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 )
 
 // SystemdStrategy provides common systemd service management actions.
@@ -141,8 +141,10 @@ func (s *SystemdStrategy) Logs(ctx context.Context, checkID string, lines int) c
 		lines = 100
 	}
 
-	output, err := s.executor.CombinedOutput(ctx,
-		"journalctl", "-u", s.serviceName, "-n", fmt.Sprintf("%d", lines), "--no-pager")
+	output, err := journal.NewReader(s.executor).Tail(ctx, journal.QueryOpts{
+		Unit: []string{s.serviceName},
+		Tail: lines,
+	})
 	result.Output = string(output)
 	result.Duration = time.Since(start)
 

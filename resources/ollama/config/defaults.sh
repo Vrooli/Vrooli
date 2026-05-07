@@ -16,7 +16,7 @@ readonly OLLAMA_INSTALL_DIR="/usr/local/bin"
 readonly OLLAMA_USER="ollama"
 
 # Ollama performance configuration
-readonly OLLAMA_NUM_PARALLEL="${OLLAMA_CUSTOM_NUM_PARALLEL:-16}"     # Parallel request processing
+readonly OLLAMA_NUM_PARALLEL="${OLLAMA_CUSTOM_NUM_PARALLEL:-4}"      # Parallel request processing (matches manifest; gateway semaphore is sized to this)
 readonly OLLAMA_MAX_LOADED_MODELS="${OLLAMA_CUSTOM_MAX_LOADED_MODELS:-3}"  # Models in memory
 readonly OLLAMA_FLASH_ATTENTION="${OLLAMA_CUSTOM_FLASH_ATTENTION:-1}"     # Enable flash attention
 readonly OLLAMA_ORIGINS="${OLLAMA_CUSTOM_ORIGINS:-*}"                    # CORS origins

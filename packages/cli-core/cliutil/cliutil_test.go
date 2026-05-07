@@ -63,6 +63,44 @@ func TestDetermineAPIBasePrecedence(t *testing.T) {
 	}
 }
 
+func TestDetermineAPIBaseIgnoresGenericBaseEnvInAgentContext(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "tok")
+	t.Setenv("API_BASE_URL", "http://wrong.example")
+	t.Setenv("VITE_API_BASE_URL", "http://also-wrong.example")
+	t.Setenv("DEMO_API_BASE", "http://scenario.example")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		EnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL", "DEMO_API_BASE"},
+	})
+	if base != "http://scenario.example" {
+		t.Fatalf("expected scenario-specific env to win, got %s", base)
+	}
+}
+
+func TestDetermineAPIBaseKeepsGenericBaseEnvOutsideAgentContext(t *testing.T) {
+	t.Setenv("API_BASE_URL", "http://generic.example")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		EnvVars: []string{"API_BASE_URL"},
+	})
+	if base != "http://generic.example" {
+		t.Fatalf("expected generic env outside agent context, got %s", base)
+	}
+}
+
+func TestDetermineAPIBaseIgnoresGenericAPIPortLeakage(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "tok")
+	t.Setenv("API_PORT", "18800")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		PortEnvVars:  []string{"SWARM_MANAGER_API_PORT"},
+		PortDetector: func() string { return "15000" },
+	})
+	if base != "http://localhost:15000" {
+		t.Fatalf("expected lifecycle detector to win over generic API_PORT, got %s", base)
+	}
+}
+
 func TestResolveSourceRoot(t *testing.T) {
 	temp := t.TempDir()
 	child := filepath.Join(temp, "child")

@@ -550,6 +550,58 @@ func TestScenarioAppTryAutoStartRunsScenarioStartCommand(t *testing.T) {
 	}
 }
 
+func TestScenarioAppTryAutoStartRefusesControlPlaneInAgentContext(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	t.Setenv("VROOLI_SANDBOX_ID", "sbx-1")
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "swarm-manager",
+		APIEnvVars:       []string{"SWARM_MANAGER_API_BASE"},
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	err = app.tryAutoStart()
+	if err == nil {
+		t.Fatal("expected tryAutoStart to be refused in agent context")
+	}
+	for _, want := range []string{"agent sandbox", "SWARM_MANAGER_API_BASE", "vrooli scenario start swarm-manager"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+}
+
+func TestScenarioAppTryAutoStartRefusesAllScenariosInAgentContext(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	t.Setenv("VROOLI_SANDBOX_ID", "sbx-1")
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		APIEnvVars:       []string{"API_BASE_ENV"},
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	err = app.tryAutoStart()
+	if err == nil {
+		t.Fatal("expected tryAutoStart to be refused in agent context")
+	}
+	for _, want := range []string{"agent sandbox", "API_BASE_ENV", "vrooli scenario start demo"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+}
+
 func TestScenarioAppGetUsesVersionedAPIPath(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -388,7 +389,10 @@ func (c *CloudflaredCheck) countRecentErrors(ctx context.Context) int {
 	// Get the time 5 minutes ago in the format journalctl expects
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
 
-	output, err := c.executor.Output(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager")
+	output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Unit:  []string{"cloudflared"},
+		Since: since,
+	})
 	if err != nil {
 		return 0 // Unable to check logs, assume OK
 	}
@@ -511,7 +515,10 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.executeTestTunnel(ctx, start)
 
 	case "logs":
-		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
+		output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"cloudflared"},
+			Tail: 100,
+		})
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		if err != nil {
@@ -616,7 +623,11 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 	// Recent logs with errors
 	outputBuilder.WriteString("=== Recent Errors (last 5 minutes) ===\n")
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
-	logOutput, _ := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager", "-p", "err")
+	logOutput, _ := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Unit:     []string{"cloudflared"},
+		Since:    since,
+		Priority: "err",
+	})
 	if len(strings.TrimSpace(string(logOutput))) > 0 {
 		outputBuilder.Write(logOutput)
 	} else {

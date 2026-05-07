@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -577,7 +578,10 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 		return result
 
 	case "logs":
-		output, _ := c.executor.CombinedOutput(ctx, "journalctl", "-u", dmName, "-n", "100", "--no-pager")
+		output, _ := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{dmName},
+			Tail: 100,
+		})
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		result.Success = true

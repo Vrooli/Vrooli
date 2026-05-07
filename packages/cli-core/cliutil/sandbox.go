@@ -77,11 +77,20 @@ func DetectSandbox() SandboxEnv {
 	}
 }
 
-// IsSandboxActive returns true if both Merged and Scope are set, indicating
-// this process is running inside a sandboxed agent. The ID field is optional
-// (used for logging only) and is not required for sandbox detection.
+// IsSandboxActive returns true when the process has an overlay merged path.
+// Scope is allowed to be empty because older callers used empty scope to mean
+// full-repo sandbox coverage.
 func (s SandboxEnv) IsSandboxActive() bool {
-	return s.Merged != "" && s.Scope != ""
+	return s.Merged != ""
+}
+
+// NormalizedScope returns the scope value callers should use for matching.
+// Empty scope means the full repository.
+func (s SandboxEnv) NormalizedScope() string {
+	if s.Scope == "" {
+		return "."
+	}
+	return s.Scope
 }
 
 // ScenarioInScope checks whether a scenario slug falls within the sandbox's
@@ -154,8 +163,8 @@ func defaultRepoRoot() string {
 // call with sensible defaults.
 func ResolveScenarioPath(scenarioName string) string {
 	sbx := DetectSandbox()
-	if sbx.IsSandboxActive() && ScenarioInScope(scenarioName, sbx.Scope) {
-		return ResolveMergedPath(scenarioName, sbx.Scope, sbx.Merged)
+	if sbx.IsSandboxActive() && ScenarioInScope(scenarioName, sbx.NormalizedScope()) {
+		return ResolveMergedPath(scenarioName, sbx.NormalizedScope(), sbx.Merged)
 	}
 	root := defaultRepoRoot()
 	if root == "" {
@@ -181,7 +190,7 @@ func ResolveScenarioPath(scenarioName string) string {
 func ResolveRepoRoot() string {
 	sbx := DetectSandbox()
 	if sbx.IsSandboxActive() {
-		if contract, err := activeContract(); err == nil && contract.IsFullRepoScope(sbx.Scope) {
+		if contract, err := activeContract(); err == nil && contract.IsFullRepoScope(sbx.NormalizedScope()) {
 			return sbx.Merged
 		}
 	}

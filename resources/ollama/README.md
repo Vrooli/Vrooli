@@ -89,6 +89,36 @@ resource-ollama ensure --config-base64 $(echo -n '{"models":["qwen3:4b"]}' | bas
 All log lines from the ensure path are prefixed with `ollama-ensure:` so
 `grep` over `vrooli logs` surfaces the auto-provisioning flow cleanly.
 
+## Resource limits and concurrency
+
+Defaults are tuned for a single-host workstation:
+
+| Setting | Default | Where set | Override path |
+|---|---|---|---|
+| Container memory cap | `12g` | `runtime.memory_limit` in `resource.json` (passed as `docker run --memory`) | Edit `resource.json` and `vrooli scenario restart ollama` |
+| Concurrent requests in-flight | `4` | `runtime.env.OLLAMA_NUM_PARALLEL` | Same — edit and restart |
+| Models kept resident | `3` | `runtime.env.OLLAMA_MAX_LOADED_MODELS` | Same |
+
+The 12 GiB cap is intended to keep one 7-8B model resident plus headroom; raise
+it on hosts with more RAM, lower it on smaller boxes. Keep `OLLAMA_NUM_PARALLEL`
+in step with the gateway semaphore (see below) — they are deliberately tied.
+
+## Gateway access (callers)
+
+Scenarios MUST reach Ollama through the resource CLI, not by constructing
+`/api/embeddings` / `/api/generate` URLs directly. The CLI fronts the daemon
+with a host-wide cross-process semaphore sized to `OLLAMA_NUM_PARALLEL`, so the
+fleet of scenarios cannot overwhelm the daemon even when individual scenarios
+forget to bound their own fan-out:
+
+```bash
+resource-ollama gateway embed    --model nomic-embed-text --json --input "hello"
+resource-ollama gateway generate --model llama3.2:1b      --json --prompt "say hi"
+```
+
+If `resource-ollama` is not on `$PATH` or the daemon is unhealthy, the gateway
+fails fast with a structured error. There is no HTTP fallback by design.
+
 ## Notes
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for model workflows.

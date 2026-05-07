@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/reporoot"
 )
@@ -577,7 +578,10 @@ func (c *APICheck) executeLogs(ctx context.Context, start time.Time) checks.Acti
 
 	// Also check journalctl for vrooli entries
 	outputBuilder.WriteString("=== System logs (journalctl) ===\n")
-	journalOutput, _ := c.executor.CombinedOutput(ctx, "journalctl", "--no-pager", "-n", "50", "-g", "vrooli")
+	journalOutput, _ := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Tail: 50,
+		Grep: "vrooli",
+	})
 	outputBuilder.Write(journalOutput)
 
 	result.Duration = time.Since(start)

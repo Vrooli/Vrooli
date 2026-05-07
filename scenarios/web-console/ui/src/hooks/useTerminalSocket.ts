@@ -1,0 +1,525 @@
+import { useEffect, useRef, useCallback } from "react";
+import type { Terminal } from "@xterm/xterm";
+import { buildSessionWsUrl } from "../lib/api";
+import { ANSI } from "../lib/ansi";
+import { LocalEchoController } from "../lib/localEcho";
+import { applyModifiers } from "../consts/toolbar-keys";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+
+// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
+// DOC: docs/internal/SEAMS.md#websocket-factory-seam-ui
+/**
+ * WebSocket JSON message protocol matching the Go backend (terminal_ws.go).
+ *
+ * Message directions:
+ *   Client → Server: stdin, resize, ping
+ *   Server → Client: stdout, exit, error, pong
+ *
+ * [REQ:P0-002b] WebSocket I/O Streaming
+ */
+export interface TerminalMessage {
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "conversation_event" | "conversation_event_ack" | "conversation_event_update";
+  /** Terminal I/O payload (stdin input or stdout output). */
+  data?: string;
+  /** New terminal width for resize messages. */
+  cols?: number;
+  /** New terminal height for resize messages. */
+  rows?: number;
+  /** Process exit code (sent with "exit" messages). */
+  code?: number;
+  /** Cumulative coalesced frame count (sent with "sync_warning" messages). */
+  coalesced_frames?: number;
+  /** Server's monotonic output byte count (sent with "history_end"). */
+  total_bytes?: number;
+  /** True when the server honored the client's resume offset (delta-only). */
+  resumed?: boolean;
+  eventId?: string;
+  source?: string;
+  stage?: string;
+  backend?: string;
+  role?: string;
+  createdAt?: string;
+  sequence?: number;
+  speechParagraphs?: string[];
+  originalSpeechParagraphs?: string[];
+  summarized?: boolean;
+}
+
+export interface ConversationEventMessage {
+  id: string;
+  source: string;
+  role: "assistant" | "user";
+  text: string;
+  speechParagraphs?: string[];
+  originalSpeechParagraphs?: string[];
+  summarized?: boolean;
+  createdAt?: string;
+  sequence: number;
+}
+
+/** Factory function for creating WebSocket connections. Override in tests. */
+export type SocketFactory = (url: string) => WebSocket;
+
+const defaultSocketFactory: SocketFactory = (url) => new WebSocket(url);
+
+/** Maps known WS error messages to user-facing recovery hints. */
+const WS_ERROR_RECOVERY: Record<string, string> = {
+  "Invalid message format": "A malformed message was sent. This is usually harmless.",
+  "Terminal process is not accepting input": "The terminal process has stopped. Close this pane and open a new terminal.",
+};
+
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY_MS = 400;
+const RECONNECT_MAX_DELAY_MS = 5000;
+const MAX_OUTPUT_PROBE_CHARS = 12000;
+const MAX_PENDING_INPUT_MESSAGES = 64;
+
+/**
+ * Safety timeout for history replay. If the server never sends a
+ * "history_end" message (e.g. protocol mismatch with an older server),
+ * the client flushes whatever it has buffered and switches to live
+ * pass-through mode after this delay.
+ */
+const HISTORY_FLUSH_TIMEOUT_MS = 5000;
+
+function appendOutputProbe(sessionId: string, data: string): void {
+  if (typeof window === "undefined" || !data) return;
+  const probeWindow = window as Window & {
+    __wc_terminal_output?: Record<string, string>;
+  };
+  const probe = probeWindow.__wc_terminal_output ?? {};
+  const previous = probe[sessionId] ?? "";
+  const next = (previous + data).slice(-MAX_OUTPUT_PROBE_CHARS);
+  probe[sessionId] = next;
+  probeWindow.__wc_terminal_output = probe;
+}
+
+/**
+ * WebSocket close codes 1000 (Normal) and 1001 (Going Away) indicate an
+ * intentional, expected close — e.g. the user closed the tab or the server
+ * shut down gracefully. Any other code signals an unexpected disconnection
+ * (network failure, server crash, protocol error, etc.).
+ */
+export function isCleanWsClose(code: number): boolean {
+  return code === 1000 || code === 1001;
+}
+
+interface UseTerminalSocketOptions {
+  sessionId: string;
+  terminal: Terminal | null;
+  onExit?: (sessionId: string) => void;
+  onReady?: () => void;
+  /** Injectable WebSocket factory for testing without real connections. */
+  createSocket?: SocketFactory;
+  /** Byte offset for history resume (from terminal cache). */
+  historyOffset?: number;
+  /** Whether the terminal was restored from a serialized cache entry. */
+  hasCachedState?: boolean;
+  /** Called when a conversation event arrives from the server. */
+  onConversationEvent?: (event: ConversationEventMessage, sendAck: (stage: string, message?: string, backend?: string) => void) => void;
+  /** Called when an async update (e.g. summarization) arrives for an existing event. */
+  onConversationEventUpdate?: (eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
+}
+
+/**
+ * Manages the WebSocket connection for a terminal session.
+ * Handles bidirectional I/O (stdin/stdout), resize messages, and lifecycle events.
+ *
+ * [REQ:P0-002b] WebSocket I/O Streaming
+ * [REQ:P0-004b] api-base WebSocket Integration
+ */
+export function useTerminalSocket({
+  sessionId,
+  terminal,
+  onExit,
+  onReady,
+  createSocket = defaultSocketFactory,
+  historyOffset,
+  hasCachedState,
+  onConversationEvent,
+  onConversationEventUpdate,
+}: UseTerminalSocketOptions) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingInputRef = useRef<string[]>([]);
+  const totalBytesRef = useRef<number>(0);
+
+  // Store event-handler callbacks and options in refs so they can be updated
+  // without tearing down the WebSocket connection. These are "fire-and-forget"
+  // handlers — the connection effect reads them at call time, not setup time.
+  const onExitRef = useRef(onExit);
+  const onReadyRef = useRef(onReady);
+  const hasCachedStateRef = useRef(hasCachedState ?? false);
+  const onConversationEventRef = useRef(onConversationEvent);
+  const onConversationEventUpdateRef = useRef(onConversationEventUpdate);
+  onExitRef.current = onExit;
+  onReadyRef.current = onReady;
+  onConversationEventRef.current = onConversationEvent;
+  onConversationEventUpdateRef.current = onConversationEventUpdate;
+  hasCachedStateRef.current = hasCachedState ?? false;
+
+  const enqueueInput = useCallback((data: string) => {
+    if (!data) return;
+    pendingInputRef.current.push(data);
+    if (pendingInputRef.current.length > MAX_PENDING_INPUT_MESSAGES) {
+      pendingInputRef.current.splice(
+        0,
+        pendingInputRef.current.length - MAX_PENDING_INPUT_MESSAGES,
+      );
+    }
+  }, []);
+
+  const sendMessage = useCallback((msg: TerminalMessage) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+      return true;
+    }
+    return false;
+  }, []);
+
+  const sendInput = useCallback(
+    (data: string): boolean => {
+      if (sendMessage({ type: "stdin", data })) {
+        return true;
+      }
+      // Inputs can be triggered before socket open (launcher shortcuts,
+      // restored-session command replay). Queue and flush on connect.
+      enqueueInput(data);
+      return false;
+    },
+    [enqueueInput, sendMessage],
+  );
+
+  const sendResize = useCallback(
+    (cols: number, rows: number) => {
+      sendMessage({ type: "resize", cols, rows });
+    },
+    [sendMessage],
+  );
+
+  useEffect(() => {
+    if (!terminal) return;
+
+    // Append resume offset to the WS URL when the client has a cached
+    // terminal state. The server validates the offset and sends only delta
+    // data, or falls back to full history if the offset is stale.
+    // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+    const baseWsUrl = buildSessionWsUrl(sessionId);
+    const wsUrl = historyOffset && historyOffset > 0
+      ? `${baseWsUrl}${baseWsUrl.includes("?") ? "&" : "?"}history_offset=${historyOffset}`
+      : baseWsUrl;
+    const localEcho = new LocalEchoController();
+    let disposed = false;
+    let reconnectAttempts = 0;
+    let connectedAtLeastOnce = false;
+
+    const flushPendingInput = () => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      while (pendingInputRef.current.length > 0) {
+        const next = pendingInputRef.current.shift();
+        if (!next) continue;
+        ws.send(JSON.stringify({ type: "stdin", data: next } satisfies TerminalMessage));
+      }
+    };
+
+    // --- History replay buffering ---
+    // On each (re)connect the client buffers stdout messages until the
+    // server sends "history_end", then writes everything in one batch.
+    // This eliminates the visible fast-forward replay on page load/refresh.
+    let replayingHistory = false;
+    let historyBuffer: string[] = [];
+    let historyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const flushHistoryBuffer = () => {
+      if (!replayingHistory) return;
+      replayingHistory = false;
+      if (historyTimeoutId !== null) {
+        clearTimeout(historyTimeoutId);
+        historyTimeoutId = null;
+      }
+      if (historyBuffer.length > 0) {
+        terminal.write(historyBuffer.join(""));
+        for (const chunk of historyBuffer) {
+          appendOutputProbe(sessionId, chunk);
+        }
+      }
+      historyBuffer = [];
+    };
+
+    const connect = () => {
+      if (disposed) return;
+
+      const ws = createSocket(wsUrl);
+      wsRef.current = ws;
+      const sendConversationAck = (event: ConversationEventMessage, stage: string, message?: string, backend?: string) => {
+        if (!event.id || !event.source) return;
+        if (ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({
+          type: "conversation_event_ack",
+          eventId: event.id,
+          source: event.source,
+          stage,
+          backend,
+          data: message,
+        } satisfies TerminalMessage));
+      };
+
+      ws.onopen = () => {
+        const wasReconnect = connectedAtLeastOnce;
+        connectedAtLeastOnce = true;
+        reconnectAttempts = 0;
+        localEcho.reset();
+        flushPendingInput();
+
+        // Reset history replay state for this connection.
+        replayingHistory = true;
+        historyBuffer = [];
+        if (historyTimeoutId !== null) {
+          clearTimeout(historyTimeoutId);
+        }
+        historyTimeoutId = setTimeout(flushHistoryBuffer, HISTORY_FLUSH_TIMEOUT_MS);
+
+        // Ensure PTY has client dimensions before history replay arrives.
+        // onReady may send a refined resize after fit(), but this provides
+        // an immediate baseline.
+        sendResize(terminal.cols, terminal.rows);
+        if (wasReconnect) {
+          terminal.reset();
+          terminal.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
+        }
+        onReadyRef.current?.();
+      };
+
+      ws.onmessage = (event) => {
+        let msg: TerminalMessage;
+        try {
+          msg = JSON.parse(event.data as string) as TerminalMessage;
+        } catch {
+          // Malformed message from server — log but don't crash the handler
+          console.warn("WebSocket: received non-JSON message", event.data);
+          return;
+        }
+        switch (msg.type) {
+          case "stdout":
+            if (msg.data) {
+              if (replayingHistory) {
+                // Buffer history chunks until "history_end" arrives, then
+                // write everything in a single terminal.write() call.
+                historyBuffer.push(msg.data);
+              } else {
+                const processed = localEcho.processOutput(msg.data);
+                if (processed) terminal.write(processed);
+                appendOutputProbe(sessionId, msg.data);
+              }
+            }
+            break;
+          case "history_end": {
+            const resumed = msg.resumed === true;
+            if (!resumed && hasCachedStateRef.current) {
+              // Server rejected our offset — cache was stale. Clear the
+              // deserialized content before writing fresh full history.
+              terminal.reset();
+            }
+            if (msg.total_bytes !== undefined) {
+              totalBytesRef.current = msg.total_bytes;
+            }
+            // After processing metadata, mark cache as consumed so
+            // reconnect within the same session doesn't double-reset.
+            hasCachedStateRef.current = false;
+            flushHistoryBuffer();
+            break;
+          }
+          case "exit": {
+            // Flush any pending history so the user sees terminal state
+            // before the exit label.
+            flushHistoryBuffer();
+            const code = msg.code ?? 0;
+            const exitLabel = code === 0
+              ? `${ANSI.gray}[Session ended]`
+              : `${ANSI.red}[Session ended with exit code ${code}]`;
+            terminal.write(`\r\n${exitLabel}${ANSI.reset}\r\n`);
+            onExitRef.current?.(sessionId);
+            break;
+          }
+          case "error": {
+            terminal.write(
+              `\r\n${ANSI.red}[Error: ${msg.data}]${ANSI.reset}\r\n`,
+            );
+            // Provide recovery guidance for known error types
+            const recoveryHint = WS_ERROR_RECOVERY[msg.data ?? ""] ?? "";
+            if (recoveryHint) {
+              terminal.write(
+                `${ANSI.gray}  ${recoveryHint}${ANSI.reset}\r\n`,
+              );
+            }
+            break;
+          }
+          case "sync_warning": {
+            // Reset local echo predictions — heavy coalesced output means
+            // pending predictions are stale and could suppress legitimate chars.
+            localEcho.reset();
+            const coalesced = msg.coalesced_frames ?? 0;
+            terminal.write(
+              `\r\n${ANSI.yellow}[Warning: ${coalesced} output frames coalesced — terminal may lag]${ANSI.reset}\r\n` +
+              `${ANSI.gray}  Output will catch up automatically.${ANSI.reset}\r\n`,
+            );
+            break;
+          }
+          case "conversation_event":
+            if (msg.data && msg.eventId && msg.source && msg.sequence) {
+              const event = {
+                id: msg.eventId,
+                source: msg.source,
+                role: msg.role === "user" ? "user" : "assistant",
+                text: msg.data,
+                speechParagraphs: msg.speechParagraphs,
+                originalSpeechParagraphs: msg.originalSpeechParagraphs,
+                summarized: msg.summarized,
+                createdAt: msg.createdAt,
+                sequence: msg.sequence,
+              } satisfies ConversationEventMessage;
+              onConversationEventRef.current?.(event, (stage, message, backend) => sendConversationAck(event, stage, message, backend));
+            }
+            break;
+          case "conversation_event_update":
+            if (msg.eventId) {
+              onConversationEventUpdateRef.current?.(msg.eventId, {
+                speechParagraphs: msg.speechParagraphs,
+                originalSpeechParagraphs: msg.originalSpeechParagraphs,
+                summarized: msg.summarized,
+              });
+            }
+            break;
+          case "resize_info":
+            // Informational: the server reports the effective PTY size.
+            // xterm.js handles reflow for smaller viewports automatically.
+            break;
+        }
+      };
+
+      ws.onclose = (event) => {
+        localEcho.reset();
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+        }
+        if (disposed) {
+          return;
+        }
+
+        if (isCleanWsClose(event.code)) {
+          terminal.write(
+            `\r\n${ANSI.gray}[Disconnected]${ANSI.reset}\r\n`,
+          );
+          return;
+        }
+
+        // If the page is hidden (backgrounded browser tab, phone screen locked),
+        // defer reconnection until the tab becomes visible again. This prevents
+        // the stale-terminal problem where the old bail-out silently abandoned
+        // reconnection attempts.
+        const isPageHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+        if (isPageHidden) {
+          terminal.write(
+            `\r\n${ANSI.gray}[Connection lost while backgrounded — will reconnect when tab is active]${ANSI.reset}\r\n`,
+          );
+          const onVisible = () => {
+            if (document.visibilityState !== "visible") return;
+            document.removeEventListener("visibilitychange", onVisible);
+            visibilityListenerRef = null;
+            if (disposed) return;
+            reconnectAttempts = 0; // Fresh start on visibility return
+            connect();
+          };
+          document.addEventListener("visibilitychange", onVisible);
+          visibilityListenerRef = onVisible;
+          return;
+        }
+
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts += 1;
+          const delay = Math.min(
+            RECONNECT_BASE_DELAY_MS * (2 ** (reconnectAttempts - 1)),
+            RECONNECT_MAX_DELAY_MS,
+          );
+          terminal.write(
+            `\r\n${ANSI.gray}[Connection lost, reconnecting...]${ANSI.reset}\r\n`,
+          );
+          reconnectTimerRef.current = setTimeout(connect, delay);
+          return;
+        }
+
+        terminal.write(
+          `\r\n${ANSI.red}[Connection lost]${ANSI.reset}\r\n` +
+          `${ANSI.gray}  Reconnect attempts exhausted. Open a new terminal if this persists.${ANSI.reset}\r\n`,
+        );
+      };
+    };
+
+    let visibilityListenerRef: (() => void) | null = null;
+    connect();
+
+    // Terminal input -> WebSocket stdin (with local echo for printable chars).
+    // When mobile toolbar modifier toggles are active, apply them to the input
+    // before sending. Reading from the store directly (not via subscription)
+    // ensures we always see the latest modifier state.
+    // Strip terminal-generated responses (DA, DSR, CPR) from input before
+    // forwarding to the PTY.  xterm.js emits these in reply to queries from
+    // tmux (e.g. after a resize with `mouse on`).  They are host-to-terminal
+    // responses and must never reach the shell, where readline would echo the
+    // unrecognised parameter bytes as visible garbage.
+    //
+    // Matched sequences (all are CSI with optional private-mode prefix):
+    //   \e[?…c   Primary DA response          \e[>…c   Secondary DA response
+    //   \e[…n    Device Status Report          \e[…R    Cursor Position Report
+    // eslint-disable-next-line no-control-regex -- intentionally matches CSI ESC byte
+    const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnR]/g;
+    const stripTerminalResponses = (s: string): string => {
+      // Fast path: most input is plain keystrokes with no ESC at all.
+      if (s.indexOf("\x1b") === -1) return s;
+      return s.replace(RE_TERMINAL_RESPONSE, "");
+    };
+
+    const inputDisposable = terminal.onData((rawData) => {
+      const mods = useWorkspaceStore.getState().modifiers;
+      const hasModifier = mods.ctrl || mods.alt || mods.shift;
+      let data = stripTerminalResponses(rawData);
+      if (data.length === 0) return; // Entire input was terminal responses
+      if (hasModifier) {
+        const { data: modified } = applyModifiers(data, mods);
+        data = modified;
+        useWorkspaceStore.getState().clearModifiers();
+      }
+      const echo = localEcho.handleInput(data);
+      if (echo) terminal.write(echo);
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "stdin", data } satisfies TerminalMessage));
+      } else {
+        enqueueInput(data);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      if (historyTimeoutId !== null) {
+        clearTimeout(historyTimeoutId);
+        historyTimeoutId = null;
+      }
+      if (reconnectTimerRef.current !== null) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      if (visibilityListenerRef) {
+        document.removeEventListener("visibilitychange", visibilityListenerRef);
+        visibilityListenerRef = null;
+      }
+      inputDisposable.dispose();
+      wsRef.current?.close();
+      wsRef.current = null;
+    };
+  }, [sessionId, terminal, sendResize, createSocket, enqueueInput, historyOffset]);
+
+  return { sendInput, sendResize, totalBytesRef };
+}

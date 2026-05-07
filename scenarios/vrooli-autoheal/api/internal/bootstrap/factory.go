@@ -146,7 +146,11 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewPortCheck(),
 		system.NewClaudeCacheCheck(),
 		system.NewGPUCheck(),  // GPU health for AI/ML workloads
-		system.NewLoadCheck(), // System load average monitoring
+		system.NewLoadCheck(),           // System load average monitoring
+		system.NewPstoreEvidenceCheck(), // Kernel crash dumps in /sys/fs/pstore
+		system.NewBootHistoryCheck(),    // Unclean shutdown detection
+		system.NewMCERecentCheck(),      // Recent hardware errors via rasdaemon
+		system.NewPMRuntimeHogCheck(),   // Kernel pm_runtime CPU hogs
 	}
 }
 

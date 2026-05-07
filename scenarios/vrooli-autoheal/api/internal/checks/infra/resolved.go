@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -238,7 +239,10 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		output, err = c.executor.CombinedOutput(ctx, "sudo", "resolvectl", "flush-caches")
 		result.Message = "Flushing DNS cache"
 	case "logs":
-		output, err = c.executor.CombinedOutput(ctx, "journalctl", "-u", "systemd-resolved", "-n", "50", "--no-pager")
+		output, err = journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"systemd-resolved"},
+			Tail: 50,
+		})
 		result.Message = "Retrieved systemd-resolved logs"
 	default:
 		result.Success = false

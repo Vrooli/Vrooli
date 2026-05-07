@@ -773,7 +773,7 @@ func TestDockerCheckExecuteActionWithMock(t *testing.T) {
 		{
 			name:          "logs success",
 			actionID:      "logs",
-			cmdKey:        "journalctl -u docker -n 100 --no-pager",
+			cmdKey:        "journalctl --no-pager -o short-iso -u docker -n 100",
 			cmdOutput:     "Docker daemon logs...",
 			cmdError:      nil,
 			expectSuccess: true,

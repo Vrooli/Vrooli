@@ -305,7 +305,7 @@ func TestCloudflaredCheckExecuteAction_Logs(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["journalctl -u cloudflared -n 100 --no-pager"] = checks.MockResponse{
+	mockExec.Responses["journalctl --no-pager -o short-iso -u cloudflared -n 100"] = checks.MockResponse{
 		Output: []byte("Jun 01 12:00:00 server cloudflared[1234]: Tunnel established\nJun 01 12:01:00 server cloudflared[1234]: Connection healthy"),
 		Error:  nil,
 	}

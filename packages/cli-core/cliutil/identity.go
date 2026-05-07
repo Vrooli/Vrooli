@@ -10,9 +10,10 @@ import (
 
 // Environment variable names for agent identity detection.
 const (
-	EnvIdentityToken    = "VROOLI_AGENT_IDENTITY_TOKEN"
-	EnvAgentManagerBase = "VROOLI_AGENT_MANAGER_API_BASE"
+	EnvIdentityToken = "VROOLI_AGENT_IDENTITY_TOKEN"
 )
+
+var detectAgentManagerPort = DetectPortFromVrooli("agent-manager", "API_PORT")
 
 // IdentityEnv holds the raw agent identity token extracted from the environment.
 // A zero-value IdentityEnv (empty Token) means no identity token is present.
@@ -65,10 +66,15 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 	}
 
 	baseURL := DetermineAPIBase(APIBaseOptions{
-		EnvVars: []string{EnvAgentManagerBase},
+		EnvVars: []string{
+			"AGENT_MANAGER_API_BASE",
+			"AGENT_MANAGER_API_URL",
+		},
+		PortEnvVars:  []string{"AGENT_MANAGER_API_PORT"},
+		PortDetector: detectAgentManagerPort,
 	})
 	if baseURL == "" {
-		return nil, fmt.Errorf("agent-manager base URL not configured (set %s)", EnvAgentManagerBase)
+		return nil, fmt.Errorf("agent-manager base URL not discoverable (run `vrooli scenario status agent-manager` or set --api-base/config for the calling CLI)")
 	}
 
 	client := NewHTTPClient(HTTPClientOptions{

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"resource-ollama/cli/internal/ensure"
+	"resource-ollama/cli/internal/gateway"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -46,6 +47,9 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(append(app.StandardLifecycleCommands(), ensure.CommandGroup()))
+	app.SetCommandsWithSubgroups(
+		append(app.StandardLifecycleCommands(), ensure.CommandGroup()),
+		[]cliapp.SubcommandGroup{gateway.Commands(nil)},
+	)
 	return app, nil
 }

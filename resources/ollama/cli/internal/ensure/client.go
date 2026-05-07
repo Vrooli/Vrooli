@@ -142,3 +142,95 @@ func (c *Client) Pull(ctx context.Context, modelRef string, onProgress func(Pull
 	}
 	return nil
 }
+
+// EmbedRequest mirrors the relevant subset of POST /api/embeddings.
+type EmbedRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+}
+
+// EmbedResponse is the float vector returned by Ollama's embedding endpoint.
+// We accept either the legacy `embedding` (singular) or `embeddings[0]` shape
+// so this client survives both Ollama 0.1.x and 0.5.x+.
+type EmbedResponse struct {
+	Embedding  []float64   `json:"embedding,omitempty"`
+	Embeddings [][]float64 `json:"embeddings,omitempty"`
+}
+
+// Embed calls /api/embeddings and returns the resulting vector.
+func (c *Client) Embed(ctx context.Context, model, input string) ([]float64, error) {
+	body, err := json.Marshal(EmbedRequest{Model: model, Prompt: input})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/embeddings", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("embed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return nil, fmt.Errorf("embed: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	var parsed EmbedResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, fmt.Errorf("decode embed response: %w", err)
+	}
+	if len(parsed.Embedding) > 0 {
+		return parsed.Embedding, nil
+	}
+	if len(parsed.Embeddings) > 0 {
+		return parsed.Embeddings[0], nil
+	}
+	return nil, fmt.Errorf("embed: response contained no embedding vector")
+}
+
+// GenerateRequest mirrors the relevant subset of POST /api/generate. Stream is
+// always false at this layer — callers wanting NDJSON should add a separate
+// streaming entrypoint when needed.
+type GenerateRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+}
+
+// GenerateResponse captures the buffered (stream=false) shape.
+type GenerateResponse struct {
+	Response string `json:"response"`
+	Done     bool   `json:"done"`
+}
+
+// Generate calls /api/generate with stream=false and returns the full response.
+func (c *Client) Generate(ctx context.Context, in GenerateRequest) (string, error) {
+	body, err := json.Marshal(struct {
+		Model  string `json:"model"`
+		Prompt string `json:"prompt"`
+		Stream bool   `json:"stream"`
+	}{Model: in.Model, Prompt: in.Prompt, Stream: false})
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/generate", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("generate: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return "", fmt.Errorf("generate: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	var parsed GenerateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return "", fmt.Errorf("decode generate response: %w", err)
+	}
+	return parsed.Response, nil
+}

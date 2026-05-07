@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -219,7 +220,10 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return result
 
 	case "logs":
-		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "docker", "-n", "100", "--no-pager")
+		output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"docker"},
+			Tail: 100,
+		})
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -797,14 +798,20 @@ func (c *RDPCheck) executeLogs(ctx context.Context, result checks.ActionResult, 
 	switch serviceInfo.Type {
 	case RDPTypeGnome:
 		// GNOME Remote Desktop logs to user journal
-		output, err = c.executor.CombinedOutput(ctx, "journalctl", "--user", "-u", "gnome-remote-desktop", "-n", "100", "--no-pager")
+		output, err = journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			UserUnit: []string{"gnome-remote-desktop"},
+			Tail:     100,
+		})
 		if err != nil || len(output) == 0 {
 			// Fallback to grep in syslog
 			output, err = c.executor.CombinedOutput(ctx, "grep", "-i", "gnome-remote-desktop", "/var/log/syslog")
 		}
 
 	case RDPTypeXrdp:
-		output, err = c.executor.CombinedOutput(ctx, "journalctl", "-u", "xrdp", "-n", "100", "--no-pager")
+		output, err = journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"xrdp"},
+			Tail: 100,
+		})
 
 	case RDPTypeTermService:
 		// Windows event logs would need different approach

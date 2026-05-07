@@ -63,7 +63,7 @@ func TestIsSandboxActive(t *testing.T) {
 	}{
 		{"both set", "/tmp/merged", "scenarios/foo", true},
 		{"merged empty", "", "scenarios/foo", false},
-		{"scope empty", "/tmp/merged", "", false},
+		{"scope empty means full repo", "/tmp/merged", "", true},
 		{"both empty", "", "", false},
 		// ID is optional and does not affect active status.
 	}
@@ -72,6 +72,25 @@ func TestIsSandboxActive(t *testing.T) {
 			sbx := SandboxEnv{Merged: tt.merged, Scope: tt.scope}
 			if got := sbx.IsSandboxActive(); got != tt.want {
 				t.Errorf("IsSandboxActive() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSandboxEnvNormalizedScope(t *testing.T) {
+	tests := []struct {
+		name  string
+		scope string
+		want  string
+	}{
+		{"empty", "", "."},
+		{"dot", ".", "."},
+		{"scenario", "scenarios/foo", "scenarios/foo"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := (SandboxEnv{Scope: tt.scope}).NormalizedScope(); got != tt.want {
+				t.Fatalf("NormalizedScope() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -291,12 +310,11 @@ func TestResolveRepoRoot(t *testing.T) {
 	t.Run("sandbox with empty scope returns merged path", func(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/sandbox/merged")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "")
-		// Empty scope means IsSandboxActive is false, so falls back.
 		findRepoRoot = func() (string, error) { return root, nil }
 
 		got := ResolveRepoRoot()
-		if got != root {
-			t.Errorf("ResolveRepoRoot() = %q, want %q", got, root)
+		if got != "/tmp/sandbox/merged" {
+			t.Errorf("ResolveRepoRoot() = %q, want %q", got, "/tmp/sandbox/merged")
 		}
 	})
 }

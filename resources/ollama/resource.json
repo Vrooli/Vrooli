@@ -65,9 +65,10 @@
   "runtime": {
     "image": "ollama/ollama:0.11.7",
     "container_name": "ollama",
+    "memory_limit": "12g",
     "env": {
       "OLLAMA_HOST": "0.0.0.0:11434",
-      "OLLAMA_NUM_PARALLEL": "16",
+      "OLLAMA_NUM_PARALLEL": "4",
       "OLLAMA_MAX_LOADED_MODELS": "3",
       "OLLAMA_FLASH_ATTENTION": "1",
       "OLLAMA_ORIGINS": "*"
