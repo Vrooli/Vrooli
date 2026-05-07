@@ -95,13 +95,22 @@ const (
 	TemplateValidationModeDeep    TemplateValidationMode = "deep"
 )
 
+type TemplateValidationWarningPolicy string
+
+const (
+	TemplateValidationWarningPolicyIgnore TemplateValidationWarningPolicy = "ignore"
+	TemplateValidationWarningPolicyReport TemplateValidationWarningPolicy = "report"
+	TemplateValidationWarningPolicyFail   TemplateValidationWarningPolicy = "fail"
+)
+
 const DefaultTemplateValidationTestPreset = "comprehensive"
 
 type TemplateValidateRequest struct {
-	Mode         TemplateValidationMode
-	TemplateName string
-	RetainTemp   bool
-	TestPreset   string
+	Mode          TemplateValidationMode
+	TemplateName  string
+	RetainTemp    bool
+	TestPreset    string
+	WarningPolicy TemplateValidationWarningPolicy
 }
 
 type TemplateCleanupRequest struct {
@@ -152,26 +161,47 @@ type TemplateValidationIssue struct {
 	Message  string `json:"message"`
 }
 
+type TemplateValidationWarning struct {
+	Message      string `json:"message"`
+	Source       string `json:"source,omitempty"`
+	LogPath      string `json:"logPath,omitempty"`
+	ArtifactPath string `json:"artifactPath,omitempty"`
+}
+
+type TemplateValidationPhaseWarningSummary struct {
+	Name     string                      `json:"name"`
+	Count    int                         `json:"count"`
+	Warnings []TemplateValidationWarning `json:"warnings,omitempty"`
+}
+
+type TemplateValidationWarningSummary struct {
+	Total  int                                     `json:"total"`
+	Phases []TemplateValidationPhaseWarningSummary `json:"phases,omitempty"`
+}
+
 type TemplateValidationDeepRun struct {
-	Template            string   `json:"template"`
-	RunID               string   `json:"runId,omitempty"`
-	ScenarioID          string   `json:"scenarioId,omitempty"`
-	ScenarioPath        string   `json:"scenarioPath,omitempty"`
-	TempRoot            string   `json:"tempRoot,omitempty"`
-	TestPreset          string   `json:"testPreset,omitempty"`
-	RetainedTemp        bool     `json:"retainedTemp,omitempty"`
-	CleanupStatus       string   `json:"cleanupStatus,omitempty"`
-	RelocationArtifacts []string `json:"relocationArtifacts,omitempty"`
-	CleanupCommand      string   `json:"cleanupCommand,omitempty"`
+	Template            string                           `json:"template"`
+	RunID               string                           `json:"runId,omitempty"`
+	ScenarioID          string                           `json:"scenarioId,omitempty"`
+	ScenarioPath        string                           `json:"scenarioPath,omitempty"`
+	TempRoot            string                           `json:"tempRoot,omitempty"`
+	TestPreset          string                           `json:"testPreset,omitempty"`
+	WarningSummary      TemplateValidationWarningSummary `json:"warningSummary"`
+	RetainedTemp        bool                             `json:"retainedTemp,omitempty"`
+	CleanupStatus       string                           `json:"cleanupStatus,omitempty"`
+	RelocationArtifacts []string                         `json:"relocationArtifacts,omitempty"`
+	CleanupCommand      string                           `json:"cleanupCommand,omitempty"`
 }
 
 type TemplateValidationReport struct {
-	Mode         TemplateValidationMode      `json:"mode,omitempty"`
-	TemplateName string                      `json:"templateName,omitempty"`
-	TestPreset   string                      `json:"testPreset,omitempty"`
-	Count        int                         `json:"count"`
-	DeepRuns     []TemplateValidationDeepRun `json:"deepRuns,omitempty"`
-	Issues       []TemplateValidationIssue   `json:"issues,omitempty"`
+	Mode           TemplateValidationMode           `json:"mode,omitempty"`
+	TemplateName   string                           `json:"templateName,omitempty"`
+	TestPreset     string                           `json:"testPreset,omitempty"`
+	WarningPolicy  TemplateValidationWarningPolicy  `json:"warningPolicy,omitempty"`
+	WarningSummary TemplateValidationWarningSummary `json:"warningSummary"`
+	Count          int                              `json:"count"`
+	DeepRuns       []TemplateValidationDeepRun      `json:"deepRuns,omitempty"`
+	Issues         []TemplateValidationIssue        `json:"issues,omitempty"`
 }
 
 type TemplateCleanupResult = templatevalidation.CleanupResult
@@ -369,7 +399,12 @@ func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report Te
 		mode = string(TemplateValidationModeShallow)
 	}
 	if len(report.Issues) == 0 {
-		_, _ = fmt.Fprintf(w, "Validated %d scenario templates (%s)\n", report.Count, mode)
+		if report.WarningSummary.Total > 0 {
+			_, _ = fmt.Fprintf(w, "Validated %d scenario templates (%s) with %d warning(s)\n", report.Count, mode, report.WarningSummary.Total)
+			writeTemplateValidationWarnings(w, report.WarningSummary)
+		} else {
+			_, _ = fmt.Fprintf(w, "Validated %d scenario templates (%s)\n", report.Count, mode)
+		}
 		writeRetainedTemplateValidationPaths(w, report.DeepRuns)
 		return nil
 	}
@@ -381,6 +416,7 @@ func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report Te
 		}
 		_, _ = fmt.Fprintf(w, "  - %s: %s\n", line, issue.Message)
 	}
+	writeTemplateValidationWarnings(w, report.WarningSummary)
 	writeRetainedTemplateValidationPaths(w, report.DeepRuns)
 	return nil
 }
@@ -447,6 +483,28 @@ func writeRetainedTemplateValidationPaths(w io.Writer, runs []TemplateValidation
 			_, _ = fmt.Fprintf(w, "Retained temp workspace for %s: %s\n", run.Template, run.TempRoot)
 			if strings.TrimSpace(run.CleanupCommand) != "" {
 				_, _ = fmt.Fprintf(w, "Cleanup command: %s\n", run.CleanupCommand)
+			}
+		}
+	}
+}
+
+func writeTemplateValidationWarnings(w io.Writer, summary TemplateValidationWarningSummary) {
+	if summary.Total == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "Warnings:")
+	for _, phase := range summary.Phases {
+		if phase.Count == 0 {
+			continue
+		}
+		_, _ = fmt.Fprintf(w, "  %s (%d)\n", phase.Name, phase.Count)
+		for _, warning := range phase.Warnings {
+			_, _ = fmt.Fprintf(w, "    - %s\n", warning.Message)
+			if strings.TrimSpace(warning.LogPath) != "" {
+				_, _ = fmt.Fprintf(w, "      log: %s\n", warning.LogPath)
+			}
+			if strings.TrimSpace(warning.ArtifactPath) != "" {
+				_, _ = fmt.Fprintf(w, "      artifact: %s\n", warning.ArtifactPath)
 			}
 		}
 	}

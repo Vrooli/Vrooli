@@ -1,6 +1,7 @@
 package hostreqkit
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -155,9 +156,16 @@ func TestWithSudoAskMode(t *testing.T) {
 	}
 }
 
-func TestWithSudoEmptyModeDefaultsToAsk(t *testing.T) {
+func TestWithSudoEmptyModeDefaultsToSkip(t *testing.T) {
+	// Empty `--sudo-mode` is the operator typing `vrooli setup` with no
+	// flag. We default to "skip" so the run is non-interactive — items
+	// requiring root land in the Needs-sudo group via the typed sentinel
+	// and the action block points at `sudo vrooli setup`.
 	restore := stubLookups(t)
 	defer restore()
+	origRoot := RunningAsRootFn
+	defer func() { RunningAsRootFn = origRoot }()
+	RunningAsRootFn = func() bool { return false }
 
 	LookPathFn = func(name string) (string, error) {
 		if name == "sudo" {
@@ -166,12 +174,39 @@ func TestWithSudoEmptyModeDefaultsToAsk(t *testing.T) {
 		return "", os.ErrNotExist
 	}
 
-	cmd, _, err := WithSudo("", "apt-get", []string{"install"})
-	if err != nil {
-		t.Fatal(err)
+	_, _, err := WithSudo("", "apt-get", []string{"install"})
+	if !IsSudoSkipped(err) {
+		t.Fatalf("empty mode should default to skip (got err=%v)", err)
 	}
-	if cmd != "sudo" {
-		t.Fatalf("empty mode should default to sudo, got %q", cmd)
+}
+
+func TestWithSudoRootSkipsWrap(t *testing.T) {
+	// Already running as root: WithSudo must be a no-op regardless of mode,
+	// otherwise `sudo vrooli setup` would self-fail with ErrSudoSkipped on
+	// every privileged command.
+	restore := stubLookups(t)
+	defer restore()
+	origRoot := RunningAsRootFn
+	defer func() { RunningAsRootFn = origRoot }()
+	RunningAsRootFn = func() bool { return true }
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	for _, mode := range []string{"", "ask", "skip", "error"} {
+		t.Run(mode, func(t *testing.T) {
+			cmd, args, err := WithSudo(mode, "apt-get", []string{"install"})
+			if err != nil {
+				t.Fatalf("mode=%q: unexpected error %v", mode, err)
+			}
+			if cmd != "apt-get" || strings.Join(args, " ") != "install" {
+				t.Fatalf("mode=%q: expected bare command, got %s %v", mode, cmd, args)
+			}
+		})
 	}
 }
 
@@ -278,6 +313,45 @@ func TestWithSudoUnavailableSkipModeFallsThrough(t *testing.T) {
 	}
 	if cmd != "apt-get" {
 		t.Fatalf("command = %q, want apt-get", cmd)
+	}
+}
+
+func TestWithSudoSkipModeReturnsTypedSentinel(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	_, _, err := WithSudo("skip", "apt-get", []string{"install"})
+	if !IsSudoSkipped(err) {
+		t.Fatalf("IsSudoSkipped(%v) = false, want true", err)
+	}
+}
+
+func TestWithSudoErrorModeReturnsTypedSentinel(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	_, _, err := WithSudo("error", "apt-get", []string{"install"})
+	if !IsSudoSkipped(err) {
+		t.Fatalf("IsSudoSkipped(%v) = false, want true", err)
+	}
+}
+
+func TestIsSudoSkippedRecognizesWrappedErrors(t *testing.T) {
+	wrapped := fmt.Errorf("apt install kdump-tools failed: %w: automatic install skipped because --sudo-mode=skip", ErrSudoSkipped)
+	if !IsSudoSkipped(wrapped) {
+		t.Fatalf("expected wrapped sentinel to be detected: %v", wrapped)
 	}
 }
 

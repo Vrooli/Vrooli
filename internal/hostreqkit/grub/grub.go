@@ -48,9 +48,9 @@ var (
 	NowFn = time.Now
 
 	// ValidateGrubConfigFn validates a rendered /etc/default/grub before it is
-	// written. Default implementation runs `bash -n` (catches shell-quoting
-	// errors) and, when grub-script-check is on PATH, runs that as a second
-	// gate. Tests override to inject failures.
+	// written. Default implementation runs `bash -n` — the correct syntactic
+	// validator for the file's actual format (POSIX shell). Tests override
+	// to inject failures.
 	ValidateGrubConfigFn = defaultValidateGrubConfig
 )
 
@@ -343,18 +343,18 @@ func defaultValidateGrubConfig(content string, opts hostreqkit.EnsureOptions) (b
 			hostreqkit.FirstLine(strings.TrimSpace(string(output))))
 	}
 
-	// grub-script-check validates grub.cfg syntax (a different DSL).
-	// /etc/default/grub is shell, so we only call grub-script-check when
-	// available as a non-blocking advisory check — its absence is normal on
-	// stripped-down hosts.
-	if _, err := hostreqkit.LookPathFn("grub-script-check"); err == nil {
-		// Best-effort second gate. Failures here would indicate an unusual
-		// bug in our renderer; surface them so the operator notices.
-		if out, runErr := hostreqkit.CombinedOutputFn("grub-script-check", tmp); runErr != nil {
-			return false, fmt.Sprintf("grub-script-check rejected config: %s",
-				hostreqkit.FirstLine(strings.TrimSpace(string(out))))
-		}
-	}
+	// We deliberately do NOT run grub-script-check here, even though it's
+	// usually on PATH on hosts that have grub installed. /etc/default/grub
+	// is shell — `bash -n` above is the correct syntax validator. grub-
+	// script-check validates grub.cfg, a completely different DSL: it
+	// flags ordinary shell expansions like ${GRUB_DISTRIBUTOR} as syntax
+	// errors ("error: $.") because the `$` lexes differently in grub.cfg.
+	// Running it against /etc/default/grub produced false-negatives that
+	// blocked legitimate writes; the bash -n check is sufficient.
+	//
+	// If we ever want a second gate, it should validate the *output* of
+	// `grub-mkconfig` (which is grub.cfg), not the shell input — but
+	// that's a heavier dry-run that needs root and a writable temp dir.
 	return true, ""
 }
 

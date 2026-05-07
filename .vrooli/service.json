@@ -319,6 +319,43 @@
       "notes": "Manages /etc/sysctl.d/99-vrooli-tcp.conf with tcp_ecn, tcp_mtu_probing, tcp_base_mss"
     },
     {
+      "name": "ollama_resource_controls",
+      "required": false,
+      "reason": "Cap ollama.service memory and bias OOM killer toward it so an embeddings burst cannot exhaust host RAM (see 2026-05-07 host-stability investigation)",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Writes /etc/systemd/system/ollama.service.d/99-vrooli-resource-controls.conf. Auto-skips on hosts without ollama.service. Operator must `systemctl restart ollama` to apply limits to the running process."
+    },
+    {
+      "name": "host_hardening",
+      "required": false,
+      "reason": "Turn silent hard resets into observable kdump-able panics (sysrq, hung_task/softlockup/NMI/oops panic) and rate-limit journald so UFW BLOCK floods don't drown panic info",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) — without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics."
+    },
+    {
+      "name": "vrooli_launcher",
+      "required": false,
+      "reason": "Install /usr/local/bin/vrooli launcher shim so `sudo vrooli` resolves (sudo's secure_path excludes ~/.vrooli/bin where make install writes the real binary)",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux",
+        "darwin"
+      ],
+      "notes": "Optional: only matters if you want `sudo vrooli ...` to work. The shim forwards to the calling user's ~/.vrooli/bin/vrooli; see internal/safeguards/vrooli-launcher/handler.go package doc for the design rationale."
+    },
+    {
       "name": "pstore_native",
       "required": false,
       "reason": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",

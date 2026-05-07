@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
@@ -29,6 +31,15 @@ func EnsureRequirements(opts EnsureOptions, resolution hostreq.Resolution) (Repo
 }
 
 func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
+	// Earlier versions of vrooli ran `go install` and `npm install`
+	// directly under sudo (not dropping privileges), which left root-
+	// owned files in the operator's ~/go/pkg/mod and ~/.cache that broke
+	// subsequent non-sudo `go build` invocations with errors like
+	// "missing go.sum entry". Detect and repair before doing anything
+	// else that might depend on the user's caches being writable.
+	// Idempotent: a no-op when ownership is already correct.
+	repairInvokingUserCacheOwnership(opts)
+
 	report, err := inspectResolution(Current(), opts.Environment, resolution)
 	if err != nil {
 		return Report{}, err
@@ -38,28 +49,126 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 	}
 
 	for index, status := range report.Tools {
-		if requirementSatisfied(status) || !status.Required {
+		if requirementSatisfied(status) {
+			continue
+		}
+		if !status.Required && !opts.IncludeOptional {
+			if isPendingState(status.ExecutionState) {
+				report.Tools[index] = markOptionalSkipped(status)
+			}
 			continue
 		}
 		updated, applyErr := applyRequirement(report.Host, status, opts)
 		if applyErr != nil {
 			return Report{}, applyErr
 		}
-		report.Tools[index] = updated
+		report.Tools[index] = annotateBlockingReason(updated)
 	}
 	for index, status := range report.Safeguards {
-		if requirementSatisfied(status) || !status.Required {
+		if requirementSatisfied(status) {
+			continue
+		}
+		if !status.Required && !opts.IncludeOptional {
+			if isPendingState(status.ExecutionState) {
+				report.Safeguards[index] = markOptionalSkipped(status)
+			}
 			continue
 		}
 		updated, applyErr := applyRequirement(report.Host, status, opts)
 		if applyErr != nil {
 			return Report{}, applyErr
 		}
-		report.Safeguards[index] = updated
+		report.Safeguards[index] = annotateBlockingReason(updated)
 	}
 
 	report = summarizeReport(report)
 	return report, missingRequiredError(report, opts)
+}
+
+// markOptionalSkipped is the path for optional items that the operator did not
+// opt into via --include-optional. We deliberately do not call Apply: the item
+// stays in whatever Pending-flavored state Inspect returned, but we tag it so
+// the renderer routes it into the "Optional — opt in with --include-optional"
+// group instead of the generic Pending bucket.
+func markOptionalSkipped(status ItemStatus) ItemStatus {
+	status.BlockingReason = hostreqkit.BlockingOptionalSkipped
+	return status
+}
+
+// AnnotateInspectOnly post-processes a Report from inspect-only flows
+// (`vrooli setup status`) so the renderer's grouped output matches what the
+// apply path would produce: optional pending items get tagged
+// BlockingOptionalSkipped, reboot/manual states get their reasons. Without
+// this, status would show every pending item in the generic operator-input
+// bucket regardless of whether it's optional or actionable.
+func AnnotateInspectOnly(report Report, includeOptional bool) Report {
+	annotate := func(items []ItemStatus) []ItemStatus {
+		for index, item := range items {
+			if item.BlockingReason != hostreqkit.BlockingNone {
+				continue
+			}
+			if !item.Required && !includeOptional && isPendingState(item.ExecutionState) {
+				items[index] = markOptionalSkipped(item)
+				continue
+			}
+			items[index] = annotateBlockingReason(item)
+		}
+		return items
+	}
+	report.Tools = annotate(report.Tools)
+	report.Safeguards = annotate(report.Safeguards)
+	return report
+}
+
+// isPendingState reports whether a state is "operator could still take an
+// action that changes this." NotApplicable / Unsupported / AlreadyPresent /
+// Failed don't qualify — those are settled outcomes.
+func isPendingState(state ExecutionState) bool {
+	switch state {
+	case hostreqkit.ExecutionPending,
+		hostreqkit.ExecutionWouldInstall,
+		hostreqkit.ExecutionWouldApply:
+		return true
+	}
+	return false
+}
+
+// annotateBlockingReason inspects the post-Apply status and infers a
+// BlockingReason when the handler didn't set one explicitly. Handlers
+// currently swallow privileged-command errors into their Notes, so we
+// fall back to scanning Notes for the typed-sentinel strings emitted by
+// hostreqkit.WithSudo. (Handlers can also set BlockingReason directly; that
+// value is preserved.)
+func annotateBlockingReason(status ItemStatus) ItemStatus {
+	if status.BlockingReason != hostreqkit.BlockingNone {
+		return status
+	}
+	switch status.ExecutionState {
+	case hostreqkit.ExecutionFailed:
+		if notesContainSudoSentinel(status.Notes) {
+			status.BlockingReason = hostreqkit.BlockingNeedsSudo
+		}
+	case hostreqkit.ExecutionRebootRequired:
+		status.BlockingReason = hostreqkit.BlockingNeedsReboot
+	case hostreqkit.ExecutionManualActionRequired:
+		status.BlockingReason = hostreqkit.BlockingManual
+	}
+	return status
+}
+
+// notesContainSudoSentinel matches the literal substrings emitted by the
+// typed sudo errors in internal/hostreqkit/install.go. We intentionally use
+// substring matching here (rather than errors.Is on a returned error) because
+// handlers fold errors into status.Notes via fmt.Sprintf — the typed error
+// chain is lost by the time the runtime sees the status. The sentinel
+// strings are stable: change them here if you change them there.
+func notesContainSudoSentinel(notes []string) bool {
+	for _, note := range notes {
+		if strings.Contains(note, "sudo skipped") || strings.Contains(note, "sudo unavailable") {
+			return true
+		}
+	}
+	return false
 }
 
 func inspectResolution(host Host, environment string, resolution hostreq.Resolution) (Report, error) {
@@ -126,6 +235,13 @@ func appendMissingRequirement(report *Report, status ItemStatus) {
 }
 
 func requirementSatisfied(status ItemStatus) bool {
+	// ExecutionAlreadyPresent is the canonical "the requirement is met by some
+	// other path" signal (e.g. mcelog superseded by rasdaemon). Honor it for
+	// both tools and safeguards regardless of Installed/Applied bookkeeping —
+	// otherwise the supersede branch would still surface in MissingRequired.
+	if status.ExecutionState == hostreqkit.ExecutionAlreadyPresent {
+		return true
+	}
 	switch status.Kind {
 	case hostreq.KindSafeguard:
 		return status.Applied
@@ -142,4 +258,52 @@ func missingRequiredError(report Report, opts EnsureOptions) error {
 		return nil
 	}
 	return fmt.Errorf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
+}
+
+// repairInvokingUserCacheOwnership chowns the standard per-user vrooli-
+// touched cache directories back to $SUDO_USER when we're running as
+// root. This is purely a legacy-damage repair: earlier versions of
+// vrooli ran `go install` and `npm install` directly under sudo (without
+// dropping privileges), which deposited root-owned files into ~/go and
+// ~/.cache. Subsequent non-sudo `go build` invocations then failed with
+// "missing go.sum entry" because the operator could not write to those
+// paths. This pass corrects the ownership once and is a no-op for
+// already-correctly-owned files.
+//
+// Best-effort: chown failures are non-fatal — we don't block setup over
+// a stale cache repair. Only runs when sudo'd with $SUDO_USER set; on
+// non-sudo invocations there's nothing to fix.
+//
+// We intentionally limit the targets to dirs vrooli either creates or
+// writes to. ~/.cache as a whole contains a lot of unrelated state we
+// must not touch.
+func repairInvokingUserCacheOwnership(opts EnsureOptions) {
+	if !hostreqkit.RunningAsRootFn() {
+		return
+	}
+	user := strings.TrimSpace(os.Getenv("SUDO_USER"))
+	if user == "" || user == "root" {
+		return
+	}
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil || home == "" {
+		return
+	}
+	targets := []string{
+		filepath.Join(home, "go"),
+		filepath.Join(home, ".cache", "go-build"),
+		filepath.Join(home, ".cache", "vrooli"),
+		filepath.Join(home, ".local", "bin"),
+	}
+	for _, target := range targets {
+		if _, statErr := os.Stat(target); statErr != nil {
+			continue
+		}
+		spec := user + ":" + user
+		// chown -R runs as the current process (root) — we need root to
+		// change ownership of root-owned files back to $SUDO_USER. This
+		// is the one place in setup where running directly as root is
+		// the correct thing.
+		_ = hostreqkit.RunCommandFn("chown", []string{"-R", spec, target}, opts)
+	}
 }

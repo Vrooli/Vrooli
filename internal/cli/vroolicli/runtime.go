@@ -393,6 +393,9 @@ func (app *App) runTopLevelSetup(ctx *CommandContext, opts projectsetup.Options)
 	if err != nil {
 		return err
 	}
+	if ctx.Globals.Verbose {
+		opts.Verbose = true
+	}
 	return app.RunProjectSetupFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }
 
@@ -408,6 +411,9 @@ func (app *App) runTopLevelDevelop(ctx *CommandContext, opts projectsetup.Option
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
+	}
+	if ctx.Globals.Verbose {
+		opts.Verbose = true
 	}
 	return app.RunProjectDevelopFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }

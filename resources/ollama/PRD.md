@@ -179,7 +179,22 @@ customization:
       
     - var: OLLAMA_MAX_LOADED_MODELS
       purpose: Maximum models kept in memory
+
+    - var: OLLAMA_MEMORY_HIGH
+      purpose: Soft memory pressure threshold (systemd MemoryHigh=). Default 60% of host RAM.
+    - var: OLLAMA_MEMORY_MAX
+      purpose: Hard memory cap (systemd MemoryMax=). Default 70% of host RAM. Past this, the cgroup OOM-kills ollama instead of letting the kernel hang.
+    - var: OLLAMA_TASKS_MAX
+      purpose: Cap on tasks/PIDs under the unit. Default 4096.
+    - var: OLLAMA_OOM_SCORE_ADJUST
+      purpose: System-wide OOM killer bias toward ollama. Default 500 — under genuine memory pressure, prefer killing ollama over user shells / qdrant / claude.
+    - var: OLLAMA_CPU_QUOTA
+      purpose: Optional CPU cap (systemd CPUQuota=). Empty by default. Format is per-CPU percent (e.g. "1280%" for 80% of 16 cores). Memory caps are the primary protection; CPU saturation is recoverable, memory exhaustion is not.
 ```
+
+### Host Stability Protections
+
+The systemd unit emitted by the wrapper installs cgroup-level resource controls (`MemoryHigh`, `MemoryMax`, `TasksMax`, `OOMScoreAdjust`, optional `CPUQuota`) on top of the env-var caps. The intent is that any caller — including agents that bypass this wrapper and hit `localhost:11434` directly — runs against a bounded ollama. An embeddings-burst pattern from such bypassing callers was a candidate cause of host hard-resets in the 2026-05-07 incident; the cgroup caps make ollama killable rather than letting it consume the box. `ollama::needs_parallel_config_update` detects an existing stock-installer unit that lacks these directives and triggers a re-render so `vrooli` runs override the upstream installer's footprint.
 
 ### API Contract
 ```yaml

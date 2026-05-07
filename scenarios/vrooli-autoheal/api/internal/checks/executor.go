@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
 	"vrooli-autoheal/internal/reporoot"
 )
 
@@ -29,6 +30,29 @@ type CommandExecutor interface {
 // RealExecutor is the production implementation of CommandExecutor.
 // It delegates to os/exec for actual command execution.
 type RealExecutor struct{}
+
+// vrooliInvocation prepends --no-stale-check to args when invoking the vrooli
+// CLI from autoheal. Autoheal runs as a child of the user's working tree, so
+// the embedded fingerprint frequently differs from current sources; without
+// this flag every check would enter buildinfo.RebuildAndReexec and contend on
+// .vrooli/build/vrooli with sibling autoheal subprocesses, tripping the
+// rebuild-loop guard. Idempotent.
+func vrooliInvocation(args []string) []string {
+	if len(args) > 0 && args[0] == "--no-stale-check" {
+		return args
+	}
+	out := make([]string, 0, len(args)+1)
+	out = append(out, "--no-stale-check")
+	out = append(out, args...)
+	return out
+}
+
+func resolveCommandArgs(name string, args []string) []string {
+	if strings.TrimSpace(name) == "vrooli" {
+		return vrooliInvocation(args)
+	}
+	return args
+}
 
 func resolveCommandPath(name string) string {
 	if strings.TrimSpace(name) != "vrooli" {
@@ -56,17 +80,17 @@ func resolveCommandPath(name string) string {
 
 // Output runs the command and returns stdout.
 func (e *RealExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, resolveCommandPath(name), args...).Output()
+	return exec.CommandContext(ctx, resolveCommandPath(name), resolveCommandArgs(name, args)...).Output()
 }
 
 // CombinedOutput runs the command and returns combined stdout/stderr.
 func (e *RealExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, resolveCommandPath(name), args...).CombinedOutput()
+	return exec.CommandContext(ctx, resolveCommandPath(name), resolveCommandArgs(name, args)...).CombinedOutput()
 }
 
 // Run executes the command without capturing output.
 func (e *RealExecutor) Run(ctx context.Context, name string, args ...string) error {
-	return exec.CommandContext(ctx, resolveCommandPath(name), args...).Run()
+	return exec.CommandContext(ctx, resolveCommandPath(name), resolveCommandArgs(name, args)...).Run()
 }
 
 // DefaultExecutor is the global executor instance used when none is injected.

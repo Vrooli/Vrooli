@@ -105,7 +105,7 @@ func TestApplyDryRunReportsCommand(t *testing.T) {
 		return "", os.ErrNotExist
 	}
 	status := newHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, baseRequirement())
-	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, status, hostreqkit.EnsureOptions{DryRun: true})
+	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, status, hostreqkit.EnsureOptions{DryRun: true, SudoMode: "ask"})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestApplyInvokesPackageManager(t *testing.T) {
 		return nil
 	}
 	status := newHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, baseRequirement())
-	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, status, hostreqkit.EnsureOptions{})
+	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, status, hostreqkit.EnsureOptions{SudoMode: "ask"})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}

@@ -165,6 +165,29 @@ vrooli-autoheal follows a layered architecture with clear responsibility separat
 
 ## Key Design Decisions
 
+### `vrooli` CLI Invocation Seam — `--no-stale-check` injection
+
+`api/internal/checks/executor.go` is the single seam for every `vrooli` CLI
+invocation issued by autoheal (27+ call sites across `checks/vrooli/*.go`,
+`checks/infra/cloudflared.go`, `internal/healing/strategies/vrooli.go`,
+`internal/integrations/vrooli/command_runner.go`). When `name == "vrooli"`,
+`RealExecutor.Output` / `CombinedOutput` / `Run` automatically prepend
+`--no-stale-check` (idempotent — `vrooliInvocation` no-ops when the flag is
+already present).
+
+Why: autoheal subprocesses run against the user's working tree, where
+`internal/` source frequently differs from the embedded build fingerprint.
+Without this flag, every check would enter `internal/buildinfo.RebuildAndReexec`
+and contend on `.vrooli/build/vrooli`, tripping the rebuild-loop guard.
+
+How to apply: add or modify `vrooli` invocations through the
+`CommandExecutor` interface only. Direct `exec.Command(..., "vrooli", ...)`
+in any file under `scenarios/vrooli-autoheal/` bypasses the seam and
+reintroduces the loop class.
+
+Reference: `docs/reference/staleness-and-rebuild.md` documents the full
+fingerprint / lock / sidecar contract on the buildinfo side.
+
 ### Watchdog Detection System Probe Seam
 
 `api/internal/watchdog/watchdog.go` now routes environment/runtime interactions through a dedicated `detectorProbe` boundary. This seam isolates:

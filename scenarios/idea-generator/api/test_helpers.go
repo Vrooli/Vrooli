@@ -329,41 +329,6 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 	}
 }
 
-// mockOllamaServer creates a mock Ollama server for testing
-type MockOllamaServer struct {
-	Server *httptest.Server
-	URL    string
-}
-
-func createMockOllamaServer() *MockOllamaServer {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/generate":
-			response := map[string]interface{}{
-				"response": `[{"title":"Test Idea","description":"Test description","category":"innovation","tags":["test"],"implementation_notes":"Test notes"}]`,
-			}
-			json.NewEncoder(w).Encode(response)
-		case "/api/embeddings":
-			response := map[string]interface{}{
-				"embedding": make([]float64, 384), // Mock 384-dim embedding
-			}
-			json.NewEncoder(w).Encode(response)
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	})
-
-	server := httptest.NewServer(handler)
-	return &MockOllamaServer{
-		Server: server,
-		URL:    server.URL,
-	}
-}
-
-func (m *MockOllamaServer) Close() {
-	m.Server.Close()
-}
-
 // mockQdrantServer creates a mock Qdrant server for testing
 type MockQdrantServer struct {
 	Server *httptest.Server

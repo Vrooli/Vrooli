@@ -97,11 +97,27 @@ func run() error {
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	sourceRoot := filepath.ToSlash(modulePath)
+	// Bake the freshness-input list into cliapp.BakedFreshnessInputs so the
+	// runtime stale-checker uses the same input set the install-time
+	// fingerprint was computed from. Without this bake, a CLI whose
+	// manifest declares custom freshness inputs (e.g. additional docs/
+	// or README entries) would have the installer compute fingerprint
+	// over N inputs while the runtime stale-checker computed over only
+	// the package's hardcoded default M — guaranteeing a mismatch and
+	// triggering a rebuild loop on every invocation.
+	//
+	// Comma separator is safe because no current resource/scenario
+	// freshness input contains a comma — they're all path globs and
+	// filenames. Avoiding whitespace keeps the value transparent through
+	// the Go linker's flag parsing (which splits the -ldflags argument on
+	// whitespace before consuming each -X token).
+	bakedInputs := strings.Join(spec.Inputs, ",")
 	flags := fmt.Sprintf(
-		"-X main.buildFingerprint=%s -X main.buildTimestamp=%s -X main.buildSourceRoot=%s",
+		"-X main.buildFingerprint=%s -X main.buildTimestamp=%s -X main.buildSourceRoot=%s -X github.com/vrooli/cli-core/cliapp.BakedFreshnessInputs=%s",
 		fingerprint,
 		timestamp,
 		escapeLdflagValue(sourceRoot),
+		escapeLdflagValue(bakedInputs),
 	)
 
 	tmpFile, err := os.CreateTemp(filepath.Dir(dst), "cli-build-*")
@@ -119,7 +135,10 @@ func run() error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("go build failed: %w", err)
+		// Include modulePath in the error so the caller (and the
+		// operator scanning a stack of CLI installs) can tell which
+		// module failed without having to bisect or grep.
+		return fmt.Errorf("go build failed in %s: %w", modulePath, err)
 	}
 
 	if err := replaceBinary(tmpPath, dst); err != nil {
@@ -229,19 +248,75 @@ func defaultInstallDir() string {
 	return "."
 }
 
+// replaceBinary atomically and durably replaces dst with the file at src.
+//
+// Why fsync explicitly rather than relying on rename(2) alone:
+//   On Linux ext4 with the default data=ordered journal mode, rename(2) is
+//   atomic for the directory entry but says NOTHING about when the source
+//   file's data blocks reach disk. The metadata commit (which makes the
+//   rename visible after a crash) can land in the journal before the data
+//   blocks are flushed. If power is cut in that window, dst ends up with
+//   valid metadata — correct size, exec bit, mtime — but ZERO-FILLED
+//   contents. The kernel refuses to exec it ("Exec format error") even
+//   though `ls` and `stat` look fine. We were burned by exactly this on
+//   2026-05-07: an in-flight install left ~/.vrooli/bin/vrooli as 10 MB of
+//   nulls, and the orphaned `cli-build-*` zero-byte files in that directory
+//   show this had been silently happening to scenario installs too.
+//
+// Crash-safe sequence:
+//  1. fsync(src) — force the freshly-built binary's data blocks to stable
+//     storage BEFORE we hand it dst's name. Without this step, step 2 is
+//     racing the writeback path.
+//  2. rename(src, dst) — atomic within a single filesystem. dst points at
+//     either the old inode (if we crash before this commits) or the fully
+//     fsynced new inode, never a partial state.
+//  3. fsync(parent_dir) — persist the directory-entry change itself, so a
+//     crash after rename(2) can't roll the entry back to the previous
+//     inode (or, on a brand-new dst, leave it dangling).
+//
+// Together these guarantee that after any crash, dst either still exists
+// as the previous-good binary or is the fully-written new binary — never
+// the zero-filled stub that broke us today.
 func replaceBinary(src, dst string) error {
-	if err := os.Rename(src, dst); err == nil {
-		return nil
+	if err := fsyncPath(src); err != nil {
+		return fmt.Errorf("fsync new binary before rename: %w", err)
 	}
 	renameErr := os.Rename(src, dst)
-	if runtime.GOOS == "windows" {
+	if renameErr != nil && runtime.GOOS == "windows" {
+		// Windows rename(2) refuses to overwrite an existing file; fall
+		// back to remove-then-rename. This is non-atomic on Windows but
+		// matches the prior behavior — the Linux path (our production
+		// target) gets the strong guarantees above.
 		_ = os.Remove(dst)
 		renameErr = os.Rename(src, dst)
 	}
-	if renameErr == nil {
+	if renameErr != nil {
+		return fmt.Errorf("replace binary: %w", renameErr)
+	}
+	if err := fsyncPath(filepath.Dir(dst)); err != nil {
+		return fmt.Errorf("fsync install directory after rename: %w", err)
+	}
+	return nil
+}
+
+// fsyncPath opens path and calls fsync(2). Works for both regular files
+// and directories on Linux/macOS — fsync of a directory FD is the standard
+// way to make a rename(2) durable. On Windows, fsync of a directory handle
+// is not a defined operation; NTFS already orders rename metadata durably
+// enough for our needs, so skip it there.
+func fsyncPath(path string) error {
+	if runtime.GOOS == "windows" {
 		return nil
 	}
-	return fmt.Errorf("replace binary: %w", renameErr)
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func resolveManifestPath(path string) (string, error) {

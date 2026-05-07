@@ -22,10 +22,19 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInp
 	origInput := hostreqkit.CombinedOutputInputFn
 	origLookPath := hostreqkit.LookPathFn
 	origReadProc := ReadProcCmdlineFn
+	origServiceState := KdumpServiceStateFn
+	origConfigStatus := KdumpConfigStatusFn
+	origSysrq := SysrqEnabledFn
 
 	captured := []capturedCommand{}
 	procCmdline := ""
 	inputs := []string{}
+
+	// Default: service armed, kdump-config ready, sysrq enabled. Tests that
+	// exercise the unhappy paths override these.
+	KdumpServiceStateFn = func() (bool, bool) { return true, true }
+	KdumpConfigStatusFn = func() (bool, string) { return true, "current state    : ready to kdump" }
+	SysrqEnabledFn = func() bool { return true }
 
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
@@ -59,6 +68,9 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInp
 		hostreqkit.CombinedOutputInputFn = origInput
 		hostreqkit.LookPathFn = origLookPath
 		ReadProcCmdlineFn = origReadProc
+		KdumpServiceStateFn = origServiceState
+		KdumpConfigStatusFn = origConfigStatus
+		SysrqEnabledFn = origSysrq
 	}
 }
 
@@ -270,6 +282,85 @@ func TestApplyAlreadyInstalledShortCircuits(t *testing.T) {
 	}
 }
 
+func TestApplySudoSkipReturnsTypedSentinel(t *testing.T) {
+	_, _, _, restore := stubAll(t)
+	defer restore()
+
+	// sudo IS available — that's the only way --sudo-mode=skip is meaningful.
+	hostreqkit.LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		if name == "kdump-config" {
+			return "", fs.ErrNotExist
+		}
+		return "/usr/bin/" + name, nil
+	}
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	out, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{SudoMode: "skip"})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if out.ExecutionState != hostreqkit.ExecutionFailed {
+		t.Errorf("ExecutionState = %q, want failed", out.ExecutionState)
+	}
+	if !strings.Contains(strings.Join(out.Notes, " | "), "sudo skipped") {
+		t.Errorf("notes should mention sudo: %v", out.Notes)
+	}
+}
+
+func TestApplySudoModePreseedRoutesThroughSudo(t *testing.T) {
+	cmds, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "BOOT_IMAGE=/boot/vmlinuz crashkernel=512M-:256M quiet"
+
+	hostreqkit.LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		if name == "kdump-config" {
+			return "", fs.ErrNotExist
+		}
+		return "/usr/bin/" + name, nil
+	}
+
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		*cmds = append(*cmds, capturedCommand{Name: name, Args: append([]string(nil), args...)})
+		if name == "sudo" {
+			// Apt install completes — flip kdump-config availability.
+			hostreqkit.LookPathFn = func(name string) (string, error) {
+				if name == "kdump-config" {
+					return "/usr/sbin/kdump-config", nil
+				}
+				if name == "sudo" {
+					return "/usr/bin/sudo", nil
+				}
+				return "/usr/bin/" + name, nil
+			}
+		}
+		return nil
+	}
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	if _, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{SudoMode: "ask"}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	// Preseed should have been invoked under sudo: first captured command for
+	// debconf-set-selections is `sudo debconf-set-selections`.
+	var found bool
+	for _, c := range *cmds {
+		if c.Name == "sudo" && len(c.Args) > 0 && c.Args[0] == "debconf-set-selections" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected `sudo debconf-set-selections` in commands, got %+v", *cmds)
+	}
+}
+
 func TestNameAndKind(t *testing.T) {
 	h := newHandler()
 	if h.Name() != "kdump-tools" {
@@ -278,4 +369,148 @@ func TestNameAndKind(t *testing.T) {
 	if h.Kind() != hostreqspec.KindTool {
 		t.Errorf("Kind = %q", h.Kind())
 	}
+}
+
+// --- New: arming probes (Phase 2 of 2026-05-07 host-stability work) -------
+
+func TestInspectInstalledServiceDisabledIsPending(t *testing.T) {
+	_, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "BOOT_IMAGE=/vmlinuz crashkernel=512M ro quiet"
+	setInstalled()
+	KdumpServiceStateFn = func() (bool, bool) { return false, false }
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	if st.ExecutionState != hostreqkit.ExecutionPending {
+		t.Fatalf("ExecutionState = %q, want Pending; notes: %v", st.ExecutionState, st.Notes)
+	}
+	if !containsNote(st.Notes, "service not enabled") || !containsNote(st.Notes, "service not active") {
+		t.Errorf("expected notes to call out enabled+active gaps; got %v", st.Notes)
+	}
+}
+
+func TestInspectInstalledKdumpConfigNotReadyAddsWarning(t *testing.T) {
+	_, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "crashkernel=512M"
+	setInstalled()
+	KdumpConfigStatusFn = func() (bool, string) {
+		return false, "current state    : not ready (no capture kernel loaded)"
+	}
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	// Service is armed; we still report AlreadyPresent but surface the warning.
+	if st.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+		t.Fatalf("ExecutionState = %q, want AlreadyPresent", st.ExecutionState)
+	}
+	if !containsNote(st.Notes, "kdump-config status` reports not-ready") {
+		t.Errorf("expected kdump-config diagnostic note; got %v", st.Notes)
+	}
+}
+
+func TestInspectInstalledSysrqDisabledAddsInformationalNote(t *testing.T) {
+	_, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "crashkernel=512M"
+	setInstalled()
+	SysrqEnabledFn = func() bool { return false }
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	if st.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+		t.Fatalf("ExecutionState = %q, want AlreadyPresent", st.ExecutionState)
+	}
+	if !containsNote(st.Notes, "kernel.sysrq is disabled") {
+		t.Errorf("expected sysrq note; got %v", st.Notes)
+	}
+}
+
+func TestApplyArmsServiceWhenInstalledButDisabled(t *testing.T) {
+	cmds, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "crashkernel=512M"
+	setInstalled()
+
+	// First probe: not armed. After Apply runs `systemctl enable --now`, flip
+	// to armed so the post-arm re-probe passes.
+	state := struct{ enabled, active bool }{false, false}
+	KdumpServiceStateFn = func() (bool, bool) { return state.enabled, state.active }
+
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		*cmds = append(*cmds, capturedCommand{Name: name, Args: append([]string(nil), args...)})
+		if name == "systemctl" && len(args) >= 3 && args[0] == "enable" && args[1] == "--now" && args[2] == ServiceName {
+			state.enabled, state.active = true, true
+		}
+		return nil
+	}
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	if st.ExecutionState != hostreqkit.ExecutionPending {
+		t.Fatalf("Inspect ExecutionState = %q, want Pending", st.ExecutionState)
+	}
+
+	st, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{SudoMode: "skip"})
+	if err != nil {
+		t.Fatalf("Apply error: %v", err)
+	}
+	if st.ExecutionState != hostreqkit.ExecutionInstalled {
+		t.Fatalf("Apply ExecutionState = %q, want Installed; notes: %v", st.ExecutionState, st.Notes)
+	}
+
+	found := false
+	for _, c := range *cmds {
+		if c.Name == "systemctl" && len(c.Args) >= 3 && c.Args[0] == "enable" && c.Args[1] == "--now" && c.Args[2] == ServiceName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected systemctl enable --now %s in commands; got %+v", ServiceName, *cmds)
+	}
+}
+
+func TestApplyArmingFailureSurfacesFailed(t *testing.T) {
+	_, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "crashkernel=512M"
+	setInstalled()
+	KdumpServiceStateFn = func() (bool, bool) { return false, false }
+
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		return errors.New("masked")
+	}
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	st, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{SudoMode: "skip"})
+	if err != nil {
+		t.Fatalf("Apply error: %v", err)
+	}
+	if st.ExecutionState != hostreqkit.ExecutionFailed {
+		t.Fatalf("ExecutionState = %q, want Failed", st.ExecutionState)
+	}
+}
+
+func TestApplyDryRunSurfacesArmingIntent(t *testing.T) {
+	_, cmdline, _, restore := stubAll(t)
+	defer restore()
+	*cmdline = "crashkernel=512M"
+	setInstalled()
+	KdumpServiceStateFn = func() (bool, bool) { return false, false }
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	st, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{DryRun: true, SudoMode: "skip"})
+	if err != nil {
+		t.Fatalf("Apply error: %v", err)
+	}
+	if st.ExecutionState != hostreqkit.ExecutionWouldApply {
+		t.Fatalf("ExecutionState = %q, want WouldApply", st.ExecutionState)
+	}
+}
+
+func containsNote(notes []string, want string) bool {
+	for _, n := range notes {
+		if strings.Contains(n, want) {
+			return true
+		}
+	}
+	return false
 }

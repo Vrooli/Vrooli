@@ -52,9 +52,44 @@ type EnsureOptions struct {
 	SudoMode    string
 	DryRun      bool
 	AutoInstall bool
-	Stdout      io.Writer
-	Stderr      io.Writer
+	// IncludeOptional tells the runtime to also call Apply on optional
+	// (Required=false) items that come back Pending from Inspect. By default
+	// optionals are skipped — their Pending state is shown to the operator
+	// but no automatic install is attempted. Operators opt in via
+	// `vrooli setup --include-optional`.
+	IncludeOptional bool
+	Stdout          io.Writer
+	Stderr          io.Writer
 }
+
+// BlockingReason categorises *why* an item is not yet satisfied. It is
+// orthogonal to ExecutionState — a `failed` item with reason `needs_sudo`
+// renders very differently from a generic failure, even though the underlying
+// state is the same. Empty value means "no specific blocker" (renderer falls
+// back to the default Pending / Failed framing).
+type BlockingReason string
+
+const (
+	// BlockingNone is the zero value. The renderer treats it as "no specific
+	// reason recorded" and uses default group placement.
+	BlockingNone BlockingReason = ""
+	// BlockingNeedsSudo: an Apply call returned ErrSudoSkipped /
+	// ErrSudoUnavailable. Re-running with sudo (or --sudo-mode=ask) unblocks.
+	BlockingNeedsSudo BlockingReason = "needs_sudo"
+	// BlockingOptionalSkipped: optional item still Pending after Inspect; the
+	// runtime did not attempt Apply because IncludeOptional=false. Operator
+	// opts in via --include-optional.
+	BlockingOptionalSkipped BlockingReason = "optional_skipped"
+	// BlockingNeedsEnv: handler reported it is waiting on an env var or other
+	// operator-supplied configuration (e.g. netconsole target).
+	BlockingNeedsEnv BlockingReason = "needs_env"
+	// BlockingNeedsReboot: install/apply succeeded but the machine must be
+	// rebooted before the change takes effect.
+	BlockingNeedsReboot BlockingReason = "needs_reboot"
+	// BlockingManual: handler is manual-only; operator must run the
+	// documented procedure.
+	BlockingManual BlockingReason = "manual"
+)
 
 type ItemStatus struct {
 	Name             string                   `json:"name"`
@@ -68,6 +103,7 @@ type ItemStatus struct {
 	PackageName      string                   `json:"package_name,omitempty"`
 	SupportClass     SupportClass             `json:"support_class"`
 	ExecutionState   ExecutionState           `json:"execution_state"`
+	BlockingReason   BlockingReason           `json:"blocking_reason,omitempty"`
 	Manual           bool                     `json:"manual"`
 	Reasons          []string                 `json:"reasons,omitempty"`
 	Notes            []string                 `json:"notes,omitempty"`

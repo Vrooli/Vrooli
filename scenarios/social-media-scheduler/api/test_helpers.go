@@ -64,7 +64,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		DatabaseURL: getTestDatabaseURL(),
 		RedisURL:    getTestRedisURL(),
 		MinIOURL:    getTestMinIOURL(),
-		OllamaURL:   getTestOllamaURL(),
 		JWTSecret:   "test-secret-key-for-testing-only",
 		Environment: "test",
 		Mode:        "both",
@@ -105,8 +104,8 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		Config:      config,
 		DB:          db,
 		Redis:       redisClient,
-		PlatformMgr: NewPlatformManager(config.OllamaURL),
-		JobProcessor: NewJobProcessor(db, redisClient, NewPlatformManager(config.OllamaURL)),
+		PlatformMgr: NewPlatformManager(),
+		JobProcessor: NewJobProcessor(db, redisClient, NewPlatformManager()),
 		WebSocket:   NewWebSocketManager(),
 	}
 	app.setupRouter()
@@ -158,14 +157,6 @@ func getTestMinIOURL() string {
 		return url
 	}
 	return "http://localhost:9000"
-}
-
-// getTestOllamaURL returns the test Ollama URL from environment or default
-func getTestOllamaURL() string {
-	if url := os.Getenv("TEST_OLLAMA_URL"); url != "" {
-		return url
-	}
-	return "http://localhost:11434"
 }
 
 // cleanupTestData removes test data from database and Redis

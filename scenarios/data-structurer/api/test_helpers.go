@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -383,16 +384,14 @@ func skipIfNoDatabase(t *testing.T, testDB *TestDatabase) {
 	}
 }
 
-// skipIfNoOllama skips the test if Ollama is not available
+// skipIfNoOllama skips the test if resource-ollama is not available.
 func skipIfNoOllama(t *testing.T) {
-	ollamaHost := os.Getenv("OLLAMA_HOST")
-	if ollamaHost == "" {
-		ollamaHost = "http://localhost:11434"
+	if _, err := exec.LookPath("resource-ollama"); err != nil {
+		t.Skip("resource-ollama not on PATH")
 	}
-
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(ollamaHost + "/api/tags")
-	if err != nil || resp.StatusCode != http.StatusOK {
-		t.Skip("Ollama not available for testing")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := exec.CommandContext(ctx, "resource-ollama", "status").Run(); err != nil {
+		t.Skip("resource-ollama status failed - daemon not available")
 	}
 }

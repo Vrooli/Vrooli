@@ -41,10 +41,40 @@ develop: ## Start the development stack
 build: ## Build project-level binaries via the CLI
 	@$(VROOLI) build
 
+# atomic_install — copy SRC ($1) to DST ($2) crash-safely.
+#
+# Why this dance instead of a single `install -m 0755 SRC DST`:
+#   GNU `install` opens DST with O_TRUNC, writes, closes — no fsync, no
+#   rename. On ext4 (data=ordered, the Ubuntu default) the inode size+mode
+#   update can land in the journal before the data blocks reach the platter.
+#   If the box loses power inside that ~5–30 s window, DST is left as a
+#   zero-filled stub with the executable bit still set: PATH resolves it,
+#   but exec(2) returns ENOEXEC ("Exec format error"). We hit exactly this
+#   on 2026-05-07 — an in-flight `vrooli` install was caught by a crash and
+#   the binary became unrecoverable, breaking every shell that relied on it.
+#
+# Crash-safe sequence:
+#   1. install --> "$2.new". Writing a *different* path means DST itself is
+#      never opened with O_TRUNC; if we crash here, the previous good DST
+#      is still on disk and still runnable.
+#   2. sync -f "$2.new". Flushes the filesystem holding "$2.new", forcing
+#      the data blocks to stable storage BEFORE the rename makes them
+#      visible under DST's name.
+#   3. mv -f --> rename(2), atomic within one filesystem: DST points at the
+#      old inode or the fully-written new inode, never a partial state.
+#   4. sync -f "$2". Persists the directory entry change itself so a crash
+#      after rename(2) can't roll the entry back or leave it dangling.
+define atomic_install
+	install -m 0755 "$(1)" "$(2).new" && \
+	sync -f "$(2).new" && \
+	mv -f "$(2).new" "$(2)" && \
+	sync -f "$(2)"
+endef
+
 install: build ## Install project-level binaries into ~/.vrooli/bin
 	@mkdir -p "$(INSTALL_DIR)"
-	@install -m 0755 "$(BUILD_DIR)/vrooli-api" "$(INSTALL_DIR)/vrooli-api"
-	@install -m 0755 "$(BUILD_DIR)/vrooli" "$(INSTALL_DIR)/vrooli"
+	@$(call atomic_install,$(BUILD_DIR)/vrooli-api,$(INSTALL_DIR)/vrooli-api)
+	@$(call atomic_install,$(BUILD_DIR)/vrooli,$(INSTALL_DIR)/vrooli)
 
 status: ## Show project status
 	@$(VROOLI) status

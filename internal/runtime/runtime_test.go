@@ -489,8 +489,10 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
 		"clock", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
-		"edac_modules", "kernel_config", "nat_protection", "netconsole",
+		"edac_modules", "host_hardening", "kernel_config", "nat_protection", "netconsole",
+		"ollama_resource_controls",
 		"pstore_native", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
+		"vrooli_launcher",
 	}
 	if len(safeguardNames) != len(expectedSafeguards) {
 		t.Fatalf("safeguard count = %d, want %d; got %v", len(safeguardNames), len(expectedSafeguards), safeguardNames)
@@ -584,4 +586,138 @@ func findStatus(t *testing.T, items []ItemStatus, name string) ItemStatus {
 	}
 	t.Fatalf("status %q not found", name)
 	return ItemStatus{}
+}
+
+func TestRequirementSatisfiedTreatsAlreadyPresentAsSatisfied(t *testing.T) {
+	// Reproduces the mcelog supersede bug: a tool returns
+	// ExecutionAlreadyPresent (e.g. superseded by rasdaemon) without setting
+	// Installed=true. Before the fix, summarizeReport would still flag it as
+	// missing.
+	status := ItemStatus{
+		Name:           "mcelog",
+		Kind:           hostreq.KindTool,
+		Required:       true,
+		Installed:      false,
+		ExecutionState: hostreqkit.ExecutionAlreadyPresent,
+	}
+	if !requirementSatisfied(status) {
+		t.Fatalf("ExecutionAlreadyPresent should satisfy the requirement even if Installed=false")
+	}
+}
+
+func TestMarkOptionalSkippedTagsBlockingReason(t *testing.T) {
+	in := ItemStatus{Name: "x", Required: false, ExecutionState: hostreqkit.ExecutionPending}
+	out := markOptionalSkipped(in)
+	if out.BlockingReason != hostreqkit.BlockingOptionalSkipped {
+		t.Fatalf("BlockingReason = %q", out.BlockingReason)
+	}
+}
+
+func TestAnnotateBlockingReasonDetectsSudoSentinel(t *testing.T) {
+	// Handlers fold privileged-command errors into Notes via fmt.Sprintf.
+	// annotateBlockingReason should pick up the typed sentinel substring.
+	status := ItemStatus{
+		ExecutionState: hostreqkit.ExecutionFailed,
+		Notes:          []string{"install kdump-tools failed: sudo skipped: automatic install skipped because --sudo-mode=skip"},
+	}
+	out := annotateBlockingReason(status)
+	if out.BlockingReason != hostreqkit.BlockingNeedsSudo {
+		t.Fatalf("BlockingReason = %q, want needs_sudo", out.BlockingReason)
+	}
+}
+
+func TestAnnotateBlockingReasonPreservesExplicitValue(t *testing.T) {
+	status := ItemStatus{
+		ExecutionState: hostreqkit.ExecutionFailed,
+		BlockingReason: hostreqkit.BlockingNeedsEnv,
+		Notes:          []string{"sudo skipped"},
+	}
+	out := annotateBlockingReason(status)
+	if out.BlockingReason != hostreqkit.BlockingNeedsEnv {
+		t.Fatalf("explicit BlockingReason should be preserved, got %q", out.BlockingReason)
+	}
+}
+
+func TestRepairInvokingUserCacheOwnershipChownsKnownPaths(t *testing.T) {
+	// Reproduces the legacy-damage scenario: previous buggy `sudo vrooli
+	// setup` runs left root-owned files in ~/go and ~/.cache. The repair
+	// pass should chown them back to $SUDO_USER on the next sudo'd run.
+	tmp := t.TempDir()
+	for _, sub := range []string{"go", ".cache/go-build", ".cache/vrooli", ".local/bin"} {
+		if err := os.MkdirAll(filepath.Join(tmp, sub), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	origRoot := hostreqkit.RunningAsRootFn
+	origRun := hostreqkit.RunCommandFn
+	origRead := hostreqkit.ReadFileFn
+	defer func() {
+		hostreqkit.RunningAsRootFn = origRoot
+		hostreqkit.RunCommandFn = origRun
+		hostreqkit.ReadFileFn = origRead
+	}()
+	hostreqkit.RunningAsRootFn = func() bool { return true }
+	t.Setenv("SUDO_USER", "alice")
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/etc/passwd" {
+			return []byte("alice:x:1000:1000:Alice:" + tmp + ":/bin/sh\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	var chowns []string
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		chowns = append(chowns, name+" "+strings.Join(args, " "))
+		return nil
+	}
+
+	repairInvokingUserCacheOwnership(EnsureOptions{})
+
+	// All four targets should have been chown'd to alice:alice.
+	want := []string{
+		"chown -R alice:alice " + filepath.Join(tmp, "go"),
+		"chown -R alice:alice " + filepath.Join(tmp, ".cache/go-build"),
+		"chown -R alice:alice " + filepath.Join(tmp, ".cache/vrooli"),
+		"chown -R alice:alice " + filepath.Join(tmp, ".local/bin"),
+	}
+	for _, w := range want {
+		var found bool
+		for _, c := range chowns {
+			if c == w {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing chown call %q in:\n  %s", w, strings.Join(chowns, "\n  "))
+		}
+	}
+}
+
+func TestRepairInvokingUserCacheOwnershipNoOpWhenNotRoot(t *testing.T) {
+	// Non-sudo runs shouldn't issue any chown — there's nothing to repair
+	// (and we wouldn't have permission to anyway).
+	origRoot := hostreqkit.RunningAsRootFn
+	origRun := hostreqkit.RunCommandFn
+	defer func() {
+		hostreqkit.RunningAsRootFn = origRoot
+		hostreqkit.RunCommandFn = origRun
+	}()
+	hostreqkit.RunningAsRootFn = func() bool { return false }
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		t.Fatalf("unexpected RunCommandFn(%q, %v) when not running as root", name, args)
+		return nil
+	}
+
+	repairInvokingUserCacheOwnership(EnsureOptions{})
+}
+
+func TestAnnotateBlockingReasonDerivesFromExecutionState(t *testing.T) {
+	if got := annotateBlockingReason(ItemStatus{ExecutionState: hostreqkit.ExecutionRebootRequired}).BlockingReason; got != hostreqkit.BlockingNeedsReboot {
+		t.Fatalf("reboot_required -> %q", got)
+	}
+	if got := annotateBlockingReason(ItemStatus{ExecutionState: hostreqkit.ExecutionManualActionRequired}).BlockingReason; got != hostreqkit.BlockingManual {
+		t.Fatalf("manual_action_required -> %q", got)
+	}
 }

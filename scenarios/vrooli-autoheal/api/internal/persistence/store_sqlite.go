@@ -7,8 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
 )
+
+// rfc3339NanoCutoff returns now-windowHours as an RFC3339Nano UTC string,
+// the canonical wire format for created_at columns. Computing the cutoff in
+// Go (rather than in SQL via datetime('now', ?)) lets the SQLite planner use
+// the indexes on created_at for direct string comparison.
+func rfc3339NanoCutoff(now time.Time, windowHours int) string {
+	return now.UTC().Add(-time.Duration(windowHours) * time.Hour).Format(time.RFC3339Nano)
+}
 
 func (s *Store) saveResultSQLite(ctx context.Context, result checks.Result) error {
 	detailsJSON, err := json.Marshal(result.Details)
@@ -42,7 +51,7 @@ func (s *Store) getLatestResultPerCheckSQLite(ctx context.Context) ([]checks.Res
 				details,
 				duration_ms,
 				created_at,
-				ROW_NUMBER() OVER (PARTITION BY check_id ORDER BY datetime(created_at) DESC) AS rn
+				ROW_NUMBER() OVER (PARTITION BY check_id ORDER BY created_at DESC) AS rn
 			FROM health_results
 		)
 		WHERE rn = 1
@@ -90,7 +99,7 @@ func (s *Store) getRecentResultsSQLite(ctx context.Context, checkID string, limi
 		SELECT check_id, status, message, details, duration_ms, created_at
 		FROM health_results
 		WHERE check_id = ?
-		ORDER BY datetime(created_at) DESC
+		ORDER BY created_at DESC
 		LIMIT ?
 	`
 	rows, err := s.db.QueryContext(ctx, query, checkID, limit)
@@ -133,10 +142,10 @@ func (s *Store) getRecentResultsSQLite(ctx context.Context, checkID string, limi
 func (s *Store) cleanupOldResultsSQLite(ctx context.Context, retentionHours int) (int64, error) {
 	query := `
 		DELETE FROM health_results
-		WHERE datetime(created_at) < datetime('now', ?)
+		WHERE created_at < ?
 	`
-	modifier := fmt.Sprintf("-%d hours", retentionHours)
-	result, err := s.db.ExecContext(ctx, query, modifier)
+	cutoff := rfc3339NanoCutoff(time.Now(), retentionHours)
+	result, err := s.db.ExecContext(ctx, query, cutoff)
 	if err != nil {
 		return 0, err
 	}
@@ -147,7 +156,7 @@ func (s *Store) getTimelineEventsSQLite(ctx context.Context, limit int) ([]Timel
 	query := `
 		SELECT check_id, status, message, details, created_at
 		FROM health_results
-		ORDER BY datetime(created_at) DESC
+		ORDER BY created_at DESC
 		LIMIT ?
 	`
 	rows, err := s.db.QueryContext(ctx, query, limit)
@@ -196,12 +205,12 @@ func (s *Store) getUptimeStatsSQLite(ctx context.Context, windowHours int) (*Upt
 			COALESCE(SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END), 0) as warning_count,
 			COALESCE(SUM(CASE WHEN status = 'critical' THEN 1 ELSE 0 END), 0) as critical_count
 		FROM health_results
-		WHERE datetime(created_at) >= datetime('now', ?)
+		WHERE created_at >= ?
 	`
-	modifier := fmt.Sprintf("-%d hours", windowHours)
+	cutoff := rfc3339NanoCutoff(time.Now(), windowHours)
 
 	var stats UptimeStats
-	err := s.db.QueryRowContext(ctx, query, modifier).Scan(
+	err := s.db.QueryRowContext(ctx, query, cutoff).Scan(
 		&stats.TotalEvents,
 		&stats.OkEvents,
 		&stats.WarningEvents,
@@ -233,81 +242,76 @@ func (s *Store) getUptimeHistorySQLite(ctx context.Context, windowHours, bucketC
 	now := time.Now().UTC()
 	start := now.Add(-time.Duration(windowHours) * time.Hour)
 
-	checksQuery := `
-		SELECT DISTINCT check_id
+	startUnix := start.Unix()
+	bucketSeconds := int64(bucketDuration / time.Second)
+	if bucketSeconds <= 0 {
+		bucketSeconds = 1
+	}
+
+	// Single aggregation: count health-result events per (bucket, status). The
+	// previous implementation issued bucketCount × distinctCheckIDs prepared-
+	// statement round-trips to read "status as of bucket boundary"; that
+	// scaled linearly with bucket × check count and was the dominant source
+	// of dashboard latency on populated databases. Counting events per slice
+	// is the natural shape for the stacked-area trend chart, which normalizes
+	// per render anyway.
+	query := `
+		SELECT
+			CAST((CAST(strftime('%s', created_at) AS INTEGER) - ?) / ? AS INTEGER) AS bucket,
+			status,
+			COUNT(*) AS n
 		FROM health_results
-		WHERE datetime(created_at) >= datetime('now', ?)
+		WHERE created_at >= ? AND created_at <= ?
+		GROUP BY bucket, status
 	`
-	checksModifier := fmt.Sprintf("-%d hours", windowHours+24)
-	checkRows, err := s.db.QueryContext(ctx, checksQuery, checksModifier)
+	startStr := start.Format(time.RFC3339Nano)
+	endStr := now.Format(time.RFC3339Nano)
+
+	rows, err := s.db.QueryContext(ctx, query, startUnix, bucketSeconds, startStr, endStr)
 	if err != nil {
-		return nil, fmt.Errorf("query checks failed: %w", err)
+		return nil, fmt.Errorf("query bucket aggregation failed: %w", err)
 	}
+	defer rows.Close()
 
-	var checkIDs []string
-	for checkRows.Next() {
-		var checkID string
-		if err := checkRows.Scan(&checkID); err != nil {
-			checkRows.Close()
-			return nil, fmt.Errorf("scan check_id failed: %w", err)
-		}
-		checkIDs = append(checkIDs, checkID)
-	}
-	if err := checkRows.Err(); err != nil {
-		checkRows.Close()
-		return nil, fmt.Errorf("rows error: %w", err)
-	}
-	if err := checkRows.Close(); err != nil {
-		return nil, fmt.Errorf("close check rows failed: %w", err)
-	}
-
-	statusStmt, err := s.db.PrepareContext(ctx, `
-		SELECT status
-		FROM health_results
-		WHERE check_id = ? AND datetime(created_at) <= datetime(?)
-		ORDER BY datetime(created_at) DESC
-		LIMIT 1
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("prepare status query failed: %w", err)
-	}
-	defer statusStmt.Close()
-
-	var buckets []UptimeHistoryBucket
-	var totalSnapshots, totalOk, totalWarning, totalCritical int
+	buckets := make([]UptimeHistoryBucket, bucketCount)
 	for i := 0; i < bucketCount; i++ {
 		bucketTime := start.Add(time.Duration(i) * bucketDuration)
 		if bucketTime.After(now) {
 			bucketTime = now
 		}
+		buckets[i] = UptimeHistoryBucket{Timestamp: bucketTime}
+	}
 
-		bucket := UptimeHistoryBucket{Timestamp: bucketTime}
-		for _, checkID := range checkIDs {
-			var status string
-			err := statusStmt.QueryRowContext(ctx, checkID, bucketTime.Format(time.RFC3339Nano)).Scan(&status)
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			if err != nil {
-				return nil, fmt.Errorf("query status failed: %w", err)
-			}
-
-			bucket.Total++
-			switch status {
-			case "ok":
-				bucket.Ok++
-			case "warning":
-				bucket.Warning++
-			case "critical":
-				bucket.Critical++
-			}
+	var totalSnapshots, totalOk, totalWarning, totalCritical int
+	for rows.Next() {
+		var bucket int
+		var status string
+		var n int
+		if err := rows.Scan(&bucket, &status, &n); err != nil {
+			return nil, fmt.Errorf("scan bucket row failed: %w", err)
 		}
-
-		buckets = append(buckets, bucket)
-		totalSnapshots += bucket.Total
-		totalOk += bucket.Ok
-		totalWarning += bucket.Warning
-		totalCritical += bucket.Critical
+		if bucket < 0 {
+			bucket = 0
+		}
+		if bucket >= bucketCount {
+			bucket = bucketCount - 1
+		}
+		buckets[bucket].Total += n
+		switch status {
+		case "ok":
+			buckets[bucket].Ok += n
+			totalOk += n
+		case "warning":
+			buckets[bucket].Warning += n
+			totalWarning += n
+		case "critical":
+			buckets[bucket].Critical += n
+			totalCritical += n
+		}
+		totalSnapshots += n
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
 	uptimePercent := 100.0
@@ -344,14 +348,14 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 			COUNT(CASE WHEN status = 'critical' THEN 1 END) as critical_count,
 			MAX(created_at) as last_checked
 		FROM health_results
-		WHERE datetime(created_at) >= datetime('now', ?)
+		WHERE created_at >= ?
 		GROUP BY check_id
 		ORDER BY
 			CASE WHEN COUNT(*) = 0 THEN 100 ELSE COUNT(CASE WHEN status = 'ok' THEN 1 END) * 100.0 / COUNT(*) END ASC,
 			check_id ASC
 	`
-	modifier := fmt.Sprintf("-%d hours", windowHours)
-	rows, err := s.db.QueryContext(ctx, query, modifier)
+	cutoff := rfc3339NanoCutoff(time.Now(), windowHours)
+	rows, err := s.db.QueryContext(ctx, query, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
@@ -391,8 +395,8 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	currentStmt, err := s.db.PrepareContext(ctx, `
 		SELECT status
 		FROM health_results
-		WHERE check_id = ? AND datetime(created_at) >= datetime('now', ?)
-		ORDER BY datetime(created_at) DESC
+		WHERE check_id = ? AND created_at >= ?
+		ORDER BY created_at DESC
 		LIMIT 1
 	`)
 	if err != nil {
@@ -403,8 +407,8 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	recentStmt, err := s.db.PrepareContext(ctx, `
 		SELECT status
 		FROM health_results
-		WHERE check_id = ? AND datetime(created_at) >= datetime('now', ?)
-		ORDER BY datetime(created_at) DESC
+		WHERE check_id = ? AND created_at >= ?
+		ORDER BY created_at DESC
 		LIMIT 12
 	`)
 	if err != nil {
@@ -413,7 +417,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	defer recentStmt.Close()
 
 	for i := range trends {
-		if err := currentStmt.QueryRowContext(ctx, trends[i].CheckID, modifier).Scan(&trends[i].CurrentStatus); err != nil {
+		if err := currentStmt.QueryRowContext(ctx, trends[i].CheckID, cutoff).Scan(&trends[i].CurrentStatus); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				trends[i].CurrentStatus = "ok"
 			} else {
@@ -421,7 +425,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 			}
 		}
 
-		recentRows, err := recentStmt.QueryContext(ctx, trends[i].CheckID, modifier)
+		recentRows, err := recentStmt.QueryContext(ctx, trends[i].CheckID, cutoff)
 		if err != nil {
 			return nil, fmt.Errorf("recent statuses query failed: %w", err)
 		}
@@ -464,18 +468,18 @@ func (s *Store) getIncidentsSQLite(ctx context.Context, windowHours, limit int) 
 				status,
 				message,
 				created_at,
-				LAG(status) OVER (PARTITION BY check_id ORDER BY datetime(created_at)) as prev_status
+				LAG(status) OVER (PARTITION BY check_id ORDER BY created_at) as prev_status
 			FROM health_results
-			WHERE datetime(created_at) >= datetime('now', ?)
+			WHERE created_at >= ?
 		)
 		SELECT check_id, created_at, prev_status, status, message
 		FROM ordered_results
 		WHERE prev_status IS NOT NULL AND prev_status != status
-		ORDER BY datetime(created_at) DESC
+		ORDER BY created_at DESC
 		LIMIT ?
 	`
-	modifier := fmt.Sprintf("-%d hours", windowHours)
-	rows, err := s.db.QueryContext(ctx, query, modifier, limit)
+	cutoff := rfc3339NanoCutoff(time.Now(), windowHours)
+	rows, err := s.db.QueryContext(ctx, query, cutoff, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
@@ -533,7 +537,7 @@ func (s *Store) getActionLogsSQLite(ctx context.Context, limit int) (*ActionLogs
 	query := `
 		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
 		FROM action_logs
-		ORDER BY datetime(created_at) DESC
+		ORDER BY created_at DESC
 		LIMIT ?
 	`
 	rows, err := s.db.QueryContext(ctx, query, limit)
@@ -573,7 +577,7 @@ func (s *Store) getActionLogsForCheckSQLite(ctx context.Context, checkID string,
 		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
 		FROM action_logs
 		WHERE check_id = ?
-		ORDER BY datetime(created_at) DESC
+		ORDER BY created_at DESC
 		LIMIT ?
 	`
 	rows, err := s.db.QueryContext(ctx, query, checkID, limit)

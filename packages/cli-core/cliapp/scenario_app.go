@@ -173,7 +173,7 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 	}
 	app.StaleChecker.SourceContextPath = opts.SourceContextPath
 	app.StaleChecker.ManifestSourcePath = opts.ManifestSourcePath
-	app.StaleChecker.FreshnessInputs = append([]string(nil), opts.FreshnessInputs...)
+	app.StaleChecker.FreshnessInputs = resolveFreshnessInputs(opts.FreshnessInputs, nil)
 	app.tokenSource = func() string {
 		for _, env := range opts.TokenEnvVars {
 			if val := strings.TrimSpace(os.Getenv(env)); val != "" {
@@ -231,7 +231,7 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		BuildSourceRoot:    opts.BuildSourceRoot,
 		SourceContextPath:  "..",
 		ManifestSourcePath: defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
-		FreshnessInputs:    defaultStringSlice(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json"}),
+		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json"}),
 		HTTPClientOptions:  opts.HTTPClientOptions,
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,

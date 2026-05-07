@@ -1,3 +1,23 @@
+// Package protocgenconnectgo implements the host-tool handler for
+// protoc-gen-connect-go, the Connect-RPC code generator used by
+// packages/proto codegen.
+//
+// Install path: `go install connectrpc.com/connect/cmd/protoc-gen-connect-go@<pinned>`
+// where the pinned version comes from the manifest. The binary lands in
+// the user's $GOBIN (or $HOME/go/bin if unset). The handler symlinks the
+// installed binary into ~/.local/bin so buf finds it on PATH.
+//
+// # Sudo-context handling
+//
+// When the vrooli process is running as root (typically `sudo vrooli
+// setup`), naively spawning `go install` inherits HOME=/root and writes
+// the binary to /root/go/bin instead of the operator's home — and the
+// resulting symlink ends up root-owned, which the operator's normal-user
+// processes cannot maintain. To avoid this, all per-user operations
+// (go install, mkdir, ln -sfn) run through hostreqkit.RunAsInvokingUser,
+// which drops privileges back to $SUDO_USER when we're root and runs
+// natively otherwise. Path resolution uses InvokingUserHomeDir so HOME
+// resolves to the operator's home regardless of sudo's env scrubbing.
 package protocgenconnectgo
 
 import (
@@ -16,9 +36,6 @@ const (
 	defaultVersion = "v1.19.2"
 )
 
-// UserHomeDirFn lets tests stub home-dir resolution.
-var UserHomeDirFn = os.UserHomeDir
-
 type handler struct {
 	manifest hostreqkit.ToolManifest
 }
@@ -32,7 +49,10 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
-	status.Command, status.Installed = hostreqkit.ResolveCommand(h.manifest.Commands)
+	// ResolveCommandForInvokingUser also probes the operator's
+	// ~/.local/bin and ~/go/bin — sudo'd processes inherit root's PATH
+	// which excludes those, so a plain LookPath would false-negative.
+	status.Command, status.Installed = hostreqkit.ResolveCommandForInvokingUser(h.manifest.Commands)
 	status.SupportClass = hostreqkit.SupportSupported
 	status.Notes = append(status.Notes, h.manifest.InstallHint)
 	if requirement.Manual {
@@ -78,7 +98,9 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "dry-run: go install "+pkgRef)
 		return status, nil
 	}
-	if err := hostreqkit.RunInstallCommand("go", []string{"install", pkgRef}, opts); err != nil {
+	// go install runs as $SUDO_USER when we're root, ensuring the binary
+	// lands in the operator's $HOME/go/bin (not /root/go/bin).
+	if err := hostreqkit.RunAsInvokingUser("go", []string{"install", pkgRef}, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
@@ -86,7 +108,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	if err := ensureSymlinkOnPath(opts); err != nil {
 		status.Notes = append(status.Notes, "post-install symlink: "+err.Error())
 	}
-	status.Command, status.Installed = hostreqkit.ResolveCommand(h.manifest.Commands)
+	status.Command, status.Installed = hostreqkit.ResolveCommandForInvokingUser(h.manifest.Commands)
 	if !status.Installed {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, fmt.Sprintf("go install %s succeeded but %s is not on PATH; ensure $GOBIN (or $HOME/go/bin) is on PATH or rerun setup", pkgRef, pluginBinName))
@@ -104,6 +126,10 @@ func (h handler) versionRef() string {
 	return defaultVersion
 }
 
+// ensureSymlinkOnPath links $GOBIN-or-default/<bin> into ~/.local/bin/<bin>
+// so the plugin is discoverable by buf via PATH. mkdir and ln run via
+// RunAsInvokingUser so the resulting directory and symlink are owned by
+// the operator (not root) when invoked under sudo.
 func ensureSymlinkOnPath(opts hostreqkit.EnsureOptions) error {
 	source, err := goInstallTarget()
 	if err != nil {
@@ -112,30 +138,26 @@ func ensureSymlinkOnPath(opts hostreqkit.EnsureOptions) error {
 	if _, statErr := os.Stat(source); statErr != nil {
 		return fmt.Errorf("post-install: %s not found at %s: %w", pluginBinName, source, statErr)
 	}
-	home, err := UserHomeDirFn()
+	home, err := hostreqkit.InvokingUserHomeDir()
 	if err != nil {
 		return fmt.Errorf("resolve home dir: %w", err)
 	}
 	linkDir := filepath.Join(home, ".local", "bin")
-	if mkErr := os.MkdirAll(linkDir, 0o755); mkErr != nil {
+	link := filepath.Join(linkDir, pluginBinName)
+	if mkErr := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", linkDir}, opts); mkErr != nil {
 		return fmt.Errorf("ensure %s: %w", linkDir, mkErr)
 	}
-	link := filepath.Join(linkDir, pluginBinName)
-	existing, readErr := os.Readlink(link)
-	if readErr == nil && existing == source {
-		return nil
-	}
-	if _, statErr := os.Lstat(link); statErr == nil {
-		if rmErr := os.Remove(link); rmErr != nil {
-			return fmt.Errorf("replace stale symlink %s: %w", link, rmErr)
-		}
-	}
-	if symErr := os.Symlink(source, link); symErr != nil {
+	if symErr := hostreqkit.RunAsInvokingUser("ln", []string{"-sfn", source, link}, opts); symErr != nil {
 		return fmt.Errorf("create symlink %s -> %s: %w", link, source, symErr)
 	}
 	return nil
 }
 
+// goInstallTarget mirrors `go install`'s default destination: $GOBIN,
+// $GOPATH/bin, then $HOME/go/bin. Under sudo, $GOBIN/$GOPATH from the
+// root process are typically empty, so we fall through to the home-dir
+// path — which uses InvokingUserHomeDir to resolve to the operator's
+// home, not /root.
 func goInstallTarget() (string, error) {
 	if gobin := strings.TrimSpace(os.Getenv("GOBIN")); gobin != "" {
 		return filepath.Join(gobin, pluginBinName), nil
@@ -143,7 +165,7 @@ func goInstallTarget() (string, error) {
 	if gopath := strings.TrimSpace(os.Getenv("GOPATH")); gopath != "" {
 		return filepath.Join(gopath, "bin", pluginBinName), nil
 	}
-	home, err := UserHomeDirFn()
+	home, err := hostreqkit.InvokingUserHomeDir()
 	if err != nil {
 		return "", err
 	}

@@ -71,10 +71,32 @@ type Response struct {
 	PhaseSummary  PhaseSummary   `json:"phaseSummary"`
 	Phases        []Phase        `json:"phases"`
 	Warnings      []string       `json:"warnings"`
+	WarningSummary WarningSummary `json:"warningSummary"`
 	Error         string         `json:"error"`
 	ErrorMessages []string       `json:"errors"`
 	Links         map[string]any `json:"links"`
 	Metadata      map[string]any `json:"metadata"`
+}
+
+// WarningDetail captures a non-fatal warning emitted by a phase.
+type WarningDetail struct {
+	Message      string `json:"message"`
+	Source       string `json:"source,omitempty"`
+	LogPath      string `json:"logPath,omitempty"`
+	ArtifactPath string `json:"artifactPath,omitempty"`
+}
+
+// PhaseWarningSummary groups warnings by phase.
+type PhaseWarningSummary struct {
+	Name     string          `json:"name"`
+	Count    int             `json:"count"`
+	Warnings []WarningDetail `json:"warnings,omitempty"`
+}
+
+// WarningSummary aggregates phase warning observations.
+type WarningSummary struct {
+	Total  int                   `json:"total"`
+	Phases []PhaseWarningSummary `json:"phases,omitempty"`
 }
 
 // PhaseToggle mirrors the API payload for global phase toggles.

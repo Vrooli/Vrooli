@@ -547,13 +547,49 @@ func (m *Manager) readInstallMetadata(item InstallableCLI) (InstallMetadata, boo
 	return meta, true, nil
 }
 
+// installAll ensures each item is installed and current, continuing past
+// individual failures so one broken CLI doesn't abort the entire setup.
+// Per-item errors are collected and reported as a single combined error
+// at the end; the overall setup still fails (the operator needs to know
+// something is broken) but every installable gets attempted, and the
+// operator sees which ones failed in one pass instead of having to
+// fix-and-retry one at a time.
+//
+// Why ensure (freshness-checked) and not install (unconditional rebuild):
+// re-running `vrooli setup` is idempotent by design — repeat invocations
+// should be quiet and fast. Each CLI's freshness fingerprint is recorded
+// in its .build.meta sidecar; ensure() recomputes the fingerprint from
+// current sources and skips the install when it matches. This means the
+// 27+ resource/scenario CLIs only rebuild when something they depend on
+// actually changed, instead of every setup spamming the terminal with
+// "✅ installed CLI to ..." lines.
+//
+// Common failure cases this isolates:
+//   - go.sum drift in one scenario CLI after a cli-core dep change.
+//   - A scenario whose Go module fails to compile.
+//   - Missing prerequisites for one shell-script-adapter CLI.
 func (m *Manager) installAll(ctx context.Context, items []InstallableCLI) error {
+	type failure struct {
+		kind Kind
+		name string
+		err  error
+	}
+	var failures []failure
 	for _, item := range items {
-		if err := m.install(ctx, item); err != nil {
-			return err
+		if err := m.ensure(ctx, item); err != nil {
+			failures = append(failures, failure{kind: item.Kind, name: item.Name, err: err})
+			fmt.Fprintf(os.Stderr, "[WARN]    %s CLI %q install failed: %v\n", item.Kind, item.Name, err)
+			continue
 		}
 	}
-	return nil
+	if len(failures) == 0 {
+		return nil
+	}
+	parts := make([]string, 0, len(failures))
+	for _, f := range failures {
+		parts = append(parts, fmt.Sprintf("%s %q (%v)", f.kind, f.name, f.err))
+	}
+	return fmt.Errorf("%d CLI install(s) failed: %s", len(failures), strings.Join(parts, "; "))
 }
 
 func (m *Manager) install(ctx context.Context, item InstallableCLI) error {

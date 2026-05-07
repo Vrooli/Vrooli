@@ -17,13 +17,16 @@ import (
 	dnsresolution "github.com/vrooli/vrooli/internal/safeguards/dns-resolution"
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
+	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
 	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
 	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
+	ollamaresourcecontrols "github.com/vrooli/vrooli/internal/safeguards/ollama-resource-controls"
 	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
+	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 	"github.com/vrooli/vrooli/internal/tools"
 	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
@@ -64,13 +67,16 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"dns_resolution":            dnsresolution.NewHandler,
 	"docker_host_firewall":      dockerhostfirewall.NewHandler,
 	"edac_modules":              edacmodules.NewHandler,
+	"host_hardening":            hosthardening.NewHandler,
 	"kernel_config":             kernelconfig.NewHandler,
 	"nat_protection":            natprotection.NewHandler,
 	"netconsole":                netconsole.NewHandler,
+	"ollama_resource_controls":  ollamaresourcecontrols.NewHandler,
 	"pstore_native":             pstorenative.NewHandler,
 	"pstore_ramoops":            pstoreramoops.NewHandler,
 	"remote_session_protection": remotesessionprotection.NewHandler,
 	"tcp_tuning":                tcptuning.NewHandler,
+	"vrooli_launcher":           vroolilauncher.NewHandler,
 }
 
 type registry struct {

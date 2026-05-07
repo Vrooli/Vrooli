@@ -226,6 +226,51 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	})
 }
 
+func TestBuildWarningSummaryGroupsWarningObservationsByPhase(t *testing.T) {
+	results := []PhaseExecutionResult{
+		{
+			Name:    "structure",
+			LogPath: "coverage/logs/run/structure.log",
+			Observations: []phasespkg.Observation{
+				phasespkg.NewSuccessObservation("structure passed"),
+				phasespkg.NewWarningObservation("starter BAS registry is empty"),
+			},
+		},
+		{
+			Name:    "performance",
+			LogPath: "coverage/logs/run/performance.log",
+			Observations: []phasespkg.Observation{
+				phasespkg.NewWarningObservation("seo: 82% below warning threshold 90%"),
+				phasespkg.NewInfoObservation("lighthouse artifact written"),
+			},
+		},
+	}
+
+	summary := BuildWarningSummary(results)
+	if summary.Total != 2 {
+		t.Fatalf("expected two warnings, got %#v", summary)
+	}
+	if len(summary.Phases) != 2 {
+		t.Fatalf("expected two phase groups, got %#v", summary.Phases)
+	}
+	if summary.Phases[0].Name != "structure" || summary.Phases[0].Count != 1 {
+		t.Fatalf("unexpected first phase summary: %#v", summary.Phases[0])
+	}
+	warning := summary.Phases[1].Warnings[0]
+	if warning.Message != "seo: 82% below warning threshold 90%" {
+		t.Fatalf("unexpected warning message: %#v", warning)
+	}
+	if warning.Source != "observation" {
+		t.Fatalf("expected observation source, got %q", warning.Source)
+	}
+	if warning.LogPath != "coverage/logs/run/performance.log" {
+		t.Fatalf("expected log path to be copied, got %q", warning.LogPath)
+	}
+	if warning.ArtifactPath != filepath.Join("coverage", "phase-results", "performance.json") {
+		t.Fatalf("expected artifact path, got %q", warning.ArtifactPath)
+	}
+}
+
 func TestSuiteOrchestratorPreviewExecutionUsesConfiguredTimeouts(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-PREVIEW-P0] preview reflects selected phases and timeout overrides", func(t *testing.T) {
 		root := t.TempDir()

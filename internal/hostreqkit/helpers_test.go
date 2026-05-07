@@ -451,6 +451,57 @@ func TestInstallManagedContentCommandFailure(t *testing.T) {
 	}
 }
 
+func TestInstallManagedExecutableUsesMode0755(t *testing.T) {
+	// Mode 0755 is the only intended difference from InstallManagedContent.
+	// Lock it in so a future refactor doesn't silently flip the bit.
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	var gotArgs []string
+	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
+		gotArgs = args
+		return nil
+	}
+
+	err := InstallManagedExecutable("/usr/local/bin/foo", "#!/bin/sh\necho hi\n", "ask", EnsureOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(gotArgs, " ")
+	if !strings.Contains(joined, "install -m 0755") {
+		t.Fatalf("args = %q, want install -m 0755", joined)
+	}
+	if !strings.Contains(joined, "/usr/local/bin/foo") {
+		t.Fatalf("args = %q, want target path /usr/local/bin/foo", joined)
+	}
+}
+
+func TestInstallManagedExecutableDryRunSkips(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	var called bool
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		called = true
+		return nil
+	}
+
+	err := InstallManagedExecutable("/usr/local/bin/foo", "content", "ask", EnsureOptions{DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("RunCommandFn should not be called during dry-run")
+	}
+}
+
 func TestValidateSetupSupported(t *testing.T) {
 	h := Host{OS: "linux", SupportsSetup: true}
 	if err := h.ValidateSetup(); err != nil {

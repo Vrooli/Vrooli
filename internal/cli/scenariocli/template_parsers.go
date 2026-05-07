@@ -50,6 +50,7 @@ func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
 					{Name: "--template", ValueName: "name", Description: "Validate only one template"},
 					{Name: "--retain-temp", Description: "Keep temporary generated output for debugging"},
 					{Name: "--test-preset", ValueName: "name", Description: "test-genie preset for deep validation"},
+					{Name: "--warning-policy", ValueName: "ignore|report|fail", Description: "Deep validation warning handling; defaults to report for deep mode"},
 				},
 			},
 			Handler: TemplateCommandValidate,
@@ -135,8 +136,9 @@ func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error
 		return TemplateValidateRequest{}, err
 	}
 	req := TemplateValidateRequest{
-		Mode:       TemplateValidationModeShallow,
-		TestPreset: DefaultTemplateValidationTestPreset,
+		Mode:          TemplateValidationModeShallow,
+		TestPreset:    DefaultTemplateValidationTestPreset,
+		WarningPolicy: TemplateValidationWarningPolicyIgnore,
 	}
 	if mode := strings.TrimSpace(parsed.FlagValue("--mode")); mode != "" {
 		req.Mode = TemplateValidationMode(mode)
@@ -150,6 +152,17 @@ func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error
 	req.RetainTemp = parsed.HasFlag("--retain-temp")
 	if preset := strings.TrimSpace(parsed.FlagValue("--test-preset")); preset != "" {
 		req.TestPreset = preset
+	}
+	if req.Mode == TemplateValidationModeDeep {
+		req.WarningPolicy = TemplateValidationWarningPolicyReport
+	}
+	if policy := strings.TrimSpace(parsed.FlagValue("--warning-policy")); policy != "" {
+		req.WarningPolicy = TemplateValidationWarningPolicy(policy)
+	}
+	switch req.WarningPolicy {
+	case TemplateValidationWarningPolicyIgnore, TemplateValidationWarningPolicyReport, TemplateValidationWarningPolicyFail:
+	default:
+		return TemplateValidateRequest{}, fmt.Errorf("unknown warning policy %q; expected ignore, report, or fail", req.WarningPolicy)
 	}
 	if req.Mode == TemplateValidationModeShallow && parsed.HasFlag("--test-preset") {
 		return TemplateValidateRequest{}, fmt.Errorf("--test-preset is only valid with --mode deep")

@@ -3,12 +3,29 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
 
 	_ "modernc.org/sqlite"
 )
+
+// productionSchemaPath returns the path to the canonical SQLite schema file.
+// Tests load the same schema the runtime uses so that index-defeating query
+// regressions are caught here instead of at deploy time.
+func productionSchemaPath(t *testing.T) string {
+	t.Helper()
+	// store_sqlite_test.go lives at scenarios/vrooli-autoheal/api/internal/persistence/
+	// schema lives at  scenarios/vrooli-autoheal/initialization/sqlite/schema.sql
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd() error = %v", err)
+	}
+	return filepath.Join(wd, "..", "..", "..", "initialization", "sqlite", "schema.sql")
+}
 
 func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {
 	db := openSQLiteTestDB(t)
@@ -241,40 +258,12 @@ func openSQLiteTestDB(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	schema := `
-	CREATE TABLE health_results (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		check_id TEXT NOT NULL,
-		status TEXT NOT NULL,
-		message TEXT NOT NULL,
-		details TEXT NOT NULL DEFAULT '{}',
-		duration_ms INTEGER NOT NULL DEFAULT 0,
-		created_at TEXT NOT NULL
-	);
-	CREATE TABLE action_logs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		check_id TEXT NOT NULL,
-		action_id TEXT NOT NULL,
-		success INTEGER NOT NULL,
-		message TEXT NOT NULL,
-		output TEXT,
-		error TEXT,
-		duration_ms INTEGER NOT NULL DEFAULT 0,
-		created_at TEXT NOT NULL
-	);
-	CREATE TABLE heal_trackers (
-		check_id TEXT PRIMARY KEY,
-		last_attempt TEXT,
-		last_success TEXT,
-		consecutive_failures INTEGER NOT NULL DEFAULT 0,
-		total_attempts INTEGER NOT NULL DEFAULT 0,
-		total_successes INTEGER NOT NULL DEFAULT 0,
-		cooldown_until TEXT,
-		updated_at TEXT NOT NULL
-	);
-	`
-	if _, err := db.Exec(schema); err != nil {
-		t.Fatalf("create schema error = %v", err)
+	schemaBytes, err := os.ReadFile(productionSchemaPath(t))
+	if err != nil {
+		t.Fatalf("read production schema error = %v", err)
+	}
+	if _, err := db.Exec(string(schemaBytes)); err != nil {
+		t.Fatalf("apply production schema error = %v", err)
 	}
 
 	return db

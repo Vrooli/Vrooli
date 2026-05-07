@@ -32,13 +32,36 @@ func stub(t *testing.T) (restore func()) {
 	origLookPath := hostreqkit.LookPathFn
 	origCombinedOutput := hostreqkit.CombinedOutputFn
 	origRunCommand := hostreqkit.RunCommandFn
-	origUserHome := UserHomeDirFn
+	origReadFile := hostreqkit.ReadFileFn
+	origRoot := hostreqkit.RunningAsRootFn
 	return func() {
 		hostreqkit.LookPathFn = origLookPath
 		hostreqkit.CombinedOutputFn = origCombinedOutput
 		hostreqkit.RunCommandFn = origRunCommand
-		UserHomeDirFn = origUserHome
+		hostreqkit.ReadFileFn = origReadFile
+		hostreqkit.RunningAsRootFn = origRoot
 	}
+}
+
+// fakeFSExec is a tiny shell emulator that translates the handful of
+// shell commands the protoc-gen handlers issue (mkdir -p, ln -sfn) into
+// real filesystem operations. Tests use it to verify the handler's
+// behavior without coupling to a real shell.
+func fakeFSExec(name string, args []string) error {
+	switch name {
+	case "mkdir":
+		// Expected: ["-p", path].
+		if len(args) >= 2 && args[0] == "-p" {
+			return os.MkdirAll(args[1], 0o755)
+		}
+	case "ln":
+		// Expected: ["-sfn", source, link].
+		if len(args) >= 3 && args[0] == "-sfn" {
+			_ = os.Remove(args[2])
+			return os.Symlink(args[1], args[2])
+		}
+	}
+	return errors.New("fakeFSExec: unsupported command " + name + " " + strings.Join(args, " "))
 }
 
 func TestNameAndKind(t *testing.T) {
@@ -108,6 +131,18 @@ func TestInspectGoPresentEnablesInstall(t *testing.T) {
 
 func TestApplyDryRunReportsCommand(t *testing.T) {
 	defer stub(t)()
+	// Steer the user-dir probe at an empty tmpdir so the test isn't
+	// polluted by the real developer's ~/.local/bin or ~/go/bin.
+	tmpHome := t.TempDir()
+	hostreqkit.RunningAsRootFn = func() bool { return false }
+	t.Setenv("USER", "alice")
+	t.Setenv("HOME", tmpHome)
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/etc/passwd" {
+			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "go" {
 			return "/usr/local/go/bin/go", nil
@@ -137,41 +172,50 @@ func TestApplyInvokesGoInstallAndSymlinks(t *testing.T) {
 	defer stub(t)()
 
 	tmpHome := t.TempDir()
-	UserHomeDirFn = func() (string, error) { return tmpHome, nil }
+	// Steer InvokingUserHomeDir at the temp dir by stubbing the passwd
+	// lookup seam. We stay non-root for this test (RunAsInvokingUser is
+	// a no-op shell-out under that mode), exercising the basic flow.
+	hostreqkit.RunningAsRootFn = func() bool { return false }
+	t.Setenv("USER", "alice")
+	t.Setenv("HOME", tmpHome)
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/etc/passwd" {
+			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
 	t.Setenv("GOBIN", "")
 	t.Setenv("GOPATH", "")
-	// Pre-create the binary at $HOME/go/bin so the post-install symlink finds a target.
 	goBin := filepath.Join(tmpHome, "go", "bin")
 	if err := os.MkdirAll(goBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	binPath := filepath.Join(goBin, "protoc-gen-go")
-	if err := os.WriteFile(binPath, []byte("#!/bin/sh\necho v1.36.11\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 
-	var ranArgs []string
+	var goInstallArgs []string
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {
 		case "go":
 			return "/usr/local/go/bin/go", nil
 		case "protoc-gen-go":
-			// First resolve attempt before install: fail.
-			// After install, the symlink in ~/.local/bin will be detected.
-			link := filepath.Join(tmpHome, ".local", "bin", "protoc-gen-go")
-			if _, err := os.Lstat(link); err == nil {
-				return link, nil
-			}
+			// LookPath always misses; ResolveCommandForInvokingUser's
+			// user-dir probe finds the binary post-install.
 			return "", os.ErrNotExist
 		}
 		return "", os.ErrNotExist
 	}
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		if name != "go" || len(args) < 2 || args[0] != "install" {
-			return errors.New("unexpected command")
+		if name == "go" {
+			if len(args) < 2 || args[0] != "install" {
+				return errors.New("unexpected go args")
+			}
+			goInstallArgs = append([]string(nil), args...)
+			// Simulate `go install` writing the binary.
+			return os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755)
 		}
-		ranArgs = append([]string(nil), args...)
-		return nil
+		// mkdir -p, ln -sfn run via RunAsInvokingUser → emulate via
+		// fakeFSExec so the test exercises the real filesystem boundary.
+		return fakeFSExec(name, args)
 	}
 	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) {
 		return []byte("protoc-gen-go v1.36.11\n"), nil
@@ -185,8 +229,8 @@ func TestApplyInvokesGoInstallAndSymlinks(t *testing.T) {
 	if out.ExecutionState != hostreqkit.ExecutionInstalled {
 		t.Fatalf("ExecutionState = %q (notes=%v)", out.ExecutionState, out.Notes)
 	}
-	if len(ranArgs) == 0 || !strings.Contains(ranArgs[1], "@v1.36.11") {
-		t.Fatalf("install command = %v; want pinned @v1.36.11", ranArgs)
+	if len(goInstallArgs) == 0 || !strings.Contains(goInstallArgs[1], "@v1.36.11") {
+		t.Fatalf("install command = %v; want pinned @v1.36.11", goInstallArgs)
 	}
 	link := filepath.Join(tmpHome, ".local", "bin", "protoc-gen-go")
 	target, err := os.Readlink(link)
@@ -195,6 +239,91 @@ func TestApplyInvokesGoInstallAndSymlinks(t *testing.T) {
 	}
 	if target != binPath {
 		t.Fatalf("symlink target = %q; want %q", target, binPath)
+	}
+}
+
+func TestApplyDropsPrivilegesWhenRoot(t *testing.T) {
+	// Reproduces the bug from the user's `sudo vrooli setup` run:
+	// with the old code, `go install` ran as root with HOME=/root,
+	// dropping the binary in /root/go/bin instead of the operator's
+	// home. The fix wraps with `sudo -u $SUDO_USER -H` — confirm the
+	// wrap actually happens.
+	defer stub(t)()
+
+	tmpHome := t.TempDir()
+	hostreqkit.RunningAsRootFn = func() bool { return true }
+	t.Setenv("SUDO_USER", "alice")
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/etc/passwd" {
+			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	t.Setenv("GOBIN", "")
+	t.Setenv("GOPATH", "")
+
+	goBin := filepath.Join(tmpHome, "go", "bin")
+	if err := os.MkdirAll(goBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binPath := filepath.Join(goBin, "protoc-gen-go")
+
+	var sudoCalls []string
+	hostreqkit.LookPathFn = func(name string) (string, error) {
+		if name == "go" {
+			return "/usr/local/go/bin/go", nil
+		}
+		return "", os.ErrNotExist
+	}
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		// Under sudo'd flow every per-user command should be wrapped
+		// with `sudo -u alice -H -- ...` — record and assert.
+		sudoCalls = append(sudoCalls, name+" "+strings.Join(args, " "))
+		if name == "sudo" {
+			// Honor mkdir / ln / go install so the post-install state
+			// is realistic. Strip leading sudo args (-u alice -H --).
+			for i, a := range args {
+				if a == "--" && i+1 < len(args) {
+					inner, innerArgs := args[i+1], args[i+2:]
+					if inner == "go" && len(innerArgs) >= 1 && innerArgs[0] == "install" {
+						return os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755)
+					}
+					return fakeFSExec(inner, innerArgs)
+				}
+			}
+		}
+		return nil
+	}
+	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) {
+		return []byte("protoc-gen-go v1.36.11\n"), nil
+	}
+
+	status := newHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, baseRequirement())
+	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, status, hostreqkit.EnsureOptions{})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if out.ExecutionState != hostreqkit.ExecutionInstalled {
+		t.Fatalf("ExecutionState = %q (notes=%v); expected installed under sudo'd flow", out.ExecutionState, out.Notes)
+	}
+
+	// Every command we issued should have been wrapped with sudo -u alice.
+	wantWraps := []string{
+		"sudo -u alice -H -- go install",
+		"sudo -u alice -H -- mkdir -p",
+		"sudo -u alice -H -- ln -sfn",
+	}
+	for _, want := range wantWraps {
+		var found bool
+		for _, c := range sudoCalls {
+			if strings.HasPrefix(c, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing sudo-wrapped invocation %q in:\n  %s", want, strings.Join(sudoCalls, "\n  "))
+		}
 	}
 }
 

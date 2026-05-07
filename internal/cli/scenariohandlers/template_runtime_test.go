@@ -311,6 +311,73 @@ func TestRunTemplateValidateDeepInvokesTestGenieWithScenarioPath(t *testing.T) {
 	}
 }
 
+func TestRunTemplateValidateDeepReportsAndFailsWarningsByPolicy(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		policy        scenariocli.TemplateValidationWarningPolicy
+		wantIssue     bool
+		wantWarnCount int
+	}{
+		{name: "report", policy: scenariocli.TemplateValidationWarningPolicyReport, wantWarnCount: 1},
+		{name: "fail", policy: scenariocli.TemplateValidationWarningPolicyFail, wantIssue: true, wantWarnCount: 1},
+		{name: "ignore", policy: scenariocli.TemplateValidationWarningPolicyIgnore},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			repoRoot := t.TempDir()
+			seedRepoContract(t, repoRoot)
+			templateName := "demo-template"
+			templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
+			if err := os.MkdirAll(templateDir, 0o755); err != nil {
+				t.Fatalf("mkdir template dir: %v", err)
+			}
+			writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
+  "name": "demo-template",
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description"}
+  }
+}`)
+			writeTestFile(t, filepath.Join(templateDir, "README.md"), "# {{SCENARIO_DISPLAY_NAME}}\n")
+			var stdout, stderr strings.Builder
+			capture := &capturedSubprocess{stdout: `{
+  "success": true,
+  "warningSummary": {
+    "total": 1,
+    "phases": [{
+      "name": "performance",
+      "count": 1,
+      "warnings": [{
+        "message": "seo: 82% below warning threshold 90%",
+        "source": "observation",
+        "logPath": "coverage/logs/run/performance.log",
+        "artifactPath": "coverage/phase-results/performance.json"
+      }]
+    }]
+  }
+}`}
+			deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
+			deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
+
+			_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+				Mode:          scenariocli.TemplateValidationModeDeep,
+				TemplateName:  templateName,
+				TestPreset:    "quick",
+				WarningPolicy: tt.policy,
+			})
+			if err != nil {
+				t.Fatalf("runTemplateValidate(deep) error = %v", err)
+			}
+			if gotIssue := len(report.Issues) > 0; gotIssue != tt.wantIssue {
+				t.Fatalf("issues = %#v, want issue %t", report.Issues, tt.wantIssue)
+			}
+			if report.WarningSummary.Total != tt.wantWarnCount || report.DeepRuns[0].WarningSummary.Total != tt.wantWarnCount {
+				t.Fatalf("warning summaries = report %#v run %#v", report.WarningSummary, report.DeepRuns[0].WarningSummary)
+			}
+		})
+	}
+}
+
 func TestRunTemplateValidateDeepFailsWhenTestGenieJSONReportsFailure(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedRepoContract(t, repoRoot)

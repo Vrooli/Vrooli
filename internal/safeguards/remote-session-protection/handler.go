@@ -3,6 +3,7 @@ package remotesessionprotection
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -97,6 +98,15 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	pending := inspectStaticFiles(host)
 	desktopPending := inspectDesktopProtection(host)
 	pending = append(pending, desktopPending...)
+
+	// Surface competing swap areas (e.g. Ubuntu installer's /swap.img sitting
+	// next to the safeguard-managed /swapfile). Informational only — operator
+	// decides whether to dedupe.
+	if competing := CompetingSwapsFn(); len(competing) > 0 {
+		status.Notes = append(status.Notes, fmt.Sprintf(
+			"competing swap area(s) active alongside %s: %s — operator may dedupe with `sudo swapoff <path> && sudo sed -i '\\|^<path>\\b|d' /etc/fstab && sudo rm <path>` (replace <path> with each entry)",
+			swapFile, strings.Join(competing, ", ")))
+	}
 
 	if len(pending) == 0 {
 		status.Applied = true
@@ -277,13 +287,26 @@ func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions)
 		return fmt.Errorf("install desktop slice config: %w", err)
 	}
 
-	// Apply to running cgroup v2 if available (best-effort)
+	// Apply to running cgroup v2 if available (best-effort).
+	//
+	// Why not InstallManagedContent: install(1) replaces the destination by
+	// unlink + rename, which fails on /sys/fs/cgroup pseudo-files
+	// ("Operation not permitted") and leaks the error to stderr even when
+	// the caller discards the return value. cgroup attribute files accept
+	// a single write of the new value — stream the bytes via tee with
+	// stderr suppressed and skip the call entirely if the file is missing.
 	cgroupPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice", desktopUID)
 	minBytes := strconv.Itoa(alloc.desktopMinMB * 1024 * 1024)
 	lowBytes := strconv.Itoa(alloc.desktopLowMB * 1024 * 1024)
-	// Ignore errors — cgroup may not exist yet
-	_ = hostreqkit.InstallManagedContent(cgroupPath+"/memory.min", minBytes+"\n", opts.SudoMode, opts)
-	_ = hostreqkit.InstallManagedContent(cgroupPath+"/memory.low", lowBytes+"\n", opts.SudoMode, opts)
+	writeCgroupValue := func(path, value string) {
+		if _, err := os.Stat(path); err != nil {
+			return
+		}
+		_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sh",
+			[]string{"-c", fmt.Sprintf("printf %%s %s > %s 2>/dev/null", value, path)}, opts)
+	}
+	writeCgroupValue(cgroupPath+"/memory.min", minBytes)
+	writeCgroupValue(cgroupPath+"/memory.low", lowBytes)
 
 	// 3. Workload slice
 	if err := hostreqkit.InstallManagedContent(workloadSlicePath, workloadSliceContent(), opts.SudoMode, opts); err != nil {
@@ -427,6 +450,35 @@ ManagedOOMPreference=avoid
 
 // ── Swap management ──────────────────────────────────────────────────────────
 
+// CompetingSwapsFn returns the paths of active swap areas that are not the
+// safeguard's managed swapFile. Stubbed in tests.
+//
+// Why this exists: ensureSwap reads SwapTotal from /proc/meminfo, which is
+// the *aggregate* across all swap areas. On Ubuntu the installer creates
+// /swap.img and `vrooli setup` then writes /swapfile alongside it — both
+// stay active, SwapTotal looks correct, and the safeguard never realizes
+// the host has two competing swaps until a future resize, fstab edit, or
+// disk-cleanup hits inconsistent state. We surface a Note so the operator
+// can dedupe; we deliberately do *not* swapoff/rm here because some
+// operators legitimately maintain multiple swap areas (encrypted swap on a
+// separate device, hibernate swap partition, etc.). Detect-and-warn, not
+// detect-and-destroy.
+var CompetingSwapsFn = func() []string {
+	out, err := hostreqkit.CombinedOutputFn("swapon", "--show=NAME", "--noheadings")
+	if err != nil {
+		return nil
+	}
+	var competing []string
+	for _, line := range strings.Split(string(out), "\n") {
+		path := strings.TrimSpace(line)
+		if path == "" || path == swapFile {
+			continue
+		}
+		competing = append(competing, path)
+	}
+	return competing
+}
+
 func ensureSwap(alloc memoryAllocation, opts hostreqkit.EnsureOptions) error {
 	currentGB := readCurrentSwapGB()
 	if currentGB >= alloc.targetSwapGB {
@@ -483,7 +535,7 @@ func dockerConfigApplied() bool {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return false
 	}
-	parent, _ := cfg["default-cgroup-parent"].(string)
+	parent, _ := cfg["cgroup-parent"].(string)
 	if parent != "workload.slice" {
 		return false
 	}
@@ -517,7 +569,15 @@ func applyDockerConfig(opts hostreqkit.EnsureOptions) error {
 	}
 	execOpts = append(execOpts, "native.cgroupdriver=systemd")
 	cfg["exec-opts"] = execOpts
-	cfg["default-cgroup-parent"] = "workload.slice"
+	// daemon.json key is `cgroup-parent` (the daemon-wide default for
+	// container cgroups). `default-cgroup-parent` is NOT a valid key —
+	// dockerd refuses to start with "directives don't match any
+	// configuration option: default-cgroup-parent". Keep this aligned with
+	// dockerd's --help output, not the CLI flag name `--cgroup-parent`.
+	cfg["cgroup-parent"] = "workload.slice"
+	// Strip a stale `default-cgroup-parent` left over from earlier buggy
+	// versions of this handler so existing hosts self-heal on next apply.
+	delete(cfg, "default-cgroup-parent")
 
 	output, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

@@ -239,8 +239,11 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(err) {
 		t.Fatalf("expected dry-run to avoid creating data dir, err=%v", err)
 	}
-	if !strings.Contains(stdout.String(), "tmux [required] would_install") {
-		t.Fatalf("stdout missing would_install result:\n%s", stdout.String())
+	if !strings.Contains(stdout.String(), "Needs operator input") {
+		t.Fatalf("stdout missing pending group:\n%s", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "tmux") {
+		t.Fatalf("stdout missing tmux line:\n%s", stdout.String())
 	}
 	if !strings.Contains(stdout.String(), "Dry-run mode skips git configuration, resource installation, and setup completion markers") {
 		t.Fatalf("stdout missing dry-run skip note:\n%s", stdout.String())
@@ -316,7 +319,7 @@ func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
 	}
 }
 
-func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
+func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
@@ -419,14 +422,20 @@ func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
 	}
 
 	output := stdout.String()
+	// We now render exactly one block (dry-run result), grouped.
+	if strings.Contains(output, "Host requirements plan") {
+		t.Fatalf("expected no plan block on dry-run; got:\n%s", output)
+	}
+	if strings.Count(output, "Host requirements") != 1 {
+		t.Fatalf("expected one Host requirements heading, got %d:\n%s",
+			strings.Count(output, "Host requirements"), output)
+	}
 	for _, expected := range []string{
-		"Host requirements plan",
-		"environment=development resources=none scenarios=alpha dry_run=true",
-		"git [required] already_present",
-		"tmux [required] planned_install",
-		"remote_session_protection [optional] not_applicable",
 		"Host requirements dry-run result",
-		"tmux [required] would_install",
+		"Already present (1): git",
+		"Needs operator input",
+		"tmux",
+		"Not applicable (1): remote_session_protection",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("stdout missing %q:\n%s", expected, output)
@@ -486,10 +495,10 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 
 	var plannedResolution hostreq.Resolution
 	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		plannedResolution = resolution
 		return reportFromResolution(environment, resolution, false), nil
 	}
 	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		plannedResolution = resolution
 		return reportFromResolution(opts.Environment, resolution, true), nil
 	}
 
@@ -519,14 +528,11 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 
 	output := stdout.String()
 	for _, expected := range []string{
-		"git [required] already_present",
-		"docker [required] planned_install",
-		"tmux [required] planned_install",
-		"sqlite [optional] manual_action_required",
-		"remote_session_protection [required] planned_apply",
-		"docker [required] would_install",
-		"tmux [required] would_install",
-		"remote_session_protection [required] would_apply",
+		"Already present",
+		"git",
+		"docker",
+		"tmux",
+		"remote_session_protection",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("stdout missing %q:\n%s", expected, output)

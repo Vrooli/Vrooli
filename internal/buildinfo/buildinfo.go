@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,6 +27,11 @@ const (
 	BuildTargetEnvVar = "VROOLI_BUILD_TARGET"
 	// RebuildLoopEnvVar records the fingerprint that triggered the last rebuild.
 	RebuildLoopEnvVar = "VROOLI_REBUILD_FINGERPRINT"
+	// FingerprintDebugEnvVar enables a per-file fingerprint dump to debugWriter
+	// (default os.Stderr) for diagnosing stale-rebuild loops. When set to a
+	// truthy value, every ComputeSourceFingerprintReport call emits one line per
+	// matched file: "<rel> <size> <sha256-hex>", sorted by relative path.
+	FingerprintDebugEnvVar = "VROOLI_FINGERPRINT_DEBUG"
 )
 
 var (
@@ -60,6 +66,19 @@ var (
 	execFn = func(argv0 string, argv []string, envv []string) error {
 		return syscall.Exec(argv0, argv, envv)
 	}
+	// flockFn calls syscall.Flock; injectable so tests can simulate contention
+	// without taking real kernel locks.
+	flockFn = func(fd int, how int) error { return syscall.Flock(fd, how) }
+	// openFileFn opens lock files; injectable for test fault injection.
+	openFileFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
+		return os.OpenFile(name, flag, perm)
+	}
+	// renameFn moves the freshly built binary into place; injectable so tests
+	// can assert the temp-file/atomic-rename invariant directly.
+	renameFn = os.Rename
+	// debugWriter is the destination for VROOLI_FINGERPRINT_DEBUG dumps. Tests
+	// override it; production code leaves it pointing at os.Stderr.
+	debugWriter io.Writer = os.Stderr
 )
 
 var skippedDirs = map[string]struct{}{
@@ -220,6 +239,10 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 	}
 	report.Fingerprint = fmt.Sprintf("%x", hasher.Sum(nil))
 
+	if isFingerprintDebugEnabled() {
+		dumpFingerprintEntries(debugWriter, report.Root, report.Fingerprint, entries)
+	}
+
 	if options.RequireGoFiles && report.MatchedFiles == 0 {
 		return FingerprintReport{}, NoGoFilesMatchedError{
 			Root:    report.Root,
@@ -304,6 +327,12 @@ func IsStale() bool {
 
 // CheckStaleness compares the embedded build fingerprint to the current source
 // fingerprint and returns the comparison result plus diagnostic metadata.
+//
+// A `<executable>.fp` sidecar, if present and at least as new as the
+// executable, can short-circuit the embedded compare — this lets a freshly
+// rebuilt binary be recognized as fresh by sibling processes whose embedded
+// symbol still reflects the old (in-memory) build. The embedded fingerprint
+// remains authoritative when no usable sidecar is present.
 func CheckStaleness() (StaleCheck, error) {
 	status := StaleCheck{
 		EmbeddedFingerprint: strings.TrimSpace(Fingerprint),
@@ -316,13 +345,65 @@ func CheckStaleness() (StaleCheck, error) {
 	status.Root = report.Root
 	status.Targets = append([]string(nil), report.Targets...)
 	status.CurrentFingerprint = report.Fingerprint
+
+	if sidecarMatches(status.CurrentFingerprint) {
+		status.Stale = false
+		return status, nil
+	}
+
 	status.Stale = status.EmbeddedFingerprint == "" ||
 		status.EmbeddedFingerprint == "unknown" ||
 		status.CurrentFingerprint != status.EmbeddedFingerprint
 	return status, nil
 }
 
+// sidecarMatches returns true when a `<executable>.fp` sidecar exists, equals
+// currentFingerprint, and was written no earlier than the executable's mtime
+// (so a developer's manual `go build` doesn't get falsely treated as fresh).
+func sidecarMatches(currentFingerprint string) bool {
+	executable, err := executablePathFn()
+	if err != nil || executable == "" {
+		return false
+	}
+	sidecar := executable + ".fp"
+	sidecarInfo, err := os.Stat(sidecar)
+	if err != nil {
+		return false
+	}
+	binInfo, err := os.Stat(executable)
+	if err == nil && sidecarInfo.ModTime().Before(binInfo.ModTime()) {
+		return false
+	}
+	contents, err := os.ReadFile(sidecar)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(contents)) == currentFingerprint
+}
+
+// writeSidecarFingerprint writes <executable>.fp atomically via temp-file +
+// os.Rename. Best-effort: errors are returned but callers should treat the
+// sidecar as a strict optimization, not a load-bearing artifact.
+func writeSidecarFingerprint(executable, fingerprint string) error {
+	sidecar := executable + ".fp"
+	tmp := fmt.Sprintf("%s.tmp.%d", sidecar, os.Getpid())
+	if err := os.WriteFile(tmp, []byte(fingerprint+"\n"), 0o644); err != nil {
+		return err
+	}
+	if err := renameFn(tmp, sidecar); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
 // RebuildAndReexec rebuilds the current binary from source and re-execs it.
+//
+// Concurrency: a host-wide flock at <executable>.lock serializes concurrent
+// rebuilders so two sibling processes (e.g. autoheal subprocesses, or any two
+// `vrooli` invocations on a stale tree) cannot race on `go build -o
+// <executable>`. The install is atomic via temp-file + os.Rename, so an
+// in-flight exec on the executable always sees a complete binary.
 func RebuildAndReexec(argv []string) error {
 	root, err := ResolveSourceRoot()
 	if err != nil {
@@ -347,6 +428,21 @@ func RebuildAndReexec(argv []string) error {
 		return fmt.Errorf("rebuild loop detected for fingerprint %s", currentFingerprint)
 	}
 
+	release, err := acquireRebuildLock(executable)
+	if err != nil {
+		return fmt.Errorf("acquire rebuild lock: %w", err)
+	}
+	defer release()
+
+	// After acquiring the lock, re-check whether a sibling rebuilder already
+	// landed a fresh binary at the same fingerprint. If so, skip the rebuild
+	// and exec straight into the freshly installed binary; this is the
+	// de-duplication that prevents a race-driven loop-guard trip.
+	if strings.TrimSpace(Fingerprint) == currentFingerprint {
+		execArgs := append([]string{executable}, argv...)
+		return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
+	}
+
 	gitCommit := strings.TrimSpace(GitCommit)
 	if gitCommit == "" || gitCommit == "unknown" {
 		if output, cmdErr := commandOutputFn(root, "git", "rev-parse", "HEAD"); cmdErr == nil {
@@ -365,13 +461,65 @@ func RebuildAndReexec(argv []string) error {
 		"github.com/vrooli/vrooli/internal/buildinfo.BuildTime", buildTime,
 	)
 
-	buildArgs := []string{"build", "-trimpath", "-ldflags", ldflags, "-o", executable, buildTarget}
+	tempPath := fmt.Sprintf("%s.tmp.%d", executable, os.Getpid())
+	buildArgs := []string{"build", "-trimpath", "-ldflags", ldflags, "-o", tempPath, buildTarget}
 	if err := goBuildFn(root, buildArgs); err != nil {
+		_ = os.Remove(tempPath)
 		return fmt.Errorf("rebuild %s: %w", buildTarget, err)
 	}
+	if err := renameFn(tempPath, executable); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("install rebuilt binary %s: %w", executable, err)
+	}
+	// Sidecar is a strict optimization for sibling processes whose embedded
+	// symbol still reflects the pre-rebuild fingerprint. Failures are
+	// non-fatal: the embedded-fingerprint compare remains authoritative.
+	_ = writeSidecarFingerprint(executable, currentFingerprint)
 
 	execArgs := append([]string{executable}, argv...)
 	return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
+}
+
+// acquireRebuildLock takes a host-wide LOCK_EX flock at <executable>.lock and
+// returns a release closure. The lock auto-releases on process death (kernel
+// closes the fd), so no stale-lock recovery is needed. Linux-only by project
+// posture.
+func acquireRebuildLock(executable string) (func(), error) {
+	lockPath := executable + ".lock"
+	f, err := openFileFn(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("open lock %s: %w", lockPath, err)
+	}
+	if err := flockFn(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("flock %s: %w", lockPath, err)
+	}
+	return func() {
+		_ = flockFn(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}, nil
+}
+
+func isFingerprintDebugEnabled() bool {
+	v := strings.TrimSpace(os.Getenv(FingerprintDebugEnvVar))
+	if v == "" {
+		return false
+	}
+	switch strings.ToLower(v) {
+	case "0", "false", "no", "off":
+		return false
+	}
+	return true
+}
+
+func dumpFingerprintEntries(w io.Writer, root, fingerprint string, entries []fingerprintEntry) {
+	if w == nil {
+		return
+	}
+	fmt.Fprintf(w, "# fingerprint=%s root=%s files=%d\n", fingerprint, root, len(entries))
+	for _, e := range entries {
+		fmt.Fprintf(w, "%s %d %x\n", e.rel, e.size, e.hash)
+	}
 }
 
 type fingerprintEntry struct {

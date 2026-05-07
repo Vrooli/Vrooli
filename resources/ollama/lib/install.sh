@@ -88,19 +88,29 @@ ollama::install_binary() {
 }
 
 #######################################
-# Check if existing Ollama service needs parallel processing configuration update
+# Check if existing Ollama service needs parallel processing or cgroup
+# protection configuration update.
 # Returns: 0 if update needed, 1 if not
 #######################################
 ollama::needs_parallel_config_update() {
-    if [[ ! -f "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" ]]; then
+    local service_file="/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service"
+    if [[ ! -f "$service_file" ]]; then
         return 1  # No service file exists
     fi
-    
+
+    # Stock Ollama installer's unit has no cgroup protections (no MemoryMax,
+    # no OOMScoreAdjust). Treat that as "needs update" so we re-render with
+    # protections — even if NUM_PARALLEL is already at our target.
+    if ! grep -qE '^(MemoryMax|MemoryHigh|OOMScoreAdjust)=' "$service_file" 2>/dev/null; then
+        log::debug "Service missing cgroup protections (MemoryMax/OOMScoreAdjust)"
+        return 0  # Update needed
+    fi
+
     # Check if service already has parallel processing environment variables
-    if grep -q "OLLAMA_NUM_PARALLEL" "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" 2>/dev/null; then
+    if grep -q "OLLAMA_NUM_PARALLEL" "$service_file" 2>/dev/null; then
         local current_parallel
-        current_parallel=$(grep "OLLAMA_NUM_PARALLEL" "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" | sed 's/.*OLLAMA_NUM_PARALLEL=\([0-9]*\).*/\1/')
-        
+        current_parallel=$(grep "OLLAMA_NUM_PARALLEL" "$service_file" | sed 's/.*OLLAMA_NUM_PARALLEL=\([0-9]*\).*/\1/')
+
         # If current setting is less than our optimized value, update needed
         if [[ "${current_parallel:-1}" -lt "$OLLAMA_NUM_PARALLEL" ]]; then
             log::debug "Current OLLAMA_NUM_PARALLEL ($current_parallel) is less than optimized ($OLLAMA_NUM_PARALLEL)"
@@ -113,6 +123,22 @@ ollama::needs_parallel_config_update() {
         log::debug "Service missing parallel processing configuration"
         return 0  # Update needed
     fi
+}
+
+#######################################
+# Render the [Service] cgroup-protection block as a string. Used by both
+# install_service and update_service_config so the unit content stays in sync.
+#######################################
+ollama::_render_resource_controls() {
+    local block="MemoryHigh=$OLLAMA_MEMORY_HIGH
+MemoryMax=$OLLAMA_MEMORY_MAX
+TasksMax=$OLLAMA_TASKS_MAX
+OOMScoreAdjust=$OLLAMA_OOM_SCORE_ADJUST"
+    if [[ -n "$OLLAMA_CPU_QUOTA" ]]; then
+        block="$block
+CPUQuota=$OLLAMA_CPU_QUOTA"
+    fi
+    printf '%s' "$block"
 }
 
 #######################################
@@ -136,6 +162,8 @@ ollama::update_service_config() {
     fi
     
     # Generate updated service content with parallel processing configuration
+    local resource_controls
+    resource_controls="$(ollama::_render_resource_controls)"
     local updated_service_content="[Unit]
 Description=Ollama Service
 After=network-online.target
@@ -152,6 +180,7 @@ Environment=\"OLLAMA_NUM_PARALLEL=$OLLAMA_NUM_PARALLEL\"
 Environment=\"OLLAMA_MAX_LOADED_MODELS=$OLLAMA_MAX_LOADED_MODELS\"
 Environment=\"OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION\"
 Environment=\"OLLAMA_ORIGINS=$OLLAMA_ORIGINS\"
+$resource_controls
 
 [Install]
 WantedBy=default.target"
@@ -288,6 +317,8 @@ ollama::install_service() {
     fi
     
     # Only create service if it doesn't exist
+    local resource_controls
+    resource_controls="$(ollama::_render_resource_controls)"
     local service_content="[Unit]
 Description=Ollama Service
 After=network-online.target
@@ -304,6 +335,7 @@ Environment=\"OLLAMA_NUM_PARALLEL=$OLLAMA_NUM_PARALLEL\"
 Environment=\"OLLAMA_MAX_LOADED_MODELS=$OLLAMA_MAX_LOADED_MODELS\"
 Environment=\"OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION\"
 Environment=\"OLLAMA_ORIGINS=$OLLAMA_ORIGINS\"
+$resource_controls
 
 [Install]
 WantedBy=default.target"

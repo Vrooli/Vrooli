@@ -138,9 +138,31 @@ type SuiteExecutionResult struct {
 	Phases              []PhaseExecutionResult `json:"phases"`
 	PhaseSummary        PhaseSummary           `json:"phaseSummary"`
 	Warnings            []string               `json:"warnings,omitempty"`
+	WarningSummary      WarningSummary         `json:"warningSummary"`
 }
 
 type PhaseExecutionResult = phases.ExecutionResult
+
+// WarningDetail captures a warning surfaced by a phase in structured output.
+type WarningDetail struct {
+	Message      string `json:"message"`
+	Source       string `json:"source,omitempty"`
+	LogPath      string `json:"logPath,omitempty"`
+	ArtifactPath string `json:"artifactPath,omitempty"`
+}
+
+// PhaseWarningSummary groups warnings by phase.
+type PhaseWarningSummary struct {
+	Name     string          `json:"name"`
+	Count    int             `json:"count"`
+	Warnings []WarningDetail `json:"warnings,omitempty"`
+}
+
+// WarningSummary aggregates all non-fatal phase warnings.
+type WarningSummary struct {
+	Total  int                   `json:"total"`
+	Phases []PhaseWarningSummary `json:"phases,omitempty"`
+}
 
 // PhaseSummary aggregates phase telemetry for quick status surfaces.
 type PhaseSummary struct {
@@ -433,6 +455,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	result.Success = !anyFailure
 	result.Phases = phaseResults
 	result.PhaseSummary = SummarizePhases(phaseResults)
+	result.WarningSummary = BuildWarningSummary(phaseResults)
 
 	if emit != nil {
 		emit(ExecutionEvent{
@@ -455,6 +478,41 @@ func (o *SuiteOrchestrator) finalizeExecution(
 
 	o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	return result
+}
+
+// BuildWarningSummary converts WARNING observations into a deterministic
+// execution-level summary while preserving the phase execution order.
+func BuildWarningSummary(results []PhaseExecutionResult) WarningSummary {
+	summary := WarningSummary{}
+	for _, phase := range results {
+		phaseSummary := PhaseWarningSummary{Name: phase.Name}
+		for _, observation := range phase.Observations {
+			if observation.Prefix != "WARNING" || strings.TrimSpace(observation.Text) == "" {
+				continue
+			}
+			phaseSummary.Warnings = append(phaseSummary.Warnings, WarningDetail{
+				Message:      strings.TrimSpace(observation.Text),
+				Source:       "observation",
+				LogPath:      phase.LogPath,
+				ArtifactPath: phaseArtifactPath(phase.Name),
+			})
+		}
+		if len(phaseSummary.Warnings) == 0 {
+			continue
+		}
+		phaseSummary.Count = len(phaseSummary.Warnings)
+		summary.Total += phaseSummary.Count
+		summary.Phases = append(summary.Phases, phaseSummary)
+	}
+	return summary
+}
+
+func phaseArtifactPath(phaseName string) string {
+	name := strings.TrimSpace(phaseName)
+	if name == "" {
+		return ""
+	}
+	return filepath.Join(sharedartifacts.PhaseResultsDir, name+".json")
 }
 
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(

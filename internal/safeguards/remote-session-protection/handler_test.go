@@ -18,16 +18,21 @@ func stubAll(t *testing.T) func() {
 	origReadFile := hostreqkit.ReadFileFn
 	origCombinedOutput := hostreqkit.CombinedOutputFn
 	origRunCommand := hostreqkit.RunCommandFn
+	origCompetingSwaps := CompetingSwapsFn
 	// Default stubs: no commands found, no files exist, no desktop detected
 	hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
 	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return nil, fmt.Errorf("stubbed") }
 	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error { return nil }
+	// Default: no competing swaps. Tests that exercise the dedup-warning path
+	// override.
+	CompetingSwapsFn = func() []string { return nil }
 	return func() {
 		hostreqkit.LookPathFn = origLookPath
 		hostreqkit.ReadFileFn = origReadFile
 		hostreqkit.CombinedOutputFn = origCombinedOutput
 		hostreqkit.RunCommandFn = origRunCommand
+		CompetingSwapsFn = origCompetingSwaps
 	}
 }
 
@@ -992,7 +997,7 @@ func TestDockerConfigAppliedTrue(t *testing.T) {
 		if path == dockerDaemonJSON {
 			return []byte(`{
 				"exec-opts": ["native.cgroupdriver=systemd"],
-				"default-cgroup-parent": "workload.slice",
+				"cgroup-parent": "workload.slice",
 				"log-driver": "json-file"
 			}`), nil
 		}
@@ -1167,5 +1172,96 @@ func TestEnsureSwapFallocateFallbackToDd(t *testing.T) {
 	}
 	if !foundDd {
 		t.Fatalf("expected dd fallback, got %v", calls)
+	}
+}
+
+// ── Competing-swap detection (Phase 4.5 — 2026-05-07 host-stability) ─────────
+
+func TestInspectCompetingSwapNoteAppearsWhenExtraSwapActive(t *testing.T) {
+	restore := stubAll(t)
+	defer restore()
+	CompetingSwapsFn = func() []string { return []string{"/swap.img"} }
+
+	status := newTestHandler().Inspect(linuxHost(), hostreqspec.ResolvedRequirement{
+		Name:     "remote_session_protection",
+		Kind:     hostreqspec.KindSafeguard,
+		Required: true,
+	})
+
+	joined := strings.Join(status.Notes, " | ")
+	if !strings.Contains(joined, "/swap.img") {
+		t.Errorf("expected note to name the competing swap path; got %v", status.Notes)
+	}
+	if !strings.Contains(joined, "competing swap area") {
+		t.Errorf("expected `competing swap area` phrasing in note; got %v", status.Notes)
+	}
+	if !strings.Contains(joined, "swapoff") {
+		t.Errorf("expected dedupe hint with swapoff in note; got %v", status.Notes)
+	}
+}
+
+func TestInspectCompetingSwapNoteAbsentWhenNoExtras(t *testing.T) {
+	restore := stubAll(t)
+	defer restore()
+	// stubAll defaults CompetingSwapsFn to return nil — leave it that way.
+
+	status := newTestHandler().Inspect(linuxHost(), hostreqspec.ResolvedRequirement{
+		Name:     "remote_session_protection",
+		Kind:     hostreqspec.KindSafeguard,
+		Required: true,
+	})
+
+	for _, n := range status.Notes {
+		if strings.Contains(n, "competing swap area") {
+			t.Errorf("did not expect competing-swap note when none active; got: %v", status.Notes)
+		}
+	}
+}
+
+func TestCompetingSwapsFnFiltersManagedFile(t *testing.T) {
+	origCombinedOutput := hostreqkit.CombinedOutputFn
+	defer func() { hostreqkit.CombinedOutputFn = origCombinedOutput }()
+
+	// Mimic `swapon --show=NAME --noheadings` output with both files active.
+	// The managed swapFile must be filtered out; everything else surfaces.
+	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		if name == "swapon" {
+			return []byte("/swap.img\n" + swapFile + "\n/mnt/encrypted-swap\n"), nil
+		}
+		return nil, fmt.Errorf("unexpected: %s %v", name, args)
+	}
+
+	got := CompetingSwapsFn()
+	wantContains := []string{"/swap.img", "/mnt/encrypted-swap"}
+	if len(got) != len(wantContains) {
+		t.Fatalf("got %d competing swaps, want %d (%v)", len(got), len(wantContains), got)
+	}
+	for _, want := range wantContains {
+		found := false
+		for _, g := range got {
+			if g == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %q in competing swaps; got %v", want, got)
+		}
+	}
+	for _, g := range got {
+		if g == swapFile {
+			t.Errorf("managed swap file %q must be filtered out; got %v", swapFile, got)
+		}
+	}
+}
+
+func TestCompetingSwapsFnReturnsNilOnSwaponError(t *testing.T) {
+	origCombinedOutput := hostreqkit.CombinedOutputFn
+	defer func() { hostreqkit.CombinedOutputFn = origCombinedOutput }()
+	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) {
+		return nil, fmt.Errorf("swapon: command not found")
+	}
+	if got := CompetingSwapsFn(); got != nil {
+		t.Errorf("expected nil on swapon error; got %v", got)
 	}
 }

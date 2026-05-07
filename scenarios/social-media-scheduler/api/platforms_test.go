@@ -15,7 +15,8 @@ func TestPlatformManagerInitialization(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Run("NewPlatformManager", func(t *testing.T) {
-		pm := NewPlatformManager(env.Config.OllamaURL)
+		_ = env
+		pm := NewPlatformManager()
 
 		if pm == nil {
 			t.Fatal("Platform manager should not be nil")

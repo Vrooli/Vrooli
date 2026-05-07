@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "ollama_resource_controls",
+  "description": "Cap ollama.service memory and bias OOM killer toward it via a systemd drop-in, so an embeddings burst from any caller cannot exhaust host RAM",
+  "handler": "ollama_resource_controls",
+  "platforms": ["linux"],
+  "risk": "medium",
+  "verificationCheck": {
+    "files": ["/etc/systemd/system/ollama.service.d/99-vrooli-resource-controls.conf"]
+  }
+}

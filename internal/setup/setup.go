@@ -38,12 +38,20 @@ const (
 )
 
 type Options struct {
-	DryRun      bool
-	SudoMode    string
-	Environment string
-	Resources   string
-	Scenarios   string
-	Yes         string
+	DryRun          bool
+	SudoMode        string
+	Environment     string
+	Resources       string
+	Scenarios       string
+	Yes             string
+	Verbose         bool
+	IncludeOptional bool
+	// Subcommand selects an alternate setup mode. Empty string runs the
+	// default apply flow. Recognized values: "status", "explain".
+	Subcommand string
+	// ExplainName is the requirement name to look up when Subcommand is
+	// "explain". Ignored otherwise.
+	ExplainName string
 }
 
 type apiLaunchSpec struct {
@@ -126,6 +134,13 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 }
 
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
+	switch opts.Subcommand {
+	case "status":
+		return s.runSetupStatus(root, home, opts, stdout)
+	case "explain":
+		return s.runSetupExplain(root, home, opts, stdout)
+	}
+
 	if err := s.deps.currentHost().ValidateSetup(); err != nil {
 		return err
 	}
@@ -149,19 +164,15 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if err != nil {
 		return err
 	}
-	planReport, err := s.deps.inspectRequirements(opts.Environment, requirements)
-	if err != nil {
-		return err
-	}
-	renderSetupRequirementPlan(stdout, opts, planReport)
 
 	report, ensureErr := s.deps.ensureRequirements(vrooliruntime.EnsureOptions{
-		Environment: opts.Environment,
-		SudoMode:    opts.SudoMode,
-		DryRun:      opts.DryRun,
-		AutoInstall: true,
-		Stdout:      stdout,
-		Stderr:      stderr,
+		Environment:     opts.Environment,
+		SudoMode:        opts.SudoMode,
+		DryRun:          opts.DryRun,
+		AutoInstall:     true,
+		IncludeOptional: opts.IncludeOptional,
+		Stdout:          stdout,
+		Stderr:          stderr,
 	}, requirements)
 	renderSetupRequirementResult(stdout, opts, report)
 	if ensureErr != nil && !opts.DryRun {
@@ -763,5 +774,77 @@ func markComplete(root string) error {
 	if err := os.WriteFile(projectstate.SetupCompletePath(root), data, 0o644); err != nil {
 		return err
 	}
+	return nil
+}
+
+// runSetupStatus runs an inspection-only pass and prints the grouped overview.
+// No mutating operations, safe to run without sudo.
+func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io.Writer) error {
+	if err := s.deps.currentHost().ValidateSetup(); err != nil {
+		return err
+	}
+	if _, err := s.deps.loadProject(root); err != nil {
+		return err
+	}
+	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
+		Environment: opts.Environment,
+		When:        "setup",
+		Resources:   opts.Resources,
+		Scenarios:   opts.Scenarios,
+		Platform:    hostreq.CurrentPlatform(),
+	})
+	if err != nil {
+		return err
+	}
+	report, err := s.deps.inspectRequirements(opts.Environment, requirements)
+	if err != nil {
+		return err
+	}
+	report = vrooliruntime.AnnotateInspectOnly(report, opts.IncludeOptional)
+	_, _ = fmt.Fprintf(
+		stdout,
+		"[INFO]    Host requirements status (environment=%s)\n",
+		displaySelection(report.Environment, displaySelection(opts.Environment, defaultEnvironment)),
+	)
+	mode := renderModeGrouped
+	if opts.Verbose {
+		mode = renderModeVerbose
+	}
+	renderSetupRequirementOverview(stdout, report, false, mode)
+	return nil
+}
+
+// runSetupExplain prints the full per-item block for one requirement.
+func (s *setupService) runSetupExplain(root, home string, opts Options, stdout io.Writer) error {
+	name := strings.TrimSpace(opts.ExplainName)
+	if name == "" {
+		return fmt.Errorf("setup explain requires a requirement name")
+	}
+	if err := s.deps.currentHost().ValidateSetup(); err != nil {
+		return err
+	}
+	if _, err := s.deps.loadProject(root); err != nil {
+		return err
+	}
+	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
+		Environment: opts.Environment,
+		When:        "setup",
+		Resources:   opts.Resources,
+		Scenarios:   opts.Scenarios,
+		Platform:    hostreq.CurrentPlatform(),
+	})
+	if err != nil {
+		return err
+	}
+	report, err := s.deps.inspectRequirements(opts.Environment, requirements)
+	if err != nil {
+		return err
+	}
+	item, ok := findItemByName(report, name)
+	if !ok {
+		return fmt.Errorf("no host requirement named %q (run 'vrooli setup status' to list)", name)
+	}
+	_, _ = fmt.Fprintf(stdout, "[INFO]    %s\n", item.Name)
+	renderRequirementVerboseItem(stdout, item, false)
 	return nil
 }

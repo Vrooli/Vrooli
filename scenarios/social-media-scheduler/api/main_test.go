@@ -73,7 +73,6 @@ func TestConfiguration(t *testing.T) {
 			DatabaseURL: "postgres://test",
 			RedisURL:    "redis://test",
 			MinIOURL:    "http://localhost:9000",
-			OllamaURL:   "http://localhost:11434",
 			JWTSecret:   "test-secret",
 			Environment: "test",
 			Mode:        "both",

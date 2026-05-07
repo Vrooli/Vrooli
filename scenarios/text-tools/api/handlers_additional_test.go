@@ -12,7 +12,6 @@ func TestHealthHandlerAdditional(t *testing.T) {
 		config := &Config{
 			Port:        "8080",
 			DatabaseURL: "",
-			OllamaURL:   "http://localhost:11434",
 			RedisURL:    "http://localhost:6379",
 		}
 
@@ -47,7 +46,6 @@ func TestResourcesHandlerAdditional(t *testing.T) {
 	t.Run("Returns_Resource_Details", func(t *testing.T) {
 		config := &Config{
 			Port:      "8080",
-			OllamaURL: "http://localhost:11434",
 			RedisURL:  "http://localhost:6379",
 		}
 
@@ -105,10 +103,6 @@ func TestDiffHandlerV1Additional(t *testing.T) {
 		if server == nil {
 			t.Fatal("Server should not be nil")
 		}
-
-		if server.config.OllamaURL != "" {
-			t.Error("Expected Ollama URL to be empty")
-		}
 	})
 }
 
@@ -152,7 +146,6 @@ func TestResourceMonitoring(t *testing.T) {
 	t.Run("Check_All_Resources", func(t *testing.T) {
 		config := &Config{
 			Port:      "8080",
-			OllamaURL: "http://localhost:11434",
 		}
 
 		rm := NewResourceManager(config)

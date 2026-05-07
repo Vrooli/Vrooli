@@ -3,28 +3,72 @@ package setup
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 )
 
-func renderSetupRequirementPlan(w io.Writer, opts Options, report vrooliruntime.Report) {
-	if w == nil {
-		return
-	}
+// vrooliLauncherStatFn / vrooliExecutableFn are test seams for vrooliInvocation.
+// Production maps them to os.Stat(LauncherPath) / os.Executable. Tests
+// override to simulate "shim present", "shim missing", or "executable
+// lookup failed" without touching the real filesystem.
+var (
+	vrooliLauncherStatFn = func() (os.FileInfo, error) { return os.Stat(vroolilauncher.LauncherPath) }
+	vrooliExecutableFn   = os.Executable
+)
 
-	_, _ = fmt.Fprintf(
-		w,
-		"[INFO]    Host requirements plan (environment=%s resources=%s scenarios=%s dry_run=%t)\n",
-		displaySelection(report.Environment, displaySelection(opts.Environment, defaultEnvironment)),
-		displaySelection(opts.Resources, "enabled"),
-		displaySelection(opts.Scenarios, "none"),
-		opts.DryRun,
-	)
-	renderSetupRequirementOverview(w, report, false)
+// vrooliInvocation returns the command string the action block should
+// suggest when telling the operator how to re-run the CLI under sudo or
+// in any other constrained-PATH context.
+//
+// Bootstrap chicken-and-egg: on a fresh install the launcher shim at
+// /usr/local/bin/vrooli does not exist yet — sudo's secure_path does not
+// include ~/.vrooli/bin (where `make install` writes the real binary), so
+// a bare `sudo vrooli ...` fails with "command not found". The action
+// block needs to emit a command that actually works, so:
+//
+//   - If the launcher shim exists at /usr/local/bin/vrooli, return the
+//     bare name "vrooli". After the first sudo'd `--include-optional`
+//     run installs the shim, this is the steady state.
+//   - Otherwise, return the absolute path of the running binary
+//     (os.Executable). `sudo /home/user/.vrooli/bin/vrooli ...` works
+//     regardless of secure_path because sudo only consults PATH when the
+//     argument is a bare name.
+//
+// We deliberately do NOT shell out to `sudo -n env` to discover the real
+// secure_path — that would either prompt for a password or look like a
+// lie when sudo is unavailable. A static check of the shim's well-known
+// location is enough: the vrooli_launcher safeguard
+// (internal/safeguards/vrooli-launcher) is the authoritative installer;
+// if it reports AlreadyPresent the file is at LauncherPath, period.
+//
+// If os.Executable itself fails (vanishingly rare — unsupported platform
+// or deleted binary), fall back to the bare "vrooli" name. Worst case the
+// operator gets the same "command not found" they had before, which is
+// no worse than the status quo and keeps the hint readable.
+func vrooliInvocation() string {
+	if _, err := vrooliLauncherStatFn(); err == nil {
+		return "vrooli"
+	}
+	exe, err := vrooliExecutableFn()
+	if err != nil || strings.TrimSpace(exe) == "" {
+		return "vrooli"
+	}
+	return exe
 }
+
+// renderMode controls which printer style renderSetupRequirementResult uses.
+type renderMode int
+
+const (
+	renderModeGrouped renderMode = iota
+	renderModeVerbose
+)
 
 func renderSetupRequirementResult(w io.Writer, opts Options, report vrooliruntime.Report) {
 	if w == nil {
@@ -41,10 +85,14 @@ func renderSetupRequirementResult(w io.Writer, opts Options, report vrooliruntim
 		label,
 		displaySelection(report.Environment, displaySelection(opts.Environment, defaultEnvironment)),
 	)
-	renderSetupRequirementOverview(w, report, true)
+	mode := renderModeGrouped
+	if opts.Verbose {
+		mode = renderModeVerbose
+	}
+	renderSetupRequirementOverview(w, report, true, mode)
 }
 
-func renderSetupRequirementOverview(w io.Writer, report vrooliruntime.Report, executed bool) {
+func renderSetupRequirementOverview(w io.Writer, report vrooliruntime.Report, executed bool, mode renderMode) {
 	items := appendRequirementItems(nil, report.Tools)
 	items = appendRequirementItems(items, report.Safeguards)
 	if len(items) == 0 {
@@ -55,32 +103,321 @@ func renderSetupRequirementOverview(w io.Writer, report vrooliruntime.Report, ex
 	if hostSummary := summarizeHost(report.Host); hostSummary != "" {
 		_, _ = fmt.Fprintf(w, "[INFO]    Host: %s\n", hostSummary)
 	}
-	_, _ = fmt.Fprintf(w, "[INFO]    Summary: %s\n", summarizeExecutionStates(items, executed))
-	renderRequirementSection(w, "Tools", report.Tools, executed)
-	renderRequirementSection(w, "Safeguards", report.Safeguards, executed)
+
+	if mode == renderModeVerbose {
+		_, _ = fmt.Fprintf(w, "[INFO]    Summary: %s\n", summarizeExecutionStates(items, executed))
+		renderRequirementVerboseSection(w, "Tools", report.Tools, executed)
+		renderRequirementVerboseSection(w, "Safeguards", report.Safeguards, executed)
+		return
+	}
+
+	renderGrouped(w, report)
 }
 
-func renderRequirementSection(w io.Writer, heading string, items []vrooliruntime.ItemStatus, executed bool) {
+// renderGrouped prints a status-grouped, scannable summary. Failures and
+// pending operator-action items appear at the top with one line per item;
+// already-present and not-applicable groups collapse to a single line each.
+//
+// Render order: action block → Failed → NeedsSudo → NeedsOperatorInput →
+// Optional → Applied → AlreadyPresent → NotApplicable → Unsupported → Δ.
+func renderGrouped(w io.Writer, report vrooliruntime.Report) {
+	items := appendRequirementItems(nil, report.Tools)
+	items = appendRequirementItems(items, report.Safeguards)
+	groups := groupItemsByOutcome(items)
+
+	renderActionBlock(w, groups)
+
+	if len(groups.Failed) > 0 {
+		_, _ = fmt.Fprintf(w, "Failed (%d):\n", len(groups.Failed))
+		for _, item := range groups.Failed {
+			renderGroupedItem(w, "✗", item, true)
+		}
+	}
+
+	if len(groups.NeedsSudo) > 0 {
+		// Use vrooliInvocation here too so the group header matches the
+		// action block: bare `sudo vrooli setup` post-shim, absolute path
+		// pre-shim. Keeps the suggested command consistent in two places.
+		_, _ = fmt.Fprintf(w, "Needs sudo — re-run with `sudo %s setup` (%d):\n", vrooliInvocation(), len(groups.NeedsSudo))
+		for _, item := range groups.NeedsSudo {
+			renderGroupedItem(w, "✗", item, true)
+		}
+	}
+
+	if len(groups.NeedsOperatorInput) > 0 {
+		_, _ = fmt.Fprintf(w, "Needs operator input (%d):\n", len(groups.NeedsOperatorInput))
+		for _, item := range groups.NeedsOperatorInput {
+			renderGroupedItem(w, "•", item, false)
+		}
+	}
+
+	if len(groups.Optional) > 0 {
+		_, _ = fmt.Fprintf(w, "Optional — opt in with `%s setup --include-optional` (%d): %s\n",
+			vrooliInvocation(), len(groups.Optional), itemNames(groups.Optional))
+	}
+
+	if len(groups.Applied) > 0 {
+		_, _ = fmt.Fprintf(w, "Applied (%d):\n", len(groups.Applied))
+		for _, item := range groups.Applied {
+			renderGroupedItem(w, "✓", item, false)
+		}
+	}
+
+	if len(groups.AlreadyPresent) > 0 {
+		_, _ = fmt.Fprintf(w, "Already present (%d): %s\n",
+			len(groups.AlreadyPresent), itemNames(groups.AlreadyPresent))
+	}
+
+	if len(groups.NotApplicable) > 0 {
+		_, _ = fmt.Fprintf(w, "Not applicable (%d): %s\n",
+			len(groups.NotApplicable), itemNames(groups.NotApplicable))
+	}
+
+	if len(groups.Unsupported) > 0 {
+		_, _ = fmt.Fprintf(w, "Unsupported (%d): %s\n",
+			len(groups.Unsupported), itemNames(groups.Unsupported))
+	}
+
+	_, _ = fmt.Fprintf(w, "Δ %s\n", deltaSummary(groups))
+	_, _ = fmt.Fprintln(w, "Run 'vrooli setup explain <name>' for reasons / notes / declarer.")
+}
+
+// renderActionBlock prints a top-of-output summary of the exact commands the
+// operator should run to clear the actionable groups. It is the headline UX
+// win of the grouped renderer: tells the user what to do without making them
+// scan the whole report. Suppressed when nothing is actionable.
+func renderActionBlock(w io.Writer, groups outcomeGroups) {
+	type action struct {
+		hint    string
+		command string
+	}
+	var actions []action
+
+	// vrooliInvocation resolves to the bare name "vrooli" once the
+	// launcher shim is installed; otherwise it returns the absolute path so
+	// `sudo <abs-path> ...` works without the shim. See vrooliInvocation's
+	// doc comment for the bootstrap rationale.
+	cmd := vrooliInvocation()
+
+	if needsSudo := len(groups.NeedsSudo); needsSudo > 0 {
+		actions = append(actions, action{
+			hint:    fmt.Sprintf("Re-run with sudo to install %d blocked item(s):", needsSudo),
+			command: "sudo " + cmd + " setup",
+		})
+	}
+	if optional := len(groups.Optional); optional > 0 {
+		actions = append(actions, action{
+			hint:    fmt.Sprintf("Apply %d optional safeguard(s):", optional),
+			command: cmd + " setup --include-optional",
+		})
+	}
+	if needsInput := len(groups.NeedsOperatorInput); needsInput > 0 {
+		actions = append(actions, action{
+			hint:    fmt.Sprintf("Resolve %d item(s) waiting on operator input:", needsInput),
+			command: cmd + " setup explain <name>",
+		})
+	}
+
+	if len(actions) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "To finish setup:")
+	for _, a := range actions {
+		_, _ = fmt.Fprintf(w, "  → %-52s %s\n", a.hint, a.command)
+	}
+	_, _ = fmt.Fprintln(w)
+}
+
+func renderGroupedItem(w io.Writer, marker string, item vrooliruntime.ItemStatus, attachDetail bool) {
+	headline := primaryNote(item)
+	if headline == "" {
+		headline = strings.TrimSpace(strings.Join(uniqueNonEmpty(item.Reasons), "; "))
+	}
+	if headline != "" {
+		_, _ = fmt.Fprintf(w, "  %s %-28s %s\n", marker, item.Name, truncateLine(headline, 200))
+	} else {
+		_, _ = fmt.Fprintf(w, "  %s %s\n", marker, item.Name)
+	}
+	if !attachDetail {
+		return
+	}
+	if detail := failureDetail(item); detail != "" {
+		for _, line := range strings.Split(detail, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			_, _ = fmt.Fprintf(w, "       %s\n", line)
+		}
+	}
+}
+
+// outcomeGroups partitions items into the buckets the grouped printer renders.
+//
+// The renderer's design assumes the operator's first question is "what
+// should I do next?", so we split the formerly-monolithic Pending bucket
+// along its action axis: NeedsSudo (re-run with sudo), Optional (opt in
+// with --include-optional), NeedsOperatorInput (configure something or
+// reboot). Each carries a different action-block command in
+// renderActionBlock.
+type outcomeGroups struct {
+	Failed             []vrooliruntime.ItemStatus
+	NeedsSudo          []vrooliruntime.ItemStatus
+	NeedsOperatorInput []vrooliruntime.ItemStatus
+	Optional           []vrooliruntime.ItemStatus
+	Applied            []vrooliruntime.ItemStatus
+	AlreadyPresent     []vrooliruntime.ItemStatus
+	NotApplicable      []vrooliruntime.ItemStatus
+	Unsupported        []vrooliruntime.ItemStatus
+}
+
+func groupItemsByOutcome(items []vrooliruntime.ItemStatus) outcomeGroups {
+	var groups outcomeGroups
+	for _, item := range items {
+		// BlockingReason takes precedence over ExecutionState for routing —
+		// a Failed item with reason=needs_sudo belongs in NeedsSudo, not in
+		// the generic Failed bucket. This is what lets the action block
+		// generate accurate copy-pasteable next-step commands.
+		switch item.BlockingReason {
+		case hostreqkit.BlockingNeedsSudo:
+			groups.NeedsSudo = append(groups.NeedsSudo, item)
+			continue
+		case hostreqkit.BlockingOptionalSkipped:
+			groups.Optional = append(groups.Optional, item)
+			continue
+		case hostreqkit.BlockingNeedsReboot, hostreqkit.BlockingManual, hostreqkit.BlockingNeedsEnv:
+			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
+			continue
+		}
+
+		switch item.ExecutionState {
+		case vrooliruntime.ExecutionFailed:
+			groups.Failed = append(groups.Failed, item)
+		case vrooliruntime.ExecutionRebootRequired,
+			vrooliruntime.ExecutionManualActionRequired:
+			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
+		case vrooliruntime.ExecutionPending,
+			vrooliruntime.ExecutionWouldInstall,
+			vrooliruntime.ExecutionWouldApply:
+			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
+		case vrooliruntime.ExecutionInstalled, vrooliruntime.ExecutionApplied:
+			groups.Applied = append(groups.Applied, item)
+		case vrooliruntime.ExecutionAlreadyPresent:
+			groups.AlreadyPresent = append(groups.AlreadyPresent, item)
+		case vrooliruntime.ExecutionNotApplicable:
+			groups.NotApplicable = append(groups.NotApplicable, item)
+		case vrooliruntime.ExecutionUnsupported:
+			groups.Unsupported = append(groups.Unsupported, item)
+		default:
+			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
+		}
+	}
+	sortByName(groups.Failed)
+	sortByName(groups.NeedsSudo)
+	sortByName(groups.NeedsOperatorInput)
+	sortByName(groups.Optional)
+	sortByName(groups.Applied)
+	sortByName(groups.AlreadyPresent)
+	sortByName(groups.NotApplicable)
+	sortByName(groups.Unsupported)
+	return groups
+}
+
+func sortByName(items []vrooliruntime.ItemStatus) {
+	sort.SliceStable(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+}
+
+func itemNames(items []vrooliruntime.ItemStatus) string {
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		names = append(names, item.Name)
+	}
+	return strings.Join(names, ", ")
+}
+
+func deltaSummary(groups outcomeGroups) string {
+	installed := 0
+	applied := 0
+	for _, item := range groups.Applied {
+		switch item.ExecutionState {
+		case vrooliruntime.ExecutionInstalled:
+			installed++
+		case vrooliruntime.ExecutionApplied:
+			applied++
+		default:
+			// would_install / would_apply / pending counted as planned.
+		}
+	}
+	pending := len(groups.NeedsSudo) + len(groups.NeedsOperatorInput) + len(groups.Optional)
+	return fmt.Sprintf(
+		"installed=%d  applied=%d  failed=%d  pending=%d  unchanged=%d",
+		installed,
+		applied,
+		len(groups.Failed),
+		pending,
+		len(groups.AlreadyPresent)+len(groups.NotApplicable)+len(groups.Unsupported),
+	)
+}
+
+// primaryNote picks the most operator-relevant single line from item.Notes.
+// Notes are accumulated across Inspect/Apply, so the last entry is usually
+// the most recent and most actionable.
+func primaryNote(item vrooliruntime.ItemStatus) string {
+	notes := uniqueNonEmpty(item.Notes)
+	if len(notes) == 0 {
+		return ""
+	}
+	return notes[len(notes)-1]
+}
+
+// failureDetail returns multi-line failure context for the indented detail
+// block under a Failed item. It surfaces all distinct notes since they often
+// include the captured stderr tail and the install-command resolution error.
+func failureDetail(item vrooliruntime.ItemStatus) string {
+	notes := uniqueNonEmpty(item.Notes)
+	if len(notes) <= 1 {
+		return ""
+	}
+	return strings.Join(notes[:len(notes)-1], "\n")
+}
+
+func truncateLine(value string, max int) string {
+	value = strings.TrimSpace(value)
+	if max <= 0 || len(value) <= max {
+		return value
+	}
+	return value[:max-1] + "…"
+}
+
+// renderRequirementVerboseSection prints the pre-existing per-item block
+// (one block per tool/safeguard with reasons, notes, declarer). Used by
+// --verbose and by `vrooli setup explain`.
+func renderRequirementVerboseSection(w io.Writer, heading string, items []vrooliruntime.ItemStatus, executed bool) {
 	if len(items) == 0 {
 		return
 	}
 
 	_, _ = fmt.Fprintf(w, "[INFO]    %s:\n", heading)
 	for _, item := range items {
-		_, _ = fmt.Fprintf(
-			w,
-			"  - %s [%s] %s | declared by %s\n",
-			item.Name,
-			requirementScope(item.Required),
-			describeExecutionState(item, executed),
-			describeProvenance(item),
-		)
-		if reasons := strings.Join(uniqueNonEmpty(item.Reasons), "; "); reasons != "" {
-			_, _ = fmt.Fprintf(w, "    reasons: %s\n", reasons)
-		}
-		if notes := strings.Join(uniqueNonEmpty(item.Notes), "; "); notes != "" {
-			_, _ = fmt.Fprintf(w, "    notes: %s\n", notes)
-		}
+		renderRequirementVerboseItem(w, item, executed)
+	}
+}
+
+// renderRequirementVerboseItem prints a single item's full block (no heading).
+func renderRequirementVerboseItem(w io.Writer, item vrooliruntime.ItemStatus, executed bool) {
+	_, _ = fmt.Fprintf(
+		w,
+		"  - %s [%s] %s | declared by %s\n",
+		item.Name,
+		requirementScope(item.Required),
+		describeExecutionState(item, executed),
+		describeProvenance(item),
+	)
+	if reasons := strings.Join(uniqueNonEmpty(item.Reasons), "; "); reasons != "" {
+		_, _ = fmt.Fprintf(w, "    reasons: %s\n", reasons)
+	}
+	if notes := strings.Join(uniqueNonEmpty(item.Notes), "; "); notes != "" {
+		_, _ = fmt.Fprintf(w, "    notes: %s\n", notes)
 	}
 }
 
@@ -195,4 +532,24 @@ func uniqueNonEmpty(values []string) []string {
 		result = append(result, value)
 	}
 	return result
+}
+
+// findItemByName returns the matching ItemStatus from the report (case-
+// insensitive), searching tools first then safeguards. Used by `setup explain`.
+func findItemByName(report vrooliruntime.Report, name string) (vrooliruntime.ItemStatus, bool) {
+	lower := strings.ToLower(strings.TrimSpace(name))
+	if lower == "" {
+		return vrooliruntime.ItemStatus{}, false
+	}
+	for _, item := range report.Tools {
+		if strings.ToLower(item.Name) == lower {
+			return item, true
+		}
+	}
+	for _, item := range report.Safeguards {
+		if strings.ToLower(item.Name) == lower {
+			return item, true
+		}
+	}
+	return vrooliruntime.ItemStatus{}, false
 }

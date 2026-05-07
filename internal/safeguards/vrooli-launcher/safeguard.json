@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "vrooli_launcher",
+  "description": "Install a POSIX shim at /usr/local/bin/vrooli so `sudo vrooli` works. See package doc for design rationale.",
+  "handler": "vrooli_launcher",
+  "platforms": ["linux", "darwin"],
+  "risk": "low",
+  "verificationCheck": {
+    "files": ["/usr/local/bin/vrooli"]
+  }
+}

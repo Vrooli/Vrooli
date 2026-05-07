@@ -13,7 +13,6 @@ func TestInputValidation(t *testing.T) {
 	// Mock processor with nil DB for validation-only tests
 	processor := &IdeaProcessor{
 		db:        nil,
-		ollamaURL: "http://localhost:11434",
 		qdrantURL: "http://localhost:6333",
 	}
 

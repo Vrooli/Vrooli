@@ -249,7 +249,6 @@ func setupTestEnvironment(t *testing.T) func() {
 		"POSTGRES_URL":   os.Getenv("POSTGRES_URL"),
 		"REDIS_URL":      os.Getenv("REDIS_URL"),
 		"QDRANT_URL":     os.Getenv("QDRANT_URL"),
-		"OLLAMA_URL":     os.Getenv("OLLAMA_URL"),
 		"N8N_URL":        os.Getenv("N8N_URL"),
 		"WINDMILL_URL":   os.Getenv("WINDMILL_URL"),
 		"UNSTRUCTURED_URL": os.Getenv("UNSTRUCTURED_URL"),

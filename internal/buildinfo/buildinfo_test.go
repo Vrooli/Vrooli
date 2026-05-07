@@ -2,10 +2,12 @@ package buildinfo
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -709,6 +711,7 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	originalGoBuildFn := goBuildFn
 	originalExecFn := execFn
 	originalNowFunc := nowFunc
+	originalExecutablePathFn := executablePathFn
 	t.Cleanup(func() {
 		Fingerprint = originalFingerprint
 		GitCommit = originalGitCommit
@@ -716,12 +719,17 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 		goBuildFn = originalGoBuildFn
 		execFn = originalExecFn
 		nowFunc = originalNowFunc
+		executablePathFn = originalExecutablePathFn
 	})
 
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	binDir := t.TempDir()
+	fakeExecutable := filepath.Join(binDir, "vrooli")
+	executablePathFn = func() (string, error) { return fakeExecutable, nil }
 
 	t.Setenv(SourceRootEnvVar, root)
 	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
@@ -742,6 +750,14 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	goBuildFn = func(dir string, args []string) error {
 		gotBuildDir = dir
 		gotBuildArgs = append([]string(nil), args...)
+		// Mimic `go build -o <tempPath>` by creating the requested output so
+		// the subsequent atomic rename succeeds.
+		for i := 0; i+1 < len(args); i++ {
+			if args[i] == "-o" {
+				_ = os.WriteFile(args[i+1], []byte("stub-binary"), 0o755)
+				break
+			}
+		}
 		return nil
 	}
 
@@ -759,10 +775,8 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 		t.Fatalf("RebuildAndReexec: %v", err)
 	}
 
-	executable, err := os.Executable()
-	if err != nil {
-		t.Fatalf("Executable: %v", err)
-	}
+	executable := fakeExecutable
+	tempPath := fmt.Sprintf("%s.tmp.%d", executable, os.Getpid())
 
 	if gotBuildDir != root {
 		t.Fatalf("build dir = %q, want %q", gotBuildDir, root)
@@ -775,11 +789,17 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 			" -X github.com/vrooli/vrooli/internal/buildinfo.GitCommit=abc123" +
 			" -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=2026-04-10T20:00:00Z",
 		"-o",
-		executable,
+		tempPath,
 		"./cmd/vrooli",
 	}
 	if strings.Join(gotBuildArgs, "|") != strings.Join(wantBuildArgs, "|") {
 		t.Fatalf("build args = %v, want %v", gotBuildArgs, wantBuildArgs)
+	}
+	if _, err := os.Stat(tempPath); !os.IsNotExist(err) {
+		t.Fatalf("temp file %s should be removed after rename, stat err = %v", tempPath, err)
+	}
+	if _, err := os.Stat(executable); err != nil {
+		t.Fatalf("executable %s missing after rebuild: %v", executable, err)
 	}
 	if gotExecArgv0 != executable {
 		t.Fatalf("exec argv0 = %q, want %q", gotExecArgv0, executable)
@@ -808,6 +828,7 @@ func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
 	originalExecFn := execFn
 	originalNowFunc := nowFunc
 	originalCommandOutputFn := commandOutputFn
+	originalExecutablePathFn := executablePathFn
 	t.Cleanup(func() {
 		Fingerprint = originalFingerprint
 		GitCommit = originalGitCommit
@@ -816,6 +837,7 @@ func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
 		execFn = originalExecFn
 		nowFunc = originalNowFunc
 		commandOutputFn = originalCommandOutputFn
+		executablePathFn = originalExecutablePathFn
 	})
 
 	root := t.TempDir()
@@ -842,9 +864,13 @@ func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
 		return []byte("feedbeef\n"), nil
 	}
 
+	binDir := t.TempDir()
+	executablePathFn = func() (string, error) { return filepath.Join(binDir, "vrooli"), nil }
+
 	var gotBuildArgs []string
 	goBuildFn = func(dir string, args []string) error {
 		gotBuildArgs = append([]string(nil), args...)
+		writeStubBinaryAt(args)
 		return nil
 	}
 	execFn = func(argv0 string, argv []string, envv []string) error {
@@ -888,9 +914,11 @@ func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
 func TestRebuildAndReexecReturnsExecFailure(t *testing.T) {
 	originalGoBuildFn := goBuildFn
 	originalExecFn := execFn
+	originalExecutablePathFn := executablePathFn
 	t.Cleanup(func() {
 		goBuildFn = originalGoBuildFn
 		execFn = originalExecFn
+		executablePathFn = originalExecutablePathFn
 	})
 
 	root := t.TempDir()
@@ -902,7 +930,11 @@ func TestRebuildAndReexecReturnsExecFailure(t *testing.T) {
 	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
 	t.Setenv(BuildTargetEnvVar, "./cmd/vrooli")
 
+	binDir := t.TempDir()
+	executablePathFn = func() (string, error) { return filepath.Join(binDir, "vrooli"), nil }
+
 	goBuildFn = func(dir string, args []string) error {
+		writeStubBinaryAt(args)
 		return nil
 	}
 	execFn = func(argv0 string, argv []string, envv []string) error {
@@ -911,6 +943,18 @@ func TestRebuildAndReexecReturnsExecFailure(t *testing.T) {
 
 	if err := RebuildAndReexec([]string{"scenario", "list"}); err == nil || !strings.Contains(err.Error(), "exec failed") {
 		t.Fatalf("RebuildAndReexec error = %v", err)
+	}
+}
+
+// writeStubBinaryAt scans go-build args for `-o <path>` and writes a stub
+// file at that path so the subsequent atomic rename in RebuildAndReexec can
+// move it into place.
+func writeStubBinaryAt(args []string) {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "-o" {
+			_ = os.WriteFile(args[i+1], []byte("stub-binary"), 0o755)
+			return
+		}
 	}
 }
 
@@ -960,6 +1004,395 @@ func TestSetEnvValueReplacesAndAppends(t *testing.T) {
 	appended := setEnvValue([]string{"A=1"}, "B", "2")
 	if strings.Join(appended, ",") != "A=1,B=2" {
 		t.Fatalf("appended env = %v", appended)
+	}
+}
+
+// =============================================================================
+// Phase 3: flock + atomic rename tests
+// =============================================================================
+
+// rebuildTestEnv sets up a fake source tree, a fake executable path inside
+// t.TempDir(), and restores all package-level seams on Cleanup. It returns
+// the chosen fake executable and the root.
+func rebuildTestEnv(t *testing.T) (root, executable string) {
+	t.Helper()
+	originalGoBuildFn := goBuildFn
+	originalExecFn := execFn
+	originalNowFunc := nowFunc
+	originalExecutablePathFn := executablePathFn
+	originalFlockFn := flockFn
+	originalOpenFileFn := openFileFn
+	originalRenameFn := renameFn
+	t.Cleanup(func() {
+		goBuildFn = originalGoBuildFn
+		execFn = originalExecFn
+		nowFunc = originalNowFunc
+		executablePathFn = originalExecutablePathFn
+		flockFn = originalFlockFn
+		openFileFn = originalOpenFileFn
+		renameFn = originalRenameFn
+	})
+
+	root = t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	binDir := t.TempDir()
+	executable = filepath.Join(binDir, "vrooli")
+	executablePathFn = func() (string, error) { return executable, nil }
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	t.Setenv(BuildTargetEnvVar, "./cmd/vrooli")
+	return root, executable
+}
+
+func TestRebuildAndReexec_SerializesConcurrentRebuilds(t *testing.T) {
+	_, _ = rebuildTestEnv(t)
+
+	var (
+		mu       sync.Mutex
+		inFlight int
+		maxSeen  int
+		calls    int
+	)
+	goBuildFn = func(dir string, args []string) error {
+		mu.Lock()
+		inFlight++
+		if inFlight > maxSeen {
+			maxSeen = inFlight
+		}
+		calls++
+		mu.Unlock()
+		// Hold the rebuild long enough for a sibling to contend on the lock.
+		time.Sleep(40 * time.Millisecond)
+		writeStubBinaryAt(args)
+		mu.Lock()
+		inFlight--
+		mu.Unlock()
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+
+	const goroutines = 4
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+				t.Errorf("RebuildAndReexec: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if maxSeen != 1 {
+		t.Fatalf("flock failed to serialize: max concurrent rebuilds = %d, want 1", maxSeen)
+	}
+	if calls < 1 {
+		t.Fatalf("expected at least one rebuild, got %d", calls)
+	}
+}
+
+func TestRebuildAndReexec_SecondCallSkipsRebuildIfFreshlyBuilt(t *testing.T) {
+	_, executable := rebuildTestEnv(t)
+
+	originalFingerprint := Fingerprint
+	t.Cleanup(func() { Fingerprint = originalFingerprint })
+
+	current, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+
+	var buildCalls int
+	goBuildFn = func(dir string, args []string) error {
+		buildCalls++
+		writeStubBinaryAt(args)
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+
+	// Simulate a sibling having freshly rebuilt the binary: embedded
+	// Fingerprint already matches current source. RebuildAndReexec should
+	// skip the build path entirely after acquiring the lock.
+	Fingerprint = current
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+		t.Fatalf("RebuildAndReexec: %v", err)
+	}
+	if buildCalls != 0 {
+		t.Fatalf("goBuildFn should not run when embedded matches current; calls=%d", buildCalls)
+	}
+	_ = executable
+}
+
+func TestRebuildAndReexec_AtomicRename(t *testing.T) {
+	_, executable := rebuildTestEnv(t)
+
+	tempPath := fmt.Sprintf("%s.tmp.%d", executable, os.Getpid())
+	goBuildFn = func(dir string, args []string) error {
+		writeStubBinaryAt(args)
+		// Confirm `go build -o <args[i+1]>` actually targeted the temp path.
+		for i := 0; i+1 < len(args); i++ {
+			if args[i] == "-o" && args[i+1] != tempPath {
+				t.Errorf("go build -o = %q, want %q", args[i+1], tempPath)
+			}
+		}
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+		t.Fatalf("RebuildAndReexec: %v", err)
+	}
+	if _, err := os.Stat(tempPath); !os.IsNotExist(err) {
+		t.Fatalf("temp file %s should be gone after rename, stat err=%v", tempPath, err)
+	}
+	contents, err := os.ReadFile(executable)
+	if err != nil {
+		t.Fatalf("read executable: %v", err)
+	}
+	if string(contents) != "stub-binary" {
+		t.Fatalf("executable contents = %q, want stub-binary", contents)
+	}
+}
+
+func TestRebuildAndReexec_LockReleasedOnBuildFailure(t *testing.T) {
+	_, _ = rebuildTestEnv(t)
+
+	goBuildFn = func(dir string, args []string) error { return errors.New("synthetic build failure") }
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err == nil {
+		t.Fatalf("expected build failure")
+	}
+
+	// A second caller must be able to acquire the lock immediately. If the
+	// first caller leaked the flock, this would block forever; guard with a
+	// timeout via channel.
+	done := make(chan error, 1)
+	goBuildFn = func(dir string, args []string) error { return errors.New("synthetic build failure 2") }
+	go func() { done <- RebuildAndReexec([]string{"scenario", "list"}) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatalf("expected second build failure")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("second RebuildAndReexec blocked — lock not released on build failure")
+	}
+}
+
+// =============================================================================
+// Phase 4: sidecar fingerprint cache tests
+// =============================================================================
+
+// stalenessTestEnv prepares a fake source tree + fake executable on disk and
+// restores Fingerprint/executablePathFn on cleanup. Returns root, executable
+// path (file written), and the computed currentFingerprint.
+func stalenessTestEnv(t *testing.T) (root, executable, currentFingerprint string) {
+	t.Helper()
+	originalFingerprint := Fingerprint
+	originalExecutablePathFn := executablePathFn
+	t.Cleanup(func() {
+		Fingerprint = originalFingerprint
+		executablePathFn = originalExecutablePathFn
+	})
+
+	root = t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	binDir := t.TempDir()
+	executable = filepath.Join(binDir, "vrooli")
+	if err := os.WriteFile(executable, []byte("stub"), 0o755); err != nil {
+		t.Fatalf("write fake executable: %v", err)
+	}
+	executablePathFn = func() (string, error) { return executable, nil }
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+
+	cur, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+	currentFingerprint = cur
+	return root, executable, currentFingerprint
+}
+
+func TestCheckStaleness_HonorsSidecarWhenPresent(t *testing.T) {
+	_, executable, current := stalenessTestEnv(t)
+
+	// Embedded says "unknown" (would be Stale=true under the embedded path
+	// alone), but the sidecar matches current source.
+	Fingerprint = "unknown"
+	if err := os.WriteFile(executable+".fp", []byte(current+"\n"), 0o644); err != nil {
+		t.Fatalf("write sidecar: %v", err)
+	}
+	// Bump sidecar mtime so it is >= binary mtime.
+	now := time.Now().Add(1 * time.Second)
+	if err := os.Chtimes(executable+".fp", now, now); err != nil {
+		t.Fatalf("chtimes sidecar: %v", err)
+	}
+
+	status, err := CheckStaleness()
+	if err != nil {
+		t.Fatalf("CheckStaleness: %v", err)
+	}
+	if status.Stale {
+		t.Fatalf("expected Stale=false when sidecar matches; status=%+v", status)
+	}
+}
+
+func TestCheckStaleness_IgnoresStaleSidecar(t *testing.T) {
+	_, executable, current := stalenessTestEnv(t)
+
+	// Embedded matches current — embedded path alone returns Stale=false.
+	// Sidecar is wrong/stale; result should still be Stale=false (embedded
+	// wins when sidecar doesn't match).
+	Fingerprint = current
+	if err := os.WriteFile(executable+".fp", []byte("0123456789abcdef\n"), 0o644); err != nil {
+		t.Fatalf("write sidecar: %v", err)
+	}
+	now := time.Now().Add(1 * time.Second)
+	_ = os.Chtimes(executable+".fp", now, now)
+
+	status, err := CheckStaleness()
+	if err != nil {
+		t.Fatalf("CheckStaleness: %v", err)
+	}
+	if status.Stale {
+		t.Fatalf("Stale=true with mismatched sidecar but matching embedded; status=%+v", status)
+	}
+}
+
+func TestCheckStaleness_IgnoresSidecarOlderThanBinary(t *testing.T) {
+	_, executable, current := stalenessTestEnv(t)
+
+	// Embedded says "unknown"; sidecar matches but is older than the binary
+	// (e.g. developer ran `make build` after the sidecar was written). We
+	// must fall through to embedded compare → Stale=true.
+	Fingerprint = "unknown"
+	if err := os.WriteFile(executable+".fp", []byte(current+"\n"), 0o644); err != nil {
+		t.Fatalf("write sidecar: %v", err)
+	}
+	old := time.Now().Add(-10 * time.Minute)
+	if err := os.Chtimes(executable+".fp", old, old); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+	newer := time.Now()
+	if err := os.Chtimes(executable, newer, newer); err != nil {
+		t.Fatalf("chtimes binary: %v", err)
+	}
+
+	status, err := CheckStaleness()
+	if err != nil {
+		t.Fatalf("CheckStaleness: %v", err)
+	}
+	if !status.Stale {
+		t.Fatalf("expected Stale=true (sidecar older than binary, embedded=unknown); status=%+v", status)
+	}
+}
+
+func TestRebuildAndReexec_WritesSidecarOnSuccess(t *testing.T) {
+	_, executable := rebuildTestEnv(t)
+
+	goBuildFn = func(dir string, args []string) error {
+		writeStubBinaryAt(args)
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+		t.Fatalf("RebuildAndReexec: %v", err)
+	}
+
+	contents, err := os.ReadFile(executable + ".fp")
+	if err != nil {
+		t.Fatalf("read sidecar: %v", err)
+	}
+	current, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+	if got := strings.TrimSpace(string(contents)); got != current {
+		t.Fatalf("sidecar = %q, want %q", got, current)
+	}
+}
+
+func TestComputeSourceFingerprintReport_DumpsDebugWhenEnabled(t *testing.T) {
+	originalWriter := debugWriter
+	t.Cleanup(func() { debugWriter = originalWriter })
+
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	var buf strings.Builder
+	debugWriter = &buf
+	t.Setenv(FingerprintDebugEnvVar, "1")
+
+	report, err := ComputeSourceFingerprintReport(root, FingerprintOptions{}, "cmd/vrooli", "internal")
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprintReport: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "fingerprint="+report.Fingerprint) {
+		t.Fatalf("debug dump missing fingerprint header: %q", output)
+	}
+	if !strings.Contains(output, "cmd/vrooli/main.go ") {
+		t.Fatalf("debug dump missing cmd/vrooli/main.go: %q", output)
+	}
+	if !strings.Contains(output, "internal/buildinfo/buildinfo.go ") {
+		t.Fatalf("debug dump missing internal/buildinfo/buildinfo.go: %q", output)
+	}
+	// Lines must be sorted by relative path.
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	var paths []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			paths = append(paths, fields[0])
+		}
+	}
+	for i := 1; i < len(paths); i++ {
+		if paths[i] < paths[i-1] {
+			t.Fatalf("debug dump not sorted: %v", paths)
+		}
+	}
+}
+
+func TestComputeSourceFingerprintReport_DumpsNothingWhenDisabled(t *testing.T) {
+	originalWriter := debugWriter
+	t.Cleanup(func() { debugWriter = originalWriter })
+
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+
+	var buf strings.Builder
+	debugWriter = &buf
+	t.Setenv(FingerprintDebugEnvVar, "")
+
+	if _, err := ComputeSourceFingerprintReport(root, FingerprintOptions{}, "cmd/vrooli"); err != nil {
+		t.Fatalf("ComputeSourceFingerprintReport: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("expected no debug output, got %q", buf.String())
+	}
+
+	t.Setenv(FingerprintDebugEnvVar, "0")
+	if _, err := ComputeSourceFingerprintReport(root, FingerprintOptions{}, "cmd/vrooli"); err != nil {
+		t.Fatalf("ComputeSourceFingerprintReport: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("env=0 should disable dump, got %q", buf.String())
 	}
 }
 

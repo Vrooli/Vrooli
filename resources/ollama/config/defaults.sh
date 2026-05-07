@@ -21,6 +21,19 @@ readonly OLLAMA_MAX_LOADED_MODELS="${OLLAMA_CUSTOM_MAX_LOADED_MODELS:-3}"  # Mod
 readonly OLLAMA_FLASH_ATTENTION="${OLLAMA_CUSTOM_FLASH_ATTENTION:-1}"     # Enable flash attention
 readonly OLLAMA_ORIGINS="${OLLAMA_CUSTOM_ORIGINS:-*}"                    # CORS origins
 
+# Ollama systemd cgroup protections.
+# Memory caps use systemd percentage syntax (% of physical RAM) so they
+# scale across hosts without needing to detect total RAM here.
+# Rationale: an embeddings burst from a misconfigured caller (e.g. agents
+# bypassing the resource-ollama wrapper) was a candidate cause of host hard
+# resets on 2026-05-07. Hard caps + OOM bias keep ollama killable instead
+# of letting the kernel hang.
+readonly OLLAMA_MEMORY_HIGH="${OLLAMA_CUSTOM_MEMORY_HIGH:-60%}"     # Soft pressure: kernel reclaims aggressively past this
+readonly OLLAMA_MEMORY_MAX="${OLLAMA_CUSTOM_MEMORY_MAX:-70%}"        # Hard cap: cgroup OOM-kills ollama past this
+readonly OLLAMA_TASKS_MAX="${OLLAMA_CUSTOM_TASKS_MAX:-4096}"          # Cap on total tasks (PIDs) under the unit
+readonly OLLAMA_OOM_SCORE_ADJUST="${OLLAMA_CUSTOM_OOM_SCORE_ADJUST:-500}"  # Bias system-wide OOM killer toward ollama
+readonly OLLAMA_CPU_QUOTA="${OLLAMA_CUSTOM_CPU_QUOTA:-}"              # Optional, e.g. "1280%" for 80% of 16 cores; empty = unlimited
+
 # Model catalog with metadata
 # Format: ["model:tag"]="size_gb|capabilities|description"
 declare -A MODEL_CATALOG=(
@@ -71,6 +84,7 @@ ollama::export_config() {
     export OLLAMA_VERSION OLLAMA_PORT OLLAMA_BASE_URL OLLAMA_SERVICE_NAME OLLAMA_CONTAINER_NAME OLLAMA_IMAGE
     export OLLAMA_INSTALL_DIR OLLAMA_USER
     export OLLAMA_NUM_PARALLEL OLLAMA_MAX_LOADED_MODELS OLLAMA_FLASH_ATTENTION OLLAMA_ORIGINS
+    export OLLAMA_MEMORY_HIGH OLLAMA_MEMORY_MAX OLLAMA_TASKS_MAX OLLAMA_OOM_SCORE_ADJUST OLLAMA_CPU_QUOTA
     # Note: Arrays MODEL_CATALOG and DEFAULT_MODELS are already available to sourcing scripts
 }
 

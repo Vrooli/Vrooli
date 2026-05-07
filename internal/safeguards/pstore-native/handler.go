@@ -77,29 +77,76 @@ var candidates = []candidate{
 // os.Stat; tests substitute deterministic fixtures.
 var StatFn = os.Stat
 
-// PstoreActiveFn reports whether at least one pstore backend has registered
-// under /sys/fs/pstore. The default reads /sys/fs/pstore at runtime; tests
-// override.
+// PstoreActiveFn reports whether at least one pstore backend is registered
+// with the kernel.
+//
+// The original heuristic was "≥1 entry under /sys/fs/pstore/", but those
+// entries only appear AFTER a panic the firmware retained: on a UEFI host
+// that has never crashed (or whose efivars don't carry stored dumps), the
+// directory is legitimately empty even though efi_pstore is fully wired up
+// and ready to capture the next panic. That false-negative made the
+// safeguard report "Failed: no backend registered" on healthy machines.
+//
+// The corrected heuristic combines two kernel signals:
+//
+//  1. /sys/fs/pstore is mounted (the pstore subsystem is alive); AND
+//  2. at least one backend MODULE is loaded (/sys/module/<name>/) — the
+//     kernel only completes module load when the backend successfully
+//     registered with pstore. modprobe efi_pstore fails on hosts without
+//     efivars, modprobe erst fails on hosts without an ERST ACPI table,
+//     etc., so a loaded module is the registration signal we want.
+//
+// Existing on-disk entries (post-panic state) are still recognised and
+// surfaced in the returned backend list, since they prove the backend
+// captured something — useful diagnostic information for the operator.
 var PstoreActiveFn = func() (active bool, backends []string) {
-	entries, err := os.ReadDir(PstoreMountPoint)
-	if err != nil {
+	if !pstoreMountedFn() {
 		return false, nil
 	}
 	seen := map[string]struct{}{}
-	for _, e := range entries {
-		// Backend files take the form "<backend>-<id>", e.g. "efi-44",
-		// "erst-1024", "dmesg-ramoops-0". Extract the prefix up to the
-		// last "-<numeric-id>".
-		name := e.Name()
-		if backend := backendFromEntry(name); backend != "" {
-			if _, dup := seen[backend]; !dup {
-				backends = append(backends, backend)
-				seen[backend] = struct{}{}
+	add := func(name string) {
+		if _, dup := seen[name]; dup {
+			return
+		}
+		backends = append(backends, name)
+		seen[name] = struct{}{}
+	}
+	// Module-loaded signal: this is the canonical "registered" check.
+	for _, c := range candidates {
+		if modulesIsLoadedFn(c.ModuleName) {
+			add(c.ModuleName)
+		}
+	}
+	// Post-panic entries: keep recognising them so an operator can see
+	// "efi-44" surface here even if the module name lookup somehow missed.
+	if entries, err := os.ReadDir(PstoreMountPoint); err == nil {
+		for _, e := range entries {
+			if backend := backendFromEntry(e.Name()); backend != "" {
+				add(backend)
 			}
 		}
 	}
 	return len(backends) > 0, backends
 }
+
+// pstoreMountedFn / modulesIsLoadedFn are seams for tests. Production wires
+// them to /proc/mounts and modules.IsLoaded respectively.
+var (
+	pstoreMountedFn = func() bool {
+		data, err := os.ReadFile("/proc/mounts")
+		if err != nil {
+			return false
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) >= 3 && fields[2] == "pstore" {
+				return true
+			}
+		}
+		return false
+	}
+	modulesIsLoadedFn = modules.IsLoaded
+)
 
 func backendFromEntry(name string) string {
 	// Find the last hyphen followed by a numeric ID. E.g. "dmesg-ramoops-0" →

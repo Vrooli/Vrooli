@@ -145,17 +145,28 @@ func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, req TemplateValidate
 	if mode == "" {
 		mode = TemplateValidationModeShallow
 	}
+	warningPolicy := req.WarningPolicy
+	if warningPolicy == "" {
+		if mode == TemplateValidationModeDeep {
+			warningPolicy = TemplateValidationWarningPolicyReport
+		} else {
+			warningPolicy = TemplateValidationWarningPolicyIgnore
+		}
+		req.WarningPolicy = warningPolicy
+	}
 	report := TemplateValidationReport{
-		Mode:         mode,
-		TemplateName: req.TemplateName,
-		TestPreset:   req.TestPreset,
-		Count:        len(templates),
+		Mode:          mode,
+		TemplateName:  req.TemplateName,
+		TestPreset:    req.TestPreset,
+		WarningPolicy: warningPolicy,
+		Count:         len(templates),
 	}
 	for _, info := range templates {
 		switch mode {
 		case TemplateValidationModeDeep:
 			run, issues := validateTemplateDeep(deps, ctx, info, req)
 			report.DeepRuns = append(report.DeepRuns, run)
+			report.WarningSummary = mergeTemplateValidationWarningSummaries(report.WarningSummary, run.WarningSummary)
 			report.Issues = append(report.Issues, issues...)
 		default:
 			report.Issues = append(report.Issues, validateTemplateShallow(deps, ctx, info)...)
@@ -387,6 +398,13 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}); err != nil {
+		result := parseTestGenieJSONResult(info.Name, stdout.Bytes())
+		if req.WarningPolicy != TemplateValidationWarningPolicyIgnore {
+			run.WarningSummary = result.WarningSummary
+		}
+		if result.Issue != nil && result.Success != nil && !*result.Success {
+			return run, []TemplateValidationIssue{*result.Issue}
+		}
 		if issue := testGenieFailureIssueFromJSON(info.Name, stdout.Bytes()); issue != nil {
 			return run, []TemplateValidationIssue{*issue}
 		}
@@ -402,8 +420,18 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 			Message:  fmt.Sprintf("test-genie deep validation failed: %s", truncateForIssue(message, 2000)),
 		}}
 	}
-	if issue := validateTestGenieJSONSuccess(info.Name, stdout.Bytes()); issue != nil {
-		return run, []TemplateValidationIssue{*issue}
+	result := parseTestGenieJSONResult(info.Name, stdout.Bytes())
+	if req.WarningPolicy != TemplateValidationWarningPolicyIgnore {
+		run.WarningSummary = result.WarningSummary
+	}
+	if result.Issue != nil {
+		return run, []TemplateValidationIssue{*result.Issue}
+	}
+	if req.WarningPolicy == TemplateValidationWarningPolicyFail && result.WarningSummary.Total > 0 {
+		return run, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("test-genie deep validation reported %d warning(s)", run.WarningSummary.Total),
+		}}
 	}
 	return run, nil
 }
@@ -493,6 +521,16 @@ func testGenieFailureIssueFromJSON(templateName string, output []byte) *Template
 }
 
 func validateTestGenieJSONSuccess(templateName string, output []byte) *TemplateValidationIssue {
+	return parseTestGenieJSONResult(templateName, output).Issue
+}
+
+type parsedTestGenieResult struct {
+	Success        *bool
+	WarningSummary TemplateValidationWarningSummary
+	Issue          *TemplateValidationIssue
+}
+
+func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGenieResult {
 	type testGenieResponse struct {
 		Success      *bool `json:"success"`
 		PhaseSummary struct {
@@ -505,30 +543,36 @@ func validateTestGenieJSONSuccess(templateName string, output []byte) *TemplateV
 			Status string `json:"status"`
 			Error  string `json:"error,omitempty"`
 		} `json:"phases"`
+		WarningSummary TemplateValidationWarningSummary `json:"warningSummary"`
 	}
 
 	data := bytes.TrimSpace(output)
 	if len(data) == 0 {
-		return &TemplateValidationIssue{
+		return parsedTestGenieResult{Issue: &TemplateValidationIssue{
 			Template: templateName,
 			Message:  "test-genie deep validation produced no JSON output",
-		}
+		}}
 	}
 	var response testGenieResponse
 	if err := json.Unmarshal(data, &response); err != nil {
-		return &TemplateValidationIssue{
+		return parsedTestGenieResult{Issue: &TemplateValidationIssue{
 			Template: templateName,
 			Message:  fmt.Sprintf("test-genie deep validation returned invalid JSON: %v", err),
-		}
+		}}
+	}
+	result := parsedTestGenieResult{
+		Success:        response.Success,
+		WarningSummary: response.WarningSummary,
 	}
 	if response.Success == nil {
-		return &TemplateValidationIssue{
+		result.Issue = &TemplateValidationIssue{
 			Template: templateName,
 			Message:  "test-genie deep validation JSON omitted success",
 		}
+		return result
 	}
 	if *response.Success {
-		return nil
+		return result
 	}
 	var failed []string
 	for _, phase := range response.Phases {
@@ -545,10 +589,20 @@ func validateTestGenieJSONSuccess(templateName string, output []byte) *TemplateV
 	if len(failed) > 0 {
 		summary += "; failed phases: " + strings.Join(failed, "; ")
 	}
-	return &TemplateValidationIssue{
+	result.Issue = &TemplateValidationIssue{
 		Template: templateName,
 		Message:  "test-genie deep validation failed: " + truncateForIssue(summary, 2000),
 	}
+	return result
+}
+
+func mergeTemplateValidationWarningSummaries(left, right TemplateValidationWarningSummary) TemplateValidationWarningSummary {
+	if right.Total == 0 && len(right.Phases) == 0 {
+		return left
+	}
+	left.Total += right.Total
+	left.Phases = append(left.Phases, right.Phases...)
+	return left
 }
 
 func prepareDeepValidationWorkspace(repoRoot, tempRoot string) error {

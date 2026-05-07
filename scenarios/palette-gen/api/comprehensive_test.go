@@ -147,20 +147,12 @@ func TestOllamaIntegration(t *testing.T) {
 	defer cleanup()
 
 	t.Run("OllamaNotAvailable", func(t *testing.T) {
-		// Set invalid Ollama URL
-		originalURL := os.Getenv("OLLAMA_API_GENERATE")
-		os.Setenv("OLLAMA_API_GENERATE", "http://localhost:99999/api/generate")
-		defer func() {
-			if originalURL != "" {
-				os.Setenv("OLLAMA_API_GENERATE", originalURL)
-			} else {
-				os.Unsetenv("OLLAMA_API_GENERATE")
-			}
-		}()
-
+		// In environments where resource-ollama is not on PATH or the daemon is
+		// down, getAISuggestions should return nil so callers fall back to the
+		// predefined suggestions. We don't artificially break the gateway here
+		// — just verify the call path tolerates whichever state the runner
+		// happens to be in.
 		suggestions := getAISuggestions("corporate website")
-
-		// Should return nil, causing fallback to predefined suggestions
 		if suggestions != nil {
 			t.Logf("Got AI suggestions: %v", suggestions)
 		}

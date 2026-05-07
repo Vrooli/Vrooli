@@ -91,6 +91,35 @@ func TestRenderTemplateValidateResponseJSONReflectsIssues(t *testing.T) {
 	}
 }
 
+func TestRenderTemplateValidateResponseHumanReflectsWarnings(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderTemplateValidateResponse(&stdout, cliout.FormatHuman, TemplateValidationReport{
+		Mode:  TemplateValidationModeDeep,
+		Count: 1,
+		WarningSummary: TemplateValidationWarningSummary{
+			Total: 1,
+			Phases: []TemplateValidationPhaseWarningSummary{{
+				Name:  "performance",
+				Count: 1,
+				Warnings: []TemplateValidationWarning{{
+					Message:      "seo: 82% below warning threshold 90%",
+					LogPath:      "coverage/logs/run/performance.log",
+					ArtifactPath: "coverage/phase-results/performance.json",
+				}},
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderTemplateValidateResponse: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{"with 1 warning(s)", "performance (1)", "seo: 82%", "coverage/logs/run/performance.log"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
 func TestParseTemplateCleanupRequest(t *testing.T) {
 	req, err := ParseTemplateCleanupRequest([]string{"--dry-run", "--older-than", "24h", "--include-retained", "--run", "run-1"})
 	if err != nil {
@@ -597,7 +626,7 @@ func TestParseTemplateValidateRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseTemplateValidateRequest() error = %v", err)
 	}
-	if req.Mode != TemplateValidationModeShallow || req.TemplateName != "" || req.RetainTemp || req.TestPreset != DefaultTemplateValidationTestPreset {
+	if req.Mode != TemplateValidationModeShallow || req.TemplateName != "" || req.RetainTemp || req.TestPreset != DefaultTemplateValidationTestPreset || req.WarningPolicy != TemplateValidationWarningPolicyIgnore {
 		t.Fatalf("default req = %#v", req)
 	}
 
@@ -605,8 +634,16 @@ func TestParseTemplateValidateRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseTemplateValidateRequest(deep) error = %v", err)
 	}
-	if req.Mode != TemplateValidationModeDeep || req.TemplateName != "react-vite" || !req.RetainTemp || req.TestPreset != "quick" {
+	if req.Mode != TemplateValidationModeDeep || req.TemplateName != "react-vite" || !req.RetainTemp || req.TestPreset != "quick" || req.WarningPolicy != TemplateValidationWarningPolicyReport {
 		t.Fatalf("deep req = %#v", req)
+	}
+
+	req, err = ParseTemplateValidateRequest([]string{"--mode", "deep", "--warning-policy", "fail"})
+	if err != nil {
+		t.Fatalf("ParseTemplateValidateRequest(warning policy) error = %v", err)
+	}
+	if req.WarningPolicy != TemplateValidationWarningPolicyFail {
+		t.Fatalf("warning policy = %#v", req)
 	}
 
 	req, err = ParseTemplateValidateRequest([]string{"--mode=shallow", "--template", "react-vite"})
@@ -628,6 +665,9 @@ func TestParseTemplateValidateRequest(t *testing.T) {
 	}
 	if _, err := ParseTemplateValidateRequest([]string{"--retain-temp"}); err == nil {
 		t.Fatal("expected ParseTemplateValidateRequest() to reject shallow retain temp")
+	}
+	if _, err := ParseTemplateValidateRequest([]string{"--warning-policy", "loud"}); err == nil {
+		t.Fatal("expected ParseTemplateValidateRequest() to reject invalid warning policy")
 	}
 }
 

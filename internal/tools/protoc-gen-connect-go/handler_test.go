@@ -22,10 +22,26 @@ var testManifest = hostreqkit.ToolManifest{
 func restoreStubs(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
-	origUserHome := UserHomeDirFn
+	origReadFile := hostreqkit.ReadFileFn
+	origRoot := hostreqkit.RunningAsRootFn
+	// Steer the user-dir probe in ResolveCommandForInvokingUser at an
+	// empty tmpdir so the test isn't polluted by the developer's real
+	// ~/.local/bin or ~/go/bin. Any test that wants to override the home
+	// dir can set its own ReadFileFn after restoreStubs runs.
+	tmpHome := t.TempDir()
+	hostreqkit.RunningAsRootFn = func() bool { return false }
+	t.Setenv("USER", "alice")
+	t.Setenv("HOME", tmpHome)
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/etc/passwd" {
+			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
 	return func() {
 		hostreqkit.LookPathFn = origLookPath
-		UserHomeDirFn = origUserHome
+		hostreqkit.ReadFileFn = origReadFile
+		hostreqkit.RunningAsRootFn = origRoot
 	}
 }
 

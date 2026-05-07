@@ -185,46 +185,26 @@ func TestNewIdeaProcessor(t *testing.T) {
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
-	t.Run("DefaultURLs", func(t *testing.T) {
-		// Clear env vars to test defaults
-		oldOllama := os.Getenv("OLLAMA_URL")
+	t.Run("DefaultQdrantURL", func(t *testing.T) {
 		oldQdrant := os.Getenv("QDRANT_URL")
-		os.Unsetenv("OLLAMA_URL")
 		os.Unsetenv("QDRANT_URL")
-
 		defer func() {
-			if oldOllama != "" {
-				os.Setenv("OLLAMA_URL", oldOllama)
-			}
 			if oldQdrant != "" {
 				os.Setenv("QDRANT_URL", oldQdrant)
 			}
 		}()
 
 		processor := NewIdeaProcessor(env.DB)
-
-		if processor.ollamaURL != "http://localhost:11434" {
-			t.Errorf("Expected default Ollama URL, got %s", processor.ollamaURL)
-		}
 		if processor.qdrantURL != "http://localhost:6333" {
 			t.Errorf("Expected default Qdrant URL, got %s", processor.qdrantURL)
 		}
 	})
 
-	t.Run("CustomURLs", func(t *testing.T) {
-		os.Setenv("OLLAMA_URL", "http://custom-ollama:8080")
+	t.Run("CustomQdrantURL", func(t *testing.T) {
 		os.Setenv("QDRANT_URL", "http://custom-qdrant:9090")
-
-		defer func() {
-			os.Unsetenv("OLLAMA_URL")
-			os.Unsetenv("QDRANT_URL")
-		}()
+		defer os.Unsetenv("QDRANT_URL")
 
 		processor := NewIdeaProcessor(env.DB)
-
-		if processor.ollamaURL != "http://custom-ollama:8080" {
-			t.Errorf("Expected custom Ollama URL, got %s", processor.ollamaURL)
-		}
 		if processor.qdrantURL != "http://custom-qdrant:9090" {
 			t.Errorf("Expected custom Qdrant URL, got %s", processor.qdrantURL)
 		}

@@ -1,0 +1,137 @@
+// Helpers for handlers that perform per-user installs (go install, npm
+// install, file writes under $HOME) when the vrooli process itself may be
+// running as root via sudo.
+//
+// # The problem
+//
+// When an operator runs `sudo vrooli setup`, the vrooli process executes
+// as root with $HOME=/root (sudo's default). Any subprocess it spawns
+// inherits that environment, so:
+//
+//   - `go install some/pkg` writes to /root/go/bin instead of
+//     /home/$SUDO_USER/go/bin.
+//   - `npm install --prefix ~/.cache/...` resolves the prefix against
+//     /root/.cache, not the operator's cache.
+//   - File writes via os.UserHomeDir / os.MkdirAll under $HOME end up
+//     under /root.
+//
+// All of these break post-install discovery (the binary is somewhere the
+// operator's PATH never visits) and leave behind root-owned files in
+// directories the operator's normal-user processes need to write to.
+//
+// # The fix
+//
+// Distinguish between "this command needs root" (apt-get install, file
+// writes to /usr/local/bin) and "this command should run as the invoking
+// user" (go install, npm install, anything writing to $HOME). For the
+// latter, drop privileges back to $SUDO_USER for the duration of the
+// command.
+//
+// Handlers call RunAsInvokingUser instead of RunCommandFn for per-user
+// installs. When the vrooli process is not root, this is a no-op
+// (commands run as the current user). When the vrooli process is root
+// with $SUDO_USER set, this wraps the command with `sudo -u $SUDO_USER -H
+// -- ...` so it runs as the operator with the operator's $HOME.
+//
+// We use sudo (rather than syscall-level setuid) because:
+//   - sudo handles secondary group membership and PAM session setup
+//     correctly.
+//   - -H sets HOME to the target user's home, which go and npm read.
+//   - We're already root, so sudo doesn't prompt for a password.
+//   - It's transparent to RunCommandFn (test seam) — the wrapper just
+//     prepends `sudo` arguments.
+
+package hostreqkit
+
+import (
+	"errors"
+	"os"
+	"strings"
+)
+
+// InvokingUser returns the username of the operator whose intent we should
+// honor for per-user operations:
+//
+//   - When running as root (Geteuid()==0) AND $SUDO_USER is set, returns
+//     $SUDO_USER. This is the typical `sudo vrooli setup` case — the
+//     operator who escalated.
+//   - Otherwise returns $USER (the current process's user).
+//
+// Returns empty string only in unusual contexts (daemonized processes
+// with no $USER), which callers should treat as "no user-scoped operation
+// possible".
+func InvokingUser() string {
+	if RunningAsRootFn() {
+		if u := strings.TrimSpace(os.Getenv("SUDO_USER")); u != "" {
+			return u
+		}
+	}
+	return strings.TrimSpace(os.Getenv("USER"))
+}
+
+// InvokingUserHomeDir returns the home directory of InvokingUser. Reads
+// /etc/passwd directly because sudo sets HOME=/root by default — calling
+// os.UserHomeDir from a sudo'd process returns /root, not the operator's
+// home. /etc/passwd is consulted by both Linux and macOS for local
+// accounts; AD-bound or NIS-only setups fall back to $HOME (which is
+// correct for the invoking process even if not for cross-user lookups).
+func InvokingUserHomeDir() (string, error) {
+	user := InvokingUser()
+	if user == "" {
+		return os.UserHomeDir()
+	}
+	if home := lookupHomeFromPasswdFn(user); home != "" {
+		return home, nil
+	}
+	if h := strings.TrimSpace(os.Getenv("HOME")); h != "" {
+		return h, nil
+	}
+	return "", errors.New("hostreqkit: could not resolve invoking user's home directory")
+}
+
+// lookupHomeFromPasswdFn is a test seam over /etc/passwd. Production reads
+// the real file via ReadFileFn (which is itself overridable for tests
+// that exercise the full chain).
+var lookupHomeFromPasswdFn = func(user string) string {
+	data, err := ReadFileFn("/etc/passwd")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Split(line, ":")
+		// /etc/passwd format: name:passwd:uid:gid:gecos:home:shell
+		if len(fields) >= 6 && fields[0] == user {
+			return fields[5]
+		}
+	}
+	return ""
+}
+
+// RunAsInvokingUser runs a command as the invoking user. When the vrooli
+// process is running as root (typically because the operator invoked
+// `sudo vrooli setup`), this drops privileges back to $SUDO_USER for the
+// command's duration. Otherwise it just runs the command as-is.
+//
+// Use this for per-user installs (go install, npm install, etc.) where
+// running as root would wreck file ownership in the user's home and
+// inherit the wrong $HOME. Do NOT use this for commands that genuinely
+// need root (apt-get install, writes to /usr/local/bin) — those should
+// continue to use RunPrivilegedCommand.
+//
+// When wrapping, we prepend `sudo -u <user> -H --` so:
+//   - -u: target user is $SUDO_USER (the operator).
+//   - -H: HOME is set to the target user's home (otherwise go/npm
+//     write to /root).
+//   - --: end of sudo's option parsing, so the wrapped command's flags
+//     are not interpreted by sudo.
+//
+// We're already root in this branch, so sudo does not prompt for a
+// password; the elevation is silent and synchronous.
+func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
+	user := InvokingUser()
+	if !RunningAsRootFn() || user == "" || user == "root" {
+		return RunCommandFn(name, args, opts)
+	}
+	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
+	return RunCommandFn("sudo", wrapped, opts)
+}

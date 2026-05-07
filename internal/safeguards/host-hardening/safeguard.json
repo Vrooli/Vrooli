@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "host_hardening",
+  "description": "Make kernel hangs and oopses produce diagnostics: enable sysrq, set hung-task/softlockup/NMI panic, and rate-limit journald so UFW BLOCK floods don't drown panic info",
+  "handler": "host_hardening",
+  "platforms": ["linux"],
+  "risk": "high",
+  "verificationCheck": {
+    "files": [
+      "/etc/sysctl.d/99-vrooli-host-hardening.conf",
+      "/etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf"
+    ]
+  }
+}

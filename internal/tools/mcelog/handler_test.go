@@ -25,9 +25,14 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]*unitState
 	origCombined := hostreqkit.CombinedOutputFn
 	origLookPath := hostreqkit.LookPathFn
 	origUnit := UnitStateFn
+	origEDAC := EDACModuleLoadedFn
 
 	captured := []capturedCommand{}
 	unitMap := map[string]*unitState{}
+
+	// Default: EDAC module loaded so existing tests don't need to know about
+	// the cross-check. Tests that exercise the missing-EDAC path override.
+	EDACModuleLoadedFn = func() bool { return true }
 
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
@@ -55,6 +60,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]*unitState
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.LookPathFn = origLookPath
 		UnitStateFn = origUnit
+		EDACModuleLoadedFn = origEDAC
 	}
 }
 
@@ -226,6 +232,77 @@ func TestApplyShortCircuitsOnSupportClasses(t *testing.T) {
 	}
 }
 
+func TestInspectSupersedesWhenNoAptCandidateAndRasdaemonActive(t *testing.T) {
+	_, units, restore := stubAll(t)
+	defer restore()
+	// mcelog binary not installed (default LookPathFn) and no apt candidate.
+	origPkg := PackageInstallableFn
+	PackageInstallableFn = func(host hostreqkit.Host, pkg string) bool { return false }
+	defer func() { PackageInstallableFn = origPkg }()
+	units[rasdaemonServiceName] = &unitState{Enabled: true, Active: true}
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	if st.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+		t.Errorf("ExecutionState = %q, want already_present (superseded)", st.ExecutionState)
+	}
+	joined := strings.Join(st.Notes, " | ")
+	if !strings.Contains(joined, "superseded by rasdaemon") {
+		t.Errorf("notes missing supersede explanation: %v", st.Notes)
+	}
+}
+
+func TestInspectStillPendingWhenRasdaemonInactive(t *testing.T) {
+	_, _, restore := stubAll(t)
+	defer restore()
+	origPkg := PackageInstallableFn
+	PackageInstallableFn = func(host hostreqkit.Host, pkg string) bool { return false }
+	defer func() { PackageInstallableFn = origPkg }()
+	// rasdaemon not active in unitMap.
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	if st.ExecutionState != hostreqkit.ExecutionPending {
+		t.Errorf("ExecutionState = %q, want pending (no rasdaemon to supersede)", st.ExecutionState)
+	}
+}
+
+func TestApplySupersedesOnInstallFailureWhenRasdaemonActive(t *testing.T) {
+	cmds, units, restore := stubAll(t)
+	defer restore()
+	origPkg := PackageInstallableFn
+	PackageInstallableFn = func(host hostreqkit.Host, pkg string) bool { return false }
+	defer func() { PackageInstallableFn = origPkg }()
+	units[rasdaemonServiceName] = &unitState{Enabled: true, Active: true}
+
+	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		*cmds = append(*cmds, capturedCommand{Name: name, Args: append([]string(nil), args...)})
+		if name == "apt-get" {
+			return errors.New("E: Package 'mcelog' has no installation candidate")
+		}
+		return nil
+	}
+
+	// Inspect already supersedes (no install needed) since the package is
+	// not installable; force a "would-install" status to trigger Apply's
+	// install path and the supersede-on-error branch.
+	status := hostreqkit.ItemStatus{
+		Name:             "mcelog",
+		Installed:        false,
+		InstallSupported: true,
+		PackageName:      "mcelog",
+		ExecutionState:   hostreqkit.ExecutionPending,
+	}
+	out, err := newHandler().Apply(aptHost(), status, hostreqkit.EnsureOptions{SudoMode: "ask"})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+		t.Fatalf("ExecutionState = %q, want already_present (supersede on install failure)", out.ExecutionState)
+	}
+	if !strings.Contains(strings.Join(out.Notes, " | "), "superseded by rasdaemon") {
+		t.Errorf("notes missing supersede note: %v", out.Notes)
+	}
+}
+
 func TestNameAndKind(t *testing.T) {
 	h := newHandler()
 	if h.Name() != "mcelog" {
@@ -233,5 +310,36 @@ func TestNameAndKind(t *testing.T) {
 	}
 	if h.Kind() != hostreqspec.KindTool {
 		t.Errorf("Kind = %q", h.Kind())
+	}
+}
+
+func TestInspectMaskedAddsEDACNoteWhenModuleMissing(t *testing.T) {
+	_, units, restore := stubAll(t)
+	defer restore()
+	setInstalled()
+	units[ServiceName] = &unitState{Masked: true}
+	EDACModuleLoadedFn = func() bool { return false }
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	joined := strings.Join(st.Notes, " | ")
+	if !strings.Contains(joined, "no EDAC kernel module loaded") {
+		t.Errorf("expected EDAC note when module missing; got %v", st.Notes)
+	}
+	if !strings.Contains(joined, "edac_modules") {
+		t.Errorf("expected EDAC note to point at the edac_modules safeguard; got %v", st.Notes)
+	}
+}
+
+func TestInspectActiveSkipsEDACNoteWhenModulePresent(t *testing.T) {
+	_, units, restore := stubAll(t)
+	defer restore()
+	setInstalled()
+	units[ServiceName] = &unitState{Enabled: true, Active: true}
+	// EDACModuleLoadedFn defaults to true via stubAll.
+
+	st := newHandler().Inspect(aptHost(), req(false))
+	joined := strings.Join(st.Notes, " | ")
+	if strings.Contains(joined, "no EDAC kernel module loaded") {
+		t.Errorf("EDAC note should not appear when module is loaded; got %v", st.Notes)
 	}
 }

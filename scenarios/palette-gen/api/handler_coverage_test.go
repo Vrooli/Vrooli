@@ -254,19 +254,9 @@ func TestGenerateHandlerWithAIDebug(t *testing.T) {
 	cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
-	// Save original env
-	originalOllama := os.Getenv("OLLAMA_API_GENERATE")
-	defer func() {
-		if originalOllama != "" {
-			os.Setenv("OLLAMA_API_GENERATE", originalOllama)
-		} else {
-			os.Unsetenv("OLLAMA_API_GENERATE")
-		}
-	}()
-
-	// Set to invalid endpoint to test error handling
-	os.Setenv("OLLAMA_API_GENERATE", "http://localhost:99999/invalid")
-
+	// Ollama is reached via the resource-ollama gateway CLI; in environments
+	// where the daemon is down the AI debug call returns an error and the
+	// handler falls back. No env-var injection needed.
 	request := PaletteRequest{
 		Theme:          "ocean",
 		Style:          "vibrant",

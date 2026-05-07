@@ -36,6 +36,38 @@ func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
 	}
 }
 
+func TestParseSetupOptionsStatusSubcommand(t *testing.T) {
+	opts, err := ParseSetupOptions([]string{"status", "--environment", "minimal"})
+	if err != nil {
+		t.Fatalf("ParseSetupOptions(status): %v", err)
+	}
+	if opts.Subcommand != "status" {
+		t.Fatalf("Subcommand = %q, want status", opts.Subcommand)
+	}
+	if opts.Environment != "minimal" {
+		t.Fatalf("Environment = %q", opts.Environment)
+	}
+}
+
+func TestParseSetupOptionsExplainRequiresName(t *testing.T) {
+	if _, err := ParseSetupOptions([]string{"explain"}); err == nil {
+		t.Fatal("expected explain to require a name")
+	}
+}
+
+func TestParseSetupOptionsExplainAcceptsName(t *testing.T) {
+	opts, err := ParseSetupOptions([]string{"explain", "mcelog"})
+	if err != nil {
+		t.Fatalf("ParseSetupOptions(explain mcelog): %v", err)
+	}
+	if opts.Subcommand != "explain" {
+		t.Fatalf("Subcommand = %q", opts.Subcommand)
+	}
+	if opts.ExplainName != "mcelog" {
+		t.Fatalf("ExplainName = %q", opts.ExplainName)
+	}
+}
+
 func TestParseCleanupRequestRejectsUnknownTarget(t *testing.T) {
 	if _, err := ParseCleanupRequest([]string{"bogus"}); err == nil {
 		t.Fatal("expected cleanup target error")

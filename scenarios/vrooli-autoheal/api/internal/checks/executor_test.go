@@ -4,6 +4,9 @@ package checks
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -88,6 +91,79 @@ func TestRealExecutorContextTimeout(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected context timeout error")
+	}
+}
+
+// =============================================================================
+// vrooli --no-stale-check injection (Phase 1 of stale-rebuild loop fix)
+// =============================================================================
+
+// writeFakeVrooliBinary writes a shell script at a path the executor will pick
+// up via VROOLI_CMD_PATH. The script echoes one arg per line so tests can
+// recover what was actually invoked.
+func writeFakeVrooliBinary(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fake-vrooli.sh")
+	script := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake binary: %v", err)
+	}
+	return path
+}
+
+// TestRealExecutor_PrependsNoStaleCheckForVrooli asserts that every vrooli
+// invocation through RealExecutor is auto-flagged with --no-stale-check, so
+// autoheal subprocesses cannot trigger the buildinfo rebuild path.
+func TestRealExecutor_PrependsNoStaleCheckForVrooli(t *testing.T) {
+	fake := writeFakeVrooliBinary(t)
+	t.Setenv("VROOLI_CMD_PATH", fake)
+
+	exec := &RealExecutor{}
+	out, err := exec.Output(context.Background(), "vrooli", "scenario", "status")
+	if err != nil {
+		t.Fatalf("Output() error = %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if len(lines) == 0 || lines[0] != "--no-stale-check" {
+		t.Fatalf("first arg = %v, want --no-stale-check (full args=%v)", lines[0], lines)
+	}
+}
+
+// TestRealExecutor_LeavesNonVrooliCommandsUntouched ensures the injection only
+// fires for the vrooli CLI; other commands (echo, etc.) see their args
+// verbatim.
+func TestRealExecutor_LeavesNonVrooliCommandsUntouched(t *testing.T) {
+	exec := &RealExecutor{}
+	out, err := exec.Output(context.Background(), "echo", "hello", "world")
+	if err != nil {
+		t.Fatalf("Output() error = %v", err)
+	}
+	if got := strings.TrimRight(string(out), "\n"); got != "hello world" {
+		t.Fatalf("Output = %q, want %q", got, "hello world")
+	}
+}
+
+// TestRealExecutor_DoesNotDoublePrepend verifies idempotence — an explicit
+// --no-stale-check passed by an upstream caller stays a single occurrence.
+func TestRealExecutor_DoesNotDoublePrepend(t *testing.T) {
+	fake := writeFakeVrooliBinary(t)
+	t.Setenv("VROOLI_CMD_PATH", fake)
+
+	exec := &RealExecutor{}
+	out, err := exec.Output(context.Background(), "vrooli", "--no-stale-check", "scenario", "status")
+	if err != nil {
+		t.Fatalf("Output() error = %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	count := 0
+	for _, l := range lines {
+		if l == "--no-stale-check" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("--no-stale-check occurrences = %d, want 1 (args=%v)", count, lines)
 	}
 }
 

@@ -233,7 +233,65 @@ func ParseTemplateValidationCleanupRequest(args []string) (TemplateValidationCle
 }
 
 func ParseSetupOptions(args []string) (projectsetup.Options, error) {
+	if sub, rest, ok := extractSetupSubcommand(args); ok {
+		switch sub {
+		case "status":
+			opts, err := parseLifecycleOptions("setup status", rest, SetupStatusHelpText())
+			if err != nil {
+				return projectsetup.Options{}, err
+			}
+			opts.Subcommand = "status"
+			return opts, nil
+		case "explain":
+			parsed, err := commandtree.ParseArgs("setup explain", SetupExplainHelpText(), setupExplainArgSchema(), rest)
+			if err != nil {
+				return projectsetup.Options{}, err
+			}
+			if len(parsed.Positionals) != 1 {
+				return projectsetup.Options{}, clipolicy.UsageErrorf("setup explain", "setup explain requires exactly one requirement name")
+			}
+			return projectsetup.Options{
+				Subcommand:  "explain",
+				ExplainName: strings.TrimSpace(parsed.Positionals[0]),
+				Verbose:     parsed.HasFlag("--verbose"),
+			}, nil
+		}
+	}
 	return parseLifecycleOptions("setup", args, SetupHelpText())
+}
+
+// extractSetupSubcommand detects the leading positional `status` or `explain`.
+// Args before any flag are inspected; once a `--flag` appears we stop scanning.
+func extractSetupSubcommand(args []string) (string, []string, bool) {
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			return "", nil, false
+		}
+		switch arg {
+		case "status", "explain":
+			rest := append([]string(nil), args[:i]...)
+			rest = append(rest, args[i+1:]...)
+			return arg, rest, true
+		}
+	}
+	return "", nil, false
+}
+
+func setupExplainArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "name", Required: true, Description: "Requirement name"}},
+		Options: []commandtree.OptionArg{
+			{Name: "--verbose", Description: "Currently a no-op for explain (kept for symmetry)"},
+		},
+	}
+}
+
+func SetupStatusHelpText() string {
+	return commandtree.HelpText("", "vrooli setup status", "Inspect host requirements without applying changes.", commandtree.Help{}, lifecycleOptionsSchema())
+}
+
+func SetupExplainHelpText() string {
+	return commandtree.HelpText("", "vrooli setup explain <name>", "Show full reasons, notes, and provenance for one requirement.", commandtree.Help{}, setupExplainArgSchema())
 }
 
 func ParseDevelopOptions(args []string) (projectsetup.Options, error) {
@@ -313,6 +371,9 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--yes"))); value != "" {
 		opts.Yes = value
 	}
+	if parsed.HasFlag("--include-optional") {
+		opts.IncludeOptional = true
+	}
 	return opts, nil
 }
 
@@ -356,6 +417,7 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 			{Name: "--resources", ValueName: "value", Description: "Resource selection (enabled|none|comma,list)"},
 			{Name: "--scenarios", ValueName: "value", Description: "Scenario selection (none|all|comma,list)"},
 			{Name: "--yes", Aliases: []string{"-y"}, ValueName: "value", Description: "Confirmation policy forwarded to setup steps"},
+			{Name: "--include-optional", Description: "Apply optional safeguards too (default: skip optional items)"},
 		},
 	}
 }
@@ -400,7 +462,23 @@ func BuildHelpText() string {
 }
 
 func SetupHelpText() string {
-	return commandtree.HelpText("", "vrooli setup", "Initialize the development environment.", commandtree.Help{}, lifecycleOptionsSchema())
+	return commandtree.HelpText("", "vrooli setup", "Initialize the development environment.", commandtree.Help{
+		Notes: []string{
+			"Subcommands:",
+			"  vrooli setup status            Inspect host requirements without applying changes",
+			"  vrooli setup explain <name>    Show full reasons / notes / declarer for one requirement",
+			"",
+			"Privilege & opt-in flags:",
+			"  By default `vrooli setup` is non-interactive: items requiring root are listed",
+			"    in the 'Needs sudo' group, not installed. To install them, re-run as",
+			"    `sudo vrooli setup`. Pass `--sudo-mode=ask` to instead let the in-process",
+			"    `sudo` wrapper prompt for a password (interactive runs only).",
+			"  --include-optional applies optional safeguards too. By default optional items",
+			"    are listed but not installed (visible in the 'Optional' group).",
+			"",
+			"Pass --verbose (global) to switch the apply / status output to the legacy per-item block format.",
+		},
+	}, lifecycleOptionsSchema())
 }
 
 func DevelopHelpText() string {
