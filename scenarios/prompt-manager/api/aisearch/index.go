@@ -3,7 +3,9 @@ package aisearch
 import (
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"prompt-manager/skills"
@@ -11,6 +13,70 @@ import (
 	"sort"
 	"strings"
 )
+
+// payloadHashKey is the field added to every vector-store payload so the
+// reconciler can decide if an item needs re-embedding without comparing every
+// field. Stays out of the hash input itself.
+const payloadHashKey = "payload_hash"
+
+// composePayloadHash returns a stable identifier for the (text, payload) pair
+// so the reconciler can skip embedding when neither has changed. The format is
+// "sha256:" + hex(sum[:8]) — 64 bits is plenty at our scale (see plan §12).
+func composePayloadHash(text string, payload map[string]interface{}) string {
+	canon, _ := canonicalJSON(stripHashField(payload))
+	h := sha256.New()
+	_, _ = h.Write([]byte(text))
+	_, _ = h.Write([]byte{'|'})
+	_, _ = h.Write(canon)
+	sum := h.Sum(nil)
+	return "sha256:" + hex.EncodeToString(sum[:8])
+}
+
+// stripHashField returns a shallow copy of payload with the payload_hash key
+// removed, so the hash input is independent of any prior hash.
+func stripHashField(payload map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(payload))
+	for k, v := range payload {
+		if k == payloadHashKey {
+			continue
+		}
+		out[k] = v
+	}
+	return out
+}
+
+// canonicalJSON encodes v with map keys sorted recursively so the byte output
+// is stable across equivalent values. Encoding/json sorts map keys already; we
+// only need to sort manually for nested maps inside interface{} values.
+func canonicalJSON(v interface{}) ([]byte, error) {
+	return json.Marshal(canonicalize(v))
+}
+
+func canonicalize(v interface{}) interface{} {
+	switch x := v.(type) {
+	case map[string]interface{}:
+		keys := make([]string, 0, len(x))
+		for k := range x {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		// json.Marshal already sorts map keys, but we recurse to canonicalize
+		// nested values; rebuilding into a fresh map keeps that explicit.
+		out := make(map[string]interface{}, len(x))
+		for _, k := range keys {
+			out[k] = canonicalize(x[k])
+		}
+		return out
+	case []interface{}:
+		out := make([]interface{}, len(x))
+		for i, v := range x {
+			out[i] = canonicalize(v)
+		}
+		return out
+	default:
+		return v
+	}
+}
 
 // IndexSkill indexes a single skill into the vector store.
 // This is designed to be called asynchronously after skill CRUD operations.
@@ -36,8 +102,20 @@ func (s *Service) IndexSkill(ctx context.Context, skillID string) error {
 		return fmt.Errorf("embedding failed: %w", err)
 	}
 
-	// Build payload
-	payload := map[string]interface{}{
+	payload := buildSkillPayload(skill, folder, embeddingText)
+
+	if err := s.vectorStore.Upsert(ctx, qdrantPointID(skill.ID), vector, payload); err != nil {
+		return fmt.Errorf("upsert failed: %w", err)
+	}
+
+	log.Printf("[aisearch] Indexed skill: %s (%s)", skill.Name, skill.ID)
+	return nil
+}
+
+// buildSkillPayload returns the qdrant payload for a skill, including the
+// payload_hash field consumed by the reconciler.
+func buildSkillPayload(skill *skills.Metadata, folder, embeddingText string) map[string]interface{} {
+	p := map[string]interface{}{
 		"skill_id":    skill.ID,
 		"name":        skill.Name,
 		"description": skill.Description,
@@ -45,14 +123,8 @@ func (s *Service) IndexSkill(ctx context.Context, skillID string) error {
 		"tags":        skill.Tags,
 		"modes":       skill.Modes,
 	}
-
-	// Upsert into vector store
-	if err := s.vectorStore.Upsert(ctx, qdrantPointID(skill.ID), vector, payload); err != nil {
-		return fmt.Errorf("upsert failed: %w", err)
-	}
-
-	log.Printf("[aisearch] Indexed skill: %s (%s)", skill.Name, skill.ID)
-	return nil
+	p[payloadHashKey] = composePayloadHash(embeddingText, p)
+	return p
 }
 
 // DeleteFromIndex removes a skill from the vector index.
@@ -64,230 +136,6 @@ func (s *Service) DeleteFromIndex(ctx context.Context, skillID string) error {
 	return nil
 }
 
-// ReindexAll rebuilds the entire vector index from all skills.
-func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
-	return s.reindexAllWithProgress(ctx, nil, nil)
-}
-
-func (s *Service) reindexAllWithProgress(
-	ctx context.Context,
-	progress func(indexed, skipped, errors int),
-	setTotal func(total int),
-) (*ReindexResponse, error) {
-	// Ensure collection exists
-	if err := s.vectorStore.EnsureCollection(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ensure collection: %w", err)
-	}
-
-	// Get all skills
-	allSkills, err := s.skillStore.GetAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get skills: %w", err)
-	}
-	if setTotal != nil {
-		setTotal(len(allSkills))
-	}
-
-	var indexed, skipped, errors int
-
-	for _, skill := range allSkills {
-		if err := ctx.Err(); err != nil {
-			return &ReindexResponse{
-				Indexed: indexed,
-				Skipped: skipped,
-				Errors:  errors,
-				Message: fmt.Sprintf("Indexed %d skills, skipped %d, errors %d", indexed, skipped, errors),
-			}, err
-		}
-
-		// Extract folder from file path
-		folder, filename := extractFolderAndFile(skill.File)
-		if folder == "" {
-			skipped++
-			if progress != nil {
-				progress(indexed, skipped, errors)
-			}
-			continue
-		}
-
-		// Load content
-		content, err := s.skillStore.GetContent(folder, filename)
-		if err != nil {
-			log.Printf("[aisearch] Failed to load content for %s: %v", skill.ID, err)
-			errors++
-			if progress != nil {
-				progress(indexed, skipped, errors)
-			}
-			continue
-		}
-
-		// Compose text for embedding
-		embeddingText := composeEmbeddingText(&skill, content)
-
-		// Generate embedding
-		vector, err := s.embedder.Embed(ctx, embeddingText)
-		if err != nil {
-			log.Printf("[aisearch] Failed to embed %s: %v", skill.ID, err)
-			errors++
-			if progress != nil {
-				progress(indexed, skipped, errors)
-			}
-			continue
-		}
-
-		// Build payload
-		payload := map[string]interface{}{
-			"skill_id":    skill.ID,
-			"name":        skill.Name,
-			"description": skill.Description,
-			"folder":      folder,
-			"tags":        skill.Tags,
-			"modes":       skill.Modes,
-		}
-
-		// Upsert into vector store
-		if err := s.vectorStore.Upsert(ctx, qdrantPointID(skill.ID), vector, payload); err != nil {
-			log.Printf("[aisearch] Failed to upsert %s: %v", skill.ID, err)
-			errors++
-			if progress != nil {
-				progress(indexed, skipped, errors)
-			}
-			continue
-		}
-
-		indexed++
-		if progress != nil {
-			progress(indexed, skipped, errors)
-		}
-	}
-
-	// Index agents if configured
-	if s.agentVectorStore != nil && s.agentStore != nil {
-		if err := s.agentVectorStore.EnsureCollection(ctx); err != nil {
-			log.Printf("[aisearch] Failed to ensure agent collection: %v", err)
-		} else {
-			agents, err := s.agentStore.List(ctx)
-			if err != nil {
-				log.Printf("[aisearch] Failed to list agents: %v", err)
-			} else {
-				if setTotal != nil {
-					setTotal(len(allSkills) + len(agents))
-				}
-				for _, agent := range agents {
-					if err := ctx.Err(); err != nil {
-						break
-					}
-					if err := s.IndexAgent(ctx, agent.ID); err != nil {
-						log.Printf("[aisearch] Failed to index agent %s: %v", agent.ID, err)
-						errors++
-					} else {
-						indexed++
-					}
-					if progress != nil {
-						progress(indexed, skipped, errors)
-					}
-				}
-			}
-		}
-	}
-
-	// Index teams if configured
-	if s.teamVectorStore != nil && s.teamStore != nil {
-		if err := s.teamVectorStore.EnsureCollection(ctx); err != nil {
-			log.Printf("[aisearch] Failed to ensure team collection: %v", err)
-		} else {
-			teams, err := s.teamStore.List(ctx)
-			if err != nil {
-				log.Printf("[aisearch] Failed to list teams: %v", err)
-			} else {
-				if setTotal != nil {
-					currentTotal := len(allSkills)
-					if s.agentStore != nil {
-						if agents, err := s.agentStore.List(ctx); err == nil {
-							currentTotal += len(agents)
-						}
-					}
-					setTotal(currentTotal + len(teams))
-				}
-				for _, team := range teams {
-					if err := ctx.Err(); err != nil {
-						break
-					}
-					if err := s.IndexTeam(ctx, team.ID); err != nil {
-						log.Printf("[aisearch] Failed to index team %s: %v", team.ID, err)
-						errors++
-					} else {
-						indexed++
-					}
-					if progress != nil {
-						progress(indexed, skipped, errors)
-					}
-				}
-			}
-		}
-	}
-
-	// Index topics if configured
-	if s.topicVectorStore != nil && s.topicStore != nil {
-		if err := s.topicVectorStore.EnsureCollection(ctx); err != nil {
-			log.Printf("[aisearch] Failed to ensure topic collection: %v", err)
-		} else {
-			topics, err := s.topicStore.List(ctx)
-			if err != nil {
-				log.Printf("[aisearch] Failed to list topics: %v", err)
-			} else {
-				for _, topic := range topics {
-					if err := ctx.Err(); err != nil {
-						break
-					}
-					if err := s.IndexTopic(ctx, topic.ID); err != nil {
-						log.Printf("[aisearch] Failed to index topic %s: %v", topic.ID, err)
-						errors++
-					} else {
-						indexed++
-					}
-					if progress != nil {
-						progress(indexed, skipped, errors)
-					}
-				}
-			}
-		}
-	}
-
-	// Index Actions if configured
-	if s.actionVectorStore != nil && s.actionStore != nil {
-		if err := s.actionVectorStore.EnsureCollection(ctx); err != nil {
-			log.Printf("[aisearch] Failed to ensure action collection: %v", err)
-		} else {
-			actions, err := s.actionStore.List(ctx)
-			if err != nil {
-				log.Printf("[aisearch] Failed to list actions: %v", err)
-			} else {
-				for _, action := range actions {
-					if err := ctx.Err(); err != nil {
-						break
-					}
-					if err := s.IndexAction(ctx, action.ID); err != nil {
-						log.Printf("[aisearch] Failed to index action %s: %v", action.ID, err)
-						errors++
-					} else {
-						indexed++
-					}
-					if progress != nil {
-						progress(indexed, skipped, errors)
-					}
-				}
-			}
-		}
-	}
-
-	return &ReindexResponse{
-		Indexed: indexed,
-		Skipped: skipped,
-		Errors:  errors,
-		Message: fmt.Sprintf("Indexed %d entities, skipped %d, errors %d", indexed, skipped, errors),
-	}, nil
-}
 
 // composeEmbeddingText creates a rich text representation for embedding.
 func composeEmbeddingText(skill *skills.Metadata, content string) string {
@@ -430,13 +278,7 @@ func (s *Service) IndexAgent(ctx context.Context, agentID string) error {
 		return fmt.Errorf("embedding failed: %w", err)
 	}
 
-	payload := map[string]interface{}{
-		"agent_id":     agent.ID,
-		"display_name": agent.DisplayName,
-		"description":  agent.Description,
-		"status":       agent.Status,
-		"tags":         agent.Tags,
-	}
+	payload := buildAgentPayload(agent, embeddingText)
 
 	if err := s.agentVectorStore.Upsert(ctx, agentPointID(agent.ID), vector, payload); err != nil {
 		return fmt.Errorf("upsert failed: %w", err)
@@ -444,6 +286,18 @@ func (s *Service) IndexAgent(ctx context.Context, agentID string) error {
 
 	log.Printf("[aisearch] Indexed agent: %s (%s)", agent.DisplayName, agent.ID)
 	return nil
+}
+
+func buildAgentPayload(agent *store.Agent, embeddingText string) map[string]interface{} {
+	p := map[string]interface{}{
+		"agent_id":     agent.ID,
+		"display_name": agent.DisplayName,
+		"description":  agent.Description,
+		"status":       agent.Status,
+		"tags":         agent.Tags,
+	}
+	p[payloadHashKey] = composePayloadHash(embeddingText, p)
+	return p
 }
 
 // DeleteAgentFromIndex removes an agent from the vector index.
@@ -514,14 +368,7 @@ func (s *Service) IndexTeam(ctx context.Context, teamID string) error {
 		return fmt.Errorf("embedding failed: %w", err)
 	}
 
-	memberCount := len(memberNames)
-	payload := map[string]interface{}{
-		"team_id":      team.ID,
-		"display_name": team.DisplayName,
-		"mission":      team.Mission,
-		"enabled":      team.Enabled,
-		"member_count": memberCount,
-	}
+	payload := buildTeamPayload(team, len(memberNames), embeddingText)
 
 	if err := s.teamVectorStore.Upsert(ctx, teamPointID(team.ID), vector, payload); err != nil {
 		return fmt.Errorf("upsert failed: %w", err)
@@ -529,6 +376,18 @@ func (s *Service) IndexTeam(ctx context.Context, teamID string) error {
 
 	log.Printf("[aisearch] Indexed team: %s (%s)", team.DisplayName, team.ID)
 	return nil
+}
+
+func buildTeamPayload(team *store.Team, memberCount int, embeddingText string) map[string]interface{} {
+	p := map[string]interface{}{
+		"team_id":      team.ID,
+		"display_name": team.DisplayName,
+		"mission":      team.Mission,
+		"enabled":      team.Enabled,
+		"member_count": memberCount,
+	}
+	p[payloadHashKey] = composePayloadHash(embeddingText, p)
+	return p
 }
 
 // DeleteTeamFromIndex removes a team from the vector index.
@@ -611,7 +470,16 @@ func (s *Service) IndexAction(ctx context.Context, actionID string) error {
 	if err != nil {
 		return fmt.Errorf("embedding failed: %w", err)
 	}
-	payload := map[string]interface{}{
+	payload := buildActionPayload(action, embeddingText)
+	if err := s.actionVectorStore.Upsert(ctx, actionPointID(action.ID), vector, payload); err != nil {
+		return fmt.Errorf("upsert failed: %w", err)
+	}
+	log.Printf("[aisearch] Indexed action: %s (%s)", action.Name, action.ID)
+	return nil
+}
+
+func buildActionPayload(action *store.Action, embeddingText string) map[string]interface{} {
+	p := map[string]interface{}{
 		"action_id":   action.ID,
 		"name":        action.Name,
 		"description": action.Description,
@@ -620,11 +488,8 @@ func (s *Service) IndexAction(ctx context.Context, actionID string) error {
 		"command":     strings.Join(action.Command.Argv, " "),
 		"tags":        action.Tags,
 	}
-	if err := s.actionVectorStore.Upsert(ctx, actionPointID(action.ID), vector, payload); err != nil {
-		return fmt.Errorf("upsert failed: %w", err)
-	}
-	log.Printf("[aisearch] Indexed action: %s (%s)", action.Name, action.ID)
-	return nil
+	p[payloadHashKey] = composePayloadHash(embeddingText, p)
+	return p
 }
 
 // DeleteActionFromIndex removes an Action from the vector index.
@@ -678,15 +543,7 @@ func (s *Service) IndexTopic(ctx context.Context, topicID string) error {
 		return fmt.Errorf("embedding failed: %w", err)
 	}
 
-	payload := map[string]interface{}{
-		"topic_id":    topic.ID,
-		"name":        topic.Name,
-		"description": topic.Description,
-		"skills":      topic.Skills,
-	}
-	if topic.ParentTopicID != nil {
-		payload["parent_topic_id"] = *topic.ParentTopicID
-	}
+	payload := buildTopicPayload(topic, embeddingText)
 
 	if err := s.topicVectorStore.Upsert(ctx, topicPointID(topic.ID), vector, payload); err != nil {
 		return fmt.Errorf("upsert failed: %w", err)
@@ -694,6 +551,20 @@ func (s *Service) IndexTopic(ctx context.Context, topicID string) error {
 
 	log.Printf("[aisearch] Indexed topic: %s (%s)", topic.Name, topic.ID)
 	return nil
+}
+
+func buildTopicPayload(topic *store.Topic, embeddingText string) map[string]interface{} {
+	p := map[string]interface{}{
+		"topic_id":    topic.ID,
+		"name":        topic.Name,
+		"description": topic.Description,
+		"skills":      topic.Skills,
+	}
+	if topic.ParentTopicID != nil {
+		p["parent_topic_id"] = *topic.ParentTopicID
+	}
+	p[payloadHashKey] = composePayloadHash(embeddingText, p)
+	return p
 }
 
 // DeleteTopicFromIndex removes a topic from the vector index.

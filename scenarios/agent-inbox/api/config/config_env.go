@@ -4,7 +4,6 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -19,14 +18,6 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func getOllamaBaseURL() string {
-	if url := os.Getenv("OLLAMA_BASE_URL"); url != "" {
-		return url
-	}
-	port := getEnvOrDefault("OLLAMA_PORT", "11434")
-	return fmt.Sprintf("http://localhost:%s", port)
 }
 
 func getPromptManagerURL() string {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -145,7 +146,6 @@ func TestLoadConfig(t *testing.T) {
 		os.Setenv("POSTGRES_URL", "postgresql://test:test@localhost:5432/test")
 		os.Setenv("REDIS_URL", "redis://localhost:6379")
 		os.Setenv("QDRANT_URL", "http://localhost:6333")
-		os.Setenv("OLLAMA_URL", "http://localhost:11434")
 
 		cfg := loadConfig()
 
@@ -155,10 +155,6 @@ func TestLoadConfig(t *testing.T) {
 
 		if cfg.QdrantURL != "http://localhost:6333" {
 			t.Errorf("Expected Qdrant URL to be set, got %s", cfg.QdrantURL)
-		}
-
-		if cfg.OllamaURL != "http://localhost:11434" {
-			t.Errorf("Expected Ollama URL to be set, got %s", cfg.OllamaURL)
 		}
 	})
 }
@@ -583,50 +579,9 @@ func TestVectorStatusHandlerWithMockServer(t *testing.T) {
 	})
 }
 
-// TestAIStatusHandlerWithMockServer tests AI status with mock Ollama
-func TestAIStatusHandlerWithMockServer(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("HealthyOllama", func(t *testing.T) {
-		mockOllama := mockHTTPServer(t, http.StatusOK, `{"models":[]}`)
-		defer mockOllama.Close()
-
-		config.OllamaURL = mockOllama.URL
-		router := setupTestRouter()
-
-		w := makeHTTPRequest(router, HTTPTestRequest{
-			Method: "GET",
-			Path:   "/api/system/ai-status",
-		})
-
-		response := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
-			"service": "ollama",
-			"status":  "healthy",
-		})
-
-		if response == nil {
-			t.Fatal("Expected response but got nil")
-		}
-	})
-
-	t.Run("UnhealthyOllama", func(t *testing.T) {
-		mockOllama := mockHTTPServer(t, http.StatusInternalServerError, `{"error":"server error"}`)
-		defer mockOllama.Close()
-
-		config.OllamaURL = mockOllama.URL
-		router := setupTestRouter()
-
-		w := makeHTTPRequest(router, HTTPTestRequest{
-			Method: "GET",
-			Path:   "/api/system/ai-status",
-		})
-
-		if w.Code != http.StatusServiceUnavailable {
-			t.Errorf("Expected status 503, got %d", w.Code)
-		}
-	})
-}
+// AI-status now shells out to `resource-ollama status`; the legacy
+// httptest-based mock no longer applies. Health is exercised end-to-end via
+// the running scenario when `resource-ollama` is on PATH.
 
 // TestCreateApplicationValidation tests application creation validation
 func TestCreateApplicationValidation(t *testing.T) {
@@ -867,18 +822,14 @@ func TestQueryQdrantSimilarity(t *testing.T) {
 	})
 }
 
-// TestGenerateOllamaEmbedding tests the Ollama embedding generation
+// TestGenerateOllamaEmbedding tests the Ollama embedding generation via
+// resource-ollama gateway CLI.
 func TestGenerateOllamaEmbedding(t *testing.T) {
-	// Save original config
-	originalOllamaURL := config.OllamaURL
-	defer func() { config.OllamaURL = originalOllamaURL }()
+	if _, err := exec.LookPath("resource-ollama"); err != nil {
+		t.Skip("resource-ollama not on PATH")
+	}
 
 	t.Run("ValidEmbeddingGeneration", func(t *testing.T) {
-		// Skip if Ollama is not configured
-		if config.OllamaURL == "" {
-			config.OllamaURL = "http://localhost:11434"
-		}
-
 		embedding, err := generateOllamaEmbedding("test query for embeddings")
 
 		// If Ollama is not available, this is not a failure
@@ -905,20 +856,7 @@ func TestGenerateOllamaEmbedding(t *testing.T) {
 		}
 	})
 
-	t.Run("EmptyOllamaURL", func(t *testing.T) {
-		config.OllamaURL = ""
-		_, err := generateOllamaEmbedding("test")
-
-		if err == nil {
-			t.Error("Expected error when Ollama URL is empty")
-		}
-	})
-
 	t.Run("DifferentTextsDifferentEmbeddings", func(t *testing.T) {
-		if config.OllamaURL == "" {
-			config.OllamaURL = "http://localhost:11434"
-		}
-
 		embedding1, err1 := generateOllamaEmbedding("database architecture")
 		embedding2, err2 := generateOllamaEmbedding("machine learning models")
 
@@ -950,7 +888,7 @@ func TestIndexHandler(t *testing.T) {
 
 	// Setup config for tests
 	config = Config{
-		OllamaURL: "http://localhost:11434",
+
 		QdrantURL: "http://localhost:6333",
 	}
 
@@ -1084,7 +1022,7 @@ func TestIndexDocuments(t *testing.T) {
 
 	t.Run("EmptyDocumentsList", func(t *testing.T) {
 		config = Config{
-			OllamaURL: "http://localhost:11434",
+			
 			QdrantURL: "http://localhost:6333",
 		}
 
@@ -1104,7 +1042,7 @@ func TestIndexDocuments(t *testing.T) {
 
 	t.Run("WithDocuments", func(t *testing.T) {
 		config = Config{
-			OllamaURL: "http://localhost:11434",
+			
 			QdrantURL: "http://localhost:6333",
 		}
 

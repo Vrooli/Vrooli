@@ -30,8 +30,6 @@ func Default() *Config {
 			DefaultContextLength:     8192,
 		},
 		Integration: IntegrationConfig{
-			OllamaBaseURL:       getOllamaBaseURL(),
-			OllamaTimeout:       30 * time.Second,
 			AgentManagerTimeout: 60 * time.Second,
 			OpenRouterTimeout:   120 * time.Second,
 			ModelCacheTTL:       5 * time.Minute,

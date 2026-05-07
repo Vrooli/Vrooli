@@ -11,6 +11,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,7 +29,6 @@ type Config struct {
 	PostgresURL     string
 	RedisURL        string
 	QdrantURL       string
-	OllamaURL       string
 	N8NURL          string
 	WindmillURL     string
 	UnstructuredURL string
@@ -195,7 +196,6 @@ func loadConfig() Config {
 		PostgresURL:     postgresURL,
 		RedisURL:        os.Getenv("REDIS_URL"),
 		QdrantURL:       os.Getenv("QDRANT_URL"),
-		OllamaURL:       os.Getenv("OLLAMA_URL"),
 		N8NURL:          os.Getenv("N8N_URL"),
 		WindmillURL:     os.Getenv("WINDMILL_URL"),
 		UnstructuredURL: os.Getenv("UNSTRUCTURED_URL"),
@@ -264,22 +264,14 @@ func aiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	
 	status := SystemStatus{Service: "ollama", Status: "healthy"}
-	
-	resp, err := http.Get(config.OllamaURL + "/api/tags")
-	if err != nil {
+
+	cmd := exec.Command("resource-ollama", "status")
+	if err := cmd.Run(); err != nil {
 		status.Status = "unhealthy"
 		status.Details = err.Error()
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(status)
 		return
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
-	if resp.StatusCode != 200 {
-		status.Status = "unhealthy"
-		status.Details = fmt.Sprintf("HTTP %d", resp.StatusCode)
-		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	
 	json.NewEncoder(w).Encode(status)
@@ -835,48 +827,33 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// generateOllamaEmbedding generates embeddings using Ollama's nomic-embed-text model
+// generateOllamaEmbedding generates embeddings via the resource-ollama gateway
+// CLI. All daemon traffic is funnelled through the CLI so the host-wide
+// semaphore can bound fleet-wide parallelism — never call Ollama HTTP directly.
 func generateOllamaEmbedding(text string) ([]float64, error) {
-	if config.OllamaURL == "" {
-		return nil, fmt.Errorf("Ollama URL not configured")
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// Prepare request payload
-	payload := map[string]interface{}{
-		"model":  "nomic-embed-text",
-		"prompt": text,
-	}
-
-	jsonData, err := json.Marshal(payload)
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
+		"--model", "nomic-embed-text", "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("resource-ollama gateway embed failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)
 	}
 
-	// Make request to Ollama API
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Post(config.OllamaURL+"/api/embeddings", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call Ollama API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	// Parse response
 	var result struct {
 		Embedding []float64 `json:"embedding"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &result); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
 	}
-
 	if len(result.Embedding) == 0 {
 		return nil, fmt.Errorf("received empty embedding from Ollama")
 	}
-
 	return result.Embedding, nil
 }
 

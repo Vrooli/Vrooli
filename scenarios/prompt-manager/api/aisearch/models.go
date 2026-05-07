@@ -3,6 +3,8 @@
 // DOC: docs/reference/api-endpoints.md#ai-search
 package aisearch
 
+import "time"
+
 // AISearchRequest represents a search request.
 type AISearchRequest struct {
 	Query       string   `json:"query"`
@@ -47,28 +49,6 @@ type AvailabilityStatus struct {
 	Message      string `json:"message,omitempty"`
 }
 
-// ReindexResponse represents the response from a reindex operation.
-type ReindexResponse struct {
-	Indexed int    `json:"indexed"`
-	Skipped int    `json:"skipped"`
-	Errors  int    `json:"errors"`
-	Message string `json:"message"`
-}
-
-// ReindexStatus represents the status of a reindex job.
-type ReindexStatus struct {
-	Running    bool   `json:"running"`
-	StartedAt  string `json:"startedAt,omitempty"`
-	FinishedAt string `json:"finishedAt,omitempty"`
-	Indexed    int    `json:"indexed"`
-	Skipped    int    `json:"skipped"`
-	Errors     int    `json:"errors"`
-	Total      int    `json:"total"`
-	Message    string `json:"message,omitempty"`
-	Canceled   bool   `json:"canceled,omitempty"`
-	Error      string `json:"error,omitempty"`
-}
-
 // VectorPayload represents the metadata stored with each vector point.
 type VectorPayload struct {
 	SkillID     string   `json:"skill_id"`
@@ -77,6 +57,91 @@ type VectorPayload struct {
 	Folder      string   `json:"folder"`
 	Tags        []string `json:"tags"`
 	Modes       []string `json:"modes"`
+}
+
+// EntityKind names the collection a reconciler item belongs to.
+type EntityKind string
+
+const (
+	KindSkill  EntityKind = "skill"
+	KindAgent  EntityKind = "agent"
+	KindTeam   EntityKind = "team"
+	KindTopic  EntityKind = "topic"
+	KindAction EntityKind = "action"
+)
+
+// ItemRef is the reconciler's handle on a single planned item — enough to
+// embed-and-upsert during Apply without re-reading disk.
+type ItemRef struct {
+	Kind        EntityKind  `json:"kind"`
+	PointID     string      `json:"pointId"`
+	Name        string      `json:"name"`
+	PayloadHash string      `json:"payloadHash"`
+	Snapshot    interface{} `json:"-"`
+}
+
+// CollectionDriftReport captures Plan output for one collection.
+type CollectionDriftReport struct {
+	Kind           EntityKind `json:"kind"`
+	ToUpsert       []ItemRef  `json:"toUpsert,omitempty"`
+	ToDelete       []string   `json:"toDelete,omitempty"`
+	UnchangedCount int        `json:"unchangedCount"`
+	LegacyCount    int        `json:"legacyCount"`
+}
+
+// DriftReport is the full Plan output across all configured collections.
+type DriftReport struct {
+	PlannedAt   time.Time               `json:"plannedAt"`
+	Collections []CollectionDriftReport `json:"collections"`
+}
+
+// HasWork returns true when any collection has upserts or deletes pending.
+func (d *DriftReport) HasWork() bool {
+	if d == nil {
+		return false
+	}
+	for _, c := range d.Collections {
+		if len(c.ToUpsert) > 0 || len(c.ToDelete) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// CollectionApplyResult captures Apply output for one collection.
+type CollectionApplyResult struct {
+	Kind     EntityKind `json:"kind"`
+	Upserted int        `json:"upserted"`
+	Deleted  int        `json:"deleted"`
+}
+
+// ReconcileError is one entry in ApplyResult.Errors. The Op field names which
+// step in the Plan/Apply pipeline failed for at-a-glance triage.
+type ReconcileError struct {
+	Kind    EntityKind `json:"kind"`
+	PointID string     `json:"pointId,omitempty"`
+	Name    string     `json:"name,omitempty"`
+	Op      string     `json:"op"`
+	Err     string     `json:"err"`
+}
+
+// ApplyResult captures the actions Apply took.
+type ApplyResult struct {
+	StartedAt   time.Time               `json:"startedAt"`
+	FinishedAt  time.Time               `json:"finishedAt"`
+	Collections []CollectionApplyResult `json:"collections"`
+	Errors      []ReconcileError        `json:"errors,omitempty"`
+}
+
+// ReconcileStatus is the read-only Reconciler state surfaced to handlers/CLI.
+type ReconcileStatus struct {
+	Running    bool         `json:"running"`
+	StartedAt  string       `json:"startedAt,omitempty"`
+	FinishedAt string       `json:"finishedAt,omitempty"`
+	LastPlan   *DriftReport `json:"lastPlan,omitempty"`
+	LastResult *ApplyResult `json:"lastResult,omitempty"`
+	LastError  string       `json:"lastError,omitempty"`
+	Canceled   bool         `json:"canceled,omitempty"`
 }
 
 // --- Action AI search types ---

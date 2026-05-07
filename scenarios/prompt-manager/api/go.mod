@@ -1,6 +1,6 @@
 module prompt-manager
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/google/uuid v1.6.0
@@ -16,6 +16,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

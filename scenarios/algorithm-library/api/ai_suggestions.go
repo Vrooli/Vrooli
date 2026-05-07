@@ -1,22 +1,23 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
 
-// OllamaSuggestionClient handles AI-powered algorithm suggestions
+// OllamaSuggestionClient handles AI-powered algorithm suggestions via the
+// resource-ollama gateway CLI. All daemon traffic goes through the CLI so the
+// host-wide semaphore can bound fleet-wide parallelism — never call Ollama
+// HTTP directly.
 type OllamaSuggestionClient struct {
-	baseURL    string
-	httpClient *http.Client
-	model      string
+	model string
 }
 
 // SuggestionRequest represents a request for algorithm suggestions
@@ -40,52 +41,21 @@ type AlgorithmSuggestion struct {
 	Explanation   string  `json:"explanation"`
 }
 
-// OllamaRequest represents a request to Ollama
-type OllamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-// OllamaResponse represents a response from Ollama
-type OllamaResponse struct {
-	Response string `json:"response"`
-}
-
-// NewOllamaSuggestionClient creates a new Ollama client for suggestions
+// NewOllamaSuggestionClient creates a new Ollama client for suggestions.
 func NewOllamaSuggestionClient() *OllamaSuggestionClient {
-	ollamaHost := os.Getenv("OLLAMA_HOST")
-	if ollamaHost == "" {
-		ollamaHost = "localhost"
-	}
-
-	ollamaPort := os.Getenv("OLLAMA_PORT")
-	if ollamaPort == "" {
-		ollamaPort = "11434"
-	}
-
 	model := os.Getenv("OLLAMA_MODEL")
 	if model == "" {
 		model = "llama3.2"
 	}
-
-	return &OllamaSuggestionClient{
-		baseURL: fmt.Sprintf("http://%s:%s", ollamaHost, ollamaPort),
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		model: model,
-	}
+	return &OllamaSuggestionClient{model: model}
 }
 
-// IsAvailable checks if Ollama is available
+// IsAvailable checks if the resource-ollama daemon is reachable.
 func (c *OllamaSuggestionClient) IsAvailable() bool {
-	resp, err := c.httpClient.Get(c.baseURL + "/api/tags")
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode == 200
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	return cmd.Run() == nil
 }
 
 // GetSuggestions gets algorithm suggestions based on problem description
@@ -103,40 +73,30 @@ func (c *OllamaSuggestionClient) GetSuggestions(problemDesc string, maxSuggestio
 	// Create prompt for Ollama
 	prompt := c.createPrompt(problemDesc, algorithms, maxSuggestions)
 
-	// Call Ollama API
-	ollamaReq := OllamaRequest{
-		Model:  c.model,
-		Prompt: prompt,
-		Stream: false,
-	}
+	// Call resource-ollama gateway generate
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	reqBody, err := json.Marshal(ollamaReq)
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", c.model, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("resource-ollama gateway generate failed: %v: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("resource-ollama gateway generate failed: %v", err)
 	}
 
-	resp, err := c.httpClient.Post(
-		c.baseURL+"/api/generate",
-		"application/json",
-		bytes.NewBuffer(reqBody),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call Ollama: %v", err)
+	var decoded struct {
+		Response string `json:"response"`
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Ollama returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var ollamaResp OllamaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		return nil, err
+	if err := json.Unmarshal(out, &decoded); err != nil {
+		return nil, fmt.Errorf("decode gateway generate response: %w", err)
 	}
 
 	// Parse Ollama response and match with database algorithms
-	return c.parseOllamaResponse(ollamaResp.Response, algorithms)
+	return c.parseOllamaResponse(decoded.Response, algorithms)
 }
 
 func (c *OllamaSuggestionClient) getAvailableAlgorithms() ([]Algorithm, error) {

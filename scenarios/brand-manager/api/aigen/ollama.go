@@ -1,4 +1,4 @@
-// Ollama provider for local AI generation via the Ollama API.
+// Ollama provider for local AI generation via the resource-ollama gateway CLI.
 // [REQ:BM-REQ-AI-CHAIN]
 package aigen
 
@@ -7,113 +7,82 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
+	"os/exec"
+	"strings"
 )
 
-// OllamaProvider connects to a local Ollama instance.
+// OllamaProvider routes text generation through the resource-ollama gateway
+// CLI. All daemon traffic is funnelled through the CLI so the host-wide
+// semaphore can bound fleet-wide parallelism — never call Ollama HTTP directly.
 // [REQ:BM-REQ-AI-CHAIN]
 type OllamaProvider struct {
-	BaseURL    string // e.g. "http://localhost:11434"
-	Model      string // default model for text, e.g. "llama3"
-	HTTPClient *http.Client
+	Model string
+
+	// Runner is an optional seam for tests. Production callers leave it nil.
+	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
-// NewOllamaProvider creates a provider pointing at the given Ollama URL.
-func NewOllamaProvider(baseURL, model string) *OllamaProvider {
+// NewOllamaProvider creates a provider with the given default model.
+// The legacy baseURL parameter is accepted for caller compatibility but
+// ignored — gateway transport is owned by the resource CLI.
+func NewOllamaProvider(_baseURL, model string) *OllamaProvider {
 	if model == "" {
 		model = "llama3"
 	}
-	return &OllamaProvider{
-		BaseURL: baseURL,
-		Model:   model,
-		HTTPClient: &http.Client{
-			Timeout: 120 * time.Second,
-		},
-	}
+	return &OllamaProvider{Model: model}
 }
 
 // Name returns "ollama".
 func (o *OllamaProvider) Name() string { return "ollama" }
 
-// Available checks if the Ollama API is reachable.
+// Available checks if the resource-ollama daemon is reachable.
 func (o *OllamaProvider) Available(ctx context.Context) bool {
-	if o.BaseURL == "" {
-		return false
-	}
-	req, err := http.NewRequestWithContext(ctx, "GET", o.BaseURL+"/api/tags", nil)
-	if err != nil {
-		return false
-	}
-	resp, err := o.HTTPClient.Do(req)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	return cmd.Run() == nil
 }
 
-// ollamaGenerateRequest is the Ollama /api/generate request body.
-type ollamaGenerateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-// ollamaGenerateResponse is the Ollama /api/generate response.
-type ollamaGenerateResponse struct {
-	Response string `json:"response"`
-	Model    string `json:"model"`
-}
-
-// GenerateText calls Ollama's /api/generate endpoint. [REQ:BM-REQ-AI-TEXT]
+// GenerateText calls resource-ollama gateway generate. [REQ:BM-REQ-AI-TEXT]
 func (o *OllamaProvider) GenerateText(ctx context.Context, req TextRequest) (*TextResponse, error) {
 	model := req.Model
 	if model == "" {
 		model = o.Model
 	}
 
-	body := ollamaGenerateRequest{
-		Model:  model,
-		Prompt: req.Prompt,
-		Stream: false,
-	}
-	data, err := json.Marshal(body)
+	args := []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}
+	out, err := o.run(ctx, args, req.Prompt)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("resource-ollama gateway generate failed: %w", err)
 	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", o.BaseURL+"/api/generate", bytes.NewReader(data))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+	var decoded struct {
+		Response string `json:"response"`
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := o.HTTPClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("ollama request: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return nil, fmt.Errorf("decode gateway generate response: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result ollamaGenerateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
 	return &TextResponse{
-		Text:     result.Response,
+		Text:     decoded.Response,
 		Provider: "ollama",
-		Model:    result.Model,
+		Model:    model,
 	}, nil
 }
 
 // GenerateImage is not supported by Ollama (text-only). [REQ:BM-REQ-AI-IMAGE]
 func (o *OllamaProvider) GenerateImage(_ context.Context, _ ImageRequest) (*ImageResponse, error) {
 	return nil, fmt.Errorf("ollama does not support image generation")
+}
+
+func (o *OllamaProvider) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if o.Runner != nil {
+		return o.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }

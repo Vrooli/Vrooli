@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 )
@@ -18,16 +19,17 @@ func TestSemanticSearch(t *testing.T) {
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
-	// Skip if Ollama or Qdrant is not available
-	ollamaHost := os.Getenv("OLLAMA_HOST")
+	// Skip if resource-ollama or Qdrant is not available
+	_, ollamaErr := exec.LookPath("resource-ollama")
+	ollamaAvailable := ollamaErr == nil
 	qdrantHost := os.Getenv("QDRANT_HOST")
 
-	if ollamaHost == "" && qdrantHost == "" {
-		t.Skip("Semantic search requires Ollama and Qdrant - skipping")
+	if !ollamaAvailable && qdrantHost == "" {
+		t.Skip("Semantic search requires resource-ollama and Qdrant - skipping")
 	}
 
 	t.Run("GetEmbedding_Success", func(t *testing.T) {
-		if ollamaHost == "" {
+		if !ollamaAvailable {
 			t.Skip("Ollama not available")
 		}
 
@@ -48,7 +50,7 @@ func TestSemanticSearch(t *testing.T) {
 	})
 
 	t.Run("GetEmbedding_EmptyText", func(t *testing.T) {
-		if ollamaHost == "" {
+		if !ollamaAvailable {
 			t.Skip("Ollama not available")
 		}
 
@@ -60,7 +62,7 @@ func TestSemanticSearch(t *testing.T) {
 	})
 
 	t.Run("IndexNoteInQdrant_Success", func(t *testing.T) {
-		if qdrantHost == "" || ollamaHost == "" {
+		if qdrantHost == "" || !ollamaAvailable {
 			t.Skip("Qdrant or Ollama not available")
 		}
 
@@ -76,7 +78,7 @@ func TestSemanticSearch(t *testing.T) {
 	})
 
 	t.Run("SemanticSearchHandler_Success", func(t *testing.T) {
-		if qdrantHost == "" || ollamaHost == "" {
+		if qdrantHost == "" || !ollamaAvailable {
 			t.Skip("Qdrant or Ollama not available")
 		}
 

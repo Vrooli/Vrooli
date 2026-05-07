@@ -94,10 +94,6 @@ type Config struct {
 
 	// --- AI Provider ---
 
-	// OllamaURL is the base URL for a local Ollama instance.
-	// Env: OLLAMA_URL, OLLAMA_BASE_URL
-	OllamaURL string
-
 	// OllamaModel overrides the default Ollama model for text generation.
 	// Env: BM_OLLAMA_MODEL
 	OllamaModel string
@@ -164,12 +160,6 @@ func Load() Config {
 	}
 
 	// AI provider config
-	for _, key := range []string{"OLLAMA_URL", "OLLAMA_BASE_URL"} {
-		if v := os.Getenv(key); v != "" {
-			cfg.OllamaURL = v
-			break
-		}
-	}
 	if v := os.Getenv("BM_OLLAMA_MODEL"); v != "" {
 		cfg.OllamaModel = v
 	}

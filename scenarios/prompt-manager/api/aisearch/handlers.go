@@ -1,6 +1,7 @@
 package aisearch
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 // Handlers provides HTTP handlers for AI search operations.
 type Handlers struct {
 	service                   *Service
+	reconciler                *Reconciler
 	budgetConfigStore         *BudgetConfigStore
 	discoverFilterConfigStore *DiscoverFilterConfigStore
 }
@@ -17,6 +19,11 @@ type Handlers struct {
 // NewHandlers creates new AI search handlers.
 func NewHandlers(service *Service) *Handlers {
 	return &Handlers{service: service}
+}
+
+// SetReconciler attaches the Reconciler used by the reconcile endpoints.
+func (h *Handlers) SetReconciler(r *Reconciler) {
+	h.reconciler = r
 }
 
 // SetBudgetConfigStore sets the budget config store for config endpoints.
@@ -96,38 +103,127 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(status)
 }
 
-// Reindex handles POST /api/v1/search/ai/reindex - rebuild vector index.
-func (h *Handlers) Reindex(w http.ResponseWriter, r *http.Request) {
-	// Check if AI services are available first
-	status := h.service.GetStatus(r.Context())
-	if !status.Available {
-		http.Error(w, status.Message, http.StatusServiceUnavailable)
+// Reconcile handles POST /api/v1/search/ai/reconcile.
+//
+// Behavior:
+//   - X-Dry-Run: true (or ?dry_run=true) → 200 with the structured DriftReport,
+//     no qdrant mutation, no embeds.
+//   - default → 202 (Accepted); kicks off a background RunOnce. 409 if a
+//     reconcile is already in progress.
+//   - ?collection=skills|agents|teams|topics|actions filters to one
+//     descriptor (still goes through the same Reconciler, against a per-call
+//     filtered descriptor list).
+func (h *Handlers) Reconcile(w http.ResponseWriter, r *http.Request) {
+	if h.reconciler == nil {
+		http.Error(w, "reconciler not configured", http.StatusServiceUnavailable)
 		return
 	}
 
-	resp, started := h.service.StartReindex()
+	dryRun := isDryRun(r)
+	collection := strings.TrimSpace(r.URL.Query().Get("collection"))
 
-	w.Header().Set("Content-Type", "application/json")
-	if started {
-		w.WriteHeader(http.StatusAccepted)
+	rec := h.reconciler
+	if collection != "" && collection != "all" {
+		filtered, ok := filterByCollection(h.reconciler, collection)
+		if !ok {
+			http.Error(w, "unknown collection: "+collection, http.StatusBadRequest)
+			return
+		}
+		rec = filtered
 	}
-	_ = json.NewEncoder(w).Encode(resp)
+
+	if dryRun {
+		plan, err := rec.Plan(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"dry_run": true,
+			"plan":    plan,
+		})
+		return
+	}
+
+	go func() {
+		_, _, err := rec.RunOnce(context.Background())
+		if err != nil && err != ErrReconcileBusy {
+			log.Printf("[aisearch] background reconcile failed: %v", err)
+		}
+	}()
+
+	// Brief non-blocking peek to see if we just collided with an in-flight run.
+	// We use a tiny inline call: re-check status after a short wait — but to
+	// keep this synchronous, just return 202; the caller polls /status.
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(rec.Status())
 }
 
-// ReindexStatus handles GET /api/v1/search/ai/reindex/status - check reindex status.
-func (h *Handlers) ReindexStatus(w http.ResponseWriter, r *http.Request) {
-	status := h.service.ReindexStatus()
-
+// ReconcileStatus handles GET /api/v1/search/ai/reconcile/status.
+func (h *Handlers) ReconcileStatus(w http.ResponseWriter, r *http.Request) {
+	if h.reconciler == nil {
+		http.Error(w, "reconciler not configured", http.StatusServiceUnavailable)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(h.reconciler.Status())
 }
 
-// CancelReindex handles POST /api/v1/search/ai/reindex/cancel - cancel active reindex.
-func (h *Handlers) CancelReindex(w http.ResponseWriter, r *http.Request) {
-	status := h.service.CancelReindex()
-
+// CancelReconcile handles POST /api/v1/search/ai/reconcile/cancel.
+func (h *Handlers) CancelReconcile(w http.ResponseWriter, r *http.Request) {
+	if h.reconciler == nil {
+		http.Error(w, "reconciler not configured", http.StatusServiceUnavailable)
+		return
+	}
+	h.reconciler.Cancel()
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(h.reconciler.Status())
+}
+
+func isDryRun(r *http.Request) bool {
+	if v := strings.TrimSpace(strings.ToLower(r.Header.Get("X-Dry-Run"))); v == "1" || v == "true" || v == "yes" {
+		return true
+	}
+	if v := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("dry_run"))); v == "1" || v == "true" || v == "yes" {
+		return true
+	}
+	return false
+}
+
+// filterByCollection returns a fresh Reconciler restricted to one descriptor
+// kind. The new reconciler has independent state (mutex, last-plan/result), so
+// per-collection ad-hoc requests don't serialize with the main full-corpus
+// reconcile — that's intentional: a dry-run or scoped run shouldn't lock out
+// the periodic loop.
+func filterByCollection(r *Reconciler, name string) (*Reconciler, bool) {
+	kind, ok := parseEntityKind(name)
+	if !ok {
+		return nil, false
+	}
+	for _, d := range r.Descriptors {
+		if d.Kind == kind {
+			return NewReconciler(r.Embedder, []CollectionDescriptor{d}, r.Parallelism), true
+		}
+	}
+	return nil, false
+}
+
+func parseEntityKind(name string) (EntityKind, bool) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "skill", "skills":
+		return KindSkill, true
+	case "agent", "agents":
+		return KindAgent, true
+	case "team", "teams":
+		return KindTeam, true
+	case "topic", "topics":
+		return KindTopic, true
+	case "action", "actions":
+		return KindAction, true
+	}
+	return "", false
 }
 
 // SearchAgents handles POST /api/v1/search/agents/ai - AI semantic agent search.

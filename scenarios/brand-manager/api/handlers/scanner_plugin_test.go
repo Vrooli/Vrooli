@@ -335,56 +335,27 @@ func TestGenerateOptions_Availability(t *testing.T) {
 		return result
 	}
 
-	// Fake Ollama server that responds 200 to /api/tags.
-	fakeOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"models":[]}`))
-	}))
-	defer fakeOllama.Close()
-
+	// Ollama availability is now determined by `resource-ollama status` (CLI on
+	// PATH + daemon up). Only OpenRouter availability is still a config toggle.
 	tests := []struct {
 		name             string
-		ollamaURL        string
 		openRouterKey    string
-		expectOllama     bool
 		expectOpenRouter bool
 	}{
 		{
-			name:             "neither configured",
-			expectOllama:     false,
+			name:             "openrouter not configured",
 			expectOpenRouter: false,
 		},
 		{
-			name:             "ollama only",
-			ollamaURL:        fakeOllama.URL,
-			expectOllama:     true,
-			expectOpenRouter: false,
-		},
-		{
-			name:             "openrouter only",
+			name:             "openrouter configured",
 			openRouterKey:    "sk-test-key",
-			expectOllama:     false,
 			expectOpenRouter: true,
-		},
-		{
-			name:             "both configured",
-			ollamaURL:        fakeOllama.URL,
-			openRouterKey:    "sk-test-key",
-			expectOllama:     true,
-			expectOpenRouter: true,
-		},
-		{
-			name:             "ollama configured but unreachable",
-			ollamaURL:        "http://127.0.0.1:1", // nothing listening
-			expectOllama:     false,
-			expectOpenRouter: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.Default()
-			cfg.OllamaURL = tt.ollamaURL
 			cfg.OpenRouterAPIKey = tt.openRouterKey
 			_, router, _, _, _ := setupMockServerWithConfig(t, cfg)
 
@@ -400,9 +371,6 @@ func TestGenerateOptions_Availability(t *testing.T) {
 			json.NewDecoder(w.Body).Decode(&body)
 
 			avail := providerAvail(t, body)
-			if avail["ollama"] != tt.expectOllama {
-				t.Errorf("ollama: got available=%v, want %v", avail["ollama"], tt.expectOllama)
-			}
 			if avail["openrouter"] != tt.expectOpenRouter {
 				t.Errorf("openrouter: got available=%v, want %v", avail["openrouter"], tt.expectOpenRouter)
 			}

@@ -161,7 +161,7 @@ func TestDiscover_NoTopicStore_ReturnsResponseWithBudget(t *testing.T) {
 	svc := &Service{
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
-		reindex:       &reindexState{},
+		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"api"}, "moderate", 10)
@@ -188,7 +188,7 @@ func TestDiscover_BudgetCalculation_Under(t *testing.T) {
 	svc := &Service{
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
-		reindex:       &reindexState{},
+		
 	}
 
 	// No AI services = no results, 0 chars → under budget
@@ -210,7 +210,7 @@ func TestDiscover_ReadCommand_Empty(t *testing.T) {
 	svc := &Service{
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
-		reindex:       &reindexState{},
+		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"nonexistent"}, "", 10)
@@ -242,7 +242,7 @@ func TestDiscoverTyped_DefaultPreservesSkillOnlyShape(t *testing.T) {
 			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
 			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
 		}}},
-		reindex: &reindexState{},
+		
 	}
 
 	resp, err := svc.DiscoverTyped(context.Background(), []string{"debug"}, "", 10, "")
@@ -274,7 +274,7 @@ func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
 			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
 			Tags:        []string{"team", "decisions"},
 		}}},
-		reindex: &reindexState{},
+		
 	}
 
 	resp, err := svc.DiscoverTyped(context.Background(), []string{"team decisions"}, "", 10, "action")
@@ -360,7 +360,7 @@ func TestDiscoverTyped_AllPreservesActionResultsWithinLimit(t *testing.T) {
 			Command:     store.ActionCommand{Argv: []string{"vrooli", "scenario", "status", "{{scenario}}"}},
 			Tags:        []string{"scenario", "status", "lifecycle"},
 		}}},
-		reindex: &reindexState{},
+		
 	}
 
 	resp, err := svc.DiscoverTyped(context.Background(), []string{"show scenario status"}, "", 2, "all")
@@ -445,7 +445,7 @@ func TestSortDiscoverSearchResults(t *testing.T) {
 
 func TestSearchTopics_NoVectorStore(t *testing.T) {
 	svc := &Service{
-		reindex: &reindexState{},
+		
 	}
 
 	results, method, err := svc.SearchTopics(context.Background(), "test", 5)
@@ -464,7 +464,7 @@ func TestSearchTopics_NoVectorStore(t *testing.T) {
 
 // newTestEmbedder creates an Embedder backed by an httptest server that returns
 // a fixed embedding vector for any prompt.
-func newTestEmbedder(t *testing.T) (*Embedder, func()) {
+func newTestEmbedder(t *testing.T) (Embedder, func()) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -472,12 +472,12 @@ func newTestEmbedder(t *testing.T) (*Embedder, func()) {
 			Embedding: []float64{0.1, 0.2, 0.3},
 		})
 	}))
-	return NewEmbedder(srv.URL, "test-model"), srv.Close
+	return fakeEmbedderOK(), srv.Close
 }
 
 // newTestVectorStore creates a VectorStore backed by an httptest server that
 // returns the provided canned results for any search request.
-func newTestVectorStore(t *testing.T, collection string, results []searchResultFixture) (*VectorStore, func()) {
+func newTestVectorStore(t *testing.T, collection string, results []searchResultFixture) (VectorStore, func()) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Return canned results for search
@@ -592,7 +592,7 @@ func TestDiscover_FullPipeline_TopicAndSkillResults(t *testing.T) {
 		threshold:        0.5,
 		topicVectorStore: topicVS,
 		topicStore:       mockTopics,
-		reindex:          &reindexState{},
+		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"testing"}, "moderate", 10)
@@ -732,7 +732,7 @@ func TestDiscover_OverBudget_TrimsReadCommand(t *testing.T) {
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
 		threshold:     0.5,
-		reindex:       &reindexState{},
+		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"stuff"}, "minor", 10)
@@ -813,7 +813,7 @@ func TestDiscover_Deduplication_TopicWinsOverSearch(t *testing.T) {
 		threshold:        0.5,
 		topicVectorStore: topicVS,
 		topicStore:       mockTopics,
-		reindex:          &reindexState{},
+		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"shared"}, "", 10)
@@ -869,7 +869,7 @@ func TestDiscover_WithCustomBudgetConfig(t *testing.T) {
 		searchService: search.NewService(mockSkills),
 		threshold:     0.5,
 		budgetConfig:  mockBudget,
-		reindex:       &reindexState{},
+		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"test"}, "minor", 10)
@@ -902,7 +902,7 @@ func TestDiscover_WithCustomBudgetConfig(t *testing.T) {
 // --- Handler tests ---
 
 func TestDiscoverHandler_MissingQueries(t *testing.T) {
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 
 	body, _ := json.Marshal(DiscoverRequest{})
 	req, _ := http.NewRequest("POST", "/api/v1/discover", bytes.NewReader(body))
@@ -917,7 +917,7 @@ func TestDiscoverHandler_MissingQueries(t *testing.T) {
 }
 
 func TestDiscoverHandler_InvalidComplexity(t *testing.T) {
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 
 	body, _ := json.Marshal(DiscoverRequest{
 		Queries:    []string{"test"},

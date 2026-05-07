@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -151,49 +152,19 @@ func (q *QdrantClient) SearchSimilar(collectionName string, vector []float32, li
 	return response.Result, nil
 }
 
-// GenerateEmbedding generates embeddings using Ollama
+// GenerateEmbedding generates embeddings via the resource-ollama gateway CLI.
 func GenerateEmbedding(text string) ([]float32, error) {
-	// Get Ollama URL from validated configuration
-	ollamaURL := appConfig.OllamaURL
-
-	payload := map[string]interface{}{
-		"model":  "nomic-embed-text",
-		"prompt": text,
-	}
-
-	jsonData, err := json.Marshal(payload)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	vec, err := ollamaGatewayEmbed(ctx, "nomic-embed-text", text)
 	if err != nil {
 		return nil, err
 	}
-
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/embeddings", ollamaURL), bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
+	out := make([]float32, len(vec))
+	for i, v := range vec {
+		out[i] = float32(v)
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to generate embedding: %s", string(body))
-	}
-
-	var response struct {
-		Embedding []float32 `json:"embedding"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, err
-	}
-
-	return response.Embedding, nil
+	return out, nil
 }
 
 // InitializeVectorSearch sets up the vector database for injection techniques

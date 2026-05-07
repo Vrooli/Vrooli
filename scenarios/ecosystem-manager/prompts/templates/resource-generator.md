@@ -456,19 +456,19 @@ timeout 10 vrooli resource qdrant search "[category] implementation"
 #### Option B: File Search (Always Available)
 ```bash
 # 1. Exact match search
-rg -i "exact-name" /home/matthalloran8/Vrooli --type md
+rg -i "exact-name" . --type md
 
 # 2. Functional equivalent search
-rg -i "core-functionality|similar-feature" /home/matthalloran8/Vrooli/scenarios
+rg -i "core-functionality|similar-feature" scenarios
 
 # 3. Component reuse search
-rg -i "component-name.*implementation" /home/matthalloran8/Vrooli --type go --type js
+rg -i "component-name.*implementation" . --type go --type js
 
 # 4. Failure analysis search
-rg -i "(failed|error|issue).*category-name" /home/matthalloran8/Vrooli --type md
+rg -i "(failed|error|issue).*category-name" . --type md
 
 # 5. Pattern mining search
-find /home/matthalloran8/Vrooli/scenarios -name "*template*" -o -name "*example*"
+find scenarios -name "*template*" -o -name "*example*"
 ```
 
 ### Required Outputs

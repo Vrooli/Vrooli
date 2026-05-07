@@ -7,15 +7,6 @@ import "time"
 // IntegrationConfig controls external service connections.
 // Audience: Operators configuring service mesh.
 type IntegrationConfig struct {
-	// OllamaBaseURL is the Ollama API endpoint.
-	// Set via OLLAMA_BASE_URL env var, or derived from OLLAMA_PORT.
-	// Default: "http://localhost:11434"
-	OllamaBaseURL string
-
-	// OllamaTimeout is the HTTP timeout for Ollama requests.
-	// Default: 30s
-	OllamaTimeout time.Duration
-
 	// AgentManagerURL is the agent-manager API endpoint.
 	// Set via AGENT_MANAGER_API_URL env var, or discovered via vrooli CLI.
 	AgentManagerURL string

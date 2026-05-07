@@ -52,7 +52,6 @@ type Config struct {
 	DatabaseURL            string
 	QdrantURL              string
 	QdrantAPIKey           string
-	OllamaURL              string
 	OllamaEmbeddingModel   string
 	OllamaStructuredModel  string
 	ResourceQdrantCLI      string
@@ -95,7 +94,6 @@ func NewServer() (*Server, error) {
 		Port:                   requireEnv("API_PORT"),
 		QdrantURL:              strings.TrimSpace(os.Getenv("QDRANT_URL")),
 		QdrantAPIKey:           strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
-		OllamaURL:              strings.TrimSpace(os.Getenv("OLLAMA_URL")),
 		OllamaEmbeddingModel:   strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_MODEL")),
 		OllamaStructuredModel:  strings.TrimSpace(os.Getenv("OLLAMA_STRUCTURED_OUTPUT_MODEL")),
 		ResourceQdrantCLI:      strings.TrimSpace(os.Getenv("RESOURCE_QDRANT_CLI")),
@@ -148,8 +146,7 @@ func (s *Server) setupServices() {
 		APIKey:  s.qdrantAPIKey(),
 	}
 	emb := &embedder.Ollama{
-		BaseURL: s.ollamaURL(),
-		Model:   s.ollamaEmbeddingModel(),
+		Model: s.ollamaEmbeddingModel(),
 	}
 
 	var meta *metadatastore.Postgres
@@ -228,11 +225,10 @@ func (s *Server) setupServices() {
 			Fallback: deepsearch.FileSkillProvider{Path: skillPath},
 		}
 		var parser deepsearch.ResultParser = &deepsearch.JSONParser{}
-		if s.config.OllamaURL != "" && s.config.OllamaStructuredModel != "" {
+		if s.config.OllamaStructuredModel != "" {
 			parser = &deepsearch.JSONParser{
 				Fallback: &deepsearch.OllamaParser{
-					BaseURL: s.config.OllamaURL,
-					Model:   s.config.OllamaStructuredModel,
+					Model: s.config.OllamaStructuredModel,
 				},
 			}
 		}
@@ -530,18 +526,6 @@ func (s *Server) qdrantAPIKey() string {
 		}
 	}
 	return strings.TrimSpace(os.Getenv("QDRANT_API_KEY"))
-}
-
-func (s *Server) ollamaURL() string {
-	if s != nil && s.config != nil {
-		if value := strings.TrimSpace(s.config.OllamaURL); value != "" {
-			return value
-		}
-	}
-	if value := strings.TrimSpace(os.Getenv("OLLAMA_URL")); value != "" {
-		return value
-	}
-	return "http://localhost:11434"
 }
 
 func (s *Server) ollamaEmbeddingModel() string {

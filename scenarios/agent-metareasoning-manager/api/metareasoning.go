@@ -142,11 +142,10 @@ type StepResult struct {
 	Duration  int64       `json:"duration_ms"`
 }
 
-// OllamaClient handles communication with Ollama
-type OllamaClient struct {
-	baseURL    string
-	httpClient *http.Client
-}
+// OllamaClient routes reasoning requests through the resource-ollama gateway
+// CLI. All daemon traffic goes through the CLI so the host-wide semaphore can
+// bound fleet-wide parallelism — never call Ollama HTTP directly.
+type OllamaClient struct{}
 
 // VectorStore handles vector operations
 type VectorStore struct {
@@ -169,12 +168,9 @@ func NewMetareasoningEngine(db *sql.DB) *MetareasoningEngine {
 	}
 }
 
-// NewOllamaClient creates a new Ollama client
+// NewOllamaClient creates a new Ollama client.
 func NewOllamaClient() *OllamaClient {
-	return &OllamaClient{
-		baseURL:    getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
-		httpClient: &http.Client{Timeout: 120 * time.Second},
-	}
+	return &OllamaClient{}
 }
 
 // NewVectorStore creates a new vector store client
@@ -564,21 +560,30 @@ func (me *MetareasoningEngine) executeReasoningChain(chain *ReasoningChain, mode
 	}
 }
 
-// Generate calls Ollama to generate AI responses
+// Generate calls resource-ollama gateway generate to produce AI responses.
 func (oc *OllamaClient) Generate(prompt, model string) (string, error) {
-	// For now, use CLI interface to Ollama via vrooli resource command
-	cmd := exec.Command("vrooli", "resource", "ollama", "generate", prompt, "--model", model, "--type", "reasoning", "--quiet")
-	
-	var out bytes.Buffer
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--model", model, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+
+	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd.Stdout = &out
+	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("ollama generation failed: %v, stderr: %s", err, stderr.String())
+		return "", fmt.Errorf("resource-ollama gateway generate failed: %v, stderr: %s", err, stderr.String())
 	}
-	
-	return strings.TrimSpace(out.String()), nil
+
+	var decoded struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &decoded); err != nil {
+		return "", fmt.Errorf("decode gateway generate response: %w", err)
+	}
+	return strings.TrimSpace(decoded.Response), nil
 }
 
 // Helper functions
@@ -630,8 +635,10 @@ func (me *MetareasoningEngine) createVectorEmbedding(response *ReasoningResponse
 	// Create text representation for embedding
 	text := fmt.Sprintf("Reasoning Type: %s\nAnalysis: %s", response.Type, fmt.Sprintf("%v", response.Analysis))
 	
-	// Use Ollama's embedding model
-	cmd := exec.Command("vrooli", "resource", "ollama", "embeddings", text, "--model", "nomic-embed-text")
+	// Use Ollama's embedding model via the resource-ollama gateway CLI.
+	cmd := exec.Command("resource-ollama", "gateway", "embed",
+		"--model", "nomic-embed-text", "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Failed to create embedding: %v", err)
 		return ""

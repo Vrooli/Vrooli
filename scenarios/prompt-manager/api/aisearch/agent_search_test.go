@@ -143,7 +143,7 @@ func TestSearchAgents_AISuccess(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 3)
 	agentVS := NewVectorStore(qdrantServer.URL, "", "agents", 3)
 	skillStore := NewMockSkillStore()
@@ -182,7 +182,7 @@ func TestSearchAgents_FallbackToText(t *testing.T) {
 	}))
 	defer ollamaServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -207,7 +207,7 @@ func TestSearchAgents_FallbackToText(t *testing.T) {
 }
 
 func TestSearchAgents_NoVectorStore_FallsBack(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -230,7 +230,7 @@ func TestSearchAgents_NoVectorStore_FallsBack(t *testing.T) {
 }
 
 func TestSearchAgents_NoSearchSvc_EmptyResults(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -268,7 +268,7 @@ func TestIndexAgent_Success(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 3)
 	agentVS := NewVectorStore(qdrantServer.URL, "", "agents", 3)
 	skillStore := NewMockSkillStore()
@@ -290,7 +290,7 @@ func TestIndexAgent_Success(t *testing.T) {
 }
 
 func TestIndexAgent_NotFound(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	agentVS := NewVectorStore("http://localhost:99999", "", "agents", 768)
 	skillStore := NewMockSkillStore()
@@ -307,7 +307,7 @@ func TestIndexAgent_NotFound(t *testing.T) {
 }
 
 func TestIndexAgent_NilVectorStore(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -332,7 +332,7 @@ func TestDeleteAgentFromIndex_Success(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	agentVS := NewVectorStore(qdrantServer.URL, "", "agents", 768)
 	skillStore := NewMockSkillStore()
@@ -350,7 +350,7 @@ func TestDeleteAgentFromIndex_Success(t *testing.T) {
 }
 
 func TestDeleteAgentFromIndex_NilVectorStore(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)

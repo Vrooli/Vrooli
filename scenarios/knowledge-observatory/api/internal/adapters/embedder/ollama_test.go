@@ -3,59 +3,68 @@ package embedder
 import (
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"strings"
 	"testing"
 )
 
-func TestOllamaEmbedRequiresBaseURL(t *testing.T) {
-	client := &Ollama{}
-	_, err := client.Embed(context.Background(), "hello")
-	if err == nil || !strings.Contains(err.Error(), "base url") {
-		t.Fatalf("expected base url error, got %v", err)
-	}
-}
-
 func TestOllamaEmbedUsesDefaultModel(t *testing.T) {
-	var got embeddingRequest
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/embeddings" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		if r.Method != http.MethodPost {
-			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.2, 0.4}})
-	}))
-	defer server.Close()
+	var capturedArgs []string
+	var capturedStdin string
+	client := &Ollama{
+		Runner: func(_ context.Context, args []string, stdin string) ([]byte, error) {
+			capturedArgs = args
+			capturedStdin = stdin
+			return json.Marshal(struct {
+				Embedding []float64 `json:"embedding"`
+			}{Embedding: []float64{0.2, 0.4}})
+		},
+	}
 
-	client := &Ollama{BaseURL: server.URL, Client: server.Client()}
 	out, err := client.Embed(context.Background(), "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got.Model != "nomic-embed-text" {
-		t.Fatalf("expected default model, got %q", got.Model)
-	}
 	if len(out) != 2 {
 		t.Fatalf("expected embedding length 2, got %d", len(out))
 	}
+	if capturedStdin != "test" {
+		t.Fatalf("expected stdin %q, got %q", "test", capturedStdin)
+	}
+	joined := strings.Join(capturedArgs, " ")
+	if !strings.Contains(joined, "gateway embed") {
+		t.Fatalf("expected gateway embed subcommand, got %q", joined)
+	}
+	if !strings.Contains(joined, "--model nomic-embed-text") {
+		t.Fatalf("expected default model in args, got %q", joined)
+	}
 }
 
-func TestOllamaEmbedHandlesNonOK(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("bad request"))
-	}))
-	defer server.Close()
+func TestOllamaEmbedPassesModel(t *testing.T) {
+	var capturedArgs []string
+	client := &Ollama{
+		Model: "custom-embed",
+		Runner: func(_ context.Context, args []string, _ string) ([]byte, error) {
+			capturedArgs = args
+			return []byte(`{"embedding":[0.1]}`), nil
+		},
+	}
+	if _, err := client.Embed(context.Background(), "test"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(strings.Join(capturedArgs, " "), "--model custom-embed") {
+		t.Fatalf("expected --model custom-embed in args, got %v", capturedArgs)
+	}
+}
 
-	client := &Ollama{BaseURL: server.URL, Client: server.Client()}
+func TestOllamaEmbedSurfacesRunnerError(t *testing.T) {
+	client := &Ollama{
+		Runner: func(context.Context, []string, string) ([]byte, error) {
+			return nil, errors.New("boom")
+		},
+	}
 	_, err := client.Embed(context.Background(), "test")
-	if err == nil || !strings.Contains(err.Error(), "status 400") {
-		t.Fatalf("expected status error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("expected wrapped runner error, got %v", err)
 	}
 }

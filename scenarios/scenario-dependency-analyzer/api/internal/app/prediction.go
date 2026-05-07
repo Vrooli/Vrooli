@@ -22,7 +22,7 @@ func findSimilarScenariosQdrant(description string, existingScenarios []string) 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	ollamaClient := ollama.NewEmbedderFromEnv(nil)
+	ollamaClient := ollama.NewEmbedderFromEnv()
 	qdrantClient := qdrant.NewClientFromEnv(nil)
 
 	collection := strings.TrimSpace(os.Getenv("SCENARIO_EMBEDDINGS_COLLECTION"))

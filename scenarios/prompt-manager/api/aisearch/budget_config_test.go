@@ -155,7 +155,7 @@ func TestGetBudgetConfig_Handler(t *testing.T) {
 	dir := t.TempDir()
 	store := NewBudgetConfigStore(dir)
 
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 	h.SetBudgetConfigStore(store)
 
 	req, _ := http.NewRequest("GET", "/api/v1/config/budgets", nil)
@@ -183,7 +183,7 @@ func TestPutBudgetConfig_Handler(t *testing.T) {
 	}
 
 	store := NewBudgetConfigStore(dir)
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 	h.SetBudgetConfigStore(store)
 
 	custom := BudgetConfig{Minor: 3000, Moderate: 6000, Major: 9000, Architectural: 15000}
@@ -210,7 +210,7 @@ func TestPutBudgetConfig_Handler(t *testing.T) {
 func TestPutBudgetConfig_Handler_Invalid(t *testing.T) {
 	dir := t.TempDir()
 	store := NewBudgetConfigStore(dir)
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 	h.SetBudgetConfigStore(store)
 
 	invalid := BudgetConfig{Minor: -1, Moderate: 100, Major: 200, Architectural: 300}
@@ -227,7 +227,7 @@ func TestPutBudgetConfig_Handler_Invalid(t *testing.T) {
 }
 
 func TestGetBudgetConfig_Handler_NoStore(t *testing.T) {
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 
 	req, _ := http.NewRequest("GET", "/api/v1/config/budgets", nil)
 	rr := httptest.NewRecorder()

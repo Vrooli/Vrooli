@@ -19,7 +19,6 @@ type Config struct {
 	QdrantURL string
 
 	// Ollama configuration
-	OllamaURL string
 
 	// Server configuration
 	APIPort string
@@ -108,7 +107,6 @@ func LoadConfig() (*Config, error) {
 
 		// Service defaults
 		QdrantURL: getEnv("QDRANT_URL", "http://localhost:6333"),
-		OllamaURL: getEnv("OLLAMA_URL", "http://localhost:11434"),
 
 		// Server defaults
 		APIPort: getEnv("API_PORT", "16018"),
@@ -133,7 +131,6 @@ func LoadConfig() (*Config, error) {
 			"postgres_port":     config.PostgresPort,
 			"postgres_db":       config.PostgresDB,
 			"qdrant_url":        config.QdrantURL,
-			"ollama_url":        config.OllamaURL,
 			"api_port":          config.APIPort,
 			"lifecycle_managed": config.LifecycleManaged,
 			"use_mock_testing":  config.UseMockTesting,

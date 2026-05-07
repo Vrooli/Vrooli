@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -306,10 +307,7 @@ func (h *Handlers) RegisterExtendedRoutes(r *mux.Router) {
 // GenerateOptions handles GET /api/v1/brands/generate/options. [REQ:BM-REQ-UI-GENERATE]
 // Returns available generation providers and their capabilities.
 func (h *Handlers) GenerateOptions(w http.ResponseWriter, r *http.Request) {
-	ollamaAvailable := false
-	if h.cfg.OllamaURL != "" {
-		ollamaAvailable = h.checkOllamaHealth(r.Context())
-	}
+	ollamaAvailable := h.checkOllamaHealth(r.Context())
 	openrouterAvailable := h.cfg.OpenRouterAPIKey != ""
 
 	options := map[string]interface{}{
@@ -346,19 +344,11 @@ func (h *Handlers) GenerateOptions(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-// checkOllamaHealth checks if Ollama is reachable by hitting its /api/tags endpoint.
+// checkOllamaHealth checks if Ollama is reachable via the resource-ollama CLI.
 func (h *Handlers) checkOllamaHealth(parent context.Context) bool {
 	ctx, cancel := context.WithTimeout(parent, 2*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(h.cfg.OllamaURL, "/")+"/api/tags", nil)
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	return cmd.Run() == nil
 }

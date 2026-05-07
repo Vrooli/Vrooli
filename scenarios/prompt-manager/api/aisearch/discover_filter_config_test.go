@@ -149,7 +149,7 @@ func TestGetDiscoverFilterConfig_Handler(t *testing.T) {
 	dir := t.TempDir()
 	store := NewDiscoverFilterConfigStore(dir)
 
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 	h.SetDiscoverFilterConfigStore(store)
 
 	req, _ := http.NewRequest("GET", "/api/v1/config/discover-filters", nil)
@@ -180,7 +180,7 @@ func TestPutDiscoverFilterConfig_Handler(t *testing.T) {
 	}
 
 	store := NewDiscoverFilterConfigStore(dir)
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 	h.SetDiscoverFilterConfigStore(store)
 
 	custom := DiscoverFilterConfig{
@@ -209,7 +209,7 @@ func TestPutDiscoverFilterConfig_Handler(t *testing.T) {
 }
 
 func TestGetDiscoverFilterConfig_Handler_NoStore(t *testing.T) {
-	h := NewHandlers(&Service{reindex: &reindexState{}})
+	h := NewHandlers(&Service{})
 
 	req, _ := http.NewRequest("GET", "/api/v1/config/discover-filters", nil)
 	rr := httptest.NewRecorder()

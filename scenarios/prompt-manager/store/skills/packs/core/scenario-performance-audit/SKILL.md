@@ -176,7 +176,12 @@ The script borrows Playwright from BAS's existing install (`path:scenarios/brows
 #!/usr/bin/env node
 const path = require("node:path");
 const fs = require("node:fs");
-const BAS = "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules";
+const repoRoot = process.env.VROOLI_ROOT || process.env.VROOLI_SOURCE_ROOT || process.cwd();
+const BAS = process.env.BAS_NODE_MODULES ||
+  path.join(repoRoot, "scenarios", "browser-automation-studio", "playwright-driver", "node_modules");
+if (!fs.existsSync(BAS)) {
+  throw new Error(`BAS node_modules not found at ${BAS}; set BAS_NODE_MODULES or run from the Vrooli repo root`);
+}
 const { chromium } = require(path.join(BAS, "rebrowser-playwright"));
 
 const TRACING_CATEGORIES = [

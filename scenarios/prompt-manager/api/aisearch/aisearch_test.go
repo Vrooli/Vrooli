@@ -10,7 +10,6 @@ import (
 	"prompt-manager/skills"
 	"strings"
 	"testing"
-	"time"
 )
 
 // --- Mock implementations ---
@@ -137,125 +136,37 @@ func (m *MockSkillStore) AddSkill(folder string, skill skills.Metadata, content 
 	m.contents[folder+"/"+filename] = content
 }
 
-// --- Embedder tests ---
-
-func TestEmbedder_Embed_Success(t *testing.T) {
-	expectedEmbedding := []float64{0.1, 0.2, 0.3, 0.4, 0.5}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/embeddings" {
-			t.Errorf("expected path /api/embeddings, got %s", r.URL.Path)
-		}
-		if r.Method != "POST" {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-
-		var req embeddingRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Errorf("failed to decode request: %v", err)
-		}
-		if req.Model != "nomic-embed-text" {
-			t.Errorf("expected model nomic-embed-text, got %s", req.Model)
-		}
-		if req.Prompt != "test text" {
-			t.Errorf("expected prompt 'test text', got '%s'", req.Prompt)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: expectedEmbedding})
-	}))
-	defer server.Close()
-
-	embedder := NewEmbedder(server.URL, "nomic-embed-text")
-	result, err := embedder.Embed(context.Background(), "test text")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(result) != len(expectedEmbedding) {
-		t.Fatalf("expected %d dimensions, got %d", len(expectedEmbedding), len(result))
-	}
-	for i, v := range expectedEmbedding {
-		if result[i] != v {
-			t.Errorf("embedding[%d]: expected %f, got %f", i, v, result[i])
-		}
-	}
-}
-
-func TestEmbedder_Embed_EmptyURL(t *testing.T) {
-	embedder := NewEmbedder("", "nomic-embed-text")
-	_, err := embedder.Embed(context.Background(), "test")
-
-	if err == nil {
-		t.Fatal("expected error for empty URL")
-	}
-	if !strings.Contains(err.Error(), "base url is required") {
-		t.Errorf("expected 'base url is required' error, got: %v", err)
-	}
-}
-
-func TestEmbedder_Embed_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal server error"))
-	}))
-	defer server.Close()
-
-	embedder := NewEmbedder(server.URL, "nomic-embed-text")
-	_, err := embedder.Embed(context.Background(), "test")
-
-	if err == nil {
-		t.Fatal("expected error for server error")
-	}
-	if !strings.Contains(err.Error(), "500") {
-		t.Errorf("expected error containing '500', got: %v", err)
-	}
-}
-
-func TestEmbedder_Available_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
-	}))
-	defer server.Close()
-
-	embedder := NewEmbedder(server.URL, "nomic-embed-text")
-	if !embedder.Available(context.Background()) {
-		t.Error("expected Available() to return true")
-	}
-}
-
-func TestEmbedder_Available_EmptyURL(t *testing.T) {
-	embedder := NewEmbedder("", "nomic-embed-text")
-	if embedder.Available(context.Background()) {
-		t.Error("expected Available() to return false for empty URL")
-	}
-}
-
-func TestEmbedder_Available_ServerDown(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:99999", "nomic-embed-text")
-	embedder.Client = &http.Client{Timeout: 100 * time.Millisecond}
-	if embedder.Available(context.Background()) {
-		t.Error("expected Available() to return false for unreachable server")
-	}
-}
-
-func TestEmbedder_DefaultModel(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "")
-	if embedder.Model != "nomic-embed-text" {
-		t.Errorf("expected default model 'nomic-embed-text', got '%s'", embedder.Model)
-	}
-}
+// Embedder tests live in embedder_test.go (CLI runner-based, not HTTP). The
+// fakes used by Service-level tests below come from that file too.
 
 // --- VectorStore tests ---
 
-func TestVectorStore_NewVectorStore_Defaults(t *testing.T) {
-	vs := NewVectorStore("http://localhost:6333", "", "", 0)
+func TestVectorStore_NewVectorStore_Defaults_CreateUsesDefaults(t *testing.T) {
+	// We assert defaults via the EnsureCollection request the store sends.
+	var gotPath string
+	var gotSize int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		if r.Method == "GET" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var req createCollectionRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		gotSize = req.Vectors.Size
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
 
-	if vs.Collection != "prompt-manager-skills" {
-		t.Errorf("expected default collection 'prompt-manager-skills', got '%s'", vs.Collection)
+	vs := NewVectorStore(server.URL, "", "", 0)
+	if err := vs.EnsureCollection(context.Background()); err != nil {
+		t.Fatalf("EnsureCollection: %v", err)
 	}
-	if vs.VectorSize != 768 {
-		t.Errorf("expected default vector size 768, got %d", vs.VectorSize)
+	if !strings.HasSuffix(gotPath, "/collections/prompt-manager-skills") {
+		t.Errorf("expected default collection 'prompt-manager-skills' in path, got %q", gotPath)
+	}
+	if gotSize != 768 {
+		t.Errorf("expected default vector size 768, got %d", gotSize)
 	}
 }
 
@@ -485,7 +396,7 @@ func TestService_Search_AISuccess(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 3)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -516,7 +427,7 @@ func TestService_Search_FallbackToText(t *testing.T) {
 	}))
 	defer ollamaServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	vectorStore := NewVectorStore("http://localhost:99999", "", "test", 768)
 	skillStore := NewMockSkillStore()
 	skillStore.AddSkill("local", skills.Metadata{
@@ -560,7 +471,7 @@ func TestService_GetStatus(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -583,7 +494,7 @@ func TestService_GetStatus(t *testing.T) {
 }
 
 func TestService_GetStatus_Unavailable(t *testing.T) {
-	embedder := NewEmbedder("", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	vectorStore := NewVectorStore("", "", "test", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -617,7 +528,7 @@ func TestService_Available(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -629,7 +540,7 @@ func TestService_Available(t *testing.T) {
 }
 
 func TestService_DefaultThreshold(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	vectorStore := NewVectorStore("http://localhost:6333", "", "test", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -746,7 +657,7 @@ func TestService_IndexSkill_Success(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 3)
 	skillStore := NewMockSkillStore()
 	skillStore.AddSkill("local", skills.Metadata{
@@ -769,7 +680,7 @@ func TestService_IndexSkill_Success(t *testing.T) {
 }
 
 func TestService_IndexSkill_SkillNotFound(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	vectorStore := NewVectorStore("http://localhost:6333", "", "test", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -797,7 +708,7 @@ func TestService_DeleteFromIndex_Success(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -812,87 +723,6 @@ func TestService_DeleteFromIndex_Success(t *testing.T) {
 	}
 }
 
-func TestService_ReindexAll_Success(t *testing.T) {
-	// Mock Ollama server
-	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
-	}))
-	defer ollamaServer.Close()
-
-	// Mock Qdrant server
-	upsertCount := 0
-	qdrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "/points") && r.Method == "PUT" {
-			upsertCount++
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer qdrantServer.Close()
-
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
-	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 3)
-	skillStore := NewMockSkillStore()
-	skillStore.AddSkill("local", skills.Metadata{
-		ID:   "skill-1",
-		Name: "Skill 1",
-		File: "local/skill1.md",
-	}, "Content 1")
-	skillStore.AddSkill("local", skills.Metadata{
-		ID:   "skill-2",
-		Name: "Skill 2",
-		File: "local/skill2.md",
-	}, "Content 2")
-
-	searchSvc := search.NewService(skillStore)
-	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
-
-	result, err := service.ReindexAll(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Indexed != 2 {
-		t.Errorf("expected 2 indexed, got %d", result.Indexed)
-	}
-	if result.Errors != 0 {
-		t.Errorf("expected 0 errors, got %d", result.Errors)
-	}
-	if upsertCount != 2 {
-		t.Errorf("expected 2 upserts, got %d", upsertCount)
-	}
-}
-
-func TestService_ReindexAll_SkipsBadPaths(t *testing.T) {
-	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
-	}))
-	defer ollamaServer.Close()
-
-	qdrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer qdrantServer.Close()
-
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
-	vectorStore := NewVectorStore(qdrantServer.URL, "", "test", 3)
-	skillStore := NewMockSkillStore()
-	// Add skill with no folder in path - should be skipped
-	skillStore.skills[""] = append(skillStore.skills[""], skills.Metadata{
-		ID:   "skill-bad",
-		Name: "Bad Path Skill",
-		File: "nofolder.md", // No folder prefix
-	})
-
-	searchSvc := search.NewService(skillStore)
-	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
-
-	result, err := service.ReindexAll(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Skipped != 1 {
-		t.Errorf("expected 1 skipped, got %d", result.Skipped)
-	}
-}
 
 // --- Helper function tests ---
 

@@ -56,9 +56,7 @@ func (h *Handlers) aiChain() *aigen.Chain {
 
 	var providers []aigen.Provider
 
-	if h.cfg.OllamaURL != "" {
-		providers = append(providers, aigen.NewOllamaProvider(h.cfg.OllamaURL, h.cfg.OllamaModel))
-	}
+	providers = append(providers, aigen.NewOllamaProvider("", h.cfg.OllamaModel))
 	if h.cfg.OpenRouterAPIKey != "" {
 		providers = append(providers, aigen.NewOpenRouterProvider(
 			h.cfg.OpenRouterAPIKey,

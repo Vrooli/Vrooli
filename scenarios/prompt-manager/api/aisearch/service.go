@@ -2,41 +2,37 @@ package aisearch
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/store"
 	"strings"
-	"sync"
-	"time"
 )
 
 // Service provides AI-powered search with graceful fallback to text search.
 type Service struct {
-	embedder      *Embedder
-	vectorStore   *VectorStore
+	embedder      Embedder
+	vectorStore   VectorStore
 	skillStore    skills.SkillStore
 	searchService *search.Service
 	threshold     float64
-	reindex       *reindexState
 
 	// Multi-entity support
-	agentVectorStore *VectorStore
+	agentVectorStore VectorStore
 	agentStore       AgentStoreReader
 	agentSearchSvc   *search.AgentSearchService
-	teamVectorStore  *VectorStore
+	teamVectorStore  VectorStore
 	teamStore        TeamStoreReader
 	teamRelStore     TeamRelReader
 	teamSearchSvc    *search.TeamSearchService
 
 	// Topic support
-	topicVectorStore *VectorStore
+	topicVectorStore VectorStore
 	topicStore       TopicStoreReader
 
 	// Action support
-	actionVectorStore *VectorStore
+	actionVectorStore VectorStore
 	actionStore       store.ActionStore
 
 	// Budget configuration
@@ -98,25 +94,10 @@ type SearchOptions struct {
 	RenderLimit int
 }
 
-type reindexState struct {
-	mu         sync.Mutex
-	running    bool
-	canceled   bool
-	startedAt  time.Time
-	finishedAt time.Time
-	indexed    int
-	skipped    int
-	errors     int
-	total      int
-	message    string
-	lastError  string
-	cancel     context.CancelFunc
-}
-
 // NewService creates a new AI search service.
 func NewService(
-	embedder *Embedder,
-	vectorStore *VectorStore,
+	embedder Embedder,
+	vectorStore VectorStore,
 	skillStore skills.SkillStore,
 	searchService *search.Service,
 	threshold float64,
@@ -130,7 +111,6 @@ func NewService(
 		skillStore:    skillStore,
 		searchService: searchService,
 		threshold:     threshold,
-		reindex:       &reindexState{},
 	}
 }
 
@@ -920,202 +900,16 @@ func (s *Service) Available(ctx context.Context) bool {
 	return s.embedder.Available(ctx) && s.vectorStore.Available(ctx)
 }
 
-// StartReindex begins a singleton reindex job if one is not already running.
-// Returns the current status and whether a new job was started.
-func (s *Service) StartReindex() (ReindexStatus, bool) {
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-
-	if s.reindex.running {
-		return s.reindex.statusLocked(), false
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	s.reindex.running = true
-	s.reindex.canceled = false
-	s.reindex.startedAt = time.Now()
-	s.reindex.finishedAt = time.Time{}
-	s.reindex.indexed = 0
-	s.reindex.skipped = 0
-	s.reindex.errors = 0
-	s.reindex.total = 0
-	s.reindex.message = "Reindex started"
-	s.reindex.lastError = ""
-	s.reindex.cancel = cancel
-
-	go s.runReindexJob(ctx)
-
-	return s.reindex.statusLocked(), true
-}
-
-// CancelReindex requests cancellation of the active reindex job.
-func (s *Service) CancelReindex() ReindexStatus {
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-
-	if s.reindex.running && s.reindex.cancel != nil {
-		s.reindex.canceled = true
-		s.reindex.message = "Reindex cancel requested"
-		s.reindex.cancel()
-	}
-
-	return s.reindex.statusLocked()
-}
-
-// ReindexStatus returns the current reindex status.
-func (s *Service) ReindexStatus() ReindexStatus {
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-	return s.reindex.statusLocked()
-}
-
-func (s *Service) runReindexJob(ctx context.Context) {
-	resp, err := s.reindexAllWithProgress(ctx, func(indexed, skipped, errorsCount int) {
-		s.reindex.mu.Lock()
-		s.reindex.indexed = indexed
-		s.reindex.skipped = skipped
-		s.reindex.errors = errorsCount
-		s.reindex.mu.Unlock()
-	}, func(total int) {
-		s.reindex.mu.Lock()
-		s.reindex.total = total
-		s.reindex.mu.Unlock()
-	})
-
-	s.reindex.mu.Lock()
-	defer s.reindex.mu.Unlock()
-
-	if resp != nil {
-		s.reindex.indexed = resp.Indexed
-		s.reindex.skipped = resp.Skipped
-		s.reindex.errors = resp.Errors
-		s.reindex.message = resp.Message
-	}
-
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			s.reindex.canceled = true
-			if s.reindex.message == "" {
-				s.reindex.message = "Reindex canceled"
-			}
-		} else {
-			s.reindex.lastError = err.Error()
-		}
-	}
-
-	s.reindex.running = false
-	s.reindex.finishedAt = time.Now()
-	s.reindex.cancel = nil
-}
-
-func formatReindexTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(time.RFC3339)
-}
-
-// NeedsReindex compares indexed count against on-disk entity counts across all collections.
-// Returns (needsReindex, totalIndexedCount, totalDiskCount, error).
-func (s *Service) NeedsReindex(ctx context.Context) (bool, int, int, error) {
-	indexedCount, err := s.vectorStore.CountPoints(ctx)
-	if err != nil {
-		return false, 0, 0, err
-	}
-	allSkills, err := s.skillStore.GetAll()
-	if err != nil {
-		return false, 0, 0, err
-	}
-	diskCount := len(allSkills)
-
-	totalIndexed := indexedCount
-	totalDisk := diskCount
-
-	// Check agent collection
-	if s.agentVectorStore != nil && s.agentStore != nil {
-		agentIndexed, err := s.agentVectorStore.CountPoints(ctx)
-		if err == nil {
-			agents, err := s.agentStore.List(ctx)
-			if err == nil {
-				totalIndexed += agentIndexed
-				totalDisk += len(agents)
-			}
-		}
-	}
-
-	// Check team collection
-	if s.teamVectorStore != nil && s.teamStore != nil {
-		teamIndexed, err := s.teamVectorStore.CountPoints(ctx)
-		if err == nil {
-			teams, err := s.teamStore.List(ctx)
-			if err == nil {
-				totalIndexed += teamIndexed
-				totalDisk += len(teams)
-			}
-		}
-	}
-
-	// Check topic collection
-	if s.topicVectorStore != nil && s.topicStore != nil {
-		topicIndexed, err := s.topicVectorStore.CountPoints(ctx)
-		if err == nil {
-			topics, err := s.topicStore.List(ctx)
-			if err == nil {
-				totalIndexed += topicIndexed
-				totalDisk += len(topics)
-			}
-		}
-	}
-
-	// Check action collection
-	if s.actionVectorStore != nil && s.actionStore != nil {
-		actionIndexed, err := s.actionVectorStore.CountPoints(ctx)
-		if err == nil {
-			actions, err := s.actionStore.List(ctx)
-			if err == nil {
-				totalIndexed += actionIndexed
-				totalDisk += len(actions)
-			}
-		}
-	}
-
-	return totalIndexed != totalDisk, totalIndexed, totalDisk, nil
-}
-
-// StartPeriodicSync runs a background goroutine that periodically checks for
-// index staleness and triggers a reindex when counts diverge.
-func (s *Service) StartPeriodicSync(ctx context.Context, interval time.Duration) {
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				needs, indexed, disk, err := s.NeedsReindex(ctx)
-				if err != nil {
-					log.Printf("[aisearch] Periodic sync staleness check failed: %v", err)
-					continue
-				}
-				if needs {
-					log.Printf("[aisearch] Periodic sync: index out of sync (indexed=%d, on-disk=%d), reindexing...", indexed, disk)
-					s.StartReindex()
-				}
-			}
-		}
-	}()
-}
 
 // SetAgentSearch configures agent AI search support.
-func (s *Service) SetAgentSearch(vectorStore *VectorStore, agentStore AgentStoreReader, searchSvc *search.AgentSearchService) {
+func (s *Service) SetAgentSearch(vectorStore VectorStore, agentStore AgentStoreReader, searchSvc *search.AgentSearchService) {
 	s.agentVectorStore = vectorStore
 	s.agentStore = agentStore
 	s.agentSearchSvc = searchSvc
 }
 
 // SetTeamSearch configures team AI search support.
-func (s *Service) SetTeamSearch(vectorStore *VectorStore, teamStore TeamStoreReader, relStore TeamRelReader, searchSvc *search.TeamSearchService) {
+func (s *Service) SetTeamSearch(vectorStore VectorStore, teamStore TeamStoreReader, relStore TeamRelReader, searchSvc *search.TeamSearchService) {
 	s.teamVectorStore = vectorStore
 	s.teamStore = teamStore
 	s.teamRelStore = relStore
@@ -1123,13 +917,13 @@ func (s *Service) SetTeamSearch(vectorStore *VectorStore, teamStore TeamStoreRea
 }
 
 // SetTopicSearch configures topic AI search support.
-func (s *Service) SetTopicSearch(vectorStore *VectorStore, topicStore TopicStoreReader) {
+func (s *Service) SetTopicSearch(vectorStore VectorStore, topicStore TopicStoreReader) {
 	s.topicVectorStore = vectorStore
 	s.topicStore = topicStore
 }
 
 // SetActionSearch configures Action AI search support.
-func (s *Service) SetActionSearch(vectorStore *VectorStore, actionStore store.ActionStore) {
+func (s *Service) SetActionSearch(vectorStore VectorStore, actionStore store.ActionStore) {
 	s.actionVectorStore = vectorStore
 	s.actionStore = actionStore
 }
@@ -1569,20 +1363,3 @@ func toAITeamSearchResult(r SearchResult) AITeamSearchResult {
 	}
 }
 
-func (rs *reindexState) statusLocked() ReindexStatus {
-	status := ReindexStatus{
-		Running:    rs.running,
-		StartedAt:  formatReindexTime(rs.startedAt),
-		FinishedAt: formatReindexTime(rs.finishedAt),
-		Indexed:    rs.indexed,
-		Skipped:    rs.skipped,
-		Errors:     rs.errors,
-		Total:      rs.total,
-		Message:    rs.message,
-		Canceled:   rs.canceled,
-	}
-	if rs.lastError != "" {
-		status.Error = rs.lastError
-	}
-	return status
-}

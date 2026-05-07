@@ -120,7 +120,7 @@ func TestSearchTeams_AISuccess(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 3)
 	teamVS := NewVectorStore(qdrantServer.URL, "", "teams", 3)
 	skillStore := NewMockSkillStore()
@@ -159,7 +159,7 @@ func TestSearchTeams_FallbackToText(t *testing.T) {
 	}))
 	defer ollamaServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -185,7 +185,7 @@ func TestSearchTeams_FallbackToText(t *testing.T) {
 }
 
 func TestSearchTeams_NoSearchSvc_EmptyResults(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -219,7 +219,7 @@ func TestIndexTeam_Success(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder(ollamaServer.URL, "nomic-embed-text")
+	embedder := fakeEmbedderOK()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 3)
 	teamVS := NewVectorStore(qdrantServer.URL, "", "teams", 3)
 	skillStore := NewMockSkillStore()
@@ -244,7 +244,7 @@ func TestIndexTeam_Success(t *testing.T) {
 }
 
 func TestIndexTeam_NotFound(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	teamVS := NewVectorStore("http://localhost:99999", "", "teams", 768)
 	skillStore := NewMockSkillStore()
@@ -261,7 +261,7 @@ func TestIndexTeam_NotFound(t *testing.T) {
 }
 
 func TestIndexTeam_NilVectorStore(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)
@@ -285,7 +285,7 @@ func TestDeleteTeamFromIndex_Success(t *testing.T) {
 	}))
 	defer qdrantServer.Close()
 
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	teamVS := NewVectorStore(qdrantServer.URL, "", "teams", 768)
 	skillStore := NewMockSkillStore()
@@ -303,7 +303,7 @@ func TestDeleteTeamFromIndex_Success(t *testing.T) {
 }
 
 func TestDeleteTeamFromIndex_NilVectorStore(t *testing.T) {
-	embedder := NewEmbedder("http://localhost:11434", "nomic-embed-text")
+	embedder := fakeEmbedderErr()
 	skillVS := NewVectorStore("http://localhost:99999", "", "skills", 768)
 	skillStore := NewMockSkillStore()
 	searchSvc := search.NewService(skillStore)

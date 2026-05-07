@@ -6,59 +6,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"os/exec"
 	"strings"
 )
 
-// OllamaClient provides access to a local Ollama instance for fast, private operations.
-// Used primarily for auto-generating chat names without sending data to external services.
+// OllamaClient generates short text via the resource-ollama gateway CLI. All
+// daemon traffic is funnelled through that CLI so the host-wide semaphore can
+// bound fleet-wide parallelism — never call Ollama HTTP directly.
 type OllamaClient struct {
-	baseURL    string
-	httpClient *http.Client
-	cfg        config.NamingConfig
+	cfg config.NamingConfig
+
+	// Runner is an optional seam for tests. Production callers leave it nil and
+	// the default exec-based runner is used.
+	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
-// OllamaRequest represents a request to the Ollama generate API.
-type OllamaRequest struct {
-	Model   string        `json:"model"`
-	Prompt  string        `json:"prompt"`
-	Stream  bool          `json:"stream"`
-	Options OllamaOptions `json:"options,omitempty"`
-}
-
-// OllamaOptions contains generation options.
-type OllamaOptions struct {
-	NumPredict  int     `json:"num_predict,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
-}
-
-// OllamaResponse represents a response from the Ollama generate API.
-type OllamaResponse struct {
-	Response string `json:"response"`
-	Done     bool   `json:"done"`
-}
-
-// NewOllamaClient creates a new Ollama client using default configuration.
+// NewOllamaClient creates a new client using default naming configuration.
 func NewOllamaClient() *OllamaClient {
-	cfg := config.Default()
-	return NewOllamaClientWithConfig(cfg.Integration.OllamaBaseURL, cfg.Integration.Naming)
+	return NewOllamaClientWithConfig(config.Default().Integration.Naming)
 }
 
-// NewOllamaClientWithConfig creates a new Ollama client with explicit configuration.
-// This enables testing and custom configuration injection.
-func NewOllamaClientWithConfig(baseURL string, namingCfg config.NamingConfig) *OllamaClient {
-	return &OllamaClient{
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: namingCfg.Timeout,
-		},
-		cfg: namingCfg,
-	}
+// NewOllamaClientWithConfig creates a client with explicit naming configuration.
+// Used by tests to inject a Runner via direct field assignment.
+func NewOllamaClientWithConfig(namingCfg config.NamingConfig) *OllamaClient {
+	return &OllamaClient{cfg: namingCfg}
 }
 
 // GenerateChatName generates a concise, descriptive name for a conversation.
-// Uses a fast local model to provide privacy-preserving auto-naming.
 // Configuration is controlled via NamingConfig (Temperature, MaxTokens).
 func (c *OllamaClient) GenerateChatName(ctx context.Context, conversationSummary string) (string, error) {
 	prompt := fmt.Sprintf(`Generate a very short, descriptive title (3-6 words max) for this conversation.
@@ -76,54 +50,15 @@ Conversation:
 
 Title:`, conversationSummary)
 
-	req := OllamaRequest{
-		Model:  c.cfg.Model,
-		Prompt: prompt,
-		Stream: false,
-		Options: OllamaOptions{
-			NumPredict:  c.cfg.MaxTokens,
-			Temperature: c.cfg.Temperature,
-		},
-	}
-
-	body, err := json.Marshal(req)
+	out, err := c.generate(ctx, c.cfg.Model, prompt)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return "", err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/generate", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to Ollama: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Ollama returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var ollamaResp OllamaResponse
-	if err := json.Unmarshal(respBody, &ollamaResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	// Clean up the response
-	name := strings.TrimSpace(ollamaResp.Response)
+	name := strings.TrimSpace(out)
 	name = strings.Trim(name, `"'`)
 	name = strings.TrimRight(name, ".!?,;:")
 
-	// Enforce max length (configured fallback name length as reference)
 	maxLen := 50
 	if len(name) > maxLen {
 		name = name[:maxLen]
@@ -131,65 +66,52 @@ Title:`, conversationSummary)
 	if name == "" {
 		name = c.cfg.FallbackName
 	}
-
 	return name, nil
 }
 
-// GenerateText sends a general-purpose text generation request to Ollama.
-// It uses a specified model and max token limit, returning the raw generated text.
-func (c *OllamaClient) GenerateText(ctx context.Context, model, prompt string, maxTokens int) (string, error) {
-	req := OllamaRequest{
-		Model:  model,
-		Prompt: prompt,
-		Stream: false,
-		Options: OllamaOptions{
-			NumPredict:  maxTokens,
-			Temperature: 0.3,
-		},
-	}
-
-	body, err := json.Marshal(req)
+// GenerateText sends a general-purpose text generation request.
+// The maxTokens parameter is currently advisory — gateway generate does not
+// expose a num_predict flag yet.
+func (c *OllamaClient) GenerateText(ctx context.Context, model, prompt string, _maxTokens int) (string, error) {
+	out, err := c.generate(ctx, model, prompt)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return "", err
 	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/generate", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to Ollama: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Ollama returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var ollamaResp OllamaResponse
-	if err := json.Unmarshal(respBody, &ollamaResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return strings.TrimSpace(ollamaResp.Response), nil
+	return strings.TrimSpace(out), nil
 }
 
-// BaseURL returns the configured Ollama base URL.
-func (c *OllamaClient) BaseURL() string {
-	return c.baseURL
+func (c *OllamaClient) generate(ctx context.Context, model, prompt string) (string, error) {
+	args := []string{"gateway", "generate", "--model", model, "--json", "--prompt-stdin"}
+	out, err := c.run(ctx, args, prompt)
+	if err != nil {
+		return "", fmt.Errorf("resource-ollama gateway generate failed: %w", err)
+	}
+	var decoded struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return "", fmt.Errorf("decode gateway generate response: %w", err)
+	}
+	return decoded.Response, nil
+}
+
+func (c *OllamaClient) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if c.Runner != nil {
+		return c.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 // FallbackName returns the configured fallback name for when generation fails.
-// This enables graceful degradation in the calling code.
 func (c *OllamaClient) FallbackName() string {
 	return c.cfg.FallbackName
 }
@@ -205,18 +127,8 @@ func (c *OllamaClient) SummaryLimits() (int, int) {
 	return c.cfg.SummaryMessageLimit, c.cfg.SummaryContentLimit
 }
 
-// IsAvailable checks if Ollama is accessible.
+// IsAvailable checks if the Ollama daemon is accessible via the resource CLI.
 func (c *OllamaClient) IsAvailable(ctx context.Context) bool {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/tags", nil)
-	if err != nil {
-		return false
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode == http.StatusOK
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	return cmd.Run() == nil
 }

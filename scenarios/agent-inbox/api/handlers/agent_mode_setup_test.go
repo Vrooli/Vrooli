@@ -10,7 +10,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -110,19 +109,13 @@ func (env *agentModeTestEnv) setAgentMode(t *testing.T, chatID, taskID, runID st
 
 func configureOllamaNaming(t *testing.T, h *Handlers, generatedName string) {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/generate" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"response":"%s","done":true}`, generatedName)))
-	}))
-	t.Cleanup(server.Close)
-
 	namingCfg := config.Default().Integration.Naming
 	namingCfg.Timeout = 500 * time.Millisecond
-	h.OllamaClient = integrations.NewOllamaClientWithConfig(server.URL, namingCfg)
+	client := integrations.NewOllamaClientWithConfig(namingCfg)
+	client.Runner = func(_ context.Context, _ []string, _ string) ([]byte, error) {
+		return []byte(fmt.Sprintf(`{"response":%q}`, generatedName)), nil
+	}
+	h.OllamaClient = client
 }
 
 // doRequest makes an HTTP request through the test router.
