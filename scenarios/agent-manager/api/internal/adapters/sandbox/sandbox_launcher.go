@@ -153,14 +153,19 @@ type NamespaceLayout struct {
 // used by both translateCommandToNamespace (for fallbacks) and any
 // future env composition that needs to mirror the profile's PATH.
 //
-// Currently returns the static vrooli-aware PATH layout. When the
-// home overlay is absent, $HOME/.local/bin is excluded.
+// Currently returns the static vrooli-aware PATH layout. When the home
+// overlay is absent, $HOME-relative CLI and toolchain paths are excluded.
 //
 // DOC: namespace contract seam.
 func (l NamespaceLayout) PathEntries() []string {
 	base := []string{"/usr/local/bin", "/usr/bin", "/bin"}
 	if IsHomeOverlayPresent(l.HomeOverlayState) && l.HostHome != "" {
-		return append([]string{strings.TrimRight(l.HostHome, "/") + "/.local/bin"}, base...)
+		home := strings.TrimRight(l.HostHome, "/")
+		return append([]string{
+			home + "/.vrooli/bin",
+			home + "/go/bin",
+			home + "/.local/bin",
+		}, base...)
 	}
 	return base
 }
@@ -242,7 +247,7 @@ func translateCommandToNamespace(command string, layout NamespaceLayout) (string
 		return command, nil
 	}
 	// Host-absolute path with no known sandbox mapping. Strip to basename
-	// and rely on the sandbox PATH (set to /usr/local/bin:/usr/bin:/bin).
+	// and rely on the sandbox PATH declared by the vrooli-aware profile.
 	return path.Base(command), nil
 }
 
@@ -305,6 +310,10 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	withStdin := len(stdinBytes) > 0
 
 	envMap := envSliceToMap(req.Env)
+	// workspace-sandbox's vrooli-aware profile owns PATH construction.
+	// Dropping inherited PATH here prevents an interactive shell's tool
+	// order from becoming part of the audited sandbox launch contract.
+	delete(envMap, "PATH")
 
 	// Translate host paths to in-namespace paths. Inside the bwrap mount
 	// namespace the sandbox's merged dir is bind-mounted at

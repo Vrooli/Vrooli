@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/jsonutil"
+	"swarm-manager/internal/pathredact"
 )
 
 // LoadRounds reads all review/round-*.json files from the item directory,
@@ -89,11 +90,17 @@ func SaveRound(itemDir string, round Round) error {
 	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
 		return fmt.Errorf("create review dir: %w", err)
 	}
-	data, err := json.MarshalIndent(round, "", "  ")
+	value := any(round)
+	path := filepath.Join(reviewDir, RoundFilename(round.RoundNum))
+	if redacted, changed, redactErr := pathredact.NewForArtifactPath(path).RedactJSONValue(round); redactErr != nil {
+		return fmt.Errorf("redact round %d: %w", round.RoundNum, redactErr)
+	} else if changed {
+		value = redacted
+	}
+	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal round %d: %w", round.RoundNum, err)
 	}
-	path := filepath.Join(reviewDir, RoundFilename(round.RoundNum))
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("write round %d: %w", round.RoundNum, err)
 	}
@@ -140,6 +147,9 @@ func SaveCapture(itemDir, filename string, data []byte) (string, error) {
 		return "", fmt.Errorf("invalid capture filename: %s", filename)
 	}
 	fullPath := filepath.Join(capturesDir, clean)
+	if redacted, changed := pathredact.NewForArtifactPath(fullPath).RedactBytes(fullPath, data); changed {
+		data = redacted
+	}
 	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
 		return "", fmt.Errorf("write capture %s: %w", filename, err)
 	}

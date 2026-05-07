@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/storage"
 )
 
@@ -244,7 +245,14 @@ func (s *Store) SaveRound(round Round) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create round dir: %w", err)
 	}
-	return storage.WriteJSONAtomic(filepath.Join(dir, feedbackJSONName), round)
+	path := filepath.Join(dir, feedbackJSONName)
+	value := any(round)
+	if redacted, changed, err := pathredact.NewForArtifactPath(path).RedactJSONValue(round); err != nil {
+		return fmt.Errorf("redact round: %w", err)
+	} else if changed {
+		value = redacted
+	}
+	return storage.WriteJSONAtomic(path, value)
 }
 
 // DeleteRound removes a round from disk. Used by tests and by the

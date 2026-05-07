@@ -463,14 +463,29 @@ func (c *OpenCode) UpdateMetrics(event *domain.RunEvent, metrics *runner.Executi
 	}
 }
 
-// ParseTranscriptLine satisfies [Codec]. Used during agent-manager
-// restart-resume to replay events from the on-disk transcript.
+// ParseTranscriptLine satisfies [Codec] for single-line transcript parsing.
+// Multi-line replay uses NewTranscriptParser to retain runner state across
+// the transcript stream.
 func (c *OpenCode) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	state := &opencodeState{}
-	events, err := c.DecodeStreamLine(state, runID, line)
+	parser := c.NewTranscriptParser()
+	return parser.ParseTranscriptLine(runID, line)
+}
+
+// NewTranscriptParser satisfies [Codec].
+func (c *OpenCode) NewTranscriptParser() runner.TranscriptParser {
+	return &opencodeTranscriptParser{codec: c, state: &opencodeState{}}
+}
+
+type opencodeTranscriptParser struct {
+	codec *OpenCode
+	state *opencodeState
+}
+
+func (p *opencodeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	events, err := p.codec.DecodeStreamLine(p.state, runID, line)
 	result := runner.TranscriptParseResult{
 		Events:    events,
-		SessionID: state.sessionID,
+		SessionID: p.state.sessionID,
 		Err:       err,
 	}
 

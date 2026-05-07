@@ -81,12 +81,12 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 78-
 
 === resolveApiBase consolidation (single import source) ===
-/home/matthalloran8/Vrooli/scenarios/prompt-manager/ui/src/lib/api.ts:25:import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
-/home/matthalloran8/Vrooli/scenarios/prompt-manager/ui/src/lib/api.ts:164:// Use @vrooli/api-base for automatic API resolution across all deployment contexts
-/home/matthalloran8/Vrooli/scenarios/prompt-manager/ui/src/lib/api.ts:165:export const API_BASE = resolveApiBase({ appendSuffix: true })
-/home/matthalloran8/Vrooli/scenarios/prompt-manager/ui/src/services/orgChartService.ts:15:import { buildApiUrl } from '@vrooli/api-base'
-/home/matthalloran8/Vrooli/scenarios/prompt-manager/ui/src/services/heartbeatService.test.ts:15:vi.mock('@vrooli/api-base', () => ({
-/home/matthalloran8/Vrooli/scenarios/prompt-manager/ui/src/services/heartbeatService.ts:11:import { buildApiUrl } from '@vrooli/api-base'
+path:scenarios/prompt-manager/ui/src/lib/api.ts:25:import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+path:scenarios/prompt-manager/ui/src/lib/api.ts:164:// Use @vrooli/api-base for automatic API resolution across all deployment contexts
+path:scenarios/prompt-manager/ui/src/lib/api.ts:165:export const API_BASE = resolveApiBase({ appendSuffix: true })
+path:scenarios/prompt-manager/ui/src/services/orgChartService.ts:15:import { buildApiUrl } from '@vrooli/api-base'
+path:scenarios/prompt-manager/ui/src/services/heartbeatService.test.ts:15:vi.mock('@vrooli/api-base', () => ({
+path:scenarios/prompt-manager/ui/src/services/heartbeatService.ts:11:import { buildApiUrl } from '@vrooli/api-base'
 
 === bas/registry.json head ===
 {

@@ -10,6 +10,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/review"
 	"swarm-manager/internal/workshop"
 
@@ -41,16 +42,17 @@ import (
 // the agent-manager side can route them appropriately.
 func (s *Service) buildContextAttachments(init *initiatives.Initiative, affectedScenarios []string, freshGCT map[string]*GCTResult) ([]*domainpb.ContextAttachment, error) {
 	var atts []*domainpb.ContextAttachment
+	redactor := pathredact.NewForArtifactPath(".")
 
 	atts = appendNote(atts, "initiative-summary", "Initiative Summary",
 		"Name, title, goal, and rollup",
-		renderInitiativeSummary(init), "text", "high")
+		redactor.RedactString(renderInitiativeSummary(init)), "text", "high")
 
 	if mg, err := s.graphReader.ReadGraph(init.Name); err == nil && mg != nil {
 		if payload, err := json.MarshalIndent(mg, "", "  "); err == nil {
 			atts = appendNote(atts, "initiative-graph", "Initiative Item Graph",
 				fmt.Sprintf("%d nodes, %d edges", len(mg.Nodes), len(mg.Edges)),
-				string(payload), "json", "high")
+				redactor.RedactString(string(payload)), "json", "high")
 		}
 	}
 
@@ -58,17 +60,17 @@ func (s *Service) buildContextAttachments(init *initiatives.Initiative, affected
 	if len(summaries) > 0 {
 		atts = appendNote(atts, "item-summaries", "Member Item Summaries",
 			fmt.Sprintf("%d items", len(summaries)),
-			strings.Join(summaries, "\n\n"), "markdown", "high")
+			redactor.RedactString(strings.Join(summaries, "\n\n")), "markdown", "high")
 	}
 	if len(reviewSnapshots) > 0 {
 		atts = appendNote(atts, "item-review-snapshots", "Per-Item Review Snapshots",
 			"Latest review round assessment/classification per item",
-			strings.Join(reviewSnapshots, "\n\n"), "markdown", "medium")
+			redactor.RedactString(strings.Join(reviewSnapshots, "\n\n")), "markdown", "medium")
 	}
 	if trimmed := strings.TrimSpace(deliverables); trimmed != "" {
 		atts = appendNote(atts, "item-deliverables", "Aggregated Item Deliverables",
 			"Plan / conclusion content from member items",
-			trimmed, "markdown", "medium")
+			redactor.RedactString(trimmed), "markdown", "medium")
 	}
 
 	atts = appendFreshGCTAttachments(atts, affectedScenarios, freshGCT, len(init.Items))
@@ -83,9 +85,11 @@ func (s *Service) buildContextAttachments(init *initiatives.Initiative, affected
 // has a finalization), both keys are omitted — the review still runs,
 // just without integration evidence.
 func appendFreshGCTAttachments(atts []*domainpb.ContextAttachment, scenarios []string, freshGCT map[string]*GCTResult, itemCount int) []*domainpb.ContextAttachment {
+	redactor := pathredact.NewForArtifactPath(".")
 	if len(scenarios) == 0 {
 		return atts
 	}
+	scenarios = redactInitiativeStrings(redactor, scenarios)
 
 	atts = appendNote(atts, "affected-scenarios", "Affected Scenarios",
 		fmt.Sprintf("%d scenarios touched across %d items", len(scenarios), itemCount),
@@ -112,10 +116,21 @@ func appendFreshGCTAttachments(atts []*domainpb.ContextAttachment, scenarios []s
 	if payload, err := json.MarshalIndent(ordered, "", "  "); err == nil {
 		atts = appendNote(atts, "gct-review-results", "GCT Review Results",
 			"Fresh GCT verdict per affected scenario, collected at review start",
-			string(payload), "json", "high")
+			redactor.RedactString(string(payload)), "json", "high")
 	}
 
 	return atts
+}
+
+func redactInitiativeStrings(redactor pathredact.Redactor, values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	out := make([]string, len(values))
+	for i, value := range values {
+		out[i] = redactor.RedactString(value)
+	}
+	return out
 }
 
 // renderInitiativeSummary produces a compact Markdown block with the fields

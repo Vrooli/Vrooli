@@ -1,104 +1,24 @@
 {
-  "scenarioName": "prompt-manager",
-  "readiness": "yellow",
+  "capabilities": {
+    "browser-automation-studio": true,
+    "scenario-auditor": true,
+    "test-genie": true,
+    "tidiness-manager": true,
+    "workspace-sandbox": true
+  },
+  "dimensionStatuses": {
+    "codeQuality": "yellow",
+    "provenance": "green",
+    "standards": "red",
+    "tests": "yellow",
+    "visual": "green"
+  },
   "dimensions": {
     "codeQuality": {
       "available": true,
       "score": 100,
-      "violations": 0,
-      "stale": true
-    },
-    "tests": {
-      "available": true,
-      "passed": false,
-      "total": 11,
-      "passedCount": 6,
-      "failedCount": 5,
-      "lastRun": "2026-04-07T22:02:47.532179985Z",
-      "failures": [
-        {
-          "phase": "standards",
-          "error": "standards violations exceed fail_on=high (highest=critical)",
-          "classification": "misconfiguration",
-          "remediation": "Run `scenario-auditor audit prompt-manager --standards-only --timeout 60` and address HIGH+ findings."
-        },
-        {
-          "phase": "docs",
-          "error": "Docs validation failed",
-          "classification": "misconfiguration",
-          "remediation": "Fix docs issues and re-run"
-        },
-        {
-          "phase": "unit",
-          "error": "node unit tests failed in ui: exit status 1",
-          "classification": "system",
-          "remediation": "Inspect the UI/unit test output above, fix failures, and rerun the suite."
-        },
-        {
-          "phase": "integration",
-          "error": "CLI: CLI unknown command check failed: CLI returned success (exit 0) for unknown command \"__test_genie_nonexistent_command_12345__\" - should return non-zero",
-          "classification": "misconfiguration",
-          "remediation": "[CLI] Update install.sh to return non-zero exit code for unknown commands."
-        },
-        {
-          "phase": "playbooks",
-          "error": "registry not found: /home/matthalloran8/Vrooli/scenarios/prompt-manager/bas/registry.json",
-          "classification": "misconfiguration",
-          "remediation": "Regenerate bas/registry.json via playbook builder."
-        }
-      ]
-    },
-    "standards": {
-      "available": true,
-      "blockingViolations": 8,
-      "warnings": 154,
-      "totalViolations": 162,
-      "topViolations": [
-        {
-          "filePath": "cli/prompt-manager",
-          "lineNumber": 0,
-          "title": "Scenario Required Structure",
-          "severity": "critical",
-          "recommendation": "Add the required resource at cli/prompt-manager"
-        },
-        {
-          "filePath": "/home/matthalloran8/Vrooli/scenarios/prompt-manager/requirements/index.json",
-          "lineNumber": 0,
-          "title": "P0 target missing requirements",
-          "severity": "critical",
-          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing."
-        },
-        {
-          "filePath": "/home/matthalloran8/Vrooli/scenarios/prompt-manager/requirements/index.json",
-          "lineNumber": 0,
-          "title": "P0 target missing requirements",
-          "severity": "critical",
-          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing."
-        },
-        {
-          "filePath": "/home/matthalloran8/Vrooli/scenarios/prompt-manager/requirements/index.json",
-          "lineNumber": 0,
-          "title": "P0 target missing requirements",
-          "severity": "critical",
-          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing."
-        },
-        {
-          "filePath": "/home/matthalloran8/Vrooli/scenarios/prompt-manager/requirements/index.json",
-          "lineNumber": 0,
-          "title": "P0 target missing requirements",
-          "severity": "critical",
-          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing."
-        }
-      ]
-    },
-    "visual": {
-      "available": true,
-      "screenshotCount": 5,
-      "stale": false,
-      "latestCapture": {
-        "capturedAt": "2026-04-07T18:41:17Z",
-        "screenshotCount": 1
-      }
+      "stale": true,
+      "violations": 0
     },
     "provenance": {
       "available": true,
@@ -110,22 +30,101 @@
         "scenarios/swarm-manager/execute/dm-releases-and-release-platforms-tables/.swarm/last-research-prompt-trace.json",
         "scenarios/swarm-manager/execute/dm-releases-and-release-platforms-tables/plan.md"
       ]
+    },
+    "standards": {
+      "available": true,
+      "blockingViolations": 8,
+      "topViolations": [
+        {
+          "filePath": "cli/prompt-manager",
+          "lineNumber": 0,
+          "recommendation": "Add the required resource at cli/prompt-manager",
+          "severity": "critical",
+          "title": "Scenario Required Structure"
+        },
+        {
+          "filePath": "path:scenarios/prompt-manager/requirements/index.json",
+          "lineNumber": 0,
+          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing.",
+          "severity": "critical",
+          "title": "P0 target missing requirements"
+        },
+        {
+          "filePath": "path:scenarios/prompt-manager/requirements/index.json",
+          "lineNumber": 0,
+          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing.",
+          "severity": "critical",
+          "title": "P0 target missing requirements"
+        },
+        {
+          "filePath": "path:scenarios/prompt-manager/requirements/index.json",
+          "lineNumber": 0,
+          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing.",
+          "severity": "critical",
+          "title": "P0 target missing requirements"
+        },
+        {
+          "filePath": "path:scenarios/prompt-manager/requirements/index.json",
+          "lineNumber": 0,
+          "recommendation": "Link each P0/P1 operational target to at least one requirement before publishing.",
+          "severity": "critical",
+          "title": "P0 target missing requirements"
+        }
+      ],
+      "totalViolations": 162,
+      "warnings": 154
+    },
+    "tests": {
+      "available": true,
+      "failedCount": 5,
+      "failures": [
+        {
+          "classification": "misconfiguration",
+          "error": "standards violations exceed fail_on=high (highest=critical)",
+          "phase": "standards",
+          "remediation": "Run `scenario-auditor audit prompt-manager --standards-only --timeout 60` and address HIGH+ findings."
+        },
+        {
+          "classification": "misconfiguration",
+          "error": "Docs validation failed",
+          "phase": "docs",
+          "remediation": "Fix docs issues and re-run"
+        },
+        {
+          "classification": "system",
+          "error": "node unit tests failed in ui: exit status 1",
+          "phase": "unit",
+          "remediation": "Inspect the UI/unit test output above, fix failures, and rerun the suite."
+        },
+        {
+          "classification": "misconfiguration",
+          "error": "CLI: CLI unknown command check failed: CLI returned success (exit 0) for unknown command \"__test_genie_nonexistent_command_12345__\" - should return non-zero",
+          "phase": "integration",
+          "remediation": "[CLI] Update install.sh to return non-zero exit code for unknown commands."
+        },
+        {
+          "classification": "misconfiguration",
+          "error": "registry not found: path:scenarios/prompt-manager/bas/registry.json",
+          "phase": "playbooks",
+          "remediation": "Regenerate bas/registry.json via playbook builder."
+        }
+      ],
+      "lastRun": "2026-04-07T22:02:47.532179985Z",
+      "passed": false,
+      "passedCount": 6,
+      "total": 11
+    },
+    "visual": {
+      "available": true,
+      "latestCapture": {
+        "capturedAt": "2026-04-07T18:41:17Z",
+        "screenshotCount": 1
+      },
+      "screenshotCount": 5,
+      "stale": false
     }
   },
-  "dimensionStatuses": {
-    "codeQuality": "yellow",
-    "provenance": "green",
-    "standards": "red",
-    "tests": "yellow",
-    "visual": "green"
-  },
-  "capabilities": {
-    "browser-automation-studio": true,
-    "scenario-auditor": true,
-    "test-genie": true,
-    "tidiness-manager": true,
-    "workspace-sandbox": true
-  },
+  "readiness": "yellow",
+  "scenarioName": "prompt-manager",
   "timestamp": "2026-04-07T22:08:23Z"
 }
-

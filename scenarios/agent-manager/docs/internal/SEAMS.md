@@ -55,6 +55,18 @@ api/internal/
 
 ## Core Seams
 
+### Agent Run Environment
+
+**Purpose:** Keep runner process environment ownership explicit.
+
+**Contract:**
+- `VROOLI_AGENT_IDENTITY_TOKEN` is the only identity variable Agent Manager injects into spawned agent processes.
+- Sandboxed runs also receive `VROOLI_SANDBOX_ID`, `VROOLI_SANDBOX_MERGED`, and `VROOLI_SANDBOX_SCOPE` so lifecycle-aware tools can resolve the copy-on-write workspace.
+- Agent Manager must not synthesize API-base variables for Swarm Manager, Prompt Manager, Workspace Sandbox, Agent Manager, or any other scenario. Scenario CLIs discover their own APIs through `cli-core` lifecycle discovery, and scenario APIs use `api-core/discovery` for peer calls.
+
+**Testability:**
+- `api/internal/orchestration/phases/env_test.go` locks token-only identity env, sandbox env, and merge precedence.
+
 ### 0. Realtime Event Delivery (`handlers` + UI store)
 
 **Purpose:** Keep list-level run status live without streaming every run event body to every browser.

@@ -152,6 +152,44 @@ func TestServiceRefreshAndCancelUpdateLifecycle(t *testing.T) {
 	}
 }
 
+func TestServiceRefreshMapsFailedRunAndIsIdempotent(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "failed", ErrorMsg: "sandbox process ended without exit info"}}
+	svc := newTestService(t, spawner)
+	session, err := svc.Create(context.Background(), CreateRequest{
+		Kind:           KindMetaOrchestration,
+		Title:          "Plan",
+		InitialMessage: "Plan.",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	refreshed, err := svc.Refresh(context.Background(), session.ID)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if refreshed.Status != StatusFailed {
+		t.Fatalf("status after refresh = %q, want failed", refreshed.Status)
+	}
+	if refreshed.FailureReason != "sandbox process ended without exit info" {
+		t.Fatalf("failure reason = %q", refreshed.FailureReason)
+	}
+	if len(refreshed.Messages) != 1 {
+		t.Fatalf("failed run with no summary should not append messages: %+v", refreshed.Messages)
+	}
+
+	refreshedAgain, err := svc.Refresh(context.Background(), session.ID)
+	if err != nil {
+		t.Fatalf("Refresh() second call error = %v", err)
+	}
+	if refreshedAgain.Status != StatusFailed || len(refreshedAgain.Messages) != 1 {
+		t.Fatalf("second refresh should be idempotent: %+v", refreshedAgain)
+	}
+}
+
 func TestServiceDeleteStopsActiveRunBeforeRemovingSession(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()

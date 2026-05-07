@@ -1,0 +1,128 @@
+import { useCallback, useEffect, useState } from "react";
+
+import {
+  dismissRecoverableSession,
+  listRecoverableSessions,
+  recoverSession,
+  type RecoverableSession,
+  type RecoverResult,
+} from "../lib/api";
+
+export interface RecoverableSessionsBannerProps {
+  // Called after a successful recovery so the workspace can attach the new
+  // pane. The new session id is the one returned by the API.
+  onRecovered?: (result: RecoverResult) => void;
+}
+
+// RecoverableSessionsBanner surfaces awaiting_recovery rows from the API and
+// invokes the recover endpoint on click. It hides when the list is empty so
+// the normal workspace UI is unchanged after a clean restart.
+//
+// See: scenarios/web-console/docs/guides/SESSION_RECOVERY.md
+export default function RecoverableSessionsBanner(props: RecoverableSessionsBannerProps) {
+  const { onRecovered } = props;
+  const [rows, setRows] = useState<RecoverableSession[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const list = await listRecoverableSessions();
+      setRows(list);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setRows([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleRecover = useCallback(
+    async (id: string) => {
+      setBusy(id);
+      setError(null);
+      try {
+        const result = await recoverSession(id);
+        if (onRecovered) onRecovered(result);
+        await refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(null);
+      }
+    },
+    [onRecovered, refresh],
+  );
+
+  const handleDismiss = useCallback(
+    async (id: string) => {
+      setBusy(id);
+      setError(null);
+      try {
+        await dismissRecoverableSession(id);
+        await refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refresh],
+  );
+
+  if (rows === null) return null;
+  if (rows.length === 0) return null;
+
+  return (
+    <div
+      data-testid="recoverable-sessions-banner"
+      className="border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100"
+    >
+      <div className="px-3 py-2 font-medium">
+        {rows.length} session{rows.length === 1 ? "" : "s"} awaiting recovery from a previous run
+      </div>
+      <ul className="divide-y divide-amber-700/30">
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            data-testid={`recoverable-row-${row.id}`}
+            className="flex items-center gap-2 px-3 py-2"
+          >
+            <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
+            <span className="text-xs">agent: {row.agent_type ?? "none"}</span>
+            {row.cwd ? <span className="truncate text-xs opacity-70">cwd: {row.cwd}</span> : null}
+            <div className="ml-auto flex gap-2">
+              <button
+                type="button"
+                disabled={!row.recoverable || busy === row.id}
+                onClick={() => handleRecover(row.id)}
+                className="rounded border border-amber-400/50 px-2 py-0.5 text-xs hover:bg-amber-700/30 disabled:opacity-50"
+                title={row.recoverable ? "Reattach into a fresh pane" : row.not_recoverable_reason}
+                data-testid={`recoverable-row-${row.id}-recover`}
+              >
+                Reattach
+              </button>
+              <button
+                type="button"
+                disabled={busy === row.id}
+                onClick={() => handleDismiss(row.id)}
+                className="rounded border border-amber-400/30 px-2 py-0.5 text-xs hover:bg-amber-700/20 disabled:opacity-50"
+                title="Hide this orphan from the list (on-disk state preserved)"
+                data-testid={`recoverable-row-${row.id}-dismiss`}
+              >
+                Dismiss
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {error ? (
+        <div className="px-3 py-2 text-xs text-red-300" role="alert">
+          {error}
+        </div>
+      ) : null}
+    </div>
+  );
+}

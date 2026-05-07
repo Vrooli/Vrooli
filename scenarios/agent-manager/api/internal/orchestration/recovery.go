@@ -157,12 +157,16 @@ func (r *Reconciler) failRecoveredRun(ctx context.Context, run *domain.Run, mess
 
 func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) (*runner.TranscriptTerminal, error) {
 	sink := r.recoveryEventSink(run.ID)
+	transcriptParser := parser
+	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
+		transcriptParser = factory.NewTranscriptParser()
+	}
 	_, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
 		RunID:      run.ID,
 		Transcript: transcriptPath,
 		StartAt:    run.TranscriptCursor,
 		ParseFn: func(runID uuid.UUID, line string) runner.TranscriptParseResult {
-			return parser.ParseTranscriptLine(runID, line)
+			return transcriptParser.ParseTranscriptLine(runID, line)
 		},
 		EventSink: sink,
 		OnAdvance: func(cursor, lastSeq int64) error {

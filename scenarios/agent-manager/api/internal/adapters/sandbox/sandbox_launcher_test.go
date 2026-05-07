@@ -865,8 +865,8 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != SandboxNamespacePath {
 		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q", got, SandboxNamespacePath)
 	}
-	if got, _ := envAny["PATH"].(string); got != "/usr/bin" {
-		t.Errorf("env PATH = %q; want /usr/bin (untouched)", got)
+	if _, ok := envAny["PATH"]; ok {
+		t.Errorf("env PATH should be omitted; workspace-sandbox owns vrooli-aware PATH construction")
 	}
 
 	go func() {
@@ -1001,6 +1001,37 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 				t.Errorf("got command %q; want %q", got, c.want)
 			}
 		})
+	}
+}
+
+func TestNamespaceLayoutPathEntriesMatchesVrooliAwareProfile(t *testing.T) {
+	layout := NamespaceLayout{
+		HostHome:         "/home/alice/",
+		HomeOverlayState: HomeOverlayPresent,
+	}
+	want := []string{
+		"/home/alice/.vrooli/bin",
+		"/home/alice/go/bin",
+		"/home/alice/.local/bin",
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin",
+	}
+	got := layout.PathEntries()
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("PathEntries() = %v, want %v", got, want)
+	}
+}
+
+func TestNamespaceLayoutPathEntriesWithoutHomeOverlay(t *testing.T) {
+	layout := NamespaceLayout{
+		HostHome:         "/home/alice",
+		HomeOverlayState: HomeOverlayAbsent,
+	}
+	want := []string{"/usr/local/bin", "/usr/bin", "/bin"}
+	got := layout.PathEntries()
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("PathEntries() = %v, want %v", got, want)
 	}
 }
 

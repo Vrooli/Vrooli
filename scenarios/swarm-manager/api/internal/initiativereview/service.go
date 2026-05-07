@@ -18,6 +18,7 @@ import (
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/review"
 	"swarm-manager/internal/storage"
@@ -617,7 +618,14 @@ func (s *Service) writeDecision(initiativeName string, rec DecisionRecord) error
 	}
 	safeTS := strings.ReplaceAll(strings.ReplaceAll(rec.DecidedAt, ":", ""), "-", "")
 	filename := fmt.Sprintf("%s-%s.json", safeTS, rec.Verdict)
-	return storage.WriteJSONAtomic(filepath.Join(dir, filename), rec)
+	path := filepath.Join(dir, filename)
+	value := any(rec)
+	if redacted, changed, err := pathredact.NewForArtifactPath(path).RedactJSONValue(rec); err != nil {
+		return fmt.Errorf("redact decision: %w", err)
+	} else if changed {
+		value = redacted
+	}
+	return storage.WriteJSONAtomic(path, value)
 }
 
 // ListDecisions returns all decision records for an initiative, newest-first,

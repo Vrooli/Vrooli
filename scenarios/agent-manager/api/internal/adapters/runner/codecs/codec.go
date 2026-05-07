@@ -105,11 +105,16 @@ type Codec interface {
 	// on per-line decode errors.
 	DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*domain.RunEvent, error)
 
-	// ParseTranscriptLine parses one line of durable transcript for
-	// replay during agent-manager restart-resume. Mirrors the live
-	// decoding path but reads the on-disk transcript format. This is
-	// also exposed via the [runner.TranscriptParser] seam.
+	// ParseTranscriptLine parses one durable transcript line with a fresh
+	// parser. Use [Codec.NewTranscriptParser] for any multi-line replay
+	// so codec state is preserved across the transcript stream.
 	ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult
+
+	// NewTranscriptParser creates the stateful parser for one logical
+	// durable transcript replay. Live tail plus final drain must share
+	// this parser so result-line fallbacks can see content emitted by
+	// earlier transcript lines.
+	NewTranscriptParser() runner.TranscriptParser
 
 	// UpdateMetrics applies an event's effect on rolling execution
 	// metrics. Called once per event the codec emits.

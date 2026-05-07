@@ -29,19 +29,13 @@
 package phases
 
 import (
-	"os"
-
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
 
 const (
-	envAgentIdentityToken      = "VROOLI_AGENT_IDENTITY_TOKEN"
-	envAgentManagerAPIBase     = "VROOLI_AGENT_MANAGER_API_BASE"
-	envScenarioAPIBase         = "API_BASE_URL"
-	envScenarioAPIPort         = "API_PORT"
-	defaultAgentManagerAPIPort = "18800"
+	envAgentIdentityToken = "VROOLI_AGENT_IDENTITY_TOKEN"
 )
 
 // SandboxEnvInput is the explicit input for SandboxEnvVars.
@@ -64,6 +58,7 @@ func SandboxEnvVars(in SandboxEnvInput) map[string]string {
 	vars := map[string]string{
 		"VROOLI_SANDBOX_ID":     in.SandboxID.String(),
 		"VROOLI_SANDBOX_MERGED": in.WorkDir,
+		"VROOLI_SANDBOX_SCOPE":  ".",
 	}
 	if in.ScopePath != "" {
 		vars["VROOLI_SANDBOX_SCOPE"] = in.ScopePath
@@ -72,31 +67,13 @@ func SandboxEnvVars(in SandboxEnvInput) map[string]string {
 }
 
 // IdentityEnvVars returns the identity env vars needed by agent processes.
-// The token lets consumers prove which Agent Manager run is acting. The API
-// base lets cli-core verify that token without relying on caller-supplied env.
+// The token lets consumers prove which Agent Manager run is acting; service
+// location is resolved through lifecycle discovery by the consumer.
 func IdentityEnvVars(token string) map[string]string {
 	if token == "" {
 		return nil
 	}
-	vars := map[string]string{envAgentIdentityToken: token}
-	if baseURL := resolveAgentManagerAPIBaseEnv(); baseURL != "" {
-		vars[envAgentManagerAPIBase] = baseURL
-	}
-	return vars
-}
-
-func resolveAgentManagerAPIBaseEnv() string {
-	if baseURL := os.Getenv(envAgentManagerAPIBase); baseURL != "" {
-		return baseURL
-	}
-	if baseURL := os.Getenv(envScenarioAPIBase); baseURL != "" {
-		return baseURL
-	}
-	port := os.Getenv(envScenarioAPIPort)
-	if port == "" {
-		port = defaultAgentManagerAPIPort
-	}
-	return "http://localhost:" + port
+	return map[string]string{envAgentIdentityToken: token}
 }
 
 // MergeEnvInput bundles the inputs to MergeEnvVars — the three sources of

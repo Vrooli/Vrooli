@@ -369,6 +369,14 @@ type TranscriptParser interface {
 	ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult
 }
 
+// TranscriptParserFactory creates a fresh parser for one logical transcript
+// consumption. Callers that tail live output and then perform a final drain
+// must share the returned parser across both Consume calls so replay state
+// follows the transcript stream rather than resetting per line.
+type TranscriptParserFactory interface {
+	NewTranscriptParser() TranscriptParser
+}
+
 // -----------------------------------------------------------------------------
 // FlagValidator - Validates runner-specific flags against allowlists
 // -----------------------------------------------------------------------------

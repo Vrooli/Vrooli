@@ -1037,6 +1037,53 @@ func TestParseTranscriptLine_SessionID(t *testing.T) {
 	}
 }
 
+func TestClaudeTranscriptDoesNotDuplicateFinalAssistant(t *testing.T) {
+	c := NewClaudeForTest()
+	runID := uuid.New()
+	parser := c.NewTranscriptParser()
+
+	assistant := parser.ParseTranscriptLine(runID, `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"done"}]},"session_id":"session-1"}`)
+	result := parser.ParseTranscriptLine(runID, `{"type":"result","subtype":"success","is_error":false,"result":"done","session_id":"session-1"}`)
+
+	got := 0
+	for _, res := range []runner.TranscriptParseResult{assistant, result} {
+		if res.Err != nil {
+			t.Fatalf("ParseTranscriptLine: %v", res.Err)
+		}
+		for _, event := range res.Events {
+			if event.EventType == domain.EventTypeMessage {
+				msg := event.Data.(*domain.MessageEventData)
+				if msg.Role == "assistant" && msg.Content == "done" {
+					got++
+				}
+			}
+		}
+	}
+	if got != 1 {
+		t.Fatalf("assistant message count = %d, want 1", got)
+	}
+}
+
+func TestClaudeTranscriptResultSynthesizesAssistantWhenNoAssistantEventExists(t *testing.T) {
+	c := NewClaudeForTest()
+	res := c.ParseTranscriptLine(uuid.New(), `{"type":"result","subtype":"success","is_error":false,"result":"fallback summary","session_id":"session-1"}`)
+	if res.Err != nil {
+		t.Fatalf("ParseTranscriptLine: %v", res.Err)
+	}
+	got := 0
+	for _, event := range res.Events {
+		if event.EventType == domain.EventTypeMessage {
+			msg := event.Data.(*domain.MessageEventData)
+			if msg.Role == "assistant" && msg.Content == "fallback summary" {
+				got++
+			}
+		}
+	}
+	if got != 1 {
+		t.Fatalf("fallback assistant message count = %d, want 1", got)
+	}
+}
+
 // =============================================================================
 // ClaudeMessage extraction
 // =============================================================================

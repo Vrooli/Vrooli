@@ -246,6 +246,20 @@ func (c *fakeCodec) ParseTranscriptLine(runID uuid.UUID, line string) runner.Tra
 	return runner.TranscriptParseResult{Events: events, Err: err}
 }
 
+func (c *fakeCodec) NewTranscriptParser() runner.TranscriptParser {
+	return &fakeTranscriptParser{codec: c, state: &fakeState{}}
+}
+
+type fakeTranscriptParser struct {
+	codec *fakeCodec
+	state *fakeState
+}
+
+func (p *fakeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	events, err := p.codec.DecodeStreamLine(p.state, runID, strings.TrimSpace(line))
+	return runner.TranscriptParseResult{Events: events, Err: err}
+}
+
 func (c *fakeCodec) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
 	switch data := event.Data.(type) {
 	case *domain.MessageEventData:

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/storage"
 )
 
@@ -160,7 +161,13 @@ func (s *Store) SaveRound(round RoundEnvelope) error {
 	if err != nil {
 		return err
 	}
-	return storage.WriteJSONAtomic(path, round)
+	value := any(round)
+	if redacted, changed, err := pathredact.NewForArtifactPath(path).RedactJSONValue(round); err != nil {
+		return fmt.Errorf("redact round: %w", err)
+	} else if changed {
+		value = redacted
+	}
+	return storage.WriteJSONAtomic(path, value)
 }
 
 func (s *Store) LoadRound(initiativeName string, mode Mode, number int) (RoundEnvelope, error) {

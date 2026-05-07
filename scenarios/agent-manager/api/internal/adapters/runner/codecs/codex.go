@@ -450,24 +450,34 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 	}
 }
 
-// ParseTranscriptLine satisfies [Codec]. Used during agent-manager
-// restart-resume to replay events from the on-disk transcript.
+// ParseTranscriptLine satisfies [Codec] for single-line transcript parsing.
+// Multi-line replay uses NewTranscriptParser to retain runner state across
+// the transcript stream.
 func (c *Codex) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	parser := c.NewTranscriptParser()
+	return parser.ParseTranscriptLine(runID, line)
+}
+
+// NewTranscriptParser satisfies [Codec].
+func (c *Codex) NewTranscriptParser() runner.TranscriptParser {
+	return &codexTranscriptParser{codec: c, state: &codexState{}}
+}
+
+type codexTranscriptParser struct {
+	codec *Codex
+	state *codexState
+}
+
+func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
 	streamEvent, ok := decodeCodexStreamEvent(line)
 	if !ok {
 		return runner.TranscriptParseResult{}
 	}
 
-	// Replay parsing uses a fresh, throw-away state so two runs replaying
-	// the same transcript don't influence each other. Cost events still
-	// require a model: we capture it from the codec's last-known model
-	// field, which a fresh codec instance won't have. That's fine —
-	// recovered cost events will simply have an empty Model field.
-	state := &codexState{}
 	if streamEvent.ThreadID != "" {
-		state.threadID = streamEvent.ThreadID
+		p.state.threadID = streamEvent.ThreadID
 	}
-	events := c.parseCodexEvents(state, runID, streamEvent)
+	events := p.codec.parseCodexEvents(p.state, runID, streamEvent)
 
 	result := runner.TranscriptParseResult{
 		Events:    events,

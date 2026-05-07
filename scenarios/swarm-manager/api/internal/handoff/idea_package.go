@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/workshop"
 )
 
@@ -148,15 +149,22 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	briefPath := filepath.Join(handoffDir, briefFileName)
 	manifestPath := filepath.Join(handoffDir, manifestFileName)
 	sourceIndexPath := filepath.Join(handoffDir, sourceIndexFileName)
+	redactor := pathredact.NewForArtifactPath(itemFolder)
+	ref := func(path string) string {
+		if strings.TrimSpace(path) == "" {
+			return ""
+		}
+		return redactor.RedactString(path)
+	}
 
 	sourceIndex := SourceIndex{
-		ItemFolder:          itemFolder,
-		PlanPath:            deliverablePath,
-		SpecPath:            filepath.Join(itemFolder, "spec.json"),
-		NotesPath:           fileIfExists(filepath.Join(itemFolder, "notes.md")),
-		ResearchSummaryPath: fileIfExists(filepath.Join(itemFolder, "research", "summary.md")),
-		ArchiveDir:          dirIfExists(filepath.Join(itemFolder, "archive")),
-		WorkshopRoundPaths:  buildRoundPaths(itemFolder, rounds),
+		ItemFolder:          ref(itemFolder),
+		PlanPath:            ref(deliverablePath),
+		SpecPath:            ref(filepath.Join(itemFolder, "spec.json")),
+		NotesPath:           ref(fileIfExists(filepath.Join(itemFolder, "notes.md"))),
+		ResearchSummaryPath: ref(fileIfExists(filepath.Join(itemFolder, "research", "summary.md"))),
+		ArchiveDir:          ref(dirIfExists(filepath.Join(itemFolder, "archive"))),
+		WorkshopRoundPaths:  redactPaths(ref, buildRoundPaths(itemFolder, rounds)),
 	}
 
 	manifest := Manifest{
@@ -167,14 +175,14 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 		BacklogName:             strings.TrimSpace(req.BacklogName),
 		BacklogTitle:            strings.TrimSpace(req.BacklogTitle),
 		BacklogDescription:      strings.TrimSpace(req.BacklogDescription),
-		ItemFolder:              itemFolder,
+		ItemFolder:              ref(itemFolder),
 		TargetScenario:          strings.TrimSpace(req.TargetScenario),
 		Operation:               strings.TrimSpace(req.Operation),
 		SuggestedSteerProfileID: strings.TrimSpace(req.SuggestedSteerProfileID),
-		DeliverablePath:         deliverablePath,
-		ManifestPath:            manifestPath,
-		BriefPath:               briefPath,
-		SourceIndexPath:         sourceIndexPath,
+		DeliverablePath:         ref(deliverablePath),
+		ManifestPath:            ref(manifestPath),
+		BriefPath:               ref(briefPath),
+		SourceIndexPath:         ref(sourceIndexPath),
 		LockedDecisions:         locked,
 		OpenDecisions:           open,
 		AcceptanceAllow:         append([]string(nil), req.AcceptanceAllow...),

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/workshop"
 )
 
@@ -97,6 +98,17 @@ func buildRoundPaths(itemFolder string, rounds []workshop.Round) []string {
 	return paths
 }
 
+func redactPaths(redact func(string) string, paths []string) []string {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(paths))
+	for _, path := range paths {
+		out = append(out, redact(path))
+	}
+	return out
+}
+
 func selectedLabel(item workshop.Item) string {
 	selected := trimmedPtr(item.Selected)
 	for _, option := range item.Options {
@@ -137,6 +149,11 @@ func dirIfExists(path string) string {
 }
 
 func writeJSONFile(path string, value any) error {
+	if redacted, changed, err := pathredact.NewForArtifactPath(path).RedactJSONValue(value); err != nil {
+		return fmt.Errorf("redact %s: %w", filepath.Base(path), err)
+	} else if changed {
+		value = redacted
+	}
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal %s: %w", filepath.Base(path), err)

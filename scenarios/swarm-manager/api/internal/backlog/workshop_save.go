@@ -26,6 +26,7 @@ import (
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/fileserve"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/projectroot"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
@@ -86,6 +87,9 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 
 	roundFile := fmt.Sprintf("round-%03d.json", req.RoundNumber)
 	roundPath := filepath.Join(workshopDir, roundFile)
+	if redacted, changed := pathredact.NewForArtifactPath(roundPath).RedactBytes(roundPath, content); changed {
+		content = redacted
+	}
 	if err := os.WriteFile(roundPath, content, 0o644); err != nil {
 		slog.Error("failed to write round file", "path", roundPath, "err", err)
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to save round file"))
@@ -527,7 +531,7 @@ func (h *Handler) ReWorkshop(w http.ResponseWriter, r *http.Request) {
 // globs are stale and why. When `Problems` is empty the report is clean.
 type AcceptanceValidationArtifact struct {
 	GeneratedAt string                    `json:"generated_at"`
-	ProjectRoot string                    `json:"project_root"`
+	RepoRootRef string                    `json:"repo_root_ref"`
 	Problems    []projectroot.GlobProblem `json:"problems"`
 }
 
@@ -549,14 +553,19 @@ func runAcceptanceValidation(item BacklogItem, itemDir string) (*projectroot.Acc
 	// so consumers can distinguish "validated and clean" from "never validated."
 	artifact := AcceptanceValidationArtifact{
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-		ProjectRoot: root,
+		RepoRootRef: "path:.",
 	}
 	if report != nil {
 		artifact.Problems = report.Problems
 	}
-	data, marshalErr := json.MarshalIndent(artifact, "", "  ")
+	artifactPath := filepath.Join(itemDir, "acceptance-validation.json")
+	redactedArtifact := any(artifact)
+	if redacted, changed, err := pathredact.NewForArtifactPath(artifactPath).RedactJSONValue(artifact); err == nil && changed {
+		redactedArtifact = redacted
+	}
+	data, marshalErr := json.MarshalIndent(redactedArtifact, "", "  ")
 	if marshalErr == nil {
-		_ = os.WriteFile(filepath.Join(itemDir, "acceptance-validation.json"), data, 0o644)
+		_ = os.WriteFile(artifactPath, data, 0o644)
 	}
 	if valErr != nil && !errors.Is(valErr, projectroot.ErrAcceptanceMismatch) {
 		return report, valErr

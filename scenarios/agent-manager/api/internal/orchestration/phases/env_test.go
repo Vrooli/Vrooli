@@ -51,61 +51,53 @@ func TestSandboxEnvVars_PopulatedForSandboxed(t *testing.T) {
 	}
 }
 
-func TestSandboxEnvVars_OmitsScopeWhenEmpty(t *testing.T) {
+func TestSandboxEnvVars_EmitsDotScopeWhenEmpty(t *testing.T) {
 	id := uuid.New()
 	got := SandboxEnvVars(SandboxEnvInput{
 		RunMode:   domain.RunModeSandboxed,
 		SandboxID: &id,
 		WorkDir:   "/tmp/sbx/merged",
 	})
-	if _, ok := got["VROOLI_SANDBOX_SCOPE"]; ok {
-		t.Errorf("expected VROOLI_SANDBOX_SCOPE omitted when empty, got %q", got["VROOLI_SANDBOX_SCOPE"])
+	if got["VROOLI_SANDBOX_SCOPE"] != "." {
+		t.Errorf("VROOLI_SANDBOX_SCOPE = %q, want .", got["VROOLI_SANDBOX_SCOPE"])
 	}
 }
 
 func TestIdentityEnvVars(t *testing.T) {
-	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "")
-	t.Setenv("API_BASE_URL", "")
-	t.Setenv("API_PORT", "")
-
 	if got := IdentityEnvVars(""); got != nil {
 		t.Errorf("expected nil for empty token, got %v", got)
 	}
-	got := IdentityEnvVars("tok-1")
-	if got["VROOLI_AGENT_IDENTITY_TOKEN"] != "tok-1" {
-		t.Errorf("token not forwarded: %v", got)
-	}
-	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://localhost:18800" {
-		t.Errorf("agent-manager API base = %q, want default base", got["VROOLI_AGENT_MANAGER_API_BASE"])
-	}
-}
-
-func TestIdentityEnvVars_UsesConfiguredAgentManagerBase(t *testing.T) {
-	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "http://agent-manager.internal:18800")
-	t.Setenv("API_BASE_URL", "http://wrong.example")
-	t.Setenv("API_PORT", "19999")
 
 	got := IdentityEnvVars("tok-1")
-	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://agent-manager.internal:18800" {
-		t.Errorf("agent-manager API base = %q, want configured VROOLI_AGENT_MANAGER_API_BASE", got["VROOLI_AGENT_MANAGER_API_BASE"])
+	want := map[string]string{"VROOLI_AGENT_IDENTITY_TOKEN": "tok-1"}
+	if len(got) != len(want) {
+		t.Fatalf("IdentityEnvVars returned %v, want %v", got, want)
 	}
-}
+	for key, value := range want {
+		if got[key] != value {
+			t.Errorf("%s = %q, want %q", key, got[key], value)
+		}
+	}
 
-func TestIdentityEnvVars_FallsBackToScenarioAPIBase(t *testing.T) {
-	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "")
-	t.Setenv("API_BASE_URL", "http://localhost:19901")
-	t.Setenv("API_PORT", "19999")
-
-	got := IdentityEnvVars("tok-1")
-	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://localhost:19901" {
-		t.Errorf("agent-manager API base = %q, want API_BASE_URL fallback", got["VROOLI_AGENT_MANAGER_API_BASE"])
+	for _, key := range []string{
+		"VROOLI_AGENT_MANAGER_API_BASE",
+		"AGENT_MANAGER_API_BASE",
+		"SWARM_MANAGER_API_BASE",
+		"WORKSPACE_SANDBOX_API_BASE",
+	} {
+		if _, ok := got[key]; ok {
+			t.Errorf("IdentityEnvVars should not synthesize %s", key)
+		}
 	}
 }
 
 func TestMergeEnvVars_SystemOverridesCustom(t *testing.T) {
-	t.Setenv("VROOLI_AGENT_MANAGER_API_BASE", "http://agent-manager.internal:18800")
 	got := MergeEnvVars(MergeEnvInput{
-		Custom:   map[string]string{"VROOLI_SANDBOX_ID": "evil", "VROOLI_AGENT_MANAGER_API_BASE": "evil", "USER_KEY": "1"},
+		Custom: map[string]string{
+			"VROOLI_SANDBOX_ID":      "evil",
+			"SWARM_MANAGER_API_BASE": "http://caller.example",
+			"USER_KEY":               "1",
+		},
 		Sandbox:  map[string]string{"VROOLI_SANDBOX_ID": "real"},
 		Identity: IdentityEnvVars("tok"),
 	})
@@ -118,8 +110,11 @@ func TestMergeEnvVars_SystemOverridesCustom(t *testing.T) {
 	if got["VROOLI_AGENT_IDENTITY_TOKEN"] != "tok" {
 		t.Errorf("identity not merged: %v", got)
 	}
-	if got["VROOLI_AGENT_MANAGER_API_BASE"] != "http://agent-manager.internal:18800" {
-		t.Errorf("custom must not shadow identity API base: %v", got["VROOLI_AGENT_MANAGER_API_BASE"])
+	if got["SWARM_MANAGER_API_BASE"] != "http://caller.example" {
+		t.Errorf("caller-owned API base should not be shadowed: %v", got["SWARM_MANAGER_API_BASE"])
+	}
+	if _, ok := got["VROOLI_AGENT_MANAGER_API_BASE"]; ok {
+		t.Errorf("identity merge should not add agent-manager API base: %v", got)
 	}
 }
 

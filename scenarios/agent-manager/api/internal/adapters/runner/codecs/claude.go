@@ -553,11 +553,25 @@ func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.Execution
 	}
 }
 
-// ParseTranscriptLine satisfies [Codec]. Used during agent-manager
-// restart-resume to replay events from the on-disk transcript.
+// ParseTranscriptLine satisfies [Codec] for single-line transcript parsing.
+// Multi-line replay uses NewTranscriptParser so Claude result fallbacks can
+// see assistant content emitted by earlier transcript lines.
 func (c *Claude) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	state := &claudeState{}
-	events, err := parseClaudeStreamEvents(state, runID, line)
+	parser := c.NewTranscriptParser()
+	return parser.ParseTranscriptLine(runID, line)
+}
+
+// NewTranscriptParser satisfies [Codec].
+func (c *Claude) NewTranscriptParser() runner.TranscriptParser {
+	return &claudeTranscriptParser{state: &claudeState{}}
+}
+
+type claudeTranscriptParser struct {
+	state *claudeState
+}
+
+func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	events, err := parseClaudeStreamEvents(p.state, runID, line)
 	result := runner.TranscriptParseResult{
 		Events: events,
 		Err:    err,

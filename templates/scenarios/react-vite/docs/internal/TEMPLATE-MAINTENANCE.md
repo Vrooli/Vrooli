@@ -96,8 +96,19 @@ vrooli scenario template validate --mode deep --template react-vite --test-prese
 Use `--retain-temp` only while debugging a failed deep run. The command
 keeps the generated temp workspace and its shared relocation outputs so a
 direct `test-genie execute ... --scenario-path ...` rerun can resolve the
-same generated proto artifacts. Clean the reported `template-validation-*`
-proto schema and generated proto folders after debugging.
+same generated proto artifacts. Deep validation writes a marker file to
+the retained workspace and reports a cleanup command with the run id.
+Preview or clean retained/interrupted runs with:
+
+```bash
+vrooli scenario template cleanup --dry-run
+vrooli scenario template cleanup --run <run-id>
+vrooli cleanup template-validation --older-than 24h
+```
+
+Cleanup is marker-backed and skips retained runs unless you target a run
+id or pass `--include-retained`. If cleanup removes proto relocation
+artifacts, it regenerates `packages/proto` outputs.
 
 For broad template edits, also run the drift search:
 

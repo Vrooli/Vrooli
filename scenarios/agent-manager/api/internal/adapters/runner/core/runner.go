@@ -137,11 +137,16 @@ func (r *Runner) ProbeModel(ctx context.Context, modelID string) error {
 	return r.codec.ProbeModel(ctx, modelID)
 }
 
-// ParseTranscriptLine satisfies [runner.TranscriptParser] by delegating
-// to the codec. Recovery code that needs a parser without holding a full
-// runner.Runner can type-assert on this method.
+// ParseTranscriptLine satisfies [runner.TranscriptParser] for single-line
+// callers. Multi-line transcript consumers should call NewTranscriptParser
+// and reuse the returned parser for the whole stream.
 func (r *Runner) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
 	return r.codec.ParseTranscriptLine(runID, line)
+}
+
+// NewTranscriptParser satisfies [runner.TranscriptParserFactory].
+func (r *Runner) NewTranscriptParser() runner.TranscriptParser {
+	return r.codec.NewTranscriptParser()
 }
 
 // Stop attempts a graceful shutdown of a running agent. SIGTERM is sent
@@ -875,13 +880,14 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	consumeCtx, cancelConsume := context.WithCancel(context.Background())
 	liveDone := make(chan struct{})
 	var liveCursor int64
+	transcriptParser := r.codec.NewTranscriptParser()
 	go func() {
 		defer close(liveDone)
 		cursor, liveTerminal, _ := runner.Consume(consumeCtx, runner.ConsumeArgs{
 			RunID:       in.runID,
 			Transcript:  in.transcript.TranscriptPath,
 			Live:        true,
-			ParseFn:     r.codec.ParseTranscriptLine,
+			ParseFn:     transcriptParser.ParseTranscriptLine,
 			EventSink:   in.sink,
 			OnAdvance:   in.transcript.OnAdvance,
 			OnSessionID: in.transcript.OnSessionID,
@@ -907,7 +913,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		RunID:       in.runID,
 		Transcript:  in.transcript.TranscriptPath,
 		StartAt:     liveCursor,
-		ParseFn:     r.codec.ParseTranscriptLine,
+		ParseFn:     transcriptParser.ParseTranscriptLine,
 		EventSink:   in.sink,
 		OnAdvance:   in.transcript.OnAdvance,
 		OnSessionID: in.transcript.OnSessionID,

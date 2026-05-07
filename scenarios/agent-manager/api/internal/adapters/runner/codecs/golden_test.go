@@ -173,9 +173,10 @@ func TestCodecGoldenTrace(t *testing.T) {
 			// final result line may shift between paths). The minimum
 			// invariant we pin is "no panics, no errors."
 			transcriptCodec := gc.newCodec(t)
+			transcriptParser := transcriptCodec.NewTranscriptParser()
 			transcriptAll := []domain.RunEventType{}
 			for i, line := range lines {
-				res := transcriptCodec.ParseTranscriptLine(runID, line)
+				res := transcriptParser.ParseTranscriptLine(runID, line)
 				if res.Err != nil {
 					t.Errorf("line %d ParseTranscriptLine: %v\nline=%q",
 						i, res.Err, truncate(line))

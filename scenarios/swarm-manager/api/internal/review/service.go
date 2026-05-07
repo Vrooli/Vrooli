@@ -16,6 +16,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/workshop"
@@ -553,6 +554,12 @@ func (s *Service) resolveItemDir(kind, name string) string {
 // from data (user message).
 func buildReviewAttachments(deliverableContent string, changedPaths, affectedScenarios []string, gctResultsJSON, userRequest string) []*domainpb.ContextAttachment {
 	var atts []*domainpb.ContextAttachment
+	redactor := pathredact.NewForArtifactPath(".")
+	deliverableContent = redactor.RedactString(deliverableContent)
+	changedPaths = redactStrings(redactor, changedPaths)
+	affectedScenarios = redactStrings(redactor, affectedScenarios)
+	gctResultsJSON = redactor.RedactString(gctResultsJSON)
+	userRequest = redactor.RedactString(userRequest)
 
 	atts = appendNoteAttachment(atts, "plan-content", "Deliverable Content", "Backlog deliverable (plan or conclusion)", deliverableContent, "markdown", "high")
 
@@ -581,6 +588,17 @@ func buildReviewAttachments(deliverableContent string, changedPaths, affectedSce
 	}
 
 	return atts
+}
+
+func redactStrings(redactor pathredact.Redactor, values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	out := make([]string, len(values))
+	for i, value := range values {
+		out[i] = redactor.RedactString(value)
+	}
+	return out
 }
 
 // -----------------------------------------------------------------------------
