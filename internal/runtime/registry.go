@@ -30,13 +30,14 @@ import (
 	"github.com/vrooli/vrooli/internal/tools"
 	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
+	"github.com/vrooli/vrooli/internal/tools/docker"
 	kdumptools "github.com/vrooli/vrooli/internal/tools/kdump-tools"
 	"github.com/vrooli/vrooli/internal/tools/mcelog"
 	"github.com/vrooli/vrooli/internal/tools/protoc"
-	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	protocgenconnectgo "github.com/vrooli/vrooli/internal/tools/protoc-gen-connect-go"
 	protocgenes "github.com/vrooli/vrooli/internal/tools/protoc-gen-es"
 	protocgengo "github.com/vrooli/vrooli/internal/tools/protoc-gen-go"
+	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
 	"github.com/vrooli/vrooli/internal/tools/vault"
 )
@@ -47,6 +48,7 @@ import (
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
 	"buf":                   buf.NewHandler,
 	"cloudflared":           cloudflared.NewHandler,
+	"docker":                docker.NewHandler,
 	"kdump_tools":           kdumptools.NewHandler,
 	"mcelog":                mcelog.NewHandler,
 	"protoc":                protoc.NewHandler,

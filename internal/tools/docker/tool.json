@@ -2,6 +2,7 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "docker",
   "description": "Container runtime for running resources and services",
+  "handler": "docker",
   "commands": ["docker"],
   "versionArgs": ["--version"],
   "defaultPackage": "docker.io",

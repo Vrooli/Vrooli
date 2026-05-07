@@ -1,13 +1,13 @@
 package remotesessionprotection
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -40,7 +40,7 @@ const (
 	desktopSliceDir   = "/etc/systemd/system/user-1000.slice.d"
 	desktopSlicePath  = "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf"
 	workloadSlicePath = "/etc/systemd/system/workload.slice"
-	dockerDaemonJSON  = "/etc/docker/daemon.json"
+	dockerDaemonJSON  = dockerhost.DaemonConfigPath
 
 	procMeminfo = "/proc/meminfo"
 )
@@ -527,74 +527,18 @@ func ensureSwap(alloc memoryAllocation, opts hostreqkit.EnsureOptions) error {
 // ── Docker daemon.json ───────────────────────────────────────────────────────
 
 func dockerConfigApplied() bool {
-	data, err := hostreqkit.ReadFileFn(dockerDaemonJSON)
-	if err != nil {
-		return false
-	}
-	var cfg map[string]interface{}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return false
-	}
-	parent, _ := cfg["cgroup-parent"].(string)
-	if parent != "workload.slice" {
-		return false
-	}
-	execOpts, ok := cfg["exec-opts"].([]interface{})
-	if !ok {
-		return false
-	}
-	for _, opt := range execOpts {
-		if s, ok := opt.(string); ok && s == "native.cgroupdriver=systemd" {
-			return true
-		}
-	}
-	return false
+	return dockerhost.ConfigHasWorkloadPolicy(dockerDaemonJSON)
 }
 
 func applyDockerConfig(opts hostreqkit.EnsureOptions) error {
-	cfg := make(map[string]interface{})
-	data, err := hostreqkit.ReadFileFn(dockerDaemonJSON)
-	if err == nil {
-		_ = json.Unmarshal(data, &cfg)
-	}
-
-	// Merge exec-opts
-	execOpts := []string{}
-	if existing, ok := cfg["exec-opts"].([]interface{}); ok {
-		for _, v := range existing {
-			if s, ok := v.(string); ok && s != "native.cgroupdriver=systemd" {
-				execOpts = append(execOpts, s)
-			}
-		}
-	}
-	execOpts = append(execOpts, "native.cgroupdriver=systemd")
-	cfg["exec-opts"] = execOpts
-	// daemon.json key is `cgroup-parent` (the daemon-wide default for
-	// container cgroups). `default-cgroup-parent` is NOT a valid key —
-	// dockerd refuses to start with "directives don't match any
-	// configuration option: default-cgroup-parent". Keep this aligned with
-	// dockerd's --help output, not the CLI flag name `--cgroup-parent`.
-	cfg["cgroup-parent"] = "workload.slice"
-	// Strip a stale `default-cgroup-parent` left over from earlier buggy
-	// versions of this handler so existing hosts self-heal on next apply.
-	delete(cfg, "default-cgroup-parent")
-
-	output, err := json.MarshalIndent(cfg, "", "  ")
+	result, err := dockerhost.SanitizeDaemonConfig(dockerDaemonJSON, dockerhost.ConfigOptions{
+		ApplyWorkloadCgroupPolicy: true,
+	}, opts)
 	if err != nil {
-		return fmt.Errorf("marshal docker config: %w", err)
+		return err
 	}
-
-	if err := hostreqkit.EnsureManagedDir(filepath.Dir(dockerDaemonJSON), opts.SudoMode, opts); err != nil {
-		return fmt.Errorf("create docker config dir: %w", err)
+	if result.Changed {
+		_ = dockerhost.RestartDockerIfActive(opts)
 	}
-	if err := hostreqkit.InstallManagedContent(dockerDaemonJSON, string(output)+"\n", opts.SudoMode, opts); err != nil {
-		return fmt.Errorf("install docker daemon.json: %w", err)
-	}
-
-	// Restart Docker if running
-	if _, err := hostreqkit.CombinedOutputFn("systemctl", "is-active", "docker"); err == nil {
-		_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"restart", "docker"}, opts)
-	}
-
 	return nil
 }

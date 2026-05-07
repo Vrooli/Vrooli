@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -362,6 +363,9 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 		if err != nil {
 			return err
 		}
+		if err := preflightDockerResources(root, home, names); err != nil {
+			return err
+		}
 		for _, name := range names {
 			if err := controller.Run(name, []string{"install"}, stdout, stderr); err != nil {
 				return err
@@ -370,16 +374,53 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 		return nil
 	}
 
+	names := []string{}
 	for _, raw := range strings.Split(selection, ",") {
 		name := strings.TrimSpace(raw)
 		if name == "" {
 			continue
 		}
+		names = append(names, name)
+	}
+	if err := preflightDockerResources(root, home, names); err != nil {
+		return err
+	}
+	for _, name := range names {
 		if err := controller.Run(name, []string{"install"}, stdout, stderr); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func preflightDockerResources(root, home string, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	controller := resources.NewController(root, home)
+	needsDocker := []string{}
+	for _, name := range names {
+		manifest, err := controller.ResourceManifest(name)
+		if err != nil {
+			continue
+		}
+		switch strings.TrimSpace(manifest.Driver) {
+		case "docker-service", "compose-service":
+			needsDocker = append(needsDocker, name)
+		}
+	}
+	if len(needsDocker) == 0 {
+		return nil
+	}
+	health := dockerhost.InspectHealth()
+	if health.InfoOK {
+		return nil
+	}
+	detail := strings.TrimSpace(health.Detail)
+	if detail == "" {
+		detail = "Docker daemon is not reachable"
+	}
+	return fmt.Errorf("selected resources require Docker (%s), but Docker is not healthy: %s", strings.Join(needsDocker, ", "), dockerhost.DiagnosticLine(detail))
 }
 
 type resourceRunner interface {

@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -242,6 +243,7 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 		}
 		checks = append(checks, DoctorCheck{Name: name, Status: status, Message: message})
 	}
+	checks = append(checks, dockerDaemonDoctorCheck())
 
 	apiPort := strings.TrimSpace(os.Getenv("VROOLI_API_PORT"))
 	if apiPort == "" {
@@ -325,6 +327,29 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 	checks = append(checks, installChecks...)
 
 	return DoctorReport{Checks: checks}, nil
+}
+
+func dockerDaemonDoctorCheck() DoctorCheck {
+	health := dockerhost.InspectHealth()
+	if !health.ClientInstalled {
+		return DoctorCheck{Name: "docker_daemon", Status: "missing", Message: "Docker CLI is not installed"}
+	}
+	if health.InfoOK {
+		return DoctorCheck{Name: "docker_daemon", Status: "ok", Message: "Docker daemon is reachable"}
+	}
+	message := dockerhost.DiagnosticLine(health.Detail)
+	if health.PermissionDenied {
+		message = "Current user cannot access the Docker socket: " + message
+	} else if health.ServiceFailed {
+		message = "Docker systemd service is failed: " + message
+	}
+	if !health.ConfigValid && health.ValidationDetail != "" {
+		if message != "" {
+			message += "; "
+		}
+		message += "daemon config validation failed: " + health.ValidationDetail
+	}
+	return DoctorCheck{Name: "docker_daemon", Status: "error", Message: message}
 }
 
 func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {

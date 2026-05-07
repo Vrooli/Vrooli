@@ -91,6 +91,9 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 			return "", os.ErrNotExist
 		}
 	}
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+		return nil, os.ErrNotExist
+	}
 
 	report, err := EnsureRequirements(EnsureOptions{
 		Environment: "development",
