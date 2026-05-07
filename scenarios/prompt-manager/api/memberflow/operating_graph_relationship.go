@@ -87,20 +87,32 @@ func (s OperatingRelationshipSet) ByKind(kind OperatingRelationshipKind) []Opera
 	return out
 }
 
-type OperatingRelationshipMatcher struct{}
+type OperatingRelationshipMatcher struct {
+	registry OperatingRelationshipRegistry
+}
 
-func (OperatingRelationshipMatcher) GraphBackedByRuntime(graphRel OperatingRelationship, runtime OperatingRelationshipSet) bool {
+func NewOperatingRelationshipMatcher() OperatingRelationshipMatcher {
+	return OperatingRelationshipMatcher{registry: DefaultOperatingRelationshipRegistry()}
+}
+
+func (m OperatingRelationshipMatcher) GraphBackedByRuntime(graphRel OperatingRelationship, runtime OperatingRelationshipSet) bool {
+	if len(m.registry.specs) == 0 {
+		m = NewOperatingRelationshipMatcher()
+	}
 	for _, runtimeRel := range runtime.All() {
-		if operatingRelationshipsMatch(graphRel, runtimeRel) {
+		if m.registry.Match(graphRel, runtimeRel) {
 			return true
 		}
 	}
 	return false
 }
 
-func (OperatingRelationshipMatcher) RuntimeShownInGraph(runtimeRel OperatingRelationship, graph OperatingRelationshipSet) bool {
+func (m OperatingRelationshipMatcher) RuntimeShownInGraph(runtimeRel OperatingRelationship, graph OperatingRelationshipSet) bool {
+	if len(m.registry.specs) == 0 {
+		m = NewOperatingRelationshipMatcher()
+	}
 	for _, graphRel := range graph.All() {
-		if operatingRelationshipsMatch(graphRel, runtimeRel) {
+		if m.registry.Match(graphRel, runtimeRel) {
 			return true
 		}
 	}
@@ -166,113 +178,6 @@ func BuildGraphOperatingRelationships(block OperatingGraphBlock) []OperatingRela
 	return index.GraphRelationships.All()
 }
 
-func operatingRelationshipFromNodes(team string, source OperatingSourceRef, from, to OperatingGraphNode) (OperatingRelationship, bool) {
-	base := OperatingRelationship{Team: team, Source: source}
-	switch {
-	case from.Kind == "topic" && to.Kind == "member":
-		base.Kind = operatingRelTopicRead
-		base.Topic = from.Value
-		base.Member = to.Value
-		return base, true
-	case from.Kind == "member" && to.Kind == "topic":
-		base.Kind = operatingRelTopicOutput
-		base.Member = from.Value
-		base.Topic = to.Value
-		return base, true
-	case from.Kind == "member" && to.Kind == "decision":
-		base.Member = from.Value
-		base.Decision = to.Value
-		if to.Value == "capability-gap" {
-			base.Kind = operatingRelCapabilityGapRaised
-		} else {
-			base.Kind = operatingRelDecisionOwned
-		}
-		return base, true
-	case from.Kind == "decision" && to.Kind == "member":
-		base.Kind = operatingRelDecisionConsumed
-		base.Decision = from.Value
-		base.Member = to.Value
-		return base, true
-	case from.Kind == "member" && to.Kind == "por":
-		base.Kind = operatingRelPOROutput
-		base.Member = from.Value
-		base.Path = to.Value
-		return base, true
-	case from.Kind == "topic" && to.Kind == "team":
-		base.Kind = operatingRelCrossTeamOutput
-		base.Topic = from.Value
-		base.TargetTeam = to.Value
-		return base, true
-	case from.Kind == "external" && to.Kind == "member":
-		base.Kind = operatingRelExternalProducer
-		base.External = from.Value
-		base.Member = to.Value
-		return base, true
-	case from.Kind == "external" && to.Kind == "topic":
-		base.Kind = operatingRelExternalProducerIntake
-		base.External = from.Value
-		base.Topic = to.Value
-		return base, true
-	default:
-		return OperatingRelationship{}, false
-	}
-}
-
-func operatingRelationshipsMatch(graphRel, runtimeRel OperatingRelationship) bool {
-	if graphRel.Team != "" && runtimeRel.Team != "" && graphRel.Team != runtimeRel.Team {
-		return false
-	}
-	switch graphRel.Kind {
-	case operatingRelTopicRead:
-		return isRuntimeReadRelationship(runtimeRel.Kind) &&
-			graphRel.Member == runtimeRel.Member &&
-			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
-	case operatingRelTopicOutput:
-		return runtimeRel.Kind == operatingRelTopicOutput &&
-			graphRel.Member == runtimeRel.Member &&
-			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
-	case operatingRelPOROutput:
-		return runtimeRel.Kind == operatingRelPOROutput &&
-			graphRel.Member == runtimeRel.Member &&
-			pathsEqual(graphRel.Path, runtimeRel.Path)
-	case operatingRelDecisionOwned:
-		return runtimeRel.Kind == operatingRelDecisionOwned &&
-			graphRel.Member == runtimeRel.Member &&
-			graphRel.Decision == runtimeRel.Decision
-	case operatingRelDecisionConsumed:
-		return (runtimeRel.Kind == operatingRelDecisionConsumed || runtimeRel.Kind == operatingRelTopicEvidenceConsumed) &&
-			graphRel.Member == runtimeRel.Member &&
-			graphRel.Decision == runtimeRel.Decision
-	case operatingRelCapabilityGapRaised:
-		return runtimeRel.Kind == operatingRelCapabilityGapRaised &&
-			graphRel.Member == runtimeRel.Member
-	case operatingRelExternalProducer:
-		return runtimeRel.Kind == operatingRelExternalProducer &&
-			graphRel.Member == runtimeRel.Member &&
-			graphRel.External == runtimeRel.External
-	case operatingRelExternalProducerIntake:
-		return runtimeRel.Kind == operatingRelExternalProducerIntake &&
-			graphRel.External == runtimeRel.External &&
-			(graphRel.Member == "" || runtimeRel.Member == "" || graphRel.Member == runtimeRel.Member) &&
-			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
-	case operatingRelCrossTeamOutput:
-		return runtimeRel.Kind == operatingRelCrossTeamOutput &&
-			graphRel.TargetTeam == runtimeRel.TargetTeam &&
-			topicsOverlap(graphRel.Topic, runtimeRel.Topic)
-	default:
-		return false
-	}
-}
-
-func isRuntimeReadRelationship(kind OperatingRelationshipKind) bool {
-	switch kind {
-	case operatingRelTopicIntake, operatingRelTopicRequiredRead, operatingRelTopicEvidenceConsumed:
-		return true
-	default:
-		return false
-	}
-}
-
 func topicsOverlap(a, b string) bool {
 	return strings.TrimSpace(a) != "" && strings.TrimSpace(b) != "" && Overlap(a, b)
 }
@@ -298,6 +203,6 @@ func operatingRelationshipDiffDedupeKey(rel OperatingRelationship) string {
 	if rel.Kind == operatingRelTopicEvidenceConsumed {
 		rel.Decision = ""
 	}
-	rel.Kind = runtimeRelationshipAsGraphRelationship(rel)
+	rel.Kind = DefaultOperatingRelationshipRegistry().GraphKindForRuntime(rel.Kind)
 	return operatingRelationshipKey(rel)
 }

@@ -1,0 +1,173 @@
+package memberflow
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+const TopicContractHeading = "# Topic Contract"
+
+func RenderTopicContract(teamID, agentID string, memberFlow MemberTopics) string {
+	topics := memberFlow.Topics
+
+	var b strings.Builder
+	b.WriteString(TopicContractHeading + "\n\n")
+	b.WriteString("This section is generated from `topics.json`. It is the source of truth for topic reads, writes, decisions, and capability-gap routing.\n")
+	if topics.IsEmpty() {
+		b.WriteString("\nNo topic flow is declared for this member.")
+		return b.String()
+	}
+
+	renderTopicContractIntakes(&b, topics.Intake)
+	renderTopicContractRequiredReads(&b, topics.RequiredRead)
+	renderTopicContractEvidence(&b, topics.EvidenceConsumed)
+	renderTopicContractOutputs(&b, topics.Output)
+	renderTopicContractDecisions(&b, topics)
+	renderTopicContractExternalProducers(&b, topics.ExternalProducers)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func renderTopicContractIntakes(b *strings.Builder, entries []IntakeEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	entries = append([]IntakeEntry(nil), entries...)
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Prefix < entries[j].Prefix })
+
+	b.WriteString("\n## Inboxes Drained\n\n")
+	for _, e := range entries {
+		parts := []string{"taxonomy `" + emptyAs(e.Taxonomy, "none") + "`"}
+		if strings.TrimSpace(e.ClassifierSkill) != "" {
+			parts = append(parts, "classifier `"+e.ClassifierSkill+"`")
+		}
+		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
+			parts = append(parts, "source team `"+*e.SourceTeam+"`")
+		}
+		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, strings.Join(parts, ", ")))
+	}
+}
+
+func renderTopicContractRequiredReads(b *strings.Builder, entries []RequiredReadEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	entries = append([]RequiredReadEntry(nil), entries...)
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Prefix < entries[j].Prefix })
+
+	b.WriteString("\n## Required Reads\n\n")
+	for _, e := range entries {
+		line := "- `" + e.Prefix + "`"
+		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
+			line += " - source team `" + *e.SourceTeam + "`"
+		}
+		if strings.TrimSpace(e.Comment) != "" {
+			line += " - " + strings.TrimSpace(e.Comment)
+		}
+		b.WriteString(line + "\n")
+	}
+}
+
+func renderTopicContractEvidence(b *strings.Builder, entries []EvidenceConsumedEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	entries = append([]EvidenceConsumedEntry(nil), entries...)
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Prefix < entries[j].Prefix })
+
+	b.WriteString("\n## Evidence Consumed\n\n")
+	for _, e := range entries {
+		decisions := append([]string(nil), e.ForDecisions...)
+		sort.Strings(decisions)
+		line := fmt.Sprintf("- `%s` - general evidence", e.Prefix)
+		if len(decisions) > 0 {
+			line = fmt.Sprintf("- `%s` - for `%s`", e.Prefix, strings.Join(decisions, "`, `"))
+		}
+		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
+			line += "; source team `" + *e.SourceTeam + "`"
+		}
+		b.WriteString(line + "\n")
+	}
+}
+
+func renderTopicContractOutputs(b *strings.Builder, entries []OutputEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	entries = append([]OutputEntry(nil), entries...)
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Prefix != entries[j].Prefix {
+			return entries[i].Prefix < entries[j].Prefix
+		}
+		return string(entries[i].DestinationKind) < string(entries[j].DestinationKind)
+	})
+
+	b.WriteString("\n## Outputs\n\n")
+	for _, e := range entries {
+		parts := []string{string(e.DestinationKind)}
+		if strings.TrimSpace(e.Schema) != "" {
+			parts = append(parts, "schema `"+e.Schema+"`")
+		}
+		if e.DestinationTeam != nil && strings.TrimSpace(*e.DestinationTeam) != "" {
+			parts = append(parts, "team `"+*e.DestinationTeam+"`")
+		}
+		if e.DestinationPath != nil && strings.TrimSpace(*e.DestinationPath) != "" {
+			parts = append(parts, "path `"+*e.DestinationPath+"`")
+		}
+		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, strings.Join(parts, ", ")))
+	}
+}
+
+func renderTopicContractDecisions(b *strings.Builder, topics Topics) {
+	if len(topics.DecisionsOwned) == 0 && len(topics.DecisionsConsumed) == 0 && !topics.RaisesCapabilityGaps {
+		return
+	}
+	b.WriteString("\n## Decisions\n\n")
+	if len(topics.DecisionsOwned) > 0 {
+		owned := append([]string(nil), topics.DecisionsOwned...)
+		sort.Strings(owned)
+		b.WriteString("- own/propose: `" + strings.Join(owned, "`, `") + "`\n")
+	}
+	if len(topics.DecisionsConsumed) > 0 {
+		consumed := append([]string(nil), topics.DecisionsConsumed...)
+		sort.Strings(consumed)
+		b.WriteString("- consume: `" + strings.Join(consumed, "`, `") + "`\n")
+	}
+	if topics.RaisesCapabilityGaps {
+		b.WriteString("- may raise `capability-gap`: yes\n")
+	}
+}
+
+func renderTopicContractExternalProducers(b *strings.Builder, producers []string) {
+	producers = sortedUniqueStrings(producers)
+	if len(producers) == 0 {
+		return
+	}
+	b.WriteString("\n## External Producers\n\n")
+	for _, producer := range producers {
+		b.WriteString("- `" + producer + "`\n")
+	}
+}
+
+func emptyAs(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func sortedUniqueStrings(values []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}

@@ -26,7 +26,8 @@ type OperatingGraphRuleContext struct {
 }
 
 func DefaultOperatingGraphRules() []OperatingGraphRule {
-	return []OperatingGraphRule{
+	registry := DefaultOperatingRelationshipRegistry()
+	rules := []OperatingGraphRule{
 		graphUntypedNodeRule{},
 		graphUnknownNodeKindRule{},
 		graphUnknownMemberRule{},
@@ -38,35 +39,33 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 		graphUnsupportedEdgeSemanticsRule{},
 		graphEdgeUnbackedRule{},
 		graphDeclaredMemberMissingRule{},
-		graphDeclaredIntakeMissingRule{},
-		graphDeclaredRequiredReadMissingRule{},
-		graphDeclaredEvidenceMissingRule{},
-		graphDeclaredOutputMissingRule{},
-		graphDeclaredDecisionOwnedMissingRule{},
-		graphDeclaredDecisionConsumedMissingRule{},
-		graphDeclaredCapabilityGapMissingRule{},
-		graphDeclaredExternalProducerMissingRule{},
-		graphDeclaredCrossTeamOutputMissingRule{},
+	}
+	rules = append(rules, graphDeclaredRuntimeRelationshipMissingRules(registry)...)
+	rules = append(rules,
+		graphTopicCatalogMissingRule{},
 		graphTopicCatalogInvalidTopicRule{},
 		graphTopicCatalogDriftRule{},
 		graphDocsUnknownActorRule{},
+		graphDecisionsTableMissingRule{},
 		graphDecisionsTableDriftRule{},
 		graphDecisionsTableOwnerDriftRule{},
 		graphPromptTopicContractMissingRule{},
 		graphPromptTopicContractSourceMismatchRule{},
-	}
+		graphPromptTopicContractContentMismatchRule{},
+	)
+	return rules
 }
 
 func ValidateOperatingGraphs(blocks []OperatingGraphBlock, runtime OperatingGraphRuntime, teamFilter, idFilter string) OperatingGraphValidationResult {
 	result := OperatingGraphValidationResult{Findings: []OperatingGraphFinding{}}
 	for _, block := range filterOperatingGraphBlocks(blocks, teamFilter, idFilter) {
-		if block.Metadata.Mode == "explanatory" {
+		if block.Metadata.Mode == OperatingGraphModeExplanatory {
 			continue
 		}
 		ctx := NewOperatingGraphContractContext(block, runtime)
 		ruleCtx := OperatingGraphRuleContext(ctx)
 		for _, rule := range DefaultOperatingGraphRules() {
-			if rule.AppliesTo(block.Metadata.Mode) {
+			if rule.AppliesTo(string(block.Metadata.Mode)) {
 				addOperatingFindings(&result, rule.Check(ruleCtx))
 			}
 		}

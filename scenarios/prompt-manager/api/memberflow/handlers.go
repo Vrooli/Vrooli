@@ -46,6 +46,14 @@ func (h *Handlers) SetPromptSectionProvider(provider OperatingGraphPromptSection
 	h.promptSectionProvider = provider
 }
 
+func (h *Handlers) operatingGraphService() OperatingGraphService {
+	return OperatingGraphService{
+		RepoRoot:       h.repoRoot(),
+		StoreDir:       h.storeDir,
+		PromptSections: h.promptSectionProvider,
+	}
+}
+
 // MemberTopicsResponse is the JSON shape for a single member's declarations.
 type MemberTopicsResponse struct {
 	Team   string `json:"team"`
@@ -364,101 +372,49 @@ type DrainStatusResponse struct {
 
 // GetOperatingGraphs handles GET /operating-graphs.
 func (h *Handlers) GetOperatingGraphs(w http.ResponseWriter, r *http.Request) {
-	team := r.URL.Query().Get("team")
-	id := r.URL.Query().Get("id")
-	blocks, err := LoadOperatingGraphBlocks(h.repoRoot())
+	resp, err := h.operatingGraphService().List(r.Context(), operatingGraphFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, OperatingGraphListResponse{
-		Graphs: filterOperatingGraphBlocks(blocks, team, id),
-	})
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // ValidateOperatingGraphsHandler handles GET /operating-graphs/validate.
 func (h *Handlers) ValidateOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
-	team := r.URL.Query().Get("team")
-	id := r.URL.Query().Get("id")
-	repoRoot := h.repoRoot()
-	blocks, err := LoadOperatingGraphBlocks(repoRoot)
+	resp, err := h.operatingGraphService().Validate(r.Context(), operatingGraphFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	runtime, err := BuildOperatingGraphRuntime(repoRoot, h.storeDir)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	runtime = h.withPromptSections(r.Context(), runtime)
-	filtered := filterOperatingGraphBlocks(blocks, team, id)
-	writeJSON(w, http.StatusOK, OperatingGraphValidationResponse{
-		Graphs:     filtered,
-		Validation: ValidateOperatingGraphs(filtered, runtime, "", ""),
-	})
+	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h *Handlers) withPromptSections(ctx context.Context, runtime OperatingGraphRuntime) OperatingGraphRuntime {
-	if h.promptSectionProvider == nil {
-		return runtime
+func operatingGraphFilterFromRequest(r *http.Request) OperatingGraphFilter {
+	return OperatingGraphFilter{
+		Team: r.URL.Query().Get("team"),
+		ID:   r.URL.Query().Get("id"),
 	}
-	sectionsByMember := make(map[MemberRef][]OperatingGraphPromptSection, len(runtime.Members))
-	for _, m := range runtime.Members {
-		sections, err := h.promptSectionProvider.SectionsForMember(ctx, m.Ref.Team, m.Ref.Member)
-		if err != nil {
-			sectionsByMember[m.Ref] = nil
-			continue
-		}
-		sectionsByMember[m.Ref] = sections
-	}
-	runtime.PromptSections = sectionsByMember
-	return runtime
 }
 
 // DiffOperatingGraphsHandler handles GET /operating-graphs/diff.
 func (h *Handlers) DiffOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
-	team := r.URL.Query().Get("team")
-	id := r.URL.Query().Get("id")
-	repoRoot := h.repoRoot()
-	blocks, err := LoadOperatingGraphBlocks(repoRoot)
+	resp, err := h.operatingGraphService().Diff(r.Context(), operatingGraphFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	runtime, err := BuildOperatingGraphRuntime(repoRoot, h.storeDir)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	filtered := filterOperatingGraphBlocks(blocks, team, id)
-	writeJSON(w, http.StatusOK, OperatingGraphDiffResponse{
-		Graphs: filtered,
-		Diff:   DiffOperatingGraphs(filtered, runtime, "", ""),
-	})
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // CoverageOperatingGraphsHandler handles GET /operating-graphs/coverage.
 func (h *Handlers) CoverageOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
-	team := r.URL.Query().Get("team")
-	id := r.URL.Query().Get("id")
-	repoRoot := h.repoRoot()
-	blocks, err := LoadOperatingGraphBlocks(repoRoot)
+	resp, err := h.operatingGraphService().Coverage(r.Context(), operatingGraphFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	runtime, err := BuildOperatingGraphRuntime(repoRoot, h.storeDir)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	runtime = h.withPromptSections(r.Context(), runtime)
-	filtered := filterOperatingGraphBlocks(blocks, team, id)
-	writeJSON(w, http.StatusOK, OperatingGraphCoverageResponse{
-		Graphs:   filtered,
-		Coverage: BuildOperatingGraphCoverage(filtered, runtime, "", ""),
-	})
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // GetDrainStatus handles GET /topics/drain-status — returns per-intake-prefix

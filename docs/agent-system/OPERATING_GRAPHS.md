@@ -20,16 +20,17 @@ PoR Mermaid diagram
 
 Mermaid is not executed at runtime. Runtime prompts are generated from structured declarations.
 
-## Validate vs Diff
+## Validate, Diff, and Coverage
 
-Operating graph tooling has two related jobs:
+Operating graph tooling has three related jobs:
 
 | Command | Purpose | Output |
 |---|---|---|
 | `prompt-manager graph operating-model validate` | Gate whether the graph is structurally valid and complete for active contract rule families. | Severity-bearing findings: errors and warnings. |
 | `prompt-manager graph operating-model diff` | Reconcile graph and runtime declarations. | Repair map grouped by drift direction. |
+| `prompt-manager graph operating-model coverage` | Explain what the contract machinery checked for matching graph(s). | Counts by relationship family, prompt-section coverage, docs-surface status, and excluded non-actionable nodes/edges. |
 
-Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?" A mature team contract should normally be clean in both commands. During staged adoption, diff may expose relationship families that are not yet promoted to validation, but those are temporary reconciliation states.
+Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?" Coverage answers "what did those assurances actually cover?" A mature team contract should normally be clean in validate and diff, with coverage used as a self-description and audit aid. During staged adoption, diff may expose relationship families that are not yet promoted to validation, but those are temporary reconciliation states.
 
 Diff compares both directions:
 
@@ -39,6 +40,27 @@ Diff compares both directions:
 | `runtime_relationship_missing_in_graph` | Runtime config declares a relationship absent from the Mermaid contract graph. | Add the graph edge, or remove the obsolete runtime declaration. |
 
 For human output, diff groups these as "Graph Declares, Runtime Missing" and "Runtime Declares, Graph Missing." JSON output includes machine fields such as `relationship`, `source_path`, `line`, `runtime_path`, `acceptable_fields`, and `suggestions`.
+
+Coverage is read-only and does not change validation exit codes. For each matching checkable or contract graph, it reports:
+
+- relationship counts for the same normalized families used by diff;
+- graph-only and runtime-only counts using the same relationship matcher as validation and diff;
+- prompt coverage for generated `topic-contract` heartbeat sections;
+- docs-surface status and row parity for the Mermaid graph, Topic Catalog table, and Decisions table;
+- non-actionable exclusions such as `process:`, `future:`, `topic[future]:`, `topic[old]:`, `topic[external]:`, and edges touching those nodes.
+
+Prompt coverage checks section presence, source-path matching, and content parity when real structured prompt sections are available. Content parity is `enforced` when every graph member's actual `topic-contract` prompt section matches the renderer output from `topics.json`, `mismatch` when any actual section differs, and `unavailable` when only derived/offline prompt-section metadata is available.
+
+Prompt sections carry provenance:
+
+| Source kind | Meaning | Validation use |
+|---|---|---|
+| `live` | Section came from the structured heartbeat prompt builder. | Counts as real prompt proof and can enforce source/content parity. |
+| `derived` | Section was rendered offline from `topics.json` so coverage can explain expected shape without a heartbeat provider. | Does not count as live prompt proof and leaves content parity `unavailable`. |
+
+When the API is wired to heartbeat prompt previews, operating-graph validation expects live sections. When tooling runs with only derived sections, validators avoid claiming that the live prompt is enforced.
+
+Runtime-only `external_producer_intake` relationships are not counted as coverage gaps because they are inferred provenance joins from `external_producers[]` plus `intake[]`. The enforceable edge is graph-to-runtime: if a graph declares `external -> topic`, runtime must back it.
 
 ## Metadata Block
 
@@ -75,6 +97,20 @@ Optional fields:
 | Field | Meaning |
 |---|---|
 | `status` | Human status such as `draft`, `target`, or `canon`. |
+
+Team-specific actor groups and aliases may also be declared in metadata:
+
+| Field form | Meaning |
+|---|---|
+| `actor_group.<name>: member:a, member:b` | Declares a group that expands to specific actor references. |
+| `actor_group.<name>: team-members` | Declares a group that expands to all members in this graph team's contract. |
+| `actor_group.<name>: none` | Declares a descriptive group that should not expand to concrete actors. |
+| `actor_alias.<text>: group:<name>` | Maps readable table text to a declared group. |
+| `actor_alias.<text>: member:<id>` | Maps readable table text to a specific member. |
+| `actor_alias.<text>: external:<id>` | Maps readable table text to an external actor. |
+| `actor_alias.<text>: team:<id>` | Maps readable table text to another team. |
+
+Actor aliases are graph-local. Generic operating-graph code only understands typed actor references plus universal external references such as `operator` and `system`; team-specific prose like `advertisers` must be declared next to the graph.
 
 Rule exceptions are not supported in graph metadata. Resolve drift by changing the graph or the runtime declarations so the contract stays explicit.
 
@@ -175,7 +211,7 @@ Decision nodes are team-scoped by default. A `scope: team` graph must declare ev
 
 ## Diff Relationships
 
-Diff normalizes Mermaid edges and runtime config into semantic relationships before comparing them:
+Diff normalizes Mermaid edges and runtime config into semantic relationships before comparing them. These relationship families are owned by the operating-graph relationship registry; validation, diff, and coverage use that same registry and matcher rather than maintaining separate semantic tables.
 
 | Relationship | Mermaid shape | Runtime source |
 |---|---|---|
@@ -213,6 +249,29 @@ Suggested fixes:
 - or remove the runtime output declaration if it is obsolete
 ```
 
+## Docs Tables
+
+Contract graph source files must include two checked Markdown tables in the graph's docs surface. By default, the docs surface starts after the Mermaid fence and ends at the next marked operating graph or next top-level `#` heading.
+
+| Section | Required headers | Validation |
+|---|---|---|
+| `## Topic Catalog` | `Topic family`, `Status`, `Owner / primary writer`, `Primary readers`, `Purpose` | Required for `contract` graphs. Live and future `topic:` rows must match the contract graph topic nodes, excluding `topic[old]:` and `topic[external]:` graph notes. |
+| `## Decisions` | `Decision context`, `Owner`, `Purpose` | Required for `contract` graphs. Decision rows must match graph `decision:` nodes, and member owners must be shown as `member -> decision` graph edges. `capability-gap` owners may be backed by `raises_capability_gaps`. |
+
+`checkable` graphs may omit these tables. `contract` graphs report validation errors when either table is missing. When present, table drift is validation-enforced.
+
+Actor cells may use typed references or supported aliases:
+
+| Reference | Meaning |
+|---|---|
+| `member:researcher` | Specific team member. |
+| `external:operator` | External producer or boundary. |
+| `team:monetization` | Other registered prompt-manager team. |
+| `group:advertisers` | A declared actor group. |
+| `advertisers` | A readable alias only if graph metadata maps it, for example `actor_alias.advertisers: group:advertisers`. |
+
+Prefer typed references when adding new tables. Aliases exist to keep operating-model prose readable, but every team-specific alias must be declared in metadata.
+
 ## Validation Rules
 
 Current rules:
@@ -238,18 +297,36 @@ Current rules:
 | `graph_declared_capability_gap_missing` | warning | Member capability-gap routing is missing from a contract graph. |
 | `graph_declared_external_producer_missing` | warning | Member external producer declaration is missing from a contract graph. |
 | `graph_declared_cross_team_output_missing` | warning | Cross-team output destination is missing from a contract graph. |
+| `graph_topic_catalog_missing` | error | Contract graph source does not include a scoped `## Topic Catalog` table. |
+| `graph_topic_catalog_invalid_topic` | error | Topic Catalog row does not use a parseable `topic:` token. |
+| `graph_topic_catalog_drift` | error | Topic Catalog rows and graph topic nodes differ. |
+| `graph_docs_unknown_actor` | error | Topic Catalog or Decisions table actor reference is not recognized. |
+| `graph_decisions_table_missing` | error | Contract graph source does not include a scoped `## Decisions` table. |
+| `graph_decisions_table_drift` | error | Decisions table rows and graph decision nodes differ. |
+| `graph_decisions_table_owner_drift` | error | Decisions table member owner is not shown as a graph decision owner. |
 | `graph_prompt_topic_contract_missing` | error | Contract graph member does not receive a generated `topic-contract` prompt section. |
 | `graph_prompt_topic_contract_source_mismatch` | error | Generated `topic-contract` prompt section does not point at that member's `topics.json`. |
+| `graph_prompt_topic_contract_content_mismatch` | error | Actual generated `topic-contract` prompt content differs from the renderer output for that member's `topics.json`. |
 
 The completeness rules use the same normalized relationship matcher as diff. A broad Mermaid `topic -> member` read can satisfy runtime `intake[]`, `required_read[]`, or `evidence_consumed[]`; a `decision -> member` edge can satisfy decision consumption visibility.
 
 External-producer edges are intentionally strict. `external -> member` means that member declares the external producer in `topics.json`; `external -> topic` only documents provenance for an intake topic. An `external -> topic` edge does not replace member-specific `external_producers[]` visibility.
 
-Generated heartbeat prompt checks are part of this layer: every contract graph member must receive a generated `# Topic Contract` section from `topics.json`, and the structured prompt section must name `teams/<team>/members/<member>/topics.json` as its source.
+Generated heartbeat prompt checks are part of this layer: every contract graph member must receive a live generated `# Topic Contract` section from `topics.json`, the structured prompt section must name `teams/<team>/members/<member>/topics.json` as its source, and real prompt previews must match the shared topic-contract renderer. Derived/offline topic-contract sections are useful for coverage but are not treated as runtime prompt proof.
 
-CLI `--json` output for operating-graph list, validate, and diff preserves the API response fields, including graph metadata status/extra fields and source fence lines.
+## Adding Relationship Families
 
-The validator currently treats the Mermaid graph as the enforceable operating-graph surface. Prose tables that often sit near the graph, such as topic catalogs and decision summaries, are reference material unless a later validator explicitly names them as checked inputs.
+Add new graph/runtime relationship semantics through the relationship registry first. A complete relationship addition includes:
+
+1. one registry entry with graph shape, runtime kinds, acceptable runtime fields, validation metadata, coverage participation, diff participation, statement text, and graph/runtime repair suggestions;
+2. focused registry tests for edge mapping, runtime matching, graph-display normalization, and acceptable fields;
+3. validation tests that prove registry-backed completeness behaves as intended;
+4. diff and coverage tests proving the same matcher is used in both directions;
+5. documentation updates to the Edge Semantics, Diff Relationships, and Validation Rules tables.
+
+Do not add one-off switches in validation, diff, or coverage for a relationship family. Those layers ask the registry what the relationship means.
+
+CLI `--json` output for operating-graph list, validate, diff, and coverage preserves the API response fields, including graph metadata status/extra fields, parsed docs tables, and source fence lines.
 
 ## Adoption Checklist
 

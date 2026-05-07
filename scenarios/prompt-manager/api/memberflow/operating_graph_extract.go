@@ -53,7 +53,6 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		return nil, err
 	}
 	lines := strings.Split(string(data), "\n")
-	docs := ExtractOperatingGraphDocs(lines)
 	var blocks []OperatingGraphBlock
 	inFence := false
 	for i := 0; i < len(lines); i++ {
@@ -95,6 +94,7 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		if i >= len(lines) {
 			return nil, fmt.Errorf("%s:%d: unterminated mermaid fence", sourcePath, fenceLine)
 		}
+		docs := ExtractOperatingGraphDocsForGraph(scopedOperatingGraphDocLines(lines, i+1), meta)
 		graph, err := ParseOperatingMermaid(meta.ID, mermaid, fenceLine+1)
 		if err != nil {
 			return nil, fmt.Errorf("%s:%d: %w", sourcePath, fenceLine, err)
@@ -111,6 +111,32 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		})
 	}
 	return blocks, nil
+}
+
+func scopedOperatingGraphDocLines(lines []string, start int) []string {
+	end := len(lines)
+	inFence := false
+	for i := start; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		if i > start && metadataStartRE.MatchString(lines[i]) {
+			end = i
+			break
+		}
+		if strings.HasPrefix(trimmed, "# ") {
+			end = i
+			break
+		}
+	}
+	scoped := make([]string, end)
+	copy(scoped[start:end], lines[start:end])
+	return scoped
 }
 
 func parseOperatingGraphMetadata(lines []string) (OperatingGraphMetadata, error) {
@@ -134,7 +160,7 @@ func parseOperatingGraphMetadata(lines []string) (OperatingGraphMetadata, error)
 		case "team":
 			meta.Team = value
 		case "mode":
-			meta.Mode = value
+			meta.Mode = OperatingGraphMode(value)
 		case "status":
 			meta.Status = value
 		case "allow":
@@ -147,7 +173,7 @@ func parseOperatingGraphMetadata(lines []string) (OperatingGraphMetadata, error)
 		return meta, fmt.Errorf("metadata requires id, scope, team, and mode")
 	}
 	switch meta.Mode {
-	case "explanatory", "checkable", "contract":
+	case OperatingGraphModeExplanatory, OperatingGraphModeCheckable, OperatingGraphModeContract:
 	default:
 		return meta, fmt.Errorf("unsupported mode %q", meta.Mode)
 	}

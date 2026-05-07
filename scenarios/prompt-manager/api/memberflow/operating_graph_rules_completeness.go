@@ -1,6 +1,9 @@
 package memberflow
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type graphDeclaredMemberMissingRule struct{}
 
@@ -28,153 +31,111 @@ func (r graphDeclaredMemberMissingRule) Check(ctx OperatingGraphRuleContext) []O
 	return findings
 }
 
-type graphDeclaredIntakeMissingRule struct{}
+type graphDeclaredRuntimeRelationshipMissingRule struct {
+	id       string
+	targets  []declaredRuntimeRelationshipTarget
+	severity Severity
+}
 
-func (r graphDeclaredIntakeMissingRule) ID() string { return "graph_declared_intake_missing" }
-func (r graphDeclaredIntakeMissingRule) Group() OperatingGraphRuleGroup {
+type declaredRuntimeRelationshipTarget struct {
+	kind  OperatingRelationshipKind
+	label string
+}
+
+func (r graphDeclaredRuntimeRelationshipMissingRule) ID() string { return r.id }
+func (r graphDeclaredRuntimeRelationshipMissingRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupCompleteness
 }
-func (r graphDeclaredIntakeMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDeclaredIntakeMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredIntakeMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelTopicIntake, "declared intake")
+func (r graphDeclaredRuntimeRelationshipMissingRule) DefaultSeverity() Severity { return r.severity }
+func (r graphDeclaredRuntimeRelationshipMissingRule) AppliesTo(mode string) bool {
+	return mode == string(OperatingGraphModeContract)
 }
 
-type graphDeclaredRequiredReadMissingRule struct{}
-
-func (r graphDeclaredRequiredReadMissingRule) ID() string {
-	return "graph_declared_required_read_missing"
+func (r graphDeclaredRuntimeRelationshipMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+	var findings []OperatingGraphFinding
+	for _, target := range r.targets {
+		findings = append(findings, declaredRuntimeRelationshipMissingFindings(ctx, r, target.kind, target.label)...)
+	}
+	return findings
 }
 
-func (r graphDeclaredRequiredReadMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-func (r graphDeclaredRequiredReadMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDeclaredRequiredReadMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredRequiredReadMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelTopicRequiredRead, "declared required read")
-}
-
-type graphDeclaredEvidenceMissingRule struct{}
-
-func (r graphDeclaredEvidenceMissingRule) ID() string { return "graph_declared_evidence_missing" }
-func (r graphDeclaredEvidenceMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-func (r graphDeclaredEvidenceMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDeclaredEvidenceMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredEvidenceMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelTopicEvidenceConsumed, "declared evidence")
-}
-
-type graphDeclaredOutputMissingRule struct{}
-
-func (r graphDeclaredOutputMissingRule) ID() string { return "graph_declared_output_missing" }
-func (r graphDeclaredOutputMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-func (r graphDeclaredOutputMissingRule) DefaultSeverity() Severity  { return SeverityWarning }
-func (r graphDeclaredOutputMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredOutputMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return append(
-		declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelTopicOutput, "declared output"),
-		declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelPOROutput, "declared PoR output")...,
-	)
-}
-
-type graphDeclaredDecisionOwnedMissingRule struct{}
-
-func (r graphDeclaredDecisionOwnedMissingRule) ID() string {
-	return "graph_declared_decision_owned_missing"
-}
-
-func (r graphDeclaredDecisionOwnedMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-func (r graphDeclaredDecisionOwnedMissingRule) DefaultSeverity() Severity  { return SeverityError }
-func (r graphDeclaredDecisionOwnedMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredDecisionOwnedMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelDecisionOwned, "declared decision ownership")
+func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationshipRegistry) []OperatingGraphRule {
+	rulesByID := map[string]*graphDeclaredRuntimeRelationshipMissingRule{}
+	var order []string
+	for _, spec := range registry.Specs() {
+		if !spec.RuntimeOnlyCompletes {
+			continue
+		}
+		ruleIDs := splitRelationshipValidationRules(spec.ValidationRule)
+		runtimeKinds := spec.RuntimeKinds
+		if spec.Kind == operatingRelTopicRead {
+			runtimeKinds = []OperatingRelationshipKind{operatingRelTopicIntake, operatingRelTopicRequiredRead, operatingRelTopicEvidenceConsumed}
+		}
+		for i, ruleID := range ruleIDs {
+			if ruleID == "" {
+				continue
+			}
+			rule, ok := rulesByID[ruleID]
+			if !ok {
+				rule = &graphDeclaredRuntimeRelationshipMissingRule{
+					id:       ruleID,
+					severity: spec.ValidationSeverity,
+				}
+				rulesByID[ruleID] = rule
+				order = append(order, ruleID)
+			}
+			var kind OperatingRelationshipKind
+			if spec.Kind == operatingRelTopicRead && i < len(runtimeKinds) {
+				kind = runtimeKinds[i]
+			} else {
+				kind = spec.Kind
+			}
+			rule.targets = append(rule.targets, declaredRuntimeRelationshipTarget{
+				kind:  kind,
+				label: declaredRuntimeRelationshipLabel(kind),
+			})
+		}
+	}
+	out := make([]OperatingGraphRule, 0, len(order))
+	for _, id := range order {
+		out = append(out, *rulesByID[id])
+	}
+	return out
 }
 
-type graphDeclaredDecisionConsumedMissingRule struct{}
-
-func (r graphDeclaredDecisionConsumedMissingRule) ID() string {
-	return "graph_declared_decision_consumed_missing"
+func splitRelationshipValidationRules(raw string) []string {
+	parts := strings.Split(raw, ",")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
 }
 
-func (r graphDeclaredDecisionConsumedMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-func (r graphDeclaredDecisionConsumedMissingRule) DefaultSeverity() Severity { return SeverityError }
-func (r graphDeclaredDecisionConsumedMissingRule) AppliesTo(mode string) bool {
-	return mode == "contract"
-}
-
-func (r graphDeclaredDecisionConsumedMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelDecisionConsumed, "declared decision consumption")
-}
-
-type graphDeclaredCapabilityGapMissingRule struct{}
-
-func (r graphDeclaredCapabilityGapMissingRule) ID() string {
-	return "graph_declared_capability_gap_missing"
-}
-
-func (r graphDeclaredCapabilityGapMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-
-func (r graphDeclaredCapabilityGapMissingRule) DefaultSeverity() Severity {
-	return SeverityWarning
-}
-func (r graphDeclaredCapabilityGapMissingRule) AppliesTo(mode string) bool { return mode == "contract" }
-func (r graphDeclaredCapabilityGapMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelCapabilityGapRaised, "declared capability-gap routing")
-}
-
-type graphDeclaredExternalProducerMissingRule struct{}
-
-func (r graphDeclaredExternalProducerMissingRule) ID() string {
-	return "graph_declared_external_producer_missing"
-}
-
-func (r graphDeclaredExternalProducerMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-
-func (r graphDeclaredExternalProducerMissingRule) DefaultSeverity() Severity {
-	return SeverityWarning
-}
-
-func (r graphDeclaredExternalProducerMissingRule) AppliesTo(mode string) bool {
-	return mode == "contract"
-}
-
-func (r graphDeclaredExternalProducerMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelExternalProducer, "declared external producer")
-}
-
-type graphDeclaredCrossTeamOutputMissingRule struct{}
-
-func (r graphDeclaredCrossTeamOutputMissingRule) ID() string {
-	return "graph_declared_cross_team_output_missing"
-}
-
-func (r graphDeclaredCrossTeamOutputMissingRule) Group() OperatingGraphRuleGroup {
-	return OperatingRuleGroupCompleteness
-}
-
-func (r graphDeclaredCrossTeamOutputMissingRule) DefaultSeverity() Severity {
-	return SeverityWarning
-}
-
-func (r graphDeclaredCrossTeamOutputMissingRule) AppliesTo(mode string) bool {
-	return mode == "contract"
-}
-
-func (r graphDeclaredCrossTeamOutputMissingRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
-	return declaredRuntimeRelationshipMissingFindings(ctx, r, operatingRelCrossTeamOutput, "declared cross-team output")
+func declaredRuntimeRelationshipLabel(kind OperatingRelationshipKind) string {
+	switch kind {
+	case operatingRelTopicIntake:
+		return "declared intake"
+	case operatingRelTopicRequiredRead:
+		return "declared required read"
+	case operatingRelTopicEvidenceConsumed:
+		return "declared evidence"
+	case operatingRelTopicOutput:
+		return "declared output"
+	case operatingRelPOROutput:
+		return "declared PoR output"
+	case operatingRelDecisionOwned:
+		return "declared decision ownership"
+	case operatingRelDecisionConsumed:
+		return "declared decision consumption"
+	case operatingRelCapabilityGapRaised:
+		return "declared capability-gap routing"
+	case operatingRelExternalProducer:
+		return "declared external producer"
+	case operatingRelCrossTeamOutput:
+		return "declared cross-team output"
+	default:
+		return "declared relationship"
+	}
 }
 
 func declaredRuntimeRelationshipMissingFindings(ctx OperatingGraphRuleContext, rule OperatingGraphRule, kind OperatingRelationshipKind, label string) []OperatingGraphFinding {

@@ -53,7 +53,7 @@ func (r graphUnsupportedEdgeSemanticsRule) Check(ctx OperatingGraphRuleContext) 
 		if !fok || !tok || !operatingGraphEdgeActionable(from, to) {
 			continue
 		}
-		if _, ok := operatingRelationshipFromNodes(ctx.Block.Metadata.Team, OperatingSourceRef{Path: ctx.Block.Source.Path, Line: edge.SourceLine}, from, to); ok {
+		if _, ok := DefaultOperatingRelationshipRegistry().RelationshipFromEdge(ctx.Block.Metadata.Team, OperatingSourceRef{Path: ctx.Block.Source.Path, Line: edge.SourceLine}, from, to); ok {
 			continue
 		}
 		findings = append(findings, builder.WithEdge(ctx.Block.Source.Path, edge, fmt.Sprintf("edge %s:%s -> %s:%s does not map to a supported operating relationship", from.Kind, from.Value, to.Kind, to.Value)))

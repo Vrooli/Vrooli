@@ -2,20 +2,24 @@ package memberflow
 
 import (
 	"regexp"
-	"sort"
 	"strings"
 )
 
 var markdownTableSeparatorRE = regexp.MustCompile(`^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$`)
 
 func ExtractOperatingGraphDocs(lines []string) OperatingGraphDocs {
+	return ExtractOperatingGraphDocsForGraph(lines, OperatingGraphMetadata{})
+}
+
+func ExtractOperatingGraphDocsForGraph(lines []string, meta OperatingGraphMetadata) OperatingGraphDocs {
+	resolver := NewOperatingActorResolver(meta)
 	return OperatingGraphDocs{
-		TopicCatalog: extractOperatingTopicCatalog(lines),
-		Decisions:    extractOperatingDecisionTable(lines),
+		TopicCatalog: extractOperatingTopicCatalog(lines, resolver),
+		Decisions:    extractOperatingDecisionTable(lines, resolver),
 	}
 }
 
-func extractOperatingTopicCatalog(lines []string) OperatingTopicCatalogTable {
+func extractOperatingTopicCatalog(lines []string, resolver OperatingActorResolver) OperatingTopicCatalogTable {
 	table := OperatingTopicCatalogTable{}
 	headerLine, rows := extractMarkdownTableAfterHeading(lines, "## Topic Catalog")
 	if headerLine == 0 {
@@ -34,14 +38,14 @@ func extractOperatingTopicCatalog(lines []string) OperatingTopicCatalogTable {
 			SourceLine: rowLine.line,
 		}
 		row.Topic, row.Qualifier = parseDocsTopicToken(row.RawTopic)
-		row.Writers = parseOperatingActorReferences(cellByHeader(cells, index, "owner / primary writer"))
-		row.Readers = parseOperatingActorReferences(cellByHeader(cells, index, "primary readers"))
+		row.Writers = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "owner / primary writer"))
+		row.Readers = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "primary readers"))
 		table.Rows = append(table.Rows, row)
 	}
 	return table
 }
 
-func extractOperatingDecisionTable(lines []string) OperatingDecisionTable {
+func extractOperatingDecisionTable(lines []string, resolver OperatingActorResolver) OperatingDecisionTable {
 	table := OperatingDecisionTable{}
 	headerLine, rows := extractMarkdownTableAfterHeading(lines, "## Decisions")
 	if headerLine == 0 {
@@ -59,7 +63,7 @@ func extractOperatingDecisionTable(lines []string) OperatingDecisionTable {
 			SourceLine:  rowLine.line,
 		}
 		row.Decision = parseInlineCodeToken(row.RawDecision)
-		row.Owners = parseOperatingActorReferences(cellByHeader(cells, index, "owner"))
+		row.Owners = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "owner"))
 		table.Rows = append(table.Rows, row)
 	}
 	return table
@@ -145,10 +149,10 @@ func cellByHeader(cells []string, index map[string]int, header string) string {
 func parseDocsTopicToken(raw string) (topic, qualifier string) {
 	token := parseInlineCodeToken(raw)
 	kind, parsedQualifier, value, ok := parseOperatingGraphTypedToken(token)
-	if !ok || kind != "topic" {
+	if !ok || kind != OperatingGraphNodeKindTopic {
 		return "", ""
 	}
-	return value, parsedQualifier
+	return value, string(parsedQualifier)
 }
 
 func parseInlineCodeToken(raw string) string {
@@ -159,82 +163,11 @@ func parseInlineCodeToken(raw string) string {
 	return strings.TrimSpace(raw)
 }
 
-func parseOperatingActorReferences(raw string) []OperatingActorReference {
-	var refs []OperatingActorReference
-	for _, part := range splitActorCell(raw) {
-		ref := parseOperatingActorReference(part)
-		if ref.Kind == "" && ref.Value == "" {
-			continue
-		}
-		refs = append(refs, ref)
+func parseOperatingActorReferences(resolver OperatingActorResolver, raw string) []OperatingActorReference {
+	if resolver == nil {
+		resolver = DefaultOperatingActorResolver{}
 	}
-	sort.SliceStable(refs, func(i, j int) bool {
-		if refs[i].Kind != refs[j].Kind {
-			return refs[i].Kind < refs[j].Kind
-		}
-		if refs[i].Value != refs[j].Value {
-			return refs[i].Value < refs[j].Value
-		}
-		return refs[i].Raw < refs[j].Raw
-	})
-	return refs
-}
-
-func splitActorCell(raw string) []string {
-	raw = strings.ReplaceAll(raw, " or ", ",")
-	raw = strings.ReplaceAll(raw, " and ", ",")
-	parts := strings.Split(raw, ",")
-	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
-	}
-	return parts
-}
-
-func parseOperatingActorReference(raw string) OperatingActorReference {
-	cleaned := parseInlineCodeToken(raw)
-	cleaned = strings.TrimSpace(cleaned)
-	if cleaned == "" {
-		return OperatingActorReference{}
-	}
-	if kind, _, value, ok := parseOperatingGraphTypedToken(cleaned); ok {
-		return OperatingActorReference{Kind: kind, Value: value, Raw: raw}
-	}
-	normalized := normalizeDocsCell(cleaned)
-	normalized = strings.TrimSuffix(normalized, " when relevant")
-	switch normalized {
-	case "operator":
-		return OperatingActorReference{Kind: "external", Value: "operator", Raw: raw}
-	case "vision-walk", "vision walk":
-		return OperatingActorReference{Kind: "external", Value: "vision-walk", Raw: raw}
-	case "bookmark-intelligence-hub", "bookmark intelligence hub":
-		return OperatingActorReference{Kind: "external", Value: "bookmark-intelligence-hub", Raw: raw}
-	case "decision workflow", "live system", "system":
-		return OperatingActorReference{Kind: "external", Value: strings.ReplaceAll(normalized, " ", "-"), Raw: raw}
-	case "researcher":
-		return OperatingActorReference{Kind: "member", Value: "researcher", Raw: raw}
-	case "brand-manager", "brand manager":
-		return OperatingActorReference{Kind: "member", Value: "brand-manager", Raw: raw}
-	case "oss-advertiser", "oss advertiser":
-		return OperatingActorReference{Kind: "member", Value: "oss-advertiser", Raw: raw}
-	case "subscription-advertiser", "subscription advertiser":
-		return OperatingActorReference{Kind: "member", Value: "subscription-advertiser", Raw: raw}
-	case "publisher":
-		return OperatingActorReference{Kind: "member", Value: "publisher", Raw: raw}
-	case "marketing-contrarian", "marketing contrarian":
-		return OperatingActorReference{Kind: "member", Value: "marketing-contrarian", Raw: raw}
-	case "advertiser", "advertisers":
-		return OperatingActorReference{Kind: "group", Value: "advertisers", Raw: raw}
-	case "any marketing member":
-		return OperatingActorReference{Kind: "group", Value: "marketing-members", Raw: raw}
-	case "decision owner", "decision owners":
-		return OperatingActorReference{Kind: "group", Value: "decision-owners", Raw: raw}
-	case "monetization team", "monetization":
-		return OperatingActorReference{Kind: "team", Value: "monetization", Raw: raw}
-	case "meta-optimization", "director-swarm", "future growth analyst":
-		return OperatingActorReference{Kind: "external", Value: strings.ReplaceAll(normalized, " ", "-"), Raw: raw}
-	default:
-		return OperatingActorReference{Kind: "unknown", Value: normalized, Raw: raw}
-	}
+	return resolver.Resolve("", OperatingGraphRuntime{}, raw)
 }
 
 func normalizeDocsCell(s string) string {
@@ -242,27 +175,4 @@ func normalizeDocsCell(s string) string {
 	s = strings.Trim(s, "`")
 	s = strings.TrimPrefix(s, "topic:")
 	return strings.Join(strings.Fields(s), " ")
-}
-
-func expandOperatingActorReference(ref OperatingActorReference) []OperatingActorReference {
-	switch ref.Kind + ":" + ref.Value {
-	case "group:advertisers":
-		return []OperatingActorReference{
-			{Kind: "member", Value: "oss-advertiser", Raw: ref.Raw},
-			{Kind: "member", Value: "subscription-advertiser", Raw: ref.Raw},
-		}
-	case "group:marketing-members":
-		return []OperatingActorReference{
-			{Kind: "member", Value: "brand-manager", Raw: ref.Raw},
-			{Kind: "member", Value: "marketing-contrarian", Raw: ref.Raw},
-			{Kind: "member", Value: "oss-advertiser", Raw: ref.Raw},
-			{Kind: "member", Value: "publisher", Raw: ref.Raw},
-			{Kind: "member", Value: "researcher", Raw: ref.Raw},
-			{Kind: "member", Value: "subscription-advertiser", Raw: ref.Raw},
-		}
-	case "group:decision-owners":
-		return nil
-	default:
-		return []OperatingActorReference{ref}
-	}
 }

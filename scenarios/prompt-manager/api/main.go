@@ -82,6 +82,7 @@ func (p heartbeatPromptSectionProvider) SectionsForMember(ctx context.Context, t
 			Kind:       section.Kind,
 			SourcePath: section.SourcePath,
 			Content:    section.Content,
+			SourceKind: memberflow.OperatingGraphPromptSectionSourceLive,
 		})
 	}
 	return out, nil

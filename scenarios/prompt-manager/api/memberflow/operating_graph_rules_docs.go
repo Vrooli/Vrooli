@@ -58,17 +58,17 @@ func (r graphTopicCatalogDriftRule) Check(ctx OperatingGraphRuleContext) []Opera
 	}
 	graphTopics := map[string]OperatingGraphNode{}
 	for _, node := range ctx.Block.Graph.Nodes {
-		if node.Kind != "topic" || node.Qualifier == "old" || node.Qualifier == "external" {
+		if node.Kind != OperatingGraphNodeKindTopic || node.Qualifier == OperatingGraphQualifierOld || node.Qualifier == OperatingGraphQualifierExternal {
 			continue
 		}
-		graphTopics[qualifiedTopicKey(node.Qualifier, node.Value)] = node
+		graphTopics[qualifiedTopicKey(string(node.Qualifier), node.Value)] = node
 	}
 	var findings []OperatingGraphFinding
 	for key, node := range graphTopics {
 		if _, ok := rows[key]; ok {
 			continue
 		}
-		f := builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("graph topic %q is missing from the Topic Catalog table", displayQualifiedTopic(node.Qualifier, node.Value)))
+		f := builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("graph topic %q is missing from the Topic Catalog table", displayQualifiedTopic(string(node.Qualifier), node.Value)))
 		f.Topic = node.Value
 		findings = append(findings, f)
 	}
@@ -171,6 +171,7 @@ type graphDecisionsTableOwnerDriftRule struct{}
 func (r graphDecisionsTableOwnerDriftRule) ID() string {
 	return "graph_decisions_table_owner_drift"
 }
+
 func (r graphDecisionsTableOwnerDriftRule) Group() OperatingGraphRuleGroup {
 	return OperatingRuleGroupDocs
 }
@@ -178,11 +179,12 @@ func (r graphDecisionsTableOwnerDriftRule) DefaultSeverity() Severity  { return 
 func (r graphDecisionsTableOwnerDriftRule) AppliesTo(mode string) bool { return mode == "contract" }
 func (r graphDecisionsTableOwnerDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
 	builder := NewOperatingFindingBuilder(ctx, r)
+	resolver := NewOperatingActorResolver(ctx.Block.Metadata)
 	var findings []OperatingGraphFinding
 	for _, row := range ctx.Block.Docs.Decisions.Rows {
 		for _, ref := range row.Owners {
-			for _, expanded := range expandOperatingActorReference(ref) {
-				if expanded.Kind != "member" {
+			for _, expanded := range resolver.Expand(ctx.Block.Metadata.Team, ctx.Runtime, ref) {
+				if expanded.Kind != OperatingActorKindMember {
 					continue
 				}
 				rel := OperatingRelationship{
@@ -214,9 +216,10 @@ func graphHasCapabilityGapOwner(ctx OperatingGraphRuleContext, rel OperatingRela
 
 func validateOperatingActorRef(ctx OperatingGraphRuleContext, builder OperatingFindingBuilder, ref OperatingActorReference, line int) []OperatingGraphFinding {
 	var findings []OperatingGraphFinding
-	for _, expanded := range expandOperatingActorReference(ref) {
+	resolver := NewOperatingActorResolver(ctx.Block.Metadata)
+	for _, expanded := range resolver.Expand(ctx.Block.Metadata.Team, ctx.Runtime, ref) {
 		switch expanded.Kind {
-		case "member":
+		case OperatingActorKindMember:
 			contract := ctx.Runtime.Contracts[ctx.Block.Metadata.Team]
 			if contract == nil || contract.Contract == nil {
 				f := builder.base(ctx.Block.Source.Path, line, fmt.Sprintf("actor reference %q cannot be resolved because team contract is unavailable", ref.Raw))
@@ -229,12 +232,15 @@ func validateOperatingActorRef(ctx OperatingGraphRuleContext, builder OperatingF
 				f.Member = expanded.Value
 				findings = append(findings, f)
 			}
-		case "team":
+		case OperatingActorKindTeam:
 			if _, ok := ctx.Runtime.Contracts[expanded.Value]; !ok {
 				f := builder.base(ctx.Block.Source.Path, line, fmt.Sprintf("actor reference %q resolves to unknown team %q", ref.Raw, expanded.Value))
 				findings = append(findings, f)
 			}
-		case "unknown":
+		case OperatingActorKindGroup:
+			f := builder.base(ctx.Block.Source.Path, line, fmt.Sprintf("actor group %q is not declared for this operating graph", expanded.Value))
+			findings = append(findings, f)
+		case OperatingActorKindUnknown:
 			f := builder.base(ctx.Block.Source.Path, line, fmt.Sprintf("actor reference %q is not recognized; use a typed actor such as member:researcher, external:operator, team:monetization, or a supported group", ref.Raw))
 			findings = append(findings, f)
 		}

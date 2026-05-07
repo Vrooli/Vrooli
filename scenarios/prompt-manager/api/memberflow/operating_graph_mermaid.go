@@ -18,18 +18,18 @@ var (
 
 type operatingGraphNodeAnnotation struct {
 	NodeID     string
-	Kind       string
+	Kind       OperatingGraphNodeKind
 	Value      string
-	Qualifier  string
+	Qualifier  OperatingGraphQualifier
 	SourceLine int
 }
 
 type operatingGraphNodeLabel struct {
 	Raw       string
 	Display   string
-	Kind      string
+	Kind      OperatingGraphNodeKind
 	Value     string
-	Qualifier string
+	Qualifier OperatingGraphQualifier
 	Typed     bool
 }
 
@@ -162,12 +162,12 @@ func parseOperatingGraphNodeAnnotation(nodeID, token string, line int) (operatin
 	}, nil
 }
 
-func parseOperatingGraphTypedToken(token string) (kind, qualifier, value string, ok bool) {
+func parseOperatingGraphTypedToken(token string) (kind OperatingGraphNodeKind, qualifier OperatingGraphQualifier, value string, ok bool) {
 	m := typedLabelRE.FindStringSubmatch(strings.TrimSpace(token))
 	if m == nil {
 		return "", "", "", false
 	}
-	return m[1], m[2], strings.TrimSpace(m[3]), true
+	return OperatingGraphNodeKind(m[1]), OperatingGraphQualifier(m[2]), strings.TrimSpace(m[3]), true
 }
 
 func applyOperatingGraphNodeAnnotations(nodes map[string]OperatingGraphNode, annotations map[string]operatingGraphNodeAnnotation) error {

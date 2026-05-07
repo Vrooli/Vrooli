@@ -84,6 +84,17 @@ func (c *Context) GetWithQuery(path string, query url.Values, result interface{}
 	return c.record("GET", path, query, nil, result)
 }
 
+// GetRawWithQuery performs a fake GET request with query parameters and returns
+// the raw JSON response.
+func (c *Context) GetRawWithQuery(path string, query url.Values) ([]byte, error) {
+	c.t.Helper()
+	var result json.RawMessage
+	if err := c.record("GET", path, query, nil, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // Post performs a fake POST request.
 func (c *Context) Post(path string, payload interface{}, result interface{}) error {
 	return c.record("POST", path, nil, payload, result)

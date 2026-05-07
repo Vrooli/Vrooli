@@ -7,6 +7,13 @@ import (
 
 const operatingGraphPromptSectionKindTopicContract = "topic-contract"
 
+type OperatingGraphPromptSectionSourceKind string
+
+const (
+	OperatingGraphPromptSectionSourceLive    OperatingGraphPromptSectionSourceKind = "live"
+	OperatingGraphPromptSectionSourceDerived OperatingGraphPromptSectionSourceKind = "derived"
+)
+
 type OperatingGraphRuntime struct {
 	RepoRoot       string
 	StoreDir       string
@@ -16,11 +23,12 @@ type OperatingGraphRuntime struct {
 }
 
 type OperatingGraphPromptSection struct {
-	Team       string
-	Member     string
-	Kind       string
-	SourcePath string
-	Content    string
+	Team       string                                `json:"team"`
+	Member     string                                `json:"member"`
+	Kind       string                                `json:"kind"`
+	SourcePath string                                `json:"source_path,omitempty"`
+	Content    string                                `json:"content,omitempty"`
+	SourceKind OperatingGraphPromptSectionSourceKind `json:"source_kind,omitempty"`
 }
 
 func BuildOperatingGraphRuntime(repoRoot, storeDir string) (OperatingGraphRuntime, error) {
@@ -50,9 +58,19 @@ func derivedTopicContractPromptSections(members []MemberTopics) map[MemberRef][]
 			Member:     ref.Member,
 			Kind:       operatingGraphPromptSectionKindTopicContract,
 			SourcePath: expectedTopicContractSourcePath(ref.Team, ref.Member),
+			SourceKind: OperatingGraphPromptSectionSourceDerived,
 		}}
 	}
 	return sections
+}
+
+func expectedTopicContractContent(runtime OperatingGraphRuntime, team, member string) (string, bool) {
+	for _, m := range runtime.Members {
+		if m.Ref.Team == team && m.Ref.Member == member {
+			return RenderTopicContract(team, member, m), true
+		}
+	}
+	return "", false
 }
 
 func (r OperatingGraphRuntime) topicDeclared(team, topic string) bool {

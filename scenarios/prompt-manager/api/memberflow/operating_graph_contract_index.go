@@ -25,11 +25,12 @@ func NewOperatingGraphContractContext(block OperatingGraphBlock, runtime Operati
 		Block:   block,
 		Runtime: runtime,
 		Index:   NewOperatingGraphContractIndex(block, runtime),
-		Matcher: OperatingRelationshipMatcher{},
+		Matcher: NewOperatingRelationshipMatcher(),
 	}
 }
 
 func NewOperatingGraphContractIndex(block OperatingGraphBlock, runtime OperatingGraphRuntime) OperatingGraphContractIndex {
+	registry := DefaultOperatingRelationshipRegistry()
 	idx := OperatingGraphContractIndex{
 		NodesByID:             map[string]OperatingGraphNode{},
 		NodeIDByKindValue:     map[string]string{},
@@ -38,7 +39,7 @@ func NewOperatingGraphContractIndex(block OperatingGraphBlock, runtime Operating
 	for _, node := range block.Graph.Nodes {
 		idx.NodesByID[node.ID] = node
 		if node.Kind != "" && node.Value != "" {
-			idx.NodeIDByKindValue[node.Kind+"\x00"+node.Value] = node.ID
+			idx.NodeIDByKindValue[string(node.Kind)+"\x00"+node.Value] = node.ID
 		}
 	}
 	var graphRels []OperatingRelationship
@@ -48,7 +49,7 @@ func NewOperatingGraphContractIndex(block OperatingGraphBlock, runtime Operating
 		if !fok || !tok || !operatingGraphEdgeActionable(from, to) {
 			continue
 		}
-		rel, ok := operatingRelationshipFromNodes(block.Metadata.Team, OperatingSourceRef{Path: block.Source.Path, Line: edge.SourceLine}, from, to)
+		rel, ok := registry.RelationshipFromEdge(block.Metadata.Team, OperatingSourceRef{Path: block.Source.Path, Line: edge.SourceLine}, from, to)
 		if !ok {
 			continue
 		}
@@ -96,10 +97,10 @@ func (idx OperatingGraphContractIndex) RelationshipForEdge(edge OperatingGraphEd
 }
 
 func operatingGraphNodeNonActionable(node OperatingGraphNode) bool {
-	if node.Kind == "" || node.Kind == "process" || node.Kind == "future" {
+	if node.Kind == "" || node.Kind == OperatingGraphNodeKindProcess || node.Kind == OperatingGraphNodeKindFuture {
 		return true
 	}
-	return node.Kind == "topic" && (node.Qualifier == "future" || node.Qualifier == "old" || node.Qualifier == "external")
+	return node.Kind == OperatingGraphNodeKindTopic && (node.Qualifier == OperatingGraphQualifierFuture || node.Qualifier == OperatingGraphQualifierOld || node.Qualifier == OperatingGraphQualifierExternal)
 }
 
 func operatingGraphEdgeActionable(from, to OperatingGraphNode) bool {

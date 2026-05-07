@@ -2,12 +2,6 @@ package memberflow
 
 import "sort"
 
-const (
-	OperatingCoverageStatusEnforced       = "enforced"
-	OperatingCoverageStatusReferenceOnly  = "reference_only"
-	OperatingCoverageStatusNotImplemented = "not_implemented"
-)
-
 type OperatingGraphCoverageResponse struct {
 	Graphs   []OperatingGraphBlock    `json:"graphs"`
 	Coverage []OperatingGraphCoverage `json:"coverage"`
@@ -36,26 +30,27 @@ type OperatingRelationshipCoverage struct {
 }
 
 type OperatingPromptCoverage struct {
-	GraphMembers               int    `json:"graph_members"`
-	TopicContractPresent       int    `json:"topic_contract_present"`
-	TopicContractSourceMatched int    `json:"topic_contract_source_matched"`
-	TopicContractContentParity string `json:"topic_contract_content_parity"`
+	GraphMembers               int                     `json:"graph_members"`
+	TopicContractPresent       int                     `json:"topic_contract_present"`
+	TopicContractSourceMatched int                     `json:"topic_contract_source_matched"`
+	TopicContractContentParity OperatingCoverageStatus `json:"topic_contract_content_parity"`
+	TopicContractSourceKind    string                  `json:"topic_contract_source_kind,omitempty"`
 }
 
 type OperatingDocsCoverage struct {
-	MermaidGraph          string `json:"mermaid_graph"`
-	TopicCatalogTable     string `json:"topic_catalog_table"`
-	TopicCatalogRows      int    `json:"topic_catalog_rows"`
-	TopicCatalogMatched   int    `json:"topic_catalog_matched"`
-	TopicCatalogGraphOnly int    `json:"topic_catalog_graph_only"`
-	TopicCatalogDocsOnly  int    `json:"topic_catalog_docs_only"`
-	TopicCatalogInvalid   int    `json:"topic_catalog_invalid"`
-	DecisionsTable        string `json:"decisions_table"`
-	DecisionsRows         int    `json:"decisions_rows"`
-	DecisionsMatched      int    `json:"decisions_matched"`
-	DecisionsGraphOnly    int    `json:"decisions_graph_only"`
-	DecisionsDocsOnly     int    `json:"decisions_docs_only"`
-	DecisionsInvalid      int    `json:"decisions_invalid"`
+	MermaidGraph          OperatingCoverageStatus `json:"mermaid_graph"`
+	TopicCatalogTable     OperatingCoverageStatus `json:"topic_catalog_table"`
+	TopicCatalogRows      int                     `json:"topic_catalog_rows"`
+	TopicCatalogMatched   int                     `json:"topic_catalog_matched"`
+	TopicCatalogGraphOnly int                     `json:"topic_catalog_graph_only"`
+	TopicCatalogDocsOnly  int                     `json:"topic_catalog_docs_only"`
+	TopicCatalogInvalid   int                     `json:"topic_catalog_invalid"`
+	DecisionsTable        OperatingCoverageStatus `json:"decisions_table"`
+	DecisionsRows         int                     `json:"decisions_rows"`
+	DecisionsMatched      int                     `json:"decisions_matched"`
+	DecisionsGraphOnly    int                     `json:"decisions_graph_only"`
+	DecisionsDocsOnly     int                     `json:"decisions_docs_only"`
+	DecisionsInvalid      int                     `json:"decisions_invalid"`
 }
 
 type OperatingCoverageExclusion struct {
@@ -64,16 +59,10 @@ type OperatingCoverageExclusion struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-type operatingRelationshipCoverageSpec struct {
-	Kind               OperatingRelationshipKind
-	ValidationRule     string
-	ValidationSeverity string
-}
-
 func BuildOperatingGraphCoverage(blocks []OperatingGraphBlock, runtime OperatingGraphRuntime, teamFilter, idFilter string) []OperatingGraphCoverage {
 	coverage := []OperatingGraphCoverage{}
 	for _, block := range filterOperatingGraphBlocks(blocks, teamFilter, idFilter) {
-		if block.Metadata.Mode == "explanatory" {
+		if block.Metadata.Mode == OperatingGraphModeExplanatory {
 			continue
 		}
 		ctx := NewOperatingGraphContractContext(block, runtime)
@@ -91,8 +80,10 @@ func BuildOperatingGraphCoverage(blocks []OperatingGraphBlock, runtime Operating
 }
 
 func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []OperatingRelationshipCoverage {
-	out := make([]OperatingRelationshipCoverage, 0, len(operatingRelationshipCoverageSpecs()))
-	for _, spec := range operatingRelationshipCoverageSpecs() {
+	registry := DefaultOperatingRelationshipRegistry()
+	specs := registry.CoverageSpecs()
+	out := make([]OperatingRelationshipCoverage, 0, len(specs))
+	for _, spec := range specs {
 		graphRels := relationshipsByGraphKind(ctx.Index.GraphRelationships.All(), spec.Kind)
 		runtimeRels := runtimeRelationshipsByGraphKind(ctx.Index.RuntimeRelationships.All(), spec.Kind)
 		if spec.Kind == operatingRelExternalProducerIntake {
@@ -108,11 +99,18 @@ func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []Ope
 			GraphOnly:          graphOnly,
 			RuntimeOnly:        runtimeOnly,
 			ValidationRule:     spec.ValidationRule,
-			ValidationSeverity: spec.ValidationSeverity,
-			DiffRelationship:   string(spec.Kind),
+			ValidationSeverity: string(spec.ValidationSeverity),
+			DiffRelationship:   coverageDiffRelationship(spec),
 		})
 	}
 	return out
+}
+
+func coverageDiffRelationship(spec OperatingRelationshipSpec) string {
+	if !spec.DiffIncluded {
+		return ""
+	}
+	return string(spec.Kind)
 }
 
 func runtimeRelationshipsShownInGraph(ctx OperatingGraphContractContext, rels []OperatingRelationship) []OperatingRelationship {
@@ -123,20 +121,6 @@ func runtimeRelationshipsShownInGraph(ctx OperatingGraphContractContext, rels []
 		}
 	}
 	return out
-}
-
-func operatingRelationshipCoverageSpecs() []operatingRelationshipCoverageSpec {
-	return []operatingRelationshipCoverageSpec{
-		{Kind: operatingRelTopicRead, ValidationRule: "graph_declared_intake_missing,graph_declared_required_read_missing,graph_declared_evidence_missing", ValidationSeverity: string(SeverityError)},
-		{Kind: operatingRelTopicOutput, ValidationRule: "graph_declared_output_missing", ValidationSeverity: string(SeverityWarning)},
-		{Kind: operatingRelPOROutput, ValidationRule: "graph_declared_output_missing", ValidationSeverity: string(SeverityWarning)},
-		{Kind: operatingRelDecisionOwned, ValidationRule: "graph_declared_decision_owned_missing", ValidationSeverity: string(SeverityError)},
-		{Kind: operatingRelDecisionConsumed, ValidationRule: "graph_declared_decision_consumed_missing", ValidationSeverity: string(SeverityError)},
-		{Kind: operatingRelCapabilityGapRaised, ValidationRule: "graph_declared_capability_gap_missing", ValidationSeverity: string(SeverityWarning)},
-		{Kind: operatingRelExternalProducer, ValidationRule: "graph_declared_external_producer_missing", ValidationSeverity: string(SeverityWarning)},
-		{Kind: operatingRelExternalProducerIntake, ValidationRule: "graph_edge_unbacked", ValidationSeverity: string(SeverityError)},
-		{Kind: operatingRelCrossTeamOutput, ValidationRule: "graph_declared_cross_team_output_missing", ValidationSeverity: string(SeverityWarning)},
-	}
 }
 
 func relationshipsByGraphKind(rels []OperatingRelationship, kind OperatingRelationshipKind) []OperatingRelationship {
@@ -180,9 +164,13 @@ func countRuntimeOnlyRelationships(ctx OperatingGraphContractContext, rels []Ope
 }
 
 func buildOperatingPromptCoverage(ctx OperatingGraphContractContext) OperatingPromptCoverage {
-	coverage := OperatingPromptCoverage{TopicContractContentParity: OperatingCoverageStatusNotImplemented}
+	coverage := OperatingPromptCoverage{TopicContractContentParity: OperatingCoverageStatusUnavailable}
+	contentChecked := 0
+	contentMismatch := 0
+	liveSections := 0
+	derivedSections := 0
 	for _, node := range ctx.Block.Graph.Nodes {
-		if node.Kind != "member" {
+		if node.Kind != OperatingGraphNodeKindMember {
 			continue
 		}
 		coverage.GraphMembers++
@@ -191,9 +179,39 @@ func buildOperatingPromptCoverage(ctx OperatingGraphContractContext) OperatingPr
 			continue
 		}
 		coverage.TopicContractPresent++
+		if promptSectionIsLive(section) {
+			liveSections++
+		} else if section.SourceKind == OperatingGraphPromptSectionSourceDerived {
+			derivedSections++
+		}
 		if section.SourcePath == expectedTopicContractSourcePath(ctx.Block.Metadata.Team, node.Value) {
 			coverage.TopicContractSourceMatched++
 		}
+		if !promptSectionIsLive(section) {
+			continue
+		}
+		expected, ok := expectedTopicContractContent(ctx.Runtime, ctx.Block.Metadata.Team, node.Value)
+		if !ok || normalizePromptSectionContent(section.Content) == "" {
+			continue
+		}
+		contentChecked++
+		if normalizePromptSectionContent(section.Content) != normalizePromptSectionContent(expected) {
+			contentMismatch++
+		}
+	}
+	if contentChecked > 0 && contentChecked == coverage.GraphMembers && contentMismatch == 0 {
+		coverage.TopicContractContentParity = OperatingCoverageStatusEnforced
+	}
+	if contentMismatch > 0 {
+		coverage.TopicContractContentParity = OperatingCoverageStatusMismatch
+	}
+	switch {
+	case liveSections > 0 && liveSections == coverage.TopicContractPresent:
+		coverage.TopicContractSourceKind = string(OperatingGraphPromptSectionSourceLive)
+	case derivedSections > 0 && derivedSections == coverage.TopicContractPresent:
+		coverage.TopicContractSourceKind = string(OperatingGraphPromptSectionSourceDerived)
+	case coverage.TopicContractPresent > 0:
+		coverage.TopicContractSourceKind = "mixed"
 	}
 	return coverage
 }
@@ -204,7 +222,7 @@ func buildOperatingDocsCoverage(block OperatingGraphBlock) OperatingDocsCoverage
 		TopicCatalogTable: OperatingCoverageStatusNotImplemented,
 		DecisionsTable:    OperatingCoverageStatusNotImplemented,
 	}
-	if block.Metadata.Mode == "contract" || block.Metadata.Mode == "checkable" {
+	if block.Metadata.Mode == OperatingGraphModeContract || block.Metadata.Mode == OperatingGraphModeCheckable {
 		docs.MermaidGraph = OperatingCoverageStatusEnforced
 	}
 	docs.TopicCatalogTable = docsTableStatus(block.Docs.TopicCatalog.Present)
@@ -214,20 +232,20 @@ func buildOperatingDocsCoverage(block OperatingGraphBlock) OperatingDocsCoverage
 	return docs
 }
 
-func docsTableStatus(present bool) string {
+func docsTableStatus(present bool) OperatingCoverageStatus {
 	if present {
 		return OperatingCoverageStatusEnforced
 	}
-	return "missing"
+	return OperatingCoverageStatusMissing
 }
 
 func topicCatalogCoverageCounts(block OperatingGraphBlock) (rows, matched, graphOnly, docsOnly, invalid int) {
 	graphTopics := map[string]bool{}
 	for _, node := range block.Graph.Nodes {
-		if node.Kind != "topic" || node.Qualifier == "old" || node.Qualifier == "external" {
+		if node.Kind != OperatingGraphNodeKindTopic || node.Qualifier == OperatingGraphQualifierOld || node.Qualifier == OperatingGraphQualifierExternal {
 			continue
 		}
-		graphTopics[qualifiedTopicKey(node.Qualifier, node.Value)] = true
+		graphTopics[qualifiedTopicKey(string(node.Qualifier), node.Value)] = true
 	}
 	docTopics := map[string]bool{}
 	for _, row := range block.Docs.TopicCatalog.Rows {
@@ -256,7 +274,7 @@ func topicCatalogCoverageCounts(block OperatingGraphBlock) (rows, matched, graph
 func decisionTableCoverageCounts(block OperatingGraphBlock) (rows, matched, graphOnly, docsOnly, invalid int) {
 	graphDecisions := map[string]bool{}
 	for _, node := range block.Graph.Nodes {
-		if node.Kind == "decision" {
+		if node.Kind == OperatingGraphNodeKindDecision {
 			graphDecisions[node.Value] = true
 		}
 	}
@@ -315,15 +333,15 @@ func buildOperatingCoverageExclusions(block OperatingGraphBlock) []OperatingCove
 
 func operatingCoverageExclusionKind(node OperatingGraphNode) string {
 	switch {
-	case node.Kind == "process":
+	case node.Kind == OperatingGraphNodeKindProcess:
 		return "process_nodes"
-	case node.Kind == "future":
+	case node.Kind == OperatingGraphNodeKindFuture:
 		return "future_nodes"
-	case node.Kind == "topic" && node.Qualifier == "future":
+	case node.Kind == OperatingGraphNodeKindTopic && node.Qualifier == OperatingGraphQualifierFuture:
 		return "future_topic_nodes"
-	case node.Kind == "topic" && node.Qualifier == "old":
+	case node.Kind == OperatingGraphNodeKindTopic && node.Qualifier == OperatingGraphQualifierOld:
 		return "old_topic_nodes"
-	case node.Kind == "topic" && node.Qualifier == "external":
+	case node.Kind == OperatingGraphNodeKindTopic && node.Qualifier == OperatingGraphQualifierExternal:
 		return "external_topic_nodes"
 	default:
 		return ""

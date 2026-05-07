@@ -1,0 +1,148 @@
+package graph
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+func printOperatingModelValidation(resp operatingGraphValidationResponse) {
+	fmt.Println("Status")
+	fmt.Printf("Validated %d operating graph(s): %d error(s), %d warning(s).\n\n", len(resp.Graphs), resp.Validation.Errors, resp.Validation.Warnings)
+	fmt.Println("Triage")
+	if len(resp.Validation.Findings) == 0 {
+		fmt.Println("- clean")
+	} else {
+		findings := append([]operatingGraphFinding(nil), resp.Validation.Findings...)
+		sort.Slice(findings, func(i, j int) bool {
+			if findings[i].Severity != findings[j].Severity {
+				return findings[i].Severity < findings[j].Severity
+			}
+			return findings[i].Rule < findings[j].Rule
+		})
+		for _, f := range findings {
+			loc := ""
+			if f.SourcePath != "" {
+				loc = fmt.Sprintf(" (%s", f.SourcePath)
+				if f.Line > 0 {
+					loc += fmt.Sprintf(":%d", f.Line)
+				}
+				loc += ")"
+			}
+			fmt.Printf("- [%s] %s: %s%s\n", strings.ToUpper(f.Severity), f.Rule, f.Detail, loc)
+		}
+	}
+	fmt.Println("\nNext Steps")
+	if resp.Validation.Errors > 0 {
+		fmt.Println("Fix error findings before treating the graph as an enforceable contract.")
+	} else if resp.Validation.Warnings > 0 {
+		fmt.Println("Review warning findings and decide whether they are accepted target-state gaps.")
+	} else {
+		fmt.Println("No action required.")
+	}
+}
+
+func printOperatingModelDiffGroup(title string, diffs []operatingGraphDiff, kind string) {
+	fmt.Println(title)
+	var printed bool
+	for _, d := range diffs {
+		if d.Kind != kind {
+			continue
+		}
+		printed = true
+		loc := d.SourcePath
+		if loc != "" && d.Line > 0 {
+			loc = fmt.Sprintf("%s:%d", loc, d.Line)
+		}
+		if loc == "" {
+			loc = "unknown source"
+		}
+		fmt.Printf("- [%s] %s\n", d.Relationship, loc)
+		fmt.Printf("  %s\n", d.Detail)
+		if d.RuntimePath != "" {
+			fmt.Printf("  Runtime file: %s\n", d.RuntimePath)
+		}
+		if len(d.AcceptableFields) > 0 {
+			fmt.Printf("  Acceptable runtime fields: %s\n", strings.Join(d.AcceptableFields, ", "))
+		}
+		for _, suggestion := range d.Suggestions {
+			fmt.Printf("  Suggested fix: %s\n", suggestion)
+		}
+	}
+	if !printed {
+		fmt.Println("- clean")
+	}
+}
+
+func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
+	fmt.Println("Status")
+	fmt.Printf("Analyzed %d operating graph(s).\n\n", len(resp.Coverage))
+	for _, cov := range resp.Coverage {
+		fmt.Printf("Graph: %s", cov.GraphID)
+		if cov.Team != "" {
+			fmt.Printf(" team=%s", cov.Team)
+		}
+		if cov.Source.Path != "" {
+			fmt.Printf(" source=%s:%d", cov.Source.Path, cov.Source.Line)
+		}
+		fmt.Println()
+
+		fmt.Println("\nRelationship Coverage")
+		if len(cov.Relationships) == 0 {
+			fmt.Println("- none")
+		} else {
+			for _, rel := range cov.Relationships {
+				fmt.Printf("- %s: runtime declared %d, graph shown %d, matched %d, graph-only %d, runtime-only %d",
+					rel.Relationship, rel.RuntimeDeclared, rel.GraphShown, rel.Matched, rel.GraphOnly, rel.RuntimeOnly)
+				if rel.ValidationSeverity != "" {
+					fmt.Printf(" (%s)", rel.ValidationSeverity)
+				}
+				fmt.Println()
+			}
+		}
+
+		fmt.Println("\nPrompt Coverage")
+		fmt.Printf("- topic-contract section present: %d/%d graph members\n", cov.Prompts.TopicContractPresent, cov.Prompts.GraphMembers)
+		fmt.Printf("- topic-contract source path: %d/%d graph members\n", cov.Prompts.TopicContractSourceMatched, cov.Prompts.GraphMembers)
+		if cov.Prompts.TopicContractSourceKind != "" {
+			fmt.Printf("- topic-contract source kind: %s\n", cov.Prompts.TopicContractSourceKind)
+		}
+		fmt.Printf("- content parity: %s\n", cov.Prompts.TopicContractContentParity)
+
+		fmt.Println("\nDocs Coverage")
+		fmt.Printf("- Mermaid graph: %s\n", cov.Docs.MermaidGraph)
+		fmt.Printf("- Topic Catalog table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
+			cov.Docs.TopicCatalogTable,
+			cov.Docs.TopicCatalogRows,
+			cov.Docs.TopicCatalogMatched,
+			cov.Docs.TopicCatalogGraphOnly,
+			cov.Docs.TopicCatalogDocsOnly,
+			cov.Docs.TopicCatalogInvalid,
+		)
+		fmt.Printf("- Decisions table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
+			cov.Docs.DecisionsTable,
+			cov.Docs.DecisionsRows,
+			cov.Docs.DecisionsMatched,
+			cov.Docs.DecisionsGraphOnly,
+			cov.Docs.DecisionsDocsOnly,
+			cov.Docs.DecisionsInvalid,
+		)
+
+		fmt.Println("\nExcluded")
+		if len(cov.Exclusions) == 0 {
+			fmt.Println("- none")
+		} else {
+			for _, exclusion := range cov.Exclusions {
+				fmt.Printf("- %s: %d", exclusion.Kind, exclusion.Count)
+				if exclusion.Detail != "" {
+					fmt.Printf(" (%s)", exclusion.Detail)
+				}
+				fmt.Println()
+			}
+		}
+		fmt.Println()
+	}
+	if len(resp.Coverage) == 0 {
+		fmt.Println("No checkable operating graph matched the filters.")
+	}
+}

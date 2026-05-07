@@ -48,6 +48,12 @@ func (r Runtime) GetWithQuery(path string, query url.Values, result interface{})
 	return decode(body, result)
 }
 
+// GetRawWithQuery performs a GET request with query parameters and returns the
+// raw response body.
+func (r Runtime) GetRawWithQuery(path string, query url.Values) ([]byte, error) {
+	return r.Core.Get(path, query)
+}
+
 // Post performs a POST request with the given payload.
 func (r Runtime) Post(path string, payload interface{}, result interface{}) error {
 	body, err := r.Core.Request("POST", path, nil, payload)

@@ -425,6 +425,17 @@ flowchart LR
   IN --> M
   NOTE --> M
 ` + "```" + `
+## Topic Catalog
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| ` + "`topic:research-inbox/*`" + ` | live | external:operator | member:member-a | Intake. |
+| ` + "`topic:marketing/notebook/*`" + ` | live | member:member-a | member:member-a | Notebook. |
+
+## Decisions
+
+| Decision context | Owner | Purpose |
+|---|---|---|
 `
 	if err := os.WriteFile(filepath.Join(docsDir, "OPERATING_MODEL.md"), []byte(graphDoc), 0o644); err != nil {
 		t.Fatalf("write graph doc: %v", err)
@@ -473,6 +484,16 @@ flowchart LR
   IN[research-inbox/*]
   IN --> M
 ` + "```" + `
+## Topic Catalog
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| ` + "`topic:research-inbox/*`" + ` | live | external:operator | member:member-a | Intake. |
+
+## Decisions
+
+| Decision context | Owner | Purpose |
+|---|---|---|
 `
 	if err := os.WriteFile(filepath.Join(docsDir, "OPERATING_MODEL.md"), []byte(graphDoc), 0o644); err != nil {
 		t.Fatalf("write graph doc: %v", err)

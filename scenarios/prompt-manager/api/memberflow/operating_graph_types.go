@@ -1,12 +1,62 @@
 package memberflow
 
+type OperatingGraphMode string
+
+const (
+	OperatingGraphModeExplanatory OperatingGraphMode = "explanatory"
+	OperatingGraphModeCheckable   OperatingGraphMode = "checkable"
+	OperatingGraphModeContract    OperatingGraphMode = "contract"
+)
+
+type OperatingGraphNodeKind string
+
+const (
+	OperatingGraphNodeKindMember   OperatingGraphNodeKind = "member"
+	OperatingGraphNodeKindTopic    OperatingGraphNodeKind = "topic"
+	OperatingGraphNodeKindDecision OperatingGraphNodeKind = "decision"
+	OperatingGraphNodeKindTeam     OperatingGraphNodeKind = "team"
+	OperatingGraphNodeKindPOR      OperatingGraphNodeKind = "por"
+	OperatingGraphNodeKindExternal OperatingGraphNodeKind = "external"
+	OperatingGraphNodeKindProcess  OperatingGraphNodeKind = "process"
+	OperatingGraphNodeKindFuture   OperatingGraphNodeKind = "future"
+)
+
+type OperatingGraphQualifier string
+
+const (
+	OperatingGraphQualifierFuture   OperatingGraphQualifier = "future"
+	OperatingGraphQualifierOld      OperatingGraphQualifier = "old"
+	OperatingGraphQualifierExternal OperatingGraphQualifier = "external"
+)
+
+type OperatingActorKind string
+
+const (
+	OperatingActorKindMember   OperatingActorKind = "member"
+	OperatingActorKindTeam     OperatingActorKind = "team"
+	OperatingActorKindExternal OperatingActorKind = "external"
+	OperatingActorKindGroup    OperatingActorKind = "group"
+	OperatingActorKindUnknown  OperatingActorKind = "unknown"
+)
+
+type OperatingCoverageStatus string
+
+const (
+	OperatingCoverageStatusEnforced       OperatingCoverageStatus = "enforced"
+	OperatingCoverageStatusReferenceOnly  OperatingCoverageStatus = "reference_only"
+	OperatingCoverageStatusNotImplemented OperatingCoverageStatus = "not_implemented"
+	OperatingCoverageStatusMissing        OperatingCoverageStatus = "missing"
+	OperatingCoverageStatusMismatch       OperatingCoverageStatus = "mismatch"
+	OperatingCoverageStatusUnavailable    OperatingCoverageStatus = "unavailable"
+)
+
 type OperatingGraphMetadata struct {
-	ID     string            `json:"id"`
-	Scope  string            `json:"scope"`
-	Team   string            `json:"team"`
-	Mode   string            `json:"mode"`
-	Status string            `json:"status,omitempty"`
-	Extra  map[string]string `json:"extra,omitempty"`
+	ID     string             `json:"id"`
+	Scope  string             `json:"scope"`
+	Team   string             `json:"team"`
+	Mode   OperatingGraphMode `json:"mode"`
+	Status string             `json:"status,omitempty"`
+	Extra  map[string]string  `json:"extra,omitempty"`
 }
 
 type OperatingGraphSource struct {
@@ -30,14 +80,14 @@ type OperatingGraph struct {
 }
 
 type OperatingGraphNode struct {
-	ID         string `json:"id"`
-	Kind       string `json:"kind"`
-	Value      string `json:"value"`
-	Qualifier  string `json:"qualifier,omitempty"`
-	Display    string `json:"display,omitempty"`
-	RawLabel   string `json:"raw_label"`
-	SourceLine int    `json:"source_line"`
-	Implicit   bool   `json:"implicit,omitempty"`
+	ID         string                  `json:"id"`
+	Kind       OperatingGraphNodeKind  `json:"kind"`
+	Value      string                  `json:"value"`
+	Qualifier  OperatingGraphQualifier `json:"qualifier,omitempty"`
+	Display    string                  `json:"display,omitempty"`
+	RawLabel   string                  `json:"raw_label"`
+	SourceLine int                     `json:"source_line"`
+	Implicit   bool                    `json:"implicit,omitempty"`
 }
 
 type OperatingGraphEdge struct {
@@ -84,9 +134,9 @@ type OperatingDecisionRow struct {
 }
 
 type OperatingActorReference struct {
-	Kind  string `json:"kind"`
-	Value string `json:"value"`
-	Raw   string `json:"raw"`
+	Kind  OperatingActorKind `json:"kind"`
+	Value string             `json:"value"`
+	Raw   string             `json:"raw"`
 }
 
 type OperatingGraphFinding struct {
