@@ -468,10 +468,10 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	toolNames := reg.names(hostreq.KindTool)
 	expectedTools := []string{
 		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
-		"docker", "ffmpeg", "git", "go", "helm", "jq", "lychee",
-		"node", "openbox", "protoc", "protoc-gen-connect-go",
+		"docker", "ffmpeg", "git", "go", "helm", "jq", "kdump-tools", "lychee",
+		"mcelog", "node", "openbox", "protoc", "protoc-gen-connect-go",
 		"protoc-gen-es", "protoc-gen-go",
-		"python", "stripe", "tmux", "vault", "websockify", "x11vnc",
+		"python", "rasdaemon", "stripe", "tmux", "vault", "websockify", "x11vnc",
 		"xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {
@@ -488,8 +488,9 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
-		"clock", "dns_resolution", "docker_host_firewall", "kernel_config",
-		"nat_protection", "remote_session_protection", "tcp_tuning",
+		"clock", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
+		"edac_modules", "kernel_config", "nat_protection", "netconsole",
+		"pstore_native", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
 	}
 	if len(safeguardNames) != len(expectedSafeguards) {
 		t.Fatalf("safeguard count = %d, want %d; got %v", len(safeguardNames), len(expectedSafeguards), safeguardNames)

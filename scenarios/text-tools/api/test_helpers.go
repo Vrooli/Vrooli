@@ -44,7 +44,6 @@ func setupTestServer(t *testing.T) *TestEnvironment {
 	config := &Config{
 		Port:        "8080",
 		DatabaseURL: "",  // Use mock database or in-memory
-		OllamaURL:   "http://localhost:11434",
 		RedisURL:    "redis://localhost:6379",
 	}
 

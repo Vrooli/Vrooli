@@ -10,7 +10,6 @@ type Config struct {
 	DatabaseURL  string
 	MinIOURL     string
 	RedisURL     string
-	OllamaURL    string
 	QdrantURL    string
 }
 

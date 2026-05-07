@@ -13,16 +13,24 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
+	crashkernelreserve "github.com/vrooli/vrooli/internal/safeguards/crashkernel-reserve"
 	dnsresolution "github.com/vrooli/vrooli/internal/safeguards/dns-resolution"
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
+	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
 	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
+	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
+	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
+	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
 	"github.com/vrooli/vrooli/internal/tools"
 	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
+	kdumptools "github.com/vrooli/vrooli/internal/tools/kdump-tools"
+	"github.com/vrooli/vrooli/internal/tools/mcelog"
 	"github.com/vrooli/vrooli/internal/tools/protoc"
+	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	protocgenconnectgo "github.com/vrooli/vrooli/internal/tools/protoc-gen-connect-go"
 	protocgenes "github.com/vrooli/vrooli/internal/tools/protoc-gen-es"
 	protocgengo "github.com/vrooli/vrooli/internal/tools/protoc-gen-go"
@@ -36,10 +44,13 @@ import (
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
 	"buf":                   buf.NewHandler,
 	"cloudflared":           cloudflared.NewHandler,
+	"kdump_tools":           kdumptools.NewHandler,
+	"mcelog":                mcelog.NewHandler,
 	"protoc":                protoc.NewHandler,
 	"protoc_gen_connect_go": protocgenconnectgo.NewHandler,
 	"protoc_gen_es":         protocgenes.NewHandler,
 	"protoc_gen_go":         protocgengo.NewHandler,
+	"rasdaemon":             rasdaemon.NewHandler,
 	"stripe":                stripe.NewHandler,
 	"vault":                 vault.NewHandler,
 }
@@ -49,10 +60,15 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 // TestSafeguardManifestsReferenceRegisteredHandlers.
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
 	"clock":                     clock.NewHandler,
+	"crashkernel_reserve":       crashkernelreserve.NewHandler,
 	"dns_resolution":            dnsresolution.NewHandler,
 	"docker_host_firewall":      dockerhostfirewall.NewHandler,
+	"edac_modules":              edacmodules.NewHandler,
 	"kernel_config":             kernelconfig.NewHandler,
 	"nat_protection":            natprotection.NewHandler,
+	"netconsole":                netconsole.NewHandler,
+	"pstore_native":             pstorenative.NewHandler,
+	"pstore_ramoops":            pstoreramoops.NewHandler,
 	"remote_session_protection": remotesessionprotection.NewHandler,
 	"tcp_tuning":                tcptuning.NewHandler,
 }

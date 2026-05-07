@@ -197,6 +197,36 @@ func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
 	}
 }
 
+func TestValidateMemoryLimit(t *testing.T) {
+	base := ResourceManifest{
+		Name: "ollama",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-ollama",
+			Adapter: scenario.CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"},
+		},
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Runtime:         ResourceRuntime{Image: "ollama/ollama:latest"},
+	}
+
+	for _, ok := range []string{"", "12g", "8192m", "536870912", "1B", "4G", "  2g  "} {
+		m := base
+		m.Runtime.MemoryLimit = ok
+		if err := Validate(m); err != nil {
+			t.Fatalf("Validate(memory_limit=%q) returned error: %v", ok, err)
+		}
+	}
+
+	for _, bad := range []string{"0g", "-1g", "12gb", "abc", "12 g", "g12"} {
+		m := base
+		m.Runtime.MemoryLimit = bad
+		if err := Validate(m); err == nil {
+			t.Fatalf("Validate(memory_limit=%q) expected error", bad)
+		}
+	}
+}
+
 func TestValidateAcceptsShellScriptCLIBlock(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name: "fixture",

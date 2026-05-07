@@ -57,7 +57,6 @@ type MonitoringConfig struct {
 // ResourcesConfig contains resource service configurations
 type ResourcesConfig struct {
 	NodeRedURL string
-	OllamaURL  string
 	GrafanaURL string
 }
 
@@ -123,7 +122,6 @@ func Load() *Config {
 		},
 		Resources: ResourcesConfig{
 			NodeRedURL: getEnv("NODE_RED_URL", ""),
-			OllamaURL:  getEnv("OLLAMA_URL", "http://localhost:11434"),
 			GrafanaURL: getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},
 		Alerts: AlertConfig{

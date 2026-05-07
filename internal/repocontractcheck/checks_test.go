@@ -151,11 +151,94 @@ func TestRunFailsWhenPersonalAbsolutePathAppearsInActiveScriptOrConfig(t *testin
 	}
 }
 
-func TestRunAllowsIntentionalDetectorAndIgnoredHistoryPaths(t *testing.T) {
+func TestRunFailsWhenPersonalAbsolutePathAppearsInPromptMarkdown(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/example/prompts/templates/build.md", "Run `rg thing /home/carol.dev/Vrooli` before generating.\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/prompt-manager/store/skills/packs/core/example/SKILL.md", "const root = \"/home/alice/Vrooli\";\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "personal_absolute_paths")
+	for _, want := range []string{
+		"scenarios/example/prompts/templates/build.md:1",
+		"scenarios/prompt-manager/store/skills/packs/core/example/SKILL.md:1",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("expected %q in message %q", want, message)
+		}
+	}
+}
+
+func TestRunFailsWhenOperatorIdentityAppearsInPromptOrGeneratedState(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/example/prompts/templates/operator.md", "Ask Matt Halloran to approve this.\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/swarm-manager/ideas/example/review/round-001.json", "{\"operator\":\"matthalloran8\"}\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "personal_absolute_paths")
+	for _, want := range []string{
+		"scenarios/example/prompts/templates/operator.md:1",
+		"scenarios/swarm-manager/ideas/example/review/round-001.json:1",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("expected %q in message %q", want, message)
+		}
+	}
+}
+
+func TestRunAllowsIntentionalDetectorPaths(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
 	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/code-smell/initialization/rules/vrooli-specific.yaml", "pattern: /home/carol.dev/Vrooli\n")
-	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/example/.swarm/last-research-prompt-trace.json", "{\"root\":\"/home/carol.dev/Vrooli\"}\n")
-	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/example/acceptance-validation.json", "{\"project_root\":\"/Users/carol.dev/Vrooli\"}\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if hasFailedCheck(report, "personal_absolute_paths") {
+		t.Fatalf("did not expect personal_absolute_paths failure, got %+v", report.Checks)
+	}
+}
+
+func TestRunFailsWhenPersonalAbsolutePathAppearsInGeneratedSwarmManagerState(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/swarm-manager/ideas/example/.swarm/last-research-prompt-trace.json", "{\"root\":\"/home/carol.dev/Vrooli\"}\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/swarm-manager/ideas/example/review/captures/output.txt", "error at /Users/carol.dev/Vrooli/scenarios/app/main.go\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/swarm-manager/ideas/example/handoff/brief.md", "Plan: /home/carol.dev/Vrooli/scenarios/app/plan.md\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "personal_absolute_paths")
+	for _, want := range []string{
+		"scenarios/swarm-manager/ideas/example/.swarm/last-research-prompt-trace.json:1",
+		"scenarios/swarm-manager/ideas/example/review/captures/output.txt:1",
+		"scenarios/swarm-manager/ideas/example/handoff/brief.md:1",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("expected %q in message %q", want, message)
+		}
+	}
+}
+
+func TestRunAllowsPortableGeneratedSwarmManagerState(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/swarm-manager/ideas/example/handoff/manifest.json", "{\"item_folder\":\"path:scenarios/swarm-manager/ideas/example\"}\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/swarm-manager/ideas/example/review/captures/output.txt", "error at path:scenarios/app/main.go\n")
 
 	report, err := Run(fixture.Root)
 	if err != nil {
@@ -186,6 +269,43 @@ func failedCheckMessage(report Report, name string) string {
 		}
 	}
 	return ""
+}
+
+func TestRunFailsWhenScenarioContainsRawOllamaEmbeddingsLiteral(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "swarm-manager", "api/internal/aisearch/embedder.go",
+		"package aisearch\n\nconst path = \"/api/embeddings\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	if !hasFailedCheck(report, "ollama_gateway_only") {
+		t.Fatalf("expected ollama_gateway_only failure, got %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_gateway_only")
+	if !strings.Contains(message, "/api/embeddings") {
+		t.Fatalf("expected message to mention banned literal, got %q", message)
+	}
+}
+
+func TestRunPassesWhenScenarioStaysOffRawOllamaEndpoints(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "swarm-manager", "api/internal/aisearch/embedder.go",
+		"package aisearch\n\n// uses resource-ollama gateway, no raw HTTP\nconst placeholder = \"ok\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	for _, check := range report.Checks {
+		if check.Name == "ollama_gateway_only" && !check.Passed {
+			t.Fatalf("ollama_gateway_only should pass; message=%q", check.Message)
+		}
+	}
 }
 
 func newValidationFixtureRepo(t *testing.T) testkitgo.RepoFixture {

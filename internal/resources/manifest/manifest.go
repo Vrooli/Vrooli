@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -145,6 +146,10 @@ type ResourceRuntime struct {
 	Volumes       []ResourceVolume  `json:"volumes,omitempty"`
 	Command       []string          `json:"command,omitempty"`
 	WorkingDir    string            `json:"working_dir,omitempty"`
+	// MemoryLimit, when non-empty, is passed verbatim as `docker run --memory <value>`.
+	// Format: a positive integer optionally followed by a unit suffix b/k/m/g (case-insensitive),
+	// e.g. "12g", "8192m", "536870912". Only honored by the docker-service driver.
+	MemoryLimit string `json:"memory_limit,omitempty"`
 }
 
 type ResourceEnvironmentExports struct {
@@ -268,6 +273,9 @@ func Validate(manifest ResourceManifest) error {
 		return err
 	}
 	if err := validateGPU(manifest.GPU); err != nil {
+		return err
+	}
+	if err := validateRuntimeMemoryLimit(manifest.Runtime.MemoryLimit); err != nil {
 		return err
 	}
 	switch manifest.Driver {
@@ -463,6 +471,19 @@ func validateGPU(gpu *ResourceGPU) error {
 	}
 	if strings.TrimSpace(gpu.ComposeOverlay) == "" && len(gpu.EnvOverrides) == 0 {
 		return fmt.Errorf("gpu block must set compose_overlay or env_overrides")
+	}
+	return nil
+}
+
+var runtimeMemoryLimitPattern = regexp.MustCompile(`^[1-9][0-9]*[bBkKmMgG]?$`)
+
+func validateRuntimeMemoryLimit(value string) error {
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return nil
+	}
+	if !runtimeMemoryLimitPattern.MatchString(v) {
+		return fmt.Errorf("runtime.memory_limit %q is invalid (expected positive integer optionally suffixed with b/k/m/g)", value)
 	}
 	return nil
 }

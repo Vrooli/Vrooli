@@ -222,6 +222,9 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		if isVrooliCLIExecutable(entry.Executable) {
 			continue
 		}
+		if isControlPlaneAPIExecutable(entry) {
+			continue
+		}
 		if isTrackedOrAncestorTracked(pid, tracked, trackedSIDs, processTable, memo, visiting) {
 			continue
 		}

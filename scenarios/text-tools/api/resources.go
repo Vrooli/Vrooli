@@ -57,11 +57,10 @@ func NewResourceManager(config *Config) *ResourceManager {
 		}
 	}
 
-	if config.OllamaURL != "" {
-		rm.resources["ollama"] = &ResourceStatus{
-			Name: "ollama",
-			URL:  config.OllamaURL + "/api/tags",
-		}
+	// Ollama is reached via `resource-ollama status` (no HTTP polling).
+	rm.resources["ollama"] = &ResourceStatus{
+		Name: "ollama",
+		URL:  "resource-ollama://status",
 	}
 
 	if config.QdrantURL != "" {

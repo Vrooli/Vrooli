@@ -27,7 +27,6 @@ func main() {
 	// Load optional resource configurations
 	config.MinIOURL = os.Getenv("MINIO_URL")
 	config.RedisURL = os.Getenv("REDIS_URL")
-	config.OllamaURL = os.Getenv("OLLAMA_URL")
 	config.DatabaseURL = os.Getenv("DATABASE_URL")
 
 	// Create and initialize server

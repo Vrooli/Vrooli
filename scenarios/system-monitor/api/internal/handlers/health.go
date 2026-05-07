@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -96,13 +97,11 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if h.config.Resources.OllamaURL != "" {
-		ollamaHealth := h.checkOllama()
-		dependencies["ollama"] = ollamaHealth
-		if ollamaHealth["connected"] == false {
-			if overallStatus == "healthy" {
-				overallStatus = "degraded"
-			}
+	ollamaHealth := h.checkOllama()
+	dependencies["ollama"] = ollamaHealth
+	if ollamaHealth["connected"] == false {
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
 		}
 	}
 
@@ -219,23 +218,17 @@ func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 	return healthutil.MarkConnected(result)
 }
 
-// checkOllama tests Ollama AI service connectivity
+// checkOllama tests Ollama AI service connectivity via the resource-ollama CLI.
 func (h *HealthHandler) checkOllama() map[string]interface{} {
 	result := healthutil.NewResult()
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(h.config.Resources.OllamaURL + "/api/tags")
-	if err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	if err := cmd.Run(); err != nil {
 		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED",
-			fmt.Sprintf("Cannot connect to Ollama: %v", err), "network", true)
+			fmt.Sprintf("resource-ollama status failed: %v", err), "network", true)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return healthutil.WithError(result, fmt.Sprintf("HTTP_%d", resp.StatusCode),
-			fmt.Sprintf("Ollama returned status %d", resp.StatusCode), "network", resp.StatusCode >= 500)
-	}
-
 	return healthutil.MarkConnected(result)
 }
 

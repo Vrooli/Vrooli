@@ -113,7 +113,7 @@ func performCharDiff(text1, text2 string, options DiffOptions) ([]Change, float6
 	return changes, similarity
 }
 
-func performSemanticDiff(text1, text2 string, options DiffOptions, ollamaURL string) ([]Change, float64) {
+func performSemanticDiff(text1, text2 string, options DiffOptions) ([]Change, float64) {
 	// TODO: Implement actual semantic diff using Ollama
 	changes := []Change{
 		{
@@ -377,7 +377,7 @@ func detectLanguage(text string) Language {
 	}
 }
 
-func generateAIInsights(text string, ollamaURL string) map[string]interface{} {
+func generateAIInsights(text string) map[string]interface{} {
 	// TODO: Implement AI insights using Ollama
 	return map[string]interface{}{
 		"status":      "not implemented",

@@ -339,12 +339,7 @@ func (s *Server) processDiffV1(req DiffRequest) DiffResponse {
 	case "character":
 		changes, similarity = performCharDiff(text1, text2, req.Options)
 	case "semantic":
-		if s.config.OllamaURL != "" {
-			changes, similarity = performSemanticDiff(text1, text2, req.Options, s.config.OllamaURL)
-		} else {
-			// Fallback to line diff if Ollama not available
-			changes, similarity = performLineDiff(text1, text2, req.Options)
-		}
+		changes, similarity = performSemanticDiff(text1, text2, req.Options)
 	}
 
 	// Store in database if available
@@ -398,7 +393,7 @@ func (s *Server) processSearchV2(req SearchRequestV2) SearchResponseV2 {
 	}
 
 	// Add semantic search if available
-	if req.Options.Semantic && s.config.OllamaURL != "" {
+	if req.Options.Semantic {
 		response.SemanticMatches = performSemanticSearch(req.Text, req.Pattern, s.config)
 	}
 
@@ -491,8 +486,8 @@ func (s *Server) processAnalyzeV2(req AnalyzeRequestV2) AnalyzeResponseV2 {
 	}
 
 	// Add AI-powered analysis if Ollama is available
-	if s.config.OllamaURL != "" && req.Options.UseAI {
-		response.AIInsights = generateAIInsights(req.Text, s.config.OllamaURL)
+	if req.Options.UseAI {
+		response.AIInsights = generateAIInsights(req.Text)
 	}
 
 	return response

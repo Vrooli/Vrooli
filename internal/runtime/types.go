@@ -21,6 +21,7 @@ const (
 	ExecutionWouldApply           = hostreqkit.ExecutionWouldApply
 	ExecutionInstalled            = hostreqkit.ExecutionInstalled
 	ExecutionApplied              = hostreqkit.ExecutionApplied
+	ExecutionRebootRequired       = hostreqkit.ExecutionRebootRequired
 	ExecutionManualActionRequired = hostreqkit.ExecutionManualActionRequired
 	ExecutionUnsupported          = hostreqkit.ExecutionUnsupported
 	ExecutionNotApplicable        = hostreqkit.ExecutionNotApplicable

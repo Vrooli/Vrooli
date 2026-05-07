@@ -67,7 +67,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	// Create mock IdeaProcessor
 	processor := &IdeaProcessor{
 		db:        db,
-		ollamaURL: "http://localhost:11434",
 		qdrantURL: "http://localhost:6333",
 	}
 
@@ -78,7 +77,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		qdrantURL:       "http://localhost:6333",
 		minioURL:        "http://localhost:9000",
 		redisURL:        "http://localhost:6379",
-		ollamaURL:       "http://localhost:11434",
 		unstructuredURL: "http://localhost:11450",
 	}
 

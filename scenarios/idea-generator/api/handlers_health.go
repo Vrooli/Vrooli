@@ -19,7 +19,7 @@ func (s *ApiServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 			"qdrant":       s.qdrantURL,
 			"minio":        s.minioURL,
 			"redis":        "connected",
-			"ollama":       s.ollamaURL,
+			"ollama":       "via resource-ollama gateway",
 			"unstructured": s.unstructuredURL,
 		},
 	}

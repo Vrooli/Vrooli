@@ -127,6 +127,8 @@ func describeExecutionState(item vrooliruntime.ItemStatus, executed bool) string
 		return "installed"
 	case vrooliruntime.ExecutionApplied:
 		return "applied"
+	case vrooliruntime.ExecutionRebootRequired:
+		return "reboot_required"
 	case vrooliruntime.ExecutionManualActionRequired:
 		return "manual_action_required"
 	case vrooliruntime.ExecutionUnsupported:
