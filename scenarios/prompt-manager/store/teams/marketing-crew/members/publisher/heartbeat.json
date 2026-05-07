@@ -6,12 +6,14 @@
   "enabled": true,
   "schedule": "0 16 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-06T20:00:00Z",
-    "endedAt": "2026-05-06T20:00:03Z",
+    "startedAt": "2026-05-07T20:00:00Z",
+    "endedAt": "2026-05-07T20:00:05Z",
     "status": "failed",
-    "error": "creating task: agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running port named API_PORT for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
+    "runId": "c280a28e-f8da-4d64-bf5e-6e4314ea1a9f",
+    "logPath": "../store/teams/marketing-crew/members/publisher/logs/2026-05-07T20-00-00Z.log",
+    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 54,
+  "revision": 57,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-06T20:00:03Z"
+  "updatedAt": "2026-05-07T20:00:05Z"
 }

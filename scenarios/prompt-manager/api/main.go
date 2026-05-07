@@ -513,6 +513,7 @@ func main() {
 	v1.HandleFunc("/operating-graphs", memberFlowHandlers.GetOperatingGraphs).Methods("GET")
 	v1.HandleFunc("/operating-graphs/validate", memberFlowHandlers.ValidateOperatingGraphsHandler).Methods("GET")
 	v1.HandleFunc("/operating-graphs/diff", memberFlowHandlers.DiffOperatingGraphsHandler).Methods("GET")
+	v1.HandleFunc("/operating-graphs/coverage", memberFlowHandlers.CoverageOperatingGraphsHandler).Methods("GET")
 
 	// Topic routes
 	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())

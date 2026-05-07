@@ -18,6 +18,7 @@ type OperatingGraphSource struct {
 type OperatingGraphBlock struct {
 	Metadata OperatingGraphMetadata `json:"metadata"`
 	Graph    OperatingGraph         `json:"graph"`
+	Docs     OperatingGraphDocs     `json:"docs,omitempty"`
 	Source   OperatingGraphSource   `json:"source"`
 }
 
@@ -44,6 +45,48 @@ type OperatingGraphEdge struct {
 	To         string `json:"to"`
 	Label      string `json:"label,omitempty"`
 	SourceLine int    `json:"source_line"`
+}
+
+type OperatingGraphDocs struct {
+	TopicCatalog OperatingTopicCatalogTable `json:"topic_catalog,omitempty"`
+	Decisions    OperatingDecisionTable     `json:"decisions,omitempty"`
+}
+
+type OperatingTopicCatalogTable struct {
+	HeaderLine int                        `json:"header_line,omitempty"`
+	Rows       []OperatingTopicCatalogRow `json:"rows,omitempty"`
+	Present    bool                       `json:"present,omitempty"`
+}
+
+type OperatingTopicCatalogRow struct {
+	Topic      string                    `json:"topic"`
+	Qualifier  string                    `json:"qualifier,omitempty"`
+	Status     string                    `json:"status"`
+	Writers    []OperatingActorReference `json:"writers,omitempty"`
+	Readers    []OperatingActorReference `json:"readers,omitempty"`
+	Purpose    string                    `json:"purpose"`
+	SourceLine int                       `json:"source_line"`
+	RawTopic   string                    `json:"raw_topic"`
+}
+
+type OperatingDecisionTable struct {
+	HeaderLine int                    `json:"header_line,omitempty"`
+	Rows       []OperatingDecisionRow `json:"rows,omitempty"`
+	Present    bool                   `json:"present,omitempty"`
+}
+
+type OperatingDecisionRow struct {
+	Decision    string                    `json:"decision"`
+	Owners      []OperatingActorReference `json:"owners,omitempty"`
+	Purpose     string                    `json:"purpose"`
+	SourceLine  int                       `json:"source_line"`
+	RawDecision string                    `json:"raw_decision"`
+}
+
+type OperatingActorReference struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+	Raw   string `json:"raw"`
 }
 
 type OperatingGraphFinding struct {

@@ -56,6 +56,7 @@
   "GET /operating-graphs": {"status": "covered", "cli": "graph operating-model list"},
   "GET /operating-graphs/validate": {"status": "covered", "cli": "graph operating-model validate"},
   "GET /operating-graphs/diff": {"status": "covered", "cli": "graph operating-model diff"},
+  "GET /operating-graphs/coverage": {"status": "covered", "cli": "graph operating-model coverage"},
 
   "GET /search/skills": {"status": "covered", "cli": "search (text mode)"},
   "GET /search/skills/content": {"status": "audit-pending", "reason": "Content-search may be exposed via a flag on `search`; verify"},
@@ -143,6 +144,7 @@
   "POST /tasks": {"status": "audit-pending", "reason": "Top-level POST /tasks (heartbeat-managed) — verify whether team task-add covers or a separate run-task command exists"},
   "POST /runs": {"status": "audit-pending", "reason": "No top-level runs subcommand visible — may be UI/agent-only"},
   "GET /runs": {"status": "audit-pending", "reason": "See above"},
+  "GET /heartbeat-attempts": {"status": "audit-pending", "reason": "No heartbeat-attempt history CLI surface found; decide whether this remains API/UI diagnostics or gets an operator command"},
   "POST /runs/investigate": {"status": "audit-pending", "reason": "See above"},
   "POST /runs/investigation-apply": {"status": "audit-pending", "reason": "See above"},
   "GET /runs/{runId}": {"status": "audit-pending", "reason": "See above"},

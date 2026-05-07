@@ -240,3 +240,113 @@ func TestCmdOperatingModelDiffRendersCleanNextStep(t *testing.T) {
 		}
 	}
 }
+
+func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/operating-graphs/coverage", operatingGraphCoverageResponse{
+		Coverage: []operatingGraphCoverage{{
+			GraphID: "marketing-operating-model",
+			Team:    "marketing-crew",
+			Source:  operatingGraphSource{Path: "docs/marketing/OPERATING_MODEL.md", Line: 42},
+			Relationships: []operatingRelationshipCoverage{{
+				Relationship:       "topic_read",
+				RuntimeDeclared:    45,
+				GraphShown:         45,
+				Matched:            45,
+				ValidationSeverity: "error",
+			}},
+			Prompts: operatingPromptCoverage{
+				GraphMembers:               6,
+				TopicContractPresent:       6,
+				TopicContractSourceMatched: 6,
+				TopicContractContentParity: "not_implemented",
+			},
+			Docs: operatingDocsCoverage{
+				MermaidGraph:      "enforced",
+				TopicCatalogTable: "reference_only",
+				DecisionsTable:    "reference_only",
+			},
+			Exclusions: []operatingCoverageExclusion{{
+				Kind:   "process_nodes",
+				Count:  4,
+				Detail: "process nodes explain workflow shape but do not map to runtime declarations",
+			}},
+		}},
+	})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdOperatingModelCoverage(ctx, []string{"--team", "marketing-crew", "--id", "marketing-operating-model"})
+	})
+	if err != nil {
+		t.Fatalf("cmdOperatingModelCoverage: %v", err)
+	}
+	req := ctx.LastRequest()
+	if req.Path != "/operating-graphs/coverage" || req.Query.Get("team") != "marketing-crew" || req.Query.Get("id") != "marketing-operating-model" {
+		t.Fatalf("unexpected request: %+v", req)
+	}
+	for _, want := range []string{
+		"Analyzed 1 operating graph(s).",
+		"Graph: marketing-operating-model team=marketing-crew source=docs/marketing/OPERATING_MODEL.md:42",
+		"Relationship Coverage",
+		"- topic_read: runtime declared 45, graph shown 45, matched 45, graph-only 0, runtime-only 0 (error)",
+		"Prompt Coverage",
+		"topic-contract section present: 6/6 graph members",
+		"content parity: not_implemented",
+		"Docs Coverage",
+		"Topic Catalog table: reference_only",
+		"Excluded",
+		"process_nodes: 4",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestCmdOperatingModelCoverageJSONPreservesAPIShape(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/operating-graphs/coverage", operatingGraphCoverageResponse{
+		Coverage: []operatingGraphCoverage{{
+			GraphID: "g",
+			Team:    "team-a",
+			Relationships: []operatingRelationshipCoverage{{
+				Relationship:       "topic_output",
+				RuntimeDeclared:    2,
+				GraphShown:         1,
+				Matched:            1,
+				RuntimeOnly:        1,
+				ValidationRule:     "graph_declared_output_missing",
+				ValidationSeverity: "warning",
+				DiffRelationship:   "topic_output",
+			}},
+			Prompts: operatingPromptCoverage{
+				GraphMembers:               1,
+				TopicContractContentParity: "not_implemented",
+			},
+			Docs: operatingDocsCoverage{
+				MermaidGraph:      "enforced",
+				TopicCatalogTable: "reference_only",
+				DecisionsTable:    "reference_only",
+			},
+		}},
+	})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdOperatingModelCoverage(ctx, []string{"--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdOperatingModelCoverage: %v", err)
+	}
+	for _, want := range []string{
+		`"graph_id": "g"`,
+		`"relationship": "topic_output"`,
+		`"runtime_only": 1`,
+		`"validation_rule": "graph_declared_output_missing"`,
+		`"topic_contract_content_parity": "not_implemented"`,
+		`"topic_catalog_table": "reference_only"`,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}

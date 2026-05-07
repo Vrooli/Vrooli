@@ -53,6 +53,7 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		return nil, err
 	}
 	lines := strings.Split(string(data), "\n")
+	docs := ExtractOperatingGraphDocs(lines)
 	var blocks []OperatingGraphBlock
 	inFence := false
 	for i := 0; i < len(lines); i++ {
@@ -101,6 +102,7 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		blocks = append(blocks, OperatingGraphBlock{
 			Metadata: meta,
 			Graph:    graph,
+			Docs:     docs,
 			Source: OperatingGraphSource{
 				Path:      sourcePath,
 				Line:      metaStart,

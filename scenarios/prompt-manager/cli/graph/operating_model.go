@@ -17,6 +17,7 @@ import (
 type operatingGraphBlock struct {
 	Metadata operatingGraphMetadata `json:"metadata"`
 	Graph    operatingGraph         `json:"graph"`
+	Docs     operatingGraphDocs     `json:"docs,omitempty"`
 	Source   operatingGraphSource   `json:"source"`
 }
 
@@ -58,6 +59,48 @@ type operatingGraphEdge struct {
 	To         string `json:"to"`
 	Label      string `json:"label,omitempty"`
 	SourceLine int    `json:"source_line"`
+}
+
+type operatingGraphDocs struct {
+	TopicCatalog operatingTopicCatalogTable `json:"topic_catalog,omitempty"`
+	Decisions    operatingDecisionTable     `json:"decisions,omitempty"`
+}
+
+type operatingTopicCatalogTable struct {
+	HeaderLine int                        `json:"header_line,omitempty"`
+	Rows       []operatingTopicCatalogRow `json:"rows,omitempty"`
+	Present    bool                       `json:"present,omitempty"`
+}
+
+type operatingTopicCatalogRow struct {
+	Topic      string                    `json:"topic"`
+	Qualifier  string                    `json:"qualifier,omitempty"`
+	Status     string                    `json:"status"`
+	Writers    []operatingActorReference `json:"writers,omitempty"`
+	Readers    []operatingActorReference `json:"readers,omitempty"`
+	Purpose    string                    `json:"purpose"`
+	SourceLine int                       `json:"source_line"`
+	RawTopic   string                    `json:"raw_topic"`
+}
+
+type operatingDecisionTable struct {
+	HeaderLine int                    `json:"header_line,omitempty"`
+	Rows       []operatingDecisionRow `json:"rows,omitempty"`
+	Present    bool                   `json:"present,omitempty"`
+}
+
+type operatingDecisionRow struct {
+	Decision    string                    `json:"decision"`
+	Owners      []operatingActorReference `json:"owners,omitempty"`
+	Purpose     string                    `json:"purpose"`
+	SourceLine  int                       `json:"source_line"`
+	RawDecision string                    `json:"raw_decision"`
+}
+
+type operatingActorReference struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+	Raw   string `json:"raw"`
 }
 
 type operatingGraphFinding struct {
@@ -114,9 +157,65 @@ type operatingGraphDiffResponse struct {
 	Diff   []operatingGraphDiff  `json:"diff"`
 }
 
+type operatingGraphCoverageResponse struct {
+	Graphs   []operatingGraphBlock    `json:"graphs"`
+	Coverage []operatingGraphCoverage `json:"coverage"`
+}
+
+type operatingGraphCoverage struct {
+	GraphID       string                          `json:"graph_id"`
+	Team          string                          `json:"team"`
+	Source        operatingGraphSource            `json:"source"`
+	Relationships []operatingRelationshipCoverage `json:"relationships"`
+	Prompts       operatingPromptCoverage         `json:"prompts"`
+	Docs          operatingDocsCoverage           `json:"docs"`
+	Exclusions    []operatingCoverageExclusion    `json:"exclusions"`
+}
+
+type operatingRelationshipCoverage struct {
+	Relationship       string `json:"relationship"`
+	RuntimeDeclared    int    `json:"runtime_declared"`
+	GraphShown         int    `json:"graph_shown"`
+	Matched            int    `json:"matched"`
+	GraphOnly          int    `json:"graph_only"`
+	RuntimeOnly        int    `json:"runtime_only"`
+	ValidationRule     string `json:"validation_rule,omitempty"`
+	ValidationSeverity string `json:"validation_severity,omitempty"`
+	DiffRelationship   string `json:"diff_relationship,omitempty"`
+}
+
+type operatingPromptCoverage struct {
+	GraphMembers               int    `json:"graph_members"`
+	TopicContractPresent       int    `json:"topic_contract_present"`
+	TopicContractSourceMatched int    `json:"topic_contract_source_matched"`
+	TopicContractContentParity string `json:"topic_contract_content_parity"`
+}
+
+type operatingDocsCoverage struct {
+	MermaidGraph          string `json:"mermaid_graph"`
+	TopicCatalogTable     string `json:"topic_catalog_table"`
+	TopicCatalogRows      int    `json:"topic_catalog_rows"`
+	TopicCatalogMatched   int    `json:"topic_catalog_matched"`
+	TopicCatalogGraphOnly int    `json:"topic_catalog_graph_only"`
+	TopicCatalogDocsOnly  int    `json:"topic_catalog_docs_only"`
+	TopicCatalogInvalid   int    `json:"topic_catalog_invalid"`
+	DecisionsTable        string `json:"decisions_table"`
+	DecisionsRows         int    `json:"decisions_rows"`
+	DecisionsMatched      int    `json:"decisions_matched"`
+	DecisionsGraphOnly    int    `json:"decisions_graph_only"`
+	DecisionsDocsOnly     int    `json:"decisions_docs_only"`
+	DecisionsInvalid      int    `json:"decisions_invalid"`
+}
+
+type operatingCoverageExclusion struct {
+	Kind   string `json:"kind"`
+	Count  int    `json:"count"`
+	Detail string `json:"detail,omitempty"`
+}
+
 func cmdOperatingModel(ctx appctx.Context, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: graph operating-model <list|validate|diff> [--team TEAM] [--id ID] [--json]")
+		return fmt.Errorf("usage: graph operating-model <list|validate|diff|coverage> [--team TEAM] [--id ID] [--json]")
 	}
 	switch args[0] {
 	case "list":
@@ -125,6 +224,8 @@ func cmdOperatingModel(ctx appctx.Context, args []string) error {
 		return cmdOperatingModelValidate(ctx, args[1:])
 	case "diff":
 		return cmdOperatingModelDiff(ctx, args[1:])
+	case "coverage":
+		return cmdOperatingModelCoverage(ctx, args[1:])
 	default:
 		return fmt.Errorf("unknown operating-model subcommand: %s", args[0])
 	}
@@ -210,6 +311,25 @@ func cmdOperatingModelDiff(ctx appctx.Context, args []string) error {
 	return nil
 }
 
+func cmdOperatingModelCoverage(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("operating-model coverage", flag.ContinueOnError)
+	team := fs.String("team", "", "Filter to one team")
+	id := fs.String("id", "", "Filter to one graph id")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var resp operatingGraphCoverageResponse
+	if err := ctx.GetWithQuery("/operating-graphs/coverage", operatingModelQuery(*team, *id), &resp); err != nil {
+		return fmt.Errorf("failed to fetch operating graph coverage: %w", err)
+	}
+	if *jsonOut {
+		return encodeJSON(resp)
+	}
+	printOperatingModelCoverage(resp)
+	return nil
+}
+
 func operatingModelQuery(team, id string) url.Values {
 	q := url.Values{}
 	if strings.TrimSpace(team) != "" {
@@ -286,5 +406,75 @@ func printOperatingModelDiffGroup(title string, diffs []operatingGraphDiff, kind
 	}
 	if !printed {
 		fmt.Println("- clean")
+	}
+}
+
+func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
+	fmt.Println("Status")
+	fmt.Printf("Analyzed %d operating graph(s).\n\n", len(resp.Coverage))
+	for _, cov := range resp.Coverage {
+		fmt.Printf("Graph: %s", cov.GraphID)
+		if cov.Team != "" {
+			fmt.Printf(" team=%s", cov.Team)
+		}
+		if cov.Source.Path != "" {
+			fmt.Printf(" source=%s:%d", cov.Source.Path, cov.Source.Line)
+		}
+		fmt.Println()
+
+		fmt.Println("\nRelationship Coverage")
+		if len(cov.Relationships) == 0 {
+			fmt.Println("- none")
+		} else {
+			for _, rel := range cov.Relationships {
+				fmt.Printf("- %s: runtime declared %d, graph shown %d, matched %d, graph-only %d, runtime-only %d",
+					rel.Relationship, rel.RuntimeDeclared, rel.GraphShown, rel.Matched, rel.GraphOnly, rel.RuntimeOnly)
+				if rel.ValidationSeverity != "" {
+					fmt.Printf(" (%s)", rel.ValidationSeverity)
+				}
+				fmt.Println()
+			}
+		}
+
+		fmt.Println("\nPrompt Coverage")
+		fmt.Printf("- topic-contract section present: %d/%d graph members\n", cov.Prompts.TopicContractPresent, cov.Prompts.GraphMembers)
+		fmt.Printf("- topic-contract source path: %d/%d graph members\n", cov.Prompts.TopicContractSourceMatched, cov.Prompts.GraphMembers)
+		fmt.Printf("- content parity: %s\n", cov.Prompts.TopicContractContentParity)
+
+		fmt.Println("\nDocs Coverage")
+		fmt.Printf("- Mermaid graph: %s\n", cov.Docs.MermaidGraph)
+		fmt.Printf("- Topic Catalog table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
+			cov.Docs.TopicCatalogTable,
+			cov.Docs.TopicCatalogRows,
+			cov.Docs.TopicCatalogMatched,
+			cov.Docs.TopicCatalogGraphOnly,
+			cov.Docs.TopicCatalogDocsOnly,
+			cov.Docs.TopicCatalogInvalid,
+		)
+		fmt.Printf("- Decisions table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
+			cov.Docs.DecisionsTable,
+			cov.Docs.DecisionsRows,
+			cov.Docs.DecisionsMatched,
+			cov.Docs.DecisionsGraphOnly,
+			cov.Docs.DecisionsDocsOnly,
+			cov.Docs.DecisionsInvalid,
+		)
+
+		fmt.Println("\nExcluded")
+		if len(cov.Exclusions) == 0 {
+			fmt.Println("- none")
+		} else {
+			for _, exclusion := range cov.Exclusions {
+				fmt.Printf("- %s: %d", exclusion.Kind, exclusion.Count)
+				if exclusion.Detail != "" {
+					fmt.Printf(" (%s)", exclusion.Detail)
+				}
+				fmt.Println()
+			}
+		}
+		fmt.Println()
+	}
+	if len(resp.Coverage) == 0 {
+		fmt.Println("No checkable operating graph matched the filters.")
 	}
 }

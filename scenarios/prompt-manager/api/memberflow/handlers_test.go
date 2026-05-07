@@ -22,6 +22,7 @@ func newRouter(h *Handlers) *mux.Router {
 	r.HandleFunc("/operating-graphs", h.GetOperatingGraphs).Methods("GET")
 	r.HandleFunc("/operating-graphs/validate", h.ValidateOperatingGraphsHandler).Methods("GET")
 	r.HandleFunc("/operating-graphs/diff", h.DiffOperatingGraphsHandler).Methods("GET")
+	r.HandleFunc("/operating-graphs/coverage", h.CoverageOperatingGraphsHandler).Methods("GET")
 	r.HandleFunc("/topics/drain-status", h.GetDrainStatus).Methods("GET")
 	return r
 }
@@ -290,6 +291,24 @@ func TestOperatingGraphHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 	if got := countOperatingDiffs(diffResp.Diff, "graph_relationship_missing_in_runtime"); got != 1 {
 		t.Fatalf("graph-to-runtime diff count=%d, want 1: %+v", got, diffResp.Diff)
 	}
+
+	coverageReq := httptest.NewRequest("GET", "/operating-graphs/coverage?team=team-a&id=g", nil)
+	coverageW := httptest.NewRecorder()
+	r.ServeHTTP(coverageW, coverageReq)
+	if coverageW.Code != http.StatusOK {
+		t.Fatalf("coverage status=%d body=%s", coverageW.Code, coverageW.Body.String())
+	}
+	var coverageResp OperatingGraphCoverageResponse
+	if err := json.NewDecoder(coverageW.Body).Decode(&coverageResp); err != nil {
+		t.Fatalf("decode coverage: %v", err)
+	}
+	if len(coverageResp.Coverage) != 1 || coverageResp.Coverage[0].GraphID != "g" {
+		t.Fatalf("unexpected coverage response: %+v", coverageResp)
+	}
+	topicRead := operatingCoverageByRelationship(coverageResp.Coverage[0].Relationships, string(operatingRelTopicRead))
+	if topicRead.GraphShown != 2 || topicRead.RuntimeDeclared != 1 || topicRead.GraphOnly != 1 || topicRead.RuntimeOnly != 0 {
+		t.Fatalf("unexpected topic_read coverage: %+v", topicRead)
+	}
 }
 
 func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
@@ -317,6 +336,16 @@ func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 	if !bytes.Contains(diffW.Body.Bytes(), []byte(`"diff":[]`)) {
 		t.Fatalf("diff response should render empty diff as []:\n%s", diffW.Body.String())
 	}
+
+	coverageReq := httptest.NewRequest("GET", "/operating-graphs/coverage?team=team-a&id=g", nil)
+	coverageW := httptest.NewRecorder()
+	r.ServeHTTP(coverageW, coverageReq)
+	if coverageW.Code != http.StatusOK {
+		t.Fatalf("coverage status=%d body=%s", coverageW.Code, coverageW.Body.String())
+	}
+	if !bytes.Contains(coverageW.Body.Bytes(), []byte(`"coverage":[`)) {
+		t.Fatalf("coverage response should render coverage as []/array:\n%s", coverageW.Body.String())
+	}
 }
 
 func TestOperatingGraphHandlersValidatePromptSectionsFromProvider(t *testing.T) {
@@ -340,6 +369,20 @@ func TestOperatingGraphHandlersValidatePromptSectionsFromProvider(t *testing.T) 
 		t.Fatalf("decode validate: %v", err)
 	}
 	assertOperatingFinding(t, validateResp.Validation, "graph_prompt_topic_contract_missing")
+
+	coverageReq := httptest.NewRequest("GET", "/operating-graphs/coverage?team=team-a&id=g", nil)
+	coverageW := httptest.NewRecorder()
+	r.ServeHTTP(coverageW, coverageReq)
+	if coverageW.Code != http.StatusOK {
+		t.Fatalf("coverage status=%d body=%s", coverageW.Code, coverageW.Body.String())
+	}
+	var coverageResp OperatingGraphCoverageResponse
+	if err := json.NewDecoder(coverageW.Body).Decode(&coverageResp); err != nil {
+		t.Fatalf("decode coverage: %v", err)
+	}
+	if got := coverageResp.Coverage[0].Prompts.TopicContractPresent; got != 0 {
+		t.Fatalf("provider-backed prompt coverage present=%d, want 0", got)
+	}
 }
 
 type staticOperatingPromptSections struct {
@@ -348,6 +391,15 @@ type staticOperatingPromptSections struct {
 
 func (p staticOperatingPromptSections) SectionsForMember(_ context.Context, team, member string) ([]OperatingGraphPromptSection, error) {
 	return p.sections[MemberRef{Team: team, Member: member}], nil
+}
+
+func operatingCoverageByRelationship(rels []OperatingRelationshipCoverage, relationship string) OperatingRelationshipCoverage {
+	for _, rel := range rels {
+		if rel.Relationship == relationship {
+			return rel
+		}
+	}
+	return OperatingRelationshipCoverage{}
 }
 
 func writeOperatingGraphHandlerFixture(t *testing.T, repoRoot, storeDir string) {

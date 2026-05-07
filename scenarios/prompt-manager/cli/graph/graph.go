@@ -151,7 +151,7 @@ Subcommands:
                                       Member topic-flow graph + validation
                                       (--findings-out writes a stable JSON
                                       artifact for CI diff telemetry)
-  operating-model <list|validate|diff> [--team X] [--id ID] [--json]
+  operating-model <list|validate|diff|coverage> [--team X] [--id ID] [--json]
                                       Plan-of-record Mermaid contract checks
   drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)`
 }

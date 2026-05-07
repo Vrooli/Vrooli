@@ -92,6 +92,80 @@ func TestParseOperatingMermaidAnnotationRequiresDeclaredNode(t *testing.T) {
 	}
 }
 
+func TestExtractOperatingGraphDocsParsesTopicCatalogAndDecisions(t *testing.T) {
+	docs := ExtractOperatingGraphDocs(strings.Split(`
+## Topic Catalog
+
+Prose before the table is allowed.
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| `+"`topic:research-inbox/*`"+` | live | operator, researcher | researcher | Raw signal. |
+| `+"`topic[future]:ad-run/<lane>/*`"+` | target | advertisers | publisher | Run summaries. |
+
+## Decisions
+
+| Decision context | Owner | Purpose |
+|---|---|---|
+| `+"`content-publish-proposal`"+` | advertiser or publisher | Publish gate. |
+`, "\n"))
+
+	if !docs.TopicCatalog.Present || len(docs.TopicCatalog.Rows) != 2 {
+		t.Fatalf("bad topic catalog parse: %+v", docs.TopicCatalog)
+	}
+	if row := docs.TopicCatalog.Rows[1]; row.Topic != "ad-run/<lane>/*" || row.Qualifier != "future" || len(row.Writers) != 1 || row.Writers[0].Kind != "group" {
+		t.Fatalf("bad topic row: %+v", row)
+	}
+	if !docs.Decisions.Present || len(docs.Decisions.Rows) != 1 {
+		t.Fatalf("bad decisions parse: %+v", docs.Decisions)
+	}
+	if row := docs.Decisions.Rows[0]; row.Decision != "content-publish-proposal" || len(row.Owners) != 2 {
+		t.Fatalf("bad decision row: %+v", row)
+	}
+}
+
+func TestValidateOperatingGraphsDocsTablesDetectDrift(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  M["member:researcher"]`,
+		`  T["topic:research-inbox/*"]`,
+		`  D["decision:audience-update"]`,
+		"  T --> M",
+		"  M --> D",
+	})
+	block.Docs = OperatingGraphDocs{
+		TopicCatalog: OperatingTopicCatalogTable{Present: true, Rows: []OperatingTopicCatalogRow{{
+			Topic:      "ghost/*",
+			RawTopic:   "`topic:ghost/*`",
+			Status:     "live",
+			SourceLine: 20,
+		}}},
+		Decisions: OperatingDecisionTable{Present: true, Rows: []OperatingDecisionRow{{
+			Decision:   "audience-update",
+			Owners:     []OperatingActorReference{{Kind: "member", Value: "brand-manager", Raw: "brand-manager"}},
+			SourceLine: 30,
+		}}},
+	}
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{
+			Intake:         []IntakeEntry{{Prefix: "research-inbox/*"}},
+			DecisionsOwned: []string{"audience-update"},
+		},
+	}})
+	runtime.Contracts = TeamContractRegistry{"team-a": {TeamID: "team-a", Contract: &teamcontract.OperatingContract{
+		Members: map[string]teamcontract.MemberContract{
+			"researcher":    {},
+			"brand-manager": {},
+		},
+		DecisionContext: map[string]teamcontract.DecisionContext{"audience-update": {}},
+	}}}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_topic_catalog_drift")
+	assertOperatingFinding(t, result, "graph_decisions_table_owner_drift")
+}
+
 func TestValidateOperatingGraphsDetectsUnbackedEdge(t *testing.T) {
 	block := OperatingGraphBlock{
 		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
@@ -596,6 +670,11 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 		"graph_declared_capability_gap_missing",
 		"graph_declared_external_producer_missing",
 		"graph_declared_cross_team_output_missing",
+		"graph_topic_catalog_invalid_topic",
+		"graph_topic_catalog_drift",
+		"graph_docs_unknown_actor",
+		"graph_decisions_table_drift",
+		"graph_decisions_table_owner_drift",
 		"graph_prompt_topic_contract_missing",
 		"graph_prompt_topic_contract_source_mismatch",
 	}
@@ -861,6 +940,89 @@ func TestBuildRuntimeOperatingRelationshipsExtractsTopicsContractFields(t *testi
 	}
 }
 
+func TestBuildOperatingGraphCoverageReportsRelationshipPromptDocsAndExclusions(t *testing.T) {
+	runtime := operatingDiffRuntime(t, []MemberTopics{{
+		Ref: MemberRef{Team: "team-a", Member: "researcher"},
+		Topics: Topics{
+			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
+			Output: []OutputEntry{
+				{Prefix: "hook-record/*", DestinationKind: DestinationKnowledge},
+				{Prefix: "campaign-draft/*", DestinationKind: DestinationKnowledge},
+			},
+		},
+	}})
+	runtime.PromptSections = map[MemberRef][]OperatingGraphPromptSection{
+		{Team: "team-a", Member: "researcher"}: {{
+			Kind:       operatingGraphPromptSectionKindTopicContract,
+			SourcePath: expectedTopicContractSourcePath("team-a", "researcher"),
+		}},
+	}
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  M["member:researcher"]`,
+		`  IN["topic:research-inbox/*"]`,
+		`  OUT["topic:hook-record/*"]`,
+		`  GHOST["topic:ghost-record/*"]`,
+		`  PROC["process:learning-synthesis"]`,
+		`  FUT["topic[future]:publish-performance/*"]`,
+		`  OLD["topic[old]:oss-ad-run/*"]`,
+		`  EXTREF["topic[external]:outside-signal/*"]`,
+		"  IN --> M",
+		"  M --> OUT",
+		"  M --> GHOST",
+		"  PROC --> M",
+		"  FUT --> M",
+		"  OLD --> M",
+		"  EXTREF --> M",
+	})
+
+	coverage := BuildOperatingGraphCoverage([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	if len(coverage) != 1 {
+		t.Fatalf("coverage=%d, want 1: %+v", len(coverage), coverage)
+	}
+	topicRead := operatingCoverageByRelationship(coverage[0].Relationships, string(operatingRelTopicRead))
+	if topicRead.RuntimeDeclared != 1 || topicRead.GraphShown != 1 || topicRead.Matched != 1 || topicRead.GraphOnly != 0 || topicRead.RuntimeOnly != 0 {
+		t.Fatalf("unexpected topic_read coverage: %+v", topicRead)
+	}
+	topicOutput := operatingCoverageByRelationship(coverage[0].Relationships, string(operatingRelTopicOutput))
+	if topicOutput.RuntimeDeclared != 2 || topicOutput.GraphShown != 2 || topicOutput.Matched != 1 || topicOutput.GraphOnly != 1 || topicOutput.RuntimeOnly != 1 {
+		t.Fatalf("unexpected topic_output coverage: %+v", topicOutput)
+	}
+	if coverage[0].Prompts.GraphMembers != 1 || coverage[0].Prompts.TopicContractPresent != 1 || coverage[0].Prompts.TopicContractSourceMatched != 1 {
+		t.Fatalf("unexpected prompt coverage: %+v", coverage[0].Prompts)
+	}
+	if coverage[0].Prompts.TopicContractContentParity != OperatingCoverageStatusNotImplemented {
+		t.Fatalf("content parity=%q", coverage[0].Prompts.TopicContractContentParity)
+	}
+	if coverage[0].Docs.MermaidGraph != OperatingCoverageStatusEnforced || coverage[0].Docs.TopicCatalogTable != "missing" || coverage[0].Docs.DecisionsTable != "missing" {
+		t.Fatalf("unexpected docs coverage: %+v", coverage[0].Docs)
+	}
+	for kind, want := range map[string]int{
+		"process_nodes":        1,
+		"future_topic_nodes":   1,
+		"old_topic_nodes":      1,
+		"external_topic_nodes": 1,
+		"non_actionable_edges": 4,
+	} {
+		if got := operatingCoverageExclusionCount(coverage[0].Exclusions, kind); got != want {
+			t.Fatalf("exclusion %s=%d, want %d: %+v", kind, got, want, coverage[0].Exclusions)
+		}
+	}
+}
+
+func TestBuildOperatingGraphCoverageSkipsExplanatoryGraphs(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  M["member:researcher"]`,
+	})
+	block.Metadata.Mode = "explanatory"
+
+	coverage := BuildOperatingGraphCoverage([]OperatingGraphBlock{block}, OperatingGraphRuntime{}, "team-a", "g")
+	if len(coverage) != 0 {
+		t.Fatalf("coverage=%d, want 0: %+v", len(coverage), coverage)
+	}
+}
+
 func TestExtractOperatingGraphBlocks(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "OPERATING_MODEL.md")
@@ -1051,6 +1213,15 @@ func operatingRelationshipSetContains(set OperatingRelationshipSet, rel Operatin
 		}
 	}
 	return false
+}
+
+func operatingCoverageExclusionCount(exclusions []OperatingCoverageExclusion, kind string) int {
+	for _, exclusion := range exclusions {
+		if exclusion.Kind == kind {
+			return exclusion.Count
+		}
+	}
+	return 0
 }
 
 func operatingDiffBlock(t *testing.T, lines []string) OperatingGraphBlock {
