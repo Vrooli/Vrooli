@@ -57,6 +57,92 @@ func TestParseOperatingMermaidInlineTypedLabel(t *testing.T) {
 	}
 }
 
+func TestParseOperatingMermaidSubgraphsAndShapes(t *testing.T) {
+	graph, err := ParseOperatingMermaid("g", []string{
+		"flowchart LR",
+		`  subgraph INFLOWS["Inflows / Producers"]`,
+		"    %% @node OP external:operator",
+		"    OP([Operator])",
+		"  end",
+		"  subgraph TOPICS[Topics]",
+		"    %% @node RI topic:research-inbox/*",
+		"    RI[(research-inbox/*)]",
+		"  end",
+		"  %% @node D decision:audience-update",
+		"  D{audience-update}",
+		"  %% @node MON team:monetization",
+		"  MON[[Monetization team]]",
+		"  %% @node P por:docs/marketing/STRATEGY.md",
+		"  P[/docs/marketing/STRATEGY.md/]",
+		"  OP -->|produces| RI",
+		"  RI --> D",
+		"  RI --> MON",
+	}, 1)
+	if err != nil {
+		t.Fatalf("ParseOperatingMermaid: %v", err)
+	}
+	if len(graph.Groups) != 2 {
+		t.Fatalf("groups=%d, want 2: %+v", len(graph.Groups), graph.Groups)
+	}
+	if graph.Groups[0].ID != "INFLOWS" || graph.Groups[0].Display != "Inflows / Producers" || strings.Join(graph.Groups[0].NodeIDs, ",") != "OP" {
+		t.Fatalf("bad inflow group: %+v", graph.Groups[0])
+	}
+	if node := operatingNodeByID(t, graph, "RI"); node.Shape != OperatingGraphNodeShapeCylinder || node.Kind != OperatingGraphNodeKindTopic {
+		t.Fatalf("bad topic node shape: %+v", node)
+	}
+	if node := operatingNodeByID(t, graph, "D"); node.Shape != OperatingGraphNodeShapeDiamond || node.Kind != OperatingGraphNodeKindDecision {
+		t.Fatalf("bad decision node shape: %+v", node)
+	}
+	if node := operatingNodeByID(t, graph, "MON"); node.Shape != OperatingGraphNodeShapeSubroutine || node.Kind != OperatingGraphNodeKindTeam {
+		t.Fatalf("bad team node shape: %+v", node)
+	}
+	if node := operatingNodeByID(t, graph, "P"); node.Shape != OperatingGraphNodeShapeDocument || node.Kind != OperatingGraphNodeKindPOR {
+		t.Fatalf("bad por node shape: %+v", node)
+	}
+	if graph.Edges[0].Label != "produces" {
+		t.Fatalf("edge label = %q", graph.Edges[0].Label)
+	}
+}
+
+func TestParseOperatingMermaidRejectsMalformedSubgraphs(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		lines []string
+	}{
+		{
+			name: "nested",
+			lines: []string{
+				"flowchart LR",
+				"subgraph A[Group A]",
+				"subgraph B[Group B]",
+				"end",
+				"end",
+			},
+		},
+		{
+			name: "unclosed",
+			lines: []string{
+				"flowchart LR",
+				"subgraph A[Group A]",
+				`A["member:a"]`,
+			},
+		},
+		{
+			name: "unmatched end",
+			lines: []string{
+				"flowchart LR",
+				"end",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := ParseOperatingMermaid("g", tc.lines, 1); err == nil {
+				t.Fatalf("expected subgraph parse error")
+			}
+		})
+	}
+}
+
 func TestParseOperatingMermaidAnnotationRejectsConflictingInlineToken(t *testing.T) {
 	_, err := ParseOperatingMermaid("g", []string{
 		"flowchart LR",
@@ -436,6 +522,21 @@ func TestValidateOperatingGraphsDetectsUnsupportedTypedEdgeSemantics(t *testing.
 	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, OperatingGraphRuntime{}, "team-a", "g")
 	assertOperatingFinding(t, result, "graph_unsupported_edge_semantics")
 	assertOperatingFindingAbsent(t, result, "graph_edge_unbacked")
+}
+
+func TestValidateOperatingGraphsWarnsOnShapeConventionDrift(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  T["topic:research-inbox/*"]`,
+			`  M["member:researcher"]`,
+			"  T --> M",
+		}),
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_node_shape_convention_drift")
 }
 
 func TestValidateOperatingGraphsIgnoresNonActionableUnsupportedEdges(t *testing.T) {
@@ -831,6 +932,7 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 	want := []string{
 		"graph_untyped_node",
 		"graph_unknown_node_kind",
+		"graph_node_shape_convention_drift",
 		"graph_unknown_member",
 		"graph_unknown_decision",
 		"graph_unknown_team",

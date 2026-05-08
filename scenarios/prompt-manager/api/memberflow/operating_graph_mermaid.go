@@ -9,11 +9,18 @@ import (
 )
 
 var (
-	flowchartRE  = regexp.MustCompile(`^\s*flowchart\s+(LR|TB|RL|BT)\s*$`)
-	nodeDeclRE   = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\[(.*)\]\s*$`)
-	edgeRE       = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*-->(?:\|([^|]*)\|)?\s*([A-Za-z][A-Za-z0-9_]*)\s*$`)
-	nodeAnnotRE  = regexp.MustCompile(`^\s*%%\s*@node\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+?)\s*$`)
-	typedLabelRE = regexp.MustCompile(`^([a-z][a-z0-9_-]*)(?:\[([a-z][a-z0-9_-]*)\])?:(.+)$`)
+	flowchartRE      = regexp.MustCompile(`^\s*flowchart\s+(LR|TB|RL|BT)\s*$`)
+	subgraphRE       = regexp.MustCompile(`^\s*subgraph\s+([A-Za-z][A-Za-z0-9_]*)(?:\s*\[(.*)\])?\s*$`)
+	directionRE      = regexp.MustCompile(`^\s*direction\s+(LR|TB|RL|BT)\s*$`)
+	edgeRE           = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*-->(?:\|([^|]*)\|)?\s*([A-Za-z][A-Za-z0-9_]*)\s*$`)
+	nodeAnnotRE      = regexp.MustCompile(`^\s*%%\s*@node\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+?)\s*$`)
+	typedLabelRE     = regexp.MustCompile(`^([a-z][a-z0-9_-]*)(?:\[([a-z][a-z0-9_-]*)\])?:(.+)$`)
+	nodeRectangleRE  = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\[(.*)\]\s*$`)
+	nodeCylinderRE   = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\[\((.*)\)\]\s*$`)
+	nodeDiamondRE    = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\{(.*)\}\s*$`)
+	nodeStadiumRE    = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\(\[(.*)\]\)\s*$`)
+	nodeSubroutineRE = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\[\[(.*)\]\]\s*$`)
+	nodeDocumentRE   = regexp.MustCompile(`^\s*([A-Za-z][A-Za-z0-9_]*)\s*\[/(.*)/\]\s*$`)
 )
 
 type operatingGraphNodeAnnotation struct {
@@ -33,10 +40,17 @@ type operatingGraphNodeLabel struct {
 	Typed     bool
 }
 
+type operatingGraphNodeDeclaration struct {
+	ID       string
+	RawLabel string
+	Shape    OperatingGraphNodeShape
+}
+
 func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingGraph, error) {
 	graph := OperatingGraph{ID: id}
 	nodes := map[string]OperatingGraphNode{}
 	annotations := map[string]operatingGraphNodeAnnotation{}
+	var activeGroup *OperatingGraphGroup
 	for i, raw := range lines {
 		lineNo := firstLine + i
 		line := strings.TrimSpace(raw)
@@ -64,6 +78,32 @@ func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingG
 			graph.Direction = m[1]
 			continue
 		}
+		if m := subgraphRE.FindStringSubmatch(line); m != nil {
+			if activeGroup != nil {
+				return graph, fmt.Errorf("nested subgraph %q at line %d is not supported; close %q first", m[1], lineNo, activeGroup.ID)
+			}
+			display := cleanOperatingGraphLabel(m[2])
+			if display == "" {
+				display = m[1]
+			}
+			graph.Groups = append(graph.Groups, OperatingGraphGroup{
+				ID:         m[1],
+				Display:    display,
+				SourceLine: lineNo,
+			})
+			activeGroup = &graph.Groups[len(graph.Groups)-1]
+			continue
+		}
+		if line == "end" {
+			if activeGroup == nil {
+				return graph, fmt.Errorf("subgraph end at line %d has no matching subgraph", lineNo)
+			}
+			activeGroup = nil
+			continue
+		}
+		if activeGroup != nil && directionRE.MatchString(line) {
+			continue
+		}
 		if m := edgeRE.FindStringSubmatch(line); m != nil {
 			graph.Edges = append(graph.Edges, OperatingGraphEdge{
 				From:       m[1],
@@ -79,18 +119,24 @@ func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingG
 			}
 			continue
 		}
-		if m := nodeDeclRE.FindStringSubmatch(line); m != nil {
-			node, err := parseOperatingGraphNode(m[1], m[2], lineNo)
+		if decl, ok := parseOperatingGraphNodeDeclaration(line); ok {
+			node, err := parseOperatingGraphNode(decl.ID, decl.RawLabel, decl.Shape, lineNo)
 			if err != nil {
 				return graph, err
 			}
 			nodes[node.ID] = node
+			if activeGroup != nil {
+				activeGroup.NodeIDs = append(activeGroup.NodeIDs, node.ID)
+			}
 			continue
 		}
 		return graph, fmt.Errorf("unsupported mermaid syntax at line %d: %s", lineNo, line)
 	}
 	if graph.Direction == "" {
 		return graph, fmt.Errorf("missing flowchart direction")
+	}
+	if activeGroup != nil {
+		return graph, fmt.Errorf("subgraph %q opened at line %d is missing end", activeGroup.ID, activeGroup.SourceLine)
 	}
 	if err := applyOperatingGraphNodeAnnotations(nodes, annotations); err != nil {
 		return graph, err
@@ -106,12 +152,38 @@ func ParseOperatingMermaid(id string, lines []string, firstLine int) (OperatingG
 	return graph, nil
 }
 
-func parseOperatingGraphNode(id, rawLabel string, line int) (OperatingGraphNode, error) {
+func parseOperatingGraphNodeDeclaration(line string) (operatingGraphNodeDeclaration, bool) {
+	for _, parser := range []struct {
+		shape OperatingGraphNodeShape
+		re    *regexp.Regexp
+	}{
+		{OperatingGraphNodeShapeCylinder, nodeCylinderRE},
+		{OperatingGraphNodeShapeStadium, nodeStadiumRE},
+		{OperatingGraphNodeShapeSubroutine, nodeSubroutineRE},
+		{OperatingGraphNodeShapeDocument, nodeDocumentRE},
+		{OperatingGraphNodeShapeDiamond, nodeDiamondRE},
+		{OperatingGraphNodeShapeRectangle, nodeRectangleRE},
+	} {
+		m := parser.re.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		return operatingGraphNodeDeclaration{
+			ID:       m[1],
+			RawLabel: m[2],
+			Shape:    parser.shape,
+		}, true
+	}
+	return operatingGraphNodeDeclaration{}, false
+}
+
+func parseOperatingGraphNode(id, rawLabel string, shape OperatingGraphNodeShape, line int) (OperatingGraphNode, error) {
 	label := parseOperatingGraphNodeLabel(rawLabel)
 	node := OperatingGraphNode{
 		ID:         id,
 		Display:    label.Display,
 		RawLabel:   label.Raw,
+		Shape:      shape,
 		SourceLine: line,
 	}
 	if label.Typed {
@@ -123,9 +195,7 @@ func parseOperatingGraphNode(id, rawLabel string, line int) (OperatingGraphNode,
 }
 
 func parseOperatingGraphNodeLabel(rawLabel string) operatingGraphNodeLabel {
-	label := strings.TrimSpace(rawLabel)
-	label = strings.Trim(label, `"`)
-	label = html.UnescapeString(label)
+	label := cleanOperatingGraphLabel(rawLabel)
 	parts := strings.Split(label, "<br/>")
 	token := strings.TrimSpace(parts[0])
 	display := strings.TrimSpace(strings.Join(parts, " "))
@@ -146,6 +216,13 @@ func parseOperatingGraphNodeLabel(rawLabel string) operatingGraphNodeLabel {
 		Value:     value,
 		Typed:     true,
 	}
+}
+
+func cleanOperatingGraphLabel(rawLabel string) string {
+	label := strings.TrimSpace(rawLabel)
+	label = strings.Trim(label, `"`)
+	label = html.UnescapeString(label)
+	return label
 }
 
 func parseOperatingGraphNodeAnnotation(nodeID, token string, line int) (operatingGraphNodeAnnotation, error) {

@@ -155,8 +155,15 @@ standards checks evaluate the temp scenario as if it lived under
 `scenarios/template-validation-react-vite-deep` in the Vrooli repo:
 
 ```bash
-vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive --warning-policy report
 ```
+
+Deep validation defaults to `--warning-policy report`, so a passing
+test-genie suite can still surface grouped non-fatal warnings in human
+and JSON output. Use `--warning-policy fail` when validating a template
+release candidate so unresolved phase warnings block the command. Warning
+findings may point to template issues or to Test Genie/standards
+classification gaps; standards rule edits require explicit approval.
 
 Use `--retain-temp` for debugging only. Retained deep runs keep the temp
 scenario and its generated relocation outputs so the reported test-genie

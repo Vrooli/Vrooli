@@ -419,11 +419,11 @@ flowchart LR
   %% @node M member:member-a
   M[Member A]
   %% @node OP external:operator
-  OP[Operator]
+  OP([Operator])
   %% @node IN topic:research-inbox/*
-  IN[research-inbox/*]
+  IN[(research-inbox/*)]
   %% @node NOTE topic:marketing/notebook/*
-  NOTE[marketing/notebook/*]
+  NOTE[(marketing/notebook/*)]
   OP --> IN
   OP --> M
   IN --> M
@@ -498,9 +498,9 @@ flowchart LR
   %% @node M member:member-a
   M[Member A]
   %% @node OP external:operator
-  OP[Operator]
+  OP([Operator])
   %% @node IN topic:research-inbox/*
-  IN[research-inbox/*]
+  IN[(research-inbox/*)]
   OP --> IN
   OP --> M
   IN --> M

@@ -17,10 +17,11 @@ type operatingGraphMetadata struct {
 }
 
 type operatingGraph struct {
-	ID        string               `json:"id"`
-	Direction string               `json:"direction"`
-	Nodes     []operatingGraphNode `json:"nodes"`
-	Edges     []operatingGraphEdge `json:"edges"`
+	ID        string                `json:"id"`
+	Direction string                `json:"direction"`
+	Nodes     []operatingGraphNode  `json:"nodes"`
+	Edges     []operatingGraphEdge  `json:"edges"`
+	Groups    []operatingGraphGroup `json:"groups,omitempty"`
 }
 
 type operatingGraphSource struct {
@@ -36,8 +37,16 @@ type operatingGraphNode struct {
 	Qualifier  string `json:"qualifier,omitempty"`
 	Display    string `json:"display,omitempty"`
 	RawLabel   string `json:"raw_label"`
+	Shape      string `json:"shape,omitempty"`
 	SourceLine int    `json:"source_line"`
 	Implicit   bool   `json:"implicit,omitempty"`
+}
+
+type operatingGraphGroup struct {
+	ID         string   `json:"id"`
+	Display    string   `json:"display"`
+	SourceLine int      `json:"source_line"`
+	NodeIDs    []string `json:"node_ids,omitempty"`
 }
 
 type operatingGraphEdge struct {

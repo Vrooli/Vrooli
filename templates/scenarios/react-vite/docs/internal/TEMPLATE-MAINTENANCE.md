@@ -90,8 +90,18 @@ standards checks behave as if the generated scenario lived under
 cleaned by default:
 
 ```bash
-vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive
+vrooli scenario template validate --mode deep --template react-vite --test-preset comprehensive --warning-policy report
 ```
+
+Deep validation defaults to `--warning-policy report`: test-genie
+failures still fail the command, while non-fatal phase warnings are
+reported in grouped output and JSON. Use `--warning-policy fail` for a
+release-quality gate where Lighthouse, browser-console, dependency, or
+standards warnings should block completion. Use `ignore` only for local
+debugging when warning visibility is intentionally not part of the
+check. Standards warning fixes may require either template changes or
+standards/Test Genie classification changes; do not edit standards rules
+without approval.
 
 Use `--retain-temp` only while debugging a failed deep run. The command
 keeps the generated temp workspace and its shared relocation outputs so a

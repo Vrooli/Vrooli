@@ -87,10 +87,11 @@ type OperatingGraphBlock struct {
 }
 
 type OperatingGraph struct {
-	ID        string               `json:"id"`
-	Direction string               `json:"direction"`
-	Nodes     []OperatingGraphNode `json:"nodes"`
-	Edges     []OperatingGraphEdge `json:"edges"`
+	ID        string                `json:"id"`
+	Direction string                `json:"direction"`
+	Nodes     []OperatingGraphNode  `json:"nodes"`
+	Edges     []OperatingGraphEdge  `json:"edges"`
+	Groups    []OperatingGraphGroup `json:"groups,omitempty"`
 }
 
 type OperatingGraphNode struct {
@@ -100,8 +101,27 @@ type OperatingGraphNode struct {
 	Qualifier  OperatingGraphQualifier `json:"qualifier,omitempty"`
 	Display    string                  `json:"display,omitempty"`
 	RawLabel   string                  `json:"raw_label"`
+	Shape      OperatingGraphNodeShape `json:"shape,omitempty"`
 	SourceLine int                     `json:"source_line"`
 	Implicit   bool                    `json:"implicit,omitempty"`
+}
+
+type OperatingGraphNodeShape string
+
+const (
+	OperatingGraphNodeShapeRectangle  OperatingGraphNodeShape = "rectangle"
+	OperatingGraphNodeShapeCylinder   OperatingGraphNodeShape = "cylinder"
+	OperatingGraphNodeShapeDiamond    OperatingGraphNodeShape = "diamond"
+	OperatingGraphNodeShapeStadium    OperatingGraphNodeShape = "stadium"
+	OperatingGraphNodeShapeSubroutine OperatingGraphNodeShape = "subroutine"
+	OperatingGraphNodeShapeDocument   OperatingGraphNodeShape = "document"
+)
+
+type OperatingGraphGroup struct {
+	ID         string   `json:"id"`
+	Display    string   `json:"display"`
+	SourceLine int      `json:"source_line"`
+	NodeIDs    []string `json:"node_ids,omitempty"`
 }
 
 type OperatingGraphEdge struct {

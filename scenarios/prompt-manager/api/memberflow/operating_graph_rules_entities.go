@@ -46,6 +46,67 @@ func (r graphUnknownNodeKindRule) Check(ctx OperatingGraphRuleContext) []Operati
 	return findings
 }
 
+type graphNodeShapeConventionDriftRule struct{}
+
+func (r graphNodeShapeConventionDriftRule) ID() string { return "graph_node_shape_convention_drift" }
+func (r graphNodeShapeConventionDriftRule) Group() OperatingGraphRuleGroup {
+	return OperatingRuleGroupEntity
+}
+func (r graphNodeShapeConventionDriftRule) DefaultSeverity() Severity  { return SeverityWarning }
+func (r graphNodeShapeConventionDriftRule) AppliesTo(mode string) bool { return mode != "explanatory" }
+func (r graphNodeShapeConventionDriftRule) Check(ctx OperatingGraphRuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, node := range ctx.Block.Graph.Nodes {
+		if node.Kind == "" || node.Shape == "" {
+			continue
+		}
+		if operatingGraphNodeShapeMatchesKind(node.Kind, node.Shape) {
+			continue
+		}
+		findings = append(findings, builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("node %q is kind %q but uses %q shape; expected %s", node.ID, node.Kind, node.Shape, operatingGraphExpectedShapeDetail(node.Kind))))
+	}
+	return findings
+}
+
+func operatingGraphNodeShapeMatchesKind(kind OperatingGraphNodeKind, shape OperatingGraphNodeShape) bool {
+	switch kind {
+	case OperatingGraphNodeKindMember:
+		return shape == OperatingGraphNodeShapeRectangle
+	case OperatingGraphNodeKindTopic:
+		return shape == OperatingGraphNodeShapeCylinder
+	case OperatingGraphNodeKindDecision:
+		return shape == OperatingGraphNodeShapeDiamond
+	case OperatingGraphNodeKindExternal, OperatingGraphNodeKindProcess, OperatingGraphNodeKindFuture:
+		return shape == OperatingGraphNodeShapeStadium
+	case OperatingGraphNodeKindTeam:
+		return shape == OperatingGraphNodeShapeSubroutine
+	case OperatingGraphNodeKindPOR:
+		return shape == OperatingGraphNodeShapeDocument || shape == OperatingGraphNodeShapeRectangle
+	default:
+		return true
+	}
+}
+
+func operatingGraphExpectedShapeDetail(kind OperatingGraphNodeKind) string {
+	switch kind {
+	case OperatingGraphNodeKindMember:
+		return string(OperatingGraphNodeShapeRectangle)
+	case OperatingGraphNodeKindTopic:
+		return string(OperatingGraphNodeShapeCylinder)
+	case OperatingGraphNodeKindDecision:
+		return string(OperatingGraphNodeShapeDiamond)
+	case OperatingGraphNodeKindExternal, OperatingGraphNodeKindProcess, OperatingGraphNodeKindFuture:
+		return string(OperatingGraphNodeShapeStadium)
+	case OperatingGraphNodeKindTeam:
+		return string(OperatingGraphNodeShapeSubroutine)
+	case OperatingGraphNodeKindPOR:
+		return string(OperatingGraphNodeShapeDocument) + " or " + string(OperatingGraphNodeShapeRectangle)
+	default:
+		return "a documented shape"
+	}
+}
+
 type graphUnknownMemberRule struct{}
 
 func (r graphUnknownMemberRule) ID() string                     { return "graph_unknown_member" }

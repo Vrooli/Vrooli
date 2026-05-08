@@ -143,11 +143,39 @@ Only this subset is supported for operating graphs:
 - `flowchart LR`, `flowchart TB`, `flowchart RL`, or `flowchart BT`
 - Mermaid comments beginning with `%%`
 - typed node annotations: `%% @node ID machine-token`
-- node declarations: `ID[label]`, `ID["label"]`, `ID["machine-token<br/>Display"]`
+- one-level visual groups: `subgraph GROUP_ID[Readable Label]` ... `end`
+- optional `direction LR|TB|RL|BT` lines inside a subgraph; the parser accepts and ignores them because group direction is visual only
+- node declarations using the supported shape subset below
 - simple directed edges: `A --> B`
 - optional edge labels: `A -->|label| B`; labels are parsed but ignored in the first validator
 
-Unsupported syntax fails every marked operating graph. Do not use chained fanout, subgraphs, styling, classes, HTML tables, or implicit semantic labels in marked diagrams. Unmarked Mermaid elsewhere in docs is not part of this parser.
+Unsupported syntax fails every marked operating graph. Do not use chained fanout, nested subgraphs, styling, classes, HTML tables, or implicit semantic labels in marked diagrams. Unmarked Mermaid elsewhere in docs is not part of this parser.
+
+Subgraphs are visual grouping only. They do not create runtime relationships and they do not affect edge validation. Nodes and edges inside a subgraph parse the same as top-level nodes and edges. The parser records each group's id, display label, source line, and directly declared node ids so coverage and tooling can explain the visual boundary.
+
+Supported node shapes:
+
+| Shape key | Syntax | Intended use |
+|---|---|---|
+| `rectangle` | `R[Researcher]`, `R["Researcher"]` | members and ordinary typed nodes where no stricter convention exists |
+| `cylinder` | `RI[(research-inbox/*)]` | topics |
+| `diamond` | `CPP{content-publish-proposal}` | decisions |
+| `stadium` | `OP([Operator])` | external actors, process placeholders, and future placeholders |
+| `subroutine` | `MON[[Monetization team]]` | teams |
+| `document` | `CANON[/docs/marketing/STRATEGY.md/]` | plan-of-record files |
+
+Shape conventions are validated for `checkable` and `contract` graphs. A mismatched shape reports `graph_node_shape_convention_drift` as a warning. POR nodes may use either `document` or `rectangle` without warning because Mermaid document syntax is more fragile for some labels.
+
+| Node kind | Expected shape |
+|---|---|
+| `member` | `rectangle` |
+| `topic` | `cylinder` |
+| `decision` | `diamond` |
+| `external` | `stadium` |
+| `team` | `subroutine` |
+| `por` | `document` or `rectangle` |
+| `process` | `stadium` |
+| `future` | `stadium` |
 
 ## Typed Nodes
 

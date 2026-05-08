@@ -31,6 +31,7 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 	rules := []OperatingGraphRule{
 		graphUntypedNodeRule{},
 		graphUnknownNodeKindRule{},
+		graphNodeShapeConventionDriftRule{},
 		graphUnknownMemberRule{},
 		graphUnknownDecisionRule{},
 		graphUnknownTeamRule{},
