@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "0 */4 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-07T20:00:00Z",
-    "endedAt": "2026-05-07T20:00:05Z",
+    "startedAt": "2026-05-08T00:00:00Z",
+    "endedAt": "2026-05-08T00:00:05Z",
     "status": "failed",
-    "runId": "b5580ffd-056c-42c2-9b34-0525b708f8eb",
-    "logPath": "../store/teams/scenario-qa/members/bug-investigator/logs/2026-05-07T20-00-00Z.log",
+    "runId": "354c6adc-22ef-4ba0-8d3d-c61f16e13d85",
+    "logPath": "../store/teams/scenario-qa/members/bug-investigator/logs/2026-05-08T00-00-00Z.log",
     "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 106,
+  "revision": 109,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-07T20:00:05Z"
+  "updatedAt": "2026-05-08T00:00:05Z"
 }

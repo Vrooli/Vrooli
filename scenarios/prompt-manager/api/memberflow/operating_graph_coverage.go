@@ -18,15 +18,23 @@ type OperatingGraphCoverage struct {
 }
 
 type OperatingRelationshipCoverage struct {
-	Relationship       string `json:"relationship"`
-	RuntimeDeclared    int    `json:"runtime_declared"`
-	GraphShown         int    `json:"graph_shown"`
-	Matched            int    `json:"matched"`
-	GraphOnly          int    `json:"graph_only"`
-	RuntimeOnly        int    `json:"runtime_only"`
-	ValidationRule     string `json:"validation_rule,omitempty"`
-	ValidationSeverity string `json:"validation_severity,omitempty"`
-	DiffRelationship   string `json:"diff_relationship,omitempty"`
+	Relationship       string                                 `json:"relationship"`
+	RuntimeDeclared    int                                    `json:"runtime_declared"`
+	GraphShown         int                                    `json:"graph_shown"`
+	Matched            int                                    `json:"matched"`
+	GraphOnly          int                                    `json:"graph_only"`
+	RuntimeOnly        int                                    `json:"runtime_only"`
+	RuntimeSubtypes    []OperatingRelationshipSubtypeCoverage `json:"runtime_subtypes,omitempty"`
+	ValidationRule     string                                 `json:"validation_rule,omitempty"`
+	ValidationSeverity string                                 `json:"validation_severity,omitempty"`
+	DiffRelationship   string                                 `json:"diff_relationship,omitempty"`
+}
+
+type OperatingRelationshipSubtypeCoverage struct {
+	Relationship    string `json:"relationship"`
+	RuntimeDeclared int    `json:"runtime_declared"`
+	Covered         int    `json:"covered"`
+	RuntimeOnly     int    `json:"runtime_only"`
 }
 
 type OperatingPromptCoverage struct {
@@ -98,9 +106,28 @@ func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []Ope
 			Matched:            len(graphRels) - graphOnly,
 			GraphOnly:          graphOnly,
 			RuntimeOnly:        runtimeOnly,
+			RuntimeSubtypes:    buildOperatingRelationshipSubtypeCoverage(ctx, spec),
 			ValidationRule:     spec.ValidationRule,
 			ValidationSeverity: string(spec.ValidationSeverity),
 			DiffRelationship:   coverageDiffRelationship(spec),
+		})
+	}
+	return out
+}
+
+func buildOperatingRelationshipSubtypeCoverage(ctx OperatingGraphContractContext, spec OperatingRelationshipSpec) []OperatingRelationshipSubtypeCoverage {
+	if spec.Kind != operatingRelTopicRead {
+		return nil
+	}
+	out := make([]OperatingRelationshipSubtypeCoverage, 0, len(spec.RuntimeKinds))
+	for _, kind := range spec.RuntimeKinds {
+		runtimeRels := ctx.Index.RuntimeRelationships.ByKind(kind)
+		runtimeOnly := countRuntimeOnlyRelationships(ctx, runtimeRels)
+		out = append(out, OperatingRelationshipSubtypeCoverage{
+			Relationship:    string(kind),
+			RuntimeDeclared: len(runtimeRels),
+			Covered:         len(runtimeRels) - runtimeOnly,
+			RuntimeOnly:     runtimeOnly,
 		})
 	}
 	return out

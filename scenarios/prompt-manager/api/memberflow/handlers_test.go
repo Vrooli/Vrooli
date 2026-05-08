@@ -418,10 +418,14 @@ mode: contract
 flowchart LR
   %% @node M member:member-a
   M[Member A]
+  %% @node OP external:operator
+  OP[Operator]
   %% @node IN topic:research-inbox/*
   IN[research-inbox/*]
   %% @node NOTE topic:marketing/notebook/*
   NOTE[marketing/notebook/*]
+  OP --> IN
+  OP --> M
   IN --> M
   NOTE --> M
 ` + "```" + `
@@ -430,7 +434,7 @@ flowchart LR
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
 | ` + "`topic:research-inbox/*`" + ` | live | external:operator | member:member-a | Intake. |
-| ` + "`topic:marketing/notebook/*`" + ` | live | member:member-a | member:member-a | Notebook. |
+| ` + "`topic:marketing/notebook/*`" + ` | live | | | Notebook. |
 
 ## Decisions
 
@@ -458,7 +462,8 @@ flowchart LR
 		t.Fatalf("write team.json: %v", err)
 	}
 	if err := WriteMember(storeDir, "team-a", "member-a", Topics{
-		Intake: []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
+		Intake:            []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
+		ExternalProducers: []string{"operator"},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}
@@ -480,8 +485,12 @@ mode: contract
 flowchart LR
   %% @node M member:member-a
   M[Member A]
+  %% @node OP external:operator
+  OP[Operator]
   %% @node IN topic:research-inbox/*
   IN[research-inbox/*]
+  OP --> IN
+  OP --> M
   IN --> M
 ` + "```" + `
 ## Topic Catalog
@@ -516,7 +525,8 @@ flowchart LR
 		t.Fatalf("write team.json: %v", err)
 	}
 	if err := WriteMember(storeDir, "team-a", "member-a", Topics{
-		Intake: []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
+		Intake:            []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
+		ExternalProducers: []string{"operator"},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}

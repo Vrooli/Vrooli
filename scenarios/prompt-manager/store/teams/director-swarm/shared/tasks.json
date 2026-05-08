@@ -116,23 +116,6 @@
           "text": "Superseded by dec-1775600387541383847 (identity-adoption fix resolution)"
         }
       ]
-    },
-    {
-      "id": "task-1775341209018001896",
-      "title": "Verify governance initiative expansion (8→21 items) is intentional refinement",
-      "status": "done",
-      "assignee": "director",
-      "priority": "P2",
-      "createdBy": "director",
-      "createdAt": "2026-04-04T22:20:09Z",
-      "updatedAt": "2026-04-07T22:20:01Z",
-      "notes": [
-        {
-          "at": "2026-04-07T22:20:01Z",
-          "by": "",
-          "text": "Governance expanded to 8 items (not 21 as feared). 4 completed, 4 pending. New QA gates added as deps but initiative scope itself is stable."
-        }
-      ]
     }
   ]
 }

@@ -98,6 +98,10 @@ func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
 					fmt.Printf(" (%s)", rel.ValidationSeverity)
 				}
 				fmt.Println()
+				for _, subtype := range rel.RuntimeSubtypes {
+					fmt.Printf("  - %s: runtime declared %d, covered %d, runtime-only %d\n",
+						subtype.Relationship, subtype.RuntimeDeclared, subtype.Covered, subtype.RuntimeOnly)
+				}
 			}
 		}
 

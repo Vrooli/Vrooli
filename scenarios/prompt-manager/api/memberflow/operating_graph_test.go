@@ -129,6 +129,9 @@ Prose before the table is allowed.
 	if !docs.TopicCatalog.Present || len(docs.TopicCatalog.Rows) != 2 {
 		t.Fatalf("bad topic catalog parse: %+v", docs.TopicCatalog)
 	}
+	if docs.TopicCatalog.Rows[0].StatusKind != OperatingTopicStatusLive || docs.TopicCatalog.Rows[1].StatusKind != OperatingTopicStatusTarget {
+		t.Fatalf("bad status parse: %+v", docs.TopicCatalog.Rows)
+	}
 	if row := docs.TopicCatalog.Rows[1]; row.Topic != "ad-run/<lane>/*" || row.Qualifier != "future" || len(row.Writers) != 1 || row.Writers[0].Kind != "group" {
 		t.Fatalf("bad topic row: %+v", row)
 	}
@@ -183,6 +186,97 @@ func TestValidateOperatingGraphsDocsTablesDetectDrift(t *testing.T) {
 	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
 	assertOperatingFinding(t, result, "graph_topic_catalog_drift")
 	assertOperatingFinding(t, result, "graph_decisions_table_owner_drift")
+}
+
+func TestValidateOperatingGraphsDocsCatalogStatusRules(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  M["member:researcher"]`,
+		`  LIVE["topic:live/*"]`,
+		`  FUT["topic[future]:future/*"]`,
+		`  OLD["topic[old]:old/*"]`,
+		"  LIVE --> M",
+	})
+	block.Docs = OperatingGraphDocs{TopicCatalog: OperatingTopicCatalogTable{Present: true, Rows: []OperatingTopicCatalogRow{
+		{Topic: "live/*", Qualifier: "future", RawTopic: "`topic[future]:live/*`", Status: "live", StatusKind: OperatingTopicStatusLive, SourceLine: 20},
+		{Topic: "future/*", RawTopic: "`topic:future/*`", Status: "target", StatusKind: OperatingTopicStatusTarget, SourceLine: 21},
+		{Topic: "old/*", Qualifier: "old", RawTopic: "`topic[old]:old/*`", Status: "mystery", StatusKind: OperatingTopicStatusUnknown, SourceLine: 22},
+		{Topic: "transitional/*", RawTopic: "`topic:transitional/*`", Status: "live transitional", StatusKind: OperatingTopicStatusLiveTransitional, SourceLine: 23},
+	}}}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, operatingDiffRuntime(t, nil), "team-a", "g")
+	assertOperatingFinding(t, result, "graph_topic_catalog_unknown_status")
+	assertOperatingFinding(t, result, "graph_topic_catalog_status_qualifier_drift")
+	assertOperatingFinding(t, result, "graph_topic_catalog_transitional_without_target")
+	assertOperatingFinding(t, result, "graph_topic_catalog_live_status_unbacked")
+}
+
+func TestValidateOperatingGraphsDocsCatalogActorParity(t *testing.T) {
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  R["member:researcher"]`,
+		`  BM["member:brand-manager"]`,
+		`  OSS["member:oss-advertiser"]`,
+		`  SUB["member:subscription-advertiser"]`,
+		`  OP["external:operator"]`,
+		`  MON["team:monetization"]`,
+		`  IN["topic:research-inbox/*"]`,
+		`  HOOK["topic:hook-record/*"]`,
+		`  MB["topic:monetization-benchmark/*"]`,
+		"  OP --> IN",
+		"  OP --> R",
+		"  IN --> R",
+		"  R --> HOOK",
+		"  HOOK --> OSS",
+		"  HOOK --> SUB",
+		"  MB --> MON",
+	})
+	block.Metadata.Extra = map[string]string{
+		"actor_alias.advertisers": "group:advertisers",
+		"actor_group.advertisers": "member:oss-advertiser, member:subscription-advertiser",
+	}
+	block.Docs = OperatingGraphDocs{TopicCatalog: OperatingTopicCatalogTable{Present: true, Rows: []OperatingTopicCatalogRow{
+		{
+			Topic: "research-inbox/*", Status: "live", StatusKind: OperatingTopicStatusLive, RawTopic: "`topic:research-inbox/*`", SourceLine: 20,
+			Writers: []OperatingActorReference{{Kind: OperatingActorKindExternal, Value: "operator", Raw: "operator"}},
+			Readers: []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "researcher", Raw: "researcher"}},
+		},
+		{
+			Topic: "hook-record/*", Status: "live", StatusKind: OperatingTopicStatusLive, RawTopic: "`topic:hook-record/*`", SourceLine: 21,
+			Writers: []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "researcher", Raw: "researcher"}},
+			Readers: []OperatingActorReference{{Kind: OperatingActorKindGroup, Value: "advertisers", Raw: "advertisers"}},
+		},
+		{
+			Topic: "monetization-benchmark/*", Status: "live", StatusKind: OperatingTopicStatusLive, RawTopic: "`topic:monetization-benchmark/*`", SourceLine: 22,
+			Readers: []OperatingActorReference{{Kind: OperatingActorKindTeam, Value: "monetization", Raw: "monetization"}},
+		},
+		{
+			Topic: "hook-record/*", Status: "live", StatusKind: OperatingTopicStatusLive, RawTopic: "`topic:hook-record/*`", SourceLine: 23,
+			Readers: []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "brand-manager", Raw: "brand-manager"}},
+		},
+		{
+			Topic: "hook-record/*", Status: "live", StatusKind: OperatingTopicStatusLive, RawTopic: "`topic:hook-record/*`", SourceLine: 24,
+			Readers: []OperatingActorReference{{Kind: OperatingActorKindExternal, Value: "operator", Raw: "operator"}},
+		},
+	}}}
+	runtime := operatingDiffRuntime(t, []MemberTopics{
+		{
+			Ref: MemberRef{Team: "team-a", Member: "researcher"},
+			Topics: Topics{
+				Intake:            []IntakeEntry{{Prefix: "research-inbox/*"}},
+				Output:            []OutputEntry{{Prefix: "hook-record/*", DestinationKind: DestinationKnowledge}, {Prefix: "monetization-benchmark/*", DestinationKind: DestinationKnowledge, DestinationTeam: operatingStringPtr("monetization")}},
+				ExternalProducers: []string{"operator"},
+			},
+		},
+		{Ref: MemberRef{Team: "team-a", Member: "oss-advertiser"}, Topics: Topics{RequiredRead: []RequiredReadEntry{{Prefix: "hook-record/*"}}}},
+		{Ref: MemberRef{Team: "team-a", Member: "subscription-advertiser"}, Topics: Topics{RequiredRead: []RequiredReadEntry{{Prefix: "hook-record/*"}}}},
+		{Ref: MemberRef{Team: "team-a", Member: "brand-manager"}, Topics: Topics{}},
+	})
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_topic_catalog_reader_drift")
+	assertOperatingFinding(t, result, "graph_topic_catalog_actor_unsupported")
+	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_writer_drift")
 }
 
 func TestValidateOperatingGraphsDetectsUnbackedEdge(t *testing.T) {
@@ -758,7 +852,14 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 		"graph_topic_catalog_missing",
 		"graph_topic_catalog_invalid_topic",
 		"graph_topic_catalog_drift",
+		"graph_topic_catalog_unknown_status",
+		"graph_topic_catalog_status_qualifier_drift",
+		"graph_topic_catalog_live_status_unbacked",
+		"graph_topic_catalog_transitional_without_target",
 		"graph_docs_unknown_actor",
+		"graph_topic_catalog_writer_drift",
+		"graph_topic_catalog_reader_drift",
+		"graph_topic_catalog_actor_unsupported",
 		"graph_decisions_table_missing",
 		"graph_decisions_table_drift",
 		"graph_decisions_table_owner_drift",
@@ -1072,6 +1173,9 @@ func TestBuildOperatingGraphCoverageReportsRelationshipPromptDocsAndExclusions(t
 	if topicRead.RuntimeDeclared != 1 || topicRead.GraphShown != 1 || topicRead.Matched != 1 || topicRead.GraphOnly != 0 || topicRead.RuntimeOnly != 0 {
 		t.Fatalf("unexpected topic_read coverage: %+v", topicRead)
 	}
+	if len(topicRead.RuntimeSubtypes) != 3 || operatingSubtypeCoverageByRelationship(topicRead.RuntimeSubtypes, string(operatingRelTopicIntake)).Covered != 1 {
+		t.Fatalf("unexpected topic_read subtype coverage: %+v", topicRead.RuntimeSubtypes)
+	}
 	topicOutput := operatingCoverageByRelationship(coverage[0].Relationships, string(operatingRelTopicOutput))
 	if topicOutput.RuntimeDeclared != 2 || topicOutput.GraphShown != 2 || topicOutput.Matched != 1 || topicOutput.GraphOnly != 1 || topicOutput.RuntimeOnly != 1 {
 		t.Fatalf("unexpected topic_output coverage: %+v", topicOutput)
@@ -1222,8 +1326,15 @@ func TestBundledMarketingOperatingModelIsReconciled(t *testing.T) {
 	}
 
 	result := ValidateOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
-	if result.Errors != 0 || result.Warnings != 0 {
-		t.Fatalf("marketing validation counts changed: errors=%d warnings=%d findings=%+v", result.Errors, result.Warnings, result.Findings)
+	allowedStagedCatalogRules := map[string]bool{
+		"graph_topic_catalog_writer_drift":      true,
+		"graph_topic_catalog_reader_drift":      true,
+		"graph_topic_catalog_actor_unsupported": true,
+	}
+	for _, finding := range result.Findings {
+		if !allowedStagedCatalogRules[finding.Rule] {
+			t.Fatalf("unexpected marketing validation finding after strict catalog rules: %+v", result.Findings)
+		}
 	}
 
 	diffs := DiffOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
@@ -1310,6 +1421,15 @@ func operatingCoverageExclusionCount(exclusions []OperatingCoverageExclusion, ki
 		}
 	}
 	return 0
+}
+
+func operatingSubtypeCoverageByRelationship(rels []OperatingRelationshipSubtypeCoverage, relationship string) OperatingRelationshipSubtypeCoverage {
+	for _, rel := range rels {
+		if rel.Relationship == relationship {
+			return rel
+		}
+	}
+	return OperatingRelationshipSubtypeCoverage{}
 }
 
 func TestExtractOperatingGraphBlocksScopesDocsTablesPerGraph(t *testing.T) {

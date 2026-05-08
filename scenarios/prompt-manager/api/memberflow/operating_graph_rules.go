@@ -8,6 +8,7 @@ const (
 	OperatingRuleGroupCompleteness OperatingGraphRuleGroup = "completeness"
 	OperatingRuleGroupPrompt       OperatingGraphRuleGroup = "prompt"
 	OperatingRuleGroupDocs         OperatingGraphRuleGroup = "docs"
+	OperatingRuleGroupCoherence    OperatingGraphRuleGroup = "coherence"
 )
 
 type OperatingGraphRule interface {
@@ -45,7 +46,14 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 		graphTopicCatalogMissingRule{},
 		graphTopicCatalogInvalidTopicRule{},
 		graphTopicCatalogDriftRule{},
+		graphTopicCatalogUnknownStatusRule{},
+		graphTopicCatalogStatusQualifierDriftRule{},
+		graphTopicCatalogLiveStatusUnbackedRule{},
+		graphTopicCatalogTransitionalWithoutTargetRule{},
 		graphDocsUnknownActorRule{},
+		graphTopicCatalogWriterDriftRule{},
+		graphTopicCatalogReaderDriftRule{},
+		graphTopicCatalogActorUnsupportedRule{},
 		graphDecisionsTableMissingRule{},
 		graphDecisionsTableDriftRule{},
 		graphDecisionsTableOwnerDriftRule{},
@@ -53,6 +61,12 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 		graphPromptTopicContractSourceMismatchRule{},
 		graphPromptTopicContractContentMismatchRule{},
 	)
+	// Coherence rules intentionally start after completeness rules.
+	// Completeness proves docs, graph, runtime config, and prompts agree.
+	// Coherence will later prove the agreed graph is operationally plausible
+	// (for example: live topics have producers/consumers, queues drain, and
+	// terminal topics are explicit). Keep that future rule family separate from
+	// docs-table and relationship-completeness rules.
 	return rules
 }
 

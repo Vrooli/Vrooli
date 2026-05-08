@@ -37,6 +37,7 @@ func extractOperatingTopicCatalog(lines []string, resolver OperatingActorResolve
 			Purpose:    cellByHeader(cells, index, "purpose"),
 			SourceLine: rowLine.line,
 		}
+		row.StatusKind = ParseOperatingTopicCatalogStatus(row.Status)
 		row.Topic, row.Qualifier = parseDocsTopicToken(row.RawTopic)
 		row.Writers = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "owner / primary writer"))
 		row.Readers = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "primary readers"))

@@ -39,6 +39,19 @@ const (
 	OperatingActorKindUnknown  OperatingActorKind = "unknown"
 )
 
+type OperatingTopicCatalogStatus string
+
+const (
+	OperatingTopicStatusLive              OperatingTopicCatalogStatus = "live"
+	OperatingTopicStatusLiveTransitional  OperatingTopicCatalogStatus = "live_transitional"
+	OperatingTopicStatusLiveSystem        OperatingTopicCatalogStatus = "live_system"
+	OperatingTopicStatusLiveUnderConsumed OperatingTopicCatalogStatus = "live_under_consumed"
+	OperatingTopicStatusTarget            OperatingTopicCatalogStatus = "target"
+	OperatingTopicStatusOld               OperatingTopicCatalogStatus = "old"
+	OperatingTopicStatusExternal          OperatingTopicCatalogStatus = "external"
+	OperatingTopicStatusUnknown           OperatingTopicCatalogStatus = "unknown"
+)
+
 type OperatingCoverageStatus string
 
 const (
@@ -109,14 +122,15 @@ type OperatingTopicCatalogTable struct {
 }
 
 type OperatingTopicCatalogRow struct {
-	Topic      string                    `json:"topic"`
-	Qualifier  string                    `json:"qualifier,omitempty"`
-	Status     string                    `json:"status"`
-	Writers    []OperatingActorReference `json:"writers,omitempty"`
-	Readers    []OperatingActorReference `json:"readers,omitempty"`
-	Purpose    string                    `json:"purpose"`
-	SourceLine int                       `json:"source_line"`
-	RawTopic   string                    `json:"raw_topic"`
+	Topic      string                      `json:"topic"`
+	Qualifier  string                      `json:"qualifier,omitempty"`
+	Status     string                      `json:"status"`
+	StatusKind OperatingTopicCatalogStatus `json:"status_kind,omitempty"`
+	Writers    []OperatingActorReference   `json:"writers,omitempty"`
+	Readers    []OperatingActorReference   `json:"readers,omitempty"`
+	Purpose    string                      `json:"purpose"`
+	SourceLine int                         `json:"source_line"`
+	RawTopic   string                      `json:"raw_topic"`
 }
 
 type OperatingDecisionTable struct {
